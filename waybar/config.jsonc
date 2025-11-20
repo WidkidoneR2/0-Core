@@ -1,28 +1,20 @@
 {
-  // === Enhanced Faelight Forest Waybar Config ===
   "layer": "top",
   "position": "top",
-  "height": 38,
+  "height": 52,
   "spacing": 8,
-  "modules-left": [
-    "hyprland/workspaces",
-    "hyprland/window"
-  ],
-  "modules-center": [
-    "clock"
-  ],
+  "modules-left": ["hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["clock"],
   "modules-right": [
     "idle_inhibitor",
-    "cpu",
-    "memory",
     "disk",
     "pulseaudio",
     "network",
+    "custom/vpn",
     "battery",
     "tray"
   ],
-  // === LEFT MODULES ===
-  
+
   "hyprland/workspaces": {
     "disable-scroll": false,
     "all-outputs": true,
@@ -41,6 +33,7 @@
       "*": 5
     }
   },
+
   "hyprland/window": {
     "format": "  {}",
     "max-length": 50,
@@ -52,8 +45,7 @@
       "(.*) - nvim": " $1"
     }
   },
-  // === CENTER MODULE ===
-  
+
   "clock": {
     "interval": 1,
     "format": "{:%a %d %b  %I:%M:%S %p}",
@@ -78,8 +70,7 @@
       "on-scroll-down": "shift_down"
     }
   },
-  // === RIGHT MODULES ===
-  
+
   "idle_inhibitor": {
     "format": "{icon}",
     "format-icons": {
@@ -89,23 +80,7 @@
     "tooltip-format-activated": "Idle Inhibitor: ON",
     "tooltip-format-deactivated": "Idle Inhibitor: OFF"
   },
-  "cpu": {
-    "interval": 2,
-    "format": "󰍛 {usage}%",
-    "format-alt": "󰍛 {avg_frequency} GHz",
-    "max-length": 10,
-    "tooltip": true,
-    "on-click-right": "kitty -e btop"
-  },
-  "memory": {
-    "interval": 5,
-    "format": " {percentage}%",
-    "format-alt": " {used:0.1f}G/{total:0.1f}G",
-    "max-length": 10,
-    "tooltip": true,
-    "tooltip-format": "RAM: {used:0.1f}G / {total:0.1f}G\nSwap: {swapUsed:0.1f}G / {swapTotal:0.1f}G",
-    "on-click-right": "kitty -e btop"
-  },
+
   "disk": {
     "interval": 30,
     "format": "󰋊 {percentage_used}%",
@@ -115,6 +90,7 @@
     "tooltip-format": "Used: {used} / {total}\nFree: {free} ({percentage_free}%)",
     "on-click-right": "kitty -e ncdu /"
   },
+
   "pulseaudio": {
     "scroll-step": 5,
     "format": "{icon} {volume}%",
@@ -132,9 +108,10 @@
     "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
     "tooltip-format": "{desc}\nVolume: {volume}%"
   },
+
   "network": {
     "interval": 3,
-    "format-wifi": "  {signalStrength}%",
+    "format-wifi": "󰖩 {signalStrength}%",
     "format-ethernet": "󰈁 {ipaddr}",
     "format-disconnected": "󰖪 Disconnected",
     "format-alt": "{ifname}: {ipaddr}/{cidr}",
@@ -144,6 +121,16 @@
     "max-length": 50,
     "on-click-right": "kitty -e nmtui"
   },
+
+  "custom/vpn": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.local/bin/vpn-status",
+    "interval": 5,
+    "on-click": "~/.local/bin/vpn-toggle",
+    "tooltip": true
+  },
+
   "battery": {
     "interval": 10,
     "states": {
@@ -157,6 +144,7 @@
     "format-icons": ["󰂃", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
     "tooltip-format": "{timeTo}\nPower: {power}W\nHealth: {health}%"
   },
+
   "tray": {
     "icon-size": 18,
     "spacing": 8,

@@ -1,0 +1,4 @@
+brave-bin
+ente-auth-bin
+mullvad-vpn-bin
+tutanota-desktop-bin
