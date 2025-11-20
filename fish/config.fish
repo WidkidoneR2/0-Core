@@ -318,6 +318,9 @@ alias sysinfo='fastfetch'
 # Faelight docs directory
 alias faedocs='cd ~/faelight-forest-docs && ll'
 
+# Date management
+alias update-dates='~/.local/bin/update-dates'
+
 # ═══════════════════════════════════════════════════════════
 # 🎨 FISH SHELL COLORS (Faelight Forest Theme)
 # ═══════════════════════════════════════════════════════════
