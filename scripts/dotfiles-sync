@@ -64,6 +64,12 @@ cp -r ~/.config/walker/themes/faelight-forest/* walker/themes/faelight-forest/ 2
 echo "🐱 Syncing Kitty..."
 cp ~/.config/kitty/kitty.conf kitty/ 2>/dev/null || true
 
+# Yazi
+echo "📁 Syncing Yazi..."
+mkdir -p yazi
+cp ~/.config/yazi/yazi.toml yazi/ 2>/dev/null || true
+cp ~/.config/yazi/theme.toml yazi/ 2>/dev/null || true
+
 # LazyVim
 echo "📝 Syncing LazyVim..."
 cp -r ~/.config/nvim/lua nvim/ 2>/dev/null || true

@@ -64,6 +64,7 @@ inxi
 iwd
 jq
 kdenlive
+keepassxc
 kitty
 kvantum-qt5
 lazydocker

@@ -64,6 +64,13 @@ echo "🐱 Installing Kitty config..."
 mkdir -p "$HOME/.config/kitty"
 ln -sf "$DOTFILES_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 
+# Install Yazi config
+echo "📁 Installing Yazi config..."
+mkdir -p "$HOME/.config/yazi"
+ln -sf "$DOTFILES_DIR/yazi/yazi.toml" "$HOME/.config/yazi/yazi.toml"
+ln -sf "$DOTFILES_DIR/yazi/theme.toml" "$HOME/.config/yazi/theme.toml"
+
+
 # Install LazyVim configs
 echo "📝 Installing LazyVim configs..."
 mkdir -p "$HOME/.config/nvim"
