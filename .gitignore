@@ -1,11 +1,88 @@
-# Ignore sensitive files
-**/secrets.conf
-**/tokens
-**/*.log
+# ═══════════════════════════════════════════════════════════
+# 🛡️ Faelight Forest - Security-First .gitignore
+# NEVER commit sensitive data to GitHub!
+# ═══════════════════════════════════════════════════════════
 
-# Ignore nvim plugin cache
-nvim/.lazy/
+# CRITICAL: SSH Keys & Certificates
+**/.ssh/
+**/id_rsa*
+**/id_ed25519*
+**/id_ecdsa*
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+
+# CRITICAL: GPG Keys
+**/.gnupg/
+**/secring.gpg
+**/pubring.gpg
+
+# CRITICAL: Credentials & Secrets
+**/secrets.conf
+**/secrets.toml
+**/secrets.json
+**/secrets.yaml
+**/secrets.yml
+**/tokens
+**/.env
+**/.env.*
+**/credentials
+**/credentials.*
+**/*_secret*
+**/*_token*
+**/*_key*
+**/password*
+**/passwd*
+
+# VPN Credentials
+**/mullvad-account.txt
+**/.config/mullvad-vpn/account-history.json
+**/.config/mullvad-vpn/settings.json
+
+# Browser Data (may contain saved passwords)
+**/.mozilla/
+**/.config/google-chrome/
+**/.config/chromium/
+**/.config/BraveSoftware/
+
+# NetworkManager (WiFi passwords!)
+**/system-connections/
+
+# Fish shell history (may contain typed passwords)
+**/fish_history
+
+# Git credentials
+**/.git-credentials
+**/.gitconfig.local
+
+# Cloud storage tokens
+**/.config/rclone/rclone.conf
+
+# Package manager credentials
+**/.config/gh/hosts.yml
 
 # Backup files
 *.backup
 *~
+*.swp
+*.swo
+
+# LazyVim plugin cache
+nvim/.lazy/
+nvim/lazy-lock.json
+
+# Logs (may contain sensitive data)
+**/*.log
+**/logs/
+
+# Temporary files
+*.tmp
+*.temp
+**/temp/
+**/tmp/
+
+# Any file explicitly marked
+**/*SECRET*
+**/*PRIVATE*
+**/*CONFIDENTIAL*
