@@ -1,0 +1,37 @@
+title = "Faelight Forest Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api_key|apikey|api-key|secret_key|secretkey|secret-key)\s*[:=]\s*['"]?[0-9a-zA-Z\-_]{16,}['"]?'''
+
+[[rules]]
+id = "password-in-config"
+description = "Password in Config"
+regex = '''(?i)(password|passwd|pwd)\s*[:=]\s*['"][^'"]{3,}['"]'''
+
+[[rules]]
+id = "github-token"
+description = "GitHub Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----'''
+
+[allowlist]
+description = "Allowlist"
+paths = [
+    '''.gitleaks.toml''',
+    '''docs/''',
+    '''README.md''',
+]
