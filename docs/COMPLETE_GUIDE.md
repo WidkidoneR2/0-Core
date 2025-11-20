@@ -1,833 +1,921 @@
 # 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDE
 
-**Everything you need to know in one place**
+**The Ultimate Reference for Your Immortal Arch Linux System**
 
-Version 1.0 | Last Updated: November 2025
-
----
-
-# 📑 TABLE OF CONTENTS
-
-1. [Overview](#overview)
-2. [Installation Summary](#installation-summary)
-3. [Fish Shell Complete Guide](#fish-shell-complete-guide)
-4. [LazyVim Complete Guide](#lazyvim-complete-guide)
-5. [Hyprland Keybindings Reference](#hyprland-keybindings-reference)
-6. [Icon Workspaces Guide](#icon-workspaces-guide)
-7. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet)
-8. [Troubleshooting](#troubleshooting)
-9. [Customization](#customization)
-10. [Theme Colors Reference](#theme-colors-reference)
+**Version:** 2.0 - Legendary Edition  
+**Last Updated:** November 20, 2025  
+**System Status:** IMMORTAL ♾️
 
 ---
 
-# OVERVIEW
+## 📋 Table of Contents
 
-## What is Faelight Forest?
-
-Faelight Forest is a **complete, unified desktop environment theme** for Arch Linux with Hyprland. Every component is themed with cohesive colors and optimized for productivity.
-
-## System Components
-```
-🐠 Fish Shell         Custom prompt, 100+ aliases, themed colors
-📝 LazyVim            Show hidden files, productivity shortcuts
-🖥️  Hyprland          Gradient borders, blur, smooth animations
-⌨️  Keybindings       Optimized, consistent patterns
-🗂️  Workspaces        5 icon-based themed workspaces
-📊 Waybar             Workspace icons, system monitoring
-```
-
-## Theme Colors
-```
-Primary:    #5bb7a5  (Bright teal)
-Secondary:  #8ed1a3  (Mint green)
-Accent:     #c7df63  (Lime green)
-Text:       #e8f5d5  (Soft mint)
-Background: #0f1c16  (Dark forest)
-Surface:    #2e6146  (Moss green)
-```
+1. [Quick Start](#quick-start)
+2. [System Overview](#system-overview)
+3. [Fish Shell Reference](#fish-shell-reference)
+4. [Hyprland Keybindings](#hyprland-keybindings)
+5. [LazyVim Reference](#lazyvim-reference)
+6. [Snapshot System](#snapshot-system)
+7. [Backup & Sync System](#backup-sync-system)
+8. [Security Features](#security-features)
+9. [Package Management](#package-management)
+10. [Recovery Procedures](#recovery-procedures)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
-# INSTALLATION SUMMARY
+## 🚀 Quick Start
 
-## Files Installed
-
-### Fish Shell
-- `~/.config/fish/config.fish` - Main configuration
-- `~/.config/fish/functions/fish_prompt.fish` - Custom prompt
-
-### LazyVim
-- `~/.config/nvim/lua/plugins/neo-tree.lua` - File browser
-- `~/.config/nvim/lua/plugins/telescope.lua` - Fuzzy finder
-- `~/.config/nvim/lua/plugins/productivity.lua` - Plugins
-- `~/.config/nvim/lua/config/keymaps.lua` - Keybindings
-- `~/.config/nvim/lua/config/options.lua` - Options
-
-### Hyprland
-- `~/.config/hypr/looknfeel.conf` - Visual styling
-- `~/.config/hypr/bindings.conf` - Keybindings
-- `~/.config/hypr/workspaces.conf` - Icon workspaces
-
-### Waybar
-- `~/.config/waybar/config.jsonc` - Configuration
-
----
-
-# FISH SHELL COMPLETE GUIDE
-
-## Overview
-
-Fish Shell configuration with 100+ bash aliases converted, custom themed prompt, and modern tool integrations.
-
-## Custom Prompt
-
-Your prompt shows:
-```
-[13:45:22] 📁 Desktop ✔ ❯
-```
-
-- **[13:45:22]** - Current time (yellow/lime)
-- **📁 Desktop** - Current folder (teal)
-- **✔** or **✗** - Last command status (green/red)
-- **❯** - Prompt symbol (mint)
-
-## File Navigation Aliases
+### Essential Commands
 ```bash
-# Modern ls (exa/eza)
-ll              # Long list with icons & git status
-lt              # List sorted by time (newest first)
-lsize           # List sorted by size
-tree            # Tree view
-la              # Show all including hidden
-l               # Simple list
+# Documentation
+guide              # This guide (view anytime)
+keys               # Quick keybinding reference
+colors             # Theme color palette
+health             # System health check
 
-# Quick directory navigation
-..              # Up one directory
-...             # Up two directories
-....            # Up three directories
-.....           # Up four directories
-~               # Go to home
--               # Go to previous directory
+# System Management
+safe-update        # Snapshot + update system
+sys-cleanup        # Clean caches and orphans
+quick-note         # Daily scratchpad
 
-# Directory shortcuts
-desk            # cd ~/Desktop
-docs            # cd ~/Documents
-down            # cd ~/Downloads
-pics            # cd ~/Pictures
-vids            # cd ~/Videos
-conf            # cd ~/.config
-hyprconf        # cd ~/.config/hypr
-nvimconf        # cd ~/.config/nvim
-fishconf        # cd ~/.config/fish
-```
+# Snapshots
+snapshots          # View all BTRFS snapshots
+snapshot "desc"    # Create named snapshot
 
-## Package Management (Arch/AUR)
-```bash
-# Pacman
-pacu            # Update system (pacman -Syu)
-paci            # Install package (pacman -S)
-pacs            # Search packages (pacman -Ss)
-pacinfo         # Package info (pacman -Qi)
-pacrem          # Remove package (pacman -Rns)
+# Backups
+dotfiles-sync      # Manual sync to GitHub
+save-packages      # Update package lists
+auto-sync          # Full automated sync
 
-# Yay (AUR)
-ins             # Install from AUR (yay -S)
-uns             # Uninstall (yay -Rns)
-yup             # Update everything (yay -Syu)
+# File Management
+y                  # Yazi file manager
 
-# Maintenance
-cleanup         # Remove orphaned packages
-unlock          # Remove pacman lock
-orphans         # Show orphaned packages
-mirror          # Update mirror list
-
-# System updates
-update-all      # Update pacman + flatpak
-clean-all       # Clean caches and orphans
-fix-keys        # Fix pacman keys
-```
-
-## Git Shortcuts
-```bash
-# LazyGit
-lg              # LazyGit TUI (best way!)
-
-# Quick status
-g               # git
-gs              # git status
-gss             # git status -s (short)
-
-# Logs
-gl              # git log (last 10, graph)
-gla             # git log --all
-glog            # git log (graph, all)
-
-# Add and commit
-ga              # git add
-gaa             # git add --all
-gc              # git commit -m
-gca             # git commit --amend
-gcam            # git commit -am
-
-# Push and pull
-gp              # git push
-gpl             # git pull
-gf              # git fetch
-
-# Branches
-gb              # git branch
-gba             # git branch -a
-gbd             # git branch -d
-gbD             # git branch -D (force)
-gco             # git checkout
-gcb             # git checkout -b
-gcm             # git checkout main
-
-# Diff and show
-gd              # git diff
-gds             # git diff --staged
-gsh             # git show
-
-# Stash
-gst             # git stash
-gstp            # git stash pop
-gstl            # git stash list
-gstd            # git stash drop
-
-# Undo/Reset
-gundo           # git reset HEAD~1
-gunstage        # git reset HEAD
-greset          # git reset --hard
-gclean          # git clean -fd
-
-# Clone
-gcl             # git clone
-```
-
-## System Monitoring
-```bash
-# System info
-ff              # Fastfetch
-df              # Disk usage
-du              # Directory usage
-duh             # Disk usage here (sorted)
-free            # Memory usage
-psa             # Process tree
-weather         # Weather (wttr.in)
-
-# Process management
-psg <name>      # Search processes
-mem             # Top 10 memory users
-cpu             # Top 10 CPU users
-
-# Network
-myip            # Show public IP
-localip         # Show local IP
-pingg           # Ping google
-ports           # Show open ports
-listening       # Show listening ports
-```
-
-## Editor Shortcuts
-```bash
-# Neovim
-v               # nvim
-vi              # nvim
-vim             # nvim
-nv              # nvim
-svi             # sudo nvim
-
-# Config editing
-nfish           # Edit Fish config
-nhypr           # Edit Hyprland config
-nwaybar         # Edit Waybar config
-nwaybar-style   # Edit Waybar CSS
-nkitty          # Edit Kitty config
-```
-
-## Modern CLI Tools
-```bash
-# bat (better cat)
-cat             # bat --paging=never
-catp            # bat with paging
-catt            # bat plain (no line numbers)
-
-# fd (better find)
-search          # fd (find files/dirs)
-findf           # fd --type f
-findd           # fd --type d
-```
-
-## File Managers
-```bash
-# Yazi (terminal file manager)
-y               # yazi
-yy              # yazi
-fm              # yazi
-ya              # yazi with cd-on-quit
-```
-
-## Hyprland & Waybar
-```bash
-# Hyprland controls
-hypr-reload     # Reload Hyprland config
-hypr-info       # List all windows
-hypr-windows    # Show window classes
-
-# Waybar
-waybar-restart  # Kill and restart waybar
-waybar-reload   # Same as above
-```
-
-## Power Controls
-```bash
-# System power
-ssn             # Shutdown now
-sr              # Reboot
-logout          # Exit Hyprland
-suspend         # Suspend system
-hibernate       # Hibernate system
-```
-
-## Quick Actions
-```bash
-# Utilities
-c               # Clear screen
-h               # History
-reload          # Reload Fish config
-path            # Pretty print PATH
-now             # Current time
-nowdate         # Current date
-timestamp       # Timestamp for filenames
-please          # Run last command with sudo
-
-# File operations
-chx             # chmod +x (make executable)
-extract         # Extract tar files
-targz           # Create tar.gz
-untar           # Extract tar
+# Git Shortcuts
+lg                 # LazyGit
+gs                 # Git status
+gp                 # Git push
 ```
 
 ---
 
-# LAZYVIM COMPLETE GUIDE
+## 🌲 System Overview
 
-## Overview
-
-LazyVim is configured to show ALL files (including hidden/dotfiles), with 100+ productivity keybindings and modern plugins.
-
-## Essential Keybindings
-
-### File Navigation
+### What Makes This System Special
 ```
-Space + e           Toggle file explorer (Neo-tree)
-Space + o           Focus file explorer
-Space + E           Reveal current file in tree
-.                   Toggle hidden files (in Neo-tree)
-H                   Toggle hidden files (alternative)
+🎨 BEAUTIFUL       - Faelight Forest theme everywhere
+📸 IMMORTAL        - 28+ BTRFS snapshots (never lose data)
+🔄 SELF-BACKING    - Auto-sync to GitHub every 6 hours
+🛡️ SECURE          - Enterprise-grade hardening
+📦 REPRODUCIBLE    - Recreate exact system anywhere
+⚡ OPTIMIZED       - 100+ productivity keybindings
+📚 DOCUMENTED      - Complete guides for everything
 ```
 
-### Finding Files
-```
-Space + ff          Find files (includes hidden!)
-Space + fF          Find files (normal, no hidden)
-Space + fg          Live grep (search in files)
-Space + fw          Find word under cursor
-Space + fb          Find buffers
-Space + fr          Recent files
+### Core Components
+
+- **OS**: Arch Linux
+- **Filesystem**: BTRFS with subvolumes
+- **Window Manager**: Hyprland
+- **Status Bar**: Waybar (with VPN module)
+- **Launcher**: Walker (Faelight themed)
+- **Terminal**: Kitty
+- **Shell**: Fish (100+ aliases)
+- **Editor**: LazyVim
+- **File Manager**: Yazi (themed)
+- **Snapshots**: Snapper + snap-pac
+- **VPN**: Mullvad with Waybar indicator
+- **Backup**: Git + Cron automation
+
+---
+
+## 🐠 Fish Shell Reference
+
+### Navigation Aliases
+```bash
+# Directory Navigation
+..                 # cd ..
+...                # cd ../..
+....               # cd ../../..
+~                  # cd ~
+-                  # cd -
+
+# Quick Access
+dl                 # ~/Downloads
+docs               # ~/Documents
+pics               # ~/Pictures
+vids               # ~/Videos
+conf               # ~/.config
 ```
 
-### File Operations
-```
-Ctrl+S              Save file (works in insert mode!)
-Space + fn          New file
-Space + fD          Delete current file
-Space + yp          Copy file path
-Space + yf          Copy filename
+### File Operations (Modern Tools)
+```bash
+ls                 # eza (colored, icons)
+ll                 # eza -lah (detailed list)
+la                 # eza -a (show hidden)
+lt                 # eza --tree (tree view)
+tree               # eza --tree --level=2
+
+cat                # bat (syntax highlighting)
+grep               # rg (ripgrep - faster)
+find               # fd (faster, simpler)
 ```
 
-### Editing
-```
-Ctrl+S              Save
-gcc                 Comment/uncomment line
-gbc                 Comment/uncomment block
-Alt+J               Move line down
-Alt+K               Move line up
-< (visual)          Indent left (stay in visual)
-> (visual)          Indent right (stay in visual)
-p (visual)          Paste without losing clipboard
-Ctrl+A              Select all
+### System Management
+```bash
+# Package Management
+pacu               # sudo pacman -Syu (update)
+paci               # sudo pacman -S (install)
+pacr               # sudo pacman -Rns (remove)
+pacs               # pacman -Ss (search)
+pacq               # pacman -Q | grep (query)
+yup                # yay -Syu (AUR update)
+yins               # yay -S (AUR install)
+
+# System Info
+ff                 # fastfetch (system info)
+neo                # neofetch
+dsize              # du -sh * (directory sizes)
+ports              # netstat -tulanp (open ports)
+
+# System Maintenance
+sys-cleanup        # Full system cleanup
+orphans            # List orphan packages
+clean-cache        # Clear package cache
 ```
 
-### Surround (ys/cs/ds)
+### Git Shortcuts
+```bash
+lg                 # lazygit (TUI)
+gs                 # git status
+ga                 # git add
+gc                 # git commit -m
+gp                 # git push
+gpl                # git pull
+gd                 # git diff
+glog               # git log --oneline --graph
 ```
-ysiw"               Add quotes around word
-ysiw(               Add parentheses around word
-yss)                Surround entire line
-cs"'                Change " to '
-ds"                 Delete surrounding "
-S" (visual)         Surround selection with "
+
+### Development
+```bash
+v                  # nvim
+vim                # nvim
+python             # python3
+py                 # python3
+```
+
+### Faelight Forest Specific
+```bash
+# Documentation
+guide              # View this complete guide
+keys               # Quick keybinding reference  
+colors             # Display theme colors
+health             # System health check
+
+# Quick Access
+quick-note         # Daily markdown scratchpad
+
+# Snapshots
+snapshots          # List all BTRFS snapshots
+snapshot "desc"    # Create named snapshot
+
+# Backups
+dotfiles-sync      # Sync configs to GitHub
+save-packages      # Update package lists
+auto-sync          # Full automated sync
+safe-update        # Snapshot + system update
+
+# File Manager
+y                  # yazi (themed file manager)
+```
+
+---
+
+## ⌨️ Hyprland Keybindings
+
+### Essential (Learn These First!)
+```
+SUPER + SPACE       Launcher (Walker)
+SUPER + RETURN      Terminal (Kitty)
+SUPER + B           Browser (Firefox)
+SUPER + E           File Manager
+SUPER + 1-5         Switch workspace
+SUPER + Q           Close window
+SUPER + L           Lock screen
+SUPER + SHIFT + E   Exit Hyprland
 ```
 
 ### Window Management
 ```
-Ctrl+H/J/K/L        Navigate windows (vim keys)
-Ctrl+← ↓ ↑ →        Navigate windows (arrows)
-Space + wv          Vertical split
-Space + ws          Horizontal split
-Space + wd          Close window
-Ctrl+Up/Down        Resize height
-Ctrl+Left/Right     Resize width
+# Focus Navigation
+SUPER + H/J/K/L     Move focus (vim-style)
+SUPER + Arrow Keys  Move focus (arrows)
+
+# Move Windows
+SUPER + SHIFT + H/J/K/L    Move window (vim-style)
+SUPER + SHIFT + Arrow Keys Move window (arrows)
+
+# Resize Windows
+SUPER + R           Enter resize mode
+  Then: H/J/K/L     Resize (vim-style)
+  ESC or SUPER + R  Exit resize mode
+
+# Window States
+SUPER + F           Fullscreen toggle
+SUPER + V           Floating toggle
+SUPER + P           Pin window
+SUPER + S           Special workspace (scratchpad)
 ```
 
-### Buffer Management
+### Workspaces
 ```
-Shift+H             Previous buffer
-Shift+L             Next buffer
-[b                  Previous buffer
-]b                  Next buffer
-Space + bd          Delete buffer
-Space + bD          Delete all buffers
+# Switch Workspaces
+SUPER + 1-5         Go to workspace 1-5
+
+# Move Windows
+SUPER + SHIFT + 1-5 Move window to workspace 1-5
+
+# Workspace Types
+ Terminal  (WS 1)   Kitty, terminals
+󰈹 Browser   (WS 2)   Firefox, Brave
+󰉋 Files     (WS 3)   Nautilus, Yazi
+ Code      (WS 4)   Neovim, VSCode
+󰖯 Default   (WS 5)   Everything else
 ```
 
-### Terminal
+### Applications
 ```
-Ctrl + `            Toggle terminal
-Space + tt          Terminal horizontal
-Space + tv          Terminal vertical
-Space + tf          Terminal float
-Esc Esc             Exit terminal mode
-```
-
-### LSP & Code Actions
-```
-gd                  Go to definition
-gr                  Go to references
-gI                  Go to implementation
-gy                  Go to type definition
-K                   Hover documentation
-gK                  Signature help
-Space + ca          Code actions
-Space + cr          Rename symbol
-Space + cf          Format code
-]d                  Next diagnostic
-[d                  Previous diagnostic
-Space + cd          Show diagnostic
-```
-
-### Git (LazyGit Integration)
-```
-lg (terminal)       LazyGit TUI
-Space + gs          Git status (Telescope)
-Space + gc          Git commits
-Space + gb          Git branches
-]h                  Next git hunk
-[h                  Previous git hunk
-Space + ghp         Preview hunk
-Space + ghs         Stage hunk
-Space + ghr         Reset hunk
-```
-
-### Search
-```
-/                   Search forward
-?                   Search backward
-n                   Next match (centered)
-N                   Previous match (centered)
-Esc                 Clear search highlight
-Space + sh          Search help
-Space + sk          Search keymaps
-Space + sc          Search commands
-```
-
-### Quick Actions
-```
-Space               Wait 300ms → See ALL commands (Which-key!)
-;                   Enter command mode (instead of :)
-Space + ul          Toggle line numbers
-Space + ur          Toggle relative numbers
-Space + uw          Toggle word wrap
-Space + us          Toggle spell check
-```
-
----
-
-# HYPRLAND KEYBINDINGS REFERENCE
-
-## Core Applications
-
-### Essential Apps (Single Key)
-```
-SUPER + RETURN      Terminal (Kitty)
+SUPER + SPACE       Walker launcher
+SUPER + RETURN      Kitty terminal
 SUPER + B           Browser
-SUPER + E           File Manager
-SUPER + N           Editor
-SUPER + C           VSCode
-SUPER + SPACE       Launcher (Walker)
+SUPER + E           File manager
+SUPER + N           Neovim
 ```
 
-## Window Management
-
-### Focus Windows
+### Screenshots
 ```
-SUPER + H/J/K/L         Move focus (Vim keys)
-SUPER + ←/↓/↑/→         Move focus (Arrows)
-SUPER + TAB             Cycle next window
-SUPER + SHIFT + TAB     Cycle previous window
+PRINT               Full screenshot
+SUPER + PRINT       Select area
+SUPER + SHIFT + S   Select area (alt)
 ```
 
-### Move Windows
+### Media Keys
 ```
-SUPER + SHIFT + H/J/K/L      Move window (Vim keys)
-SUPER + SHIFT + ←/↓/↑/→      Move window (Arrows)
-```
-
-### Resize Windows
-```
-SUPER + CTRL + H/J/K/L       Resize (Vim keys)
-SUPER + CTRL + ←/↓/↑/→       Resize (Arrows)
+Volume Up/Down      Adjust volume
+Mute                Toggle mute
+Brightness Up/Down  Adjust brightness
+Media Play/Pause    Control playback
+Media Next/Previous Track control
 ```
 
-### Window Actions
+### System
 ```
-SUPER + Q           Kill/Close window
-SUPER + V           Toggle floating
-SUPER + F           Fullscreen
-SUPER + SHIFT + F   Maximize (keep bar)
-SUPER + Z           Pin window
-SUPER + T           Toggle split
-SUPER + O           Center window
+SUPER + L           Lock screen
+SUPER + SHIFT + R   Reload Hyprland config
+SUPER + SHIFT + E   Exit Hyprland
+SUPER + ALT + W     Restart Waybar
 ```
 
-## Workspaces (5 Icon Workspaces)
-
-### Workspace Themes
+### Special
 ```
-1 =  Terminal     (Coding & CLI)
-2 = 󰈹 Browser      (Web & Research)
-3 = 󰉋 Files        (File Management)
-4 =  Code         (Vim & Editors)
-5 = 󰖯 Default      (Everything Else)
-```
-
-### Switch Workspace
-```
-SUPER + 1/2/3/4/5    Go to workspace
-SUPER + `            Toggle last workspace
-```
-
-### Move Window to Workspace
-```
-SUPER + SHIFT + 1/2/3/4/5    Move and follow
-SUPER + ALT + 1/2/3/4/5      Move silently (stay)
-```
-
-### Workspace Navigation
-```
-SUPER + ]               Next workspace
-SUPER + [               Previous workspace
-SUPER + Page Down       Next workspace
-SUPER + Page Up         Previous workspace
-```
-
-## Scratchpad
-```
-SUPER + M            Toggle scratchpad
-SUPER + SHIFT + M    Move to scratchpad
-SUPER + ALT + M      Move silently to scratchpad
-```
-
-## System Controls
-
-### Lock & Power
-```
-SUPER + L            Lock screen
-SUPER + SHIFT + L    Logout
-SUPER + ALT + L      Suspend
-SUPER + CTRL + L     Hibernate
-SUPER + ESCAPE       Power menu
-```
-
-### Hyprland Controls
-```
-SUPER + ALT + R      Reload Hyprland
-SUPER + ALT + K      Kill Hyprland
-SUPER + ALT + W      Restart Waybar
-```
-
-## Media & Audio
-
-### Volume (Function Keys)
-```
-XF86AudioRaiseVolume     Volume up (+5%)
-XF86AudioLowerVolume     Volume down (-5%)
-XF86AudioMute            Toggle mute
-XF86AudioMicMute         Toggle microphone
-```
-
-### Media Controls
-```
-XF86AudioPlay      Play/Pause
-XF86AudioPause     Pause
-XF86AudioNext      Next track
-XF86AudioPrev      Previous track
-```
-
-### Brightness
-```
-XF86MonBrightnessUp      Brightness up (+5%)
-XF86MonBrightnessDown    Brightness down (-5%)
-```
-
-## Screenshots
-```
-SUPER + S            Full screenshot (saved)
-SUPER + SHIFT + S    Area screenshot (saved)
-SUPER + ALT + S      Area to clipboard
-SUPER + CTRL + S     Area to editor (Swappy)
-```
-
-Save location: `~/Pictures/Screenshots/`
-
-## Clipboard
-```
-SUPER + P            Clipboard history
-SUPER + SHIFT + P    Clear clipboard
-SUPER + CTRL + P     Clipboard menu
-```
-
-## Help
-```
-SUPER + /    Open keybindings reference
+SUPER + M           Toggle Waybar
+SUPER + ALT + Q     Kill window (force)
+SUPER + SHIFT + SPACE Toggle floating
 ```
 
 ---
 
-# ICON WORKSPACES GUIDE
+## 📝 LazyVim Reference
 
-## Overview
+### Essential Keybindings (Normal Mode)
 
-5 themed workspaces with visual icons that auto-organize your applications.
-
-## Your 5 Workspaces
+#### File Operations
 ```
-1.  Terminal    → Kitty, Alacritty, CLI tools
-2. 󰈹 Browser     → Firefox, Brave, Chrome
-3. 󰉋 Files       → Nautilus, Yazi
-4.  Code        → Neovim, VSCode, Obsidian
-5. 󰖯 Default     → Chat, Media, Misc
-```
-
-## Auto-Organization
-
-Apps automatically open in their designated workspace:
-
-### Workspace 1 ( Terminal)
-- Kitty, Alacritty
-- btop, htop, lazydocker, lazygit
-
-### Workspace 2 (󰈹 Browser)
-- Firefox, Brave, Chrome, Edge
-- Web apps
-
-### Workspace 3 (󰉋 Files)
-- Nautilus, Thunar, Dolphin
-- Yazi (terminal file manager)
-
-### Workspace 4 ( Code)
-- Neovim, VSCode, VSCodium
-- Obsidian, Typora
-- LibreOffice
-
-### Workspace 5 (󰖯 Default)
-- Signal, Discord, Slack
-- Email clients
-- Media players (Spotify, VLC)
-- Creative apps (GIMP, Inkscape)
-
-## Navigation Methods
-
-### By Number (Primary)
-```
-SUPER + 1-5              Switch to workspace
-SUPER + SHIFT + 1-5      Move window to workspace
-SUPER + ALT + 1-5        Move window silently
+<leader>ff         Find files (Telescope)
+<leader>fg         Find text (grep)
+<leader>fb         Find buffers
+<leader>fr         Recent files
+<leader>e          Toggle file tree (Neo-tree)
+<leader>w          Save file
+<leader>q          Quit
+<leader>Q          Quit without saving
 ```
 
-### Quick Launchers
+#### Navigation
 ```
-SUPER + RETURN          Open Terminal (goes to WS 1)
-SUPER + B               Open Browser (goes to WS 2)
-SUPER + E               Open Files (goes to WS 3)
-SUPER + N               Open Editor (goes to WS 4)
+Ctrl + h/j/k/l     Navigate splits
+<leader><leader>   Find files (quick)
+<leader>/          Search in current buffer
+<leader>,          Switch buffers
+<leader>`          Switch to last buffer
+```
+
+#### Code Operations
+```
+gd                 Go to definition
+gr                 Go to references
+K                  Hover documentation
+<leader>ca         Code actions
+<leader>rn         Rename symbol
+[d / ]d            Next/previous diagnostic
+<leader>xx         Open trouble (diagnostics)
+```
+
+#### Editing
+```
+gcc                Comment line
+gc                 Comment selection (visual)
+<leader>gg         LazyGit
+<leader>ut         Toggle terminal
+```
+
+### Neo-tree (File Explorer)
+```
+<leader>e          Toggle Neo-tree
+a                  Add file/folder
+d                  Delete
+r                  Rename
+c                  Copy
+x                  Cut
+p                  Paste
+```
+
+### Telescope (Fuzzy Finder)
+```
+<leader>ff         Find files
+<leader>fg         Live grep
+<leader>fb         Buffers
+<leader>fh         Help tags
+<leader>fr         Recent files
+<leader>fs         Git status
+Ctrl + j/k         Navigate results
+Enter              Open file
+Ctrl + x           Open in split
+Ctrl + v           Open in vsplit
+```
+
+### Terminal (ToggleTerm)
+```
+<C-\>              Toggle terminal
+<leader>ut         Toggle terminal
+<Esc><Esc>         Exit terminal mode
+<C-h/j/k/l>        Navigate from terminal
+```
+
+### LazyGit Integration
+```
+<leader>gg         Open LazyGit
+<leader>gf         LazyGit current file history
+q                  Close LazyGit
+```
+
+### Hidden Files Configuration
+
+LazyVim shows hidden files by default in this setup! ✅
+
+---
+
+## 📸 Snapshot System (Snapper)
+
+### Overview
+
+Your system creates **automatic BTRFS snapshots**:
+- ✅ **Hourly** - Last 5 hours kept
+- ✅ **Daily** - Last 7 days kept
+- ✅ **Pre/Post** - Before every package install
+- ✅ **Manual** - Anytime you want
+
+**Current Status:** 28+ snapshots and growing! 🌲
+
+### View Snapshots
+```bash
+snapshots          # List all snapshots
+```
+
+Example output:
+```
+ # │ Type   │ Date                            │ Description
+───┼────────┼─────────────────────────────────┼────────────
+25 │ single │ Thu 20 Nov 2025 09:53:20 AM CST │ Blueprint Complete
+26 │ single │ Thu 20 Nov 2025 10:00:02 AM CST │ timeline
+27 │ single │ Thu 20 Nov 2025 10:01:00 AM CST │ timeline
+28 │ single │ Thu 20 Nov 2025 10:03:25 AM CST │ LEGENDARY STATUS
+```
+
+### Create Manual Snapshot
+```bash
+snapshot "Description of what you're doing"
+```
+
+Examples:
+```bash
+snapshot "Before major system update"
+snapshot "Before installing NVIDIA drivers"
+snapshot "Working configuration backup"
+```
+
+### Snapshot Details
+```bash
+# View specific snapshot
+sudo snapper -c root list | grep 25
+
+# Compare two snapshots
+sudo snapper -c root status 25..28
+
+# Check disk space used by snapshots
+sudo snapper -c root list | tail -10
+```
+
+### Automatic Snapshot Triggers
+
+Snapshots are **automatically created** when:
+1. ✅ Installing packages with `pacman` or `yay`
+2. ✅ Every hour (timeline snapshots)
+3. ✅ When you run `safe-update`
+
+### Rollback to Snapshot
+
+See [Recovery Procedures](#recovery-procedures) for detailed rollback instructions.
+
+---
+
+## 🔄 Backup & Sync System
+
+### Auto-Sync Overview
+
+Your system **automatically backs up** to GitHub:
+- ⏰ **Every 6 hours** - Full dotfiles sync
+- ⏰ **Daily at 11 PM** - Package lists update
+- 📊 **Auto-commit** - Changes logged with timestamps
+- 🔄 **Auto-push** - Pushed to GitHub automatically
+
+**Repository:** https://github.com/WidkidoneR2/dotfiles
+
+### Manual Sync Commands
+```bash
+# Full sync (configs + packages + commit + push)
+auto-sync
+
+# Sync dotfiles only
+dotfiles-sync
+
+# Update package lists only
+save-packages
+```
+
+### What Gets Backed Up
+
+✅ **All dotfiles:**
+- Fish Shell configuration + functions
+- Hyprland configuration (all .conf files)
+- Waybar config + styling
+- Walker configuration + theme
+- Kitty terminal config
+- Yazi file manager + theme
+- LazyVim configuration
+
+✅ **System configs:**
+- Snapper configuration
+- Crontab schedule
+
+✅ **Package tracking:**
+- 167 official packages
+- 4 AUR packages  
+- Complete version list
+- Installation script
+
+✅ **Scripts:**
+- safe-update
+- save-packages
+- dotfiles-sync
+- auto-sync
+- sys-cleanup
+- quick-note
+- VPN status/toggle
+
+✅ **Documentation:**
+- This complete guide
+- Recovery guide
+- README
+
+### Check Sync Status
+```bash
+# View auto-sync log
+tail -50 ~/.auto-sync.log
+
+# Check cron jobs
+crontab -l
+
+# View GitHub commits
+cd ~/dotfiles
+git log --oneline -10
+
+# Check repository status
+cd ~/dotfiles
+git status
+```
+
+### Restore from Backup
+```bash
+# On new machine:
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+
+# Install packages
+cd packages
+./install.sh
+
+# Install dotfiles
+cd ~/dotfiles
+./install.sh
+
+# Done! Exact system restored! ✅
 ```
 
 ---
 
-# QUICK REFERENCE CHEAT SHEET
+## 🛡️ Security Features
 
-## Most Important (Learn These First)
+### Active Security Layers
 ```
-╔══════════════════════════════════════════════════════════╗
-║         🌲 FAELIGHT FOREST ESSENTIALS 🌲                ║
-╠══════════════════════════════════════════════════════════╣
-║ SUPER + SPACE      Launcher                             ║
-║ SUPER + RETURN     Terminal                             ║
-║ SUPER + B          Browser                              ║
-║ SUPER + 1-5        Workspaces                           ║
-║ SUPER + H/J/K/L    Navigate                             ║
-║ SUPER + Q          Close                                ║
-║ SUPER + L          Lock                                 ║
-║ SUPER + M          Scratchpad                           ║
-║ SUPER + S          Screenshot                           ║
-║ SUPER + P          Clipboard                            ║
-║ SUPER + /          Help                                 ║
-╚══════════════════════════════════════════════════════════╝
+✅ Full Disk Encryption (LUKS2)
+✅ UFW Firewall (active)
+✅ Mullvad VPN (with Waybar indicator)
+✅ DNS over TLS (Cloudflare 1.1.1.1)
+✅ Fail2ban (intrusion prevention)
+✅ Disabled unnecessary services
 ```
 
-## Fish Shell Quick Commands
-```fish
-# Most Used
-ll              # List files with icons
-gs              # Git status
-lg              # LazyGit
-v file          # Edit with Neovim
-Ctrl+R          # Fuzzy history search
+### VPN Status (Waybar Module)
 
-# Navigation
-..              # Up directory
-desk/docs/down  # Quick jumps
+**Visual indicators:**
+- 🟢 **Green** = Connected (shows location)
+- 🟡 **Yellow** = Connecting (animated)
+- 🔴 **Red** = Disconnected
 
-# System
-pacu            # Update system
-ff              # Fastfetch
-myip            # Show IP
-reload          # Reload Fish
-```
+**Click to toggle** VPN on/off!
 
-## LazyVim Quick Keys
-```
-Space           # Wait → See all commands
-Space + e       # File tree
-Space + ff      # Find files
-.               # Toggle hidden (in tree)
-Ctrl + `        # Terminal
-gcc             # Comment
+### Check Security Status
+```bash
+# Firewall
+sudo ufw status
+
+# VPN
+mullvad status
+
+# Fail2ban
+sudo fail2ban-client status
+
+# DNS over TLS
+resolvectl status | grep DNSOverTLS
+
+# Services
+systemctl list-units --state=running
 ```
 
-## Hyprland Quick Keys
-```
-SUPER + SPACE         # Launcher
-SUPER + 1-5           # Workspaces
-SUPER + H/J/K/L       # Navigate
-SUPER + SHIFT + H/J/K/L    # Move window
-SUPER + CTRL + H/J/K/L     # Resize window
-SUPER + Q             # Close
-SUPER + V             # Float
-SUPER + F             # Fullscreen
-```
+### Security Commands
+```bash
+# Connect/disconnect VPN
+mullvad connect
+mullvad disconnect
 
-## Workspace Quick Reference
-```
- = Terminal  (WS 1)    SUPER + 1
-󰈹 = Browser   (WS 2)    SUPER + 2
-󰉋 = Files     (WS 3)    SUPER + 3
- = Code      (WS 4)    SUPER + 4
-󰖯 = Default   (WS 5)    SUPER + 5
+# Firewall management
+sudo ufw status
+sudo ufw enable
+sudo ufw disable
+
+# View fail2ban logs
+sudo journalctl -u fail2ban -n 50
 ```
 
 ---
 
-# TROUBLESHOOTING
+## 📦 Package Management
 
-## Common Issues & Solutions
+### Package Tracking
 
-### Fish Shell Issues
+Your system tracks **all packages** for full reproducibility:
+- 📦 **167 official packages** (explicitly installed)
+- 📦 **4 AUR packages** 
+- 📦 **925 total packages** (with dependencies)
 
-#### Aliases Not Working
+### Update Package Lists
 ```bash
-# Reload config
-source ~/.config/fish/config.fish
-# Or use shortcut:
-reload
+save-packages      # Updates all package lists
 ```
 
-#### Prompt Not Showing
+This creates:
+- `official.txt` - Official Arch packages
+- `aur.txt` - AUR packages
+- `all-with-versions.txt` - All packages with versions
+- `install.sh` - One-command restore script
+
+### Safe System Update
 ```bash
-# Check if function exists
-type fish_prompt
-
-# Recreate if missing
-nvim ~/.config/fish/functions/fish_prompt.fish
+safe-update        # Creates snapshot + updates system
 ```
 
-### LazyVim Issues
+**What it does:**
+1. ✅ Checks for updates
+2. ✅ Shows disk space
+3. ✅ Creates pre-update snapshot
+4. ✅ Saves package list
+5. ✅ Runs system update (pacman + yay)
+6. ✅ Checks for .pacnew files
+7. ✅ Offers to reboot if kernel updated
+8. ✅ Runs cleanup if desired
 
-#### Plugins Not Installing
-```vim
-:Lazy sync          " Sync plugins
-:Lazy clean         " Clean unused
-:Lazy update        " Update all
-```
-
-#### Keybindings Not Working
-```vim
-:checkhealth        " Check health
-:Telescope keymaps  " See all keymaps
-```
-
-### Hyprland Issues
-
-#### Config Errors
+### Manual Package Management
 ```bash
-# Check version
-hyprland --version
+# Update system
+sudo pacman -Syu    # Official packages
+yay -Syu            # AUR packages
 
-# View logs
-cat /tmp/hypr/hyprland.log
+# Install packages
+sudo pacman -S package_name
+yay -S aur_package
 
-# Reload
-hyprctl reload
+# Remove packages
+sudo pacman -Rns package_name
+
+# Search packages
+pacman -Ss search_term
+yay -Ss aur_search
+
+# View package info
+pacman -Si package_name
+yay -Si aur_package
 ```
 
-#### Workspaces Not Auto-Organizing
+### Package Lists Location
+```
+~/dotfiles/packages/
+├── official.txt           # 167 official packages
+├── aur.txt               # 4 AUR packages
+├── all-with-versions.txt # All packages with versions
+├── flatpak.txt           # Flatpak apps (if any)
+├── groups.txt            # Package groups
+├── install.sh            # Installation script
+└── README.md             # Documentation
+```
+
+---
+
+## 🆘 Recovery Procedures
+
+### Emergency Snapshot Rollback
+
+**If system breaks after update:**
+
+1. **Reboot system**
+2. **Boot from Arch USB/live system**
+
+3. **Mount BTRFS filesystem:**
 ```bash
-# Check window class
-hyprctl activewindow | grep class
-
-# Update workspace rules
-nvim ~/.config/hypr/workspaces.conf
-hyprctl reload
+sudo mount /dev/nvme0n1p2 /mnt  # Adjust your partition
 ```
+
+4. **List snapshots:**
+```bash
+sudo btrfs subvolume list /mnt
+```
+
+5. **Find your working snapshot** (e.g., #25)
+
+6. **Rollback:**
+```bash
+# Delete current broken @ subvolume
+sudo btrfs subvolume delete /mnt/@
+
+# Create new @ from working snapshot
+sudo btrfs subvolume snapshot /mnt/.snapshots/25/snapshot /mnt/@
+
+# Reboot
+sudo reboot
+```
+
+**Your system is restored!** ✅
+
+### Fresh System Install
+
+**Complete system recreation from scratch:**
+
+1. **Install Arch Linux** with BTRFS
+   - Create subvolumes: `@`, `@home`, `@log`, `@pkg`
+
+2. **Clone dotfiles:**
+```bash
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+```
+
+3. **Install all packages:**
+```bash
+cd packages
+./install.sh
+```
+
+4. **Install dotfiles:**
+```bash
+cd ~/dotfiles
+./install.sh
+```
+
+5. **Setup Snapper:**
+```bash
+sudo pacman -S snapper snap-pac grub-btrfs
+yay -S inotify-tools
+sudo cp system/snapper-root.conf /etc/snapper/configs/root
+sudo systemctl enable --now snapper-timeline.timer
+sudo systemctl enable --now snapper-cleanup.timer
+sudo systemctl enable --now grub-btrfsd
+```
+
+6. **Setup cron:**
+```bash
+sudo pacman -S cronie
+sudo systemctl enable --now cronie
+crontab system/crontab
+```
+
+7. **Start VPN daemon:**
+```bash
+sudo systemctl enable --now mullvad-daemon
+```
+
+**Done! Exact system restored!** 🎉
+
+### Recover Specific Configs
+```bash
+# Pull latest dotfiles
+cd ~/dotfiles
+git pull
+
+# Reinstall specific component
+./install.sh
+
+# Or manually copy configs
+cp ~/dotfiles/fish/config.fish ~/.config/fish/
+cp ~/dotfiles/hypr/*.conf ~/.config/hypr/
+# etc.
+```
+
+---
+
+## 🔧 Troubleshooting
 
 ### Waybar Issues
 
-#### Icons Not Showing
+**Waybar not showing:**
 ```bash
-# Install Nerd Font
-yay -S ttf-jetbrains-mono-nerd
+# Check if running
+pgrep waybar
 
 # Restart Waybar
 killall waybar && waybar &
+
+# Check for errors
+waybar 2>&1 | head -20
+
+# Reload Hyprland (auto-starts Waybar)
+hyprctl reload
 ```
 
-## Finding Window Classes
+**VPN module not working:**
 ```bash
-# Active window
-hyprctl activewindow | grep class
+# Check Mullvad daemon
+systemctl status mullvad-daemon
 
-# All windows
-hyprctl clients | grep class
+# Start daemon
+sudo systemctl start mullvad-daemon
+
+# Test VPN scripts
+~/.local/bin/vpn-status
+mullvad status
+```
+
+### Walker Issues
+
+**Walker not opening:**
+```bash
+# Check if service is running
+pgrep -a walker
+
+# Start Walker service
+walker --gapplication-service &
+
+# Test Walker
+walker
+```
+
+### Snapshot Issues
+
+**Snapshots not creating:**
+```bash
+# Check Snapper timers
+systemctl status snapper-timeline.timer
+systemctl status snapper-cleanup.timer
+
+# Check Snapper config
+sudo cat /etc/snapper/configs/root
+
+# Manually create snapshot to test
+sudo snapper -c root create --description "Test snapshot"
+```
+
+### Sync Issues
+
+**Auto-sync not working:**
+```bash
+# Check cron service
+systemctl status cronie
+
+# Check crontab
+crontab -l
+
+# View auto-sync log
+tail -50 ~/.auto-sync.log
+
+# Test manually
+auto-sync
+```
+
+### Yazi Issues
+
+**Hidden files not showing:**
+```bash
+# Check config
+cat ~/.config/yazi/yazi.toml
+
+# Toggle hidden files (in Yazi)
+# Press: zh
+
+# Reinstall config
+cp ~/dotfiles/yazi/yazi.toml ~/.config/yazi/
+```
+
+### Package Issues
+
+**Broken packages after update:**
+```bash
+# Rollback to snapshot before update
+snapshots
+# Note the pre-update snapshot number
+# See Recovery Procedures above
+
+# Or fix broken packages
+sudo pacman -Syu
+sudo pacman -S --overwrite '*' package_name
 ```
 
 ---
 
-# CUSTOMIZATION
+## 📊 System Status Commands
 
-## Changing Colors
+### Check Everything
+```bash
+health             # Complete health check
 
-### Faelight Forest Color Palette
+# Individual checks:
+snapshots          # View snapshots
+crontab -l         # Check scheduled tasks
+systemctl list-timers | grep snapper
+git -C ~/dotfiles status
+mullvad status
+sudo ufw status
+```
+
+### Logs
+```bash
+# Auto-sync log
+tail -50 ~/.auto-sync.log
+
+# System logs
+journalctl -b      # Current boot
+journalctl -u fail2ban
+journalctl -u mullvad-daemon
+```
+
+### Disk Usage
+```bash
+# Snapshot space usage
+sudo btrfs filesystem df /
+
+# Package cache
+du -sh /var/cache/pacman/pkg
+
+# Home directory
+du -sh ~/
+
+# Clean up
+sys-cleanup
+```
+
+---
+
+## 🎨 Theme Reference
+
+### Faelight Forest Colors
 ```
 Primary:    #5bb7a5  (Bright teal)
 Secondary:  #8ed1a3  (Mint green)
@@ -837,85 +925,117 @@ Background: #0f1c16  (Dark forest)
 Surface:    #2e6146  (Moss green)
 ```
 
-### Where to Change Colors
-
-**Fish Prompt:**
-`~/.config/fish/functions/fish_prompt.fish`
-
-**Hyprland Borders:**
-`~/.config/hypr/looknfeel.conf`
-```conf
-col.active_border = rgba(5bb7a5ee) rgba(8ed1a3ee) 45deg
-col.inactive_border = rgba(2e614688)
-```
-
-**Waybar:**
-`~/.config/waybar/style.css`
-
-## Changing Keybindings
-
-### Hyprland
-Edit: `~/.config/hypr/bindings.conf`
-```conf
-# Example: Change terminal to Ctrl+Return
-bind = CTRL, RETURN, exec, kitty
-```
-
-### LazyVim
-Edit: `~/.config/nvim/lua/config/keymaps.lua`
-```lua
--- Example: Change file finder to Space + p
-map("n", "<leader>p", "<cmd>Telescope find_files<cr>", { desc = "Find files" })
-```
-
----
-
-# THEME COLORS REFERENCE
-
-## Complete Faelight Forest Palette
-
-### Primary Colors
-```
-Bright Teal:    #5bb7a5
-Mint Green:     #8ed1a3
-Lime Green:     #c7df63
-Soft Mint:      #e8f5d5
-```
-
-### Background Colors
-```
-Dark Forest:    #0f1c16
-Dark Alt:       #1a2e24
-Moss Green:     #2e6146
-Forest Green:   #3d7a5a
-Muted Green:    #557d68
-```
-
-### Semantic Colors
-```
-Success:        #5bb77a
-Warning:        #d9b380
-Error:          #c94c4c
-Info:           #5aaabb
-```
-
----
-
-# CREDITS & RESOURCES
-
-## Resources
-
-- [Hyprland Wiki](https://wiki.hyprland.org/)
-- [LazyVim Documentation](https://www.lazyvim.org/)
-- [Fish Shell Documentation](https://fishshell.com/docs/current/)
-- [Waybar Wiki](https://github.com/Alexays/Waybar/wiki)
-- [Nerd Fonts](https://www.nerdfonts.com/)
-
----
-
-**Welcome to Faelight Forest!** 🌲✨
-
-*Faelight Forest Complete Master Guide v1.0*
+**View palette:**
 ```bash
+colors
+```
 
+### Themed Applications
 
+- ✅ Hyprland (borders, blur)
+- ✅ Waybar (bar, modules)
+- ✅ Walker (launcher)
+- ✅ Kitty (terminal)
+- ✅ Fish (prompt)
+- ✅ LazyVim (via theme)
+- ✅ Yazi (file manager)
+
+---
+
+## 🎯 Daily Workflow
+
+### Morning Routine
+```bash
+# Check system health
+health
+
+# View snapshots (peace of mind!)
+snapshots
+
+# Update if needed
+safe-update
+
+# Start your day! ☕
+```
+
+### Before Major Changes
+```bash
+# Create snapshot before big changes
+snapshot "Before installing X"
+
+# Do your thing...
+
+# If something breaks:
+snapshots          # Find working snapshot
+# See Recovery Procedures for rollback
+```
+
+### End of Day
+```bash
+# Quick note
+quick-note
+
+# Manual sync if you made lots of changes
+dotfiles-sync
+
+# (Or just let auto-sync handle it!) ✅
+```
+
+---
+
+## 🌲 Final Notes
+
+### Your System is Immortal Because:
+
+1. ✅ **28+ snapshots** - Every hour, every day, every install
+2. ✅ **Auto-backup** - GitHub sync every 6 hours
+3. ✅ **Full tracking** - Every package documented
+4. ✅ **One-command restore** - Recreate anywhere
+5. ✅ **Complete docs** - This guide + recovery guide
+6. ✅ **Security hardened** - VPN, firewall, encryption
+7. ✅ **Beautiful theme** - Faelight Forest everywhere
+
+### Remember:
+
+- Run `guide` anytime to view this
+- Run `keys` for quick keybinding reference
+- Run `health` to check system status
+- Check `snapshots` regularly (peace of mind!)
+- Your system backs itself up automatically ✅
+
+---
+
+## 📚 Additional Resources
+
+- **Repository:** https://github.com/WidkidoneR2/dotfiles
+- **Recovery Guide:** See RECOVERY.md in dotfiles
+- **Package Lists:** ~/dotfiles/packages/
+- **System Configs:** ~/dotfiles/system/
+
+---
+
+## 🎊 Congratulations!
+
+You have one of the most **robust, beautiful, and reproducible** Linux systems ever created.
+
+**Your Faelight Forest stands eternal.** 🌲
+
+**Never worry about:**
+- ❌ Breaking your system
+- ❌ Losing configurations  
+- ❌ Forgetting how you set things up
+- ❌ Not being able to restore
+
+**Always have:**
+- ✅ 28+ snapshots to roll back to
+- ✅ GitHub backup of everything
+- ✅ Complete documentation
+- ✅ One-command system restoration
+
+---
+
+**🌲 May your Faelight Forest grow eternal! 🌲**
+
+*Version 2.0 - Legendary Edition*  
+*Built with ❤️ by Christian*  
+*November 20, 2025*
