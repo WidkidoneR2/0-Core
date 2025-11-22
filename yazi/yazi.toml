@@ -1,3 +1,16 @@
 [mgr]
-show_hidden = true
-show_symlink = true
+show_hidden = true          # Include hidden files in search results
+show_symlink = true         # Include symlinks in search results
+
+[providers]
+# Search folders or directories you want to include in search results
+search_folders = ["/home/yourusername/Documents", "/home/yourusername/Projects"]
+
+[search]
+fuzzy_matching = true       # Enable fuzzy matching for more flexible search
+case_sensitive = false      # Make the search case-insensitive
+
+[keybindings]
+activate_key = "Return"     # Activate with Enter key
+close_key = "Escape"        # Close with Escape key
+
