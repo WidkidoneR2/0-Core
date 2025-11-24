@@ -1,12 +1,12 @@
-# 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDEw
+# 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDE
 
 **The Ultimate Reference for Your Immortal Arch Linux System**
 
-**Version:** 2.0 - Legendary Edition  
-**Last Updated:** November 20, 2025  
+**Version:** 2.1 - Legendary Edition  
+**Last Updated:** November 24, 2025  
 **System Status:** IMMORTAL ♾️  
-**Snapshots:** 34+  
-**Commits:** 13
+**Snapshots:** 36+  
+**Commits:** 15
 
 ---
 
@@ -1078,7 +1078,18 @@ You have one of the most **robust, beautiful, and reproducible** Linux systems e
 
 **🌲 May your Faelight Forest grow eternal! 🌲**
 
-*Version 2.0 - Legendary Edition*  
+*Version 2.1 - Legendary Edition*  
 *Built with ❤️ by Christian*  
-*November 20, 2025*  
-*Snapshots: 34+ | Commits: 13 | Status: LEGENDARY ♾️*
+*November 24, 2025*  
+
+*Changes for Version 2.1*
+
+Yazi Keymap (keymap.toml):
+Fixed keybinding overlaps with system bindings.
+Updated keymap to improve functionality and avoid conflicts.
+Improved synchronization with GitHub.
+
+Master Guide (COMPLETE_GUIDE.md):
+
+Added version 2.1 notes including keybinding fixes and updates.
+Provided details on the new features and improved synchronization with GitHub.
