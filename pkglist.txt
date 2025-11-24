@@ -87,6 +87,7 @@ luarocks
 mako
 man-db
 mariadb-libs
+meld
 mise
 mpv
 mullvad-vpn-bin
