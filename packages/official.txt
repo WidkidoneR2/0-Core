@@ -6,7 +6,7 @@ base
 base-devel
 bash-completion
 bat
-blueberry
+bluetui
 brave-bin
 brightnessctl
 btop
@@ -24,6 +24,7 @@ dust
 efibootmgr
 ente-auth-bin
 evince
+exfatprogs
 expac
 eza
 fail2ban
@@ -38,6 +39,7 @@ fontconfig
 fzf
 git
 github-cli
+gitleaks
 gnome-calculator
 gnome-disk-utility
 gnome-keyring
@@ -122,6 +124,7 @@ python-poetry-core
 python-terminaltexteffects
 qt5-wayland
 ripgrep
+ruby
 rust
 satty
 sddm
@@ -137,6 +140,7 @@ swaybg
 swayosd
 system-config-printer
 tldr
+tobi-try
 tree-sitter-cli
 ttf-cascadia-mono-nerd
 ttf-ia-writer
@@ -147,6 +151,7 @@ tzupdate
 ufw
 ufw-docker
 unzip
+usage
 uwsm
 waybar
 wayfreeze
