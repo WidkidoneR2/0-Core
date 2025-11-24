@@ -305,6 +305,7 @@ alias dotbackup='cd ~/dotfiles && ./backup.sh'
 alias dotpush='cd ~/dotfiles && git add -A && git commit -m "Update dotfiles $(date +%Y-%m-%d)" && git push'
 alias dotpull='cd ~/dotfiles && git pull && ./install.sh'
 alias dotstatus='cd ~/dotfiles && git status'
+alias sync-dotfiles='cd ~/dotfiles && git add -A && git commit -m "🌲 Auto-sync dotfiles $(date +%Y-%m-%d)" && git push origin main'
 
 # Faelight Forest Blueprint
 alias safe-update='~/.local/bin/safe-update'
