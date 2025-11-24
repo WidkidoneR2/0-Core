@@ -11,164 +11,133 @@
 prepend_keymap = [
 
   # ---------------------------------------------------------
-  #  BASIC VIM MOVEMENT
+  #  BASIC VIM MOVEMENT (Use SUPER ALT to avoid conflicts)
   # ---------------------------------------------------------
-  { on = "h", run = "leave", desc = "Go up a directory" },
-  { on = "l", run = "enter", desc = "Enter directory / open file" },
-  { on = "j", run = "arrow_next", desc = "Next item" },
-  { on = "k", run = "arrow_prev", desc = "Previous item" },
+  { on = "SUPER ALT+h", run = "leave", desc = "Go up a directory" },
+  { on = "SUPER ALT+l", run = "enter", desc = "Enter directory / open file" },
+  { on = "SUPER ALT+j", run = "arrow_next", desc = "Next item" },
+  { on = "SUPER ALT+k", run = "arrow_prev", desc = "Previous item" },
 
-  { on = "gg", run = "arrow_top", desc = "Go to top" },
-  { on = "G",  run = "arrow_bottom", desc = "Go to bottom" },
+  { on = "SUPER ALT+gg", run = "arrow_top", desc = "Go to top" },
+  { on = "SUPER ALT+G", run = "arrow_bottom", desc = "Go to bottom" },
 
-  { on = "H", run = "history back", desc = "History back" },
-  { on = "L", run = "history forward", desc = "History forward" },
+  { on = "SUPER ALT+H", run = "history back", desc = "History back" },
+  { on = "SUPER ALT+L", run = "history forward", desc = "History forward" },
 
   # ---------------------------------------------------------
-  #  VISUAL MODE
+  #  VISUAL MODE (Same as above, use SUPER ALT for consistency)
   # ---------------------------------------------------------
-  { on = "v", run = "visual_mode", desc = "Toggle visual mode" },
-  { on = "V", run = "visual_mode --line", desc = "Line-based visual mode" },
-
+  { on = "SUPER ALT+v", run = "visual_mode", desc = "Toggle visual mode" },
+  { on = "SUPER ALT+V", run = "visual_mode --line", desc = "Line-based visual mode" },
 
   # =========================================================
-  #  OPERATOR SYSTEM
-  #  d  → delete
-  #  y  → yank
-  #  c  → change/rename
-  #  Combined with motions: dj, dk, dgg, dG, etc.
+  #  OPERATOR SYSTEM (d/y/c for delete, yank, change)
   # =========================================================
 
   # ----- DELETE OPERATOR -----
-  { on = "dd", run = "remove --force --hovered", desc = "Delete current" },
+  { on = "SUPER ALT+dd", run = "remove --force --hovered", desc = "Delete current" },
 
-  { on = "dj", run = [
+  { on = "SUPER ALT+dj", run = [
       "visual_mode",
       "arrow_next",
       "remove --force --selected"
-    ],
-    desc = "Delete range downward"
-  },
+    ], desc = "Delete range downward" },
 
-  { on = "dk", run = [
+  { on = "SUPER ALT+dk", run = [
       "visual_mode",
       "arrow_prev",
       "remove --force --selected"
-    ],
-    desc = "Delete range upward"
-  },
+    ], desc = "Delete range upward" },
 
-  { on = "dgg", run = [
+  { on = "SUPER ALT+dgg", run = [
       "visual_mode",
       "arrow_top",
       "remove --force --selected"
-    ],
-    desc = "Delete to top"
-  },
+    ], desc = "Delete to top" },
 
-  { on = "dG", run = [
+  { on = "SUPER ALT+dG", run = [
       "visual_mode",
       "arrow_bottom",
       "remove --force --selected"
-    ],
-    desc = "Delete to bottom"
-  },
-
+    ], desc = "Delete to bottom" },
 
   # ----- YANK OPERATOR -----
-  { on = "yy", run = "yank --hovered", desc = "Yank current" },
+  { on = "SUPER ALT+yy", run = "yank --hovered", desc = "Yank current" },
 
-  { on = "yj", run = [
+  { on = "SUPER ALT+yj", run = [
       "visual_mode",
       "arrow_next",
       "yank --selected"
-    ],
-    desc = "Yank range downward"
-  },
+    ], desc = "Yank range downward" },
 
-  { on = "yk", run = [
+  { on = "SUPER ALT+yk", run = [
       "visual_mode",
       "arrow_prev",
       "yank --selected"
-    ],
-    desc = "Yank range upward"
-  },
+    ], desc = "Yank range upward" },
 
-  { on = "ygg", run = [
+  { on = "SUPER ALT+ygg", run = [
       "visual_mode",
       "arrow_top",
       "yank --selected"
-    ],
-    desc = "Yank to top"
-  },
+    ], desc = "Yank to top" },
 
-  { on = "yG", run = [
+  { on = "SUPER ALT+yG", run = [
       "visual_mode",
       "arrow_bottom",
       "yank --selected"
-    ],
-    desc = "Yank to bottom"
-  },
-
+    ], desc = "Yank to bottom" },
 
   # ----- CHANGE/RENAME OPERATOR -----
-  { on = "cc", run = "rename --hovered", desc = "Rename current file" },
+  { on = "SUPER ALT+cc", run = "rename --hovered", desc = "Rename current file" },
 
-  { on = "cj", run = [
+  { on = "SUPER ALT+cj", run = [
       "visual_mode",
       "arrow_next",
       "rename --selected"
-    ],
-    desc = "Rename range downward"
-  },
+    ], desc = "Rename range downward" },
 
-  { on = "ck", run = [
+  { on = "SUPER ALT+ck", run = [
       "visual_mode",
       "arrow_prev",
       "rename --selected"
-    ],
-    desc = "Rename range upward"
-  },
+    ], desc = "Rename range upward" },
 
   # ---------------------------------------------------------
-  #  PASTE
+  #  PASTE (Avoiding common conflicts with Ctrl+V)
   # ---------------------------------------------------------
-  { on = "p", run = "paste", desc = "Paste" },
+  { on = "SUPER ALT+p", run = "paste", desc = "Paste" },
 
 
   # ---------------------------------------------------------
   #  REPEAT COMMAND (.)
   # ---------------------------------------------------------
-  { on = ".", run = "repeat", desc = "Repeat last action" },
+  { on = "SUPER ALT+.", run = "repeat", desc = "Repeat last action" },
 
 
   # =========================================================
   #  MACROS SYSTEM
-  #  q  → start/stop recording
-  #  @  → play macro
   # =========================================================
 
-  { on = "q", run = "macro_record", desc = "Start/stop macro recording" },
-  { on = "@", run = "macro_play", desc = "Play last macro" },
+  { on = "SUPER ALT+q", run = "macro_record", desc = "Start/stop macro recording" },
+  { on = "SUPER ALT+@", run = "macro_play", desc = "Play last macro" },
 
 
   # =========================================================
   #  EX MODE (like : commands)
   # =========================================================
-  { on = ":", run = "input --prompt ':' --type command", desc = "Command mode" },
+  { on = "SUPER ALT+:", run = "input --prompt ':' --type command", desc = "Command mode" },
 
 ]
 
-
-
 # ============================================================
-#  EX COMMANDS HANDLER
+#  EX COMMANDS HANDLER (Add confirmation or additional safety)
 # ============================================================
 [input]
 prepend_keymap = [
 
   # Cancel input
-  { on = "<Esc>", run = "close", desc = "Cancel" },
+  { on = "SUPER ALT+<Esc>", run = "close", desc = "Cancel" },
 
   # Multiple Ex Commands
   { on = ":rename", run = "rename --hovered", desc = "Rename hovered" },
@@ -176,6 +145,10 @@ prepend_keymap = [
   { on = ":trash", run = "remove --trash --selected", desc = "Trash selected" },
   { on = ":preview!", run = "preview --toggle", desc = "Toggle preview" },
   { on = ":quit", run = "quit", desc = "Quit Yazi" },
+
+  # Optional: Extend Ex commands for confirmation
+  { on = ":rename", run = "rename --hovered --confirm", desc = "Rename with confirmation" },
+  { on = ":mkdir", run = "create --confirm", desc = "Make directory with confirmation" },
 
 ]
 
