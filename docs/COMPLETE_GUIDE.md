@@ -1,4 +1,4 @@
-# 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDE
+# 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDEw
 
 **The Ultimate Reference for Your Immortal Arch Linux System**
 
