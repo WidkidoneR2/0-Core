@@ -2,11 +2,11 @@
 
 **The Ultimate Reference for Your Immortal Arch Linux System**
 
-**Version:** 2.0 - Legendary Edition  
-**Last Updated:** November 20, 2025  
+**Version:** 2.1 - Legendary Edition  
+**Last Updated:** November 23, 2025  
 **System Status:** IMMORTAL ♾️  
-**Snapshots:** 34+  
-**Commits:** 13
+**Snapshots:** 36+  
+**Commits:** 15
 
 ---
 
@@ -1078,7 +1078,19 @@ You have one of the most **robust, beautiful, and reproducible** Linux systems e
 
 **🌲 May your Faelight Forest grow eternal! 🌲**
 
-*Version 2.0 - Legendary Edition*  
+*Version 2.1 - Legendary Edition*  
 *Built with ❤️ by Christian*  
-*November 20, 2025*  
-*Snapshots: 34+ | Commits: 13 | Status: LEGENDARY ♾️*
+*November 23, 2025*  
+*Snapshots: 36+ | Commits: 15 | Status: LEGENDARY ♾️*
+
+🎯 Version Updates – 2.1
+
+Key changes in this version:
+
+Fixed keybinding conflicts:
+SUPER + TAB / SUPER SHIFT + TAB – now window cycling and window groups separated.
+Window groups reassigned to SUPER + G / SUPER SHIFT + G.
+YouTube shortcut updated:
+SUPER SHIFT + U now launches YouTube instead of previous Y binding.
+Full alignment with current bindings.conf
+Minor improvements in documentation, workflow tips, and notes.
