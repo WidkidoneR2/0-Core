@@ -317,6 +317,11 @@ alias guide='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias vguide='nvim ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 
+# 📋 Planning & Ideas (Local Only)
+alias roadmap='nvim ~/faelight-planning/VERSION_2.6_IDEAS.md'
+alias ideas='nvim ~/faelight-planning/VERSION_2.6_IDEAS.md'
+alias planning='cd ~/faelight-planning && ls'
+
 # Dotfiles management
 alias dotfiles='cd ~/dotfiles'
 alias dotbackup='cd ~/dotfiles && ./backup.sh'
