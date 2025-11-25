@@ -77,6 +77,11 @@ mkdir -p "$HOME/.config/gtk-4.0"
 ln -sf "$DOTFILES_DIR/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
 ln -sf "$DOTFILES_DIR/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 
+# Install Mako notification config
+echo "🔔 Installing Mako notification config..."
+mkdir -p "$HOME/.config/mako"
+ln -sf "$DOTFILES_DIR/mako/config" "$HOME/.config/mako/config"
+
 # Set Papirus folder colors
 echo "🌅 Setting sunset-themed folder colors..."
 if command -v papirus-folders &> /dev/null; then
@@ -131,3 +136,4 @@ echo "  1. Reload Fish: exec fish"
 echo "  2. Reload Hyprland: hyprctl reload"
 echo "  3. Restart Waybar: killall waybar && waybar &"
 echo ""
+
