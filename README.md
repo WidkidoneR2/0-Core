@@ -1,12 +1,41 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
 
+![Version](https://img.shields.io/badge/Version-2.5-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
 ![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
 
-Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, Hyprland workflow, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.  
+Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, Hyprland workflow, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
-**Last Updated:** November 24, 2025
+**Version 2.5 - The Theming & Documentation Edition**  
+**Last Updated:** November 25, 2025
+
+---
+
+## ✨ What's New in Version 2.5
+
+### 🎨 Visual Polish
+- **Brave Browser Theming** - Custom Faelight Forest CSS for new tabs
+- **Mako Notifications** - Beautiful forest-themed popups with urgency colors
+- **Papirus Icons** - Sunset-colored folders matching the tropical aesthetic
+- **GTK Theming** - Consistent look across all applications
+
+### 📚 Enhanced Documentation
+- **Meld Visual Diff Guide** - Complete workflows for config verification
+- **Keybindings Reference** - 100+ shortcuts organized by category
+- **Browser Theming Guide** - Stylus CSS customization
+
+### 🔧 New Tools
+- **Thunar** - GUI file manager with Meld integration
+- **Meld** - Visual diff tool for comparing configs
+- **Verification Aliases** - `verify-hypr`, `verify-waybar`, etc.
+- **Notification Controls** - `SUPER + I` for Do Not Disturb
+
+### 🐛 Fixes
+- Browser workspace rules (Brave opens in workspace 2 correctly)
+- Improved config organization and documentation structure
+
+**📖 See full changelog:** [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
@@ -19,20 +48,19 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 2. [Preview](#preview)
 3. [System Features](#system-features)
 4. [Theme Colors](#theme-colors)
-5. [Included Packages & Scripts](#included-packages--scripts)
+5. [Included Components](#included-components)
 6. [Installation & Quick Start](#installation--quick-start)
 7. [Snapshots](#snapshots)
 8. [Automated Backups](#automated-backups)
 9. [Security Hardening](#security-hardening)
 10. [Hyprland Keybindings](#hyprland-keybindings)
 11. [Aliases & Functions](#aliases--functions)
-12. [Workspaces & Scratchpad](#workspaces--scratchpad)
+12. [Workspaces](#workspaces)
 13. [System Utilities](#system-utilities)
-14. [Git Shortcuts](#git-shortcuts)
-15. [Emergency Recovery](#emergency-recovery)
-16. [Updating & Maintenance](#updating--maintenance)
-17. [Documentation](#documentation)
-18. [Credits & License](#credits--license)
+14. [Emergency Recovery](#emergency-recovery)
+15. [Updating & Maintenance](#updating--maintenance)
+16. [Documentation](#documentation)
+17. [Credits & License](#credits--license)
 
 </details>
 
@@ -42,12 +70,14 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 
 Faelight Forest combines:
 
-- 🎨 **Beautiful custom theming** — teal/mint/lime palette
-- 📸 **NixOS-style snapshots** — BTRFS + Snapper
+- 🎨 **Beautiful custom theming** — teal/mint/lime palette everywhere
+- 📸 **NixOS-style snapshots** — BTRFS + Snapper (40+ snapshots)
 - 🔄 **Automated GitHub backups** — every 6 hours
-- 🛡️ **Enterprise security hardening**
-- 📦 **Full system reproducibility**
-- 🚀 **Hyprland workflow optimization** — 100+ keybindings
+- 🛡️ **Enterprise security hardening** — VPN, firewall, encryption
+- 📦 **Full system reproducibility** — 170+ packages tracked
+- 🚀 **Hyprland workflow optimization** — 100+ productivity keybindings
+- 🔔 **Themed notifications** — Even popups match the forest aesthetic
+- 🔍 **Visual config verification** — Meld integration
 
 > TL;DR: Your system will never die, break, or lose data. 🔥
 
@@ -55,384 +85,622 @@ Faelight Forest combines:
 
 ## 📸 Preview
 
-- **WM:** Hyprland (gradient borders teal → mint)  
-- **Bar:** Waybar with icon workspaces & VPN status  
-- **Launcher:** Walker (Faelight themed)  
-- **Terminal:** Kitty (Faelight colors)  
+### Core Setup
+- **WM:** Hyprland (gradient borders teal → mint)
+- **Bar:** Waybar with icon workspaces & VPN status
+- **Launcher:** Walker (Faelight themed)
+- **Terminal:** Kitty (Faelight colors)
 - **Editor:** LazyVim (100+ productivity keybindings)
+- **File Managers:** Thunar (GUI) + Yazi (TUI)
+- **Browser:** Brave (custom themed new tabs)
+- **Notifications:** Mako (forest green with cyan borders)
+- **Icons:** Papirus-Dark with sunset-colored folders
+
+### Visual Features
+- 🌲 Forest green backgrounds
+- 💎 Cyan/teal accent colors
+- 🌿 Mint green highlights
+- 🍋 Lime green alerts
+- 🌅 Sunset orange folders
 
 ---
 
 ## 🛠️ System Features
 
-- **Snapshots:** Hourly, daily, and pre-update automatic BTRFS snapshots  
-- **Auto-sync:** GitHub backup every 6 hours  
-- **Security:** VPN, encrypted DNS, firewall, fail2ban  
-- **Recovery:** Boot into any snapshot, full disaster recovery
+### Core Features
+- **Snapshots:** Hourly, daily, and pre-update automatic BTRFS snapshots (40+)
+- **Auto-sync:** GitHub backup every 6 hours with full commit history
+- **Security:** VPN (Mullvad), encrypted DNS, UFW firewall, fail2ban
+- **Recovery:** Boot into any snapshot, full disaster recovery ready
+- **Reproducibility:** One-command system restoration anywhere
+
+### Version 2.5 Features
+- **Visual Config Verification:** Meld integration with verification aliases
+- **Themed Everything:** Browser, notifications, file manager, icons
+- **Comprehensive Docs:** Complete guides for every major component
+- **Enhanced Workflow:** Notification controls, help keybinds, quick access
 
 ---
 
 ## 🎨 Theme Colors
 
-| Type       | Color | Hex       |
-|------------|-------|-----------|
-| Primary    | Teal  | `#5bb7a5`|
-| Secondary  | Mint  | `#8ed1a3`|
-| Accent     | Lime  | `#c7df63`|
-| Text       | Mint  | `#e8f5d5`|
-| Background | Dark  | `#0f1c16`|
-| Surface    | Moss  | `#2e6146`|
+| Type       | Color | Hex       | Usage |
+|------------|-------|-----------|-------|
+| Primary    | Teal  | `#5bb7a5` | Borders, accents |
+| Secondary  | Mint  | `#8ed1a3` | Text, highlights |
+| Accent     | Lime  | `#c7df63` | Alerts, focus |
+| Text       | Mint  | `#e8f5d5` | Primary text |
+| Background | Dark  | `#0f1c16` | Window backgrounds |
+| Surface    | Moss  | `#2e6146` | UI surfaces |
+
+**View your palette:** Run `colors` in terminal
 
 ---
 
-## 📦 Included Packages & Scripts
+## 📦 Included Components
 
-- **faelight-forest/**
-  - `fish/` - Fish shell (100+ aliases & functions)  
-  - `hypr/` - Hyprland configs (keybindings, workspaces)  
-  - `waybar/` - Status bar themed modules  
-  - `walker/` - Launcher configuration  
-  - `kitty/` - Terminal themes  
-  - `nvim/` - LazyVim setup  
-  - `packages/` - 167 official + 4 AUR packages, install scripts  
-  - `scripts/` - Utility scripts (safe-update, auto-sync, sys-cleanup)  
-  - `system/` - Snapper and system config backups  
-  - `docs/` - Complete documentation  
+### Configuration Directories
+```
+~/dotfiles/
+├── fish/           # Fish shell (100+ aliases & functions)
+├── hypr/           # Hyprland configs (keybindings, workspaces, windows)
+├── waybar/         # Status bar themed modules
+├── walker/         # Launcher configuration
+├── kitty/          # Terminal themes
+├── nvim/           # LazyVim setup
+├── yazi/           # File manager TUI theme
+├── mako/           # Notification configuration (NEW!)
+├── gtk-3.0/        # GTK theming (NEW!)
+├── gtk-4.0/        # GTK theming (NEW!)
+├── brave/          # Browser theming guide (NEW!)
+├── packages/       # 170+ tracked packages, install scripts
+├── scripts/        # Utility scripts (safe-update, auto-sync, sys-cleanup)
+├── system/         # Snapper and system config backups
+└── docs/           # Complete documentation
+    ├── COMPLETE_GUIDE.md      # Full system reference
+    ├── KEYBINDINGS.md         # 100+ shortcuts (NEW!)
+    ├── MELD_GUIDE.md          # Visual diff workflows (NEW!)
+    └── CHANGELOG.md           # Version history
+```
+
+### Key Statistics
+- **170+ official packages** explicitly installed
+- **4+ AUR packages** tracked
+- **40+ BTRFS snapshots** maintained
+- **100+ keybindings** optimized
+- **100+ Fish aliases** for productivity
+- **Auto-sync every 6 hours** to GitHub
 
 ---
 
 ## ⚡ Installation & Quick Start
 
-**Prerequisites:**
+### Prerequisites
 
-- Arch Linux with BTRFS (`@`, `@home`, `@log`, `@pkg`)  
-- Git installed  
+- Arch Linux with BTRFS (`@`, `@home`, `@log`, `@pkg` subvolumes)
+- Git installed
 
-**Steps:**
-
+### Installation Steps
 ```bash
 # Clone repository
 git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 
-# Install packages
+# Install packages (170+ packages)
 cd packages
 ./install.sh
 
-# Install dotfiles
+# Install dotfiles and configurations
 cd ~/dotfiles
 ./install.sh
 
-# Setup Snapper
+# Setup Snapper (automatic snapshots)
 sudo pacman -S snapper snap-pac grub-btrfs
 yay -S inotify-tools
 sudo cp system/snapper-root.conf /etc/snapper/configs/root
 sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer grub-btrfsd
 
-# Setup auto-sync
+# Setup automated backups
 sudo pacman -S cronie
 sudo systemctl enable --now cronie
 crontab system/crontab
 
-# Enable Mullvad VPN
+# Enable Mullvad VPN daemon
 sudo systemctl enable --now mullvad-daemon
+
+# Start Mako notifications
+mako &
 
 # Reload Hyprland
 hyprctl reload
-✅ Done! Your Faelight Forest is complete. 🌲
+```
 
-📸 Snapshots
-Automatic BTRFS snapshots:
+**✅ Done! Your Faelight Forest is complete.** 🌲
 
-Before every pacman install
+### Quick Access Commands
+```bash
+guide              # View complete system guide
+keys               # Quick keybinding reference (or press SUPER + /)
+colors             # Display theme palette
+health             # System health check
+snapshots          # List all BTRFS snapshots
+verify-all         # Compare all configs with dotfiles
+```
 
-Hourly (last 5 hours)
+---
 
-Daily (last 7 days)
+## 📸 Snapshots
 
-Manual snapshots anytime
+### Automatic BTRFS Snapshots
 
-Commands:
+Your system automatically creates snapshots:
 
-bash
-Copy code
-snapshots         # List snapshots
-snapshot "desc"   # Create snapshot
-Rollback instructions: see Emergency Recovery
+- ✅ **Before every pacman install** (pre/post hooks)
+- ✅ **Hourly** (last 5 hours kept)
+- ✅ **Daily** (last 7 days kept)
+- ✅ **Manual** anytime you want
 
-🔄 Automated Backups
-Auto-sync every 6 hours to GitHub
+**Current Status:** 40+ snapshots protecting your system
 
-Syncs dotfiles, updates package lists, commits, logs to ~/.auto-sync.log
+### Commands
+```bash
+snapshots           # List all snapshots
+snapshot "desc"     # Create manual snapshot
+```
 
-Manual Commands:
+### Example Usage
+```bash
+# Before major changes
+snapshot "Before installing NVIDIA drivers"
 
-bash
-Copy code
-auto-sync         # Full sync
-dotfiles-sync     # Dotfiles only
-save-packages     # Package lists only
-🛡️ Security Hardening
-Full disk encryption (LUKS2)
+# View all snapshots
+snapshots
 
-UFW firewall
+# Rollback instructions: see docs/COMPLETE_GUIDE.md
+```
 
-Mullvad VPN (Waybar indicator)
+---
 
-DNS over TLS (1.1.1.1)
+## 🔄 Automated Backups
 
-Fail2ban enabled
+### GitHub Auto-Sync
 
-Disabled unnecessary services (CUPS, Avahi)
+Your system automatically backs up to GitHub:
 
-Health check:
+- ⏰ **Every 6 hours** - Full dotfiles sync
+- ⏰ **Daily at 11 PM** - Package lists update
+- 📊 **Auto-commit** - Changes logged with timestamps
+- 🔄 **Auto-push** - Pushed to repository automatically
 
-bash
-Copy code
-health
-sudo ufw status
-mullvad status
-🔑 Hyprland Keybindings
-<details> <summary>Click to Expand Full Keybindings</summary>
-🌟 Core Applications (SUPER + Key)
-Key	Action
-SUPER+RETURN	Terminal (Kitty)
-SUPER+B	Browser
-SUPER+E	File Manager
-SUPER+N	Editor
-SUPER+C	VSCode
-SUPER CTRL+RETURN	Terminal (Alacritty)
+### What Gets Backed Up
 
-📁 File Managers
-Key	Action
-SUPER SHIFT+F	File Manager (GUI)
-SUPER SHIFT+Y	File Manager (Yazi)
+✅ All configuration files  
+✅ Fish shell setup and functions  
+✅ Hyprland, Waybar, Walker configs  
+✅ LazyVim, Kitty, Yazi themes  
+✅ Mako notifications, GTK themes  
+✅ Browser theming files  
+✅ Package lists (170+ packages)  
+✅ System scripts and utilities  
+✅ Complete documentation  
 
-🌐 Browsers & Web
-Key	Action
-SUPER SHIFT+B	Browser (New)
-SUPER SHIFT ALT+B	Browser (Private)
+### Manual Commands
+```bash
+auto-sync         # Full sync (configs + packages + commit + push)
+dotfiles-sync     # Sync dotfiles only
+save-packages     # Update package lists only
+```
 
-🤖 AI Assistants
-Key	Action
-SUPER SHIFT ALT+A	Claude
-SUPER CTRL+A	Grok
+**View sync logs:** `tail -50 ~/.auto-sync.log`
 
-💬 Communication
-Key	Action
-SUPER SHIFT+G	Signal
-SUPER SHIFT+E	Email
-SUPER SHIFT+C	Calendar
+---
 
-🎥 Media & Social
-Key	Action
-SUPER SHIFT+Y	YouTube
-SUPER SHIFT+X	X/Twitter
-SUPER SHIFT ALT+X	X Post
+## 🛡️ Security Hardening
 
-🛠️ System Utilities
-Key	Action
-SUPER SHIFT+T	Activity Monitor (btop)
-SUPER SHIFT+D	Docker (lazydocker)
-SUPER SHIFT+/	Passwords (KeePassXC)
+### Active Security Layers
+```
+✅ Full Disk Encryption (LUKS2)
+✅ UFW Firewall (configured and active)
+✅ Mullvad VPN (with Waybar status indicator)
+✅ DNS over TLS (Cloudflare 1.1.1.1)
+✅ Fail2ban (intrusion prevention)
+✅ Gitleaks pre-commit hook (prevents credential leaks)
+✅ 88-line .gitignore (zero credential exposure)
+✅ KeePassXC password manager
+✅ Disabled unnecessary services
+```
 
-✏️ Productivity Apps
-Key	Action
-SUPER SHIFT+O	Obsidian
-SUPER SHIFT+W	Typora
-SUPER SHIFT+N	Neovim
+### VPN Status Indicator
 
-📋 Clipboard
-Key	Action
-SUPER+P	Clipboard History
-SUPER SHIFT+P	Clear Clipboard
-SUPER CTRL+P	Clipboard Menu
+**Waybar VPN module shows:**
+- 🟢 **Green** = Connected (shows location)
+- 🟡 **Yellow** = Connecting (animated)
+- 🔴 **Red** = Disconnected
 
-📸 Screenshots
-Key	Action
-SUPER+S	Full Screenshot
-SUPER SHIFT+S	Area Screenshot
-SUPER ALT+S	Clipboard Screenshot
-SUPER CTRL+S	Editor Screenshot
+**Click to toggle** VPN on/off directly from Waybar!
 
-🔒 System Controls
-Key	Action
-SUPER+L	Lock Screen
-SUPER SHIFT+L	Logout
-SUPER ALT+L	Suspend
-SUPER CTRL+L	Hibernate
-SUPER+ESC	Power Menu
+### Security Commands
+```bash
+health            # System health overview
+audit-secrets     # Scan for leaked credentials
+sudo ufw status   # Check firewall
+mullvad status    # Check VPN connection
+```
 
-🔊 Audio
-Key	Action
-XF86AudioRaiseVolume	Volume +5%
-XF86AudioLowerVolume	Volume -5%
-XF86AudioMute	Toggle Mute
-XF86AudioMicMute	Toggle Mic
-XF86AudioPlay	Play/Pause
-XF86AudioNext	Next Track
-XF86AudioPrev	Previous Track
+---
 
-🔆 Brightness
-Key	Action
-XF86MonBrightnessUp	+5% Brightness
-XF86MonBrightnessDown	-5% Brightness
+## 🔑 Hyprland Keybindings
 
-🪟 Window Management
-Focus: SUPER+H/J/K/L or Arrows
+### Essential Shortcuts
+```
+SUPER + SPACE       Launcher (Walker)
+SUPER + RETURN      Terminal (Kitty)
+SUPER + B           Browser (Brave)
+SUPER + E           File Manager (Thunar)
+SUPER + /           Keybindings Help (opens full reference!)
+SUPER + 1-5         Switch workspace
+SUPER + Q           Close window
+SUPER + L           Lock screen
+```
 
-Move: SUPER SHIFT+H/J/K/L or Arrows
+### Version 2.5 Additions
+```
+SUPER + I           Toggle Do Not Disturb (notifications)
+SUPER + SHIFT + I   Clear all notifications
+SUPER + /           Open keybindings reference in editor
+```
 
-Resize: SUPER CTRL+H/J/K/L or Arrows
+### Quick Reference Categories
 
-Actions: SUPER+Q/V/F/Z/T/O
+- **🚀 Applications** - Launch programs
+- **🪟 Window Management** - Focus, move, resize (Vim keys!)
+- **🗂️ Workspaces** - 5 themed workspaces with icons
+- **📸 Screenshots** - Multiple capture modes
+- **🔔 Notifications** - DND and clearing
+- **🔊 Media** - Volume, brightness, playback
+- **🔒 Power** - Lock, logout, suspend, hibernate
 
-🗂️ Workspaces
-5 Themed Workspaces: 💻 🌐 📝 💬 🎨
+**📖 Complete list:** Press `SUPER + /` or see [KEYBINDINGS.md](docs/KEYBINDINGS.md)
 
-SUPER+[1-5]: Switch
+<details>
+<summary>Click to Expand Core Keybindings</summary>
 
-SUPER SHIFT+[1-5]: Move Window
+### Applications (SUPER + Key)
 
-SUPER ALT+[1-5]: Move Window Silent
+| Key | Action |
+|-----|--------|
+| `SUPER + RETURN` | Terminal (Kitty) |
+| `SUPER + B` | Browser (Brave) |
+| `SUPER + E` | File Manager (Thunar) |
+| `SUPER + N` | Editor (Neovim) |
+| `SUPER + C` | VSCode |
+| `SUPER + SHIFT + Y` | Yazi (TUI file manager) |
 
-SUPER+W: Workspace Switcher
+### Window Management
 
-🖱️ Mouse
-SUPER + Mouse Drag: Move/Resize
+| Key | Action |
+|-----|--------|
+| `SUPER + H/J/K/L` | Focus (Vim keys) |
+| `SUPER + SHIFT + H/J/K/L` | Move window |
+| `SUPER + CTRL + H/J/K/L` | Resize window |
+| `SUPER + Q` | Close window |
+| `SUPER + V` | Toggle floating |
+| `SUPER + F` | Fullscreen |
 
-SUPER + Scroll: Switch Workspaces
+### Workspaces
 
-🎮 Groups & Tabs
-SUPER+G: Toggle Group
+| Key | Workspace |
+|-----|-----------|
+| `SUPER + 1` |  Terminal |
+| `SUPER + 2` | 󰈹 Browser (Brave auto-opens here!) |
+| `SUPER + 3` | 󰉋 Files |
+| `SUPER + 4` |  Code |
+| `SUPER + 5` | 󰖯 Default |
 
-SUPER+TAB: Cycle Forward
+### Screenshots
 
-SUPER SHIFT+TAB: Cycle Backward
+| Key | Action |
+|-----|--------|
+| `SUPER + S` | Full screen → save |
+| `SUPER + SHIFT + S` | Area selection → save |
+| `SUPER + ALT + S` | Area → clipboard |
+| `SUPER + CTRL + S` | Area → editor (Swappy) |
 
-🔧 Hyprland Controls
-SUPER ALT+R: Reload WM
+### Notifications (NEW!)
 
-SUPER ALT+K: Kill WM
-
-SUPER ALT+W: Restart Waybar
-
-💡 Notifications & Help
-SUPER+I: Toggle Notifications
-
-SUPER SHIFT+I: Clear Notifications
-
-SUPER+/: Keybindings Help
+| Key | Action |
+|-----|--------|
+| `SUPER + I` | Toggle Do Not Disturb |
+| `SUPER + SHIFT + I` | Clear all notifications |
 
 </details>
-🐟 Aliases & Functions
-<details> <summary>Common Aliases</summary>
-fish
-Copy code
-# System
-update         sudo pacman -Syu
-install        sudo pacman -S
-remove         sudo pacman -Rns
 
-# Git
-gs             git status
-gcmsg          git commit -m
-gp             git push
+---
 
-# Navigation
-..             cd ..
-cdir           cd $1; ls
+## 🐟 Aliases & Functions
 
-# Scripts
-backup         ~/dotfiles/scripts/backup.sh
-syncdot        ~/dotfiles/scripts/dotfiles-sync
-safeupdate     ~/dotfiles/scripts/safe-update
-</details> <details> <summary>Common Functions</summary>
-fish
-Copy code
-# Snapshot creation
-snapshot "Description"
+### System Management
+```bash
+# Package Management
+pacu               # sudo pacman -Syu (update)
+paci               # sudo pacman -S (install)
+pacr               # sudo pacman -Rns (remove)
+yup                # yay -Syu (AUR update)
 
-# Quick search history
-searchhist "term"
+# System Maintenance
+safe-update        # Snapshot + update system
+sys-cleanup        # Clean caches and orphans
+health             # System health check
+```
 
-# Launch default apps
-omarchy-launch-editor
-omarchy-launch-browser
-</details>
-🪟 Workspaces & Scratchpad
-5 Themed Workspaces:
+### File Operations (Modern Tools)
+```bash
+ls                 # eza (colored, icons)
+ll                 # eza -lah (detailed list)
+cat                # bat (syntax highlighting)
+grep               # rg (ripgrep)
+find               # fd (faster find)
+```
 
-💻 Terminal
+### Git Shortcuts
+```bash
+lg                 # LazyGit (TUI)
+gs                 # git status
+ga                 # git add
+gc                 # git commit -m
+gp                 # git push
+```
 
-🌐 Browser
+### Faelight Forest Specific
+```bash
+# Documentation
+guide              # View complete guide
+keys               # Keybindings reference
+colors             # Theme palette
 
-📝 Editor
+# Snapshots & Backup
+snapshots          # List BTRFS snapshots
+snapshot "desc"    # Create snapshot
+auto-sync          # Full GitHub sync
+dotfiles-sync      # Sync configs only
 
-💬 Communication
+# File Managers
+y                  # Yazi (TUI)
+thunar             # Thunar (GUI)
 
-🎨 Creative
+# Visual Verification (NEW!)
+verify-hypr        # Compare Hypr configs
+verify-waybar      # Compare Waybar configs
+verify-kitty       # Compare Kitty configs
+verify-fish        # Compare Fish configs
+verify-nvim        # Compare Neovim configs
+verify-all         # Compare everything
+compare            # meld (visual diff tool)
+```
 
-Scratchpad:
+---
 
-SUPER+M toggle
+## 🗂️ Workspaces
 
-SUPER SHIFT+M move
+### 5 Themed Workspaces
 
-SUPER ALT+M silent move
+1. **💻  Terminal** (WS 1) - Kitty, terminals, system monitors
+2. **🌐 󰈹 Browser** (WS 2) - Brave (auto-opens here!)
+3. **📁 󰉋 Files** (WS 3) - Thunar, Yazi, file management
+4. **💻  Code** (WS 4) - Neovim, VSCode, editors
+5. **🎨 󰖯 Default** (WS 5) - Everything else (Discord, Signal, media)
 
-🔧 System Utilities
-Command	Description
-safe-update	Snapshot + update system
-sys-cleanup	Clean caches, orphans
-quick-note	Daily scratchpad
-health	System health overview
+### Scratchpad (Special Workspace)
 
-🐙 Git Shortcuts
-Alias	Command
-lg	LazyGit
-gs	git status
-gp	git push
+Floating workspace for quick access windows:
+```
+SUPER + M           Toggle scratchpad
+SUPER + SHIFT + M   Move window to scratchpad
+SUPER + ALT + M     Move silently to scratchpad
+```
 
-🆘 Emergency Recovery
-Boot from Arch USB → mount BTRFS → list snapshots → rollback
+Perfect for: Calculator, KeePassXC, system monitors
 
-Fresh install: clone repo → packages/install.sh → ./install.sh → dotfiles-sync
+---
 
-🔄 Updating & Maintenance
-bash
-Copy code
-safe-update
+## 🔧 System Utilities
+
+### Core Scripts
+
+| Command | Description |
+|---------|-------------|
+| `safe-update` | Create snapshot → update system → check for issues |
+| `sys-cleanup` | Clean caches, orphans, and temporary files |
+| `quick-note` | Daily markdown scratchpad |
+| `health` | Complete system health overview |
+
+### Backup & Sync
+
+| Command | Description |
+|---------|-------------|
+| `auto-sync` | Full sync (configs + packages + commit + push) |
+| `dotfiles-sync` | Sync dotfiles only |
+| `save-packages` | Update package lists |
+
+### Security
+
+| Command | Description |
+|---------|-------------|
+| `audit-secrets` | Scan for leaked credentials |
+| `scan-secrets` | Gitleaks scan current directory |
+
+---
+
+## 🆘 Emergency Recovery
+
+### Quick Recovery
+
+**If system breaks after update:**
+
+1. **Reboot** into GRUB
+2. **Select snapshot** from GRUB menu (grub-btrfsd)
+3. **Boot into working snapshot**
+4. System restored! ✅
+
+### Full Recovery (Manual)
+```bash
+# Boot from Arch USB
+sudo mount /dev/nvme0n1p2 /mnt
+
+# List snapshots
+sudo btrfs subvolume list /mnt
+
+# Rollback to working snapshot
+sudo btrfs subvolume delete /mnt/@
+sudo btrfs subvolume snapshot /mnt/.snapshots/36/snapshot /mnt/@
+sudo reboot
+```
+
+### Fresh Install
+
+**Complete system recreation:**
+```bash
+# Clone repository
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
+
+# Install everything
+cd ~/dotfiles/packages && ./install.sh
+cd ~/dotfiles && ./install.sh
+
+# Done! Exact system restored.
+```
+
+---
+
+## 🔄 Updating & Maintenance
+
+### Safe System Update
+```bash
+safe-update        # Snapshot + update + verify
+```
+
+**What it does:**
+1. Creates pre-update snapshot
+2. Updates all packages (pacman + yay)
+3. Saves new package list
+4. Checks for .pacnew files
+5. Offers cleanup and reboot
+
+### Update Dotfiles
+```bash
 cd ~/dotfiles
 git pull
 ./install.sh
-dotfiles-sync
-📚 Documentation
-COMPLETE_GUIDE.md — Full system reference
+dotfiles-sync      # Sync your changes back
+```
 
-RECOVERY.md — Disaster recovery
+### Maintenance Schedule
 
-packages/README.md — Package management
+- **Daily:** Auto-sync runs every 6 hours
+- **Weekly:** Run `safe-update` and check `snapshots`
+- **Monthly:** Run `sys-cleanup` and review `health`
+- **As needed:** `verify-all` to check config drift
 
-system/README.md — Config restoration
+---
 
-🙏 Credits & License
-Theme: Faelight Forest
+## 📚 Documentation
 
-WM: Hyprland
+### Complete Guides
 
-Bar: Waybar
+- **[COMPLETE_GUIDE.md](docs/COMPLETE_GUIDE.md)** - Full system reference
+  - All commands, workflows, and features
+  - Troubleshooting and recovery
+  - 🎯 Run `guide` to view anytime
 
-Launcher: Walker
+- **[KEYBINDINGS.md](docs/KEYBINDINGS.md)** - 100+ keyboard shortcuts
+  - Organized by category with tables
+  - Pro tips and workflow patterns
+  - 🎯 Press `SUPER + /` or run `keys`
 
-Shell: Fish
+- **[MELD_GUIDE.md](docs/MELD_GUIDE.md)** - Visual diff workflows
+  - File and directory comparison
+  - Verification alias usage
+  - Thunar integration
+  - Real-world examples
 
-Editor: LazyVim
+- **[brave/THEMING.md](brave/THEMING.md)** - Browser customization
+  - Faelight Forest CSS theme
+  - Color palette reference
+  - Stylus installation guide
 
-Snapshots: Snapper
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
+  - All updates and changes
+  - Version 2.5 features list
 
-VPN: Mullvad
+### Package Documentation
 
-License: MIT
+- **[packages/README.md](packages/README.md)** - Package management
+- **[system/README.md](system/README.md)** - System config restoration
 
-🌲 Welcome to Faelight Forest — your system is immortal, secure, and beautifully productive. 🌲✨
+### Quick Access
+```bash
+guide              # Open complete guide
+keys               # Open keybindings reference
+colors             # Show theme colors
+health             # System health check
+```
+
+---
+
+## 🙏 Credits & License
+
+### Core Technologies
+
+- **Theme:** Faelight Forest (custom)
+- **OS:** Arch Linux
+- **WM:** [Hyprland](https://hyprland.org/)
+- **Bar:** [Waybar](https://github.com/Alexays/Waybar)
+- **Launcher:** [Walker](https://github.com/abenz1267/walker)
+- **Shell:** [Fish](https://fishshell.com/)
+- **Terminal:** [Kitty](https://sw.kovidgoyal.net/kitty/)
+- **Editor:** [LazyVim](https://www.lazyvim.org/)
+- **File Managers:** [Thunar](https://docs.xfce.org/xfce/thunar/start), [Yazi](https://yazi-rs.github.io/)
+- **Visual Diff:** [Meld](https://meldmerge.org/)
+- **Notifications:** [Mako](https://github.com/emersion/mako)
+- **Icons:** [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)
+- **Snapshots:** [Snapper](http://snapper.io/)
+- **VPN:** [Mullvad](https://mullvad.net/)
+
+### License
+
+This project is licensed under the **MIT License**.
+
+---
+
+## 🌲 Welcome to Faelight Forest
+
+Your system is **immortal, secure, and beautifully productive**.
+
+### You'll Never Worry About:
+- ❌ Breaking your system
+- ❌ Losing configurations
+- ❌ Forgetting how things work
+- ❌ Being unable to restore
+- ❌ Leaking credentials
+- ❌ Config drift
+- ❌ Ugly interfaces
+
+### You'll Always Have:
+- ✅ 40+ snapshots to roll back to
+- ✅ GitHub backup of everything
+- ✅ Complete documentation
+- ✅ One-command restoration
+- ✅ Zero credential leaks
+- ✅ Visual config verification
+- ✅ Beautiful themed everything
+- ✅ 100+ productivity shortcuts
+
+---
+
+**🌲 May your Faelight Forest grow eternal! 🌲✨**
+
+*Version 2.5 - The Theming & Documentation Edition*  
+*Built with ❤️ by Christian*  
+*November 25, 2025*
+
+**Repository:** [github.com/WidkidoneR2/dotfiles](https://github.com/WidkidoneR2/dotfiles)
