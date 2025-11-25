@@ -215,6 +215,19 @@ function thunar
     command thunar $argv &>/dev/null &
 end
 
+# Meld - Visual diff/merge tool
+alias compare='meld'
+alias diff-dirs='meld' # Compare two directories
+alias merge='meld' # 3-way merge
+
+# 🔍 Dotfiles Verification with Meld
+alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr'
+alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar'
+alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty'
+alias verify-fish='meld ~/.config/fish ~/dotfiles/fish'
+alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim'
+alias verify-all='meld ~/.config ~/dotfiles'
+
 # Yazi (terminal file manager)
 alias y='yazi'
 alias yy='yazi'
