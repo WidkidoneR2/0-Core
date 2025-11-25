@@ -210,6 +210,11 @@ alias preview='fzf --preview "bat --color=always {}"'
 # 📁 FILE MANAGERS
 # ═══════════════════════════════════════════════════════════
 
+# Thunar (File Manager) - Run in the background
+function thunar
+    command thunar $argv &>/dev/null &
+end
+
 # Yazi (terminal file manager)
 alias y='yazi'
 alias yy='yazi'
