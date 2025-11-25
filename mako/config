@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Faelight Forest - Mako Notification Theme
+# ═══════════════════════════════════════════════════════════
+
+# Default appearance
+background-color=#1a3a2d
+text-color=#8ed1a3
+border-color=#5bb7a5
+border-size=2
+border-radius=12
+font=Sans 11
+padding=15
+margin=10
+
+# Layout
+width=400
+height=120
+anchor=top-right
+outer-margin=20
+
+# Behavior
+default-timeout=5000
+ignore-timeout=0
+max-icon-size=48
+icon-path=/usr/share/icons/Papirus-Dark
+
+# Urgency: Low (info)
+[urgency=low]
+background-color=#2e6146
+border-color=#8ed1a3
+text-color=#c7df63
+
+# Urgency: Normal
+[urgency=normal]
+background-color=#1a3a2d
+border-color=#5bb7a5
+text-color=#8ed1a3
+
+# Urgency: Critical (errors/alerts)
+[urgency=critical]
+background-color=#2e6146
+border-color=#ff6b6b
+text-color=#fdfffd
+default-timeout=0
+
+# Hide Spotify notifications
+[app-name=Spotify]
+invisible=1
+
+# Do Not Disturb mode
+[mode=do-not-disturb]
+invisible=true
+
+[mode=do-not-disturb app-name=notify-send]
+invisible=false
