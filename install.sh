@@ -70,6 +70,22 @@ mkdir -p "$HOME/.config/yazi"
 ln -sf "$DOTFILES_DIR/yazi/yazi.toml" "$HOME/.config/yazi/yazi.toml"
 ln -sf "$DOTFILES_DIR/yazi/theme.toml" "$HOME/.config/yazi/theme.toml"
 
+# Install GTK configs
+echo "🎨 Installing GTK theme configs..."
+mkdir -p "$HOME/.config/gtk-3.0"
+mkdir -p "$HOME/.config/gtk-4.0"
+ln -sf "$DOTFILES_DIR/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
+ln -sf "$DOTFILES_DIR/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
+
+# Set Papirus folder colors
+echo "🌅 Setting sunset-themed folder colors..."
+if command -v papirus-folders &> /dev/null; then
+    papirus-folders -C orange --theme Papirus-Dark
+    sudo gtk-update-icon-cache -f -t /usr/share/icons/Papirus-Dark 2>/dev/null || true
+    echo "  ✓ Sunset folder colors applied"
+else
+    echo "  ⚠️  papirus-folders not installed - run: yay -S papirus-icon-theme papirus-folders"
+fi
 
 # Install LazyVim configs
 echo "📝 Installing LazyVim configs..."
