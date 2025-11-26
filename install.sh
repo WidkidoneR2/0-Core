@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════
 # 🌲 Faelight Forest Dotfiles Installation Script
-# Installs all configs with proper symlinks
+# Version 2.6 - GNU Stow Edition
+# Installs all configs with GNU Stow for clean symlink management
 # ═══════════════════════════════════════════════════════════
-
 set -e
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║   🌲 FAELIGHT FOREST DOTFILES INSTALLATION             ║"
+echo "║   🌲 FAELIGHT FOREST DOTFILES INSTALLATION v2.6        ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -19,6 +19,13 @@ if [ ! -d "$DOTFILES_DIR" ]; then
     exit 1
 fi
 
+# Check if stow is installed
+if ! command -v stow &> /dev/null; then
+    echo "❌ Error: GNU Stow is not installed"
+    echo "Install with: sudo pacman -S stow"
+    exit 1
+fi
+
 # Backup existing configs
 echo "📦 Backing up existing configs..."
 BACKUP_DIR="$HOME/.config_backup_$(date +%Y%m%d_%H%M%S)"
@@ -26,61 +33,78 @@ mkdir -p "$BACKUP_DIR"
 
 # Backup function
 backup_if_exists() {
-    if [ -e "$1" ]; then
+    if [ -e "$1" ] && [ ! -L "$1" ]; then
         echo "  Backing up: $1"
         cp -r "$1" "$BACKUP_DIR/"
     fi
 }
 
-# Backup existing configs
+# Backup existing configs (only if they're not already symlinks)
 backup_if_exists "$HOME/.config/fish"
 backup_if_exists "$HOME/.config/hypr"
 backup_if_exists "$HOME/.config/waybar"
 backup_if_exists "$HOME/.config/kitty"
 backup_if_exists "$HOME/.config/nvim"
+backup_if_exists "$HOME/.config/yazi"
+backup_if_exists "$HOME/.config/mako"
+backup_if_exists "$HOME/.config/walker"
+backup_if_exists "$HOME/.config/gtk-3.0"
+backup_if_exists "$HOME/.config/gtk-4.0"
 
 echo "✅ Backups saved to: $BACKUP_DIR"
 echo ""
 
-# Install Fish config
-echo "🐠 Installing Fish Shell config..."
-mkdir -p "$HOME/.config/fish"
-ln -sf "$DOTFILES_DIR/fish/config.fish" "$HOME/.config/fish/config.fish"
-ln -sf "$DOTFILES_DIR/fish/functions" "$HOME/.config/fish/functions"
+# Remove old configs (now that they're backed up)
+echo "🗑️  Removing old configs to prepare for Stow..."
+rm -rf "$HOME/.config/fish"
+rm -rf "$HOME/.config/hypr"
+rm -rf "$HOME/.config/waybar"
+rm -rf "$HOME/.config/kitty"
+rm -rf "$HOME/.config/nvim"
+rm -rf "$HOME/.config/yazi"
+rm -rf "$HOME/.config/mako"
+rm -rf "$HOME/.config/walker"
+rm -rf "$HOME/.config/gtk-3.0"
+rm -rf "$HOME/.config/gtk-4.0"
+echo "✅ Ready for Stow installation!"
+echo ""
 
-# Install Hyprland configs
-echo "🖥️  Installing Hyprland configs..."
-mkdir -p "$HOME/.config/hypr"
-ln -sf "$DOTFILES_DIR/hypr/"*.conf "$HOME/.config/hypr/"
+# Change to dotfiles directory for stow
+cd "$DOTFILES_DIR"
 
-# Install Waybar configs
-echo "📊 Installing Waybar configs..."
-mkdir -p "$HOME/.config/waybar"
-ln -sf "$DOTFILES_DIR/waybar/config.jsonc" "$HOME/.config/waybar/config.jsonc"
-ln -sf "$DOTFILES_DIR/waybar/style.css" "$HOME/.config/waybar/style.css"
+# Install configs using GNU Stow
+echo "🔗 Installing configurations with GNU Stow..."
 
-# Install Kitty config
-echo "🐱 Installing Kitty config..."
-mkdir -p "$HOME/.config/kitty"
-ln -sf "$DOTFILES_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
+# Stow all packages
+echo "  🐠 Installing Fish Shell config..."
+stow -v fish
 
-# Install Yazi config
-echo "📁 Installing Yazi config..."
-mkdir -p "$HOME/.config/yazi"
-ln -sf "$DOTFILES_DIR/yazi/yazi.toml" "$HOME/.config/yazi/yazi.toml"
-ln -sf "$DOTFILES_DIR/yazi/theme.toml" "$HOME/.config/yazi/theme.toml"
+echo "  🖥️  Installing Hyprland configs..."
+stow -v hypr
 
-# Install GTK configs
-echo "🎨 Installing GTK theme configs..."
-mkdir -p "$HOME/.config/gtk-3.0"
-mkdir -p "$HOME/.config/gtk-4.0"
-ln -sf "$DOTFILES_DIR/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
-ln -sf "$DOTFILES_DIR/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
+echo "  📊 Installing Waybar configs..."
+stow -v waybar
 
-# Install Mako notification config
-echo "🔔 Installing Mako notification config..."
-mkdir -p "$HOME/.config/mako"
-ln -sf "$DOTFILES_DIR/mako/config" "$HOME/.config/mako/config"
+echo "  🐱 Installing Kitty config..."
+stow -v kitty
+
+echo "  📁 Installing Yazi config..."
+stow -v yazi
+
+echo "  📝 Installing LazyVim configs..."
+stow -v nvim
+
+echo "  🚀 Installing Walker launcher..."
+stow -v walker
+
+echo "  🔔 Installing Mako notifications..."
+stow -v mako
+
+echo "  🎨 Installing GTK themes..."
+stow -v gtk
+
+echo "✅ All configurations installed with GNU Stow!"
+echo ""
 
 # Set Papirus folder colors
 echo "🌅 Setting sunset-themed folder colors..."
@@ -91,11 +115,6 @@ if command -v papirus-folders &> /dev/null; then
 else
     echo "  ⚠️  papirus-folders not installed - run: yay -S papirus-icon-theme papirus-folders"
 fi
-
-# Install LazyVim configs
-echo "📝 Installing LazyVim configs..."
-mkdir -p "$HOME/.config/nvim"
-cp -r "$DOTFILES_DIR/nvim/lua" "$HOME/.config/nvim/"
 
 # Install scripts
 echo "🔧 Installing scripts..."
@@ -130,6 +149,11 @@ echo "║   ✅ INSTALLATION COMPLETE!                            ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "🌲 Faelight Forest dotfiles installed successfully!"
+echo ""
+echo "📝 GNU Stow is now managing your symlinks:"
+echo "  - To remove a config: stow -D <package>"
+echo "  - To reinstall: stow -R <package>"
+echo "  - To check links: stow -n <package>"
 echo ""
 echo "Next steps:"
 echo "  1. Reload Fish: exec fish"
