@@ -1,39 +1,35 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
-
-![Version](https://img.shields.io/badge/Version-2.5-brightgreen)
+![Version](https://img.shields.io/badge/Version-2.6-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
 ![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
 
-Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, Hyprland workflow, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
+Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, professional dotfile management, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
-**Version 2.5 - The Theming & Documentation Edition**  
+**Version 2.6 - GNU Stow Edition**  
 **Last Updated:** November 25, 2025
 
 ---
 
-## ✨ What's New in Version 2.5
+## ✨ What's New in Version 2.6
 
-### 🎨 Visual Polish
-- **Brave Browser Theming** - Custom Faelight Forest CSS for new tabs
-- **Mako Notifications** - Beautiful forest-themed popups with urgency colors
-- **Papirus Icons** - Sunset-colored folders matching the tropical aesthetic
-- **GTK Theming** - Consistent look across all applications
+### 🚀 GNU Stow Migration - Professional Dotfile Management
+- **Declarative symlink management** - Clean, standard dotfile structure
+- **Package-based organization** - Each app in its own stow package
+- **Easy maintenance** - `stow`, `stow -D`, `stow -R` commands
+- **Better conflict handling** - Stow manages all symlinks intelligently
 
-### 📚 Enhanced Documentation
-- **Meld Visual Diff Guide** - Complete workflows for config verification
-- **Keybindings Reference** - 100+ shortcuts organized by category
-- **Browser Theming Guide** - Stylus CSS customization
+### 🔧 Technical Improvements
+- **Restructured dotfiles** - All configs now in `package/.config/app/` format
+- **Simplified installation** - One command installs everything via Stow
+- **Better modularity** - Add/remove configs independently
+- **LazyVim fixes** - Added missing init.lua, theme coherence across system
 
-### 🔧 New Tools
-- **Thunar** - GUI file manager with Meld integration
-- **Meld** - Visual diff tool for comparing configs
-- **Verification Aliases** - `verify-hypr`, `verify-waybar`, etc.
-- **Notification Controls** - `SUPER + I` for Do Not Disturb
-
-### 🐛 Fixes
-- Browser workspace rules (Brave opens in workspace 2 correctly)
-- Improved config organization and documentation structure
+### 🎨 Previous Features (Version 2.5)
+- Brave browser theming, Mako notifications, Papirus icons
+- Complete documentation suite (Meld, Keybindings, Browser guides)
+- Visual config verification, GTK theming
+- 100+ productivity keybindings
 
 **📖 See full changelog:** [CHANGELOG.md](CHANGELOG.md)
 
@@ -50,17 +46,18 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 4. [Theme Colors](#theme-colors)
 5. [Included Components](#included-components)
 6. [Installation & Quick Start](#installation--quick-start)
-7. [Snapshots](#snapshots)
-8. [Automated Backups](#automated-backups)
-9. [Security Hardening](#security-hardening)
-10. [Hyprland Keybindings](#hyprland-keybindings)
-11. [Aliases & Functions](#aliases--functions)
-12. [Workspaces](#workspaces)
-13. [System Utilities](#system-utilities)
-14. [Emergency Recovery](#emergency-recovery)
-15. [Updating & Maintenance](#updating--maintenance)
-16. [Documentation](#documentation)
-17. [Credits & License](#credits--license)
+7. [GNU Stow Management](#gnu-stow-management)
+8. [Snapshots](#snapshots)
+9. [Automated Backups](#automated-backups)
+10. [Security Hardening](#security-hardening)
+11. [Hyprland Keybindings](#hyprland-keybindings)
+12. [Aliases & Functions](#aliases--functions)
+13. [Workspaces](#workspaces)
+14. [System Utilities](#system-utilities)
+15. [Emergency Recovery](#emergency-recovery)
+16. [Updating & Maintenance](#updating--maintenance)
+17. [Documentation](#documentation)
+18. [Credits & License](#credits--license)
 
 </details>
 
@@ -69,12 +66,12 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 ## 🌟 What is Faelight Forest?
 
 Faelight Forest combines:
-
 - 🎨 **Beautiful custom theming** — teal/mint/lime palette everywhere
+- 📦 **GNU Stow dotfile management** — Professional, declarative configs
 - 📸 **NixOS-style snapshots** — BTRFS + Snapper (40+ snapshots)
 - 🔄 **Automated GitHub backups** — every 6 hours
 - 🛡️ **Enterprise security hardening** — VPN, firewall, encryption
-- 📦 **Full system reproducibility** — 170+ packages tracked
+- 🔧 **Full system reproducibility** — 170+ packages tracked
 - 🚀 **Hyprland workflow optimization** — 100+ productivity keybindings
 - 🔔 **Themed notifications** — Even popups match the forest aesthetic
 - 🔍 **Visual config verification** — Meld integration
@@ -90,14 +87,14 @@ Faelight Forest combines:
 - **Bar:** Waybar with icon workspaces & VPN status
 - **Launcher:** Walker (Faelight themed)
 - **Terminal:** Kitty (Faelight colors)
-- **Editor:** LazyVim (100+ productivity keybindings)
+- **Editor:** LazyVim (Faelight theme, 100+ keybindings)
 - **File Managers:** Thunar (GUI) + Yazi (TUI)
 - **Browser:** Brave (custom themed new tabs)
 - **Notifications:** Mako (forest green with cyan borders)
 - **Icons:** Papirus-Dark with sunset-colored folders
 
 ### Visual Features
-- 🌲 Forest green backgrounds
+- 🌲 Forest green backgrounds (#0f1c16)
 - 💎 Cyan/teal accent colors
 - 🌿 Mint green highlights
 - 🍋 Lime green alerts
@@ -108,17 +105,18 @@ Faelight Forest combines:
 ## 🛠️ System Features
 
 ### Core Features
+- **GNU Stow:** Professional dotfile management with declarative symlinks
 - **Snapshots:** Hourly, daily, and pre-update automatic BTRFS snapshots (40+)
 - **Auto-sync:** GitHub backup every 6 hours with full commit history
 - **Security:** VPN (Mullvad), encrypted DNS, UFW firewall, fail2ban
 - **Recovery:** Boot into any snapshot, full disaster recovery ready
 - **Reproducibility:** One-command system restoration anywhere
 
-### Version 2.5 Features
-- **Visual Config Verification:** Meld integration with verification aliases
-- **Themed Everything:** Browser, notifications, file manager, icons
-- **Comprehensive Docs:** Complete guides for every major component
-- **Enhanced Workflow:** Notification controls, help keybinds, quick access
+### Version 2.6 Highlights
+- **Stow-based configs:** Clean package structure, easy maintenance
+- **Perfect theme coherence:** Nvim background matches Kitty/Waybar
+- **LazyVim restored:** Full functionality with proper init.lua
+- **Modular management:** Add/remove configs independently
 
 ---
 
@@ -139,28 +137,27 @@ Faelight Forest combines:
 
 ## 📦 Included Components
 
-### Configuration Directories
+### GNU Stow Package Structure
 ```
 ~/dotfiles/
-├── fish/           # Fish shell (100+ aliases & functions)
-├── hypr/           # Hyprland configs (keybindings, workspaces, windows)
-├── waybar/         # Status bar themed modules
-├── walker/         # Launcher configuration
-├── kitty/          # Terminal themes
-├── nvim/           # LazyVim setup
-├── yazi/           # File manager TUI theme
-├── mako/           # Notification configuration (NEW!)
-├── gtk-3.0/        # GTK theming (NEW!)
-├── gtk-4.0/        # GTK theming (NEW!)
-├── brave/          # Browser theming guide (NEW!)
-├── packages/       # 170+ tracked packages, install scripts
-├── scripts/        # Utility scripts (safe-update, auto-sync, sys-cleanup)
-├── system/         # Snapper and system config backups
-└── docs/           # Complete documentation
-    ├── COMPLETE_GUIDE.md      # Full system reference
-    ├── KEYBINDINGS.md         # 100+ shortcuts (NEW!)
-    ├── MELD_GUIDE.md          # Visual diff workflows (NEW!)
-    └── CHANGELOG.md           # Version history
+├── fish/.config/fish/              # Fish shell (100+ aliases)
+├── hypr/.config/hypr/              # Hyprland configs
+├── waybar/.config/waybar/          # Status bar
+├── walker/.config/walker/          # Launcher
+├── kitty/.config/kitty/            # Terminal
+├── nvim/.config/nvim/              # LazyVim with init.lua
+├── yazi/.config/yazi/              # File manager TUI
+├── mako/.config/mako/              # Notifications
+├── gtk/.config/gtk-{3.0,4.0}/      # GTK theming
+├── packages/                       # 170+ tracked packages
+├── scripts/                        # Utility scripts
+├── system/                         # Snapper config
+├── brave/                          # Browser theming
+└── docs/                           # Complete documentation
+    ├── COMPLETE_GUIDE.md
+    ├── KEYBINDINGS.md
+    ├── MELD_GUIDE.md
+    └── CHANGELOG.md
 ```
 
 ### Key Statistics
@@ -170,15 +167,20 @@ Faelight Forest combines:
 - **100+ keybindings** optimized
 - **100+ Fish aliases** for productivity
 - **Auto-sync every 6 hours** to GitHub
+- **GNU Stow packages** for clean config management
 
 ---
 
 ## ⚡ Installation & Quick Start
 
 ### Prerequisites
+```bash
+# Required
+sudo pacman -S stow git
 
-- Arch Linux with BTRFS (`@`, `@home`, `@log`, `@pkg` subvolumes)
-- Git installed
+# System requirements
+- Arch Linux with BTRFS (@, @home, @log, @pkg subvolumes)
+```
 
 ### Installation Steps
 ```bash
@@ -190,9 +192,16 @@ cd ~/dotfiles
 cd packages
 ./install.sh
 
-# Install dotfiles and configurations
+# Install dotfiles with GNU Stow
 cd ~/dotfiles
 ./install.sh
+
+# What install.sh does:
+# - Backs up existing configs
+# - Uses GNU Stow to create symlinks
+# - Installs all packages (fish, hypr, waybar, etc.)
+# - Sets up Papirus folder colors
+# - Configures scripts and documentation
 
 # Setup Snapper (automatic snapshots)
 sudo pacman -S snapper snap-pac grub-btrfs
@@ -229,12 +238,69 @@ verify-all         # Compare all configs with dotfiles
 
 ---
 
+## 📦 GNU Stow Management
+
+### What is Stow?
+GNU Stow creates symlinks from `~/dotfiles/package/.config/app/` to `~/.config/app/`. This gives you:
+- ✅ Clean, standard dotfile structure
+- ✅ Easy version control (everything in one repo)
+- ✅ Simple to add/remove configs
+- ✅ No manual symlink management
+
+### Stow Commands
+```bash
+# Install a package (create symlinks)
+cd ~/dotfiles
+stow fish         # Install Fish config only
+stow hypr         # Install Hyprland config only
+
+# Remove a package (delete symlinks)
+stow -D fish      # Remove Fish symlinks
+
+# Reinstall a package
+stow -R waybar    # Re-create Waybar symlinks
+
+# Install everything (recommended)
+./install.sh      # Automated install with backups
+
+# Check what stow would do (dry run)
+stow -n fish      # Show what would happen
+```
+
+### Verify Symlinks
+```bash
+# Check if configs are properly linked
+ls -la ~/.config/ | grep "\->"
+
+# Should show symlinks like:
+# fish -> ../dotfiles/fish/.config/fish
+# hypr -> ../dotfiles/hypr/.config/hypr
+# waybar -> ../dotfiles/waybar/.config/waybar
+```
+
+### Editing Configs
+When you edit a config in `~/.config/`, you're actually editing the file in `~/dotfiles/` thanks to symlinks!
+```bash
+# Edit Hyprland config
+nvim ~/.config/hypr/hyprland.conf
+
+# This actually edits:
+# ~/dotfiles/hypr/.config/hypr/hyprland.conf
+
+# Check git status
+cd ~/dotfiles
+git status
+# Shows: modified: hypr/.config/hypr/hyprland.conf
+```
+
+**💡 Pro Tip:** Your configs automatically update in the dotfiles repo!
+
+---
+
 ## 📸 Snapshots
 
 ### Automatic BTRFS Snapshots
-
 Your system automatically creates snapshots:
-
 - ✅ **Before every pacman install** (pre/post hooks)
 - ✅ **Hourly** (last 5 hours kept)
 - ✅ **Daily** (last 7 days kept)
@@ -251,7 +317,7 @@ snapshot "desc"     # Create manual snapshot
 ### Example Usage
 ```bash
 # Before major changes
-snapshot "Before installing NVIDIA drivers"
+snapshot "Before GNU Stow migration"
 
 # View all snapshots
 snapshots
@@ -264,17 +330,14 @@ snapshots
 ## 🔄 Automated Backups
 
 ### GitHub Auto-Sync
-
 Your system automatically backs up to GitHub:
-
 - ⏰ **Every 6 hours** - Full dotfiles sync
 - ⏰ **Daily at 11 PM** - Package lists update
 - 📊 **Auto-commit** - Changes logged with timestamps
 - 🔄 **Auto-push** - Pushed to repository automatically
 
 ### What Gets Backed Up
-
-✅ All configuration files  
+✅ All configuration files (via Stow structure)  
 ✅ Fish shell setup and functions  
 ✅ Hyprland, Waybar, Walker configs  
 ✅ LazyVim, Kitty, Yazi themes  
@@ -311,7 +374,6 @@ save-packages     # Update package lists only
 ```
 
 ### VPN Status Indicator
-
 **Waybar VPN module shows:**
 - 🟢 **Green** = Connected (shows location)
 - 🟡 **Yellow** = Connecting (animated)
@@ -341,17 +403,10 @@ SUPER + /           Keybindings Help (opens full reference!)
 SUPER + 1-5         Switch workspace
 SUPER + Q           Close window
 SUPER + L           Lock screen
-```
-
-### Version 2.5 Additions
-```
-SUPER + I           Toggle Do Not Disturb (notifications)
-SUPER + SHIFT + I   Clear all notifications
-SUPER + /           Open keybindings reference in editor
+SUPER + I           Toggle Do Not Disturb
 ```
 
 ### Quick Reference Categories
-
 - **🚀 Applications** - Launch programs
 - **🪟 Window Management** - Focus, move, resize (Vim keys!)
 - **🗂️ Workspaces** - 5 themed workspaces with icons
@@ -366,7 +421,6 @@ SUPER + /           Open keybindings reference in editor
 <summary>Click to Expand Core Keybindings</summary>
 
 ### Applications (SUPER + Key)
-
 | Key | Action |
 |-----|--------|
 | `SUPER + RETURN` | Terminal (Kitty) |
@@ -377,7 +431,6 @@ SUPER + /           Open keybindings reference in editor
 | `SUPER + SHIFT + Y` | Yazi (TUI file manager) |
 
 ### Window Management
-
 | Key | Action |
 |-----|--------|
 | `SUPER + H/J/K/L` | Focus (Vim keys) |
@@ -388,7 +441,6 @@ SUPER + /           Open keybindings reference in editor
 | `SUPER + F` | Fullscreen |
 
 ### Workspaces
-
 | Key | Workspace |
 |-----|-----------|
 | `SUPER + 1` |  Terminal |
@@ -398,7 +450,6 @@ SUPER + /           Open keybindings reference in editor
 | `SUPER + 5` | 󰖯 Default |
 
 ### Screenshots
-
 | Key | Action |
 |-----|--------|
 | `SUPER + S` | Full screen → save |
@@ -406,8 +457,7 @@ SUPER + /           Open keybindings reference in editor
 | `SUPER + ALT + S` | Area → clipboard |
 | `SUPER + CTRL + S` | Area → editor (Swappy) |
 
-### Notifications (NEW!)
-
+### Notifications
 | Key | Action |
 |-----|--------|
 | `SUPER + I` | Toggle Do Not Disturb |
@@ -468,7 +518,7 @@ dotfiles-sync      # Sync configs only
 y                  # Yazi (TUI)
 thunar             # Thunar (GUI)
 
-# Visual Verification (NEW!)
+# Visual Verification
 verify-hypr        # Compare Hypr configs
 verify-waybar      # Compare Waybar configs
 verify-kitty       # Compare Kitty configs
@@ -483,7 +533,6 @@ compare            # meld (visual diff tool)
 ## 🗂️ Workspaces
 
 ### 5 Themed Workspaces
-
 1. **💻  Terminal** (WS 1) - Kitty, terminals, system monitors
 2. **🌐 󰈹 Browser** (WS 2) - Brave (auto-opens here!)
 3. **📁 󰉋 Files** (WS 3) - Thunar, Yazi, file management
@@ -491,7 +540,6 @@ compare            # meld (visual diff tool)
 5. **🎨 󰖯 Default** (WS 5) - Everything else (Discord, Signal, media)
 
 ### Scratchpad (Special Workspace)
-
 Floating workspace for quick access windows:
 ```
 SUPER + M           Toggle scratchpad
@@ -506,7 +554,6 @@ Perfect for: Calculator, KeePassXC, system monitors
 ## 🔧 System Utilities
 
 ### Core Scripts
-
 | Command | Description |
 |---------|-------------|
 | `safe-update` | Create snapshot → update system → check for issues |
@@ -515,7 +562,6 @@ Perfect for: Calculator, KeePassXC, system monitors
 | `health` | Complete system health overview |
 
 ### Backup & Sync
-
 | Command | Description |
 |---------|-------------|
 | `auto-sync` | Full sync (configs + packages + commit + push) |
@@ -523,7 +569,6 @@ Perfect for: Calculator, KeePassXC, system monitors
 | `save-packages` | Update package lists |
 
 ### Security
-
 | Command | Description |
 |---------|-------------|
 | `audit-secrets` | Scan for leaked credentials |
@@ -534,9 +579,7 @@ Perfect for: Calculator, KeePassXC, system monitors
 ## 🆘 Emergency Recovery
 
 ### Quick Recovery
-
 **If system breaks after update:**
-
 1. **Reboot** into GRUB
 2. **Select snapshot** from GRUB menu (grub-btrfsd)
 3. **Boot into working snapshot**
@@ -557,7 +600,6 @@ sudo reboot
 ```
 
 ### Fresh Install
-
 **Complete system recreation:**
 ```bash
 # Clone repository
@@ -590,12 +632,24 @@ safe-update        # Snapshot + update + verify
 ```bash
 cd ~/dotfiles
 git pull
-./install.sh
+./install.sh       # Reinstalls with Stow
 dotfiles-sync      # Sync your changes back
 ```
 
-### Maintenance Schedule
+### Stow Package Updates
+```bash
+# Reinstall specific package
+cd ~/dotfiles
+stow -R fish       # Reinstall Fish config
 
+# Check for conflicts
+stow -n waybar     # Dry run
+
+# Remove and reinstall
+stow -D hypr && stow hypr
+```
+
+### Maintenance Schedule
 - **Daily:** Auto-sync runs every 6 hours
 - **Weekly:** Run `safe-update` and check `snapshots`
 - **Monthly:** Run `sys-cleanup` and review `health`
@@ -606,34 +660,32 @@ dotfiles-sync      # Sync your changes back
 ## 📚 Documentation
 
 ### Complete Guides
-
 - **[COMPLETE_GUIDE.md](docs/COMPLETE_GUIDE.md)** - Full system reference
   - All commands, workflows, and features
   - Troubleshooting and recovery
   - 🎯 Run `guide` to view anytime
-
+  
 - **[KEYBINDINGS.md](docs/KEYBINDINGS.md)** - 100+ keyboard shortcuts
   - Organized by category with tables
   - Pro tips and workflow patterns
   - 🎯 Press `SUPER + /` or run `keys`
-
+  
 - **[MELD_GUIDE.md](docs/MELD_GUIDE.md)** - Visual diff workflows
   - File and directory comparison
   - Verification alias usage
   - Thunar integration
   - Real-world examples
-
+  
 - **[brave/THEMING.md](brave/THEMING.md)** - Browser customization
   - Faelight Forest CSS theme
   - Color palette reference
   - Stylus installation guide
-
+  
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history
   - All updates and changes
-  - Version 2.5 features list
+  - Version 2.6 GNU Stow migration
 
 ### Package Documentation
-
 - **[packages/README.md](packages/README.md)** - Package management
 - **[system/README.md](system/README.md)** - System config restoration
 
@@ -650,8 +702,8 @@ health             # System health check
 ## 🙏 Credits & License
 
 ### Core Technologies
-
 - **Theme:** Faelight Forest (custom)
+- **Dotfile Manager:** [GNU Stow](https://www.gnu.org/software/stow/)
 - **OS:** Arch Linux
 - **WM:** [Hyprland](https://hyprland.org/)
 - **Bar:** [Waybar](https://github.com/Alexays/Waybar)
@@ -667,7 +719,6 @@ health             # System health check
 - **VPN:** [Mullvad](https://mullvad.net/)
 
 ### License
-
 This project is licensed under the **MIT License**.
 
 ---
@@ -679,7 +730,7 @@ Your system is **immortal, secure, and beautifully productive**.
 ### You'll Never Worry About:
 - ❌ Breaking your system
 - ❌ Losing configurations
-- ❌ Forgetting how things work
+- ❌ Manual symlink management
 - ❌ Being unable to restore
 - ❌ Leaking credentials
 - ❌ Config drift
@@ -688,6 +739,7 @@ Your system is **immortal, secure, and beautifully productive**.
 ### You'll Always Have:
 - ✅ 40+ snapshots to roll back to
 - ✅ GitHub backup of everything
+- ✅ GNU Stow managing symlinks
 - ✅ Complete documentation
 - ✅ One-command restoration
 - ✅ Zero credential leaks
@@ -699,7 +751,7 @@ Your system is **immortal, secure, and beautifully productive**.
 
 **🌲 May your Faelight Forest grow eternal! 🌲✨**
 
-*Version 2.5 - The Theming & Documentation Edition*  
+*Version 2.6 - GNU Stow Edition*  
 *Built with ❤️ by Christian*  
 *November 25, 2025*
 

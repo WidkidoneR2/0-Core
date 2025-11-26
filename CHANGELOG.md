@@ -1,5 +1,47 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
+## [2.6.0] - 2025-11-25
+
+### 🚀 Major Changes
+- **GNU Stow Migration**: Complete restructure for professional dotfile management
+  - All configs now use declarative symlink management
+  - Clean package-based structure: `package/.config/app/`
+  - Easy to add/remove configs with `stow` commands
+
+### ✨ New Features
+- Declarative dotfile management with GNU Stow
+- Simplified installation with `./install.sh`
+- Per-package management (`stow <package>`, `stow -D <package>`)
+- Better conflict handling during installation
+
+### 🐛 Bug Fixes
+- Fixed LazyVim missing init.lua after Stow migration
+- Fixed theme coherence across all applications
+  - Nvim background now matches Kitty/Waybar (#0f1c16)
+  - Removed conflicting colorscheme configurations
+- Fixed colors alias to display Faelight Forest palette
+
+### 📚 Technical Details
+**Stow Structure:**
+```
+~/dotfiles/
+├── fish/.config/fish/
+├── hypr/.config/hypr/
+├── waybar/.config/waybar/
+├── kitty/.config/kitty/
+├── nvim/.config/nvim/
+├── yazi/.config/yazi/
+├── mako/.config/mako/
+├── walker/.config/walker/
+└── gtk/.config/gtk-{3.0,4.0}/
+```
+
+**Installation:**
+- Full install: `./install.sh`
+- Single package: `stow <package>`
+- Remove package: `stow -D <package>`
+- Reinstall: `stow -R <package>`
+
 ## Version 2.5 (2025-11-25) - 🎨 The Theming & Documentation Update
 
 ### Fixed
@@ -65,3 +107,4 @@
 - Walker launcher integration  
 - Comprehensive keybindings
 - Tokyo Night color scheme
+
