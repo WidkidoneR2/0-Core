@@ -342,7 +342,7 @@ alias keys='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "HYPRLAND
 alias fishhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "FISH SHELL COMPLETE GUIDE"'
 alias vimhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "LAZYVIM COMPLETE GUIDE"'
 alias workspaces='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "ICON WORKSPACES GUIDE"'
-alias colors='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 50 "Faelight Forest Colors"'
+alias colors='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 50 "THEME COLORS REFERENCE"'
 
 # System health check
 alias health='echo "=== SYSTEM HEALTH ===" && btop --quit-after-cycles 1 2>/dev/null || true && echo && df -h / && echo && free -h && echo && uptime'
