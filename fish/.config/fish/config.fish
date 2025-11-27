@@ -1,7 +1,28 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
+# Version 2.6.1 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# 🛡️ PROTECTION & ERROR HANDLING (NEW!)
+# ═══════════════════════════════════════════════════════════
+
+# Disable greeting (we have custom one below)
+set -g fish_greeting
+
+# Enable better glob handling (Fish 3.0+)
+set fish_features qmark-noglob 3.0
+
+# Prevent accidental shell switches
+alias bash='echo "⚠️  You are in Fish! Use: exec fish to reload. Really want bash? Use: command bash"'
+alias sh='echo "⚠️  You are in Fish! Really want sh? Use: command sh"'
+
+# Better command not found
+function fish_command_not_found
+    echo "🐠 Command not found: $argv[1]"
+    echo "💡 Check your spelling or install it with: paci $argv[1]"
+end
 
 # ═══════════════════════════════════════════════════════════
 # 🎨 ENVIRONMENT & PATH
@@ -187,6 +208,7 @@ alias lazyvim-clean='nvim --headless "+Lazy! clean" +qa'
 
 # Yazi file manager
 alias y='yazi'
+
 # ═══════════════════════════════════════════════════════════
 # 🔍 MODERN CLI TOOLS
 # ═══════════════════════════════════════════════════════════
@@ -221,11 +243,11 @@ alias diff-dirs='meld' # Compare two directories
 alias merge='meld' # 3-way merge
 
 # 🔍 Dotfiles Verification with Meld
-alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr'
-alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar'
-alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty'
-alias verify-fish='meld ~/.config/fish ~/dotfiles/fish'
-alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim'
+alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr/.config/hypr'
+alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar/.config/waybar'
+alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty/.config/kitty'
+alias verify-fish='meld ~/.config/fish ~/dotfiles/fish/.config/fish'
+alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim/.config/nvim'
 alias verify-all='meld ~/.config ~/dotfiles'
 
 # Yazi (terminal file manager)
@@ -318,8 +340,8 @@ alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias vguide='nvim ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 
 # 📋 Planning & Ideas (Local Only)
-alias roadmap='nvim ~/faelight-planning/VERSION_2.6_IDEAS.md'
-alias ideas='nvim ~/faelight-planning/VERSION_2.6_IDEAS.md'
+alias roadmap='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
+alias ideas='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
 alias planning='cd ~/faelight-planning && ls'
 
 # Dotfiles management
@@ -337,12 +359,12 @@ alias auto-sync='~/.local/bin/auto-sync'
 alias snapshots='sudo snapper -c root list'
 alias snapshot='sudo snapper -c root create --description'
 
-# Quick reference sections
-alias keys='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "HYPRLAND KEYBINDINGS REFERENCE"'
-alias fishhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "FISH SHELL COMPLETE GUIDE"'
-alias vimhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "LAZYVIM COMPLETE GUIDE"'
-alias workspaces='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "ICON WORKSPACES GUIDE"'
-alias colors='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 50 "THEME COLORS REFERENCE"'
+# Quick reference sections (FIXED for v2.5+)
+alias keys='bat ~/dotfiles/docs/KEYBINDINGS.md'
+alias fishhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "Fish Shell Reference"'
+alias vimhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "LazyVim Reference"'
+alias workspaces='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "Workspaces"'
+alias colors='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 10 "Faelight Forest Colors"'
 
 # System health check
 alias health='echo "=== SYSTEM HEALTH ===" && btop --quit-after-cycles 1 2>/dev/null || true && echo && df -h / && echo && free -h && echo && uptime'
@@ -395,17 +417,19 @@ set -g fish_pager_color_description 557d68
 if status is-interactive
     # Show fastfetch on new shell
     fastfetch
-
-    # Optional: Custom greeting
+    # Custom greeting
     echo ""
     set_color -o 5bb7a5
-    echo "🌲 Welcome to Faelight Forest!"
+    echo "🌲 Welcome to Faelight Forest v2.6.1!"
     set_color normal
     echo "This is my Happy Place"
+    echo ""
+    echo "💡 Quick commands: guide | keys | colors | health | roadmap"
 end
 
 set -g fish_greeting ""
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
+# Version 2.6.1 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
