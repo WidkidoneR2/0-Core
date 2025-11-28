@@ -3,8 +3,8 @@
 # ═══════════════════════════════════════════════════════════
 
 # Default appearance
-background-color=#1a3a2d
-text-color=#8ed1a3
+background-color=#2e6146E6
+text-color=#e8f5d5
 border-color=#5bb7a5
 border-size=2
 border-radius=12
@@ -26,21 +26,21 @@ icon-path=/usr/share/icons/Papirus-Dark
 
 # Urgency: Low (info)
 [urgency=low]
-background-color=#2e6146
-border-color=#8ed1a3
-text-color=#c7df63
+background-color=#2e6146E6
+border-color=#5bb7a5
+text-color=#e8f5d5
 
 # Urgency: Normal
 [urgency=normal]
-background-color=#1a3a2d
+background-color=#2e6146E6
 border-color=#5bb7a5
-text-color=#8ed1a3
+text-color=#e8f5d5
 
 # Urgency: Critical (errors/alerts)
 [urgency=critical]
-background-color=#2e6146
-border-color=#ff6b6b
-text-color=#fdfffd
+background-color=#2e6146E6
+border-color=#5bb7a5
+text-color=#e8f5d5
 default-timeout=0
 
 # Hide Spotify notifications
