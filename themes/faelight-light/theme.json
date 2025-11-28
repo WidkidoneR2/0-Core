@@ -1,0 +1,28 @@
+{
+  "name": "Faelight Forest - Light",
+  "author": "Christian",
+  "variant": "light",
+  "colors": {
+    "background": "#ffffff",
+    "background_light": "#f8f9fa",
+    "surface": "#e8f0ed",
+    "primary": "#1a6b54",
+    "secondary": "#2d8872",
+    "accent": "#6b8e23",
+    "text": "#0d1f17",
+    "text_dim": "#1a3a2d",
+    "comment": "#3d6652",
+    "border": "#1a6b54",
+    "border_active": "#2d8872",
+    "urgent": "#c94c4c",
+    "warning": "#d97706"
+  },
+  "fonts": {
+    "main": "JetBrainsMono Nerd Font",
+    "size": 12
+  },
+  "opacity": {
+    "terminal": 0.95,
+    "waybar": 0.98
+  }
+}
