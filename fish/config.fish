@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.6.1 - Enhanced & Protected Edition
+# Version 2.7 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -31,6 +31,7 @@ end
 # Add local bin to PATH
 fish_add_path ~/.local/bin
 fish_add_path ~/bin
+set -gx PATH ~/.local/bin $PATH
 
 # ═══════════════════════════════════════════════════════════
 # 📂 FILE NAVIGATION (Modern ls with exa/eza)
@@ -50,6 +51,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
+alias cdp='cd -'
 
 # Quick directory jumps
 alias desk='cd ~/Desktop'
@@ -90,7 +92,7 @@ alias cleanup='sudo pacman -Rns (pacman -Qtdq)'
 alias unlock='sudo rm /var/lib/pacman/db.lck'
 alias orphans='pacman -Qtdq'
 alias mirror='sudo reflector --verbose --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist'
-alias update-all='yay -Syu && flatpak update'
+alias update-all='yay -Syu $argv'
 alias clean-all='yay -Sc && yay -Yc && sudo pacman -Rns (pacman -Qtdq) 2>/dev/null || true'
 alias fix-keys='sudo pacman-key --init && sudo pacman-key --populate && sudo pacman-key --refresh-keys'
 
@@ -136,6 +138,8 @@ alias gcm='git checkout main'
 alias gd='git diff'
 alias gds='git diff --staged'
 alias gsh='git show'
+alias gd='git diff --color=always'
+alias gdp='git diff --color=always | less -R'
 
 # Stash
 alias gst='git stash'
@@ -237,18 +241,20 @@ function thunar
     command thunar $argv &>/dev/null &
 end
 
-# Meld - Visual diff/merge tool
-alias compare='meld'
-alias diff-dirs='meld' # Compare two directories
-alias merge='meld' # 3-way merge
+# Meld - Visual diff/merge tool (only if installed)
+if type -q meld
+    alias compare='meld'
+    alias diff-dirs='meld' # Compare two directories
+    alias merge='meld' # 3-way merge
 
-# 🔍 Dotfiles Verification with Meld
-alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr/.config/hypr'
-alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar/.config/waybar'
-alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty/.config/kitty'
-alias verify-fish='meld ~/.config/fish ~/dotfiles/fish/.config/fish'
-alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim/.config/nvim'
-alias verify-all='meld ~/.config ~/dotfiles'
+    # 🔍 Dotfiles Verification with Meld
+    alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr/.config/hypr'
+    alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar/.config/waybar'
+    alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty/.config/kitty'
+    alias verify-fish='meld ~/.config/fish ~/dotfiles/fish/.config/fish'
+    alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim/.config/nvim'
+    alias verify-all='meld ~/.config ~/dotfiles'
+end
 
 # Yazi (terminal file manager)
 alias y='yazi'
@@ -340,9 +346,9 @@ alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias vguide='nvim ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 
 # 📋 Planning & Ideas (Local Only)
-alias roadmap='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
-alias ideas='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
-alias planning='cd ~/faelight-planning && ls'
+alias roadmap='nvim ~/dotfiles/docs/planning/ROADMAP.md'
+alias ideas='nvim ~/dotfiles/docs/planning/ROADMAP.md'
+alias planning='cd ~/dotfiles/docs/planning && ls'
 
 # Dotfiles management
 alias dotfiles='cd ~/dotfiles'
@@ -420,7 +426,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 5bb7a5
-    echo "🌲 Welcome to Faelight Forest v2.6.1!"
+    echo "🌲 Welcome to Faelight Forest v2.7!"
     set_color normal
     echo "This is my Happy Place"
     echo ""
@@ -431,5 +437,5 @@ set -g fish_greeting ""
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.6.1 - Enhanced & Protected Edition
+# Version 2.7 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════

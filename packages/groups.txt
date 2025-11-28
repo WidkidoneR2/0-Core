@@ -36,6 +36,11 @@ kf6 qqc2-desktop-style
 kf6 solid
 kf6 sonnet
 kf6 syndication
+xfce4 exo
+xfce4 thunar
+xfce4 thunar-volman
+xfce4 tumbler
+xfce4 xfconf
 fcitx5-im fcitx5
 fcitx5-im fcitx5-gtk
 fcitx5-im fcitx5-qt
@@ -46,9 +51,7 @@ gnome gvfs
 gnome gvfs-mtp
 gnome gvfs-nfs
 gnome gvfs-smb
-gnome nautilus
 gnome sushi
-gnome xdg-user-dirs-gtk
 kde-applications kdenlive
 kde-applications signon-kwallet-extension
 kde-multimedia kdenlive
@@ -74,6 +77,8 @@ qt6 qt6-webengine
 kde-network signon-kwallet-extension
 vulkan-devel spirv-tools
 vulkan-devel vulkan-icd-loader
+xfce4-goodies thunar-archive-plugin
+xfce4-goodies thunar-media-tags-plugin
 tree-sitter-grammars tree-sitter-c
 tree-sitter-grammars tree-sitter-lua
 tree-sitter-grammars tree-sitter-markdown

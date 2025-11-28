@@ -1,12 +1,12 @@
 # 📦 Faelight Forest Package Lists
 
-Package lists saved: Sun Nov 23 11:00:01 PM CST 2025
+Package lists saved: Thu Nov 27 11:00:01 PM CST 2025
 
 ## 📊 Summary
 
-- **Official packages:** 173
-- **AUR packages:** 4
-- **Total packages:** 929
+- **Official packages:** 187
+- **AUR packages:** 6
+- **Total packages:** 940
 - **Flatpak apps:** 0
 
 ## 📝 Files

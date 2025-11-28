@@ -19,6 +19,7 @@ cups
 cups-browsed
 cups-filters
 cups-pdf
+discord
 docker
 docker-buildx
 docker-compose
