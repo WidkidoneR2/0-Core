@@ -1,5 +1,53 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
+## [2.7.0] - 2025-11-27
+
+### 🎨 Major Features
+- **Theme Toggle System**: Switch between light and dark themes instantly
+  - `SUPER + SHIFT + P` toggles entire system theme
+  - Fish aliases: `theme-dark`, `theme-light`, `theme-toggle`, `theme`
+  - Affects: Hyprland, Kitty, Mako, GTK apps
+
+### 📁 New Structure
+- Created `~/dotfiles/themes/` directory
+  - `faelight-dark/theme.json` - Your current dark forest theme
+  - `faelight-light/theme.json` - New light theme variant
+  - `current.txt` - Stores active theme state
+
+### 🔄 Theme Switching
+- **theme-switch.sh** - Intelligent theme switcher script
+  - Applies colors to all apps system-wide
+  - Updates Hyprland borders dynamically
+  - Reloads Kitty terminal theme
+  - Changes Mako notification colors
+  - Sets GTK light/dark preference
+  - Sends notification on theme change
+
+### ✨ Improvements
+- **Keybindings**: Converted to `bindd` format for better discoverability
+  - All keybinds now show descriptions in Walker (`SUPER + W`)
+  - Fixed keybind conflicts (removed duplicate `SUPER ALT + T`)
+- **Kitty**: Added `current-theme.conf` for dynamic theming
+- **Documentation**: All bindings now self-documenting
+
+### 🐠 New Fish Aliases
+```fish
+theme-dark        # Switch to dark theme
+theme-light       # Switch to light theme  
+theme-toggle      # Toggle between themes
+theme             # Show current theme status
+```
+
+### 📝 Keybindings Added
+- `SUPER + SHIFT + P` - Toggle theme
+
+### 🔬 Research & Testing
+- Evaluated hyprscrolling plugin (Niri-style scrolling)
+- Decision: Skipped for now, prefer workspace-based workflow
+- Documented for future consideration
+
+---
+
 ## [2.6.0] - 2025-11-25
 
 ### 🚀 Major Changes

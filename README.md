@@ -1,37 +1,78 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
-![Version](https://img.shields.io/badge/Version-2.6-brightgreen)
+![Version](https://img.shields.io/badge/Version-2.7-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
 ![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
 
-Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, professional dotfile management, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
-**Version 2.6 - GNU Stow Edition**  
-**Last Updated:** November 25, 2025
+Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, professional dotfile management, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
 ---
 
-## ✨ What's New in Version 2.6
+## ✨ What's New in Version 2.7 11-27-25
 
-### 🚀 GNU Stow Migration - Professional Dotfile Management
-- **Declarative symlink management** - Clean, standard dotfile structure
-- **Package-based organization** - Each app in its own stow package
-- **Easy maintenance** - `stow`, `stow -D`, `stow -R` commands
-- **Better conflict handling** - Stow manages all symlinks intelligently
+### 🎨 Theme Toggle System
+- **Instant Theme Switching** - `SUPER + SHIFT + P` toggles your entire system
+- **Light & Dark Themes** - Beautifully designed Faelight Forest variants
+- **System-Wide** - Changes Hyprland, Kitty, Mako, GTK apps simultaneously
+- **Fish Aliases** - `theme-dark`, `theme-light`, `theme-toggle`
 
-### 🔧 Technical Improvements
-- **Restructured dotfiles** - All configs now in `package/.config/app/` format
-- **Simplified installation** - One command installs everything via Stow
-- **Better modularity** - Add/remove configs independently
-- **LazyVim fixes** - Added missing init.lua, theme coherence across system
+### 📁 Professional Theme Structure
+```
+~/dotfiles/themes/
+├── faelight-dark/theme.json    # Your current dark forest theme
+├── faelight-light/theme.json   # New light variant
+└── current.txt                 # Tracks active theme
+```
 
-### 🎨 Previous Features (Version 2.5)
-- Brave browser theming, Mako notifications, Papirus icons
-- Complete documentation suite (Meld, Keybindings, Browser guides)
-- Visual config verification, GTK theming
-- 100+ productivity keybindings
+### ✨ Enhanced Keybindings
+- All keybinds now use `bindd` format
+- Show descriptions in Walker (`SUPER + W`)
+- Better discoverability for all shortcuts
+- Fixed keybind conflicts
 
 **📖 See full changelog:** [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 🔄 Recent Updates (Version 2.6.x)
+
+### Version 2.6.1 - Fish Shell Enhancements
+- Fixed `colors` alias to display Faelight Forest palette
+- Fixed `keys` alias to show keybindings reference
+- Added bash/sh protection warnings
+- Better error handling and command-not-found messages
+- All 411 lines of Fish config preserved and enhanced
+
+### Version 2.6.0 - GNU Stow Migration
+- **Professional Dotfile Management** with GNU Stow
+- Declarative symlink management (`stow`, `stow -D`, `stow -R`)
+- Package-based structure for modular configs
+- Easy to add/remove individual configs
+- Better conflict handling during installation
+
+---
+
+## 🌟 Previous Features (Version 2.5)
+
+### 🎨 Visual Polish
+- **Brave Browser Theming** - Custom Faelight Forest CSS for new tabs
+- **Mako Notifications** - Beautiful forest-themed popups with urgency colors
+- **Papirus Icons** - Sunset-colored folders matching the aesthetic
+- **GTK Theming** - Consistent look across all applications
+
+### 📚 Enhanced Documentation
+- **Meld Visual Diff Guide** - Complete workflows for config verification
+- **Keybindings Reference** - 100+ shortcuts organized by category
+- **Browser Theming Guide** - Stylus CSS customization
+
+### 🔧 New Tools
+- **Thunar** - GUI file manager with Meld integration
+- **Meld** - Visual diff tool for comparing configs
+- **Verification Aliases** - `verify-hypr`, `verify-waybar`, etc.
+- **Notification Controls** - `SUPER + I` for Do Not Disturb
+
+**📖 Full version history:** [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
