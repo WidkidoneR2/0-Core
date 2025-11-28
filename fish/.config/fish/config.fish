@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.6.1 - Enhanced & Protected Edition
+# Version 2.7 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -340,9 +340,9 @@ alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias vguide='nvim ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 
 # 📋 Planning & Ideas (Local Only)
-alias roadmap='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
-alias ideas='nvim ~/faelight-planning/VERSION_2.7_IDEAS.md'
-alias planning='cd ~/faelight-planning && ls'
+alias roadmap='nvim ~/dotfiles/docs/planning/ROADMAP.md'
+alias ideas='nvim ~/dotfiles/docs/planning/ROADMAP.md'
+alias planning='cd ~/dotfiles/docs/planning && ls'
 
 # Dotfiles management
 alias dotfiles='cd ~/dotfiles'
@@ -420,7 +420,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 5bb7a5
-    echo "🌲 Welcome to Faelight Forest v2.6.1!"
+    echo "🌲 Welcome to Faelight Forest v2.7!"
     set_color normal
     echo "This is my Happy Place"
     echo ""
@@ -431,5 +431,6 @@ set -g fish_greeting ""
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.6.1 - Enhanced & Protected Edition
+# Version 2.7 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
+#
