@@ -1,0 +1,57 @@
+# Faelight Forest Yazi Theme
+
+[flavor]
+use = ""
+
+[mgr]
+cwd = { fg = "#8ed1a3" }
+
+hovered         = { fg = "#0f1c16", bg = "#5bb7a5" }
+preview_hovered = { underline = true }
+
+find_keyword  = { fg = "#c7df63", italic = true }
+find_position = { fg = "#8ed1a3", bg = "reset", italic = true }
+
+marker_selected = { fg = "#c7df63", bg = "#c7df63" }
+marker_copied   = { fg = "#8ed1a3", bg = "#8ed1a3" }
+marker_cut      = { fg = "#ff6b6b", bg = "#ff6b6b" }
+
+tab_active   = { fg = "#0f1c16", bg = "#5bb7a5" }
+tab_inactive = { fg = "#8ed1a3", bg = "#2e6146" }
+tab_width    = 1
+
+border_symbol = "│"
+border_style  = { fg = "#5bb7a5" }
+
+[status]
+separator_open  = ""
+separator_close = ""
+separator_style = { fg = "#2e6146", bg = "#2e6146" }
+
+mode_normal = { fg = "#0f1c16", bg = "#5bb7a5", bold = true }
+mode_select = { fg = "#0f1c16", bg = "#c7df63", bold = true }
+mode_unset  = { fg = "#0f1c16", bg = "#8ed1a3", bold = true }
+
+progress_label  = { fg = "#e8f5d5", bold = true }
+progress_normal = { fg = "#5bb7a5", bg = "#2e6146" }
+progress_error  = { fg = "#ff6b6b", bg = "#2e6146" }
+
+permissions_t = { fg = "#8ed1a3" }
+permissions_r = { fg = "#c7df63" }
+permissions_w = { fg = "#ff6b6b" }
+permissions_x = { fg = "#5bb7a5" }
+permissions_s = { fg = "#8ed1a3" }
+
+[filetype]
+rules = [
+  { mime = "image/*", fg = "#c7df63" },
+  { mime = "video/*", fg = "#8ed1a3" },
+  { mime = "audio/*", fg = "#5bb7a5" },
+  { mime = "application/zip", fg = "#ff6b6b" },
+  { mime = "application/gzip", fg = "#ff6b6b" },
+  { mime = "application/x-tar", fg = "#ff6b6b" },
+  { mime = "application/x-bzip", fg = "#ff6b6b" },
+  { mime = "application/x-7z-compressed", fg = "#ff6b6b" },
+  { name = "*", fg = "#e8f5d5" },
+  { name = "*/", fg = "#8ed1a3" }
+]

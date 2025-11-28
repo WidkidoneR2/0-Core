@@ -1,28 +1,28 @@
 # 🌲 FAELIGHT FOREST - COMPLETE MASTER GUIDE
+
 **The Ultimate Reference for Your Immortal Arch Linux System**
 
-**Version:** 2.5 - The Theming & Documentation Edition  
-**Last Updated:** November 25, 2025  
+**Version:** 2.1 - Legendary Edition  
+**Last Updated:** November 24, 2025  
 **System Status:** IMMORTAL ♾️  
-**Snapshots:** 40+  
-**Commits:** 25+
+**Snapshots:** 36+  
+**Commits:** 15
 
 ---
 
 ## 📋 Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [What's New in Version 2.5](#whats-new-in-version-25)
-3. [System Overview](#system-overview)
-4. [Fish Shell Reference](#fish-shell-reference)
-5. [Hyprland Keybindings](#hyprland-keybindings)
-6. [LazyVim Reference](#lazyvim-reference)
-7. [Snapshot System](#snapshot-system)
-8. [Backup & Sync System](#backup-sync-system)
-9. [Security Features](#security-features)
-10. [Package Management](#package-management)
-11. [Recovery Procedures](#recovery-procedures)
-12. [Troubleshooting](#troubleshooting)
+2. [System Overview](#system-overview)
+3. [Fish Shell Reference](#fish-shell-reference)
+4. [Hyprland Keybindings](#hyprland-keybindings)
+5. [LazyVim Reference](#lazyvim-reference)
+6. [Snapshot System](#snapshot-system)
+7. [Backup & Sync System](#backup-sync-system)
+8. [Security Features](#security-features)
+9. [Package Management](#package-management)
+10. [Recovery Procedures](#recovery-procedures)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -32,7 +32,7 @@
 ```bash
 # Documentation
 guide              # This guide (view anytime)
-keys               # Quick keybinding reference (SUPER + /)
+keys               # Quick keybinding reference
 colors             # Theme color palette
 health             # System health check
 
@@ -55,13 +55,6 @@ audit-secrets      # Scan repo for leaked credentials
 
 # File Management
 y                  # Yazi file manager
-thunar             # Thunar GUI file manager
-
-# Visual Diff
-verify-hypr        # Compare Hypr configs
-verify-waybar      # Compare Waybar configs
-verify-kitty       # Compare Kitty configs
-verify-all         # Compare all configs
 
 # Git Shortcuts
 lg                 # LazyGit
@@ -71,97 +64,17 @@ gp                 # Git push
 
 ---
 
-## 🎉 What's New in Version 2.5
-
-### 🎨 Theming & Visual Polish
-
-- **🌐 Brave Browser Theming** - Custom Faelight Forest CSS for new tab pages
-  - Forest green gradient backgrounds
-  - Cyan borders and mint text
-  - Lime green highlights
-  - See: `~/dotfiles/brave/THEMING.md`
-
-- **🔔 Mako Notifications** - Beautiful themed notification popups
-  - Forest green backgrounds with cyan borders
-  - Urgency-based colors (info/normal/critical)
-  - Rounded corners and modern spacing
-  - Integrated with Papirus icons
-
-- **📁 Papirus Icons** - Sunset-colored folders matching your theme
-  - Replaces default Yaru icons
-  - Orange folders for tropical sunset vibes
-  - High-quality icon set with 48px support
-
-### 📚 Enhanced Documentation
-
-- **🔍 Meld Visual Diff Guide** (`MELD_GUIDE.md`)
-  - Complete workflows for visual file comparison
-  - Verification aliases usage
-  - Thunar integration
-  - Real-world examples
-
-- **⌨️ Keybindings Reference** (`KEYBINDINGS.md`)
-  - All 100+ shortcuts organized by category
-  - Quick reference tables with legends
-  - Pro tips and workflow patterns
-  - Access with `SUPER + /`
-
-- **🎨 Browser Theming Guide** (`brave/THEMING.md`)
-  - Stylus CSS installation
-  - Color palette reference
-  - Backup and restore instructions
-
-### 🔧 New Tools & Workflows
-
-- **Notification Controls:**
-  - `SUPER + I` - Toggle Do Not Disturb mode
-  - `SUPER + SHIFT + I` - Clear all notifications
-
-- **Thunar + Meld Integration:**
-  - Visual file comparison from file manager
-  - Right-click → Compare with Meld
-  - Perfect for config verification
-
-- **Verification Aliases:**
-```bash
-  verify-hypr      # Compare Hypr configs
-  verify-waybar    # Compare Waybar configs
-  verify-kitty     # Compare Kitty configs
-  verify-fish      # Compare Fish configs
-  verify-nvim      # Compare Neovim configs
-  verify-all       # Compare everything
-```
-
-- **Browser Workspace Fix:**
-  - Brave now correctly opens in workspace 2
-  - Silent window rules prevent focus stealing
-
-### 🛠️ System Improvements
-
-- **GTK Theming** - Consistent look across all apps
-- **nwg-look** - GUI theme switcher for Wayland
-- **Improved Documentation Structure** - All guides in `/docs`
-
-📖 **See detailed guides:**
-- Visual Diff: `~/dotfiles/docs/MELD_GUIDE.md`
-- Keybindings: `~/dotfiles/docs/KEYBINDINGS.md` (or press `SUPER + /`)
-- Browser Theme: `~/dotfiles/brave/THEMING.md`
-
----
-
 ## 🌲 System Overview
 
 ### What Makes This System Special
 ```
-🎨 BEAUTIFUL       - Faelight Forest theme everywhere (even browser!)
-📸 IMMORTAL        - 40+ BTRFS snapshots (never lose data)
+🎨 BEAUTIFUL       - Faelight Forest theme everywhere
+📸 IMMORTAL        - 34+ BTRFS snapshots (never lose data)
 🔄 SELF-BACKING    - Auto-sync to GitHub every 6 hours
 🛡️ ULTRA-SECURE    - 88-line .gitignore, zero credential leaks
 📦 REPRODUCIBLE    - Recreate exact system anywhere
 ⚡ OPTIMIZED       - 100+ productivity keybindings
 📚 DOCUMENTED      - Complete guides for everything
-🔔 THEMED NOTIFS   - Even popups match the forest aesthetic
-🔍 VISUAL DIFFS    - Meld integration for config verification
 ```
 
 ### Core Components
@@ -174,14 +87,7 @@ gp                 # Git push
 - **Terminal**: Kitty
 - **Shell**: Fish (100+ aliases)
 - **Editor**: LazyVim
-- **File Managers**: 
-  - Thunar (GUI, Papirus icons)
-  - Yazi (TUI, themed)
-- **Visual Diff**: Meld
-- **Browser**: Brave (custom themed)
-- **Notifications**: Mako (Faelight themed)
-- **GTK Theme**: Adwaita-dark
-- **Icons**: Papirus-Dark (sunset folders)
+- **File Manager**: Yazi (themed)
 - **Password Manager**: KeePassXC
 - **Snapshots**: Snapper + snap-pac
 - **VPN**: Mullvad with Waybar indicator
@@ -288,18 +194,8 @@ safe-update        # Snapshot + system update
 # Security
 audit-secrets      # Audit dotfiles for credentials
 
-# File Managers
-y                  # Yazi (TUI, themed)
-thunar             # Thunar (GUI, Papirus icons)
-
-# Visual Diff & Verification
-compare            # meld (alias)
-verify-hypr        # Compare Hypr configs
-verify-waybar      # Compare Waybar configs
-verify-kitty       # Compare Kitty configs
-verify-fish        # Compare Fish configs
-verify-nvim        # Compare Neovim configs
-verify-all         # Compare all configs
+# File Manager
+y                  # yazi (themed file manager)
 ```
 
 ---
@@ -310,13 +206,12 @@ verify-all         # Compare all configs
 ```
 SUPER + SPACE       Launcher (Walker)
 SUPER + RETURN      Terminal (Kitty)
-SUPER + B           Browser (Brave)
-SUPER + E           File Manager (Thunar)
+SUPER + B           Browser (Firefox)
+SUPER + E           File Manager
 SUPER + 1-5         Switch workspace
 SUPER + Q           Close window
 SUPER + L           Lock screen
 SUPER + SHIFT + E   Exit Hyprland
-SUPER + /           Keybindings Help (this list!)
 ```
 
 ### Window Management
@@ -324,24 +219,21 @@ SUPER + /           Keybindings Help (this list!)
 # Focus Navigation
 SUPER + H/J/K/L     Move focus (vim-style)
 SUPER + Arrow Keys  Move focus (arrows)
-SUPER + TAB         Cycle next window
-SUPER + SHIFT + TAB Cycle previous window
 
 # Move Windows
 SUPER + SHIFT + H/J/K/L    Move window (vim-style)
 SUPER + SHIFT + Arrow Keys Move window (arrows)
 
 # Resize Windows
-SUPER + CTRL + H/J/K/L     Resize (vim-style)
-SUPER + CTRL + Arrow Keys  Resize (arrows)
+SUPER + R           Enter resize mode
+  Then: H/J/K/L     Resize (vim-style)
+  ESC or SUPER + R  Exit resize mode
 
 # Window States
 SUPER + F           Fullscreen toggle
-SUPER + SHIFT + F   Fullscreen (no bar)
 SUPER + V           Floating toggle
-SUPER + Z           Pin window
-SUPER + T           Toggle split
-SUPER + O           Center window
+SUPER + P           Pin window
+SUPER + S           Special workspace (scratchpad)
 ```
 
 ### Workspaces
@@ -351,45 +243,29 @@ SUPER + 1-5         Go to workspace 1-5
 
 # Move Windows
 SUPER + SHIFT + 1-5 Move window to workspace 1-5
-SUPER + ALT + 1-5   Move window silently
 
 # Workspace Types
  Terminal  (WS 1)   Kitty, terminals
-󰈹 Browser   (WS 2)   Brave (auto-opens here!)
-󰉋 Files     (WS 3)   Thunar, Yazi
+󰈹 Browser   (WS 2)   Firefox, Brave
+󰉋 Files     (WS 3)   Nautilus, Yazi
  Code      (WS 4)   Neovim, VSCode
 󰖯 Default   (WS 5)   Everything else
-
-# Navigation
-SUPER + ]           Next workspace
-SUPER + [           Previous workspace
-SUPER + `           Last workspace (toggle)
-SUPER + W           Workspace switcher
 ```
 
 ### Applications
 ```
 SUPER + SPACE       Walker launcher
 SUPER + RETURN      Kitty terminal
-SUPER + B           Brave browser
-SUPER + E           Thunar file manager
+SUPER + B           Browser
+SUPER + E           File manager
 SUPER + N           Neovim
-SUPER + C           VSCode
-SUPER + SHIFT + Y   Yazi (TUI file manager)
 ```
 
 ### Screenshots
 ```
-SUPER + S           Full screenshot
-SUPER + SHIFT + S   Area selection → save
-SUPER + ALT + S     Area → clipboard
-SUPER + CTRL + S    Area → editor (Swappy)
-```
-
-### Notifications (NEW in 2.5!)
-```
-SUPER + I           Toggle Do Not Disturb
-SUPER + SHIFT + I   Clear all notifications
+PRINT               Full screenshot
+SUPER + PRINT       Select area
+SUPER + SHIFT + S   Select area (alt)
 ```
 
 ### Media Keys
@@ -404,35 +280,17 @@ Media Next/Previous Track control
 ### System
 ```
 SUPER + L           Lock screen
-SUPER + SHIFT + L   Logout
-SUPER + ALT + L     Suspend
-SUPER + CTRL + L    Hibernate
-SUPER + ESCAPE      Power menu
-SUPER + ALT + R     Reload Hyprland
+SUPER + SHIFT + R   Reload Hyprland config
+SUPER + SHIFT + E   Exit Hyprland
 SUPER + ALT + W     Restart Waybar
 ```
 
-### Scratchpad
+### Special
 ```
-SUPER + M           Toggle scratchpad
-SUPER + SHIFT + M   Move to scratchpad
-SUPER + ALT + M     Move to scratchpad (silent)
+SUPER + M           Toggle Waybar
+SUPER + ALT + Q     Kill window (force)
+SUPER + SHIFT + SPACE Toggle floating
 ```
-
-### Window Groups (Tabbed)
-```
-SUPER + G           Toggle group (tab windows)
-SUPER + TAB         Next tab
-SUPER + SHIFT + G   Previous tab
-```
-
-### Help
-```
-SUPER + /           Open keybindings reference!
-```
-
-**📖 For complete keybinding reference, press `SUPER + /` or see:**
-`~/dotfiles/docs/KEYBINDINGS.md`
 
 ---
 
@@ -531,13 +389,12 @@ LazyVim shows hidden files by default in this setup! ✅
 ### Overview
 
 Your system creates **automatic BTRFS snapshots**:
-
 - ✅ **Hourly** - Last 5 hours kept
 - ✅ **Daily** - Last 7 days kept
 - ✅ **Pre/Post** - Before every package install
 - ✅ **Manual** - Anytime you want
 
-**Current Status:** 40+ snapshots and growing! 🌲
+**Current Status:** 34+ snapshots and growing! 🌲
 
 ### View Snapshots
 ```bash
@@ -548,10 +405,10 @@ Example output:
 ```
  # │ Type   │ Date                            │ Description
 ───┼────────┼─────────────────────────────────┼────────────
-35 │ single │ Mon 25 Nov 2025 09:00:00 AM CST │ timeline
-36 │ single │ Mon 25 Nov 2025 10:00:00 AM CST │ Version 2.5 Complete
-37 │ single │ Mon 25 Nov 2025 11:00:00 AM CST │ timeline
-38 │ single │ Mon 25 Nov 2025 12:00:00 PM CST │ Browser theming added
+25 │ single │ Thu 20 Nov 2025 09:53:20 AM CST │ Blueprint Complete
+26 │ single │ Thu 20 Nov 2025 10:00:02 AM CST │ timeline
+27 │ single │ Thu 20 Nov 2025 10:01:00 AM CST │ timeline
+28 │ single │ Thu 20 Nov 2025 10:03:25 AM CST │ LEGENDARY STATUS
 ```
 
 ### Create Manual Snapshot
@@ -564,16 +421,15 @@ Examples:
 snapshot "Before major system update"
 snapshot "Before installing NVIDIA drivers"
 snapshot "Working configuration backup"
-snapshot "Version 2.5 complete"
 ```
 
 ### Snapshot Details
 ```bash
 # View specific snapshot
-sudo snapper -c root list | grep 36
+sudo snapper -c root list | grep 25
 
 # Compare two snapshots
-sudo snapper -c root status 35..38
+sudo snapper -c root status 25..28
 
 # Check disk space used by snapshots
 sudo snapper -c root list | tail -10
@@ -582,7 +438,6 @@ sudo snapper -c root list | tail -10
 ### Automatic Snapshot Triggers
 
 Snapshots are **automatically created** when:
-
 1. ✅ Installing packages with `pacman` or `yay`
 2. ✅ Every hour (timeline snapshots)
 3. ✅ When you run `safe-update`
@@ -598,7 +453,6 @@ See [Recovery Procedures](#recovery-procedures) for detailed rollback instructio
 ### Auto-Sync Overview
 
 Your system **automatically backs up** to GitHub:
-
 - ⏰ **Every 6 hours** - Full dotfiles sync
 - ⏰ **Daily at 11 PM** - Package lists update
 - 📊 **Auto-commit** - Changes logged with timestamps
@@ -628,21 +482,14 @@ save-packages
 - Kitty terminal config
 - Yazi file manager + theme
 - LazyVim configuration
-- **Mako notification config** (NEW!)
-- **GTK 3.0/4.0 configs** (NEW!)
-
-✅ **Browser theming:**
-- Brave Stylus CSS themes
-- Color palette reference
-- Installation guide
 
 ✅ **System configs:**
 - Snapper configuration
 - Crontab schedule
 
 ✅ **Package tracking:**
-- 170+ official packages
-- 4+ AUR packages  
+- 167 official packages
+- 4 AUR packages  
 - Complete version list
 - Installation script
 
@@ -656,10 +503,7 @@ save-packages
 - VPN status/toggle
 
 ✅ **Documentation:**
-- Complete master guide (this file!)
-- Meld visual diff guide
-- Keybindings reference
-- Browser theming guide
+- This complete guide
 - Recovery guide
 - README
 
@@ -710,7 +554,6 @@ cd ~/dotfiles
 ✅ Fail2ban (intrusion prevention)
 ✅ Ultra-secure .gitignore (88 lines, zero credential leaks)
 ✅ KeePassXC password manager
-✅ Gitleaks pre-commit hook (prevents credential commits)
 ```
 
 ### VPN Status (Waybar Module)
@@ -770,10 +613,9 @@ sudo journalctl -u fail2ban -n 50
 ### Package Tracking
 
 Your system tracks **all packages** for full reproducibility:
-
-- 📦 **170+ official packages** (explicitly installed)
-- 📦 **4+ AUR packages** 
-- 📦 **950+ total packages** (with dependencies)
+- 📦 **167 official packages** (explicitly installed)
+- 📦 **4 AUR packages** 
+- 📦 **925 total packages** (with dependencies)
 
 ### Update Package Lists
 ```bash
@@ -826,8 +668,8 @@ yay -Si aur_package
 ### Package Lists Location
 ```
 ~/dotfiles/packages/
-├── official.txt           # 170+ official packages
-├── aur.txt               # 4+ AUR packages
+├── official.txt           # 167 official packages
+├── aur.txt               # 4 AUR packages
 ├── all-with-versions.txt # All packages with versions
 ├── flatpak.txt           # Flatpak apps (if any)
 ├── groups.txt            # Package groups
@@ -840,7 +682,6 @@ yay -Si aur_package
 **Automatic secret scanning prevents accidental credential commits.**
 
 ### Features
-
 - Pre-commit hook blocks secrets automatically
 - Scans for API keys, tokens, private keys, passwords
 - Custom patterns in `.gitleaks.toml`
@@ -852,13 +693,11 @@ scan-staged      # Check staged git files
 ```
 
 ### What's Protected
-
 - AWS keys, GitHub tokens, API keys
 - Private keys (.pem, .key files)
 - Files matching `*secret*`, `*-secret*`, `*_secret*`
 
 The pre-commit hook runs automatically - no action needed!
-
 ---
 
 ## 🆘 Recovery Procedures
@@ -869,6 +708,7 @@ The pre-commit hook runs automatically - no action needed!
 
 1. **Reboot system**
 2. **Boot from Arch USB/live system**
+
 3. **Mount BTRFS filesystem:**
 ```bash
 sudo mount /dev/nvme0n1p2 /mnt  # Adjust your partition
@@ -879,7 +719,7 @@ sudo mount /dev/nvme0n1p2 /mnt  # Adjust your partition
 sudo btrfs subvolume list /mnt
 ```
 
-5. **Find your working snapshot** (e.g., #36)
+5. **Find your working snapshot** (e.g., #25)
 
 6. **Rollback:**
 ```bash
@@ -887,7 +727,7 @@ sudo btrfs subvolume list /mnt
 sudo btrfs subvolume delete /mnt/@
 
 # Create new @ from working snapshot
-sudo btrfs subvolume snapshot /mnt/.snapshots/36/snapshot /mnt/@
+sudo btrfs subvolume snapshot /mnt/.snapshots/25/snapshot /mnt/@
 
 # Reboot
 sudo reboot
@@ -993,37 +833,6 @@ sudo systemctl start mullvad-daemon
 mullvad status
 ```
 
-### Mako (Notifications) Issues
-
-**Notifications not appearing:**
-```bash
-# Check if Mako is running
-pgrep mako
-
-# Start Mako
-mako &
-
-# Test notification
-notify-send "Test" "Hello from Faelight Forest!"
-
-# Check logs
-journalctl --user -u mako -n 20
-
-# Reload config
-makoctl reload
-```
-
-**Do Not Disturb not working:**
-```bash
-# Check current mode
-makoctl mode
-
-# Toggle DND
-makoctl mode -t do-not-disturb
-
-# Or use keybind: SUPER + I
-```
-
 ### Walker Issues
 
 **Walker not opening:**
@@ -1036,31 +845,6 @@ walker --gapplication-service &
 
 # Test Walker
 walker
-```
-
-### Thunar Issues
-
-**Thunar not opening:**
-```bash
-# Test Thunar directly
-thunar
-
-# Check if process exists
-pgrep thunar
-
-# Reinstall if needed
-sudo pacman -S thunar
-```
-
-**Meld integration not working:**
-```bash
-# Test Meld directly
-meld file1 file2
-
-# Check custom actions
-# Thunar → Edit → Configure custom actions
-
-# Verify command: meld "$@"
 ```
 
 ### Snapshot Issues
@@ -1123,21 +907,6 @@ sudo pacman -Syu
 sudo pacman -S --overwrite '*' package_name
 ```
 
-### Browser Theming Issues
-
-**Stylus theme not applying:**
-```bash
-# Check if Stylus is installed
-# brave://extensions/
-
-# Check theme is enabled
-# Stylus → Manage → Check if enabled
-
-# Verify URL pattern: chrome://newtab
-
-# Hard refresh: Ctrl + Shift + R
-```
-
 ---
 
 ## 📊 System Status Commands
@@ -1153,7 +922,6 @@ systemctl list-timers | grep snapper
 git -C ~/dotfiles status
 mullvad status
 sudo ufw status
-makoctl mode       # Check notification mode
 ```
 
 ### Logs
@@ -1165,7 +933,6 @@ tail -50 ~/.auto-sync.log
 journalctl -b      # Current boot
 journalctl -u fail2ban
 journalctl -u mullvad-daemon
-journalctl --user -u mako  # Notification logs
 ```
 
 ### Disk Usage
@@ -1189,7 +956,7 @@ sys-cleanup
 
 ### Faelight Forest Colors
 ```
-Primary:    #5bb7a5  (Bright teal/cyan)
+Primary:    #5bb7a5  (Bright teal)
 Secondary:  #8ed1a3  (Mint green)
 Accent:     #c7df63  (Lime green)
 Text:       #e8f5d5  (Soft mint)
@@ -1211,10 +978,6 @@ colors
 - ✅ Fish (prompt)
 - ✅ LazyVim (via theme)
 - ✅ Yazi (file manager)
-- ✅ **Mako (notifications)** - NEW!
-- ✅ **Brave (browser)** - NEW!
-- ✅ **Thunar (GTK)** - NEW!
-- ✅ **Papirus Icons** - NEW!
 
 ---
 
@@ -1246,19 +1009,6 @@ snapshots          # Find working snapshot
 # See Recovery Procedures for rollback
 ```
 
-### Config Verification
-```bash
-# Check if configs drifted from dotfiles
-verify-all
-
-# Or check specific configs
-verify-hypr
-verify-waybar
-verify-kitty
-
-# Use Meld to see differences visually!
-```
-
 ### End of Day
 ```bash
 # Quick note
@@ -1272,70 +1022,24 @@ dotfiles-sync
 
 ---
 
-## 📚 Additional Guides
-
-Your system includes comprehensive guides for every major component:
-
-### Core Guides
-
-- **This Guide** - `~/dotfiles/docs/COMPLETE_GUIDE.md`
-  - Complete system reference
-  - All commands and workflows
-  - Access with: `guide`
-
-- **Keybindings Reference** - `~/dotfiles/docs/KEYBINDINGS.md`
-  - All 100+ keyboard shortcuts
-  - Organized by category
-  - Pro tips and patterns
-  - Access with: `SUPER + /` or `keys`
-
-- **Meld Visual Diff Guide** - `~/dotfiles/docs/MELD_GUIDE.md`
-  - Visual file comparison workflows
-  - Verification alias usage
-  - Thunar integration
-  - Real-world examples
-
-- **Browser Theming** - `~/dotfiles/brave/THEMING.md`
-  - Faelight Forest Stylus CSS
-  - Color palette reference
-  - Installation and backup
-
-### Quick Reference
-```bash
-# View any guide
-guide              # This complete guide
-keys               # Keybindings (or SUPER + /)
-colors             # Color palette
-
-# Open in editor
-nvim ~/dotfiles/docs/COMPLETE_GUIDE.md
-nvim ~/dotfiles/docs/KEYBINDINGS.md
-nvim ~/dotfiles/docs/MELD_GUIDE.md
-nvim ~/dotfiles/brave/THEMING.md
-```
-
----
-
 ## 🌲 Final Notes
 
 ### Your System is Immortal Because:
 
-1. ✅ **40+ snapshots** - Every hour, every day, every install
+1. ✅ **34+ snapshots** - Every hour, every day, every install
 2. ✅ **Auto-backup** - GitHub sync every 6 hours
 3. ✅ **Full tracking** - Every package documented
 4. ✅ **One-command restore** - Recreate anywhere
-5. ✅ **Complete docs** - Guides for everything
+5. ✅ **Complete docs** - This guide + recovery guide
 6. ✅ **Security hardened** - VPN, firewall, encryption, zero leaks
-7. ✅ **Beautiful theme** - Faelight Forest everywhere (even popups!)
-8. ✅ **Visual verification** - Meld integration for config checking
+7. ✅ **Beautiful theme** - Faelight Forest everywhere
 
 ### Remember:
 
 - Run `guide` anytime to view this
-- Run `keys` or press `SUPER + /` for keybindings
+- Run `keys` for quick keybinding reference
 - Run `health` to check system status
 - Run `audit-secrets` to check for credential leaks
-- Run `verify-all` to check config drift
 - Check `snapshots` regularly (peace of mind!)
 - Your system backs itself up automatically ✅
 
@@ -1347,7 +1051,6 @@ nvim ~/dotfiles/brave/THEMING.md
 - **Recovery Guide:** See RECOVERY.md in dotfiles
 - **Package Lists:** ~/dotfiles/packages/
 - **System Configs:** ~/dotfiles/system/
-- **Documentation:** ~/dotfiles/docs/
 
 ---
 
@@ -1363,62 +1066,30 @@ You have one of the most **robust, beautiful, and reproducible** Linux systems e
 - ❌ Forgetting how you set things up
 - ❌ Not being able to restore
 - ❌ Leaking credentials to GitHub
-- ❌ Config drift
-- ❌ Ugly notifications
 
 **Always have:**
-- ✅ 40+ snapshots to roll back to
+- ✅ 34+ snapshots to roll back to
 - ✅ GitHub backup of everything
-- ✅ Complete documentation with guides
+- ✅ Complete documentation
 - ✅ One-command system restoration
 - ✅ Zero credential leaks
-- ✅ Visual config verification
-- ✅ Beautiful themed everything
 
 ---
 
 **🌲 May your Faelight Forest grow eternal! 🌲**
 
-*Version 2.5 - The Theming & Documentation Edition*  
+*Version 2.1 - Legendary Edition*  
 *Built with ❤️ by Christian*  
-*November 25, 2025*
+*November 24, 2025*  
 
----
+*Changes for Version 2.1*
 
-## 📝 Changes for Version 2.5
+Yazi Keymap (keymap.toml):
+Fixed keybinding overlaps with system bindings.
+Updated keymap to improve functionality and avoid conflicts.
+Improved synchronization with GitHub.
 
-### Major Features Added
+Master Guide (COMPLETE_GUIDE.md):
 
-**🎨 Visual Enhancements:**
-- Brave browser custom Faelight Forest CSS theme
-- Mako notification system with forest theming
-- Papirus-Dark icons with sunset-colored folders
-- GTK 3.0/4.0 theming for consistent look
-- nwg-look GUI theme manager
-
-**📚 Documentation:**
-- MELD_GUIDE.md - Complete visual diff workflows
-- KEYBINDINGS.md - 100+ shortcuts organized by category
-- brave/THEMING.md - Browser customization guide
-- Updated COMPLETE_GUIDE.md with all new features
-
-**🔧 Tools & Workflows:**
-- Thunar file manager (replaced Nautilus)
-- Meld visual diff tool with Thunar integration
-- Verification aliases (verify-hypr, verify-waybar, etc.)
-- Notification controls (SUPER + I for DND)
-- Help keybind (SUPER + / opens keybindings)
-
-**🐛 Fixes:**
-- Browser workspace rules (Brave opens in workspace 2)
-- Fixed Brave class name matching
-- Silent window rules prevent focus stealing
-- Improved configuration organization
-
-### System Improvements
-
-- Increased snapshot count (40+)
-- Enhanced backup system
-- Better documentation structure
-- Improved theme consistency
-- More productivity aliases
+Added version 2.1 notes including keybinding fixes and updates.
+Provided details on the new features and improved synchronization with GitHub.
