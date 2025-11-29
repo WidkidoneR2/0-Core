@@ -1,40 +1,7 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 2.7.0 - Theme Toggle System  
-**Last Updated:** November 27, 2025
-
----
-
-## 🚀 NEXT UP: LazyVim "IDE Mode" (Pre-2.7.1)
-
-### Goal: Transform LazyVim into Smart IDE
-
-**What to Enable:**
-- Project-type auto-detection (detect package.json, Cargo.toml, etc.)
-- LSP cache warming for instant completions
-- Enhanced Treesitter configs
-- Project-specific LSP configurations
-
-**Implementation:**
-```lua
--- Auto-detect project and load appropriate LSP
--- Python: pyright
--- Rust: rust_analyzer
--- JavaScript/TypeScript: ts_ls
--- Go: gopls
--- etc.
-```
-
-**Tasks:**
-- [ ] Research LazyVim LSP configuration
-- [ ] Create project detection logic
-- [ ] Configure per-language LSPs
-- [ ] Test with different project types
-- [ ] Add keybinds for LSP features
-- [ ] Update documentation
-
-**Time Estimate:** 2-3 hours  
-**Benefits:** Massive productivity boost for coding
+**Current Version:** 2.7.1 - Theme Toggle System  
+**Last Updated:** November 28, 2025
 
 ---
 
@@ -157,6 +124,57 @@ theme-preview                          # Preview before apply
 **Complexity:** High (but worth it!)
 
 ---
+
+## 🔐 Version 2.9 - Security & Backup Infrastructure
+
+### Cloud Integration
+- [ ] Set up Filen.io sync workflow
+- [ ] Create ~/Filen/FilenBackups/ structure
+- [ ] Automate KeePassXC backup to Filen
+- [ ] Automate dotfiles backup to Filen
+- [ ] Optional: Export BTRFS snapshots to Filen
+
+### KeePassXC Integration
+- [ ] Document vault structure in README
+- [ ] Add keybinds for quick KeePassXC access
+- [ ] Set up auto-type for common workflows
+- [ ] Browser integration for web logins
+- [ ] TOTP 2FA entries
+
+### Notesnook Integration  
+- [ ] Add keybind for quick notes
+- [ ] Sync workflow (if needed)
+- [ ] Document notes organization
+
+### Backup Automation
+- [ ] Create sync-filen.sh script
+- [ ] Weekly automated backups
+- [ ] Backup verification script
+- [ ] Recovery testing procedure
+
+## 🚀 Version 3.0 - Complete Ecosystem
+
+### Multi-Machine Support (if needed)
+- [ ] Per-host overrides in dotfiles
+- [ ] Secrets distribution strategy
+- [ ] Theme sync across machines
+
+### Advanced Features
+- [ ] Restic versioned backups via Filen WebDAV
+- [ ] Automated disaster recovery script
+- [ ] Health monitoring dashboard
+- [ ] Complete recovery walkthrough
+```
+
+---
+
+## 💡 My Professional Opinion
+
+**Your security model:**
+```
+Local:  LUKS2 → BTRFS Snapshots → KeePassXC
+Cloud:  Filen.io E2EE → Zero-knowledge backup
+Git:    Clean, no secrets → Public-safe
 
 ## 🌲 Version 3.0 - "Faelight Forest Evolved"
 

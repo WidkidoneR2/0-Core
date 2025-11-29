@@ -37,6 +37,7 @@ fcitx5-gtk
 fcitx5-qt
 fd
 ffmpegthumbnailer
+filen-desktop-bin
 fish
 fontconfig
 fzf
@@ -97,6 +98,7 @@ mpv
 mullvad-vpn-bin
 ncdu
 neovim
+notesnook-bin
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
