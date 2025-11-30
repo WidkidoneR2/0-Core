@@ -1,35 +1,40 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 2.7.1 - Theme Perfection ✅
-**Last Updated:** November 29, 2025
+**Current Version:** 2.7.2 - Security Hardening ✅
+**Last Updated:** November 30, 2025
 
 ---
+## ✅ Version 2.7.2 - Security Hardening (COMPLETE)
 
-## ✅ Version 2.7.1 - Polish & Refinement (COMPLETE)
+### Goals: Harden System Security
 
-### Goals: Fine-tune Current Features
+**Lynis Integration:**
+- [x] Install Lynis security auditing tool
+- [x] Run initial security audit
+- [x] Fix Fail2ban jails (was disabled!)
+- [x] Apply kernel hardening recommendations
 
-**Light Theme Improvements:**
-- [ ] Test light theme in different lighting conditions
-- [ ] Adjust colors for better readability
-- [ ] Fine-tune Waybar in light mode
-- [ ] Add medium contrast option?
+**Kernel Hardening:**
+- [x] Create /etc/sysctl.d/99-hardening.conf
+- [x] Apply 9 critical security settings
+- [x] Verify with sysctl
+- [x] Document in system/security/
 
-**Waybar Theme Switching:**
-- [ ] Create waybar theme configs (dark/light)
-- [ ] Integrate into theme-switch.sh
-- [ ] Test all modules in both themes
+**Vulnerability Scanning:**
+- [x] Install arch-audit
+- [x] Create monitoring aliases
+- [x] Document weekly routine
 
-**Testing:**
-- [ ] Use light theme at different times of day
-- [ ] Note what needs improvement
-- [ ] Gather feedback from usage
+**Results:**
+- ✅ Hardening Index: 71/100 (+3 points)
+- ✅ Fail2ban operational
+- ✅ Kernel fully hardened
+- ✅ Security monitoring in place
 
-**Time Estimate:** 2-4 hours  
-**Focus:** Making existing features perfect
+**Time Spent:** 2 hours
+**Impact:** Critical security improvements
 
 ---
-
 ## 🎨 Version 2.8 - Enhanced Theming & Recovery
 
 ### Primary Goals
@@ -43,14 +48,8 @@
 - [ ] Common issues & solutions database
 - [ ] Test on VM (optional but recommended)
 
-**2. Time-Based Theme Switching**
-- [ ] Auto-switch to dark at night (8 PM)
-- [ ] Auto-switch to light at day (8 AM)
-- [ ] Configurable times
-- [ ] Manual override capability
-- [ ] Notification on auto-switch
 
-**3. Theme Variants**
+**2. Theme Variants**
 - [ ] Nord-inspired Faelight variant
 - [ ] Gruvbox-inspired Faelight variant
 - [ ] **Ghost Variant** - Transparent/glass morphism theme
@@ -61,7 +60,7 @@
   - [ ] Floating window emphasis
 - [ ] Keep Faelight aesthetic but adapt palettes
 
-**4. Waybar Full Integration**
+**3. Waybar Full Integration**
 - [ ] Waybar configs for all themes
 - [ ] Module color coordination
 - [ ] Test with VPN status, workspaces, etc.
@@ -279,11 +278,7 @@ decoration {
 
 ## 🎯 Development Timeline
 
-### Immediate (This Week)
-- LazyVim IDE Mode (2-3 hours)
-
 ### Short-term (Next 2 Weeks)
-- Version 2.7.1 - Polish (2-4 hours)
 - Version 2.8 - Enhanced features (1-2 weeks)
 
 ### Medium-term (Next 2 Months)
@@ -318,8 +313,6 @@ decoration {
 
 | Feature | Complexity | Time | Impact | Priority |
 |---------|-----------|------|--------|----------|
-| LazyVim IDE | ⭐⭐ | 2-3h | High | NOW |
-| v2.7.1 Polish | ⭐ | 2-4h | Medium | Soon |
 | v2.8 Recovery | ⭐⭐⭐ | 1w | High | Next |
 | Theme Engine | ⭐⭐⭐⭐⭐ | 4-6w | Massive | Later |
 | Seasonal | ⭐⭐⭐ | 1w | High | v3.0 |
@@ -357,11 +350,13 @@ decoration {
 
 *"Your desktop should breathe with you, adapt to you, and inspire you."*
 
-**Current Status:** Version 2.7.1 Complete ✅
+**Current Status:** Version 2.7.2 Complete ✅
 **Next Action:** Ghost Variant Theme (v2.8)
 **Vision:** Version 3.0 - A Living, Breathing Forest 🌲✨
 
 ---
 
-*Last Updated: November 29, 2025*
-*Roadmap Version: 3.0*
+*Last Updated: November 30, 2025*
+
+---
+Roadmap Version: 3.0*

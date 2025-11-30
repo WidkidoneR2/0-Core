@@ -1,5 +1,45 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
+## [2.7.2] - 2025-11-30
+
+### 🔒 Security Hardening
+- **Hardening Index improved: 68 → 71** (+3 points, 4.4% increase)
+- Enabled Fail2ban jails (was completely disabled - critical fix!)
+- Applied kernel hardening via sysctl (9 critical settings secured)
+- Installed arch-audit for vulnerability scanning
+
+### ✨ Added
+- Security audit aliases (`security-check`, `vuln-check`, `audit-full`, `security-score`)
+- Fail2ban monitoring aliases (`jail-status`, `ban-list`)
+- `/etc/sysctl.d/99-hardening.conf` - Kernel security settings
+- `system/security/` directory with security configuration documentation
+
+### 🔧 Technical Details
+**Kernel Hardening Applied:**
+- `kernel.kptr_restrict = 2` (pointer obfuscation)
+- `kernel.dmesg_restrict = 1` (restrict dmesg access)
+- `kernel.unprivileged_bpf_disabled = 1` (disable unprivileged BPF)
+- `fs.suid_dumpable = 0` (prevent core dumps)
+- `fs.protected_fifos = 2` (FIFO hardening)
+- `fs.protected_regular = 2` (regular file hardening)
+- `net.core.bpf_jit_harden = 2` (BPF JIT hardening)
+- `net.ipv4.conf.all.log_martians = 1` (log suspicious packets)
+- `net.ipv4.conf.default.log_martians = 1` (log suspicious packets)
+
+**Fail2ban:**
+- Fixed: All jails were disabled (major security gap)
+- Enabled: SSH protection (if applicable)
+- Status: Active intrusion prevention
+
+### 📦 New Packages
+- `lynis` - Security auditing tool
+- `arch-audit` - Arch Linux vulnerability scanner
+
+### 📝 Documentation
+- Created `system/security/README.md` with security configuration guide
+- Documented weekly security audit routine
+- Added security score tracking
+
 ## [2.7.1] - 2025-11-29
 
 ### ✨ Added

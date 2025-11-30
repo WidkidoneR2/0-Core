@@ -1,5 +1,5 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
-![Version](https://img.shields.io/badge/Version-2.7.1-brightgreen)
+![Version](https://img.shields.io/badge/Version-2.7.2-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
 ![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
@@ -8,8 +8,31 @@
 Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, professional dotfile management, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
 ---
+## ✨ What's New in Version 2.7.2 (11-30-25)
 
-## ✨ What's New in Version 2.7.1 (11-29-25)
+### 🔒 Security Hardening Sprint
+- **Hardening Index: 71/100** (improved from 68 - +3 points!)
+- **Fail2ban jails enabled** - Critical fix (was completely disabled)
+- **Kernel hardening applied** - 9 security settings hardened
+- **Vulnerability scanning** - arch-audit installed and configured
+
+### 🛡️ Security Improvements
+- Kernel pointer obfuscation (`kptr_restrict`)
+- Restricted kernel message access (`dmesg_restrict`)
+- Disabled unprivileged BPF
+- Hardened file system protections (FIFOs, regular files)
+- Network security logging (martian packets)
+- Intrusion prevention active (Fail2ban)
+
+### 🔧 New Security Aliases
+```bash
+security-check    # Full weekly security audit
+vuln-check        # Show high-risk vulnerabilities
+security-score    # Display current hardening index
+jail-status       # Check Fail2ban status
+```
+
+### Previous Updates (Version 2.7.1 - 11-29-25)
 
 ### 🎨 Complete Theme Refinement
 - **Theme-Aware Terminal Colors** - 16 ANSI colors perfectly matched to each theme
@@ -59,7 +82,13 @@ waybar/.config/waybar/
 
 ---
 
-## 🔄 Recent Updates (Version 2.6.x)
+### Security Features (v2.7.2)
+- **Hardening Index: 71/100** ✅
+- **Lynis security auditing** - Regular system scans
+- **arch-audit** - Vulnerability tracking
+- **Kernel hardening** - 9 critical settings secured
+- **Fail2ban active** - Intrusion prevention enabled
+- **Weekly audit routine** - Automated security checks
 
 ### Version 2.6.1 - Fish Shell Enhancements
 - Fixed `colors` alias to display Faelight Forest palette
@@ -816,8 +845,8 @@ Your system is **immortal, secure, and beautifully productive**.
 
 **🌲 May your Faelight Forest grow eternal! 🌲✨**
 
-*Version 2.7.1 - Theme Perfection Edition*  
+*Version 2.7.2 - Theme Perfection Edition*  
 *Built with ❤️ by Christian*  
-*November 29, 2025*
+*November 30, 2025*
 
 **Repository:** [github.com/WidkidoneR2/dotfiles](https://github.com/WidkidoneR2/dotfiles)
