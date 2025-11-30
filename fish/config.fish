@@ -399,14 +399,20 @@ alias audit-secrets='cd ~/dotfiles && echo "🔍 Scanning for secrets..." && gre
 # 🔒 Security Audit Aliases (v2.7.2)
 # ═══════════════════════════════════════════════════════════
 
+# Full audit (saves score to file)
+alias audit-full='sudo lynis audit system | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
+
+# Quick audit (saves score to file)  
+alias audit-quick='sudo lynis audit system --quick | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
+
+# Show saved score (instant!)
+alias security-score='test -f ~/.lynis-score && echo "🛡️  Hardening Index: "(cat ~/.lynis-score)"/100" || echo "Run audit-full or audit-quick first"'
+
 # Weekly security routine
-alias security-check='sudo pacman -Syu && echo "---" && arch-audit && echo "---" && sudo lynis audit system --quick'
+alias security-check='sudo pacman -Syu && echo "---" && arch-audit && echo "---" && audit-quick'
 
 # Individual checks
 alias vuln-check='arch-audit | grep -i "High risk"'
-alias audit-full='sudo lynis audit system'
-alias audit-quick='sudo lynis audit system --quick'
-alias security-score='sudo lynis audit system --quick | grep "Hardening index"'
 
 # Fail2ban monitoring
 alias jail-status='sudo fail2ban-client status'
