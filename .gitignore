@@ -88,3 +88,42 @@ nvim/lazy-lock.json
 **/*CONFIDENTIAL*
 **/*-secret*
 **/*-SECRET*
+
+# ═══════════════════════════════════════════════════════════
+# 🔒 Additional Security (v2.7.1)
+# ═══════════════════════════════════════════════════════════
+
+# VPN Credentials (Mullvad)
+**/mullvad-account.txt
+**/.config/mullvad-vpn/account-history.json
+**/.config/mullvad-vpn/settings.json
+
+# Fish Shell History (can contain typed passwords!)
+**/fish_history
+fish/.config/fish/fish_history
+
+# NetworkManager (WiFi passwords!)
+**/system-connections/
+**/NetworkManager/system-connections/
+
+# Cloud Storage Tokens
+**/.config/rclone/rclone.conf
+
+# Git Credentials
+**/.git-credentials
+**/.gitconfig.local
+
+# GitHub CLI
+**/.config/gh/hosts.yml
+
+# Browser Data (contains saved passwords)
+**/.mozilla/firefox/*/logins.json
+**/.config/BraveSoftware/Brave-Browser/*/Login Data
+**/.config/chromium/*/Login Data
+
+# Editor Temp Files
+*.swp
+*.swo
+*.tmp
+*~
+*.backup
