@@ -1,6 +1,7 @@
 aether
 alacritty
 amd-ucode
+arch-audit
 asdcontrol
 base
 base-devel
@@ -88,6 +89,7 @@ linux-firmware
 llvm
 localsend
 luarocks
+lynis
 mako
 man-db
 mariadb-libs

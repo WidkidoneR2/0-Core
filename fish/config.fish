@@ -396,6 +396,23 @@ alias scan-staged='gitleaks protect --staged -v'
 alias audit-secrets='cd ~/dotfiles && echo "🔍 Scanning for secrets..." && grep -r "password\|api_key\|secret.*=\|token.*=" . --exclude-dir=.git --exclude=.gitignore -i | grep -v "Binary" || echo "✅ No secrets found!"'
 
 # ═══════════════════════════════════════════════════════════
+# 🔒 Security Audit Aliases (v2.7.2)
+# ═══════════════════════════════════════════════════════════
+
+# Weekly security routine
+alias security-check='sudo pacman -Syu && echo "---" && arch-audit && echo "---" && sudo lynis audit system --quick'
+
+# Individual checks
+alias vuln-check='arch-audit | grep -i "High risk"'
+alias audit-full='sudo lynis audit system'
+alias audit-quick='sudo lynis audit system --quick'
+alias security-score='sudo lynis audit system --quick | grep "Hardening index"'
+
+# Fail2ban monitoring
+alias jail-status='sudo fail2ban-client status'
+alias ban-list='sudo fail2ban-client status sshd'
+
+# ═══════════════════════════════════════════════════════════
 # 🎨 FISH SHELL COLORS (Faelight Forest Theme)
 # ═══════════════════════════════════════════════════════════
 
@@ -432,9 +449,9 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v2.7!"
+    echo "🌲 Welcome to Faelight Forest v2.7.2!"
     set_color normal
-    echo "This is my Happy Place"
+    echo "This is my Happy Place!!!"
     echo ""
     echo "💡 Quick commands: guide | keys | colors | health | roadmap"
 end
@@ -446,5 +463,5 @@ set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.7 - Enhanced & Protected Edition
+# Version 2.7.2 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
