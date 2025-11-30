@@ -1,11 +1,11 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 2.7.1 - Theme Toggle System  
-**Last Updated:** November 28, 2025
+**Current Version:** 2.7.1 - Theme Perfection ✅
+**Last Updated:** November 29, 2025
 
 ---
 
-## 📝 Version 2.7.1 - Polish & Refinement
+## ✅ Version 2.7.1 - Polish & Refinement (COMPLETE)
 
 ### Goals: Fine-tune Current Features
 
@@ -53,6 +53,12 @@
 **3. Theme Variants**
 - [ ] Nord-inspired Faelight variant
 - [ ] Gruvbox-inspired Faelight variant
+- [ ] **Ghost Variant** - Transparent/glass morphism theme
+  - [ ] Heavy blur effects
+  - [ ] See-through Waybar/terminals (high opacity like 0.7-0.85)
+  - [ ] Frosted glass aesthetic
+  - [ ] Optional shimmer/glow effects
+  - [ ] Floating window emphasis
 - [ ] Keep Faelight aesthetic but adapt palettes
 
 **4. Waybar Full Integration**
@@ -351,11 +357,11 @@ decoration {
 
 *"Your desktop should breathe with you, adapt to you, and inspire you."*
 
-**Current Status:** Version 2.7.0 Complete ✅  
-**Next Action:** LazyVim IDE Mode  
+**Current Status:** Version 2.7.1 Complete ✅
+**Next Action:** Ghost Variant Theme (v2.8)
 **Vision:** Version 3.0 - A Living, Breathing Forest 🌲✨
 
 ---
 
-*Last Updated: November 27, 2025*  
+*Last Updated: November 29, 2025*
 *Roadmap Version: 3.0*

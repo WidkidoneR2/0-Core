@@ -1,5 +1,5 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
-![Version](https://img.shields.io/badge/Version-2.7-brightgreen)
+![Version](https://img.shields.io/badge/Version-2.7.1-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
 ![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
@@ -9,7 +9,31 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 
 ---
 
-## ✨ What's New in Version 2.7 11-27-25
+## ✨ What's New in Version 2.7.1 (11-29-25)
+
+### 🎨 Complete Theme Refinement
+- **Theme-Aware Terminal Colors** - 16 ANSI colors perfectly matched to each theme
+- **Fish Prompt Polish** - Purple timestamps, lime/teal folders, cyan/magenta prompts
+- **Fish Syntax Highlighting** - Orange commands, lime paths, purple functions in dark theme
+- **Waybar Light Theme** - Bright purple workspace icons, blue WiFi
+- **Neon Status Indicators** - Bright green ✔ and red ✗ in both themes
+- **Perfect Color Coherence** - Every component matches the Faelight aesthetic
+
+### 📁 New Files
+```
+themes/
+├── faelight-dark/terminal.conf    # Complete 16-color ANSI palette
+└── faelight-light/terminal.conf   # Light theme terminal colors
+
+fish/.config/fish/functions/
+└── set_fish_colors.fish           # Theme-aware syntax highlighting
+
+waybar/.config/waybar/
+├── style-dark.css                 # Dark Waybar theme
+└── style-light.css                # Light Waybar theme (NEW!)
+```
+
+### Previous Updates (Version 2.7 - 11-27-25)
 
 ### 🎨 Theme Toggle System
 - **Instant Theme Switching** - `SUPER + SHIFT + P` toggles your entire system
@@ -792,8 +816,8 @@ Your system is **immortal, secure, and beautifully productive**.
 
 **🌲 May your Faelight Forest grow eternal! 🌲✨**
 
-*Version 2.6 - GNU Stow Edition*  
+*Version 2.7.1 - Theme Perfection Edition*  
 *Built with ❤️ by Christian*  
-*November 25, 2025*
+*November 29, 2025*
 
 **Repository:** [github.com/WidkidoneR2/dotfiles](https://github.com/WidkidoneR2/dotfiles)

@@ -1,5 +1,30 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
+## [2.7.1] - 2025-11-29
+
+### ✨ Added
+- Theme-aware Fish prompt colors (purple timestamp, lime/teal folder, cyan/magenta prompt)
+- Theme-aware Fish syntax highlighting with `set_fish_colors.fish`
+- Complete terminal color schemes (16 ANSI colors for both themes)
+- Waybar light theme with bright purple workspaces and blue WiFi icon
+- Neon green welcome message in Fish shell
+- Proper styling for disk and tray modules in both Waybar themes
+
+### 🎨 Improved
+- Dark theme: Orange commands, lime paths, purple functions, bright cyan WiFi
+- Light theme: Dark readable colors, bright purple workspace icons
+- Fish autosuggestion visibility (bright in dark, dark in light)
+- Terminal color coherence across all components
+
+### 🔧 Changed
+- Split Waybar CSS into `style-dark.css` and `style-light.css`
+- Theme-switch.sh now loads terminal colors from dedicated files
+- Terminal colors now properly match Fish prompt palette
+
+### 🗑️ Removed
+- Walker config backup file
+- Unused waybar `style.css` (replaced by theme-specific files)
+
 ## [2.7.0] - 2025-11-27
 
 ### 🎨 Major Features
