@@ -1,14 +1,19 @@
-# Don't symlink these to home directory
+# Prevent Stow from symlinking unwanted files
 \.git
 \.gitignore
-README\.md
-CHANGELOG\.md
-LICENSE
-.*\.md$
-.*\.log$
-.*\.swp$
-.*\.bak$
+^/README.*
+^/LICENSE.*
+^/CHANGELOG.*
 ^/docs
 ^/scripts
 ^/packages
 ^/system
+.*\.swp$
+.*\.swo$
+.*\.bak$
+.*\.backup$
+.*~$
+.*\.tmp$
+.*\.old$
+.*\.orig$
+.*\.log$
