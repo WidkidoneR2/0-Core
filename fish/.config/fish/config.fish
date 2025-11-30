@@ -350,6 +350,12 @@ alias roadmap='nvim ~/dotfiles/docs/planning/ROADMAP.md'
 alias ideas='nvim ~/dotfiles/docs/planning/ROADMAP.md'
 alias planning='cd ~/dotfiles/docs/planning && ls'
 
+# 🎨 Theme Management
+alias theme-dark='~/dotfiles/scripts/theme-switch.sh dark'
+alias theme-light='~/dotfiles/scripts/theme-switch.sh light'
+alias theme-toggle='~/dotfiles/scripts/theme-switch.sh toggle'
+alias theme='~/dotfiles/scripts/theme-switch.sh status'
+
 # Dotfiles management
 alias dotfiles='cd ~/dotfiles'
 alias dotbackup='cd ~/dotfiles && ./backup.sh'
@@ -425,7 +431,7 @@ if status is-interactive
     fastfetch
     # Custom greeting
     echo ""
-    set_color -o 5bb7a5
+    set_color -o 00ff00
     echo "🌲 Welcome to Faelight Forest v2.7!"
     set_color normal
     echo "This is my Happy Place"
@@ -434,6 +440,9 @@ if status is-interactive
 end
 
 set -g fish_greeting ""
+
+# Apply theme colors on shell start
+set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION

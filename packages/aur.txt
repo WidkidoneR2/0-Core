@@ -1,6 +1,7 @@
 brave-bin
-discord-canary
 ente-auth-bin
+filen-desktop-bin
 mullvad-vpn-bin
+notesnook-bin
 papirus-folders
 tutanota-desktop-bin
