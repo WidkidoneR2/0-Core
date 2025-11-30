@@ -1,0 +1,14 @@
+# Don't symlink these to home directory
+\.git
+\.gitignore
+README\.md
+CHANGELOG\.md
+LICENSE
+.*\.md$
+.*\.log$
+.*\.swp$
+.*\.bak$
+^/docs
+^/scripts
+^/packages
+^/system
