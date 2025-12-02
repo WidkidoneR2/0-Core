@@ -13,23 +13,34 @@ Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with
 ### 🔒 Security Hardening Sprint
 - **Hardening Index: 71/100** (improved from 68 - +3 points!)
 - **Fail2ban jails enabled** - Critical fix (was completely disabled)
-- **Kernel hardening applied** - 9 security settings hardened
-- **Vulnerability scanning** - arch-audit installed and configured
+- **Kernel hardening applied** - 9 security settings hardened via sysctl
+- **Vulnerability scanning** - arch-audit installed and monitoring
+- **Security auditing** - Lynis integrated for weekly scans
 
 ### 🛡️ Security Improvements
-- Kernel pointer obfuscation (`kptr_restrict`)
-- Restricted kernel message access (`dmesg_restrict`)
-- Disabled unprivileged BPF
+- Kernel pointer obfuscation (`kptr_restrict = 2`)
+- Restricted kernel message access (`dmesg_restrict = 1`)
+- Disabled unprivileged BPF (`unprivileged_bpf_disabled = 1`)
 - Hardened file system protections (FIFOs, regular files)
 - Network security logging (martian packets)
+- BPF JIT hardening
 - Intrusion prevention active (Fail2ban)
 
 ### 🔧 New Security Aliases
 ```bash
 security-check    # Full weekly security audit
 vuln-check        # Show high-risk vulnerabilities
-security-score    # Display current hardening index
+security-score    # Display current hardening index (71/100)
+audit-full        # Complete Lynis security scan
 jail-status       # Check Fail2ban status
+```
+
+### 📝 Documentation
+- **COMPLETE_GUIDE.md** - Complete rewrite for v2.7.2 with security section
+- **system/security/** - Security configuration documentation
+- Weekly security routine documented
+
+### Previous Updates (Version 2.7.1 - 11-29-25)
 ```
 
 ### Previous Updates (Version 2.7.1 - 11-29-25)
@@ -845,7 +856,7 @@ Your system is **immortal, secure, and beautifully productive**.
 
 **🌲 May your Faelight Forest grow eternal! 🌲✨**
 
-*Version 2.7.2 - Theme Perfection Edition*  
+*Version 2.7.2 - Security Hardened Edition*  
 *Built with ❤️ by Christian*  
 *November 30, 2025*
 

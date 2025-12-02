@@ -6,6 +6,7 @@
 - **Hardening Index improved: 68 → 71** (+3 points, 4.4% increase)
 - Enabled Fail2ban jails (was completely disabled - critical fix!)
 - Applied kernel hardening via sysctl (9 critical settings secured)
+- Installed Lynis for comprehensive security auditing
 - Installed arch-audit for vulnerability scanning
 
 ### ✨ Added
@@ -13,8 +14,10 @@
 - Fail2ban monitoring aliases (`jail-status`, `ban-list`)
 - `/etc/sysctl.d/99-hardening.conf` - Kernel security settings
 - `system/security/` directory with security configuration documentation
+- Weekly security audit routine in COMPLETE_GUIDE.md
 
 ### 🔧 Technical Details
+
 **Kernel Hardening Applied:**
 - `kernel.kptr_restrict = 2` (pointer obfuscation)
 - `kernel.dmesg_restrict = 1` (restrict dmesg access)
@@ -36,6 +39,8 @@
 - `arch-audit` - Arch Linux vulnerability scanner
 
 ### 📝 Documentation
+- Complete rewrite of `COMPLETE_GUIDE.md` for v2.7.2
+- Added comprehensive security section
 - Created `system/security/README.md` with security configuration guide
 - Documented weekly security audit routine
 - Added security score tracking

@@ -1,6 +1,6 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 2.7.2 - Security Hardening ✅
+**Current Version:** 2.7.2 - Security Hardened ✅
 **Last Updated:** November 30, 2025
 
 ---
@@ -10,7 +10,7 @@
 
 **Lynis Integration:**
 - [x] Install Lynis security auditing tool
-- [x] Run initial security audit
+- [x] Run initial security audit (Hardening Index: 68 → 71)
 - [x] Fix Fail2ban jails (was disabled!)
 - [x] Apply kernel hardening recommendations
 
@@ -25,14 +25,30 @@
 - [x] Create monitoring aliases
 - [x] Document weekly routine
 
+**Security Aliases:**
+- [x] security-check (full weekly audit)
+- [x] security-score (instant hardening index)
+- [x] vuln-check (high-risk vulnerabilities)
+- [x] audit-full/audit-quick (Lynis scans)
+- [x] jail-status (Fail2ban monitoring)
+
+**Documentation:**
+- [x] Complete rewrite of COMPLETE_GUIDE.md
+- [x] Added comprehensive security section
+- [x] Created system/security/README.md
+- [x] Updated all documentation for v2.7.2
+
 **Results:**
-- ✅ Hardening Index: 71/100 (+3 points)
+- ✅ Hardening Index: 71/100 (+3 points, 4.4% improvement)
 - ✅ Fail2ban operational
 - ✅ Kernel fully hardened
 - ✅ Security monitoring in place
+- ✅ Weekly audit routine established
 
-**Time Spent:** 2 hours
-**Impact:** Critical security improvements
+**Time Spent:** 2-3 hours
+**Impact:** Critical security improvements, enterprise-grade hardening
+
+---
 
 ---
 ## 🎨 Version 2.8 - Enhanced Theming & Recovery
@@ -352,6 +368,7 @@ decoration {
 
 **Current Status:** Version 2.7.2 Complete ✅
 **Next Action:** Ghost Variant Theme (v2.8)
+
 **Vision:** Version 3.0 - A Living, Breathing Forest 🌲✨
 
 ---
@@ -360,3 +377,4 @@ decoration {
 
 ---
 Roadmap Version: 3.0*
+
