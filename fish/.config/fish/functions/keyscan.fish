@@ -68,7 +68,7 @@ function _parse_bindings
     set -l file $argv[1]
 
     # Extract all bind/bindd lines and parse them
-    grep -E '^\s*bind[d]?\s*=' $file | while read -l line
+    grep -E '^\s*bindd\s*=' $file | while read -l line
         # Extract modifier and key
         # Format: bindd = MODIFIER, KEY, Description, command
         if string match -qr 'bind[d]?\s*=\s*([^,]+)\s*,\s*([^,]+)' $line
@@ -95,5 +95,8 @@ function _detect_conflicts
         end
     end
 
-    echo $conflicts
+    # Return conflicts (or nothing if empty)
+    if test (count $conflicts) -gt 0
+        echo $conflicts
+    end
 end
