@@ -50,99 +50,509 @@
 
 ---
 
----
-## 🎨 Version 2.8 - Enhanced Theming & Recovery
+## 🔍 Version 2.8.0 - Foundational Intelligence & Safety Infrastructure
 
-### Primary Goals
+### Goals: Build Safety Net Before Major Theme Engine Work
 
-**1. Enhanced Recovery Guide**
-- [ ] Write comprehensive RECOVERY_GUIDE.md
-- [ ] Step-by-step GRUB snapshot recovery
-- [ ] Manual BTRFS rollback procedures
-- [ ] Single file restoration guide
-- [ ] Complete reinstall walkthrough
-- [ ] Common issues & solutions database
-- [ ] Test on VM (optional but recommended)
-
-
-**2. Theme Variants**
-- [ ] Nord-inspired Faelight variant
-- [ ] Gruvbox-inspired Faelight variant
-- [ ] **Ghost Variant** - Transparent/glass morphism theme
-  - [ ] Heavy blur effects
-  - [ ] See-through Waybar/terminals (high opacity like 0.7-0.85)
-  - [ ] Frosted glass aesthetic
-  - [ ] Optional shimmer/glow effects
-  - [ ] Floating window emphasis
-- [ ] Keep Faelight aesthetic but adapt palettes
-
-**3. Waybar Full Integration**
-- [ ] Waybar configs for all themes
-- [ ] Module color coordination
-- [ ] Test with VPN status, workspaces, etc.
-
-**Time Estimate:** 1-2 weeks  
-**Impact:** Bulletproof recovery + more theme options
+**Why this comes first:**
+This establishes health monitoring and validation BEFORE the massive Theme Intelligence Engine project. These tools will catch issues during v2.8.1-2.8.5 development.
 
 ---
 
-## 🤖 Version 2.8.1-2.8.5 - Theme Intelligence Engine
+### Dotfile Health Check (`dot-doctor`)
 
-### The Big Project: Pywal-Style Custom Engine
+**Core Health Checks:**
+- [ ] Create `dot-doctor` Fish function in ~/dotfiles/fish/.config/fish/functions/
+- [ ] Stow symlink verification
+  - Check all expected symlinks exist
+  - Verify they point to correct dotfiles paths
+  - Detect broken symlinks
+- [ ] Config syntax validation
+  - Fish: `fish --no-execute config.fish`
+  - Hyprland: Parse for syntax errors
+  - Waybar: `jq . config.jsonc` validation
+- [ ] Binary dependency checker
+  - List all binaries referenced in configs
+  - Verify they exist in PATH
+  - Warn about missing dependencies
+- [ ] Service status monitoring
+  - Check mullvad-daemon, fail2ban, syncthing, etc.
+  - Report running/stopped status
+- [ ] Basic output with colors
+  - Green ✅ for pass
+  - Red ❌ for errors
+  - Yellow ⚠️ for warnings
 
-**Phase 1 (v2.8.1): Research & Foundation**
-- [ ] Study pywal architecture
-- [ ] Research color extraction tools (ImageMagick, colorz)
-- [ ] Understand color theory (complementary, analogous)
-- [ ] Design algorithm for palette generation
+**Output Example:**
+```
+🏥 Dotfile Health Check - Faelight Forest
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Phase 2 (v2.8.2): Color Extraction**
-- [ ] Install/test color extraction tools
-- [ ] Write wallpaper color extraction script
-- [ ] Generate 16-color palette from wallpaper
-- [ ] Validate palette contrast ratios
-- [ ] Test with various wallpapers
+🔗 Stow Symlinks............. ✅ 8/8 valid
+🔧 Config Syntax............. ✅ All valid
+📦 Binary Dependencies....... ⚠️  1 missing (swappy)
+🔄 Services.................. ✅ 3/3 running
 
-**Phase 3 (v2.8.3): Template System**
-- [ ] Create template versions of configs
-- [ ] Variables: {{background}}, {{primary}}, etc.
-- [ ] Template engine (Jinja2 or sed-based)
-- [ ] Generate test configs
-
-**Phase 4 (v2.8.4): Integration**
-- [ ] Integrate with theme-switch.sh
-- [ ] Auto-generate theme.json from wallpaper
-- [ ] Apply to Hyprland
-- [ ] Apply to Kitty
-- [ ] Apply to Waybar
-- [ ] Apply to Mako
-- [ ] Apply to LazyVim (optional)
-
-**Phase 5 (v2.8.5): Polish & Features**
-- [ ] Add wallpaper detection on change
-- [ ] Cache generated themes
-- [ ] Allow manual palette tweaking
-- [ ] Add presets (vibrant, muted, pastel)
-- [ ] Live preview before applying
-- [ ] Create wallpaper gallery with generated themes
-
-**Commands:**
-```fish
-set-wallpaper ~/Pictures/forest.jpg    # Auto-themes everything
-theme-from-wallpaper                   # Manual trigger
-theme-preview                          # Preview before apply
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  Found 0 errors and 1 warning
 ```
 
-**Tools to Evaluate:**
-- pywal - reference implementation
-- wpgtk - GUI version
-- Chameleon - advanced extraction
-- ImageMagick - color analysis
-- colorz - Python color extraction
+---
 
-**Time Estimate:** 4-6 weeks (iterative)  
-**Impact:** 🤯 Your system adapts to any wallpaper  
-**Complexity:** High (but worth it!)
+### Keybinding Scanner (`keyscan`)
+
+**Core Functionality:**
+- [ ] Create `keyscan` Fish function in ~/dotfiles/fish/.config/fish/functions/
+- [ ] Parse Hyprland bindings.conf
+  - Extract all `bind` and `bindd` lines
+  - Parse modifier + key combinations
+  - Group by modifier (SUPER, SUPER+SHIFT, etc.)
+- [ ] Detect conflicts
+  - Same key bound multiple times
+  - Conflicts between Hyprland and terminal
+- [ ] Show available keys
+  - List unused SUPER+A through Z
+  - List unused SUPER+SHIFT combinations
+- [ ] Basic table output
+  - Category grouping
+  - Conflict highlighting
+
+**Output Example:**
+```
+🔍 Keybinding Analysis Report
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Statistics:
+   Total bindings: 127
+   Conflicts: 0 ✅
+   Available SUPER keys: 8
+
+✅ Available Keys:
+   SUPER+A, SUPER+I, SUPER+X, SUPER+Y
+   SUPER+SHIFT+A, SUPER+SHIFT+I...
+
+📋 Bindings by Modifier:
+   SUPER (26): B, E, N, L, Q, F, V...
+   SUPER+SHIFT (18): F, Y, B, T, D...
+   SUPER+ALT (12): R, K, W, B, E...
+```
+
+---
+
+### Integration & Documentation
+
+**Fish Integration:**
+- [ ] Add functions to fish/.config/fish/functions/
+- [ ] Add aliases to config.fish:
+```fish
+  alias doctor='dot-doctor'
+  alias health-check='dot-doctor'
+  alias keys-check='keyscan'
+```
+- [ ] Test both commands
+
+**Documentation:**
+- [ ] Create docs/TOOLING.md
+  - Explain dot-doctor usage
+  - Explain keyscan usage
+  - Weekly maintenance routine
+- [ ] Update COMPLETE_GUIDE.md
+  - Add "Dotfile Intelligence" section
+  - Document both commands
+- [ ] Add to CHANGELOG.md
+
+**Testing:**
+- [ ] Run `dot-doctor` and verify output
+- [ ] Run `keyscan` and verify accuracy
+- [ ] Check for false positives/negatives
+- [ ] Verify colors display correctly
+
+---
+
+**Estimated Time:** 2-3 hours  
+**Priority:** HIGH (foundation for v2.8.1-2.8.5)  
+**Deliverables:**
+- ✅ Basic health monitoring
+- ✅ Keybinding conflict detection
+- ✅ Safety baseline established
+- ✅ Ready for Theme Intelligence Engine work
+
+---
+
+## 🎨 Version 2.8.1 - Theme Engine Research & Foundation
+
+### Goals: Understand Architecture & Design System
+
+**Research Phase:**
+- [ ] Study pywal architecture and codebase
+  - How it extracts colors
+  - How it generates palettes
+  - How it applies to apps
+- [ ] Research color extraction tools
+  - ImageMagick `convert` commands
+  - `colorz` Python library
+  - Test with sample wallpapers
+- [ ] Study color theory
+  - Complementary colors
+  - Analogous colors
+  - Contrast ratios (WCAG AA/AAA)
+  - Accessibility considerations
+
+**Design Phase:**
+- [ ] Design palette generation algorithm
+  - Extract dominant colors (6-8 colors)
+  - Generate 16-color ANSI palette
+  - Ensure sufficient contrast
+  - Define roles: background, foreground, accents
+- [ ] Create algorithm flowchart
+- [ ] Document color role mapping
+
+**Tool Selection:**
+- [ ] Choose extraction tool (ImageMagick vs colorz vs custom)
+- [ ] Choose template engine (Jinja2 vs sed vs custom)
+- [ ] Decide on caching strategy
+
+**Documentation:**
+- [ ] Create THEME_ENGINE.md design document
+- [ ] Document algorithm logic
+- [ ] Create example color extraction output
+
+---
+
+**Estimated Time:** 3-4 hours  
+**Dependencies:** v2.8.0 complete
+
+---
+
+## 🎨 Version 2.8.2 - Color Extraction Implementation
+
+### Goals: Extract Colors from Wallpapers
+
+**Color Extraction Script:**
+- [ ] Create `extract-colors.sh` in scripts/
+- [ ] Implement wallpaper color extraction
+  - Accept wallpaper path as input
+  - Extract 6-8 dominant colors
+  - Output hex codes
+- [ ] Generate 16-color ANSI palette
+  - Background (dark/light)
+  - Foreground (text)
+  - 8 normal colors (black, red, green, yellow, blue, magenta, cyan, white)
+  - 8 bright colors (variants)
+
+**Validation:**
+- [ ] Implement contrast ratio checker
+  - Background vs foreground (min 7:1 for AAA)
+  - Background vs accent colors (min 4.5:1 for AA)
+  - Auto-adjust if insufficient contrast
+- [ ] Test with various wallpapers
+  - Dark wallpapers
+  - Light wallpapers
+  - Colorful wallpapers
+  - Muted wallpapers
+
+**Output Format:**
+- [ ] Generate JSON palette file
+```json
+  {
+    "wallpaper": "/path/to/image.jpg",
+    "background": "#0f1c16",
+    "foreground": "#e8f5d5",
+    "colors": {
+      "color0": "#...",
+      ...
+    }
+  }
+```
+
+**Testing:**
+- [ ] Test extraction with 10+ wallpapers
+- [ ] Verify contrast ratios
+- [ ] Document edge cases
+
+---
+
+**Estimated Time:** 4-5 hours  
+**Dependencies:** v2.8.1 complete
+
+---
+
+## 🎨 Version 2.8.3 - Template System
+
+### Goals: Create Dynamic Config Templates
+
+**Template Structure:**
+- [ ] Create `templates/` directory in ~/dotfiles/
+- [ ] Create template versions of configs:
+  - `hyprland.conf.template`
+  - `kitty.conf.template`
+  - `waybar-style.css.template`
+  - `mako.conf.template`
+  - `theme.json.template`
+
+**Variable System:**
+- [ ] Define template variables:
+  - `{{background}}` - Main background color
+  - `{{foreground}}` - Main text color
+  - `{{primary}}` - Primary accent
+  - `{{secondary}}` - Secondary accent
+  - `{{accent1}}` through `{{accent6}}`
+  - `{{color0}}` through `{{color15}}` - ANSI colors
+
+**Template Engine:**
+- [ ] Choose implementation (sed, envsubst, or Jinja2)
+- [ ] Create `generate-theme.sh` script
+  - Read palette JSON
+  - Replace variables in templates
+  - Output to themes/generated/
+- [ ] Test variable replacement
+
+**Validation:**
+- [ ] Verify generated configs are valid
+  - Use `dot-doctor` to validate! ✅
+  - Check syntax of generated files
+- [ ] Test with multiple palettes
+
+---
+
+**Estimated Time:** 4-5 hours  
+**Dependencies:** v2.8.2 complete
+
+---
+
+## 🎨 Version 2.8.4 - Full System Integration
+
+### Goals: Apply Generated Themes System-Wide
+
+**Integration Script:**
+- [ ] Create `theme-from-wallpaper.sh` master script
+  - Extract colors from wallpaper
+  - Generate palette JSON
+  - Generate all config files from templates
+  - Copy to active locations
+  - Reload all affected apps
+
+**Application Integration:**
+- [ ] Integrate with Hyprland
+  - Generate hyprland colors config
+  - Reload: `hyprctl reload`
+- [ ] Integrate with Kitty
+  - Generate terminal.conf
+  - Reload: `killall -SIGUSR1 kitty`
+- [ ] Integrate with Waybar
+  - Generate style.css with colors
+  - Reload: `killall waybar && waybar &`
+- [ ] Integrate with Mako
+  - Generate mako config
+  - Reload: `makoctl reload`
+- [ ] Optional: LazyVim colorscheme
+  - Generate Lua colorscheme file
+  - May require manual activation
+
+**Theme Switching:**
+- [ ] Integrate with existing `theme-switch.sh`
+- [ ] Add `theme-from-wallpaper` option
+- [ ] Update theme tracking (current.txt)
+
+**Testing:**
+- [ ] Test with 5+ different wallpapers
+- [ ] Verify all apps reload correctly
+- [ ] Check for visual glitches
+- [ ] Run `dot-doctor` after each application ✅
+
+---
+
+**Estimated Time:** 5-6 hours  
+**Dependencies:** v2.8.3 complete
+
+---
+
+## 🎨 Version 2.8.5 - Polish, Features & Automation
+
+### Goals: Add Intelligence & User Experience Features
+
+**Wallpaper Detection:**
+- [ ] Detect wallpaper changes automatically
+  - Watch hyprpaper config for changes
+  - Or monitor wallpaper directory
+  - Trigger theme generation on change
+
+**Theme Caching:**
+- [ ] Cache generated themes by wallpaper hash
+  - Store in ~/.cache/faelight-themes/
+  - Skip regeneration if wallpaper unchanged
+  - Instant theme switching from cache
+
+**Palette Tweaking:**
+- [ ] Add `theme-tweak` command
+  - Manually adjust individual colors
+  - Regenerate from adjusted palette
+  - Save custom tweaks
+
+**Preset Modes:**
+- [ ] Add palette generation presets:
+  - `--vibrant` - Boost saturation
+  - `--muted` - Reduce saturation
+  - `--pastel` - Soft, light colors
+  - `--dark` - Force dark background
+  - `--light` - Force light background
+
+**Live Preview:**
+- [ ] Create preview mode
+  - Generate theme but don't apply
+  - Show color palette preview
+  - Confirm before applying
+
+**Wallpaper Gallery:**
+- [ ] Create `theme-gallery` command
+  - Show wallpapers with generated themes
+  - Preview before applying
+  - Save favorites
+
+**Fish Integration:**
+- [ ] Add convenient aliases:
+```fish
+  alias theme-gen='theme-from-wallpaper'
+  alias theme-wall='theme-from-wallpaper'
+  alias theme-preview='theme-from-wallpaper --preview'
+```
+
+**Documentation:**
+- [ ] Complete THEME_ENGINE.md guide
+  - How to use
+  - How it works
+  - Customization options
+  - Troubleshooting
+- [ ] Update COMPLETE_GUIDE.md
+  - Add theme engine section
+  - Document all commands
+- [ ] Create video/GIF demo
+
+---
+
+**Estimated Time:** 5-6 hours  
+**Dependencies:** v2.8.4 complete
+
+---
+
+## 🔧 Version 2.8.6 - Advanced Dotfile Intelligence Suite
+
+### Goals: Professional Tooling & Maintenance Automation
+
+**Enhanced `dot-doctor`:**
+- [ ] Add advanced checks:
+  - Font dependency verification (NerdFonts, Hack, Inter)
+  - Orphaned file detection (configs without symlinks)
+  - Theme consistency checker (validate generated themes)
+  - Keybinding conflict integration (use keyscan)
+  - Git status (uncommitted changes warning)
+- [ ] Add `--fix` flag for auto-repair:
+  - Recreate broken symlinks
+  - Install missing packages
+  - Remove orphaned files (with confirmation)
+- [ ] Add `--report` flag:
+  - Generate HTML health report
+  - Include graphs/charts
+  - Email option
+- [ ] Performance improvements
+
+**Enhanced `keyscan`:**
+- [ ] Expand parsing:
+  - Waybar on-click handlers
+  - Kitty keybinds
+  - Fish key bindings (if any)
+- [ ] Beautiful output:
+  - Color-coded categories
+  - ASCII art boxes
+  - Export to markdown table
+- [ ] Danger zone warnings:
+  - Terminal vs system conflicts
+  - Common application conflicts
+- [ ] Generate KEYBINDINGS.md automatically
+
+**Additional Tools:**
+- [ ] `dot-diff` - Visual diff of current vs dotfiles
+  - Show what's changed
+  - Use Meld for visual comparison
+- [ ] `dot-benchmark` - Performance profiling
+  - Shell startup time
+  - Plugin load times
+  - Hyprland startup time
+- [ ] `dot-update` - Safe update workflow
+  - Create snapshot first
+  - Run dot-doctor
+  - Update packages
+  - Run dot-doctor again
+  - Rollback if issues
+- [ ] `theme-validate` - Validate generated themes
+  - Check contrast ratios
+  - Verify all required colors defined
+  - Syntax check all generated configs
+
+**Integration & Automation:**
+- [ ] Add `dot-doctor` to pre-commit hook (optional)
+  - Validate before each commit
+  - Prevent broken configs from being committed
+- [ ] Weekly health check reminder
+  - Cron job to run dot-doctor
+  - Email/notify if issues found
+- [ ] Add to `health` alias output
+  - Include doctor summary
+
+**Documentation:**
+- [ ] Create comprehensive TOOLING.md
+  - All commands explained
+  - Usage examples
+  - Troubleshooting guide
+- [ ] Update COMPLETE_GUIDE.md
+  - Add "Dotfile Intelligence" major section
+  - Document weekly maintenance routine
+- [ ] Create troubleshooting flowcharts
+
+---
+
+**Estimated Time:** 4-5 hours  
+**Dependencies:** v2.8.5 complete  
+**Priority:** Medium (polish after theme engine)
+
+---
+
+## 📊 Version 2.8 - Summary
+
+**Complete v2.8 Structure:**
+```
+v2.8.0 - Foundational Intelligence (2-3 hours)
+├─ dot-doctor (basic)
+├─ keyscan (basic)
+└─ Safety baseline
+
+v2.8.1 - Research & Foundation (3-4 hours)
+v2.8.2 - Color Extraction (4-5 hours)
+v2.8.3 - Template System (4-5 hours)
+v2.8.4 - Integration (5-6 hours)
+v2.8.5 - Polish & Features (5-6 hours)
+
+v2.8.6 - Advanced Tooling (4-5 hours)
+├─ Enhanced dot-doctor
+├─ Enhanced keyscan
+├─ Additional tools
+└─ Full automation
+```
+
+**Total Time:** 28-34 hours (spread over weeks/months)
+
+**Key Features Delivered:**
+- 🛡️ Complete health monitoring
+- ⌨️ Keybinding intelligence
+- 🎨 Custom theme generation from any wallpaper
+- 🔧 Professional tooling suite
+- 📚 Comprehensive documentation
+
+**Impact:**
+This transforms your dotfiles from "well-configured" to "professionally managed infrastructure" with automated theme generation and comprehensive health monitoring.
+
+**After v2.8 Complete:**
+Your system will be a **living, intelligent environment** that adapts to your wallpaper and monitors its own health! 🌲✨
 
 ---
 
@@ -411,11 +821,42 @@ decoration {
 ## 🎯 Development Timeline
 
 ### Short-term (Next 2 Weeks)
-- Version 2.8 - Enhanced features (1-2 weeks)
+-
 
 ### Medium-term (Next 2 Months)
-- Version 2.8.1-2.8.5 - Theme Intelligence (4-6 weeks)
+-
+## 🎨 Version 3.0+ - Enhanced Theming & Recovery
 
+### Primary Goals
+
+**1. Enhanced Recovery Guide**
+- [ ] Write comprehensive RECOVERY_GUIDE.md
+- [ ] Step-by-step GRUB snapshot recovery
+- [ ] Manual BTRFS rollback procedures
+- [ ] Single file restoration guide
+- [ ] Complete reinstall walkthrough
+- [ ] Common issues & solutions database
+- [ ] Test on VM (optional but recommended)
+
+
+**2. Theme Variants**
+- [ ] Nord-inspired Faelight variant
+- [ ] Gruvbox-inspired Faelight variant
+- [ ] **Ghost Variant** - Transparent/glass morphism theme
+  - [ ] Heavy blur effects
+  - [ ] See-through Waybar/terminals (high opacity like 0.7-0.85)
+  - [ ] Frosted glass aesthetic
+  - [ ] Optional shimmer/glow effects
+  - [ ] Floating window emphasis
+- [ ] Keep Faelight aesthetic but adapt palettes
+
+**3. Waybar Full Integration**
+- [ ] Waybar configs for all themes
+- [ ] Module color coordination
+- [ ] Test with VPN status, workspaces, etc.
+
+**Time Estimate:** 1-2 weeks  
+**Impact:** Bulletproof recovery + more theme options
 ### Long-term (3+ Months)
 - Version 3.0 - Seasonal + Hero Mode (2-3 months)
 
@@ -438,17 +879,6 @@ decoration {
 - Music-reactive themes (for fun!)
 - Weather-based theme adaptation
 - Productivity metrics dashboard
-
----
-
-## 📊 Complexity Matrix
-
-| Feature | Complexity | Time | Impact | Priority |
-|---------|-----------|------|--------|----------|
-| v2.8 Recovery | ⭐⭐⭐ | 1w | High | Next |
-| Theme Engine | ⭐⭐⭐⭐⭐ | 4-6w | Massive | Later |
-| Seasonal | ⭐⭐⭐ | 1w | High | v3.0 |
-| Hero Mode | ⭐⭐⭐ | 1d | Medium | v3.0 |
 
 ---
 
@@ -482,15 +912,12 @@ decoration {
 
 *"Your desktop should breathe with you, adapt to you, and inspire you."*
 
-**Current Status:** Version 2.7.2 Complete ✅
-**Next Action:** Ghost Variant Theme (v2.8)
 
 **Vision:** Version 3.0 - A Living, Breathing Forest 🌲✨
 
 ---
 
-*Last Updated: November 30, 2025*
+*Last Updated: Decemeber 02, 2025*
 
 ---
 Roadmap Version: 3.0*
-
