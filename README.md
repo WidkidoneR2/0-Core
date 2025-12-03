@@ -1,9 +1,35 @@
 # 🌲 Faelight Forest - The Immortal Arch Linux System
-![Version](https://img.shields.io/badge/Version-2.7.2-brightgreen)
+![Version](https://img.shields.io/badge/version-2.8.0-green?style=flat-square)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
-![Platform](https://img.shields.io/badge/Platform-Arch_Linux-blue)
-![Hyprland](https://img.shields.io/badge/WM-Hyprland-teal)
+![Arch Linux](https://img.shields.io/badge/Arch-Linux-blue?style=flat-square&logo=archlinux)
+![Hyprland](https://img.shields.io/badge/Hyprland-WM-purple?style=flat-square)
 
+> *A meticulously crafted Arch Linux + Hyprland environment*  
+> *Optimized for productivity, beauty, and security*
+
+---
+
+## 🎯 What's New in v2.8.0
+
+**Foundational Intelligence & Safety Infrastructure** 🏥
+
+- ✅ **dot-doctor** - Comprehensive health monitoring
+  - Verifies all symlinks, services, and dependencies
+  - Perfect system health: 8/8 packages, 3/3 services, 17/17 binaries
+- ✅ **keyscan** - Keybinding conflict detection
+  - Analyzes 101 keybindings, groups by modifier
+  - Found and resolved 4 real conflicts!
+  - Verified: 0 conflicts remaining ✅
+- ✅ **Zero-conflict keybinding system**
+  - All case-sensitivity issues resolved
+  - Vim navigation preserved (h/j/k/l)
+  - Productivity apps optimized (Notesnook, KeePassXC)
+
+**Safety infrastructure complete - ready for Theme Intelligence Engine! 🎨**
+
+[See full changelog →](docs/CHANGELOG.md)
+
+---
 
 Faelight Forest is a **fully reproducible, self-healing Arch Linux system** with NixOS-style snapshots, professional dotfile management, and enterprise-grade security. Your system will never break, and your workflow is fully optimized.
 
@@ -856,8 +882,8 @@ Your system is **immortal, secure, and beautifully productive**.
 
 **🌲 May your Faelight Forest grow eternal! 🌲✨**
 
-*Version 2.7.2 - Security Hardened Edition*  
-*Built with ❤️ by Christian*  
-*November 30, 2025*
+---
+**Made with 💚 by Christian**  
+*Last Updated: December 02, 2025 - v2.8.0 Foundational Intelligence*
 
 **Repository:** [github.com/WidkidoneR2/dotfiles](https://github.com/WidkidoneR2/dotfiles)

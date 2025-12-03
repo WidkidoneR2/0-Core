@@ -1,5 +1,97 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
+## [2.8.0] - 2025-12-02
+
+### Added - Foundational Intelligence & Safety Infrastructure 🏥
+
+**New Diagnostic Tools:**
+- **dot-doctor**: Comprehensive dotfile health checker
+  - Verifies all 8 Stow package symlinks
+  - Monitors 3 critical services (mullvad, fail2ban, syncthing)
+  - Checks 17 binary dependencies
+  - Color-coded output (✅ ❌ ⚠️)
+  - Results: Perfect system health! 🌲
+- **keyscan**: Keybinding analysis and conflict detection
+  - Analyzes 101 Hyprland keybindings
+  - Groups by modifier (SUPER, SUPER+SHIFT, etc.)
+  - Detects conflicts automatically
+  - Statistics dashboard
+  - Conflict detection verified: 0 conflicts! ✅
+
+**Fish Functions Added:**
+- `dot-doctor.fish` - System health diagnostics
+- `keyscan.fish` - Keybinding intelligence
+
+**Fish Aliases Added:**
+- `doctor` - Quick health check
+- `health-check` - Full system diagnostic
+- `keys-check` - Keybinding analysis
+
+### Fixed
+
+**Keybinding Conflicts Resolved:**
+All conflicts discovered and resolved by keyscan:
+- **SUPER+L**: Lock Screen removed (kept vim Focus Right)
+  - Alternatives: SUPER+ESCAPE (Power Menu), SUPER ALT+L (Suspend)
+- **SUPER SHIFT+K**: Notesnook moved to SUPER ALT+N
+  - Preserved vim navigation (Move Up)
+  - Better mnemonic: N = Notesnook
+- **SUPER+S**: Scratchpad moved to SUPER+D
+  - Preserved Screenshot on SUPER+S
+  - D = Dropdown scratchpad
+- **SUPER SHIFT+F**: Maximize moved to SUPER+M
+  - Preserved File Manager on SUPER SHIFT+F
+  - M = Maximize (clear mnemonic)
+
+**keyscan Bug Fixes:**
+- Fixed false conflict detection (empty string counted as 1)
+- Fixed display bug (conflicts not showing in output)
+- Improved parser to ignore non-keyboard bindings
+
+### Changed
+
+**Keybinding Reorganization:**
+- Updated bindings.conf to v2.8.0 (Conflict-Free Edition)
+- 101 total keybindings, fully optimized
+- All case-sensitivity conflicts resolved
+- Vim navigation preserved (h/j/k/l) across all layers
+
+**Fish Alias Updates:**
+- Updated `notes` and `notesnook` to launch Notesnook
+- Updated `kp`, `keepass`, `pass` to launch KeePassXC
+- All productivity app aliases verified working
+
+### Documentation
+
+**New Documentation:**
+- Created dot-doctor and keyscan functions
+- Documented conflict resolution process
+- Updated version notes in bindings.conf
+
+**Updated Files:**
+- hypr/.config/hypr/bindings.conf (v2.8.0)
+- fish/.config/fish/functions/dot-doctor.fish
+- fish/.config/fish/functions/keyscan.fish
+- fish/.config/fish/config.fish (new aliases)
+
+### Impact
+
+**v2.8.0 Success Metrics:**
+- ✅ Zero keybinding conflicts (verified by keyscan)
+- ✅ Perfect system health (verified by dot-doctor)
+- ✅ Safety infrastructure complete
+- ✅ Ready for Theme Intelligence Engine (v2.8.1-2.8.5)
+
+**Time Investment:** 3-4 hours  
+**Result:** Enterprise-grade dotfile intelligence and monitoring
+
+**Foundation established for:**
+- Safe theme engine development (v2.8.1-2.8.5)
+- Advanced tooling suite (v2.8.6)
+- Faelight Config Manager framework (v3.0)
+
+---
+
 ## [2.7.2] - 2025-11-30
 
 ### 🔒 Security Hardening

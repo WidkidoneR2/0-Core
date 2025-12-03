@@ -2,11 +2,12 @@
 
 **The Ultimate Reference for Your Immortal Arch Linux System**
 
-**Version:** 2.1 - Legendary Edition  
+**Version:** 2.8 - Legendary Edition  
 **Last Updated:** November 24, 2025  
 **System Status:** IMMORTAL ♾️  
 **Snapshots:** 36+  
 **Commits:** 15
+
 
 ---
 
@@ -540,6 +541,78 @@ cd ~/dotfiles
 
 # Done! Exact system restored! ✅
 ```
+
+---
+
+## 🔧 Dotfile Intelligence & Tooling
+
+**Version:** 2.8.0+  
+**Purpose:** Professional diagnostic and maintenance tools
+
+### Health Monitoring
+
+**dot-doctor** provides comprehensive system health checks:
+```bash
+# Run health check
+dot-doctor
+
+# Quick aliases
+doctor
+health-check
+```
+
+**Checks performed:**
+- ✅ Stow symlinks (8 packages)
+- ✅ System services (mullvad, fail2ban, syncthing)
+- ✅ Binary dependencies (17 critical binaries)
+
+**Example output:**
+```
+✅ All 8 packages properly stowed
+✅ All 3 services running
+✅ All 17 binaries found
+✅ All checks passed! System healthy! 🌲
+```
+
+### Keybinding Analysis
+
+**keyscan** analyzes and validates keybindings:
+```bash
+# Analyze keybindings
+keyscan
+keys-check  # alias
+```
+
+**Features:**
+- Analyzes 101 Hyprland keybindings
+- Groups by modifier (SUPER, SUPER+SHIFT, etc.)
+- Detects conflicts automatically
+- Statistics dashboard
+
+**Current status:**
+- Total: 101 bindings
+- Conflicts: 0 ✅
+- Fully optimized!
+
+### Weekly Maintenance Routine
+
+**Recommended schedule:** Every Sunday
+```bash
+# Quick health check (2 minutes)
+dot-doctor
+keyscan
+security-score
+sudo pacman -Syu
+
+# Full maintenance (10 minutes)
+security-check  # Includes pacman, arch-audit, lynis
+dot-doctor
+keyscan
+git status
+paru -Sc
+```
+
+**See [TOOLING.md](TOOLING.md) for complete guide!**
 
 ---
 
