@@ -419,6 +419,37 @@ alias jail-status='sudo fail2ban-client status'
 alias ban-list='sudo fail2ban-client status sshd'
 
 # ═══════════════════════════════════════════════════════════
+# 📝 Productivity Apps (v2.7.2)
+# ═══════════════════════════════════════════════════════════
+
+# Note-taking
+function notes
+    uwsm-app -- notesnook >/dev/null 2>&1 &
+    disown
+end
+
+function notesnook
+    uwsm-app -- notesnook >/dev/null 2>&1 &
+    disown
+end
+
+# Password manager
+function kp
+    uwsm-app -- keepassxc >/dev/null 2>&1 &
+    disown
+end
+
+function keepass
+    uwsm-app -- keepassxc >/dev/null 2>&1 &
+    disown
+end
+
+function pass
+    uwsm-app -- keepassxc >/dev/null 2>&1 &
+    disown
+end
+
+# ═══════════════════════════════════════════════════════════
 # 🎨 FISH SHELL COLORS (Faelight Forest Theme)
 # ═══════════════════════════════════════════════════════════
 
