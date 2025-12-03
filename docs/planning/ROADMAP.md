@@ -148,30 +148,146 @@ theme-preview                          # Preview before apply
 
 ## 🔐 Version 2.9 - Security & Backup Infrastructure
 
-### Cloud Integration
-- [ ] Set up Filen.io sync workflow
+### Goals: Advanced Security + Complete Backup Strategy + Productivity Integration
+
+**Advanced Security (Lynis → 85+ target):**
+- [ ] Install AIDE (file integrity monitoring)
+- [ ] Install auditd (system auditing)
+- [ ] Configure password policies (/etc/login.defs)
+- [ ] Optional: rkhunter/chkrootkit (malware scanning)
+- [ ] Review and harden systemd services
+- [ ] Document all security improvements
+
+---
+
+### Cloud Integration (Filen.io)
+
+**Filen Setup:**
+- [ ] Install Filen CLI/sync tool
 - [ ] Create ~/Filen/FilenBackups/ structure
-- [ ] Automate KeePassXC backup to Filen
-- [ ] Automate dotfiles backup to Filen
-- [ ] Optional: Export BTRFS snapshots to Filen
+- [ ] Configure encryption settings
+- [ ] Test upload/download workflow
 
-### KeePassXC Integration
+**Automated Backups to Filen:**
+- [ ] KeePassXC database (daily encrypted backup)
+- [ ] Dotfiles repository (weekly sync)
+- [ ] Important documents (weekly sync)
+- [ ] Optional: BTRFS snapshot exports (monthly)
+
+**Restic + Filen Integration:**
+- [ ] Install and configure Restic
+- [ ] Setup Restic with Filen backend (WebDAV/rclone)
+- [ ] Configure automated encrypted backups
+- [ ] Daily incremental backups
+- [ ] Weekly full backups
+- [ ] Test restore procedures
+- [ ] Document backup/restore workflow
+
+---
+
+### KeePassXC Integration & Sync
+
+**Syncthing Setup:**
+- [ ] Install Syncthing on laptop
+- [ ] Configure Syncthing for KeePassXC database sync
+  - Laptop: Send & Receive (primary editing)
+  - Phone: Receive Only (read-only mirror)
+  - Enable versioning (Simple, keep 10 versions)
+- [ ] Setup KeePassDX on phone (Android) or Strongbox/KeePassium (iOS)
+- [ ] Test sync workflow (edit on laptop → auto-sync to phone)
+
+**KeePassXC Configuration:**
 - [ ] Document vault structure in README
-- [ ] Add keybinds for quick KeePassXC access
+- [x] Add keybinds for quick KeePassXC access (SUPER + SHIFT + /)
+- [x] Add Fish aliases (kp, keepass, pass)
 - [ ] Set up auto-type for common workflows
-- [ ] Browser integration for web logins
-- [ ] TOTP 2FA entries
+- [ ] Browser integration for web logins (Brave extension)
+- [ ] Configure TOTP 2FA entries
+- [ ] Setup database backup rotation
 
-### Notesnook Integration  
-- [ ] Add keybind for quick notes
-- [ ] Sync workflow (if needed)
-- [ ] Document notes organization
+**Backup Strategy:**
+- [ ] Primary: Syncthing (real-time device sync)
+- [ ] Backup 1: Restic → Filen (daily encrypted cloud backup)
+- [ ] Backup 2: USB key (quarterly offline backup)
+- [ ] Backup 3: Git commits (weekly snapshots to private repo)
+
+---
+
+### Notesnook Integration
+
+- [x] Add keybind for quick notes (SUPER + SHIFT + K)
+- [x] Add Fish aliases (notes, notesnook)
+- [ ] Document Notesnook sync workflow (cloud sync)
+- [ ] Organize notes structure (Work, Personal, Projects, Quick Notes)
+- [ ] Document markdown workflow
+- [ ] Setup tags and notebooks
+- [ ] Export/backup strategy
+
+---
 
 ### Backup Automation
-- [ ] Create sync-filen.sh script
-- [ ] Weekly automated backups
-- [ ] Backup verification script
-- [ ] Recovery testing procedure
+
+**Scripts to Create:**
+- [ ] `sync-filen.sh` - Main Filen sync script
+- [ ] `backup-keepass.sh` - KeePassXC backup automation
+- [ ] `backup-verify.sh` - Verify backup integrity
+- [ ] `restore-test.sh` - Test restore procedures
+
+**Automation:**
+- [ ] Setup cron jobs for automated backups
+  - Daily: KeePassXC to Filen (2 AM)
+  - Weekly: Full dotfiles backup (Sunday 3 AM)
+  - Monthly: BTRFS snapshot export (1st of month)
+- [ ] Email/notification on backup success/failure
+- [ ] Backup rotation policy (keep 30 daily, 12 weekly, 12 monthly)
+
+**Verification:**
+- [ ] Weekly backup verification script
+- [ ] Quarterly restore testing
+- [ ] Document recovery procedures in RECOVERY.md
+
+---
+
+### System Restore Script
+
+- [ ] Create comprehensive restore script
+- [ ] Include package installation
+- [ ] Include dotfiles restoration (Stow)
+- [ ] Include KeePassXC database restore
+- [ ] Include Syncthing configuration
+- [ ] Test on fresh Arch install VM
+- [ ] Document step-by-step in RECOVERY.md
+
+---
+
+### Documentation
+
+**New Guides to Create:**
+- [ ] `BACKUP_GUIDE.md` - Complete backup strategy (Restic + Filen)
+- [ ] `KEEPASSXC_SYNC.md` - Syncthing setup guide
+- [ ] `FILEN_SETUP.md` - Filen.io configuration
+- [ ] `NOTESNOOK_GUIDE.md` - Note-taking workflow
+
+**Updates to Existing:**
+- [ ] Update `COMPLETE_GUIDE.md` with backup section
+- [ ] Update `COMPLETE_GUIDE.md` with KeePassXC workflow
+- [ ] Update `COMPLETE_GUIDE.md` with Notesnook integration
+- [ ] Add backup verification commands to daily workflow
+- [ ] Document weekly security + backup routine
+
+---
+
+**Estimated Time:** 6-8 hours  
+**Priority:** High (data protection + productivity)  
+**Dependencies:** v2.8 Ghost Variant complete  
+
+**Key Deliverables:**
+- 🛡️ Security score 85+ (up from 71)
+- 💾 Complete automated backup infrastructure
+- 🔐 KeePassXC synced across all devices
+- 📝 Notesnook integrated and documented
+- 📚 Comprehensive recovery documentation
+- ✅ Tested restore procedures
 
 ## 🚀 Version 3.0 - Complete Ecosystem
 
