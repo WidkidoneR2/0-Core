@@ -419,6 +419,14 @@ alias jail-status='sudo fail2ban-client status'
 alias ban-list='sudo fail2ban-client status sshd'
 
 # ═══════════════════════════════════════════════════════════
+# 🔍 Dotfile Intelligence Tools (v2.8.0)
+# ═══════════════════════════════════════════════════════════
+
+alias doctor='dot-doctor'
+alias health-check='dot-doctor'
+alias keys-check='keyscan'
+
+# ═══════════════════════════════════════════════════════════
 # 📝 Productivity Apps (v2.7.2)
 # ═══════════════════════════════════════════════════════════
 
@@ -486,7 +494,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v2.7.2!"
+    echo "🌲 Welcome to Faelight Forest v2.8!"
     set_color normal
     echo "This is my Happy Place!!!"
     echo ""
@@ -500,5 +508,5 @@ set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.7.2 - Enhanced & Protected Edition
+# Version 2.8 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
