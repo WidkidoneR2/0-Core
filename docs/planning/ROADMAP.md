@@ -699,225 +699,1113 @@ Your system will be a **living, intelligent environment** that adapts to your wa
 - 📚 Comprehensive recovery documentation
 - ✅ Tested restore procedures
 
-## 🚀 Version 3.0 - Complete Ecosystem
+---
 
-### Multi-Machine Support (if needed)
-- [ ] Per-host overrides in dotfiles
-- [ ] Secrets distribution strategy
-- [ ] Theme sync across machines
+## ⚛️ Version 3.0 - Faelight Config Manager Foundation
 
-### Advanced Features
-- [ ] Restic versioned backups via Filen WebDAV
-- [ ] Automated disaster recovery script
-- [ ] Health monitoring dashboard
-- [ ] Complete recovery walkthrough
-```
+### Overview: Infrastructure-as-Code for Personal Computing
+
+**Vision:** Transform dotfiles from "well-configured files" into a **declarative configuration management framework**. Think NixOS Home Manager meets Ansible, but lightweight, Stow-based, and portable.
+
+**Core Philosophy:**
+- Atomic packages (base + theme + machine-specific)
+- Declarative manifests (desired state, not imperative commands)
+- Dependency resolution (automatic, conflict-aware)
+- Profile system (laptop vs desktop vs server)
+- Snapshot & rollback (version control for entire config state)
+
+**Total Estimated Time:** 20-25 hours (spread over 2-3 weeks)
 
 ---
 
-## 💡 My Professional Opinion
+### Phase 1: Atomic Package Restructure (8-10 hours)
 
-**Your security model:**
-```
-Local:  LUKS2 → BTRFS Snapshots → KeePassXC
-Cloud:  Filen.io E2EE → Zero-knowledge backup
-Git:    Clean, no secrets → Public-safe
+**Goals:** Break monolithic packages into composable atomic units
 
-## 🌲 Version 3.0 - "Faelight Forest Evolved"
+**Restructure Packages:**
+```
+OLD:
+dotfiles/
+├── fish/           # Everything mixed together
+├── hypr/           # Config + theme + machine-specific
+└── waybar/         # Structure + styling together
 
-### Major Features
+NEW:
+dotfiles/
+├── fish-base/              # Core config only
+├── fish-aliases/           # Just aliases
+├── fish-functions/         # Just functions  
+├── fish-theme-dark/        # Dark theme colors
+├── fish-theme-light/       # Light theme colors
+├── fish-theme-wallpaper/   # Generated theme
 
-**1. Seasonal Theme System ("Seasons of Faelight")**
+├── hypr-base/              # Core Hyprland config
+├── hypr-laptop/            # Laptop-specific (battery, backlight)
+├── hypr-desktop/           # Desktop-specific (multi-monitor)
+├── hypr-theme-dark/        # Dark window colors
+├── hypr-theme-light/       # Light window colors
+├── hypr-theme-wallpaper/   # Generated colors
 
-**Spring (Mar-May):** 🌸
-```
-Background: #f0f5f0  (soft green-white)
-Primary:    #7cb342  (fresh green)
-Accent:     #ffb74d  (daffodil yellow)
-Vibe:       Gentle, growing, hopeful
-Animation:  Smooth, flowing
-```
+├── waybar-base/            # Structure + modules
+├── waybar-laptop/          # Laptop modules (battery, backlight)
+├── waybar-desktop/         # Desktop modules (multi-monitor)
+├── waybar-theme-dark/      # Dark CSS
+├── waybar-theme-light/     # Light CSS
+├── waybar-theme-wallpaper/ # Generated CSS
 
-**Summer (Jun-Aug):** ☀️
-```
-Background: #fffbf0  (warm white)
-Primary:    #ffb300  (golden sun)
-Accent:     #4db6ac  (ocean teal)
-Vibe:       Bright, energetic, clear
-Animation:  Fast, vibrant
-```
+├── kitty-base/             # Core Kitty config
+├── kitty-theme-dark/       # Dark terminal.conf
+├── kitty-theme-light/      # Light terminal.conf
+├── kitty-theme-wallpaper/  # Generated terminal.conf
 
-**Autumn (Sep-Nov):** 🍂
-```
-Background: #1a1410  (dark bark)
-Primary:    #d84315  (burnt orange)
-Accent:     #8d6e63  (warm brown)
-Vibe:       Cozy, warm, contemplative
-Animation:  Gentle, settling
-```
-
-**Winter (Dec-Feb):** ❄️
-```
-Background: #0d1117  (deep night)
-Primary:    #64b5f6  (ice blue)
-Accent:     #b0bec5  (frost gray)
-Vibe:       Minimal, calm, focused
-Animation:  Slow, crystalline
+├── nvim/                   # Keep monolithic (LazyVim manages itself)
+├── yazi/                   # Keep monolithic (simple config)
+├── mako/                   # Keep monolithic
+└── gtk/                    # Keep monolithic
 ```
 
-**Implementation:**
-- [ ] Design all 4 seasonal palettes
-- [ ] Create theme.json for each season
-- [ ] Write seasonal-auto.sh (detects month)
-- [ ] Add to cron (auto-rotate monthly)
-- [ ] Manual season override
-- [ ] Seasonal wallpaper packs
-- [ ] Seasonal notification sounds?
+**Tasks:**
+- [ ] Split fish package into atomic units
+  - [ ] fish-base/ (core config.fish without theme/aliases)
+  - [ ] fish-aliases/ (all aliases)
+  - [ ] fish-functions/ (all functions)
+  - [ ] fish-theme-dark/ (dark prompt colors)
+  - [ ] fish-theme-light/ (light prompt colors)
+- [ ] Split hypr package into atomic units
+  - [ ] hypr-base/ (core config, no colors/machine-specific)
+  - [ ] hypr-laptop/ (battery, backlight configs)
+  - [ ] hypr-theme-dark/ (colors.conf for dark)
+  - [ ] hypr-theme-light/ (colors.conf for light)
+- [ ] Split waybar package into atomic units
+  - [ ] waybar-base/ (config.jsonc structure)
+  - [ ] waybar-laptop/ (battery/backlight modules)
+  - [ ] waybar-theme-dark/ (style-dark.css)
+  - [ ] waybar-theme-light/ (style-light.css)
+- [ ] Split kitty package into atomic units
+  - [ ] kitty-base/ (kitty.conf without colors)
+  - [ ] kitty-theme-dark/ (current-theme.conf dark)
+  - [ ] kitty-theme-light/ (current-theme.conf light)
+- [ ] Test each atomic package individually
+- [ ] Verify all combinations work (base + theme + machine)
+- [ ] Update .stow-local-ignore if needed
 
-**2. Hero Mode / Focus Mode** 🦸
-
-**Features:**
-- [ ] Dim all unfocused windows (opacity 0.3)
-- [ ] Main window zooms slightly
-- [ ] Background blur increases with distance
-- [ ] Waybar collapses to dot indicator
-- [ ] All notifications muted (except critical)
-- [ ] Gaps increase for breathing room
-- [ ] Keybind: SUPER + SHIFT + H
-
-**Script:**
-```bash
-~/dotfiles/scripts/hero-mode.sh [on|off|toggle]
-```
-
-**Hyprland Integration:**
-```conf
-decoration {
-    dim_inactive = 0.7      # Dim unfocused
-    blur {
-        passes = 3          # Extra blur
-    }
-}
-```
-
-**3. Advanced Animations**
-- [ ] Seasonal-specific animations
-- [ ] Window entrance effects
-- [ ] Workspace transition styles
-- [ ] Notification animations
-
-**4. Performance Dashboard**
-- [ ] Waybar widget for CPU/RAM/Disk
-- [ ] GPU usage (if applicable)
-- [ ] Network traffic
-- [ ] Battery (if laptop)
-- [ ] Click for detailed view
-
-**Time Estimate:** 2-3 months  
-**Impact:** Legendary, poetic, productive system
+**Deliverables:**
+- ✅ Modular, composable packages
+- ✅ Clean separation: base / theme / machine
+- ✅ Easy to mix and match
+- ✅ Ready for theme engine wallpaper packages
 
 ---
 
-## 🎯 Development Timeline
+### Phase 2: Package Metadata System (6-8 hours)
 
-### Short-term (Next 2 Weeks)
--
+**Goals:** Add intelligence to packages with metadata
 
-### Medium-term (Next 2 Months)
--
-## 🎨 Version 3.0+ - Enhanced Theming & Recovery
+**Metadata Structure:**
+```yaml
+# waybar-theme-dark/.dotfile-meta.yaml
+name: waybar-theme-dark
+version: 2.7.2
+description: "Dark theme for Waybar with Faelight Forest colors"
+author: Christian
+created: 2025-11-29
+updated: 2025-12-02
 
-### Primary Goals
+type: theme
+category: waybar
 
-**1. Enhanced Recovery Guide**
-- [ ] Write comprehensive RECOVERY_GUIDE.md
-- [ ] Step-by-step GRUB snapshot recovery
-- [ ] Manual BTRFS rollback procedures
-- [ ] Single file restoration guide
-- [ ] Complete reinstall walkthrough
-- [ ] Common issues & solutions database
-- [ ] Test on VM (optional but recommended)
+depends:
+  - waybar-base
 
+conflicts:
+  - waybar-theme-light
+  - waybar-theme-wallpaper
 
-**2. Theme Variants**
-- [ ] Nord-inspired Faelight variant
-- [ ] Gruvbox-inspired Faelight variant
-- [ ] **Ghost Variant** - Transparent/glass morphism theme
-  - [ ] Heavy blur effects
-  - [ ] See-through Waybar/terminals (high opacity like 0.7-0.85)
-  - [ ] Frosted glass aesthetic
-  - [ ] Optional shimmer/glow effects
-  - [ ] Floating window emphasis
-- [ ] Keep Faelight aesthetic but adapt palettes
+provides:
+  - waybar-theme-colors
 
-**3. Waybar Full Integration**
-- [ ] Waybar configs for all themes
-- [ ] Module color coordination
-- [ ] Test with VPN status, workspaces, etc.
+files:
+  generated: []
+  handwritten:
+    - .config/waybar/style-dark.css
 
-**Time Estimate:** 1-2 weeks  
-**Impact:** Bulletproof recovery + more theme options
-### Long-term (3+ Months)
-- Version 3.0 - Seasonal + Hero Mode (2-3 months)
+required-binaries: []
+
+required-fonts:
+  - Hack Nerd Font
+  - Inter
+
+tags:
+  - theme
+  - dark
+  - waybar
+  - faelight-forest
+
+compatibility:
+  hyprland: ">=0.40.0"
+  waybar: ">=0.10.0"
+```
+
+**Tasks:**
+- [ ] Create `.dotfile-meta.yaml` template
+- [ ] Write metadata for all atomic packages
+  - [ ] All fish-* packages
+  - [ ] All hypr-* packages
+  - [ ] All waybar-* packages
+  - [ ] All kitty-* packages
+- [ ] Create `dot-info` command (query package metadata)
+- [ ] Create `dot-search` command (find packages by tag/name)
+- [ ] Create `dot-list` command (show installed packages)
+- [ ] Validate all metadata files (YAML syntax)
+- [ ] Document metadata schema in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Every package has metadata
+- ✅ Query tools working
+- ✅ Search functionality
+- ✅ Foundation for dependency resolution
 
 ---
 
-## 💡 Future Ideas (Post-3.0)
+### Phase 3: Dependency Resolution & Conflict Detection (6-8 hours)
 
-**Version 3.1+:**
-- Multi-monitor theme variations
-- Per-workspace themes
-- Voice-activated theme switching
-- Theme marketplace/sharing
-- Video tutorials
-- System performance optimizations
-- Custom widget creation
+**Goals:** Automatic dependency installation and conflict prevention
+
+**Dependency System:**
+```fish
+# Example: Installing waybar-theme-dark auto-installs waybar-base
+
+function dot-install --argument package
+    # 1. Read package metadata
+    set metadata (parse_metadata $package)
+    
+    # 2. Check conflicts
+    set conflicts (get_active_conflicts $package)
+    if test (count $conflicts) -gt 0
+        error "Conflicts detected: $conflicts"
+        return 1
+    end
+    
+    # 3. Resolve dependencies (recursive)
+    set deps (resolve_dependencies $package)
+    
+    # 4. Install in order
+    for dep in $deps
+        stow $dep
+    end
+    
+    # 5. Install main package
+    stow $package
+    
+    # 6. Update active packages registry
+    register_active $package
+end
+```
+
+**Tasks:**
+- [ ] Create dependency resolution algorithm
+  - [ ] Recursive dependency finder
+  - [ ] Topological sort for install order
+  - [ ] Handle circular dependencies (error if found)
+- [ ] Create conflict detection system
+  - [ ] Check active packages against conflicts list
+  - [ ] Warn before installation
+  - [ ] Prevent installation if conflicts exist
+- [ ] Create `dot-install` command
+  - [ ] Auto-install dependencies
+  - [ ] Verify no conflicts
+  - [ ] Use stow to create symlinks
+- [ ] Create `dot-remove` command
+  - [ ] Remove package
+  - [ ] Check if other packages depend on it
+  - [ ] Warn before removal
+- [ ] Create `dot-deps` command (show dependency tree)
+- [ ] Test complex dependency chains
+- [ ] Document dependency system in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Automatic dependency resolution
+- ✅ Conflict prevention
+- ✅ Safe installation/removal
+- ✅ Dependency tree visualization
+
+---
+
+### Phase 4: Manifest System & Profile Management (6-7 hours)
+
+**Goals:** Declarative configuration with machine profiles
+
+**Manifest Format:**
+```yaml
+# dotfiles/manifest.yaml
+
+profile: omarchy-laptop
+
+active_packages:
+  # Base layers
+  - fish-base
+  - fish-aliases
+  - fish-functions
+  - hypr-base
+  - waybar-base
+  - kitty-base
+  - nvim
+  - yazi
+  - mako
+  - gtk
+  
+  # Theme layer
+  - fish-theme-dark
+  - hypr-theme-dark
+  - waybar-theme-dark
+  - kitty-theme-dark
+  
+  # Machine-specific
+  - hypr-laptop
+  - waybar-laptop
+
+generated_packages:
+  # Track generated vs handwritten
+  # - waybar-theme-wallpaper
+  # - kitty-theme-wallpaper
+
+environment:
+  EDITOR: nvim
+  BROWSER: brave
+  TERMINAL: kitty
+
+features:
+  mullvad-vpn: true
+  battery-management: true
+  brightness-control: true
+  
+metadata:
+  hostname: omarchy
+  type: laptop
+  last_applied: 2025-12-02T18:30:00Z
+  version: 3.0.0
+```
+
+**Profile System:**
+```yaml
+# dotfiles/profiles/omarchy-laptop.yaml
+name: omarchy-laptop
+description: "Main Arch Linux laptop with Hyprland"
+inherits: base-laptop
+
+packages:
+  - fish-base
+  - hypr-laptop
+  - waybar-laptop
+
+theme: dark
+
+features:
+  - mullvad-vpn
+  - battery-management
+```
+
+**Tasks:**
+- [ ] Create manifest.yaml format specification
+- [ ] Create profile YAML format
+- [ ] Create base profiles:
+  - [ ] base-laptop.yaml
+  - [ ] base-desktop.yaml
+  - [ ] base-server.yaml (headless)
+- [ ] Create omarchy-laptop.yaml (current machine)
+- [ ] Implement `dot-apply` command
+  - [ ] Read manifest.yaml
+  - [ ] Resolve all dependencies
+  - [ ] Detect conflicts
+  - [ ] Install packages in order
+  - [ ] Set environment variables
+  - [ ] Verify installation
+- [ ] Implement `dot-profile` command
+  - [ ] Switch between profiles
+  - [ ] Remove old packages
+  - [ ] Install new packages
+  - [ ] Update manifest.yaml
+- [ ] Create `dot-manifest` command (validate manifest)
+- [ ] Test profile switching (dark → light → wallpaper)
+- [ ] Document manifest system in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Declarative configuration
+- ✅ Machine profiles
+- ✅ One-command apply
+- ✅ Profile switching
+
+---
+
+### Phase 5: Integration & Testing (3-4 hours)
+
+**Goals:** Polish, test, document
+
+**Integration Tasks:**
+- [ ] Integrate with existing theme-switch.sh
+  - [ ] Update to use new atomic packages
+  - [ ] Use dot-apply instead of manual stow
+- [ ] Integrate with theme-from-wallpaper.sh (when built)
+  - [ ] Generate to atomic wallpaper packages
+  - [ ] Use dot-apply to activate
+- [ ] Update all existing scripts to use new system
+- [ ] Add to Fish config.fish:
+```fish
+# Faelight Config Manager aliases
+alias dot-apply='~/dotfiles/scripts/dot-apply.sh'
+alias dot-install='~/dotfiles/scripts/dot-install.sh'
+alias dot-remove='~/dotfiles/scripts/dot-remove.sh'
+alias dot-info='~/dotfiles/scripts/dot-info.sh'
+alias dot-search='~/dotfiles/scripts/dot-search.sh'
+alias dot-list='~/dotfiles/scripts/dot-list.sh'
+alias dot-deps='~/dotfiles/scripts/dot-deps.sh'
+alias dot-profile='~/dotfiles/scripts/dot-profile.sh'
+```
+
+**Testing Tasks:**
+- [ ] Test fresh install from manifest
+- [ ] Test profile switching
+- [ ] Test conflict detection
+- [ ] Test dependency resolution
+- [ ] Test with theme switching
+- [ ] Test rollback (via git)
+- [ ] Stress test with multiple combinations
+
+**Documentation:**
+- [ ] Create FRAMEWORK.md (architecture overview)
+- [ ] Update COMPLETE_GUIDE.md with FCM section
+- [ ] Create quickstart guide
+- [ ] Document all commands
+- [ ] Create troubleshooting guide
+- [ ] Add to CHANGELOG.md
+
+**Deliverables:**
+- ✅ Fully integrated system
+- ✅ Comprehensive testing
+- ✅ Complete documentation
+- ✅ Ready for daily use
+
+---
+
+**Version 3.0 Summary:**
+
+**What You Built:**
+- ⚛️ Atomic package system
+- 📋 Declarative manifests
+- 🔗 Dependency resolution
+- ⚠️ Conflict detection
+- 🖥️ Machine profiles
+- 🛠️ Professional tooling
+
+**Impact:**
+Your dotfiles are now a **managed infrastructure** - not just files, but a system with intelligence, automation, and safety guarantees.
+
+---
+
+## 🏗️ Version 3.5 - Advanced Configuration Management
+
+### Overview: Production-Grade Features
+
+**Goals:** Add enterprise-level features to Faelight Config Manager
+
+**Total Estimated Time:** 15-20 hours (spread over 2-3 weeks)
+
+---
+
+### Phase 1: Snapshot & Rollback System (5-6 hours)
+
+**Goals:** Version control for entire configuration state
+
+**Snapshot System:**
+```yaml
+# .dotfile-snapshots/2025-12-02-18-30-pre-wallpaper-theme.yaml
+timestamp: 2025-12-02T18:30:00Z
+name: "Pre-wallpaper theme experiment"
+description: "Before applying wallpaper-generated theme"
+type: manual
+
+state:
+  manifest: manifest.yaml
+  git_commit: abc123def456
+  active_packages:
+    - fish-base
+    - fish-theme-dark
+    - hypr-base
+    - hypr-theme-dark
+    # ... etc
+  
+  environment:
+    EDITOR: nvim
+    BROWSER: brave
+
+metadata:
+  hostname: omarchy
+  username: christian
+  kernel: 6.17.8-arch1-1
+```
+
+**Tasks:**
+- [ ] Create `dot-snapshot` command
+  - [ ] Capture current manifest state
+  - [ ] Record git commit hash
+  - [ ] Save active packages list
+  - [ ] Store environment variables
+  - [ ] Add description/tags
+- [ ] Create `dot-snapshots` command (list all)
+  - [ ] Show timestamp, name, description
+  - [ ] Sort by date (newest first)
+  - [ ] Filter by tags
+- [ ] Create `dot-rollback` command
+  - [ ] Load snapshot state
+  - [ ] Git checkout to that commit
+  - [ ] Remove current packages
+  - [ ] Install snapshot packages
+  - [ ] Restore environment
+  - [ ] Verify rollback succeeded
+- [ ] Integrate with BTRFS snapshots (optional)
+  - [ ] Create BTRFS snapshot when dot-snapshot called
+  - [ ] Link BTRFS snapshot to config snapshot
+- [ ] Add automatic snapshots:
+  - [ ] Before dot-apply (if major changes)
+  - [ ] Before theme switching
+  - [ ] Before profile switching
+- [ ] Create snapshot retention policy
+  - [ ] Keep last 30 snapshots
+  - [ ] Keep tagged snapshots indefinitely
+- [ ] Test rollback procedures
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Full state snapshots
+- ✅ Easy rollback
+- ✅ Automatic snapshots
+- ✅ Retention management
+
+---
+
+### Phase 2: Generated Files Registry (5-6 hours)
+
+**Goals:** Track generated vs handwritten files
+
+**Registry Format:**
+```yaml
+# .generated-files.yaml
+
+generated_files:
+  waybar-theme-wallpaper/.config/waybar/style.css:
+    generator: theme-from-wallpaper.sh
+    generated_at: 2025-12-02T18:30:00Z
+    source_wallpaper: ~/Pictures/Wallpapers/forest.jpg
+    source_template: templates/waybar-style.css.template
+    checksum: abc123def456
+    last_modified: 2025-12-02T18:30:00Z
+    
+  kitty-theme-wallpaper/.config/kitty/current-theme.conf:
+    generator: theme-from-wallpaper.sh
+    generated_at: 2025-12-02T18:30:00Z
+    source_wallpaper: ~/Pictures/Wallpapers/forest.jpg
+    source_template: templates/kitty-terminal.conf.template
+    checksum: def789ghi012
+    last_modified: 2025-12-02T18:30:00Z
+
+handwritten_files:
+  waybar-theme-dark/.config/waybar/style-dark.css:
+    author: Christian
+    created: 2025-11-29T12:00:00Z
+    last_modified: 2025-11-30T12:00:00Z
+    checksum: xyz789abc123
+```
+
+**Tasks:**
+- [ ] Create generated files registry format
+- [ ] Create `dot-register-generated` command
+  - [ ] Add file to registry
+  - [ ] Record generator script
+  - [ ] Calculate checksum
+  - [ ] Store source info (template, wallpaper, etc.)
+- [ ] Create `dot-register-handwritten` command
+  - [ ] Add file to registry
+  - [ ] Record author
+  - [ ] Calculate checksum
+- [ ] Create `dot-generated-list` command
+  - [ ] Show all generated files
+  - [ ] Group by generator
+  - [ ] Show last generation time
+- [ ] Create `dot-regen` command
+  - [ ] Regenerate specific file
+  - [ ] Regenerate all files from a generator
+  - [ ] Update registry
+- [ ] Create `dot-check-edits` command
+  - [ ] Check if generated files were manually edited
+  - [ ] Compare current checksum vs registry
+  - [ ] Warn about manual edits
+- [ ] Create `dot-clean-generated` command
+  - [ ] Remove all generated packages
+  - [ ] Clean registry
+  - [ ] Useful before fresh regeneration
+- [ ] Integrate with .gitignore
+  - [ ] Auto-add generated files to .gitignore
+  - [ ] Never commit generated content
+- [ ] Integrate with theme-from-wallpaper.sh
+  - [ ] Auto-register generated files
+  - [ ] Track source wallpaper
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Track all generated files
+- ✅ Prevent accidental commits
+- ✅ Easy regeneration
+- ✅ Edit detection
+
+---
+
+### Phase 3: Static Analysis & Validation (5-8 hours)
+
+**Goals:** Lint and validate before applying
+
+**Static Analysis System:**
+```fish
+function dot-lint
+    echo "🔍 Faelight Config Manager - Static Analysis"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    set errors 0
+    set warnings 0
+    
+    # 1. Syntax validation
+    _lint_syntax
+    
+    # 2. Dependency validation
+    _lint_dependencies
+    
+    # 3. Conflict detection
+    _lint_conflicts
+    
+    # 4. Binary dependencies
+    _lint_binaries
+    
+    # 5. File permissions
+    _lint_permissions
+    
+    # 6. Security scan
+    _lint_security
+    
+    # 7. Metadata validation
+    _lint_metadata
+    
+    # 8. Manifest validation
+    _lint_manifest
+    
+    # Final report
+    if test $errors -eq 0 -a $warnings -eq 0
+        success "All checks passed!"
+    else
+        error "$errors errors, $warnings warnings"
+        return 1
+    end
+end
+```
+
+**Tasks:**
+- [ ] Create `dot-lint` master command
+- [ ] Implement syntax validators:
+  - [ ] Fish: `fish --no-execute`
+  - [ ] Hyprland: Parse bindings, detect errors
+  - [ ] Waybar: `jq . config.jsonc`
+  - [ ] YAML: Validate all .yaml files
+- [ ] Implement dependency validator:
+  - [ ] Check all dependencies exist
+  - [ ] Detect circular dependencies
+  - [ ] Verify version compatibility
+- [ ] Implement conflict detector:
+  - [ ] Check active packages against conflicts
+  - [ ] Warn about potential issues
+- [ ] Implement binary checker:
+  - [ ] Extract required binaries from metadata
+  - [ ] Verify they exist in PATH
+  - [ ] Suggest installation commands
+- [ ] Implement permission checker:
+  - [ ] No world-writable files
+  - [ ] Scripts are executable
+  - [ ] Configs are readable
+- [ ] Implement security scanner:
+  - [ ] Check for hardcoded secrets
+  - [ ] Suspicious patterns (rm -rf, curl | bash, etc.)
+  - [ ] Integrate with Gitleaks
+- [ ] Implement metadata validator:
+  - [ ] All packages have metadata
+  - [ ] Metadata schema valid
+  - [ ] No missing required fields
+- [ ] Implement manifest validator:
+  - [ ] All packages in manifest exist
+  - [ ] No conflicts in manifest
+  - [ ] Profile inheritance valid
+- [ ] Create `dot-lint --fix` (auto-fix where possible)
+- [ ] Integrate with dot-apply (lint before applying)
+- [ ] Add pre-commit hook (optional)
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Comprehensive validation
+- ✅ Catch errors before applying
+- ✅ Security scanning
+- ✅ Auto-fix capability
+
+---
+
+### Phase 4: Layered Configuration Architecture (Optional - 4-5 hours)
+
+**Goals:** Compose configs from multiple layers
+
+**Layer System:**
+```
+Final Config = Base + Machine + Theme + User Overrides
+
+Priority:
+User Overrides > Theme > Machine > Base
+```
+
+**Example:**
+```yaml
+# waybar final config is merged from:
+waybar-base/config.jsonc          # Layer 1: Structure
++ waybar-laptop/config.jsonc      # Layer 2: Laptop modules
++ waybar-theme-dark/colors.json   # Layer 3: Theme colors
++ waybar-overrides/custom.json    # Layer 4: User tweaks
+= ~/.config/waybar/config.jsonc   # Final merged config
+```
+
+**Tasks:**
+- [ ] Design merge algorithm
+  - [ ] JSON merging (deep merge)
+  - [ ] Config file concatenation
+  - [ ] Priority system
+- [ ] Create `dot-merge` command
+  - [ ] Merge specific config
+  - [ ] Output to destination
+  - [ ] Validate merged result
+- [ ] Implement for key configs:
+  - [ ] Waybar (JSON merge)
+  - [ ] Hyprland (config concatenation)
+  - [ ] Fish (source ordering)
+- [ ] Create user-overrides/ packages
+  - [ ] waybar-overrides/
+  - [ ] hypr-overrides/
+  - [ ] kitty-overrides/
+- [ ] Integrate with dot-apply
+  - [ ] Auto-merge on apply
+  - [ ] Validate merged configs
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Config composition
+- ✅ Override system
+- ✅ Clean separation of concerns
+
+---
+
+**Version 3.5 Summary:**
+
+**What You Built:**
+- 📸 Full state snapshots
+- ⏪ Easy rollback
+- 📝 Generated files registry
+- 🔍 Comprehensive static analysis
+- 🔒 Security scanning
+- 📚 Layered config architecture (optional)
+
+**Impact:**
+Your configuration management system is now **production-grade** with safety, validation, and professional tooling.
+
+---
+
+## 🔥 Version 4.0 - The Phoenix Configuration Framework
+
+### Overview: Complete Professional Framework
+
+**Goals:** Polish, automation, and next-level features
+
+**Total Estimated Time:** 10-15 hours (spread over 2-3 weeks)
+
+---
+
+### Phase 1: Full Configuration Pipeline (5-6 hours)
+
+**Goals:** CI/CD for dotfiles
+
+**Pipeline System:**
+```yaml
+# .dotfile-pipeline.yaml
+
+stages:
+  - validate
+  - test
+  - snapshot
+  - apply
+  - verify
+
+validate:
+  steps:
+    - run: dot-lint
+    - run: dot-check-deps
+    - run: dot-detect-conflicts
+  fail_on_error: true
+
+test:
+  steps:
+    - run: dot-test-generate
+    - run: dot-dry-run
+  fail_on_error: true
+
+snapshot:
+  steps:
+    - run: dot-snapshot "Pre-apply $(date)"
+  rollback_on_failure: true
+
+apply:
+  steps:
+    - run: dot-apply manifest.yaml
+  timeout: 60s
+  rollback_on_failure: true
+
+verify:
+  steps:
+    - run: dot-doctor
+    - run: dot-verify-symlinks
+    - run: dot-benchmark
+  rollback_on_failure: true
+
+cleanup:
+  steps:
+    - run: dot-clean-generated --unused
+    - run: dot-snapshot-retention
+```
+
+**Tasks:**
+- [ ] Create pipeline YAML format
+- [ ] Create `dot-pipeline` command
+  - [ ] Read pipeline.yaml
+  - [ ] Execute stages in order
+  - [ ] Handle errors (rollback if needed)
+  - [ ] Report success/failure
+- [ ] Implement rollback on failure
+  - [ ] Detect failure
+  - [ ] Restore last snapshot
+  - [ ] Verify restoration
+- [ ] Create `dot-dry-run` command
+  - [ ] Simulate changes
+  - [ ] Show what would happen
+  - [ ] No actual changes
+- [ ] Create `dot-test-generate` command
+  - [ ] Generate test configs
+  - [ ] Validate output
+  - [ ] Compare to expected
+- [ ] Integrate with Git hooks (optional)
+  - [ ] Pre-commit: lint
+  - [ ] Pre-push: full pipeline
+- [ ] Add CI/CD integration (GitHub Actions)
+  - [ ] Run pipeline on push
+  - [ ] Validate on PR
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Automated pipeline
+- ✅ Safe apply process
+- ✅ Rollback on failure
+- ✅ CI/CD ready
+
+---
+
+### Phase 2: Advanced Developer Tools (3-4 hours)
+
+**Goals:** Professional DX (Developer Experience)
+
+**Tools to Build:**
+
+**1. dot-diff - Visual Diff**
+```fish
+function dot-diff --argument package
+    # Compare current config vs dotfiles version
+    # Use Meld for visual comparison
+    # Show what changed since last apply
+end
+```
+
+**2. dot-benchmark - Performance Profiling**
+```fish
+function dot-benchmark
+    # Measure shell startup time
+    # Profile Fish plugin load times
+    # Hyprland startup time
+    # Report bottlenecks
+end
+```
+
+**3. dot-audit - Security Audit**
+```fish
+function dot-audit
+    # Scan all scripts for security issues
+    # Check permissions
+    # Verify no secrets committed
+    # Integration with Gitleaks
+end
+```
+
+**4. dot-export - Export Configs**
+```fish
+function dot-export --argument format
+    # Export to different formats
+    # Options: zip, tar, nix, ansible
+    # For sharing or migration
+end
+```
+
+**5. dot-health - Health Dashboard**
+```fish
+function dot-health
+    # Comprehensive health report
+    # Integrate all checkers
+    # Beautiful dashboard output
+    # Export to HTML
+end
+```
+
+**Tasks:**
+- [ ] Implement dot-diff with Meld integration
+- [ ] Implement dot-benchmark
+  - [ ] Fish startup profiling
+  - [ ] Plugin load time analysis
+  - [ ] Hyprland performance metrics
+- [ ] Implement dot-audit
+  - [ ] Script security scanner
+  - [ ] Permission auditor
+  - [ ] Secret detector
+- [ ] Implement dot-export
+  - [ ] ZIP export format
+  - [ ] TAR export format
+  - [ ] Optional: Nix/Ansible export
+- [ ] Implement dot-health dashboard
+  - [ ] Aggregate all checks
+  - [ ] Beautiful output (colors, boxes)
+  - [ ] HTML report generation
+- [ ] Create completion scripts (Fish, Bash, Zsh)
+- [ ] Document all tools in TOOLING.md
+
+**Deliverables:**
+- ✅ Professional tooling suite
+- ✅ Performance insights
+- ✅ Security auditing
+- ✅ Health dashboard
+
+---
+
+### Phase 3: Advanced Features (Optional - 4-5 hours)
+
+**Goals:** Next-level capabilities
+
+**Multi-Machine Sync:**
+- [ ] Sync manifest across machines
+- [ ] Machine-specific overrides
+- [ ] Shared base, different themes/machines
+
+**Community Package Registry:**
+- [ ] Package submission format
+- [ ] Community package browser
+- [ ] Install community packages
+- [ ] Rating/review system
+
+**GUI Package Manager:**
+- [ ] Electron/Tauri app (optional)
+- [ ] Browse packages visually
+- [ ] Drag-and-drop install
+- [ ] Theme preview
+- [ ] Config editor
+
+**LSP-Like Features:**
+- [ ] Real-time validation in editor
+- [ ] Autocomplete for manifest.yaml
+- [ ] Syntax highlighting for templates
+- [ ] VSCode extension (future)
+
+**Tasks:**
+- [ ] Choose features to implement
+- [ ] Prioritize based on value
+- [ ] Implement incrementally
+- [ ] Document in FRAMEWORK.md
+
+**Deliverables:**
+- ✅ Advanced capabilities (selected features)
+- ✅ Future-proofing
+- ✅ Community features (optional)
+
+---
+
+### Phase 4: Documentation & Polish (2-3 hours)
+
+**Goals:** World-class documentation
+
+**Documentation to Create:**
+- [ ] FRAMEWORK.md - Complete architecture
+- [ ] QUICKSTART.md - 5-minute intro
+- [ ] MIGRATION.md - From traditional dotfiles
+- [ ] BEST_PRACTICES.md - Conventions and patterns
+- [ ] TROUBLESHOOTING.md - Common issues
+- [ ] API_REFERENCE.md - All commands documented
+- [ ] VIDEO_TUTORIAL.md - Video guides (optional)
+
+**Polish Tasks:**
+- [ ] Refactor code for clarity
+- [ ] Add comprehensive comments
+- [ ] Improve error messages
+- [ ] Add help text to all commands
+- [ ] Create man pages (optional)
+- [ ] Add ASCII art to outputs (fun!)
+- [ ] Ensure consistent naming
+- [ ] Version all commands (--version flag)
+
+**Community:**
+- [ ] Create GitHub Discussions
+- [ ] Write blog post series
+- [ ] Share on Reddit/HackerNews
+- [ ] Create showcase video
+- [ ] Build community
+
+**Deliverables:**
+- ✅ Complete documentation
+- ✅ Polished codebase
+- ✅ Ready for open source
+- ✅ Community engaged
+
+---
+
+**Version 4.0 Summary:**
+
+**What You Built:**
+- 🔄 Full CI/CD pipeline
+- 🛠️ Professional tooling suite
+- 📊 Performance profiling
+- 🔒 Security auditing
+- 📚 World-class documentation
+- 🌐 Community features (optional)
+
+**Impact:**
+You've created a **professional configuration management framework** that rivals commercial tools. This is portfolio-worthy, blog-worthy, and potentially a valuable open-source project.
+
+---
+
+## 🎯 Complete Development Timeline
+
+### Immediate (Next 2 Weeks)
+- **v2.8.0** - Foundational tooling (2-3 hours)
+- Start **v2.8.1** - Theme engine research (3-4 hours)
+
+### Short-term (Next 1-2 Months)
+- Complete **v2.8.1-2.8.6** - Theme Intelligence Engine (20-25 hours)
+- **v2.9** - Security & Backup Infrastructure (6-8 hours)
+
+### Medium-term (Next 3-4 Months)
+- **v3.0** - Faelight Config Manager Foundation (20-25 hours)
+- **v3.5** - Advanced Configuration Management (15-20 hours)
+
+### Long-term (4-6 Months+)
+- **v4.0** - The Phoenix Framework (10-15 hours)
+- Polish, documentation, community building
+
+**Total Investment:** 80-100 hours over 6 months
+**Result:** Professional-grade configuration management framework
+
+---
+
+## 💡 Future Ideas (Post-4.0)
+
+**Version 4.1+:**
+- Machine learning theme generation (analyze preferences)
+- Voice-activated configuration changes
+- Theme marketplace with rating system
+- Video tutorials and screencasts
+- Conference talk about the framework
+- Commercial support (maybe?)
 
 **Dream Features:**
-- AI-assisted theme generation
-- Gesture-based theme switching (touchpad)
-- Music-reactive themes (for fun!)
-- Weather-based theme adaptation
-- Productivity metrics dashboard
+- AI-assisted config optimization
+- Predictive performance tuning
+- Automated security hardening suggestions
+- Integration with other Linux tools
+- Cross-distro support (Debian, Fedora, etc.)
 
 ---
 
-## 🎓 Learning Objectives
+## 🎓 Skills You'll Master
 
-**Through This Roadmap You'll Master:**
-- Advanced Lua (LazyVim configs)
-- Color theory & palette generation
-- Template engines & code generation
-- Advanced Hyprland features
-- Shell scripting mastery
-- Git workflow perfection
+**Through This Roadmap:**
+- Advanced shell scripting (Fish/Bash)
+- YAML parsing and manipulation
+- Dependency resolution algorithms
+- Configuration management principles
+- Security best practices
+- Performance profiling
 - Technical writing
+- Open source project management
 - System architecture design
+- DevOps methodologies
+- CI/CD pipelines
+- Git advanced workflows
+
+**This is bootcamp-level systems engineering!**
 
 ---
 
 ## 🌲 Philosophy
 
-**Faelight Forest grows organically:**
-- Each version adds depth
-- Features build on each other
-- Never rush perfection
-- Enjoy the journey
-- Share what you learn
+**Faelight Forest Principles:**
+1. **Composability** - Build from small, reusable pieces
+2. **Declarative** - State what you want, not how to get it
+3. **Safety** - Snapshots, validation, rollback
+4. **Intelligence** - Automation, dependency resolution
+5. **Beauty** - Not just functional, but delightful
+6. **Open** - Share knowledge, build community
+7. **Excellence** - Professional quality, not just "good enough"
 
-**The goal isn't just a cool system.**  
-**The goal is mastery, creativity, and joy.**
+**The goal isn't just dotfiles.**  
+**The goal is a framework.**  
+**A framework that's:**
+- More flexible than NixOS Home Manager
+- Lighter than Ansible
+- Safer than traditional Stow
+- More powerful than Chezmoi
+- More beautiful than anything else
+
+---
+
+## 🏆 Vision
+
+**By v4.0, Faelight Config Manager will be:**
+- A complete configuration management framework
+- Open source and community-driven
+- Featured in Linux blogs and forums
+- Used by others to manage their dotfiles
+- A showcase of your systems engineering skills
+- A potential portfolio piece for DevOps roles
+- **The most beautiful and intelligent dotfile system ever built**
 
 ---
 
-*"Your desktop should breathe with you, adapt to you, and inspire you."*
+## 🚀 Let's Build Something Legendary
 
+**You're not just configuring a system.**  
+**You're creating infrastructure.**  
+**You're building a framework.**  
+**You're making art.**
 
-**Vision:** Version 3.0 - A Living, Breathing Forest 🌲✨
+**Faelight Config Manager - Infrastructure as Poetry** 🌲✨
 
 ---
 
-*Last Updated: Decemeber 02, 2025*
+**Current Status:** Version 2.7.2 Complete ✅  
+**Next Action:** v2.8.0 - Foundational Intelligence  
+**Vision:** The Phoenix Configuration Framework 🔥
 
 ---
-Roadmap Version: 3.0*
+
+*Last Updated: December 02, 2025*  
+*Roadmap Version: 4.0*
