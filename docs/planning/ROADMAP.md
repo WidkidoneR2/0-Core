@@ -1456,7 +1456,10 @@ end
   - Automatic wallpaper detection
 - [ ] Add to README.md showcase
 - [ ] Update CHANGELOG.md
-
+- [ ] Create docs/ structure
+- [ ] Write 00_overview.md
+- [ ] Write 01_installation.md
+- [ ] Write 02_basic_usage.md
 ---
 
 **Estimated Time:** 5-6 hours  

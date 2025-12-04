@@ -498,7 +498,7 @@ if status is-interactive
     set_color normal
     echo "This is my Happy Place!!!"
     echo ""
-    echo "💡 Quick commands: guide | doctor | aliases | health | roadmap"
+    echo "💡 Quick commands: guide | doctor | alias | health | roadmap"
 end
 
 set -g fish_greeting ""
