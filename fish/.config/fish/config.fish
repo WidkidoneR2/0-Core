@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.7 - Enhanced & Protected Edition
+# Version 2.8 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
