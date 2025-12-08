@@ -33,17 +33,27 @@ apply_theme() {
     cat ~/dotfiles/themes/faelight-$theme/terminal.conf > ~/.config/kitty/current-theme.conf
     killall -SIGUSR1 kitty 2>/dev/null || true
     
-    # 3. Fish shell colors
+    # 3. Ghostty terminal - Switch theme
+    cd ~/dotfiles
+    stow -D ghostty-theme-dark ghostty-theme-light 2>/dev/null || true
+    stow ghostty-theme-$theme
+    # Ghostty will reload automatically on next launch
+    
+    # 4. Rofi launcher - Switch theme
+    stow -D rofi-theme-dark rofi-theme-light 2>/dev/null || true
+    stow rofi-theme-$theme
+    
+    # 5. Fish shell colors
     fish -c "set_fish_colors" 2>/dev/null &
     
-    # 4. GTK apps
+    # 6. GTK apps
     if [[ "$theme" == "dark" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
     else
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
     fi
     
-    # 5. Mako notifications
+    # 7. Mako notifications
     if [[ "$theme" == "dark" ]]; then
         sed -i "s/background-color=.*/background-color=#2e6146E6/" ~/.config/mako/config
         sed -i "s/text-color=.*/text-color=#e8f5d5/" ~/.config/mako/config
@@ -60,6 +70,13 @@ apply_theme() {
     echo "$theme" > "$CURRENT_FILE"
     
     echo "✅ Theme switched to $theme!"
+    echo "   - Hyprland borders: updated"
+    echo "   - Kitty colors: updated"
+    echo "   - Ghostty theme: $theme"
+    echo "   - Rofi theme: $theme"
+    echo "   - GTK theme: updated"
+    echo "   - Mako notifications: updated"
+    
     notify-send "🌲 Faelight Forest" "Theme: $theme" -t 2000
 }
 
