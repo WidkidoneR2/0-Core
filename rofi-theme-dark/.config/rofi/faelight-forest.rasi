@@ -1,133 +1,204 @@
 /* ═══════════════════════════════════════════════════════════
- * 🌲 Rofi Theme - Faelight Forest Modern
+ * 🌲 Rofi Theme - Faelight Forest Enhanced
+ * Glassmorphism, Animations, Walker-like Interactions
  * ═══════════════════════════════════════════════════════════ */
+
+configuration {
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    display-drun: "Apps";
+    display-run: "Run";
+    display-window: "Windows";
+    drun-display-format: "{name}";
+    
+    /* Performance */
+    scroll-method: 0;
+    disable-history: false;
+    
+    /* Only show .desktop apps (filters out background stuff) */
+    drun-match-fields: "name,generic,exec,categories";
+}
 
 * {
     /* Colors */
     bg:             #0f1c16;
+    bg-trans:       #0f1c16CC;  /* 80% opacity */
     bg-alt:         #1a2922;
     fg:             #e8f5d5;
     fg-alt:         #c0cfc5;
     
     accent:         #7fb069;
-    accent-alt:     #99c883;
+    accent-glow:    #7fb06950;  /* 30% for glow */
+    accent-bright:  #99c883;    /* Brighter on click */
     
     red:            #d47d7d;
     green:          #7fb069;
     yellow:         #d4bc7d;
     blue:           #7d9fd4;
     
-    /* Base colors */
-    background-color:   transparent;
-    text-color:         @fg;
+    /* Base */
+    background-color: transparent;
+    text-color: @fg;
     
     /* Spacing */
-    margin:     0;
-    padding:    0;
-    spacing:    0;
+    margin:  0;
+    padding: 0;
+    spacing: 0;
 }
 
 window {
-    location:           center;
-    width:              600;
-    background-color:   @bg;
-    border:             2px;
-    border-color:       @accent;
-    border-radius:      12px;
+    location: center;
+    width: 650;
+    height: 600;  /* Taller! */
+    background-color: @bg-trans;
+    border: 2px solid;
+    border-color: @accent;
+    border-radius: 16px;
+    
+    /* Glassmorphism */
+    transparency: "real";
 }
 
 mainbox {
-    padding:    12px;
+    padding: 16px;
+    background-color: transparent;
 }
 
 inputbar {
-    background-color:   @bg-alt;
-    text-color:         @fg;
-    border-radius:      8px;
-    padding:            12px 16px;
-    spacing:            12px;
-    children:           [ prompt, entry ];
+    background-color: @bg-alt;
+    text-color: @fg;
+    border-radius: 10px;
+    padding: 14px 18px;
+    spacing: 14px;
+    children: [ prompt, entry ];
+    margin: 0 0 12px 0;
+    
+    /* Subtle glow */
+    border: 1px solid;
+    border-color: @accent-glow;
 }
 
 prompt {
-    background-color:   transparent;
-    text-color:         @accent;
+    background-color: transparent;
+    text-color: @accent;
+    font: "Hack Nerd Font Mono Bold 12";
 }
 
 entry {
-    background-color:   transparent;
-    text-color:         @fg;
-    placeholder:        "Search...";
-    placeholder-color:  @fg-alt;
-}
-
-message {
-    margin:             12px 0 0;
-    border-radius:      8px;
-    border-color:       @bg-alt;
-    background-color:   @bg-alt;
-}
-
-textbox {
-    padding:            8px 12px;
-    background-color:   @bg-alt;
-    text-color:         @fg;
+    background-color: transparent;
+    text-color: @fg;
+    placeholder: "Type to search...";
+    placeholder-color: @fg-alt;
+    cursor: pointer;
 }
 
 listview {
-    background-color:   transparent;
-    margin:             12px 0 0;
-    lines:              8;
-    columns:            1;
-    fixed-height:       false;
-    scrollbar:          false;
+    background-color: transparent;
+    lines: 10;  /* More items visible */
+    columns: 1;
+    fixed-height: false;
+    scrollbar: true;
+    spacing: 4px;
+}
+
+scrollbar {
+    width: 4px;
+    border: 0;
+    handle-width: 4px;
+    handle-color: @accent;
+    background-color: @bg-alt;
+    border-radius: 10px;
 }
 
 element {
-    padding:            8px 12px;
-    spacing:            8px;
-    border-radius:      6px;
-    background-color:   transparent;
-    text-color:         @fg-alt;
+    padding: 10px 14px;
+    spacing: 12px;
+    border-radius: 8px;
+    background-color: transparent;
+    text-color: @fg-alt;
 }
 
+/* Normal state - dim */
 element normal.normal {
-    background-color:   transparent;
-    text-color:         @fg-alt;
+    background-color: transparent;
+    text-color: @fg-alt;
 }
 
-element selected.normal {
-    background-color:   @accent;
-    text-color:         @bg;
-}
-
+/* Alternate rows - subtle differentiation */
 element alternate.normal {
-    background-color:   transparent;
-    text-color:         @fg-alt;
+    background-color: transparent;
+    text-color: @fg-alt;
+}
+
+/* Selected/Highlighted - GLOW + BOLD (Walker-like!) */
+element selected.normal {
+    background-color: @accent-glow;
+    text-color: @accent;
+    border: 1px solid;
+    border-color: @accent;
+    font: "Hack Nerd Font Mono Bold 11";
+}
+
+/* Active/Clicked - BRIGHT BOLD */
+element selected.active {
+    background-color: @accent;
+    text-color: @bg;
+    font: "Hack Nerd Font Mono Bold 11";
+    border: 2px solid;
+    border-color: @accent-bright;
+}
+
+/* Alternate rows - subtle differentiation */
+element alternate.normal {
+    background-color: transparent;
 }
 
 element-icon {
-    size:               1em;
-    background-color:   transparent;
+    size: 1.2em;
+    background-color: transparent;
+    cursor: pointer;
 }
 
 element-text {
-    background-color:   transparent;
-    text-color:         inherit;
+    background-color: transparent;
+    text-color: inherit;
+    cursor: pointer;
+    vertical-align: 0.5;
 }
 
+/* Message box (if shown) */
+message {
+    margin: 12px 0;
+    border-radius: 10px;
+    background-color: @bg-alt;
+    border: 1px solid;
+    border-color: @accent-glow;
+}
+
+textbox {
+    padding: 10px 14px;
+    background-color: transparent;
+    text-color: @fg;
+}
+
+/* Mode switcher */
 mode-switcher {
-    spacing:    0;
+    spacing: 4px;
+    margin: 12px 0 0 0;
 }
 
 button {
-    padding:            8px;
-    background-color:   @bg-alt;
-    text-color:         @fg-alt;
-    border-radius:      6px;
+    padding: 10px 16px;
+    background-color: @bg-alt;
+    text-color: @fg-alt;
+    border-radius: 8px;
+    border: 1px solid;
+    border-color: transparent;
 }
 
 button selected {
-    background-color:   @accent;
-    text-color:         @bg;
+    background-color: @accent;
+    text-color: @bg;
+    font: "Hack Nerd Font Mono Bold 11";
+    border-color: @accent-bright;
 }
