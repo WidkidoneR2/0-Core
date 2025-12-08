@@ -52,13 +52,13 @@ function _check_stow_symlinks
         ~/.config/waybar \
         ~/.config/nvim \
         ~/.config/yazi \
-        ~/.config/mako \
-        ~/.config/walker
+        ~/.config/mako
 
     # Individual file symlinks (check directory exists)
     set -l file_based \
         ~/.config/fish \
         ~/.config/kitty
+    ~/.config/rofi
 
     set -l valid 0
     set -l broken 0
