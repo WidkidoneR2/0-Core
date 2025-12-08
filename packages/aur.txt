@@ -4,4 +4,6 @@ filen-desktop-bin
 mullvad-vpn-bin
 notesnook-bin
 papirus-folders
+topgrade
+topgrade-debug
 tutanota-desktop-bin

@@ -1,6 +1,6 @@
 aether
-alacritty
 amd-ucode
+arch-audit
 asdcontrol
 base
 base-devel
@@ -41,6 +41,7 @@ filen-desktop-bin
 fish
 fontconfig
 fzf
+ghostty
 git
 github-cli
 gitleaks
@@ -88,6 +89,7 @@ linux-firmware
 llvm
 localsend
 luarocks
+lynis
 mako
 man-db
 mariadb-libs
@@ -110,7 +112,6 @@ obsidian
 omarchy-chromium
 omarchy-keyring
 omarchy-nvim
-omarchy-walker
 otf-font-awesome
 pacman-contrib
 pamixer
@@ -129,10 +130,12 @@ polkit-gnome
 postgresql-libs
 power-profiles-daemon
 python-gobject
+python-pip
 python-poetry-core
 python-terminaltexteffects
 qt5-wayland
 ripgrep
+rofi
 ruby
 rust
 satty
@@ -155,6 +158,7 @@ thunar-media-tags-plugin
 thunar-volman
 tldr
 tobi-try
+topgrade
 tree-sitter-cli
 ttf-cascadia-mono-nerd
 ttf-ia-writer
