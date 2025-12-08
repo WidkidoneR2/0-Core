@@ -146,7 +146,7 @@ function _check_binaries
         kitty \
         waybar \
         hyprctl \
-        walker \
+        rofi \
         nvim \
         yazi \
         fish \
