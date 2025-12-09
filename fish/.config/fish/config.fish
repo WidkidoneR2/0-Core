@@ -494,7 +494,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v2.8.0!"
+    echo "🌲 Welcome to Faelight Forest v2.8.6!"
     set_color normal
     echo "This is my Happy Place!!!"
     echo ""
