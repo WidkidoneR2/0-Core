@@ -29,9 +29,9 @@ apply_theme() {
     hyprctl keyword general:col.active_border "rgb(${border_active#\#})" &>/dev/null
     hyprctl keyword general:col.inactive_border "rgb(${border#\#})" &>/dev/null
     
-    # 2. Kitty terminal - Load proper color scheme
-    cat ~/dotfiles/themes/faelight-$theme/terminal.conf > ~/.config/kitty/current-theme.conf
-    killall -SIGUSR1 kitty 2>/dev/null || true
+    # 2. Foot terminal - Load proper color scheme
+    stow -D foot-theme-dark foot-theme-light
+    stow foot-theme-$theme
     
     # 3. Ghostty terminal - Switch theme
     cd ~/dotfiles
@@ -71,7 +71,7 @@ apply_theme() {
     
     echo "✅ Theme switched to $theme!"
     echo "   - Hyprland borders: updated"
-    echo "   - Kitty colors: updated"
+    echo "   - Foot colors: updated"
     echo "   - Ghostty theme: $theme"
     echo "   - Fuzzel theme: $theme"
     echo "   - GTK theme: updated"

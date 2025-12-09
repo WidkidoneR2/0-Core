@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Omarchy Fuzzel Menu - Fully functional, theme-aware
-# Requires: fuzzel, kitty, hyprctl, systemctl, makoctl, fzf, pavucontrol, topgrade, yay, btop, lazydocker
+# Requires: fuzzel, foot, hyprctl, systemctl, makoctl, fzf, pavucontrol, topgrade, yay, btop, lazydocker
 
 
 show_menu() {
@@ -39,11 +39,11 @@ settings_menu() {
     choice=$(show_menu "$options" "Settings Menu")
 
     case "$choice" in
-        "🖥️ Display Settings") kitty --title "Display Settings" -e bash -c "hyprctl monitors; read -p 'Press enter to close...'" ;;
+        "🖥️ Display Settings") foot --title "Display Settings" -e bash -c "hyprctl monitors; read -p 'Press enter to close...'" ;;
         "⌨️ Keyboard Settings") nvim ~/.config/hypr/input.conf ;;
         "🖱️ Mouse Settings") nvim ~/.config/hypr/input.conf ;;
         "🔊 Audio Settings") pavucontrol ;;
-        "🌐 Network Settings") kitty --title "Network Manager" -e nmtui ;;
+        "🌐 Network Settings") foot --title "Network Manager" -e nmtui ;;
         "🔙 Back") return ;;
     esac
 }
@@ -58,11 +58,11 @@ tools_menu() {
     choice=$(show_menu "$options" "System Tools")
 
     case "$choice" in
-        "🔍 System Monitor (btop)") kitty --title "System Monitor" -e btop ;;
-        "🐳 Docker (lazydocker)") kitty --title "Docker" -e lazydocker ;;
-        "📊 Disk Usage") kitty --title "Disk Usage" -e bash -c "df -h; read -p 'Press enter to close...'" ;;
-        "🧹 Clean System") kitty --title "Clean System" -e bash -c "yay -Sc; read -p 'Press enter to close...'" ;;
-        "🔍 Search Files") kitty --title "Search Files" -e bash -c "cd && fzf" ;;
+        "🔍 System Monitor (btop)") foot --title "System Monitor" -e btop ;;
+        "🐳 Docker (lazydocker)") foot --title "Docker" -e lazydocker ;;
+        "📊 Disk Usage") foot --title "Disk Usage" -e bash -c "df -h; read -p 'Press enter to close...'" ;;
+        "🧹 Clean System") foot --title "Clean System" -e bash -c "yay -Sc; read -p 'Press enter to close...'" ;;
+        "🔍 Search Files") foot --title "Search Files" -e bash -c "cd && fzf" ;;
         "🔙 Back") return ;;
     esac
 }
@@ -97,11 +97,11 @@ while true; do
     choice=$(show_menu "$options" "Omarchy Menu")
 
     case "$choice" in
-        "🔄 Update System") kitty --title "System Update" -e topgrade ;;
+        "🔄 Update System") foot --title "System Update" -e topgrade ;;
         "🎨 Theme Menu") theme_menu ;;
         "⚙️ Settings") settings_menu ;;
         "🔌 Power Menu") ~/dotfiles/scripts/power-menu-fuzzel.sh ;;
-        "📦 Package Manager") kitty --title "Package Manager" -e bash -c "yay; read -p 'Press enter to close...'" ;;
+        "📦 Package Manager") foot --title "Package Manager" -e bash -c "yay; read -p 'Press enter to close...'" ;;
         "🔧 System Tools") tools_menu ;;
         "❌ Exit") break ;;
     esac
