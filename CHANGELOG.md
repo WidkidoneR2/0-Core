@@ -1,320 +1,333 @@
 # 🌲 Faelight Forest Dotfiles - Changelog
 
-## [2.8.0] - 2025-12-02
-
-### Added - Foundational Intelligence & Safety Infrastructure 🏥
-
-**New Diagnostic Tools:**
-- **dot-doctor**: Comprehensive dotfile health checker
-  - Verifies all 8 Stow package symlinks
-  - Monitors 3 critical services (mullvad, fail2ban, syncthing)
-  - Checks 17 binary dependencies
-  - Color-coded output (✅ ❌ ⚠️)
-  - Results: Perfect system health! 🌲
-- **keyscan**: Keybinding analysis and conflict detection
-  - Analyzes 101 Hyprland keybindings
-  - Groups by modifier (SUPER, SUPER+SHIFT, etc.)
-  - Detects conflicts automatically
-  - Statistics dashboard
-  - Conflict detection verified: 0 conflicts! ✅
-
-**Fish Functions Added:**
-- `dot-doctor.fish` - System health diagnostics
-- `keyscan.fish` - Keybinding intelligence
-
-**Fish Aliases Added:**
-- `doctor` - Quick health check
-- `health-check` - Full system diagnostic
-- `keys-check` - Keybinding analysis
-
-### Fixed
-
-**Keybinding Conflicts Resolved:**
-All conflicts discovered and resolved by keyscan:
-- **SUPER+L**: Lock Screen removed (kept vim Focus Right)
-  - Alternatives: SUPER+ESCAPE (Power Menu), SUPER ALT+L (Suspend)
-- **SUPER SHIFT+K**: Notesnook moved to SUPER ALT+N
-  - Preserved vim navigation (Move Up)
-  - Better mnemonic: N = Notesnook
-- **SUPER+S**: Scratchpad moved to SUPER+D
-  - Preserved Screenshot on SUPER+S
-  - D = Dropdown scratchpad
-- **SUPER SHIFT+F**: Maximize moved to SUPER+M
-  - Preserved File Manager on SUPER SHIFT+F
-  - M = Maximize (clear mnemonic)
-
-**keyscan Bug Fixes:**
-- Fixed false conflict detection (empty string counted as 1)
-- Fixed display bug (conflicts not showing in output)
-- Improved parser to ignore non-keyboard bindings
-
-### Changed
-
-**Keybinding Reorganization:**
-- Updated bindings.conf to v2.8.0 (Conflict-Free Edition)
-- 101 total keybindings, fully optimized
-- All case-sensitivity conflicts resolved
-- Vim navigation preserved (h/j/k/l) across all layers
-
-**Fish Alias Updates:**
-- Updated `notes` and `notesnook` to launch Notesnook
-- Updated `kp`, `keepass`, `pass` to launch KeePassXC
-- All productivity app aliases verified working
-
-### Documentation
-
-**New Documentation:**
-- Created dot-doctor and keyscan functions
-- Documented conflict resolution process
-- Updated version notes in bindings.conf
-
-**Updated Files:**
-- hypr/.config/hypr/bindings.conf (v2.8.0)
-- fish/.config/fish/functions/dot-doctor.fish
-- fish/.config/fish/functions/keyscan.fish
-- fish/.config/fish/config.fish (new aliases)
-
-### Impact
-
-**v2.8.0 Success Metrics:**
-- ✅ Zero keybinding conflicts (verified by keyscan)
-- ✅ Perfect system health (verified by dot-doctor)
-- ✅ Safety infrastructure complete
-- ✅ Ready for Theme Intelligence Engine (v2.8.1-2.8.5)
-
-**Time Investment:** 3-4 hours  
-**Result:** Enterprise-grade dotfile intelligence and monitoring
-
-**Foundation established for:**
-- Safe theme engine development (v2.8.1-2.8.5)
-- Advanced tooling suite (v2.8.6)
-- Faelight Config Manager framework (v3.0)
+All notable changes to Omarchy dotfiles.
 
 ---
 
-## [2.7.2] - 2025-11-30
+## [2.8.6] - 2025-12-09
 
-### 🔒 Security Hardening
-- **Hardening Index improved: 68 → 71** (+3 points, 4.4% increase)
-- Enabled Fail2ban jails (was completely disabled - critical fix!)
-- Applied kernel hardening via sysctl (9 critical settings secured)
-- Installed Lynis for comprehensive security auditing
-- Installed arch-audit for vulnerability scanning
+### 📚 Documentation Overhaul
 
-### ✨ Added
-- Security audit aliases (`security-check`, `vuln-check`, `audit-full`, `security-score`)
-- Fail2ban monitoring aliases (`jail-status`, `ban-list`)
-- `/etc/sysctl.d/99-hardening.conf` - Kernel security settings
-- `system/security/` directory with security configuration documentation
-- Weekly security audit routine in COMPLETE_GUIDE.md
+**README.md - Complete Rewrite:**
+- New structure: Philosophy, Quick Start, System Structure, Core Tools
+- Detailed tool explanations (WHY each tool was chosen)
+- Faelight Theme Engine documentation
+- dot-doctor and keyscan usage guides
+- Stow-based management explanation
+- Package philosophy section (what was removed and why)
+- Installation guide
+- Comprehensive keybinding reference
 
-### 🔧 Technical Details
+**Files Updated:**
+- `README.md` - Complete rewrite from scratch
+- `CHANGELOG.md` - Full v2.8.x history documented
 
-**Kernel Hardening Applied:**
-- `kernel.kptr_restrict = 2` (pointer obfuscation)
-- `kernel.dmesg_restrict = 1` (restrict dmesg access)
-- `kernel.unprivileged_bpf_disabled = 1` (disable unprivileged BPF)
-- `fs.suid_dumpable = 0` (prevent core dumps)
-- `fs.protected_fifos = 2` (FIFO hardening)
-- `fs.protected_regular = 2` (regular file hardening)
-- `net.core.bpf_jit_harden = 2` (BPF JIT hardening)
-- `net.ipv4.conf.all.log_martians = 1` (log suspicious packets)
-- `net.ipv4.conf.default.log_martians = 1` (log suspicious packets)
+### 🎯 Summary
 
-**Fail2ban:**
-- Fixed: All jails were disabled (major security gap)
-- Enabled: SSH protection (if applicable)
-- Status: Active intrusion prevention
-
-### 📦 New Packages
-- `lynis` - Security auditing tool
-- `arch-audit` - Arch Linux vulnerability scanner
-
-### 📝 Documentation
-- Complete rewrite of `COMPLETE_GUIDE.md` for v2.7.2
-- Added comprehensive security section
-- Created `system/security/README.md` with security configuration guide
-- Documented weekly security audit routine
-- Added security score tracking
-
-## [2.7.1] - 2025-11-29
-
-### ✨ Added
-- Theme-aware Fish prompt colors (purple timestamp, lime/teal folder, cyan/magenta prompt)
-- Theme-aware Fish syntax highlighting with `set_fish_colors.fish`
-- Complete terminal color schemes (16 ANSI colors for both themes)
-- Waybar light theme with bright purple workspaces and blue WiFi icon
-- Neon green welcome message in Fish shell
-- Proper styling for disk and tray modules in both Waybar themes
-
-### 🎨 Improved
-- Dark theme: Orange commands, lime paths, purple functions, bright cyan WiFi
-- Light theme: Dark readable colors, bright purple workspace icons
-- Fish autosuggestion visibility (bright in dark, dark in light)
-- Terminal color coherence across all components
-
-### 🔧 Changed
-- Split Waybar CSS into `style-dark.css` and `style-light.css`
-- Theme-switch.sh now loads terminal colors from dedicated files
-- Terminal colors now properly match Fish prompt palette
-
-### 🗑️ Removed
-- Walker config backup file
-- Unused waybar `style.css` (replaced by theme-specific files)
-
-## [2.7.0] - 2025-11-27
-
-### 🎨 Major Features
-- **Theme Toggle System**: Switch between light and dark themes instantly
-  - `SUPER + SHIFT + P` toggles entire system theme
-  - Fish aliases: `theme-dark`, `theme-light`, `theme-toggle`, `theme`
-  - Affects: Hyprland, Kitty, Mako, GTK apps
-
-### 📁 New Structure
-- Created `~/dotfiles/themes/` directory
-  - `faelight-dark/theme.json` - Your current dark forest theme
-  - `faelight-light/theme.json` - New light theme variant
-  - `current.txt` - Stores active theme state
-
-### 🔄 Theme Switching
-- **theme-switch.sh** - Intelligent theme switcher script
-  - Applies colors to all apps system-wide
-  - Updates Hyprland borders dynamically
-  - Reloads Kitty terminal theme
-  - Changes Mako notification colors
-  - Sets GTK light/dark preference
-  - Sends notification on theme change
-
-### ✨ Improvements
-- **Keybindings**: Converted to `bindd` format for better discoverability
-  - All keybinds now show descriptions in Walker (`SUPER + W`)
-  - Fixed keybind conflicts (removed duplicate `SUPER ALT + T`)
-- **Kitty**: Added `current-theme.conf` for dynamic theming
-- **Documentation**: All bindings now self-documenting
-
-### 🐠 New Fish Aliases
-```fish
-theme-dark        # Switch to dark theme
-theme-light       # Switch to light theme  
-theme-toggle      # Toggle between themes
-theme             # Show current theme status
-```
-
-### 📝 Keybindings Added
-- `SUPER + SHIFT + P` - Toggle theme
-
-### 🔬 Research & Testing
-- Evaluated hyprscrolling plugin (Niri-style scrolling)
-- Decision: Skipped for now, prefer workspace-based workflow
-- Documented for future consideration
+Complete documentation reflecting all v2.8.x changes. System is fully documented, tested, and production-ready.
 
 ---
 
-## [2.6.0] - 2025-11-25
+## [2.8.5] - 2025-12-09
 
-### 🚀 Major Changes
-- **GNU Stow Migration**: Complete restructure for professional dotfile management
-  - All configs now use declarative symlink management
-  - Clean package-based structure: `package/.config/app/`
-  - Easy to add/remove configs with `stow` commands
+### 🚀 Complete System Optimization - Native Wayland Stack
 
-### ✨ New Features
-- Declarative dotfile management with GNU Stow
-- Simplified installation with `./install.sh`
-- Per-package management (`stow <package>`, `stow -D <package>`)
-- Better conflict handling during installation
+**Major Migration: Rofi → Fuzzel**
+- Removed rofi-wayland (had click/focus issues)
+- Installed fuzzel (native Wayland, instant response)
+- Created fuzzel-theme-dark package with Faelight colors
+- Configured: width=50, lines=8, line-height=28, size=12
+- Power menu: `power-menu-fuzzel.sh`
+- Omarchy menu: `omarchy-menu-fuzzel.sh`
+- Theme engine: Added `fuzzel.ini.j2` template
 
-### 🐛 Bug Fixes
-- Fixed LazyVim missing init.lua after Stow migration
-- Fixed theme coherence across all applications
-  - Nvim background now matches Kitty/Waybar (#0f1c16)
-  - Removed conflicting colorscheme configurations
-- Fixed colors alias to display Faelight Forest palette
+**Terminal Migration: Kitty → Foot + Ghostty**
+- Removed Kitty (60MB freed) - X11-based, heavier
+- Installed Foot as primary (native Wayland, 2ms startup, 5-10MB RAM)
+- Configured with JetBrainsMono Nerd Font (perfect spacing)
+- Ghostty remains as backup terminal
+- Created foot-theme-dark package
+- Theme engine: Added `foot.ini.j2` template
+- All keybindings updated to use Foot
+- Scripts updated: omarchy-menu, theme-switch
 
-### 📚 Technical Details
-**Stow Structure:**
-```
-~/dotfiles/
-├── fish/.config/fish/
-├── hypr/.config/hypr/
-├── waybar/.config/waybar/
-├── kitty/.config/kitty/
-├── nvim/.config/nvim/
-├── yazi/.config/yazi/
-├── mako/.config/mako/
-├── walker/.config/walker/
-└── gtk/.config/gtk-{3.0,4.0}/
-```
+**File Manager Optimization**
+- Removed Thunar + plugins (20MB freed)
+- Yazi configured with Meld integration (SUPER ALT+cm)
+- Added PCManFM-Qt (3MB) as GUI backup
+- No GUI file manager needed for daily use!
 
-**Installation:**
-- Full install: `./install.sh`
-- Single package: `stow <package>`
-- Remove package: `stow -D <package>`
-- Reinstall: `stow -R <package>`
+**New Tools Installed:**
+- `cliphist` - Clipboard history (SUPER+V)
+- `slurp` - Area selection for screenshots
+- `hyprpicker` - Color picker (SUPER SHIFT+C)
+- `zathura` - Lightweight PDF viewer (5MB vs Evince's 40MB)
+- `foot` - Primary terminal
+- `pcmanfm-qt` - GUI file manager backup
+- `topgrade` - System updater
 
-## Version 2.5 (2025-11-25) - 🎨 The Theming & Documentation Update
+**Removed (Total: ~106MB freed):**
+- `rofi` (1MB)
+- `kitty` + plugins (60MB)
+- `thunar` + plugins (20MB)
+- `evince` (15MB)
+- `gvfs` family (6MB)
+- `smbclient`, `libmtp`, etc. (4MB)
 
-### Fixed
-- Browser workspace rule - Brave now correctly opens in workspace 2
-- Fixed Brave class name (`brave-browser` instead of `Brave-browser`)
-- Added `silent` flag to prevent workspace stealing
+**Configuration Updates:**
+- All Hyprland keybindings updated
+- Fish shell functions updated
+- Workspace rules updated
+- theme-switch.sh: Graceful stow error handling
+- Autostart: cliphist integration
 
-### Added
-- **Brave Browser Theming** - Faelight Forest Stylus CSS for new tab page
-- **Mako Notifications** - Beautifully themed forest notifications with urgency levels
-- **Comprehensive Documentation:**
-  - `MELD_GUIDE.md` - Visual diff workflows and verification aliases
-  - `KEYBINDINGS.md` - Complete keyboard shortcut reference (100+ bindings)
-  - `brave/THEMING.md` - Browser customization guide
-- **Help Keybind** - `SUPER + /` opens keybindings reference
-- **Notification Controls:**
-  - `SUPER + I` - Toggle Do Not Disturb mode
-  - `SUPER + SHIFT + I` - Clear all notifications
+**Theme Engine:**
+- Updated render.py: Added fuzzel and foot templates
+- Updated apply-to-dotfiles.sh: Fuzzel and Foot support
+- Generates themes for 5 apps: Kitty, Ghostty, Foot, Fuzzel, Waybar
 
-### Changed
-- Updated Mako config with forest green backgrounds, cyan borders, and lime accents
-- Organized keybindings guide by category (Apps, Workspaces, Windows, System)
-- Improved documentation structure in `/docs` directory
+**Package Lists:**
+- pkglist.txt: Removed old packages, added new tools
+- packages/official.txt: Updated
+- Added missing essentials: topgrade, btop, lazydocker, lazygit, meld
 
-### Documentation
-- Created visual comparison workflows for Meld
-- Added Thunar + Meld integration instructions
-- Comprehensive keybinding tables with legends and pro tips
-- Browser theming with color palette reference
+**Files Modified:**
+- `hypr/.config/hypr/bindings.conf` - Updated terminal and file manager
+- `hypr/.config/hypr/workspaces.conf` - PCManFM-Qt rules
+- `hypr/.config/hypr/autostart.conf` - cliphist startup
+- `fish/.config/fish/config.fish` - PCManFM function
+- `scripts/omarchy-menu-fuzzel.sh` - Fuzzel integration
+- `scripts/power-menu-fuzzel.sh` - Created
+- `scripts/theme-switch` - Updated for Foot/Fuzzel
+- `fuzzel-theme-dark/.config/fuzzel/fuzzel.ini` - Faelight colors
+- `foot-theme-dark/.config/foot/foot.ini` - Faelight colors
 
-## Version 2.1 (2025-11-24)
+**Files Added:**
+- `foot-theme-dark/` - Complete Foot configuration
+- `fuzzel-theme-dark/` - Complete Fuzzel configuration
+- `scripts/power-menu-fuzzel.sh` - Power menu
+- `~/faelight-theme-engine/templates/foot.ini.j2` - Template
+- `~/faelight-theme-engine/templates/fuzzel.ini.j2` - Template
 
-### Fixed
-- Resolved SUPER+TAB keybind conflict (window cycling vs group switching)
-- Moved group navigation to SUPER+G/SUPER SHIFT+G  
-- Fixed YouTube keybind to SUPER SHIFT+U
-- Fixed Thunar closing when terminal closes (background function)
+**Files Removed:**
+- `kitty-theme-dark/`
+- `kitty/`
+- `scripts/omarchy-menu-rofi.sh`
+- `scripts/power-menu-rofi.sh`
 
-### Added
-- **Thunar** file manager (replaced Nautilus)
-- **Meld** visual diff tool with Thunar integration
-- **Papirus-Dark** icon theme with sunset-colored folders
-- **nwg-look** GTK theme manager for Wayland
-- GTK 3.0/4.0 configuration files
-- Meld verification aliases (verify-hypr, verify-waybar, etc.)
-- Updated workspace icons in Waybar (terminal, browser, files, code, media)
-- Gitleaks secret scanning with pre-commit hook
-- `.gitleaks.toml` configuration
-- Comprehensive keybinding documentation
+**Results:**
+- ✅ 106MB system bloat removed
+- ✅ 100% native Wayland stack
+- ✅ Faster performance across the board
+- ✅ All tools themed and working perfectly
+- ✅ No redundancy (1 primary terminal, 1 backup)
+- ✅ Professional workflow maintained
 
-### Changed
-- Updated COMPLETE_GUIDE.md with workflow improvements
-- Better keybinding organization with descriptive `bindd` labels
-- Improved Fish config with Thunar/Meld support
-- GTK theming now matches Tropical Sunset color scheme
+---
 
-### Removed
-- Nautilus file manager and dependencies
+## [2.8.4] - 2025-12-08
 
-## Version 2.0 (2025-11-XX)
-- Initial Faelight Forest theme release
-- 5 themed workspaces
-- Walker launcher integration  
-- Comprehensive keybindings
-- Tokyo Night color scheme
+### 🔗 Theme Engine Integration
 
+**Dotfiles Workflow:**
+- Created `apply-to-dotfiles.sh` script
+- Renders templates to temp directory
+- Applies to dotfiles stow packages automatically
+- Updates kitty-theme-dark, ghostty-theme-dark, rofi-theme-dark
+- Preserves base configs, only updates colors
+- Git workflow guidance included
+
+**Structure:**
+- `~/faelight-theme-engine/scripts/apply-to-dotfiles.sh`
+- Renders all templates with one command
+- Color-coded output (red/green/yellow/blue)
+- Automatic cleanup (trap on EXIT)
+
+**Integration Testing:**
+- Created kitty-theme-dark with current-theme.conf
+- Updated ghostty-theme-dark colors
+- Waybar preview generated
+- theme-switch.sh integration
+
+**Files:**
+- `scripts/apply-to-dotfiles.sh` - Created and tested
+- Fixed kitty stow conflict (removed current-theme.conf from base)
+- Updated theme-switch script name (removed .sh extension)
+
+---
+
+## [2.8.3] - 2025-12-08
+
+### 🎨 Template Rendering System
+
+**Jinja2 Templates Created:**
+- `templates/kitty.conf.j2` - Complete ANSI colors, cursor, selection
+- `templates/ghostty.conf.j2` - Colors without # prefix (Ghostty format)
+- `templates/rofi.rasi.j2` - CSS variables, complete styling
+- `templates/waybar.css.j2` - Bar styling, module colors, animations
+
+**Rendering Engine:**
+- `faelight_theme/render.py` - Template rendering logic
+- `render_template()` - Single template rendering
+- `render_to_file()` - Render and save
+- `render_all()` - Batch rendering
+- Jinja2 environment with FileSystemLoader
+- Template directory auto-detection
+- Output directory creation
+
+**CLI Integration:**
+- `faelight-theme render palette.json --target kitty`
+- `faelight-theme render palette.json --all`
+- Available targets: kitty, ghostty, rofi, waybar
+
+**Testing:**
+- Generated 4 perfect configs from test-palette.json
+- Verified all color formats correct
+- Ghostty colors properly formatted (no # prefix)
+
+**Troubleshooting:**
+- Fixed multiple Python syntax errors
+- Removed incomplete code blocks
+- Removed duplicate function definitions
+
+**Files:**
+- `templates/` - All 4 templates created
+- `faelight_theme/render.py` - Complete rendering system
+- Updated `cli.py` with render command
+
+---
+
+## [2.8.2] - 2025-12-08
+
+### 🎨 Color Extraction Core
+
+**Color Extraction (extract.py):**
+- `extract_colors()` - Uses colorgram.py for extraction
+- `rgb_to_hex()`, `hex_to_rgb()` - Color format conversion
+- `calculate_brightness()` - Weighted: 0.299*R + 0.587*G + 0.114*B
+- `detect_theme()` - Auto dark/light detection (<128 = dark)
+- `sort_by_brightness()` - Color organization
+
+**Palette Generation (palette.py):**
+- `generate_palette()` - Creates 16 ANSI colors from extracted colors
+- Hue-based color mapping: Red(0°), Yellow(60°), Green(120°), Cyan(180°), Blue(240°), Magenta(300°)
+- `find_closest_hue()` - 60° tolerance matching
+- Bright variants: 30% brighter for colors 8-15
+- Accent selection: Highest saturation + contrast optimization
+- HSV color space manipulation
+
+**Contrast Validation (contrast.py):**
+- `contrast_ratio()` - WCAG calculation (1-21 scale)
+- `validate_palette()` - Returns valid/warnings/ratios
+- `auto_adjust_contrast()` - Iterative brightness adjustment
+- Requirements: BG/FG ≥7:1 (AAA), BG/Accent ≥4.5:1 (AA)
+- Gamma correction for relative luminance
+
+**CLI Commands:**
+- `faelight-theme extract <image> [--output palette.json]`
+- `faelight-theme validate <palette.json>`
+
+**Testing:**
+- 5/5 unit tests passing
+- Test wallpaper: Extracted 8 colors, auto-detected dark theme
+- Background: #191c37 (dark blue, 51.8%)
+- Foreground: #7cc6b0 (teal, auto-adjusted to 8.36:1 contrast)
+- Accent: #ca7f99 (pink, 5.55:1 contrast)
+- All 16 ANSI colors generated with proper bright variants
+
+**Accent Optimization Fix:**
+- Initial accent had 1.0:1 contrast (too low)
+- Fixed accent selection algorithm to balance saturation and contrast
+- Result: 5.55:1 contrast (passes AA standard)
+
+**Files:**
+- `faelight_theme/extract.py` - 150 lines
+- `faelight_theme/palette.py` - 180 lines
+- `faelight_theme/contrast.py` - 150 lines
+- `faelight_theme/cli.py` - Updated with commands
+- `tests/test_extract.py` - Unit tests
+
+---
+
+## [2.8.1] - 2025-12-08
+
+### 🎨 Faelight Theme Engine - Project Setup
+
+**Phase 1A - Package Structure:**
+- Created `~/faelight-theme-engine/` project directory
+- Set up Python package structure with `pyproject.toml`
+- Configured Click CLI framework
+- Added dependencies: Pillow, Jinja2, colorgram.py
+- Created skeleton CLI: `faelight-theme --help`
+
+**Phase 1B - Research & Planning:**
+- Researched color extraction libraries
+- Analyzed terminal color format requirements
+- Documented theme file structures (Kitty, Ghostty, Rofi, Waybar)
+- Created comprehensive `DESIGN.md` with architecture
+
+**Documentation:**
+- `DESIGN.md` - Complete system architecture
+- Module breakdown: extract, palette, contrast, render, apply
+- Input/output flow documented
+- Color format specifications
+- Template examples
+
+**Files:**
+- `pyproject.toml` - Project configuration
+- `faelight_theme/__init__.py` - Package init
+- `faelight_theme/cli.py` - CLI framework
+- `DESIGN.md` - Complete design document
+- `README.md` - Project overview
+
+---
+
+## [2.8.0] - 2025-12-06
+
+### 🛠️ Rofi Migration & System Utilities
+
+**Walker → Rofi Migration:**
+- Removed Walker (335MB freed - unmaintained, flaky)
+- Installed rofi-wayland as launcher
+- Created `omarchy-menu-rofi.sh` - Central system menu
+- Created `power-menu-rofi.sh` - Power options
+- Enhanced Rofi theme with glassmorphism and glow effects
+- Custom theme: `rofi/.config/rofi/faelight-forest.rasi`
+
+**Ghostty Terminal:**
+- Added Ghostty as backup terminal
+- Complete configuration with Faelight Forest theme
+- ghostty-theme-dark package structure
+
+**System Health Tools:**
+- `dot-doctor` - Comprehensive system health checker
+  - Validates packages, configs, scripts
+  - Checks stow deployments
+  - Reports issues with fixes
+- `keyscan` - Auto-generates keybinding documentation
+  - Scans bindings.conf
+  - Formats as readable markdown
+  - Perfect for learning your system
+
+**Cleanup:**
+- Removed elephant folders (old backup directories)
+- Fixed dot-doctor checks
+- Updated all package references
+
+**Files:**
+- `scripts/dot-doctor` - System validator
+- `scripts/keyscan` - Keybinding documentation
+- `scripts/omarchy-menu-rofi.sh` - Main menu
+- `scripts/power-menu-rofi.sh` - Power menu
+- `rofi/.config/rofi/faelight-forest.rasi` - Enhanced theme
+- `ghostty-theme-dark/` - Ghostty configuration
+
+---
+
+## [Earlier Versions]
+
+See git history for v2.7.x and earlier changes.
+
+---
+
+**Note:** Version 2.8.x represents a major system optimization focused on native Wayland tools, bloat removal, and the addition of the Faelight Theme Engine for automated theming workflows.
