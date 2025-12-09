@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Omarchy Rofi Menu - Fully functional, theme-aware
-# Requires: rofi, kitty, hyprctl, systemctl, makoctl, fzf, pavucontrol, topgrade, yay, btop, lazydocker
+# Omarchy Fuzzel Menu - Fully functional, theme-aware
+# Requires: fuzzel, kitty, hyprctl, systemctl, makoctl, fzf, pavucontrol, topgrade, yay, btop, lazydocker
 
-ROFI_THEME="$HOME/.config/rofi/faelight-forest.rasi"
 
 show_menu() {
-    echo -e "$1" | rofi -dmenu -p "$2" -i -theme "$ROFI_THEME"
+    echo -e "$1" | fuzzel --dmenu \
+        --prompt="$2" \
+        --width=35 \
+        --lines=7 \
+        --line-height=32 \
+        --font="Hack Nerd Font Mono:size=14"
 }
 
 theme_menu() {
@@ -96,7 +100,7 @@ while true; do
         "🔄 Update System") kitty --title "System Update" -e topgrade ;;
         "🎨 Theme Menu") theme_menu ;;
         "⚙️ Settings") settings_menu ;;
-        "🔌 Power Menu") ~/dotfiles/scripts/power-menu-rofi.sh ;;
+        "🔌 Power Menu") ~/dotfiles/scripts/power-menu-fuzzel.sh ;;
         "📦 Package Manager") kitty --title "Package Manager" -e bash -c "yay; read -p 'Press enter to close...'" ;;
         "🔧 System Tools") tools_menu ;;
         "❌ Exit") break ;;

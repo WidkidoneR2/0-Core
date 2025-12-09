@@ -128,6 +128,8 @@ prepend_keymap = [
   # =========================================================
   { on = "SUPER ALT+:", run = "input --prompt ':' --type command", desc = "Command mode" },
 
+  # Meld integration
+  { on = "SUPER ALT+cm", run = 'shell "meld $@" --block --confirm', desc = "Compare with Meld" },
 ]
 
 # ============================================================
@@ -151,4 +153,5 @@ prepend_keymap = [
   { on = ":mkdir", run = "create --confirm", desc = "Make directory with confirmation" },
 
 ]
+
 

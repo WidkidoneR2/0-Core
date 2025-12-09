@@ -39,9 +39,9 @@ apply_theme() {
     stow ghostty-theme-$theme
     # Ghostty will reload automatically on next launch
     
-    # 4. Rofi launcher - Switch theme
-    stow -D rofi-theme-dark rofi-theme-light 2>/dev/null || true
-    stow rofi-theme-$theme
+    # 4. fuzzel launcher - Switch theme
+    stow -D fuzzel-theme-dark fuzzel-theme-light 2>/dev/null || true
+    stow fuzzel-theme-$them
     
     # 5. Fish shell colors
     fish -c "set_fish_colors" 2>/dev/null &
@@ -73,7 +73,7 @@ apply_theme() {
     echo "   - Hyprland borders: updated"
     echo "   - Kitty colors: updated"
     echo "   - Ghostty theme: $theme"
-    echo "   - Rofi theme: $theme"
+    echo "   - Fuzzel theme: $theme"
     echo "   - GTK theme: updated"
     echo "   - Mako notifications: updated"
     
