@@ -54,12 +54,6 @@ echo "📊 Syncing Waybar..."
 cp ~/.config/waybar/config.jsonc waybar/ 2>/dev/null || true
 cp ~/.config/waybar/style.css waybar/ 2>/dev/null || true
 
-# Walker
-echo "🚀 Syncing Walker..."
-mkdir -p walker/themes/faelight-forest
-cp ~/.config/walker/config.toml walker/ 2>/dev/null || true
-cp -r ~/.config/walker/themes/faelight-forest/* walker/themes/faelight-forest/ 2>/dev/null || true
-
 # Kitty
 echo "🐱 Syncing Kitty..."
 cp ~/.config/kitty/kitty.conf kitty/ 2>/dev/null || true

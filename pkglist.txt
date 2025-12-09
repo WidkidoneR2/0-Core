@@ -114,7 +114,6 @@ obsidian
 omarchy-chromium
 omarchy-keyring
 omarchy-nvim
-omarchy-walker
 otf-font-awesome
 pacman-contrib
 pamixer

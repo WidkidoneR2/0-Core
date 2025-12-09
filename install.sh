@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════
 # 🌲 Faelight Forest Dotfiles Installation Script
-# Version 2.6 - GNU Stow Edition
+# Version 2.8.6 - GNU Stow Edition
 # Installs all configs with GNU Stow for clean symlink management
 # ═══════════════════════════════════════════════════════════
 set -e
@@ -47,7 +47,6 @@ backup_if_exists "$HOME/.config/kitty"
 backup_if_exists "$HOME/.config/nvim"
 backup_if_exists "$HOME/.config/yazi"
 backup_if_exists "$HOME/.config/mako"
-backup_if_exists "$HOME/.config/walker"
 backup_if_exists "$HOME/.config/gtk-3.0"
 backup_if_exists "$HOME/.config/gtk-4.0"
 
@@ -63,7 +62,6 @@ rm -rf "$HOME/.config/kitty"
 rm -rf "$HOME/.config/nvim"
 rm -rf "$HOME/.config/yazi"
 rm -rf "$HOME/.config/mako"
-rm -rf "$HOME/.config/walker"
 rm -rf "$HOME/.config/gtk-3.0"
 rm -rf "$HOME/.config/gtk-4.0"
 echo "✅ Ready for Stow installation!"
@@ -93,9 +91,6 @@ stow -v yazi
 
 echo "  📝 Installing LazyVim configs..."
 stow -v nvim
-
-echo "  🚀 Installing Walker launcher..."
-stow -v walker
 
 echo "  🔔 Installing Mako notifications..."
 stow -v mako

@@ -57,8 +57,7 @@ function _check_stow_symlinks
     # Individual file symlinks (check directory exists)
     set -l file_based \
         ~/.config/fish \
-        ~/.config/kitty
-    ~/.config/rofi
+        ~/.config/foot
 
     set -l valid 0
     set -l broken 0
@@ -143,10 +142,9 @@ function _check_binaries
 
     # Important binaries to check
     set -l binaries \
-        kitty \
+        foot \
         waybar \
         hyprctl \
-        rofi \
         nvim \
         yazi \
         fish \

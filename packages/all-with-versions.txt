@@ -762,7 +762,6 @@ redland 1:1.0.17-9
 rhash 1.4.6-1
 ripgrep 15.1.0-1
 rnnoise 1:0.2-1
-rofi 2.0.0-1
 rtkit 0.13-3
 rubberband 4.0.0-1
 ruby 3.4.7-2
@@ -826,10 +825,6 @@ tar 1.35-2
 tdb 1.4.14-1
 tevent 1:0.17.1-1
 texinfo 7.2-1
-thunar 4.20.6-1
-thunar-archive-plugin 0.6.0-1
-thunar-media-tags-plugin 0.6.0-1
-thunar-volman 4.20.0-2
 tinysparql 3.10.1-2
 tldr 3.4.3-2
 tobi-try 0.1.0-1
