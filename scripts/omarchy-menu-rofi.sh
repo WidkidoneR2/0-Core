@@ -96,7 +96,7 @@ while true; do
         "🔄 Update System") kitty --title "System Update" -e topgrade ;;
         "🎨 Theme Menu") theme_menu ;;
         "⚙️ Settings") settings_menu ;;
-        "🔌 Power Menu") power_menu ;;
+        "🔌 Power Menu") ~/dotfiles/scripts/power-menu-rofi.sh ;;
         "📦 Package Manager") kitty --title "Package Manager" -e bash -c "yay; read -p 'Press enter to close...'" ;;
         "🔧 System Tools") tools_menu ;;
         "❌ Exit") break ;;
