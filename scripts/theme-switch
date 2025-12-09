@@ -30,18 +30,17 @@ apply_theme() {
     hyprctl keyword general:col.inactive_border "rgb(${border#\#})" &>/dev/null
     
     # 2. Foot terminal - Load proper color scheme
-    stow -D foot-theme-dark foot-theme-light
-    stow foot-theme-$theme
+    stow -D foot-theme-dark foot-theme-light 2>/dev/null || true
+    stow foot-theme-$theme 2>/dev/null || true
     
     # 3. Ghostty terminal - Switch theme
     cd ~/dotfiles
     stow -D ghostty-theme-dark ghostty-theme-light 2>/dev/null || true
-    stow ghostty-theme-$theme
-    # Ghostty will reload automatically on next launch
+    stow ghostty-theme-$theme 2>/dev/null || true
     
-    # 4. fuzzel launcher - Switch theme
+    # 4. fuzzel - Switch theme
     stow -D fuzzel-theme-dark fuzzel-theme-light 2>/dev/null || true
-    stow fuzzel-theme-$them
+    stow fuzzel-theme-$theme 2>/dev/null || true
     
     # 5. Fish shell colors
     fish -c "set_fish_colors" 2>/dev/null &

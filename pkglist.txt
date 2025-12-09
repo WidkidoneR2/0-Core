@@ -13,6 +13,7 @@ brightnessctl
 btop
 btrfs-progs
 clang
+cliphist
 cmake
 cpio
 cronie
@@ -41,6 +42,8 @@ ffmpegthumbnailer
 filen-desktop-bin
 fish
 fontconfig
+foot
+fuzzel
 fzf
 git
 github-cli
@@ -72,7 +75,6 @@ iwd
 jq
 kdenlive
 keepassxc
-kitty
 kvantum-qt5
 lazydocker
 lazygit
@@ -119,6 +121,7 @@ pamixer
 papirus-folders
 papirus-icon-theme
 pavucontrol
+pcmanfm-qt
 pinta
 pipewire
 pipewire-alsa
@@ -151,12 +154,9 @@ sushi
 swaybg
 swayosd
 system-config-printer
-thunar
-thunar-archive-plugin
-thunar-media-tags-plugin
-thunar-volman
 tldr
 tobi-try
+topgrade
 tree-sitter-cli
 ttf-cascadia-mono-nerd
 ttf-ia-writer
@@ -186,5 +186,7 @@ xournalpp
 yaru-icon-theme
 yay
 yazi
+zathura
+zathura-pdf-mupdf
 zoxide
 zram-generator
