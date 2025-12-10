@@ -1,4 +1,4 @@
-# 🌲 Omarchy - Complete System Guide
+# 🌲 Omarchy-FAELIGHT FOREST - Complete System Guide
 
 > **The definitive guide to understanding, using, and mastering your Omarchy system.**
 
@@ -3149,6 +3149,9 @@ systemctl --user start my-service
 
 ---
 
-**Built with ❤️ and attention to detail.**
 
-🌲 **Omarchy** - *Order through simplicity*
+🌲 May your Faelight Forest grow eternal! 🌲
+
+Version 2.8.6 - Immortal Edition
+Built with ❤️ by Christian
+December 09, 2025
