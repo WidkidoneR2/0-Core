@@ -1,4 +1,4 @@
-# 🌲 Omarchy - Arch Linux Dotfiles
+# 🌲 Omarchy-FAELIGHT FOREST - Arch Linux 
 
 > **A minimal, native Wayland system built for speed, reliability, and beauty.**
 
