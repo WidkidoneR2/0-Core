@@ -13,7 +13,7 @@
 ## 🎯 Quick Start
 ```bash
 # Clone dotfiles
-git clone https://github.com/YOUR_USERNAME/dotfiles.git ~/dotfiles
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 
 # Install packages
