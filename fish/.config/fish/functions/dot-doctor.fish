@@ -12,7 +12,8 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     set -l failed 0
     set -l warnings 0
 
-    echo "$CYAN🏥 Dotfile Health Check - Faelight Forest v2.8.7$NC"
+    set -l omarchy_version (cat ~/dotfiles/VERSION 2>/dev/null || echo "unknown")
+    echo "$CYAN🏥 Dotfile Health Check - Faelight Forest v$omarchy_version$NC"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     # ═══════════════════════════════════════════
