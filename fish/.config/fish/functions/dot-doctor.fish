@@ -130,7 +130,8 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
 
     # Check if clean
     set total_checks (math $total_checks + 1)
-    if test -z "(git status --porcelean)"
+    set -l git_status (git status --porcelain)
+    if test -z "$git_status"
         echo "   $GREEN✅ Working tree clean$NC"
         set passed (math $passed + 1)
     else
