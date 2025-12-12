@@ -1062,19 +1062,173 @@ end
 
 ## 🎯 Complete Development Timeline
 
-### Immediate (Next 2-4 Weeks)
-- **v2.8.1-2.8.6** - Theme Intelligence Engine (28-34 hours)
+v2.8.6 - CURRENT (This Weekend)
 
-### Short-term (Next 2-3 Months)
-- **v2.9** - Security & Backup (6-8 hours)
-- **v3.0** - FCM Foundation (20-25 hours)
+✅ System optimization complete
+✅ Native Wayland stack
+✅ Documentation complete
+🔜 Remove PCManFM-Qt (Saturday!)
+🔜 Terminal mastery achieved
 
-### Medium-term (3-6 Months)
-- **v3.5** - Advanced Management (15-20 hours)
-- **v4.0** - Phoenix Framework (10-15 hours)
+v2.8.7 - Tool Enhancement (Week of Dec 16-22)
 
-**Total Investment:** 80-100 hours over 6 months  
-**Result:** Professional configuration management framework
+🔧 Enhanced dot-doctor:
+   - Yazi plugin validation
+   - Broken symlink detection
+   - Performance metrics
+   - Git health checks
+   - Detailed reporting with fixes
+
+🔍 Enhanced keyscan:
+   - Category grouping
+   - Statistics dashboard
+   - Multiple output formats (MD, HTML, PDF)
+   - Printable cheat sheets
+   - Search functionality
+
+📊 System monitoring:
+   - Resource usage tracking
+   - Startup time optimization
+   - Bottleneck identification
+
+v2.8.8 - Workflow Automation (Week of Dec 23-29)
+
+🤖 Automation Scripts:
+   - auto-backup: Dotfiles to git (systemd timer)
+   - safe-update: Pre-update snapshot + validation
+   - config-guard: Validate configs before apply
+   - cleanup-routine: Weekly maintenance automation
+   - theme-scheduler: Auto-switch dark/light by time
+
+🛠️ Workflow Tools:
+   - quick-note: Rapid note capture
+   - project-init: Scaffold new projects
+   - config-diff: Compare current vs dotfiles
+   - restore-point: Create/restore system snapshots
+
+⏰ Systemd Timers:
+   - Daily: Dotfiles backup
+   - Weekly: Full system update + cleanup
+   - Monthly: Health report generation
+
+v2.9.0 - Theming System (Early January)
+
+🌞 Light Theme Support:
+   - foot-theme-light
+   - fuzzel-theme-light
+   - ghostty-theme-light
+   - waybar-theme-light
+   - mako-theme-light
+   - hyprland-theme-light
+
+🎨 Theme Engine Enhancement:
+   - Generate both dark + light from one wallpaper
+   - Auto-detect best theme type
+   - Smooth transitions
+   - Theme variants (nord, gruvbox, dracula, etc.)
+
+🔄 Smart Theme Switching:
+   - Time-based (auto dark mode at night)
+   - Ambient light sensor (if available)
+   - Per-app theming
+   - Theme profiles (work, gaming, focus)
+
+v2.9.1 - Waybar Customization (Mid January)
+   📊 Custom Waybar Modules:
+   - System resources (CPU, RAM, Disk)
+   - Network monitor (speed, connection)
+   - Weather widget
+   - Calendar/agenda
+   - Music player (mpris)
+   - Notifications counter
+   - Custom scripts output
+
+🎨 Waybar Theming:
+   - Match system theme automatically
+   - Glassmorphism effects
+   - Animations on hover
+   - Dynamic colors from wallpaper
+   - Multiple bar layouts (top, bottom, floating)
+
+🔧 Waybar Functionality:
+   - Click actions for modules
+   - Tooltips with detailed info
+   - Custom context menus
+   - Workspace previews
+
+v2.9.2 - Additional App Integrations (Late January)
+
+🔗 New Integrations:
+   - Spotify/mpd music control
+   - Email notifications (if you use email client)
+   - Task manager integration (todoist/taskwarrior?)
+   - Password manager shortcuts (bitwarden?)
+   - Browser bookmark quick access
+   - Project switcher (for dev work)
+
+📱 Notification Enhancements:
+   - Mako custom actions
+   - Notification history browser
+   - Priority-based styling
+   - App-specific rules
+
+🎮 Application-Specific Configs:
+   - Per-app Hyprland rules
+   - Workspace auto-assignment
+   - Window decoration themes
+
+v3.0.0 - Atomic Package System (February)
+
+📦 Package Restructuring:
+   dotfiles/
+   ├── core/              # Essential base
+   │   ├── hypr/
+   │   ├── fish/
+   │   └── scripts/
+   │
+   ├── terminals/         # Terminal packages
+   │   ├── foot/
+   │   └── ghostty/
+   │
+   ├── tools/            # Utility tools
+   │   ├── yazi/
+   │   ├── fuzzel/
+   │   └── mako/
+   │
+   ├── development/      # Dev tools
+   │   ├── nvim/
+   │   ├── git/
+   │   └── lazygit/
+   │
+   ├── themes/           # All themes
+   │   ├── dark/
+   │   ├── light/
+   │   └── variants/
+   │
+   ├── automation/       # Scripts & timers
+   │   ├── backups/
+   │   ├── maintenance/
+   │   └── monitoring/
+   │
+   └── optional/         # Nice-to-haves
+       ├── media/
+       ├── gaming/
+       └── extras/
+
+🔧 Package Manager:
+   - omarchy-pkg install <package>
+   - omarchy-pkg remove <package>
+   - omarchy-pkg list
+   - omarchy-pkg enable/disable
+   - Dependency management
+   - Profile system (minimal, full, dev, etc.)
+
+📚 Per-Package Documentation:
+   - Each package has README
+   - Installation instructions
+   - Configuration guide
+   - Troubleshooting
+   
 
 ---
 

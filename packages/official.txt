@@ -120,7 +120,6 @@ pamixer
 papirus-folders
 papirus-icon-theme
 pavucontrol
-pcmanfm-qt
 pinta
 pipewire
 pipewire-alsa
