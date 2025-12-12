@@ -2,6 +2,7 @@ aether
 amd-ucode
 arch-audit
 asdcontrol
+atool
 base
 base-devel
 bash-completion
@@ -27,7 +28,6 @@ docker-compose
 dust
 efibootmgr
 ente-auth-bin
-evince
 exfatprogs
 expac
 eza
@@ -57,9 +57,6 @@ grim
 grub-btrfs
 gst-plugin-pipewire
 gum
-gvfs-mtp
-gvfs-nfs
-gvfs-smb
 hypridle
 hyprland
 hyprland-guiutils
@@ -141,6 +138,7 @@ ruby
 rust
 satty
 sddm
+shfmt
 signal-desktop
 slurp
 snap-pac
@@ -149,7 +147,6 @@ sof-firmware
 starship
 stow
 sublime-text-4
-sushi
 swaybg
 swayosd
 system-config-printer

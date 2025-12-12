@@ -1,5 +1,4 @@
 aether
-alacritty
 amd-ucode
 arch-audit
 asdcontrol
@@ -120,7 +119,6 @@ pamixer
 papirus-folders
 papirus-icon-theme
 pavucontrol
-pinta
 pipewire
 pipewire-alsa
 pipewire-jack
