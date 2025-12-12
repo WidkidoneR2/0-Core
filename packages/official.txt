@@ -48,6 +48,7 @@ ghostty
 git
 github-cli
 gitleaks
+glow
 gnome-calculator
 gnome-disk-utility
 gnome-keyring
