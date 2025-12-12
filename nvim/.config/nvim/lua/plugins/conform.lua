@@ -1,14 +1,19 @@
 -- ═══════════════════════════════════════════════════════════
--- 🔧 Conform.nvim - Auto-formatting for Omarchy
+-- 🔧 Conform.nvim - Auto-formatting for Neovim on Arch Linux
 -- Lightweight, async, professional code formatting
+-- LazyVim handles format_on_save automatically
 -- ═══════════════════════════════════════════════════════════
+
+local function is_executable(cmd)
+	return vim.fn.executable(cmd) == 1
+end
 
 return {
 	"stevearc/conform.nvim",
 	event = { "BufReadPre", "BufNewFile" },
 	opts = {
 		formatters_by_ft = {
-			-- Shell scripts (your dotfiles!)
+			-- Shell scripts
 			fish = { "fish_indent" },
 			sh = { "shfmt" },
 			bash = { "shfmt" },
@@ -21,38 +26,27 @@ return {
 			-- Documentation
 			markdown = { "prettier" },
 
-			-- Web/JS (if you use it)
+			-- Web/JS
 			javascript = { "prettier" },
 			typescript = { "prettier" },
 			html = { "prettier" },
 			css = { "prettier" },
 
-			-- Lua (for nvim configs)
+			-- Lua (for Neovim configs)
 			lua = { "stylua" },
 
-			-- Python (if you use it)
-			python = { "black" },
+			-- Python (only if black is installed)
+			python = is_executable("black") and { "black" } or nil,
 		},
-
-		-- Format on save
-		format_on_save = {
-			-- Timeout for formatting
-			timeout_ms = 500,
-			-- Fallback to LSP if formatter not available
-			lsp_fallback = true,
-		},
-
-		-- Keybinding to manually format
-		-- You can use <leader>cf (Code Format)
 	},
 
 	keys = {
 		{
 			"<leader>cf",
 			function()
-				require("conform").format({ async = true, lsp_fallback = true })
+				require("conform").format({ async = true })
 			end,
-			mode = "",
+			mode = "n",
 			desc = "Format buffer",
 		},
 	},

@@ -20,6 +20,7 @@ argon2 20190702-6
 asdcontrol 0.23.0ee8bd5-1
 at-spi2-core 2.58.2-1
 atkmm 2.28.4-1
+atool 0.39.0-10
 attica 6.20.0-1
 attr 2.5.2-1
 audit 4.1.2-1
@@ -39,7 +40,7 @@ bluez 5.85-1
 bluez-libs 5.85-1
 boost-libs 1.89.0-3
 botan 3.10.0-1
-brave-bin 1:1.85.111-1
+brave-bin 1:1.85.116-1
 breeze-icons 6.20.0-1
 brightnessctl 0.5.1-3
 brotli 1.1.0-3
@@ -54,8 +55,8 @@ ca-certificates-utils 20240618-1
 cairo 1.18.4-1
 cairomm 1.14.5-1
 cairomm-1.16 1.18.0-2
-cifs-utils 7.4-1
 clang 21.1.6-1
+cliphist 1:0.7.0-1
 clucene 2.3.3.4-16
 cmake 4.2.0-1
 compiler-rt 21.1.6-1
@@ -85,7 +86,6 @@ desktop-file-utils 0.28-1
 device-mapper 2.03.36-2
 diffutils 3.12-2
 discord 1:0.0.115-1
-djvulibre 3.5.29-1
 docker 1:28.5.2-1
 docker-buildx 0.30.1-1
 docker-compose 2.40.3-1
@@ -103,17 +103,15 @@ electron37 37.5.1-1
 ell 0.81-1
 enchant 2.8.12-2
 ente-auth-bin 4.4.10-2
-evince 1:48.1-1
-exempi 2.6.6-2
 exfatprogs 1.3.0-1
 exiv2 0.28.7-1
-exo 4.20.0-2
 expac 10-11
 expat 2.7.3-1
 eza 0.23.4-1
 fail2ban 1.1.0-7
 fakeroot 1.37.1.2-1
 fastfetch 2.55.1-1
+fcft 3.3.2-1
 fcitx5 5.1.16-1
 fcitx5-gtk 5.1.4-2
 fcitx5-qt 5.1.11-2
@@ -130,12 +128,14 @@ flac 1.5.0-1
 flex 2.6.4-5
 fmt 12.1.0-1
 fontconfig 2:2.17.1-1
+foot 1.25.0-1
 freetype2 2.14.1-1
 frei0r-plugins 2.5.0-1
 fribidi 1.0.16-2
 fuse-common 3.17.4-1
 fuse2 2.9.9-5
 fuse3 3.17.4-1
+fuzzel 1.13.1-1
 fzf 0.67.0-1
 gawk 5.3.2-1
 gc 8.2.10-2
@@ -151,6 +151,7 @@ ghostty 1.2.3-2
 ghostty-shell-integration 1.2.3-2
 ghostty-terminfo 1.2.3-2
 giflib 5.2.2-2
+girara 0.4.5-1
 git 2.52.0-2
 github-cli 2.83.1-1
 gitleaks 8.28.0-1
@@ -165,8 +166,6 @@ glu 9.0.3-2
 glycin 2.0.7-1
 gmp 6.3.0-2
 gnome-calculator 49.2-1
-gnome-desktop 1:44.4-1
-gnome-desktop-common 1:44.4-1
 gnome-disk-utility 46.1-2
 gnome-keyring 1:48.0-1
 gnome-themes-extra 1:3.28-1
@@ -188,11 +187,8 @@ grub 2:2.14rc1-2
 grub-btrfs 4.14-1
 gsettings-desktop-schemas 49.1-1
 gsettings-system-schemas 49.1-1
-gsfonts 20200910-6
 gsm 1.0.23-1
-gspell 1.14.1-2
 gssdp 1.6.4-1
-gst-plugin-gtk 1.26.8-1
 gst-plugin-pipewire 1:1.4.9-1
 gst-plugins-bad-libs 1.26.8-1
 gst-plugins-base-libs 1.26.8-1
@@ -209,12 +205,9 @@ gtksourceview4 4.8.4-2
 gtksourceview5 5.18.0-1
 guile 3.0.10-1
 gum 0.17.0-1
+gumbo-parser 0.13.2-1
 gupnp 1:1.6.9-1
 gupnp-igd 1.6.0-2
-gvfs 1.58.0-2
-gvfs-mtp 1.58.0-2
-gvfs-nfs 1.58.0-2
-gvfs-smb 1.58.0-2
 gzip 1.14-2
 harfbuzz 12.2.0-2
 harfbuzz-icu 12.2.0-2
@@ -289,9 +282,6 @@ kiconthemes 6.20.0-1
 kio 6.20.0-1
 kirigami 6.20.0-1
 kitemviews 6.20.0-1
-kitty 0.44.0-1
-kitty-shell-integration 0.44.0-1
-kitty-terminfo 0.44.0-1
 kjobwidgets 6.20.0-1
 kmod 34.2-1
 knewstuff 6.20.0-1
@@ -312,8 +302,8 @@ lame 3.100-6
 lazydocker 0.24.2-1
 lazygit 0.56.0-1
 lcms2 2.17-1
-ldb 2:4.23.3-2
 leancrypto 1.6.0-1
+leptonica 1.86.0-1
 less 1:685-1
 libabw 0.1.3-5
 libaccounts-glib 1.27-3
@@ -392,9 +382,7 @@ libgirepository 1.86.0-1
 libgit2 1:1.9.1-1
 libglvnd 1.7.0-3
 libgpg-error 1.56-1
-libgtop 2.41.3-2
 libgudev 238-3
-libgxps 0.3.2-5
 libhandy 1.8.3-2
 libheif 1.20.2-3
 libice 1.1.2-1
@@ -425,13 +413,12 @@ libmodplug 0.8.9.0-6
 libmpc 1.3.1-2
 libmpdclient 2.23-1
 libmspub 0.1.4-18
-libmtp 1.1.22-1
+libmupdf 1.26.11-1
 libmwaw 0.3.22-3
 libmysofa 1.3.3-1
 libnet 2:1.3-1
 libnetfilter_conntrack 1.0.9-2
 libnfnetlink 1.0.2-2
-libnfs 6.0.2-5
 libnftnl 1.3.0-1
 libnghttp2 1.68.0-1
 libnghttp3 1.12.0-1
@@ -469,7 +456,6 @@ libraw1394 2.1.2-4
 libreoffice-fresh 25.8.3-2
 librevenge 0.0.5-3
 librsvg 2:2.61.3-1
-librsync 1:2.3.4-2
 libsamplerate 0.2.2-3
 libsasl 2.1.28-5
 libseccomp 2.5.6-1
@@ -482,7 +468,6 @@ libsndfile 1.2.2-4
 libsodium 1.0.20-1
 libsoup3 3.6.5-1
 libsoxr 0.1.3-4
-libspectre 0.2.12-2
 libsrtp 1:2.7.0-1
 libssh 0.11.3-1
 libssh2 1.11.1-1
@@ -515,7 +500,6 @@ libvpl 2.15.0-1
 libvpx 1.15.2-2
 libvterm 0.3.3-2
 libwacom 2.17.0-1
-libwbclient 2:4.23.3-2
 libwebp 1.6.0-2
 libwireplumber 0.5.12-1
 libwpd 0.10.3-5
@@ -530,7 +514,6 @@ libxcvt 0.1.3-1
 libxdamage 1.1.6-2
 libxdmcp 1.1.5-1
 libxext 1.3.6-1
-libxfce4ui 4.20.2-1
 libxfce4util 4.20.1-1
 libxfixes 6.0.2-1
 libxfont2 2.0.7-1
@@ -616,7 +599,8 @@ mpv 1:0.40.0-7
 msgpack-c 6.1.0-2
 mtdev 1.1.7-1
 mujs 1.3.8-1
-mullvad-vpn-bin 2025.13-1
+mullvad-vpn-bin 2025.14-1
+mullvad-vpn-bin-debug 2025.14-1
 ncdu 2.9.2-1
 ncurses 6.5-4
 neon 0.35.0-1
@@ -781,6 +765,7 @@ serd 0.32.6-1
 shaderc 2025.4-2
 shadow 4.18.0-1
 shared-mime-info 2.4-2
+shfmt 3.12.0-1
 signal-desktop 7.80.0-1
 signon-kwallet-extension 25.08.3-1
 signon-plugin-oauth2 0.25-3
@@ -788,7 +773,6 @@ signon-ui 0.17+20231016-3
 signond 8.61-3
 simde 0.8.2-1
 slurp 1.5.0-1
-smbclient 2:4.23.3-2
 snap-pac 3.0.1-3
 snapper 0.13.0-2
 snappy 1.2.2-2
@@ -806,11 +790,9 @@ sqlite 3.51.0-1
 sratom 0.6.20-1
 srt 1.5.4-1
 starship 1.24.1-1
-startup-notification 0.12-9
 stow 2.4.1-1
 sublime-text-4 4.4200-1
 sudo 1.9.17.p2-1
-sushi 46.0-2
 svt-av1 3.1.2-1
 swaybg 1.2.1-1
 swayosd 0.2.1-2
@@ -820,10 +802,11 @@ systemd 258.2-2
 systemd-libs 258.2-2
 systemd-sysvcompat 258.2-2
 taglib 2.1.1-1
-talloc 2.4.3-1
 tar 1.35-2
 tdb 1.4.14-1
-tevent 1:0.17.1-1
+tesseract 5.5.1-2
+tesseract-data-eng 2:4.1.0-4
+tesseract-data-osd 2:4.1.0-4
 texinfo 7.2-1
 tinysparql 3.10.1-2
 tldr 3.4.3-2
@@ -902,7 +885,6 @@ xdg-terminal-exec 0.14.0-1
 xdg-user-dirs 0.19-2
 xdg-utils 1.2.1-1
 xf86-input-libinput 1.5.0-1
-xfconf 4.20.0-2
 xkeyboard-config 2.46-1
 xmlsec 1.3.9-1
 xmlstarlet 1.6.1-6
@@ -924,6 +906,8 @@ yaru-icon-theme 25.10.2-1
 yay 12.5.3-1
 yazi 25.5.31-2
 yyjson 0.12.0-1
+zathura 0.5.14-1
+zathura-pdf-mupdf 0.4.6-2
 zeromq 4.3.5-2
 zimg 3.0.5-1
 zip 3.0-11
