@@ -236,11 +236,6 @@ alias preview='fzf --preview "bat --color=always {}"'
 # 📁 FILE MANAGERS
 # ═══════════════════════════════════════════════════════════
 
-# Thunar (File Manager) - Run in the background
-function pcmanfm
-    command pcmanfm-qt $argv &>/dev/null &
-end
-
 # Meld - Visual diff/merge tool (only if installed)
 if type -q meld
     alias compare='meld'
