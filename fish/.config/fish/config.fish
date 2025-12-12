@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.8.7 - Enhanced & Protected Edition
+# Version 2.8.8 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -503,5 +503,5 @@ set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.8.7 - Enhanced & Protected Edition
+# Version 2.8.8 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
