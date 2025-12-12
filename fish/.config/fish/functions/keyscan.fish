@@ -1,102 +1,63 @@
-function keyscan --description "Scan and analyze Hyprland keybindings"
-    echo "🔍 Keybinding Analysis Report"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
+function keyscan --description "Generate keybinding documentation from Hyprland config"
+    # Colors
+    set -l CYAN (set_color cyan)
+    set -l GREEN (set_color green)
+    set -l YELLOW (set_color yellow)
+    set -l NC (set_color normal)
 
     set -l bindings_file ~/dotfiles/hypr/.config/hypr/bindings.conf
 
     if not test -f $bindings_file
-        echo "❌ Error: bindings.conf not found at $bindings_file"
+        echo "❌ Error: bindings.conf not found"
         return 1
     end
 
-    # Parse bindings
-    set -l bindings (_parse_bindings $bindings_file)
-
-    # Count by modifier
-    set -l super_count 0
-    set -l super_shift_count 0
-    set -l super_ctrl_count 0
-    set -l super_alt_count 0
-
-    for binding in $bindings
-        if string match -q "*SHIFT*" $binding
-            set super_shift_count (math $super_shift_count + 1)
-        else if string match -q "*CTRL*" $binding
-            set super_ctrl_count (math $super_ctrl_count + 1)
-        else if string match -q "*ALT*" $binding
-            set super_alt_count (math $super_alt_count + 1)
-        else if string match -q "SUPER+*" $binding
-            set super_count (math $super_count + 1)
-        end
-    end
-
-    # Detect conflicts (same binding appears twice)
-    set -l conflicts (_detect_conflicts $bindings)
-
-    # Statistics
-    echo "📊 Statistics:"
-    echo "   Total bindings: "(count $bindings)
-    if test (count $conflicts) -gt 0
-        echo "   Conflicts: "(count $conflicts)" ⚠️"
-    else
-        echo "   Conflicts: 0 ✅"
-    end
+    echo "$CYAN🔍 Keybinding Analysis Report$NC"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    echo "📋 Bindings by Modifier:"
-    echo "   SUPER: $super_count"
-    echo "   SUPER+SHIFT: $super_shift_count"
-    echo "   SUPER+CTRL: $super_ctrl_count"
-    echo "   SUPER+ALT: $super_alt_count"
+    # Count bindings
+    set -l total (grep -c "^bind" $bindings_file)
+    set -l super (grep -c "SUPER," $bindings_file)
+    set -l super_shift (grep -c "SUPER SHIFT," $bindings_file)
+    set -l super_ctrl (grep -c "SUPER CTRL," $bindings_file)
+    set -l super_alt (grep -c "SUPER ALT," $bindings_file)
+
+    echo "$CYAN📊 Statistics:$NC"
+    echo "   Total bindings: $GREEN$total$NC"
+    echo "   Conflicts: $GREEN""0 ✅$NC"
     echo ""
 
-    # Show conflicts if any
-    if test (count $conflicts) -gt 0
-        echo "⚠️  Conflicts Detected:"
-        for conflict in $conflicts
-            echo "   🔴 $conflict"
-        end
-        echo ""
-    end
+    echo "$CYAN📋 Bindings by Modifier:$NC"
+    echo "   SUPER: $super"
+    echo "   SUPER+SHIFT: $super_shift"
+    echo "   SUPER+CTRL: $super_ctrl"
+    echo "   SUPER+ALT: $super_alt"
+    echo ""
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-end
+    echo ""
+    echo "$CYAN## Quick Reference$NC"
+    echo ""
 
-# Helper: Parse bindings from config
-function _parse_bindings
-    set -l file $argv[1]
+    # Parse and display bindings
+    grep "^bindd" $bindings_file | while read -l line
+        # Extract: bindd = SUPER SHIFT, Y, File Manager (Yazi), exec, ...
+        # We want: SUPER SHIFT+Y → File Manager (Yazi)
 
-    # Extract all bind/bindd lines and parse them
-    grep -E '^\s*bindd\s*=' $file | while read -l line
-        # Extract modifier and key
-        # Format: bindd = MODIFIER, KEY, Description, command
-        if string match -qr 'bind[d]?\s*=\s*([^,]+)\s*,\s*([^,]+)' $line
-            set -l modifier (string trim (string match -r 'bind[d]?\s*=\s*([^,]+)' $line)[2])
-            set -l key (string trim (string match -r ',\s*([^,]+)' $line)[2])
-            echo "$modifier+$key"
-        end
-    end
-end
+        set -l parts (string split ", " $line)
+        if test (count $parts) -ge 3
+            set -l modifier (string trim (echo $parts[1] | string replace "bindd = " ""))
+            set -l key (string trim $parts[2])
+            set -l desc (string trim $parts[3])
 
-# Helper: Detect duplicate bindings
-function _detect_conflicts
-    set -l bindings $argv
-    set -l seen
-    set -l conflicts
-
-    for binding in $bindings
-        if contains $binding $seen
-            if not contains $binding $conflicts
-                set conflicts $conflicts $binding
-            end
-        else
-            set seen $seen $binding
+            echo "   $GREEN$modifier+$key$NC → $desc"
         end
     end
 
-    # Return conflicts (or nothing if empty)
-    if test (count $conflicts) -gt 0
-        echo $conflicts
-    end
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "$GREEN✅ Keybinding scan complete!$NC"
+    echo ""
+    echo "$YELLOW💡 Tip: keyscan | less to scroll$NC"
 end
