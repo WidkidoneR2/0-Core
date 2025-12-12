@@ -174,7 +174,7 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     # Check 8: Scripts
     # ═══════════════════════════════════════════
     echo "$CYAN📜 Checking scripts...$NC"
-    set -l scripts theme-switch omarchy-menu-fuzzel.sh power-menu-fuzzel.sh keyscan
+    set -l scripts theme-switch omarchy-menu-fuzzel.sh power-menu-fuzzel.sh
     set -l script_count 0
     set -l missing_scripts
 
