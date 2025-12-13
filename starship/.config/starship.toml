@@ -1,32 +1,114 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Starship Config - Faelight Forest (Omarchy Edition)
+# Clean, aesthetic, performant prompt for Hyprland users
+# Fixed to remove broken custom modules and literal prints
+# ────────────────────────────────────────────────────────────
+
+"$schema" = "https://starship.rs/config-schema.json"
+
+# Main prompt
+format = """
+[┌─](bold green) \
+$os$username$hostname$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
+[└─](bold green)$character
+"""
+
 add_newline = true
-command_timeout = 200
-format = "[$directory$git_branch$git_status]($style)$character"
+command_timeout = 1000
 
+# ──────────────────────────────────────────────
+# Prompt Character
+# ──────────────────────────────────────────────
 [character]
-error_symbol = "[✗](bold cyan)"
-success_symbol = "[❯](bold cyan)"
+success_symbol = "[❯](bold green)"
+error_symbol   = "[❯](bold red)"
+vimcmd_symbol  = "[❮](bold green)"
 
+# ──────────────────────────────────────────────
+# OS
+# ──────────────────────────────────────────────
+[os]
+disabled = false
+format = "[$symbol](bold green) "
+[os.symbols]
+Arch = " "
+
+# ──────────────────────────────────────────────
+# Username + Hostname
+# ──────────────────────────────────────────────
+[username]
+show_always = true
+style_user = "bold blue"
+style_root = "bold red"
+format = "[$user]($style) "
+[hostname]
+ssh_only = true
+format = "[@$hostname](bold green) "
+
+# ──────────────────────────────────────────────
+# Directory
+# ──────────────────────────────────────────────
 [directory]
-truncation_length = 2
-truncation_symbol = "…/"
-repo_root_style = "bold cyan"
-repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
+style = "bold cyan"
+truncation_length = 3
+truncate_to_repo = true
+home_symbol = "~"
+read_only = "󰌾"
+read_only_style = "bold red"
+format = "[$path]($style)[$read_only]($read_only_style) "
 
+# ──────────────────────────────────────────────
+# Git
+# ──────────────────────────────────────────────
 [git_branch]
-format = "[$branch]($style) "
-style = "italic cyan"
+symbol = " "
+style  = "bold purple"
+format = "[$symbol$branch]($style) "
 
 [git_status]
-format     = '[$all_status]($style)'
-style      = "cyan"
-ahead      = "⇡${count} "
-diverged   = "⇕⇡${ahead_count}⇣${behind_count} "
-behind     = "⇣${count} "
-conflicted = " "
-up_to_date = " "
-untracked  = "? "
-modified   = " "
-stashed    = ""
-staged     = ""
-renamed    = ""
-deleted    = ""
+style = "yellow"
+format = '([\[$all_status$ahead_behind\]]($style) )'
+conflicted = "[=](bold red)"
+ahead      = "⇡${count}"
+behind     = "⇣${count}"
+diverged   = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked  = "[?](yellow)"
+stashed    = "[](cyan)"
+modified   = "[!](bold red)"
+staged     = "[+](bold green)"
+renamed    = "[»](purple)"
+deleted    = "[✘](red)"
+
+# ──────────────────────────────────────────────
+# Node / Python / Rust
+# ──────────────────────────────────────────────
+[nodejs]
+symbol = " "
+style  = "bold green"
+format = "[$symbol($version )]($style)"
+[python]
+symbol = " "
+style  = "bold yellow"
+format = "[$symbol($version )]($style)"
+[rust]
+symbol = "󱘗 "
+style  = "bold red"
+format = "[$symbol($version )]($style)"
+
+# ──────────────────────────────────────────────
+# Command duration
+# ──────────────────────────────────────────────
+[cmd_duration]
+min_time = 500
+style    = "bold yellow"
+format   = "[took $duration]($style) "
+
+# ──────────────────────────────────────────────
+# Status
+# ──────────────────────────────────────────────
+[status]
+style  = "bold red"
+symbol = "✘ "
+format = "[$symbol$status]($style) "
+disabled = false
+
