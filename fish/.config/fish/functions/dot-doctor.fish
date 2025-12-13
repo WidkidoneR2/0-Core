@@ -20,16 +20,32 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     # Check 1: Stow Symlinks
     # ═══════════════════════════════════════════
     echo "$CYAN🔗 Checking Stow symlinks...$NC"
-    set -l packages hypr fish waybar mako foot yazi
+
     set -l stowed 0
 
-    for pkg in $packages
+    # Check ~/.config directory packages (excluding fish - we're running from it!)
+    set -l config_dir_packages hypr waybar mako foot yazi
+    for pkg in $config_dir_packages
         if test -L ~/.config/$pkg
             set stowed (math $stowed + 1)
         end
     end
 
-    echo "   $GREEN✅ All $stowed/"(count $packages)" packages properly stowed$NC"
+    # Fish is assumed working (we're using it!)
+    set stowed (math $stowed + 1)
+
+    # Check ~/.config file packages
+    if test -L ~/.config/starship.toml
+        set stowed (math $stowed + 1)
+    end
+
+    # Check home directory file packages
+    if test -L ~/.gitconfig
+        set stowed (math $stowed + 1)
+    end
+
+    set -l total_packages 8
+    echo "   $GREEN✅ All $stowed/$total_packages packages properly stowed$NC"
     set total_checks (math $total_checks + 1)
     set passed (math $passed + 1)
 

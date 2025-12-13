@@ -45,6 +45,7 @@ foot
 fuzzel
 fzf
 git
+git-delta
 github-cli
 gitleaks
 glow

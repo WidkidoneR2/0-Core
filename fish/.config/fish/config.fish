@@ -390,6 +390,9 @@ alias scan-staged='gitleaks protect --staged -v'
 # Security audit
 alias audit-secrets='cd ~/dotfiles && echo "🔍 Scanning for secrets..." && grep -r "password\|api_key\|secret.*=\|token.*=" . --exclude-dir=.git --exclude=.gitignore -i | grep -v "Binary" || echo "✅ No secrets found!"'
 
+# Initialize starship prompt
+starship init fish | source
+
 # ═══════════════════════════════════════════════════════════
 # 🔒 Security Audit Aliases (v2.7.2)
 # ═══════════════════════════════════════════════════════════

@@ -1,0 +1,119 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Git Configuration - Faelight Forest
+# Omarchy v2.9.0
+# ═══════════════════════════════════════════════════════════
+
+[user]
+    name = Christian
+    email = christianwilliams1001@tuta.com
+
+[init]
+    defaultBranch = main
+
+[core]
+    editor = nvim
+    pager = delta
+    autocrlf = input
+    whitespace = trailing-space,space-before-tab
+
+[pull]
+    rebase = false
+
+[push]
+    default = simple
+    autoSetupRemote = true
+
+[fetch]
+    prune = true
+
+[rebase]
+    autoStash = true
+
+[merge]
+    conflictstyle = diff3
+    tool = nvimdiff
+
+[diff]
+    colorMoved = default
+    tool = nvimdiff
+
+# ═══════════════════════════════════════════════════════════
+# 🎨 Delta Configuration (Beautiful Diffs!)
+# ═══════════════════════════════════════════════════════════
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    light = false
+    line-numbers = true
+    side-by-side = false
+    syntax-theme = Nord
+    features = decorations line-numbers
+    
+[delta "decorations"]
+    commit-decoration-style = bold yellow box ul
+    file-style = bold yellow ul
+    file-decoration-style = none
+    hunk-header-decoration-style = cyan box ul
+
+[delta "line-numbers"]
+    line-numbers-left-style = cyan
+    line-numbers-right-style = cyan
+    line-numbers-minus-style = 124
+    line-numbers-plus-style = 28
+
+# ═══════════════════════════════════════════════════════════
+# 🔧 Useful Aliases
+# ═══════════════════════════════════════════════════════════
+
+[alias]
+    # Short status
+    s = status -s
+    
+    # Pretty log
+    l = log --oneline --graph --decorate -20
+    ll = log --oneline --graph --decorate --all
+    
+    # Show last commit
+    last = log -1 HEAD --stat
+    
+    # Undo last commit (keep changes)
+    undo = reset HEAD~1 --soft
+    
+    # Amend last commit
+    amend = commit --amend --no-edit
+    
+    # Show diff of staged files
+    staged = diff --cached
+    
+    # Show branches
+    branches = branch -a
+    
+    # Clean merged branches
+    cleanup = "!git branch --merged | grep -v '\\*\\|main\\|master' | xargs -n 1 git branch -d"
+
+# ═══════════════════════════════════════════════════════════
+# 🎨 Colors (Faelight Forest Theme)
+# ═══════════════════════════════════════════════════════════
+
+[color]
+    ui = auto
+    
+[color "branch"]
+    current = green bold
+    local = green
+    remote = yellow
+    
+[color "diff"]
+    meta = yellow bold
+    frag = cyan bold
+    old = red
+    new = green
+    whitespace = red reverse
+    
+[color "status"]
+    added = green
+    changed = yellow
+    untracked = red
