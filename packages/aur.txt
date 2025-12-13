@@ -2,9 +2,7 @@ brave-bin
 ente-auth-bin
 filen-desktop-bin
 mullvad-vpn-bin
-mullvad-vpn-bin-debug
 notesnook-bin
 papirus-folders
 topgrade
-topgrade-debug
 tutanota-desktop-bin

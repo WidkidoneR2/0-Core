@@ -46,6 +46,7 @@ fuzzel
 fzf
 ghostty
 git
+git-delta
 github-cli
 gitleaks
 glow
@@ -118,7 +119,6 @@ pamixer
 papirus-folders
 papirus-icon-theme
 pavucontrol
-pinta
 pipewire
 pipewire-alsa
 pipewire-jack
@@ -129,6 +129,7 @@ plymouth
 polkit-gnome
 postgresql-libs
 power-profiles-daemon
+python-black
 python-gobject
 python-pip
 python-poetry-core
