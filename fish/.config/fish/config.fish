@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.8.8 - Enhanced & Protected Edition
+# Version 2.9.0 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -492,7 +492,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v2.8.8!"
+    echo "🌲 Welcome to Faelight Forest v2.9.0!"
     set_color normal
     echo "This is my Happy Place!!!"
     echo ""
@@ -506,5 +506,5 @@ set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.8.8 - Enhanced & Protected Edition
+# Version 2.9.0 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
