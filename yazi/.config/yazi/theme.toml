@@ -1,4 +1,9 @@
-# Faelight Forest Yazi Theme
+# ═══════════════════════════════════════════════════════════
+# Faelight Forest Yazi Theme - Enhanced for Symlinks & Icons
+# ──────────────────────────────────────────────────────────
+# All stow-managed dotfiles and symlinks now clearly visible
+# Icons for symlinks and directories added
+# ═══════════════════════════════════════════════════════════
 
 [flavor]
 use = ""
@@ -16,8 +21,8 @@ marker_selected = { fg = "#c7df63", bg = "#c7df63" }
 marker_copied   = { fg = "#8ed1a3", bg = "#8ed1a3" }
 marker_cut      = { fg = "#ff6b6b", bg = "#ff6b6b" }
 
-tab_active   = { fg = "#0f1c16", bg = "#5bb7a5" }
-tab_inactive = { fg = "#8ed1a3", bg = "#2e6146" }
+tab_active   = { fg = "#0f1c16", bg = "#5bb7a5", bold = true }
+tab_inactive = { fg = "#8ed1a3", bg = "#2e6146", bold = true }
 tab_width    = 1
 
 border_symbol = "│"
@@ -42,16 +47,36 @@ permissions_w = { fg = "#ff6b6b" }
 permissions_x = { fg = "#5bb7a5" }
 permissions_s = { fg = "#8ed1a3" }
 
+# ──────────────────────────────────────────────
+# Filetype Rules - dotfiles, symlinks, directories, executables
+# ──────────────────────────────────────────────
 [filetype]
 rules = [
-  { mime = "image/*", fg = "#c7df63" },
-  { mime = "video/*", fg = "#8ed1a3" },
-  { mime = "audio/*", fg = "#5bb7a5" },
-  { mime = "application/zip", fg = "#ff6b6b" },
-  { mime = "application/gzip", fg = "#ff6b6b" },
-  { mime = "application/x-tar", fg = "#ff6b6b" },
-  { mime = "application/x-bzip", fg = "#ff6b6b" },
-  { mime = "application/x-7z-compressed", fg = "#ff6b6b" },
-  { name = "*", fg = "#e8f5d5" },
-  { name = "*/", fg = "#8ed1a3" }
+    # Symlinks (all stow-managed links)
+    { name = "*", is = "link", fg = "magenta", bold = true },
+
+    # Hidden dotfiles
+    { name = ".*", fg = "#c7df63", bold = true },
+
+    # Directories
+    { name = "*/", fg = "#8ed1a3" },
+
+    # Executables
+    { name = "*", is = "exec", fg = "#5bb7a5" },
+
+    # Default files
+    { name = "*", fg = "#e8f5d5" }
 ]
+
+# ──────────────────────────────────────────────
+# Icon Rules - visual representation for symlinks and directories
+# ──────────────────────────────────────────────
+[icon]
+rules = [
+    # Symlinks: show 🔗
+    { name = "*", is = "link", text = "🔗" },
+
+    # Directories: show 📁
+    { name = "*/", text = "📁" }
+]
+
