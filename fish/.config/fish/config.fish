@@ -514,6 +514,28 @@ set -g fish_greeting ""
 set_fish_colors
 
 # ═══════════════════════════════════════════════════════════
+# 🔐 DIRENV - Per-Directory Environment Variables (v2.9.0)
+# SECURITY: NEVER auto-allow! Always inspect .envrc first!
+# ═══════════════════════════════════════════════════════════
+
+# Initialize direnv hook
+direnv hook fish | source
+
+# 🛡️ SECURITY ALIASES - Inspection workflow
+alias envrc-check='bat .envrc'
+alias envrc-inspect='bat .envrc && echo "" && echo "⚠️  INSPECT CAREFULLY BEFORE ALLOWING!" && echo "Run: direnv allow"'
+alias envrc-allow='direnv allow'
+alias envrc-deny='direnv deny'
+alias envrc-status='direnv status'
+
+# ⚠️ NEVER allow without inspection!
+# Workflow:
+# 1. cd into project
+# 2. Run: envrc-inspect
+# 3. Verify it's safe
+# 4. Run: envrc-allow
+
+# ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
 # Version 2.9.0 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
