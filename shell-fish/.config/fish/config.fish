@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 2.9.0 - Enhanced & Protected Edition
+# Version 3.0.0 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -252,10 +252,10 @@ if type -q meld
     alias merge='meld' # 3-way merge
 
     # 🔍 Dotfiles Verification with Meld
-    alias verify-hypr='meld ~/.config/hypr ~/dotfiles/hypr/.config/hypr'
+    alias verify-hypr='meld ~/.config/hypr ~/0-core/wm-hypr/.config/hypr'
     alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar/.config/waybar'
     alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty/.config/kitty'
-    alias verify-fish='meld ~/.config/fish ~/dotfiles/fish/.config/fish'
+    alias verify-fish='meld ~/.config/fish ~/0-core/shell-fish/.config/fish'
     alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim/.config/nvim'
     alias verify-all='meld ~/.config ~/dotfiles'
 end
@@ -537,5 +537,5 @@ alias envrc-status='direnv status'
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 2.9.0 - Enhanced & Protected Edition
+# Version 3.0.0 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════

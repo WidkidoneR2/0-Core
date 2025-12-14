@@ -5,7 +5,7 @@ function keyscan --description "Generate keybinding documentation from Hyprland 
     set -l YELLOW (set_color yellow)
     set -l NC (set_color normal)
 
-    set -l bindings_file ~/dotfiles/hypr/.config/hypr/bindings.conf
+    set -l bindings_file ~/0-core/wm-hypr/.config/hypr/bindings.conf
 
     if not test -f $bindings_file
         echo "❌ Error: bindings.conf not found"

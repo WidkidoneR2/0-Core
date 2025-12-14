@@ -34,9 +34,9 @@ prepend_keymap = [
 	{ on = [ "g", "D" ], run = "cd ~/dotfiles/docs", desc = "Jump to docs" },
 	
 	# Hyprland/Config quick access
-	{ on = [ "g", "h" ], run = "cd ~/dotfiles/hypr", desc = "Jump to Hyprland config" },
+{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Jump to Hyprland config" },	
 	{ on = [ "g", "w" ], run = "cd ~/dotfiles/waybar", desc = "Jump to Waybar" },
-	{ on = [ "g", "f" ], run = "cd ~/dotfiles/fish", desc = "Jump to Fish config" },
+{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Jump to Hyprland config" },	
 	{ on = [ "g", "n" ], run = "cd ~/dotfiles/nvim", desc = "Jump to Neovim" },
 	{ on = [ "g", "y" ], run = "cd ~/dotfiles/yazi", desc = "Jump to Yazi config" },
 	
