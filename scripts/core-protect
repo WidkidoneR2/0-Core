@@ -1,0 +1,63 @@
+#!/bin/bash
+# Core protection script - Lock/unlock 0-core for editing
+
+case "$1" in
+    lock)
+        echo "🔒 Locking 0-core (immutable protection)..."
+        sudo chattr +i ~/0-core
+        sudo chattr +i ~/0-core/*
+        echo "✅ Core protected! Cannot modify without unlocking."
+        ;;
+    
+    unlock)
+        echo "🔓 Unlocking 0-core for editing..."
+        sudo chattr -i ~/0-core/*
+        sudo chattr -i ~/0-core
+        echo "✅ Core unlocked! You can now edit."
+        ;;
+    
+    status)
+        echo "📊 Checking 0-core protection status..."
+        if lsattr -d ~/0-core 2>/dev/null | grep -q 'i'; then
+            echo "🔒 Core is LOCKED (immutable)"
+        else
+            echo "🔓 Core is UNLOCKED (editable)"
+        fi
+        ;;
+    
+    edit)
+        if [ -z "$2" ]; then
+            echo "Usage: core-protect edit <package-name>"
+            echo "Example: core-protect edit shell-fish"
+            exit 1
+        fi
+        
+        echo "🔓 Temporarily unlocking for edit..."
+        sudo chattr -i ~/0-core/*
+        sudo chattr -i ~/0-core
+        
+        echo "📝 Opening editor..."
+        cd ~/0-core/$2
+        $EDITOR .
+        
+        echo "🔒 Re-locking core..."
+        sudo chattr +i ~/0-core/*
+        sudo chattr +i ~/0-core
+        echo "✅ Edits complete, core re-locked!"
+        ;;
+    
+    *)
+        echo "🛡️  Core Protection - Immutable 0-core Management"
+        echo ""
+        echo "Usage:"
+        echo "  core-protect lock          Lock 0-core (prevent changes)"
+        echo "  core-protect unlock        Unlock 0-core (allow changes)"
+        echo "  core-protect status        Check protection status"
+        echo "  core-protect edit <pkg>    Unlock, edit, re-lock"
+        echo ""
+        echo "Examples:"
+        echo "  core-protect lock"
+        echo "  core-protect edit shell-fish"
+        echo "  core-protect status"
+        ;;
+esac
