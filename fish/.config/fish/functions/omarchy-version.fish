@@ -7,7 +7,7 @@ function omarchy-version --description "Show complete Omarchy version info"
     echo "Base OS:     Omarchy v3.2.2"
 
     # Faelight Forest dotfiles
-    set -l version_file ~/dotfiles/VERSION
+    set -l version_file ~/0-core/VERSION
     if test -f $version_file
         set -l ff_version (cat $version_file)
         echo "Dotfiles:    Faelight Forest v$ff_version"
@@ -16,7 +16,7 @@ function omarchy-version --description "Show complete Omarchy version info"
     end
 
     # Last dotfiles update
-    pushd ~/dotfiles >/dev/null
+    pushd ~/0-core >/dev/null
     set -l last_commit (git log -1 --format="%s" 2>/dev/null)
 
     if test -n "$last_commit"
