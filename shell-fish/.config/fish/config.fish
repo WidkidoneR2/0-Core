@@ -402,6 +402,12 @@ alias audit-secrets='cd ~/dotfiles && echo "🔍 Scanning for secrets..." && gre
 # Initialize starship prompt
 starship init fish | source
 
+# Core protection aliases
+alias lock-core='~/0-core/scripts/core-protect lock'
+alias unlock-core='~/0-core/scripts/core-protect unlock'
+alias edit-core='~/0-core/scripts/core-protect edit'
+alias core-status='~/0-core/scripts/core-protect status'
+
 # ═══════════════════════════════════════════════════════════
 # 🔒 Security Audit Aliases (v2.7.2)
 # ═══════════════════════════════════════════════════════════
