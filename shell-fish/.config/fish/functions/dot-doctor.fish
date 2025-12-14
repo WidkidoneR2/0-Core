@@ -12,7 +12,7 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     set -l failed 0
     set -l warnings 0
 
-    set -l omarchy_version (cat ~/dotfiles/VERSION 2>/dev/null || echo "unknown")
+    set -l omarchy_version (cat ~/0-core/VERSION 2>/dev/null || echo "unknown")
     echo "$CYAN🏥 Dotfile Health Check - Faelight Forest v$omarchy_version$NC"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -143,7 +143,7 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     # ═══════════════════════════════════════════
     echo "$CYAN📊 Checking Git repository health...$NC"
 
-    pushd ~/dotfiles >/dev/null
+    pushd ~/0-core >/dev/null
 
     # Check if clean
     set total_checks (math $total_checks + 1)
@@ -175,11 +175,11 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     # Check 7: Theme Packages
     # ═══════════════════════════════════════════
     echo "$CYAN🎨 Checking theme packages...$NC"
-    set -l themes foot-theme-dark fuzzel-theme-dark ghostty-theme-dark
+    set -l themes theme-term-foot-dark theme-launch-fuzzel-dark theme-term-ghostty-dark
     set -l theme_count 0
 
     for theme in $themes
-        if test -d ~/dotfiles/$theme
+        if test -d ~/0-core/$theme
             set theme_count (math $theme_count + 1)
         end
     end
@@ -197,8 +197,8 @@ function dot-doctor --description "Health check for Faelight Forest dotfiles - E
     set -l missing_scripts
 
     for script in $scripts
-        if test -f ~/dotfiles/scripts/$script -o -f ~/.local/bin/$script
-            if test -x ~/dotfiles/scripts/$script -o -x ~/.local/bin/$script
+        if test -f ~/0-core/scripts/$script -o -f ~/.local/bin/$script
+            if test -x ~/0-core/scripts/$script -o -x ~/.local/bin/$script
                 set script_count (math $script_count + 1)
             end
         else
