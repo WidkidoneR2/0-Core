@@ -91,7 +91,7 @@ Every tool serves a purpose. No bloat, no redundancy, only quality native Waylan
 
 ### **Directory Structure Explained**
 ```
-~/dotfiles/                    # Main dotfiles repository
+~/0-core/                    # Main dotfiles repository
 │
 ├── hypr/                      # Hyprland compositor config
 │   └── .config/hypr/
@@ -214,8 +214,8 @@ GNU Stow is a **symlink manager** that makes dotfile management elegant and main
 **Without Stow (traditional):**
 ```bash
 # Manual symlinks - error-prone!
-ln -s ~/dotfiles/hypr/.config/hypr ~/.config/hypr
-ln -s ~/dotfiles/fish/.config/fish ~/.config/fish
+ln -s ~/0-core/hypr/.config/hypr ~/.config/hypr
+ln -s ~/0-core/fish/.config/fish ~/.config/fish
 # ... repeat for every config
 # If you make a mistake, broken configs!
 ```
@@ -223,7 +223,7 @@ ln -s ~/dotfiles/fish/.config/fish ~/.config/fish
 **With Stow (elegant):**
 ```bash
 # One command creates all symlinks!
-cd ~/dotfiles
+cd ~/0-core
 stow hypr fish waybar mako
 # Clean, reversible, no manual linking!
 ```
@@ -235,11 +235,11 @@ stow hypr fish waybar mako
 **Example:**
 ```
 Before Stow:
-~/dotfiles/hypr/.config/hypr/hyprland.conf  (real file)
+~/0-core/hypr/.config/hypr/hyprland.conf  (real file)
 ~/.config/hypr/                              (doesn't exist)
 
 After "stow hypr":
-~/dotfiles/hypr/.config/hypr/hyprland.conf  (real file)
+~/0-core/hypr/.config/hypr/hyprland.conf  (real file)
 ~/.config/hypr/hyprland.conf                (symlink →)
 ```
 
@@ -249,7 +249,7 @@ After "stow hypr":
 ```bash
 # STOW (create symlinks)
 stow hypr
-# Creates symlinks from ~/dotfiles/hypr/* to ~/
+# Creates symlinks from ~/0-core/hypr/* to ~/
 
 # UNSTOW (remove symlinks)
 stow -D hypr
@@ -284,7 +284,7 @@ package/          # Package directory
 
 **When stowed, creates:**
 ```
-~/.config/app/config → ~/dotfiles/package/.config/app/config
+~/.config/app/config → ~/0-core/package/.config/app/config
 ```
 
 **Important:** The structure inside the package must match where files go in your home directory!
@@ -355,8 +355,8 @@ stow app  # Works fine!
 **Real-world benefit:**
 ```bash
 # New machine setup (5 minutes!)
-git clone https://github.com/you/dotfiles ~/dotfiles
-cd ~/dotfiles
+git clone https://github.com/you/dotfiles ~/0-core
+cd ~/0-core
 stow */  # Stow everything!
 # Done! All configs deployed!
 ```
@@ -1076,7 +1076,7 @@ dot-doctor
 ✅ Packages (156/156 installed)
 ✅ Stow packages (12/12 deployed)
 ⚠️  Missing script: ~/.local/bin/theme-switch
-   Fix: cp ~/dotfiles/scripts/theme-switch ~/.local/bin/
+   Fix: cp ~/0-core/scripts/theme-switch ~/.local/bin/
 
 ✅ Hyprland config valid
 ✅ All services running
@@ -1100,10 +1100,10 @@ After making changes, run dot-doctor to ensure nothing broke!
 **Example workflow:**
 ```bash
 # Make changes
-nvim ~/dotfiles/hypr/.config/hypr/bindings.conf
+nvim ~/0-core/hypr/.config/hypr/bindings.conf
 
 # Restow
-cd ~/dotfiles
+cd ~/0-core
 stow -R hypr
 
 # Validate
@@ -1112,7 +1112,7 @@ dot-doctor
 # If issues, fix them!
 ```
 
-**Source code:** `~/dotfiles/scripts/dot-doctor`
+**Source code:** `~/0-core/scripts/dot-doctor`
 
 ---
 
@@ -1191,7 +1191,7 @@ nvim ~/keybindings.md
 keyscan | lpr
 ```
 
-**Source code:** `~/dotfiles/scripts/keyscan`
+**Source code:** `~/0-core/scripts/keyscan`
 
 ---
 
@@ -1263,7 +1263,7 @@ yay_arguments = "--devel"
 [git]
 # Update git repos in specific directories
 repos = [
-    "~/dotfiles",
+    "~/0-core",
     "~/projects/*",
 ]
 ```
@@ -1349,7 +1349,7 @@ theme-switch dark
    - Restarts Mako
 ```
 
-**Configuration:** `~/dotfiles/scripts/theme-switch`
+**Configuration:** `~/0-core/scripts/theme-switch`
 
 **Source code walkthrough:**
 ```bash
@@ -1402,7 +1402,7 @@ apply_theme() {
 
 # Execute
 echo -e "${GREEN}🌲 Switching to Faelight Forest $theme...${NC}"
-cd ~/dotfiles
+cd ~/0-core
 apply_theme $theme
 echo -e "${GREEN}✅ Theme switched to $theme!${NC}"
 ```
@@ -1601,9 +1601,9 @@ alias gl='git log --oneline --graph --decorate'
 alias glog='git log --oneline --graph --all --decorate'
 
 # Dotfiles management
-alias dots='cd ~/dotfiles'
-alias dotstat='cd ~/dotfiles && git status'
-alias dotsync='cd ~/dotfiles && git pull && git add -A && git commit -m "sync" && git push'
+alias dots='cd ~/0-core'
+alias dotstat='cd ~/0-core && git status'
+alias dotsync='cd ~/0-core && git pull && git add -A && git commit -m "sync" && git push'
 
 # ┌─────────────────────────────────────────────────────────┐
 # │ SECTION 7: ALIASES - DOCKER                            │
@@ -1912,7 +1912,7 @@ z components
 ```fish
 # Jump to most used directory matching "dots"
 z dots
-# → ~/dotfiles
+# → ~/0-core
 
 # Interactive selection (multiple matches)
 zi proj
@@ -2311,7 +2311,7 @@ bat test-output/fuzzel.ini
 
 **Step 6: Deploy theme**
 ```bash
-cd ~/dotfiles
+cd ~/0-core
 
 # Check what changed
 git diff foot-theme-dark/
@@ -2452,7 +2452,7 @@ dot-doctor
 topgrade
 
 # 3. Check dotfiles status
-cd ~/dotfiles && git status
+cd ~/0-core && git status
 
 # 4. Open workspace
 # Press SUPER+1 through SUPER+9 for different tasks
@@ -2582,7 +2582,7 @@ theme-switch dark
 cd ~/faelight-theme-engine
 faelight-theme extract ~/wallpapers/new.jpg --output new-palette.json
 ./scripts/apply-to-dotfiles.sh new-palette.json
-cd ~/dotfiles
+cd ~/0-core
 theme-switch dark
 ```
 
@@ -2591,7 +2591,7 @@ theme-switch dark
 **Dotfiles (automatic with git):**
 ```bash
 # Regular backups
-cd ~/dotfiles
+cd ~/0-core
 git add -A
 git commit -m "backup: $(date +%Y-%m-%d)"
 git push
@@ -2740,7 +2740,7 @@ stow hypr
 
 # Option 2: Adopt existing file
 stow --adopt hypr
-# Moves existing file into dotfiles/hypr/
+# Moves existing file into 0-core/wm-hypr/
 # Then you can manage it with git
 ```
 
@@ -2810,10 +2810,10 @@ which theme-switch
 bash -x ~/.local/bin/theme-switch dark
 
 # Check if theme packages exist
-ls ~/dotfiles/ | grep theme
+ls ~/0-core/ | grep theme
 
 # Verify stow status
-cd ~/dotfiles
+cd ~/0-core
 stow -D foot-theme-light foot-theme-dark
 stow foot-theme-dark
 ```
@@ -2995,13 +2995,13 @@ sudo pacman -U /var/cache/pacman/pkg/package-old-version.pkg.tar.zst
 **Add new keybinding:**
 ```bash
 # Edit bindings
-nvim ~/dotfiles/hypr/.config/hypr/bindings.conf
+nvim ~/0-core/hypr/.config/hypr/bindings.conf
 
 # Add binding
 bind = SUPER SHIFT, N, exec, my-script.sh
 
 # Restow
-cd ~/dotfiles
+cd ~/0-core
 stow -R hypr
 
 # Reload Hyprland
@@ -3052,10 +3052,10 @@ end
 **From scratch:**
 ```bash
 # Create theme package
-mkdir -p ~/dotfiles/foot-theme-custom/.config/foot
+mkdir -p ~/0-core/foot-theme-custom/.config/foot
 
 # Create config
-nvim ~/dotfiles/foot-theme-custom/.config/foot/foot.ini
+nvim ~/0-core/foot-theme-custom/.config/foot/foot.ini
 
 # Add colors
 [colors]
@@ -3064,7 +3064,7 @@ foreground=your-color
 ...
 
 # Stow it
-cd ~/dotfiles
+cd ~/0-core
 stow foot-theme-custom
 
 # Test
@@ -3075,7 +3075,7 @@ foot
 
 **Add custom rules:**
 ```bash
-nvim ~/dotfiles/hypr/.config/hypr/windowrules.conf
+nvim ~/0-core/hypr/.config/hypr/windowrules.conf
 
 # Examples:
 windowrulev2 = float, class:^(floating-app)$
