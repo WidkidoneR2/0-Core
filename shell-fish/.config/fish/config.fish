@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - FISH SHELL CONFIGURATION
-# Version 3.0.0 - Enhanced & Protected Edition
+# Version 3.1.0 - Enhanced & Protected Edition
 # Clean, organized, and beautiful
 # ═══════════════════════════════════════════════════════════
 
@@ -366,7 +366,7 @@ alias dotbackup='cd ~/dotfiles && ./backup.sh'
 alias dotpush='cd ~/dotfiles && git add -A && git commit -m "Update dotfiles $(date +%Y-%m-%d)" && git push'
 alias dotpull='cd ~/dotfiles && git pull && ./install.sh'
 alias dotstatus='cd ~/dotfiles && git status'
-alias sync-dotfiles='cd ~/dotfiles && git add -A && git commit -m "🌲 Auto-sync dotfiles $(date +%Y-%m-%d)" && git push origin main'
+alias sync-dotfiles='cd ~/0-core && git pull && git push'
 
 # Faelight Forest Blueprint
 alias safe-update='~/.local/bin/safe-update'
@@ -501,7 +501,7 @@ if status is-interactive
     # Custom greeting
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v2.9.0!"
+    echo "🌲 Welcome to Faelight Forest v3.1!"
     set_color normal
     echo "This is my Happy Place!!!"
     echo ""
@@ -537,5 +537,5 @@ alias envrc-status='direnv status'
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 3.0.0 - Enhanced & Protected Edition
+# Version 3.1.0 - Enhanced & Protected Edition
 # ═══════════════════════════════════════════════════════════
