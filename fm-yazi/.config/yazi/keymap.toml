@@ -19,29 +19,27 @@ prepend_keymap = [
 	# Zoxide integration - Smart directory jumping
 	{ on = [ "z" ], run = 'shell "zi" --block --confirm', desc = "Jump with zoxide" },
 
+# ══════════════════════════════════════════════════════
+	# 🚀 v3.1 HYBRID NAVIGATION - NUMBERED DIRECTORIES
 	# ══════════════════════════════════════════════════════
-	# 🚀 v3.0 QUICK NAVIGATION - DEVELOPMENT POWERHOUSE
-	# ══════════════════════════════════════════════════════
 	
-	# Essential directories
-	{ on = [ "g", "d" ], run = "cd ~/dotfiles", desc = "Jump to dotfiles" },
-	{ on = [ "g", "c" ], run = "cd ~/.config", desc = "Jump to config" },
-	{ on = [ "g", "s" ], run = "cd ~/src", desc = "Jump to source" },
-	{ on = [ "g", "p" ], run = "cd ~/projects", desc = "Jump to projects" },
+	# Numbered directories (Priority)
+	{ on = [ "g", "0" ], run = "cd ~/0-core", desc = "Core configs" },
+	{ on = [ "g", "1" ], run = "cd ~/1-src", desc = "Source code" },
+	{ on = [ "g", "2" ], run = "cd ~/2-work", desc = "Active work" },
+	{ on = [ "g", "3" ], run = "cd ~/3-keep", desc = "Important" },
+	{ on = [ "g", "9" ], run = "cd ~/9-temp", desc = "Temporary" },
+	{ on = [ "g", "s" ], run = "cd ~/secrets", desc = "Secrets" },
 	
-	# Dotfiles quick access
-	{ on = [ "g", "S" ], run = "cd ~/dotfiles/scripts", desc = "Jump to scripts" },
-	{ on = [ "g", "D" ], run = "cd ~/dotfiles/docs", desc = "Jump to docs" },
-	
-	# Hyprland/Config quick access
-{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Jump to Hyprland config" },	
-	{ on = [ "g", "w" ], run = "cd ~/dotfiles/waybar", desc = "Jump to Waybar" },
-{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Jump to Hyprland config" },	
-	{ on = [ "g", "n" ], run = "cd ~/dotfiles/nvim", desc = "Jump to Neovim" },
-	{ on = [ "g", "y" ], run = "cd ~/dotfiles/yazi", desc = "Jump to Yazi config" },
-	
-	# Home (rarely used, but available)
-	{ on = [ "g", "~" ], run = "cd ~", desc = "Jump to home directory" },
+	# Config quick access
+	{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Hyprland" },
+	{ on = [ "g", "w" ], run = "cd ~/0-core/bar-waybar", desc = "Waybar" },
+	{ on = [ "g", "f" ], run = "cd ~/0-core/shell-fish", desc = "Fish" },
+	{ on = [ "g", "n" ], run = "cd ~/0-core/editor-nvim", desc = "Neovim" },
+	{ on = [ "g", "y" ], run = "cd ~/0-core/fm-yazi", desc = "Yazi" },
+	{ on = [ "g", "c" ], run = "cd ~/.config", desc = "Config" },
+	{ on = [ "g", "D" ], run = "cd ~/0-core/docs", desc = "Docs" },
+	{ on = [ "g", "S" ], run = "cd ~/0-core/scripts", desc = "Scripts" },
 ]
 
 keymap = [
