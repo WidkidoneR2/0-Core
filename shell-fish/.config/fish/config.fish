@@ -166,10 +166,10 @@ alias gclean='git clean -fd'
 alias gcl='git clone'
 
 # Dotfiles management
-alias dotfiles='cd ~/dotfiles'
-alias dotsave='cd ~/dotfiles && git add -A && git commit -m "Update dotfiles" && git push'
-alias dotpull='cd ~/dotfiles && git pull'
-alias dotlog='cd ~/dotfiles && git log --oneline -10'
+alias dotfiles='cd ~/0-core'
+alias dotsave='cd ~/0-core && git add -A && git commit -m "Update dotfiles" && git push'
+alias dotpull='cd ~/0-core && git pull'
+alias dotlog='cd ~/0-core && git log --oneline -10'
 
 # ═══════════════════════════════════════════════════════════
 # 💻 SYSTEM MONITORING & INFO
@@ -253,11 +253,11 @@ if type -q meld
 
     # 🔍 Dotfiles Verification with Meld
     alias verify-hypr='meld ~/.config/hypr ~/0-core/wm-hypr/.config/hypr'
-    alias verify-waybar='meld ~/.config/waybar ~/dotfiles/waybar/.config/waybar'
-    alias verify-kitty='meld ~/.config/kitty ~/dotfiles/kitty/.config/kitty'
+    alias verify-waybar='meld ~/.config/waybar ~/0-core/waybar/.config/waybar'
+    alias verify-kitty='meld ~/.config/kitty ~/0-core/kitty/.config/kitty'
     alias verify-fish='meld ~/.config/fish ~/0-core/shell-fish/.config/fish'
-    alias verify-nvim='meld ~/.config/nvim ~/dotfiles/nvim/.config/nvim'
-    alias verify-all='meld ~/.config ~/dotfiles'
+    alias verify-nvim='meld ~/.config/nvim ~/0-core/nvim/.config/nvim'
+    alias verify-all='meld ~/.config ~/0-core'
 end
 
 # Yazi (terminal file manager)
@@ -350,22 +350,22 @@ alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 alias vguide='nvim ~/faelight-forest-docs/COMPLETE_GUIDE.md'
 
 # 📋 Planning & Ideas (Local Only)
-alias roadmap='nvim ~/dotfiles/docs/planning/ROADMAP.md'
-alias ideas='nvim ~/dotfiles/docs/planning/ROADMAP.md'
-alias planning='cd ~/dotfiles/docs/planning && ls'
+alias roadmap='nvim ~/0-core/docs/planning/ROADMAP.md'
+alias ideas='nvim ~/0-core/docs/planning/ROADMAP.md'
+alias planning='cd ~/0-core/docs/planning && ls'
 
 # 🎨 Theme Management
-alias theme-dark='~/dotfiles/scripts/theme-switch.sh dark'
-alias theme-light='~/dotfiles/scripts/theme-switch.sh light'
-alias theme-toggle='~/dotfiles/scripts/theme-switch.sh toggle'
-alias theme='~/dotfiles/scripts/theme-switch.sh status'
+# alias theme-dark='~/0-core/scripts/theme-switch dark'
+# alias theme-light='~/0-core/scripts/theme-switch light'
+# alias theme-toggle='~/0-core/scripts/theme-switch toggle'
+# alias theme='~/0-core/scripts/theme-switch status'
 
 # Dotfiles management
-alias dotfiles='cd ~/dotfiles'
-alias dotbackup='cd ~/dotfiles && ./backup.sh'
-alias dotpush='cd ~/dotfiles && git add -A && git commit -m "Update dotfiles $(date +%Y-%m-%d)" && git push'
-alias dotpull='cd ~/dotfiles && git pull && ./install.sh'
-alias dotstatus='cd ~/dotfiles && git status'
+alias dotfiles='cd ~/0-core'
+alias dotbackup='cd ~/0-core && ./backup.sh'
+alias dotpush='cd ~/0-core && git add -A && git commit -m "Update dotfiles $(date +%Y-%m-%d)" && git push'
+alias dotpull='cd ~/0-core && git pull && ./install.sh'
+alias dotstatus='cd ~/0-core && git status'
 alias sync-dotfiles='cd ~/0-core && git pull && git push'
 
 # Faelight Forest Blueprint
@@ -376,7 +376,7 @@ alias snapshots='sudo snapper -c root list'
 alias snapshot='sudo snapper -c root create --description'
 
 # Quick reference sections (FIXED for v2.5+)
-alias keys='bat ~/dotfiles/docs/KEYBINDINGS.md'
+alias keys='bat ~/0-core/docs/KEYBINDINGS.md'
 alias fishhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "Fish Shell Reference"'
 alias vimhelp='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 200 "LazyVim Reference"'
 alias workspaces='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md | grep -A 100 "Workspaces"'
@@ -397,7 +397,7 @@ alias scan-secrets='gitleaks detect --no-git -v'
 alias scan-staged='gitleaks protect --staged -v'
 
 # Security audit
-alias audit-secrets='cd ~/dotfiles && echo "🔍 Scanning for secrets..." && grep -r "password\|api_key\|secret.*=\|token.*=" . --exclude-dir=.git --exclude=.gitignore -i | grep -v "Binary" || echo "✅ No secrets found!"'
+alias audit-secrets='cd ~/0-core && echo "🔍 Scanning for secrets..." && grep -r "password\|api_key\|secret.*=\|token.*=" . --exclude-dir=.git --exclude=.gitignore -i | grep -v "Binary" || echo "✅ No secrets found!"'
 
 # Initialize starship prompt
 starship init fish | source

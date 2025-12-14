@@ -1,6 +1,6 @@
 function set_fish_colors
     # Check current theme
-    set theme (cat ~/dotfiles/themes/current.txt 2>/dev/null || echo "dark")
+    set theme (cat ~/0-core/themes/current.txt 2>/dev/null || echo "dark")
 
     if test "$theme" = light
         # Light theme - VERY DARK colors for readability

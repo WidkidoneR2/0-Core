@@ -1,6 +1,6 @@
 function fish_prompt
     # Get current theme
-    set theme (cat ~/dotfiles/themes/current.txt 2>/dev/null || echo "dark")
+    set theme (cat ~/0-core/themes/current.txt 2>/dev/null || echo "dark")
 
     # Set colors based on theme
     if test "$theme" = light

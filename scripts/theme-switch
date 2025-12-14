@@ -34,7 +34,7 @@ apply_theme() {
     stow foot-theme-$theme 2>/dev/null || true
     
     # 3. Ghostty terminal - Switch theme
-    cd ~/dotfiles
+    cd ~/0-core
     stow -D ghostty-theme-dark ghostty-theme-light 2>/dev/null || true
     stow ghostty-theme-$theme 2>/dev/null || true
     
