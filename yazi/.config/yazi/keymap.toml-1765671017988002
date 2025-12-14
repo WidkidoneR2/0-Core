@@ -3,7 +3,7 @@
 # Optimized for v3.0 Development Powerhouse
 # ═══════════════════════════════════════════════════════════
 
-[mgr]
+[manager]
 prepend_keymap = [
 	# ══════════════════════════════════════════════════════
 	# Custom Keybindings - Development Focus
