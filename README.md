@@ -1,4 +1,4 @@
-# 🌲 Omarchy-FAELIGHT FOREST - Arch Linux 
+# 🌲 Faelight Forest v3.1.0 - Hybrid Architecture
 
 > **A minimal, native Wayland system built for speed, reliability, and beauty.**
 
@@ -7,14 +7,16 @@
 ![Hyprland](https://img.shields.io/badge/Hyprland-Latest-blue)
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
+![Version](https://img.shields.io/badge/Version-v3.1.0-brightgreen)
 
 ---
 
 ## 🎯 Quick Start
+
 ```bash
-# Clone dotfiles
-git clone https://github.com/WidkidoneR2/dotfiles.git ~/dotfiles
-cd ~/dotfiles
+# Clone dotfiles to 0-core
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/0-core
+cd ~/0-core
 
 # Install packages
 sudo pacman -S --needed - < pkglist.txt
@@ -31,60 +33,118 @@ hyprctl reload
 
 ---
 
-## 📁 System Structure
+## 🏗️ v3.1.0 Hybrid Architecture
+
+**NEW in v3.1.0!** Numbered directory structure for instant navigation:
+
 ```
-dotfiles/
-├── hypr/              # Hyprland config (modular!)
+~/0-core/              # Immutable configs (this repo)
+~/1-src/               # Source code & development
+~/2-work/              # Active projects
+~/3-keep/              # Important files
+~/9-temp/              # Temporary/disposable
+~/secrets/             # Never stowed, secure storage
+```
+
+**Benefits:**
+
+- ✅ Instant muscle memory (g+0, g+1, g+2 in Yazi)
+- ✅ Clear priority hierarchy (0 = most important)
+- ✅ Semantic package names (wm-hypr, shell-fish)
+- ✅ Protected core (can use `chattr +i` for immutability)
+
+---
+
+## 📁 Core System Structure
+
+```
+0-core/
+├── wm-hypr/              # Hyprland window manager
 │   └── .config/hypr/
-│       ├── hyprland.conf       # Main config (sources all others)
-│       ├── env.conf            # Environment variables
+│       ├── hyprland.conf       # Main config
+│       ├── envs.conf           # Environment variables
 │       ├── monitors.conf       # Display setup
 │       ├── bindings.conf       # Keybindings
 │       ├── workspaces.conf     # Workspace rules
 │       ├── autostart.conf      # Startup applications
-│       └── animations.conf     # Animation settings
+│       └── looknfeel.conf      # Animations & styling
 │
-├── foot-theme-dark/   # Foot terminal colors
-├── ghostty-theme-dark/# Ghostty backup terminal
-├── fuzzel-theme-dark/ # Fuzzel launcher theme
-├── waybar/            # Status bar
-├── mako/              # Notifications
-├── yazi/              # TUI file manager
-├── fish/              # Fish shell
-├── nvim/              # Neovim config
+├── shell-fish/           # Fish shell
+├── editor-nvim/          # Neovim editor
+├── fm-yazi/              # Yazi file manager
+├── bar-waybar/           # Waybar status bar
+├── notif-mako/           # Mako notifications
+├── vcs-git/              # Git configuration
+├── prompt-starship/      # Starship prompt
+├── browser-brave/        # Brave browser
 │
-├── scripts/           # Utility scripts
-│   ├── dot-doctor          # System health checker
-│   ├── keyscan             # Keybinding documentation
-│   ├── theme-switch        # Theme switcher
-│   ├── omarchy-menu-fuzzel # Main menu
-│   └── power-menu-fuzzel   # Power options
+├── theme-term-foot-dark/     # Foot terminal theme
+├── theme-term-ghostty-dark/  # Ghostty terminal theme
+├── theme-launch-fuzzel-dark/ # Fuzzel launcher theme
+├── theme-gtk/                # GTK theme settings
 │
-└── pkglist.txt        # Complete package list
+├── scripts/              # Utility scripts
+│   ├── dot-doctor            # System health checker
+│   ├── keyscan               # Keybinding docs
+│   ├── theme-switch          # Theme switcher
+│   ├── omarchy-menu-fuzzel   # Main menu
+│   └── power-menu-fuzzel     # Power options
+│
+└── docs/                 # Documentation
+    ├── CHANGELOG-v3.1.md # v3.1 changes
+    └── ...
 ```
 
 ### 🎨 **Stow-Based Management**
 
 This setup uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management:
+
 ```bash
 # Stow a package (creates symlinks)
-stow hypr
+stow wm-hypr
 
 # Unstow (removes symlinks)
-stow -D hypr
+stow -D wm-hypr
 
 # Restow (refresh symlinks)
-stow -R hypr
+stow -R wm-hypr
 
 # Deploy everything
 ./deploy.sh
 ```
 
 **Why Stow?**
+
 - ✅ Clean separation (each app is a "package")
 - ✅ Easy rollback (unstow anytime)
 - ✅ Version control friendly
 - ✅ No manual symlink management
+
+---
+
+## 🚀 Instant Navigation (Yazi Teleports)
+
+**NEW in v3.1.0!** Press `g` + key for instant jumps:
+
+### **Top-Level Directories:**
+
+- `g+0` → Core configs (~/0-core)
+- `g+1` → Source code (~/1-src)
+- `g+2` → Active work (~/2-work)
+- `g+3` → Important files (~/3-keep)
+- `g+9` → Temporary (~/9-temp)
+- `g+s` → Secrets (~/secrets)
+
+### **Config Quick Access:**
+
+- `g+h` → Hyprland config (wm-hypr)
+- `g+f` → Fish shell (shell-fish)
+- `g+n` → Neovim (editor-nvim)
+- `g+w` → Waybar (bar-waybar)
+- `g+y` → Yazi config (fm-yazi)
+- `g+c` → System config (~/.config)
+
+**One keystroke to any directory!** 🎯
 
 ---
 
@@ -95,48 +155,52 @@ stow -R hypr
 Every tool was chosen after extensive testing for **native Wayland support**, **minimal resource usage**, and **reliability**. No X11 compatibility layers, no bloat.
 
 ### 🦶 **Foot** - Primary Terminal
+
 - **Why:** Native Wayland, 2ms startup (vs Kitty's 50ms), 5-10MB RAM
 - **Perfect for:** Quick commands, daily terminal work
-- **Config:** `foot-theme-dark/.config/foot/foot.ini`
+- **Config:** `theme-term-foot-dark/.config/foot/foot.ini`
 
-### 👻 **Ghostty** - Backup Terminal  
+### 👻 **Ghostty** - Backup Terminal
+
 - **Why:** Modern, native Wayland, feature-rich when needed
 - **Use case:** Complex workflows, advanced features
-- **Config:** `ghostty-theme-dark/.config/ghostty/config`
+- **Config:** `theme-term-ghostty-dark/.config/ghostty/config`
 
 ### 🚀 **Fuzzel** - Application Launcher
+
 - **Why:** Native Wayland, instant response, no click issues (Rofi had problems)
 - **Keybind:** `SUPER+SPACE`
-- **Config:** `fuzzel-theme-dark/.config/fuzzel/fuzzel.ini`
+- **Config:** `theme-launch-fuzzel-dark/.config/fuzzel/fuzzel.ini`
 
 ### 📁 **Yazi** - Primary File Manager (TUI)
+
 - **Why:** Blazing fast, keyboard-driven, powerful
 - **Keybind:** `SUPER+E` or just type `yazi`
 - **Features:**
   - Vim-style navigation
+  - 14 instant teleports (g+0 through g+s)
   - Integrated Meld for diffs (`SUPER ALT+cm`)
   - No GUI bloat needed!
 
-### 🖥️ **PCManFM-Qt** - GUI File Manager (Backup)
-- **Why:** Only 3MB, Qt-based, perfect for visual browsing when learning
-- **Use case:** When you need to see things visually
-- **Alternative to:** Thunar (20MB, removed)
-
 ### 📋 **Cliphist** - Clipboard History
+
 - **Why:** Native Wayland, lightweight, essential productivity tool
 - **Keybind:** `SUPER+V`
 - **Usage:** Never lose clipboard content again!
 
 ### 🎨 **Hyprpicker** - Color Picker
+
 - **Why:** Built for Hyprland, instant color grabbing
 - **Keybind:** `SUPER SHIFT+C`
 - **Usage:** Click any pixel, color copied to clipboard
 
 ### 📄 **Zathura** - PDF Viewer
+
 - **Why:** Minimal, vim-like, 5MB vs Evince's 40MB
 - **Default:** Opens all PDFs automatically
 
 ### 🔄 **Topgrade** - System Updater
+
 - **Why:** Updates everything (pacman, AUR, flatpak, etc.) in one command
 - **Usage:** `topgrade` or via Omarchy menu
 
@@ -147,16 +211,19 @@ Every tool was chosen after extensive testing for **native Wayland support**, **
 ### 🏥 **dot-doctor** - System Health Checker
 
 Validates your entire system setup:
+
 ```bash
 dot-doctor
 ```
 
 **Checks:**
+
 - ✅ All required packages installed
 - ✅ Stow packages deployed correctly
 - ✅ Config files exist
 - ✅ Scripts are executable
 - ✅ No broken symlinks
+- ✅ Git repository health
 
 **Output:** Clear report with issues and fixes
 
@@ -165,11 +232,13 @@ dot-doctor
 ### 🔍 **keyscan** - Keybinding Documentation
 
 Auto-generates keybinding reference from your config:
+
 ```bash
 keyscan
 ```
 
 **Features:**
+
 - Scans `bindings.conf`
 - Extracts all keybindings
 - Formats as readable markdown
@@ -180,12 +249,14 @@ keyscan
 ### 🎨 **theme-switch** - Theme Switcher
 
 Switch between dark/light themes instantly:
+
 ```bash
 theme-switch dark
 theme-switch light
 ```
 
 **Updates:**
+
 - Foot colors
 - Ghostty theme
 - Fuzzel theme
@@ -195,94 +266,30 @@ theme-switch light
 
 ---
 
-### 🎯 **omarchy-menu-fuzzel** - Main System Menu
-
-Central hub for all system operations:
-
-**Keybind:** `SUPER ALT+SPACE`
-
-**Features:**
-- 🔄 Update System (topgrade)
-- 🎨 Theme Menu
-- ⚙️ Settings
-- 🔌 Power Menu
-- 📦 Package Manager
-- 🔧 System Tools (btop, lazydocker, etc.)
-
----
-
-### ⚡ **power-menu-fuzzel** - Power Options
-
-Quick power management:
-
-**Keybind:** `SUPER+ESCAPE`
-
-**Options:**
-- ⏻ Shutdown
-- 🔁 Reboot
-- 💤 Suspend
-- 🔒 Lock
-- 🚪 Logout
-
----
-
-## 🎨 Faelight Theme Engine
-
-**NEW in v2.8.x!** Generate terminal themes from any wallpaper.
-
-### **What It Does:**
-1. Extracts dominant colors from images
-2. Generates color palettes with proper contrast
-3. Creates configs for Foot, Ghostty, Fuzzel, Kitty
-4. Applies to your system instantly
-
-### **Usage:**
-```bash
-# Extract colors from wallpaper
-faelight-theme extract wallpaper.jpg --output palette.json
-
-# Generate configs
-faelight-theme render palette.json --all --output-dir themes/
-
-# Apply to dotfiles
-cd ~/faelight-theme-engine
-./scripts/apply-to-dotfiles.sh palette.json
-
-# Switch theme
-cd ~/dotfiles
-theme-switch dark
-```
-
-### **How It Works:**
-- Uses colorgram.py for color extraction
-- Generates 16 ANSI colors with proper brightness
-- Validates contrast ratios (WCAG AAA standards)
-- Jinja2 templates for each application
-
-**Location:** `~/faelight-theme-engine/`
-
----
-
 ## ⌨️ Key Keybindings
 
 ### **System**
+
 - `SUPER+Q` - Close window
 - `SUPER+M` - Exit Hyprland
 - `SUPER+ALT+SPACE` - Omarchy menu
 - `SUPER+ESCAPE` - Power menu
 
 ### **Applications**
+
 - `SUPER+RETURN` - Terminal (Foot)
 - `SUPER+SPACE` - App launcher (Fuzzel)
 - `SUPER+E` - File manager (Yazi)
 - `SUPER+B` - Browser (Brave)
 
 ### **Utilities**
+
 - `SUPER+V` - Clipboard history
 - `SUPER SHIFT+C` - Color picker
 - `SUPER SHIFT+S` - Screenshot (grim + slurp)
 
 ### **Workspaces**
+
 - `SUPER+[1-9]` - Switch workspace
 - `SUPER SHIFT+[1-9]` - Move window to workspace
 
@@ -293,16 +300,19 @@ theme-switch dark
 ## 🚀 Installation
 
 ### **Prerequisites**
+
 - Arch Linux (or Arch-based distro)
 - Basic familiarity with terminal
 
 ### **Step 1: Clone Repository**
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/dotfiles.git ~/dotfiles
-cd ~/dotfiles
+git clone https://github.com/WidkidoneR2/dotfiles.git ~/0-core
+cd ~/0-core
 ```
 
 ### **Step 2: Install Packages**
+
 ```bash
 # Install from package list
 sudo pacman -S --needed - < pkglist.txt
@@ -313,17 +323,21 @@ cd yay && makepkg -si
 ```
 
 ### **Step 3: Deploy Dotfiles**
+
 ```bash
-cd ~/dotfiles
+cd ~/0-core
 
 # Deploy all packages
 ./deploy.sh
 
 # Or manually with stow
-stow hypr waybar mako foot-theme-dark fuzzel-theme-dark fish nvim yazi
+stow wm-hypr bar-waybar notif-mako shell-fish editor-nvim fm-yazi
+stow vcs-git prompt-starship browser-brave theme-gtk
+stow theme-term-foot-dark theme-term-ghostty-dark theme-launch-fuzzel-dark
 ```
 
 ### **Step 4: Validate Setup**
+
 ```bash
 dot-doctor
 ```
@@ -331,6 +345,7 @@ dot-doctor
 Fix any issues reported!
 
 ### **Step 5: Reload Hyprland**
+
 ```bash
 hyprctl reload
 ```
@@ -341,9 +356,11 @@ hyprctl reload
 
 ### ✨ **Highlights**
 
+- **Hybrid Architecture:** Numbered directories for instant navigation
+- **Semantic Naming:** Clear package names (wm-hypr, shell-fish, etc.)
 - **Native Wayland:** Zero X11 dependencies
-- **Minimal Bloat:** ~106MB freed vs previous setup
-- **Theme Engine:** Generate themes from wallpapers
+- **Minimal Bloat:** ~437MB freed vs previous setup
+- **Instant Teleports:** 14 Yazi bindings for one-key navigation
 - **Modular Config:** Easy to understand and modify
 - **Health Checks:** dot-doctor validates everything
 - **Auto Documentation:** keyscan generates keybinding reference
@@ -372,43 +389,43 @@ hyprctl reload
 
 ---
 
-## 📝 Package Philosophy
+## 📝 What's New in v3.1.0
 
-### **What Was Removed (v2.8.x Cleanup)**
+### **Hybrid Architecture**
 
-| Tool | Why Removed | Replacement | Space Saved |
-|------|-------------|-------------|-------------|
-| Kitty | X11-based, heavier | Foot | 60MB |
-| Rofi | Wayland port, click issues | Fuzzel | 1MB |
-| Thunar | GUI bloat | Yazi + PCManFM-Qt | 20MB |
-| Walker | Flaky, unmaintained | Fuzzel | 335MB |
-| Evince | GNOME bloat | Zathura | 15MB |
-| gvfs | Unnecessary for TUI workflow | Removed | 6MB |
+- Renamed `~/dotfiles` → `~/0-core` for numbered priority
+- Created numbered top-level structure (1-src, 2-work, 3-keep, 9-temp)
+- Protected core configuration directory
 
-**Total freed:** ~437MB of bloat!
+### **Semantic Package Naming**
 
-### **Why These Replacements?**
+All packages renamed for clarity:
 
-**Native Wayland First:**
-- Foot, Ghostty, Fuzzel all built FOR Wayland
-- No X11 compatibility layers
-- Better performance, fewer bugs
+- Window manager: `wm-hypr`
+- Shell: `shell-fish`
+- Editor: `editor-nvim`
+- File manager: `fm-yazi`
+- Status bar: `bar-waybar`
+- Notifications: `notif-mako`
+- Version control: `vcs-git`
+- Prompt: `prompt-starship`
+- Browser: `browser-brave`
+- Themes: `theme-term-*`, `theme-launch-*`, `theme-gtk`
 
-**Minimal By Design:**
-- Zathura: 5MB vs Evince 40MB
-- Foot: 5-10MB RAM vs Kitty 30-50MB
-- PCManFM-Qt: 3MB vs Thunar 20MB
+### **Yazi Navigation Revolution**
 
-**Quality Over Features:**
-- We don't need every feature
-- We need features that WORK
-- Reliability > bells and whistles
+- 14 instant teleports (g+0 through g+s)
+- Muscle-memory friendly number keys
+- Direct config access (g+h, g+f, g+n, etc.)
+
+**See:** `docs/CHANGELOG-v3.1.md` for complete details
 
 ---
 
 ## 🤝 Contributing
 
 Improvements welcome! Please:
+
 1. Test changes thoroughly
 2. Run `dot-doctor` before committing
 3. Update documentation
@@ -425,7 +442,7 @@ MIT License - See LICENSE file
 ## 🙏 Acknowledgments
 
 - Hyprland community
-- Arch Linux community  
+- Arch Linux community
 - All the tool developers
 - Everyone who values quality over quantity
 
@@ -436,7 +453,6 @@ MIT License - See LICENSE file
 - [Hyprland Wiki](https://wiki.hyprland.org/)
 - [Arch Wiki](https://wiki.archlinux.org/)
 - [GNU Stow Manual](https://www.gnu.org/software/stow/manual/)
-- [Faelight Theme Engine](https://github.com/YOUR_USERNAME/faelight-theme-engine)
 
 ---
 
@@ -444,4 +460,4 @@ MIT License - See LICENSE file
 
 **No bloat. No compromises. Just tools that work.**
 
-🌲 **Omarchy** - *Order through simplicity*
+🌲 **Faelight Forest v3.1.0** - _Hybrid Architecture for the perfect system_

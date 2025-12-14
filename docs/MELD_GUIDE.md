@@ -25,10 +25,10 @@ meld original.conf yours.conf theirs.conf
 ### Directory Comparison
 ```bash
 # Compare two directories
-meld ~/dotfiles/hypr ~/.config/hypr
+meld ~/0-core/hypr ~/.config/hypr
 
 # Compare with visual filtering
-meld --diff ~/dotfiles ~/.config
+meld --diff ~/0-core ~/.config
 ```
 
 ## 🎯 Faelight Forest Workflow
@@ -63,11 +63,11 @@ verify-hypr
 2. Run `verify-hypr` to see differences
 3. If correct, copy to dotfiles:
 ```bash
-   cp ~/.config/hypr/bindings.conf ~/dotfiles/hypr/
+   cp ~/.config/hypr/bindings.conf ~/0-core/hypr/
 ```
 4. Commit changes:
 ```bash
-   cd ~/dotfiles
+   cd ~/0-core
    git add hypr/bindings.conf
    git commit -m "Update keybindings"
    git push
@@ -189,7 +189,7 @@ verify-waybar  # Check Waybar
 ### Workflow 2: Pre-Commit Verification
 ```bash
 # Before committing to dotfiles
-cd ~/dotfiles
+cd ~/0-core
 
 # Check what changed
 meld . ~/.config
@@ -217,7 +217,7 @@ meld ~/.config/hypr/hyprland.conf.working ~/.config/hypr/hyprland.conf
 ### Workflow 4: Learning from Examples
 ```bash
 # Compare your config with examples
-meld ~/dotfiles/waybar/config.jsonc /path/to/example/config.jsonc
+meld ~/0-core/waybar/config.jsonc /path/to/example/config.jsonc
 
 # See what features they use
 # Adapt to your setup
@@ -247,7 +247,7 @@ meld file1.txt file2.txt
 ```bash
 # Copy to temp location first
 sudo cp /etc/config.conf /tmp/
-meld /tmp/config.conf ~/dotfiles/config.conf
+meld /tmp/config.conf ~/0-core/config.conf
 ```
 
 ### Large directory comparisons slow
@@ -257,8 +257,8 @@ meld /tmp/config.conf ~/dotfiles/config.conf
 **Solution:**
 ```bash
 # Be specific with subdirectories
-meld ~/.config/hypr ~/dotfiles/hypr
-meld ~/.config/waybar ~/dotfiles/waybar
+meld ~/.config/hypr ~/0-core/hypr
+meld ~/.config/waybar ~/0-core/waybar
 
 # Use filters to exclude large dirs
 # Settings → Filters → Add: node_modules, .git, cache
@@ -280,7 +280,7 @@ meld base.conf yours.conf theirs.conf
 ### Directory Merge
 ```bash
 # Merge two directory structures
-meld --auto-merge ~/dotfiles ~/.config ~/dotfiles-merged
+meld --auto-merge ~/0-core ~/.config ~/0-core-merged
 ```
 
 ### Blank Comparison
@@ -322,22 +322,22 @@ git difftool file.conf
 Open Meld from Yazi:
 1. Select file in Yazi
 2. Press `!` (shell command)
-3. Type: `meld %f ~/dotfiles/path/to/file`
+3. Type: `meld %f ~/0-core/path/to/file`
 
 ### With Scripts
 
 Create verification script:
 ```bash
 #!/usr/bin/env bash
-# ~/dotfiles/scripts/verify-all-meld
+# ~/0-core/scripts/verify-all-meld
 
 echo "🔍 Verifying all dotfiles..."
 
-meld ~/.config/hypr ~/dotfiles/hypr &
+meld ~/.config/hypr ~/0-core/hypr &
 sleep 1
-meld ~/.config/waybar ~/dotfiles/waybar &
+meld ~/.config/waybar ~/0-core/waybar &
 sleep 1
-meld ~/.config/kitty ~/dotfiles/kitty &
+meld ~/.config/kitty ~/0-core/kitty &
 
 echo "✅ Opened all comparisons"
 ```

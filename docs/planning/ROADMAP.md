@@ -61,7 +61,7 @@ Enhance dot-doctor → Enhance keyscan → Add New Tools → Automate → Docume
 - [ ] Git status check:
 ````fish
   function _check_git_status
-      cd ~/dotfiles
+      cd ~/0-core
       if test (git status --porcelain | wc -l) -gt 0
           echo "⚠️  Uncommitted changes in dotfiles"
       end
@@ -83,7 +83,7 @@ Enhance dot-doctor → Enhance keyscan → Add New Tools → Automate → Docume
 - [ ] Generate HTML health report
 - [ ] Include graphs (using plotly or matplotlib)
 - [ ] Email option (using mailx or similar)
-- [ ] Save to ~/dotfiles/reports/
+- [ ] Save to ~/0-core/reports/
 
 ---
 
@@ -157,9 +157,9 @@ Enhance dot-doctor → Enhance keyscan → Add New Tools → Automate → Docume
 function dot-diff --argument package
     # Compare current config vs dotfiles version
     if command -v meld &> /dev/null
-        meld ~/.config/$package ~/dotfiles/$package/.config/$package
+        meld ~/.config/$package ~/0-core/$package/.config/$package
     else
-        diff -r ~/.config/$package ~/dotfiles/$package/.config/$package
+        diff -r ~/.config/$package ~/0-core/$package/.config/$package
     end
 end
 ````
@@ -200,7 +200,7 @@ function dot-update
     dot-doctor
     
     # 5. Update dotfiles
-    cd ~/dotfiles
+    cd ~/0-core
     git pull
     
     # 6. Final check
@@ -234,7 +234,7 @@ end
 
 **Pre-commit Hook (Optional):**
 
-**File:** `~/dotfiles/.git/hooks/pre-commit`
+**File:** `~/0-core/.git/hooks/pre-commit`
 ````bash
 #!/bin/bash
 # Validate dotfiles before commit
@@ -259,7 +259,7 @@ echo "✅ All checks passed"
 **Tasks:**
 - [ ] Add to cron (optional):
 ````cron
-  0 9 * * SUN /home/christian/dotfiles/scripts/weekly-health-check.sh
+  0 9 * * SUN /home/christian/0-core/scripts/weekly-health-check.sh
 ````
 - [ ] Create weekly-health-check.sh script
 - [ ] Email/notify if issues found
@@ -491,7 +491,7 @@ dotfiles/
   - Include prompt customizations
 - [ ] Test each atomic package individually:
 ````bash
-  cd ~/dotfiles
+  cd ~/0-core
   stow fish-base
   stow fish-aliases
   stow fish-functions
@@ -701,7 +701,7 @@ compatibility:
 - ✅ Fast and reliable
 - ✅ Don't reimplement algorithms in Fish!
 
-**File:** `~/dotfiles/scripts/resolve-deps.py`
+**File:** `~/0-core/scripts/resolve-deps.py`
 ````python
 #!/usr/bin/env python3
 """
@@ -830,7 +830,7 @@ function dot-install --argument package
     echo "📦 Installing: $package"
     
     # Use Python to resolve deps
-    set -l install_order (python3 ~/dotfiles/scripts/resolve-deps.py $package)
+    set -l install_order (python3 ~/0-core/scripts/resolve-deps.py $package)
     
     if test $status -ne 0
         echo "❌ Dependency resolution failed"
@@ -844,7 +844,7 @@ function dot-install --argument package
     
     # Install each package
     for pkg in $install_order
-        cd ~/dotfiles
+        cd ~/0-core
         stow $pkg
         echo "✅ Installed: $pkg"
     end
@@ -998,7 +998,7 @@ function dot-snapshot --argument description
     set -l timestamp (date +%Y-%m-%d-%H%M)
     set -l tag "faelight-$timestamp"
     
-    cd ~/dotfiles
+    cd ~/0-core
     
     # Commit current state
     git add -A
@@ -1023,7 +1023,7 @@ function dot-snapshots
 end
 
 function dot-rollback --argument tag
-    cd ~/dotfiles
+    cd ~/0-core
     
     echo "⏪ Rolling back to: $tag"
     

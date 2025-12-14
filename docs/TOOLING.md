@@ -154,7 +154,7 @@ keys-check
 - Earlier bindings are silently ignored
 
 **How to Fix:**
-1. Find conflicting bindings: `grep "SUPER, K" ~/dotfiles/hypr/.config/hypr/bindings.conf`
+1. Find conflicting bindings: `grep "SUPER, K" ~/0-core/hypr/.config/hypr/bindings.conf`
 2. Move less important binding to unused key
 3. Reload Hyprland: `hyprctl reload`
 4. Verify fix: `keyscan`
@@ -190,7 +190,7 @@ keyscan
 security-check  # Runs pacman update + arch-audit + lynis
 
 # 3. Check for configuration drift
-cd ~/dotfiles
+cd ~/0-core
 git status
 
 # 4. Review services
@@ -239,7 +239,7 @@ journalctl --vacuum-time=7d
 **Fix:**
 ```bash
 # Re-stow packages
-cd ~/dotfiles
+cd ~/0-core
 stow --restow */
 
 # Verify
@@ -258,11 +258,11 @@ dot-doctor
 **Fix:**
 ```bash
 # Find conflicting bindings
-grep -n "SUPER, K" ~/dotfiles/hypr/.config/hypr/bindings.conf
-grep -n "SUPER SHIFT, L" ~/dotfiles/hypr/.config/hypr/bindings.conf
+grep -n "SUPER, K" ~/0-core/hypr/.config/hypr/bindings.conf
+grep -n "SUPER SHIFT, L" ~/0-core/hypr/.config/hypr/bindings.conf
 
 # Edit bindings
-nvim ~/dotfiles/hypr/.config/hypr/bindings.conf
+nvim ~/0-core/hypr/.config/hypr/bindings.conf
 
 # Move one binding to unused key
 # Save, reload, verify

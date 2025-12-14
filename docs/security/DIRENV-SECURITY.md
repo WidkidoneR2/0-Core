@@ -161,7 +161,7 @@ Before running `direnv allow`, verify:
 ### **Your Own Repos (Safe)**
 
 ```bash
-cd ~/dotfiles
+cd ~/0-core
 bat .envrc
 # Verify it's YOUR code
 direnv allow
