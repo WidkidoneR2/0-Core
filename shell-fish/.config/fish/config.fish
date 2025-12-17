@@ -469,11 +469,23 @@ if status is-interactive
     # Show fastfetch
     fastfetch
 
-    # Custom greeting
+    # Custom greeting with dynamic latest update
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v3.2.0!"
+    echo "🌲 Welcome to Faelight Forest v3.3.0!"
     set_color normal
+
+    # Show latest package update (if script exists)
+    if test -x ~/0-core/scripts/latest-update
+        set -l latest (~/0-core/scripts/latest-update)
+        if test -n "$latest"
+            set_color cyan
+            echo "   Latest: $latest"
+            set_color normal
+        end
+    end
+
+    echo ""
     echo "This is my Happy Place!!!"
     echo ""
     echo "💡 Quick: guide | doctor | health | roadmap | keys"

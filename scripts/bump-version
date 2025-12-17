@@ -1,0 +1,42 @@
+#!/bin/bash
+# Bump package version in .dotmeta
+
+PACKAGE="$1"
+NEW_VERSION="$2"
+CHANGE_NOTE="$3"
+
+if [ -z "$PACKAGE" ] || [ -z "$NEW_VERSION" ]; then
+    echo "Usage: bump-version <package> <new-version> [change-note]"
+    echo ""
+    echo "Example: bump-version shell-fish 3.2.2 'Added new aliases'"
+    exit 1
+fi
+
+DOTMETA="$HOME/0-core/$PACKAGE/.dotmeta"
+
+if [ ! -f "$DOTMETA" ]; then
+    echo "❌ No .dotmeta found for package: $PACKAGE"
+    exit 1
+fi
+
+# Get current version
+OLD_VERSION=$(grep '^version = ' "$DOTMETA" | head -1 | awk -F'"' '{print $2}')
+
+# Update version
+sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" "$DOTMETA"
+
+# Update last_updated date
+TODAY=$(date +%Y-%m-%d)
+sed -i "s/^last_updated = .*/last_updated = \"$TODAY\"/" "$DOTMETA"
+
+# Add changelog entry if provided
+if [ -n "$CHANGE_NOTE" ]; then
+    # Add new changelog entry after [changelog] line
+    sed -i "/^\[changelog\]/a \"$NEW_VERSION\" = \"$CHANGE_NOTE\"" "$DOTMETA"
+fi
+
+echo "✅ Bumped $PACKAGE: v$OLD_VERSION → v$NEW_VERSION"
+if [ -n "$CHANGE_NOTE" ]; then
+    echo "   Note: $CHANGE_NOTE"
+fi
+echo "   Updated: $TODAY"
