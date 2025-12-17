@@ -1,4 +1,4 @@
-# 🌲 Faelight Forest v3.2.0 - 0-Core Hybrid Architecture
+# 🌲 Faelight Forest v3.3.0 - 0-Core Hybrid Architecture
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
