@@ -6,17 +6,10 @@
 
 ---
 
-v3.3.1 - Blast Radius (This Week):
-Time: 3-4 hours (no rushing!)
+v3.3.1 (1.5-2 hrs): Blast Radius Awareness
 
-Tasks:
-✅ Enhanced edit-core with warnings
-✅ Complete remaining .dotmeta files
-✅ Fix sync-0-core (auto-unlock)
-✅ Thorough testing
-✅ Documentation updates
-
-Result: Full blast radius system!
+- Informational warnings
+- Foundation for enforcement
 
 📋 v3.3.2 - GITHUB POLISH PLAN:
 
@@ -294,16 +287,14 @@ Day 4: OPEN SOURCE! 🌍
 ## ✅ **IMMEDIATE TODO LIST:**
 
 ### **For v3.3.1 (This Week):**
-```
 
-1. ✅ Blast Radius implementation
-2. ✅ Fix sync-0-core (auto-unlock)
-3. ❌ Remove README auto-version (you'll use GitHub releases)
-4. ✅ Test thoroughly
+- Informational warnings
+- Foundation for enforcement
 
 ```
 
 ### **For v3.3.2 (Next Week):**
+
 ```
 
 1. 📸 Take screenshots
@@ -315,6 +306,7 @@ Day 4: OPEN SOURCE! 🌍
 ```
 
 ### **For Open Source (After v3.3.2):**
+
 ```
 
 1. 🔍 Final privacy audit
@@ -357,13 +349,31 @@ markdown# 🎯 Alias Reference
 
 [... detailed for each alias ...]
 
+
+v3.4.0 (2-3 hrs): Policy Enforcement
+  - Safety gates
+  - Requirement checks
+  - --ack-critical overrides
+  - Basic temporal tracking
+
+v3.5.0 (3-4 hrs): Temporal Intelligence
+  - Stability metrics
+  - Entropy tracking
+  - Predictive warnings
+  - Advanced safety analysis
+
+v4.0.0: The Research Paper
+  - Academic documentation
+  - Published system design
+  - Community presentation
 ---
 
-**Current Status:** Version 3.3 Complete ✅  
-**Next Action:** v3.3.1 - Theme Engine Foundation  
+**Current Status:** Version 3.3 Complete ✅
+**Next Action:** v3.3.1 - Theme Engine Foundation
 **Vision:** Infrastructure as Poetry 🌲✨
 
 ---
 
-_Last Updated: December 17, 2025_  
+_Last Updated: December 17, 2025_
 _Roadmap Version: 5.0 - Architectural Refinement_
+```
