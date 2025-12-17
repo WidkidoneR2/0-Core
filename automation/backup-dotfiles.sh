@@ -2,12 +2,12 @@
 # ═══════════════════════════════════════════════════════════
 # 🔄 Dotfiles Backup Automation
 # Omarchy v2.8.8
-# Auto-commit and push dotfiles changes daily
+# Auto-commit and push 0-core changes daily
 # ═══════════════════════════════════════════════════════════
 
 set -euo pipefail
 
-DOTFILES_DIR="$HOME/dotfiles"
+DOTFILES_DIR="$HOME/0-core"
 LOG_FILE="$HOME/.local/state/omarchy/backup.log"
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -19,9 +19,9 @@ log() {
   echo "[$DATE] $1" | tee -a "$LOG_FILE"
 }
 
-# Change to dotfiles directory
+# Change to 0-core directory
 cd "$DOTFILES_DIR" || {
-  log "ERROR: Cannot access dotfiles directory"
+  log "ERROR: Cannot access 0-core directory"
   exit 1
 }
 

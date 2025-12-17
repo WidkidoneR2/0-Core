@@ -397,6 +397,6 @@ hyprctl workspaces
 
 ---
 
-*🌲 Part of the Faelight Forest dotfiles collection*
+*🌲 Part of the Faelight Forest 0-core collection*
 
 **Quick Access:** `SUPER + /`

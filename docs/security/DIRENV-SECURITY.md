@@ -223,7 +223,7 @@ cat ~/.config/direnv/allow/*
 # Safe environment setup
 
 # Project identification
-export PROJECT_NAME="omarchy-dotfiles"
+export PROJECT_NAME="omarchy-0-core"
 export PROJECT_VERSION="2.9.0"
 
 # Development paths

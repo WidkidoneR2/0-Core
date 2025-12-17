@@ -9,7 +9,7 @@ Meld is a visual diff and merge tool that helps you:
 - See exactly what changed between versions
 - Compare entire directories
 - Merge changes visually
-- Verify dotfiles sync
+- Verify 0-core sync
 
 ## 🚀 Quick Start
 
@@ -45,7 +45,7 @@ verify-fish      # Compare Fish configs
 verify-nvim      # Compare Neovim configs
 
 # Verify everything at once
-verify-all       # Compare entire .config vs dotfiles
+verify-all       # Compare entire .config vs 0-core
 ```
 
 ### Real-World Usage
@@ -54,14 +54,14 @@ verify-all       # Compare entire .config vs dotfiles
 ```bash
 verify-hypr
 ```
-- Left side: Your dotfiles (source of truth)
+- Left side: Your 0-core (source of truth)
 - Right side: Active config
 - Colors show: Added (green), Removed (red), Changed (blue)
 
-**Scenario 2: Sync changes to dotfiles**
+**Scenario 2: Sync changes to 0-core**
 1. Make changes in `~/.config/hypr/bindings.conf`
 2. Run `verify-hypr` to see differences
-3. If correct, copy to dotfiles:
+3. If correct, copy to 0-core:
 ```bash
    cp ~/.config/hypr/bindings.conf ~/0-core/hypr/
 ```
@@ -188,7 +188,7 @@ verify-waybar  # Check Waybar
 
 ### Workflow 2: Pre-Commit Verification
 ```bash
-# Before committing to dotfiles
+# Before committing to 0-core
 cd ~/0-core
 
 # Check what changed
@@ -252,7 +252,7 @@ meld /tmp/config.conf ~/0-core/config.conf
 
 ### Large directory comparisons slow
 
-**Problem:** Comparing ~/.config with dotfiles takes forever
+**Problem:** Comparing ~/.config with 0-core takes forever
 
 **Solution:**
 ```bash
@@ -331,7 +331,7 @@ Create verification script:
 #!/usr/bin/env bash
 # ~/0-core/scripts/verify-all-meld
 
-echo "🔍 Verifying all dotfiles..."
+echo "🔍 Verifying all 0-core..."
 
 meld ~/.config/hypr ~/0-core/hypr &
 sleep 1
@@ -352,4 +352,4 @@ echo "✅ Opened all comparisons"
 
 **💡 Pro Tip:** Add Meld to your daily workflow! Run `verify-all` before starting work to catch any config drift. Your future self will thank you! 🌲
 
-*Part of the Faelight Forest dotfiles collection*
+*Part of the Faelight Forest 0-core collection*

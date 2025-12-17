@@ -1,4 +1,4 @@
-function faelight-version --description "Show Faelight Forest dotfiles version"
+function faelight-version --description "Show Faelight Forest 0-core version"
     set -l version_file ~/0-core/VERSION
 
     if test -f $version_file

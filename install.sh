@@ -11,9 +11,9 @@ echo "║   🌲 FAELIGHT FOREST DOTFILES INSTALLATION v2.6        ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-DOTFILES_DIR="$HOME/dotfiles"
+DOTFILES_DIR="$HOME/0-core"
 
-# Check if dotfiles directory exists
+# Check if 0-core directory exists
 if [ ! -d "$DOTFILES_DIR" ]; then
     echo "❌ Error: Dotfiles directory not found at $DOTFILES_DIR"
     exit 1
@@ -67,7 +67,7 @@ rm -rf "$HOME/.config/gtk-4.0"
 echo "✅ Ready for Stow installation!"
 echo ""
 
-# Change to dotfiles directory for stow
+# Change to 0-core directory for stow
 cd "$DOTFILES_DIR"
 
 # Install configs using GNU Stow
@@ -143,7 +143,7 @@ echo "╔═══════════════════════�
 echo "║   ✅ INSTALLATION COMPLETE!                            ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "🌲 Faelight Forest dotfiles installed successfully!"
+echo "🌲 Faelight Forest 0-core installed successfully!"
 echo ""
 echo "📝 GNU Stow is now managing your symlinks:"
 echo "  - To remove a config: stow -D <package>"

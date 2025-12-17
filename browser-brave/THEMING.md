@@ -92,12 +92,12 @@ Export your Stylus configuration:
 1. Click **Stylus** icon → Manage
 2. Click ⚙️ Settings icon
 3. Click **Export**
-4. Save to: `~/dotfiles/brave/stylus-backup.json`
+4. Save to: `~/0-core/brave/stylus-backup.json`
 
 **Restore:**
 ```bash
 # In Stylus: Manage → Settings → Import
-# Select: ~/dotfiles/brave/stylus-backup.json
+# Select: ~/0-core/brave/stylus-backup.json
 ```
 
 ## 🔮 Future Themes (Coming Soon)
@@ -130,4 +130,4 @@ Export your Stylus configuration:
 
 ---
 
-*Part of the Faelight Forest dotfiles collection*
+*Part of the Faelight Forest 0-core collection*

@@ -1,4 +1,4 @@
-function dot-doctor --description "Health check for Faelight Forest dotfiles - Enhanced v2.8.7"
+function dot-doctor --description "Health check for Faelight Forest 0-core - Enhanced v2.8.7"
     # Colors
     set -l RED (set_color red)
     set -l GREEN (set_color green)

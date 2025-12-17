@@ -41,7 +41,7 @@ Every tool serves a purpose. No bloat, no redundancy, only quality native Waylan
 
 ### **What Makes This Different?**
 
-**Not just another dotfiles repo:**
+**Not just another 0-core repo:**
 - ✅ Every choice explained (WHY this tool?)
 - ✅ Complete health checking (dot-doctor)
 - ✅ Auto-documentation (keyscan)
@@ -91,7 +91,7 @@ Every tool serves a purpose. No bloat, no redundancy, only quality native Waylan
 
 ### **Directory Structure Explained**
 ```
-~/0-core/                    # Main dotfiles repository
+~/0-core/                    # Main 0-core repository
 │
 ├── hypr/                      # Hyprland compositor config
 │   └── .config/hypr/
@@ -146,7 +146,7 @@ Every tool serves a purpose. No bloat, no redundancy, only quality native Waylan
 │   ├── theme-switch           # Theme switcher
 │   ├── omarchy-menu-fuzzel    # Main system menu
 │   ├── power-menu-fuzzel      # Power options
-│   ├── dotfiles-sync          # Git sync helper
+│   ├── 0-core-sync          # Git sync helper
 │   ├── quick-note             # Quick note taker
 │   ├── safe-update            # Safe system updates
 │   └── sys-cleanup            # System maintenance
@@ -243,7 +243,7 @@ After "stow hypr":
 ~/.config/hypr/hyprland.conf                (symlink →)
 ```
 
-**The symlink points back to the dotfiles directory!**
+**The symlink points back to the 0-core directory!**
 
 ### **Stow Commands Explained**
 ```bash
@@ -355,7 +355,7 @@ stow app  # Works fine!
 **Real-world benefit:**
 ```bash
 # New machine setup (5 minutes!)
-git clone https://github.com/you/dotfiles ~/0-core
+git clone https://github.com/you/0-core ~/0-core
 cd ~/0-core
 stow */  # Stow everything!
 # Done! All configs deployed!
@@ -2224,22 +2224,22 @@ render_all(palette, output_dir)
 - `fuzzel.ini.j2` - Fuzzel launcher
 - `waybar.css.j2` - Waybar status bar
 
-**5. apply-to-dotfiles.sh - Integration Script**
+**5. apply-to-0-core.sh - Integration Script**
 
 **What it does:**
 - Renders all templates
-- Copies to dotfiles packages
+- Copies to 0-core packages
 - Preserves base configurations
 - Prepares for stow
 
 **Workflow:**
 ```bash
-./scripts/apply-to-dotfiles.sh my-palette.json
+./scripts/apply-to-0-core.sh my-palette.json
 
 # Internally:
 1. Determines theme type (dark/light from JSON)
 2. Renders templates to /tmp
-3. Copies to dotfiles packages:
+3. Copies to 0-core packages:
    - foot-theme-dark/.config/foot/foot.ini
    - ghostty-theme-dark/.config/ghostty/config
    - fuzzel-theme-dark/.config/fuzzel/fuzzel.ini
@@ -2294,19 +2294,19 @@ bat test-output/fuzzel.ini
 # Verify colors look good
 ```
 
-**Step 5: Apply to dotfiles**
+**Step 5: Apply to 0-core**
 ```bash
-./scripts/apply-to-dotfiles.sh sunset-palette.json
+./scripts/apply-to-0-core.sh sunset-palette.json
 
 # Output:
 # 📝 Rendering templates...
 # ✅ Rendered 4 templates
-# 📦 Applying to dotfiles packages...
+# 📦 Applying to 0-core packages...
 #   ✓ Foot theme
 #   ✓ Ghostty theme
 #   ✓ Fuzzel theme
 #   ✓ Waybar theme
-# ✅ Theme applied to dotfiles!
+# ✅ Theme applied to 0-core!
 ```
 
 **Step 6: Deploy theme**
@@ -2335,7 +2335,7 @@ theme-switch dark
 faelight-theme extract ~/wallpapers/beach.jpg --output beach-palette.json
 
 # Renders to light theme
-./scripts/apply-to-dotfiles.sh beach-palette.json
+./scripts/apply-to-0-core.sh beach-palette.json
 # Creates configs in foot-theme-light/, etc.
 
 # Switch to light theme
@@ -2451,7 +2451,7 @@ dot-doctor
 # 2. Update system (if needed)
 topgrade
 
-# 3. Check dotfiles status
+# 3. Check 0-core status
 cd ~/0-core && git status
 
 # 4. Open workspace
@@ -2581,7 +2581,7 @@ theme-switch dark
 # Generate theme from new wallpaper
 cd ~/faelight-theme-engine
 faelight-theme extract ~/wallpapers/new.jpg --output new-palette.json
-./scripts/apply-to-dotfiles.sh new-palette.json
+./scripts/apply-to-0-core.sh new-palette.json
 cd ~/0-core
 theme-switch dark
 ```

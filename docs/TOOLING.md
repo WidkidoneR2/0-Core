@@ -44,7 +44,7 @@ health-check
 ### What It Checks
 
 **1. Stow Symlinks (8 packages)**
-- Verifies all symlinks point to dotfiles correctly
+- Verifies all symlinks point to 0-core correctly
 - Detects broken or missing symlinks
 - Checks: fish, hypr, kitty, waybar, nvim, yazi, mako, gtk
 
@@ -215,7 +215,7 @@ journalctl --vacuum-time=7d
 
 **Yellow Light (Minor attention needed):**
 - ⚠️ 1-2 warnings in dot-doctor
-- ⚠️ Uncommitted changes in dotfiles
+- ⚠️ Uncommitted changes in 0-core
 - ⚠️ Services not running (but not critical)
 
 **Red Light (Action required):**

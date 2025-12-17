@@ -32,8 +32,8 @@ This folder contains the configuration for **Yazi**, a terminal-based file manag
 
 ## Installation
 
-1. **Clone your dotfiles repository** (if not already):
+1. **Clone the 0-core repository** (if not already):
 
 ```bash
-git clone https://github.com/<your-username>/dotfiles.git ~/dotfiles
+git clone https://github.com/<your-username>/0-core.git ~/0-core
 

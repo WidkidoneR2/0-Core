@@ -1,132 +1,163 @@
-# 🌲 Faelight Forest v3.1.0 - Hybrid Architecture
+# 🌲 Faelight Forest v3.2.0 - 0-Core Hybrid Architecture
 
-> **A minimal, native Wayland system built for speed, reliability, and beauty.**
+> **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
-**Philosophy:** "Tight ship" - Every tool serves a purpose. No bloat, no redundancy, only quality native Wayland applications that work flawlessly together.
+A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Hyprland](https://img.shields.io/badge/Hyprland-Latest-blue)
+![Version](https://img.shields.io/badge/Version-v3.2.0-brightgreen)
+![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
+![Security](https://img.shields.io/badge/Lynis-73%25-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Version](https://img.shields.io/badge/Version-v3.1.0-brightgreen)
 
 ---
 
-## 🎯 Quick Start
+## 🎯 **The Philosophy**
 
-```bash
-# Clone dotfiles to 0-core
-git clone https://github.com/WidkidoneR2/dotfiles.git ~/0-core
-cd ~/0-core
+**Traditional dotfiles repos:**
 
-# Install packages
-sudo pacman -S --needed - < pkglist.txt
+- Generic name ("dotfiles" like everyone else)
+- Flat structure (everything mixed together)
+- Unclear priorities
+- Hidden automation surprises
 
-# Deploy with stow
-./deploy.sh
+**0-Core Hybrid Architecture:**
 
-# Run system health check
-dot-doctor
+- **Numbered hierarchy** (0 = highest priority)
+- **Semantic naming** (wm-hypr, shell-fish, editor-nvim)
+- **Immutable protection** (lock-core prevents accidents)
+- **Manual control** (YOU decide when things happen)
 
-# Reload Hyprland
-hyprctl reload
-```
+**Core Principle:** _"Order through intentionality, not automation."_
 
 ---
 
-## 🏗️ v3.1.0 Hybrid Architecture
+## 🏗️ **The Architecture**
 
-**NEW in v3.1.0!** Numbered directory structure for instant navigation:
+### **Numbered Directory Structure**
 
 ```
-~/0-core/              # Immutable configs (this repo)
-~/1-src/               # Source code & development
-~/2-work/              # Active projects
-~/3-keep/              # Important files
-~/9-temp/              # Temporary/disposable
-~/secrets/             # Never stowed, secure storage
+~/0-core/              🔒 Immutable configuration (this repository)
+~/1-src/               📁 Source code & development projects
+~/2-work/              💼 Active work & client projects
+~/3-keep/              💎 Important files & archives
+~/9-temp/              🗑️  Temporary files & scratch space
+~/secrets/             🔐 Never committed, maximum security
 ```
 
-**Benefits:**
+**Why numbered?**
 
-- ✅ Instant muscle memory (g+0, g+1, g+2 in Yazi)
-- ✅ Clear priority hierarchy (0 = most important)
-- ✅ Semantic package names (wm-hypr, shell-fish)
-- ✅ Protected core (can use `chattr +i` for immutability)
+- **Instant priority recognition** (0 is most critical)
+- **Muscle memory navigation** (g+0, g+1, g+2 in Yazi)
+- **Clear hierarchy** (lower numbers = higher importance)
+- **Scalable** (add 4-8 for future categories)
 
 ---
 
-## 📁 Core System Structure
+### **0-Core Package Structure**
 
 ```
 0-core/
-├── wm-hypr/              # Hyprland window manager
-│   └── .config/hypr/
-│       ├── hyprland.conf       # Main config
-│       ├── envs.conf           # Environment variables
-│       ├── monitors.conf       # Display setup
-│       ├── bindings.conf       # Keybindings
-│       ├── workspaces.conf     # Workspace rules
-│       ├── autostart.conf      # Startup applications
-│       └── looknfeel.conf      # Animations & styling
+├── 📦 Window Manager & Desktop
+│   ├── wm-hypr/                    Hyprland configuration
+│   ├── bar-waybar/                 Status bar
+│   ├── notif-mako/                 Notifications
+│   └── theme-gtk/                  GTK theming
 │
-├── shell-fish/           # Fish shell
-├── editor-nvim/          # Neovim editor
-├── fm-yazi/              # Yazi file manager
-├── bar-waybar/           # Waybar status bar
-├── notif-mako/           # Mako notifications
-├── vcs-git/              # Git configuration
-├── prompt-starship/      # Starship prompt
-├── browser-brave/        # Brave browser
+├── 💻 Shell & Terminal
+│   ├── shell-fish/                 Fish shell configuration
+│   ├── prompt-starship/            Starship prompt
+│   ├── theme-term-foot-dark/       Foot terminal theme
+│   └── theme-term-ghostty-dark/    Ghostty terminal theme
 │
-├── theme-term-foot-dark/     # Foot terminal theme
-├── theme-term-ghostty-dark/  # Ghostty terminal theme
-├── theme-launch-fuzzel-dark/ # Fuzzel launcher theme
-├── theme-gtk/                # GTK theme settings
+├── 🛠️ Development Tools
+│   ├── editor-nvim/                Neovim configuration
+│   ├── fm-yazi/                    Yazi file manager
+│   ├── vcs-git/                    Git configuration
+│   └── browser-brave/              Brave browser settings
 │
-├── scripts/              # Utility scripts
-│   ├── dot-doctor            # System health checker
-│   ├── keyscan               # Keybinding docs
-│   ├── theme-switch          # Theme switcher
-│   ├── omarchy-menu-fuzzel   # Main menu
-│   └── power-menu-fuzzel     # Power options
+├── 🎨 Launchers & Utilities
+│   ├── theme-launch-fuzzel-dark/   Fuzzel launcher theme
+│   └── tools-topgrade/             System update configuration
 │
-└── docs/                 # Documentation
-    ├── CHANGELOG-v3.1.md # v3.1 changes
-    └── ...
+├── 📜 Scripts & Automation
+│   ├── scripts/
+│   │   ├── safe-update             Smart system updater
+│   │   ├── core-protect            Immutable lock/unlock
+│   │   ├── theme-switch            Theme management
+│   │   └── dot-doctor              Health checker
+│   │
+│   ├── automation/                 Manual-trigger scripts
+│   └── hooks/                      Git hooks
+│
+├── 📚 Documentation
+│   ├── docs/
+│   │   ├── CHANGELOG-v3.1.md       v3.1 changes
+│   │   ├── CHANGELOG-v3.2.md       v3.2 changes
+│   │   ├── PASSWORD-SOLUTION.md    Lessons learned
+│   │   └── ...
+│   │
+│   ├── README.md                   This file
+│   ├── COMPLETE_GUIDE.md           Comprehensive guide
+│   └── VERSION                     3.2.0
+│
+└── 🔧 System Configuration
+    ├── system/                     System-level configs
+    ├── packages/                   Package lists
+    └── installation/               Install scripts
 ```
-
-### 🎨 **Stow-Based Management**
-
-This setup uses [GNU Stow](https://www.gnu.org/software/stow/) for symlink management:
-
-```bash
-# Stow a package (creates symlinks)
-stow wm-hypr
-
-# Unstow (removes symlinks)
-stow -D wm-hypr
-
-# Restow (refresh symlinks)
-stow -R wm-hypr
-
-# Deploy everything
-./deploy.sh
-```
-
-**Why Stow?**
-
-- ✅ Clean separation (each app is a "package")
-- ✅ Easy rollback (unstow anytime)
-- ✅ Version control friendly
-- ✅ No manual symlink management
 
 ---
 
-## 🚀 Instant Navigation (Yazi Teleports)
+## ✨ **Key Features**
 
-**NEW in v3.1.0!** Press `g` + key for instant jumps:
+### **🔒 Immutable Core Protection**
 
-### **Top-Level Directories:**
+Prevent accidental configuration changes with filesystem-level protection:
+
+```bash
+lock-core              # 🔒 Make 0-core immutable (chattr +i)
+unlock-core            # 🔓 Temporarily unlock for editing
+edit-core shell-fish   # 📝 Auto-unlock, edit, re-lock
+core-status            # 📊 Check protection state
+```
+
+**How it works:**
+
+- Uses Linux `chattr +i` (filesystem immutability)
+- Protects against accidental `rm`, `mv`, modifications
+- Requires explicit unlock for edits
+- Auto-relock after editing
+
+---
+
+### **🔄 Smart Update System**
+
+Learn from mistakes. No more boot-time automation disasters.
+
+```bash
+safe-update            # Smart system update with auto-recovery
+weekly-check           # Manual maintenance prompt (YOU control)
+```
+
+**Features:**
+
+- ✅ Auto-detects yay library issues
+- ✅ Auto-rebuilds on failure
+- ✅ Pre/post snapshots (Btrfs + Snapper)
+- ✅ Checks for .pacnew files
+- ✅ Post-update health verification
+- ✅ **MANUAL-ONLY** (no systemd timers!)
+
+**Lesson learned:** After 12 hours debugging a boot-time systemd timer that broke sudo, we committed to **manual control only**. YOU decide when updates run.
+
+---
+
+### **🚀 Instant Navigation (Yazi Teleports)**
+
+Press `g` + key for instant directory access:
+
+**Top-Level Structure:**
 
 - `g+0` → Core configs (~/0-core)
 - `g+1` → Source code (~/1-src)
@@ -135,329 +166,372 @@ stow -R wm-hypr
 - `g+9` → Temporary (~/9-temp)
 - `g+s` → Secrets (~/secrets)
 
-### **Config Quick Access:**
+**Config Quick Access:**
 
-- `g+h` → Hyprland config (wm-hypr)
+- `g+h` → Hyprland (wm-hypr)
 - `g+f` → Fish shell (shell-fish)
 - `g+n` → Neovim (editor-nvim)
 - `g+w` → Waybar (bar-waybar)
 - `g+y` → Yazi config (fm-yazi)
 - `g+c` → System config (~/.config)
 
-**One keystroke to any directory!** 🎯
+**One keystroke to anywhere!** 🎯
 
 ---
 
-## 🛠️ Core Tools
-
-### **Why These Specific Tools?**
-
-Every tool was chosen after extensive testing for **native Wayland support**, **minimal resource usage**, and **reliability**. No X11 compatibility layers, no bloat.
-
-### 🦶 **Foot** - Primary Terminal
-
-- **Why:** Native Wayland, 2ms startup (vs Kitty's 50ms), 5-10MB RAM
-- **Perfect for:** Quick commands, daily terminal work
-- **Config:** `theme-term-foot-dark/.config/foot/foot.ini`
-
-### 👻 **Ghostty** - Backup Terminal
-
-- **Why:** Modern, native Wayland, feature-rich when needed
-- **Use case:** Complex workflows, advanced features
-- **Config:** `theme-term-ghostty-dark/.config/ghostty/config`
-
-### 🚀 **Fuzzel** - Application Launcher
-
-- **Why:** Native Wayland, instant response, no click issues (Rofi had problems)
-- **Keybind:** `SUPER+SPACE`
-- **Config:** `theme-launch-fuzzel-dark/.config/fuzzel/fuzzel.ini`
-
-### 📁 **Yazi** - Primary File Manager (TUI)
-
-- **Why:** Blazing fast, keyboard-driven, powerful
-- **Keybind:** `SUPER+E` or just type `yazi`
-- **Features:**
-  - Vim-style navigation
-  - 14 instant teleports (g+0 through g+s)
-  - Integrated Meld for diffs (`SUPER ALT+cm`)
-  - No GUI bloat needed!
-
-### 📋 **Cliphist** - Clipboard History
-
-- **Why:** Native Wayland, lightweight, essential productivity tool
-- **Keybind:** `SUPER+V`
-- **Usage:** Never lose clipboard content again!
-
-### 🎨 **Hyprpicker** - Color Picker
-
-- **Why:** Built for Hyprland, instant color grabbing
-- **Keybind:** `SUPER SHIFT+C`
-- **Usage:** Click any pixel, color copied to clipboard
-
-### 📄 **Zathura** - PDF Viewer
-
-- **Why:** Minimal, vim-like, 5MB vs Evince's 40MB
-- **Default:** Opens all PDFs automatically
-
-### 🔄 **Topgrade** - System Updater
-
-- **Why:** Updates everything (pacman, AUR, flatpak, etc.) in one command
-- **Usage:** `topgrade` or via Omarchy menu
-
----
-
-## 🔧 Utilities & Scripts
-
-### 🏥 **dot-doctor** - System Health Checker
-
-Validates your entire system setup:
+### **🏥 Health Monitoring**
 
 ```bash
-dot-doctor
+dot-doctor             # Complete system health check
 ```
 
-**Checks:**
+**Validates:**
 
-- ✅ All required packages installed
-- ✅ Stow packages deployed correctly
-- ✅ Config files exist
-- ✅ Scripts are executable
+- ✅ All stow packages properly deployed
+- ✅ Yazi plugins installed
 - ✅ No broken symlinks
+- ✅ System services running
+- ✅ Binary dependencies present
 - ✅ Git repository health
+- ✅ Theme packages present
+- ✅ Scripts executable
 
-**Output:** Clear report with issues and fixes
+**Target:** 100% health, always.
 
 ---
 
-### 🔍 **keyscan** - Keybinding Documentation
+### **🔐 Security Hardened (73% Lynis)**
 
-Auto-generates keybinding reference from your config:
+Enterprise-level security for a desktop system:
 
-```bash
-keyscan
+```
+✅ LUKS2 full disk encryption
+✅ UFW firewall (configured)
+✅ fail2ban intrusion prevention
+✅ DNSOverTLS (Quad9)
+✅ Mullvad VPN integration
+✅ Secure boot practices
+✅ Manual-control philosophy (no surprise automation)
 ```
 
-**Features:**
-
-- Scans `bindings.conf`
-- Extracts all keybindings
-- Formats as readable markdown
-- Perfect for learning your own system!
+**73% Lynis score** = Excellent for personal desktop!
 
 ---
 
-### 🎨 **theme-switch** - Theme Switcher
-
-Switch between dark/light themes instantly:
-
-```bash
-theme-switch dark
-theme-switch light
-```
-
-**Updates:**
-
-- Foot colors
-- Ghostty theme
-- Fuzzel theme
-- Hyprland borders
-- GTK theme
-- Mako notifications
-
----
-
-## ⌨️ Key Keybindings
-
-### **System**
-
-- `SUPER+Q` - Close window
-- `SUPER+M` - Exit Hyprland
-- `SUPER+ALT+SPACE` - Omarchy menu
-- `SUPER+ESCAPE` - Power menu
-
-### **Applications**
-
-- `SUPER+RETURN` - Terminal (Foot)
-- `SUPER+SPACE` - App launcher (Fuzzel)
-- `SUPER+E` - File manager (Yazi)
-- `SUPER+B` - Browser (Brave)
-
-### **Utilities**
-
-- `SUPER+V` - Clipboard history
-- `SUPER SHIFT+C` - Color picker
-- `SUPER SHIFT+S` - Screenshot (grim + slurp)
-
-### **Workspaces**
-
-- `SUPER+[1-9]` - Switch workspace
-- `SUPER SHIFT+[1-9]` - Move window to workspace
-
-**Full list:** Run `keyscan` for complete documentation!
-
----
-
-## 🚀 Installation
+## 🚀 **Quick Start**
 
 ### **Prerequisites**
 
 - Arch Linux (or Arch-based distro)
-- Basic familiarity with terminal
+- Git installed
+- Basic terminal familiarity
 
-### **Step 1: Clone Repository**
+---
+
+### **Installation**
+
+#### **Step 1: Clone Repository**
 
 ```bash
-git clone https://github.com/WidkidoneR2/dotfiles.git ~/0-core
+# Clone to 0-core (not "dotfiles"!)
+git clone https://github.com/WidkidoneR2/0-core.git ~/0-core
 cd ~/0-core
 ```
 
-### **Step 2: Install Packages**
+#### **Step 2: Install Packages**
 
 ```bash
 # Install from package list
-sudo pacman -S --needed - < pkglist.txt
+sudo pacman -S --needed - < packages/pkglist.txt
 
 # Install AUR helper (if not installed)
 git clone https://aur.archlinux.org/yay.git
 cd yay && makepkg -si
 ```
 
-### **Step 3: Deploy Dotfiles**
+#### **Step 3: Setup SSH Keys (Recommended)**
+
+```bash
+# Generate SSH key
+ssh-keygen -t ed25519 -C "your-email@example.com"
+
+# Add to ssh-agent
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+
+# Copy public key
+cat ~/.ssh/id_ed25519.pub
+# Add to GitHub: https://github.com/settings/keys
+
+# Update remote to SSH
+git remote set-url origin git@github.com:WidkidoneR2/0-core.git
+```
+
+#### **Step 4: Deploy Configurations**
 
 ```bash
 cd ~/0-core
 
-# Deploy all packages
-./deploy.sh
+# Deploy all packages with stow
+./install.sh
 
-# Or manually with stow
-stow wm-hypr bar-waybar notif-mako shell-fish editor-nvim fm-yazi
-stow vcs-git prompt-starship browser-brave theme-gtk
-stow theme-term-foot-dark theme-term-ghostty-dark theme-launch-fuzzel-dark
+# Or manually select packages:
+stow wm-hypr bar-waybar notif-mako shell-fish editor-nvim fm-yazi \
+     vcs-git prompt-starship browser-brave theme-gtk \
+     theme-term-foot-dark theme-term-ghostty-dark \
+     theme-launch-fuzzel-dark tools-topgrade
 ```
 
-### **Step 4: Validate Setup**
+#### **Step 5: Validate & Reload**
 
 ```bash
+# Run health check
 dot-doctor
+
+# Should show 100% - fix any issues reported
+
+# Reload Hyprland
+hyprctl reload
+
+# Or log out and back in
 ```
 
-Fix any issues reported!
+---
 
-### **Step 5: Reload Hyprland**
+## 🎯 **Core Commands**
+
+### **System Management**
 
 ```bash
-hyprctl reload
+safe-update            # Smart system update
+dot-doctor             # Health check
+sync-0-core            # Git pull/push
+```
+
+### **Configuration Management**
+
+```bash
+lock-core              # Protect configs
+unlock-core            # Allow editing
+edit-core <package>    # Edit with auto-lock
+core-status            # Check lock status
+```
+
+### **Maintenance**
+
+```bash
+weekly-check           # Manual maintenance prompt
+topgrade               # Full system update
 ```
 
 ---
 
-## 🎯 Features
+## 📚 **Documentation**
 
-### ✨ **Highlights**
-
-- **Hybrid Architecture:** Numbered directories for instant navigation
-- **Semantic Naming:** Clear package names (wm-hypr, shell-fish, etc.)
-- **Native Wayland:** Zero X11 dependencies
-- **Minimal Bloat:** ~437MB freed vs previous setup
-- **Instant Teleports:** 14 Yazi bindings for one-key navigation
-- **Modular Config:** Easy to understand and modify
-- **Health Checks:** dot-doctor validates everything
-- **Auto Documentation:** keyscan generates keybinding reference
-
-### 🔐 **Security Hardened**
-
-- LUKS2 full disk encryption
-- UFW firewall configured
-- fail2ban intrusion prevention
-- DNSOverTLS with Quad9
-- Mullvad VPN integration
-
-### 🎨 **Theming**
-
-- Complete Faelight Forest aesthetic
-- Coordinated colors across all apps
-- Easy theme switching (dark/light)
-- Wallpaper-based theme generation
-
-### ⚡ **Performance**
-
-- Foot: 2ms terminal startup
-- Fuzzel: Instant app launching
-- Native Wayland: Smooth animations
-- Minimal RAM usage across all tools
+- **README.md** (this file) - Overview and quick start
+- **COMPLETE_GUIDE.md** - Comprehensive documentation
+- **docs/CHANGELOG-v3.1.md** - v3.1.0 transformation details
+- **docs/CHANGELOG-v3.2.md** - v3.2.0 smart updates
+- **docs/PASSWORD-SOLUTION.md** - Lessons learned (12-hour debug!)
+- **docs/KEYBINDINGS.md** - All keyboard shortcuts
+- **docs/MELD_GUIDE.md** - Config comparison workflow
 
 ---
 
-## 📝 What's New in v3.1.0
+## 🎨 **The Transformation Story**
 
-### **Hybrid Architecture**
+### **v1.0 - v2.8: The "Dotfiles" Era**
 
-- Renamed `~/dotfiles` → `~/0-core` for numbered priority
-- Created numbered top-level structure (1-src, 2-work, 3-keep, 9-temp)
-- Protected core configuration directory
+- Generic structure
+- Unclear organization
+- Hidden automation
+- Password issues from boot-time timers
 
-### **Semantic Package Naming**
+### **v3.0: Foundation**
 
-All packages renamed for clarity:
+- Major cleanup
+- Tokyo Night theming
+- Security hardening
 
-- Window manager: `wm-hypr`
-- Shell: `shell-fish`
-- Editor: `editor-nvim`
-- File manager: `fm-yazi`
-- Status bar: `bar-waybar`
-- Notifications: `notif-mako`
-- Version control: `vcs-git`
-- Prompt: `prompt-starship`
-- Browser: `browser-brave`
-- Themes: `theme-term-*`, `theme-launch-*`, `theme-gtk`
+### **v3.1: The Great Transformation** (December 14, 2025)
 
-### **Yazi Navigation Revolution**
+- 18+ hours of focused work
+- 12 hours debugging password issue (systemd timers at boot)
+- Renamed `~/dotfiles` → `~/0-core`
+- Created numbered structure (0-9)
+- Semantic package naming (105 files renamed)
+- 14 Yazi instant teleports
+- Immutable protection added
+- Complete documentation overhaul
+- **Lesson learned:** Manual control > automation
 
-- 14 instant teleports (g+0 through g+s)
-- Muscle-memory friendly number keys
-- Direct config access (g+h, g+f, g+n, etc.)
+### **v3.2: Smart Systems** (December 16, 2025)
 
-**See:** `docs/CHANGELOG-v3.1.md` for complete details
+- Final "dotfiles" purge (59 → 6 references)
+- Smart update system (auto-recovery)
+- Enhanced README (you're reading it!)
+- Comprehensive documentation
+- Manual-only philosophy cemented
 
 ---
 
-## 🤝 Contributing
+## 🌟 **Why 0-Core is Different**
 
-Improvements welcome! Please:
+**It's not just configs. It's a philosophy:**
+
+1. **Intentional Naming**
+   - Not "dotfiles" (generic)
+   - "0-core" (meaningful, hierarchical)
+
+2. **Numbered Priority**
+   - 0 = most important (configs)
+   - 1-3 = active work
+   - 9 = disposable
+
+3. **Semantic Clarity**
+   - Not "hypr" → "wm-hypr" (window manager)
+   - Not "fish" → "shell-fish" (shell)
+   - Self-documenting structure
+
+4. **Protected Core**
+   - Immutable by default
+   - Explicit unlock required
+   - Prevents accidents
+
+5. **Manual Control**
+   - No boot automation
+   - No surprise updates
+   - YOU decide when things run
+
+6. **Lessons Learned**
+   - Born from 12 hours of password debugging
+   - Every feature has a reason
+   - Every decision documented
+
+---
+
+## 🤝 **Contributing**
+
+This is a personal configuration repository, but improvements welcome!
+
+**If contributing:**
 
 1. Test changes thoroughly
 2. Run `dot-doctor` before committing
 3. Update documentation
-4. Follow existing code style
+4. Follow semantic naming conventions
+5. Maintain manual-control philosophy
 
 ---
 
-## 📜 License
+## 📜 **License**
 
 MIT License - See LICENSE file
 
 ---
 
-## 🙏 Acknowledgments
+## 🙏 **Acknowledgments**
 
-- Hyprland community
-- Arch Linux community
-- All the tool developers
-- Everyone who values quality over quantity
-
----
-
-## 📚 Resources
-
-- [Hyprland Wiki](https://wiki.hyprland.org/)
-- [Arch Wiki](https://wiki.archlinux.org/)
-- [GNU Stow Manual](https://www.gnu.org/software/stow/manual/)
+- **Hyprland Community** - Amazing Wayland compositor
+- **Arch Linux Community** - Best distro
+- **The 12-Hour Password Debug** - Taught us the value of manual control
+- **Everyone who values intentionality over automation**
 
 ---
 
-**Built with ❤️ and a commitment to quality.**
+## 💡 **Philosophy in Practice**
 
-**No bloat. No compromises. Just tools that work.**
+### **The Password Incident (December 14, 2025)**
 
-🌲 **Faelight Forest v3.1.0** - _Hybrid Architecture for the perfect system_
+**Problem:** Sudo authentication mysteriously broke after every reboot.
+
+**Root Cause:** Systemd user timers (`dotfiles-backup.timer`) running at boot, attempting sudo without credentials, triggering faillock.
+
+**Solution:** Disabled boot-time automation entirely. Created manual-trigger scripts with confirmation prompts.
+
+**Lesson:** Automation is convenient until it breaks mysteriously. Manual control is predictable, debuggable, and safe.
+
+**Result:** Every automation in 0-core now requires explicit user trigger. No surprises. No mysteries. Just tools you control.
+
+---
+
+### **The Architecture Decision**
+
+**Why numbered directories?**
+
+Because priorities should be obvious at a glance:
+
+- **0** = Core configs (protect at all costs)
+- **1** = Source code (active development)
+- **2** = Work (current projects)
+- **3** = Keep (important but not active)
+- **9** = Temp (can be deleted anytime)
+
+**Why semantic packages?**
+
+Because `wm-hypr` is clearer than `hypr`:
+
+- New users instantly understand purpose
+- Self-documenting codebase
+- Easy to navigate and maintain
+- Professional presentation
+
+---
+
+## 🎯 **What's Next?**
+
+**Planned for v3.3:**
+
+- Auto-versioning system (track package changes)
+- Dynamic welcome message (shows latest updates)
+- Enhanced dotctl wrapper (easy management)
+- Package metadata system (.dotmeta files)
+
+**Maybe later:**
+
+- Environment profiles (work/gaming/dev)
+- Enhanced security monitoring
+- Additional Lynis improvements
+
+**Or just enjoy using a perfect system!** ✨
+
+---
+
+## 🌲 **Built with ❤️ and Lessons Learned**
+
+**0-Core is not just configuration management.**
+
+**It's a testament to:**
+
+- Perseverance (18+ hours, never gave up)
+- Intentionality (every decision documented)
+- Clarity (numbered, semantic, obvious)
+- Control (manual > automatic)
+- Growth (learning from 12-hour debugs)
+
+**This is your system. You control it. It doesn't control you.**
+
+---
+
+**Made with 🌲 by Christian**
+
+**github.com/WidkidoneR2/0-core**
+
+_"From dotfiles to 0-core. From chaos to order. From automation to intention."_
+
+---
+
+## 📊 **Stats**
+
+```
+Project Age:        ~1 year (dotfiles era) + 2 days (0-core transformation)
+Total Commits:      100+
+Lines of Config:    10,000+
+Packages Managed:   22
+Scripts Created:    15+
+Documentation:      5,000+ lines
+Time Investment:    Countless hours of perfection
+Lessons Learned:    Priceless
+```
+
+**Current Status:** 100% Health, 73% Security, Infinite Pride 🏆

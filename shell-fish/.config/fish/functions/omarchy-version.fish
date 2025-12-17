@@ -6,7 +6,7 @@ function omarchy-version --description "Show complete Omarchy version info"
     # Base system
     echo "Base OS:     Omarchy v3.2.2"
 
-    # Faelight Forest dotfiles
+    # Faelight Forest 0-core
     set -l version_file ~/0-core/VERSION
     if test -f $version_file
         set -l ff_version (cat $version_file)
@@ -15,7 +15,7 @@ function omarchy-version --description "Show complete Omarchy version info"
         echo "Dotfiles:    VERSION file not found"
     end
 
-    # Last dotfiles update
+    # Last config update
     pushd ~/0-core >/dev/null
     set -l last_commit (git log -1 --format="%s" 2>/dev/null)
 

@@ -2,7 +2,7 @@
 # Faelight Forest Theme Switcher
 # Usage: theme-switch.sh [dark|light|toggle|status]
 
-THEMES_DIR="$HOME/dotfiles/themes"
+THEMES_DIR="$HOME/0-core/themes"
 CURRENT_FILE="$THEMES_DIR/current.txt"
 
 # Get color from theme JSON

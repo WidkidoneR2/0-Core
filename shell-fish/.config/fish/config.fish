@@ -166,8 +166,7 @@ alias gclean='git clean -fd'
 alias gcl='git clone'
 
 # Dotfiles management
-alias dotfiles='cd ~/0-core'
-alias dotsave='cd ~/0-core && git add -A && git commit -m "Update dotfiles" && git push'
+alias dotsave='cd ~/0-core && git add -A && git commit -m "Update configs" && git push'
 alias dotpull='cd ~/0-core && git pull'
 alias dotlog='cd ~/0-core && git log --oneline -10'
 
@@ -361,12 +360,12 @@ alias planning='cd ~/0-core/docs/planning && ls'
 # alias theme='~/0-core/scripts/theme-switch status'
 
 # Dotfiles management
-alias dotfiles='cd ~/0-core'
+alias 0-core='cd ~/0-core'
 alias dotbackup='cd ~/0-core && ./backup.sh'
-alias dotpush='cd ~/0-core && git add -A && git commit -m "Update dotfiles $(date +%Y-%m-%d)" && git push'
+alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push'
 alias dotpull='cd ~/0-core && git pull && ./install.sh'
 alias dotstatus='cd ~/0-core && git status'
-alias sync-dotfiles='cd ~/0-core && git pull && git push'
+alias sync-0-core='cd ~/0-core && git pull && git push'
 
 # Faelight Forest Blueprint
 alias safe-update='~/.local/bin/safe-update'

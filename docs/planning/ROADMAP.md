@@ -63,7 +63,7 @@ Enhance dot-doctor → Enhance keyscan → Add New Tools → Automate → Docume
   function _check_git_status
       cd ~/0-core
       if test (git status --porcelain | wc -l) -gt 0
-          echo "⚠️  Uncommitted changes in dotfiles"
+          echo "⚠️  Uncommitted changes in 0-core"
       end
   end
 ````
@@ -155,7 +155,7 @@ Enhance dot-doctor → Enhance keyscan → Add New Tools → Automate → Docume
 **1. dot-diff - Visual Diff:**
 ````fish
 function dot-diff --argument package
-    # Compare current config vs dotfiles version
+    # Compare current config vs 0-core version
     if command -v meld &> /dev/null
         meld ~/.config/$package ~/0-core/$package/.config/$package
     else
@@ -199,7 +199,7 @@ function dot-update
     # 4. Run dot-doctor again
     dot-doctor
     
-    # 5. Update dotfiles
+    # 5. Update 0-core
     cd ~/0-core
     git pull
     
@@ -237,7 +237,7 @@ end
 **File:** `~/0-core/.git/hooks/pre-commit`
 ````bash
 #!/bin/bash
-# Validate dotfiles before commit
+# Validate 0-core before commit
 
 echo "Running dot-doctor..."
 fish -c dot-doctor || exit 1
@@ -403,7 +403,7 @@ Git Tag Snapshots (not YAML files)
 
 **Current Structure (Monolithic):**
 ````
-dotfiles/
+0-core/
 ├── fish/           # Config + aliases + functions + theme (all mixed)
 ├── hypr/           # Config + theme + machine-specific (all mixed)
 └── waybar/         # Structure + styling + modules (all mixed)
@@ -411,7 +411,7 @@ dotfiles/
 
 **Target Structure (Atomic):**
 ````
-dotfiles/
+0-core/
 ├── fish-base/              # Core config only
 ├── fish-aliases/           # Just aliases
 ├── fish-functions/         # Just functions  
@@ -714,12 +714,12 @@ import yaml
 import networkx as nx
 from pathlib import Path
 
-def build_dependency_graph(dotfiles_dir: Path) -> nx.DiGraph:
+def build_dependency_graph(0-core_dir: Path) -> nx.DiGraph:
     """Build directed graph of package dependencies."""
     G = nx.DiGraph()
     
     # Find all packages with metadata
-    for meta_file in dotfiles_dir.glob("**/.dotfile-meta.yaml"):
+    for meta_file in 0-core_dir.glob("**/.dotfile-meta.yaml"):
         with open(meta_file) as f:
             meta = yaml.safe_load(f)
         
@@ -787,10 +787,10 @@ def main():
         sys.exit(1)
     
     package = sys.argv[1]
-    dotfiles_dir = Path.home() / "dotfiles"
+    0-core_dir = Path.home() / "0-core"
     
     # Build graph
-    G = build_dependency_graph(dotfiles_dir)
+    G = build_dependency_graph(0-core_dir)
     
     # Check for cycles
     cycles = check_cycles(G)
@@ -877,7 +877,7 @@ end
 
 **Manifest Format:**
 ````yaml
-# dotfiles/manifest.yaml
+# 0-core/manifest.yaml
 
 profile: omarchy-laptop
 
@@ -1103,7 +1103,7 @@ v2.8.8 - Workflow Automation (Week of Dec 23-29)
 🛠️ Workflow Tools:
    - quick-note: Rapid note capture
    - project-init: Scaffold new projects
-   - config-diff: Compare current vs dotfiles
+   - config-diff: Compare current vs 0-core
    - restore-point: Create/restore system snapshots
 
 ⏰ Systemd Timers:
@@ -1180,7 +1180,7 @@ v2.9.2 - Additional App Integrations (Late January)
 v3.0.0 - Atomic Package System (February)
 
 📦 Package Restructuring:
-   dotfiles/
+   0-core/
    ├── core/              # Essential base
    │   ├── hypr/
    │   ├── fish/

@@ -1,0 +1,27 @@
+# ═══════════════════════════════════════════════════════════
+# 🔄 Topgrade Configuration - Smart & Safe
+# ═══════════════════════════════════════════════════════════
+
+[misc]
+assume_yes = false
+cleanup = true
+no_retry = false
+display_time = true
+skip_notify = true
+
+[linux]
+arch_package_manager = "yay"
+yay_arguments = "--devel --timeupdate"
+
+[git]
+# Auto-pull your git repos
+repos = ["~/0-core", "~/faelight-theme-engine"]
+
+# Use rebase to avoid divergence issues
+arguments = "--rebase --autostash"
+
+# Pull predefined repos automatically
+pull_predefined = true
+
+[firmware]
+# upgrade = true
