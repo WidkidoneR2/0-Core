@@ -1,0 +1,32 @@
+[package]
+name = "browser-brave"
+version = "1.0.0"
+description = "Brave browser theming and configuration"
+category = "browser"
+
+[changelog]
+"1.0.0" = "Initial Brave browser theme configuration"
+
+[files]
+managed = []
+
+[dependencies]
+requires = []
+optional = []
+
+[metadata]
+last_updated = "2025-12-17"
+author = "Christian"
+blast_radius = "low"
+
+[blast_impact]
+failure_modes = [
+    "Browser theme not applied",
+    "Custom settings lost"
+]
+recovery_path = "git restore browser-brave/"
+
+[retention]
+rarely_used = false
+justification = "Primary web browser configuration"
+review_date = ""

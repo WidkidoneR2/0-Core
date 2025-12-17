@@ -1,0 +1,34 @@
+[package]
+name = "vcs-git"
+version = "1.0.0"
+description = "Git configuration with aliases and settings"
+category = "tools"
+
+[changelog]
+"1.0.0" = "Git config with custom aliases and SSH setup"
+
+[files]
+managed = [
+    ".gitconfig"
+]
+
+[dependencies]
+requires = []
+optional = []
+
+[metadata]
+last_updated = "2025-12-17"
+author = "Christian"
+blast_radius = "low"
+
+[blast_impact]
+failure_modes = [
+    "Git aliases not available",
+    "Default git config used"
+]
+recovery_path = "git restore vcs-git/"
+
+[retention]
+rarely_used = false
+justification = "Essential for git workflow and version control"
+review_date = ""

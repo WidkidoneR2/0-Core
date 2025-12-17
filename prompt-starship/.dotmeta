@@ -1,0 +1,35 @@
+[package]
+name = "prompt-starship"
+version = "1.0.0"
+description = "Starship prompt configuration"
+category = "shell"
+
+[changelog]
+"1.0.0" = "Custom Starship prompt with git integration"
+
+[files]
+managed = [
+    ".config/starship.toml"
+]
+
+[dependencies]
+requires = ["shell-fish"]
+optional = []
+
+[metadata]
+last_updated = "2025-12-17"
+author = "Christian"
+blast_radius = "low"
+
+[blast_impact]
+failure_modes = [
+    "Prompt reverts to default",
+    "Visual information lost",
+    "Git status not displayed"
+]
+recovery_path = "git restore prompt-starship/"
+
+[retention]
+rarely_used = false
+justification = "Provides enhanced shell prompt with git integration"
+review_date = ""

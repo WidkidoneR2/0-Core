@@ -1,0 +1,34 @@
+[package]
+name = "theme-launch-fuzzel-dark"
+version = "1.0.0"
+description = "Tokyo Night theme for Fuzzel launcher"
+category = "theme"
+
+[changelog]
+"1.0.0" = "Tokyo Night dark theme for Fuzzel"
+
+[files]
+managed = [
+    ".config/fuzzel/fuzzel.ini"
+]
+
+[dependencies]
+requires = ["wm-hypr"]
+optional = []
+
+[metadata]
+last_updated = "2025-12-17"
+author = "Christian"
+blast_radius = "low"
+
+[blast_impact]
+failure_modes = [
+    "Launcher uses default theme",
+    "Visual inconsistency"
+]
+recovery_path = "git restore theme-launch-fuzzel-dark/"
+
+[retention]
+rarely_used = false
+justification = "Application launcher theme consistency"
+review_date = ""
