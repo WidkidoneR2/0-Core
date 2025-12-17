@@ -217,7 +217,6 @@ alias gclean='git clean -fd'
 alias gcl='git clone'
 
 # 0-core Management
-alias sync-0-core='cd ~/0-core && git pull && git push'
 alias dotsave='cd ~/0-core && git add -A && git commit -m "Update configs" && git push'
 alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push'
 alias dotstatus='cd ~/0-core && git status'
