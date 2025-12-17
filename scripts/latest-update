@@ -1,0 +1,27 @@
+#!/bin/bash
+# Find the most recently updated package from .dotmeta files
+
+LATEST_PKG=""
+LATEST_DATE=""
+LATEST_VERSION=""
+
+for dotmeta in ~/0-core/*/.dotmeta; do
+    if [ -f "$dotmeta" ]; then
+        PKG=$(dirname "$dotmeta")
+        PKG_NAME=$(basename "$PKG")
+        
+        # Get last_updated date
+        UPDATED=$(grep '^last_updated = ' "$dotmeta" | awk -F'"' '{print $2}')
+        VERSION=$(grep '^version = ' "$dotmeta" | head -1 | awk -F'"' '{print $2}')
+        
+        if [ -z "$LATEST_DATE" ] || [[ "$UPDATED" > "$LATEST_DATE" ]]; then
+            LATEST_DATE="$UPDATED"
+            LATEST_PKG="$PKG_NAME"
+            LATEST_VERSION="$VERSION"
+        fi
+    fi
+done
+
+if [ -n "$LATEST_PKG" ]; then
+    echo "$LATEST_PKG v$LATEST_VERSION (updated $LATEST_DATE)"
+fi

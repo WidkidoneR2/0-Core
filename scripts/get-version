@@ -1,0 +1,19 @@
+#!/bin/bash
+# Get package version from .dotmeta
+
+PACKAGE="$1"
+
+if [ -z "$PACKAGE" ]; then
+    echo "Usage: get-version <package-name>"
+    exit 1
+fi
+
+DOTMETA_FILE="$HOME/0-core/$PACKAGE/.dotmeta"
+
+if [ ! -f "$DOTMETA_FILE" ]; then
+    echo "unknown"
+    exit 0
+fi
+
+# Extract version using grep/awk
+grep '^version = ' "$DOTMETA_FILE" | head -1 | awk -F'"' '{print $2}'
