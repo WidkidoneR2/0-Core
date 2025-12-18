@@ -6,12 +6,38 @@
 
 ---
 
-v3.3.1 (1.5-2 hrs): Blast Radius Awareness
+## 📋 **v3.3.2 PLAN FOR TOMORROW:**
 
-- Informational warnings
-- Foundation for enforcement
+````
+SESSION TIME: 1.5-2 hours (fresh, focused)
 
-📋 v3.3.2 - GITHUB POLISH PLAN:
+PHASE 1: Convert Config (45 min)
+├── Environment variables (5 min)
+├── All aliases (15 min - mostly copy/paste)
+├── Functions (25 min - careful conversion)
+   ├── ya (yazi cd-on-quit)
+   ├── weekly-check
+   ├── update-check
+   ├── notes/keepass launchers
+   └── fish_command_not_found equivalent
+
+PHASE 2: Test in Zsh (30 min)
+├── Launch zsh (don't switch default yet)
+├── Test aliases
+├── Test functions
+├── Test autosuggestions
+├── Test theme/colors
+├── Verify everything works
+
+PHASE 3: Switch & Document (15 min)
+├── chsh -s /usr/bin/zsh
+├── Update docs
+├── Version bump to v3.3.2
+├── Commit & push
+
+TOTAL: ~1.5-2 hours, DONE!
+
+📋 v3.3.3 - GITHUB POLISH PLAN:
 
 1. Screenshots (HIGH PRIORITY) 📸
    bash# Create screenshots directory:
@@ -54,7 +80,7 @@ Aliases Doc: Hybrid (auto-extract + manual enhance) ✅
 
 > Complete list of all aliases and functions in shell-fish
 
-**Last Updated:** Auto-generated on commit  
+**Last Updated:** Auto-generated on commit
 **Package:** shell-fish v3.3.0
 
 ---
@@ -66,7 +92,7 @@ lock-core          # Lock 0-core (immutable)
 unlock-core        # Unlock for editing
 edit-core <pkg>    # Edit package with auto-lock
 core-status        # Check lock status
-```
+````
 
 ## 🔄 Smart Updates
 
@@ -214,7 +240,7 @@ chmod +x hooks/pre-commit
 
 ---
 
-## 🎯 **v3.3.2 COMPLETE PLAN (2-3 HOURS):**
+## 🎯 **v3.3.3 COMPLETE PLAN (2-3 HOURS):**
 
 ### **Session Breakdown:**
 ```
@@ -286,14 +312,40 @@ Day 4: OPEN SOURCE! 🌍
 
 ## ✅ **IMMEDIATE TODO LIST:**
 
-### **For v3.3.1 (This Week):**
+## 📋 **v3.3.2 PLAN FOR TOMORROW:**
+```
 
-- Informational warnings
-- Foundation for enforcement
+SESSION TIME: 1.5-2 hours (fresh, focused)
+
+PHASE 1: Convert Config (45 min)
+├── Environment variables (5 min)
+├── All aliases (15 min - mostly copy/paste)
+├── Functions (25 min - careful conversion)
+├── ya (yazi cd-on-quit)
+├── weekly-check
+├── update-check
+├── notes/keepass launchers
+└── fish_command_not_found equivalent
+
+PHASE 2: Test in Zsh (30 min)
+├── Launch zsh (don't switch default yet)
+├── Test aliases
+├── Test functions
+├── Test autosuggestions
+├── Test theme/colors
+├── Verify everything works
+
+PHASE 3: Switch & Document (15 min)
+├── chsh -s /usr/bin/zsh
+├── Update docs
+├── Version bump to v3.3.2
+├── Commit & push
+
+TOTAL: ~1.5-2 hours, DONE!
 
 ```
 
-### **For v3.3.2 (Next Week):**
+### **For v3.3.4 (Next Week):**
 
 ```
 
@@ -349,23 +401,26 @@ markdown# 🎯 Alias Reference
 
 [... detailed for each alias ...]
 
-
 v3.4.0 (2-3 hrs): Policy Enforcement
-  - Safety gates
-  - Requirement checks
-  - --ack-critical overrides
-  - Basic temporal tracking
+
+- Safety gates
+- Requirement checks
+- --ack-critical overrides
+- Basic temporal tracking
 
 v3.5.0 (3-4 hrs): Temporal Intelligence
-  - Stability metrics
-  - Entropy tracking
-  - Predictive warnings
-  - Advanced safety analysis
+
+- Stability metrics
+- Entropy tracking
+- Predictive warnings
+- Advanced safety analysis
 
 v4.0.0: The Research Paper
-  - Academic documentation
-  - Published system design
-  - Community presentation
+
+- Academic documentation
+- Published system design
+- Community presentation
+
 ---
 
 **Current Status:** Version 3.3 Complete ✅
@@ -376,4 +431,7 @@ v4.0.0: The Research Paper
 
 _Last Updated: December 17, 2025_
 _Roadmap Version: 5.0 - Architectural Refinement_
+
+```
+
 ```
