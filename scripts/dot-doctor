@@ -122,6 +122,10 @@ fi
 # Check 6: Git Repository Health
 echo -e "${CYAN}📊 Checking Git repository health...${NC}"
 cd ~/0-core
+# Check 6: Git Repository Health
+echo -e "${CYAN}📊 Checking Git repository health...${NC}"
+cd ~/0-core
+git update-index --refresh >/dev/null 2>&1 # Refresh index cache
 git_issues=0
 
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
