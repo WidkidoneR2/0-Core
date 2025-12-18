@@ -1,0 +1,43 @@
+#!/bin/bash
+# Bump system-wide version (VERSION file, README, shell config)
+
+NEW_VERSION="$1"
+
+if [ -z "$NEW_VERSION" ]; then
+    echo "Usage: bump-system-version <new-version>"
+    echo ""
+    echo "Example: bump-system-version 3.3.3"
+    exit 1
+fi
+
+CORE_DIR="$HOME/0-core"
+
+# Get current version
+OLD_VERSION=$(cat "$CORE_DIR/VERSION" 2>/dev/null || echo "unknown")
+
+echo "🔄 Bumping system version: v$OLD_VERSION → v$NEW_VERSION"
+echo ""
+
+# Update VERSION file
+echo "$NEW_VERSION" > "$CORE_DIR/VERSION"
+echo "✅ Updated VERSION file"
+
+# Update shell config welcome message
+sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v$NEW_VERSION/" "$CORE_DIR/shell-zsh/.config/zsh/.zshrc"
+echo "✅ Updated shell-zsh config"
+
+# Update README.md (find any version references)
+# Match patterns like "Version: v3.3.2" or "**v3.3.2**" or just "v3.3.2"
+sed -i "s/Version: v[0-9]\+\.[0-9]\+\.[0-9]\+/Version: v$NEW_VERSION/g" "$CORE_DIR/README.md"
+sed -i "s/\*\*v[0-9]\+\.[0-9]\+\.[0-9]\+\*\*/\*\*v$NEW_VERSION\*\*/g" "$CORE_DIR/README.md"
+sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v$NEW_VERSION/g" "$CORE_DIR/README.md"
+echo "✅ Updated README.md"
+
+echo ""
+echo "🎉 System version bumped to v$NEW_VERSION"
+echo ""
+echo "Next steps:"
+echo "  1. Restow shell: stow -R shell-zsh"
+echo "  2. Review changes: git diff"
+echo "  3. Commit: git commit -am 'chore: Bump version to v$NEW_VERSION'"
+echo "  4. Push: git push"
