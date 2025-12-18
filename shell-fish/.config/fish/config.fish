@@ -471,7 +471,7 @@ if status is-interactive
     # Custom greeting with dynamic latest update
     echo ""
     set_color -o 00ff00
-    echo "🌲 Welcome to Faelight Forest v3.3.0!"
+    echo "🌲 Welcome to Faelight Forest v3.3.1!"
     set_color normal
 
     # Show latest package update (if script exists)
