@@ -1,1 +1,0 @@
-../../../dotfiles/fish/.config/fish/functions/set_fish_colors.fish
