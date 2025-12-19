@@ -1,4 +1,4 @@
-# 🌲 Faelight Forest v3.3.0 - 0-Core Hybrid Architecture
+# 🌲 Faelight Forest v3.3.2 - 0-Core Hybrid Architecture
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
@@ -9,6 +9,8 @@ A revolutionary approach to Linux configuration management built on **numbered p
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
 ![Security](https://img.shields.io/badge/Lynis-73%25-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
+
+> **Migration Note:** Switched from Fish to Zsh in v3.3.2 for better bash compatibility and open source accessibility. Fish config preserved in `archive/shell-fish` branch.
 
 ---
 
@@ -65,7 +67,7 @@ A revolutionary approach to Linux configuration management built on **numbered p
 │   └── theme-gtk/                  GTK theming
 │
 ├── 💻 Shell & Terminal
-│   ├── shell-fish/                 Fish shell configuration
+│   ├── shell-zsh/                  Zsh shell configuration
 │   ├── prompt-starship/            Starship prompt
 │   ├── theme-term-foot-dark/       Foot terminal theme
 │   └── theme-term-ghostty-dark/    Ghostty terminal theme
@@ -118,7 +120,7 @@ Prevent accidental configuration changes with filesystem-level protection:
 ```bash
 lock-core              # 🔒 Make 0-core immutable (chattr +i)
 unlock-core            # 🔓 Temporarily unlock for editing
-edit-core shell-fish   # 📝 Auto-unlock, edit, re-lock
+edit-core shell-zsh   # 📝 Auto-unlock, edit, re-lock
 core-status            # 📊 Check protection state
 ```
 
@@ -130,6 +132,26 @@ core-status            # 📊 Check protection state
 - Auto-relock after editing
 
 ---
+
+## 🐚 Shell Configuration
+
+**Primary Shell: Zsh** (v3.3.2+)
+
+- Professional bash-compatible shell
+- Fish-like features via plugins (autosuggestions, syntax highlighting)
+- Faelight Forest themed
+- Complete .zshrc with 188+ aliases
+
+**Note:** Legacy Fish configuration available in `archive/shell-fish` branch for reference.
+
+### Features:
+
+- 🎨 Faelight Forest color scheme
+- ⭐ Starship prompt
+- 🔍 zsh-autosuggestions (Fish-like)
+- 🎨 zsh-syntax-highlighting (custom colors)
+- 📦 188+ aliases and functions
+- 🔧 Professional development environment
 
 ### **🔄 Smart Update System**
 
