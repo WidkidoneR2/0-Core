@@ -1,7 +1,7 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 3.3 - Foundational Intelligence ✅  
-**Last Updated:** December 17, 2025  
+**Current Version:** 3.3.2 - Foundational Intelligence ✅  
+**Last Updated:** December 20, 2025  
 **Roadmap Version:** 5.0 - Architectural Refinement
 
 ---
@@ -9,39 +9,50 @@
 ## 📋 **v3.3.2 PLAN FOR TOMORROW:**
 
 ````
-SESSION TIME: 1.5-2 hours (fresh, focused)
+## v3.3.3 - GitHub Polish & Screenshots
 
-PHASE 1: Convert Config (45 min)
-├── Environment variables (5 min)
-├── All aliases (15 min - mostly copy/paste)
-├── Functions (25 min - careful conversion)
-   ├── ya (yazi cd-on-quit)
-   ├── weekly-check
-   ├── update-check
-   ├── notes/keepass launchers
-   └── fish_command_not_found equivalent
+### Overview
+Prepare repository for open source release with professional visual showcase and final polish.
 
-PHASE 2: Test in Zsh (30 min)
-├── Launch zsh (don't switch default yet)
-├── Test aliases
-├── Test functions
-├── Test autosuggestions
-├── Test theme/colors
-├── Verify everything works
+### Sessions
+**Session 1 (COMPLETE - 1 hour):**
+- ✅ Archived Fish to archive/shell-fish branch
+- ✅ Removed shell-fish from main
+- ✅ Created MIGRATION.md
+- ✅ Updated README.md
 
-PHASE 3: Switch & Document (15 min)
-├── chsh -s /usr/bin/zsh
-├── Update docs
-├── Version bump to v3.3.2
-├── Commit & push
+**Session 2 (1.5 hours - Tomorrow):**
+- Take professional screenshots (5-6 total)
+  - Desktop overview (Hyprland + Waybar)
+  - Terminal welcome (Zsh + Faelight)
+  - dotctl status (package management)
+  - dot-doctor (100% health)
+  - Yazi file manager
+- Optimize images (<500KB each)
+- Add to README with descriptions
+- Commit & push
 
-TOTAL: ~1.5-2 hours, DONE!
+**Session 3 (1 hour - Tomorrow):**
+- Repository cleanup (temp files, .gitignore check)
+- Documentation final pass (Zsh references)
+- Version bump to v3.3.3 (using bump-system-version)
+- Final commit & verification
+- Health check 100%
 
-📋 v3.3.3 - GITHUB POLISH PLAN:
+### Deliverables
+- Professional screenshots
+- Clean repository structure
+- Updated documentation
+- Open source ready
 
-1. Screenshots (HIGH PRIORITY) 📸
-   bash# Create screenshots directory:
-   mkdir -p docs/screenshots
+### Time Budget
+- Total: 3.5 hours
+- Completed: 1 hour (Session 1)
+- Remaining: 2.5 hours (Sessions 2 & 3)
+
+### Tools Ready
+- ✅ grim (screenshot capture)
+- ✅ slurp (area selection)
 
 # What to capture:
 
@@ -81,17 +92,305 @@ Aliases Doc: Hybrid (auto-extract + manual enhance) ✅
 > Complete list of all aliases and functions in shell-fish
 
 **Last Updated:** Auto-generated on commit
-**Package:** shell-fish v3.3.0
+
+
+## v3.3.4 - Quick Wins (Discipline Automation)
+
+### Overview
+Low-effort, high-value improvements that automate existing manual discipline and add awareness features.
+
+### Time Estimate
+1.5-2 hours total (single session or split into 2 shorter sessions)
+
+### Features
+
+**1. Immutable-by-Default Extension (30 min)**
+- Auto-lock after:
+  - `git pull` (via sync-0-core)
+  - `install.sh` completion
+  - `dotctl edit` completion
+- Implementation: Add lock-core calls to existing scripts
+- Benefit: Tightens existing discipline loop
+- Philosophy: You already do this manually, just automate it
+
+**2. Config Aging Report (30 min)**
+- Add to dot-doctor output
+- Show files not modified in:
+  - 30 days (informational)
+  - 90 days (review suggested)
+  - 1 year (cleanup candidate)
+- No enforcement, just awareness
+- Helps identify stale configuration
+- Example output:
+```
+  📅 Config Aging:
+     Recent (< 30 days):    42 files
+     Aging (30-90 days):    8 files
+     Stale (90+ days):      3 files
+     Ancient (1+ year):     1 file
+```
+
+**3. Intentional Defaults Checker (30-45 min)**
+- Extend dot-doctor to flag:
+  - Files without semantic names (e.g., "temp.txt", "new-file")
+  - Unnumbered directories (breaks 0-core philosophy)
+  - Packages without .dotmeta
+  - Packages without README
+- Passive enforcement of discipline
+- Catches drift before it spreads
+- Example output:
+```
+  🎯 Intentional Defaults:
+     ❌ Found non-semantic filename: temp.txt
+     ❌ Unnumbered directory: random-stuff/
+     ✅ All packages have .dotmeta
+     ⚠️  Package missing README: tools-misc
+```
+
+**4. Documentation Updates (15 min)**
+- Update THEORY_OF_OPERATION.md
+- Add to POLICIES.md
+- Commit and push
+
+### Deliverables
+- Auto-locking after key operations
+- Aging awareness in dot-doctor
+- Intentional defaults enforcement
+- Updated documentation
+
+### Philosophy Alignment
+- ✅ Awareness, not automation
+- ✅ Discipline enforcement without force
+- ✅ Tightens existing manual practices
+- ✅ Low complexity, high value
 
 ---
 
-## 🔒 Core Protection
+## v3.4.0 - core-diff (Major Feature)
 
-```fish
-lock-core          # Lock 0-core (immutable)
-unlock-core        # Unlock for editing
-edit-core <pkg>    # Edit package with auto-lock
-core-status        # Check lock status
+### Overview
+Package-aware diff tool that provides forest-level awareness to complement Meld's tree-level inspection. Answers "What should I care about right now?" rather than "What exactly changed?"
+
+### Time Estimate
+3-4 hours total (break into 2-3 sessions)
+
+### Concept
+
+**The Problem:**
+- Meld is excellent for line-by-line inspection
+- But requires knowing WHAT to inspect
+- No package-level awareness
+- No risk-based grouping
+- Manual hunting for changes
+
+**The Solution:**
+```
+Meld = microscopic (line-by-line inspection)
+core-diff = forest view (package-level awareness)
+
+Meld shows trees.
+core-diff shows the forest 🌲.
+```
+
+### Core Capabilities
+
+**1. Package-Level Awareness**
+```bash
+$ core-diff since v3.3.2
+
+Changes since v3.3.2:
+  [HIGH]   wm-hypr (3 files modified)
+  [MEDIUM] shell-zsh (1 file modified)
+  [LOW]    theme-gtk (2 files modified)
+
+  Untouched:
+  - editor-nvim
+  - system
+  - all other packages
+```
+
+**2. Risk-Based Grouping**
+- Reads blast_radius from .dotmeta
+- Groups changes by risk level (HIGH/MEDIUM/LOW)
+- Shows package context, not just files
+- Example:
+```bash
+  $ core-diff last
+
+  Last commit changes:
+  [HIGH] system/
+    - /etc/fstab
+    - /etc/sudoers
+
+  [MEDIUM] shell-zsh/
+    - .config/zsh/.zshrc (aliases)
+
+  [LOW] theme-gtk/
+    - .config/gtk-3.0/colors.css
+```
+
+**3. Working Tree Awareness**
+```bash
+$ core-diff working-tree
+
+Uncommitted changes detected:
+  - bar-waybar/config.jsonc
+  - scripts/safe-update
+
+Packages affected: 2
+Risk level: MEDIUM
+Action: Review and commit or discard
+```
+
+**4. Summary Mode**
+```bash
+$ core-diff summary
+
+Files changed:     6
+Packages touched:  3
+Risk level:        MEDIUM
+System impact:     None
+Git commits:       2 since last tag
+
+High-risk changes: None
+Medium-risk:       bar-waybar, shell-zsh
+Low-risk:          theme-gtk
+```
+
+**5. Meld Integration**
+```bash
+$ core-diff wm-hypr --open meld
+# Opens Meld on EXACTLY the changed files in wm-hypr
+
+Workflow:
+1. core-diff since last-release  → "wm-hypr changed"
+2. core-diff wm-hypr             → See specific files
+3. core-diff wm-hypr --open meld → Inspect with Meld
+
+Awareness → Decision → Inspection
+```
+
+### Implementation Phases
+
+**Phase 1: Core Functionality (2 hours)**
+- Read git diff output
+- Parse package boundaries (stow structure)
+- Group changes by package
+- Read blast_radius from .dotmeta
+- Color-coded output (HIGH=red, MEDIUM=yellow, LOW=blue)
+- Basic commands:
+  - `core-diff` (show all changes)
+  - `core-diff <package>` (show package changes)
+  - `core-diff since <ref>` (show changes since tag/commit)
+
+**Phase 2: Advanced Features (1 hour)**
+- `--open meld` flag
+- `working-tree` mode
+- `summary` mode
+- Risk level calculation
+- Enhanced output formatting
+
+**Phase 3: Polish & Documentation (1 hour)**
+- Comprehensive testing
+- README section
+- THEORY_OF_OPERATION update
+- Usage examples
+- Integration with existing workflows
+
+### What core-diff Will NOT Do
+Philosophy alignment - keep it pure:
+- ❌ No auto-opening tools (user decides)
+- ❌ No auto-commits (manual control)
+- ❌ No git magic (transparent operation)
+- ❌ No guessing intent (present facts only)
+
+Only:
+- ✅ Read state
+- ✅ Present meaning
+- ✅ Exit cleanly
+
+### Usage Examples
+
+**Daily workflow:**
+```bash
+# Morning check
+$ core-diff working-tree
+# See what's uncommitted
+
+# Before committing
+$ core-diff summary
+# Understand scope of changes
+
+# Review specific package
+$ core-diff wm-hypr
+# See details
+
+# Open in Meld if needed
+$ core-diff wm-hypr --open meld
+# Deep inspection
+```
+
+**Release workflow:**
+```bash
+# What changed since last release?
+$ core-diff since v3.3.3
+
+# Get summary for changelog
+$ core-diff summary since v3.3.3
+
+# Review high-risk changes
+$ core-diff --high-risk
+```
+
+### Deliverables
+- `core-diff` script in ~/0-core/scripts/
+- Package-aware diff capability
+- Risk-based grouping
+- Meld integration
+- Comprehensive documentation
+- Updated workflows
+
+### Philosophy Alignment
+This perfectly matches existing patterns:
+```
+dot-doctor    ≠ fixing
+safe-update   ≠ blind updating
+lock-core     ≠ editing
+core-diff     ≠ inspecting
+
+Awareness first. Action second.
+```
+
+### Why This Is Transformative
+- Answers questions Meld can't without manual setup
+- Understands your package structure
+- Respects risk-based thinking
+- Integrates with existing tools
+- Catches drift automatically
+- Makes large refactors manageable
+
+**Quote from future you:**
+> "Once you have it, you'll never not want it —
+> because it matches how you already think."
+
+---
+
+## Future Considerations
+
+### v3.5.0+ Ideas (Not Yet Planned)
+- Temporal tracking (incident-free windows)
+- Advanced policy enforcement
+- Snapshot verification automation
+- Predictive warnings based on change patterns
+
+### Long-term Vision
+- Make 0-core a reference implementation
+- Share philosophy through documentation
+- Potential framework for others
+- Always: manual control, awareness over automation
+
+---
+
 ````
 
 ## 🔄 Smart Updates
@@ -312,43 +611,10 @@ Day 4: OPEN SOURCE! 🌍
 
 ## ✅ **IMMEDIATE TODO LIST:**
 
-## 📋 **v3.3.2 PLAN FOR TOMORROW:**
+## 📋 **v3.3.3 PLAN FOR TOMORROW:**
 ```
 
-SESSION TIME: 1.5-2 hours (fresh, focused)
-
-PHASE 1: Convert Config (45 min)
-├── Environment variables (5 min)
-├── All aliases (15 min - mostly copy/paste)
-├── Functions (25 min - careful conversion)
-├── ya (yazi cd-on-quit)
-├── weekly-check
-├── update-check
-├── notes/keepass launchers
-└── fish_command_not_found equivalent
-
-PHASE 2: Test in Zsh (30 min)
-├── Launch zsh (don't switch default yet)
-├── Test aliases
-├── Test functions
-├── Test autosuggestions
-├── Test theme/colors
-├── Verify everything works
-
-PHASE 3: Switch & Document (15 min)
-├── chsh -s /usr/bin/zsh
-├── Update docs
-├── Version bump to v3.3.2
-├── Commit & push
-
-TOTAL: ~1.5-2 hours, DONE!
-
 ```
-
-### **For v3.3.4 (Next Week):**
-
-```
-
 1. 📸 Take screenshots
 2. 📚 Create ALIASES.md
 3. 🧹 Polish all files
@@ -357,7 +623,7 @@ TOTAL: ~1.5-2 hours, DONE!
 
 ```
 
-### **For Open Source (After v3.3.2):**
+### **For Open Source (After v3.3.4):**
 
 ```
 
@@ -423,14 +689,15 @@ v4.0.0: The Research Paper
 
 ---
 
-**Current Status:** Version 3.3 Complete ✅
-**Next Action:** v3.3.1 - Theme Engine Foundation
+**Current Status:** Version 3.3.2 Complete ✅
 **Vision:** Infrastructure as Poetry 🌲✨
 
 ---
 
-_Last Updated: December 17, 2025_
+_Last Updated: December 20, 2025_
 _Roadmap Version: 5.0 - Architectural Refinement_
+
+```
 
 ```
 
