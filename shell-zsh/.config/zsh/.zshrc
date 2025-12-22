@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 3.3.2 - Zsh Migration Edition
+# Version 3.3.3 - Zsh Migration Edition
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -20,6 +20,10 @@ command_not_found_handler() {
     echo "💡 Check your spelling or install it with: paci $1"
     return 127
 }
+
+# Disable history expansion (fixes git commit message issues)
+setopt NO_BANG_HIST          # Don't treat ! specially
+setopt NO_HIST_EXPAND        # Don't expand history references
 
 # ═══════════════════════════════════════════════════════════
 # 🎨 ENVIRONMENT & PATH
