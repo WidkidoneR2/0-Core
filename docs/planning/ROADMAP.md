@@ -1,97 +1,92 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 3.3.2 - Foundational Intelligence ✅  
-**Last Updated:** December 20, 2025  
+**Current Version:** 3.3.3 - Foundational Intelligence ✅  
+**Last Updated:** December 21, 2025  
 **Roadmap Version:** 5.0 - Architectural Refinement
 
 ---
 
-## 📋 **v3.3.2 PLAN FOR TOMORROW:**
+## 📋 **v3.3.4 PLAN FOR TOMORROW:**
 
 ````
-## v3.3.3 - GitHub Polish & Screenshots
+⚡ Quick Wins - All in One Go
 
-### Overview
-Prepare repository for open source release with professional visual showcase and final polish.
+Phase 1: Auto-lock (30 min)
+├── Add lock-core to sync-0-core function
+├── Add lock-core to install.sh
+├── Test both work
+└── Git commit
 
-### Sessions
-**Session 1 (COMPLETE - 1 hour):**
-- ✅ Archived Fish to archive/shell-fish branch
-- ✅ Removed shell-fish from main
-- ✅ Created MIGRATION.md
-- ✅ Updated README.md
+Phase 2: Aging Report (30 min)
+├── Add aging check to dot-doctor
+├── Show files by age buckets
+├── Test output looks good
+└── Git commit
 
-**Session 2 (1.5 hours - Tomorrow):**
-- Take professional screenshots (5-6 total)
-  - Desktop overview (Hyprland + Waybar)
-  - Terminal welcome (Zsh + Faelight)
-  - dotctl status (package management)
-  - dot-doctor (100% health)
-  - Yazi file manager
-- Optimize images (<500KB each)
-- Add to README with descriptions
-- Commit & push
+Phase 3: Defaults Checker (30-45 min)
+├── Check for non-semantic filenames
+├── Check for unnumbered directories
+├── Flag missing .dotmeta
+├── Test all checks
+└── Git commit
 
-**Session 3 (1 hour - Tomorrow):**
-- Repository cleanup (temp files, .gitignore check)
-- Documentation final pass (Zsh references)
-- Version bump to v3.3.3 (using bump-system-version)
-- Final commit & verification
-- Health check 100%
+Phase 4: Documentation & Ship (15 min)
+├── Update THEORY_OF_OPERATION
+├── Update POLICIES if needed
+├── Version bump to v3.3.4
+├── Final commit & push
+└── Lock & celebrate!
 
-### Deliverables
-- Professional screenshots
-- Clean repository structure
-- Updated documentation
-- Open source ready
+TOTAL: 1.5-2 hours
+RESULT: High-value automation! ⚡
 
-### Time Budget
-- Total: 3.5 hours
-- Completed: 1 hour (Session 1)
-- Remaining: 2.5 hours (Sessions 2 & 3)
+🚀 v3.4.0 - core-diff (3 SESSIONS, 3-4 HOURS TOTAL)
 
-### Tools Ready
-- ✅ grim (screenshot capture)
-- ✅ slurp (area selection)
+📋 Planning Phase (30 min)
+├── Review requirements
+├── Understand git diff output format
+├── Map out package boundaries (stow structure)
+├── Design data structures
+├── Plan command structure
+└── Write pseudocode/outline
 
-# What to capture:
+🔧 Implementation Phase (60 min)
+├── Create scripts/core-diff skeleton
+├── Parse git diff output
+├── Identify changed packages
+├── Read .dotmeta for blast_radius
+├── Group changes by package
+└── Basic color-coded output
 
-1. Desktop overview (Hyprland + Waybar)
-2. dotctl status (blast radius colors)
-3. dot-doctor (100% health)
-4. Welcome message (dynamic version)
-5. Yazi navigation (teleports)
-6. Qutebrowser (Faelight theme)
-7. Terminal (Fish + Starship)
+🧪 Testing Phase (20 min)
+├── Test with sample changes
+├── Verify package detection
+├── Check color output
+└── Fix any bugs
 
-# Then add to README:
+📝 Documentation Phase (10 min)
+├── Add inline comments
+├── Document what works so far
+└── Commit progress
 
-## 📸 Screenshots: Later (will install tool when needed)
+DELIVERABLE:
+✅ core-diff shows basic package changes
+✅ Color-coded by risk level
+✅ Foundation solid for Session 2
 
-Format: PNG ✅
-Aliases Doc: Hybrid (auto-extract + manual enhance) ✅
+🎨 Mode Implementation (45 min)
+├── core-diff since <ref> (compare to tag/commit)
+├── core-diff working-tree (uncommitted changes)
+├── core-diff summary (stats overview)
+└── Risk level aggregation
 
-### Desktop
+🔧 Meld Integration (30 min)
+├── --open meld flag
+├── File selection logic
+├── Launch Meld with proper args
+└── Test the workflow
 
-![Desktop](docs/screenshots/desktop.png)
-
-### System Status
-
-![dotctl status](docs/screenshots/dotctl-status.png)
-
-### Health Check
-
-![dot-doctor](docs/screenshots/health.png)
-
-2. Aliases Documentation 📚
-   bash# Create comprehensive aliases reference:
-   cat > docs/ALIASES.md << 'EOF'
-
-# 🎯 Alias Reference - 0-Core
-
-> Complete list of all aliases and functions in shell-fish
-
-**Last Updated:** Auto-generated on commit
+🧪 Testing Phase (15
 
 
 ## v3.3.4 - Quick Wins (Discipline Automation)
@@ -588,33 +583,14 @@ TOTAL: 2.5-3 hours
 ## 📅 **REVISED TIMELINE:**
 ```
 
-THIS WEEK:
-Day 1-2: Test v3.3.0 features
-Day 3: v3.3.1 (Blast Radius) - 3-4 hrs
-Day 4-5: Use v3.3.1, prepare screenshots
-
-NEXT WEEK:
-Day 1: v3.3.2 (GitHub Polish) - 2.5-3 hrs
-├── Screenshots
-├── Aliases doc
-├── File polish
-├── Security updates
-└── Final review
-
-Day 2: Final testing
-Day 3: Privacy audit (one last check)
-Day 4: OPEN SOURCE! 🌍
-
-```
-
----
-
 ## ✅ **IMMEDIATE TODO LIST:**
 
 ## 📋 **v3.3.3 PLAN FOR TOMORROW:**
+
 ```
 
 ```
+
 1. 📸 Take screenshots
 2. 📚 Create ALIASES.md
 3. 🧹 Polish all files
@@ -625,13 +601,6 @@ Day 4: OPEN SOURCE! 🌍
 
 ### **For Open Source (After v3.3.4):**
 
-```
-
-1. 🔍 Final privacy audit
-2. 📝 Repository description
-3. 🏷️ Add GitHub topics
-4. 🌍 Make public
-5. 📢 Share on Reddit/HN
 
 💡 ALIASES.MD STRUCTURE PREVIEW:
 markdown# 🎯 Alias Reference
@@ -689,12 +658,12 @@ v4.0.0: The Research Paper
 
 ---
 
-**Current Status:** Version 3.3.2 Complete ✅
+**Current Status:** Version 3.3.3 Complete ✅
 **Vision:** Infrastructure as Poetry 🌲✨
 
 ---
 
-_Last Updated: December 20, 2025_
+_Last Updated: December 21, 2025_
 _Roadmap Version: 5.0 - Architectural Refinement_
 
 ```
