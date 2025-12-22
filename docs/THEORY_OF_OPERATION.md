@@ -2,8 +2,8 @@
 
 > How the system is SUPPOSED to work, what must ALWAYS be true, and what NEVER happens automatically.
 
-**Version:** 3.3.0  
-**Last Updated:** 2025-12-17  
+**Version:** 3.3.4  
+**Last Updated:** 2025-12-22  
 **Status:** Living Document
 
 ---
@@ -11,6 +11,7 @@
 ## Purpose
 
 This document explains:
+
 - **How** 0-core works at a fundamental level
 - **Why** design decisions were made
 - **What** invariants must always hold
@@ -18,6 +19,7 @@ This document explains:
 - **Where** to look when debugging
 
 **Audience:**
+
 - Future-you (6 months from now)
 - Contributors
 - People learning from this system
@@ -28,11 +30,13 @@ This document explains:
 ## Core Principles
 
 ### 1. Manual Control Over Automation
+
 **Principle:** YOU decide when things happen, the system doesn't decide for you.
 
 **Why:** 12-hour password incident proved automation at boot is unpredictable and dangerous.
 
 **Implementation:**
+
 - No systemd timers at boot
 - No cron jobs with sudo
 - All maintenance requires explicit trigger
@@ -43,11 +47,13 @@ This document explains:
 ---
 
 ### 2. Immutability of Core
+
 **Principle:** Configuration is protected by default, requires explicit unlock to edit.
 
 **Why:** Prevents accidental deletion, corruption, or unintended modification.
 
 **Implementation:**
+
 - `chattr +i ~/0-core` (filesystem immutable)
 - `lock-core` / `unlock-core` commands
 - `edit-core` with auto-lock
@@ -58,11 +64,13 @@ This document explains:
 ---
 
 ### 3. Git as Truth
+
 **Principle:** All configuration changes must be git-tracked.
 
 **Why:** Provides reversibility, auditability, and history.
 
 **Implementation:**
+
 - Every change committed
 - Clean git state required
 - dot-doctor checks for dirty tree
@@ -73,11 +81,13 @@ This document explains:
 ---
 
 ### 4. Health 100% Always
+
 **Principle:** System must maintain 100% health score.
 
 **Why:** Early detection prevents late debugging nightmares.
 
 **Implementation:**
+
 - dot-doctor validates 9 checks
 - Stow packages deployed correctly
 - No broken symlinks
@@ -89,11 +99,13 @@ This document explains:
 ---
 
 ### 5. Documentation = Code
+
 **Principle:** Documentation is as important as the code itself.
 
 **Why:** Future-you has no memory of current-you's decisions.
 
 **Implementation:**
+
 - Every decision documented
 - Every incident recorded
 - Every policy explained
@@ -108,9 +120,11 @@ This document explains:
 > These conditions MUST ALWAYS hold. If violated, the system is in an invalid state.
 
 ### Invariant 1: Manual Control
+
 **Rule:** No automation runs without explicit user trigger.
 
 **Verification:**
+
 ```bash
 # Check for systemd user timers
 systemctl --user list-timers
@@ -130,9 +144,11 @@ crontab -l
 ---
 
 ### Invariant 2: Immutability Protection
+
 **Rule:** 0-core is filesystem-immutable when locked.
 
 **Verification:**
+
 ```bash
 # Check lock status
 core-status
@@ -150,12 +166,44 @@ lsattr ~/0-core | head -1  # Should show 'i' flag
 
 **Origin:** Protection against catastrophic mistakes
 
+### Lock Reminders
+
+Scripts provide gentle reminders to lock 0-core after modifications:
+
+- `bump-system-version` shows lock as next step
+- Shell startup warns if 0-core is unlocked
+
+Philosophy: Gentle reminders, not forced automation. User maintains control.
+
+### Config Aging Report
+
+`dot-doctor` now tracks file modification age:
+
+- Recent (< 30 days)
+- Aging (30-90 days)
+- Stale (90-365 days)
+- Ancient (1+ year)
+
+Provides awareness without enforcement. Helps identify cleanup candidates.
+
+### Intentional Defaults Checker
+
+`dot-doctor` enforces discipline passively:
+
+- Flags non-semantic filenames
+- Checks for proper naming conventions
+- Verifies .dotmeta presence
+
+Awareness-based enforcement prevents drift over time.
+
 ---
 
 ### Invariant 3: Git Truth
+
 **Rule:** All changes must be git-tracked, git state must be clean.
 
 **Verification:**
+
 ```bash
 cd ~/0-core
 git status
@@ -174,9 +222,11 @@ dot-doctor
 ---
 
 ### Invariant 4: Health 100%
+
 **Rule:** System health score must be 100%.
 
 **Verification:**
+
 ```bash
 dot-doctor
 # Must show: "Health: 100%"
@@ -216,11 +266,12 @@ dot-doctor
 ## Architecture Overview
 
 ### Directory Structure
+
 ```
 ~/
 ├── 0-core/              # 🔒 Immutable configs (this repo)
 │   ├── wm-hypr/         # Desktop environment
-│   ├── shell-fish/      # Shell configuration
+│   ├── shell-zsh/      # Shell configuration
 │   ├── editor-nvim/     # Editor setup
 │   ├── scripts/         # Management scripts
 │   └── docs/            # Documentation
@@ -235,6 +286,7 @@ dot-doctor
 ```
 
 **Why numbered?**
+
 - Instant priority recognition
 - Muscle memory (g+0, g+1, g+2 in Yazi)
 - Clear hierarchy
@@ -255,6 +307,7 @@ dot-doctor
 **Detection:** Can't interact with system
 
 **Recovery:**
+
 ```bash
 # 1. Drop to TTY2
 Ctrl+Alt+F2
@@ -278,23 +331,24 @@ reboot
 
 ### High Failure: Broken Shell
 
-**Symptom:** Fish crashes on startup
+**Symptom:** Zsh crashes on startup
 
-**Cause:** shell-fish corruption (blast radius: high)
+**Cause:** shell-zsh corruption (blast radius: high)
 
 **Detection:** Error messages, can't use terminal
 
 **Recovery:**
+
 ```bash
 # 1. Drop to bash
 bash
 
 # 2. Restore config
 cd ~/0-core
-git restore shell-fish/
+git restore shell-zsh/
 
 # 3. Reload
-exec fish
+zsh
 ```
 
 **Prevention:** Test shell changes in separate session
@@ -310,6 +364,7 @@ exec fish
 **Detection:** Editor fails to open
 
 **Recovery:**
+
 ```bash
 # Restore config
 cd ~/0-core
@@ -324,6 +379,7 @@ nvim
 ---
 
 ## Dependency Graph
+
 ```
 CRITICAL (🔴):
   wm-hypr
@@ -349,6 +405,7 @@ LOW (🟢):
 ```
 
 **Blast Radius Impact:**
+
 - CRITICAL: System unusable
 - HIGH: Major functionality lost
 - MEDIUM: Important but not essential
@@ -363,17 +420,20 @@ LOW (🟢):
 **Decision:** Use numbers for priority hierarchy
 
 **Rationale:**
+
 - Instant visual recognition
 - Muscle memory navigation
 - Clear priority
 - Scales well
 
 **Alternatives Considered:**
+
 - Named categories (configs/, work/, archive/)
 - Flat structure (all in home)
 - XDG-only structure
 
 **Why Rejected:**
+
 - Named: Priority unclear, harder to remember
 - Flat: Chaos, no organization
 - XDG-only: Too rigid, doesn't handle workspace
@@ -389,11 +449,13 @@ LOW (🟢):
 **Rationale:** 12-hour password debugging proved automation dangerous
 
 **Alternatives Considered:**
+
 - Smart automation with safeguards
 - Scheduled updates with notifications
 - Automatic with rollback
 
 **Why Rejected:**
+
 - ANY automation can break mysteriously
 - Boot timing is unpredictable
 - Debugging automated failures is nightmare
@@ -410,11 +472,13 @@ LOW (🟢):
 **Rationale:** Prevents accidental disasters
 
 **Alternatives Considered:**
+
 - Git-only protection
 - Permission-based protection
 - No protection (trust yourself)
 
 **Why Rejected:**
+
 - Git: Doesn't prevent deletion before commit
 - Permissions: Can be overridden with sudo
 - No protection: Humans make mistakes
@@ -430,17 +494,20 @@ LOW (🟢):
 **Rationale:** Self-documenting, immediately clear
 
 **Examples:**
+
 - ✅ wm-hypr (window manager - hyprland)
-- ✅ shell-fish (shell - fish)
+- ✅ shell-fish (shell - zsh)
 - ❌ hypr (unclear category)
 - ❌ config (too generic)
 
 **Alternatives Considered:**
+
 - Application names only (hypr, fish, nvim)
 - Generic categories (desktop, terminal)
 - No structure
 
 **Why Rejected:**
+
 - App-only: Category unclear
 - Generic: Too vague
 - No structure: Chaos
@@ -452,6 +519,7 @@ LOW (🟢):
 ## Version History
 
 **Evolution:**
+
 - v1.0-2.8: Generic dotfiles era
 - v3.0: Tokyo Night, security hardening
 - v3.1: Hybrid architecture, numbered structure
@@ -459,6 +527,7 @@ LOW (🟢):
 - v3.3: Auto-versioning, policies, incidents
 
 **Key Transformations:**
+
 - Dec 14: Password incident → Manual control philosophy
 - Dec 16: dotfiles → 0-core rename
 - Dec 17: Auto-versioning + documentation overhaul
@@ -470,6 +539,7 @@ LOW (🟢):
 This system can be:
 
 ### Cloned
+
 ```bash
 git clone git@github.com:WidkidoneR2/0-Core.git ~/0-core
 cd ~/0-core
@@ -477,24 +547,28 @@ cd ~/0-core
 ```
 
 ### Understood
+
 - Read this document
 - Review POLICIES.md
 - Study INCIDENTS/
 - Examine .dotmeta files
 
 ### Modified
+
 - Follow policies
 - Document changes
 - Test thoroughly
 - Commit with meaning
 
 ### Taught
+
 - Philosophy is clear
 - Decisions explained
 - Lessons documented
 - Structure visible
 
 ### Archived
+
 - Complete documentation
 - Git history preserved
 - Incident knowledge captured
@@ -505,12 +579,14 @@ cd ~/0-core
 ## Maintenance Philosophy
 
 ### When to Update
+
 - When YOU decide (not the system)
 - Weekly maintenance (manual trigger)
 - After major system changes
 - When problems arise
 
 ### How to Update
+
 ```bash
 # Manual trigger, smart recovery
 safe-update
@@ -520,6 +596,7 @@ weekly-check
 ```
 
 ### What to Check
+
 ```bash
 # System health
 dot-doctor        # Must be 100%
@@ -536,12 +613,14 @@ git status        # Must be clean
 ## Related Documentation
 
 **Core Documents:**
+
 - `POLICIES.md` - Rules and principles
 - `INCIDENTS/` - What broke and why
 - `CHANGELOG-v3.x.md` - Version history
 - `README.md` - Quick start guide
 
 **Detailed Guides:**
+
 - `COMPLETE_GUIDE.md` - Comprehensive reference
 - `KEYBINDINGS.md` - All shortcuts
 - `MELD_GUIDE.md` - Comparison workflow
@@ -550,18 +629,15 @@ git status        # Must be clean
 
 ## Future Sections (To Be Completed)
 
-**v3.3.1 (Blast Radius):**
-- [ ] Detailed blast radius implementation
-- [ ] Enhanced edit-core warnings
-- [ ] Auto-backup for critical components
-
 **v3.4.0 (State Verification):**
+
 - [ ] MANIFEST system
 - [ ] dotctl verify implementation
 - [ ] State snapshots
 - [ ] Deletion confidence
 
 **v4.0.0 (Advanced Features):**
+
 - [ ] Secret management integration
 - [ ] Cloud backup procedures
 - [ ] Multi-machine sync
@@ -588,5 +664,5 @@ git status        # Must be clean
 
 ---
 
-**Last Updated:** 2025-12-17 (v3.3.0)  
-**Next Review:** 2025-12-24 (after v3.3.1)
+**Last Updated:** 2025-12-22 (v3.3.4)  
+**Next Review:** 2026-01-01 (after v3.4.0)
