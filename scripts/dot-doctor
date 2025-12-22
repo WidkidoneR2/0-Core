@@ -195,6 +195,81 @@ aging=0   # 30-90 days
 stale=0   # 90-365 days
 ancient=0 # 1+ year
 
+# Check 10: Intentional Defaults (Discipline Enforcement)
+echo -e "${CYAN}🎯 Checking intentional defaults...${NC}"
+
+issues=0
+
+# Check for non-semantic filenames
+non_semantic=$(find ~/0-core -maxdepth 3 -type f \( -name "temp*" -o -name "new-*" -o -name "old-*" -o -name "backup*" -o -name "test*" -o -name "tmp*" \) -not -path '*/\.git/*' 2>/dev/null)
+
+if [[ -n "$non_semantic" ]]; then
+  echo -e "   ${RED}❌ Non-semantic filenames found:${NC}"
+  while IFS= read -r file; do
+    echo -e "      ${DIM}$(basename "$file")${NC}"
+    ((issues++))
+  done <<<"$non_semantic"
+else
+  echo -e "   ${GREEN}✅ All filenames are semantic${NC}"
+fi
+
+# Check for truly non-semantic directories (random temp stuff)
+# Exclude known good directories: docs, scripts, and semantic packages
+bad_dirs=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r dir; do
+  dirname=$(basename "$dir")
+  # Exclude known infrastructure directories
+  if [[ "$dirname" == "docs" ]] || [[ "$dirname" == "scripts" ]] || [[ "$dirname" == "hooks" ]] || [[ "$dirname" == "system" ]] || [[ "$dirname" == "packages" ]] || [[ "$dirname" == "installation" ]] || [[ "$dirname" == "automation" ]]; then
+    continue
+  fi
+  # Exclude semantic package names (prefix-name pattern)
+  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
+    continue
+  fi
+  # Flag anything else as potentially non-semantic
+  echo "$dir"
+done)
+
+if [[ -n "$bad_dirs" ]]; then
+  echo -e "   ${YELLOW}⚠️  Non-semantic directories found:${NC}"
+  while IFS= read -r dir; do
+    echo -e "      ${DIM}$(basename "$dir")${NC}"
+    ((issues++))
+  done <<<"$bad_dirs"
+else
+  echo -e "   ${GREEN}✅ All directories follow semantic naming${NC}"
+fi
+
+# Check for packages without .dotmeta
+packages_without_meta=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r pkg; do
+  dirname=$(basename "$pkg")
+  # Only check semantic package directories (prefix-name pattern)
+  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
+    if [[ ! -f "$pkg/.dotmeta" ]]; then
+      echo "$dirname"
+    fi
+  fi
+done)
+
+if [[ -n "$packages_without_meta" ]]; then
+  echo -e "   ${YELLOW}⚠️  Packages missing .dotmeta:${NC}"
+  while IFS= read -r pkg; do
+    echo -e "      ${DIM}$pkg${NC}"
+    ((issues++))
+  done <<<"$packages_without_meta"
+else
+  echo -e "   ${GREEN}✅ All packages have .dotmeta${NC}"
+fi
+
+# Count this check
+((total_checks++))
+if [[ $issues -eq 0 ]]; then
+  echo -e "   ${GREEN}✅ Intentional defaults maintained${NC}"
+  ((passed++))
+else
+  echo -e "   ${YELLOW}⚠️  $issues discipline issues found${NC}"
+  ((warnings++))
+fi
+
 # Check all files in 0-core (exclude .git)
 while IFS= read -r file; do
   if [[ -f "$file" ]]; then
