@@ -1,5 +1,5 @@
 #!/bin/bash
-# Health check for Faelight Forest 0-core - Enhanced v2.8.7
+# Health check for Faelight Forest 0-core - Enhanced v3.3.4
 
 # Colors
 RED='\033[0;31m'
@@ -185,6 +185,51 @@ else
   ((warnings++))
 fi
 ((total_checks++))
+
+# Check 9: Config Aging Report
+echo -e "${CYAN}📅 Checking config aging...${NC}"
+
+# Count files by age
+recent=0  # < 30 days
+aging=0   # 30-90 days
+stale=0   # 90-365 days
+ancient=0 # 1+ year
+
+# Check all files in 0-core (exclude .git)
+while IFS= read -r file; do
+  if [[ -f "$file" ]]; then
+    # Get days since last modification
+    days=$((($(date +%s) - $(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file")) / 86400))
+
+    if [[ $days -lt 30 ]]; then
+      ((recent++))
+    elif [[ $days -lt 90 ]]; then
+      ((aging++))
+    elif [[ $days -lt 365 ]]; then
+      ((stale++))
+    else
+      ((ancient++))
+    fi
+  fi
+done < <(find ~/0-core -type f -not -path '*/\.git/*' 2>/dev/null)
+
+total_files=$((recent + aging + stale + ancient))
+
+echo -e "   Recent (< 30 days):    ${GREEN}$recent files${NC}"
+echo -e "   Aging (30-90 days):    ${YELLOW}$aging files${NC}"
+echo -e "   Stale (90-365 days):   ${YELLOW}$stale files${NC}"
+
+if [[ $ancient -gt 0 ]]; then
+  echo -e "   Ancient (1+ year):     ${RED}$ancient files${NC}"
+else
+  echo -e "   Ancient (1+ year):     ${GREEN}$ancient files${NC}"
+fi
+
+echo -e "   ${DIM}Total tracked: $total_files files${NC}"
+
+# Count this check
+((total_checks++))
+((passed++))
 
 # Final Report
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
