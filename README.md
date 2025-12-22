@@ -16,21 +16,16 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 ## 🎯 **The Philosophy**
 
-**Traditional dotfiles repos:**
+0-Core is more than dotfiles — it's a position on how personal computing should work.
 
-- Generic name ("dotfiles" like everyone else)
-- Flat structure (everything mixed together)
-- Unclear priorities
-- Hidden automation surprises
+Read the full manifesto: [PHILOSOPHY.md](PHILOSOPHY.md)
 
-**0-Core Hybrid Architecture:**
+**Core principles:**
 
-- **Numbered hierarchy** (0 = highest priority)
-- **Semantic naming** (wm-hypr, shell-zsh, editor-nvim)
-- **Immutable protection** (lock-core prevents accidents)
-- **Manual control** (YOU decide when things happen)
-
-**Core Principle:** _"Order through intentionality, not automation."_
+- Trust the user, support their failures
+- Intent over automation
+- Recovery over perfection
+- Comprehension over convenience
 
 ---
 
