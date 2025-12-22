@@ -188,3 +188,4 @@ zathura
 zathura-pdf-mupdf
 zoxide
 zram-generator
+zsh

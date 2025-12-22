@@ -4,7 +4,7 @@
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v3.2.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v3.3.2-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
 ![Security](https://img.shields.io/badge/Lynis-73%25-orange)
@@ -26,7 +26,7 @@ A revolutionary approach to Linux configuration management built on **numbered p
 **0-Core Hybrid Architecture:**
 
 - **Numbered hierarchy** (0 = highest priority)
-- **Semantic naming** (wm-hypr, shell-fish, editor-nvim)
+- **Semantic naming** (wm-hypr, shell-zsh, editor-nvim)
 - **Immutable protection** (lock-core prevents accidents)
 - **Manual control** (YOU decide when things happen)
 
@@ -191,7 +191,7 @@ Press `g` + key for instant directory access:
 **Config Quick Access:**
 
 - `g+h` → Hyprland (wm-hypr)
-- `g+f` → Fish shell (shell-fish)
+- `g+f` → Zsh shell (shell-zsh)
 - `g+n` → Neovim (editor-nvim)
 - `g+w` → Waybar (bar-waybar)
 - `g+y` → Yazi config (fm-yazi)
@@ -219,6 +219,28 @@ dot-doctor             # Complete system health check
 - ✅ Scripts executable
 
 **Target:** 100% health, always.
+
+## 📸 Screenshots
+
+### Desktop & Terminal
+
+![Desktop Overview](docs/screenshots/desktop.png)
+_Hyprland + Waybar + Faelight Forest theme with custom Zsh welcome message_
+
+### Package Management
+
+![dotctl status](docs/screenshots/dotctl-status.png)
+_Risk-aware package versioning with blast radius indicators (🔴 Critical, 🟠 High, 🔵 Medium, 🟢 Low)_
+
+### System Health
+
+![dot-doctor](docs/screenshots/dot-doctor.png)
+_Automated health monitoring - 100% system integrity verification_
+
+### File Navigation
+
+![Yazi File Manager](docs/screenshots/yazi.png)
+_Yazi file manager with instant teleports and file preview_
 
 ---
 
@@ -298,7 +320,7 @@ cd ~/0-core
 ./install.sh
 
 # Or manually select packages:
-stow wm-hypr bar-waybar notif-mako shell-fish editor-nvim fm-yazi \
+stow wm-hypr bar-waybar notif-mako shell-zsh editor-nvim fm-yazi \
      vcs-git prompt-starship browser-brave theme-gtk \
      theme-term-foot-dark theme-term-ghostty-dark \
      theme-launch-fuzzel-dark tools-topgrade
