@@ -372,11 +372,37 @@ Awareness first. Action second.
 
 ## Future Considerations
 
-### v3.5.0+ Ideas (Not Yet Planned)
-- Temporal tracking (incident-free windows)
-- Advanced policy enforcement
-- Snapshot verification automation
-- Predictive warnings based on change patterns
+### **v3.5.0 - Safe Context (2-3 hours)**
+```
+Context-aware command protection:
+- rm wrapper for 0-core
+- mv wrapper for 0-core
+- Clear, simple, valuable
+- Prevents muscle-memory mistakes
+
+Implements: "Break Muscle Memory" idea
+```
+
+---
+
+### **v3.6.0 - Dot-Doctor Enhanced (2-3 hours)**
+```
+Tier 1 features (MUST HAVE):
+- Human-readable fixes
+- Risk-grading display
+- Historical health tracking
+
+These three alone are transformative!
+```
+
+---
+
+### **v3.7.0 - Predictive Safety (3-4 hours)**
+```
+Tier 2 features (VERY VALUABLE):
+- Near-miss logging
+- Session-aware validation
+- Config smell detection
 
 ### Long-term Vision
 - Make 0-core a reference implementation
@@ -626,15 +652,10 @@ markdown# 🎯 Alias Reference
 
 ---
 
-## Core Protection
 
-### lock-core
 
-**Description:** Lock 0-core (filesystem immutable)
-**Usage:** `lock-core`
-**Added:** v3.1.0
 
-[... detailed for each alias ...]
+
 
 v3.4.0 (2-3 hrs): Policy Enforcement
 
