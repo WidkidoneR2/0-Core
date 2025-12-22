@@ -4,10 +4,10 @@
 NEW_VERSION="$1"
 
 if [ -z "$NEW_VERSION" ]; then
-    echo "Usage: bump-system-version <new-version>"
-    echo ""
-    echo "Example: bump-system-version 3.3.3"
-    exit 1
+  echo "Usage: bump-system-version <new-version>"
+  echo ""
+  echo "Example: bump-system-version 3.3.3"
+  exit 1
 fi
 
 CORE_DIR="$HOME/0-core"
@@ -19,7 +19,7 @@ echo "🔄 Bumping system version: v$OLD_VERSION → v$NEW_VERSION"
 echo ""
 
 # Update VERSION file
-echo "$NEW_VERSION" > "$CORE_DIR/VERSION"
+echo "$NEW_VERSION" >"$CORE_DIR/VERSION"
 echo "✅ Updated VERSION file"
 
 # Update shell config welcome message
@@ -41,3 +41,6 @@ echo "  1. Restow shell: stow -R shell-zsh"
 echo "  2. Review changes: git diff"
 echo "  3. Commit: git commit -am 'chore: Bump version to v$NEW_VERSION'"
 echo "  4. Push: git push"
+echo "  5. Lock: lock-core"
+echo ""
+echo "⚠️  Remember to lock-core when finished!"

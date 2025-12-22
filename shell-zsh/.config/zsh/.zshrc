@@ -623,7 +623,14 @@ if [[ -o interactive ]]; then
     echo ""
 fi
 
+# Check if 0-core is unlocked and warn
+if [[ -d ~/0-core ]] && ! lsattr ~/0-core 2>/dev/null | head -1 | grep -q -- '----i'; then
+    echo ""
+    echo -e "\033[1;33m⚠️  WARNING: 0-core is UNLOCKED!\033[0m"
+    echo -e "\033[0;33m   Lock it when done editing: lock-core\033[0m"
+fi
+
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 3.3.2 - Zsh Migration Edition
+# Version 3.3.3 - Zsh Migration Edition
 # ═══════════════════════════════════════════════════════════
