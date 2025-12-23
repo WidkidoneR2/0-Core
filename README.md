@@ -358,10 +358,51 @@ core-status            # Check lock status
 
 ### **Maintenance**
 
-```bash
+````bash
 weekly-check           # Manual maintenance prompt
 topgrade               # Full system update
+
+---
+
+## 🛠️ Tools
+
+### core-diff - Package-Aware Diff Tool
+
+**"Meld shows trees. core-diff shows the forest 🌲"**
+
+Package-level awareness with risk-based grouping. See what changed at the right abstraction level.
+```bash
+core-diff                    # Morning check
+core-diff since v3.3.5       # Release review
+core-diff wm-hypr --verbose  # Package inspection
+core-diff --open meld        # Visual diff
+````
+
+**Features:**
+
+- 🎯 Groups changes by package, not files
+- 🎨 Color-coded by risk level (critical/high/medium/low)
+- 🔧 Delta & Meld integration
+- 📊 Summary mode for quick stats
+- 🔍 Package-specific inspection
+
+See [TOOLS.md](docs/TOOLS.md) for complete reference.
+
+### dot-doctor - Health Checker
+
+Comprehensive system validation with 10 automated checks.
+
+```bash
+dot-doctor  # Full health check
 ```
+
+### Other Tools
+
+- **dotctl** - Package management
+- **safe-update** - Controlled system updates
+- **core-protect** - Immutability management
+
+Full documentation: [TOOLS.md](docs/TOOLS.md)
 
 ---
 
@@ -518,13 +559,6 @@ Because `wm-hypr` is clearer than `hypr`:
 ---
 
 ## 🎯 **What's Next?**
-
-**Planned for v3.3:**
-
-- Auto-versioning system (track package changes)
-- Dynamic welcome message (shows latest updates)
-- Enhanced dotctl wrapper (easy management)
-- Package metadata system (.dotmeta files)
 
 **Maybe later:**
 

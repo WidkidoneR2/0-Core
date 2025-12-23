@@ -222,6 +222,34 @@ alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date
 alias dotstatus='cd ~/0-core && git status'
 
 # ═══════════════════════════════════════════════════════════
+# 🔍 CORE-DIFF ALIASES (Quick Access)
+# ═══════════════════════════════════════════════════════════
+
+# Quick checks
+alias cdiff='core-diff'                          # Short form
+alias cds='core-diff summary'                    # Quick stats
+alias cdh='core-diff --high-risk'                # High-risk only
+alias cdv='core-diff --verbose'                  # Show files
+
+# Visual inspection
+alias cdm='core-diff --open meld'                # Open Meld
+alias cdd='core-diff --open delta'               # Delta terminal diff
+
+# Historical comparisons
+alias cdlast='core-diff since HEAD~1'            # Since last commit
+alias cdrel='core-diff since $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD)'  # Since last release
+
+# Package-specific shortcuts (customize as needed)
+alias cdhypr='core-diff wm-hypr'
+alias cdway='core-diff bar-waybar'
+alias cdzsh='core-diff shell-zsh'
+alias cdnvim='core-diff editor-nvim'
+
+# Combined workflows
+alias cdcheck='cdiff && dot-doctor'              # Morning check
+alias cdreview='cdv && cdh'                      # Pre-commit review
+
+# ═══════════════════════════════════════════════════════════
 # 💻 SYSTEM MONITORING & HEALTH
 # ═══════════════════════════════════════════════════════════
 

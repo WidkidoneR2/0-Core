@@ -413,6 +413,95 @@ LOW (🟢):
 
 ---
 
+## core-diff - Package-Aware Diff Tool
+
+### The Problem
+
+Traditional `git diff` shows line-by-line changes across all files. This creates noise:
+
+- Mixed package changes in one view
+- No context about impact/risk
+- Hard to answer: "What packages did I touch?"
+- File-level granularity obscures package-level decisions
+
+### The Solution
+
+`core-diff` provides package-level awareness with risk-based grouping.
+
+**Key Features:**
+
+- Groups changes by package (not files)
+- Color-codes by `blast_radius` from `.dotmeta`
+- Integrates with delta (terminal) and Meld (GUI)
+- Answers: "What changed?" at the right abstraction level
+
+### Philosophy
+
+> "Meld shows trees. core-diff shows the forest 🌲"
+
+**Design Principles:**
+
+- Package-aware, not file-aware
+- Risk-based prioritization
+- Manual inspection, not automated action
+- Progressive disclosure (summary → verbose → visual)
+
+### Usage Patterns
+
+**Morning Check:**
+
+```bash
+core-diff  # Quick overview
+```
+
+**Before Commit:**
+
+```bash
+core-diff --verbose  # See all files
+```
+
+**Release Review:**
+
+```bash
+core-diff since v3.3.5  # Historical comparison
+```
+
+**Deep Inspection:**
+
+```bash
+core-diff wm-hypr --open meld  # Visual review
+```
+
+### Risk-Based Workflow
+
+1. Run `core-diff`
+2. **CRITICAL** packages → careful review with Meld
+3. **HIGH** packages → delta inspection
+4. **MEDIUM/LOW** → quick review acceptable
+
+This focuses attention where it matters.
+
+### Integration
+
+**With dot-doctor:**
+
+```bash
+core-diff && dot-doctor  # Health check after review
+```
+
+**With git workflow:**
+
+```bash
+core-diff --verbose      # Review changes
+git commit               # Commit when satisfied
+core-diff                # Should show clean
+```
+
+See [TOOLS.md](TOOLS.md) for complete reference.  
+See [WORKFLOWS.md](WORKFLOWS.md) for practical usage patterns.
+
+---
+
 ## Design Decisions
 
 ### Why Numbered Structure (0-9)?
