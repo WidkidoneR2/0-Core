@@ -6,48 +6,337 @@
 
 ---
 
-## Future Considerations
+## ✅ v3.4.0 - core-diff (MAJOR) - COMPLETE! 🎉
 
-### **v3.5.0 - Safe Context (2-3 hours)**
+**Status:** Shipped December 23, 2025  
+**Health:** 100%  
+**Sessions:** 3 (Planning, Advanced, Documentation)  
+**Time:** ~5-6 hours
 
-```
-Context-aware command protection:
-- rm wrapper for 0-core
-- mv wrapper for 0-core
-- Clear, simple, valuable
-- Prevents muscle-memory mistakes
+**Delivered:**
 
-Implements: "Break Muscle Memory" idea
-```
+- Package-aware diff tool with risk-based grouping
+- Delta & Meld integration
+- 7+ working modes (default, since, summary, verbose, high-risk, package-specific)
+- Comprehensive documentation (TOOLS.md, WORKFLOWS.md)
+- 12 aliases for common workflows
+- Philosophy: "Meld shows trees. core-diff shows the forest 🌲"
 
----
+**Files:**
 
-### **v3.6.0 - Dot-Doctor Enhanced (2-3 hours)**
-
-```
-Tier 1 features (MUST HAVE):
-- Human-readable fixes
-- Risk-grading display
-- Historical health tracking
-
-These three alone are transformative!
-```
+- `scripts/core-diff` - Main tool
+- `docs/TOOLS.md` - Tool reference
+- `docs/WORKFLOWS.md` - Usage patterns
+- 12 aliases in `.zshrc`
 
 ---
 
-### **v3.7.0 - Predictive Safety (3-4 hours)**
+## ⏳ v3.4.1 - core-diff Polish (PATCH)
+
+**Status:** Planned (Start: Friday/Saturday)  
+**Estimated Time:** 1-2 hours  
+**Sessions:** 1
+
+**Goals:**
+
+- Better error messages (more helpful, specific)
+- Exit codes for scripting (0=success, 1=error, etc.)
+- Minor UX polish (output formatting, edge cases)
+
+**Why:**
+
+- Make core-diff more robust for daily use
+- Enable scripting/automation with reliable exit codes
+- Improve user experience based on initial usage
+
+**Success Criteria:**
+
+- All error messages are helpful and actionable
+- Exit codes documented and consistent
+- Edge cases handled gracefully
+
+---
+
+## 🎯 v3.5.0 - Intent Ledger Foundation (MAJOR)
+
+**Status:** Planned  
+**Estimated Time:** 3-4 hours  
+**Sessions:** 2-3 (Multi-session release)
+
+**CRITICAL:** This is foundational - everything builds on this layer.
+
+**Goals:**
+
+### Session 1: Structure & Format (1.5 hours)
+
+- Design INTENT/ directory structure
+- Define .intent file format (TOML-based)
+- Create initial intents from existing decisions
+- Document the schema
+
+### Session 2: Basic Commands (1.5 hours)
+
+- `intent add` - Add new intent
+- `intent list` - List all intents
+- `intent show <id>` - Display intent details
+- Basic validation
+
+### Session 3: Polish & Documentation (1 hour)
+
+- Error handling
+- Documentation in TOOLS.md
+- Usage examples
+- Testing
+
+**Directory Structure:**
 
 ```
-Tier 2 features (VERY VALUABLE):
-- Near-miss logging
-- Session-aware validation
-- Config smell detection
+~/0-core/INTENT/
+├── decisions/
+│   ├── 2025-12-14-password-incident.intent
+│   ├── 2025-12-16-manual-only-updates.intent
+│   └── 2025-12-18-zsh-over-fish.intent
+├── assumptions/
+│   ├── user-is-technical.assumption
+│   └── system-is-single-user.assumption
+├── tradeoffs/
+│   └── automation-vs-control.tradeoff
+├── experiments/
+│   ├── aging-report.experiment
+│   └── semantic-naming.enforced.experiment
+└── README.md
+```
 
-### Long-term Vision
-- Make 0-core a reference implementation
-- Share philosophy through documentation
-- Potential framework for others
-- Always: manual control, awareness over automation
+**.intent Format:**
+
+```toml
+[metadata]
+id = "2025-12-14-password-incident"
+status = "LOCKED"  # LOCKED, FLEXIBLE, EXPERIMENTAL
+scope = "system-wide"
+created = "2025-12-14"
+updated = "2025-12-14"
+
+[decision]
+trigger = "sudo failure after reboot"
+decision = "eliminate boot-time automation"
+alternatives = ["fix timers", "add credentials"]
+rejected_because = "non-deterministic, fragile"
+revision_allowed = false
+
+[impact]
+packages = ["system", "automation"]
+blast_radius = "critical"
+```
+
+**NOT in v3.5.0:**
+
+- ❌ dot-doctor integration (that's v3.6.0)
+- ❌ Enforcement (manual awareness only)
+- ❌ Automated anything
+
+**Why:**
+
+- Captures "why" decisions were made
+- Prevents forgetting lessons
+- Creates institutional memory
+- Supports future-you
+
+**Success Criteria:**
+
+- Can create, view, list intents
+- Format is clear and useful
+- Documentation complete
+- Foundation solid for v3.6.0 integration
+
+---
+
+## 🔗 v3.6.0 - Intent Ledger Integration (MAJOR)
+
+**Status:** Planned (After v3.5.0)  
+**Estimated Time:** 2-3 hours  
+**Sessions:** 2
+
+**Dependencies:** v3.5.0 must be complete
+
+**Goals:**
+
+### Accountability Layer
+
+- dot-doctor warns on LOCKED intent violations
+- Intent validation (referenced intents exist)
+- Conflict detection (changes vs LOCKED intents)
+
+### Integration Points
+
+- `core-diff` references intents when showing changes
+- `dot-doctor` Check 11: Intent compliance
+- Warning system (not blocking)
+
+**Example Warning:**
+
+```
+⚠️ Change detected touching update system
+   Conflicts with LOCKED intent:
+   2025-12-16-manual-only-updates.intent
+
+   Review intent: intent show manual-only-updates
+```
+
+**Philosophy:**
+
+- Accountability, not enforcement
+- Warnings, never blocks
+- User maintains control
+
+**Success Criteria:**
+
+- dot-doctor detects intent conflicts
+- Warnings are helpful, not annoying
+- Intent system feels valuable, not burdensome
+
+---
+
+## 🛡️ v3.7.0 - Context Protection (MAJOR)
+
+**Status:** Planned  
+**Estimated Time:** 2-3 hours  
+**Sessions:** 2
+
+**Goals:**
+
+### Safety Wrappers
+
+- Intercept dangerous commands in 0-core/
+- Commands: rm, mv, cp (when in 0-core)
+- Require confirmation or redirect
+
+### Near-Miss Logging
+
+- Log when protection triggers
+- Track patterns
+- Learn from close calls
+
+### Example Protection:
+
+```bash
+~/0-core$ rm file.conf
+⚠️  Dangerous command in 0-core!
+
+   Use instead:
+   • git rm file.conf (to remove from repo)
+   • exit 0-core first, then rm
+
+   Near-miss logged.
+```
+
+**Philosophy:**
+
+- Break muscle memory on dangerous ops
+- Gentle intervention, not blocking
+- Learn from mistakes before they happen
+
+**Success Criteria:**
+
+- Protection feels helpful, not annoying
+- Reduces accidental damage
+- Logging provides insights
+
+---
+
+## 🎨 v3.8.0 - Theme Completion (MAJOR)
+
+**Status:** Planned  
+**Estimated Time:** TBD  
+**Sessions:** TBD
+
+**Current State:**
+
+- ✅ Dark variant (Faelight Forest) - Complete
+- ⏳ Light variant - Incomplete (stopped mid-implementation)
+
+**Goals:**
+
+### Complete Light Theme
+
+- Finish light variant implementation
+- Test in all packages
+- Documentation
+
+### Ghost Variant (Exploration)
+
+- Research ghost/minimal aesthetic
+- Design color palette
+- Prototype in key packages
+
+### Waybar Redesign (Possible)
+
+- Explore completely new waybar layout
+- Modern design patterns
+- Functional improvements
+
+**TBD:**
+
+- Scope depends on creative direction
+- Time estimate pending design phase
+- May split into multiple releases
+
+---
+
+## 🔮 Future Considerations (v3.9.0+)
+
+**Operational Maturity:**
+
+- System states (CLEAN, DIRTY, DEGRADED, EXPERIMENTAL)
+- Failure drills (core-drill network, pacman, shell)
+- WHY.md per package
+- Teaching mode
+
+**Integration:**
+
+- Topgrade refinement
+- GitHub Actions / CI
+- External tool integration
+
+**Philosophy:**
+
+- Constraint Engine (passive consistency)
+- Teaching Mode (knowledge transfer)
+- Legacy planning
+
+---
+
+## 📊 Semantic Versioning Guide
+
+**MAJOR (X.0.0):** New core capabilities (3+ hours work)
+
+- Examples: core-diff, Intent Ledger, Context Protection
+
+**MINOR (X.Y.0):** Significant improvements (1-2 hours)
+
+- Examples: New dot-doctor checks, feature additions
+
+**PATCH (X.Y.Z):** Bug fixes, cleanup, polish (<1 hour)
+
+- Examples: Error message improvements, UX polish
+
+---
+
+## 🎯 Current Focus
+
+**Next Up:** v3.4.1 - core-diff Polish (Friday/Saturday)  
+**Then:** v3.5.0 - Intent Ledger Foundation (Multi-session)  
+**Philosophy:** Quality over speed, always.
+
+---
+
+## 📝 Notes
+
+- Intent Ledger (v3.5.0 + v3.6.0) is the critical path
+- Everything builds on the memory layer
+- No rushing - each release must be solid
+- Documentation is mandatory, not optional
+- 100% health before shipping
 
 ---
 
@@ -55,7 +344,6 @@ Tier 2 features (VERY VALUABLE):
 
 ## 🔄 Smart Updates
 
-```fish
 safe-update        # Smart system update with recovery
 weekly-check       # Prompted weekly maintenance
 check-updates      # Check for updates (no install)
