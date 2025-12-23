@@ -634,7 +634,7 @@ if [[ -o interactive ]]; then
     
     # Custom greeting with dynamic latest update
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v3.3.5!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v3.4.0!\033[0m"
     
     # Show latest package update (if script exists)
     if [[ -x ~/0-core/scripts/latest-update ]]; then
