@@ -135,6 +135,78 @@ get_risk_level() {
 }
 
 # ═══════════════════════════════════════════════════════════
+# 🔧 TOOL INTEGRATION
+# ═══════════════════════════════════════════════════════════
+
+open_delta() {
+  local mode="$1"
+  local ref="$2"
+  local package="$3"
+
+  if ! command -v delta >/dev/null 2>&1; then
+    echo "⚠️  delta not installed"
+    echo "   Falling back to git diff --color"
+    echo ""
+  fi
+
+  local diff_cmd="git diff"
+
+  if [[ "$mode" == "since" ]]; then
+    diff_cmd="git diff $ref"
+  fi
+
+  if [[ -n "$package" ]]; then
+    diff_cmd="$diff_cmd -- $package/"
+  fi
+
+  if command -v delta >/dev/null 2>&1; then
+    eval "$diff_cmd" | delta
+  else
+    eval "$diff_cmd" --color
+  fi
+}
+
+open_meld() {
+  local mode="$1"
+  local ref="$2"
+  local package="$3"
+
+  if ! command -v meld >/dev/null 2>&1; then
+    echo "❌ Meld not installed"
+    return 1
+  fi
+
+  local files
+  if [[ "$mode" == "since" ]]; then
+    files=$(git diff --name-only "$ref")
+  else
+    files=$(git diff --name-only)
+  fi
+
+  if [[ -n "$package" ]]; then
+    files=$(echo "$files" | grep "^$package/")
+  fi
+
+  if [[ -z "$files" ]]; then
+    echo "❌ No files to compare"
+    return 1
+  fi
+
+  echo "🔍 Opening Meld..."
+
+  while IFS= read -r file; do
+    if [[ -f "$file" ]]; then
+      echo "   $file"
+      if [[ "$mode" == "since" ]]; then
+        meld <(git show "$ref:$file" 2>/dev/null || echo "") "$file" 2>/dev/null &
+      else
+        meld <(git show "HEAD:$file" 2>/dev/null || echo "") "$file" 2>/dev/null &
+      fi
+    fi
+  done <<<"$files"
+}
+
+# ═══════════════════════════════════════════════════════════
 # 🎯 MAIN
 # ═══════════════════════════════════════════════════════════
 
@@ -154,11 +226,15 @@ main() {
   # Default values
   local mode="working-tree"
   local ref=""
+  local target_package=""
+  local open_tool=""
+  local verbose=false
+  local high_risk=false
+  local high_risk=false
+  local summary=false
 
   # Parse arguments
-  if [[ $# -eq 0 ]]; then
-    mode="working-tree"
-  else
+  while [[ $# -gt 0 ]]; do
     case "$1" in
     -h | --help)
       show_usage
@@ -177,14 +253,46 @@ main() {
         echo "   Example: core-diff since v3.3.5"
         exit 1
       fi
+      shift
       ;;
-    *)
-      echo "⚠️  Unknown argument: $1"
+    working-tree)
+      mode="working-tree"
+      shift
+      ;;
+    summary)
+      summary=true
+      shift
+      ;;
+    --open)
+      shift
+      open_tool="$1"
+      if [[ "$open_tool" != "delta" && "$open_tool" != "meld" ]]; then
+        echo "❌ Error: --open requires 'delta' or 'meld'"
+        echo "   Example: core-diff --open delta"
+        exit 1
+      fi
+      shift
+      ;;
+    -v | --verbose)
+      verbose=true
+      shift
+      ;;
+    --high-risk)
+      high_risk=true
+      shift
+      ;;
+    -*)
+      echo "❌ Error: Unknown option: $1"
       echo "   Try: core-diff --help"
       exit 1
       ;;
+    *)
+      # Assume it's a package name
+      target_package="$1"
+      shift
+      ;;
     esac
-  fi
+  done
 
   # Get changes
   local changes
@@ -194,6 +302,17 @@ main() {
   if [[ -z "$changes" ]]; then
     echo "✅ No changes detected"
     exit 0
+  fi
+
+  # Filter by target package if specified
+  if [[ -n "$target_package" ]]; then
+    changes=$(echo "$changes" | grep "^[MAD][[:space:]]$target_package/")
+    if [[ -z "$changes" ]]; then
+      echo "✅ No changes in package: $target_package"
+      exit 0
+    fi
+    echo "🔍 Showing changes for package: $target_package"
+    echo ""
   fi
 
   # Data structures
@@ -246,16 +365,60 @@ main() {
     esac
   done
 
+  # Summary mode - just show stats
+  if [[ "$summary" == "true" ]]; then
+    local total_packages=$((${#critical_packages[@]} + ${#high_packages[@]} + ${#medium_packages[@]} + ${#low_packages[@]}))
+    local total_files=0
+    for count in "${package_count[@]}"; do
+      ((total_files += count))
+    done
+
+    echo "Packages: $total_packages"
+    echo "Files: $total_files"
+
+    if [[ ${#critical_packages[@]} -gt 0 ]]; then
+      echo "Risk: CRITICAL"
+    elif [[ ${#high_packages[@]} -gt 0 ]]; then
+      echo "Risk: HIGH"
+    elif [[ ${#medium_packages[@]} -gt 0 ]]; then
+      echo "Risk: MEDIUM"
+    else
+      echo "Risk: LOW"
+    fi
+
+    exit 0
+  fi
+
   # Display grouped by risk
   echo ""
   echo "📊 Changes detected in 0-core:"
   echo ""
 
+  # Open diff tool if requested
+  if [[ -n "$open_tool" ]]; then
+    echo ""
+    case "$open_tool" in
+    delta)
+      open_delta "$mode" "$ref" "$target_package"
+      ;;
+    meld)
+      open_meld "$mode" "$ref" "$target_package"
+      ;;
+    esac
+  fi
+
   # Critical packages
   if [[ ${#critical_packages[@]} -gt 0 ]]; then
     echo -e "${RED}🔴 CRITICAL (${#critical_packages[@]} package(s)):${NC}"
     for package in "${critical_packages[@]}"; do
-      echo "   $package (${package_count[$package]} files)"
+      if [[ "$verbose" == "true" ]]; then
+        echo "   $package (${package_count[$package]} files):"
+        echo "${package_files[$package]}" | while IFS= read -r file; do
+          echo "      $file"
+        done
+      else
+        echo "   $package (${package_count[$package]} files)"
+      fi
     done
     echo ""
   fi
@@ -264,25 +427,46 @@ main() {
   if [[ ${#high_packages[@]} -gt 0 ]]; then
     echo -e "${ORANGE}🟠 HIGH (${#high_packages[@]} package(s)):${NC}"
     for package in "${high_packages[@]}"; do
-      echo "   $package (${package_count[$package]} files)"
+      if [[ "$verbose" == "true" ]]; then
+        echo "   $package (${package_count[$package]} files):"
+        echo "${package_files[$package]}" | while IFS= read -r file; do
+          echo "      $file"
+        done
+      else
+        echo "   $package (${package_count[$package]} files)"
+      fi
     done
     echo ""
   fi
 
-  # Medium packages
-  if [[ ${#medium_packages[@]} -gt 0 ]]; then
+  # Medium packages (skip if high-risk filter)
+  if [[ "$high_risk" == "false" ]] && [[ ${#medium_packages[@]} -gt 0 ]]; then
     echo -e "${BLUE}🔵 MEDIUM (${#medium_packages[@]} package(s)):${NC}"
     for package in "${medium_packages[@]}"; do
-      echo "   $package (${package_count[$package]} files)"
+      if [[ "$verbose" == "true" ]]; then
+        echo "   $package (${package_count[$package]} files):"
+        echo "${package_files[$package]}" | while IFS= read -r file; do
+          echo "      $file"
+        done
+      else
+        echo "   $package (${package_count[$package]} files)"
+      fi
     done
     echo ""
   fi
 
-  # Low packages
-  if [[ ${#low_packages[@]} -gt 0 ]]; then
+  # Low packages (skip if high-risk filter)
+  if [[ "$high_risk" == "false" ]] && [[ ${#low_packages[@]} -gt 0 ]]; then
     echo -e "${GREEN}🟢 LOW (${#low_packages[@]} package(s)):${NC}"
     for package in "${low_packages[@]}"; do
-      echo "   $package (${package_count[$package]} files)"
+      if [[ "$verbose" == "true" ]]; then
+        echo "   $package (${package_count[$package]} files):"
+        echo "${package_files[$package]}" | while IFS= read -r file; do
+          echo "      $file"
+        done
+      else
+        echo "   $package (${package_count[$package]} files)"
+      fi
     done
     echo ""
   fi
