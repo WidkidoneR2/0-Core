@@ -306,6 +306,529 @@ blast_radius = "critical"
 
 ---
 
+---
+
+## 🔮 Future Considerations (v3.9.0+)
+
+**Note:** These are captured ideas for exploration after v3.8.0 completion. The current roadmap (v3.4.1 → v3.8.0) will take months, and that's intentional. Quality over speed. Learning over rushing.
+
+Many of these will be small patches building on existing frameworks. Others are major explorations. All maintain 0-Core philosophy: manual control, intent over automation, human comprehension.
+
+---
+
+## v3.9.0 - Observability Layer (MAJOR)
+
+**Status:** Conceptual  
+**Estimated Time:** 3-4 hours  
+**Sessions:** 2-3
+
+**Theme:** "See the system's structure, not just its state"
+
+### Tools
+
+**core-lint - Configuration Consistency Checker** ⭐⭐⭐⭐⭐
+
+Prevents architectural erosion through structural validation.
+
+```bash
+core-lint
+
+Output:
+❌ Inconsistencies found:
+- package "hypr" should be "wm-hypr" (semantic naming)
+- missing .dotmeta in bar-waybar
+- script scripts/foo missing shebang
+- README.md in wm-hypr has no WHY.md reference
+```
+
+**Checks:**
+
+- Package naming conventions (`wm-*`, `shell-*`, `bar-*`, etc.)
+- Missing `.dotmeta` files
+- Invalid directory placement
+- Script shebangs + executable bits
+- Documentation presence (README/WHY.md)
+- Intent references in WHY.md
+
+**Integration:** Could become dot-doctor Check 11+ or standalone tool
+
+**Philosophy:** Structural, not behavioral. Catches mistakes before they become normal.
+
+---
+
+**core-inventory - System Manifest** ⭐⭐⭐⭐⭐
+
+Canonical inventory for fast comprehension.
+
+```bash
+core-inventory --summary
+
+Output:
+0-Core Inventory (v3.9.0)
+
+Packages:         22
+Scripts:          15
+Intents:          9
+  └─ Locked:      5
+  └─ Flexible:    3
+  └─ Experimental: 1
+Hooks:            pre-commit, post-merge
+Security:         LUKS, UFW, fail2ban, DNSOverTLS, Mullvad
+Themes:           3 (dark, light, ghost)
+Health:           100%
+Last sync:        2025-12-23
+```
+
+**Modes:**
+
+- `--summary` - Quick stats
+- `--full` - Complete manifest
+- `--export` - JSON/TOML for external tools
+- `--compare <ref>` - Diff against previous state
+
+**Use Cases:**
+
+- Fast system comprehension
+- Baseline for audits
+- Documentation generation
+- Future publishing/sharing
+
+---
+
+**core-verify - Deployment Reality Check** ⭐⭐⭐⭐☆
+
+Detects drift between repo and live system.
+
+```bash
+core-verify
+
+Output:
+✅ Stow symlinks intact
+⚠️  Drift detected:
+   - ~/.config/waybar/config (modified outside 0-core)
+   - ~/.config/hypr/monitors.conf (unmanaged file)
+
+Recommendations:
+   1. core-diff waybar (review changes)
+   2. Add to 0-core or remove
+```
+
+**Checks:**
+
+- Stow symlink integrity
+- Unmanaged files in `~/.config`
+- Modified symlink targets
+- Git working tree vs deployed state
+
+**Philosophy:** Keeps 0-core authoritative. Prevents "mystery changes."
+
+---
+
+### Intent System Enhancements
+
+**Intent Aging - Temporal Awareness** ⭐⭐⭐⭐⭐
+
+Add to .intent schema:
+
+```toml
+[review]
+reconsider_after = "6 months"
+risk_if_stale = "medium"
+last_reviewed = "2025-12-23"
+```
+
+**dot-doctor integration:**
+
+```
+🕰️ Intent aging detected:
+   automation-ban.intent
+   Last reviewed: 6 months ago
+   Risk if stale: medium
+
+   Review: intent show automation-ban
+```
+
+**Philosophy:** Prevents "frozen trauma" decisions. No enforcement, just awareness. Supports growth without betraying principles.
+
+---
+
+**intent-check - Intent Sanity Validator** ⭐⭐⭐⭐☆
+
+Validates intent files for coherence.
+
+```bash
+intent-check
+
+Output:
+✅ Schema compliance: 9/9 intents
+✅ No broken references
+❌ Conflict detected:
+   - manual-only-updates.intent (LOCKED)
+   - auto-backup.intent (scope: system)
+
+   These intents contradict each other.
+   Resolve before proceeding.
+```
+
+**Checks:**
+
+- TOML schema compliance
+- Broken package references
+- Duplicate scopes
+- Conflicting LOCKED intents
+- Orphaned WHY.md references
+
+**Integration:** Part of dot-doctor or standalone
+
+**Philosophy:** Keeps the Intent Ledger trustworthy. Meta-level quality control.
+
+---
+
+### WHY.md System-Wide
+
+Introduce optional `WHY.md` in packages, linked to Intent Ledger.
+
+**Template (wm-hypr/WHY.md):**
+
+```markdown
+# WHY: wm-hypr
+
+## This package exists because:
+
+- Intent: 2025-12-18-wayland-over-x11.intent
+- Intent: 2025-12-14-no-desktop-environments.intent
+
+## Tradeoffs accepted:
+
+- Higher configuration complexity
+- Manual maintenance burden
+- Learning curve for window management
+
+## Rejected alternatives:
+
+- KDE Plasma (automation density too high)
+- i3 (X11 dependency)
+- GNOME (philosophy misalignment)
+
+## When to reconsider:
+
+- Wayland ecosystem stabilizes completely
+- Maintenance burden becomes unsustainable
+- Core needs change dramatically
+```
+
+**Validation:**
+
+- `core-lint` checks WHY.md references valid intents
+- `intent-check` validates backward links
+
+**Philosophy:** Makes packages defensible. Teaching material for future-you. Prevents cargo-culting.
+
+---
+
+## v4.0.0 - Intelligence & Teaching (MAJOR)
+
+**Status:** Visionary  
+**Estimated Time:** TBD  
+**Sessions:** TBD
+
+**Theme:** "The system learns from you and teaches back"
+
+### Advanced Topology Tools
+
+**core-map - System Topology Viewer** ⭐⭐⭐⭐☆
+
+Mental model generator.
+
+````bash
+core-map
+
+Output:
+0-Core System Topology
+
+m-hypr (critical)
+ ├── depends: bar-waybar
+ ├── depends: theme-gtk
+ ├── intents: wayland-over-x11 (LOCKED)
+ └── used by: scripts/hypr-screenshot
+
+shell-zsh (high)
+ ├── depends: prompt-starship
+ ├── depends: scripts/safe-update
+ ├── intents: manual-only-updates (LOCKED)
+ └── used by: all terminal workflows
+
+editor-nvim (medium)
+ ├── depends: theme-nvim
+ └── independent subsystem
+
+Modes:
+
+core-map - Full topology
+core-map wm-hypr - Package subgraph
+core-map --intents - Intent-centric view
+core-map --dependencies - Dependency chains only
+
+Philosophy: Read-only. Zero automation. Reinforces system thinking. Complements core-diff.
+
+core-impact - Change Consequence Explorer ⭐⭐⭐⭐☆
+"If I touch this, what could break?"
+
+core-impact wm-hypr
+
+Output:
+Potential Impact Analysis: wm-hypr
+
+Direct Impact:
+- Desktop usability (CRITICAL)
+- Keybinding consistency (HIGH)
+- Window management behavior (HIGH)
+
+Dependent Packages:
+- bar-waybar (rendering may break)
+- theme-gtk (visual consistency)
+- scripts/hypr-screenshot (functionality)
+
+Intent Violations:
+⚠️  wayland-over-x11.intent (LOCKED)
+   Any changes must preserve Wayland exclusivity
+
+Blast Radius: CRITICAL
+Recommendation: Use meld for review
+
+Analysis Based On:
+
+Package relationships (from core-map)
+Intent blast_radius (from .dotmeta)
+Shared file dependencies
+LOCKED intent scopes
+
+Philosophy: Makes risk explicit. Static analysis only. Informational, not enforcement.
+
+intent-diff - Intent Evolution Tracker ⭐⭐⭐⭐☆
+"How has my thinking changed?"
+
+intent-diff since v3.1.0
+
+Output:
+🔄 Intent Evolution: v3.1.0 → v3.9.0
+
+Modified Intents:
+- automation-ban.intent
+  status: LOCKED → FLEXIBLE
+  reason: "system stabilized, selective automation acceptable"
+  scope: system-wide → automation/ only
+
+New Intents:
++ intent-ledger-foundation.intent (v3.5.0)
++ context-protection.intent (v3.7.0)
+
+Deleted Intents:
+- temp-experiment-2025-01.intent (expired)
+
+⚠️  Philosophical Drift Detected:
+   automation-ban relaxed
+   Consider: Is this growth or erosion?
+Philosophy: Prevents silent philosophical drift. Reinforces intentional evolution. Critical for long-term coherence.
+
+Pattern Recognition & Teaching (v4.0+)
+"Teaching the system to think" - NOT AI, YOUR patterns
+The system observes YOUR behavior and suggests based on YOUR history.
+Concept:
+Pattern Logger (Passive Observation)
+
+# System quietly logs:
+- core-diff wm-hypr → --open meld (5 times)
+- core-diff system/ → intent show (always)
+- After core-diff → dot-doctor (80% of time)
+
+Suggestion Engine (Based on YOUR History)
+core-diff wm-hypr
+
+Output:
+📊 Changes detected in wm-hypr (critical)
+
+💡 Pattern observed: You typically run:
+   core-diff wm-hypr --open meld
+
+   Open meld now? [y/n]
+
+Teaching Mode (Explains WHY You Do Things)
+teach-me wm-hypr
+
+Output:
+Based on your workflow patterns:
+
+1. You always use meld for wm-hypr (critical packages)
+2. You check intents before system/ changes (LOCKED awareness)
+3. You run dot-doctor after changes (validation habit)
+
+This suggests: Risk-proportional review depth
+Learn more: intent show wayland-over-x11
+
+**Implementation (Far Future):**
+- Pattern database in `~/0-core/.patterns/`
+- Simple frequency counting, no ML
+- User-reviewable, user-editable
+- Opt-in feature (disabled by default)
+
+**Example Pattern File:**
+```toml
+[pattern]
+trigger = "core-diff wm-hypr"
+action = "--open meld"
+frequency = 8
+confidence = "high"
+user_approved = true
+````
+
+---
+
+### Operational States (v4.x)
+
+Explicit system state awareness.
+
+**States:**
+
+- `CLEAN` - All committed, 100% health
+- `DIRTY` - Uncommitted changes
+- `DEGRADED` - Health < 100%
+- `EXPERIMENTAL` - Active experiments
+
+**Commands:**
+
+```bash
+core-state                              # Show current state
+core-state set EXPERIMENTAL "testing theme redesign"
+core-state history                      # State transitions
+```
+
+**Integration:**
+
+- Shell prompt shows state indicator
+- dot-doctor reports current state
+- core-diff aware of state context
+
+---
+
+### Failure Drills (v4.x)
+
+Practice disaster recovery in safe environment.
+
+```bash
+core-drill network
+core-drill pacman
+core-drill shell
+
+Output:
+🔧 DRILL: Network Failure Simulation
+
+You are now without DNS.
+Recover using your documented methods.
+
+Steps to consider:
+1. Check /etc/resolv.conf
+2. Restart systemd-resolved
+3. Verify DNSOverTLS config
+
+Press ENTER when recovered.
+```
+
+**Philosophy:** Builds muscle memory for disasters. No actual system changes. Guided learning.
+
+---
+
+## 📏 Final Rule for Tool Acceptance
+
+**A tool belongs in 0-Core if it:**
+
+✅ **Makes invisible structure visible**  
+✅ **Makes risk explicit**  
+✅ **Makes intent harder to forget**
+
+**You're not lacking features — you're curating intelligence.**
+
+---
+
+## 🎯 Development Philosophy
+
+### Timeline Expectations
+
+**Current roadmap (v3.4.1 → v3.8.0) will take months.**  
+**That's intentional and healthy.**
+
+- Quality over speed, always
+- Learning over rushing
+- Understanding over implementation
+- Philosophy over features
+
+### Building on Frameworks
+
+Many future tools will be small patches:
+
+- core-lint extends dot-doctor patterns
+- core-verify uses existing validation logic
+- intent-check builds on Intent Ledger schema
+- Pattern recognition uses simple frequency counting
+
+**We already have the infrastructure. We just need to use it smartly.**
+
+### Evolution, Not Revolution
+
+Each release builds on previous:
+
+- v3.4.0 gave us visibility (core-diff)
+- v3.5.0 will give us memory (Intent Ledger)
+- v3.6.0 will give us accountability (integration)
+- v3.7.0 will give us protection (context awareness)
+- v3.8.0 will give us beauty (themes)
+- v3.9.0 will give us observability (meta-tools)
+- v4.0.0 will give us intelligence (teaching)
+
+**Steady, intentional progression.**
+
+---
+
+## 🌲 The Long Game
+
+You're not just building dotfiles.  
+You're building a **personal operating constitution** that:
+
+- Remembers why (Intent Ledger)
+- Sees itself (core-map, core-lint)
+- Protects itself (Context Protection)
+- Learns from you (Pattern Recognition)
+- Teaches you back (Teaching Mode)
+- Stays honest (Intent Aging, intent-diff)
+- Grows deliberately (Intentional evolution)
+
+**This is a multi-year journey.**  
+**And that's what makes it exceptional.** 🌲
+
+---
+
+## 💚 Closing Thought
+
+Every tool in this roadmap passes the test:
+
+> Does it make the invisible visible?  
+> Does it make risk explicit?  
+> Does it make intent harder to forget?
+
+If yes → it belongs.  
+If no → it doesn't.
+
+**Quality over quantity.**  
+**Intelligence over features.**  
+**Philosophy over tools.**
+
+**This is 0-Core.** 🌲✨
+
+---
+
+_Last updated: December 23, 2025_  
+_Vision locked. Execution flexible. Philosophy unwavering._
+
 ## 📊 Semantic Versioning Guide
 
 **MAJOR (X.0.0):** New core capabilities (3+ hours work)
@@ -313,8 +836,6 @@ blast_radius = "critical"
 - Examples: core-diff, Intent Ledger, Context Protection
 
 **MINOR (X.Y.0):** Significant improvements (1-2 hours)
-
-- Examples: New dot-doctor checks, feature additions
 
 **PATCH (X.Y.Z):** Bug fixes, cleanup, polish (<1 hour)
 
@@ -327,16 +848,6 @@ blast_radius = "critical"
 **Next Up:** v3.4.1 - core-diff Polish (Friday/Saturday)  
 **Then:** v3.5.0 - Intent Ledger Foundation (Multi-session)  
 **Philosophy:** Quality over speed, always.
-
----
-
-## 📝 Notes
-
-- Intent Ledger (v3.5.0 + v3.6.0) is the critical path
-- Everything builds on the memory layer
-- No rushing - each release must be solid
-- Documentation is mandatory, not optional
-- 100% health before shipping
 
 ---
 
