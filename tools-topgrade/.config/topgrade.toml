@@ -1,27 +1,39 @@
 # ═══════════════════════════════════════════════════════════
-# 🔄 Topgrade Configuration - Smart & Safe
+# 🔄 Topgrade Configuration — Framework AMD 7940HS (Dev)
+# Fast • Safe • Daily-Run Friendly
+# Philosophy: Manual control with intentional exceptions
 # ═══════════════════════════════════════════════════════════
 
 [misc]
-assume_yes = false
-cleanup = true
-no_retry = false
-display_time = true
-skip_notify = true
+assume_yes = false          # Manual confirmation required
+cleanup = true              # Remove old packages/cache
+no_retry = true             # Don't hang on failures
+display_time = true         # Show execution times
+skip_notify = true          # No desktop notifications
+
+# Skip ecosystems not used on this system
+disable = [
+  "snap",
+  "flatpak",
+]
 
 [linux]
 arch_package_manager = "yay"
 yay_arguments = "--devel --timeupdate"
 
 [git]
-# Auto-pull your git repos
+# Trade-off: Auto-update clean repos for convenience
+# Dirty repos are skipped automatically (Topgrade behavior)
 repos = ["~/0-core", "~/faelight-theme-engine"]
-
-# Use rebase to avoid divergence issues
-arguments = "--rebase --autostash"
-
-# Pull predefined repos automatically
+arguments = "--rebase"     # No autostash - safety first
 pull_predefined = true
+max_concurrency = 4         # Parallel pulls
+
+[rustup]
+channels = ["stable"]       # Update Rust toolchain (stable channel)
 
 [firmware]
-# upgrade = true
+# Disabled: Firmware updates require manual review
+# Use: fwupdmgr get-updates && fwupdmgr update
+# upgrade = false
+
