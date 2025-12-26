@@ -65,11 +65,50 @@ EXAMPLES:
 PHILOSOPHY:
    "Meld shows trees. core-diff shows the forest 🌲"
 
+EXIT CODES:
+   0 - Success (changes found or none detected)
+   1 - General error (git failure, tool not found)
+   2 - Invalid usage (bad arguments, missing package)
+
 EOF
 }
 
 show_version() {
   echo "core-diff version $SCRIPT_VERSION (0-core v3.4.0)"
+}
+
+show_available_packages() {
+  echo ""
+  echo "💡 Available packages:"
+
+  # List all directories in 0-core that look like packages
+  local packages=()
+  for dir in "$CORE_DIR"/*/; do
+    local dirname=$(basename "$dir")
+    # Skip special directories
+    if [[ "$dirname" != "docs" && "$dirname" != "scripts" && "$dirname" != "hooks" && "$dirname" != "INTENT" && "$dirname" != ".git" ]]; then
+      packages+=("$dirname")
+    fi
+  done
+
+  # Display in columns
+  if [[ ${#packages[@]} -gt 0 ]]; then
+    printf "   %s\n" "${packages[@]}" | sort | column -c 80
+  else
+    echo "   No packages found"
+  fi
+  echo ""
+}
+
+show_recent_tags() {
+  echo ""
+  echo "💡 Recent tags:"
+  git tag --sort=-version:refname | head -5 | while read -r tag; do
+    echo "   $tag"
+  done
+  echo ""
+  echo "💡 Or use: HEAD~1, HEAD~5, etc."
+  echo ""
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -87,7 +126,8 @@ get_changes() {
   "since")
     if ! git rev-parse "$ref" >/dev/null 2>&1; then
       echo "❌ Error: Invalid git reference: $ref" >&2
-      exit 1
+      show_recent_tags >&2
+      exit 2
     fi
     git diff --name-status "$ref"
     ;;
@@ -251,7 +291,7 @@ main() {
       if [[ -z "$ref" ]]; then
         echo "❌ Error: 'since' requires a git reference"
         echo "   Example: core-diff since v3.3.5"
-        exit 1
+        exit 2
       fi
       shift
       ;;
@@ -269,7 +309,7 @@ main() {
       if [[ "$open_tool" != "delta" && "$open_tool" != "meld" ]]; then
         echo "❌ Error: --open requires 'delta' or 'meld'"
         echo "   Example: core-diff --open delta"
-        exit 1
+        exit 2
       fi
       shift
       ;;
@@ -284,7 +324,7 @@ main() {
     -*)
       echo "❌ Error: Unknown option: $1"
       echo "   Try: core-diff --help"
-      exit 1
+      exit 2
       ;;
     *)
       # Assume it's a package name
@@ -301,14 +341,26 @@ main() {
   # Check if any changes
   if [[ -z "$changes" ]]; then
     echo "✅ No changes detected"
+    echo ""
+    echo "💡 Tip: Use 'core-diff since <ref>' to review historical changes"
+    echo "   Example: core-diff since v3.4.0"
     exit 0
   fi
 
   # Filter by target package if specified
   if [[ -n "$target_package" ]]; then
-    changes=$(echo "$changes" | grep "^[MAD][[:space:]]$target_package/")
+    # Check if package directory exists
+    if [[ ! -d "$CORE_DIR/$target_package" ]]; then
+      echo "❌ Error: Package does not exist: $target_package" >&2
+      show_available_packages
+      exit 2
+    fi
+
+    changes=$(echo "$changes" | grep "^[MAD][[:space:]]$target_package/" || true)
     if [[ -z "$changes" ]]; then
       echo "✅ No changes in package: $target_package"
+      echo ""
+      echo "💡 Tip: Check other packages with 'core-diff' or 'core-diff --verbose'"
       exit 0
     fi
     echo "🔍 Showing changes for package: $target_package"
@@ -386,6 +438,27 @@ main() {
       echo "Risk: LOW"
     fi
 
+    echo ""
+    echo "💡 Use 'core-diff --verbose' to see file details"
+    echo "   Use 'core-diff --high-risk' to filter critical/high only"
+
+    exit 0
+  fi
+
+  # Check if high-risk filter is on but no high/critical packages
+  if [[ "$high_risk" == "true" ]] && [[ ${#critical_packages[@]} -eq 0 ]] && [[ ${#high_packages[@]} -eq 0 ]]; then
+    echo ""
+    echo "📊 Changes detected in 0-core:"
+    echo ""
+    echo "✅ No critical or high-risk changes"
+    echo ""
+
+    local total_other=$((${#medium_packages[@]} + ${#low_packages[@]}))
+    if [[ $total_other -gt 0 ]]; then
+      echo "🔵 $total_other medium/low-risk package(s) changed"
+      echo "   (use 'core-diff' without --high-risk to see all)"
+    fi
+    echo ""
     exit 0
   fi
 
@@ -399,9 +472,13 @@ main() {
     echo ""
     case "$open_tool" in
     delta)
+      echo "🔍 Opening delta for review..."
+      echo ""
       open_delta "$mode" "$ref" "$target_package"
       ;;
     meld)
+      echo "🔍 Opening Meld for visual comparison..."
+      echo ""
       open_meld "$mode" "$ref" "$target_package"
       ;;
     esac
@@ -497,3 +574,4 @@ main() {
 
 # Run main
 main "$@"
+# test
