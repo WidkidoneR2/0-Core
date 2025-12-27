@@ -1,59 +1,8 @@
 # 🗺️ Faelight Forest Development Roadmap
 
-**Current Version:** 3.4.0 - Foundational Intelligence ✅  
-**Last Updated:** December 22, 2025  
+**Current Version:** 3.4.4 - Foundational Intelligence ✅  
+**Last Updated:** December 27, 2025  
 **Roadmap Version:** 5.0 - Architectural Refinement
-
----
-
-## ✅ v3.4.0 - core-diff (MAJOR) - COMPLETE! 🎉
-
-**Status:** Shipped December 23, 2025  
-**Health:** 100%  
-**Sessions:** 3 (Planning, Advanced, Documentation)  
-**Time:** ~5-6 hours
-
-**Delivered:**
-
-- Package-aware diff tool with risk-based grouping
-- Delta & Meld integration
-- 7+ working modes (default, since, summary, verbose, high-risk, package-specific)
-- Comprehensive documentation (TOOLS.md, WORKFLOWS.md)
-- 12 aliases for common workflows
-- Philosophy: "Meld shows trees. core-diff shows the forest 🌲"
-
-**Files:**
-
-- `scripts/core-diff` - Main tool
-- `docs/TOOLS.md` - Tool reference
-- `docs/WORKFLOWS.md` - Usage patterns
-- 12 aliases in `.zshrc`
-
----
-
-## ⏳ v3.4.1 - core-diff Polish (PATCH)
-
-**Status:** Planned (Start: Friday/Saturday)  
-**Estimated Time:** 1-2 hours  
-**Sessions:** 1
-
-**Goals:**
-
-- Better error messages (more helpful, specific)
-- Exit codes for scripting (0=success, 1=error, etc.)
-- Minor UX polish (output formatting, edge cases)
-
-**Why:**
-
-- Make core-diff more robust for daily use
-- Enable scripting/automation with reliable exit codes
-- Improve user experience based on initial usage
-
-**Success Criteria:**
-
-- All error messages are helpful and actionable
-- Exit codes documented and consistent
-- Edge cases handled gracefully
 
 ---
 
@@ -845,63 +794,10 @@ _Vision locked. Execution flexible. Philosophy unwavering._
 
 ## 🎯 Current Focus
 
-**Next Up:** v3.4.1 - core-diff Polish (Friday/Saturday)  
-**Then:** v3.5.0 - Intent Ledger Foundation (Multi-session)  
+**Now:** v3.5.0 - Intent Ledger Foundation (Multi-session)  
 **Philosophy:** Quality over speed, always.
 
 ---
-
-```
-
-## 🔄 Smart Updates
-
-safe-update        # Smart system update with recovery
-weekly-check       # Prompted weekly maintenance
-check-updates      # Check for updates (no install)
-```
-
-## 🎮 System Control
-
-```fish
-dotctl status      # Show package versions
-dotctl bump        # Bump package version
-dotctl history     # Show changelog
-dotctl health      # Run health check
-```
-
-## 📂 Navigation (Numbered Structure)
-
-```fish
-core               # cd ~/0-core
-src                # cd ~/1-src
-work               # cd ~/2-work
-keep               # cd ~/3-keep
-tmp                # cd ~/9-temp
-```
-
-[... continue with all aliases ...]
-EOF
-
-# Add auto-generation script:
-
-cat > scripts/generate-aliases-doc << 'EOF'
-#!/bin/bash
-
-# Auto-generate ALIASES.md from config.fish
-
-# Extract all aliases and functions
-
-# Parse shell-fish/.config/fish/config.fish
-
-# Output to docs/ALIASES.md with categories
-
-EOF
-
-3. File Polish & Cleanup 🧹
-   bash# Areas to review:
-
-1. Remove any test/temp files
-   find ~/0-core -name "_.backup" -o -name "_.tmp" -o -name "\*~"
 
 1. Ensure all scripts have proper headers
 
@@ -994,19 +890,6 @@ EOF
 
 chmod +x hooks/pre-commit
 
-```
-
----
-
-
-
-PART 4: Security Updates (30 min)
-├── Update gitleaks
-├── Test gitleaks config
-├── Review/enhance git hooks
-├── Test hooks thoroughly
-└── Document hook behavior
-
 ---
 
 ## 📅 **REVISED TIMELINE:**
@@ -1017,31 +900,7 @@ PART 4: Security Updates (30 min)
 
 ## 📋 **v3.4.0 PLAN FOR TOMORROW:**
 
-```
-
-💡 ALIASES.MD STRUCTURE PREVIEW:
-markdown# 🎯 Alias Reference
-
-## Categories
-
-- [Core Protection](#core-protection)
-- [Smart Updates](#smart-updates)
-- [System Control](#system-control)
-- [Navigation](#navigation)
-- [Package Management](#package-management)
-- [Git Shortcuts](#git-shortcuts)
-- [File Management](#file-management)
-- [Development](#development)
-- [Utilities](#utilities)
-
 ---
-
-v3.4.0 (2-3 hrs): Policy Enforcement
-
-- Safety gates
-- Requirement checks
-- --ack-critical overrides
-- Basic temporal tracking
 
 v3.5.0 (3-4 hrs): Temporal Intelligence
 
@@ -1050,15 +909,9 @@ v3.5.0 (3-4 hrs): Temporal Intelligence
 - Predictive warnings
 - Advanced safety analysis
 
-v4.0.0: The Research Paper
-
-- Academic documentation
-- Published system design
-- Community presentation
-
 ---
 
-**Current Status:** Version 3.4.0 Complete ✅
+**Current Status:** Version 3.4.4 Complete ✅
 **Vision:** Infrastructure as Poetry 🌲✨
 
 ---
