@@ -25,6 +25,11 @@ command_not_found_handler() {
 setopt NO_BANG_HIST          # Don't treat ! specially
 setopt NO_HIST_EXPAND        # Don't expand history references
 
+# Directory history (Fish-like cd navigation)
+setopt AUTO_PUSHD            # Auto push old dir to stack
+setopt PUSHD_IGNORE_DUPS     # No duplicates in stack
+setopt PUSHD_SILENT          # Don't print stack on pushd/popd
+
 # ═══════════════════════════════════════════════════════════
 # 🎨 ENVIRONMENT & PATH
 # ═══════════════════════════════════════════════════════════
@@ -37,6 +42,7 @@ export PATH="$HOME/0-core/scripts:$PATH"
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
+
 
 # ═══════════════════════════════════════════════════════════
 # 🔒 CORE PROTECTION (0-core Immutability)
@@ -99,10 +105,11 @@ alias lt='eza -lah --icons --sort=modified --reverse'
 alias lsize='eza -lah --icons --sort=size --reverse'
 alias tree='eza --tree --icons --group-directories-first'
 
-# Bat (better cat)
-alias cat='bat --paging=never'
-alias catp='bat --paging=always'
-alias catt='bat --style=plain'
+# Bat (better cat) - DO NOT alias cat directly (breaks pipes/scripts)
+alias b='bat --paging=never'        # Quick colorized view
+alias catp='bat --paging=always'    # Paged view
+alias catt='bat --style=plain'      # Plain style
+alias ccat='/usr/bin/cat'           # Explicit plain cat if needed
 
 # Fd (better find)
 alias search='fd'
@@ -359,6 +366,26 @@ alias untar='tar -xvf'
 alias yp='pwd | wl-copy'
 alias yf='basename $PWD | wl-copy'
 
+# Alias help function
+alias-help() {
+  echo "📋 Alias Categories (188+ total):"
+  echo ""
+  echo "🔒 Core Protection: lock-core, unlock-core, edit-core"
+  echo "📂 Navigation: core, src, work, .., cd ~1"
+  echo "📁 File Mgmt: ls, ll, tree, b (bat), search (fd)"
+  echo "📦 Packages: pacu, paci, ins, yup, cleanup"
+  echo "🔧 Git: lg, gst, gaa, gcm, gp, gl"
+  echo "🔍 Core-Diff: cdiff, cds, cdh, cdm, cdhypr"
+  echo "💻 System: doctor, ff, df, mem, cpu"
+  echo "📝 Editor: v, nzsh, nhypr, nwaybar"
+  echo "🖥️  Desktop: hypr-reload, waybar-restart"
+  echo "🔐 Security: audit-quick, scan-secrets"
+  echo "📚 Docs: keys, guide, roadmap"
+  echo ""
+  echo "📖 Full reference: bat ~/0-core/docs/ALIASES.md"
+  echo "🔍 Search: alias | grep <keyword>"
+}
+
 # ═══════════════════════════════════════════════════════════
 # 🔐 SECURITY & AUDITING
 # ═══════════════════════════════════════════════════════════
@@ -479,7 +506,6 @@ update-check() {
     
     # Check official repos
     echo "📦 Official repositories:"
-    sudo pacman -Sy > /dev/null 2>&1
     local updates=$(checkupdates 2>/dev/null | wc -l)
     
     if [ $updates -gt 0 ]; then
@@ -651,12 +677,21 @@ if [[ -o interactive ]]; then
     echo ""
 fi
 
-# Check if 0-core is unlocked and warn
-if [[ -d ~/0-core ]] && ! lsattr ~/0-core 2>/dev/null | head -1 | grep -q -- '----i'; then
-    echo ""
-    echo -e "\033[1;33m⚠️  WARNING: 0-core is UNLOCKED!\033[0m"
-    echo -e "\033[0;33m   Lock it when done editing: lock-core\033[0m"
-fi
+# ═══════════════════════════════════════════════════════════
+# 🔒 Core Guard - Cognitive Safety Layer
+# ═══════════════════════════════════════════════════════════
+core_guard() {
+  [[ $PWD == $HOME/0-core* ]] || return
+  if lsattr -d ~/0-core 2>/dev/null | grep -q -- '----i'; then
+    echo "🔒 Protected zone (LOCKED)"
+  else
+    echo "⚠️  Protected zone (UNLOCKED) - lock-core when done"
+  fi
+}
+
+# Remove all existing instances, then add once
+precmd_functions=(${precmd_functions:#core_guard})
+precmd_functions+=(core_guard)
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
