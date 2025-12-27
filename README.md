@@ -267,73 +267,43 @@ Enterprise-level security for a desktop system:
 
 ---
 
-### **Installation**
+## 🚀 Installation
 
-#### **Step 1: Clone Repository**
+**Philosophy:** Manual installation, no automation scripts.
 
-```bash
-# Clone to 0-core (not "dotfiles"!)
-git clone https://github.com/WidkidoneR2/0-core.git ~/0-core
-cd ~/0-core
-```
+### Quick Start
 
-#### **Step 2: Install Packages**
+See [docs/MANUAL_INSTALLATION.md](docs/MANUAL_INSTALLATION.md) for complete guide.
+
+**Summary:**
 
 ```bash
-# Install from package list
-sudo pacman -S --needed - < packages/pkglist.txt
+# 1. Clone
+git clone https://github.com/WidkidoneR2/0-Core.git ~/0-Core
 
-# Install AUR helper (if not installed)
-git clone https://aur.archlinux.org/yay.git
-cd yay && makepkg -si
-```
+# 2. Backup existing configs
+BACKUP_DIR="$HOME/.config_backup_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+cp -r ~/.config/hypr ~/.config/waybar ~/.config/zsh "$BACKUP_DIR/" 2>/dev/null
 
-#### **Step 3: Setup SSH Keys (Recommended)**
+# 3. Install with stow (one at a time!)
+cd ~/0-Core
+stow shell-zsh        # Test after each!
+stow wm-hypr          # Critical - test in nested session first
+stow bar-waybar
+stow notif-mako
+stow editor-nvim
+stow fm-yazi
 
-```bash
-# Generate SSH key
-ssh-keygen -t ed25519 -C "your-email@example.com"
-
-# Add to ssh-agent
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-
-# Copy public key
-cat ~/.ssh/id_ed25519.pub
-# Add to GitHub: https://github.com/settings/keys
-
-# Update remote to SSH
-git remote set-url origin git@github.com:WidkidoneR2/0-core.git
-```
-
-#### **Step 4: Deploy Configurations**
-
-```bash
-cd ~/0-core
-
-# Deploy all packages with stow
-./install.sh
-
-# Or manually select packages:
-stow wm-hypr bar-waybar notif-mako shell-zsh editor-nvim fm-yazi \
-     vcs-git prompt-starship browser-brave theme-gtk \
-     theme-term-foot-dark theme-term-ghostty-dark \
-     theme-launch-fuzzel-dark tools-topgrade
-```
-
-#### **Step 5: Validate & Reload**
-
-```bash
-# Run health check
+# 4. Verify
 dot-doctor
-
-# Should show 100% - fix any issues reported
-
-# Reload Hyprland
-hyprctl reload
-
-# Or log out and back in
 ```
+
+**Read the full manual guide before installing!**
+
+---
+
+````
 
 ---
 
@@ -345,7 +315,7 @@ hyprctl reload
 safe-update            # Smart system update
 dot-doctor             # Health check
 sync-0-core            # Git pull/push
-```
+````
 
 ### **Configuration Management**
 
