@@ -98,6 +98,41 @@ blast_radius = "critical"
 - Documentation complete
 - Foundation solid for v3.6.0 integration
 
+v3.5.1 - Git Guardrails
+└─ Locked commit prevention
+└─ Main push confirmation
+└─ Escape hatches (git!)
+└─ DESIGN_CONSTRAINTS.md
+
+💅 v3.5.2 - Shell Safety & Polish
+└─ Dangerous command highlighting
+└─ Alias autocompletion
+└─ 0-Core path highlighting
+
+📋 v3.5.2 - Shell Safety & Polish (CONFIRMED):
+1️⃣ Dangerous Command Highlighting ⭐⭐⭐⭐⭐
+└─ rm -rf, chmod 777, dd if=
+└─ Red background warnings
+└─ Cognitive safety layer
+
+2️⃣ Alias Autocompletion ⭐⭐⭐⭐⭐
+└─ core-diff, dot-doctor, dotctl
+└─ Enhanced discoverability
+└─ Professional polish
+
+3️⃣ 0-Core Path Highlighting ⭐⭐⭐⭐⭐
+└─ Make ~/0-core paths stand out
+└─ Visual consistency
+└─ Only if easy to implement
+
+Time Estimate: 1-2 hours
+Complexity: Low
+Value: High
+Philosophy: Perfectly aligned
+
+🚀 v4.0.0 - GPU Profiles (Omega-style)
+└─ Future dream project
+
 ---
 
 ## 🔗 v3.6.0 - Intent Ledger Integration (MAJOR)
