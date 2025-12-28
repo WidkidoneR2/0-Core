@@ -6,6 +6,15 @@
 
 ---
 
+🗺️ THE FOREST AHEAD:
+🌱 v3.5.0 - Intent Ledger (Wed) - First seed
+🌱 v3.5.1 - Git Guardrails - Protection grows
+🌱 v3.5.2 - Shell Safety - Roots strengthen  
+🌳 v4.0.0 - GPU Profiles - Omega legacy honored
+🌲 v5.0.0 - faelight-bar - First Rust tree
+🌲 v5.1.0 - Complete Rust - Forest transforms
+🌲 v6.0.0 - Unknown beauty - Forest matures
+
 ## 🎯 v3.5.0 - Intent Ledger Foundation (MAJOR)
 
 **Status:** Planned  
