@@ -125,6 +125,11 @@ v3.5.1 - Git Guardrails
 └─ Visual consistency
 └─ Only if easy to implement
 
+4️⃣ Starship Lock Status Integration ⭐⭐⭐⭐⭐
+└─ 🔒 when locked, 🔓 when unlocked
+└─ Replaces core_guard() verbose warnings
+└─ Cleaner, more elegant
+
 Time Estimate: 1-2 hours
 Complexity: Low
 Value: High
@@ -834,115 +839,137 @@ _Vision locked. Execution flexible. Philosophy unwavering._
 
 ---
 
-1. Ensure all scripts have proper headers
+🎮 v4.0.0 - GPU Profiles (Omega Legacy)
+└─ Omega-style GPU configuration
+└─ Wayland + Vulkan support
+└─ TUI selector
+└─ Honor the past
 
-   # Check scripts/ for consistent format
+Phase 1: Learn by doing (v5.0)
+🌲 v5.0.0 - FAELIGHT-BAR (THE BIG ONE)
+└─ Custom Rust Wayland bar
+└─ Minimal, intentional, beautiful
+└─ Hyprland-native
+└─ Security-focused
+└─ Philosophy embodied in code
+└─ CELEBRATION OF THE JOURNEY
+└─ Something RARE and UNIQUE
 
-1. Check for TODOs/FIXMEs
-   grep -r "TODO\|FIXME\|XXX" ~/0-core --exclude-dir=.git
+## 🦀 RUST TRANSITION PLAN:
 
-1. Verify all .dotmeta files complete
+faelight-bar will be your Rust teacher:
 
-   # Ensure all packages have .dotmeta
+- Real project (not toy)
+- Meaningful goal
+- Forces you to learn properly
+- Builds muscle memory
 
-1. Check documentation links
+Phase 2: Rewrite existing tools (v5.1+)
+After faelight-bar, rewrite in Rust:
 
-   # Verify all internal links work
+- core-diff → Rust (faster, safer)
+- dot-doctor → Rust (type-safe health checks)
+- safe-update → Rust (better error handling)
+- core-protect → Rust (security-critical)
 
-1. Remove personal info (final check)
-   grep -r "christian\|@tuta\|personal" ~/0-core --exclude-dir=.git
+Phase 3: Rust-first for new tools (v6.0+)
+All new 0-Core tools written in Rust:
 
-1. Gitleaks Check & Update 🔐
-   bash# Check current gitleaks version:
-   gitleaks version
-
-# Update if needed:
-
-yay -S gitleaks
-
-# Test current config:
-
-cd ~/0-core
-gitleaks detect --no-git -v
-
-# Review .pre-commit-config.yaml:
-
-cat > .pre-commit-config.yaml << 'EOF'
-repos:
-
-- repo: https://github.com/gitleaks/gitleaks
-  rev: v8.21.2 # Check for latest version
-  hooks: - id: gitleaks
-  EOF
-
-# Test the hook:
-
-git add test-file
-git commit -m "test" # Should scan
-
-5. Git Hooks Review 🪝
-   bash# Check current hooks:
-   ls -la hooks/
-
-# Update pre-commit hook if needed:
-
-cat > hooks/pre-commit << 'EOF'
-#!/bin/bash
-
-# Enhanced pre-commit hook
-
-echo "🔍 Running pre-commit checks..."
-
-# 1. Gitleaks scan
-
-echo "Scanning for secrets..."
-gitleaks protect --staged -v
-
-# 2. Check for large files
-
-echo "Checking file sizes..."
-git diff --cached --name-only | while read file; do
-if [ -f "$file" ]; then
-size=$(wc -c < "$file")
-if [ $size -gt 1048576 ]; then # 1MB
-echo "❌ File too large: $file ($(($size / 1024))KB)"
-exit 1
-fi
-fi
-done
-
-# 3. Check for personal info (basic)
-
-echo "Checking for personal info..."
-if git diff --cached | grep -E "@tuta\.com|personal|private" > /dev/null; then
-echo "⚠️ Warning: Potential personal info detected"
-read -p "Continue? (y/N): " confirm
-[ "$confirm" != "y" ] && exit 1
-fi
-
-echo "✅ Pre-commit checks passed!"
-EOF
-
-chmod +x hooks/pre-commit
-
----
+- Better performance
+- Memory safety
+- Modern practices
+- Cross-compilation
 
 ## 📅 **REVISED TIMELINE:**
 
 ```
+Phase 1: Foundation (v3.5.x - v4.x) - Bash/Shell
+v3.5.0 - Intent Ledger (Bash)
+v3.5.1 - Git Guardrails (Shell)
+v3.5.2 - Shell Polish (Zsh/Starship)
+v4.0.0 - GPU Profiles (Bash/Shell)
 
-## ✅ **IMMEDIATE TODO LIST:**
+Why Bash/Shell:
+✅ Proven technology
+✅ Fast to ship
+✅ Captures your ideas NOW
+✅ Builds the foundation
 
-## 📋 **v3.4.0 PLAN FOR TOMORROW:**
+Phase 2: Learning & Standalone (v5.0.0) - First Rust
+v5.0.0 - faelight-bar (Rust)
 
----
+Why this is the PERFECT start:
+✅ Standalone project (doesn't break 0-Core if you struggle)
+✅ Can coexist with Waybar during development
+✅ Forces you to learn Wayland + Rust properly
+✅ Testable, iterate, improve
+✅ Celebration of your journey
 
-v3.5.0 (3-4 hrs): Temporal Intelligence
+Status: bar-faelight/ as NEW package
+0-Core still runs on bar-waybar (safe fallback)
 
-- Stability metrics
-- Entropy tracking
-- Predictive warnings
-- Advanced safety analysis
+Phav5.1 - core-diff rewrite (Rust)
+   └─ Start with most-used tool
+   └─ Keep bash version as fallback
+   └─ scripts/core-diff.rs alongside core-diff.sh
+
+v5.2 - dot-doctor rewrite (Rust)
+   └─ Type-safe health checks
+   └─ Better error messages
+   └─ Parallel checks (faster)
+
+v5.3 - safe-update rewrite (Rust)
+   └─ Critical tool = deserves Rust safety
+   └─ Better snapshot management
+   └─ Atomic operations
+
+v5.4 - core-protect rewrite (Rust)
+   └─ Security-critical
+   └─ Memory safety matters here
+
+The strategy is COEXISTENCE, not replacement:
+0-Core/scripts/
+├── core-diff              # Original bash (v3.5.0)
+├── core-diff.rs          # Rust version (v5.1)
+├── Cargo.toml            # Rust dependencies
+└── .version              # Tracks which is default
+
+REVISED RUST TRANSITION (ALL-IN):
+Phase 1: Foundation (Bash) - Q4 2025 to Q1 2026
+v3.5.0 - Intent Ledger (Bash)
+v3.5.1 - Git Guardrails (Bash)
+v3.5.2 - Shell Polish (Zsh/Starship)
+v4.0.0 - GPU Profiles (Bash)
+
+Status: Pure Bash/Shell
+Announcement: "v5.0 brings Rust rewrite"
+Phase 2: First Rust (Standalone) - Q2 2026
+v5.0.0 - faelight-bar (Rust)
+
+Status: NEW package, doesn't replace anything yet
+bar-waybar/ → stays (for now)
+bar-faelight/ → new Rust bar
+
+Why: Proves Rust works, isolated experiment
+Phase 3: THE BIG CUT-OVER - Q3 2026+
+v5.1.0 - Complete Rust Rewrite (THE TRANSITION)
+
+EVERYTHING rewrites to Rust:
+├── scripts/core-diff         → Rust
+├── scripts/dot-doctor        → Rust
+├── scripts/safe-update       → Rust
+├── scripts/core-protect      → Rust
+├── scripts/dotctl            → Rust
+├── scripts/core-status       → Rust
+├── scripts/bump-system-version → Rust
+└── ALL bash scripts          → Rust
+
+bar-waybar/ → REMOVED
+bar-faelight/ → ONLY bar
+
+Result: 100% Rust tooling
+No bash fallbacks
+Clean codebase
 
 ---
 
@@ -952,14 +979,5 @@ v3.5.0 (3-4 hrs): Temporal Intelligence
 ---
 
 _Last Updated: December 22, 2025_
-_Roadmap Version: 5.0 - Architectural Refinement_
-
-```
-
-```
-
-```
-
-```
-
+_Roadmap Version: 5.0+ - RUST TRANSITION
 ```
