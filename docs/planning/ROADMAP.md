@@ -1,7 +1,7 @@
 # 🗺️ Faelight Forest Development Roadmap
 
 **Current Version:** 3.4.4 - Foundational Intelligence ✅  
-**Last Updated:** December 27, 2025  
+**Last Updated:** December 28, 2025  
 **Roadmap Version:** 5.0 - Architectural Refinement
 
 ---
@@ -927,7 +927,7 @@ v5.4 - core-protect rewrite (Rust)
    └─ Security-critical
    └─ Memory safety matters here
 
-The strategy is COEXISTENCE, not replacement:
+The strategy is REPLACEMENT:
 0-Core/scripts/
 ├── core-diff              # Original bash (v3.5.0)
 ├── core-diff.rs          # Rust version (v5.1)
@@ -978,6 +978,6 @@ Clean codebase
 
 ---
 
-_Last Updated: December 22, 2025_
+_Last Updated: December 28, 2025_
 _Roadmap Version: 5.0+ - RUST TRANSITION
 ```
