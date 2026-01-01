@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+# intent - Intent Ledger management tool
+# Manages the memory of 0-Core
+
+set -euo pipefail
+
+INTENT_DIR="$HOME/0-core/INTENT"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Helper functions
+error() {
+  echo -e "${RED}❌ Error: $1${NC}" >&2
+  exit 1
+}
+
+success() {
+  echo -e "${GREEN}✅ $1${NC}"
+}
+
+info() {
+  echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+# Get next ID for a category
+get_next_id() {
+  local category="$1"
+  local dir="$INTENT_DIR/$category"
+
+  if [ ! -d "$dir" ]; then
+    echo "001"
+    return
+  fi
+
+  local last_file=$(ls "$dir" | grep -E '^[0-9]{3}-' | sort -r | head -1)
+
+  if [ -z "$last_file" ]; then
+    echo "001"
+  else
+    local last_id=$(echo "$last_file" | cut -d'-' -f1)
+    printf "%03d" $((10#$last_id + 1))
+  fi
+}
+
+# Add new intent
+cmd_add() {
+  echo -e "${CYAN}📝 Adding New Intent${NC}"
+  echo ""
+
+  # Select category
+  echo "Select category:"
+  echo "  1) decisions"
+  echo "  2) experiments"
+  echo "  3) philosophy"
+  echo "  4) future"
+  read -p "Choice (1-4): " category_choice
+
+  case "$category_choice" in
+  1) category="decisions" ;;
+  2) category="experiments" ;;
+  3) category="philosophy" ;;
+  4) category="future" ;;
+  *) error "Invalid choice" ;;
+  esac
+
+  # Get next ID
+  id=$(get_next_id "$category")
+
+  # Get title
+  read -p "Title: " title
+
+  # Get tags
+  read -p "Tags (comma-separated): " tags_input
+
+  # Get status
+  echo "Status:"
+  echo "  1) planned"
+  echo "  2) in-progress"
+  echo "  3) complete"
+  echo "  4) abandoned"
+  read -p "Choice (1-4): " status_choice
+
+  case "$status_choice" in
+  1) status="planned" ;;
+  2) status="in-progress" ;;
+  3) status="complete" ;;
+  4) status="abandoned" ;;
+  *) error "Invalid choice" ;;
+  esac
+
+  # Create file
+  local filename="$INTENT_DIR/$category/$id-$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-').md"
+
+  cat >"$filename" <<EOF
+---
+id: $id
+date: $(date +%Y-%m-%d)
+type: $category
+title: "$title"
+status: $status
+tags: [$tags_input]
+---
+
+## Why
+
+[Explain the reasoning behind this decision/experiment/vision]
+
+## What
+
+[Describe what we're doing or planning to do]
+
+## How (if applicable)
+
+[Technical details, implementation notes]
+
+## Alternatives Considered (if applicable)
+
+[What else we thought about and why we didn't choose it]
+
+## Impact
+
+[Expected outcomes, benefits, risks]
+
+## Status Updates
+
+### $(date +%Y-%m-%d)
+[Initial creation]
+
+---
+
+*Part of the 0-Core Intent Ledger* 🌲
+EOF
+
+  success "Intent created: $filename"
+  info "Opening in editor..."
+
+  ${EDITOR:-nvim} "$filename"
+}
+
+# List all intents
+cmd_list() {
+  local category="${1:-}"
+
+  echo -e "${CYAN}📋 Intent Ledger${NC}"
+  echo ""
+
+  if [ -n "$category" ]; then
+    # List specific category
+    if [ ! -d "$INTENT_DIR/$category" ]; then
+      error "Category '$category' not found"
+    fi
+
+    echo -e "${YELLOW}Category: $category${NC}"
+    echo ""
+
+    for file in "$INTENT_DIR/$category"/*.md; do
+      if [ -f "$file" ]; then
+        local id=$(grep "^id:" "$file" | cut -d' ' -f2)
+        local title=$(grep "^title:" "$file" | cut -d'"' -f2)
+        local status=$(grep "^status:" "$file" | cut -d' ' -f2)
+
+        case "$status" in
+        planned) status_icon="📅" ;;
+        in-progress) status_icon="🚧" ;;
+        complete) status_icon="✅" ;;
+        abandoned) status_icon="❌" ;;
+        *) status_icon="❓" ;;
+        esac
+
+        echo -e "$status_icon [$id] $title"
+      fi
+    done
+  else
+    # List all categories
+    for cat in decisions experiments philosophy future; do
+      echo -e "${YELLOW}$cat:${NC}"
+
+      if [ -d "$INTENT_DIR/$cat" ] && [ "$(ls -A "$INTENT_DIR/$cat" 2>/dev/null)" ]; then
+        for file in "$INTENT_DIR/$cat"/*.md; do
+          if [ -f "$file" ]; then
+            local id=$(grep "^id:" "$file" | cut -d' ' -f2)
+            local title=$(grep "^title:" "$file" | cut -d'"' -f2)
+            local status=$(grep "^status:" "$file" | cut -d' ' -f2)
+
+            case "$status" in
+            planned) status_icon="📅" ;;
+            in-progress) status_icon="🚧" ;;
+            complete) status_icon="✅" ;;
+            abandoned) status_icon="❌" ;;
+            *) status_icon="❓" ;;
+            esac
+
+            echo -e "  $status_icon [$id] $title"
+          fi
+        done
+      else
+        echo -e "  ${BLUE}(empty)${NC}"
+      fi
+      echo ""
+    done
+  fi
+}
+
+# Show specific intent
+cmd_show() {
+  local id="$1"
+
+  # Find the file
+  local found_file=""
+  for cat in decisions experiments philosophy future; do
+    for file in "$INTENT_DIR/$cat"/$id-*.md; do
+      if [ -f "$file" ]; then
+        found_file="$file"
+        break 2
+      fi
+    done
+  done
+
+  if [ -z "$found_file" ]; then
+    error "Intent $id not found"
+  fi
+
+  # Display with bat (Monokai forest vibes!)
+  if command -v bat &>/dev/null; then
+    bat --style=header,grid --theme="Monokai Extended" --paging=never "$found_file"
+  else
+    # Fallback: add some color
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    cat "$found_file"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
+  fi
+}
+
+# Search intents by tag
+cmd_search() {
+  local search_term="$1"
+
+  echo -e "${CYAN}🔍 Searching for: $search_term${NC}"
+  echo ""
+
+  for cat in decisions experiments philosophy future; do
+    if [ -d "$INTENT_DIR/$cat" ]; then
+      for file in "$INTENT_DIR/$cat"/*.md; do
+        if [ -f "$file" ] && grep -q "$search_term" "$file"; then
+          local id=$(grep "^id:" "$file" | cut -d' ' -f2)
+          local title=$(grep "^title:" "$file" | cut -d'"' -f2)
+          echo -e "${GREEN}[$id]${NC} $title ${BLUE}($cat)${NC}"
+        fi
+      done
+    fi
+  done
+}
+
+# Show help
+cmd_help() {
+  echo -e "${CYAN}intent${NC} - Intent Ledger management"
+  echo ""
+  echo -e "${YELLOW}Usage:${NC}"
+  echo "  intent add                  Add new intent (interactive)"
+  echo "  intent list [category]      List all intents (or specific category)"
+  echo "  intent show <id>            Show specific intent"
+  echo "  intent search <term>        Search intents by keyword/tag"
+  echo ""
+  echo -e "${YELLOW}Categories:${NC}"
+  echo "  decisions     - Major architectural choices"
+  echo "  experiments   - Things we tried (success or failure)"
+  echo "  philosophy    - Core beliefs and principles"
+  echo "  future        - Planned features and vision"
+  echo ""
+  echo -e "${YELLOW}Examples:${NC}"
+  echo "  intent add                  # Interactive intent creation"
+  echo "  intent list decisions       # List all decisions"
+  echo "  intent show 001             # Show intent 001"
+  echo "  intent search rust          # Find all intents mentioning rust"
+  echo ""
+  echo -e "${BLUE}The forest remembers.${NC} 🌲"
+}
+
+# Main command dispatcher
+main() {
+  if [ $# -eq 0 ]; then
+    cmd_help
+    exit 0
+  fi
+
+  case "$1" in
+  add)
+    cmd_add
+    ;;
+  list | ls)
+    shift
+    cmd_list "$@"
+    ;;
+  show)
+    shift
+    if [ $# -eq 0 ]; then
+      error "Usage: intent show <id>"
+    fi
+    cmd_show "$1"
+    ;;
+  search)
+    shift
+    if [ $# -eq 0 ]; then
+      error "Usage: intent search <term>"
+    fi
+    cmd_search "$1"
+    ;;
+  help | -h | --help)
+    cmd_help
+    ;;
+  *)
+    error "Unknown command: $1\nRun 'intent help' for usage"
+    ;;
+  esac
+}
+
+main "$@"
