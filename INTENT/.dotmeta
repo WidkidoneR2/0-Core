@@ -1,0 +1,12 @@
+name: INTENT
+type: documentation
+version: 1.0.0
+description: Intent Ledger - The Memory of 0-Core
+last_updated: 2025-12-31
+blast_radius: low
+dependencies: []
+tags: [memory, documentation, philosophy]
+notes: |
+  The Intent Ledger captures the WHY behind every decision.
+  This is 0-Core's institutional memory.
+  Code shows HOW. Intent shows WHY.
