@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 3.3.3 - Zsh Migration Edition
+# Version 3.5.1 - Zsh Migration Edition
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -597,6 +597,51 @@ dot-doctor() {
 }
 
 # ═══════════════════════════════════════════════════════════
+# 🔒 Git Guardrails - Prevent dangerous git operations
+# ═══════════════════════════════════════════════════════════
+git() {
+  # Only apply guardrails in 0-core
+  if [[ $PWD != $HOME/0-core* ]]; then
+    command git "$@"
+    return $?
+  fi
+  
+  local cmd="$1"
+  
+  case "$cmd" in
+    commit)
+      # Block commits if core is locked
+      if lsattr -d ~/0-core 2>/dev/null | grep -q -- '----i'; then
+        echo "🔒 0-core is LOCKED"
+        echo "❌ Commit blocked to protect immutable core"
+        echo "💡 Run: unlock-core"
+        return 1
+      fi
+      ;;
+      
+    push)
+      # Warn on push to main
+      local branch=$(command git symbolic-ref --short HEAD 2>/dev/null)
+      if [[ "$branch" == "main" ]]; then
+        echo "⚠️  Pushing directly to MAIN in 0-core"
+        echo ""
+        read "ans?Proceed? (type 'push-main'): "
+        if [[ "$ans" != "push-main" ]]; then
+          echo "❌ Push cancelled"
+          return 1
+        fi
+      fi
+      ;;
+  esac
+  
+  # Execute the actual git command
+  command git "$@"
+}
+
+# Escape hatch - bypass guardrails
+alias git!='/usr/bin/git'
+
+# ═══════════════════════════════════════════════════════════
 # 🔐 DIRENV (Per-Directory Environments)
 # ═══════════════════════════════════════════════════════════
 
@@ -695,5 +740,5 @@ precmd_functions+=(core_guard)
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 3.3.3 - Zsh Migration Edition
+# Version 3.5.1 - Zsh Migration Edition
 # ═══════════════════════════════════════════════════════════
