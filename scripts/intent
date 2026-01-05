@@ -59,13 +59,15 @@ cmd_add() {
   echo "  2) experiments"
   echo "  3) philosophy"
   echo "  4) future"
-  read -p "Choice (1-4): " category_choice
+  echo "  5) incidents"
+  read -p "Choice (1-5): " category_choice
 
   case "$category_choice" in
   1) category="decisions" ;;
   2) category="experiments" ;;
   3) category="philosophy" ;;
   4) category="future" ;;
+  5) category="incidents" ;;
   *) error "Invalid choice" ;;
   esac
 
@@ -170,6 +172,7 @@ cmd_list() {
         in-progress) status_icon="🚧" ;;
         complete) status_icon="✅" ;;
         decided) status_icon="✓" ;;
+        resolved) status_icon="🔧" ;;
         abandoned) status_icon="❌" ;;
         *) status_icon="❓" ;;
         esac
@@ -179,7 +182,7 @@ cmd_list() {
     done
   else
     # List all categories
-    for cat in decisions experiments philosophy future; do
+    for cat in decisions experiments philosophy future incidents; do
       echo -e "${YELLOW}$cat:${NC}"
 
       if [ -d "$INTENT_DIR/$cat" ] && [ "$(ls -A "$INTENT_DIR/$cat" 2>/dev/null)" ]; then
@@ -194,6 +197,7 @@ cmd_list() {
             in-progress) status_icon="🚧" ;;
             complete) status_icon="✅" ;;
             decided) status_icon="✓" ;;
+            resolved) status_icon="🔧" ;;
             abandoned) status_icon="❌" ;;
             *) status_icon="❓" ;;
             esac
@@ -215,7 +219,7 @@ cmd_show() {
 
   # Find the file
   local found_file=""
-  for cat in decisions experiments philosophy future; do
+  for cat in decisions experiments philosophy future incidents; do
     for file in "$INTENT_DIR/$cat"/$id-*.md; do
       if [ -f "$file" ]; then
         found_file="$file"
@@ -274,6 +278,7 @@ cmd_help() {
   echo "  experiments   - Things we tried (success or failure)"
   echo "  philosophy    - Core beliefs and principles"
   echo "  future        - Planned features and vision"
+  echo "  incidents     - System failures and lessons learned"
   echo ""
   echo -e "${YELLOW}Examples:${NC}"
   echo "  intent add                  # Interactive intent creation"

@@ -1,10 +1,12 @@
-# Incident: Password/Sudo Authentication Failure
-
-**Date:** 2025-12-14  
-**Duration:** 12 hours  
-**Severity:** Critical  
-**Status:** Resolved
-
+---
+id: 001
+date: 2025-12-14
+type: incidents
+title: "Password/Sudo Authentication Failure"
+status: resolved
+severity: critical
+duration: "12 hours"
+tags: [systemd, sudo, faillock, authentication, boot]
 ---
 
 ## Summary
@@ -16,12 +18,14 @@ Systemd user timer running at boot attempted sudo operations without credentials
 ## Timeline
 
 ### 09:00 - Initial Problem
+
 - Attempted to use sudo
 - Received "Authentication failure" immediately
 - Password definitely correct
 - No obvious error messages
 
 ### 09:30 - Investigation Begins
+
 - Checked /var/log/auth.log
 - Found repeated faillock triggers
 - Discovered account locked
@@ -29,6 +33,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 - Problem returned on next reboot
 
 ### 11:00 - Deep Investigation
+
 - Checked systemd timers
 - Found dotfiles-backup.timer
 - Timer ran at boot
@@ -36,7 +41,9 @@ Systemd user timer running at boot attempted sudo operations without credentials
 - No credential handling
 
 ### 15:00 - Root Cause Identified
+
 **The smoking gun:**
+
 ```bash
 # dotfiles-backup.timer ran at boot
 # backup script tried: sudo rsync ...
@@ -46,6 +53,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 ```
 
 ### 21:00 - Resolution
+
 - Disabled all systemd user timers
 - Removed boot-time automation
 - Created manual-trigger scripts
@@ -58,11 +66,13 @@ Systemd user timer running at boot attempted sudo operations without credentials
 ## Root Cause
 
 **Technical details:**
+
 - Component: systemd user timer (dotfiles-backup.timer)
-- Configuration: `OnBootSec=5min` 
+- Configuration: `OnBootSec=5min`
 - Script: backup-dotfiles.sh contained `sudo rsync`
 
 **Why it broke:**
+
 1. Timer started 5 minutes after boot
 2. User not yet logged in / no credentials available
 3. Script attempted sudo command
@@ -73,6 +83,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 8. All subsequent sudo attempts failed
 
 **Underlying issue:**
+
 > "Automation + privileged operations + boot timing = authentication disaster"
 
 ---
@@ -80,6 +91,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 ## Impact
 
 ### What Broke
+
 - All sudo operations system-wide
 - Package management (pacman/yay)
 - System configuration changes
@@ -88,6 +100,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 - Any privileged operation
 
 ### What Still Worked
+
 - User-level applications
 - Desktop environment (Hyprland)
 - Non-privileged commands
@@ -95,6 +108,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 - Basic system functionality
 
 ### Workarounds Attempted
+
 - Reboot (problem persisted)
 - Different password entry methods
 - TTY login (same issue)
@@ -105,6 +119,7 @@ Systemd user timer running at boot attempted sudo operations without credentials
 ## Resolution
 
 ### Immediate Fix
+
 ```bash
 # 1. Unlock account
 sudo faillock --user christian --reset
@@ -125,6 +140,7 @@ reboot
 ```
 
 ### Long-term Prevention
+
 1. **Created Authentication Policy** - No sudo in automated scripts
 2. **Created Automation Policy** - No boot-time automation
 3. **Rewrote backup script** - Manual trigger only with confirmation
@@ -142,12 +158,15 @@ reboot
 ### Key Insights
 
 **Technical lesson:**
+
 > "Boot environment ≠ User environment. Credentials, environment variables, and context are different."
 
 **Philosophical lesson:**
+
 > "Convenience (automation) < Reliability (manual control)"
 
 **Practical lesson:**
+
 > "12 hours of debugging teaches you more than 12 weeks of smooth sailing."
 
 ---
@@ -157,17 +176,20 @@ reboot
 **New policies added:**
 
 ### Authentication Policy (docs/POLICIES.md)
+
 - ❌ Never use sudo in automated scripts
 - ❌ Never prompt for passwords at boot
 - ✅ Always require manual confirmation for sudo
 
 ### Automation Policy (docs/POLICIES.md)
+
 - ❌ Never schedule scripts at boot
 - ❌ Never use systemd timers for maintenance
 - ✅ Always require explicit user trigger
 - ✅ Always use confirmation prompts
 
 ### Implementation
+
 - Created safe-update (manual trigger, auto-recovery)
 - Created weekly-check (confirmation prompt)
 - Removed all systemd user timers
@@ -187,6 +209,7 @@ reboot
 ## Recovery Procedure
 
 If this happens again (it shouldn't, but if it does):
+
 ```bash
 # 1. Check if account is locked
 sudo faillock --user $USER
@@ -220,16 +243,19 @@ sudo echo "test"  # Should work
 This incident fundamentally changed the 0-core philosophy:
 
 **Before:**
+
 - Some automation was acceptable
 - Convenience over predictability
 - "Set and forget" mentality
 
 **After:**
+
 - Manual control always
 - Predictability over convenience
 - "You control when things run" philosophy
 
 **Result:**
+
 - More reliable system
 - Easier to debug
 - No mysterious failures
