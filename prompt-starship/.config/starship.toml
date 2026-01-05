@@ -9,7 +9,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-$os$username$hostname$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
+$os$username$hostname${custom.core_lock}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
 [└─](bold green)$character
 """
 
@@ -111,4 +111,13 @@ style  = "bold red"
 symbol = "✘ "
 format = "[$symbol$status]($style) "
 disabled = false
+
+# ──────────────────────────────────────────────
+# 🔒 Core Lock Status (0-core only)
+# ──────────────────────────────────────────────
+[custom.core_lock]
+command = 'lsattr -d ~/0-core 2>/dev/null | grep -q -- "----i" && echo "🔒" || echo "🔓"'
+when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+format = "[$output]($style) "
+style = "bold yellow"
 

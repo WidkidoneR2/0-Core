@@ -3,7 +3,7 @@ id: 003
 date: 2025-12-31
 type: future
 title: "Shell Safety & Polish - v3.5.2"
-status: planned
+status: complete
 tags: [shell, safety, v3.5.2, zsh, starship]
 ---
 
@@ -60,9 +60,10 @@ Safer operations.
 More professional feel.
 Sets tone for v4.0+ work.
 
-### 2025-12-31
+# ### 2026-01-04
 
-[Initial creation]
+Status changed to complete.
+v3.5.2 shipped with all four features.
 
 ---
 

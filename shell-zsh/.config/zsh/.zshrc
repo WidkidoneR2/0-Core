@@ -665,6 +665,45 @@ ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'  # Brighter gray (was too dim)
 
 # Syntax highlighting (Fish-like) - Faelight Forest colors
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source ~/.config/zsh/completions.zsh
+
+
+# ═══════════════════════════════════════════════════════════
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v3.5.2)
+# Visual warnings for destructive commands
+# ═══════════════════════════════════════════════════════════
+
+# Enable pattern highlighting
+ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
+
+# Dangerous patterns - RED background
+typeset -A ZSH_HIGHLIGHT_PATTERNS
+
+# rm variants (with and without sudo/command prefix)
+ZSH_HIGHLIGHT_PATTERNS+=('rm -rf *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('rm -fr *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('rm -rf /*' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo rm -rf *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo rm -fr *' 'fg=white,bold,bg=red')
+
+# chmod 777 (world-writable)
+ZSH_HIGHLIGHT_PATTERNS+=('chmod 777 *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('chmod -R 777 *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo chmod 777 *' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo chmod -R 777 *' 'fg=white,bold,bg=red')
+
+# dd (disk destroyer)
+ZSH_HIGHLIGHT_PATTERNS+=('dd if=*' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo dd if=*' 'fg=white,bold,bg=red')
+
+# Filesystem formatters
+ZSH_HIGHLIGHT_PATTERNS+=('mkfs*' 'fg=white,bold,bg=red')
+ZSH_HIGHLIGHT_PATTERNS+=('sudo mkfs*' 'fg=white,bold,bg=red')
+
+# Additional dangerous commands
+ZSH_HIGHLIGHT_PATTERNS+=(':(){ :|:& };:' 'fg=white,bold,bg=red')  # Fork bomb
+ZSH_HIGHLIGHT_PATTERNS+=('> /dev/sda' 'fg=white,bold,bg=red')     # Disk overwrite
+ZSH_HIGHLIGHT_PATTERNS+=('chmod -R 000 *' 'fg=white,bold,bg=red') # Permission nuke
 
 # Faelight Forest syntax colors
 ZSH_HIGHLIGHT_STYLES[command]='fg=cyan,bold'           # Commands in cyan
@@ -705,7 +744,7 @@ if [[ -o interactive ]]; then
     
     # Custom greeting with dynamic latest update
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v3.5.1!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v3.5.2!\033[0m"
     
     # Show latest package update (if script exists)
     if [[ -x ~/0-core/scripts/latest-update ]]; then
@@ -723,20 +762,40 @@ if [[ -o interactive ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# 🔒 Core Guard - Cognitive Safety Layer
+# ⚠️  DANGEROUS COMMAND WARNING (v3.5.2)
+# Shows warning BEFORE execution - doesn't block, just warns
 # ═══════════════════════════════════════════════════════════
-core_guard() {
-  [[ $PWD == $HOME/0-core* ]] || return
-  if lsattr -d ~/0-core 2>/dev/null | grep -q -- '----i'; then
-    echo "🔒 Protected zone (LOCKED)"
-  else
-    echo "⚠️  Protected zone (UNLOCKED) - lock-core when done"
-  fi
+
+dangerous_command_warning() {
+    local cmd="$1"
+    
+    # Patterns to warn about (regex)
+    local -a dangerous_patterns=(
+        'rm[[:space:]]+-[^[:space:]]*[rf][^[:space:]]*[rf]'  # rm -rf, rm -fr, rm -rf -v, etc.
+        'rm[[:space:]].*[[:space:]]/($|[[:space:]])'         # rm anything ending with /
+        'chmod[[:space:]].*777'                               # chmod 777
+        'chmod[[:space:]]+-R[[:space:]]+000'                  # chmod -R 000
+        'dd[[:space:]]+if='                                   # dd if=
+        'mkfs\.'                                              # mkfs.*
+        '>[[:space:]]*/dev/[sh]d[a-z]'                        # > /dev/sda
+        'mv[[:space:]]+.+[[:space:]]+/dev/null'               # mv to /dev/null
+        ':\(\)\{[[:space:]]*:\|:&[[:space:]]*\};:'            # Fork bomb
+    )
+    
+    for pattern in "${dangerous_patterns[@]}"; do
+        if [[ "$cmd" =~ $pattern ]]; then
+            echo ""
+            echo -e "\033[1;37;41m ⚠️  DANGEROUS COMMAND DETECTED \033[0m"
+            echo -e "\033[1;31m    $cmd\033[0m"
+            echo -e "\033[0;33m    Press Enter to execute, Ctrl+C to abort\033[0m"
+            echo ""
+            return 0
+        fi
+    done
 }
 
-# Remove all existing instances, then add once
-precmd_functions=(${precmd_functions:#core_guard})
-precmd_functions+=(core_guard)
+# Hook into preexec
+preexec_functions+=(dangerous_command_warning)
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
