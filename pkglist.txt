@@ -39,7 +39,6 @@ fcitx5-qt
 fd
 ffmpegthumbnailer
 filen-desktop-bin
-fish
 fontconfig
 foot
 fuzzel

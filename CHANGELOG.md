@@ -1,333 +1,181 @@
-# 🌲 Faelight Forest Dotfiles - Changelog
+# Changelog
 
-All notable changes to Omarchy dotfiles.
-
----
-
-## [2.8.6] - 2025-12-09
-
-### 📚 Documentation Overhaul
-
-**README.md - Complete Rewrite:**
-- New structure: Philosophy, Quick Start, System Structure, Core Tools
-- Detailed tool explanations (WHY each tool was chosen)
-- Faelight Theme Engine documentation
-- dot-doctor and keyscan usage guides
-- Stow-based management explanation
-- Package philosophy section (what was removed and why)
-- Installation guide
-- Comprehensive keybinding reference
-
-**Files Updated:**
-- `README.md` - Complete rewrite from scratch
-- `CHANGELOG.md` - Full v2.8.x history documented
-
-### 🎯 Summary
-
-Complete documentation reflecting all v2.8.x changes. System is fully documented, tested, and production-ready.
+All notable changes to Faelight Forest / 0-Core.
 
 ---
 
-## [2.8.5] - 2025-12-09
+## [3.6.0] - 2026-01-05
 
-### 🚀 Complete System Optimization - Native Wayland Stack
+### Intent Ledger Integration
 
-**Major Migration: Rofi → Fuzzel**
-- Removed rofi-wayland (had click/focus issues)
-- Installed fuzzel (native Wayland, instant response)
-- Created fuzzel-theme-dark package with Faelight colors
-- Configured: width=50, lines=8, line-height=28, size=12
-- Power menu: `power-menu-fuzzel.sh`
-- Omarchy menu: `omarchy-menu-fuzzel.sh`
-- Theme engine: Added `fuzzel.ini.j2` template
-
-**Terminal Migration: Kitty → Foot + Ghostty**
-- Removed Kitty (60MB freed) - X11-based, heavier
-- Installed Foot as primary (native Wayland, 2ms startup, 5-10MB RAM)
-- Configured with JetBrainsMono Nerd Font (perfect spacing)
-- Ghostty remains as backup terminal
-- Created foot-theme-dark package
-- Theme engine: Added `foot.ini.j2` template
-- All keybindings updated to use Foot
-- Scripts updated: omarchy-menu, theme-switch
-
-**File Manager Optimization**
-- Removed Thunar + plugins (20MB freed)
-- Yazi configured with Meld integration (SUPER ALT+cm)
-- Added PCManFM-Qt (3MB) as GUI backup
-- No GUI file manager needed for daily use!
-
-**New Tools Installed:**
-- `cliphist` - Clipboard history (SUPER+V)
-- `slurp` - Area selection for screenshots
-- `hyprpicker` - Color picker (SUPER SHIFT+C)
-- `zathura` - Lightweight PDF viewer (5MB vs Evince's 40MB)
-- `foot` - Primary terminal
-- `pcmanfm-qt` - GUI file manager backup
-- `topgrade` - System updater
-
-**Removed (Total: ~106MB freed):**
-- `rofi` (1MB)
-- `kitty` + plugins (60MB)
-- `thunar` + plugins (20MB)
-- `evince` (15MB)
-- `gvfs` family (6MB)
-- `smbclient`, `libmtp`, etc. (4MB)
-
-**Configuration Updates:**
-- All Hyprland keybindings updated
-- Fish shell functions updated
-- Workspace rules updated
-- theme-switch.sh: Graceful stow error handling
-- Autostart: cliphist integration
-
-**Theme Engine:**
-- Updated render.py: Added fuzzel and foot templates
-- Updated apply-to-dotfiles.sh: Fuzzel and Foot support
-- Generates themes for 5 apps: Kitty, Ghostty, Foot, Fuzzel, Waybar
-
-**Package Lists:**
-- pkglist.txt: Removed old packages, added new tools
-- packages/official.txt: Updated
-- Added missing essentials: topgrade, btop, lazydocker, lazygit, meld
-
-**Files Modified:**
-- `hypr/.config/hypr/bindings.conf` - Updated terminal and file manager
-- `hypr/.config/hypr/workspaces.conf` - PCManFM-Qt rules
-- `hypr/.config/hypr/autostart.conf` - cliphist startup
-- `fish/.config/fish/config.fish` - PCManFM function
-- `scripts/omarchy-menu-fuzzel.sh` - Fuzzel integration
-- `scripts/power-menu-fuzzel.sh` - Created
-- `scripts/theme-switch` - Updated for Foot/Fuzzel
-- `fuzzel-theme-dark/.config/fuzzel/fuzzel.ini` - Faelight colors
-- `foot-theme-dark/.config/foot/foot.ini` - Faelight colors
-
-**Files Added:**
-- `foot-theme-dark/` - Complete Foot configuration
-- `fuzzel-theme-dark/` - Complete Fuzzel configuration
-- `scripts/power-menu-fuzzel.sh` - Power menu
-- `~/faelight-theme-engine/templates/foot.ini.j2` - Template
-- `~/faelight-theme-engine/templates/fuzzel.ini.j2` - Template
-
-**Files Removed:**
-- `kitty-theme-dark/`
-- `kitty/`
-- `scripts/omarchy-menu-rofi.sh`
-- `scripts/power-menu-rofi.sh`
-
-**Results:**
-- ✅ 106MB system bloat removed
-- ✅ 100% native Wayland stack
-- ✅ Faster performance across the board
-- ✅ All tools themed and working perfectly
-- ✅ No redundancy (1 primary terminal, 1 backup)
-- ✅ Professional workflow maintained
+- **dot-doctor Check 11**: Intent Ledger health monitoring
+  - Count intents by status (complete, planned, in-progress, decided, abandoned)
+  - Validate `packages:` references exist
+  - Detect version/tag status mismatch
+  - Flag stale planned intents (> 30 days)
+- **New frontmatter fields**: `packages:` and `version:` for intents
+- **Fixed**: INTENT and archive directories no longer flagged as non-semantic
+- **Fixed**: Health percentage now shows whole number
 
 ---
 
-## [2.8.4] - 2025-12-08
+## [3.5.2] - 2026-01-04
 
-### 🔗 Theme Engine Integration
+### Shell Safety & Polish
 
-**Dotfiles Workflow:**
-- Created `apply-to-dotfiles.sh` script
-- Renders templates to temp directory
-- Applies to dotfiles stow packages automatically
-- Updates kitty-theme-dark, ghostty-theme-dark, rofi-theme-dark
-- Preserves base configs, only updates colors
-- Git workflow guidance included
-
-**Structure:**
-- `~/faelight-theme-engine/scripts/apply-to-dotfiles.sh`
-- Renders all templates with one command
-- Color-coded output (red/green/yellow/blue)
-- Automatic cleanup (trap on EXIT)
-
-**Integration Testing:**
-- Created kitty-theme-dark with current-theme.conf
-- Updated ghostty-theme-dark colors
-- Waybar preview generated
-- theme-switch.sh integration
-
-**Files:**
-- `scripts/apply-to-dotfiles.sh` - Created and tested
-- Fixed kitty stow conflict (removed current-theme.conf from base)
-- Updated theme-switch script name (removed .sh extension)
+- **Dangerous command highlighting**: `rm -rf`, `chmod 777`, `dd`, `mkfs` show RED (includes sudo variants)
+- **Dangerous command warning**: `preexec` hook shows warning before destructive commands
+- **Tab completions**: Completions for `core-diff`, `dotctl`, `intent`
+- **Starship lock status**: 🔒/🔓 inline in prompt (replaces verbose `core_guard`)
+- **Removed**: `core_guard` function (replaced by Starship module)
 
 ---
 
-## [2.8.3] - 2025-12-08
+## [3.5.1] - 2026-01-01
 
-### 🎨 Template Rendering System
+### Git Guardrails
 
-**Jinja2 Templates Created:**
-- `templates/kitty.conf.j2` - Complete ANSI colors, cursor, selection
-- `templates/ghostty.conf.j2` - Colors without # prefix (Ghostty format)
-- `templates/rofi.rasi.j2` - CSS variables, complete styling
-- `templates/waybar.css.j2` - Bar styling, module colors, animations
-
-**Rendering Engine:**
-- `faelight_theme/render.py` - Template rendering logic
-- `render_template()` - Single template rendering
-- `render_to_file()` - Render and save
-- `render_all()` - Batch rendering
-- Jinja2 environment with FileSystemLoader
-- Template directory auto-detection
-- Output directory creation
-
-**CLI Integration:**
-- `faelight-theme render palette.json --target kitty`
-- `faelight-theme render palette.json --all`
-- Available targets: kitty, ghostty, rofi, waybar
-
-**Testing:**
-- Generated 4 perfect configs from test-palette.json
-- Verified all color formats correct
-- Ghostty colors properly formatted (no # prefix)
-
-**Troubleshooting:**
-- Fixed multiple Python syntax errors
-- Removed incomplete code blocks
-- Removed duplicate function definitions
-
-**Files:**
-- `templates/` - All 4 templates created
-- `faelight_theme/render.py` - Complete rendering system
-- Updated `cli.py` with render command
+- Block commits when core is locked (immutability protection)
+- Warn on push to main (requires typed confirmation: 'push-main')
+- `git!` escape hatch for experts
+- Only active in ~/0-core directory
 
 ---
 
-## [2.8.2] - 2025-12-08
+## [3.5.0] - 2025-12-31
 
-### 🎨 Color Extraction Core
+### Intent Ledger Foundation
 
-**Color Extraction (extract.py):**
-- `extract_colors()` - Uses colorgram.py for extraction
-- `rgb_to_hex()`, `hex_to_rgb()` - Color format conversion
-- `calculate_brightness()` - Weighted: 0.299*R + 0.587*G + 0.114*B
-- `detect_theme()` - Auto dark/light detection (<128 = dark)
-- `sort_by_brightness()` - Color organization
+- `INTENT/` directory structure (decisions, experiments, philosophy, future)
+- `intent` script (add, list, show, search)
+- YAML frontmatter with status tracking
+- 7 initial intents captured
 
-**Palette Generation (palette.py):**
-- `generate_palette()` - Creates 16 ANSI colors from extracted colors
-- Hue-based color mapping: Red(0°), Yellow(60°), Green(120°), Cyan(180°), Blue(240°), Magenta(300°)
-- `find_closest_hue()` - 60° tolerance matching
-- Bright variants: 30% brighter for colors 8-15
-- Accent selection: Highest saturation + contrast optimization
-- HSV color space manipulation
-
-**Contrast Validation (contrast.py):**
-- `contrast_ratio()` - WCAG calculation (1-21 scale)
-- `validate_palette()` - Returns valid/warnings/ratios
-- `auto_adjust_contrast()` - Iterative brightness adjustment
-- Requirements: BG/FG ≥7:1 (AAA), BG/Accent ≥4.5:1 (AA)
-- Gamma correction for relative luminance
-
-**CLI Commands:**
-- `faelight-theme extract <image> [--output palette.json]`
-- `faelight-theme validate <palette.json>`
-
-**Testing:**
-- 5/5 unit tests passing
-- Test wallpaper: Extracted 8 colors, auto-detected dark theme
-- Background: #191c37 (dark blue, 51.8%)
-- Foreground: #7cc6b0 (teal, auto-adjusted to 8.36:1 contrast)
-- Accent: #ca7f99 (pink, 5.55:1 contrast)
-- All 16 ANSI colors generated with proper bright variants
-
-**Accent Optimization Fix:**
-- Initial accent had 1.0:1 contrast (too low)
-- Fixed accent selection algorithm to balance saturation and contrast
-- Result: 5.55:1 contrast (passes AA standard)
-
-**Files:**
-- `faelight_theme/extract.py` - 150 lines
-- `faelight_theme/palette.py` - 180 lines
-- `faelight_theme/contrast.py` - 150 lines
-- `faelight_theme/cli.py` - Updated with commands
-- `tests/test_extract.py` - Unit tests
+_"Code shows HOW. Intent shows WHY."_
 
 ---
 
-## [2.8.1] - 2025-12-08
+## [3.4.4] - 2025-12-27
 
-### 🎨 Faelight Theme Engine - Project Setup
+### Shell Improvements
 
-**Phase 1A - Package Structure:**
-- Created `~/faelight-theme-engine/` project directory
-- Set up Python package structure with `pyproject.toml`
-- Configured Click CLI framework
-- Added dependencies: Pillow, Jinja2, colorgram.py
-- Created skeleton CLI: `faelight-theme --help`
-
-**Phase 1B - Research & Planning:**
-- Researched color extraction libraries
-- Analyzed terminal color format requirements
-- Documented theme file structures (Kitty, Ghostty, Rofi, Waybar)
-- Created comprehensive `DESIGN.md` with architecture
-
-**Documentation:**
-- `DESIGN.md` - Complete system architecture
-- Module breakdown: extract, palette, contrast, render, apply
-- Input/output flow documented
-- Color format specifications
-- Template examples
-
-**Files:**
-- `pyproject.toml` - Project configuration
-- `faelight_theme/__init__.py` - Package init
-- `faelight_theme/cli.py` - CLI framework
-- `DESIGN.md` - Complete design document
-- `README.md` - Project overview
+- Removed `alias cat='bat'` (breaks pipes/scripts)
+- Fixed `pacman -Sy` → `checkupdates` (prevents partial upgrades)
+- Directory history (Fish-like): `cd ~1`, `cd ~2`, `dirs -v`
+- Core guard protection on prompt
+- Created `docs/ALIASES.md` (188+ aliases documented)
 
 ---
 
-## [2.8.0] - 2025-12-06
+## [3.4.3] - 2025-12-26
 
-### 🛠️ Rofi Migration & System Utilities
+### Manual Installation
 
-**Walker → Rofi Migration:**
-- Removed Walker (335MB freed - unmaintained, flaky)
-- Installed rofi-wayland as launcher
-- Created `omarchy-menu-rofi.sh` - Central system menu
-- Created `power-menu-rofi.sh` - Power options
-- Enhanced Rofi theme with glassmorphism and glow effects
-- Custom theme: `rofi/.config/rofi/faelight-forest.rasi`
-
-**Ghostty Terminal:**
-- Added Ghostty as backup terminal
-- Complete configuration with Faelight Forest theme
-- ghostty-theme-dark package structure
-
-**System Health Tools:**
-- `dot-doctor` - Comprehensive system health checker
-  - Validates packages, configs, scripts
-  - Checks stow deployments
-  - Reports issues with fixes
-- `keyscan` - Auto-generates keybinding documentation
-  - Scans bindings.conf
-  - Formats as readable markdown
-  - Perfect for learning your system
-
-**Cleanup:**
-- Removed elephant folders (old backup directories)
-- Fixed dot-doctor checks
-- Updated all package references
-
-**Files:**
-- `scripts/dot-doctor` - System validator
-- `scripts/keyscan` - Keybinding documentation
-- `scripts/omarchy-menu-rofi.sh` - Main menu
-- `scripts/power-menu-rofi.sh` - Power menu
-- `rofi/.config/rofi/faelight-forest.rasi` - Enhanced theme
-- `ghostty-theme-dark/` - Ghostty configuration
+- Archived `install.sh` (automated installation)
+- Created `docs/MANUAL_INSTALLATION.md`
+- Philosophy: Understanding over automation
 
 ---
 
-## [Earlier Versions]
+## [3.4.2] - 2025-12-26
 
-See git history for v2.7.x and earlier changes.
+### Topgrade Fix
+
+- Fixed invalid config format
+- AMD Framework optimized
+- Manual control preserved
 
 ---
 
-**Note:** Version 2.8.x represents a major system optimization focused on native Wayland tools, bloat removal, and the addition of the Faelight Theme Engine for automated theming workflows.
+## [3.4.1] - 2025-12-26
+
+### core-diff Polish
+
+- Better error messages with suggestions
+- Exit codes for scripting (0, 1, 2)
+- UX polish throughout
+
+---
+
+## [3.4.0] - 2025-12-23
+
+### core-diff + Philosophy
+
+- **core-diff**: Package-aware diff tool with risk-based grouping
+- **PHILOSOPHY.md**: Complete 0-Core manifesto
+- Delta and Meld integration
+- Aliases: `cdiff`, `cds`, `cdh`, `cdm`, `cdd`
+
+---
+
+## [3.3.5] - 2025-12-22
+
+### Cleanup
+
+- Added missing `.dotmeta` files
+- System cleanup (removed obsolete configs)
+- 100% health achieved
+
+---
+
+## [3.3.4] - 2025-12-22
+
+### Quick Wins
+
+- Lock reminders on version bump and shell startup
+- Config aging report (Check 9)
+- Intentional defaults checker (Check 10)
+
+---
+
+## [3.3.3] - 2025-12-21
+
+### GitHub Polish
+
+- Archived Fish to `archive/shell-fish` branch
+- Professional screenshots added
+- Zsh history expansion disabled (fixes git commits)
+
+---
+
+## [3.3.1] - 2025-12-17
+
+### Blast Radius Warnings
+
+- `edit-core` shows risk warnings based on `.dotmeta`
+- Color-coded: 🔴 Critical, 🟠 High, 🔵 Medium, 🟢 Low
+- Auto-backup for critical/high packages
+
+---
+
+## [3.2.0] - 2025-12-16
+
+### Smart Update System
+
+- `safe-update` script with auto-recovery
+- Pre/post Btrfs snapshots
+- `.pacnew` detection
+- **NO systemd timers** — manual control only
+
+---
+
+## [3.1.0] - 2025-12-14
+
+### Hybrid Architecture (The Great Transformation)
+
+- **dotfiles → 0-core**: Numbered priority system
+- **Semantic naming**: `hypr` → `wm-hypr`, `fish` → `shell-fish`
+- **Yazi teleports**: 14 instant navigation bindings
+- **Immutable protection**: `chattr +i` via `core-protect`
+- 18+ hours of focused work
+- 12-hour password debugging → Manual control philosophy born
+
+---
+
+## Pre-3.0 (Dotfiles Era)
+
+See `archive/CHANGELOG-v2.8.md` for v2.8.x history.
+
+---
+
+_The forest remembers. 🌲_
