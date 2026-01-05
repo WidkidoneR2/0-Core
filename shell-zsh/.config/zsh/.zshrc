@@ -757,7 +757,7 @@ if [[ -o interactive ]]; then
     echo ""
     echo "This is my Happy Place!!!"
     echo ""
-    echo "💡 Quick: guide | doctor | health | roadmap | keys"
+    echo "💡 Quick: doctor | health | intent list | keys"
     echo ""
 fi
 
