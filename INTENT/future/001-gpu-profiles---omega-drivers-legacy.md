@@ -3,7 +3,7 @@ id: 001
 date: 2025-12-31
 type: future
 title: "GPU Profiles - Omega Drivers Legacy"
-status: planned
+status: complete
 tags: [gpu, omega, legacy, wayland]
 ---
 
@@ -61,9 +61,12 @@ Plus: It's a tribute to where I learned quality matters.
 - Demonstrates 0-Core philosophy in action
 - Potentially influential (like Omega was)
 
-### 2025-12-31
+## Status Updates
 
-[Initial creation]
+### 2026-01-06
+
+Fulfilled by v4.0.0 System Profiles (Intent 006).
+The Omega Legacy lives on through the profile system.
 
 ---
 
