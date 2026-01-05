@@ -121,3 +121,9 @@ _dot_doctor() {
     _message 'no options'
 }
 compdef _dot_doctor dot-doctor
+
+# profile completions
+_profile() {
+    compadd list status history edit help default gaming work low-power
+}
+compdef _profile profile

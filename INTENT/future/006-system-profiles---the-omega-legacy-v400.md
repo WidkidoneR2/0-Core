@@ -3,7 +3,7 @@ id: 006
 date: 2026-01-05
 type: future
 title: "System Profiles - The Omega Legacy (v4.0.0)"
-status: planned
+status: complete
 tags: [profiles, gpu, omega, v4.0.0, flagship]
 ---
 

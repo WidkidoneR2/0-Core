@@ -363,6 +363,41 @@ else
   ((warnings++))
 fi
 
+# Check 12: Profile Health
+echo -e "${CYAN}🎮 Checking Profile System...${NC}"
+profile_issues=0
+
+# Check if profile script exists
+if [[ -x ~/0-core/scripts/profile ]]; then
+  echo -e "   ${GREEN}✅ Profile script installed${NC}"
+else
+  echo -e "   ${RED}❌ Profile script missing${NC}"
+  ((profile_issues++))
+fi
+
+# Check current profile
+current_profile=$(cat ~/.local/state/0-core/current-profile 2>/dev/null || echo "default")
+echo -e "   Current: ${CYAN}$current_profile${NC}"
+
+# Count available profiles
+profile_count=$(ls ~/0-core/profiles/*.profile 2>/dev/null | wc -l)
+echo -e "   Available: ${GREEN}$profile_count profiles${NC}"
+
+# Check if state file is accessible
+if [[ -d ~/.local/state/0-core ]]; then
+  echo -e "   ${GREEN}✅ State directory exists${NC}"
+else
+  echo -e "   ${YELLOW}⚠️  State directory missing (run 'profile status' to create)${NC}"
+  ((profile_issues++))
+fi
+
+((total_checks++))
+if [[ $profile_issues -eq 0 ]]; then
+  ((passed++))
+else
+  ((warnings++))
+fi
+
 # Final Report
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [ $failed -gt 0 ]; then

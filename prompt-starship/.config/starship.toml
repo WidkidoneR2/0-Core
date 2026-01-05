@@ -9,7 +9,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-$os$username$hostname${custom.core_lock}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
+$os$username$hostname${custom.core_lock}${custom.profile}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
 [└─](bold green)$character
 """
 
@@ -120,4 +120,10 @@ command = 'lsattr -d ~/0-core 2>/dev/null | grep -q -- "----i" && echo "🔒" ||
 when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
 format = "[$output]($style) "
 style = "bold yellow"
+
+[custom.profile]
+command = 'cat ~/.local/state/0-core/current-profile 2>/dev/null || echo ""'
+when = '[[ -f ~/.local/state/0-core/current-profile ]] && [[ "$(cat ~/.local/state/0-core/current-profile)" != "default" ]]'
+format = "[($output)]($style) "
+style = "bold cyan"
 
