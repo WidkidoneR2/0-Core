@@ -2,9 +2,9 @@
 id: 005
 date: 2026-01-04
 type: future
-title: ""Intent Ledger Integration - v3.6.0""
+title: "Intent Ledger Integration - v3.6.0"
 status: complete
-tags: [[intent-ledger, dot-doctor, v3.6.0]]
+tags: [intent-ledger, dot-doctor, v3.6.0]
 ---
 
 ## Why
