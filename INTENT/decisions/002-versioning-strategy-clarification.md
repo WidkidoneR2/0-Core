@@ -3,7 +3,7 @@ id: 002
 date: 2025-12-31
 type: decisions
 title: "Versioning Strategy Clarification"
-status: planned
+status: decided
 tags: [versioning, semver, documentation]
 ---
 

@@ -51,9 +51,9 @@ Rust embodies 0-Core principles:
 
 **v5.0.0 (Q2 2026): First Rust**
 
-- faelight-bar (custom Wayland bar)
-- Standalone project
-- Proves the technology
+- Start with small CLI rewrites (bump-system-version, core-status)
+- Learn Rust fundamentals on real tools
+- faelight-bar starts development (parallel project)
 - Coexists with bar-waybar during development
 
 **v5.1.0 (Q3 2026): THE CUT-OVER**
@@ -66,15 +66,19 @@ Rust embodies 0-Core principles:
 
 ```
 scripts/
-├── core-diff         → Rust (complete rewrite)
-├── dot-doctor        → Rust (complete rewrite)
-├── safe-update       → Rust (complete rewrite)
-├── core-protect      → Rust (complete rewrite)
-├── dotctl            → Rust (complete rewrite)
-├── core-status       → Rust (complete rewrite)
-└── bump-system-version → Rust (complete rewrite)
+├── bump-system-version → Rust (first - easiest, learn basics)
+├── core-status       → Rust (simple)
+├── dotctl            → Rust (medium)
+├── intent            → Rust (medium)
+├── profile           → Rust (medium, created in v4.0.0)
+├── core-diff         → Rust (medium)
+├── dot-doctor        → Rust (medium-hard, most checks)
+├── core-protect      → Rust (hard, security-critical)
+├── safe-update       → Rust (hard, system-critical)
 
 Bash versions: DELETED
+```
+
 ```
 
 bar-waybar/ → REMOVED completely
@@ -86,20 +90,20 @@ bar-faelight/ → ONLY bar (Rust)
 
 ### Option A: Keep Bash Forever
 
-**Pros:** Works, familiar, fast to write  
-**Cons:** No memory safety, no type safety, hard to maintain as complexity grows  
+**Pros:** Works, familiar, fast to write
+**Cons:** No memory safety, no type safety, hard to maintain as complexity grows
 **Rejected:** System demands guarantees Bash can't provide
 
 ### Option B: Mixed Bash/Rust with Fallbacks
 
-**Pros:** Safer transition, users can choose  
-**Cons:** Two versions of same tool = confusion and mistakes  
+**Pros:** Safer transition, users can choose
+**Cons:** Two versions of same tool = confusion and mistakes
 **Rejected:** Violates philosophy (one way, not two)
 
 ### Option C: Complete Cut-Over (CHOSEN)
 
-**Pros:** Clean, intentional, aligns with philosophy, forces quality  
-**Cons:** Higher risk, must get it right, no safety net  
+**Pros:** Clean, intentional, aligns with philosophy, forces quality
+**Cons:** Higher risk, must get it right, no safety net
 **Chosen:** All-in or not at all. One system. One language. One way.
 
 ## Risks & Mitigation
@@ -115,9 +119,10 @@ bar-faelight/ → ONLY bar (Rust)
 
 1. **6-month learning period** (Jan-Jun 2026)
    - Rustlings exercises
-   - Small CLI tools for practice
-   - Wayland protocol study
-   - Build faelight-bar as learning project
+   - Rewrite bump-system-version (first real project)
+   - Rewrite core-status, dotctl, intent
+   - Build faelight-bar as advanced project
+   - Wayland protocol study (for faelight-bar)
 
 2. **Extensive testing before v5.1.0**
    - Beta period
@@ -176,9 +181,10 @@ This isn't about Rust being "better than Bash."
 
 This is about **0-Core evolving beyond what Bash can promise.**
 
-We're not switching languages.  
+We're not switching languages.
 **We're formalizing a philosophy into code.**
 
 ---
 
 _The forest demands guarantees. Rust provides them._ 🌲
+```

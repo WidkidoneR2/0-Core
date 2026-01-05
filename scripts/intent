@@ -169,6 +169,7 @@ cmd_list() {
         planned) status_icon="📅" ;;
         in-progress) status_icon="🚧" ;;
         complete) status_icon="✅" ;;
+        decided) status_icon="✓" ;;
         abandoned) status_icon="❌" ;;
         *) status_icon="❓" ;;
         esac
@@ -192,6 +193,7 @@ cmd_list() {
             planned) status_icon="📅" ;;
             in-progress) status_icon="🚧" ;;
             complete) status_icon="✅" ;;
+            decided) status_icon="✓" ;;
             abandoned) status_icon="❌" ;;
             *) status_icon="❓" ;;
             esac
