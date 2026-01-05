@@ -38,7 +38,47 @@ Rust embodies 0-Core principles:
 - **Understanding** (type system teaches you, doesn't hide complexity)
 - **Safety** (prevents entire classes of bugs at compile-time)
 
-## What We're Doing
+## The Shared Core (v5.1.0+)
+
+Once 2-3 Rust tools exist, consolidate shared logic:
+
+```
+0-core/
+├── corelib/              # Shared Rust crate
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── fs.rs         # File system operations
+│   │   ├── exec.rs       # Command execution
+│   │   ├── config.rs     # Config parsing
+│   │   ├── errors.rs     # Error types
+│   │   └── output.rs     # Colored output
+│   └── Cargo.toml
+├── core-diff/
+│   └── main.rs → uses corelib
+├── dot-doctor/
+│   └── main.rs → uses corelib
+└── ...
+```
+
+**Benefits:**
+
+- Consistent behavior across all tools
+- Less duplicated logic
+- Easier auditing for system-critical tools
+- Mirrors ripgrep/fd structure
+
+## The Psychological Win
+
+I am not learning Rust to "be modern."
+I am learning Rust to **delete Bash with confidence.**
+
+Replacing:
+
+- Implicit behavior → explicit models
+- Stringly-typed logic → enums
+- Runtime surprises → compile-time errors
+
+A system getting stronger over time.
 
 ### Timeline
 
