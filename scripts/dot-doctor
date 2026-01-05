@@ -1,24 +1,20 @@
 #!/bin/bash
-# Health check for Faelight Forest 0-core - Enhanced v3.3.4
-
+# Health check for Faelight Forest 0-core - Enhanced v3.6.0
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+DIM='\033[2m'
 NC='\033[0m'
-
 # Counters
 total_checks=0
 passed=0
 failed=0
 warnings=0
-
 omarchy_version=$(cat ~/0-core/VERSION 2>/dev/null || echo "unknown")
-
 echo -e "${CYAN}🏥 Dotfile Health Check - Faelight Forest v${omarchy_version}${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
 # Check 1: Stow Symlinks
 echo -e "${CYAN}🔗 Checking Stow symlinks...${NC}"
 stowed=0
@@ -26,23 +22,18 @@ config_dir_packages="hypr waybar mako foot yazi"
 for pkg in $config_dir_packages; do
   [ -L ~/.config/$pkg ] && ((stowed++))
 done
-
 # Fish or Zsh (we're in one of them!)
 if [ -L ~/.config/fish ] || [ -L ~/.config/zsh ]; then
   ((stowed++))
 fi
-
 # Starship
 [ -L ~/.config/starship.toml ] && ((stowed++))
-
 # Git
 [ -L ~/.gitconfig ] && ((stowed++))
-
 total_packages=8
 echo -e "   ${GREEN}✅ All $stowed/$total_packages packages properly stowed${NC}"
 ((total_checks++))
 ((passed++))
-
 # Check 2: Yazi Plugins
 echo -e "${CYAN}🔌 Checking Yazi plugins...${NC}"
 yazi_plugins="full-border.yazi git.yazi jump-to-char.yazi smart-enter.yazi"
@@ -50,7 +41,6 @@ yazi_count=0
 for plugin in $yazi_plugins; do
   [ -d ~/.config/yazi/plugins/$plugin ] && ((yazi_count++))
 done
-
 if [ $yazi_count -eq 4 ]; then
   echo -e "   ${GREEN}✅ All 4 plugins installed${NC}"
   ((passed++))
@@ -59,7 +49,6 @@ else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 3: Broken Symlinks (only in managed directories)
 echo -e "${CYAN}🔗 Checking for broken symlinks...${NC}"
 managed_dirs="hypr waybar mako foot yazi fish zsh"
@@ -77,21 +66,17 @@ else
   ((failed++))
 fi
 ((total_checks++))
-
 # Check 4: System Services (or processes)
 echo -e "${CYAN}🔄 Checking system services...${NC}"
 services_ok=0
-
 # Check mako (systemd OR process)
 if systemctl --user is-active --quiet mako 2>/dev/null || pgrep -x mako >/dev/null; then
   ((services_ok++))
 fi
-
 # Check waybar (systemd OR process)
 if systemctl --user is-active --quiet waybar 2>/dev/null || pgrep -x waybar >/dev/null; then
   ((services_ok++))
 fi
-
 if [ $services_ok -ge 2 ]; then
   echo -e "   ${GREEN}✅ All $services_ok/2 services running${NC}"
   ((passed++))
@@ -100,7 +85,6 @@ else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 5: Binary Dependencies
 echo -e "${CYAN}📦 Checking binary dependencies...${NC}"
 binaries="nvim eza bat fd fzf yazi lazygit fastfetch hyprctl waybar mako starship git stow direnv"
@@ -108,7 +92,6 @@ bin_count=0
 for bin in $binaries; do
   command -v $bin >/dev/null 2>&1 && ((bin_count++))
 done
-
 total_bins=$(echo $binaries | wc -w)
 if [ $bin_count -eq $total_bins ]; then
   echo -e "   ${GREEN}✅ All $bin_count binaries found${NC}"
@@ -118,13 +101,11 @@ else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 6: Git Repository Health
 echo -e "${CYAN}📊 Checking Git repository health...${NC}"
 cd ~/0-core
 git update-index --refresh >/dev/null 2>&1 # Refresh index cache
 git_issues=0
-
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
   echo -e "   ${YELLOW}⚠️  Uncommitted changes${NC}"
   echo "      Run 'git status' to see changes"
@@ -132,10 +113,8 @@ if ! git diff-index --quiet HEAD -- 2>/dev/null; then
 else
   echo -e "   ${GREEN}✅ Working tree clean${NC}"
 fi
-
 LOCAL=$(git rev-parse @ 2>/dev/null)
 REMOTE=$(git rev-parse @{u} 2>/dev/null)
-
 if [ "$LOCAL" != "$REMOTE" ]; then
   echo -e "   ${YELLOW}⚠️  Local != Remote${NC}"
   echo "      Run 'git push' or 'git pull'"
@@ -143,21 +122,18 @@ if [ "$LOCAL" != "$REMOTE" ]; then
 else
   echo -e "   ${GREEN}✅ All commits pushed${NC}"
 fi
-
 if [ $git_issues -eq 0 ]; then
   ((passed++))
 else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 7: Theme Packages
 echo -e "${CYAN}🎨 Checking theme packages...${NC}"
 theme_count=0
 [ -d ~/0-core/theme-gtk ] && ((theme_count++))
 [ -d ~/0-core/theme-term-foot-dark ] && ((theme_count++))
 [ -d ~/0-core/theme-launch-fuzzel-dark ] && ((theme_count++))
-
 if [ $theme_count -eq 3 ]; then
   echo -e "   ${GREEN}✅ 3/3 theme packages present${NC}"
   ((passed++))
@@ -166,7 +142,6 @@ else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 8: Scripts Executable
 echo -e "${CYAN}📜 Checking scripts...${NC}"
 scripts="core-protect safe-update dotctl"
@@ -176,7 +151,6 @@ for script in $scripts; do
     ((script_issues++))
   fi
 done
-
 if [ $script_issues -eq 0 ]; then
   echo -e "   ${GREEN}✅ All scripts present and executable${NC}"
   ((passed++))
@@ -185,97 +159,18 @@ else
   ((warnings++))
 fi
 ((total_checks++))
-
 # Check 9: Config Aging Report
 echo -e "${CYAN}📅 Checking config aging...${NC}"
-
 # Count files by age
 recent=0  # < 30 days
 aging=0   # 30-90 days
 stale=0   # 90-365 days
 ancient=0 # 1+ year
-
-# Check 10: Intentional Defaults (Discipline Enforcement)
-echo -e "${CYAN}🎯 Checking intentional defaults...${NC}"
-
-issues=0
-
-# Check for non-semantic filenames
-non_semantic=$(find ~/0-core -maxdepth 3 -type f \( -name "temp*" -o -name "new-*" -o -name "old-*" -o -name "backup*" -o -name "test*" -o -name "tmp*" \) -not -path '*/\.git/*' 2>/dev/null)
-
-if [[ -n "$non_semantic" ]]; then
-  echo -e "   ${RED}❌ Non-semantic filenames found:${NC}"
-  while IFS= read -r file; do
-    echo -e "      ${DIM}$(basename "$file")${NC}"
-    ((issues++))
-  done <<<"$non_semantic"
-else
-  echo -e "   ${GREEN}✅ All filenames are semantic${NC}"
-fi
-
-# Check for truly non-semantic directories (random temp stuff)
-# Exclude known good directories: docs, scripts, and semantic packages
-bad_dirs=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r dir; do
-  dirname=$(basename "$dir")
-  # Exclude known infrastructure directories
-  if [[ "$dirname" == "docs" ]] || [[ "$dirname" == "scripts" ]] || [[ "$dirname" == "hooks" ]] || [[ "$dirname" == "system" ]] || [[ "$dirname" == "packages" ]] || [[ "$dirname" == "installation" ]] || [[ "$dirname" == "automation" ]]; then
-    continue
-  fi
-  # Exclude semantic package names (prefix-name pattern)
-  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
-    continue
-  fi
-  # Flag anything else as potentially non-semantic
-  echo "$dir"
-done)
-
-if [[ -n "$bad_dirs" ]]; then
-  echo -e "   ${YELLOW}⚠️  Non-semantic directories found:${NC}"
-  while IFS= read -r dir; do
-    echo -e "      ${DIM}$(basename "$dir")${NC}"
-    ((issues++))
-  done <<<"$bad_dirs"
-else
-  echo -e "   ${GREEN}✅ All directories follow semantic naming${NC}"
-fi
-
-# Check for packages without .dotmeta
-packages_without_meta=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r pkg; do
-  dirname=$(basename "$pkg")
-  # Only check semantic package directories (prefix-name pattern)
-  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
-    if [[ ! -f "$pkg/.dotmeta" ]]; then
-      echo "$dirname"
-    fi
-  fi
-done)
-
-if [[ -n "$packages_without_meta" ]]; then
-  echo -e "   ${YELLOW}⚠️  Packages missing .dotmeta:${NC}"
-  while IFS= read -r pkg; do
-    echo -e "      ${DIM}$pkg${NC}"
-    ((issues++))
-  done <<<"$packages_without_meta"
-else
-  echo -e "   ${GREEN}✅ All packages have .dotmeta${NC}"
-fi
-
-# Count this check
-((total_checks++))
-if [[ $issues -eq 0 ]]; then
-  echo -e "   ${GREEN}✅ Intentional defaults maintained${NC}"
-  ((passed++))
-else
-  echo -e "   ${YELLOW}⚠️  $issues discipline issues found${NC}"
-  ((warnings++))
-fi
-
 # Check all files in 0-core (exclude .git)
 while IFS= read -r file; do
   if [[ -f "$file" ]]; then
     # Get days since last modification
     days=$((($(date +%s) - $(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file")) / 86400))
-
     if [[ $days -lt 30 ]]; then
       ((recent++))
     elif [[ $days -lt 90 ]]; then
@@ -287,41 +182,201 @@ while IFS= read -r file; do
     fi
   fi
 done < <(find ~/0-core -type f -not -path '*/\.git/*' 2>/dev/null)
-
 total_files=$((recent + aging + stale + ancient))
-
 echo -e "   Recent (< 30 days):    ${GREEN}$recent files${NC}"
 echo -e "   Aging (30-90 days):    ${YELLOW}$aging files${NC}"
 echo -e "   Stale (90-365 days):   ${YELLOW}$stale files${NC}"
-
 if [[ $ancient -gt 0 ]]; then
   echo -e "   Ancient (1+ year):     ${RED}$ancient files${NC}"
 else
   echo -e "   Ancient (1+ year):     ${GREEN}$ancient files${NC}"
 fi
-
 echo -e "   ${DIM}Total tracked: $total_files files${NC}"
-
-# Count this check
 ((total_checks++))
 ((passed++))
+# Check 10: Intentional Defaults (Discipline Enforcement)
+echo -e "${CYAN}🎯 Checking intentional defaults...${NC}"
+issues=0
+# Check for non-semantic filenames
+non_semantic=$(find ~/0-core -maxdepth 3 -type f \( -name "temp*" -o -name "new-*" -o -name "old-*" -o -name "backup*" -o -name "test*" -o -name "tmp*" \) -not -path '*/\.git/*' 2>/dev/null)
+if [[ -n "$non_semantic" ]]; then
+  echo -e "   ${RED}❌ Non-semantic filenames found:${NC}"
+  while IFS= read -r file; do
+    echo -e "      ${DIM}$(basename "$file")${NC}"
+    ((issues++))
+  done <<<"$non_semantic"
+else
+  echo -e "   ${GREEN}✅ All filenames are semantic${NC}"
+fi
+# Check for truly non-semantic directories (random temp stuff)
+# Exclude known good directories: docs, scripts, and semantic packages
+bad_dirs=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r dir; do
+  dirname=$(basename "$dir")
+  # Exclude known infrastructure directories
+  if [[ "$dirname" == "docs" ]] || [[ "$dirname" == "scripts" ]] || [[ "$dirname" == "hooks" ]] || [[ "$dirname" == "system" ]] || [[ "$dirname" == "packages" ]] || [[ "$dirname" == "installation" ]] || [[ "$dirname" == "automation" ]] || [[ "$dirname" == "INTENT" ]] || [[ "$dirname" == "archive" ]] || [[ "$dirname" == "profiles" ]]; then
+    continue
+  fi
+  # Exclude semantic package names (prefix-name pattern)
+  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
+    continue
+  fi
+  # Flag anything else as potentially non-semantic
+  echo "$dir"
+done)
+if [[ -n "$bad_dirs" ]]; then
+  echo -e "   ${YELLOW}⚠️  Non-semantic directories found:${NC}"
+  while IFS= read -r dir; do
+    echo -e "      ${DIM}$(basename "$dir")${NC}"
+    ((issues++))
+  done <<<"$bad_dirs"
+else
+  echo -e "   ${GREEN}✅ All directories follow semantic naming${NC}"
+fi
+# Check for packages without .dotmeta
+packages_without_meta=$(find ~/0-core -maxdepth 1 -type d -not -name ".*" -not -name "0-core" | while read -r pkg; do
+  dirname=$(basename "$pkg")
+  # Only check semantic package directories (prefix-name pattern)
+  if [[ "$dirname" =~ ^[a-z]+-[a-z] ]]; then
+    if [[ ! -f "$pkg/.dotmeta" ]]; then
+      echo "$dirname"
+    fi
+  fi
+done)
+if [[ -n "$packages_without_meta" ]]; then
+  echo -e "   ${YELLOW}⚠️  Packages missing .dotmeta:${NC}"
+  while IFS= read -r pkg; do
+    echo -e "      ${DIM}$pkg${NC}"
+    ((issues++))
+  done <<<"$packages_without_meta"
+else
+  echo -e "   ${GREEN}✅ All packages have .dotmeta${NC}"
+fi
+((total_checks++))
+if [[ $issues -eq 0 ]]; then
+  ((passed++))
+else
+  ((warnings++))
+fi
+# Check 11: Intent Ledger Health
+echo -e "${CYAN}📜 Checking Intent Ledger...${NC}"
+intent_issues=0
+intent_total=0
+intent_complete=0
+intent_planned=0
+intent_in_progress=0
+intent_decided=0
+intent_abandoned=0
+stale_intents=""
+invalid_packages=""
+version_mismatches=""
+
+# Get all git tags
+git_tags=$(git -C ~/0-core tag 2>/dev/null)
+
+# Parse all intent files
+while IFS= read -r intent_file; do
+  [[ -f "$intent_file" ]] || continue
+  ((intent_total++))
+
+  # Extract frontmatter fields
+  status=$(grep -m1 "^status:" "$intent_file" 2>/dev/null | sed 's/status:[[:space:]]*//' | tr -d '"')
+  version=$(grep -m1 "^version:" "$intent_file" 2>/dev/null | sed 's/version:[[:space:]]*//' | tr -d '"')
+  packages_line=$(grep -m1 "^packages:" "$intent_file" 2>/dev/null | sed 's/packages:[[:space:]]*//')
+  date_line=$(grep -m1 "^date:" "$intent_file" 2>/dev/null | sed 's/date:[[:space:]]*//' | tr -d '"')
+  title=$(grep -m1 "^title:" "$intent_file" 2>/dev/null | sed 's/title:[[:space:]]*//' | tr -d '"')
+  id=$(grep -m1 "^id:" "$intent_file" 2>/dev/null | sed 's/id:[[:space:]]*//' | tr -d '"')
+
+  # Count by status
+  case "$status" in
+  complete | completed) ((intent_complete++)) ;;
+  planned) ((intent_planned++)) ;;
+  in-progress | "in progress") ((intent_in_progress++)) ;;
+  decided) ((intent_decided++)) ;;
+  abandoned) ((intent_abandoned++)) ;;
+  esac
+
+  # Check for stale planned intents (> 30 days)
+  if [[ "$status" == "planned" && -n "$date_line" ]]; then
+    intent_date=$(date -d "$date_line" +%s 2>/dev/null)
+    if [[ -n "$intent_date" ]]; then
+      days_old=$((($(date +%s) - intent_date) / 86400))
+      if [[ $days_old -gt 30 ]]; then
+        stale_intents+="      Intent $id (${days_old} days old)\n"
+        ((intent_issues++))
+      fi
+    fi
+  fi
+
+  # Validate package references
+  if [[ -n "$packages_line" && "$packages_line" != "[]" ]]; then
+    # Parse packages (handle [pkg1, pkg2] format)
+    pkgs=$(echo "$packages_line" | tr -d '[]' | tr ',' '\n' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" ]] && continue
+      if [[ ! -d ~/0-core/$pkg ]]; then
+        invalid_packages+="      Intent $id: package '$pkg' not found\n"
+        ((intent_issues++))
+      fi
+    done <<<"$pkgs"
+  fi
+
+  # Check version/tag mismatch
+  if [[ -n "$version" && "$status" == "planned" ]]; then
+    if echo "$git_tags" | grep -qx "$version"; then
+      version_mismatches+="      Intent $id: $version tagged but status 'planned'\n"
+      ((intent_issues++))
+    fi
+  fi
+
+done < <(find ~/0-core/INTENT -name "*.md" -type f 2>/dev/null)
+
+# Output summary
+echo -e "   Total: $intent_total intents"
+[[ $intent_complete -gt 0 ]] && echo -e "   ${GREEN}✅ Complete: $intent_complete${NC}"
+[[ $intent_planned -gt 0 ]] && echo -e "   ${CYAN}📅 Planned: $intent_planned${NC}"
+[[ $intent_in_progress -gt 0 ]] && echo -e "   ${YELLOW}🔨 In-progress: $intent_in_progress${NC}"
+[[ $intent_decided -gt 0 ]] && echo -e "   ${CYAN}✓ Decided: $intent_decided${NC}"
+[[ $intent_abandoned -gt 0 ]] && echo -e "   ${DIM}❌ Abandoned: $intent_abandoned${NC}"
+
+# Show issues
+if [[ -n "$stale_intents" ]]; then
+  echo -e "   ${YELLOW}⚠️  Stale (planned > 30 days):${NC}"
+  echo -e "$stale_intents"
+fi
+if [[ -n "$invalid_packages" ]]; then
+  echo -e "   ${RED}❌ Invalid package references:${NC}"
+  echo -e "$invalid_packages"
+fi
+if [[ -n "$version_mismatches" ]]; then
+  echo -e "   ${YELLOW}⚠️  Version/status mismatch:${NC}"
+  echo -e "$version_mismatches"
+fi
+
+if [[ $intent_issues -eq 0 && $intent_total -gt 0 ]]; then
+  echo -e "   ${GREEN}✅ Intent Ledger healthy${NC}"
+fi
+
+((total_checks++))
+if [[ $intent_issues -eq 0 ]]; then
+  ((passed++))
+else
+  ((warnings++))
+fi
 
 # Final Report
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
 if [ $failed -gt 0 ]; then
   echo -e "${RED}❌ System has issues ($failed failed checks)${NC}"
 elif [ $warnings -gt 0 ]; then
-  health=$(awk "BEGIN {printf \"%.6f\", ($passed / $total_checks) * 100}")
+  health=$(awk "BEGIN {printf \"%.0f\", ($passed / $total_checks) * 100}")
   echo -e "${YELLOW}⚠️  System mostly healthy ($health%)${NC}"
 else
   echo -e "${GREEN}✅ System healthy! All checks passed! 🌲${NC}"
 fi
-
 echo "Statistics:"
 echo "   Passed:   $passed"
 echo "   Failed:   $failed"
 echo "   Warnings: $warnings"
 echo "   Total:    $total_checks"
-health=$(awk "BEGIN {printf \"%.6f\", ($passed / $total_checks) * 100}")
+health=$(awk "BEGIN {printf \"%.0f\", ($passed / $total_checks) * 100}")
 echo "   Health:   $health%"

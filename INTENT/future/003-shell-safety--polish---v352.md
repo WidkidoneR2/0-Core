@@ -5,6 +5,8 @@ type: future
 title: "Shell Safety & Polish - v3.5.2"
 status: complete
 tags: [shell, safety, v3.5.2, zsh, starship]
+version: v3.5.2
+packages: [shell-zsh, prompt-starship]
 ---
 
 ## Why
