@@ -1,0 +1,12 @@
+[package]
+name = "faelight-bar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wayland-client = "0.31"
+wayland-protocols = { version = "0.31", features = ["client", "unstable"] }
+wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+smithay-client-toolkit = "0.18"
+fontdue = "0.8"
+chrono = "0.4"
