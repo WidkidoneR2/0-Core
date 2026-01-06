@@ -23,14 +23,64 @@ use chrono::Local;
 use std::os::unix::net::UnixStream;
 use std::io::{Write, Read};
 use std::env;
+use std::fs;
+use std::process::Command;
 
 const BAR_HEIGHT: u32 = 32;
 const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
+const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];  // Faelight Blue (BGRA)
+const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF]; // Amber warning (BGRA)
+const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];   // Rust red (BGRA)
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
+
+// Profile icons
+fn get_profile_icon(profile: &str) -> &'static str {
+    match profile {
+        "gaming" => "GAM",
+        "work" => "WRK",
+        "low-power" => "LOW",
+        _ => "DEF",
+    }
+}
+
+fn get_profile_color(profile: &str) -> [u8; 4] {
+    match profile {
+        "gaming" => RED_COLOR,
+        "work" => BLUE_COLOR,
+        "low-power" => AMBER_COLOR,
+        _ => ACCENT_COLOR,
+    }
+}
+
+// Read current profile
+fn get_current_profile() -> String {
+    let home = env::var("HOME").unwrap_or_default();
+    let path = format!("{}/.local/state/0-core/current-profile", home);
+    fs::read_to_string(&path)
+        .unwrap_or_else(|_| "default".to_string())
+        .trim()
+        .to_string()
+}
+
+// Get VPN status
+fn get_vpn_status() -> (bool, String) {
+    let output = Command::new("mullvad")
+        .arg("status")
+        .output();
+    
+    match output {
+        Ok(out) => {
+            let status = String::from_utf8_lossy(&out.stdout);
+            let connected = status.contains("Connected");
+            (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
+        }
+        Err(_) => (false, "N/A".to_string()),
+    }
+}
 
 // Hyprland IPC
 fn hyprland_query(cmd: &str) -> Option<String> {
@@ -50,11 +100,9 @@ fn get_workspaces() -> (Vec<i32>, i32) {
     let mut workspaces: Vec<i32> = vec![];
     let mut active: i32 = 1;
     
-    // Get active workspace
     if let Some(resp) = hyprland_query("activeworkspace") {
         for line in resp.lines() {
             if line.starts_with("workspace ID") {
-                // Format: "workspace ID 1 (1) on monitor..."
                 if let Some(id_str) = line.split_whitespace().nth(2) {
                     active = id_str.parse().unwrap_or(1);
                 }
@@ -63,7 +111,6 @@ fn get_workspaces() -> (Vec<i32>, i32) {
         }
     }
     
-    // Get all workspaces
     if let Some(resp) = hyprland_query("workspaces") {
         for line in resp.lines() {
             if line.starts_with("workspace ID") {
@@ -92,8 +139,8 @@ fn get_active_window() -> String {
             let trimmed = line.trim();
             if trimmed.starts_with("title:") {
                 let title = trimmed.strip_prefix("title:").unwrap_or("").trim();
-                if title.len() > 50 {
-                    return format!("{}...", &title[..47]);
+                if title.len() > 40 {
+                    return format!("{}...", &title[..37]);
                 }
                 return title.to_string();
             }
@@ -104,8 +151,8 @@ fn get_active_window() -> String {
 
 fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
     let mut cursor_x = x;
-    let font_size = 16.0;
-    let baseline = y + 14;
+    let font_size = 14.0;
+    let baseline = y + 12;
 
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
@@ -178,7 +225,7 @@ fn main() {
         font,
     };
 
-    println!("🌲 faelight-bar v0.2 starting...");
+    println!("🌲 faelight-bar v0.3 starting...");
 
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
@@ -221,39 +268,63 @@ impl BarState {
         }
 
         // Draw accent line at top
+        let profile = get_current_profile();
+        let accent = get_profile_color(&profile);
         for x in 0..width as usize {
             for y in 0..2 {
                 let idx = (y * width as usize + x) * 4;
                 if idx + 3 < canvas.len() {
-                    canvas[idx] = ACCENT_COLOR[0];
-                    canvas[idx + 1] = ACCENT_COLOR[1];
-                    canvas[idx + 2] = ACCENT_COLOR[2];
-                    canvas[idx + 3] = ACCENT_COLOR[3];
+                    canvas[idx] = accent[0];
+                    canvas[idx + 1] = accent[1];
+                    canvas[idx + 2] = accent[2];
+                    canvas[idx + 3] = accent[3];
                 }
             }
         }
 
-        // LEFT: Workspaces
+        // === LEFT SIDE ===
+        let mut x_pos = 10;
+
+        // Profile indicator
+        let profile_icon = get_profile_icon(&profile);
+        draw_text(&self.font, canvas, width, profile_icon, x_pos, 8, accent);
+        x_pos += 40;
+
+        // Separator
+        draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        x_pos += 15;
+
+        // Workspaces
         let (workspaces, active) = get_workspaces();
-        let mut x_pos = 15;
         for ws in &workspaces {
             let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
             let ws_str = format!("{}", ws);
-            draw_text(&self.font, canvas, width, &ws_str, x_pos, 6, color);
-            x_pos += 20;
+            draw_text(&self.font, canvas, width, &ws_str, x_pos, 8, color);
+            x_pos += 18;
         }
 
-        // CENTER: Active window
+        // === CENTER ===
         let window_title = get_active_window();
         if !window_title.is_empty() {
-            let title_width = window_title.len() as i32 * 9; // approximate
+            let title_width = window_title.len() as i32 * 8;
             let center_x = (width as i32 / 2) - (title_width / 2);
-            draw_text(&self.font, canvas, width, &window_title, center_x, 6, TEXT_COLOR);
+            draw_text(&self.font, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
         }
 
-        // RIGHT: Time
+        // === RIGHT SIDE ===
+        
+        // VPN (leftmost on right side)
+        let (vpn_connected, vpn_status) = get_vpn_status();
+        let vpn_color = if vpn_connected { BLUE_COLOR } else { RED_COLOR };
+        let vpn_text = format!("VPN:{}", vpn_status);
+        draw_text(&self.font, canvas, width, &vpn_text, width as i32 - 150, 8, vpn_color);
+
+        // Separator
+        draw_text(&self.font, canvas, width, "|", width as i32 - 75, 8, DIM_COLOR);
+
+        // Time (rightmost)
         let time_str = Local::now().format("%H:%M").to_string();
-        draw_text(&self.font, canvas, width, &time_str, width as i32 - 60, 6, TEXT_COLOR);
+        draw_text(&self.font, canvas, width, &time_str, width as i32 - 60, 8, TEXT_COLOR);
 
         // Attach buffer
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -262,6 +333,7 @@ impl BarState {
         self.layer_surface.commit();
     }
 }
+
 
 impl CompositorHandler for BarState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
