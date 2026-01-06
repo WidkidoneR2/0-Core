@@ -31,9 +31,9 @@ const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
-const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];  // Faelight Blue (BGRA)
-const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF]; // Amber warning (BGRA)
-const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];   // Rust red (BGRA)
+const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
+const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
+const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
 
@@ -56,7 +56,6 @@ fn get_profile_color(profile: &str) -> [u8; 4] {
     }
 }
 
-// Read current profile
 fn get_current_profile() -> String {
     let home = env::var("HOME").unwrap_or_default();
     let path = format!("{}/.local/state/0-core/current-profile", home);
@@ -66,12 +65,8 @@ fn get_current_profile() -> String {
         .to_string()
 }
 
-// Get VPN status
 fn get_vpn_status() -> (bool, String) {
-    let output = Command::new("mullvad")
-        .arg("status")
-        .output();
-    
+    let output = Command::new("mullvad").arg("status").output();
     match output {
         Ok(out) => {
             let status = String::from_utf8_lossy(&out.stdout);
@@ -82,7 +77,68 @@ fn get_vpn_status() -> (bool, String) {
     }
 }
 
-// Hyprland IPC
+fn get_battery() -> (u8, bool) {
+    let capacity = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
+        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
+        .unwrap_or_else(|_| "0".to_string());
+    let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
+        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
+        .unwrap_or_else(|_| "Unknown".to_string());
+    
+    let percent: u8 = capacity.trim().parse().unwrap_or(0);
+    let charging = status.trim() == "Charging";
+    (percent, charging)
+}
+
+fn get_wifi() -> (bool, String) {
+    let output = Command::new("iwctl")
+        .args(["station", "wlan0", "show"])
+        .output();
+    
+    match output {
+        Ok(out) => {
+            let result = String::from_utf8_lossy(&out.stdout);
+            let mut connected = false;
+            
+            for line in result.lines() {
+                let trimmed = line.trim();
+                if trimmed.contains("State") && trimmed.contains("connected") {
+                    connected = true;
+                    break;
+                }
+            }
+            
+            if connected {
+                (true, "ON".to_string())
+            } else {
+                (false, "OFF".to_string())
+            }
+        }
+        Err(_) => (false, "N/A".to_string()),
+    }
+}
+
+fn get_volume() -> (u8, bool) {
+    let output = Command::new("wpctl")
+        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
+        .output();
+    
+    match output {
+        Ok(out) => {
+            let result = String::from_utf8_lossy(&out.stdout);
+            let muted = result.contains("[MUTED]");
+            let vol = result
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse::<f32>().ok())
+                .map(|v| (v * 100.0) as u8)
+                .unwrap_or(0);
+            (vol, muted)
+        }
+        Err(_) => (0, false),
+    }
+}
+
 fn hyprland_query(cmd: &str) -> Option<String> {
     let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
     let xdg_runtime = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
@@ -194,7 +250,6 @@ fn main() {
     let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
 
     let surface = compositor.create_surface(&qh);
-
     let layer_surface = layer_shell.create_layer_surface(
         &qh,
         surface,
@@ -225,7 +280,7 @@ fn main() {
         font,
     };
 
-    println!("🌲 faelight-bar v0.3 starting...");
+    println!("🌲 faelight-bar v0.4 starting...");
 
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
@@ -290,7 +345,6 @@ impl BarState {
         draw_text(&self.font, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
 
-        // Separator
         draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
 
@@ -312,19 +366,51 @@ impl BarState {
         }
 
         // === RIGHT SIDE ===
-        
-        // VPN (leftmost on right side)
+        let mut rx = width as i32 - 55;
+
+        // Time
+        let time_str = Local::now().format("%H:%M").to_string();
+        draw_text(&self.font, canvas, width, &time_str, rx, 8, TEXT_COLOR);
+
+        rx -= 15;
+        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+
+        // Volume
+        rx -= 40;
+        let (vol, muted) = get_volume();
+        let vol_color = if muted { DIM_COLOR } else { TEXT_COLOR };
+        let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
+        draw_text(&self.font, canvas, width, &vol_text, rx, 8, vol_color);
+
+        rx -= 15;
+        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+
+        // WiFi
+        rx -= 65;
+        let (wifi_on, wifi_status) = get_wifi();
+        let wifi_color = if wifi_on { BLUE_COLOR } else { DIM_COLOR };
+        let wifi_text = format!("W:{}", wifi_status);
+        draw_text(&self.font, canvas, width, &wifi_text, rx, 8, wifi_color);
+
+        rx -= 15;
+        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+
+        // Battery
+        rx -= 45;
+        let (bat_pct, charging) = get_battery();
+        let bat_color = if bat_pct < 20 { RED_COLOR } else if charging { BLUE_COLOR } else { TEXT_COLOR };
+        let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
+        draw_text(&self.font, canvas, width, &bat_text, rx, 8, bat_color);
+
+        rx -= 15;
+        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+
+        // VPN
+        rx -= 60;
         let (vpn_connected, vpn_status) = get_vpn_status();
         let vpn_color = if vpn_connected { BLUE_COLOR } else { RED_COLOR };
         let vpn_text = format!("VPN:{}", vpn_status);
-        draw_text(&self.font, canvas, width, &vpn_text, width as i32 - 150, 8, vpn_color);
-
-        // Separator
-        draw_text(&self.font, canvas, width, "|", width as i32 - 75, 8, DIM_COLOR);
-
-        // Time (rightmost)
-        let time_str = Local::now().format("%H:%M").to_string();
-        draw_text(&self.font, canvas, width, &time_str, width as i32 - 60, 8, TEXT_COLOR);
+        draw_text(&self.font, canvas, width, &vpn_text, rx, 8, vpn_color);
 
         // Attach buffer
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -333,7 +419,6 @@ impl BarState {
         self.layer_surface.commit();
     }
 }
-
 
 impl CompositorHandler for BarState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
