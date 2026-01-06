@@ -1,9 +1,10 @@
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_shm,
+    delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
+    seat::{Capability, SeatHandler, SeatState, pointer::{PointerEvent, PointerEventKind, PointerHandler}},
     shell::{
         wlr_layer::{
             Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
@@ -15,7 +16,7 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_shm, wl_surface},
+    protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
 use fontdue::{Font, FontSettings};
@@ -37,7 +38,6 @@ const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
 
-// Profile icons
 fn get_profile_icon(profile: &str) -> &'static str {
     match profile {
         "gaming" => "GAM",
@@ -139,7 +139,6 @@ fn get_volume() -> (u8, bool) {
     }
 }
 
-// Get dot-doctor health (cached - runs quick checks)
 fn get_health() -> u8 {
     let home = env::var("HOME").unwrap_or_default();
     let core_path = format!("{}/0-core", home);
@@ -147,13 +146,10 @@ fn get_health() -> u8 {
     let mut passed = 0;
     let total = 5;
     
-    // Quick checks (subset of dot-doctor)
-    // 1. Core directory exists
     if fs::metadata(&core_path).is_ok() {
         passed += 1;
     }
     
-    // 2. Scripts directory has files
     let scripts_path = format!("{}/scripts", core_path);
     if let Ok(entries) = fs::read_dir(&scripts_path) {
         if entries.count() > 5 {
@@ -161,7 +157,6 @@ fn get_health() -> u8 {
         }
     }
     
-    // 3. Git is clean (no uncommitted)
     let git_status = Command::new("git")
         .args(["-C", &core_path, "status", "--porcelain"])
         .output();
@@ -171,13 +166,11 @@ fn get_health() -> u8 {
         }
     }
     
-    // 4. Profile exists
     let profile_path = format!("{}/.local/state/0-core/current-profile", home);
     if fs::metadata(&profile_path).is_ok() {
         passed += 1;
     }
     
-    // 5. VERSION file exists
     let version_path = format!("{}/VERSION", core_path);
     if fs::metadata(&version_path).is_ok() {
         passed += 1;
@@ -186,7 +179,6 @@ fn get_health() -> u8 {
     ((passed * 100) / total) as u8
 }
 
-// Check if core is locked
 fn is_core_locked() -> bool {
     let home = env::var("HOME").unwrap_or_default();
     let core_path = format!("{}/0-core", home);
@@ -198,8 +190,6 @@ fn is_core_locked() -> bool {
     match output {
         Ok(out) => {
             let result = String::from_utf8_lossy(&out.stdout);
-            // Attributes are at the start, before the path
-            // Format: "----i------------ /path"
             if let Some(attrs) = result.split_whitespace().next() {
                 attrs.contains('i')
             } else {
@@ -311,6 +301,36 @@ fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: 
     }
 }
 
+fn handle_click(action: &str) {
+    match action {
+        "vpn" => {
+            let status = Command::new("mullvad").arg("status").output();
+            if let Ok(out) = status {
+                let result = String::from_utf8_lossy(&out.stdout);
+                if result.contains("Connected") {
+                    Command::new("mullvad").arg("disconnect").spawn().ok();
+                } else {
+                    Command::new("mullvad").arg("connect").spawn().ok();
+                }
+            }
+        }
+        "volume" => {
+            Command::new("wpctl").args(["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]).spawn().ok();
+        }
+        "profile" => {
+            let current = get_current_profile();
+            let next = match current.as_str() {
+                "default" => "gaming",
+                "gaming" => "work", 
+                "work" => "low-power",
+                _ => "default",
+            };
+            Command::new("profile").arg(next).spawn().ok();
+        }
+        _ => {}
+    }
+}
+
 fn main() {
     let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
     let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
@@ -319,6 +339,7 @@ fn main() {
     let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
     let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell not available");
     let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
+    let seat_state = SeatState::new(&globals, &qh);
 
     let surface = compositor.create_surface(&qh);
     let layer_surface = layer_shell.create_layer_surface(
@@ -340,6 +361,7 @@ fn main() {
 
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
+        seat_state,
         output_state: OutputState::new(&globals, &qh),
         shm,
         pool,
@@ -349,9 +371,11 @@ fn main() {
         configured: false,
         running: true,
         font,
+        click_regions: Vec::new(),
+        pointer_x: 0.0,
     };
 
-    println!("🌲 faelight-bar v0.4 starting...");
+    println!("🌲 faelight-bar v0.6 starting...");
 
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
@@ -360,6 +384,7 @@ fn main() {
 
 struct BarState {
     registry_state: RegistryState,
+    seat_state: SeatState,
     output_state: OutputState,
     shm: Shm,
     pool: SlotPool,
@@ -369,6 +394,8 @@ struct BarState {
     configured: bool,
     running: bool,
     font: Font,
+    click_regions: Vec<(i32, i32, String)>,
+    pointer_x: f64,
 }
 
 impl BarState {
@@ -376,6 +403,8 @@ impl BarState {
         if self.width == 0 {
             return;
         }
+
+        self.click_regions.clear();
 
         let width = self.width;
         let height = self.height;
@@ -385,7 +414,6 @@ impl BarState {
             .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888)
             .expect("Failed to create buffer");
 
-        // Fill background
         for pixel in canvas.chunks_exact_mut(4) {
             pixel[0] = BG_COLOR[0];
             pixel[1] = BG_COLOR[1];
@@ -393,7 +421,6 @@ impl BarState {
             pixel[3] = BG_COLOR[3];
         }
 
-        // Draw accent line at top
         let profile = get_current_profile();
         let accent = get_profile_color(&profile);
         for x in 0..width as usize {
@@ -411,15 +438,16 @@ impl BarState {
         // === LEFT SIDE ===
         let mut x_pos = 10;
 
-        // Profile indicator
+        // Profile indicator (clickable)
+        let profile_start = x_pos;
         let profile_icon = get_profile_icon(&profile);
         draw_text(&self.font, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
+        self.click_regions.push((profile_start, x_pos, "profile".to_string()));
 
         draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
 
-        // Workspaces
         let (workspaces, active) = get_workspaces();
         for ws in &workspaces {
             let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
@@ -428,7 +456,7 @@ impl BarState {
             x_pos += 18;
         }
 
-        // Health & Lock status
+        // Health & Lock
         x_pos += 10;
         draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
@@ -455,25 +483,25 @@ impl BarState {
         // === RIGHT SIDE ===
         let mut rx = width as i32 - 55;
 
-        // Time
         let time_str = Local::now().format("%H:%M").to_string();
         draw_text(&self.font, canvas, width, &time_str, rx, 8, TEXT_COLOR);
 
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
 
-        // Volume
+        // Volume (clickable)
         rx -= 40;
+        let vol_start = rx;
         let (vol, muted) = get_volume();
         let vol_color = if muted { DIM_COLOR } else { TEXT_COLOR };
         let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
         draw_text(&self.font, canvas, width, &vol_text, rx, 8, vol_color);
+        self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
 
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
 
-        // WiFi
-        rx -= 65;
+        rx -= 45;
         let (wifi_on, wifi_status) = get_wifi();
         let wifi_color = if wifi_on { BLUE_COLOR } else { DIM_COLOR };
         let wifi_text = format!("W:{}", wifi_status);
@@ -482,7 +510,6 @@ impl BarState {
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
 
-        // Battery
         rx -= 45;
         let (bat_pct, charging) = get_battery();
         let bat_color = if bat_pct < 20 { RED_COLOR } else if charging { BLUE_COLOR } else { TEXT_COLOR };
@@ -492,14 +519,15 @@ impl BarState {
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
 
-        // VPN
+        // VPN (clickable)
         rx -= 60;
+        let vpn_start = rx;
         let (vpn_connected, vpn_status) = get_vpn_status();
         let vpn_color = if vpn_connected { BLUE_COLOR } else { RED_COLOR };
         let vpn_text = format!("VPN:{}", vpn_status);
         draw_text(&self.font, canvas, width, &vpn_text, rx, 8, vpn_color);
+        self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
 
-        // Attach buffer
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
         self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
         self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
@@ -547,11 +575,50 @@ impl ShmHandler for BarState {
     }
 }
 
+impl SeatHandler for BarState {
+    fn seat_state(&mut self) -> &mut SeatState {
+        &mut self.seat_state
+    }
+
+    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
+        if capability == Capability::Pointer {
+            self.seat_state.get_pointer(qh, &seat).ok();
+        }
+    }
+    fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat, _capability: Capability) {}
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+}
+
+impl PointerHandler for BarState {
+    fn pointer_frame(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _pointer: &wl_pointer::WlPointer, events: &[PointerEvent]) {
+        for event in events {
+            match event.kind {
+                PointerEventKind::Motion { .. } => {
+                    self.pointer_x = event.position.0;
+                }
+                PointerEventKind::Press { button, .. } => {
+                    if button == 272 {
+                        let x = self.pointer_x as i32;
+                        for (start, end, action) in &self.click_regions {
+                            if x >= *start && x <= *end {
+                                handle_click(action);
+                                break;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 impl ProvidesRegistryState for BarState {
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }
-    registry_handlers![OutputState];
+    registry_handlers![OutputState, SeatState];
 }
 
 delegate_compositor!(BarState);
@@ -559,3 +626,5 @@ delegate_output!(BarState);
 delegate_layer!(BarState);
 delegate_shm!(BarState);
 delegate_registry!(BarState);
+delegate_seat!(BarState);
+delegate_pointer!(BarState);
