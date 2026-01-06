@@ -481,9 +481,9 @@ impl BarState {
         }
 
         // === RIGHT SIDE ===
-        let mut rx = width as i32 - 55;
+        let mut rx = width as i32 - 110;
 
-        let time_str = Local::now().format("%H:%M").to_string();
+        let time_str = Local::now().format("%b %d %H:%M").to_string();
         draw_text(&self.font, canvas, width, &time_str, rx, 8, TEXT_COLOR);
 
         rx -= 15;
