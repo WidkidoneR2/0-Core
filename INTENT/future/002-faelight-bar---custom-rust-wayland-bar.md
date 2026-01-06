@@ -4,95 +4,227 @@ date: 2025-12-31
 type: future
 title: "faelight-bar - Custom Rust Wayland Bar"
 status: planned
-tags: [rust, wayland, v5.0, celebration]
+tags: [rust, wayland, bar, hyprland, v5.0]
 ---
+
+## The Vision
+
+A minimal, intent-aware status bar that reflects system state, not decoration.
+Built in Rust. Integrated with 0-Core. Uniquely yours.
 
 ## Why
 
-v5.0.0 is a CELEBRATION of the journey.
+Current Waybar works but:
 
-This will be:
+- Generic configuration
+- No integration with profiles/intents
+- Not built by us
+- Can't extend with our philosophy
 
-- First Rust project (learning + proving the tech)
-- Something RARE (custom Wayland bars are uncommon)
-- Philosophy embodied (minimal, intentional, beautiful)
-- Marks the transition (dotfiles → philosophy → tool builder)
+faelight-bar will be:
 
-Also: Waybar works, but it's not OURS.
-faelight-bar will be 0-Core's bar, built with 0-Core principles.
+- Intent-aware (bar changes with profiles)
+- Diagnostic-first (health at a glance)
+- Minimal (information, not decoration)
+- Ours (Rust, from scratch)
 
-## What
+## Design Principles
 
-Custom Wayland status bar written in Rust.
+1. **Color = State** — Green healthy, Blue connected, Amber attention, Red danger
+2. **Animation = Information** — Never decorative, always meaningful
+3. **Contextual, not cluttered** — Modules appear/disappear based on intent
+4. **Peripheral vision friendly** — Parse state without reading text
 
-Features (minimal but complete):
+## Version Roadmap
 
-- Workspaces (Hyprland socket integration)
-- Clock (system time)
-- Battery (charge status, icons)
-- Network (wifi/ethernet)
-- VPN indicator (Mullvad detection)
-- Lock status (0-core locked/unlocked)
+### v0.1 - Static Status Bar
 
-Design philosophy:
+**Goal:** Get pixels on screen. Learn Wayland rendering.
 
-- i3bar aesthetic (minimal, text-focused)
-- Modern underneath (Rust, Wayland protocols)
-- Configurable via TOML
-- Security-first (no unnecessary features)
+Modules:
 
-## Timeline
+- Time / date
+- Battery
+- Network status
 
-v5.0.0 (Q2-Q3 2026)
+No interaction. Read-only. Flat design.
 
-Learning period: Jan-Jun 2026
-Build period: Jun-Aug 2026
-Polish & ship: Aug-Sep 2026
+**Rust concepts:** Event loop, rendering lifecycle
 
-## Technical Stack
+### v0.2 - Hyprland IPC
 
-- Language: Rust
-- Wayland: smithay-client-toolkit
-- Rendering: Cairo/Pango
-- Config: TOML
-- Async: tokio
+**Goal:** React to window manager state.
 
-## Why Rust for This
+Modules:
 
-Perfect learning project:
+- Workspaces (clickable later)
+- Active window title
 
-- Standalone (doesn't break 0-Core if I struggle)
-- Forces me to learn Wayland protocols
-- Async patterns (socket reading, polling)
-- Graphics rendering
-- Real-world complexity
+**Rust concepts:** IPC listeners, async events
 
-If faelight-bar succeeds, v5.1 rewrites all scripts in Rust.
-If it struggles, we learn what NOT to do.
+### v0.3 - Intent-Aware Modules ⭐
+
+**Goal:** Bar reflects current profile. THE DIFFERENTIATOR.
+
+Behavior:
+
+- `profile gaming` → shows GPU, performance metrics
+- `profile work` → shows VPN status, focus indicator
+- `profile low-power` → shows battery prominently
+- Modules appear/disappear dynamically
+
+**Rust concepts:** Typed shared state, hot reload, observer pattern
+
+### v0.4 - Clickable Panels
+
+**Goal:** Add minimal interactivity.
+
+Features:
+
+- Click volume → slider panel
+- Click profile → profile switcher
+- Click updates → package list
+- Panels float below bar
+- Keyboard-first interaction
+
+**Rust concepts:** Input handling, focus management, message passing
+
+### v0.5 - Diagnostics Integration
+
+**Goal:** dot-doctor in your peripheral vision.
+
+Features:
+
+- Green/amber/red health indicators
+- Git repo dirty indicator
+- Config drift warning
+- Update safety warnings
+- Zero noise when healthy
+
+**Rust concepts:** Deterministic logic, structured diagnostics
+
+### v1.0 - Polished & Stable
+
+**Goal:** Daily driver ready.
+
+Features:
+
+- All modules stable
+- Smooth transitions (purposeful only)
+- Complete documentation
+- Profile-driven themes
+
+## Color System — Faelight Forest Palette
+
+### Base (Backgrounds)
+
+| Name         | Hex     | Use                      |
+| ------------ | ------- | ------------------------ |
+| Forest Night | #0f1411 | Main bar background      |
+| Deep Moss    | #161d19 | Module background (idle) |
+| Pine Shadow  | #1e2622 | Hover / focused          |
+
+### Primary Accent (Faelight Green)
+
+| Name           | Hex     | Use                      |
+| -------------- | ------- | ------------------------ |
+| Faelight Green | #6be3a3 | Active icon color        |
+| Soft Faelight  | #2e5f49 | Active module background |
+| Dim Faelight   | #4fbf8a | Secondary accents        |
+
+### Secondary Accent (Cool Blue)
+
+| Name          | Hex     | Use                     |
+| ------------- | ------- | ----------------------- |
+| Faelight Blue | #5cc8ff | Network, connectivity   |
+| Mist Blue     | #243a44 | Network background tint |
+| Deep Water    | #3fa9dd | Strong signal / active  |
+
+### Tertiary Accent (Warnings)
+
+| Name       | Hex     | Use                |
+| ---------- | ------- | ------------------ |
+| Amber Leaf | #f5c177 | Warnings, updates  |
+| Rust Glow  | #d08770 | Errors, alerts     |
+| Soft Ember | #4a2e25 | Warning background |
+
+### Neutral
+
+| Name       | Hex     | Use                 |
+| ---------- | ------- | ------------------- |
+| Fog White  | #d7e0da | Primary text        |
+| Ash Grey   | #9aa7a0 | Secondary text      |
+| Stone Grey | #6f7f77 | Disabled / inactive |
+
+### Color Semantics (Never Mix)
+
+| Color    | Meaning                   |
+| -------- | ------------------------- |
+| Green    | Active / healthy          |
+| Blue     | Connected / informational |
+| Amber    | Attention needed          |
+| Red-rust | Danger                    |
+| Grey     | Inactive                  |
+
+## Depth Effect (No Shaders)
+
+Fake 3D without complexity:
+
+- Top edge: lighten background ~5%
+- Bottom edge: darken ~8%
+- Icon glow: same color, 30-40% alpha
+
+This gives the "instrument panel" feel.
+
+## Module Examples
+
+### Wi-Fi Module
+
+**Connected:**
+
+- Background: Mist Blue (#243a44)
+- Icon: Faelight Blue (#5cc8ff)
+- Subtle glow
+
+**Disconnected:**
+
+- Background: Deep Moss
+- Icon: Stone Grey
+- No glow
+
+### Profile Indicator
+
+Shows current profile icon in bar:
+
+- 🏠 default
+- 🎮 gaming
+- 💼 work
+- 🔋 low-power
+
+Visual confirmation of system state.
+
+## Dependencies
+
+- Learn Rust fundamentals first (bump-system-version, dotctl, etc.)
+- Complete v5.0.0 CLI rewrites before starting faelight-bar
+- This is the capstone project, not the starting point
 
 ## Success Criteria
 
-- Runs stable (no crashes, memory leaks)
-- Feature parity with our Waybar usage
-- Daily-driveable
-- Code quality (idiomatic Rust)
-- Proves Rust is viable for 0-Core
+**v1.0 is complete when:**
 
-## The Celebration
+- [ ] Replaces Waybar as daily driver
+- [ ] Profile switching changes bar appearance
+- [ ] Diagnostics visible at a glance
+- [ ] No crashes, no memory leaks
+- [ ] Documented and shareable
 
-This marks:
+## Philosophy
 
-- v1.0 → v5.0 (major milestone)
-- Dotfiles → Philosophy → Builder
-- Linux user → Linux craftsman
-- Following → Leading
-
-The forest grows into something new.
-
-### 2025-12-31
-
-[Initial creation]
+> The bar is a health monitor, not decoration.
+> Information, not eye candy.
+> Systems engineer energy.
 
 ---
 
-_Part of the 0-Core Intent Ledger_ 🌲
+_The forest glows. State at a glance._ 🌲
