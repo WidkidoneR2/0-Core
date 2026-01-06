@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+# teach - Interactive 0-Core Learning Guide
+# v4.1.0 - Teaching Mode
+set -euo pipefail
+
+# Colors
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Check for gum
+if ! command -v gum &>/dev/null; then
+  echo "Error: gum is required. Install with: paru -S gum"
+  exit 1
+fi
+
+# Helper to pause
+pause() {
+  gum confirm "Continue?" --affirmative="Next →" --negative="Exit" || exit 0
+}
+
+# Helper for section headers
+section() {
+  clear
+  gum style \
+    --border double \
+    --border-foreground 10 \
+    --padding "1 2" \
+    --margin "1" \
+    "$1"
+  echo ""
+}
+
+# Lesson 1: Welcome
+lesson_welcome() {
+  section "🌲 Welcome to 0-Core"
+
+  gum style --foreground 10 "The Faelight Forest Philosophy"
+  echo ""
+  echo "0-Core is not just dotfiles. It's a philosophy-driven system."
+  echo ""
+  echo "Core principles:"
+  gum style --foreground 11 "  • Manual control over automation"
+  gum style --foreground 11 "  • Intent over convention"
+  gum style --foreground 11 "  • Understanding over convenience"
+  gum style --foreground 11 "  • Recovery over perfection"
+  echo ""
+  echo "You control when things happen. Nothing runs without your say."
+  echo ""
+  pause
+}
+
+# Lesson 2: Directory Structure
+lesson_structure() {
+  section "📁 Directory Structure"
+
+  echo "Your system is organized by purpose:"
+  echo ""
+  gum style --foreground 14 "  ~/0-core/      → Configuration (this repo)"
+  gum style --foreground 14 "  ~/1-src/       → Source code & projects"
+  gum style --foreground 14 "  ~/2-projects/  → Active work"
+  gum style --foreground 14 "  ~/3-archive/   → Completed/archived"
+  gum style --foreground 14 "  ~/4-media/     → Media files"
+  echo ""
+  echo "Inside 0-core:"
+  echo ""
+  gum style --foreground 10 "  scripts/       → Your tools (dot-doctor, profile, etc.)"
+  gum style --foreground 10 "  profiles/      → System profiles (gaming, work, etc.)"
+  gum style --foreground 10 "  INTENT/        → Decision ledger & roadmap"
+  gum style --foreground 10 "  docs/          → Documentation"
+  echo ""
+  pause
+}
+
+# Lesson 3: Core Tools
+lesson_tools() {
+  section "🔧 Core Tools"
+
+  echo "Your daily drivers:"
+  echo ""
+  gum style --foreground 11 "dot-doctor"
+  echo "  Health check for your system. Run daily."
+  echo "  Try: dot-doctor"
+  echo ""
+  gum style --foreground 11 "core-diff"
+  echo "  See what changed in your config."
+  echo "  Try: core-diff"
+  echo ""
+  gum style --foreground 11 "profile"
+  echo "  Switch system modes (gaming, work, low-power)."
+  echo "  Try: profile list"
+  echo ""
+  gum style --foreground 11 "intent"
+  echo "  Track decisions and future plans."
+  echo "  Try: intent list"
+  echo ""
+  gum style --foreground 11 "safe-update"
+  echo "  Update system safely with snapshots."
+  echo "  Try: safe-update"
+  echo ""
+  pause
+}
+
+# Lesson 4: Daily Workflow
+lesson_workflow() {
+  section "📅 Daily Workflow"
+
+  echo "Morning routine (2 minutes):"
+  echo ""
+  gum style --foreground 14 "  1. dot-doctor      → Check system health"
+  gum style --foreground 14 "  2. core-diff       → See any config changes"
+  gum style --foreground 14 "  3. profile status  → Confirm your mode"
+  echo ""
+  echo "Before gaming:"
+  gum style --foreground 10 "  profile gaming"
+  echo ""
+  echo "Before work:"
+  gum style --foreground 10 "  profile work"
+  echo ""
+  echo "Back to normal:"
+  gum style --foreground 10 "  profile default"
+  echo ""
+  echo "Weekly:"
+  gum style --foreground 14 "  safe-update        → Update packages safely"
+  echo ""
+  pause
+}
+
+# Lesson 5: Profiles
+lesson_profiles() {
+  section "🎮 System Profiles"
+
+  echo "Switch your entire system state with one command."
+  echo ""
+  echo "Available profiles:"
+  echo ""
+  gum style --foreground 10 "  🏠 default    → Balanced daily driver"
+  gum style --foreground 10 "  🎮 gaming     → GPU performance, DnD on"
+  gum style --foreground 10 "  💼 work       → VPN on, focus mode"
+  gum style --foreground 10 "  🔋 low-power  → Battery saver"
+  echo ""
+  echo "Commands:"
+  gum style --foreground 14 "  profile list      → See all profiles"
+  gum style --foreground 14 "  profile gaming    → Switch to gaming"
+  gum style --foreground 14 "  profile status    → Current state"
+  gum style --foreground 14 "  profile default   → Back to baseline"
+  echo ""
+  echo "Your prompt shows active profile (hidden when default)."
+  echo ""
+  pause
+}
+
+# Lesson 6: Intent Ledger
+lesson_intent() {
+  section "📜 Intent Ledger"
+
+  echo "Track decisions, not just code."
+  echo ""
+  echo "Categories:"
+  gum style --foreground 11 "  decisions/    → Major architectural choices"
+  gum style --foreground 11 "  experiments/  → Things you tried"
+  gum style --foreground 11 "  philosophy/   → Core beliefs"
+  gum style --foreground 11 "  future/       → Roadmap & planned features"
+  gum style --foreground 11 "  incidents/    → Failures & lessons learned"
+  echo ""
+  echo "Commands:"
+  gum style --foreground 14 "  intent list       → See all intents"
+  gum style --foreground 14 "  intent show 001   → View specific intent"
+  gum style --foreground 14 "  intent add        → Create new intent"
+  gum style --foreground 14 "  intent search     → Find by keyword"
+  echo ""
+  echo "Every decision has a 'why'. Future you will thank you."
+  echo ""
+  pause
+}
+
+# Lesson 7: Customization
+lesson_customize() {
+  section "🎨 Make It Yours"
+
+  echo "Create your own profile:"
+  gum style --foreground 14 "  nvim ~/0-core/profiles/myprofile.profile"
+  echo ""
+  echo "Profile format:"
+  gum style --foreground 10 '  [activate]'
+  gum style --foreground 10 '  # Commands when profile activates'
+  gum style --foreground 10 '  powerprofilesctl set performance'
+  gum style --foreground 10 '  '
+  gum style --foreground 10 '  [deactivate]'
+  gum style --foreground 10 '  # Commands when switching away'
+  gum style --foreground 10 '  powerprofilesctl set balanced'
+  echo ""
+  echo "Add new tools:"
+  gum style --foreground 14 "  1. Create script in ~/0-core/scripts/"
+  gum style --foreground 14 "  2. Make executable: chmod +x"
+  gum style --foreground 14 "  3. Add intent: intent add"
+  echo ""
+  pause
+}
+
+# Lesson 8: Aliases
+lesson_aliases() {
+  section "⚡ Useful Aliases"
+
+  echo "Quick commands built into your shell:"
+  echo ""
+  gum style --foreground 11 "Navigation:"
+  gum style --foreground 14 "  ..          → cd .."
+  gum style --foreground 14 "  ...         → cd ../.."
+  gum style --foreground 14 "  core        → cd ~/0-core"
+  echo ""
+  gum style --foreground 11 "System:"
+  gum style --foreground 14 "  doctor      → dot-doctor"
+  gum style --foreground 14 "  health      → dot-doctor"
+  gum style --foreground 14 "  keys        → keyscan"
+  echo ""
+  gum style --foreground 11 "Core Protection:"
+  gum style --foreground 14 "  lock-core   → Lock 0-core from changes"
+  gum style --foreground 14 "  unlock-core → Unlock for editing"
+  gum style --foreground 14 "  edit-core   → Unlock + open in editor"
+  echo ""
+  gum style --foreground 11 "Git:"
+  gum style --foreground 14 "  gs          → git status"
+  gum style --foreground 14 "  ga          → git add"
+  gum style --foreground 14 "  gc          → git commit"
+  gum style --foreground 14 "  gp          → git push"
+  echo ""
+  gum style --foreground 11 "Files:"
+  gum style --foreground 14 "  ls          → exa with icons"
+  gum style --foreground 14 "  ll          → exa long format"
+  gum style --foreground 14 "  tree        → exa tree view"
+  echo ""
+  echo "See all aliases: alias | less"
+  echo ""
+  pause
+}
+
+# Final
+lesson_complete() {
+  section "🌲 You're Ready"
+
+  echo "You now know:"
+  gum style --foreground 10 "  ✅ The philosophy"
+  gum style --foreground 10 "  ✅ Directory structure"
+  gum style --foreground 10 "  ✅ Core tools"
+  gum style --foreground 10 "  ✅ Daily workflow"
+  gum style --foreground 10 "  ✅ Profiles"
+  gum style --foreground 10 "  ✅ Intent ledger"
+  gum style --foreground 10 "  ✅ Customization"
+  echo ""
+  echo "Quick reference:"
+  gum style --foreground 14 "  dot-doctor     → Health check"
+  gum style --foreground 14 "  profile list   → System modes"
+  gum style --foreground 14 "  intent list    → Roadmap"
+  gum style --foreground 14 "  safe-update    → Update system"
+  echo ""
+  gum style --foreground 11 "Welcome to the Faelight Forest. 🌲"
+  echo ""
+}
+
+# Main menu
+main_menu() {
+  clear
+  gum style \
+    --border double \
+    --border-foreground 10 \
+    --padding "1 2" \
+    --margin "1" \
+    "🌲 0-Core Teaching Mode"
+
+  echo ""
+  choice=$(gum choose \
+    "Start from beginning" \
+    "1. Welcome & Philosophy" \
+    "2. Directory Structure" \
+    "3. Core Tools" \
+    "4. Daily Workflow" \
+    "5. System Profiles" \
+    "6. Intent Ledger" \
+    "7. Customization" \
+    "8. Useful Aliases" \
+    "Exit")
+
+  case "$choice" in
+  "Start from beginning")
+    lesson_welcome
+    lesson_structure
+    lesson_tools
+    lesson_workflow
+    lesson_profiles
+    lesson_intent
+    lesson_customize
+    lesson_complete
+    ;;
+  "1. Welcome & Philosophy") lesson_welcome ;;
+  "2. Directory Structure") lesson_structure ;;
+  "3. Core Tools") lesson_tools ;;
+  "4. Daily Workflow") lesson_workflow ;;
+  "5. System Profiles") lesson_profiles ;;
+  "6. Intent Ledger") lesson_intent ;;
+  "7. Customization") lesson_customize ;;
+  "8. Useful Aliases") lesson_aliases ;;
+  "Exit") exit 0 ;;
+  esac
+
+  main_menu
+}
+
+# Run
+main_menu

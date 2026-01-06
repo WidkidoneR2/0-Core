@@ -3,7 +3,7 @@ id: 007
 date: 2026-01-05
 type: future
 title: "Teaching Mode - Interactive Learning (v4.1.0)"
-status: planned
+status: complete
 tags: [teaching, onboarding, learning, v4.1.0]
 ---
 
