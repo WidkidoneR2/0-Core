@@ -6,12 +6,39 @@ All notable changes to Faelight Forest / 0-Core.
 
 ## [5.0.0] - 2026-01-06
 
-### First Rust Tool - The Transition Begins
+### Complete Rust Transition 🦀
 
-- `bump-system-version` rewritten in Rust (first tool!)
-- Added `rust-tools/` directory for Rust projects
-- Phase 2 of Rust transition complete
-- Bash version deleted
+**ALL 12 CORE SCRIPTS REWRITTEN IN RUST**
+
+#### Rust Tools (12/12)
+
+- `bump-system-version` - System version management
+- `get-version` - Package version reader
+- `latest-update` - Recently updated finder
+- `bump-version` - Package version bumper
+- `dotctl` - Central control utility
+- `intent` - Intent Ledger management
+- `profile` - System profile switching
+- `teach` - Interactive teaching mode
+- `core-diff` - Package-aware diff tool
+- `dot-doctor` - 12-check health monitor
+- `core-protect` - Immutable protection
+- `safe-update` - Safe system updates
+
+#### Benefits
+
+- ⚡ Faster execution (compiled vs interpreted)
+- 🔒 Memory safety (no buffer overflows)
+- ✅ Type safety (errors at compile time)
+- 🛠️ Better error handling
+
+#### Structure
+
+- Added `rust-tools/` with 12 Cargo projects
+- Each tool is standalone binary
+- `target/` directories gitignored
+
+> "The forest speaks Rust now." 🦀🌲
 
 ## [4.2.0] - 2026-01-06
 

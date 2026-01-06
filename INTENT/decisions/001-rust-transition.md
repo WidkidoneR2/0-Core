@@ -3,7 +3,7 @@ id: 001
 date: 2025-12-31
 type: decision
 title: "Complete Rust Transition - v5.0 onwards"
-status: planned
+status: complete
 tags: [rust, architecture, security, philosophy]
 ---
 
