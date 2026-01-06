@@ -20,18 +20,92 @@ use wayland_client::{
 };
 use fontdue::{Font, FontSettings};
 use chrono::Local;
+use std::os::unix::net::UnixStream;
+use std::io::{Write, Read};
+use std::env;
 
 const BAR_HEIGHT: u32 = 32;
 const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
+const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
+
+// Hyprland IPC
+fn hyprland_query(cmd: &str) -> Option<String> {
+    let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
+    let xdg_runtime = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+    let socket_path = format!("{}/hypr/{}/.socket.sock", xdg_runtime, his);
+    
+    let mut stream = UnixStream::connect(&socket_path).ok()?;
+    stream.write_all(cmd.as_bytes()).ok()?;
+    
+    let mut response = String::new();
+    stream.read_to_string(&mut response).ok()?;
+    Some(response)
+}
+
+fn get_workspaces() -> (Vec<i32>, i32) {
+    let mut workspaces: Vec<i32> = vec![];
+    let mut active: i32 = 1;
+    
+    // Get active workspace
+    if let Some(resp) = hyprland_query("activeworkspace") {
+        for line in resp.lines() {
+            if line.starts_with("workspace ID") {
+                // Format: "workspace ID 1 (1) on monitor..."
+                if let Some(id_str) = line.split_whitespace().nth(2) {
+                    active = id_str.parse().unwrap_or(1);
+                }
+                break;
+            }
+        }
+    }
+    
+    // Get all workspaces
+    if let Some(resp) = hyprland_query("workspaces") {
+        for line in resp.lines() {
+            if line.starts_with("workspace ID") {
+                if let Some(id_str) = line.split_whitespace().nth(2) {
+                    if let Ok(id) = id_str.parse::<i32>() {
+                        if id > 0 && id <= 10 {
+                            workspaces.push(id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    workspaces.sort();
+    if workspaces.is_empty() {
+        workspaces = vec![1];
+    }
+    
+    (workspaces, active)
+}
+
+fn get_active_window() -> String {
+    if let Some(resp) = hyprland_query("activewindow") {
+        for line in resp.lines() {
+            if line.starts_with("title:") {
+                let title = line.strip_prefix("title:").unwrap_or("").trim();
+                // Truncate long titles
+                if title.len() > 50 {
+                    return format!("{}...", &title[..47]);
+                }
+                return title.to_string();
+            }
+        }
+    }
+    String::new()
+}
 
 fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
     let mut cursor_x = x;
     let font_size = 16.0;
-    let baseline = y + 14; // Approximate baseline for 16px font
+    let baseline = y + 14;
 
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
@@ -104,7 +178,7 @@ fn main() {
         font,
     };
 
-    println!("🌲 faelight-bar v0.1 starting...");
+    println!("🌲 faelight-bar v0.2 starting...");
 
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
@@ -159,14 +233,27 @@ impl BarState {
             }
         }
 
-        // Get current time
+        // LEFT: Workspaces
+        let (workspaces, active) = get_workspaces();
+        let mut x_pos = 15;
+        for ws in &workspaces {
+            let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
+            let ws_str = format!("{}", ws);
+            draw_text(&self.font, canvas, width, &ws_str, x_pos, 6, color);
+            x_pos += 20;
+        }
+
+        // CENTER: Active window
+        let window_title = get_active_window();
+        if !window_title.is_empty() {
+            let title_width = window_title.len() as i32 * 9; // approximate
+            let center_x = (width as i32 / 2) - (title_width / 2);
+            draw_text(&self.font, canvas, width, &window_title, center_x, 6, TEXT_COLOR);
+        }
+
+        // RIGHT: Time
         let time_str = Local::now().format("%H:%M").to_string();
-        
-        // Draw time on the right side
-        draw_text(&self.font, canvas, width, &time_str, width as i32 - 70, 8, TEXT_COLOR);
-        
-        // Draw "Faelight" on the left
-        draw_text(&self.font, canvas, width, "Faelight", 10, 8, ACCENT_COLOR);
+        draw_text(&self.font, canvas, width, &time_str, width as i32 - 60, 6, TEXT_COLOR);
 
         // Attach buffer
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
