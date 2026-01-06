@@ -3,7 +3,7 @@ id: 008
 date: 2026-01-05
 type: future
 title: "Profile Sharing - Export/Import (v4.2.0)"
-status: planned
+status: complete
 tags: [profiles, sharing, community, v4.2.0]
 ---
 

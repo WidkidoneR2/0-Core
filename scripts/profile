@@ -20,58 +20,58 @@ NC='\033[0m'
 
 # Icons for profiles
 declare -A PROFILE_ICONS=(
-    [default]="🏠"
-    [gaming]="🎮"
-    [work]="💼"
-    [low-power]="🔋"
+  [default]="🏠"
+  [gaming]="🎮"
+  [work]="💼"
+  [low - power]="🔋"
 )
 
 error() {
-    echo -e "${RED}❌ Error: $1${NC}" >&2
-    exit 1
+  echo -e "${RED}❌ Error: $1${NC}" >&2
+  exit 1
 }
 
 success() {
-    echo -e "${GREEN}✅ $1${NC}"
+  echo -e "${GREEN}✅ $1${NC}"
 }
 
 info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+  echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
 warn() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+  echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 log_switch() {
-    local from="$1"
-    local to="$2"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') | $from -> $to" >> "$LOG_FILE"
+  local from="$1"
+  local to="$2"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') | $from -> $to" >>"$LOG_FILE"
 }
 
 get_current_profile() {
-    if [[ -f "$STATE_FILE" ]]; then
-        cat "$STATE_FILE"
-    else
-        echo "default"
-    fi
+  if [[ -f "$STATE_FILE" ]]; then
+    cat "$STATE_FILE"
+  else
+    echo "default"
+  fi
 }
 
 set_current_profile() {
-    echo "$1" > "$STATE_FILE"
+  echo "$1" >"$STATE_FILE"
 }
 
 get_profile_icon() {
-    local profile="$1"
-    echo "${PROFILE_ICONS[$profile]:-📦}"
+  local profile="$1"
+  echo "${PROFILE_ICONS[$profile]:-📦}"
 }
 
 # Parse profile file and extract section
 get_profile_section() {
-    local profile_file="$1"
-    local section="$2"
-    
-    awk -v section="[$section]" '
+  local profile_file="$1"
+  local section="$2"
+
+  awk -v section="[$section]" '
         $0 == section { found=1; next }
         /^\[/ { found=0 }
         found && !/^#/ && !/^$/ { print }
@@ -80,212 +80,290 @@ get_profile_section() {
 
 # Execute commands from a section
 run_section() {
-    local profile_file="$1"
-    local section="$2"
-    local profile_name="$3"
-    
-    local commands
-    commands=$(get_profile_section "$profile_file" "$section")
-    
-    if [[ -z "$commands" ]]; then
-        return 0
+  local profile_file="$1"
+  local section="$2"
+  local profile_name="$3"
+
+  local commands
+  commands=$(get_profile_section "$profile_file" "$section")
+
+  if [[ -z "$commands" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r cmd; do
+    [[ -z "$cmd" ]] && continue
+    info "Running: $cmd"
+    if ! eval "$cmd" 2>/dev/null; then
+      warn "Command failed (non-fatal): $cmd"
     fi
-    
-    while IFS= read -r cmd; do
-        [[ -z "$cmd" ]] && continue
-        info "Running: $cmd"
-        if ! eval "$cmd" 2>/dev/null; then
-            warn "Command failed (non-fatal): $cmd"
-        fi
-    done <<< "$commands"
+  done <<<"$commands"
 }
 
 # List available profiles
 cmd_list() {
-    echo -e "${CYAN}📋 Available Profiles${NC}"
-    echo ""
-    
-    local current
-    current=$(get_current_profile)
-    
-    for profile_file in "$PROFILE_DIR"/*.profile; do
-        [[ -f "$profile_file" ]] || continue
-        local name
-        name=$(basename "$profile_file" .profile)
-        local icon
-        icon=$(get_profile_icon "$name")
-        local desc
-        desc=$(grep -m1 "^# Description:" "$profile_file" 2>/dev/null | sed 's/# Description: //' || echo "")
-        
-        if [[ "$name" == "$current" ]]; then
-            echo -e "  ${GREEN}▶ $icon $name${NC} (active)"
-        else
-            echo -e "  $icon $name"
-        fi
-        [[ -n "$desc" ]] && echo -e "    ${BLUE}$desc${NC}"
-    done
-    echo ""
+  echo -e "${CYAN}📋 Available Profiles${NC}"
+  echo ""
+
+  local current
+  current=$(get_current_profile)
+
+  for profile_file in "$PROFILE_DIR"/*.profile; do
+    [[ -f "$profile_file" ]] || continue
+    local name
+    name=$(basename "$profile_file" .profile)
+    local icon
+    icon=$(get_profile_icon "$name")
+    local desc
+    desc=$(grep -m1 "^# Description:" "$profile_file" 2>/dev/null | sed 's/# Description: //' || echo "")
+
+    if [[ "$name" == "$current" ]]; then
+      echo -e "  ${GREEN}▶ $icon $name${NC} (active)"
+    else
+      echo -e "  $icon $name"
+    fi
+    [[ -n "$desc" ]] && echo -e "    ${BLUE}$desc${NC}"
+  done
+  echo ""
 }
 
 # Show current status
 cmd_status() {
-    local current
-    current=$(get_current_profile)
-    local icon
-    icon=$(get_profile_icon "$current")
-    
-    echo -e "${CYAN}📊 Profile Status${NC}"
-    echo ""
-    echo -e "  Current: $icon ${GREEN}$current${NC}"
-    echo ""
-    
-    # Show relevant system state
-    echo -e "  ${BLUE}System State:${NC}"
-    
-    # Power profile
-    local power
-    power=$(powerprofilesctl get 2>/dev/null || echo "unknown")
-    echo -e "    Power: $power"
-    
-    # VPN status
-    local vpn
-    vpn=$(mullvad status 2>/dev/null | head -1 || echo "unknown")
-    echo -e "    VPN: $vpn"
-    
-    # Notifications
-    local notif
-    if makoctl mode 2>/dev/null | grep -q "dnd"; then
-        notif="Do Not Disturb"
-    else
-        notif="Normal"
-    fi
-    echo -e "    Notifications: $notif"
-    echo ""
+  local current
+  current=$(get_current_profile)
+  local icon
+  icon=$(get_profile_icon "$current")
+
+  echo -e "${CYAN}📊 Profile Status${NC}"
+  echo ""
+  echo -e "  Current: $icon ${GREEN}$current${NC}"
+  echo ""
+
+  # Show relevant system state
+  echo -e "  ${BLUE}System State:${NC}"
+
+  # Power profile
+  local power
+  power=$(powerprofilesctl get 2>/dev/null || echo "unknown")
+  echo -e "    Power: $power"
+
+  # VPN status
+  local vpn
+  vpn=$(mullvad status 2>/dev/null | head -1 || echo "unknown")
+  echo -e "    VPN: $vpn"
+
+  # Notifications
+  local notif
+  if makoctl mode 2>/dev/null | grep -q "dnd"; then
+    notif="Do Not Disturb"
+  else
+    notif="Normal"
+  fi
+  echo -e "    Notifications: $notif"
+  echo ""
 }
 
 # Switch to a profile
 cmd_switch() {
-    local target="$1"
-    local profile_file="$PROFILE_DIR/$target.profile"
-    
-    if [[ ! -f "$profile_file" ]]; then
-        error "Profile '$target' not found. Run 'profile list' to see available profiles."
-    fi
-    
-    local current
-    current=$(get_current_profile)
-    local current_file="$PROFILE_DIR/$current.profile"
-    
-    if [[ "$target" == "$current" ]]; then
-        info "Already on profile '$target'"
-        return 0
-    fi
-    
-    local target_icon
-    target_icon=$(get_profile_icon "$target")
-    local current_icon
-    current_icon=$(get_profile_icon "$current")
-    
-    echo -e "${CYAN}🔄 Switching Profile${NC}"
-    echo -e "  From: $current_icon $current"
-    echo -e "  To:   $target_icon $target"
-    echo ""
-    
-    # Deactivate current profile
-    if [[ -f "$current_file" ]]; then
-        info "Deactivating $current..."
-        run_section "$current_file" "deactivate" "$current"
-    fi
-    
-    # Activate new profile
-    info "Activating $target..."
-    run_section "$profile_file" "activate" "$target"
-    
-    # Update state
-    log_switch "$current" "$target"
-    set_current_profile "$target"
-    
-    echo ""
-    success "Switched to $target_icon $target"
+  local target="$1"
+  local profile_file="$PROFILE_DIR/$target.profile"
+
+  if [[ ! -f "$profile_file" ]]; then
+    error "Profile '$target' not found. Run 'profile list' to see available profiles."
+  fi
+
+  local current
+  current=$(get_current_profile)
+  local current_file="$PROFILE_DIR/$current.profile"
+
+  if [[ "$target" == "$current" ]]; then
+    info "Already on profile '$target'"
+    return 0
+  fi
+
+  local target_icon
+  target_icon=$(get_profile_icon "$target")
+  local current_icon
+  current_icon=$(get_profile_icon "$current")
+
+  echo -e "${CYAN}🔄 Switching Profile${NC}"
+  echo -e "  From: $current_icon $current"
+  echo -e "  To:   $target_icon $target"
+  echo ""
+
+  # Deactivate current profile
+  if [[ -f "$current_file" ]]; then
+    info "Deactivating $current..."
+    run_section "$current_file" "deactivate" "$current"
+  fi
+
+  # Activate new profile
+  info "Activating $target..."
+  run_section "$profile_file" "activate" "$target"
+
+  # Update state
+  log_switch "$current" "$target"
+  set_current_profile "$target"
+
+  echo ""
+  success "Switched to $target_icon $target"
 }
 
 # Show history
 cmd_history() {
-    echo -e "${CYAN}📜 Profile History${NC}"
-    echo ""
-    
-    if [[ -f "$LOG_FILE" ]]; then
-        tail -10 "$LOG_FILE" | while read -r line; do
-            echo "  $line"
-        done
-    else
-        info "No history yet"
-    fi
-    echo ""
+  echo -e "${CYAN}📜 Profile History${NC}"
+  echo ""
+
+  if [[ -f "$LOG_FILE" ]]; then
+    tail -10 "$LOG_FILE" | while read -r line; do
+      echo "  $line"
+    done
+  else
+    info "No history yet"
+  fi
+  echo ""
 }
 
 # Edit a profile
 cmd_edit() {
-    local name="$1"
-    local profile_file="$PROFILE_DIR/$name.profile"
-    
-    if [[ ! -f "$profile_file" ]]; then
-        error "Profile '$name' not found"
-    fi
-    
-    ${EDITOR:-nvim} "$profile_file"
+  local name="$1"
+  local profile_file="$PROFILE_DIR/$name.profile"
+
+  if [[ ! -f "$profile_file" ]]; then
+    error "Profile '$name' not found"
+  fi
+
+  ${EDITOR:-nvim} "$profile_file"
+}
+
+# Export a profile
+cmd_export() {
+  local name="$1"
+  local profile_file="$PROFILE_DIR/$name.profile"
+
+  if [[ ! -f "$profile_file" ]]; then
+    error "Profile '$name' not found"
+  fi
+
+  local export_dir="$HOME/0-core/profiles/exports"
+  mkdir -p "$export_dir"
+
+  local export_file="$export_dir/${name}.profile"
+
+  # Add export header with metadata
+  {
+    echo "# ═══════════════════════════════════════════════════════════"
+    echo "# 0-Core Profile Export"
+    echo "# Name: $name"
+    echo "# Exported: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "# System: $(cat /etc/os-release | grep ^PRETTY_NAME | cut -d= -f2 | tr -d '\"')"
+    echo "# Version: $(cat ~/0-core/VERSION)"
+    echo "# ═══════════════════════════════════════════════════════════"
+    echo ""
+    cat "$profile_file"
+  } >"$export_file"
+
+  success "Exported to: $export_file"
+  info "Share this file with others!"
+}
+
+# Import a profile
+cmd_import() {
+  local import_file="$1"
+
+  if [[ ! -f "$import_file" ]]; then
+    error "File not found: $import_file"
+  fi
+
+  # Extract profile name from file
+  local name
+  name=$(basename "$import_file" .profile)
+
+  local dest="$PROFILE_DIR/$name.profile"
+
+  # Check if exists
+  if [[ -f "$dest" ]]; then
+    warn "Profile '$name' already exists"
+    gum confirm "Overwrite?" || {
+      info "Import cancelled"
+      return 0
+    }
+  fi
+
+  # Copy file (strip export header if present)
+  if grep -q "^# 0-Core Profile Export" "$import_file"; then
+    # Remove header (first 8 lines)
+    tail -n +9 "$import_file" >"$dest"
+  else
+    cp "$import_file" "$dest"
+  fi
+
+  success "Imported profile: $name"
+  info "Try it: profile $name"
 }
 
 # Show help
 cmd_help() {
-    echo -e "${CYAN}profile${NC} - System Profile Manager"
-    echo ""
-    echo -e "${YELLOW}Usage:${NC}"
-    echo "  profile <name>           Switch to profile"
-    echo "  profile list             List available profiles"
-    echo "  profile status           Show current profile and system state"
-    echo "  profile history          Show recent profile switches"
-    echo "  profile edit <name>      Edit a profile"
-    echo "  profile help             Show this help"
-    echo ""
-    echo -e "${YELLOW}Profiles:${NC}"
-    echo "  default     🏠  Balanced daily driver"
-    echo "  gaming      🎮  GPU performance, notifications off"
-    echo "  work        💼  VPN on, focus mode"
-    echo "  low-power   🔋  Battery optimization"
-    echo ""
-    echo -e "${BLUE}The Omega Legacy - You control your system.${NC} 🎮"
+  echo -e "${CYAN}profile${NC} - System Profile Manager"
+  echo ""
+  echo -e "${YELLOW}Usage:${NC}"
+  echo "  profile <name>           Switch to profile"
+  echo "  profile list             List available profiles"
+  echo "  profile status           Show current profile and system state"
+  echo "  profile history          Show recent profile switches"
+  echo "  profile edit <name>      Edit a profile"
+  echo "  profile help             Show this help"
+  echo "  profile export <name>      Export profile for sharing"
+  echo "  profile import <file>      Import community profile"
+  echo ""
+  echo -e "${YELLOW}Profiles:${NC}"
+  echo "  default     🏠  Balanced daily driver"
+  echo "  gaming      🎮  GPU performance, notifications off"
+  echo "  work        💼  VPN on, focus mode"
+  echo "  low-power   🔋  Battery optimization"
+  echo ""
+  echo -e "${BLUE}The Omega Legacy - You control your system.${NC} 🎮"
 }
 
 # Main
 main() {
-    if [[ $# -eq 0 ]]; then
-        cmd_status
-        exit 0
-    fi
-    
-    case "$1" in
-        list|ls)
-            cmd_list
-            ;;
-        status)
-            cmd_status
-            ;;
-        history)
-            cmd_history
-            ;;
-        edit)
-            shift
-            [[ $# -eq 0 ]] && error "Usage: profile edit <name>"
-            cmd_edit "$1"
-            ;;
-        help|-h|--help)
-            cmd_help
-            ;;
-        *)
-            cmd_switch "$1"
-            ;;
-    esac
+  if [[ $# -eq 0 ]]; then
+    cmd_status
+    exit 0
+  fi
+
+  case "$1" in
+  list | ls)
+    cmd_list
+    ;;
+  status)
+    cmd_status
+    ;;
+  history)
+    cmd_history
+    ;;
+  edit)
+    shift
+    [[ $# -eq 0 ]] && error "Usage: profile edit <name>"
+    cmd_edit "$1"
+    ;;
+  help | -h | --help)
+    cmd_help
+    ;;
+  export)
+    shift
+    [[ $# -eq 0 ]] && error "Usage: profile export <name>"
+    cmd_export "$1"
+    ;;
+  import)
+    shift
+    [[ $# -eq 0 ]] && error "Usage: profile import <file>"
+    cmd_import "$1"
+    ;;
+  *)
+    cmd_switch "$1"
+    ;;
+  esac
 }
 
 main "$@"
