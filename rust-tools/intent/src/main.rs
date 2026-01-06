@@ -254,19 +254,39 @@ fn cmd_show(id: &str) {
     let intent_dir = get_intent_dir();
     let mut found_file: Option<PathBuf> = None;
     
-    for cat in &["decisions", "experiments", "philosophy", "future", "incidents"] {
-        let cat_dir = intent_dir.join(cat);
-        if let Ok(entries) = fs::read_dir(&cat_dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(&format!("{}-", id)) {
-                    found_file = Some(entry.path());
-                    break;
+    // Check if id contains category (e.g., "future/002")
+    if id.contains('/') {
+        let parts: Vec<&str> = id.split('/').collect();
+        if parts.len() == 2 {
+            let category = parts[0];
+            let num = parts[1];
+            let cat_dir = intent_dir.join(category);
+            if let Ok(entries) = fs::read_dir(&cat_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.starts_with(&format!("{}-", num)) {
+                        found_file = Some(entry.path());
+                        break;
+                    }
                 }
             }
         }
-        if found_file.is_some() {
-            break;
+    } else {
+        // Search all categories for the ID
+        for cat in &["decisions", "experiments", "philosophy", "future", "incidents"] {
+            let cat_dir = intent_dir.join(cat);
+            if let Ok(entries) = fs::read_dir(&cat_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.starts_with(&format!("{}-", id)) {
+                        found_file = Some(entry.path());
+                        break;
+                    }
+                }
+            }
+            if found_file.is_some() {
+                break;
+            }
         }
     }
     
