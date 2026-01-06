@@ -152,8 +152,8 @@ fn check_services(stats: &mut Stats) {
         running += 1;
     }
     
-    // Check waybar
-    if Command::new("pgrep").arg("-x").arg("waybar").output()
+    // Check faelight-bar
+    if Command::new("pgrep").arg("-x").arg("faelight-bar").output()
         .map(|o| o.status.success()).unwrap_or(false) {
         running += 1;
     }
