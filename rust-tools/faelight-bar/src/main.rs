@@ -89,9 +89,9 @@ fn get_workspaces() -> (Vec<i32>, i32) {
 fn get_active_window() -> String {
     if let Some(resp) = hyprland_query("activewindow") {
         for line in resp.lines() {
-            if line.starts_with("title:") {
-                let title = line.strip_prefix("title:").unwrap_or("").trim();
-                // Truncate long titles
+            let trimmed = line.trim();
+            if trimmed.starts_with("title:") {
+                let title = trimmed.strip_prefix("title:").unwrap_or("").trim();
                 if title.len() > 50 {
                     return format!("{}...", &title[..47]);
                 }
