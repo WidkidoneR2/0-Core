@@ -4,6 +4,37 @@ All notable changes to Faelight Forest / 0-Core.
 
 ---
 
+## [5.1.0] - 2026-01-06
+
+### Added
+
+- **faelight-bar** — Custom Rust Wayland status bar replacing Waybar
+  - Wayland layer-shell integration
+  - Font rendering with fontdue
+  - Hyprland IPC (workspaces, active window)
+  - Profile-aware theming (DEF/GAM/WRK/LOW)
+  - System modules: VPN, Battery, WiFi, Volume
+  - Health diagnostics (quick 5-check subset)
+  - Lock status indicator (LCK/UNL)
+  - Click handling (VPN toggle, volume mute, profile cycle)
+  - Date/time display
+- `start-faelight-bar` launcher script
+- Local Omarchy autostart override
+
+### Changed
+
+- Replaced Waybar with faelight-bar as daily driver
+- Updated Hyprland config to use local autostart
+
+### Technical
+
+- ~500 lines of Rust
+- Zero external bar dependencies
+- Direct Hyprland socket IPC
+- Wayland pointer events for click handling
+
+> "The forest grew its own bar." 🦀🌲
+
 ## [5.0.0] - 2026-01-06
 
 ### Complete Rust Transition 🦀

@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v5.0.0 - 0-Core Hybrid Architecture
+# 🌲 Faelight Forest v5.1.0 - 0-Core Hybrid Architecture
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v5.0.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v5.1.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Security](https://img.shields.io/badge/Lynis-73%25-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v5.0.0 Milestone:** Complete Rust transition. All 12 core tools rewritten in Rust. Zero Bash scripts. Faster, safer, type-checked. 🦀
+> **v5.1.0 Milestone:** faelight-bar — Custom Rust Wayland status bar replacing Waybar. Intent-aware, clickable, built from scratch. 🦀🌲
 
 ---
 
@@ -32,9 +32,9 @@ Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.
 
 ## 🦀 The Rust Toolchain
 
-**v5.0.0 marks the complete transition from Bash to Rust.**
+**v5.1.0 marks the complete transition from Bash to Rust.**
 
-All 12 core tools are now compiled Rust binaries:
+All 14 core tools are now compiled Rust binaries:
 
 | Tool                  | Purpose                             | Complexity |
 | --------------------- | ----------------------------------- | ---------- |
@@ -50,6 +50,8 @@ All 12 core tools are now compiled Rust binaries:
 | `bump-version`        | Package version bumper              | Medium     |
 | `get-version`         | Package version reader              | Simple     |
 | `latest-update`       | Recently updated finder             | Simple     |
+| `faelight-bar`        | Wayland status bar (daily driver)   | Hard       |
+| `theme-switch`        | Dark/light theme switcher           | Medium     |
 
 **Benefits:**
 
@@ -233,7 +235,7 @@ Applied to: Hyprland, Waybar, terminals, Neovim, notifications.
 ## 📊 Stats
 
 ```
-Version:          5.0.0
+Version:          v5.1.0
 Packages:         19 stow packages
 Rust Tools:       12 (100% coverage)
 Health Checks:    12 automated
