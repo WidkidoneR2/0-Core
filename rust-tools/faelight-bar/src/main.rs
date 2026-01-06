@@ -31,6 +31,7 @@ const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Re
 fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
     let mut cursor_x = x;
     let font_size = 16.0;
+    let baseline = y + 14; // Approximate baseline for 16px font
 
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
@@ -42,8 +43,8 @@ fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: 
                     continue;
                 }
                 
-                let px = cursor_x + col as i32;
-                let py = y + row as i32;
+                let px = cursor_x + metrics.xmin as i32 + col as i32;
+                let py = baseline - metrics.height as i32 - metrics.ymin as i32 + row as i32;
                 
                 if px >= 0 && px < width as i32 && py >= 0 && py < BAR_HEIGHT as i32 {
                     let idx = (py as usize * width as usize + px as usize) * 4;
@@ -164,8 +165,8 @@ impl BarState {
         // Draw time on the right side
         draw_text(&self.font, canvas, width, &time_str, width as i32 - 70, 8, TEXT_COLOR);
         
-        // Draw "faelight" on the left
-        draw_text(&self.font, canvas, width, "faelight", 10, 8, ACCENT_COLOR);
+        // Draw "Faelight" on the left
+        draw_text(&self.font, canvas, width, "Faelight", 10, 8, ACCENT_COLOR);
 
         // Attach buffer
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
