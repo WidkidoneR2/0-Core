@@ -3,7 +3,7 @@ id: 002
 date: 2025-12-31
 type: future
 title: "faelight-bar - Custom Rust Wayland Bar"
-status: planned
+status: complete
 tags: [rust, wayland, bar, hyprland, v5.0]
 ---
 
@@ -213,11 +213,26 @@ Visual confirmation of system state.
 
 **v1.0 is complete when:**
 
-- [ ] Replaces Waybar as daily driver
-- [ ] Profile switching changes bar appearance
-- [ ] Diagnostics visible at a glance
-- [ ] No crashes, no memory leaks
-- [ ] Documented and shareable
+- [x] Replaces Waybar as daily driver
+- [x] Profile switching changes bar appearance
+- [x] Diagnostics visible at a glance
+- [x] No crashes, no memory leaks
+- [x] Documented and shareable
+
+## Completion Notes (2026-01-06)
+
+Built in a single day:
+
+- v0.1: Static bar, time, font rendering
+- v0.2: Hyprland IPC (workspaces, window title)
+- v0.3: Profile-aware theming
+- v0.4: Full modules (VPN, Battery, WiFi, Volume)
+- v0.5: Diagnostics (health %, lock status)
+- v0.6: Click handling
+
+~500 lines of Rust. Zero external dependencies. Daily driver.
+
+_The forest grew its own bar._ 🦀🌲
 
 ## Philosophy
 
