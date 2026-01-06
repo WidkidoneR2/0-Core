@@ -21,9 +21,14 @@ fn main() {
         "list" | "ls" => cmd_list(args.get(2).map(|s| s.as_str())),
         "show" => {
             if args.len() < 3 {
-                error("Usage: intent show <id>");
+                error("Usage: intent show <id> or intent show <category> <id>");
             }
-            cmd_show(&args[2]);
+            // Support both "future/002" and "future 002"
+            if args.len() >= 4 {
+                cmd_show(&format!("{}/{}", args[2], args[3]));
+            } else {
+                cmd_show(&args[2]);
+            }
         }
         "search" => {
             if args.len() < 3 {
