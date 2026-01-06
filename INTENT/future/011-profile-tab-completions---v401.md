@@ -3,7 +3,7 @@ id: 011
 date: 2026-01-05
 type: future
 title: "Profile Tab Completions - v4.0.1"
-status: planned
+status: complete
 tags: [profile, completions, zsh, polish]
 ---
 

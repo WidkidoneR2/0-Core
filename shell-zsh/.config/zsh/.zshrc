@@ -669,7 +669,7 @@ source ~/.config/zsh/completions.zsh
 
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v4.0.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v4.0.1)
 # Visual warnings for destructive commands
 # ═══════════════════════════════════════════════════════════
 
@@ -744,7 +744,7 @@ if [[ -o interactive ]]; then
     
     # Custom greeting with dynamic latest update
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v4.0.0!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v4.0.1!\033[0m"
     
     # Show latest package update (if script exists)
     if [[ -x ~/0-core/scripts/latest-update ]]; then
@@ -762,7 +762,7 @@ if [[ -o interactive ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND WARNING (v4.0.0)
+# ⚠️  DANGEROUS COMMAND WARNING (v4.0.1)
 # Shows warning BEFORE execution - doesn't block, just warns
 # ═══════════════════════════════════════════════════════════
 

@@ -1,0 +1,5 @@
+#compdef profile
+_profile() {
+    compadd list status history edit help default gaming work low-power
+}
+_profile "$@"

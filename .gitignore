@@ -127,3 +127,4 @@ fish/.config/fish/fish_history
 *.tmp
 *~
 *.backup
+shell-zsh/.config/zsh/.zcompdump*

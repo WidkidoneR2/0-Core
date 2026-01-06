@@ -3,7 +3,9 @@
 # Discoverability for 0-Core tools
 # ═══════════════════════════════════════════════════════════
 
-# Initialize completion system
+# Custom completions directory
+fpath=(~/.config/zsh/completions $fpath)
+
 autoload -Uz compinit
 compinit -d ~/.cache/zsh/zcompdump-$ZSH_VERSION
 
@@ -121,9 +123,3 @@ _dot_doctor() {
     _message 'no options'
 }
 compdef _dot_doctor dot-doctor
-
-# profile completions
-_profile() {
-    compadd list status history edit help default gaming work low-power
-}
-compdef _profile profile
