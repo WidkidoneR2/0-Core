@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 3.5.1 - Zsh Migration Edition
+# Version v5.0.0 - Zsh Migration Edition
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -285,7 +285,7 @@ alias cpu='ps auxf | sort -nr -k 3 | head -10'
 
 # Network
 alias myip='curl -s ifconfig.me'
-alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1'
+alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v v5.0.0.1'
 alias pingg='ping -c 5 google.com'
 alias ports='sudo ss -tulanp'
 alias listening='sudo lsof -i -P -n | grep LISTEN'
@@ -669,7 +669,7 @@ source ~/.config/zsh/completions.zsh
 
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v4.2.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v5.0.0)
 # Visual warnings for destructive commands
 # ═══════════════════════════════════════════════════════════
 
@@ -744,7 +744,7 @@ if [[ -o interactive ]]; then
     
     # Custom greeting with dynamic latest update
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v4.2.0!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v5.0.0!\033[0m"
     
     # Show latest package update (if script exists)
     if [[ -x ~/0-core/scripts/latest-update ]]; then
@@ -762,7 +762,7 @@ if [[ -o interactive ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND WARNING (v4.2.0)
+# ⚠️  DANGEROUS COMMAND WARNING (v5.0.0)
 # Shows warning BEFORE execution - doesn't block, just warns
 # ═══════════════════════════════════════════════════════════
 
@@ -799,5 +799,6 @@ preexec_functions+=(dangerous_command_warning)
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version 3.5.1 - Zsh Migration Edition
+# Version v5.0.0 - Zsh Migration Edition
 # ═══════════════════════════════════════════════════════════
+export PATH="$HOME/.cargo/bin:$PATH"

@@ -4,6 +4,15 @@ All notable changes to Faelight Forest / 0-Core.
 
 ---
 
+## [5.0.0] - 2026-01-06
+
+### First Rust Tool - The Transition Begins
+
+- `bump-system-version` rewritten in Rust (first tool!)
+- Added `rust-tools/` directory for Rust projects
+- Phase 2 of Rust transition complete
+- Bash version deleted
+
 ## [4.2.0] - 2026-01-06
 
 ### Profile Sharing

@@ -128,3 +128,4 @@ fish/.config/fish/fish_history
 *~
 *.backup
 shell-zsh/.config/zsh/.zcompdump*
+rust-tools/*/target/

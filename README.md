@@ -1,16 +1,16 @@
-# 🌲 Faelight Forest v4.2.0 - 0-Core Hybrid Architecture
+# 🌲 Faelight Forest v5.0.0 - 0-Core Hybrid Architecture
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v4.2.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v5.0.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Wayland](https://img.shields.io/badge/Wayland-Native-green)
 ![Security](https://img.shields.io/badge/Lynis-73%25-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **Migration Note:** Switched from Fish to Zsh in v4.2.0 for better bash compatibility and open source accessibility. Fish config preserved in `archive/shell-fish` branch.
+> **Migration Note:** Switched from Fish to Zsh in v5.0.0 for better bash compatibility and open source accessibility. Fish config preserved in `archive/shell-fish` branch.
 
 ---
 
@@ -96,7 +96,7 @@ Read the full manifesto: [PHILOSOPHY.md](PHILOSOPHY.md)
 │   │
 │   ├── README.md                   This file
 │   ├── COMPLETE_GUIDE.md           Comprehensive guide
-│   └── VERSION                     3.2.0
+│   └── VERSION                     v5.0.0
 │
 └── 🔧 System Configuration
     ├── system/                     System-level configs
@@ -130,7 +130,7 @@ core-status            # 📊 Check protection state
 
 ## 🐚 Shell Configuration
 
-**Primary Shell: Zsh** (v4.2.0+)
+**Primary Shell: Zsh** (v5.0.0+)
 
 - Professional bash-compatible shell
 - Fish-like features via plugins (autosuggestions, syntax highlighting)
@@ -343,7 +343,7 @@ topgrade               # Full system update
 Package-level awareness with risk-based grouping. See what changed at the right abstraction level.
 ```bash
 core-diff                    # Morning check
-core-diff since v4.2.0       # Release review
+core-diff since v5.0.0       # Release review
 core-diff wm-hypr --verbose  # Package inspection
 core-diff --open meld        # Visual diff
 ````
@@ -380,8 +380,8 @@ Full documentation: [TOOLS.md](docs/TOOLS.md)
 
 - **README.md** (this file) - Overview and quick start
 - **COMPLETE_GUIDE.md** - Comprehensive documentation
-- **docs/CHANGELOG-v3.1.md** - v4.2.0 transformation details
-- **docs/CHANGELOG-v3.2.md** - v4.2.0 smart updates
+- **docs/CHANGELOG-v3.1.md** - v5.0.0 transformation details
+- **docs/CHANGELOG-v3.2.md** - v5.0.0 smart updates
 - **docs/PASSWORD-SOLUTION.md** - Lessons learned (12-hour debug!)
 - **docs/KEYBINDINGS.md** - All keyboard shortcuts
 - **docs/MELD_GUIDE.md** - Config comparison workflow
