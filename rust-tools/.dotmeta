@@ -1,0 +1,4 @@
+name = "rust-tools"
+description = "Rust implementations of 0-core tools"
+version = "0.1.0"
+stow = false
