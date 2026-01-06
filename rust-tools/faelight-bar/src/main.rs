@@ -139,6 +139,77 @@ fn get_volume() -> (u8, bool) {
     }
 }
 
+// Get dot-doctor health (cached - runs quick checks)
+fn get_health() -> u8 {
+    let home = env::var("HOME").unwrap_or_default();
+    let core_path = format!("{}/0-core", home);
+    
+    let mut passed = 0;
+    let total = 5;
+    
+    // Quick checks (subset of dot-doctor)
+    // 1. Core directory exists
+    if fs::metadata(&core_path).is_ok() {
+        passed += 1;
+    }
+    
+    // 2. Scripts directory has files
+    let scripts_path = format!("{}/scripts", core_path);
+    if let Ok(entries) = fs::read_dir(&scripts_path) {
+        if entries.count() > 5 {
+            passed += 1;
+        }
+    }
+    
+    // 3. Git is clean (no uncommitted)
+    let git_status = Command::new("git")
+        .args(["-C", &core_path, "status", "--porcelain"])
+        .output();
+    if let Ok(out) = git_status {
+        if out.stdout.is_empty() {
+            passed += 1;
+        }
+    }
+    
+    // 4. Profile exists
+    let profile_path = format!("{}/.local/state/0-core/current-profile", home);
+    if fs::metadata(&profile_path).is_ok() {
+        passed += 1;
+    }
+    
+    // 5. VERSION file exists
+    let version_path = format!("{}/VERSION", core_path);
+    if fs::metadata(&version_path).is_ok() {
+        passed += 1;
+    }
+    
+    ((passed * 100) / total) as u8
+}
+
+// Check if core is locked
+fn is_core_locked() -> bool {
+    let home = env::var("HOME").unwrap_or_default();
+    let core_path = format!("{}/0-core", home);
+    
+    let output = Command::new("lsattr")
+        .args(["-d", &core_path])
+        .output();
+    
+    match output {
+        Ok(out) => {
+            let result = String::from_utf8_lossy(&out.stdout);
+            // Attributes are at the start, before the path
+            // Format: "----i------------ /path"
+            if let Some(attrs) = result.split_whitespace().next() {
+                attrs.contains('i')
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
+}
+
 fn hyprland_query(cmd: &str) -> Option<String> {
     let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
     let xdg_runtime = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
@@ -356,6 +427,22 @@ impl BarState {
             draw_text(&self.font, canvas, width, &ws_str, x_pos, 8, color);
             x_pos += 18;
         }
+
+        // Health & Lock status
+        x_pos += 10;
+        draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        x_pos += 15;
+        
+        let health = get_health();
+        let health_color = if health >= 80 { ACCENT_COLOR } else if health >= 50 { AMBER_COLOR } else { RED_COLOR };
+        let health_text = format!("{}%", health);
+        draw_text(&self.font, canvas, width, &health_text, x_pos, 8, health_color);
+        x_pos += 35;
+        
+        let locked = is_core_locked();
+        let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
+        let lock_text = if locked { "LCK" } else { "UNL" };
+        draw_text(&self.font, canvas, width, lock_text, x_pos, 8, lock_color);
 
         // === CENTER ===
         let window_title = get_active_window();
