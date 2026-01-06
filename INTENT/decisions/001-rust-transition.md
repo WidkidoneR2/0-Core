@@ -80,27 +80,109 @@ Replacing:
 
 A system getting stronger over time.
 
-### Timeline
+## Implementation Phases
 
-**v3.5.x - v4.x (Q4 2025 - Q1 2026): Foundation (Bash)**
+### Phase 1: Learning (2-3 weeks)
 
-- v3.5.0 - Intent Ledger
-- v3.5.1 - Git Guardrails
-- v3.5.2 - Shell Safety & Polish
-- v4.0.0 - GPU Profiles (Omega legacy)
+**Goal:** Rust fundamentals before touching 0-core
 
-**v5.0.0 (Q2 2026): First Rust**
+Sessions:
 
-- Start with small CLI rewrites (bump-system-version, core-status)
-- Learn Rust fundamentals on real tools
-- faelight-bar starts development (parallel project)
-- Coexists with bar-waybar during development
+- [ ] Complete Rustlings exercises
+- [ ] Build a "hello world" CLI with clap
+- [ ] Learn error handling (Result, Option)
+- [ ] Learn file I/O and process execution
+- [ ] Build a throwaway practice tool
 
-**v5.1.0 (Q3 2026): THE CUT-OVER**
+**Success:** Comfortable writing basic Rust CLI tools
 
-- **COMPLETE REWRITE** - All scripts in Rust
-- **NO BASH FALLBACKS** - Clean break
-- **ONE SYSTEM** - Rust only
+### Phase 2: First Blood - v5.0.0 (1 week)
+
+**Goal:** First real Rust tool in 0-core
+
+Tools:
+
+- [ ] `bump-system-version` → Rust (simplest, perfect first target)
+- [ ] `core-status` → Rust (read-only, simple)
+
+**Success:** Two working Rust tools, Bash versions deleted
+
+### Phase 3: Core Tools - v5.0.x (2-3 weeks)
+
+**Goal:** Medium complexity rewrites
+
+Tools:
+
+- [ ] `dotctl` → Rust
+- [ ] `intent` → Rust
+- [ ] `profile` → Rust
+
+**Success:** Daily-use tools running in Rust
+
+### Phase 4: Complex Tools - v5.1.0 (3-4 weeks)
+
+**Goal:** Hard rewrites, shared corelib emerges
+
+Tools:
+
+- [ ] `core-diff` → Rust
+- [ ] `dot-doctor` → Rust (most checks, medium-hard)
+- [ ] Create `corelib/` shared crate
+
+**Success:** Complex tools working, shared code extracted
+
+### Phase 5: Critical Tools - v5.2.0 (2-3 weeks)
+
+**Goal:** Security and system-critical tools
+
+Tools:
+
+- [ ] `core-protect` → Rust (security-critical)
+- [ ] `safe-update` → Rust (system-critical)
+
+**Success:** All CLI tools in Rust, Bash deleted
+
+### Phase 6: faelight-bar - v5.3.0+ (6-8 weeks)
+
+**Goal:** Capstone project
+
+Versions:
+
+- [ ] v0.1 - Static bar (time, battery, network)
+- [ ] v0.2 - Hyprland IPC (workspaces, window title)
+- [ ] v0.3 - Intent-aware modules
+- [ ] v0.4 - Clickable panels
+- [ ] v0.5 - Diagnostics integration
+- [ ] v1.0 - Daily driver ready
+
+**Success:** Waybar replaced, faelight-bar is daily driver
+
+### Phase 7: Cleanup - v6.0.0
+
+**Goal:** Clean break
+
+Tasks:
+
+- [ ] Remove all Bash scripts
+- [ ] Remove bar-waybar package
+- [ ] Update documentation
+- [ ] Final corelib polish
+
+**Success:** 100% Rust. No Bash fallbacks. Clean codebase.
+
+## Estimated Timeline
+
+| Phase             | Duration  | Target     |
+| ----------------- | --------- | ---------- |
+| 1. Learning       | 2-3 weeks | Q1 2026    |
+| 2. First Blood    | 1 week    | Q1 2026    |
+| 3. Core Tools     | 2-3 weeks | Q1 2026    |
+| 4. Complex Tools  | 3-4 weeks | Q2 2026    |
+| 5. Critical Tools | 2-3 weeks | Q2 2026    |
+| 6. faelight-bar   | 6-8 weeks | Q2-Q3 2026 |
+| 7. Cleanup        | 1 week    | Q3 2026    |
+
+**Total: ~5-6 months**
 
 ### What Gets Rewritten in v5.1.0
 
