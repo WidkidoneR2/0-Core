@@ -88,7 +88,7 @@ fn check_stow_symlinks(home: &str, stats: &mut Stats) {
     // Git
     if PathBuf::from(home).join(".gitconfig").is_symlink() { stowed += 1; }
     
-    println!("   {}✅ All {}/8 packages properly stowed{}", GREEN, stowed, NC);
+    println!("   {}✅ All {}/7 packages properly stowed{}", GREEN, stowed, NC);
     stats.total += 1;
     stats.passed += 1;
 }
