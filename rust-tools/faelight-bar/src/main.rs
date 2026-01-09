@@ -250,30 +250,24 @@ fn get_workspaces() -> (Vec<i32>, i32) {
 
 fn get_active_window() -> String {
     if let Some(resp) = sway_query("get_tree") {
-        // Find the focused window
-        let focused_pattern = "\"focused\":true";
-        let focused_pattern2 = "\"focused\": true";
-        if let Some(focused_pos) = resp.find(focused_pattern).or_else(|| resp.find(focused_pattern2)) {
-            let before = &resp[..focused_pos];
-            
-            // Try app_id first (Wayland native)
-            let app_pattern = "\"app_id\":\"";
-            if let Some(app_pos) = before.rfind(app_pattern) {
-                let after = &before[app_pos + 10..];
-                if let Some(end) = after.find('"') {
-                    let app_id = &after[..end];
+        let focused_pattern = "\"focused\": true";
+        if let Some(focused_pos) = resp.find(focused_pattern) {
+            let after = &resp[focused_pos..];
+            let app_pattern = "\"app_id\": \"";
+            if let Some(app_pos) = after.find(app_pattern) {
+                let start = app_pos + 11;
+                if let Some(end) = after[start..].find('"') {
+                    let app_id = &after[start..start + end];
                     if !app_id.is_empty() && app_id != "null" {
                         return app_id.to_string();
                     }
                 }
             }
-            
-            // Try name (window title)
-            let name_pattern = "\"name\":\"";
-            if let Some(name_pos) = before.rfind(name_pattern) {
-                let after = &before[name_pos + 8..];
-                if let Some(end) = after.find('"') {
-                    let title = &after[..end];
+            let name_pattern = "\"name\": \"";
+            if let Some(name_pos) = after.find(name_pattern) {
+                let start = name_pos + 9;
+                if let Some(end) = after[start..].find('"') {
+                    let title = &after[start..start + end];
                     if !title.is_empty() && title != "null" {
                         if title.len() > 40 {
                             return format!("{}...", &title[..37]);
