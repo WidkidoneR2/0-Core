@@ -1,4 +1,58 @@
 # Changelog
+All notable changes to Faelight Forest / 0-Core.
+
+---
+
+## [6.0.0] - 2026-01-09
+### 🌲 Sway Edition - Complete Platform Migration
+
+**Migrated from Hyprland to Sway after catastrophic update (2.3M errors)**
+
+#### Window Manager
+- **Sway WM** replaces Hyprland as compositor
+- Full keybinding configuration matching Hyprland setup
+- Auto-start on login via ~/.bash_profile
+- Gaps, borders, and Faelight theming
+
+#### faelight-bar Updates
+- Sway IPC integration (replaces Hyprland socket)
+- Active window detection via `swaymsg -t get_tree`
+- Workspace tracking via `swaymsg -t get_workspaces`
+- v0.7 - Sway Edition
+
+#### Neovim Theme
+- **faelight.lua** custom colorscheme
+- Forest Night (#0f1411) background
+- Faelight Green (#6be3a3) primary accent
+- Faelight Blue (#5cc8ff) secondary accent
+- Treesitter, LSP, Telescope, Neo-tree support
+
+#### System Updates
+- dot-doctor updated for Sway (swaymsg, faelight-bar)
+- Security hardening applied (99-hardening.conf)
+- fail2ban enabled with sshd jail
+- Gitleaks pre-commit hook installed
+- Topgrade configured for Faelight workflow
+
+#### Terminal
+- Foot terminal (replaces Kitty)
+- Fuzzel launcher with Faelight theming
+- Mako notifications
+
+#### Configuration
+- `.envrc` updated to v6.0.0
+- Full shell restoration (188+ aliases)
+- All Rust tools verified working
+
+### Technical
+- Platform: Arch Linux + Sway 1.11
+- Health: 100% (12/12 checks passing)
+- All 15 binary dependencies present
+
+> "The forest found a new home." 🌲🦀
+
+---
+
 
 All notable changes to Faelight Forest / 0-Core.
 

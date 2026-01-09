@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v5.1.0 - 0-Core Hybrid Architecture
+# 🌲 Faelight Forest v6.0.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v5.1.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.0.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
-![Wayland](https://img.shields.io/badge/Wayland-Native-green)
+![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
-![Security](https://img.shields.io/badge/Lynis-73%25-orange)
+![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v5.1.0 Milestone:** faelight-bar — Custom Rust Wayland status bar replacing Waybar. Intent-aware, clickable, built from scratch. 🦀🌲
+> **v6.0.0 Milestone:** Complete migration to Sway WM after Hyprland catastrophe. Custom faelight-bar with Sway IPC, Faelight nvim colorscheme, 100% system health. 🌲🦀
 
 ---
 
@@ -20,7 +20,6 @@ A revolutionary approach to Linux configuration management built on **numbered p
 0-Core is more than dotfiles — it's a position on how personal computing should work.
 
 **Core principles:**
-
 - **Manual control over automation** — YOU decide when things run
 - **Intent over convention** — Every decision documented
 - **Understanding over convenience** — Know your system
@@ -30,31 +29,61 @@ Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.
 
 ---
 
+## 🖥️ The Stack
+
+| Component | Choice | Notes |
+|-----------|--------|-------|
+| **OS** | Arch Linux | Rolling release, minimal base |
+| **WM** | Sway 1.11 | Wayland compositor, tiling |
+| **Bar** | faelight-bar | Custom Rust bar |
+| **Terminal** | Foot | Fast, Wayland-native |
+| **Shell** | Zsh | 188+ aliases |
+| **Prompt** | Starship | Lock status indicator |
+| **Editor** | Neovim (LazyVim) | Faelight colorscheme |
+| **Launcher** | Fuzzel | Dmenu replacement |
+| **Files** | Yazi | Terminal file manager |
+| **Notifications** | Mako | Wayland notifications |
+
+---
+
+## 🎨 Faelight Forest Theme
+
+A cohesive visual identity across the entire system:
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| Forest Night | `#0f1411` | Base background |
+| Faelight Green | `#6be3a3` | Primary accent |
+| Faelight Blue | `#5cc8ff` | Secondary accent |
+| Amber Leaf | `#f5c177` | Warnings |
+| Fog White | `#d7e0da` | Text |
+
+Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako
+
+---
+
 ## 🦀 The Rust Toolchain
 
-**v5.1.0 marks the complete transition from Bash to Rust.**
+**All 14 core tools are compiled Rust binaries:**
 
-All 14 core tools are now compiled Rust binaries:
-
-| Tool                  | Purpose                             | Complexity |
-| --------------------- | ----------------------------------- | ---------- |
-| `dot-doctor`          | 12-check health monitor             | Hard       |
-| `core-protect`        | Immutable filesystem protection     | Hard       |
-| `safe-update`         | Smart system updates with snapshots | Hard       |
-| `core-diff`           | Package-aware diff with risk levels | Medium     |
-| `dotctl`              | Central control utility             | Medium     |
-| `intent`              | Intent Ledger management            | Medium     |
-| `profile`             | System profile switching            | Medium     |
-| `teach`               | Interactive learning guide          | Medium     |
-| `bump-system-version` | System version management           | Medium     |
-| `bump-version`        | Package version bumper              | Medium     |
-| `get-version`         | Package version reader              | Simple     |
-| `latest-update`       | Recently updated finder             | Simple     |
-| `faelight-bar`        | Wayland status bar (daily driver)   | Hard       |
-| `theme-switch`        | Dark/light theme switcher           | Medium     |
+| Tool | Purpose | Complexity |
+|------|---------|------------|
+| `dot-doctor` | 12-check health monitor | Hard |
+| `faelight-bar` | Wayland status bar (Sway IPC) | Hard |
+| `core-protect` | Immutable filesystem protection | Hard |
+| `safe-update` | Smart system updates with snapshots | Hard |
+| `core-diff` | Package-aware diff with risk levels | Medium |
+| `dotctl` | Central control utility | Medium |
+| `intent` | Intent Ledger management | Medium |
+| `profile` | System profile switching | Medium |
+| `teach` | Interactive learning guide | Medium |
+| `theme-switch` | Dark/light theme switcher | Medium |
+| `bump-system-version` | System version management | Medium |
+| `bump-version` | Package version bumper | Medium |
+| `get-version` | Package version reader | Simple |
+| `latest-update` | Recently updated finder | Simple |
 
 **Benefits:**
-
 - ⚡ **Faster** — Compiled binaries vs shell interpretation
 - 🔒 **Safer** — Memory safety, no buffer overflows
 - ✅ **Type-checked** — Errors caught at compile time
@@ -65,222 +94,196 @@ All 14 core tools are now compiled Rust binaries:
 ## 🏗️ Directory Structure
 
 ### Numbered Hierarchy
-
-```
 ~/0-core/     🔒 Configuration (this repo) - MOST CRITICAL
 ~/1-src/      📁 Source code & projects
 ~/2-projects/ 💼 Active work
 ~/3-archive/  💎 Completed/archived
 ~/4-media/    🎬 Media files
 ~/secrets/    🔐 Never committed
-```
 
 ### Package Organization
-
-```
 0-core/
 ├── 🖥️ Desktop Environment
-│   ├── wm-hypr/          Hyprland window manager
-│   ├── bar-waybar/       Status bar
-│   └── notif-mako/       Notifications
+│   ├── wm-sway/           Sway window manager
+│   └── notif-mako/        Notifications
 │
 ├── 💻 Shell & Terminal
-│   ├── shell-zsh/        Zsh configuration
-│   ├── prompt-starship/  Starship prompt
-│   └── theme-term-*/     Terminal themes
+│   ├── shell-zsh/         Zsh configuration (188+ aliases)
+│   ├── prompt-starship/   Starship prompt
+│   └── term-foot/         Foot terminal
 │
 ├── 🛠️ Development
-│   ├── editor-nvim/      Neovim (LazyVim)
-│   ├── fm-yazi/          File manager
-│   └── vcs-git/          Git configuration
+│   ├── editor-nvim/       Neovim + Faelight colorscheme
+│   ├── fm-yazi/           File manager
+│   └── vcs-git/           Git configuration
 │
 ├── 🦀 Rust Tools
-│   └── rust-tools/       All 12 Rust binaries
+│   └── rust-tools/        All 14 Rust binaries
+│       ├── dot-doctor/
+│       ├── faelight-bar/
+│       ├── core-protect/
+│       └── ...
 │
-├── 📜 Scripts & Profiles
-│   ├── scripts/          Compiled Rust tools
-│   └── profiles/         System profiles
+├── 📜 Scripts
+│   └── scripts/           Compiled binaries + shell scripts
 │
-├── 📚 Documentation
-│   ├── docs/             Guides & references
-│   └── INTENT/           Decision ledger
+├── 🔒 System
+│   └── system/
+│       └── security/      Hardening configs
 │
-└── 🎨 Themes
-    └── theme-*/          GTK, terminal, launcher
-```
+└── 📚 Documentation
+└── docs/              Philosophy & guides
 
 ---
 
-## ✨ Key Features
+## 🛡️ Security
 
-### 🔒 Immutable Core Protection
+| Layer | Implementation |
+|-------|---------------|
+| Disk | LUKS2 full disk encryption |
+| Firewall | UFW (deny incoming) |
+| Intrusion | fail2ban (sshd jail) |
+| DNS | DNSOverTLS (Quad9) |
+| VPN | Mullvad (clickable in bar) |
+| Secrets | Gitleaks pre-commit scanning |
+| Kernel | 99-hardening.conf (sysctl) |
+| Core | Immutable protection (chattr +i) |
 
+---
+
+## 🎮 Profile System
+
+Switch between system states:
 ```bash
-lock-core              # 🔒 Make 0-core immutable
-unlock-core            # 🔓 Unlock for editing
-core-protect status    # 📊 Check protection state
-core-protect edit pkg  # 📝 Edit with blast radius warning
+profile list      # Show available profiles
+profile gaming    # Maximum GPU performance
+profile work      # Focus mode with VPN
+profile low-power # Battery optimization
+profile default   # Balanced daily driver
 ```
 
-### 🎮 System Profiles
+Profiles are displayed in faelight-bar: `DEF` `GAM` `WRK` `LOW`
 
+---
+
+## 🔒 Core Protection
+
+The 0-core directory can be locked to prevent accidental changes:
 ```bash
-profile list           # See available profiles
-profile gaming         # Switch to gaming mode
-profile work           # VPN on, focus mode
-profile status         # Current state
+lock-core    # Make immutable (chattr +i)
+unlock-core  # Allow editing
 ```
 
-### 🏥 Health Monitoring
+Status shown in:
+- Starship prompt: 🔒 locked / 🔓 unlocked
+- faelight-bar: `LCK` / `UNL`
+- Git commits blocked when locked
 
+---
+
+## 🏥 Health Monitoring
 ```bash
-dot-doctor             # 12-check system health
+dot-doctor   # Full 12-check diagnostic
 ```
 
-Validates: Stow symlinks, plugins, services, binaries, git health, themes, scripts, config aging, intent ledger, and more.
+Checks:
+- ✅ Stow symlinks
+- ✅ Yazi plugins
+- ✅ Broken symlinks
+- ✅ System services
+- ✅ Binary dependencies
+- ✅ Git repository health
+- ✅ Theme packages
+- ✅ Scripts executable
+- ✅ Config aging
+- ✅ Intentional defaults
+- ✅ Intent Ledger
+- ✅ Profile System
 
-### 🔄 Safe Updates
+---
 
+## ⌨️ Key Bindings
+
+| Key | Action |
+|-----|--------|
+| `Super + Return` | Terminal (Foot) |
+| `Super + D` | Launcher (Fuzzel) |
+| `Super + B` | Browser (Brave) |
+| `Super + Q` | Close window |
+| `Super + V` | Toggle floating |
+| `Super + F` | Fullscreen |
+| `Super + H/J/K/L` | Focus (vim keys) |
+| `Super + Shift + H/J/K/L` | Move window |
+| `Super + 1-5` | Workspaces |
+| `Super + Shift + E` | Exit Sway |
+
+Full keybindings: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md)
+
+---
+
+## 🚀 Quick Commands
 ```bash
-safe-update            # Snapshots → Update → Health check
+# System
+dot-doctor        # Health check
+safe-update       # Update with snapshot
+topgrade          # Full system upgrade
+
+# Navigation
+core              # cd ~/0-core
+src               # cd ~/1-src
+
+# Development
+v                 # nvim
+lg                # lazygit
+y                 # yazi
+
+# Info
+intent list       # Show intents
+latest-update     # Recent changes
+get-version       # Package version
 ```
 
-Pre/post Btrfs snapshots, yay auto-recovery, .pacnew detection.
+---
 
-### 📜 Intent Ledger
+## 📜 Intent Ledger
 
+Document decisions, not just configurations:
 ```bash
-intent list            # See all decisions & plans
-intent show 001        # View specific intent
-intent add             # Document new decision
-intent search rust     # Find related intents
+intent list              # View all intents
+intent show 001          # View specific intent
+intent add future "..."  # Add new intent
 ```
 
-### 📚 Teaching Mode
-
-```bash
-teach                  # Interactive 8-lesson guide
-```
+Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
 ---
 
-## 🚀 Quick Start
+## 🔄 Version History
 
-### Prerequisites
+| Version | Date | Milestone |
+|---------|------|-----------|
+| v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |
+| v6.0.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
+| v6.0.0 | 2026-01-06 | Complete Rust transition |
+| v6.0.0 | 2025-12 | Profile system |
+| v6.0.0 | 2025-12 | Intent Ledger |
 
-- Arch Linux (or Arch-based)
-- Git, Stow, Rust toolchain
-- See [docs/MANUAL_INSTALLATION.md](docs/MANUAL_INSTALLATION.md)
-
-### Installation
-
-```bash
-# Clone
-git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core
-
-# Deploy packages (one at a time, test each!)
-cd ~/0-core
-stow shell-zsh
-stow wm-hypr
-stow bar-waybar
-# ... etc
-
-# Verify
-dot-doctor
-```
+See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 ---
 
-## 🔐 Security
+## 🌟 Credits
 
-**73% Lynis Score** — Enterprise-grade for a desktop:
-
-- ✅ LUKS2 full disk encryption
-- ✅ UFW firewall
-- ✅ fail2ban intrusion prevention
-- ✅ DNSOverTLS (Quad9)
-- ✅ Mullvad VPN integration
-- ✅ Gitleaks secret scanning
-- ✅ Manual-only updates (no boot automation)
+- **Inspiration:** [Omarchy](https://github.com/omarchy) — the starting point
+- **Philosophy:** Manual control, explicit intent, human comprehension
+- **Tools:** Rust, Sway, Neovim, Zsh, Starship
 
 ---
 
-## 📚 Documentation
+## 📄 License
 
-| Document                                   | Purpose                   |
-| ------------------------------------------ | ------------------------- |
-| [COMPLETE_GUIDE.md](COMPLETE_GUIDE.md)     | Full system documentation |
-| [docs/TOOLS.md](docs/TOOLS.md)             | Tool reference            |
-| [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Keyboard shortcuts        |
-| [docs/WORKFLOWS.md](docs/WORKFLOWS.md)     | Daily workflows           |
-| [docs/ALIASES.md](docs/ALIASES.md)         | Shell aliases             |
-| [INTENT/](INTENT/)                         | Decision ledger           |
+MIT — Use freely, learn deeply, configure intentionally.
 
 ---
 
-## 🎨 The Faelight Forest Theme
-
-A cohesive visual identity across the entire system:
-
-- **Forest Night** `#0f1411` — Base background
-- **Faelight Green** `#6be3a3` — Primary accent
-- **Faelight Blue** `#5cc8ff` — Secondary accent
-- **Amber Leaf** `#f5c177` — Warnings
-- **Fog White** `#d7e0da` — Text
-
-Applied to: Hyprland, Waybar, terminals, Neovim, notifications.
-
----
-
-## 📊 Stats
-
-```
-Version:          v5.1.0
-Packages:         19 stow packages
-Rust Tools:       12 (100% coverage)
-Health Checks:    12 automated
-Intents:          18 documented
-Profiles:         4 system modes
-Shell Aliases:    188+
-Lynis Score:      73%
-```
-
----
-
-## 🌲 The Journey
-
-| Version  | Milestone                                                  |
-| -------- | ---------------------------------------------------------- |
-| v1-2.x   | The "dotfiles" era — generic, chaotic                      |
-| v3.0     | Foundation — cleanup, Tokyo Night                          |
-| v3.1     | Great Transformation — numbered structure, semantic naming |
-| v3.2     | Smart Systems — safe-update, recovery                      |
-| v3.5     | Git Guardrails — protected commits                         |
-| v3.6     | Intent Ledger — documented decisions                       |
-| v4.0     | System Profiles — one-command switching                    |
-| v4.1     | Teaching Mode — interactive learning                       |
-| v4.2     | Profile Sharing — export/import                            |
-| **v5.0** | **Complete Rust Transition** 🦀                            |
-
----
-
-## 🤝 Contributing
-
-Personal configuration, but improvements welcome!
-
-1. Test thoroughly
-2. Run `dot-doctor` before committing
-3. Follow semantic naming
-4. Document decisions in INTENT/
-
----
-
-## 📜 License
-
-MIT License — See [LICENSE](LICENSE)
-
----
-
-**Made with 🌲 by Christian**
-
-_"The forest speaks Rust now."_ 🦀🌲
+> *"The forest grew its own tools, wrote its own rules, and found a new home."* 🌲🦀
