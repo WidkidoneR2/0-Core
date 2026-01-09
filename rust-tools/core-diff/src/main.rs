@@ -349,7 +349,7 @@ fn show_help() {
     println!("EXAMPLES:");
     println!("   core-diff                           # Quick morning check");
     println!("   core-diff since v3.3.5              # Review since release");
-    println!("   core-diff wm-hypr                   # Deep dive on package");
+    println!("   core-diff wm-sway                   # Deep dive on package");
     println!("   core-diff --open delta              # Terminal diff all");
     println!("   core-diff --high-risk               # Critical/high only");
 }

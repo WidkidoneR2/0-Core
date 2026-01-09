@@ -70,7 +70,7 @@ fn check_stow_symlinks(home: &str, stats: &mut Stats) {
     println!("{}🔗 Checking Stow symlinks...{}", CYAN, NC);
     
     let config = PathBuf::from(home).join(".config");
-    let packages = ["hypr", "waybar", "mako", "foot", "yazi"];
+    let packages = ["sway", "faelight-bar", "mako", "foot", "yazi"];
     let mut stowed = 0;
     
     for pkg in packages {
@@ -114,7 +114,7 @@ fn check_broken_symlinks(home: &str, stats: &mut Stats) {
     println!("{}🔗 Checking for broken symlinks...{}", CYAN, NC);
     
     let config = PathBuf::from(home).join(".config");
-    let dirs = ["hypr", "waybar", "mako", "foot", "yazi", "fish", "zsh"];
+    let dirs = ["sway", "faelight-bar", "mako", "foot", "yazi", "fish", "zsh"];
     let mut broken = 0;
     
     for dir in dirs {

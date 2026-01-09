@@ -188,7 +188,7 @@ fn cmd_help() {
     println!("EXAMPLES:");
     println!("  dotctl status");
     println!("  dotctl bump shell-zsh 3.3.1 \"Added aliases\"");
-    println!("  dotctl history wm-hypr");
+    println!("  dotctl history wm-sway");
     println!("  dotctl health");
     println!();
     println!("═══════════════════════════════════════════════════════════");

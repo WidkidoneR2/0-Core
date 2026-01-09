@@ -60,14 +60,14 @@ fn apply_theme(home: &str, themes_dir: &PathBuf, current_file: &PathBuf, theme: 
     // 1. Hyprland borders
     if !border_active.is_empty() {
         let color = border_active.trim_start_matches('#');
-        Command::new("hyprctl")
+        Command::new("swaymsg")
             .args(["keyword", "general:col.active_border", &format!("rgb({})", color)])
             .output()
             .ok();
     }
     if !border.is_empty() {
         let color = border.trim_start_matches('#');
-        Command::new("hyprctl")
+        Command::new("swaymsg")
             .args(["keyword", "general:col.inactive_border", &format!("rgb({})", color)])
             .output()
             .ok();
