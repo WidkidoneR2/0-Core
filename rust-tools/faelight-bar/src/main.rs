@@ -21,8 +21,6 @@ use wayland_client::{
 };
 use fontdue::{Font, FontSettings};
 use chrono::Local;
-use std::os::unix::net::UnixStream;
-use std::io::{Write, Read};
 use std::env;
 use std::fs;
 use std::process::Command;
@@ -200,43 +198,43 @@ fn is_core_locked() -> bool {
     }
 }
 
-fn hyprland_query(cmd: &str) -> Option<String> {
-    let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
-    let xdg_runtime = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let socket_path = format!("{}/hypr/{}/.socket.sock", xdg_runtime, his);
-    
-    let mut stream = UnixStream::connect(&socket_path).ok()?;
-    stream.write_all(cmd.as_bytes()).ok()?;
-    
-    let mut response = String::new();
-    stream.read_to_string(&mut response).ok()?;
-    Some(response)
+fn sway_query(cmd: &str) -> Option<String> {
+    let output = Command::new("swaymsg")
+        .args(["-t", cmd, "-r"])
+        .output()
+        .ok()?;
+    Some(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 fn get_workspaces() -> (Vec<i32>, i32) {
     let mut workspaces: Vec<i32> = vec![];
     let mut active: i32 = 1;
     
-    if let Some(resp) = hyprland_query("activeworkspace") {
-        for line in resp.lines() {
-            if line.starts_with("workspace ID") {
-                if let Some(id_str) = line.split_whitespace().nth(2) {
-                    active = id_str.parse().unwrap_or(1);
-                }
-                break;
+    if let Some(resp) = sway_query("get_workspaces") {
+        // Parse JSON for workspace numbers
+        for num in 1..=10 {
+            let pattern = format!("\"num\":{}", num);
+            let pattern2 = format!("\"num\": {}", num);
+            if resp.contains(&pattern) || resp.contains(&pattern2) {
+                workspaces.push(num);
             }
         }
-    }
-    
-    if let Some(resp) = hyprland_query("workspaces") {
-        for line in resp.lines() {
-            if line.starts_with("workspace ID") {
-                if let Some(id_str) = line.split_whitespace().nth(2) {
-                    if let Ok(id) = id_str.parse::<i32>() {
-                        if id > 0 && id <= 10 {
-                            workspaces.push(id);
-                        }
-                    }
+        
+        // Find focused workspace
+        let focused_pattern = "\"focused\":true";
+        let focused_pattern2 = "\"focused\": true";
+        if let Some(focused_pos) = resp.find(focused_pattern).or_else(|| resp.find(focused_pattern2)) {
+            let before = &resp[..focused_pos];
+            let num_pattern = "\"num\":";
+            let num_pattern2 = "\"num\": ";
+            if let Some(num_pos) = before.rfind(num_pattern).or_else(|| before.rfind(num_pattern2)) {
+                let after_num = &before[num_pos + 6..];
+                let num_str: String = after_num.chars()
+                    .skip_while(|c| !c.is_numeric())
+                    .take_while(|c| c.is_numeric())
+                    .collect();
+                if let Ok(num) = num_str.parse() {
+                    active = num;
                 }
             }
         }
@@ -251,15 +249,38 @@ fn get_workspaces() -> (Vec<i32>, i32) {
 }
 
 fn get_active_window() -> String {
-    if let Some(resp) = hyprland_query("activewindow") {
-        for line in resp.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("title:") {
-                let title = trimmed.strip_prefix("title:").unwrap_or("").trim();
-                if title.len() > 40 {
-                    return format!("{}...", &title[..37]);
+    if let Some(resp) = sway_query("get_tree") {
+        // Find the focused window
+        let focused_pattern = "\"focused\":true";
+        let focused_pattern2 = "\"focused\": true";
+        if let Some(focused_pos) = resp.find(focused_pattern).or_else(|| resp.find(focused_pattern2)) {
+            let before = &resp[..focused_pos];
+            
+            // Try app_id first (Wayland native)
+            let app_pattern = "\"app_id\":\"";
+            if let Some(app_pos) = before.rfind(app_pattern) {
+                let after = &before[app_pos + 10..];
+                if let Some(end) = after.find('"') {
+                    let app_id = &after[..end];
+                    if !app_id.is_empty() && app_id != "null" {
+                        return app_id.to_string();
+                    }
                 }
-                return title.to_string();
+            }
+            
+            // Try name (window title)
+            let name_pattern = "\"name\":\"";
+            if let Some(name_pos) = before.rfind(name_pattern) {
+                let after = &before[name_pos + 8..];
+                if let Some(end) = after.find('"') {
+                    let title = &after[..end];
+                    if !title.is_empty() && title != "null" {
+                        if title.len() > 40 {
+                            return format!("{}...", &title[..37]);
+                        }
+                        return title.to_string();
+                    }
+                }
             }
         }
     }
@@ -270,7 +291,6 @@ fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: 
     let mut cursor_x = x;
     let font_size = 14.0;
     let baseline = y + 12;
-
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
         
@@ -335,12 +355,10 @@ fn main() {
     let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
     let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
     let qh = event_queue.handle();
-
     let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
     let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell not available");
     let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
     let seat_state = SeatState::new(&globals, &qh);
-
     let surface = compositor.create_surface(&qh);
     let layer_surface = layer_shell.create_layer_surface(
         &qh,
@@ -349,16 +367,13 @@ fn main() {
         Some("faelight-bar"),
         None,
     );
-
     layer_surface.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
     layer_surface.set_size(0, BAR_HEIGHT);
     layer_surface.set_exclusive_zone(BAR_HEIGHT as i32);
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
-
     let pool = SlotPool::new(4096 * BAR_HEIGHT as usize * 4, &shm).expect("Failed to create pool");
     let font = Font::from_bytes(FONT_DATA, FontSettings::default()).expect("Failed to load font");
-
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
         seat_state,
@@ -374,9 +389,7 @@ fn main() {
         click_regions: Vec::new(),
         pointer_x: 0.0,
     };
-
-    println!("🌲 faelight-bar v0.6 starting...");
-
+    println!("🌲 faelight-bar v0.7 starting (Sway Edition)...");
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
     }
@@ -403,24 +416,19 @@ impl BarState {
         if self.width == 0 {
             return;
         }
-
         self.click_regions.clear();
-
         let width = self.width;
         let height = self.height;
         let stride = width as i32 * 4;
-
         let (buffer, canvas) = self.pool
             .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888)
             .expect("Failed to create buffer");
-
         for pixel in canvas.chunks_exact_mut(4) {
             pixel[0] = BG_COLOR[0];
             pixel[1] = BG_COLOR[1];
             pixel[2] = BG_COLOR[2];
             pixel[3] = BG_COLOR[3];
         }
-
         let profile = get_current_profile();
         let accent = get_profile_color(&profile);
         for x in 0..width as usize {
@@ -434,20 +442,16 @@ impl BarState {
                 }
             }
         }
-
         // === LEFT SIDE ===
         let mut x_pos = 10;
-
         // Profile indicator (clickable)
         let profile_start = x_pos;
         let profile_icon = get_profile_icon(&profile);
         draw_text(&self.font, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
         self.click_regions.push((profile_start, x_pos, "profile".to_string()));
-
         draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
-
         let (workspaces, active) = get_workspaces();
         for ws in &workspaces {
             let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
@@ -455,7 +459,6 @@ impl BarState {
             draw_text(&self.font, canvas, width, &ws_str, x_pos, 8, color);
             x_pos += 18;
         }
-
         // Health & Lock
         x_pos += 10;
         draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
@@ -471,7 +474,6 @@ impl BarState {
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
         let lock_text = if locked { "LCK" } else { "UNL" };
         draw_text(&self.font, canvas, width, lock_text, x_pos, 8, lock_color);
-
         // === CENTER ===
         let window_title = get_active_window();
         if !window_title.is_empty() {
@@ -479,16 +481,12 @@ impl BarState {
             let center_x = (width as i32 / 2) - (title_width / 2);
             draw_text(&self.font, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
         }
-
         // === RIGHT SIDE ===
         let mut rx = width as i32 - 110;
-
         let time_str = Local::now().format("%b %d %H:%M").to_string();
         draw_text(&self.font, canvas, width, &time_str, rx, 8, TEXT_COLOR);
-
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
-
         // Volume (clickable)
         rx -= 40;
         let vol_start = rx;
@@ -497,28 +495,22 @@ impl BarState {
         let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
         draw_text(&self.font, canvas, width, &vol_text, rx, 8, vol_color);
         self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
-
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
-
         rx -= 45;
         let (wifi_on, wifi_status) = get_wifi();
         let wifi_color = if wifi_on { BLUE_COLOR } else { DIM_COLOR };
         let wifi_text = format!("W:{}", wifi_status);
         draw_text(&self.font, canvas, width, &wifi_text, rx, 8, wifi_color);
-
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
-
         rx -= 45;
         let (bat_pct, charging) = get_battery();
         let bat_color = if bat_pct < 20 { RED_COLOR } else if charging { BLUE_COLOR } else { TEXT_COLOR };
         let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
         draw_text(&self.font, canvas, width, &bat_text, rx, 8, bat_color);
-
         rx -= 15;
         draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
-
         // VPN (clickable)
         rx -= 60;
         let vpn_start = rx;
@@ -527,7 +519,6 @@ impl BarState {
         let vpn_text = format!("VPN:{}", vpn_status);
         draw_text(&self.font, canvas, width, &vpn_text, rx, 8, vpn_color);
         self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
-
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
         self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
         self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
@@ -556,7 +547,6 @@ impl LayerShellHandler for BarState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
         self.running = false;
     }
-
     fn configure(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _layer: &LayerSurface, configure: LayerSurfaceConfigure, _serial: u32) {
         if configure.new_size.0 > 0 {
             self.width = configure.new_size.0;
@@ -579,7 +569,6 @@ impl SeatHandler for BarState {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }
-
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
     fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Pointer {
