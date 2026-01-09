@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version v5.1.0 - Zsh Migration Edition
+# Version 6.0 - Zsh Migration Edition
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -42,7 +42,6 @@ export PATH="$HOME/0-core/scripts:$PATH"
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
-
 
 # ═══════════════════════════════════════════════════════════
 # 🔒 CORE PROTECTION (0-core Immutability)
@@ -285,7 +284,7 @@ alias cpu='ps auxf | sort -nr -k 3 | head -10'
 
 # Network
 alias myip='curl -s ifconfig.me'
-alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v v5.1.0.1'
+alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1'
 alias pingg='ping -c 5 google.com'
 alias ports='sudo ss -tulanp'
 alias listening='sudo lsof -i -P -n | grep LISTEN'
@@ -318,22 +317,20 @@ alias lazyvim-update='nvim --headless "+Lazy! sync" +qa'
 alias lazyvim-clean='nvim --headless "+Lazy! clean" +qa'
 
 # ═══════════════════════════════════════════════════════════
-# 🖥️  HYPRLAND & DESKTOP ENVIRONMENT
+# 🖥️  SWAY & DESKTOP ENVIRONMENT
 # ═══════════════════════════════════════════════════════════
 
-# Hyprland
-alias hypr-reload='hyprctl reload'
-alias hypr-info='hyprctl clients'
-alias hypr-windows='hyprctl clients | grep class'
+# Sway
+alias sway-reload='swaymsg reload'
+alias sway-info='swaymsg -t get_tree'
 
-# Waybar
-alias waybar-restart='killall waybar && uwsm-app -- waybar > /dev/null 2>&1 & disown'
-alias waybar-reload='killall waybar && uwsm-app -- waybar > /dev/null 2>&1 & disown'
+# Faelight bar
+alias bar-restart='pkill faelight-bar; ~/0-core/scripts/faelight-bar & disown'
 
 # Power management
 alias ssn='shutdown now'
 alias sr='reboot'
-alias logout='hyprctl dispatch exit'
+alias logout='swaymsg exit'
 alias suspend='systemctl suspend'
 alias hibernate='systemctl hibernate'
 
@@ -378,7 +375,7 @@ alias-help() {
   echo "🔍 Core-Diff: cdiff, cds, cdh, cdm, cdhypr"
   echo "💻 System: doctor, ff, df, mem, cpu"
   echo "📝 Editor: v, nzsh, nhypr, nwaybar"
-  echo "🖥️  Desktop: hypr-reload, waybar-restart"
+  echo "🖥️  Desktop: sway-reload, bar-restart"
   echo "🔐 Security: audit-quick, scan-secrets"
   echo "📚 Docs: keys, guide, roadmap"
   echo ""
@@ -410,8 +407,8 @@ alias ban-list='sudo fail2ban-client status sshd'
 
 # Quick reference
 alias keys='bat ~/0-core/docs/KEYBINDINGS.md'
-alias guide='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
-alias faelight='bat ~/faelight-forest-docs/COMPLETE_GUIDE.md'
+alias guide='bat ~/0-core/COMPLETE_GUIDE.md'
+alias faelight='bat ~/0-core/COMPLETE_GUIDE.md'
 
 # Planning
 alias roadmap='nvim ~/0-core/docs/planning/ROADMAP.md'
@@ -424,28 +421,13 @@ alias planning='cd ~/0-core/docs/planning && ls'
 
 # Notes
 notes() {
-    uwsm-app -- notesnook >/dev/null 2>&1 &
-    disown
-}
-
-notesnook() {
-    uwsm-app -- notesnook >/dev/null 2>&1 &
+    notesnook >/dev/null 2>&1 &
     disown
 }
 
 # Password manager
 kp() {
-    uwsm-app -- keepassxc >/dev/null 2>&1 &
-    disown
-}
-
-keepass() {
-    uwsm-app -- keepassxc >/dev/null 2>&1 &
-    disown
-}
-
-pass() {
-    uwsm-app -- keepassxc >/dev/null 2>&1 &
+    keepassxc >/dev/null 2>&1 &
     disown
 }
 
@@ -460,10 +442,6 @@ alias claude='xdg-open "https://claude.ai"'
 # Common sites
 alias youtube='xdg-open "https://youtube.com"'
 alias gmail='xdg-open "https://gmail.com"'
-
-# Qutebrowser
-alias qb='qutebrowser'
-alias qute='qutebrowser'
 
 # ═══════════════════════════════════════════════════════════
 # 🔄 UPDATE FUNCTIONS
@@ -599,6 +577,7 @@ dot-doctor() {
 # ═══════════════════════════════════════════════════════════
 # 🔒 Git Guardrails - Prevent dangerous git operations
 # ═══════════════════════════════════════════════════════════
+
 git() {
   # Only apply guardrails in 0-core
   if [[ $PWD != $HOME/0-core* ]]; then
@@ -660,76 +639,43 @@ alias envrc-status='direnv status'
 # ═══════════════════════════════════════════════════════════
 
 # Autosuggestions (Fish-like) - BRIGHTER COLOR
-source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'  # Brighter gray (was too dim)
+if [[ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+    source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+    ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'
+fi
 
-# Syntax highlighting (Fish-like) - Faelight Forest colors
-source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source ~/.config/zsh/completions.zsh
+# Syntax highlighting (Fish-like)
+if [[ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+    source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
 
+# Completions
+if [[ -f ~/.config/zsh/completions.zsh ]]; then
+    source ~/.config/zsh/completions.zsh
+fi
 
 # ═══════════════════════════════════════════════════════════
 # ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v5.1.0)
-# Visual warnings for destructive commands
 # ═══════════════════════════════════════════════════════════
 
-# Enable pattern highlighting
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
 
-# Dangerous patterns - RED background
 typeset -A ZSH_HIGHLIGHT_PATTERNS
-
-# rm variants (with and without sudo/command prefix)
 ZSH_HIGHLIGHT_PATTERNS+=('rm -rf *' 'fg=white,bold,bg=red')
 ZSH_HIGHLIGHT_PATTERNS+=('rm -fr *' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('rm -rf /*' 'fg=white,bold,bg=red')
 ZSH_HIGHLIGHT_PATTERNS+=('sudo rm -rf *' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('sudo rm -fr *' 'fg=white,bold,bg=red')
-
-# chmod 777 (world-writable)
 ZSH_HIGHLIGHT_PATTERNS+=('chmod 777 *' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('chmod -R 777 *' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('sudo chmod 777 *' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('sudo chmod -R 777 *' 'fg=white,bold,bg=red')
-
-# dd (disk destroyer)
 ZSH_HIGHLIGHT_PATTERNS+=('dd if=*' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('sudo dd if=*' 'fg=white,bold,bg=red')
-
-# Filesystem formatters
-ZSH_HIGHLIGHT_PATTERNS+=('mkfs*' 'fg=white,bold,bg=red')
-ZSH_HIGHLIGHT_PATTERNS+=('sudo mkfs*' 'fg=white,bold,bg=red')
-
-# Additional dangerous commands
-ZSH_HIGHLIGHT_PATTERNS+=(':(){ :|:& };:' 'fg=white,bold,bg=red')  # Fork bomb
-ZSH_HIGHLIGHT_PATTERNS+=('> /dev/sda' 'fg=white,bold,bg=red')     # Disk overwrite
-ZSH_HIGHLIGHT_PATTERNS+=('chmod -R 000 *' 'fg=white,bold,bg=red') # Permission nuke
 
 # Faelight Forest syntax colors
-ZSH_HIGHLIGHT_STYLES[command]='fg=cyan,bold'           # Commands in cyan
-ZSH_HIGHLIGHT_STYLES[alias]='fg=cyan,bold'             # Aliases in cyan
-ZSH_HIGHLIGHT_STYLES[builtin]='fg=cyan,bold'           # Builtins in cyan
-ZSH_HIGHLIGHT_STYLES[function]='fg=cyan,bold'          # Functions in cyan
-ZSH_HIGHLIGHT_STYLES[arg0]='fg=cyan,bold'              # First command in cyan
-ZSH_HIGHLIGHT_STYLES[default]='fg=green'               # Default text (like "status")
-ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=red,bold'      # Errors in red
-ZSH_HIGHLIGHT_STYLES[reserved-word]='fg=magenta'       # Keywords
-ZSH_HIGHLIGHT_STYLES[suffix-alias]='fg=cyan,bold'      # Suffix aliases
-ZSH_HIGHLIGHT_STYLES[precommand]='fg=cyan,underline'   # Precommands
-ZSH_HIGHLIGHT_STYLES[path]='fg=green'                  # Paths in green
-ZSH_HIGHLIGHT_STYLES[path_pathseparator]='fg=green'    # Path separators
-ZSH_HIGHLIGHT_STYLES[path_prefix]='fg=green'           # Path prefixes
-ZSH_HIGHLIGHT_STYLES[globbing]='fg=yellow'             # Globs in yellow
-ZSH_HIGHLIGHT_STYLES[single-hyphen-option]='fg=green'  # Options like -h
-ZSH_HIGHLIGHT_STYLES[double-hyphen-option]='fg=green'  # Options like --help
-ZSH_HIGHLIGHT_STYLES[back-quoted-argument]='fg=yellow' # Backticks
-ZSH_HIGHLIGHT_STYLES[single-quoted-argument]='fg=yellow'   # Single quotes
-ZSH_HIGHLIGHT_STYLES[double-quoted-argument]='fg=yellow'   # Double quotes
-ZSH_HIGHLIGHT_STYLES[dollar-quoted-argument]='fg=yellow'   # Dollar quotes
-ZSH_HIGHLIGHT_STYLES[dollar-double-quoted-argument]='fg=yellow' # Variables in quotes
-ZSH_HIGHLIGHT_STYLES[assign]='fg=magenta'              # Variable assignments
-ZSH_HIGHLIGHT_STYLES[redirection]='fg=magenta'         # Redirections
-ZSH_HIGHLIGHT_STYLES[comment]='fg=240'                 # Comments (dim)
+ZSH_HIGHLIGHT_STYLES[command]='fg=cyan,bold'
+ZSH_HIGHLIGHT_STYLES[alias]='fg=cyan,bold'
+ZSH_HIGHLIGHT_STYLES[builtin]='fg=cyan,bold'
+ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=red,bold'
+ZSH_HIGHLIGHT_STYLES[path]='fg=green'
+ZSH_HIGHLIGHT_STYLES[globbing]='fg=yellow'
+ZSH_HIGHLIGHT_STYLES[single-quoted-argument]='fg=yellow'
+ZSH_HIGHLIGHT_STYLES[double-quoted-argument]='fg=yellow'
 
 # Starship prompt
 eval "$(starship init zsh)"
@@ -739,21 +685,15 @@ eval "$(starship init zsh)"
 # ═══════════════════════════════════════════════════════════
 
 if [[ -o interactive ]]; then
-    # Show fastfetch
     fastfetch
-    
-    # Custom greeting with dynamic latest update
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v5.1.0!\033[0m"
-    
-    # Show latest package update (if script exists)
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.0 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then
             echo -e "\033[0;36m   Latest: $latest\033[0m"
         fi
     fi
-    
     echo ""
     echo "This is my Happy Place!!!"
     echo ""
@@ -761,44 +701,9 @@ if [[ -o interactive ]]; then
     echo ""
 fi
 
-# ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND WARNING (v5.1.0)
-# Shows warning BEFORE execution - doesn't block, just warns
-# ═══════════════════════════════════════════════════════════
-
-dangerous_command_warning() {
-    local cmd="$1"
-    
-    # Patterns to warn about (regex)
-    local -a dangerous_patterns=(
-        'rm[[:space:]]+-[^[:space:]]*[rf][^[:space:]]*[rf]'  # rm -rf, rm -fr, rm -rf -v, etc.
-        'rm[[:space:]].*[[:space:]]/($|[[:space:]])'         # rm anything ending with /
-        'chmod[[:space:]].*777'                               # chmod 777
-        'chmod[[:space:]]+-R[[:space:]]+000'                  # chmod -R 000
-        'dd[[:space:]]+if='                                   # dd if=
-        'mkfs\.'                                              # mkfs.*
-        '>[[:space:]]*/dev/[sh]d[a-z]'                        # > /dev/sda
-        'mv[[:space:]]+.+[[:space:]]+/dev/null'               # mv to /dev/null
-        ':\(\)\{[[:space:]]*:\|:&[[:space:]]*\};:'            # Fork bomb
-    )
-    
-    for pattern in "${dangerous_patterns[@]}"; do
-        if [[ "$cmd" =~ $pattern ]]; then
-            echo ""
-            echo -e "\033[1;37;41m ⚠️  DANGEROUS COMMAND DETECTED \033[0m"
-            echo -e "\033[1;31m    $cmd\033[0m"
-            echo -e "\033[0;33m    Press Enter to execute, Ctrl+C to abort\033[0m"
-            echo ""
-            return 0
-        fi
-    done
-}
-
-# Hook into preexec
-preexec_functions+=(dangerous_command_warning)
+# Cargo
+export PATH="$HOME/.cargo/bin:$PATH"
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
-# Version v5.1.0 - Zsh Migration Edition
 # ═══════════════════════════════════════════════════════════
-export PATH="$HOME/.cargo/bin:$PATH"
