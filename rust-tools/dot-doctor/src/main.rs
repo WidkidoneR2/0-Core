@@ -173,7 +173,7 @@ fn check_binaries(stats: &mut Stats) {
     
     let binaries = [
         "nvim", "eza", "bat", "fd", "fzf", "yazi", "lazygit", "fastfetch",
-        "hyprctl", "waybar", "mako", "starship", "git", "stow", "direnv"
+        "swaymsg", "faelight-bar", "mako", "starship", "git", "stow", "direnv"
     ];
     
     let count = binaries.iter().filter(|b| {
