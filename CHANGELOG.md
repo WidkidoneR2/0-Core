@@ -3,6 +3,47 @@ All notable changes to Faelight Forest / 0-Core.
 
 ---
 
+## [6.1.0] - 2026-01-09
+### 🎨 Polish & Cleanup
+
+**Login Manager**
+- Added tuigreet with Faelight Forest green theme
+- Auto-launches Sway on login
+
+**Sway Enhancements**
+- Enhanced keybindings (resize, scratchpad, screenshots, clipboard, notifications)
+- Window rules for floating apps
+- wm-sway package created and stowed
+
+**GitHub Cleanup**
+- Removed wm-hypr/ package entirely
+- Removed Ghostty themes (not using)
+- Removed old theme packages
+- Removed COMPLETE_GUIDE.md, MELD_GUIDE.md
+- Updated all docs for Sway references
+- Updated zshrc aliases (swayconf, nsway, cdsway)
+
+**Package Consolidation**
+- New: term-foot (Faelight colors)
+- New: launcher-fuzzel (Faelight colors)
+- Removed: theme-term-foot-dark, theme-launch-fuzzel-dark, theme-gtk, tools-topgrade, foot-theme-light
+
+**System**
+- Mullvad VPN auto-connect enabled
+
+### Technical
+- All Hyprland references removed from codebase
+- Clean stow structure
+- Health: 100%
+
+> "The forest shed its old growth." 🌲
+
+---
+
+All notable changes to Faelight Forest / 0-Core.
+
+---
+
 ## [6.0.0] - 2026-01-09
 ### 🌲 Sway Edition - Complete Platform Migration
 

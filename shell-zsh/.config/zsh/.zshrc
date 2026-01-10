@@ -284,7 +284,7 @@ alias cpu='ps auxf | sort -nr -k 3 | head -10'
 
 # Network
 alias myip='curl -s ifconfig.me'
-alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v v6.0.0.1'
+alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v v6.1.0.1'
 alias pingg='ping -c 5 google.com'
 alias ports='sudo ss -tulanp'
 alias listening='sudo lsof -i -P -n | grep LISTEN'
@@ -654,7 +654,7 @@ if [[ -f ~/.config/zsh/completions.zsh ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.0.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.1.0)
 # ═══════════════════════════════════════════════════════════
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
