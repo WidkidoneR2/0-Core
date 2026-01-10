@@ -3,7 +3,7 @@ id: 024
 date: 2026-01-10
 type: future
 title: "faelight-git - Git as Governance Layer"
-status: planned
+status: complete
 tags: [rust, git, policy, v6.4.0]
 ---
 ## The Vision

@@ -68,6 +68,12 @@ enum Commands {
         app: LaunchApp,
     },
     
+    /// Git governance
+    Git {
+        #[command(subcommand)]
+        action: GitAction,
+    },
+
     /// Configuration management
     Config {
         #[command(subcommand)]
@@ -138,6 +144,17 @@ enum LaunchApp {
 }
 
 #[derive(Subcommand)]
+enum GitAction {
+    /// Install git hooks
+    InstallHooks,
+    /// Remove git hooks
+    RemoveHooks,
+    /// Verify commit readiness
+    Verify,
+    Status,
+}
+
+#[derive(Subcommand)]
 enum ConfigAction {
     /// Validate all config files
     Validate,
@@ -161,6 +178,7 @@ fn main() {
         Commands::Core { action } => cmd_core(action, cli.dry_run),
         Commands::Sway { action } => cmd_sway(action, cli.dry_run),
         Commands::Launch { app } => cmd_launch(app),
+        Commands::Git { action } => cmd_git(action),
         Commands::Config { action } => cmd_config(action),
         Commands::Status => cmd_status(cli.json),
         Commands::Explain { topic } => cmd_explain(&topic),
@@ -319,6 +337,19 @@ fn cmd_launch(app: LaunchApp) -> i32 {
 // ═══════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════
 // ⚙️ CONFIG
+// ═══════════════════════════════════════════════════════════
+// 🔧 GIT
+// ═══════════════════════════════════════════════════════════
+fn cmd_git(action: GitAction) -> i32 {
+    let cmd = match action {
+        GitAction::InstallHooks => "install-hooks",
+        GitAction::RemoveHooks => "remove-hooks",
+        GitAction::Verify => "verify",
+        GitAction::Status => "status",
+    };
+    exec_script("faelight-git", &[cmd])
+}
+
 // ═══════════════════════════════════════════════════════════
 fn cmd_config(action: ConfigAction) -> i32 {
     use colored::*;
