@@ -43,6 +43,7 @@ Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.
 | **Launcher** | Fuzzel | Dmenu replacement |
 | **Files** | Yazi | Terminal file manager |
 | **Notifications** | Mako | Wayland notifications |
+| **Login** | tuigreet | Faelight themed greeter |
 
 ---
 
@@ -58,7 +59,7 @@ A cohesive visual identity across the entire system:
 | Amber Leaf | `#f5c177` | Warnings |
 | Fog White | `#d7e0da` | Text |
 
-Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako
+Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
 
 ---
 
@@ -144,7 +145,7 @@ Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako
 | Firewall | UFW (deny incoming) |
 | Intrusion | fail2ban (sshd jail) |
 | DNS | DNSOverTLS (Quad9) |
-| VPN | Mullvad (clickable in bar) |
+| VPN | Mullvad (auto-connect, clickable in bar) |
 | Secrets | Gitleaks pre-commit scanning |
 | Kernel | 99-hardening.conf (sysctl) |
 | Core | Immutable protection (chattr +i) |
@@ -217,8 +218,6 @@ Checks:
 | `Super + 1-5` | Workspaces |
 | `Super + Shift + E` | Exit Sway |
 
-Full keybindings: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md)
-
 ---
 
 ## 🚀 Quick Commands
@@ -263,10 +262,10 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 | Version | Date | Milestone |
 |---------|------|-----------|
 | v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |
-| v6.0.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
-| v6.0.0 | 2026-01-06 | Complete Rust transition |
-| v6.0.0 | 2025-12 | Profile system |
-| v6.0.0 | 2025-12 | Intent Ledger |
+| v5.1.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
+| v5.0.0 | 2026-01-06 | Complete Rust transition |
+| v4.0.0 | 2025-12 | Profile system |
+| v3.0.0 | 2025-12 | Intent Ledger |
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 

@@ -1,0 +1,9 @@
+[package]
+name = "wm-sway"
+version = "1.0.0"
+description = "Sway window manager configuration"
+category = "desktop"
+last_updated = "2026-01-09"
+
+[changelog]
+"1.0.0" = "Initial Sway config with Faelight Forest theme"

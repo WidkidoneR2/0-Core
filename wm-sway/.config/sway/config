@@ -1,0 +1,251 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Faelight Forest - Sway Configuration
+# Version 6.1 - Enhanced Keybindings
+# ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# 🎯 VARIABLES
+# ═══════════════════════════════════════════════════════════
+set $mod Mod4
+set $term foot
+set $browser brave
+set $menu fuzzel
+set $filemanager thunar
+
+# ═══════════════════════════════════════════════════════════
+# 🎨 APPEARANCE
+# ═══════════════════════════════════════════════════════════
+output * bg #0f1411 solid_color
+font pango:JetBrains Mono 11
+
+# Window borders - Faelight colors
+client.focused          #6be3a3 #0f1411 #d7e0da #6be3a3 #6be3a3
+client.focused_inactive #5cc8ff #0f1411 #d7e0da #5cc8ff #5cc8ff
+client.unfocused        #0f1411 #0f1411 #778f7f #0f1411 #0f1411
+
+# Gaps and borders
+gaps inner 8
+gaps outer 4
+default_border pixel 2
+
+# ═══════════════════════════════════════════════════════════
+# 🚀 APPLICATION LAUNCHERS
+# ═══════════════════════════════════════════════════════════
+# Core apps
+bindsym $mod+Return exec $term
+bindsym $mod+b exec $browser
+bindsym $mod+d exec $menu
+bindsym $mod+e exec $filemanager
+bindsym $mod+n exec $term -e nvim
+
+# File managers
+bindsym $mod+Shift+f exec $filemanager
+bindsym $mod+Shift+y exec $term -e yazi
+
+# System tools
+bindsym $mod+Shift+t exec $term -e btop
+bindsym $mod+Shift+n exec $term -e nvim
+
+# ═══════════════════════════════════════════════════════════
+# 🪟 WINDOW MANAGEMENT
+# ═══════════════════════════════════════════════════════════
+# Close window
+bindsym $mod+q kill
+
+# Toggle floating
+bindsym $mod+v floating toggle
+
+# Fullscreen
+bindsym $mod+f fullscreen toggle
+
+# Center floating window
+bindsym $mod+o move position center
+
+# Pin window (sticky)
+bindsym $mod+z sticky toggle
+
+# Focus (vim keys)
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+
+# Focus (arrow keys)
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+
+# Move windows (vim keys)
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+
+# Move windows (arrow keys)
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Down move down
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Right move right
+
+# Resize with Ctrl (no mode needed)
+bindsym $mod+Ctrl+h resize shrink width 40px
+bindsym $mod+Ctrl+j resize grow height 40px
+bindsym $mod+Ctrl+k resize shrink height 40px
+bindsym $mod+Ctrl+l resize grow width 40px
+bindsym $mod+Ctrl+Left resize shrink width 40px
+bindsym $mod+Ctrl+Down resize grow height 40px
+bindsym $mod+Ctrl+Up resize shrink height 40px
+bindsym $mod+Ctrl+Right resize grow width 40px
+
+# Resize mode (alternative)
+mode "resize" {
+    bindsym h resize shrink width 40px
+    bindsym j resize grow height 40px
+    bindsym k resize shrink height 40px
+    bindsym l resize grow width 40px
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# Split direction
+bindsym $mod+t split toggle
+
+# Layout toggle
+bindsym $mod+w layout toggle split tabbed stacking
+
+# ═══════════════════════════════════════════════════════════
+# 🗂️ WORKSPACES
+# ═══════════════════════════════════════════════════════════
+# Switch to workspace
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+
+# Move to workspace (follow)
+bindsym $mod+Shift+1 move container to workspace number 1; workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2; workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3; workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4; workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5; workspace number 5
+
+# Move to workspace (silent)
+bindsym $mod+Alt+1 move container to workspace number 1
+bindsym $mod+Alt+2 move container to workspace number 2
+bindsym $mod+Alt+3 move container to workspace number 3
+bindsym $mod+Alt+4 move container to workspace number 4
+bindsym $mod+Alt+5 move container to workspace number 5
+
+# Navigate workspaces
+bindsym $mod+bracketright workspace next
+bindsym $mod+bracketleft workspace prev
+bindsym $mod+Tab workspace back_and_forth
+bindsym $mod+grave workspace back_and_forth
+
+# Move window between workspaces
+bindsym $mod+Shift+bracketright move container to workspace next; workspace next
+bindsym $mod+Shift+bracketleft move container to workspace prev; workspace prev
+
+# ═══════════════════════════════════════════════════════════
+# 📌 SCRATCHPAD
+# ═══════════════════════════════════════════════════════════
+bindsym $mod+m scratchpad show
+bindsym $mod+Shift+m move scratchpad
+
+# ═══════════════════════════════════════════════════════════
+# 📸 SCREENSHOTS
+# ═══════════════════════════════════════════════════════════
+# Full screen to file
+bindsym $mod+s exec grim ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png && notify-send "📸 Screenshot" "Full screen saved"
+
+# Area to file
+bindsym $mod+Shift+s exec grim -g "$(slurp)" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png && notify-send "📸 Screenshot" "Area saved"
+
+# Area to clipboard
+bindsym $mod+Alt+s exec grim -g "$(slurp)" - | wl-copy && notify-send "📸 Screenshot" "Copied to clipboard"
+
+# Screenshot with swappy editor
+bindsym $mod+Ctrl+s exec grim -g "$(slurp)" - | swappy -f -
+
+# ═══════════════════════════════════════════════════════════
+# 📋 CLIPBOARD
+# ═══════════════════════════════════════════════════════════
+bindsym $mod+p exec cliphist list | $menu --dmenu | cliphist decode | wl-copy
+bindsym $mod+Shift+p exec cliphist wipe && notify-send "📋 Clipboard" "History cleared"
+
+# ═══════════════════════════════════════════════════════════
+# 🔊 AUDIO & MEDIA
+# ═══════════════════════════════════════════════════════════
+bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+bindsym XF86AudioPlay exec playerctl play-pause
+bindsym XF86AudioNext exec playerctl next
+bindsym XF86AudioPrev exec playerctl previous
+
+# ═══════════════════════════════════════════════════════════
+# 🔆 BRIGHTNESS
+# ═══════════════════════════════════════════════════════════
+bindsym XF86MonBrightnessUp exec brightnessctl set 5%+
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# ═══════════════════════════════════════════════════════════
+# 🔒 LOCK & POWER
+# ═══════════════════════════════════════════════════════════
+# Lock screen (swaylock)
+bindsym $mod+Ctrl+Escape exec swaylock -f -c 0f1411
+
+# Power menu
+bindsym $mod+Escape exec ~/0-core/scripts/power-menu-fuzzel.sh
+
+# Session
+bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit Sway?' -B 'Yes' 'swaymsg exit'
+bindsym $mod+Shift+c reload
+
+# ═══════════════════════════════════════════════════════════
+# 🔔 NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════
+bindsym $mod+i exec makoctl set-mode do-not-disturb && notify-send "🔕 DND" "Enabled"
+bindsym $mod+Shift+i exec makoctl set-mode default && notify-send "🔔 Notifications" "Enabled"
+bindsym $mod+Ctrl+i exec makoctl dismiss -a
+
+# ═══════════════════════════════════════════════════════════
+# 🖱️ INPUT
+# ═══════════════════════════════════════════════════════════
+input type:touchpad {
+    tap enabled
+    natural_scroll enabled
+    dwt enabled
+}
+
+input type:keyboard {
+    repeat_delay 300
+    repeat_rate 50
+}
+
+# Drag floating windows with mouse
+floating_modifier $mod normal
+
+# ═══════════════════════════════════════════════════════════
+# 🎯 WINDOW RULES
+# ═══════════════════════════════════════════════════════════
+# Float certain windows
+for_window [app_id="pavucontrol"] floating enable
+for_window [app_id="blueman-manager"] floating enable
+for_window [app_id="nm-connection-editor"] floating enable
+for_window [title="Picture-in-Picture"] floating enable, sticky enable
+
+# ═══════════════════════════════════════════════════════════
+# 🚀 AUTOSTART
+# ═══════════════════════════════════════════════════════════
+exec ~/0-core/scripts/faelight-bar
+exec mako
+exec wl-paste --watch cliphist store
+
+# ═══════════════════════════════════════════════════════════
+# 🌲 END FAELIGHT FOREST SWAY CONFIG
+# ═══════════════════════════════════════════════════════════
