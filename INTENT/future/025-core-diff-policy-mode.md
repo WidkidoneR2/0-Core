@@ -3,7 +3,7 @@ id: 025
 date: 2026-01-10
 type: future
 title: "core-diff - Shell Policy View"
-status: planned
+status: complete
 tags: [rust, diff, policy, v6.5.0]
 ---
 ## The Vision

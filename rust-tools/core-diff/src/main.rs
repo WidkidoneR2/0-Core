@@ -37,6 +37,8 @@ fn main() {
     let mut verbose = false;
     let mut high_risk = false;
     let mut summary = false;
+    let mut policy_mode = String::new();
+    let mut scan_all = false;
     
     let mut i = 1;
     while i < args.len() {
@@ -64,6 +66,15 @@ fn main() {
             }
             "-v" | "--verbose" => verbose = true,
             "--high-risk" => high_risk = true,
+            "--all" => scan_all = true,
+            "--policy" => {
+                i += 1;
+                if i >= args.len() {
+                    eprintln!("❌ Error: --policy requires 'shell'");
+                    process::exit(2);
+                }
+                policy_mode = args[i].clone();
+            }
             arg if arg.starts_with('-') => {
                 eprintln!("❌ Error: Unknown option: {}", arg);
                 process::exit(2);
@@ -76,6 +87,16 @@ fn main() {
     // Get changes
     let changes = get_changes(mode, &git_ref);
     
+    // Policy analysis mode
+    if policy_mode == "shell" {
+        if scan_all {
+            analyze_shell_policy_all();
+        } else {
+            analyze_shell_policy(&changes);
+        }
+        return;
+    }
+
     if changes.is_empty() {
         println!("✅ No changes detected");
         println!();
@@ -352,4 +373,222 @@ fn show_help() {
     println!("   core-diff wm-sway                   # Deep dive on package");
     println!("   core-diff --open delta              # Terminal diff all");
     println!("   core-diff --high-risk               # Critical/high only");
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🛡️ SHELL POLICY ANALYSIS
+// ═══════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════
+// 🛡️ SHELL POLICY ANALYSIS
+// ═══════════════════════════════════════════════════════════
+
+fn analyze_shell_policy(changes: &Vec<String>) {
+    println!("{}🛡️  Shell Authority Policy Analysis{}", "\x1b[0;36m", NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+
+    let forbidden_patterns: &[(&str, &str, &str)] = &[
+        ("sudo", "Privilege Escalation", "Critical"),
+        ("systemctl", "Service Management", "High"),
+        ("pacman -S", "Package Management", "High"),
+        ("yay -S", "Package Management", "High"),
+        ("rm -rf /", "Destructive Operation", "Critical"),
+        ("chmod 777", "Insecure Permissions", "High"),
+        ("curl | sh", "Remote Execution", "Critical"),
+        ("curl | bash", "Remote Execution", "Critical"),
+        ("wget | sh", "Remote Execution", "Critical"),
+        ("eval \"$(", "Dynamic Execution", "Medium"),
+    ];
+
+    let mut total_violations = 0;
+    let mut file_violations: Vec<(String, Vec<(&str, &str, &str)>)> = Vec::new();
+
+    let home = env::var("HOME").unwrap_or_default();
+
+    for file in changes {
+        // Only check shell scripts
+        if !file.ends_with(".sh") && !file.contains("scripts/") {
+            continue;
+        }
+
+        let file_path = PathBuf::from(&home).join("0-core").join(file);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            let mut violations: Vec<(&str, &str, &str)> = Vec::new();
+            
+            for (pattern, domain, severity) in forbidden_patterns {
+                if content.contains(pattern) {
+                    violations.push((pattern, domain, severity));
+                    total_violations += 1;
+                }
+            }
+            
+            if !violations.is_empty() {
+                file_violations.push((file.clone(), violations));
+            }
+        }
+    }
+
+    if file_violations.is_empty() {
+        println!("{}✅ No shell authority violations detected{}", GREEN, NC);
+        println!();
+        println!("All changed shell scripts follow the Tooling Authority Policy.");
+        return;
+    }
+
+    for (file, violations) in &file_violations {
+        let severity_icon = if violations.iter().any(|(_, _, s)| *s == "Critical") {
+            format!("{}🔴 CRITICAL{}", RED, NC)
+        } else if violations.iter().any(|(_, _, s)| *s == "High") {
+            format!("{}🟠 HIGH{}", ORANGE, NC)
+        } else {
+            format!("{}🟡 MEDIUM{}", BLUE, NC)
+        };
+
+        println!("{}File: {}{} ({})", "\x1b[1m", file, NC, severity_icon);
+        
+        for (pattern, domain, severity) in violations {
+            let sev_color = match *severity {
+                "Critical" => RED,
+                "High" => ORANGE,
+                _ => BLUE,
+            };
+            println!("  {}❌{} Pattern: {}", sev_color, NC, pattern);
+            println!("     Domain: {} | Severity: {}{}{}", domain, sev_color, severity, NC);
+        }
+        println!();
+    }
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("{}Summary:{} {} violations in {} files", "\x1b[1m", NC, total_violations, file_violations.len());
+    println!();
+    println!("{}Recommendations:{}", "\x1b[1m", NC);
+    println!("  • Graduate shell scripts with authority violations to Rust");
+    println!("  • Use 'faelight' unified CLI instead of direct commands");
+    println!("  • Add shell-policy headers for temporary exceptions");
+}
+
+fn analyze_shell_policy_all() {
+    println!("{}🛡️  Shell Authority Policy Analysis (Full Scan){}", "\x1b[0;36m", NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+
+    let forbidden_patterns: &[(&str, &str, &str)] = &[
+        ("sudo", "Privilege Escalation", "Critical"),
+        ("systemctl", "Service Management", "High"),
+        ("pacman -S", "Package Management", "High"),
+        ("yay -S", "Package Management", "High"),
+        ("rm -rf /", "Destructive Operation", "Critical"),
+        ("chmod 777", "Insecure Permissions", "High"),
+        ("curl | sh", "Remote Execution", "Critical"),
+        ("curl | bash", "Remote Execution", "Critical"),
+        ("wget | sh", "Remote Execution", "Critical"),
+        ("eval \"$(", "Dynamic Execution", "Medium"),
+    ];
+
+    let home = env::var("HOME").unwrap_or_default();
+    let scripts_dir = PathBuf::from(&home).join("0-core/scripts");
+    
+    let mut total_violations = 0;
+    let mut file_violations: Vec<(String, Vec<(&str, &str, &str)>)> = Vec::new();
+
+    // Scan scripts directory
+    if let Ok(entries) = fs::read_dir(&scripts_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            
+            let filename = path.file_name().unwrap().to_string_lossy().to_string();
+            
+            // Skip compiled binaries (check if it's a shell script)
+            if let Ok(content) = fs::read_to_string(&path) {
+                // Skip if not a shell script
+                if !content.starts_with("#!/bin/bash") && !content.starts_with("#!/bin/sh") && !content.starts_with("#!/usr/bin/env bash") {
+                    continue;
+                }
+                
+                let mut violations: Vec<(&str, &str, &str)> = Vec::new();
+                
+                for (pattern, domain, severity) in forbidden_patterns {
+                    if content.contains(pattern) {
+                        violations.push((pattern, domain, severity));
+                        total_violations += 1;
+                    }
+                }
+                
+                if !violations.is_empty() {
+                    file_violations.push((filename, violations));
+                }
+            }
+        }
+    }
+
+    // Also scan shell config files
+    let shell_files = [
+        "shell-zsh/.config/zsh/.zshrc",
+        "shell-zsh/.config/zsh/aliases.zsh",
+    ];
+    
+    for file in shell_files {
+        let path = PathBuf::from(&home).join("0-core").join(file);
+        if let Ok(content) = fs::read_to_string(&path) {
+            let mut violations: Vec<(&str, &str, &str)> = Vec::new();
+            
+            for (pattern, domain, severity) in forbidden_patterns {
+                if content.contains(pattern) {
+                    violations.push((pattern, domain, severity));
+                    total_violations += 1;
+                }
+            }
+            
+            if !violations.is_empty() {
+                file_violations.push((file.to_string(), violations));
+            }
+        }
+    }
+
+    if file_violations.is_empty() {
+        println!("{}✅ No shell authority violations detected{}", GREEN, NC);
+        println!();
+        println!("All shell scripts follow the Tooling Authority Policy.");
+        return;
+    }
+
+    // Sort by number of violations
+    file_violations.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+
+    for (file, violations) in &file_violations {
+        let severity_icon = if violations.iter().any(|(_, _, s)| *s == "Critical") {
+            format!("{}🔴 CRITICAL{}", RED, NC)
+        } else if violations.iter().any(|(_, _, s)| *s == "High") {
+            format!("{}🟠 HIGH{}", ORANGE, NC)
+        } else {
+            format!("{}🟡 MEDIUM{}", BLUE, NC)
+        };
+
+        println!("{}File: {}{} ({})", "\x1b[1m", file, NC, severity_icon);
+        
+        for (pattern, domain, severity) in violations {
+            let sev_color = match *severity {
+                "Critical" => RED,
+                "High" => ORANGE,
+                _ => BLUE,
+            };
+            println!("  {}❌{} Pattern: {}", sev_color, NC, pattern);
+            println!("     Domain: {} | Severity: {}{}{}", domain, sev_color, severity, NC);
+        }
+        println!();
+    }
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("{}Summary:{} {} violations in {} files", "\x1b[1m", NC, total_violations, file_violations.len());
+    println!();
+    println!("{}Recommendations:{}", "\x1b[1m", NC);
+    println!("  • Graduate shell scripts with authority violations to Rust");
+    println!("  • Use 'faelight' unified CLI instead of direct commands");
+    println!("  • Document exceptions with shell-policy headers");
 }
