@@ -3,46 +3,47 @@ id: 012
 date: 2026-01-07
 type: future
 title: "faelight-notify - Rust Notification Daemon"
-status: in-progress
-tags: [rust, wayland, notifications, dbus, v5.2]
+status: complete
+tags: [rust, wayland, notifications, dbus, v6.2]
 ---
-
 ## The Vision
-
 A minimal Rust notification daemon replacing mako. Same layer-shell foundation as faelight-bar.
 
 ## Why
-
 - mako works but isn't ours
 - No integration with profiles/intents
 - Can't match faelight-bar aesthetics perfectly
 - DBus + layer-shell experience gained
 
 ## Features
-
 - DBus notification protocol (org.freedesktop.Notifications)
 - Layer-shell rendering (like faelight-bar)
-- Profile-aware styling
 - Faelight Forest color palette
-- Action buttons (clickable)
-- Notification history (optional)
-- Do-not-disturb mode per profile
+- Click to dismiss
+- Auto-expire (5s default)
+- Multiple notification badge (+N)
 
 ## Technical
-
 - wayland-client + smithay-client-toolkit
-- zbus for DBus
-- Same font rendering as faelight-bar
-- Shared color constants
+- zbus for DBus (tokio async)
+- fontdue for text rendering
+- Shared color constants with faelight-bar
 
 ## Success Criteria
+- [x] Receives DBus notifications
+- [x] Renders on Wayland layer-shell
+- [x] Matches faelight-bar aesthetics
+- [x] Replaces mako as daily driver
+- [ ] Profile-aware (future: work = minimal, gaming = silent)
+- [ ] Action buttons (future)
+- [ ] Notification history (future)
 
-- [ ] Receives DBus notifications
-- [ ] Renders on Wayland layer-shell
-- [ ] Matches faelight-bar aesthetics
-- [ ] Profile-aware (work = minimal, gaming = silent)
-- [ ] Replaces mako as daily driver
+## Completed
+v0.2.0 released in v6.2.0 (2026-01-10)
+- Working D-Bus server on org.freedesktop.Notifications
+- Layer-shell overlay rendering
+- Click to dismiss, auto-expire
+- Integrated into Sway autostart
 
 ---
-
 _The forest whispers._ 🌲
