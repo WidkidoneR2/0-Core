@@ -3,6 +3,102 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.4.0] - 2026-01-10
+
+### 🏗️ Architectural Milestone
+
+**faelight v0.1 - Unified CLI**
+- Single entry point for all Faelight commands
+- Subcommands: health, profile, intent, core, sway, git, config, launch, explain
+- Global flags: --json, --dry-run
+- Shell becomes thin aliases
+
+**faelight-config - Typed TOML Layer**
+- ~/.config/faelight/config.toml - global settings
+- ~/.config/faelight/profiles.toml - profile definitions
+- ~/.config/faelight/themes.toml - color themes
+- Schema validation via serde
+
+**dot-doctor v0.2 - Health Engine Upgrade**
+- --explain: detailed explanations for each check
+- --json: machine-readable output
+- --graph: dependency visualization
+- --check <id>: run specific check only
+- --fail-on-warning: CI mode
+- Dependency graph (blocked checks when parent fails)
+- Severity levels (Critical/High/Medium/Low)
+
+**faelight-git v0.1 - Git Governance**
+- install-hooks: pre-commit, commit-msg, pre-push
+- verify: check commit readiness
+- status: lock status
+- Blocks commits when core locked
+- Suggests intent references for significant changes
+
+### 📚 Documentation
+- docs/HEALTH-ENGINE.md - dot-doctor reference
+- docs/FAELIGHT-CLI.md - unified CLI commands
+- docs/FAELIGHT-GIT.md - git governance
+- docs/FAELIGHT-CONFIG.md - TOML configuration
+- docs/TOOLS-REFERENCE.md - master tools list
+
+### Technical
+- 9 custom Rust tools in daily use
+- Intents 021-024 complete
+- Health: 100%
+
+> "The forest evolves." 🌲
+
+---
+
+## [6.4.0] - 2026-01-10
+
+### 🏗️ Architectural Milestone
+
+**faelight v0.1 - Unified CLI**
+- Single entry point for all Faelight commands
+- Subcommands: health, profile, intent, core, sway, git, config, launch, explain
+- Global flags: --json, --dry-run
+- Shell becomes thin aliases
+
+**faelight-config - Typed TOML Layer**
+- ~/.config/faelight/config.toml - global settings
+- ~/.config/faelight/profiles.toml - profile definitions
+- ~/.config/faelight/themes.toml - color themes
+- Schema validation via serde
+
+**dot-doctor v0.2 - Health Engine Upgrade**
+- --explain: detailed explanations for each check
+- --json: machine-readable output
+- --graph: dependency visualization
+- --check <id>: run specific check only
+- --fail-on-warning: CI mode
+- Dependency graph (blocked checks when parent fails)
+- Severity levels (Critical/High/Medium/Low)
+
+**faelight-git v0.1 - Git Governance**
+- install-hooks: pre-commit, commit-msg, pre-push
+- verify: check commit readiness
+- status: lock status
+- Blocks commits when core locked
+- Suggests intent references for significant changes
+
+### 📚 Documentation
+- docs/HEALTH-ENGINE.md - dot-doctor reference
+- docs/FAELIGHT-CLI.md - unified CLI commands
+- docs/FAELIGHT-GIT.md - git governance
+- docs/FAELIGHT-CONFIG.md - TOML configuration
+- docs/TOOLS-REFERENCE.md - master tools list
+
+### Technical
+- 9 custom Rust tools in daily use
+- Intents 021-024 complete
+- Health: 100%
+
+> "The forest evolves." 🌲
+
+---
+
 
 ## [6.3.0] - 2026-01-10
 ### 🦀 New Rust Tools
