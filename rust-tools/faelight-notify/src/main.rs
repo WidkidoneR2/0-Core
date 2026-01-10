@@ -1,5 +1,5 @@
-//! faelight-notify - Rust Notification Daemon
-//! 🌲 Faelight Forest v6.2
+//! faelight-notify v0.2 - Working Notification Daemon
+//! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -29,115 +29,66 @@ use wayland_client::{
 use fontdue::{Font, FontSettings};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::os::unix::io::AsFd;
-use tokio::sync::mpsc;
 use zbus::{connection, interface};
 
-// ═══════════════════════════════════════════════════════════
-// 🎨 FAELIGHT FOREST COLORS
-// ═══════════════════════════════════════════════════════════
-const NOTIFY_WIDTH: u32 = 350;
-const NOTIFY_HEIGHT: u32 = 80;
-const MARGIN: u32 = 10;
+const NOTIFY_WIDTH: u32 = 400;
+const NOTIFY_HEIGHT: u32 = 100;
+const MARGIN: u32 = 15;
 
-const BG_COLOR: [u8; 4] = [0x1c, 0x1f, 0x1a, 0xF0];
+const BG_COLOR: [u8; 4] = [0x1a, 0x1d, 0x18, 0xF5];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const TITLE_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
+const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMono-Medium.ttf");
 
-// ═══════════════════════════════════════════════════════════
-// 📨 NOTIFICATION STRUCTURE
-// ═══════════════════════════════════════════════════════════
 #[derive(Clone, Debug)]
 struct Notification {
-    #[allow(dead_code)]
-    id: u32,
     app_name: String,
     summary: String,
     body: String,
-    timeout: i32,
     created: Instant,
+    timeout_ms: i32,
 }
 
 impl Notification {
     fn is_expired(&self) -> bool {
-        if self.timeout <= 0 {
-            self.created.elapsed() > Duration::from_secs(5)
-        } else {
-            self.created.elapsed() > Duration::from_millis(self.timeout as u64)
-        }
+        let timeout = if self.timeout_ms <= 0 { 5000 } else { self.timeout_ms };
+        self.created.elapsed() > Duration::from_millis(timeout as u64)
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🔌 D-BUS INTERFACE
-// ═══════════════════════════════════════════════════════════
 struct NotificationServer {
-    sender: mpsc::UnboundedSender<Notification>,
+    notifications: Arc<Mutex<Vec<Notification>>>,
     next_id: Arc<Mutex<u32>>,
 }
 
 #[interface(name = "org.freedesktop.Notifications")]
 impl NotificationServer {
     fn get_capabilities(&self) -> Vec<String> {
-        vec!["body".to_string(), "body-markup".to_string()]
+        vec!["body".into()]
     }
 
-    fn notify(
-        &self,
-        app_name: String,
-        replaces_id: u32,
-        _app_icon: String,
-        summary: String,
-        body: String,
-        _actions: Vec<String>,
-        _hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
-        expire_timeout: i32,
-    ) -> u32 {
-        let id = if replaces_id > 0 {
-            replaces_id
-        } else {
-            let mut next = self.next_id.lock().unwrap();
-            *next += 1;
-            *next
-        };
+    fn notify(&self, app_name: String, _replaces_id: u32, _app_icon: String, summary: String, body: String, _actions: Vec<String>, _hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>, expire_timeout: i32) -> u32 {
+        let mut id = self.next_id.lock().unwrap();
+        *id += 1;
+        let current_id = *id;
+        drop(id);
 
-        let notification = Notification {
-            id,
-            app_name,
-            summary,
-            body,
-            timeout: expire_timeout,
+        eprintln!("📨 {} - {}", summary, body);
+        self.notifications.lock().unwrap().push(Notification {
+            app_name, summary, body,
             created: Instant::now(),
-        };
-
-        eprintln!("📨 {} - {}", notification.summary, notification.body);
-        let _ = self.sender.send(notification);
-        id
+            timeout_ms: expire_timeout,
+        });
+        current_id
     }
 
     fn close_notification(&self, _id: u32) {}
-
     fn get_server_information(&self) -> (String, String, String, String) {
-        ("faelight-notify".into(), "faelight".into(), "0.1.0".into(), "1.2".into())
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 🖼️ RENDERING HELPERS
-// ═══════════════════════════════════════════════════════════
-fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
-    let stride = width as usize * 4;
-    for x in 0..width as usize {
-        canvas[x * 4..x * 4 + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[(height as usize - 1) * stride + x * 4..(height as usize - 1) * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
-    }
-    for y in 0..height as usize {
-        canvas[y * stride..y * stride + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[y * stride + (width as usize - 1) * 4..y * stride + (width as usize - 1) * 4 + 4].copy_from_slice(&BORDER_COLOR);
+        ("faelight-notify".into(), "faelight".into(), "0.2.0".into(), "1.2".into())
     }
 }
 
@@ -167,9 +118,20 @@ fn draw_text(font: &Font, canvas: &mut [u8], width: u32, height: u32, text: &str
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🖼️ WAYLAND STATE
-// ═══════════════════════════════════════════════════════════
+fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
+    let stride = width as usize * 4;
+    for t in 0..2usize {
+        for x in 0..width as usize {
+            canvas[t * stride + x * 4..t * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
+            canvas[(height as usize - 1 - t) * stride + x * 4..(height as usize - 1 - t) * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
+        }
+        for y in 0..height as usize {
+            canvas[y * stride + t * 4..y * stride + t * 4 + 4].copy_from_slice(&BORDER_COLOR);
+            canvas[y * stride + (width as usize - 1 - t) * 4..y * stride + (width as usize - 1 - t) * 4 + 4].copy_from_slice(&BORDER_COLOR);
+        }
+    }
+}
+
 struct NotifyState {
     registry_state: RegistryState,
     seat_state: SeatState,
@@ -190,21 +152,19 @@ struct NotifyState {
 }
 
 impl NotifyState {
-    fn draw(&mut self) {
-        let mut notifs = self.notifications.lock().unwrap();
-        notifs.retain(|n| !n.is_expired());
-        
-        let has_notifs = !notifs.is_empty();
-        let notif_data = notifs.first().cloned();
+    fn draw(&mut self, qh: &QueueHandle<Self>) {
+        // Clean expired
+        self.notifications.lock().unwrap().retain(|n| !n.is_expired());
+
+        let notifs = self.notifications.lock().unwrap();
+        let notif = notifs.first().cloned();
+        let count = notifs.len();
         drop(notifs);
 
-        if !has_notifs {
-            if let Some(ref surface) = self.layer_surface {
-                surface.wl_surface().attach(None, 0, 0);
-                surface.wl_surface().commit();
-            }
-            return;
-        }
+        let surface = match &self.layer_surface {
+            Some(s) => s,
+            None => return,
+        };
 
         let width = self.width;
         let height = self.height;
@@ -220,32 +180,35 @@ impl NotifyState {
             Err(_) => return,
         };
 
+        // Fill based on notification state
+        let bg = if notif.is_some() { BG_COLOR } else { TRANSPARENT };
         for pixel in canvas.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&BG_COLOR);
+            pixel.copy_from_slice(&bg);
         }
 
-        draw_border(canvas, width, height);
-
-        if let Some(n) = notif_data {
-            draw_text(&self.font, canvas, width, height, &n.app_name, 10, 8, DIM_COLOR, 12.0);
-            draw_text(&self.font, canvas, width, height, &n.summary, 10, 28, TITLE_COLOR, 16.0);
-            let body = if n.body.len() > 45 { format!("{}...", &n.body[..42]) } else { n.body };
-            draw_text(&self.font, canvas, width, height, &body, 10, 52, TEXT_COLOR, 14.0);
+        if let Some(n) = notif {
+            draw_border(canvas, width, height);
+            draw_text(&self.font, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, 22.0);
+            draw_text(&self.font, canvas, width, height, &n.summary, 12, 35, TITLE_COLOR, 22.0);
+            let body = if n.body.len() > 50 { format!("{}...", &n.body[..47]) } else { n.body };
+            draw_text(&self.font, canvas, width, height, &body, 12, 62, TEXT_COLOR, 22.0);
+            if count > 1 {
+                draw_text(&self.font, canvas, width, height, &format!("+{}", count - 1), width - 40, 12, BORDER_COLOR, 22.0);
+            }
         }
 
-        if let Some(ref surface) = self.layer_surface {
-            surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-            surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
-            surface.wl_surface().commit();
-        }
+        surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
+        surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
+        surface.wl_surface().frame(qh, surface.wl_surface().clone());
+        surface.wl_surface().commit();
     }
 }
 
 impl CompositorHandler for NotifyState {
     fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
     fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
-    fn frame(&mut self, _: &Connection, _qh: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {
-        self.draw();
+    fn frame(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {
+        self.draw(qh);
     }
     fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
     fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
@@ -259,14 +222,12 @@ impl OutputHandler for NotifyState {
 }
 
 impl LayerShellHandler for NotifyState {
-    fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
-        self.running = false;
-    }
-    fn configure(&mut self, _: &Connection, _qh: &QueueHandle<Self>, _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+    fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) { self.running = false; }
+    fn configure(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
         self.width = configure.new_size.0.max(NOTIFY_WIDTH);
         self.height = configure.new_size.1.max(NOTIFY_HEIGHT);
         self.configured = true;
-        self.draw();
+        self.draw(qh);
     }
 }
 
@@ -285,10 +246,7 @@ impl PointerHandler for NotifyState {
         for event in events {
             if let PointerEventKind::Press { button: 272, .. } = event.kind {
                 let mut notifs = self.notifications.lock().unwrap();
-                if !notifs.is_empty() {
-                    notifs.remove(0);
-                    eprintln!("🔕 Dismissed");
-                }
+                if !notifs.is_empty() { notifs.remove(0); eprintln!("🔕 Dismissed"); }
             }
         }
     }
@@ -311,44 +269,28 @@ delegate_pointer!(NotifyState);
 delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
-// ═══════════════════════════════════════════════════════════
-// 🚀 MAIN
-// ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.1.0 starting...");
+    eprintln!("🌲 faelight-notify v0.2.0 starting...");
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
-    let notifications_clone = notifications.clone();
-    
-    // D-Bus in separate thread
+    let notifs_for_dbus = notifications.clone();
+
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let (tx, mut rx) = mpsc::unbounded_channel();
-            let next_id = Arc::new(Mutex::new(0u32));
-
-            let server = NotificationServer { sender: tx, next_id };
-
-            let conn = connection::Builder::session()
-                .expect("D-Bus session")
+            let server = NotificationServer {
+                notifications: notifs_for_dbus,
+                next_id: Arc::new(Mutex::new(0)),
+            };
+            let _conn = connection::Builder::session()
+                .expect("session")
                 .name("org.freedesktop.Notifications")
-                .expect("D-Bus name")
+                .expect("name")
                 .serve_at("/org/freedesktop/Notifications", server)
-                .expect("D-Bus serve")
-                .build()
-                .await
-                .expect("D-Bus connection");
-
+                .expect("serve")
+                .build().await.expect("conn");
             eprintln!("🔌 D-Bus ready");
-
-            loop {
-                tokio::select! {
-                    _ = conn.executor().tick() => {},
-                    Some(notif) = rx.recv() => {
-                        notifications_clone.lock().unwrap().push(notif);
-                    }
-                }
-            }
+            std::future::pending::<()>().await;
         });
     });
 
@@ -379,8 +321,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         seat_state: SeatState::new(&globals, &qh),
         output_state: OutputState::new(&globals, &qh),
         compositor_state: compositor,
-        shm,
-        layer_shell,
+        shm, layer_shell,
         layer_surface: Some(layer_surface),
         pool: Some(pool),
         width: NOTIFY_WIDTH,
@@ -393,24 +334,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("✅ faelight-notify running!");
 
-    // Non-blocking event loop with periodic redraw
-    let fd = conn.as_fd();
-    use std::os::unix::io::BorrowedFd;
-    
-    
+    // Start frame loop
+    if let Some(ref s) = state.layer_surface {
+        s.wl_surface().frame(&qh, s.wl_surface().clone());
+        s.wl_surface().commit();
+    }
+
     while state.running {
-        // Poll with timeout
-        let mut fds = [nix::poll::PollFd::new(fd, nix::poll::PollFlags::POLLIN)];
-        let _ = nix::poll::poll(&mut fds, nix::poll::PollTimeout::from(100u16));
-        
-        // Dispatch any pending events
-        event_queue.dispatch_pending(&mut state)?;
-        conn.flush()?;
-        
-        // Redraw
-        if state.configured {
-            state.draw();
-        }
+        event_queue.blocking_dispatch(&mut state)?;
     }
 
     Ok(())

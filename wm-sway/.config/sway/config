@@ -209,9 +209,9 @@ bindsym $mod+Shift+c reload
 # ═══════════════════════════════════════════════════════════
 # 🔔 NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════
-bindsym $mod+i exec makoctl set-mode do-not-disturb && notify-send "🔕 DND" "Enabled"
-bindsym $mod+Shift+i exec makoctl set-mode default && notify-send "🔔 Notifications" "Enabled"
-bindsym $mod+Ctrl+i exec makoctl dismiss -a
+bindsym $mod+i exec ~/0-core/scripts/faelight-notifyctl set-mode do-not-disturb && notify-send "🔕 DND" "Enabled"
+bindsym $mod+Shift+i exec ~/0-core/scripts/faelight-notifyctl set-mode default && notify-send "🔔 Notifications" "Enabled"
+bindsym $mod+Ctrl+i exec ~/0-core/scripts/faelight-notifyctl dismiss -a
 
 # ═══════════════════════════════════════════════════════════
 # 🖱️ INPUT
@@ -243,7 +243,7 @@ for_window [title="Picture-in-Picture"] floating enable, sticky enable
 # 🚀 AUTOSTART
 # ═══════════════════════════════════════════════════════════
 exec ~/0-core/scripts/faelight-bar
-exec mako
+exec ~/0-core/scripts/faelight-notify
 exec wl-paste --watch cliphist store
 
 # ═══════════════════════════════════════════════════════════
