@@ -251,3 +251,11 @@ exec wl-paste --watch cliphist store
 # ═══════════════════════════════════════════════════════════
 bindsym $mod+space exec ~/0-core/scripts/faelight-launcher
 bindsym $mod+Shift+Escape exec ~/0-core/scripts/faelight-menu
+
+
+# Apps (Alt+key)
+bindsym $mod+Alt+k exec keepassxc
+bindsym $mod+Alt+e exec tutanota-desktop
+bindsym $mod+Alt+n exec notesnook
+bindsym $mod+Alt+d exec discord
+bindsym $mod+Alt+c exec filen-desktop
