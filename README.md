@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v6.3.0 - Sway Edition
+# 🌲 Faelight Forest v6.4.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v6.3.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.4.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v6.3.0 Milestone:** Complete migration to Sway WM after Hyprland catastrophe. Custom faelight-bar with Sway IPC, Faelight nvim colorscheme, 100% system health. 🌲🦀
+> **v6.4.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
 
 ---
 
@@ -42,7 +42,7 @@ Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.
 | **Editor** | Neovim (LazyVim) | Faelight colorscheme |
 | **Launcher** | Fuzzel | Dmenu replacement |
 | **Files** | Yazi | Terminal file manager |
-| **Notifications** | Mako | Wayland notifications |
+| **Notifications** | faelight-notify | Wayland notifications |
 | **Login** | tuigreet | Faelight themed greeter |
 
 ---
