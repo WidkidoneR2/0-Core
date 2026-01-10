@@ -237,7 +237,7 @@ fn check_git_health(core_dir: &PathBuf, stats: &mut Stats) {
 fn check_theme_packages(core_dir: &PathBuf, stats: &mut Stats) {
     println!("{}🎨 Checking theme packages...{}", CYAN, NC);
     
-    let themes = ["theme-gtk", "theme-term-foot-dark", "theme-launch-fuzzel-dark"];
+    let themes = ["term-foot", "launcher-fuzzel", "wm-sway"];
     let count = themes.iter().filter(|t| core_dir.join(t).is_dir()).count();
     
     stats.total += 1;
