@@ -1,118 +1,318 @@
+//! dot-doctor v0.2 - Faelight Forest Health Engine
+//! 🌲 Model system integrity with dependency awareness
+
+use clap::Parser;
+use colored::*;
+use serde::Serialize;
 use std::env;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::os::unix::fs::PermissionsExt;
 
-// ANSI colors
-const RED: &str = "\x1b[0;31m";
-const GREEN: &str = "\x1b[0;32m";
-const YELLOW: &str = "\x1b[1;33m";
-const CYAN: &str = "\x1b[0;36m";
-const DIM: &str = "\x1b[2m";
-const NC: &str = "\x1b[0m";
+#[derive(Parser)]
+#[command(name = "dot-doctor")]
+#[command(about = "🏥 Faelight Forest Health Engine")]
+#[command(version)]
+struct Cli {
+    /// Show detailed explanations for each check
+    #[arg(long)]
+    explain: bool,
 
-struct Stats {
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+
+    /// Fail on warnings (for CI)
+    #[arg(long, name = "fail-on-warning")]
+    fail_on_warning: bool,
+
+    /// Show dependency graph
+    #[arg(long)]
+    graph: bool,
+
+    /// Run specific check only
+    #[arg(long)]
+    check: Option<String>,
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📊 DATA STRUCTURES
+// ═══════════════════════════════════════════════════════════
+
+#[derive(Clone, Copy, PartialEq, Serialize)]
+enum Severity {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+#[derive(Clone, Copy, PartialEq, Serialize)]
+enum Status {
+    Pass,
+    Warn,
+    Fail,
+    Blocked,
+}
+
+#[derive(Serialize)]
+struct CheckResult {
+    id: String,
+    name: String,
+    status: Status,
+    severity: Severity,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fix: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+struct HealthReport {
+    version: String,
     total: u32,
     passed: u32,
-    failed: u32,
     warnings: u32,
+    failed: u32,
+    blocked: u32,
+    health_percent: u32,
+    checks: Vec<CheckResult>,
 }
 
-fn main() {
-    let home = env::var("HOME").expect("HOME not set");
-    let core_dir = PathBuf::from(&home).join("0-core");
-    
-    let version = fs::read_to_string(core_dir.join("VERSION"))
-        .unwrap_or_else(|_| "unknown".to_string());
-    
-    println!("{}🏥 Dotfile Health Check - Faelight Forest v{}{}", CYAN, version.trim(), NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
-    let mut stats = Stats { total: 0, passed: 0, failed: 0, warnings: 0 };
-    
-    check_stow_symlinks(&home, &mut stats);
-    check_yazi_plugins(&home, &mut stats);
-    check_broken_symlinks(&home, &mut stats);
-    check_services(&mut stats);
-    check_binaries(&mut stats);
-    check_git_health(&core_dir, &mut stats);
-    check_theme_packages(&core_dir, &mut stats);
-    check_scripts(&core_dir, &mut stats);
-    check_config_aging(&core_dir, &mut stats);
-    check_intentional_defaults(&core_dir, &mut stats);
-    check_intent_ledger(&core_dir, &mut stats);
-    check_profile_system(&home, &core_dir, &mut stats);
-    
-    // Final report
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
-    let health = (stats.passed as f32 / stats.total as f32 * 100.0) as u32;
-    
-    if stats.failed > 0 {
-        println!("{}❌ System has issues ({} failed checks){}", RED, stats.failed, NC);
-    } else if stats.warnings > 0 {
-        println!("{}⚠️  System mostly healthy ({}%){}", YELLOW, health, NC);
-    } else {
-        println!("{}✅ System healthy! All checks passed! 🌲{}", GREEN, NC);
-    }
-    
-    println!("Statistics:");
-    println!("   Passed:   {}", stats.passed);
-    println!("   Failed:   {}", stats.failed);
-    println!("   Warnings: {}", stats.warnings);
-    println!("   Total:    {}", stats.total);
-    println!("   Health:   {}%", health);
+struct Check {
+    id: &'static str,
+    name: &'static str,
+    depends_on: &'static [&'static str],
+    severity: Severity,
+    explanation: &'static str,
+    run: fn(&Context) -> CheckResult,
 }
 
-fn check_stow_symlinks(home: &str, stats: &mut Stats) {
-    println!("{}🔗 Checking Stow symlinks...{}", CYAN, NC);
-    
-    let config = PathBuf::from(home).join(".config");
+struct Context {
+    home: String,
+    core_dir: PathBuf,
+    version: String,
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔍 CHECK DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+
+const CHECKS: &[Check] = &[
+    Check {
+        id: "stow",
+        name: "Stow Symlinks",
+        depends_on: &[],
+        severity: Severity::Critical,
+        explanation: "Verifies GNU Stow has created symlinks from 0-core packages to ~/.config. \
+                      Without this, configurations won't be active.",
+        run: check_stow,
+    },
+    Check {
+        id: "services",
+        name: "System Services",
+        depends_on: &["stow"],
+        severity: Severity::High,
+        explanation: "Checks that faelight-bar and faelight-notify are running. \
+                      These provide the status bar and notification system.",
+        run: check_services,
+    },
+    Check {
+        id: "broken_symlinks",
+        name: "Broken Symlinks",
+        depends_on: &["stow"],
+        severity: Severity::Medium,
+        explanation: "Scans config directories for symlinks pointing to non-existent targets. \
+                      Broken symlinks cause silent failures.",
+        run: check_broken_symlinks,
+    },
+    Check {
+        id: "yazi_plugins",
+        name: "Yazi Plugins",
+        depends_on: &["stow"],
+        severity: Severity::Low,
+        explanation: "Verifies Yazi file manager plugins are installed. \
+                      Missing plugins reduce functionality but aren't critical.",
+        run: check_yazi_plugins,
+    },
+    Check {
+        id: "binaries",
+        name: "Binary Dependencies",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Checks that required command-line tools are installed. \
+                      Missing binaries will cause command failures.",
+        run: check_binaries,
+    },
+    Check {
+        id: "git",
+        name: "Git Repository",
+        depends_on: &[],
+        severity: Severity::Medium,
+        explanation: "Checks 0-core git status: uncommitted changes and unpushed commits. \
+                      Clean state ensures recoverability.",
+        run: check_git,
+    },
+    Check {
+        id: "themes",
+        name: "Theme Packages",
+        depends_on: &["stow"],
+        severity: Severity::Low,
+        explanation: "Verifies theme packages (colors, fonts, icons) exist. \
+                      Missing themes affect appearance but not function.",
+        run: check_themes,
+    },
+    Check {
+        id: "scripts",
+        name: "Scripts",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Checks that core scripts exist and are executable. \
+                      Non-executable scripts cause permission errors.",
+        run: check_scripts,
+    },
+    Check {
+        id: "dotmeta",
+        name: "Package Metadata",
+        depends_on: &[],
+        severity: Severity::Low,
+        explanation: "Verifies all packages have .dotmeta files documenting their purpose. \
+                      Missing metadata reduces maintainability.",
+        run: check_dotmeta,
+    },
+    Check {
+        id: "intents",
+        name: "Intent Ledger",
+        depends_on: &[],
+        severity: Severity::Low,
+        explanation: "Validates the Intent Ledger has properly formatted intent files. \
+                      The ledger documents all major decisions.",
+        run: check_intents,
+    },
+    Check {
+        id: "profiles",
+        name: "Profile System",
+        depends_on: &["scripts"],
+        severity: Severity::Medium,
+        explanation: "Checks the profile system is properly configured. \
+                      Profiles control system behavior for different contexts.",
+        run: check_profiles,
+    },
+    Check {
+        id: "config",
+        name: "Faelight Config",
+        depends_on: &[],
+        severity: Severity::Medium,
+        explanation: "Validates TOML configuration files in ~/.config/faelight/. \
+                      Invalid config prevents faelight commands from working.",
+        run: check_faelight_config,
+    },
+];
+
+// ═══════════════════════════════════════════════════════════
+// 🔍 CHECK IMPLEMENTATIONS
+// ═══════════════════════════════════════════════════════════
+
+fn check_stow(ctx: &Context) -> CheckResult {
+    let config = PathBuf::from(&ctx.home).join(".config");
     let mut stowed = 0;
-    
-    // Check for symlinked files inside config dirs
-    if config.join("sway/config").is_symlink() { stowed += 1; }
-    if config.join("foot/foot.ini").is_symlink() { stowed += 1; }
-    if config.join("fuzzel/fuzzel.ini").is_symlink() { stowed += 1; }
-    if config.join("yazi/yazi.toml").is_symlink() { stowed += 1; }
-    
-    // Starship
-    if config.join("starship.toml").is_symlink() { stowed += 1; }
-    
-    // Git
-    if PathBuf::from(home).join(".gitconfig").is_symlink() { stowed += 1; }
-    
-    println!("   {}✅ All {}/6 packages properly stowed{}", GREEN, stowed, NC);
-    stats.total += 1;
-    stats.passed += 1;
-}
+    let mut details = vec![];
 
-fn check_yazi_plugins(home: &str, stats: &mut Stats) {
-    println!("{}🔌 Checking Yazi plugins...{}", CYAN, NC);
-    
-    let plugin_dir = PathBuf::from(home).join(".config/yazi/plugins");
-    let plugins = ["full-border.yazi", "git.yazi", "jump-to-char.yazi", "smart-enter.yazi"];
-    let count = plugins.iter().filter(|p| plugin_dir.join(p).is_dir()).count();
-    
-    stats.total += 1;
-    if count == 4 {
-        println!("   {}✅ All 4 plugins installed{}", GREEN, NC);
-        stats.passed += 1;
+    let checks = [
+        ("sway/config", "wm-sway"),
+        ("foot/foot.ini", "term-foot"),
+        ("fuzzel/fuzzel.ini", "launcher-fuzzel"),
+        ("yazi/yazi.toml", "fm-yazi"),
+        ("starship.toml", "prompt-starship"),
+    ];
+
+    for (path, pkg) in checks {
+        if config.join(path).is_symlink() {
+            stowed += 1;
+            details.push(format!("✓ {} ({})", path, pkg));
+        } else {
+            details.push(format!("✗ {} missing", path));
+        }
+    }
+
+    // Check .gitconfig
+    if PathBuf::from(&ctx.home).join(".gitconfig").is_symlink() {
+        stowed += 1;
+        details.push("✓ .gitconfig (vcs-git)".to_string());
     } else {
-        println!("   {}⚠️  Only {}/4 plugins installed{}", YELLOW, count, NC);
-        stats.warnings += 1;
+        details.push("✗ .gitconfig missing".to_string());
+    }
+
+    let total = 6;
+    if stowed == total {
+        CheckResult {
+            id: "stow".to_string(),
+            name: "Stow Symlinks".to_string(),
+            status: Status::Pass,
+            severity: Severity::Critical,
+            message: format!("All {}/{} packages properly stowed", stowed, total),
+            fix: None,
+            details: Some(details),
+        }
+    } else {
+        CheckResult {
+            id: "stow".to_string(),
+            name: "Stow Symlinks".to_string(),
+            status: Status::Fail,
+            severity: Severity::Critical,
+            message: format!("Only {}/{} packages stowed", stowed, total),
+            fix: Some("Run: cd ~/0-core && stow <package-name>".to_string()),
+            details: Some(details),
+        }
     }
 }
 
-fn check_broken_symlinks(home: &str, stats: &mut Stats) {
-    println!("{}🔗 Checking for broken symlinks...{}", CYAN, NC);
-    
-    let config = PathBuf::from(home).join(".config");
-    let dirs = ["sway", "faelight-bar", "mako", "foot", "yazi", "fish", "zsh"];
-    let mut broken = 0;
-    
+fn check_services(_ctx: &Context) -> CheckResult {
+    let mut running = 0;
+    let mut details = vec![];
+
+    let services = [("faelight-bar", "Status bar"), ("faelight-notify", "Notifications")];
+
+    for (name, desc) in services {
+        let output = Command::new("pgrep").arg("-x").arg(name).output();
+        if output.map(|o| o.status.success()).unwrap_or(false) {
+            running += 1;
+            details.push(format!("✓ {} ({})", name, desc));
+        } else {
+            details.push(format!("✗ {} not running", name));
+        }
+    }
+
+    if running == 2 {
+        CheckResult {
+            id: "services".to_string(),
+            name: "System Services".to_string(),
+            status: Status::Pass,
+            severity: Severity::High,
+            message: format!("All {}/2 services running", running),
+            fix: None,
+            details: Some(details),
+        }
+    } else {
+        CheckResult {
+            id: "services".to_string(),
+            name: "System Services".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: format!("Only {}/2 services running", running),
+            fix: Some("Restart Sway or run services manually".to_string()),
+            details: Some(details),
+        }
+    }
+}
+
+fn check_broken_symlinks(ctx: &Context) -> CheckResult {
+    let config = PathBuf::from(&ctx.home).join(".config");
+    let dirs = ["sway", "foot", "fuzzel", "yazi", "zsh"];
+    let mut broken = vec![];
+
     for dir in dirs {
         let path = config.join(dir);
         if path.exists() {
@@ -120,370 +320,606 @@ fn check_broken_symlinks(home: &str, stats: &mut Stats) {
                 for entry in entries.flatten() {
                     let p = entry.path();
                     if p.is_symlink() && !p.exists() {
-                        broken += 1;
+                        broken.push(p.display().to_string());
                     }
                 }
             }
         }
     }
-    
-    stats.total += 1;
-    if broken == 0 {
-        println!("   {}✅ No broken symlinks found{}", GREEN, NC);
-        stats.passed += 1;
+
+    if broken.is_empty() {
+        CheckResult {
+            id: "broken_symlinks".to_string(),
+            name: "Broken Symlinks".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: "No broken symlinks found".to_string(),
+            fix: None,
+            details: None,
+        }
     } else {
-        println!("   {}❌ Found {} broken symlinks{}", RED, broken, NC);
-        stats.failed += 1;
+        CheckResult {
+            id: "broken_symlinks".to_string(),
+            name: "Broken Symlinks".to_string(),
+            status: Status::Fail,
+            severity: Severity::Medium,
+            message: format!("{} broken symlinks found", broken.len()),
+            fix: Some("Remove broken links: rm <path>".to_string()),
+            details: Some(broken),
+        }
     }
 }
 
-fn check_services(stats: &mut Stats) {
-    println!("{}🔄 Checking system services...{}", CYAN, NC);
-    
-    let mut running = 0;
-    
-    // Check mako
-    if Command::new("pgrep").arg("-x").arg("faelight-notify").output()
-        .map(|o| o.status.success()).unwrap_or(false) {
-        running += 1;
+fn check_yazi_plugins(ctx: &Context) -> CheckResult {
+    let plugin_dir = PathBuf::from(&ctx.home).join(".config/yazi/plugins");
+    let plugins = ["full-border.yazi", "git.yazi", "jump-to-char.yazi", "smart-enter.yazi"];
+    let mut found = vec![];
+    let mut missing = vec![];
+
+    for p in plugins {
+        if plugin_dir.join(p).is_dir() {
+            found.push(format!("✓ {}", p));
+        } else {
+            missing.push(format!("✗ {}", p));
+        }
     }
-    
-    // Check faelight-bar
-    if Command::new("pgrep").arg("-x").arg("faelight-bar").output()
-        .map(|o| o.status.success()).unwrap_or(false) {
-        running += 1;
-    }
-    
-    stats.total += 1;
-    if running >= 2 {
-        println!("   {}✅ All {}/2 services running{}", GREEN, running, NC);
-        stats.passed += 1;
+
+    let count = found.len();
+    let mut details = found;
+    details.extend(missing);
+
+    if count == 4 {
+        CheckResult {
+            id: "yazi_plugins".to_string(),
+            name: "Yazi Plugins".to_string(),
+            status: Status::Pass,
+            severity: Severity::Low,
+            message: "All 4 plugins installed".to_string(),
+            fix: None,
+            details: Some(details),
+        }
     } else {
-        println!("   {}⚠️  Only {}/2 services running{}", YELLOW, running, NC);
-        stats.warnings += 1;
+        CheckResult {
+            id: "yazi_plugins".to_string(),
+            name: "Yazi Plugins".to_string(),
+            status: Status::Warn,
+            severity: Severity::Low,
+            message: format!("Only {}/4 plugins installed", count),
+            fix: Some("Install missing plugins via ya pack".to_string()),
+            details: Some(details),
+        }
     }
 }
 
-fn check_binaries(stats: &mut Stats) {
-    println!("{}📦 Checking binary dependencies...{}", CYAN, NC);
-    
-    let binaries = [
-        "nvim", "eza", "bat", "fd", "fzf", "yazi", "lazygit", "fastfetch",
-        "swaymsg", "faelight-bar", "mako", "starship", "git", "stow", "direnv"
+fn check_binaries(_ctx: &Context) -> CheckResult {
+    let bins = [
+        "sway", "foot", "fuzzel", "yazi", "nvim", "git", "stow",
+        "starship", "bat", "eza", "fd", "rg", "zoxide",
+        "brightnessctl", "wpctl",
     ];
-    
-    let count = binaries.iter().filter(|b| {
-        Command::new("which").arg(b).output()
-            .map(|o| o.status.success()).unwrap_or(false)
-    }).count();
-    
-    stats.total += 1;
-    if count == binaries.len() {
-        println!("   {}✅ All {} binaries found{}", GREEN, count, NC);
-        stats.passed += 1;
+    let mut found = 0;
+    let mut missing = vec![];
+
+    for bin in bins {
+        if Command::new("which").arg(bin).output().map(|o| o.status.success()).unwrap_or(false) {
+            found += 1;
+        } else {
+            missing.push(bin.to_string());
+        }
+    }
+
+    let total = bins.len();
+    if found == total {
+        CheckResult {
+            id: "binaries".to_string(),
+            name: "Binary Dependencies".to_string(),
+            status: Status::Pass,
+            severity: Severity::High,
+            message: format!("All {} binaries found", total),
+            fix: None,
+            details: None,
+        }
     } else {
-        println!("   {}⚠️  Found {}/{} binaries{}", YELLOW, count, binaries.len(), NC);
-        stats.warnings += 1;
+        CheckResult {
+            id: "binaries".to_string(),
+            name: "Binary Dependencies".to_string(),
+            status: Status::Fail,
+            severity: Severity::High,
+            message: format!("{} binaries missing", missing.len()),
+            fix: Some("Install with: sudo pacman -S <package>".to_string()),
+            details: Some(missing),
+        }
     }
 }
 
-fn check_git_health(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}📊 Checking Git repository health...{}", CYAN, NC);
-    
-    let mut issues = 0;
-    
+fn check_git(ctx: &Context) -> CheckResult {
+    let mut issues = vec![];
+
     // Check for uncommitted changes
-    let diff = Command::new("git")
-        .args(["-C", &core_dir.to_string_lossy(), "diff-index", "--quiet", "HEAD", "--"])
-        .status();
-    
-    if diff.map(|s| s.success()).unwrap_or(false) {
-        println!("   {}✅ Working tree clean{}", GREEN, NC);
-    } else {
-        println!("   {}⚠️  Uncommitted changes{}", YELLOW, NC);
-        issues += 1;
-    }
-    
-    // Check local vs remote
-    let local = Command::new("git")
-        .args(["-C", &core_dir.to_string_lossy(), "rev-parse", "@"])
+    let status = Command::new("git")
+        .args(["-C", ctx.core_dir.to_str().unwrap(), "status", "--porcelain"])
         .output();
-    let remote = Command::new("git")
-        .args(["-C", &core_dir.to_string_lossy(), "rev-parse", "@{u}"])
+
+    let has_changes = status
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    if has_changes {
+        issues.push("Uncommitted changes".to_string());
+    }
+
+    // Check for unpushed commits
+    let unpushed = Command::new("git")
+        .args(["-C", ctx.core_dir.to_str().unwrap(), "log", "@{u}..", "--oneline"])
         .output();
-    
-    let local_hash = local.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-    let remote_hash = remote.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-    
-    if local_hash == remote_hash && !local_hash.is_empty() {
-        println!("   {}✅ All commits pushed{}", GREEN, NC);
-    } else {
-        println!("   {}⚠️  Local != Remote{}", YELLOW, NC);
-        issues += 1;
+
+    let has_unpushed = unpushed
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    if has_unpushed {
+        issues.push("Unpushed commits".to_string());
     }
-    
-    stats.total += 1;
-    if issues == 0 {
-        stats.passed += 1;
+
+    if issues.is_empty() {
+        CheckResult {
+            id: "git".to_string(),
+            name: "Git Repository".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: "Working tree clean, all commits pushed".to_string(),
+            fix: None,
+            details: None,
+        }
     } else {
-        stats.warnings += 1;
+        CheckResult {
+            id: "git".to_string(),
+            name: "Git Repository".to_string(),
+            status: Status::Warn,
+            severity: Severity::Medium,
+            message: issues.join(", "),
+            fix: Some("Commit and push changes: git add -A && git commit && git push".to_string()),
+            details: Some(issues),
+        }
     }
 }
 
-fn check_theme_packages(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}🎨 Checking theme packages...{}", CYAN, NC);
-    
-    let themes = ["term-foot", "launcher-fuzzel", "wm-sway"];
-    let count = themes.iter().filter(|t| core_dir.join(t).is_dir()).count();
-    
-    stats.total += 1;
-    if count == 3 {
-        println!("   {}✅ 3/3 theme packages present{}", GREEN, NC);
-        stats.passed += 1;
+fn check_themes(ctx: &Context) -> CheckResult {
+    let packages = ["config-faelight"];
+    let mut found = 0;
+
+    for pkg in packages {
+        if ctx.core_dir.join(pkg).is_dir() {
+            found += 1;
+        }
+    }
+
+    // Also check for any theme- prefixed directories
+    let theme_count = fs::read_dir(&ctx.core_dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_name().to_string_lossy().starts_with("config-faelight") || e.file_name().to_string_lossy().starts_with("theme-"))
+                .count()
+        })
+        .unwrap_or(0);
+
+    if theme_count >= 1 {
+        CheckResult {
+            id: "themes".to_string(),
+            name: "Theme Packages".to_string(),
+            status: Status::Pass,
+            severity: Severity::Low,
+            message: format!("{}/1 theme packages present", theme_count),
+            fix: None,
+            details: None,
+        }
     } else {
-        println!("   {}⚠️  Only {}/3 theme packages present{}", YELLOW, count, NC);
-        stats.warnings += 1;
+        CheckResult {
+            id: "themes".to_string(),
+            name: "Theme Packages".to_string(),
+            status: Status::Warn,
+            severity: Severity::Low,
+            message: format!("Only {}/1 theme packages found", theme_count),
+            fix: None,
+            details: None,
+        }
     }
 }
 
-fn check_scripts(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}📜 Checking scripts...{}", CYAN, NC);
-    
-    let scripts_dir = core_dir.join("scripts");
-    let scripts = ["core-protect", "safe-update", "dotctl"];
-    
-    let issues = scripts.iter().filter(|s| {
-        let path = scripts_dir.join(s);
-        !path.exists() || fs::metadata(&path).map(|m| m.permissions().mode() & 0o111 == 0).unwrap_or(true)
-    }).count();
-    
-    stats.total += 1;
-    if issues == 0 {
-        println!("   {}✅ All scripts present and executable{}", GREEN, NC);
-        stats.passed += 1;
-    } else {
-        println!("   {}⚠️  {} scripts have issues{}", YELLOW, issues, NC);
-        stats.warnings += 1;
-    }
-}
+fn check_scripts(ctx: &Context) -> CheckResult {
+    let scripts_dir = ctx.core_dir.join("scripts");
+    let required = ["dot-doctor", "dotctl", "faelight", "profile", "intent"];
+    let mut issues = vec![];
 
-fn check_config_aging(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}📅 Checking config aging...{}", CYAN, NC);
-    
-    let mut recent = 0;
-    let mut aging = 0;
-    let mut stale = 0;
-    let mut ancient = 0;
-    
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    
-    fn walk_dir(path: &PathBuf, now: u64, recent: &mut u32, aging: &mut u32, stale: &mut u32, ancient: &mut u32) {
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.to_string_lossy().contains(".git") || p.to_string_lossy().contains("/target/") { continue; }
-                
-                if p.is_dir() {
-                    walk_dir(&p, now, recent, aging, stale, ancient);
-                } else if p.is_file() {
-                    if let Ok(meta) = fs::metadata(&p) {
-                        if let Ok(modified) = meta.modified() {
-                            let age = modified.duration_since(UNIX_EPOCH).unwrap().as_secs();
-                            let days = (now - age) / 86400;
-                            
-                            if days < 30 { *recent += 1; }
-                            else if days < 90 { *aging += 1; }
-                            else if days < 365 { *stale += 1; }
-                            else { *ancient += 1; }
-                        }
-                    }
-                }
+    for script in required {
+        let path = scripts_dir.join(script);
+        if !path.exists() {
+            issues.push(format!("{} missing", script));
+        } else if let Ok(meta) = path.metadata() {
+            if meta.permissions().mode() & 0o111 == 0 {
+                issues.push(format!("{} not executable", script));
             }
         }
     }
-    
-    walk_dir(core_dir, now, &mut recent, &mut aging, &mut stale, &mut ancient);
-    
-    let total = recent + aging + stale + ancient;
-    
-    println!("   Recent (< 30 days):    {}{} files{}", GREEN, recent, NC);
-    println!("   Aging (30-90 days):    {}{} files{}", YELLOW, aging, NC);
-    println!("   Stale (90-365 days):   {}{} files{}", YELLOW, stale, NC);
-    if ancient > 0 {
-        println!("   Ancient (1+ year):     {}{} files{}", RED, ancient, NC);
+
+    if issues.is_empty() {
+        CheckResult {
+            id: "scripts".to_string(),
+            name: "Scripts".to_string(),
+            status: Status::Pass,
+            severity: Severity::High,
+            message: "All scripts present and executable".to_string(),
+            fix: None,
+            details: None,
+        }
     } else {
-        println!("   Ancient (1+ year):     {}{} files{}", GREEN, ancient, NC);
+        CheckResult {
+            id: "scripts".to_string(),
+            name: "Scripts".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: format!("{} script issues", issues.len()),
+            fix: Some("chmod +x ~/0-core/scripts/*".to_string()),
+            details: Some(issues),
+        }
     }
-    println!("   {}Total tracked: {} files{}", DIM, total, NC);
-    
-    stats.total += 1;
-    stats.passed += 1;
 }
 
-fn check_intentional_defaults(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}🎯 Checking intentional defaults...{}", CYAN, NC);
-    
-    let mut issues = 0;
-    
-    // Check non-semantic filenames
-    let bad_patterns = ["temp", "new-", "old-", "backup", "test", "tmp"];
-    
-    
-    fn check_files(path: &PathBuf, patterns: &[&str]) -> Vec<String> {
-        let mut bad = vec![];
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.to_string_lossy().contains(".git") || p.to_string_lossy().contains("/target/") { continue; }
-                
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                for pattern in patterns {
-                    if name.starts_with(pattern) {
-                        bad.push(entry.file_name().to_string_lossy().to_string());
-                    }
-                }
-                
-                if p.is_dir() {
-                    bad.extend(check_files(&p, patterns));
-                }
-            }
-        }
-        bad
-    }
-    
-    let bad_files = check_files(core_dir, &bad_patterns);
-    if bad_files.is_empty() {
-        println!("   {}✅ All filenames are semantic{}", GREEN, NC);
-    } else {
-        println!("   {}❌ Non-semantic filenames found:{}", RED, NC);
-        for f in &bad_files { println!("      {}{}{}", DIM, f, NC); }
-        issues += bad_files.len();
-    }
-    
-    // Check directory naming
-    println!("   {}✅ All directories follow semantic naming{}", GREEN, NC);
-    
-    // Check packages without .dotmeta
-    let mut missing_meta = vec![];
-    if let Ok(entries) = fs::read_dir(core_dir) {
+fn check_dotmeta(ctx: &Context) -> CheckResult {
+    let mut missing = vec![];
+
+    if let Ok(entries) = fs::read_dir(&ctx.core_dir) {
         for entry in entries.flatten() {
-            let p = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
-            
-            // Only check semantic packages (prefix-name)
-            if p.is_dir() && name.contains('-') && !name.starts_with('.') {
-                if !p.join(".dotmeta").exists() {
-                    missing_meta.push(name);
+            let path = entry.path();
+            if path.is_dir() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                // Skip non-package directories
+                if name.starts_with('.') || name == "scripts" || name == "docs" 
+                    || name == "INTENT" || name == "rust-tools" || name == "target" {
+                    continue;
+                }
+                if !path.join(".dotmeta").exists() {
+                    missing.push(name);
                 }
             }
         }
     }
-    
-    if missing_meta.is_empty() {
-        println!("   {}✅ All packages have .dotmeta{}", GREEN, NC);
+
+    if missing.is_empty() {
+        CheckResult {
+            id: "dotmeta".to_string(),
+            name: "Package Metadata".to_string(),
+            status: Status::Pass,
+            severity: Severity::Low,
+            message: "All packages have .dotmeta".to_string(),
+            fix: None,
+            details: None,
+        }
     } else {
-        println!("   {}⚠️  Packages missing .dotmeta:{}", YELLOW, NC);
-        for pkg in &missing_meta { println!("      {}", pkg); }
-        issues += missing_meta.len();
-    }
-    
-    stats.total += 1;
-    if issues == 0 {
-        stats.passed += 1;
-    } else {
-        stats.warnings += 1;
+        CheckResult {
+            id: "dotmeta".to_string(),
+            name: "Package Metadata".to_string(),
+            status: Status::Warn,
+            severity: Severity::Low,
+            message: format!("{} packages missing .dotmeta", missing.len()),
+            fix: Some("Create .dotmeta files for packages".to_string()),
+            details: Some(missing),
+        }
     }
 }
 
-fn check_intent_ledger(core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}📜 Checking Intent Ledger...{}", CYAN, NC);
-    
-    let intent_dir = core_dir.join("INTENT");
+fn check_intents(ctx: &Context) -> CheckResult {
+    let intent_dir = ctx.core_dir.join("INTENT");
     let mut total = 0;
     let mut complete = 0;
     let mut planned = 0;
-    let mut decided = 0;
-    
-    fn count_intents(dir: &PathBuf, total: &mut u32, complete: &mut u32, planned: &mut u32, decided: &mut u32) {
-        if let Ok(entries) = fs::read_dir(dir) {
+
+    for category in ["decisions", "experiments", "philosophy", "future", "incidents"] {
+        let cat_dir = intent_dir.join(category);
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    count_intents(&p, total, complete, planned, decided);
-                } else if p.extension().map(|e| e == "md").unwrap_or(false) {
-                    *total += 1;
-                    if let Ok(content) = fs::read_to_string(&p) {
-                        for line in content.lines() {
-                            if line.starts_with("status:") {
-                                let status = line.replace("status:", "").trim().to_lowercase();
-                                if status.contains("complete") { *complete += 1; }
-                                else if status.contains("planned") { *planned += 1; }
-                                else if status.contains("decided") { *decided += 1; }
-                                break;
-                            }
+                if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                    total += 1;
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        if content.contains("status: complete") {
+                            complete += 1;
+                        } else if content.contains("status: planned") {
+                            planned += 1;
                         }
                     }
                 }
             }
         }
     }
-    
-    count_intents(&intent_dir, &mut total, &mut complete, &mut planned, &mut decided);
-    
-    println!("   Total: {} intents", total);
-    if complete > 0 { println!("   {}✅ Complete: {}{}", GREEN, complete, NC); }
-    if planned > 0 { println!("   {}📅 Planned: {}{}", CYAN, planned, NC); }
-    if decided > 0 { println!("   {}✓ Decided: {}{}", CYAN, decided, NC); }
-    println!("   {}✅ Intent Ledger healthy{}", GREEN, NC);
-    
-    stats.total += 1;
-    stats.passed += 1;
-}
 
-fn check_profile_system(home: &str, core_dir: &PathBuf, stats: &mut Stats) {
-    println!("{}🎮 Checking Profile System...{}", CYAN, NC);
-    
-    let mut issues = 0;
-    
-    // Check profile script
-    let script = core_dir.join("scripts/profile");
-    if script.exists() {
-        println!("   {}✅ Profile script installed{}", GREEN, NC);
-    } else {
-        println!("   {}❌ Profile script missing{}", RED, NC);
-        issues += 1;
-    }
-    
-    // Current profile
-    let state_file = PathBuf::from(home).join(".local/state/0-core/current-profile");
-    let current = fs::read_to_string(&state_file)
-        .unwrap_or_else(|_| "default".to_string());
-    println!("   Current: {}{}{}", CYAN, current.trim(), NC);
-    
-    // Count profiles
-    let profile_dir = core_dir.join("profiles");
-    let count = fs::read_dir(&profile_dir)
-        .map(|entries| entries.flatten().filter(|e| {
-            e.path().extension().map(|x| x == "profile").unwrap_or(false)
-        }).count())
-        .unwrap_or(0);
-    println!("   Available: {} profiles", count);
-    
-    // State directory
-    let state_dir = PathBuf::from(home).join(".local/state/0-core");
-    if state_dir.exists() {
-        println!("   {}✅ State directory exists{}", GREEN, NC);
-    } else {
-        println!("   {}⚠️  State directory missing{}", YELLOW, NC);
-        issues += 1;
-    }
-    
-    stats.total += 1;
-    if issues == 0 {
-        stats.passed += 1;
-    } else {
-        stats.warnings += 1;
+    CheckResult {
+        id: "intents".to_string(),
+        name: "Intent Ledger".to_string(),
+        status: Status::Pass,
+        severity: Severity::Low,
+        message: format!("{} intents ({} complete, {} planned)", total, complete, planned),
+        fix: None,
+        details: Some(vec![
+            format!("Total: {}", total),
+            format!("Complete: {}", complete),
+            format!("Planned: {}", planned),
+        ]),
     }
 }
 
+fn check_profiles(ctx: &Context) -> CheckResult {
+    let state_dir = PathBuf::from(&ctx.home).join(".local/state/faelight");
+    let profile_script = ctx.core_dir.join("scripts/profile");
 
+    let mut issues = vec![];
+
+    if !profile_script.exists() {
+        issues.push("Profile script missing".to_string());
+    }
+
+    if !state_dir.exists() {
+        issues.push("State directory missing".to_string());
+    }
+
+    let current = fs::read_to_string(state_dir.join("current-profile"))
+        .unwrap_or_else(|_| "default".to_string())
+        .trim()
+        .to_string();
+
+    if issues.is_empty() {
+        CheckResult {
+            id: "profiles".to_string(),
+            name: "Profile System".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: format!("Profile system OK (current: {})", current),
+            fix: None,
+            details: Some(vec![format!("Current profile: {}", current)]),
+        }
+    } else {
+        CheckResult {
+            id: "profiles".to_string(),
+            name: "Profile System".to_string(),
+            status: Status::Warn,
+            severity: Severity::Medium,
+            message: format!("{} issues", issues.len()),
+            fix: Some("Run: mkdir -p ~/.local/state/faelight".to_string()),
+            details: Some(issues),
+        }
+    }
+}
+
+fn check_faelight_config(ctx: &Context) -> CheckResult {
+    let config_dir = PathBuf::from(&ctx.home).join(".config/faelight");
+    let files = ["config.toml", "profiles.toml", "themes.toml"];
+    let mut missing = vec![];
+    let mut found = vec![];
+
+    for file in files {
+        let path = config_dir.join(file);
+        if path.exists() {
+            // Try to parse it
+            if let Ok(content) = fs::read_to_string(&path) {
+                if toml_valid(&content) {
+                    found.push(format!("✓ {}", file));
+                } else {
+                    missing.push(format!("✗ {} (invalid TOML)", file));
+                }
+            }
+        } else {
+            missing.push(format!("✗ {} (missing)", file));
+        }
+    }
+
+    if missing.is_empty() {
+        CheckResult {
+            id: "config".to_string(),
+            name: "Faelight Config".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: "All config files valid".to_string(),
+            fix: None,
+            details: Some(found),
+        }
+    } else {
+        let mut details = found;
+        details.extend(missing.clone());
+        CheckResult {
+            id: "config".to_string(),
+            name: "Faelight Config".to_string(),
+            status: if missing.iter().any(|m| m.contains("invalid")) { Status::Fail } else { Status::Warn },
+            severity: Severity::Medium,
+            message: format!("{} config issues", missing.len()),
+            fix: Some("Run: faelight config validate".to_string()),
+            details: Some(details),
+        }
+    }
+}
+
+fn toml_valid(content: &str) -> bool {
+    // Simple validation - check for basic TOML structure
+    !content.is_empty() && (content.contains('[') || content.contains('='))
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🚀 MAIN
+// ═══════════════════════════════════════════════════════════
+
+fn main() {
+    let cli = Cli::parse();
+
+    let home = env::var("HOME").expect("HOME not set");
+    let core_dir = PathBuf::from(&home).join("0-core");
+    let version = fs::read_to_string(core_dir.join("VERSION"))
+        .unwrap_or_else(|_| "unknown".to_string())
+        .trim()
+        .to_string();
+
+    let ctx = Context { home: home.clone(), core_dir, version: version.clone() };
+
+    // Show dependency graph
+    if cli.graph {
+        print_dependency_graph();
+        return;
+    }
+
+    // Run checks
+    let mut results: Vec<CheckResult> = Vec::new();
+    let mut completed: Vec<&str> = Vec::new();
+    let mut failed_checks: Vec<&str> = Vec::new();
+
+    for check in CHECKS {
+        // Skip if specific check requested and this isn't it
+        if let Some(ref only) = cli.check {
+            if check.id != only {
+                continue;
+            }
+        }
+
+        // Check dependencies
+        let blocked = check.depends_on.iter().any(|dep| failed_checks.contains(dep));
+
+        if blocked {
+            results.push(CheckResult {
+                id: check.id.to_string(),
+                name: check.name.to_string(),
+                status: Status::Blocked,
+                severity: check.severity,
+                message: format!("Blocked by failed dependency"),
+                fix: None,
+                details: None,
+            });
+            continue;
+        }
+
+        let result = (check.run)(&ctx);
+        
+        if result.status == Status::Fail {
+            failed_checks.push(check.id);
+        }
+        
+        completed.push(check.id);
+        results.push(result);
+    }
+
+    // Calculate stats
+    let total = results.len() as u32;
+    let passed = results.iter().filter(|r| r.status == Status::Pass).count() as u32;
+    let warnings = results.iter().filter(|r| r.status == Status::Warn).count() as u32;
+    let failed = results.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    let blocked = results.iter().filter(|r| r.status == Status::Blocked).count() as u32;
+    let health_percent = if total > 0 { (passed * 100) / total } else { 0 };
+
+    let report = HealthReport {
+        version: version.clone(),
+        total,
+        passed,
+        warnings,
+        failed,
+        blocked,
+        health_percent,
+        checks: results,
+    };
+
+    // Output
+    if cli.json {
+        println!("{}", serde_json::to_string_pretty(&report).unwrap());
+    } else {
+        print_report(&report, cli.explain);
+    }
+
+    // Exit code
+    let exit_code = if failed > 0 {
+        1
+    } else if cli.fail_on_warning && warnings > 0 {
+        1
+    } else {
+        0
+    };
+
+    std::process::exit(exit_code);
+}
+
+fn print_report(report: &HealthReport, explain: bool) {
+    println!("{}🏥 Dotfile Health Check - Faelight Forest v{}{}", 
+             "\x1b[0;36m", report.version, "\x1b[0m");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    for check in &report.checks {
+        let (icon, color) = match check.status {
+            Status::Pass => ("✅", "\x1b[0;32m"),
+            Status::Warn => ("⚠️ ", "\x1b[1;33m"),
+            Status::Fail => ("❌", "\x1b[0;31m"),
+            Status::Blocked => ("🚫", "\x1b[2m"),
+        };
+
+        println!("{}{} {}: {}{}", color, icon, check.name, check.message, "\x1b[0m");
+
+        if explain {
+            // Find explanation
+            if let Some(c) = CHECKS.iter().find(|c| c.id == check.id) {
+                println!("   \x1b[2m{}\x1b[0m", c.explanation);
+            }
+            if let Some(ref fix) = check.fix {
+                println!("   \x1b[0;36m💡 Fix: {}\x1b[0m", fix);
+            }
+            if let Some(ref details) = check.details {
+                for d in details {
+                    println!("   \x1b[2m• {}\x1b[0m", d);
+                }
+            }
+            println!();
+        }
+    }
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    let status_msg = if report.failed > 0 {
+        format!("{}❌ {} checks failed{}", "\x1b[0;31m", report.failed, "\x1b[0m")
+    } else if report.warnings > 0 {
+        format!("{}⚠️  System mostly healthy ({}%){}", "\x1b[1;33m", report.health_percent, "\x1b[0m")
+    } else {
+        format!("{}✅ System healthy! All checks passed! 🌲{}", "\x1b[0;32m", "\x1b[0m")
+    };
+
+    println!("{}", status_msg);
+    println!("Statistics:");
+    println!("   Passed:   {}", report.passed);
+    println!("   Warnings: {}", report.warnings);
+    println!("   Failed:   {}", report.failed);
+    if report.blocked > 0 {
+        println!("   Blocked:  {}", report.blocked);
+    }
+    println!("   Total:    {}", report.total);
+    println!("   Health:   {}%", report.health_percent);
+}
+
+fn print_dependency_graph() {
+    println!("{}🔗 Health Check Dependency Graph{}", "\x1b[0;36m", "\x1b[0m");
+    println!();
+    
+    for check in CHECKS {
+        let deps = if check.depends_on.is_empty() {
+            "(root)".to_string()
+        } else {
+            format!("← {}", check.depends_on.join(", "))
+        };
+        
+        let severity_color = match check.severity {
+            Severity::Critical => "\x1b[0;31m",
+            Severity::High => "\x1b[1;33m",
+            Severity::Medium => "\x1b[0;36m",
+            Severity::Low => "\x1b[2m",
+        };
+        
+        println!("  {}{:<20}{} {}", severity_color, check.id, "\x1b[0m", deps);
+    }
+    
+    println!();
+    println!("Legend: {}Critical{} {}High{} {}Medium{} {}Low{}",
+             "\x1b[0;31m", "\x1b[0m",
+             "\x1b[1;33m", "\x1b[0m",
+             "\x1b[0;36m", "\x1b[0m",
+             "\x1b[2m", "\x1b[0m");
+}

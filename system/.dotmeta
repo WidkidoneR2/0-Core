@@ -1,0 +1,4 @@
+package: system
+version: 1.0.0
+description: System-level configurations
+blast_radius: high

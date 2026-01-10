@@ -1,0 +1,4 @@
+package: hooks
+version: 1.0.0
+description: Git hooks for 0-core
+blast_radius: low

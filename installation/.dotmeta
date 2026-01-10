@@ -1,0 +1,4 @@
+package: installation
+version: 1.0.0
+description: Installation and bootstrap scripts
+blast_radius: low

@@ -1,0 +1,4 @@
+package: automation
+version: 1.0.0
+description: Automation scripts and systemd units
+blast_radius: medium
