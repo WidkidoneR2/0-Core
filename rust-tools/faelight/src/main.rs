@@ -5,6 +5,7 @@
 
 use clap::{Parser, Subcommand};
 use colored::*;
+mod config;
 use std::process::{Command, exit};
 
 #[derive(Parser)]
@@ -67,6 +68,12 @@ enum Commands {
         app: LaunchApp,
     },
     
+    /// Configuration management
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+
     /// Show system info
     Status,
     
@@ -130,6 +137,18 @@ enum LaunchApp {
     Notify { message: String },
 }
 
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Validate all config files
+    Validate,
+    /// Show current configuration
+    Show,
+    /// Show config file path
+    Path,
+    /// Edit config in editor
+    Edit,
+}
+
 fn main() {
     let cli = Cli::parse();
     
@@ -142,6 +161,7 @@ fn main() {
         Commands::Core { action } => cmd_core(action, cli.dry_run),
         Commands::Sway { action } => cmd_sway(action, cli.dry_run),
         Commands::Launch { app } => cmd_launch(app),
+        Commands::Config { action } => cmd_config(action),
         Commands::Status => cmd_status(cli.json),
         Commands::Explain { topic } => cmd_explain(&topic),
     };
@@ -297,6 +317,68 @@ fn cmd_launch(app: LaunchApp) -> i32 {
 // ═══════════════════════════════════════════════════════════
 // 📊 STATUS
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// ⚙️ CONFIG
+// ═══════════════════════════════════════════════════════════
+fn cmd_config(action: ConfigAction) -> i32 {
+    use colored::*;
+    match action {
+        ConfigAction::Validate => {
+            println!("{}", "⚙️ Validating configuration files...".cyan());
+            println!();
+            let results = config::validate_all();
+            let mut all_ok = true;
+            for (file, result) in results {
+                match result {
+                    Ok(()) => println!("  {} {}", "✅".green(), file),
+                    Err(e) => {
+                        println!("  {} {} - {}", "❌".red(), file, e);
+                        all_ok = false;
+                    }
+                }
+            }
+            println!();
+            if all_ok {
+                println!("{}", "All configuration files valid! 🌲".green());
+                0
+            } else {
+                println!("{}", "Some configuration files have errors.".red());
+                1
+            }
+        }
+        ConfigAction::Show => {
+            match config::load_config() {
+                Ok(cfg) => {
+                    println!("{}", "⚙️ Current Configuration".cyan().bold());
+                    println!();
+                    println!("  Theme:    {}", cfg.system.theme);
+                    println!("  Profile:  {}", cfg.system.default_profile);
+                    println!("  Version:  {}", cfg.system.version);
+                    println!();
+                    println!("  Bar refresh:    {}ms", cfg.bar.refresh_ms);
+                    println!("  Notify timeout: {}ms", cfg.notifications.timeout_ms);
+                    println!("  Lock timeout:   {}min", cfg.lock.timeout_minutes);
+                    0
+                }
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        ConfigAction::Path => {
+            println!("{}", config::config_dir().display());
+            0
+        }
+        ConfigAction::Edit => {
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+            let path = config::config_dir().join("config.toml");
+            std::process::Command::new(editor).arg(path).status().ok();
+            0
+        }
+    }
+}
+
 fn cmd_status(json: bool) -> i32 {
     let home = std::env::var("HOME").unwrap_or_default();
     let version = std::fs::read_to_string(format!("{}/0-core/VERSION", home))

@@ -7,6 +7,8 @@ description = "Unified CLI for Faelight Forest"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 colored = "2"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
 
 [profile.release]
 opt-level = "z"

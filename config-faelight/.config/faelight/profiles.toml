@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Faelight Forest - Profile Definitions
+# ═══════════════════════════════════════════════════════════
+
+[default]
+description = "Balanced daily driver - the baseline state"
+icon = "🏠"
+vpn = true
+cpu_governor = "balanced"
+notifications = "all"
+bar_modules = ["workspaces", "window", "clock", "volume", "battery", "vpn"]
+
+[work]
+description = "Focus mode with VPN for work"
+icon = "💼"
+vpn = true
+cpu_governor = "balanced"
+notifications = "focused"
+bar_modules = ["workspaces", "window", "clock", "volume", "vpn"]
+auto_launch = ["tutanota-desktop", "slack"]
+
+[gaming]
+description = "Maximum GPU performance for gaming"
+icon = "🎮"
+vpn = false
+cpu_governor = "performance"
+gpu_mode = "max"
+notifications = "minimal"
+bar_modules = ["workspaces", "window", "clock", "volume"]
+
+[low-power]
+description = "Battery optimization for extended use"
+icon = "🔋"
+vpn = false
+cpu_governor = "powersave"
+notifications = "minimal"
+bar_refresh_ms = 2000

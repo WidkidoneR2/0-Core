@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Faelight Forest - Theme Definitions
+# ═══════════════════════════════════════════════════════════
+
+[faelight-forest]
+description = "The original forest theme"
+
+[faelight-forest.colors]
+background = "#0f1411"
+foreground = "#d7e0da"
+accent = "#a3e36b"
+accent_secondary = "#6be3a3"
+highlight = "#5cc8ff"
+warning = "#e3c76b"
+error = "#e36b6b"
+dim = "#778f7f"
+border = "#a3e36b"
+selected = "#2a3a25"
+
+[faelight-forest.bar]
+bg = "#141711"
+fg = "#d7e0da"
+accent = "#a3e36b"
+separator = "#778f7f"
+
+[faelight-forest.notify]
+bg = "#141711"
+fg = "#d7e0da"
+border = "#a3e36b"
+
+[faelight-forest.menu]
+bg = "#141711"
+fg = "#d7e0da"
+border = "#a3e36b"
+selected_bg = "#2a3a25"
+
+# Future themes can be added here
+# [tropical-sunset]
+# [midnight-ocean]

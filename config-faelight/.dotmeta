@@ -1,0 +1,8 @@
+package: config-faelight
+version: 1.0.0
+description: Faelight unified configuration (TOML)
+blast_radius: high
+contents:
+  - faelight config.toml
+  - profiles.toml
+  - themes.toml

@@ -3,7 +3,7 @@ id: 022
 date: 2026-01-10
 type: future
 title: "faelight-config - Typed Configuration Layer"
-status: planned
+status: complete
 tags: [rust, config, serde, v6.4.0]
 ---
 ## The Vision

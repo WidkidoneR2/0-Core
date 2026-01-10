@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════
+# 🌲 Faelight Forest - Global Configuration
+# ═══════════════════════════════════════════════════════════
+
+[system]
+version = "6.3.0"
+theme = "faelight-forest"
+default_profile = "default"
+
+[paths]
+core_dir = "~/0-core"
+scripts_dir = "~/0-core/scripts"
+state_dir = "~/.local/state/faelight"
+
+[health]
+fail_on_warning = false
+auto_check_on_unlock = true
+
+[notifications]
+enabled = true
+timeout_ms = 5000
+position = "top-right"
+
+[bar]
+refresh_ms = 500
+show_vpn = true
+show_battery = true
+show_volume = true
+
+[lock]
+timeout_minutes = 10
+show_clock = true
+blur_background = false
