@@ -151,7 +151,7 @@ Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
 
 | Layer | Implementation |
 |-------|---------------|
-| Disk | LUKS2 full disk encryption |
+| Disk | Btrfs (LUKS recommended) |
 | Firewall | UFW (deny incoming) |
 | Intrusion | fail2ban (sshd jail) |
 | DNS | DNSOverTLS (Quad9) |
