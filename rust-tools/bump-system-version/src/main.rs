@@ -8,12 +8,13 @@ fn main() {
     
     if args.len() != 2 {
         eprintln!("Usage: bump-system-version <new-version>");
-        eprintln!("Example: bump-system-version 6.3.0");
+        eprintln!("Example: bump-system-version 6.4.0");
         process::exit(1);
     }
     
     let new_version = &args[1];
     let core_dir = get_core_dir();
+    let home = env::var("HOME").expect("HOME not set");
     
     // Get current version
     let version_file = core_dir.join("VERSION");
@@ -25,38 +26,90 @@ fn main() {
     println!("🔄 Bumping system version: v{} → v{}", old_version, new_version);
     println!();
     
-    // Update VERSION file
+    let mut updated = 0;
+    let mut failed = 0;
+    
+    // 1. Update VERSION file
     if let Err(e) = fs::write(&version_file, format!("{}\n", new_version)) {
-        eprintln!("❌ Failed to update VERSION file: {}", e);
-        process::exit(1);
+        eprintln!("❌ VERSION file: {}", e);
+        failed += 1;
+    } else {
+        println!("✅ VERSION file");
+        updated += 1;
     }
-    println!("✅ Updated VERSION file");
     
-    // Update shell-zsh config (specific patterns only)
+    // 2. Update shell-zsh config
     let zshrc_path = core_dir.join("shell-zsh/.config/zsh/.zshrc");
-    if let Err(e) = update_zshrc(&zshrc_path, &old_version, new_version) {
-        eprintln!("❌ Failed to update shell-zsh config: {}", e);
-        process::exit(1);
+    match update_file(&zshrc_path, &old_version, new_version) {
+        Ok(count) => {
+            println!("✅ shell-zsh/.zshrc ({} replacements)", count);
+            updated += 1;
+        }
+        Err(e) => {
+            eprintln!("❌ shell-zsh/.zshrc: {}", e);
+            failed += 1;
+        }
     }
-    println!("✅ Updated shell-zsh config");
     
-    // Update README.md (specific patterns only)
+    // 3. Update README.md
     let readme_path = core_dir.join("README.md");
-    if let Err(e) = update_readme(&readme_path, &old_version, new_version) {
-        eprintln!("❌ Failed to update README.md: {}", e);
-        process::exit(1);
+    match update_file(&readme_path, &old_version, new_version) {
+        Ok(count) => {
+            println!("✅ README.md ({} replacements)", count);
+            updated += 1;
+        }
+        Err(e) => {
+            eprintln!("❌ README.md: {}", e);
+            failed += 1;
+        }
     }
-    println!("✅ Updated README.md");
+    
+    // 4. Update faelight config.toml
+    let config_path = PathBuf::from(&home).join(".config/faelight/config.toml");
+    if config_path.exists() {
+        match update_file(&config_path, &old_version, new_version) {
+            Ok(count) => {
+                println!("✅ faelight/config.toml ({} replacements)", count);
+                updated += 1;
+            }
+            Err(e) => {
+                eprintln!("❌ faelight/config.toml: {}", e);
+                failed += 1;
+            }
+        }
+        
+        // Also update the stowed version
+        let stowed_config = core_dir.join("config-faelight/.config/faelight/config.toml");
+        if stowed_config.exists() {
+            match update_file(&stowed_config, &old_version, new_version) {
+                Ok(count) => {
+                    println!("✅ config-faelight/config.toml ({} replacements)", count);
+                    updated += 1;
+                }
+                Err(e) => {
+                    eprintln!("❌ config-faelight/config.toml: {}", e);
+                    failed += 1;
+                }
+            }
+        }
+    }
     
     println!();
-    println!("🎉 System version bumped to v{}", new_version);
+    
+    if failed > 0 {
+        println!("⚠️  Version bump completed with {} errors", failed);
+    } else {
+        println!("🎉 System version bumped to v{}", new_version);
+    }
+    
+    println!();
+    println!("Updated {} files", updated);
     println!();
     println!("Next steps:");
-    println!("  1. Restow shell: stow -R shell-zsh");
-    println!("  2. Review changes: git diff");
-    println!("  3. Commit: git commit -am 'Bump version to v{}'", new_version);
+    println!("  1. Update CHANGELOG.md manually");
+    println!("  2. Review: git diff");
+    println!("  3. Commit: git commit -am '🌲 Release v{}'", new_version);
     println!("  4. Push: git push");
-    println!();
 }
 
 fn get_core_dir() -> PathBuf {
@@ -64,42 +117,43 @@ fn get_core_dir() -> PathBuf {
     PathBuf::from(home).join("0-core")
 }
 
-fn update_zshrc(path: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
+fn update_file(path: &PathBuf, old_version: &str, new_version: &str) -> Result<usize, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read: {}", e))?;
     
-    // Only replace in specific contexts
-    let new_content = content
-        // "# Version X.Y.Z" comment at top
-        .replace(&format!("# Version {}", old_version), &format!("# Version {}", new_version))
-        // "Welcome to Faelight Forest vX.Y.Z"
-        .replace(&format!("Faelight Forest v{}", old_version), &format!("Faelight Forest v{}", new_version))
-        // "DANGEROUS COMMAND HIGHLIGHTING (vX.Y.Z)"
-        .replace(&format!("HIGHLIGHTING (v{})", old_version), &format!("HIGHLIGHTING (v{})", new_version));
+    let mut count = 0;
+    let mut new_content = content.clone();
     
-    fs::write(path, new_content)
-        .map_err(|e| format!("Failed to write: {}", e))?;
+    // All version patterns to replace
+    let patterns = [
+        // Exact version (most common)
+        (format!("v{}", old_version), format!("v{}", new_version)),
+        // Without v prefix in specific contexts
+        (format!("Version {}", old_version), format!("Version {}", new_version)),
+        (format!("version = \"{}\"", old_version), format!("version = \"{}\"", new_version)),
+        // Badge format
+        (format!("Version-v{}", old_version), format!("Version-v{}", new_version)),
+        // Faelight Forest specific
+        (format!("Faelight Forest v{}", old_version), format!("Faelight Forest v{}", new_version)),
+        (format!("Faelight Forest {}", old_version), format!("Faelight Forest {}", new_version)),
+        // Highlighting comment
+        (format!("HIGHLIGHTING (v{})", old_version), format!("HIGHLIGHTING (v{})", new_version)),
+        // 0-Core specific
+        (format!("0-Core v{}", old_version), format!("0-Core v{}", new_version)),
+    ];
     
-    Ok(())
-}
-
-fn update_readme(path: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read: {}", e))?;
+    for (old_pat, new_pat) in &patterns {
+        let matches = new_content.matches(old_pat.as_str()).count();
+        if matches > 0 {
+            new_content = new_content.replace(old_pat.as_str(), new_pat.as_str());
+            count += matches;
+        }
+    }
     
-    // Replace version patterns in README
-    let new_content = content
-        // Badge: "v6.2.0-faelight"
-        .replace(&format!("v{}-faelight", old_version), &format!("v{}-faelight", new_version))
-        // "**Current Version**: 6.2.0"
-        .replace(&format!("**Current Version**: {}", old_version), &format!("**Current Version**: {}", new_version))
-        // "Version X.Y.Z"
-        .replace(&format!("Version {}", old_version), &format!("Version {}", new_version))
-        // Generic "vX.Y.Z" but only after "0-Core" or at start of badge
-        .replace(&format!("0-Core v{}", old_version), &format!("0-Core v{}", new_version));
+    if count > 0 {
+        fs::write(path, new_content)
+            .map_err(|e| format!("Failed to write: {}", e))?;
+    }
     
-    fs::write(path, new_content)
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    
-    Ok(())
+    Ok(count)
 }
