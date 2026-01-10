@@ -95,18 +95,21 @@ Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
 ## 🏗️ Directory Structure
 
 ### Numbered Hierarchy
+```
 ~/0-core/     🔒 Configuration (this repo) - MOST CRITICAL
 ~/1-src/      📁 Source code & projects
 ~/2-projects/ 💼 Active work
 ~/3-archive/  💎 Completed/archived
 ~/4-media/    🎬 Media files
 ~/secrets/    🔐 Never committed
+```
 
 ### Package Organization
+```
 0-core/
 ├── 🖥️ Desktop Environment
 │   ├── wm-sway/           Sway window manager
-│   └── notif-mako/        Notifications
+│   └── faelight-notify/   Custom notification daemon
 │
 ├── 💻 Shell & Terminal
 │   ├── shell-zsh/         Zsh configuration (188+ aliases)
@@ -118,25 +121,32 @@ Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
 │   ├── fm-yazi/           File manager
 │   └── vcs-git/           Git configuration
 │
-├── 🦀 Rust Tools
-│   └── rust-tools/        All 14 Rust binaries
-│       ├── dot-doctor/
-│       ├── faelight-bar/
-│       ├── core-protect/
-│       └── ...
+├── 🦀 Rust Tools (9 binaries)
+│   └── rust-tools/
+│       ├── faelight/          Unified CLI
+│       ├── dot-doctor/        Health engine
+│       ├── faelight-bar/      Status bar
+│       ├── faelight-git/      Git governance
+│       ├── faelight-notify/   Notifications
+│       ├── faelight-launcher/ App launcher
+│       ├── faelight-menu/     Power menu
+│       ├── faelight-lock/     Screen locker
+│       └── bump-system-version/
+│
+├── ⚙️ Configuration
+│   └── config-faelight/   Typed TOML configs
 │
 ├── 📜 Scripts
 │   └── scripts/           Compiled binaries + shell scripts
 │
-├── 🔒 System
-│   └── system/
-│       └── security/      Hardening configs
+├── 📚 Documentation
+│   └── docs/              Tool references & guides
 │
-└── 📚 Documentation
-└── docs/              Philosophy & guides
+└── 📜 Intent Ledger
+    └── INTENT/            Decision documentation
+```
 
 ---
-
 ## 🛡️ Security
 
 | Layer | Implementation |
