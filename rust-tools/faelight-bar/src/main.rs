@@ -1,3 +1,4 @@
+use std::time::{Duration, Instant};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
@@ -382,6 +383,7 @@ fn main() {
         font,
         click_regions: Vec::new(),
         pointer_x: 0.0,
+        last_draw: Instant::now(),
     };
     println!("🌲 faelight-bar v0.7 starting (Sway Edition)...");
     while state.running {
@@ -403,6 +405,7 @@ struct BarState {
     font: Font,
     click_regions: Vec<(i32, i32, String)>,
     pointer_x: f64,
+    last_draw: Instant,
 }
 
 impl BarState {
@@ -524,7 +527,13 @@ impl CompositorHandler for BarState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
     fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
     fn frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _time: u32) {
-        self.draw(qh);
+        if self.last_draw.elapsed() >= Duration::from_millis(500) {
+            self.last_draw = Instant::now();
+            self.draw(qh);
+        } else {
+            self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
+            self.layer_surface.wl_surface().commit();
+        }
     }
 }
 
