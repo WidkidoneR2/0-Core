@@ -1,0 +1,9 @@
+[package]
+name = "term-foot"
+version = "1.0.0"
+description = "Foot terminal - Faelight Forest theme"
+category = "terminal"
+last_updated = "2026-01-09"
+
+[changelog]
+"1.0.0" = "Faelight Forest colors for Sway Edition"
