@@ -285,7 +285,7 @@ fn check_config_aging(core_dir: &PathBuf, stats: &mut Stats) {
         if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.flatten() {
                 let p = entry.path();
-                if p.to_string_lossy().contains(".git") { continue; }
+                if p.to_string_lossy().contains(".git") || p.to_string_lossy().contains("/target/") { continue; }
                 
                 if p.is_dir() {
                     walk_dir(&p, now, recent, aging, stale, ancient);
@@ -338,7 +338,7 @@ fn check_intentional_defaults(core_dir: &PathBuf, stats: &mut Stats) {
         if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.flatten() {
                 let p = entry.path();
-                if p.to_string_lossy().contains(".git") { continue; }
+                if p.to_string_lossy().contains(".git") || p.to_string_lossy().contains("/target/") { continue; }
                 
                 let name = entry.file_name().to_string_lossy().to_lowercase();
                 for pattern in patterns {
