@@ -3,7 +3,7 @@ id: 021
 date: 2026-01-10
 type: future
 title: "faelight - Unified Binary (Core Spine)"
-status: planned
+status: complete
 tags: [rust, architecture, v6.4.0, critical]
 ---
 ## The Vision

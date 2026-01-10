@@ -407,7 +407,6 @@ alias ban-list='sudo fail2ban-client status sshd'
 # Quick reference
 alias keys='bat ~/0-core/docs/KEYBINDINGS.md'
 alias guide='bat ~/0-core/COMPLETE_GUIDE.md'
-alias faelight='bat ~/0-core/COMPLETE_GUIDE.md'
 
 # Planning
 alias roadmap='nvim ~/0-core/docs/planning/ROADMAP.md'
