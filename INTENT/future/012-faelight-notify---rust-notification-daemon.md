@@ -3,7 +3,7 @@ id: 012
 date: 2026-01-07
 type: future
 title: "faelight-notify - Rust Notification Daemon"
-status: planned
+status: in-progress
 tags: [rust, wayland, notifications, dbus, v5.2]
 ---
 

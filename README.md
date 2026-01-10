@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v6.1.0 - Sway Edition
+# 🌲 Faelight Forest v6.2.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v6.1.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.2.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v6.1.0 Milestone:** Complete migration to Sway WM after Hyprland catastrophe. Custom faelight-bar with Sway IPC, Faelight nvim colorscheme, 100% system health. 🌲🦀
+> **v6.2.0 Milestone:** Complete migration to Sway WM after Hyprland catastrophe. Custom faelight-bar with Sway IPC, Faelight nvim colorscheme, 100% system health. 🌲🦀
 
 ---
 
@@ -261,11 +261,11 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v6.1.0 | 2026-01-09 | Sway Edition - Complete migration |
-| v6.1.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
-| v6.1.0 | 2026-01-06 | Complete Rust transition |
-| v6.1.0 | 2025-12 | Profile system |
-| v6.1.0 | 2025-12 | Intent Ledger |
+| v6.2.0 | 2026-01-09 | Sway Edition - Complete migration |
+| v6.2.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
+| v6.2.0 | 2026-01-06 | Complete Rust transition |
+| v6.2.0 | 2025-12 | Profile system |
+| v6.2.0 | 2025-12 | Intent Ledger |
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 

@@ -3,7 +3,7 @@ id: 017
 date: 2026-01-07
 type: future
 title: "faelight-launcher - Rust App Launcher"
-status: planned
+status: complete
 tags: [rust, wayland, launcher, v5.5]
 ---
 

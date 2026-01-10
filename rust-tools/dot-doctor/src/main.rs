@@ -70,17 +70,13 @@ fn check_stow_symlinks(home: &str, stats: &mut Stats) {
     println!("{}🔗 Checking Stow symlinks...{}", CYAN, NC);
     
     let config = PathBuf::from(home).join(".config");
-    let packages = ["sway", "faelight-bar", "mako", "foot", "yazi"];
     let mut stowed = 0;
     
-    for pkg in packages {
-        if config.join(pkg).is_symlink() { stowed += 1; }
-    }
-    
-    // Fish or Zsh
-    if config.join("fish").is_symlink() || config.join("zsh").is_symlink() {
-        stowed += 1;
-    }
+    // Check for symlinked files inside config dirs
+    if config.join("sway/config").is_symlink() { stowed += 1; }
+    if config.join("foot/foot.ini").is_symlink() { stowed += 1; }
+    if config.join("fuzzel/fuzzel.ini").is_symlink() { stowed += 1; }
+    if config.join("yazi/yazi.toml").is_symlink() { stowed += 1; }
     
     // Starship
     if config.join("starship.toml").is_symlink() { stowed += 1; }
@@ -88,7 +84,7 @@ fn check_stow_symlinks(home: &str, stats: &mut Stats) {
     // Git
     if PathBuf::from(home).join(".gitconfig").is_symlink() { stowed += 1; }
     
-    println!("   {}✅ All {}/7 packages properly stowed{}", GREEN, stowed, NC);
+    println!("   {}✅ All {}/6 packages properly stowed{}", GREEN, stowed, NC);
     stats.total += 1;
     stats.passed += 1;
 }
@@ -147,7 +143,7 @@ fn check_services(stats: &mut Stats) {
     let mut running = 0;
     
     // Check mako
-    if Command::new("pgrep").arg("-x").arg("mako").output()
+    if Command::new("pgrep").arg("-x").arg("faelight-notify").output()
         .map(|o| o.status.success()).unwrap_or(false) {
         running += 1;
     }

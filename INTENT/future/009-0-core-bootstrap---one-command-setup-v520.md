@@ -3,7 +3,7 @@ id: 009
 date: 2026-01-05
 type: future
 title: "0-Core Bootstrap - One-Command Setup (v5.2.0)"
-status: planned
+status: complete
 tags: [bootstrap, installation, rust, v5.2.0]
 ---
 

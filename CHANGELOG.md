@@ -1,4 +1,44 @@
 # Changelog
+
+All notable changes to Faelight Forest / 0-Core.
+
+---
+
+## [6.2.0] - 2026-01-10
+### 🦀 Custom Rust Tools
+
+**faelight-notify v0.2**
+- Custom Rust notification daemon
+- D-Bus org.freedesktop.Notifications implementation
+- Wayland layer-shell rendering
+- Click to dismiss, auto-expire
+- Replaces mako in autostart
+
+**faelight-launcher v0.1**
+- Custom Rust app launcher
+- Keyboard navigation (j/k, arrows)
+- Static app list with icons
+- Launch with Enter, close with Escape
+- Bound to Super+Space
+
+**faelight-bootstrap v0.1**
+- One-command 0-core setup
+- Validates Arch Linux, installs deps
+- Clones repo, stows packages, builds tools
+- curl | bash installation ready
+
+**dot-doctor**
+- Fixed: ignore target/ directories in semantic check
+
+### Technical
+- All tools use Wayland layer-shell
+- Shared font rendering approach
+- Health: 100%
+
+> "The forest builds its own tools." 🌲
+
+---
+
 All notable changes to Faelight Forest / 0-Core.
 
 ---
