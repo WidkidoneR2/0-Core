@@ -1,0 +1,15 @@
+[package]
+name = "faelight-launcher"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal Rust app launcher for Wayland"
+
+[dependencies]
+smithay-client-toolkit = "0.19"
+wayland-client = "0.31"
+fontdue = "0.9"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

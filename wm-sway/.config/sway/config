@@ -249,3 +249,4 @@ exec wl-paste --watch cliphist store
 # ═══════════════════════════════════════════════════════════
 # 🌲 END FAELIGHT FOREST SWAY CONFIG
 # ═══════════════════════════════════════════════════════════
+bindsym $mod+space exec ~/0-core/scripts/faelight-launcher
