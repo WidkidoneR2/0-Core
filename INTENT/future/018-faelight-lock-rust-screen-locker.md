@@ -2,48 +2,41 @@
 id: 018
 date: 2026-01-09
 type: future
-title: ""faelight-lock - Rust Screen Locker""
-status: planned
-tags: [[rust, wayland, security, sway, v6.2]]
+title: "faelight-lock - Rust Screen Locker"
+status: complete
+tags: [rust, wayland, security, sway, v6.2]
 ---
-
 ## The Vision
-
-A minimal Rust screen locker replacing swaylock. Same layer-shell foundation as faelight-bar.
+A minimal Rust screen locker with Faelight Forest aesthetics.
 
 ## Why
+- Consistent visual theming with other faelight tools
+- Single command, Faelight colors
+- Foundation for future native PAM implementation
 
-- swaylock works but isn't ours
-- No integration with profiles/themes
-- Can't match faelight aesthetics perfectly
-- Consistent Rust toolchain
-
-## Features
-
-- PAM authentication
-- Layer-shell exclusive overlay
-- Faelight Forest color palette
-- Profile-aware (work = quick unlock, gaming = extended timeout)
-- Clock display while locked
-- Battery status visible
-- Blur/dim background option
+## Features (v0.1)
+- Wraps swaylock with Faelight Forest colors
+- Green ring indicator
+- Matching background/text colors
+- Error state in red
 
 ## Technical
-
-- wayland-client + smithay-client-toolkit
-- pam crate for authentication
-- Same font rendering as faelight-bar
-- Shared color constants
+- Wrapper around swaylock (PAM handled by swaylock)
+- Custom color configuration
+- Future: native PAM auth, clock display
 
 ## Success Criteria
+- [x] Locks screen on demand (Super+Ctrl+Escape)
+- [x] Faelight Forest colors
+- [x] PAM authentication (via swaylock)
+- [x] Replaces raw swaylock command
+- [ ] Native PAM implementation (future v0.2)
+- [ ] Clock display (future)
+- [ ] Battery status (future)
 
-- [ ] Locks screen on demand (Super+L)
-- [ ] PAM authentication working
-- [ ] Renders on Wayland layer-shell
-- [ ] Matches faelight-bar aesthetics
-- [ ] Idle timeout integration
-- [ ] Replaces swaylock as daily driver
+## Completed
+v0.1.0 released in v6.2.0 (2026-01-10)
+- Swaylock wrapper with Faelight theming
 
 ---
-
 _The forest sleeps safely._ 🌲🔒

@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 6.0 - Zsh Migration Edition
+# Version 6.3.0 - Faelight Forest
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -284,7 +284,7 @@ alias cpu='ps auxf | sort -nr -k 3 | head -10'
 
 # Network
 alias myip='curl -s ifconfig.me'
-alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v v6.2.0.1'
+alias localip='ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1'
 alias pingg='ping -c 5 google.com'
 alias ports='sudo ss -tulanp'
 alias listening='sudo lsof -i -P -n | grep LISTEN'
@@ -654,7 +654,7 @@ if [[ -f ~/.config/zsh/completions.zsh ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.2.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.3.0)
 # ═══════════════════════════════════════════════════════════
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
@@ -686,7 +686,7 @@ eval "$(starship init zsh)"
 if [[ -o interactive ]]; then
     fastfetch
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.0 - Sway Edition!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.3.0 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then

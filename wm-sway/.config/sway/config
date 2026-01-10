@@ -197,7 +197,7 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 # 🔒 LOCK & POWER
 # ═══════════════════════════════════════════════════════════
 # Lock screen (swaylock)
-bindsym $mod+Ctrl+Escape exec swaylock -f -c 0f1411
+bindsym $mod+Ctrl+Escape exec ~/0-core/scripts/faelight-lock
 
 # Power menu
 bindsym $mod+Escape exec ~/0-core/scripts/power-menu-fuzzel.sh

@@ -4,6 +4,37 @@ All notable changes to Faelight Forest / 0-Core.
 
 ---
 
+## [6.3.0] - 2026-01-10
+### 🦀 New Rust Tools
+
+**faelight-menu v0.1**
+- Power menu with lock/logout/suspend/reboot/shutdown
+- Keyboard navigation (j/k, arrows, quick keys)
+- Super+Shift+Escape keybinding
+
+**faelight-lock v0.1**
+- Screen locker with Faelight Forest theming
+- Wraps swaylock with custom colors
+- Super+Ctrl+Escape keybinding
+
+### Improvements
+- faelight-bar: 500ms frame throttle to reduce CPU usage
+- dot-doctor: Fixed stow symlink checking
+- Intent 012, 018, 020 marked complete
+
+### Technical
+- 7 custom Rust tools now in daily use
+- Health: 100%
+
+> "The forest protects its own." 🌲
+
+---
+
+
+All notable changes to Faelight Forest / 0-Core.
+
+---
+
 ## [6.2.0] - 2026-01-10
 ### 🦀 Custom Rust Tools
 

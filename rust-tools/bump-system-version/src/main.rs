@@ -1,17 +1,14 @@
-use regex::Regex;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process;
 
 fn main() {
-    // Get command line arguments
     let args: Vec<String> = env::args().collect();
     
     if args.len() != 2 {
         eprintln!("Usage: bump-system-version <new-version>");
-        eprintln!("");
-        eprintln!("Example: bump-system-version 4.3.0");
+        eprintln!("Example: bump-system-version 6.3.0");
         process::exit(1);
     }
     
@@ -35,17 +32,17 @@ fn main() {
     }
     println!("✅ Updated VERSION file");
     
-    // Update shell-zsh config
+    // Update shell-zsh config (specific patterns only)
     let zshrc_path = core_dir.join("shell-zsh/.config/zsh/.zshrc");
-    if let Err(e) = replace_version_in_file(&zshrc_path, new_version) {
+    if let Err(e) = update_zshrc(&zshrc_path, &old_version, new_version) {
         eprintln!("❌ Failed to update shell-zsh config: {}", e);
         process::exit(1);
     }
     println!("✅ Updated shell-zsh config");
     
-    // Update README.md
+    // Update README.md (specific patterns only)
     let readme_path = core_dir.join("README.md");
-    if let Err(e) = replace_version_in_file(&readme_path, new_version) {
+    if let Err(e) = update_readme(&readme_path, &old_version, new_version) {
         eprintln!("❌ Failed to update README.md: {}", e);
         process::exit(1);
     }
@@ -57,28 +54,52 @@ fn main() {
     println!("Next steps:");
     println!("  1. Restow shell: stow -R shell-zsh");
     println!("  2. Review changes: git diff");
-    println!("  3. Commit: git commit -am 'chore: Bump version to v{}'", new_version);
+    println!("  3. Commit: git commit -am 'Bump version to v{}'", new_version);
     println!("  4. Push: git push");
-    println!("  5. Lock: lock-core");
     println!();
-    println!("⚠️  Remember to lock-core when finished!");
 }
 
 fn get_core_dir() -> PathBuf {
-    let home = env::var("HOME").expect("HOME environment variable not set");
+    let home = env::var("HOME").expect("HOME not set");
     PathBuf::from(home).join("0-core")
 }
 
-fn replace_version_in_file(path: &PathBuf, new_version: &str) -> Result<(), String> {
+fn update_zshrc(path: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
     let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read file: {}", e))?;
+        .map_err(|e| format!("Failed to read: {}", e))?;
     
-    // Match version patterns like v1.2.3 or 1.2.3
-    let re = Regex::new(r"v?\d+\.\d+\.\d+").unwrap();
-    let new_content = re.replace_all(&content, format!("v{}", new_version));
+    // Only replace in specific contexts
+    let new_content = content
+        // "# Version X.Y.Z" comment at top
+        .replace(&format!("# Version {}", old_version), &format!("# Version {}", new_version))
+        // "Welcome to Faelight Forest vX.Y.Z"
+        .replace(&format!("Faelight Forest v{}", old_version), &format!("Faelight Forest v{}", new_version))
+        // "DANGEROUS COMMAND HIGHLIGHTING (vX.Y.Z)"
+        .replace(&format!("HIGHLIGHTING (v{})", old_version), &format!("HIGHLIGHTING (v{})", new_version));
     
-    fs::write(path, new_content.as_ref())
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    fs::write(path, new_content)
+        .map_err(|e| format!("Failed to write: {}", e))?;
+    
+    Ok(())
+}
+
+fn update_readme(path: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
+    let content = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read: {}", e))?;
+    
+    // Replace version patterns in README
+    let new_content = content
+        // Badge: "v6.2.0-faelight"
+        .replace(&format!("v{}-faelight", old_version), &format!("v{}-faelight", new_version))
+        // "**Current Version**: 6.2.0"
+        .replace(&format!("**Current Version**: {}", old_version), &format!("**Current Version**: {}", new_version))
+        // "Version X.Y.Z"
+        .replace(&format!("Version {}", old_version), &format!("Version {}", new_version))
+        // Generic "vX.Y.Z" but only after "0-Core" or at start of badge
+        .replace(&format!("0-Core v{}", old_version), &format!("0-Core v{}", new_version));
+    
+    fs::write(path, new_content)
+        .map_err(|e| format!("Failed to write: {}", e))?;
     
     Ok(())
 }

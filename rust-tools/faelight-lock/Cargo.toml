@@ -1,0 +1,17 @@
+[package]
+name = "faelight-lock"
+version = "0.1.0"
+edition = "2021"
+description = "Faelight Forest screen locker"
+
+[dependencies]
+smithay-client-toolkit = "0.19"
+wayland-client = "0.31"
+fontdue = "0.9"
+chrono = "0.4"
+pam = "0.8"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
