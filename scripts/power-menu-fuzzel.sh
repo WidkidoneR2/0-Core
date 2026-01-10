@@ -22,5 +22,5 @@ case "$chosen" in
     *"Reboot"*) systemctl reboot ;;
     *"Suspend"*) systemctl suspend ;;
     *"Lock"*) swaylock ;;
-    *"Logout"*) hyprctl dispatch exit ;;
+    *"Logout"*) swaymsg exit ;;
 esac

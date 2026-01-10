@@ -1,10 +1,10 @@
 # ⌨️ Faelight Forest Keybindings Reference
 
-Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (Windows/Command key).
+Complete keyboard shortcuts for Sway. All bindings use `SUPER` (Windows/Command key).
 
 ## 📖 Legend
 
-- `SUPER` = Windows/Command key (⊞/⌘)
+- `SUPER` = Windows/Command key (Mod4)
 - `SHIFT` = ⇧
 - `CTRL` = Control
 - `ALT` = Alt/Option
@@ -15,12 +15,11 @@ Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (W
 
 | Keybind | Action | Description |
 |---------|--------|-------------|
-| `SUPER + RETURN` | **Terminal** | Open Kitty in current directory |
+| `SUPER + RETURN` | **Terminal** | Open Foot terminal |
 | `SUPER + B` | **Browser** | Launch Brave |
+| `SUPER + D` | **Launcher** | Fuzzel app launcher |
 | `SUPER + E` | **File Manager** | Open Thunar |
-| `SUPER + N` | **Editor** | Launch default editor |
-| `SUPER + C` | **VSCode** | Open Visual Studio Code |
-| `SUPER + CTRL + RETURN` | **Terminal (Alt)** | Alternative terminal |
+| `SUPER + N` | **Editor** | Open Neovim in terminal |
 
 ### File Managers
 
@@ -29,57 +28,129 @@ Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (W
 | `SUPER + SHIFT + F` | Thunar (GUI) |
 | `SUPER + SHIFT + Y` | Yazi (TUI) |
 
-### Browsers
+### System Tools
 
 | Keybind | Action |
 |---------|--------|
-| `SUPER + SHIFT + B` | New Browser Window |
-| `SUPER + SHIFT + ALT + B` | Private Browser Window |
+| `SUPER + SHIFT + T` | btop (system monitor) |
+| `SUPER + SHIFT + N` | Neovim |
 
 ---
 
-## 🌐 Web Applications
+## 🪟 Window Management
 
-| Keybind | Application |
-|---------|-------------|
-| `SUPER + SHIFT + ALT + A` | **Claude AI** |
-| `SUPER + CTRL + A` | **Grok** |
-| `SUPER + SHIFT + G` | **Signal** |
-| `SUPER + SHIFT + E` | **Email (HEY)** |
-| `SUPER + SHIFT + C` | **Calendar** |
-| `SUPER + SHIFT + U` | **YouTube** |
-| `SUPER + SHIFT + X` | **X/Twitter** |
-| `SUPER + SHIFT + ALT + X` | **X Post** (Compose) |
+### Focus (Vim Keys)
 
----
+| Keybind | Direction |
+|---------|-----------|
+| `SUPER + H` | ← Left |
+| `SUPER + J` | ↓ Down |
+| `SUPER + K` | ↑ Up |
+| `SUPER + L` | → Right |
 
-## 🔧 System Tools
+### Focus (Arrow Keys)
 
-| Keybind | Tool | Description |
-|---------|------|-------------|
-| `SUPER + SHIFT + T` | **Activity Monitor** | btop system monitor |
-| `SUPER + SHIFT + D` | **Docker** | lazydocker TUI |
-| `SUPER + SHIFT + /` | **Passwords** | KeePassXC |
+| Keybind | Direction |
+|---------|-----------|
+| `SUPER + ←` | Left |
+| `SUPER + ↓` | Down |
+| `SUPER + ↑` | Up |
+| `SUPER + →` | Right |
 
----
+### Move Windows (Vim Keys)
 
-## 📝 Productivity Apps
+| Keybind | Direction |
+|---------|-----------|
+| `SUPER + SHIFT + H` | ← Left |
+| `SUPER + SHIFT + J` | ↓ Down |
+| `SUPER + SHIFT + K` | ↑ Up |
+| `SUPER + SHIFT + L` | → Right |
 
-| Keybind | Application |
-|---------|-------------|
-| `SUPER + SHIFT + O` | **Obsidian** |
-| `SUPER + SHIFT + W` | **Typora** |
-| `SUPER + SHIFT + N` | **Neovim** |
+### Move Windows (Arrow Keys)
 
----
+| Keybind | Direction |
+|---------|-----------|
+| `SUPER + SHIFT + ←` | Left |
+| `SUPER + SHIFT + ↓` | Down |
+| `SUPER + SHIFT + ↑` | Up |
+| `SUPER + SHIFT + →` | Right |
 
-## 📋 Clipboard Management
+### Resize Windows (Vim Keys)
 
 | Keybind | Action |
 |---------|--------|
-| `SUPER + P` | **Clipboard History** |
-| `SUPER + SHIFT + P` | **Clear Clipboard** |
-| `SUPER + CTRL + P` | **Clipboard Menu** |
+| `SUPER + CTRL + H` | Shrink Width |
+| `SUPER + CTRL + J` | Grow Height |
+| `SUPER + CTRL + K` | Shrink Height |
+| `SUPER + CTRL + L` | Grow Width |
+
+### Resize Mode
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + R` | Enter resize mode |
+| `H/J/K/L` | Resize in mode |
+| `ESCAPE` | Exit resize mode |
+
+---
+
+## 🎯 Window Actions
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + Q` | Close Window |
+| `SUPER + V` | Toggle Floating |
+| `SUPER + F` | Fullscreen |
+| `SUPER + O` | Center Window |
+| `SUPER + Z` | Sticky (Pin) |
+| `SUPER + T` | Toggle Split (H/V) |
+| `SUPER + W` | Layout Toggle (split/tabbed/stacking) |
+
+---
+
+## 🗂️ Workspaces
+
+### Switch to Workspace
+
+| Keybind | Workspace |
+|---------|-----------|
+| `SUPER + 1` | Workspace 1 |
+| `SUPER + 2` | Workspace 2 |
+| `SUPER + 3` | Workspace 3 |
+| `SUPER + 4` | Workspace 4 |
+| `SUPER + 5` | Workspace 5 |
+
+### Move Window to Workspace (Follow)
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + SHIFT + 1-5` | Move & Follow |
+
+### Move Window to Workspace (Silent)
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + ALT + 1-5` | Move Silently |
+
+### Workspace Navigation
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + ]` | Next Workspace |
+| `SUPER + [` | Previous Workspace |
+| `SUPER + TAB` | Last Workspace (Toggle) |
+| `SUPER + ~` | Last Workspace (Toggle) |
+| `SUPER + SHIFT + ]` | Move Window to Next |
+| `SUPER + SHIFT + [` | Move Window to Previous |
+
+---
+
+## 📌 Scratchpad
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + M` | Toggle Scratchpad |
+| `SUPER + SHIFT + M` | Move to Scratchpad |
 
 ---
 
@@ -87,22 +158,40 @@ Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (W
 
 | Keybind | Action |
 |---------|--------|
-| `SUPER + S` | **Full Screen** → ~/Pictures/Screenshots/ |
-| `SUPER + SHIFT + S` | **Area Selection** → Save to file |
-| `SUPER + ALT + S` | **Area to Clipboard** |
-| `SUPER + CTRL + S` | **Screenshot Editor** (Swappy) |
+| `SUPER + S` | Full Screen → Save |
+| `SUPER + SHIFT + S` | Area Selection → Save |
+| `SUPER + ALT + S` | Area → Clipboard |
+| `SUPER + CTRL + S` | Area → Swappy Editor |
 
 ---
 
-## 🔒 Power Management
+## 📋 Clipboard
 
 | Keybind | Action |
 |---------|--------|
-| `SUPER + L` | **Lock Screen** |
-| `SUPER + SHIFT + L` | **Logout** |
-| `SUPER + ALT + L` | **Suspend** |
-| `SUPER + CTRL + L` | **Hibernate** |
-| `SUPER + ESCAPE` | **Power Menu** |
+| `SUPER + P` | Clipboard History |
+| `SUPER + SHIFT + P` | Clear Clipboard |
+
+---
+
+## 🔒 Lock & Power
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + CTRL + ESCAPE` | Lock Screen |
+| `SUPER + ESCAPE` | Power Menu |
+| `SUPER + SHIFT + E` | Exit Sway (confirm) |
+| `SUPER + SHIFT + C` | Reload Sway Config |
+
+---
+
+## 🔔 Notifications
+
+| Keybind | Action |
+|---------|--------|
+| `SUPER + I` | Do Not Disturb ON |
+| `SUPER + SHIFT + I` | Notifications ON |
+| `SUPER + CTRL + I` | Dismiss All |
 
 ---
 
@@ -122,7 +211,6 @@ Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (W
 | Keybind | Action |
 |---------|--------|
 | `XF86AudioPlay` | Play/Pause |
-| `XF86AudioPause` | Pause |
 | `XF86AudioNext` | Next Track |
 | `XF86AudioPrev` | Previous Track |
 
@@ -135,268 +223,35 @@ Complete keyboard shortcuts for your Hyprland setup. All bindings use `SUPER` (W
 
 ---
 
-## 🪟 Window Management
-
-### Focus Movement (Vim Keys)
-
-| Keybind | Direction |
-|---------|-----------|
-| `SUPER + h` | ← Left |
-| `SUPER + j` | ↓ Down |
-| `SUPER + k` | ↑ Up |
-| `SUPER + l` | → Right |
-
-### Focus Movement (Arrow Keys)
-
-| Keybind | Direction |
-|---------|-----------|
-| `SUPER + ←` | Left |
-| `SUPER + ↓` | Down |
-| `SUPER + ↑` | Up |
-| `SUPER + →` | Right |
-
-### Window Cycling
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + TAB` | Next Window |
-| `SUPER + SHIFT + TAB` | Previous Window |
-
-### Move Windows (Vim Keys)
-
-| Keybind | Direction |
-|---------|-----------|
-| `SUPER + SHIFT + h` | ← Left |
-| `SUPER + SHIFT + j` | ↓ Down |
-| `SUPER + SHIFT + k` | ↑ Up |
-| `SUPER + SHIFT + l` | → Right |
-
-### Move Windows (Arrow Keys)
-
-| Keybind | Direction |
-|---------|-----------|
-| `SUPER + SHIFT + ←` | Left |
-| `SUPER + SHIFT + ↓` | Down |
-| `SUPER + SHIFT + ↑` | Up |
-| `SUPER + SHIFT + →` | Right |
-
-### Resize Windows (Vim Keys)
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + CTRL + h` | Shrink Width |
-| `SUPER + CTRL + j` | Grow Height |
-| `SUPER + CTRL + k` | Shrink Height |
-| `SUPER + CTRL + l` | Grow Width |
-
-### Resize Windows (Arrow Keys)
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + CTRL + ←` | Shrink Width |
-| `SUPER + CTRL + ↓` | Grow Height |
-| `SUPER + CTRL + ↑` | Shrink Height |
-| `SUPER + CTRL + →` | Grow Width |
-
----
-
-## 🎯 Window Actions
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + Q` | **Close Window** |
-| `SUPER + V` | **Toggle Floating** |
-| `SUPER + F` | **Fullscreen** |
-| `SUPER + SHIFT + F` | **Fullscreen (No Bar)** |
-| `SUPER + Z` | **Pin Window** (Always on top) |
-| `SUPER + T` | **Toggle Split** (H/V) |
-| `SUPER + O` | **Center Window** |
-
----
-
-## 🗂️ Workspaces
-
-### Workspace Icons
-
-- **1:**  Terminal
-- **2:** 󰈹 Browser
-- **3:** 󰉋 Files
-- **4:**  Code
-- **5:** 󰖯 Default
-
-### Switch to Workspace
-
-| Keybind | Workspace |
-|---------|-----------|
-| `SUPER + 1` | Terminal |
-| `SUPER + 2` | Browser |
-| `SUPER + 3` | Files |
-| `SUPER + 4` | Code |
-| `SUPER + 5` | Default |
-
-### Move Window to Workspace
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + SHIFT + 1-5` | Move & Follow |
-| `SUPER + ALT + 1-5` | Move Silently |
-
-### Workspace Navigation
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + ]` | Next Workspace |
-| `SUPER + [` | Previous Workspace |
-| `SUPER + Page Down` | Next Workspace |
-| `SUPER + Page Up` | Previous Workspace |
-| `SUPER + \`` | **Last Workspace** (Toggle) |
-| `SUPER + W` | **Workspace Switcher** |
-
-### Move Window Between Workspaces
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + SHIFT + ]` | Move to Next |
-| `SUPER + SHIFT + [` | Move to Previous |
-| `SUPER + SHIFT + Page Down` | Move to Next |
-| `SUPER + SHIFT + Page Up` | Move to Previous |
-
----
-
-## 📌 Scratchpad
-
-Special floating workspace for quick access windows.
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + M` | **Toggle Scratchpad** |
-| `SUPER + SHIFT + M` | **Move to Scratchpad** |
-| `SUPER + ALT + M` | **Move to Scratchpad (Silent)** |
-
----
-
 ## 🖱️ Mouse Controls
 
 | Action | Keybind |
 |--------|---------|
-| **Scroll Workspaces** | `SUPER + Mouse Wheel` |
-| **Move Window** | `SUPER + Left Click + Drag` |
-| **Resize Window** | `SUPER + Right Click + Drag` |
-
----
-
-## 🔗 Window Groups (Tabbed Windows)
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + G` | **Toggle Group** (Tab windows together) |
-| `SUPER + TAB` | **Next Tab** |
-| `SUPER + SHIFT + G` | **Previous Tab** |
-
----
-
-## 🛠️ System Management
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + ALT + R` | **Reload Hyprland** |
-| `SUPER + ALT + K` | **Kill Hyprland** |
-| `SUPER + ALT + W` | **Restart Waybar** |
-| `SUPER + ALT + T` | **Quick Terminal** |
-| `SUPER + ALT + B` | **Quick Browser** |
-| `SUPER + ALT + E` | **Quick Editor** |
-| `SUPER + ALT + F` | **Quick Files** |
-
----
-
-## 🔔 Notifications
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + I` | **Toggle Do Not Disturb** |
-| `SUPER + SHIFT + I` | **Clear All Notifications** |
-
----
-
-## 📚 Help
-
-| Keybind | Action |
-|---------|--------|
-| `SUPER + /` | **This Guide!** |
+| Move Window | `SUPER + Left Click + Drag` |
+| Resize Window | `SUPER + Right Click + Drag` |
 
 ---
 
 ## 💡 Pro Tips
 
-### Quick Launch Pattern
-
-Most apps follow this pattern:
+**Quick Launch Pattern:**
 - `SUPER + Key` = Main launcher
 - `SUPER + SHIFT + Key` = Alternative or GUI version
 - `SUPER + CTRL + Key` = Third option
 - `SUPER + ALT + Key` = Quick/System action
 
-### Workspace Workflow
-
-1. `SUPER + 1` = Always terminals
-2. `SUPER + 2` = Always browsers (auto-opens there!)
-3. `SUPER + 3` = File management (Thunar, Yazi)
-4. `SUPER + 4` = Code editors
-5. `SUPER + 5` = Everything else
-
-### Window Management Tips
-
-- Use **Vim keys** (hjkl) for faster navigation
+**Window Management Tips:**
+- Use Vim keys (hjkl) for faster navigation
 - `SUPER + V` to float, then `SUPER + O` to center
-- `SUPER + M` for scratchpad = instant calculator/terminal
-- `SUPER + G` to group related windows into tabs
+- `SUPER + M` for scratchpad = instant terminal
 
-### Screenshot Workflow
-
-1. `SUPER + S` = Quick full screen
-2. `SUPER + SHIFT + S` = Select area → save
-3. `SUPER + ALT + S` = Select area → clipboard
-4. `SUPER + CTRL + S` = Select → edit in Swappy
+**Screenshot Workflow:**
+- `SUPER + S` = Quick full screen
+- `SUPER + SHIFT + S` = Select area → save
+- `SUPER + ALT + S` = Select area → clipboard
+- `SUPER + CTRL + S` = Select → edit in Swappy
 
 ---
 
-## 🎨 Customization
-
-Edit keybindings:
-```bash
-nvim ~/.config/hypr/bindings.conf
-hyprctl reload
-```
-
-All keybindings use descriptive `bindd` labels for easy identification!
-
----
-
-## 🐛 Troubleshooting
-
-**Keybind not working?**
-```bash
-# Check Hyprland logs
-hyprctl keyword binds
-
-# Reload config
-SUPER + ALT + R
-```
-
-**App not launching?**
-```bash
-# Test command directly
-$terminal  # or whatever command
-```
-
-**Workspace not switching?**
-```bash
-# Check workspace status
-hyprctl workspaces
-```
-
----
-
-*🌲 Part of the Faelight Forest 0-core collection*
-
-**Quick Access:** `SUPER + /`
+_Last Updated: January 9, 2026 (v6.0.0)_  
+_Part of Faelight Forest 0-Core - Sway Edition_

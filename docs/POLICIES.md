@@ -230,8 +230,8 @@ dotctl status  # Shows all versions
 - ✅ **ALWAYS** use recovery procedures for high-risk edits
 
 ### Classification
-- 🔴 **Critical:** System unusable if broken (wm-hypr)
-- 🟠 **High:** Major functionality lost (shell-fish, bar-waybar)
+- 🔴 **Critical:** System unusable if broken (wm-sway)
+- 🟠 **High:** Major functionality lost (shell-fish, faelight-bar)
 - 🔵 **Medium:** Important but not essential (editor-nvim)
 - 🟢 **Low:** Optional features (browser-qutebrowser)
 
@@ -241,7 +241,7 @@ dotctl status  # Shows all versions
 dotctl status  # Shows color-coded risk
 
 # Edit with awareness
-edit-core wm-hypr  # High-risk, will warn
+edit-core wm-sway  # High-risk, will warn
 ```
 
 ### Rationale
@@ -288,10 +288,10 @@ edit-core wm-hypr  # High-risk, will warn
 <category>-<application>
 
 Examples:
-✅ wm-hypr (window manager - hyprland)
+✅ wm-sway (window manager - sway)
 ✅ shell-fish (shell - fish)
 ✅ editor-nvim (editor - neovim)
-❌ hypr (unclear)
+❌ hypr (old, removed)
 ❌ config (too generic)
 ```
 

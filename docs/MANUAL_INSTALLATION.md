@@ -1,424 +1,246 @@
-# Manual Installation Guide - Faelight Forest v3.4.2+
+# 🛠️ Manual Installation Guide - Faelight Forest v6.0.0
 
-**Philosophy:** Manual control over automation. Understand each step.
+This guide covers manual installation and management of 0-Core on Sway.
 
 ---
 
-## Prerequisites
-
-### Required Software
-
-```bash
-# Arch Linux with base-devel
-sudo pacman -S git stow
-
-# Verify installation
-git --version
-stow --version
-```
-
-### System Requirements
+## 📋 Prerequisites
 
 - Arch Linux (or Arch-based distro)
-- Wayland-compatible system
-- AMD graphics (or modify for your GPU)
-- Basic familiarity with terminal
-
----
-
-## Installation Steps
-
-### 1. Clone the Repository
-
+- Sway installed
+- Git installed
+- GNU Stow installed
 ```bash
-# Clone to home directory
-cd ~
-git clone https://github.com/YOUR-USERNAME/0-Core.git
-cd 0-Core
-
-# Verify structure
-ls -la
+sudo pacman -S sway foot fuzzel mako grim slurp wl-clipboard git stow
 ```
 
 ---
 
-### 2. Review Package Structure
+## 📦 Package Structure
+0-core/
+├── wm-sway/           (Sway window manager)
+├── shell-zsh/         (Zsh configuration)
+├── prompt-starship/   (Starship prompt)
+├── editor-nvim/       (Neovim + LazyVim)
+├── fm-yazi/           (Yazi file manager)
+├── vcs-git/           (Git configuration)
+└── rust-tools/        (Custom Rust binaries)
 
-**Before installing anything, understand what you're getting:**
-
+Each package has a `.dotmeta` file:
 ```bash
-# List all packages
-ls -d */
-
-# Expected packages:
-# - wm-hypr/          (Hyprland window manager)
-# - bar-waybar/       (Status bar)
-# - shell-zsh/        (Zsh shell)
-# - editor-nvim/      (Neovim editor)
-# - notif-mako/       (Notifications)
-# - theme-gtk/        (GTK themes)
-# - fm-yazi/          (File manager)
-# - prompt-starship/  (Shell prompt)
-```
-
-**Review each package's .dotmeta:**
-
-```bash
-# See what each package does and its blast radius
-cat wm-hypr/.dotmeta
-cat shell-zsh/.dotmeta
-# ... review all packages
+cat wm-sway/.dotmeta
 ```
 
 ---
 
-### 3. Backup Existing Configs
+## 🔄 Backup Existing Configs
 
-**CRITICAL: Backup before proceeding!**
-
+Before installing, backup your current configs:
 ```bash
-# Create timestamped backup
-BACKUP_DIR="$HOME/.config_backup_$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR=~/config-backup-$(date +%Y%m%d)
 mkdir -p "$BACKUP_DIR"
 
-# Backup existing configs (if they exist)
-[[ -d ~/.config/hypr ]] && cp -r ~/.config/hypr "$BACKUP_DIR/"
-[[ -d ~/.config/waybar ]] && cp -r ~/.config/waybar "$BACKUP_DIR/"
-[[ -d ~/.config/zsh ]] && cp -r ~/.config/zsh "$BACKUP_DIR/"
+[[ -d ~/.config/sway ]] && cp -r ~/.config/sway "$BACKUP_DIR/"
+[[ -d ~/.config/foot ]] && cp -r ~/.config/foot "$BACKUP_DIR/"
 [[ -d ~/.config/nvim ]] && cp -r ~/.config/nvim "$BACKUP_DIR/"
-[[ -d ~/.config/mako ]] && cp -r ~/.config/mako "$BACKUP_DIR/"
-[[ -d ~/.config/yazi ]] && cp -r ~/.config/yazi "$BACKUP_DIR/"
+[[ -f ~/.zshrc ]] && cp ~/.zshrc "$BACKUP_DIR/"
 
-echo "✅ Backups saved to: $BACKUP_DIR"
+echo "Backed up to: $BACKUP_DIR"
 ```
 
 ---
 
-### 4. Remove Conflicting Configs
+## 🗑️ Clear Existing Symlinks
 
-**Stow won't work if configs already exist (and aren't symlinks).**
-
+Remove existing configs that would conflict:
 ```bash
-# Remove existing configs (now that they're backed up)
-rm -rf ~/.config/hypr
-rm -rf ~/.config/waybar
-rm -rf ~/.config/zsh
-rm -rf ~/.config/nvim
+rm -rf ~/.config/sway
+rm -rf ~/.config/foot
+rm -rf ~/.config/fuzzel
 rm -rf ~/.config/mako
-rm -rf ~/.config/yazi
-rm -rf ~/.config/gtk-3.0
-rm -rf ~/.config/gtk-4.0
-rm -rf ~/.config/starship.toml
-
-echo "✅ Ready for stow installation"
 ```
 
 ---
 
-### 5. Install Packages with Stow
-
-**Install ONE package at a time. Test between each.**
-
+## 📥 Clone Repository
 ```bash
-cd ~/0-Core
+cd ~
+git clone https://github.com/YOUR-USERNAME/0-core.git
+cd 0-core
+```
 
-# Start with critical packages in order:
+---
 
-# 1. Shell (high-risk)
+## 🔗 Stow Packages
+
+Use GNU Stow to create symlinks:
+```bash
+cd ~/0-core
+
+# Desktop Environment
+stow wm-sway
+
+# Shell
 stow shell-zsh
-source ~/.config/zsh/.zshrc  # Test immediately
+stow prompt-starship
 
-# 2. Window manager (CRITICAL - test carefully!)
-stow wm-hypr
-# Don't reload yet - test in nested session first
-
-# 3. Status bar
-stow bar-waybar
-
-# 4. Notifications
-stow notif-mako
-
-# 5. GTK themes
-stow theme-gtk
-
-# 6. Editor
+# Editor
 stow editor-nvim
 
-# 7. File manager
+# File Manager
 stow fm-yazi
 
-# 8. Shell prompt
-stow prompt-starship
-```
-
-**After each stow, verify:**
-
-```bash
-# Check symlinks were created
-ls -la ~/.config/hypr
-ls -la ~/.config/waybar
-# etc.
-
-# Verify they point to 0-Core
-readlink ~/.config/hypr/hyprland.conf
-# Should show: /home/YOUR-USER/0-Core/wm-hypr/.config/hypr/hyprland.conf
+# Git
+stow vcs-git
 ```
 
 ---
 
-### 6. Install Scripts
+## ✅ Verify Installation
 
+Check symlinks were created:
 ```bash
-# Create local bin directory
-mkdir -p ~/.local/bin
+ls -la ~/.config/sway
+ls -la ~/.config/zsh
 
-# Link scripts manually
-cd ~/0-Core/scripts
-
-# Link each script individually (review first!)
-ln -sf "$(pwd)/core-diff" ~/.local/bin/core-diff
-ln -sf "$(pwd)/dot-doctor" ~/.local/bin/dot-doctor
-ln -sf "$(pwd)/safe-update" ~/.local/bin/safe-update
-ln -sf "$(pwd)/core-protect" ~/.local/bin/core-protect
-ln -sf "$(pwd)/dotctl" ~/.local/bin/dotctl
-
-# Verify
-ls -la ~/.local/bin/
-which core-diff dot-doctor safe-update
+# Verify symlink targets
+readlink ~/.config/sway/config
+# Should show: ../0-core/wm-sway/.config/sway/config
 ```
 
 ---
 
-### 7. Test Configuration
+## 🧪 Test Configuration
 
-**BEFORE reloading Hyprland, test in a safe environment!**
-
+### Test Sway Config
 ```bash
-# Option A: Test in nested Hyprland session
-Hyprland  # Launches nested session
-# Test keybindings, functionality
-# Exit if broken: SUPER+M (or your configured exit key)
-
-# Option B: Test config syntax
-hyprland --config ~/.config/hypr/hyprland.conf --check
-
-# If everything works in nested session, reload main session:
-hyprctl reload
+sway -C  # Check config syntax
 ```
 
-**Test each component:**
-
+### Test Sway
 ```bash
-# Test shell
-echo $SHELL  # Should show /usr/bin/zsh
+swaymsg reload  # Reload if already running
+```
 
-# Test waybar
-killall waybar && waybar &  # Should appear
-
-# Test mako
-notify-send "Test" "Notification working"
-
-# Test nvim
-nvim --version
-
-# Test yazi
-yazi --version
+### Test faelight-bar
+```bash
+pkill faelight-bar
+~/0-core/scripts/faelight-bar &
 ```
 
 ---
 
-### 8. Enable Git Hooks (Optional)
+## 🔧 Making Changes
 
-**For secret scanning:**
+### The Safe Way
 
+1. Unlock core:
 ```bash
-cd ~/0-Core
+   unlock-core
+```
 
-# Install gitleaks (if not installed)
-yay -S gitleaks
+2. Edit the source file in 0-core:
+```bash
+   nvim ~/0-core/wm-sway/.config/sway/config
+```
 
-# Enable pre-commit hook
-cp hooks/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+3. Reload:
+```bash
+   swaymsg reload
+```
 
-# Test
-git add .
-git commit -m "test"  # Should scan for secrets
+4. Commit:
+```bash
+   cd ~/0-core
+   git add wm-sway/
+   git commit -m "Update sway config"
+   git push
+```
+
+5. Lock:
+```bash
+   lock-core
 ```
 
 ---
 
-### 9. Enable Core Protection (Optional)
+## 🔄 Re-stowing After Changes
 
-**Make 0-Core immutable:**
-
+If you need to re-stow a package:
 ```bash
-# Lock the core
-lock-core
+cd ~/0-core
+stow -R wm-sway  # Re-stow (restow)
+```
 
-# Verify
-lsattr -d ~/0-Core  # Should show 'i' flag
-
-# To edit later
-unlock-core
-# ... make changes ...
-lock-core
+If there are conflicts:
+```bash
+stow --adopt wm-sway  # Adopt existing files into repo
 ```
 
 ---
 
-## Post-Installation
+## 🗑️ Removing a Package
 
-### Verify Health
-
+To unlink a package:
 ```bash
-# Run health check
-dot-doctor
-
-# Should show 100% or close to it
+cd ~/0-core
+stow -D wm-sway  # Delete symlinks
 ```
 
-### Learn the System
-
+Verify:
 ```bash
-# Read documentation
-cat ~/0-Core/README.md
-cat ~/0-Core/docs/THEORY_OF_OPERATION.md
-cat ~/0-Core/docs/WORKFLOWS.md
-
-# Check what changed
-core-diff
-```
-
-### Customize
-
-```bash
-# Review configs BEFORE changing
-cat ~/.config/hypr/hyprland.conf
-cat ~/.config/waybar/config.jsonc
-
-# Make changes in 0-Core (not in ~/.config)
-unlock-core
-cd ~/0-Core
-nvim wm-hypr/.config/hypr/hyprland.conf
-
-# Test and commit
-hyprctl reload
-git add wm-hypr/
-git commit -m "feat: Custom keybinding"
-lock-core
+ls -la ~/.config/sway  # Should not exist
 ```
 
 ---
 
-## Troubleshooting
+## 🔨 Troubleshooting
 
 ### Stow Conflicts
 
+If stow reports conflicts:
 ```bash
-# Error: "existing target is not a symlink"
-# Solution: Remove the file first
-rm ~/.config/problematic-file
-stow wm-hypr
+# Check what exists
+ls -la ~/.config/sway
 
-# Or use --adopt (moves existing file into 0-Core)
-stow --adopt wm-hypr
+# Remove if it's a regular file/dir (not symlink)
+rm -rf ~/.config/sway
+
+# Try again
+stow wm-sway
 ```
 
-### Broken Symlinks
-
-```bash
-# Find broken symlinks
-find ~/.config -xtype l
-
-# Remove them
-find ~/.config -xtype l -delete
-
-# Re-stow
-cd ~/0-Core
-stow wm-hypr
-```
-
-### Hyprland Won't Start
-
+### Sway Not Starting
 ```bash
 # Check logs
-journalctl --user -u hyprland -n 50
+journalctl --user -xe | grep sway
 
-# Check config syntax
-hyprland --config ~/.config/hypr/hyprland.conf --check
+# Validate config
+sway -C
 
-# Restore backup
-cp -r "$BACKUP_DIR/hypr" ~/.config/
+# Start with debug
+sway -d 2>&1 | tee sway.log
 ```
 
-### Shell Issues
-
+### Symlink Points Wrong
 ```bash
-# Reset shell
-chsh -s /bin/bash  # Temporarily use bash
-# Fix zsh config
-# Then: chsh -s /usr/bin/zsh
+# Remove and re-stow
+stow -D wm-sway
+stow wm-sway
 ```
 
 ---
 
-## Uninstallation
+## 📊 Health Check
 
-### Remove Specific Package
-
+After installation, run:
 ```bash
-cd ~/0-Core
-
-# Unstow package
-stow -D wm-hypr
-
-# Verify symlinks removed
-ls -la ~/.config/hypr  # Should not exist or be restored
+dot-doctor
 ```
 
-### Complete Removal
-
-```bash
-# Unstow all packages
-cd ~/0-Core
-stow -D */
-
-# Restore backups
-cp -r "$BACKUP_DIR/"* ~/.config/
-
-# Remove repository
-rm -rf ~/0-Core
-```
+Should show 100% health with all checks passing.
 
 ---
 
-## Philosophy
-
-**Why Manual Installation?**
-
-1. **Understanding** - You see what each package does
-2. **Control** - You choose what to install
-3. **Safety** - Test each step before proceeding
-4. **Learning** - Build knowledge, not dependencies
-5. **Intentionality** - Every action is deliberate
-
-**No automation. No surprises. Full control.** 🌲
-
----
-
-## Next Steps
-
-- Read [THEORY_OF_OPERATION.md](THEORY_OF_OPERATION.md)
-- Review [WORKFLOWS.md](WORKFLOWS.md)
-- Understand [PHILOSOPHY.md](PHILOSOPHY.md)
-- Set up [safe-update](TOOLS.md#safe-update)
-
-**Questions?** Read the docs or open an issue on GitHub.
-
-**Welcome to Faelight Forest!** 🌲
-
----
-
-_Last Updated: December 26, 2025 (v3.4.3)_  
-_Manual installation preserves 0-Core philosophy: intent over automation._
+_Last Updated: January 9, 2026 (v6.0.0)_  
+_Part of Faelight Forest 0-Core - Sway Edition_

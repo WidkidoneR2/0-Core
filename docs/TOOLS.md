@@ -20,7 +20,7 @@ core-diff
 core-diff since v3.3.5
 
 # Inspect specific package
-core-diff wm-hypr --verbose
+core-diff wm-sway --verbose
 
 # Visual diff
 core-diff --open meld
@@ -58,10 +58,10 @@ core-diff since v3.3.5              # Changes since release
 core-diff since HEAD~5              # Last 5 commits
 
 # Package inspection
-core-diff wm-hypr                   # Single package overview
-core-diff wm-hypr --verbose         # Show files
-core-diff wm-hypr --open meld       # Deep dive visually
-core-diff wm-hypr --open delta      # Terminal diff
+core-diff wm-sway                   # Single package overview
+core-diff wm-sway --verbose         # Show files
+core-diff wm-sway --open meld       # Deep dive visually
+core-diff wm-sway --open delta      # Terminal diff
 
 # Quick stats
 core-diff summary                   # Just numbers

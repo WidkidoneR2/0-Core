@@ -270,7 +270,7 @@ dot-doctor
 ```
 ~/
 ├── 0-core/              # 🔒 Immutable configs (this repo)
-│   ├── wm-hypr/         # Desktop environment
+│   ├── wm-sway/         # Desktop environment
 │   ├── shell-zsh/      # Shell configuration
 │   ├── editor-nvim/     # Editor setup
 │   ├── scripts/         # Management scripts
@@ -302,7 +302,7 @@ dot-doctor
 
 **Symptom:** No desktop after login, blank screen
 
-**Cause:** wm-hypr corruption (blast radius: critical)
+**Cause:** wm-sway corruption (blast radius: critical)
 
 **Detection:** Can't interact with system
 
@@ -318,14 +318,14 @@ unlock-core
 # 3. Restore from git
 cd ~/0-core
 git status
-git restore wm-hypr/
+git restore wm-sway/
 
 # 4. Lock and reboot
 lock-core
 reboot
 ```
 
-**Prevention:** Always test wm-hypr changes in nested session first
+**Prevention:** Always test wm-sway changes in nested session first
 
 ---
 
@@ -382,8 +382,8 @@ nvim
 
 ```
 CRITICAL (🔴):
-  wm-hypr
-    ├── bar-waybar (HIGH)
+  wm-sway
+    ├── faelight-bar (HIGH)
     ├── notif-mako (MEDIUM)
     └── theme-gtk (LOW)
 
@@ -392,8 +392,8 @@ HIGH (🟠):
     ├── prompt-starship (MEDIUM)
     └── editor-nvim (MEDIUM)
 
-  bar-waybar
-    └── wm-hypr (CRITICAL)
+  faelight-bar
+    └── wm-sway (CRITICAL)
 
 MEDIUM (🔵):
   editor-nvim
@@ -469,7 +469,7 @@ core-diff since v3.3.5  # Historical comparison
 **Deep Inspection:**
 
 ```bash
-core-diff wm-hypr --open meld  # Visual review
+core-diff wm-sway --open delta  # Visual review
 ```
 
 ### Risk-Based Workflow
@@ -584,14 +584,14 @@ See [WORKFLOWS.md](WORKFLOWS.md) for practical usage patterns.
 
 **Examples:**
 
-- ✅ wm-hypr (window manager - hyprland)
+- ✅ wm-sway (window manager - sway)
 - ✅ shell-fish (shell - zsh)
-- ❌ hypr (unclear category)
+- ❌ hypr (old, removed)
 - ❌ config (too generic)
 
 **Alternatives Considered:**
 
-- Application names only (hypr, fish, nvim)
+- Application names only (sway, zsh, nvim)
 - Generic categories (desktop, terminal)
 - No structure
 

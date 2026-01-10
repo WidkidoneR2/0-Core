@@ -32,8 +32,8 @@ prepend_keymap = [
 	{ on = [ "g", "s" ], run = "cd ~/secrets", desc = "Secrets" },
 	
 	# Config quick access
-	{ on = [ "g", "h" ], run = "cd ~/0-core/wm-hypr", desc = "Hyprland" },
-	{ on = [ "g", "w" ], run = "cd ~/0-core/bar-waybar", desc = "Waybar" },
+	{ on = [ "g", "h" ], run = "cd ~/0-core/wm-sway", desc = "Sway" },
+	{ on = [ "g", "w" ], run = "cd ~/0-core/rust-tools/faelight-bar", desc = "faelight-bar" },
 	{ on = [ "g", "f" ], run = "cd ~/0-core/shell-fish", desc = "Fish" },
 	{ on = [ "g", "n" ], run = "cd ~/0-core/editor-nvim", desc = "Neovim" },
 	{ on = [ "g", "y" ], run = "cd ~/0-core/fm-yazi", desc = "Yazi" },

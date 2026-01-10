@@ -38,7 +38,7 @@ unlock-core
 core-diff --verbose
 
 # 3. Inspect critical packages carefully
-core-diff wm-hypr --open meld
+core-diff wm-sway --open delta
 
 # 4. Quick terminal review for others
 core-diff --open delta
@@ -70,8 +70,8 @@ core-diff since v3.3.5
 core-diff --high-risk
 
 # 3. For each critical package
-core-diff wm-hypr --open meld
-core-diff shell-zsh --open meld
+core-diff wm-sway --open delta
+core-diff shell-zsh --open delta
 
 # 4. Check overall health
 dot-doctor
@@ -123,7 +123,7 @@ core-diff since HEAD~5 --high-risk
 # Output shows which packages changed
 
 # 3. Deep dive on suspect package
-core-diff <package> --open meld
+core-diff <package> --open delta
 
 # 4. Review file-by-file
 # Meld shows exact changes
@@ -187,7 +187,7 @@ cdh  # core-diff --high-risk
 cds  # core-diff summary
 
 # Visual inspection
-cdm  # core-diff --open meld
+cdm  # core-diff --open delta
 cdd  # core-diff --open delta
 ```
 
@@ -217,10 +217,10 @@ diff /tmp/pre-update.txt /tmp/post-update.txt
 cd ~/0-core
 
 # Monitor just that package
-watch -n 2 'core-diff wm-hypr --verbose'
+watch -n 2 'core-diff wm-sway --verbose'
 
 # Or use delta for live diff
-core-diff wm-hypr --open delta
+core-diff wm-sway --open delta
 ```
 
 ### Release Checklist
@@ -257,7 +257,7 @@ core-diff summary
 core-diff --high-risk --verbose
 
 # Package + tool
-core-diff wm-hypr --open delta
+core-diff wm-sway --open delta
 ```
 
 ### Read the Output
@@ -273,7 +273,7 @@ Pay attention to:
 For critical packages, always use visual inspection:
 
 ```bash
-core-diff wm-hypr --open meld
+core-diff wm-sway --open delta
 ```
 
 Delta is fast, Meld is thorough.
@@ -297,7 +297,7 @@ core-diff --high-risk
 **Scenario:** "Show me exactly what changed in my shell config"
 
 ```bash
-core-diff shell-zsh --open meld
+core-diff shell-zsh --open delta
 ```
 
 **Scenario:** "Quick status before committing"

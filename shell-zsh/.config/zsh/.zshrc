@@ -87,7 +87,7 @@ alias vids='cd ~/Videos'
 
 # Config directories
 alias conf='cd ~/.config'
-alias hyprconf='cd ~/.config/hypr'
+alias swayconf='cd ~/.config/sway'
 alias nvimconf='cd ~/.config/nvim'
 alias zshconf='cd ~/.config/zsh'
 
@@ -246,8 +246,8 @@ alias cdlast='core-diff since HEAD~1'            # Since last commit
 alias cdrel='core-diff since $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD)'  # Since last release
 
 # Package-specific shortcuts (customize as needed)
-alias cdhypr='core-diff wm-hypr'
-alias cdway='core-diff bar-waybar'
+alias cdsway='core-diff wm-sway'
+alias cdbar='core-diff faelight-bar'
 alias cdzsh='core-diff shell-zsh'
 alias cdnvim='core-diff editor-nvim'
 
@@ -307,9 +307,8 @@ alias svi='sudo nvim'
 
 # Quick config editing
 alias nzsh='nvim ~/.config/zsh/.zshrc'
-alias nhypr='nvim ~/.config/hypr/hyprland.conf'
-alias nwaybar='nvim ~/.config/waybar/config.jsonc'
-alias nwaybar-style='nvim ~/.config/waybar/style.css'
+alias nsway='nvim ~/.config/sway/config'
+alias nbar='nvim ~/0-core/rust-tools/faelight-bar/src/main.rs'
 alias nkitty='nvim ~/.config/kitty/kitty.conf'
 
 # LazyVim
@@ -372,9 +371,9 @@ alias-help() {
   echo "📁 File Mgmt: ls, ll, tree, b (bat), search (fd)"
   echo "📦 Packages: pacu, paci, ins, yup, cleanup"
   echo "🔧 Git: lg, gst, gaa, gcm, gp, gl"
-  echo "🔍 Core-Diff: cdiff, cds, cdh, cdm, cdhypr"
+  echo "🔍 Core-Diff: cdiff, cds, cdh, cdm, cdsway"
   echo "💻 System: doctor, ff, df, mem, cpu"
-  echo "📝 Editor: v, nzsh, nhypr, nwaybar"
+  echo "📝 Editor: v, nzsh, nsway, nbar"
   echo "🖥️  Desktop: sway-reload, bar-restart"
   echo "🔐 Security: audit-quick, scan-secrets"
   echo "📚 Docs: keys, guide, roadmap"
