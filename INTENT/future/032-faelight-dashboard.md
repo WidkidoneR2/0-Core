@@ -3,7 +3,7 @@ id: 032
 date: 2026-01-10
 type: future
 title: "faelight-dashboard - TUI System Overview"
-status: planned
+status: complete
 tags: [rust, tui, dashboard, monitoring]
 ---
 
