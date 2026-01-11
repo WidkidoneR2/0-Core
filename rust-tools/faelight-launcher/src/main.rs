@@ -1,4 +1,4 @@
-//! faelight-launcher v0.2 - Static List
+//! faelight-launcher v0.3 - Static List
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -66,6 +66,66 @@ const APPS: &[AppEntry] = &[
     AppEntry { name: "Yazi", exec: "foot -e yazi", icon: "󰉖" },
 ];
 
+
+// Fuzzy matching
+fn keysym_to_char(keysym: Keysym) -> Option<char> {
+    match keysym {
+        Keysym::a => Some('a'),
+        Keysym::b => Some('b'),
+        Keysym::c => Some('c'),
+        Keysym::d => Some('d'),
+        Keysym::e => Some('e'),
+        Keysym::f => Some('f'),
+        Keysym::g => Some('g'),
+        Keysym::h => Some('h'),
+        Keysym::i => Some('i'),
+        Keysym::j => Some('j'),
+        Keysym::k => Some('k'),
+        Keysym::l => Some('l'),
+        Keysym::m => Some('m'),
+        Keysym::n => Some('n'),
+        Keysym::o => Some('o'),
+        Keysym::p => Some('p'),
+        Keysym::q => Some('q'),
+        Keysym::r => Some('r'),
+        Keysym::s => Some('s'),
+        Keysym::t => Some('t'),
+        Keysym::u => Some('u'),
+        Keysym::v => Some('v'),
+        Keysym::w => Some('w'),
+        Keysym::x => Some('x'),
+        Keysym::y => Some('y'),
+        Keysym::z => Some('z'),
+        Keysym::space => Some(' '),
+        _ => None,
+    }
+}
+
+fn fuzzy_match(query: &str, target: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    let query = query.to_lowercase();
+    let target = target.to_lowercase();
+    
+    // Simple substring match first
+    if target.contains(&query) {
+        return true;
+    }
+    
+    // Fuzzy: all query chars must appear in order
+    let mut query_chars = query.chars().peekable();
+    for ch in target.chars() {
+        if query_chars.peek() == Some(&ch) {
+            query_chars.next();
+        }
+    }
+    query_chars.peek().is_none()
+}
+
+fn filter_apps(query: &str) -> Vec<&'static AppEntry> {
+    APPS.iter().filter(|app| fuzzy_match(query, app.name)).collect()
+}
 // ═══════════════════════════════════════════════════════════
 // 🖼️ DRAWING HELPERS (standalone)
 // ═══════════════════════════════════════════════════════════
@@ -138,6 +198,7 @@ struct LauncherState {
     configured: bool,
     font: Font,
     selected: usize,
+    search_query: String,
     running: bool,
 }
 
@@ -165,17 +226,28 @@ impl LauncherState {
 
         draw_border(canvas, width, height);
         draw_text(&self.font, canvas, width, height, "🌲 Faelight Launcher", 20, 18, BORDER_COLOR, 26.0);
+        
+        // Search box
+        let search_display = if self.search_query.is_empty() {
+            "Type to search...".to_string()
+        } else {
+            self.search_query.clone()
+        };
+        let search_color = if self.search_query.is_empty() { DIM_COLOR } else { TEXT_COLOR };
+        draw_rect(canvas, width, height, 15, 45, width - 30, 28, SELECTED_BG);
+        draw_text(&self.font, canvas, width, height, &format!("🔍 {}", search_display), 20, 50, search_color, 16.0);
 
         // Separator line
-        let sep_y = 50;
+        let sep_y = 80;
         for x in 10..width as usize - 10 {
             let idx = sep_y * width as usize * 4 + x * 4;
             canvas[idx..idx + 4].copy_from_slice(&DIM_COLOR);
         }
 
         // Draw apps
-        for (i, app) in APPS.iter().enumerate() {
-            let y = 70 + i as u32 * 45;
+        let filtered_apps = filter_apps(&self.search_query);
+        for (i, app) in filtered_apps.iter().enumerate() {
+            let y = 95 + i as u32 * 42;
             
             if i == selected {
                 draw_rect(canvas, width, height, 10, y - 5, width - 20, 38, SELECTED_BG);
@@ -196,7 +268,9 @@ impl LauncherState {
     }
 
     fn launch_selected(&self) {
-        let app = &APPS[self.selected];
+        let filtered_apps = filter_apps(&self.search_query);
+        if filtered_apps.is_empty() { return; }
+        let app = filtered_apps[self.selected.min(filtered_apps.len() - 1)];
         eprintln!("🚀 Launching: {}", app.name);
         
         let parts: Vec<&str> = app.exec.split_whitespace().collect();
@@ -206,15 +280,19 @@ impl LauncherState {
     }
 
     fn move_up(&mut self) {
+        let filtered_len = filter_apps(&self.search_query).len();
+        if filtered_len == 0 { return; }
         if self.selected > 0 {
             self.selected -= 1;
         } else {
-            self.selected = APPS.len() - 1;
+            self.selected = filtered_len - 1;
         }
     }
 
     fn move_down(&mut self) {
-        if self.selected < APPS.len() - 1 {
+        let filtered_len = filter_apps(&self.search_query).len();
+        if filtered_len == 0 { return; }
+        if self.selected < filtered_len - 1 {
             self.selected += 1;
         } else {
             self.selected = 0;
@@ -284,7 +362,18 @@ impl KeyboardHandler for LauncherState {
                 self.move_down();
                 self.draw();
             }
-            _ => {}
+            Keysym::BackSpace => {
+                self.search_query.pop();
+                self.selected = 0;
+                self.draw();
+            }
+            _ => {
+                if let Some(ch) = keysym_to_char(event.keysym) {
+                    self.search_query.push(ch);
+                    self.selected = 0;
+                    self.draw();
+                }
+            }
         }
     }
 
@@ -313,7 +402,7 @@ delegate_registry!(LauncherState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v0.2 starting...");
+    eprintln!("🌲 faelight-launcher v0.3 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -348,6 +437,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         configured: false,
         font,
         selected: 0,
+        search_query: String::new(),
         running: true,
     };
 

@@ -3,7 +3,7 @@ id: 027
 date: 2026-01-10
 type: future
 title: "faelight-launcher Fuzzy Search"
-status: planned
+status: complete
 tags: [rust, launcher, ux]
 ---
 
@@ -26,11 +26,11 @@ Add fuzzy search - type to filter apps in real-time.
 - Dynamic list rendering based on filter
 
 ## Success Criteria
-- [ ] Type to filter apps
-- [ ] Fuzzy matching works
-- [ ] Enter launches top match
-- [ ] Backspace clears filter
-- [ ] Escape closes or clears
+- [x] Type to filter apps
+- [x] Fuzzy matching works
+- [x] Enter launches top match
+- [x] Backspace clears filter
+- [x] Escape closes or clears
 
 ---
 _Fast access to any app._ 🌲
