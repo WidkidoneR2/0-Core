@@ -3,7 +3,7 @@ id: 028
 date: 2026-01-10
 type: future
 title: "Btrfs Automatic Snapshots"
-status: planned
+status: complete
 tags: [rust, btrfs, safety, backup]
 ---
 
