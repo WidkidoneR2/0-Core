@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v6.5.0 - Sway Edition
+# 🌲 Faelight Forest v6.6.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v6.5.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.6.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v6.5.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
+> **v6.6.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
 
 ---
 
@@ -37,10 +37,10 @@ Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.
 | **WM** | Sway 1.11 | Wayland compositor, tiling |
 | **Bar** | faelight-bar | Custom Rust bar |
 | **Terminal** | Foot | Fast, Wayland-native |
-| **Shell** | Zsh | 188+ aliases |
+| **Shell** | Zsh + Nushell | 188+ aliases, Rust shell option |
 | **Prompt** | Starship | Lock status indicator |
-| **Editor** | Neovim (LazyVim) | Faelight colorscheme |
-| **Launcher** | Fuzzel | Dmenu replacement |
+| **Editor** | Neovim (LazyVim) | Faelight colorscheme, Rust LSP |
+| **Launcher** | faelight-launcher | Custom Rust launcher with fuzzy search |
 | **Files** | Yazi | Terminal file manager |
 | **Notifications** | faelight-notify | Wayland notifications |
 | **Login** | tuigreet | Faelight themed greeter |
@@ -271,6 +271,10 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v6.6.0 | 2026-01-11 | Fuzzy search launcher, Nushell integration |
+| v6.6.0 | 2026-01-10 | Security hardening, UI polish |
+| v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
+| v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |
 | v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |
 | v5.1.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
 | v5.0.0 | 2026-01-06 | Complete Rust transition |

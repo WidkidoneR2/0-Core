@@ -3,6 +3,36 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.6.0] - 2026-01-11
+
+### 🔍 faelight-launcher v0.3 (Intent 027)
+- Fuzzy search - type to filter apps in real-time
+- Substring + character sequence matching
+- Search box with placeholder text
+- Backspace clears filter
+- Selection resets on filter change
+
+### 🦀 Nushell Integration
+- shell-nushell package added
+- Starship prompt works natively
+- Core aliases converted
+- Run `nu` to switch anytime
+- Zsh remains default
+
+### 🛠️ LazyVim Rust Support
+- rust-analyzer LSP configured
+- rustaceanvim for enhanced experience
+- crates.nvim for Cargo.toml
+
+### Technical
+- Intent 027 complete
+- 10 Rust tools
+- Health: 100%
+
+> "The forest speaks many languages." 🌲
+
+---
+
 ## [6.5.0] - 2026-01-10
 
 ### 🛡️ Security Hardening
