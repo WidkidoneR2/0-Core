@@ -729,3 +729,8 @@ alias launcher='faelight-launcher'
 
 # Menu
 alias powermenu='faelight-menu'
+
+# Secrets vault
+alias secrets-mount='gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted"'
+alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
+alias secrets='cd ~/secrets'
