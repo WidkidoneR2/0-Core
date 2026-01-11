@@ -52,6 +52,8 @@ pipewire
 pipewire-pulse
 playerctl
 polkit-gnome
+qt5-wayland
+qt6-wayland
 ripgrep
 rust
 slurp
