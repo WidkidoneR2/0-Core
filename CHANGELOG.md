@@ -3,6 +3,46 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.5.0] - 2026-01-10
+
+### 🛡️ Security Hardening
+- UFW firewall enabled (deny incoming, allow outgoing)
+- Mullvad VPN relocated to Atlanta
+- DNS over TLS with Quad9 + DNSSEC
+- gocryptfs encrypted vault for ~/secrets
+
+### 🔧 core-diff --policy shell (Intent 025)
+- `core-diff --policy shell`: Scan changed shell scripts
+- `core-diff --policy shell --all`: Full scan of all scripts
+- Detects forbidden patterns: sudo, systemctl, pacman, rm -rf, curl|sh, eval
+
+### 🎨 UI Polish
+**faelight-launcher v0.2**
+- Hack Nerd Font Bold for better readability
+- 12 apps in alphabetical order
+- Proper Nerd Font icons for all apps
+
+**faelight-menu v0.2**
+- Hack Nerd Font Bold
+- Increased footer font size (11→14)
+
+**faelight-notify v0.3**
+- Hack Nerd Font Regular
+- Dynamic text truncation with "..."
+- Wider notifications (600px)
+
+**faelight-bar v0.8**
+- Hack Nerd Font Regular
+
+### Technical
+- Intent 025 complete
+- 6/6 security layers active
+- Health: 100%
+
+> "The forest hardens its defenses." 🌲
+
+---
+
 ## [6.4.0] - 2026-01-10
 
 ### 🏗️ Architectural Milestone

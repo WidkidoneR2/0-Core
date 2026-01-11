@@ -1,4 +1,4 @@
-//! faelight-launcher v0.1 - Static List
+//! faelight-launcher v0.2 - Static List
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -32,8 +32,8 @@ use std::process::Command;
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
 // ═══════════════════════════════════════════════════════════
-const WIDTH: u32 = 625;
-const HEIGHT: u32 = 475;
+const WIDTH: u32 = 500;
+const HEIGHT: u32 = 680;
 
 const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
@@ -41,7 +41,7 @@ const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
 // ═══════════════════════════════════════════════════════════
 // 📱 APP ENTRIES
@@ -51,15 +51,19 @@ struct AppEntry {
     exec: &'static str,
     icon: &'static str,
 }
-
 const APPS: &[AppEntry] = &[
-    AppEntry { name: "Terminal", exec: "foot", icon: "" },
-    AppEntry { name: "Browser", exec: "brave", icon: "" },
-    AppEntry { name: "Files", exec: "thunar", icon: "" },
+    AppEntry { name: "Browser", exec: "brave", icon: "󰖟" },
+    AppEntry { name: "btop", exec: "foot -e btop", icon: "󰄪" },
+    AppEntry { name: "Discord", exec: "discord", icon: "󰙯" },
     AppEntry { name: "Editor", exec: "foot -e nvim", icon: "" },
-    AppEntry { name: "Yazi", exec: "foot -e yazi", icon: "" },
-    AppEntry { name: "btop", exec: "foot -e btop", icon: "" },
+    AppEntry { name: "Filen", exec: "filen-desktop", icon: "󰅟" },
+    AppEntry { name: "Files", exec: "thunar", icon: "󰉋" },
+    AppEntry { name: "KeePassXC", exec: "keepassxc", icon: "󰌋" },
     AppEntry { name: "LazyGit", exec: "foot -e lazygit", icon: "󰊢" },
+    AppEntry { name: "Notesnook", exec: "notesnook", icon: "󱞁" },
+    AppEntry { name: "Terminal", exec: "foot", icon: "" },
+    AppEntry { name: "Tutanota", exec: "tutanota-desktop", icon: "󰇮" },
+    AppEntry { name: "Yazi", exec: "foot -e yazi", icon: "󰉖" },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -160,7 +164,7 @@ impl LauncherState {
         }
 
         draw_border(canvas, width, height);
-        draw_text(&self.font, canvas, width, height, "🌲 Faelight Launcher", 20, 18, BORDER_COLOR, 22.0);
+        draw_text(&self.font, canvas, width, height, "🌲 Faelight Launcher", 20, 18, BORDER_COLOR, 26.0);
 
         // Separator line
         let sep_y = 50;
@@ -179,10 +183,10 @@ impl LauncherState {
 
             let color = if i == selected { BORDER_COLOR } else { TEXT_COLOR };
             let text = format!("{}  {}", app.icon, app.name);
-            draw_text(&self.font, canvas, width, height, &text, 15, y, color, 16.0);
+            draw_text(&self.font, canvas, width, height, &text, 15, y, color, 18.0);
         }
 
-        draw_text(&self.font, canvas, width, height, "↑↓ Navigate  Enter Launch  Esc Close", 20, height - 35, DIM_COLOR, 16.0);
+        draw_text(&self.font, canvas, width, height, "↑↓ Navigate  Enter Launch  Esc Close", 20, height - 35, DIM_COLOR, 18.0);
 
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -309,7 +313,7 @@ delegate_registry!(LauncherState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v0.1 starting...");
+    eprintln!("🌲 faelight-launcher v0.2 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;

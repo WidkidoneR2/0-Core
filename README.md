@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v6.4.0 - Sway Edition
+# 🌲 Faelight Forest v6.5.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v6.4.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.5.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v6.4.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
+> **v6.5.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
 
 ---
 

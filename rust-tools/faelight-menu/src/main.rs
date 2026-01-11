@@ -1,4 +1,4 @@
-//! faelight-menu v0.1 - Power Menu
+//! faelight-menu v0.2 - Power Menu
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -42,7 +42,7 @@ const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const WARN_COLOR: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xFF];
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
 // ═══════════════════════════════════════════════════════════
 // 📱 MENU ENTRIES
@@ -187,7 +187,7 @@ impl MenuState {
         }
 
         // Hint
-        draw_text(&self.font, canvas, width, height, "↑↓/jk Navigate  Enter Select  Esc Cancel", 15, height - 25, DIM_COLOR, 11.0);
+        draw_text(&self.font, canvas, width, height, "↑↓/jk Navigate  Enter Select  Esc Cancel", 15, height - 25, DIM_COLOR, 14.0);
 
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -340,7 +340,7 @@ delegate_registry!(MenuState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("⚡ faelight-menu v0.1 starting...");
+    eprintln!("⚡ faelight-menu v0.2 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;

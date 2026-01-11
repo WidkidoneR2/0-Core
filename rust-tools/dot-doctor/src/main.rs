@@ -842,7 +842,7 @@ fn main() {
 }
 
 fn print_report(report: &HealthReport, explain: bool) {
-    println!("{}🏥 Dotfile Health Check - Faelight Forest v{}{}", 
+    println!("{}🏥 0-Core Health Check - Faelight Forest v{}{}", 
              "\x1b[0;36m", report.version, "\x1b[0m");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 

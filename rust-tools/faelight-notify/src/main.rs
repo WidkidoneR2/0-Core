@@ -1,4 +1,4 @@
-//! faelight-notify v0.2 - Working Notification Daemon
+//! faelight-notify v0.3 - Working Notification Daemon
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -31,7 +31,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use zbus::{connection, interface};
 
-const NOTIFY_WIDTH: u32 = 400;
+const NOTIFY_WIDTH: u32 = 600;
 const NOTIFY_HEIGHT: u32 = 100;
 const MARGIN: u32 = 15;
 
@@ -42,7 +42,7 @@ const TITLE_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMono-Medium.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 #[derive(Clone, Debug)]
 struct Notification {
@@ -92,6 +92,37 @@ impl NotificationServer {
     }
 }
 
+fn measure_text_width(font: &Font, text: &str, size: f32) -> u32 {
+    let mut width = 0.0;
+    for ch in text.chars() {
+        let metrics = font.metrics(ch, size);
+        width += metrics.advance_width;
+    }
+    width as u32
+}
+
+fn truncate_text(font: &Font, text: &str, max_width: u32, size: f32) -> String {
+    let ellipsis = "...";
+    let ellipsis_width = measure_text_width(font, ellipsis, size);
+    
+    if measure_text_width(font, text, size) <= max_width {
+        return text.to_string();
+    }
+    
+    let mut result = String::new();
+    let mut current_width = 0;
+    
+    for ch in text.chars() {
+        let metrics = font.metrics(ch, size);
+        if current_width + metrics.advance_width as u32 + ellipsis_width > max_width {
+            break;
+        }
+        result.push(ch);
+        current_width += metrics.advance_width as u32;
+    }
+    
+    result + ellipsis
+}
 fn draw_text(font: &Font, canvas: &mut [u8], width: u32, height: u32, text: &str, x: u32, y: u32, color: [u8; 4], size: f32) {
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
@@ -189,8 +220,9 @@ impl NotifyState {
         if let Some(n) = notif {
             draw_border(canvas, width, height);
             draw_text(&self.font, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, 22.0);
-            draw_text(&self.font, canvas, width, height, &n.summary, 12, 35, TITLE_COLOR, 22.0);
-            let body = if n.body.len() > 50 { format!("{}...", &n.body[..47]) } else { n.body };
+            let summary = truncate_text(&self.font, &n.summary, width - 24, 22.0);
+            draw_text(&self.font, canvas, width, height, &summary, 12, 35, TITLE_COLOR, 22.0);
+            let body = truncate_text(&self.font, &n.body, width - 24, 22.0);
             draw_text(&self.font, canvas, width, height, &body, 12, 62, TEXT_COLOR, 22.0);
             if count > 1 {
                 draw_text(&self.font, canvas, width, height, &format!("+{}", count - 1), width - 40, 12, BORDER_COLOR, 22.0);
@@ -270,7 +302,7 @@ delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.2.0 starting...");
+    eprintln!("🌲 faelight-notify v0.3.0 starting...");
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
     let notifs_for_dbus = notifications.clone();

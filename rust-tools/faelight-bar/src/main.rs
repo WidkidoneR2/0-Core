@@ -35,7 +35,7 @@ const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
 const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
 const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 fn get_profile_icon(profile: &str) -> &'static str {
     match profile {
@@ -385,7 +385,7 @@ fn main() {
         pointer_x: 0.0,
         last_draw: Instant::now(),
     };
-    println!("🌲 faelight-bar v0.7 starting (Sway Edition)...");
+    println!("🌲 faelight-bar v0.8 starting (Sway Edition)...");
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
     }
