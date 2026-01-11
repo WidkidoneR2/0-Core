@@ -3,7 +3,7 @@ id: 026
 date: 2026-01-10
 type: future
 title: "v6.4.0 - Architectural Milestone"
-status: planned
+status: complete
 tags: [roadmap, architecture, v6.4.0]
 ---
 ## The Vision
@@ -40,11 +40,11 @@ Major architectural evolution: unified binary, typed configs, intelligent health
 Shell keeps: aliases, REPL, exploration, one-liners, temporary hacks.
 
 ## Success Criteria
-- [ ] Single `faelight` binary as entry point
-- [ ] All config in typed TOML
-- [ ] Health as dependency graph
-- [ ] Git as governance layer
-- [ ] Shell reduced to thin aliases
+- [x] Single `faelight` binary as entry point
+- [x] All config in typed TOML
+- [x] Health as dependency graph
+- [x] Git as governance layer
+- [x] Shell reduced to thin aliases
 
 ---
 _The forest evolves._ 🌲
