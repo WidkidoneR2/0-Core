@@ -3,6 +3,39 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.7.0] - 2026-01-11
+
+### 🔗 faelight-stow v0.1 (Intent 034)
+- Verify stow symlinks on demand
+- --quiet --notify for systemd integration
+- --fix option for manual repair
+- Philosophy: verify-only, you stay in control
+
+### 📸 faelight-snapshot v0.1 (Intent 028)
+- Snapper wrapper for btrfs snapshots
+- list/create/delete/diff/rollback commands
+- Adjusted timeline: 0 hourly, 3 daily, 2 weekly
+
+### 🖥️ faelight-dashboard v0.1 (Intent 032)
+- Beautiful TUI system overview
+- Health, Git, Security, Stats panels
+- Keyboard shortcuts: h/g/i/r/q
+- Built with ratatui
+
+### 🔧 New Aliases
+- `dashboard` / `dash` - System overview
+- `snap` / `snapshot` - Btrfs snapshots
+- `stow-check` - Verify symlinks
+
+### Technical
+- Intents 028, 032, 034 complete
+- 12 Rust tools now
+- Health: 100%
+
+> "The forest watches over itself." 🌲
+
+---
+
 ## [6.6.0] - 2026-01-11
 
 ### 🔍 faelight-launcher v0.3 (Intent 027)

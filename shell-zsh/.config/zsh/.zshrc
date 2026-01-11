@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 6.6.0 - Faelight Forest
+# Version 6.7.0 - Faelight Forest
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -653,7 +653,7 @@ if [[ -f ~/.config/zsh/completions.zsh ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.6.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.7.0)
 # ═══════════════════════════════════════════════════════════
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
@@ -685,7 +685,7 @@ eval "$(starship init zsh)"
 if [[ -o interactive ]]; then
     fastfetch
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.6.0 - Sway Edition!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.7.0 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then
@@ -705,3 +705,27 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
 # ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# 🌲 FAELIGHT TOOLS (v6.7.0)
+# ═══════════════════════════════════════════════════════════
+
+# Dashboard
+alias dashboard='faelight-dashboard'
+alias dash='faelight-dashboard'
+
+# Snapshots
+alias snap='faelight-snapshot'
+alias snapshot='faelight-snapshot'
+alias snaplist='faelight-snapshot list'
+alias snapcreate='faelight-snapshot create'
+
+# Stow verification
+alias stow-check='faelight-stow'
+alias stow-fix='faelight-stow --fix'
+
+# Launcher
+alias launcher='faelight-launcher'
+
+# Menu
+alias powermenu='faelight-menu'
