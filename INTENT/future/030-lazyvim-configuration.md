@@ -3,7 +3,7 @@ id: 030
 date: 2026-01-10
 type: future
 title: "LazyVim Deep Configuration"
-status: planned
+status: complete
 tags: [neovim, editor, lazyvim, theming]
 ---
 
@@ -69,8 +69,8 @@ editor-nvim/
 ```
 
 ## Success Criteria
-- [ ] Full Faelight Forest theme
-- [ ] Rust LSP working
+- [x] Full Faelight Forest theme
+- [x] Rust LSP working
 - [ ] Sub-50ms startup time
 - [ ] All keybindings documented
 - [ ] Replaces current config as daily driver

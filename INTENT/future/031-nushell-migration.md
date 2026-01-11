@@ -3,7 +3,7 @@ id: 031
 date: 2026-01-10
 type: future
 title: "Nushell Migration (Gradual)"
-status: planned
+status: complete
 tags: [rust, shell, nushell, migration]
 ---
 
@@ -20,7 +20,7 @@ Migrate to Nushell - a modern Rust shell - while preserving all current function
 ## Migration Strategy
 
 ### Phase 1: Parallel Installation
-- [ ] Install Nushell alongside Zsh
+- [x] Install Nushell alongside Zsh
 - [ ] Create `shell-nushell` package
 - [ ] Keep Zsh as default
 
@@ -64,7 +64,7 @@ def ll [...args] { eza -la --icons --git ...$args }
 
 ## Success Criteria
 - [ ] All 188+ aliases converted
-- [ ] Starship prompt working
+- [x] Starship prompt working
 - [ ] No workflow regression
 - [ ] Faster shell startup
 
