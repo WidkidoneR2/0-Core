@@ -3,7 +3,7 @@ id: 034
 date: 2026-01-10
 type: future
 title: "Auto-Stow on Boot"
-status: planned
+status: complete
 tags: [rust, stow, systemd, boot, safety]
 ---
 

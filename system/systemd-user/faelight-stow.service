@@ -1,0 +1,12 @@
+[Unit]
+Description=Faelight Stow Verification
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/christian/0-core/scripts/faelight-stow --quiet --notify
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
