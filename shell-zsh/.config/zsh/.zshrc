@@ -734,3 +734,7 @@ alias powermenu='faelight-menu'
 alias secrets-mount='gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted"'
 alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 alias secrets='cd ~/secrets'
+
+# Entropy check
+alias entropy='entropy-check'
+alias drift='entropy-check'
