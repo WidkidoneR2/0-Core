@@ -9,7 +9,7 @@
 set $mod Mod4
 set $term foot
 set $browser brave
-set $menu fuzzel
+set $menu ~/0-core/scripts/faelight-launcher
 set $filemanager thunar
 
 # ═══════════════════════════════════════════════════════════
@@ -200,7 +200,7 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 bindsym $mod+Ctrl+Escape exec ~/0-core/scripts/faelight-lock
 
 # Power menu
-bindsym $mod+Escape exec ~/0-core/scripts/power-menu-fuzzel.sh
+bindsym $mod+Escape exec ~/0-core/scripts/faelight-menu
 
 # Session
 bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit Sway?' -B 'Yes' 'swaymsg exit'
