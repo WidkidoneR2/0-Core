@@ -1,4 +1,4 @@
-//! faelight-menu v0.2 - Power Menu
+//! faelight-menu v0.3 - Power Menu
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -43,6 +43,16 @@ const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const WARN_COLOR: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xFF];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
+
+// ═══════════════════════════════════════════════════════════
+// 📐 TYPOGRAPHY & LAYOUT
+// ═══════════════════════════════════════════════════════════
+const FONT_TITLE: f32 = 22.0;
+const FONT_ITEM: f32 = 20.0;
+const FONT_HINT: f32 = 15.0;
+const ROW_HEIGHT: u32 = 52;
+const ROW_START: u32 = 75;
+const DANGER_DIM: [u8; 4] = [0xb3, 0x5b, 0x5b, 0xFF]; // Desaturated warn - always visible
 
 // ═══════════════════════════════════════════════════════════
 // 📱 MENU ENTRIES
@@ -160,7 +170,7 @@ impl MenuState {
         }
 
         draw_border(canvas, width, height);
-        draw_text(&self.font, canvas, width, height, "⚡ Power Menu", 20, 20, BORDER_COLOR, 22.0);
+        draw_text(&self.font, canvas, width, height, "⚡ Power Menu", 20, 20, BORDER_COLOR, FONT_TITLE);
 
         // Separator
         for x in 15..width as usize - 15 {
@@ -170,24 +180,35 @@ impl MenuState {
 
         // Draw menu items
         for (i, item) in MENU_ITEMS.iter().enumerate() {
-            let y = 75 + i as u32 * 48;
+            let y = ROW_START + i as u32 * ROW_HEIGHT;
+            
+            // Divider before dangerous actions
+            if i == 3 {
+                let div_y = y - 18;
+                for x in 20..width as usize - 20 {
+                    let idx = div_y as usize * width as usize * 4 + x * 4;
+                    if idx + 4 <= canvas.len() {
+                        canvas[idx..idx + 4].copy_from_slice(&DIM_COLOR);
+                    }
+                }
+            }
             
             if i == selected {
-                draw_rect(canvas, width, height, 10, y - 5, width - 20, 42, SELECTED_BG);
+                draw_rect(canvas, width, height, 10, y - 8, width - 20, 46, SELECTED_BG);
             }
 
             let text_color = if item.dangerous {
-                if i == selected { WARN_COLOR } else { DIM_COLOR }
+                if i == selected { WARN_COLOR } else { DANGER_DIM }
             } else {
                 if i == selected { BORDER_COLOR } else { TEXT_COLOR }
             };
 
             let text = format!("{}  {}", item.icon, item.label);
-            draw_text(&self.font, canvas, width, height, &text, 25, y, text_color, 22.0);
+            draw_text(&self.font, canvas, width, height, &text, 25, y, text_color, FONT_ITEM);
         }
 
         // Hint
-        draw_text(&self.font, canvas, width, height, "↑↓/jk Navigate  Enter Select  Esc Cancel", 15, height - 25, DIM_COLOR, 14.0);
+        draw_text(&self.font, canvas, width, height, "↑↓ Move  Enter Select  Esc Close", 15, height - 25, DIM_COLOR, FONT_HINT);
 
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -340,7 +361,7 @@ delegate_registry!(MenuState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("⚡ faelight-menu v0.2 starting...");
+    eprintln!("⚡ faelight-menu v0.3 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
