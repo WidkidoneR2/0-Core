@@ -3,7 +3,7 @@ id: 015
 date: 2026-01-07
 type: future
 title: "entropy-check - Configuration Drift Detection"
-status: in-progress
+status: complete
 tags: [rust, safety, drift, v6.8]
 ---
 
@@ -35,7 +35,7 @@ entropy-check catches drift early:
 - [x] **Service Drift**: Services changed state unexpectedly
 - [x] **Binary Drift**: Package versions changed since last check
 - [x] **Symlink Drift**: New broken symlinks since baseline
-- [ ] **Untracked Files**: New files in managed directories
+- [x] **Untracked Files**: New files in managed directories
 
 ### Output Format
 ```bash
@@ -95,7 +95,7 @@ entropy-check --json       # Machine-readable output
 - [x] Tracks binary version drift
 - [x] Identifies new broken symlinks
 - [x] Baseline creation and updates
-- [ ] Integration with dot-doctor workflow
+- [x] Integration with dot-doctor workflow
 
 ---
 

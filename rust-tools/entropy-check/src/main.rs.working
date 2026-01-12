@@ -31,7 +31,6 @@ struct DriftReport {
     service_drifts: Vec<String>,
     binary_drifts: Vec<String>,
     symlink_drifts: Vec<String>,
-    untracked_files: Vec<String>,
 }
 
 impl EntropyBaseline {
@@ -120,33 +119,6 @@ fn find_broken_symlinks(baseline_symlinks: &HashMap<String, String>) -> Vec<Stri
     broken
 }
 
-fn find_untracked_files(baseline: &EntropyBaseline) -> Vec<String> {
-    let mut untracked = Vec::new();
-    let home = match std::env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => return untracked,
-    };
-    let config_dir = format!("{}/.config", home);
-    let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .collect();
-    for entry in entries {
-        let path = entry.path();
-        let path_str = path.display().to_string();
-        if !baseline.config_checksums.contains_key(&path_str)
-            && !baseline.symlinks.contains_key(&path_str)
-            && !path_str.contains("cache")
-            && !path_str.contains(".git") {
-            untracked.push(format!("   {} (new file)", path_str));
-        }
-    }
-    untracked.truncate(10);
-    untracked
-}
-
 fn load_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
     let path = get_baseline_path();
     let contents = fs::read_to_string(path)?;
@@ -230,7 +202,6 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
         service_drifts: Vec::new(),
         binary_drifts: Vec::new(),
         symlink_drifts: Vec::new(),
-        untracked_files: Vec::new(),
     };
     
     // 1. Check config file changes
@@ -279,9 +250,6 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
     
     // 4. Check for broken symlinks
     report.symlink_drifts = find_broken_symlinks(&baseline.symlinks);
-    
-    // 5. Check for untracked files
-    report.untracked_files = find_untracked_files(baseline);
     
     Ok(report)
 }
@@ -336,19 +304,8 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     }
     println!();
     
-    // Untracked files
-    if drift.untracked_files.is_empty() {
-        println!("✅ Untracked Files (0 new)");
-    } else {
-        println!("⚠️  Untracked Files ({} new)", drift.untracked_files.len());
-        for item in &drift.untracked_files {
-            println!("{}", item);
-        }
-    }
-    println!();
-    
     // Summary
-    let total_drifts = drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len() + drift.symlink_drifts.len() + drift.untracked_files.len();
+    let total_drifts = drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len() + drift.symlink_drifts.len();
     if total_drifts == 0 {
         println!("✨ No drift detected. System stable.");
     } else {
@@ -364,9 +321,6 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
         }
         if !drift.symlink_drifts.is_empty() {
             println!("   New broken symlinks detected, investigate and repair");
-        }
-        if !drift.untracked_files.is_empty() {
-            println!("   New untracked files detected, review and add to baseline if intended");
         }
     }
 }
