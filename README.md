@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v6.7.2 - Sway Edition
+# 🌲 Faelight Forest v6.8.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v6.7.2-brightgreen)
+![Version](https://img.shields.io/badge/Version-v6.8.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v6.7.2 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
+> **v6.8.0 Milestone:** Unified faelight CLI, typed TOML configs, Health Engine v0.2, Git governance. 9 custom Rust tools. 🌲🦀
 
 ---
 
@@ -271,8 +271,8 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v6.7.2 | 2026-01-11 | Fuzzy search launcher, Nushell integration |
-| v6.7.2 | 2026-01-10 | Security hardening, UI polish |
+| v6.8.0 | 2026-01-11 | Fuzzy search launcher, Nushell integration |
+| v6.8.0 | 2026-01-10 | Security hardening, UI polish |
 | v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
 | v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |
 | v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |

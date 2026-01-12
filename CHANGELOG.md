@@ -3,6 +3,29 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+
+## [6.8.0] - 2026-01-12
+
+### 🚀 New Features
+- **entropy-check v0.1** - Configuration drift detection tool
+  - Config drift: Detects files modified outside stow
+  - Service drift: Tracks service state changes
+  - Binary drift: Monitors package version changes
+  - Symlink drift: Identifies new broken symlinks
+  - Untracked files: Finds new files in managed directories
+
+### 📝 Incidents
+- Incident 003: Stow symlink confusion (resolved in 5 minutes)
+  - All safety nets worked (git, snapshots, manual recovery)
+  - Zero data loss, learned valuable lessons
+
+### 🦀 Rust Tools
+- entropy-check v0.1 - Drift detection (Intent 015 complete)
+
+> "The forest watches for silent changes. Systems drift—entropy-check observes." 🌲
+
+---
+
 ## [6.7.2] - 2026-01-12
 
 ### 📐 Typography/UI
