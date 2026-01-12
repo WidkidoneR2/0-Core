@@ -1,3 +1,7 @@
+---
+type: index
+---
+
 # Incident Log
 
 Record of system issues, near-misses, and recovery procedures.
