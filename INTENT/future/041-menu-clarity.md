@@ -52,3 +52,13 @@ Shutdown    ← desaturated warn
 
 ---
 _The forest acts with intention._ 🌲
+
+## Unique Faelight Features (v0.5+)
+- [ ] Snapshot before reboot (auto-create)
+- [ ] Health check on logout (warn uncommitted)
+- [ ] Profile-aware (show current profile)
+- [ ] Intent logging ("User initiated reboot")
+- [ ] Lock core before shutdown
+
+## Comparison Target
+> "Better than wlogout - same polish, more safety, zero bloat."
