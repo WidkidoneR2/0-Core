@@ -3,6 +3,34 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.7.1] - 2026-01-11
+
+### 🚀 faelight-launcher v0.4
+- Typography hierarchy (title 24, item 18, hint 16)
+- Fuzzy scoring with ranking (exact > starts > contains)
+- Escape: first clears search, second closes
+- Fixed icons (tree, vim, terminal)
+- ROW_HEIGHT: 46 for better spacing
+
+### 🔒 faelight-menu v0.3
+- Typography hierarchy (title 22, item 20, hint 15)
+- Divider line before dangerous actions
+- Danger always visible (not hidden until selected)
+- Width: 400, ROW_HEIGHT: 52
+
+### 🔔 faelight-notify v0.4
+- Typography hierarchy (app 14, title 18, body 16)
+- Compact size: 200x60 (70% smaller)
+- Less intrusive notifications
+
+### 🔧 Fixes
+- Super+D → faelight-launcher (was fuzzel)
+- Super+Escape → faelight-menu
+
+> "The forest refines itself." 🌲
+
+---
+
 ## [6.7.0] - 2026-01-11
 
 ### 🔗 faelight-stow v0.1 (Intent 034)
