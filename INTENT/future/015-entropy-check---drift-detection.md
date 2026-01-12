@@ -34,7 +34,7 @@ entropy-check catches drift early:
 - [x] **Config Drift**: Files modified outside stow (checksum mismatches)
 - [x] **Service Drift**: Services changed state unexpectedly
 - [x] **Binary Drift**: Package versions changed since last check
-- [ ] **Symlink Drift**: New broken symlinks since baseline
+- [x] **Symlink Drift**: New broken symlinks since baseline
 - [ ] **Untracked Files**: New files in managed directories
 
 ### Output Format
@@ -90,10 +90,10 @@ entropy-check --json       # Machine-readable output
 ---
 
 ## Success Criteria (v0.1)
-- [ ] Detects config modifications outside stow
-- [ ] Reports service state changes
-- [ ] Tracks binary version drift
-- [ ] Identifies new broken symlinks
+- [x] Detects config modifications outside stow
+- [x] Reports service state changes
+- [x] Tracks binary version drift
+- [x] Identifies new broken symlinks
 - [x] Baseline creation and updates
 - [ ] Integration with dot-doctor workflow
 

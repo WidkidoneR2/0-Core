@@ -30,6 +30,7 @@ struct DriftReport {
     config_drifts: Vec<String>,
     service_drifts: Vec<String>,
     binary_drifts: Vec<String>,
+    symlink_drifts: Vec<String>,
 }
 
 impl EntropyBaseline {
@@ -69,6 +70,53 @@ fn hash_file(path: &Path) -> Result<String, std::io::Error> {
     let mut hasher = Sha256::new();
     hasher.update(&contents);
     Ok(format!("sha256:{:x}", hasher.finalize()))
+}
+
+fn collect_symlinks() -> HashMap<String, String> {
+    let mut symlinks = HashMap::new();
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => return symlinks,
+    };
+    let config_dir = format!("{}/.config", home);
+    let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path_is_symlink())
+        .collect();
+    for entry in entries {
+        let path = entry.path();
+        if let Ok(target) = std::fs::read_link(path) {
+            symlinks.insert(path.display().to_string(), target.display().to_string());
+        }
+    }
+    symlinks
+}
+
+fn find_broken_symlinks(baseline_symlinks: &HashMap<String, String>) -> Vec<String> {
+    let mut broken = Vec::new();
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => return broken,
+    };
+    let config_dir = format!("{}/.config", home);
+    let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path_is_symlink())
+        .collect();
+    for entry in entries {
+        let path = entry.path();
+        let path_str = path.display().to_string();
+        if let Ok(target) = std::fs::read_link(path) {
+            if !target.exists() && !baseline_symlinks.contains_key(&path_str) {
+                broken.push(format!("   {} → {} (new broken link)", path_str, target.display()));
+            }
+        }
+    }
+    broken
 }
 
 fn load_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
@@ -125,6 +173,10 @@ fn create_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
         }
     }
     
+    // 4. Collect symlinks
+    println!("   🔗 Scanning symlinks...");
+    baseline.symlinks = collect_symlinks();
+    
     println!("   ✅ Baseline created");
     Ok(baseline)
 }
@@ -149,6 +201,7 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
         config_drifts: Vec::new(),
         service_drifts: Vec::new(),
         binary_drifts: Vec::new(),
+        symlink_drifts: Vec::new(),
     };
     
     // 1. Check config file changes
@@ -195,6 +248,9 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
         }
     }
     
+    // 4. Check for broken symlinks
+    report.symlink_drifts = find_broken_symlinks(&baseline.symlinks);
+    
     Ok(report)
 }
 
@@ -237,8 +293,19 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     }
     println!();
     
+    // Symlink drift
+    if drift.symlink_drifts.is_empty() {
+        println!("✅ Symlink Drift (0 new breaks)");
+    } else {
+        println!("⚠️  Symlink Drift ({} new breaks)", drift.symlink_drifts.len());
+        for item in &drift.symlink_drifts {
+            println!("{}", item);
+        }
+    }
+    println!();
+    
     // Summary
-    let total_drifts = drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len();
+    let total_drifts = drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len() + drift.symlink_drifts.len();
     if total_drifts == 0 {
         println!("✨ No drift detected. System stable.");
     } else {
@@ -251,6 +318,9 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
         }
         if !drift.binary_drifts.is_empty() {
             println!("   Package updates detected, run entropy-check --baseline to update");
+        }
+        if !drift.symlink_drifts.is_empty() {
+            println!("   New broken symlinks detected, investigate and repair");
         }
     }
 }
