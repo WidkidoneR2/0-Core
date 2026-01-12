@@ -1,4 +1,4 @@
-//! faelight-notify v0.3 - Working Notification Daemon
+//! faelight-notify v0.4 - Working Notification Daemon
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -31,8 +31,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use zbus::{connection, interface};
 
-const NOTIFY_WIDTH: u32 = 600;
-const NOTIFY_HEIGHT: u32 = 100;
+const NOTIFY_WIDTH: u32 = 200;
+const NOTIFY_HEIGHT: u32 = 60;
 const MARGIN: u32 = 15;
 
 const BG_COLOR: [u8; 4] = [0x1a, 0x1d, 0x18, 0xF5];
@@ -43,6 +43,14 @@ const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+
+// ═══════════════════════════════════════════════════════════
+// 📐 TYPOGRAPHY
+// ═══════════════════════════════════════════════════════════
+const FONT_APP: f32 = 14.0;
+const FONT_TITLE: f32 = 18.0;
+const FONT_BODY: f32 = 16.0;
+const FONT_BADGE: f32 = 14.0;
 
 #[derive(Clone, Debug)]
 struct Notification {
@@ -219,13 +227,13 @@ impl NotifyState {
 
         if let Some(n) = notif {
             draw_border(canvas, width, height);
-            draw_text(&self.font, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, 22.0);
-            let summary = truncate_text(&self.font, &n.summary, width - 24, 22.0);
-            draw_text(&self.font, canvas, width, height, &summary, 12, 35, TITLE_COLOR, 22.0);
-            let body = truncate_text(&self.font, &n.body, width - 24, 22.0);
-            draw_text(&self.font, canvas, width, height, &body, 12, 62, TEXT_COLOR, 22.0);
+            draw_text(&self.font, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, FONT_APP);
+            let summary = truncate_text(&self.font, &n.summary, width - 24, FONT_TITLE);
+            draw_text(&self.font, canvas, width, height, &summary, 12, 28, TITLE_COLOR, FONT_TITLE);
+            let body = truncate_text(&self.font, &n.body, width - 24, FONT_BODY);
+            draw_text(&self.font, canvas, width, height, &body, 12, 50, TEXT_COLOR, FONT_BODY);
             if count > 1 {
-                draw_text(&self.font, canvas, width, height, &format!("+{}", count - 1), width - 40, 12, BORDER_COLOR, 22.0);
+                draw_text(&self.font, canvas, width, height, &format!("+{}", count - 1), width - 35, 12, BORDER_COLOR, FONT_BADGE);
             }
         }
 
@@ -302,7 +310,7 @@ delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.3.0 starting...");
+    eprintln!("🌲 faelight-notify v0.4.0 starting...");
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
     let notifs_for_dbus = notifications.clone();
