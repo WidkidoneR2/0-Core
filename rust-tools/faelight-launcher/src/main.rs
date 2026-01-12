@@ -1,4 +1,4 @@
-//! faelight-launcher v0.3 - Static List
+//! faelight-launcher v0.4 - Static List
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -41,6 +41,16 @@ const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 
+// ═══════════════════════════════════════════════════════════
+// 📐 TYPOGRAPHY & LAYOUT
+// ═══════════════════════════════════════════════════════════
+const FONT_TITLE: f32 = 24.0;
+const FONT_SEARCH: f32 = 16.0;
+const FONT_ITEM: f32 = 18.0;
+const FONT_HINT: f32 = 16.0;
+const ROW_HEIGHT: u32 = 46;
+const ROW_START: u32 = 95;
+
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
 // ═══════════════════════════════════════════════════════════
@@ -55,13 +65,13 @@ const APPS: &[AppEntry] = &[
     AppEntry { name: "Browser", exec: "brave", icon: "󰖟" },
     AppEntry { name: "btop", exec: "foot -e btop", icon: "󰄪" },
     AppEntry { name: "Discord", exec: "discord", icon: "󰙯" },
-    AppEntry { name: "Editor", exec: "foot -e nvim", icon: "" },
+    AppEntry { name: "Editor", exec: "foot -e nvim", icon: "" },
     AppEntry { name: "Filen", exec: "filen-desktop", icon: "󰅟" },
     AppEntry { name: "Files", exec: "thunar", icon: "󰉋" },
     AppEntry { name: "KeePassXC", exec: "keepassxc", icon: "󰌋" },
     AppEntry { name: "LazyGit", exec: "foot -e lazygit", icon: "󰊢" },
     AppEntry { name: "Notesnook", exec: "notesnook", icon: "󱞁" },
-    AppEntry { name: "Terminal", exec: "foot", icon: "" },
+    AppEntry { name: "Terminal", exec: "foot", icon: "" },
     AppEntry { name: "Tutanota", exec: "tutanota-desktop", icon: "󰇮" },
     AppEntry { name: "Yazi", exec: "foot -e yazi", icon: "󰉖" },
 ];
@@ -225,7 +235,7 @@ impl LauncherState {
         }
 
         draw_border(canvas, width, height);
-        draw_text(&self.font, canvas, width, height, "🌲 Faelight Launcher", 20, 18, BORDER_COLOR, 26.0);
+        draw_text(&self.font, canvas, width, height, "󰐅 Faelight Launcher", 20, 18, BORDER_COLOR, FONT_TITLE);
         
         // Search box
         let search_display = if self.search_query.is_empty() {
@@ -235,7 +245,7 @@ impl LauncherState {
         };
         let search_color = if self.search_query.is_empty() { DIM_COLOR } else { TEXT_COLOR };
         draw_rect(canvas, width, height, 15, 45, width - 30, 28, SELECTED_BG);
-        draw_text(&self.font, canvas, width, height, &format!("🔍 {}", search_display), 20, 50, search_color, 16.0);
+        draw_text(&self.font, canvas, width, height, &format!("🔍 {}", search_display), 20, 50, search_color, FONT_SEARCH);
 
         // Separator line
         let sep_y = 80;
@@ -247,18 +257,18 @@ impl LauncherState {
         // Draw apps
         let filtered_apps = filter_apps(&self.search_query);
         for (i, app) in filtered_apps.iter().enumerate() {
-            let y = 95 + i as u32 * 42;
+            let y = ROW_START + i as u32 * ROW_HEIGHT;
             
             if i == selected {
-                draw_rect(canvas, width, height, 10, y - 5, width - 20, 38, SELECTED_BG);
+                draw_rect(canvas, width, height, 10, y - 6, width - 20, 40, SELECTED_BG);
             }
 
             let color = if i == selected { BORDER_COLOR } else { TEXT_COLOR };
             let text = format!("{}  {}", app.icon, app.name);
-            draw_text(&self.font, canvas, width, height, &text, 15, y, color, 18.0);
+            draw_text(&self.font, canvas, width, height, &text, 15, y, color, FONT_ITEM);
         }
 
-        draw_text(&self.font, canvas, width, height, "↑↓ Navigate  Enter Launch  Esc Close", 20, height - 35, DIM_COLOR, 18.0);
+        draw_text(&self.font, canvas, width, height, "↑↓ Navigate  Enter Launch  Esc Close", 20, height - 35, DIM_COLOR, FONT_HINT);
 
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
@@ -349,7 +359,15 @@ impl KeyboardHandler for LauncherState {
 
     fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
         match event.keysym {
-            Keysym::Escape => self.running = false,
+            Keysym::Escape => {
+                    if !self.search_query.is_empty() {
+                        self.search_query.clear();
+                        self.selected = 0;
+                        self.draw();
+                    } else {
+                        self.running = false;
+                    }
+                }
             Keysym::Return | Keysym::KP_Enter => {
                 self.launch_selected();
                 self.running = false;
@@ -402,7 +420,7 @@ delegate_registry!(LauncherState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v0.3 starting...");
+    eprintln!("🌲 faelight-launcher v0.4 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
