@@ -3,7 +3,7 @@ id: 039
 date: 2026-01-11
 type: future
 title: "faelight-notify Typography Polish"
-status: planned
+status: complete
 tags: [rust, notifications, typography, v0.4]
 ---
 
@@ -11,9 +11,9 @@ tags: [rust, notifications, typography, v0.4]
 Transform notifications from "hand-drawn" to "designed".
 
 ## Quick Wins (v0.4)
-- [ ] Typography hierarchy (app: 16, title: 20, body: 17)
-- [ ] Title color brighter than body
-- [ ] Vertical rhythm spacing
+- [x] Typography hierarchy (app: 16, title: 20, body: 17)
+- [x] Title color brighter than body
+- [x] Vertical rhythm spacing
 
 ## Baseline & Kerning (v0.5)
 - [ ] Use font metrics (ascent/descent/line_gap)

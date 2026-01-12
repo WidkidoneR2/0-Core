@@ -1,10 +1,11 @@
-//! faelight-menu v0.3 - Power Menu
+//! faelight-menu v0.3.0 - Clarity & Safety
 //! 🌲 Faelight Forest
 
+use fontdue::{Font, FontSettings};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output,
-    delegate_registry, delegate_seat, delegate_shm,
+    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
+    delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
@@ -14,20 +15,19 @@ use smithay_client_toolkit::{
     },
     shell::{
         wlr_layer::{
-            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler,
-            LayerSurface, LayerSurfaceConfigure,
+            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
+            LayerSurfaceConfigure,
         },
         WaylandSurface,
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
+use std::process::Command;
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_keyboard, wl_output, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use fontdue::{Font, FontSettings};
-use std::process::Command;
 
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
@@ -47,12 +47,13 @@ const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.
 // ═══════════════════════════════════════════════════════════
 // 📐 TYPOGRAPHY & LAYOUT
 // ═══════════════════════════════════════════════════════════
-const FONT_TITLE: f32 = 22.0;
-const FONT_ITEM: f32 = 20.0;
-const FONT_HINT: f32 = 15.0;
-const ROW_HEIGHT: u32 = 52;
+const FONT_TITLE: f32 = 20.0;
+const FONT_ITEM: f32 = 18.0;
+const FONT_HINT: f32 = 14.0;
+const ROW_HEIGHT: u32 = 44;
 const ROW_START: u32 = 75;
 const DANGER_DIM: [u8; 4] = [0xb3, 0x5b, 0x5b, 0xFF]; // Desaturated warn - always visible
+                                                      //
 
 // ═══════════════════════════════════════════════════════════
 // 📱 MENU ENTRIES
@@ -65,11 +66,36 @@ struct MenuItem {
 }
 
 const MENU_ITEMS: &[MenuItem] = &[
-    MenuItem { icon: "󰌾", label: "Lock", action: "lock", dangerous: false },
-    MenuItem { icon: "󰗽", label: "Logout", action: "logout", dangerous: false },
-    MenuItem { icon: "󰤄", label: "Suspend", action: "suspend", dangerous: false },
-    MenuItem { icon: "󰜉", label: "Reboot", action: "reboot", dangerous: true },
-    MenuItem { icon: "󰐥", label: "Shutdown", action: "shutdown", dangerous: true },
+    MenuItem {
+        icon: "󰌾",
+        label: "Lock",
+        action: "lock",
+        dangerous: false,
+    },
+    MenuItem {
+        icon: "󰗽",
+        label: "Logout",
+        action: "logout",
+        dangerous: false,
+    },
+    MenuItem {
+        icon: "󰤄",
+        label: "Suspend",
+        action: "suspend",
+        dangerous: false,
+    },
+    MenuItem {
+        icon: "󰜉",
+        label: "Reboot",
+        action: "reboot",
+        dangerous: true,
+    },
+    MenuItem {
+        icon: "󰐥",
+        label: "Shutdown",
+        action: "shutdown",
+        dangerous: true,
+    },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -79,15 +105,26 @@ fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
     let stride = width as usize * 4;
     for x in 0..width as usize {
         canvas[x * 4..x * 4 + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[(height as usize - 1) * stride + x * 4..(height as usize - 1) * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
+        canvas[(height as usize - 1) * stride + x * 4..(height as usize - 1) * stride + x * 4 + 4]
+            .copy_from_slice(&BORDER_COLOR);
     }
     for y in 0..height as usize {
         canvas[y * stride..y * stride + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[y * stride + (width as usize - 1) * 4..y * stride + (width as usize - 1) * 4 + 4].copy_from_slice(&BORDER_COLOR);
+        canvas[y * stride + (width as usize - 1) * 4..y * stride + (width as usize - 1) * 4 + 4]
+            .copy_from_slice(&BORDER_COLOR);
     }
 }
 
-fn draw_rect(canvas: &mut [u8], width: u32, height: u32, x: u32, y: u32, w: u32, h: u32, color: [u8; 4]) {
+fn draw_rect(
+    canvas: &mut [u8],
+    width: u32,
+    height: u32,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    color: [u8; 4],
+) {
     let stride = width as usize * 4;
     for row in y..y + h {
         for col in x..x + w {
@@ -99,7 +136,17 @@ fn draw_rect(canvas: &mut [u8], width: u32, height: u32, x: u32, y: u32, w: u32,
     }
 }
 
-fn draw_text(font: &Font, canvas: &mut [u8], width: u32, height: u32, text: &str, x: u32, y: u32, color: [u8; 4], size: f32) {
+fn draw_text(
+    font: &Font,
+    canvas: &mut [u8],
+    width: u32,
+    height: u32,
+    text: &str,
+    x: u32,
+    y: u32,
+    color: [u8; 4],
+    size: f32,
+) {
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
     for ch in text.chars() {
@@ -114,8 +161,10 @@ fn draw_text(font: &Font, canvas: &mut [u8], width: u32, height: u32, text: &str
                         let idx = py * stride + px * 4;
                         let a = alpha as f32 / 255.0;
                         canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
-                        canvas[idx + 1] = ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
-                        canvas[idx + 2] = ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
+                        canvas[idx + 1] =
+                            ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
+                        canvas[idx + 2] =
+                            ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
                         canvas[idx + 3] = 255;
                     }
                 }
@@ -159,7 +208,12 @@ impl MenuState {
             None => return,
         };
 
-        let (buffer, canvas) = match pool.create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888) {
+        let (buffer, canvas) = match pool.create_buffer(
+            width as i32,
+            height as i32,
+            stride,
+            wl_shm::Format::Argb8888,
+        ) {
             Ok(b) => b,
             Err(_) => return,
         };
@@ -170,7 +224,17 @@ impl MenuState {
         }
 
         draw_border(canvas, width, height);
-        draw_text(&self.font, canvas, width, height, "⚡ Power Menu", 20, 20, BORDER_COLOR, FONT_TITLE);
+        draw_text(
+            &self.font,
+            canvas,
+            width,
+            height,
+            "⚡ Power Menu",
+            20,
+            20,
+            BORDER_COLOR,
+            FONT_TITLE,
+        );
 
         // Separator
         for x in 15..width as usize - 15 {
@@ -181,7 +245,7 @@ impl MenuState {
         // Draw menu items
         for (i, item) in MENU_ITEMS.iter().enumerate() {
             let y = ROW_START + i as u32 * ROW_HEIGHT;
-            
+
             // Divider before dangerous actions
             if i == 3 {
                 let div_y = y - 18;
@@ -192,27 +256,58 @@ impl MenuState {
                     }
                 }
             }
-            
+
             if i == selected {
-                draw_rect(canvas, width, height, 10, y - 8, width - 20, 46, SELECTED_BG);
+                draw_rect(
+                    canvas,
+                    width,
+                    height,
+                    10,
+                    y - 8,
+                    width - 20,
+                    46,
+                    SELECTED_BG,
+                );
             }
 
             let text_color = if item.dangerous {
-                if i == selected { WARN_COLOR } else { DANGER_DIM }
+                if i == selected {
+                    WARN_COLOR
+                } else {
+                    DANGER_DIM
+                }
             } else {
-                if i == selected { BORDER_COLOR } else { TEXT_COLOR }
+                if i == selected {
+                    BORDER_COLOR
+                } else {
+                    TEXT_COLOR
+                }
             };
 
             let text = format!("{}  {}", item.icon, item.label);
-            draw_text(&self.font, canvas, width, height, &text, 25, y, text_color, FONT_ITEM);
+            draw_text(
+                &self.font, canvas, width, height, &text, 25, y, text_color, FONT_ITEM,
+            );
         }
 
         // Hint
-        draw_text(&self.font, canvas, width, height, "↑↓ Move  Enter Select  Esc Close", 15, height - 25, DIM_COLOR, FONT_HINT);
+        draw_text(
+            &self.font,
+            canvas,
+            width,
+            height,
+            "↑↓ Move  Enter Select  Esc Close",
+            15,
+            height - 25,
+            DIM_COLOR,
+            FONT_HINT,
+        );
 
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-            surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
+            surface
+                .wl_surface()
+                .damage_buffer(0, 0, width as i32, height as i32);
             surface.wl_surface().commit();
         }
     }
@@ -220,13 +315,23 @@ impl MenuState {
     fn execute_selected(&self) {
         let item = &MENU_ITEMS[self.selected];
         eprintln!("⚡ Executing: {}", item.label);
-        
+
         match item.action {
-            "lock" => { Command::new("swaylock").spawn().ok(); }
-            "logout" => { Command::new("swaymsg").arg("exit").spawn().ok(); }
-            "suspend" => { Command::new("systemctl").arg("suspend").spawn().ok(); }
-            "reboot" => { Command::new("systemctl").arg("reboot").spawn().ok(); }
-            "shutdown" => { Command::new("systemctl").arg("poweroff").spawn().ok(); }
+            "lock" => {
+                Command::new("swaylock").spawn().ok();
+            }
+            "logout" => {
+                Command::new("swaymsg").arg("exit").spawn().ok();
+            }
+            "suspend" => {
+                Command::new("systemctl").arg("suspend").spawn().ok();
+            }
+            "reboot" => {
+                Command::new("systemctl").arg("reboot").spawn().ok();
+            }
+            "shutdown" => {
+                Command::new("systemctl").arg("poweroff").spawn().ok();
+            }
             _ => {}
         }
     }
@@ -252,15 +357,45 @@ impl MenuState {
 // 🔧 HANDLERS
 // ═══════════════════════════════════════════════════════════
 impl CompositorHandler for MenuState {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
     fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for MenuState {
-    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
+    fn output_state(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
@@ -270,7 +405,14 @@ impl LayerShellHandler for MenuState {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         self.running = false;
     }
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+    fn configure(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _: u32,
+    ) {
         self.width = configure.new_size.0.max(WIDTH);
         self.height = configure.new_size.1.max(HEIGHT);
         self.configured = true;
@@ -279,23 +421,72 @@ impl LayerShellHandler for MenuState {
 }
 
 impl SeatHandler for MenuState {
-    fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
+    fn seat_state(&mut self) -> &mut SeatState {
+        &mut self.seat_state
+    }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
+    fn new_capability(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: Capability,
+    ) {
         if capability == Capability::Keyboard {
             self.seat_state.get_keyboard(qh, &seat, None).ok();
         }
     }
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
+    fn remove_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat,
+        _: Capability,
+    ) {
+    }
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 
 impl KeyboardHandler for MenuState {
-    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32, _: &[u32], _: &[Keysym]) {}
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
-    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: Modifiers, _: u32) {}
+    fn enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+        _: &[u32],
+        _: &[Keysym],
+    ) {
+    }
+    fn leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+    ) {
+    }
+    fn update_modifiers(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: Modifiers,
+        _: u32,
+    ) {
+    }
 
-    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+    fn press_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        event: KeyEvent,
+    ) {
         match event.keysym {
             Keysym::Escape | Keysym::q => self.running = false,
             Keysym::Return | Keysym::KP_Enter => {
@@ -336,16 +527,35 @@ impl KeyboardHandler for MenuState {
         }
     }
 
-    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
-    fn update_repeat_info(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: RepeatInfo) {}
+    fn release_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: KeyEvent,
+    ) {
+    }
+    fn update_repeat_info(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: RepeatInfo,
+    ) {
+    }
 }
 
 impl ShmHandler for MenuState {
-    fn shm_state(&mut self) -> &mut Shm { &mut self.shm }
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
+    }
 }
 
 impl ProvidesRegistryState for MenuState {
-    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
+    fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
     registry_handlers![OutputState, SeatState];
 }
 
@@ -372,7 +582,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shm = Shm::bind(&globals, &qh)?;
 
     let surface = compositor.create_surface(&qh);
-    let layer_surface = layer_shell.create_layer_surface(&qh, surface, Layer::Overlay, Some("faelight-menu"), None);
+    let layer_surface =
+        layer_shell.create_layer_surface(&qh, surface, Layer::Overlay, Some("faelight-menu"), None);
 
     layer_surface.set_anchor(Anchor::empty());
     layer_surface.set_size(WIDTH, HEIGHT);

@@ -1,4 +1,4 @@
-//! faelight-notify v0.4 - Working Notification Daemon
+//! faelight-notify v0.4.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -31,8 +31,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use zbus::{connection, interface};
 
-const NOTIFY_WIDTH: u32 = 200;
-const NOTIFY_HEIGHT: u32 = 60;
+const NOTIFY_WIDTH: u32 = 400;
+const NOTIFY_HEIGHT: u32 = 80;
 const MARGIN: u32 = 15;
 
 const BG_COLOR: [u8; 4] = [0x1a, 0x1d, 0x18, 0xF5];
@@ -47,9 +47,9 @@ const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regul
 // ═══════════════════════════════════════════════════════════
 // 📐 TYPOGRAPHY
 // ═══════════════════════════════════════════════════════════
-const FONT_APP: f32 = 14.0;
-const FONT_TITLE: f32 = 18.0;
-const FONT_BODY: f32 = 16.0;
+const FONT_APP: f32 = 16.0;
+const FONT_TITLE: f32 = 20.0;
+const FONT_BODY: f32 = 17.0;
 const FONT_BADGE: f32 = 14.0;
 
 #[derive(Clone, Debug)]
@@ -96,7 +96,7 @@ impl NotificationServer {
 
     fn close_notification(&self, _id: u32) {}
     fn get_server_information(&self) -> (String, String, String, String) {
-        ("faelight-notify".into(), "faelight".into(), "0.2.0".into(), "1.2".into())
+        ("faelight-notify".into(), "faelight".into(), "0.4.0".into(), "1.2".into())
     }
 }
 

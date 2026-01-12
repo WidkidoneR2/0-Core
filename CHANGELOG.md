@@ -3,6 +3,22 @@
 All notable changes to Faelight Forest / 0-Core.
 
 ---
+## [6.7.2] - 2026-01-12
+
+### 📐 Typography/UI
+- faelight-notify v0.4.0: Typography hierarchy (16/20/17), increased dimensions (400x80)
+- faelight-launcher v0.4.0: Typography polish (22/18/14), fuzzy ranking, selection padding
+- faelight-menu v0.3.0: Typography clarity (20/18/14), danger divider, rust formatting
+
+### 📦 Tool Updates
+- faelight-notify v0.4.0 - Typography polish
+- faelight-launcher v0.4.0 - Feel perfect
+- faelight-menu v0.3.0 - Clarity & safety
+
+> "Typography breathes. Polish speaks clearly. The forest refines its voice." 🌲
+
+---
+
 ## [6.7.1] - 2026-01-11
 
 ### 🚀 faelight-launcher v0.4

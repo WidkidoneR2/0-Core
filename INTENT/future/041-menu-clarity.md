@@ -3,7 +3,7 @@ id: 041
 date: 2026-01-11
 type: future
 title: "faelight-menu Clarity & Safety"
-status: planned
+status: complete
 tags: [rust, menu, safety, v0.3]
 ---
 
@@ -12,11 +12,11 @@ tags: [rust, menu, safety, v0.3]
 > "Let color carry danger, not weight."
 
 ## v0.3 - Clarity
-- [ ] Divider line before dangerous actions (Reboot/Shutdown)
-- [ ] Danger visible before selection (desaturated WARN)
-- [ ] Unified quick-keys: all select only, Enter executes
-- [ ] Typography: title bold (20), items regular (18), hint (14)
-- [ ] ROW_HEIGHT: 44px (tighter than 48)
+- [x] Divider line before dangerous actions (Reboot/Shutdown)
+- [x] Danger visible before selection (desaturated WARN)
+- [x] Unified quick-keys: all select only, Enter executes
+- [x] Typography: title bold (20), items regular (18), hint (14)
+- [x] ROW_HEIGHT: 44px (tighter than 48)
 
 ## v0.4 - Intent Friction
 - [ ] "Enter again to confirm" for dangerous actions

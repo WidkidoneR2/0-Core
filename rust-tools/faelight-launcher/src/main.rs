@@ -44,11 +44,11 @@ const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 // ═══════════════════════════════════════════════════════════
 // 📐 TYPOGRAPHY & LAYOUT
 // ═══════════════════════════════════════════════════════════
-const FONT_TITLE: f32 = 24.0;
+const FONT_TITLE: f32 = 22.0;
 const FONT_SEARCH: f32 = 16.0;
 const FONT_ITEM: f32 = 18.0;
-const FONT_HINT: f32 = 16.0;
-const ROW_HEIGHT: u32 = 46;
+const FONT_HINT: f32 = 14.0;
+const ROW_HEIGHT: u32 = 44;
 const ROW_START: u32 = 95;
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
@@ -111,30 +111,48 @@ fn keysym_to_char(keysym: Keysym) -> Option<char> {
     }
 }
 
-fn fuzzy_match(query: &str, target: &str) -> bool {
+fn fuzzy_score(query: &str, target: &str) -> i32 {
     if query.is_empty() {
-        return true;
+        return 100;
     }
-    let query = query.to_lowercase();
-    let target = target.to_lowercase();
+    let query_lower = query.to_lowercase();
+    let target_lower = target.to_lowercase();
     
-    // Simple substring match first
-    if target.contains(&query) {
-        return true;
+    // Exact match
+    if target_lower == query_lower {
+        return 1000;
     }
-    
-    // Fuzzy: all query chars must appear in order
-    let mut query_chars = query.chars().peekable();
-    for ch in target.chars() {
+    // Starts with
+    if target_lower.starts_with(&query_lower) {
+        return 500;
+    }
+    // Contains substring
+    if target_lower.contains(&query_lower) {
+        return 300;
+    }
+    // Fuzzy match (chars in order)
+    let mut score = 100;
+    let mut query_chars = query_lower.chars().peekable();
+    let mut consecutive = 0;
+    for ch in target_lower.chars() {
         if query_chars.peek() == Some(&ch) {
             query_chars.next();
+            consecutive += 1;
+            score += consecutive * 10;
+        } else {
+            consecutive = 0;
         }
     }
-    query_chars.peek().is_none()
+    if query_chars.peek().is_none() { score } else { 0 }
 }
 
 fn filter_apps(query: &str) -> Vec<&'static AppEntry> {
-    APPS.iter().filter(|app| fuzzy_match(query, app.name)).collect()
+    let mut results: Vec<(&AppEntry, i32)> = APPS.iter()
+        .map(|app| (app, fuzzy_score(query, app.name)))
+        .filter(|(_, score)| *score > 0)
+        .collect();
+    results.sort_by(|a, b| b.1.cmp(&a.1));
+    results.into_iter().map(|(app, _)| app).collect()
 }
 // ═══════════════════════════════════════════════════════════
 // 🖼️ DRAWING HELPERS (standalone)
@@ -244,7 +262,7 @@ impl LauncherState {
             self.search_query.clone()
         };
         let search_color = if self.search_query.is_empty() { DIM_COLOR } else { TEXT_COLOR };
-        draw_rect(canvas, width, height, 15, 45, width - 30, 28, SELECTED_BG);
+        draw_rect(canvas, width, height, 15, 45, width - 30, 32, SELECTED_BG);
         draw_text(&self.font, canvas, width, height, &format!("🔍 {}", search_display), 20, 50, search_color, FONT_SEARCH);
 
         // Separator line
@@ -260,7 +278,7 @@ impl LauncherState {
             let y = ROW_START + i as u32 * ROW_HEIGHT;
             
             if i == selected {
-                draw_rect(canvas, width, height, 10, y - 6, width - 20, 40, SELECTED_BG);
+                draw_rect(canvas, width, height, 10, y - 8, width - 20, 44, SELECTED_BG);
             }
 
             let color = if i == selected { BORDER_COLOR } else { TEXT_COLOR };

@@ -3,7 +3,7 @@ id: 040
 date: 2026-01-11
 type: future
 title: "faelight-launcher Polish"
-status: planned
+status: complete
 tags: [rust, launcher, typography, v0.4]
 ---
 
@@ -11,11 +11,11 @@ tags: [rust, launcher, typography, v0.4]
 From "mechanical" to "calm, intentional command surface".
 
 ## v0.4 - Feel Perfect
-- [ ] Typography hierarchy (FONT_TITLE: 22, FONT_ITEM: 18, FONT_HINT: 14)
-- [ ] ROW_HEIGHT constant (44px, not magic 42)
-- [ ] Selection padding (+4px vertical breathing)
-- [ ] Rank fuzzy results by score
-- [ ] Escape: first clears search, second closes
+- [x] Typography hierarchy (FONT_TITLE: 22, FONT_ITEM: 18, FONT_HINT: 14)
+- [x] ROW_HEIGHT constant (44px, not magic 42)
+- [x] Selection padding (+4px vertical breathing)
+- [x] Rank fuzzy results by score
+- [x] Escape: first clears search, second closes
 
 ## v0.5 - Polish
 - [ ] Highlight matched characters in results
