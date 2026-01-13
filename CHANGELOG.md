@@ -4,7 +4,6 @@ All notable changes to Faelight Forest / 0-Core.
 
 ---
 
-## [6.8.0] - 2026-01-12
 
 ## [6.8.1] - 2026-01-13
 
@@ -23,6 +22,8 @@ All notable changes to Faelight Forest / 0-Core.
 - entropy-check v0.1.1 - JSON output support
 
 ---
+
+## [6.8.0] - 2026-01-13
 
 ### 🚀 New Features
 - **entropy-check v0.1** - Configuration drift detection tool
