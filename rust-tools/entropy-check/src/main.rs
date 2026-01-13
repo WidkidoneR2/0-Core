@@ -25,7 +25,7 @@ struct EntropyBaseline {
     symlinks: HashMap<String, String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct DriftReport {
     config_drifts: Vec<String>,
     service_drifts: Vec<String>,
@@ -376,12 +376,15 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
 // ═══════════════════════════════════════════════════════════
 
 fn main() {
-    println!("🔍 entropy-check v0.1 - Configuration Drift Detection");
-    println!();
-    
     let args: Vec<String> = std::env::args().collect();
+    let json_output = args.contains(&"--json".to_string());
     
-    if args.len() > 1 && args[1] == "--baseline" {
+    if !json_output {
+        println!("🔍 entropy-check v0.1 - Configuration Drift Detection");
+        println!();
+    }
+    
+    if args.contains(&"--baseline".to_string()) {
         match create_baseline() {
             Ok(baseline) => {
                 if let Err(e) = save_baseline(&baseline) {
@@ -399,7 +402,13 @@ fn main() {
         match load_baseline() {
             Ok(baseline) => {
                 match check_drift(&baseline) {
-                    Ok(drift) => report_drift(&baseline, &drift),
+                    Ok(drift) => {
+                        if json_output {
+                            output_json(&baseline, &drift);
+                        } else {
+                            report_drift(&baseline, &drift);
+                        }
+                    }
                     Err(e) => {
                         eprintln!("❌ Error checking drift: {}", e);
                         std::process::exit(1);
@@ -413,4 +422,26 @@ fn main() {
             }
         }
     }
+}
+
+fn output_json(baseline: &EntropyBaseline, drift: &DriftReport) {
+    let output = serde_json::json!({
+        "version": "1.0",
+        "system_version": get_system_version(),
+        "baseline_created": baseline.created_at,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "drift": {
+            "config_drifts": drift.config_drifts,
+            "service_drifts": drift.service_drifts,
+            "binary_drifts": drift.binary_drifts,
+            "symlink_drifts": drift.symlink_drifts,
+            "untracked_files": drift.untracked_files,
+        },
+        "summary": {
+            "total_drifts": drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len() + drift.symlink_drifts.len() + drift.untracked_files.len(),
+            "has_drift": !(drift.config_drifts.is_empty() && drift.service_drifts.is_empty() && drift.binary_drifts.is_empty() && drift.symlink_drifts.is_empty() && drift.untracked_files.is_empty()),
+        }
+    });
+    
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }

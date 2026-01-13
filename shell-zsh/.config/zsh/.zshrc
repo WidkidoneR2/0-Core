@@ -738,3 +738,27 @@ alias secrets='cd ~/secrets'
 # Entropy check
 alias entropy='entropy-check'
 alias drift='entropy-check'
+
+# Faelight unified tool
+alias fl='faelight'
+
+# Lock screen (quick access)
+alias lock='faelight-lock'
+
+# Theme management
+alias theme='theme-switch'
+
+# Version bumping
+alias bump='bump-system-version'
+
+# Safe system updates
+alias update='safe-update'
+
+# Intent shortcuts (intent is already short, but add helpful variants)
+alias intent-add='intent add'
+alias intent-show='intent show'
+
+# Profile shortcuts (profile is already short)
+alias prof='profile'
+alias prof-list='profile list'
+alias prof-switch='profile switch'

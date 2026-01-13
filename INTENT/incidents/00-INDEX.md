@@ -1,6 +1,7 @@
 ---
 type: index
 ---
+title: "Incident Log Index"
 
 # Incident Log
 

@@ -1,185 +1,274 @@
-# 0-Core Tools Reference
+# 🦀 Faelight Forest Tools Reference
 
-Quick reference for all 0-core tools and utilities.
+Complete reference for all custom Rust tools in 0-Core.
 
----
+## Quick Reference
 
-## core-diff - Package-Aware Diff Tool
-
-**Philosophy:** "Meld shows trees. core-diff shows the forest 🌲"
-
-Package-level awareness, not file-level noise. Risk-based grouping for informed decisions.
-
-### Quick Start
-
-```bash
-# Morning check
-core-diff
-
-# Since last release
-core-diff since v3.3.5
-
-# Inspect specific package
-core-diff wm-sway --verbose
-
-# Visual diff
-core-diff --open meld
-```
-
-### Commands
-
-**Modes:**
-
-- `core-diff` - Show uncommitted changes (default)
-- `core-diff since <ref>` - Compare to commit/tag/branch
-- `core-diff working-tree` - Explicit uncommitted (same as default)
-- `core-diff summary` - Stats only (packages, files, risk)
-- `core-diff <package>` - Show specific package details
-
-**Flags:**
-
-- `--open delta` - Terminal diff with syntax highlighting
-- `--open meld` - Visual diff in Meld GUI
-- `--verbose, -v` - Show individual file lists
-- `--high-risk` - Filter to critical/high packages only
-- `--help, -h` - Show usage
-- `--version` - Show version info
-
-### Examples
-
-```bash
-# Daily workflows
-core-diff                           # Quick morning check
-core-diff --verbose                 # See what files changed
-core-diff --high-risk               # Focus on important changes
-
-# Release review
-core-diff since v3.3.5              # Changes since release
-core-diff since HEAD~5              # Last 5 commits
-
-# Package inspection
-core-diff wm-sway                   # Single package overview
-core-diff wm-sway --verbose         # Show files
-core-diff wm-sway --open meld       # Deep dive visually
-core-diff wm-sway --open delta      # Terminal diff
-
-# Quick stats
-core-diff summary                   # Just numbers
-
-# Combinations
-core-diff since v3.3.5 --high-risk  # Critical changes since release
-core-diff editor-nvim --verbose     # Detailed package view
-```
-
-### Understanding Output
-
-**Risk Levels:**
-
-- 🔴 **CRITICAL** - Window manager, system core (requires careful review)
-- 🟠 **HIGH** - Shell, bar, core tools (significant impact)
-- 🔵 **MEDIUM** - Editors, scripts, utilities (moderate impact)
-- 🟢 **LOW** - Docs, themes, optional configs (minimal impact)
-
-**Summary Stats:**
-
-- **Packages** - Number of packages changed
-- **Files** - Total files modified
-- **Risk** - Highest risk level present
-
-### Aliases
-
-See shell configuration for shortcuts:
-
-- `cdiff` - Short form
-- `cds` - Quick summary
-- `cdh` - High-risk only
-- `cdv` - Verbose output
-- `cdm` - Open Meld
-- `cdd` - Open delta
+| Tool | Purpose | Common Usage |
+|------|---------|--------------|
+| `entropy-check` | Drift detection | `drift` or `entropy` |
+| `faelight-launcher` | App launcher | `launcher` or `Super+D` |
+| `faelight-menu` | Power menu | `powermenu` or `Super+Shift+E` |
+| `faelight-notify` | Notifications | Runs as service |
+| `faelight-bar` | Status bar | Runs as service |
+| `dot-doctor` | Health checks | `doctor` or `health` |
+| `intent` | Intent ledger | `intent list` |
+| `profile` | Profile system | `prof` or `profile` |
+| `core-diff` | Policy scanner | `cdiff` |
+| `theme-switch` | Theme manager | `theme` |
 
 ---
 
-## dot-doctor - Health Checker
+## Core System Tools
 
-Comprehensive system health validation.
+### entropy-check v0.1
 
-### Usage
+**Drift Detection - Prevents Silent System Changes**
 
+**Purpose:** Detects configuration drift before it becomes catastrophic.
+
+**Commands:**
 ```bash
-dot-doctor                          # Full health check
+entropy-check              # Check for drift
+entropy-check --baseline   # Create/update baseline
+entropy-check --json       # JSON output for automation
+drift                      # Alias
+entropy                    # Alias
 ```
 
-### Checks Performed
+**What it Checks:**
+- **Config Drift:** Files modified outside stow (checksum mismatches)
+- **Service Drift:** Services changed state unexpectedly
+- **Binary Drift:** Package versions changed since last check
+- **Symlink Drift:** New broken symlinks
+- **Untracked Files:** New files in managed directories
 
-1. **Stow Symlinks** - All packages properly linked
-2. **Yazi Plugins** - File manager plugins installed
-3. **Broken Symlinks** - No dead links in managed dirs
-4. **System Services** - Mako, Waybar running
-5. **Binary Dependencies** - Required tools available
-6. **Git Health** - Working tree clean, commits pushed
-7. **Theme Packages** - All theme files present
-8. **Scripts** - All scripts executable
-9. **Config Aging** - File modification age tracking
-10. **Intentional Defaults** - Naming discipline enforcement
+**Example Output:**
+```
+📊 Drift Report - 0-Core v6.8.0
+✅ Config Drift (0 files)
+✅ Service Drift (0 changes)
+✅ Binary Drift (0 changes)
+✅ Symlink Drift (0 new breaks)
+✅ Untracked Files (0 new)
+✨ No drift detected. System stable.
+```
 
-### Output
-
-- ✅ **100% Health** - All checks passing
-- ⚠️ **90% Health** - Minor issues (e.g., uncommitted changes)
-- ❌ **<90% Health** - Requires attention
+**Baseline Location:** `~/.config/faelight/entropy-baseline.json`
 
 ---
 
-## dotctl - Package Management
+### dot-doctor v0.8
 
-Manage 0-core packages.
+**System Health Engine**
 
+**Purpose:** Comprehensive health checks with dependency graph model.
+
+**Commands:**
 ```bash
-dotctl status                       # Show all packages
-dotctl list                         # List packages
+dot-doctor          # Run all checks
+doctor              # Alias
+health              # Alias
+```
+
+**Checks:**
+- Stow symlinks
+- System services
+- Broken symlinks
+- Binary dependencies
+- Git repository status
+- Theme packages
+- Scripts
+- Package metadata
+- Intent ledger
+- Profile system
+- Faelight config
+
+**Exit Codes:**
+- `0` - All checks passed
+- `1` - Warnings present
+- `2` - Failures present
+
+---
+
+### intent v0.3
+
+**Intent Ledger Management**
+
+**Purpose:** Track decisions, experiments, and system evolution.
+
+**Commands:**
+```bash
+intent list              # List all intents
+intent show <id>         # Show specific intent
+intent add               # Add new intent
+intent search <term>     # Search intents
+```
+
+**Categories:**
+- `decisions/` - Architectural decisions
+- `experiments/` - Active experiments
+- `philosophy/` - Core principles
+- `future/` - Planned work
+- `incidents/` - System issues
+
+---
+
+## UI Tools
+
+### faelight-launcher v0.4
+
+**Rust App Launcher**
+
+**Purpose:** Fast, fuzzy application launcher.
+
+**Keybind:** `Super+D`
+
+**Features:**
+- Fuzzy search with ranking
+- Desktop file parsing
+- Icon support
+- Keyboard-only navigation
+
+**Aliases:**
+```bash
+launcher
 ```
 
 ---
 
-## safe-update - Controlled Updates
+### faelight-menu v0.3
 
-Manual, snapshot-based system updates.
+**Power Menu**
 
+**Purpose:** System power operations with safety checks.
+
+**Keybind:** `Super+Shift+E`
+
+**Options:**
+- Lock (faelight-lock)
+- Logout (exit Sway)
+- Reboot
+- Shutdown
+
+**Safety:** Confirmation required for destructive actions.
+
+**Aliases:**
 ```bash
-safe-update                         # Interactive update process
+powermenu
 ```
-
-**Workflow:**
-
-1. Creates Btrfs snapshot
-2. Shows dry-run
-3. Requires confirmation
-4. Executes updates
-5. Runs dot-doctor
 
 ---
 
-## Scripts Reference
+### faelight-notify v0.4
 
-Located in `~/0-core/scripts/`:
+**Notification Daemon**
 
-- `bump-system-version` - Version bumping
-- `core-diff` - Package-aware diffs
-- `core-protect` - Immutability management
-- `dot-doctor` - Health checking
-- `dotctl` - Package control
-- `safe-update` - Update orchestration
-- `theme-switch` - Theme management
+**Purpose:** Wayland-native notification system.
+
+**Service:** `faelight-notify.service` (user systemd)
+
+**Features:**
+- freedesktop notification spec
+- Clean typography
+- Timeout handling
+- Close actions
+
+---
+
+### faelight-bar v1.0
+
+**Status Bar**
+
+**Purpose:** Custom Wayland status bar.
+
+**Service:** `faelight-bar.service` (user systemd)
+
+**Modules:**
+- Workspaces
+- Window title
+- VPN status
+- Battery
+- Time
+
+---
+
+## Configuration Tools
+
+### profile v0.4
+
+**Profile System**
+
+**Purpose:** Manage system profiles (default, work, gaming, etc).
+
+**Commands:**
+```bash
+profile list          # List profiles
+profile switch <name> # Switch profile
+profile current       # Show current
+prof                  # Alias
+```
+
+---
+
+### theme-switch v0.2
+
+**Theme Manager**
+
+**Purpose:** System-wide theme switching.
+
+**Commands:**
+```bash
+theme-switch list           # List themes
+theme-switch apply <name>   # Apply theme
+theme                       # Alias
+```
+
+---
+
+## Development Tools
+
+### core-diff v0.3
+
+**Shell Policy Scanner**
+
+**Purpose:** Detect risky shell patterns before execution.
+
+**Commands:**
+```bash
+core-diff                    # Show all changes
+core-diff --high-risk        # High-risk only
+core-diff summary            # Statistics
+cdiff                        # Alias
+```
+
+---
+
+### bump-system-version v0.1
+
+**Version Management**
+
+**Purpose:** Bump system version with validation.
+
+**Commands:**
+```bash
+bump-system-version <version>
+bump <version>               # Alias
+```
 
 ---
 
 ## Philosophy
 
-All tools follow 0-Core principles:
+All tools follow these principles:
 
-- **Manual control** - No automation without consent
-- **Intent over automation** - Explicit actions
-- **Recovery over perfection** - Assume mistakes happen
-- **Human comprehension** - Understandable output
+1. **Manual Control Over Automation**
+2. **Understanding Over Convenience**  
+3. **Explicit Over Implicit**
+4. **Recovery Over Perfection**
 
-See [PHILOSOPHY.md](PHILOSOPHY.md) for complete manifesto.
+**Written in Rust.** Total: 8,369 lines across 25 tools.
+
+---
+
+_"The forest provides the tools. You decide how to use them."_ 🌲

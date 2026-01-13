@@ -15,7 +15,7 @@ const NC: &str = "\x1b[0m";
 fn main() {
     let args: Vec<String> = env::args().collect();
     let command = args.get(1).map(|s| s.as_str()).unwrap_or("help");
-    
+
     match command {
         "add" => cmd_add(),
         "list" | "ls" => cmd_list(args.get(2).map(|s| s.as_str())),
@@ -68,7 +68,7 @@ fn get_next_id(category: &str) -> String {
     if !dir.exists() {
         return "001".to_string();
     }
-    
+
     let mut max_id = 0;
     if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -88,7 +88,7 @@ fn get_next_id(category: &str) -> String {
 fn cmd_add() {
     println!("{}📝 Adding New Intent{}", CYAN, NC);
     println!();
-    
+
     // Select category
     println!("Select category:");
     println!("  1) decisions");
@@ -96,7 +96,7 @@ fn cmd_add() {
     println!("  3) philosophy");
     println!("  4) future");
     println!("  5) incidents");
-    
+
     let category = match prompt("Choice (1-5): ").as_str() {
         "1" => "decisions",
         "2" => "experiments",
@@ -105,17 +105,17 @@ fn cmd_add() {
         "5" => "incidents",
         _ => error("Invalid choice"),
     };
-    
+
     let id = get_next_id(category);
     let title = prompt("Title: ");
     let tags_input = prompt("Tags (comma-separated): ");
-    
+
     println!("Status:");
     println!("  1) planned");
     println!("  2) in-progress");
     println!("  3) complete");
     println!("  4) abandoned");
-    
+
     let status = match prompt("Choice (1-4): ").as_str() {
         "1" => "planned",
         "2" => "in-progress",
@@ -123,7 +123,7 @@ fn cmd_add() {
         "4" => "abandoned",
         _ => error("Invalid choice"),
     };
-    
+
     // Create filename
     let slug: String = title
         .to_lowercase()
@@ -134,14 +134,15 @@ fn cmd_add() {
         .filter(|s| !s.is_empty())
         .collect::<Vec<&str>>()
         .join("-");
-    
+
     let filename = get_intent_dir()
         .join(category)
         .join(format!("{}-{}.md", id, slug));
-    
+
     let today = get_today();
-    
-    let content = format!(r#"---
+
+    let content = format!(
+        r#"---
 id: {}
 date: {}
 type: {}
@@ -178,65 +179,76 @@ tags: [{}]
 
 ---
 *Part of the 0-Core Intent Ledger* 🌲
-"#, id, today, category, title, status, tags_input, today);
-    
+"#,
+        id, today, category, title, status, tags_input, today
+    );
+
     // Ensure directory exists
     if let Some(parent) = filename.parent() {
         fs::create_dir_all(parent).ok();
     }
-    
+
     fs::write(&filename, content).expect("Failed to write intent file");
-    
+
     println!("{}✅ Intent created: {}{}", GREEN, filename.display(), NC);
     println!("{}ℹ️  Opening in editor...{}", BLUE, NC);
-    
+
     let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-    Command::new(&editor)
-        .arg(&filename)
-        .status()
-        .ok();
+    Command::new(&editor).arg(&filename).status().ok();
 }
 
 fn cmd_list(category: Option<&str>) {
     let intent_dir = get_intent_dir();
-    
+
     println!("{}📋 Intent Ledger{}", CYAN, NC);
     println!();
-    
+
     let categories = if let Some(cat) = category {
         vec![cat]
     } else {
-        vec!["decisions", "experiments", "philosophy", "future", "incidents"]
+        vec![
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "incidents",
+        ]
     };
-    
+
     for cat in categories {
         println!("{}{}:{}", YELLOW, cat, NC);
-        
+
         let cat_dir = intent_dir.join(cat);
         if !cat_dir.exists() {
             println!("  {}(empty){}", BLUE, NC);
             println!();
             continue;
         }
-        
+
         let mut files: Vec<_> = fs::read_dir(&cat_dir)
             .into_iter()
             .flatten()
             .flatten()
             .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
             .collect();
-        
+
         files.sort_by_key(|e| e.file_name());
-        
+
         if files.is_empty() {
             println!("  {}(empty){}", BLUE, NC);
         } else {
             for entry in files {
                 if let Ok(content) = fs::read_to_string(entry.path()) {
+                    // Skip index files
+                    if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                        continue;
+                    }
                     let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                    let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
-                    let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
-                    
+                    let title =
+                        extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
+                    let status =
+                        extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+
                     let icon = match status.as_str() {
                         "planned" => "📅",
                         "in-progress" => "🚧",
@@ -246,7 +258,7 @@ fn cmd_list(category: Option<&str>) {
                         "abandoned" => "❌",
                         _ => "❓",
                     };
-                    
+
                     println!("  {} [{}] {}", icon, id, title);
                 }
             }
@@ -258,7 +270,7 @@ fn cmd_list(category: Option<&str>) {
 fn cmd_show(id: &str) {
     let intent_dir = get_intent_dir();
     let mut found_file: Option<PathBuf> = None;
-    
+
     // Check if id contains category (e.g., "future/002")
     if id.contains('/') {
         let parts: Vec<&str> = id.split('/').collect();
@@ -278,7 +290,13 @@ fn cmd_show(id: &str) {
         }
     } else {
         // Search all categories for the ID
-        for cat in &["decisions", "experiments", "philosophy", "future", "incidents"] {
+        for cat in &[
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "incidents",
+        ] {
             let cat_dir = intent_dir.join(cat);
             if let Ok(entries) = fs::read_dir(&cat_dir) {
                 for entry in entries.flatten() {
@@ -294,15 +312,19 @@ fn cmd_show(id: &str) {
             }
         }
     }
-    
+
     let file = found_file.unwrap_or_else(|| error(&format!("Intent {} not found", id)));
-    
+
     // Try bat first, fallback to cat
     let bat_status = Command::new("bat")
-        .args(["--style=header,grid", "--theme=Monokai Extended", "--paging=never"])
+        .args([
+            "--style=header,grid",
+            "--theme=Monokai Extended",
+            "--paging=never",
+        ])
         .arg(&file)
         .status();
-    
+
     if bat_status.is_err() || !bat_status.unwrap().success() {
         println!("{}─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{}", GREEN, NC);
         println!("{}File: {}{}", GREEN, file.display(), NC);
@@ -316,18 +338,29 @@ fn cmd_show(id: &str) {
 
 fn cmd_search(term: &str) {
     let intent_dir = get_intent_dir();
-    
+
     println!("{}🔍 Searching for: {}{}", CYAN, term, NC);
     println!();
-    
-    for cat in &["decisions", "experiments", "philosophy", "future", "incidents"] {
+
+    for cat in &[
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "incidents",
+    ] {
         let cat_dir = intent_dir.join(cat);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
                 if let Ok(content) = fs::read_to_string(entry.path()) {
+                    // Skip index files
+                    if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                        continue;
+                    }
                     if content.to_lowercase().contains(&term.to_lowercase()) {
                         let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                        let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
+                        let title = extract_frontmatter(&content, "title")
+                            .unwrap_or("Untitled".to_string());
                         println!("{}[{}]{} {} {}({}){}", GREEN, id, NC, title, BLUE, cat, NC);
                     }
                 }
