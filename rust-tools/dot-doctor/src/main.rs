@@ -226,6 +226,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
         ("fuzzel/fuzzel.ini", "launcher-fuzzel"),
         ("yazi/yazi.toml", "fm-yazi"),
         ("starship.toml", "prompt-starship"),
+        ("topgrade.toml", "tools-topgrade"),
     ];
 
     for (path, pkg) in checks {
@@ -245,7 +246,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
         details.push("✗ .gitconfig missing".to_string());
     }
 
-    let total = 6;
+    let total = 7;
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),

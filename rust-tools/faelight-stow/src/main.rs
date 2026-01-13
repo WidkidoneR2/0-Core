@@ -14,6 +14,7 @@ const STOW_FILES: &[(&str, &str)] = &[
     ("prompt-starship", ".config/starship.toml"),
     ("fm-yazi", ".config/yazi/init.lua"),
     ("vcs-git", ".gitconfig"),
+    ("tools-topgrade", ".config/topgrade.toml"),
 ];
 
 #[derive(Debug)]
