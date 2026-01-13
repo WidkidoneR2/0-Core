@@ -1,0 +1,30 @@
+# 🌲 Faelight Forest - Topgrade Configuration
+# Version 6.8.1 - Sway Edition
+
+[misc]
+assume_yes = false
+cleanup = true
+set_title = true
+display_time = true
+no_retry = false
+
+[linux]
+arch_package_manager = "paru"
+show_arch_news = true
+
+[git]
+repos = [
+    "~/0-core/",
+]
+
+[firmware]
+upgrade = true
+
+[pre_commands]
+"🔒 Lock Core" = "lock-core 2>/dev/null || true"
+
+[post_commands]
+"🔓 Unlock Core" = "unlock-core 2>/dev/null || true"
+"🏥 Health Check" = "dot-doctor"
+
+

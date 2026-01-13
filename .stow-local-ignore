@@ -1,19 +1,4 @@
-# Prevent Stow from symlinking unwanted files
+\.dotmeta$
 \.git
 \.gitignore
-^/README.*
-^/LICENSE.*
-^/CHANGELOG.*
-^/docs
-^/scripts
-^/packages
-^/system
-.*\.swp$
-.*\.swo$
-.*\.bak$
-.*\.backup$
-.*~$
-.*\.tmp$
-.*\.old$
-.*\.orig$
-.*\.log$
+README.*

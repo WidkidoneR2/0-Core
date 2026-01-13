@@ -1,0 +1,7 @@
+package: tools-topgrade
+description: Topgrade system update configuration
+stow_target: ~
+dependencies:
+  - paru
+  - topgrade
+version: 1.0.0
