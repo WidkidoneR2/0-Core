@@ -62,3 +62,30 @@ Evolution of `teach`. Turns 0-Core into a living textbook.
 ---
 
 _The forest teaches those who listen._ 🌲
+
+## v1.0 - Interactive Learning (Merged from Intent 029)
+
+**Interactive learning system:**
+- `teach-advanced tour` - Guided tour of 0-Core
+- `teach-advanced quiz` - Test knowledge
+- `teach-advanced topic <name>` - Deep dives
+- `teach-advanced daily` - Daily tips
+
+**Topics:**
+- Intent system
+- Profile management  
+- Health engine
+- Git governance
+- Security layers
+- Shell aliases
+
+**Progress Tracking:**
+- Store in `~/.local/state/faelight/learning.json`
+- Colorful TUI with chapters
+
+## Phased Approach
+
+**Phase 1 (v6.9.0 or later):** Interactive tour system  
+**Phase 2:** Recovery/debugging guides  
+**Phase 3:** Quiz system
+
