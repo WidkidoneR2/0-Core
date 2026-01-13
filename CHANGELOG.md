@@ -6,6 +6,24 @@ All notable changes to Faelight Forest / 0-Core.
 
 ## [6.8.0] - 2026-01-12
 
+## [6.8.1] - 2026-01-13
+
+### 🐛 Bug Fixes
+- Fixed "Untitled" entry in intent list (intent tool now skips index files)
+
+### ✨ Features
+- **entropy-check**: Added `--json` flag for machine-readable output
+- **Shell aliases**: Added convenient shortcuts (fl, lock, theme, bump, update, prof)
+
+### 📚 Documentation
+- Created `docs/TOOLS.md` - Complete reference for all 25 Rust tools (274 lines)
+
+### 🦀 Tool Updates
+- intent v0.3 - Better filtering
+- entropy-check v0.1.1 - JSON output support
+
+---
+
 ### 🚀 New Features
 - **entropy-check v0.1** - Configuration drift detection tool
   - Config drift: Detects files modified outside stow
