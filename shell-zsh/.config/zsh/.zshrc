@@ -762,3 +762,19 @@ alias intent-show='intent show'
 alias prof='profile'
 alias prof-list='profile list'
 alias prof-switch='profile switch'
+
+# ============================================================================
+# 🛡️  intent-guard - Command Safety Integration
+# ============================================================================
+
+preexec() {
+    # Run before every command
+    intent-guard check-command "$1" 2>&1
+    local exit_code=$?
+    
+    if [ $exit_code -ne 0 ]; then
+        # Command was rejected - cancel execution
+        # Send SIGINT to current shell to abort
+        kill -INT $$
+    fi
+}

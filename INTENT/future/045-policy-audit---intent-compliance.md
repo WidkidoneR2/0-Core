@@ -1,9 +1,9 @@
 ---
-id: 013
+id: 045
 date: 2026-01-07
 type: future
-title: "intent-guard - Policy Enforcement Without Automation"
-status: planned
+title: "policy-audit - Policy Enforcement Without Automation"
+status: deferred
 tags: [rust, intent, policy, enforcement, v5.3]
 ---
 
