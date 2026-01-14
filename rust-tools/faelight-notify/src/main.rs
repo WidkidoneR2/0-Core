@@ -1,4 +1,4 @@
-//! faelight-notify v0.4.0 - Typography Polish
+//! faelight-notify v0.5.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -26,7 +26,7 @@ use wayland_client::{
     protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use fontdue::{Font, FontSettings};
+use faelight_core::GlyphCache;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use zbus::{connection, interface};
@@ -100,20 +100,20 @@ impl NotificationServer {
     }
 }
 
-fn measure_text_width(font: &Font, text: &str, size: f32) -> u32 {
+fn measure_text_width(cache: &mut GlyphCache, text: &str, size: f32) -> u32 {
     let mut width = 0.0;
     for ch in text.chars() {
-        let metrics = font.metrics(ch, size);
+        let metrics = cache.rasterize(ch, size).metrics;
         width += metrics.advance_width;
     }
     width as u32
 }
 
-fn truncate_text(font: &Font, text: &str, max_width: u32, size: f32) -> String {
+fn truncate_text(cache: &mut GlyphCache, text: &str, max_width: u32, size: f32) -> String {
     let ellipsis = "...";
-    let ellipsis_width = measure_text_width(font, ellipsis, size);
+    let ellipsis_width = measure_text_width(cache, ellipsis, size);
     
-    if measure_text_width(font, text, size) <= max_width {
+    if measure_text_width(cache, text, size) <= max_width {
         return text.to_string();
     }
     
@@ -121,7 +121,7 @@ fn truncate_text(font: &Font, text: &str, max_width: u32, size: f32) -> String {
     let mut current_width = 0;
     
     for ch in text.chars() {
-        let metrics = font.metrics(ch, size);
+        let metrics = cache.rasterize(ch, size).metrics;
         if current_width + metrics.advance_width as u32 + ellipsis_width > max_width {
             break;
         }
@@ -131,11 +131,14 @@ fn truncate_text(font: &Font, text: &str, max_width: u32, size: f32) -> String {
     
     result + ellipsis
 }
-fn draw_text(font: &Font, canvas: &mut [u8], width: u32, height: u32, text: &str, x: u32, y: u32, color: [u8; 4], size: f32) {
+fn draw_text(
+    cache: &mut GlyphCache, canvas: &mut [u8], width: u32, height: u32, text: &str, x: u32, y: u32, color: [u8; 4], size: f32) {
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
     for ch in text.chars() {
-        let (metrics, bitmap) = font.rasterize(ch, size);
+        let glyph = cache.rasterize(ch, size);
+        let metrics = &glyph.metrics;
+        let bitmap = &glyph.bitmap;
         for row in 0..metrics.height {
             for col in 0..metrics.width {
                 let alpha = bitmap[row * metrics.width + col];
@@ -185,7 +188,7 @@ struct NotifyState {
     width: u32,
     height: u32,
     configured: bool,
-    font: Font,
+    glyph_cache: GlyphCache,
     notifications: Arc<Mutex<Vec<Notification>>>,
     running: bool,
 }
@@ -227,13 +230,13 @@ impl NotifyState {
 
         if let Some(n) = notif {
             draw_border(canvas, width, height);
-            draw_text(&self.font, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, FONT_APP);
-            let summary = truncate_text(&self.font, &n.summary, width - 24, FONT_TITLE);
-            draw_text(&self.font, canvas, width, height, &summary, 12, 28, TITLE_COLOR, FONT_TITLE);
-            let body = truncate_text(&self.font, &n.body, width - 24, FONT_BODY);
-            draw_text(&self.font, canvas, width, height, &body, 12, 50, TEXT_COLOR, FONT_BODY);
+            draw_text(&mut self.glyph_cache, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, FONT_APP);
+            let summary = truncate_text(&mut self.glyph_cache, &n.summary, width - 24, FONT_TITLE);
+            draw_text(&mut self.glyph_cache, canvas, width, height, &summary, 12, 28, TITLE_COLOR, FONT_TITLE);
+            let body = truncate_text(&mut self.glyph_cache, &n.body, width - 24, FONT_BODY);
+            draw_text(&mut self.glyph_cache, canvas, width, height, &body, 12, 50, TEXT_COLOR, FONT_BODY);
             if count > 1 {
-                draw_text(&self.font, canvas, width, height, &format!("+{}", count - 1), width - 35, 12, BORDER_COLOR, FONT_BADGE);
+                draw_text(&mut self.glyph_cache, canvas, width, height, &format!("+{}", count - 1), width - 35, 12, BORDER_COLOR, FONT_BADGE);
             }
         }
 
@@ -310,7 +313,7 @@ delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.4.0 starting...");
+    eprintln!("🌲 faelight-notify v0.5.0 starting...");
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
     let notifs_for_dbus = notifications.clone();
@@ -354,7 +357,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     layer_surface.commit();
 
     let pool = SlotPool::new(NOTIFY_WIDTH as usize * NOTIFY_HEIGHT as usize * 4, &shm)?;
-    let font = Font::from_bytes(FONT_DATA, FontSettings::default())?;
+    let glyph_cache = GlyphCache::new(FONT_DATA)?;
 
     let mut state = NotifyState {
         registry_state: RegistryState::new(&globals),
@@ -367,7 +370,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         width: NOTIFY_WIDTH,
         height: NOTIFY_HEIGHT,
         configured: false,
-        font,
+        glyph_cache,
         notifications,
         running: true,
     };
@@ -386,3 +389,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
