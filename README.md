@@ -268,11 +268,9 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ---
 
 ## 🔄 Version History
-
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v6.9.0 | 2026-01-11 | Fuzzy search launcher, Nushell integration |
-| v6.9.0 | 2026-01-10 | Security hardening, UI polish |
+| v6.9.0 | 2026-01-14 | keyscan, entropy trends, launcher frecency |
 | v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
 | v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |
 | v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |

@@ -1,6 +1,40 @@
 # Changelog
-
 All notable changes to Faelight Forest / 0-Core.
+
+---
+
+## [6.9.0] - 2026-01-14
+
+### 🚀 New Features
+- **keyscan v0.1.0** - Sway keybind conflict detection
+  - Parses Sway config for duplicate bindings
+  - JSON and human-readable output
+  - Validates 99 unique keybindings in current config
+  
+- **entropy-check v0.2.0** - Drift history tracking
+  - `entropy-check trends` shows 30-day drift history
+  - Tracks config, service, binary, symlink, and untracked file changes
+  - Statistics: average drift, highest drift, clean check ratio
+  
+- **faelight-launcher v0.5.0** - Frecency tracking
+  - Records app launch frequency and recency
+  - Boosts frequently/recently used apps in ranking
+  - Stores history in `~/.local/state/faelight/launcher-history.json`
+
+### 🔧 Fixes
+- Notesnook Wayland support via desktop file override
+- Launcher now properly launches Notesnook with Wayland flags
+
+### 📚 Documentation
+- Intent 046: v7.0.0 Architectural Refactor (umbrella)
+- Intent 047: faelight-core Shared Foundation Library
+- Intent 048: Tool Migrations to faelight-core
+- Intent 049: Launcher v2.0 Provider Architecture
+
+> "The system should learn from you, not just respond to you." 🌲
+
+---
+
 
 ---
 
