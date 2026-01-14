@@ -45,6 +45,16 @@ impl Canvas {
         (self.width, self.height)
     }
     
+    /// Get width
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    
+    /// Get height
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+    
     /// Clear the canvas with a color
     pub fn clear(&mut self, color: Color) {
         self.buffer.fill(color);
@@ -58,6 +68,16 @@ impl Canvas {
                 self.buffer[idx] = color;
             }
         }
+    }
+    
+    /// Draw a horizontal line
+    pub fn draw_hline(&mut self, x: u32, y: u32, width: u32, color: Color) {
+        self.draw_rect(x, y, width, 1, color);
+    }
+    
+    /// Draw a vertical line
+    pub fn draw_vline(&mut self, x: u32, y: u32, height: u32, color: Color) {
+        self.draw_rect(x, y, 1, height, color);
     }
     
     /// Draw text at position (returns width drawn)
@@ -109,6 +129,20 @@ impl Canvas {
         cursor_x - x
     }
     
+    /// Draw centered text (returns width drawn)
+    pub fn draw_text_centered(
+        &mut self,
+        cache: &mut GlyphCache,
+        text: &str,
+        y: u32,
+        size: f32,
+        color: Color,
+    ) -> u32 {
+        let text_width = cache.text_width(text, size);
+        let x = (self.width.saturating_sub(text_width)) / 2;
+        self.draw_text(cache, text, x, y, size, color)
+    }
+    
     /// Resize the canvas
     pub fn resize(&mut self, width: u32, height: u32) {
         self.width = width;
@@ -145,6 +179,8 @@ mod tests {
     fn test_canvas_creation() {
         let canvas = Canvas::new(100, 50);
         assert_eq!(canvas.dimensions(), (100, 50));
+        assert_eq!(canvas.width(), 100);
+        assert_eq!(canvas.height(), 50);
         assert_eq!(canvas.byte_size(), 100 * 50 * 4);
     }
     
@@ -170,5 +206,22 @@ mod tests {
         
         // Outside rect should be black
         assert_eq!(canvas.buffer[0], 0x000000);
+    }
+    
+    #[test]
+    fn test_canvas_lines() {
+        let mut canvas = Canvas::new(100, 50);
+        canvas.clear(0x000000);
+        
+        // Horizontal white line at y=10, from x=0 to x=50
+        canvas.draw_hline(0, 10, 50, 0xFFFFFF);
+        // Vertical red line at x=25, from y=20 to y=40 (no intersection)
+        canvas.draw_vline(25, 20, 20, 0xFF0000);
+        
+        // Check horizontal line (before vertical line starts)
+        assert_eq!(canvas.buffer[10 * 100 + 25], 0xFFFFFF);
+        
+        // Check vertical line
+        assert_eq!(canvas.buffer[30 * 100 + 25], 0xFF0000);
     }
 }
