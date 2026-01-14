@@ -1,3 +1,32 @@
+## [7.0.0] - 2026-01-14
+
+### 🎉 Major Architectural Milestone
+
+**Completed Intents:**
+- ✅ Intent 047: faelight-core foundation library
+- ✅ Intent 048: All 4 tools migrated (70-90% CPU reduction)
+- ✅ Intent 036: Rust Hygiene across all tools
+- ✅ Intent 050: Bar v2.0 cached model architecture
+
+**New Features:**
+- **faelight-core v0.1.0**: Shared GlyphCache, Theme, Canvas
+- **faelight-bar v2.0**: Cached model, JSON parsing, per-module frequencies
+- **Health checks**: All tools support `--health-check` flag
+- **Performance**: 70-90% CPU reduction in text rendering
+- **Safety**: Double-confirmation for dangerous menu actions
+
+**Tool Versions:**
+- faelight-lock v0.3
+- faelight-menu v0.5
+- faelight-notify v0.6
+- faelight-bar v2.0
+
+**Architecture:**
+- Cached model pattern for system state
+- JSON parsing instead of string matching
+- Per-module update frequencies (500ms / 10s / 30s)
+- Pure rendering loops (zero blocking I/O)
+
 # Changelog
 All notable changes to Faelight Forest / 0-Core.
 
