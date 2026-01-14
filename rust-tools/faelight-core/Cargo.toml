@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 fontdue = "0.9"
 thiserror = "1.0"
+wayland-client = "0.31"
 
 [dev-dependencies]
 # For testing
