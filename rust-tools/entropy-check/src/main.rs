@@ -1,4 +1,4 @@
-//! entropy-check v0.1 - Configuration Drift Detection
+//! entropy-check v0.2 - Configuration Drift Detection
 //! 🌲 Faelight Forest
 
 use serde::{Deserialize, Serialize};
@@ -377,10 +377,17 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    
+    // Handle trends command first
+    if args.contains(&"trends".to_string()) {
+        show_trends();
+        return;
+    }
+    
     let json_output = args.contains(&"--json".to_string());
     
     if !json_output {
-        println!("🔍 entropy-check v0.1 - Configuration Drift Detection");
+        println!("🔍 entropy-check v0.2 - Configuration Drift Detection");
         println!();
     }
     
@@ -403,6 +410,14 @@ fn main() {
             Ok(baseline) => {
                 match check_drift(&baseline) {
                     Ok(drift) => {
+                        // Save to history
+                        let mut history = DriftHistory::load();
+                        history.add_entry(&drift, &get_system_version());
+                        if let Err(e) = history.save() {
+                            eprintln!("⚠️  Warning: Could not save drift history: {}", e);
+                        }
+                        
+                        // Display results
                         if json_output {
                             output_json(&baseline, &drift);
                         } else {
@@ -445,3 +460,154 @@ fn output_json(baseline: &EntropyBaseline, drift: &DriftReport) {
     
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
+
+// ═══════════════════════════════════════════════════════════
+// 📈 HISTORY TRACKING
+// ═══════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DriftHistory {
+    version: String,
+    entries: Vec<DriftEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DriftEntry {
+    timestamp: String,
+    system_version: String,
+    total_drifts: usize,
+    config_drifts: usize,
+    service_drifts: usize,
+    binary_drifts: usize,
+    symlink_drifts: usize,
+    untracked_files: usize,
+}
+
+impl DriftHistory {
+    fn new() -> Self {
+        Self {
+            version: "1.0".to_string(),
+            entries: Vec::new(),
+        }
+    }
+    
+    fn load() -> Self {
+        let path = get_history_path();
+        if path.exists() {
+            if let Ok(data) = fs::read_to_string(&path) {
+                if let Ok(history) = serde_json::from_str(&data) {
+                    return history;
+                }
+            }
+        }
+        Self::new()
+    }
+    
+    fn save(&self) -> std::io::Result<()> {
+        let path = get_history_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let json = serde_json::to_string_pretty(self)?;
+        fs::write(&path, json)?;
+        Ok(())
+    }
+    
+    fn add_entry(&mut self, report: &DriftReport, system_version: &str) {
+        let entry = DriftEntry {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            system_version: system_version.to_string(),
+            total_drifts: report.config_drifts.len() 
+                        + report.service_drifts.len() 
+                        + report.binary_drifts.len() 
+                        + report.symlink_drifts.len() 
+                        + report.untracked_files.len(),
+            config_drifts: report.config_drifts.len(),
+            service_drifts: report.service_drifts.len(),
+            binary_drifts: report.binary_drifts.len(),
+            symlink_drifts: report.symlink_drifts.len(),
+            untracked_files: report.untracked_files.len(),
+        };
+        
+        self.entries.push(entry);
+        
+        // Keep only last 30 days
+        let now = chrono::Utc::now();
+        self.entries.retain(|e| {
+            if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&e.timestamp) {
+                let age = now.signed_duration_since(ts.with_timezone(&chrono::Utc));
+                age.num_days() <= 30
+            } else {
+                false
+            }
+        });
+    }
+}
+
+fn get_history_path() -> PathBuf {
+    let home = std::env::var("HOME").expect("HOME not set");
+    PathBuf::from(home).join(".config/faelight/entropy-history.json")
+}
+
+fn show_trends() {
+    let history = DriftHistory::load();
+    
+    println!("📊 Drift Trends - Last 30 days");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    
+    if history.entries.is_empty() {
+        println!("No drift history found");
+        println!("Run entropy-check a few times to build history");
+        return;
+    }
+    
+    println!("Total checks: {}", history.entries.len());
+    println!();
+    println!("Recent Drift History:");
+    
+    for entry in history.entries.iter().rev().take(10) {
+        let date = entry.timestamp.split('T').next().unwrap_or("unknown");
+        let status = if entry.total_drifts == 0 {
+            "✅"
+        } else if entry.total_drifts < 5 {
+            "⚠️ "
+        } else {
+            "🔴"
+        };
+        
+        println!("  {} {} - {} total drifts (v{})", 
+                 status, date, entry.total_drifts, entry.system_version);
+        
+        if entry.total_drifts > 0 {
+            print!("      ");
+            if entry.config_drifts > 0 { print!("config:{} ", entry.config_drifts); }
+            if entry.service_drifts > 0 { print!("services:{} ", entry.service_drifts); }
+            if entry.binary_drifts > 0 { print!("binaries:{} ", entry.binary_drifts); }
+            if entry.symlink_drifts > 0 { print!("symlinks:{} ", entry.symlink_drifts); }
+            if entry.untracked_files > 0 { print!("untracked:{} ", entry.untracked_files); }
+            println!();
+        }
+    }
+    
+    // Calculate statistics
+    let avg_drift: f32 = history.entries.iter()
+        .map(|e| e.total_drifts as f32)
+        .sum::<f32>() / history.entries.len() as f32;
+    
+    let max_drift = history.entries.iter()
+        .map(|e| e.total_drifts)
+        .max()
+        .unwrap_or(0);
+    
+    let clean_checks = history.entries.iter()
+        .filter(|e| e.total_drifts == 0)
+        .count();
+    
+    println!();
+    println!("📈 Statistics:");
+    println!("   Average drift per check: {:.1}", avg_drift);
+    println!("   Highest drift: {}", max_drift);
+    println!("   Clean checks: {}/{}", clean_checks, history.entries.len());
+}
+
