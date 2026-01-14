@@ -1,6 +1,6 @@
 [package]
 name = "faelight-lock"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Faelight Forest screen locker"
 
@@ -11,3 +11,7 @@ faelight-core = { path = "../faelight-core" }
 opt-level = "z"
 lto = true
 strip = true
+
+[dependencies.clap]
+version = "4.5"
+features = ["derive"]

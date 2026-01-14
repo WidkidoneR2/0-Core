@@ -1,13 +1,29 @@
-//! faelight-lock v0.2 - Screen Locker (swaylock wrapper)
+//! faelight-lock v0.3 - Screen Locker (swaylock wrapper)
 //! 🌲 Faelight Forest
 //!
 //! Uses faelight-core Theme to provide consistent colors to swaylock
 
+use clap::Parser;
 use faelight_core::Theme;
 use std::process::Command;
 
-fn main() {
-    eprintln!("🔒 faelight-lock v0.2");
+#[derive(Parser)]
+#[command(name = "faelight-lock")]
+#[command(about = "Screen locker with Faelight Forest theming", long_about = None)]
+struct Args {
+    /// Run health check and exit
+    #[arg(long)]
+    health_check: bool,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+    
+    if args.health_check {
+        return health_check();
+    }
+    
+    eprintln!("🔒 faelight-lock v0.3");
     
     let theme = Theme::faelight_default();
     
@@ -19,7 +35,7 @@ fn main() {
     let danger = format!("{:06x}", theme.danger);
     
     // Use swaylock with Faelight Forest colors from theme
-    Command::new("swaylock")
+    let status = Command::new("swaylock")
         .args([
             "-f",
             "--color", &bg,
@@ -39,6 +55,33 @@ fn main() {
             "--indicator-radius", "100",
             "--indicator-thickness", "10",
         ])
-        .status()
-        .expect("Failed to run swaylock");
+        .status()?;
+    
+    if !status.success() {
+        return Err("swaylock exited with error".into());
+    }
+    
+    Ok(())
+}
+
+fn health_check() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🏥 faelight-lock health check");
+    
+    // Check if swaylock is installed
+    let swaylock_check = Command::new("which")
+        .arg("swaylock")
+        .output()?;
+    
+    if !swaylock_check.status.success() {
+        eprintln!("❌ swaylock: not found");
+        return Err("swaylock not installed".into());
+    }
+    println!("✅ swaylock: installed");
+    
+    // Check if we can load theme
+    let _theme = Theme::faelight_default();
+    println!("✅ theme: loaded successfully");
+    
+    println!("\n✅ All checks passed!");
+    Ok(())
 }
