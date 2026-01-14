@@ -101,19 +101,33 @@ fn check_systemctl_disable(cmd: &str) -> bool {
         && (cmd.contains("disable ") || cmd.contains("stop "))
 }
 
+fn check_piped_execution(cmd: &str) -> bool {
+    // Only trigger on actual wget/curl commands, not strings
+    let starts_with_curl = cmd.trim_start().starts_with("curl ");
+    let starts_with_wget = cmd.trim_start().starts_with("wget ");
+
+    if !starts_with_curl && !starts_with_wget {
+        return false;
+    }
+
+    // Check for pipe to shell
+    cmd.contains("| sh") || cmd.contains("| bash") || cmd.contains("|sh") || cmd.contains("|bash")
+}
+
 fn check_shell_overwrite(cmd: &str) -> bool {
+    // Only trigger on commands that actually redirect output
+    // Exclude echo/cat/printf when checking
+    if cmd.trim_start().starts_with("echo ")
+        || cmd.trim_start().starts_with("cat ")
+        || cmd.trim_start().starts_with("printf ")
+    {
+        // These are often used in examples/tests
+        return false;
+    }
+
     // Detect output redirection to critical shell configs
     (cmd.contains("> ~/.zshrc") || cmd.contains("> ~/.bashrc") || cmd.contains("> ~/0-core"))
         && !cmd.contains(">>") // Append is safer than overwrite
-}
-
-fn check_piped_execution(cmd: &str) -> bool {
-    // wget/curl piped to shell
-    (cmd.contains("wget") || cmd.contains("curl"))
-        && (cmd.contains("| sh")
-            || cmd.contains("| bash")
-            || cmd.contains("|sh")
-            || cmd.contains("|bash"))
 }
 
 fn check_find_delete(cmd: &str) -> bool {
