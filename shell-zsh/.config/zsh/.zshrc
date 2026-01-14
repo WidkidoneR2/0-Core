@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 6.9.0 - Faelight Forest
+# Version 6.9.1 - Faelight Forest
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -653,7 +653,7 @@ if [[ -f ~/.config/zsh/completions.zsh ]]; then
 fi
 
 # ═══════════════════════════════════════════════════════════
-# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.9.0)
+# ⚠️  DANGEROUS COMMAND HIGHLIGHTING (v6.9.1)
 # ═══════════════════════════════════════════════════════════
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
@@ -685,7 +685,7 @@ eval "$(starship init zsh)"
 if [[ -o interactive ]]; then
     fastfetch
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.9.0 - Sway Edition!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v6.9.1 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then
@@ -707,7 +707,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # ═══════════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════════
-# 🌲 FAELIGHT TOOLS (v6.9.0)
+# 🌲 FAELIGHT TOOLS (v6.9.1)
 # ═══════════════════════════════════════════════════════════
 
 # Dashboard

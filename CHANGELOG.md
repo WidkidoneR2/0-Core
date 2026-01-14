@@ -1,6 +1,27 @@
 # Changelog
 All notable changes to Faelight Forest / 0-Core.
 
+## [6.9.1] - 2026-01-14
+
+### 📦 Tool Updates
+- **dot-doctor v0.3.0** - Keybind conflict detection integration
+  - Added Sway keybind check using keyscan
+  - 13 total health checks (was 12)
+  - Validates 99 unique keybindings with no conflicts
+
+### 🔒 Security
+- Verified intent-guard v0.1.0 shell integration working
+  - Pattern database detecting recursive deletes
+  - Command safety guard active in zsh
+
+### 📜 Documentation
+- Intent 044: Keybind Conflict Detection - Complete ✅
+- Intent 042: v6.9.0 milestone progress (4/5 must-have items complete)
+
+> "The system tells you when you're about to break something." 🌲
+
+---
+
 ---
 
 ## [6.9.0] - 2026-01-14
