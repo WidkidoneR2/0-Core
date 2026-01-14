@@ -1,31 +1,41 @@
-//! faelight-lock v0.1 - Screen Locker (swaylock wrapper)
+//! faelight-lock v0.2 - Screen Locker (swaylock wrapper)
 //! 🌲 Faelight Forest
 //!
-//! Shows Faelight visual then delegates to swaylock for PAM auth
+//! Uses faelight-core Theme to provide consistent colors to swaylock
 
+use faelight_core::Theme;
 use std::process::Command;
 
 fn main() {
-    eprintln!("🔒 faelight-lock v0.1");
+    eprintln!("🔒 faelight-lock v0.2");
     
-    // Use swaylock with Faelight Forest colors
+    let theme = Theme::faelight_default();
+    
+    // Convert colors to hex strings for swaylock
+    let bg = format!("{:06x}", theme.bg_primary);
+    let accent = format!("{:06x}", theme.accent);
+    let blue = format!("{:06x}", theme.accent_hover);
+    let text = format!("{:06x}", theme.text_primary);
+    let danger = format!("{:06x}", theme.danger);
+    
+    // Use swaylock with Faelight Forest colors from theme
     Command::new("swaylock")
         .args([
             "-f",
-            "--color", "0f1411",
-            "--inside-color", "0f1411",
-            "--ring-color", "a3e36b",
-            "--key-hl-color", "6be3a3",
-            "--text-color", "d7e0da",
+            "--color", &bg,
+            "--inside-color", &bg,
+            "--ring-color", &accent,
+            "--key-hl-color", &accent,
+            "--text-color", &text,
             "--line-color", "00000000",
             "--separator-color", "00000000",
-            "--inside-clear-color", "0f1411",
-            "--ring-clear-color", "5cc8ff",
-            "--inside-wrong-color", "0f1411",
-            "--ring-wrong-color", "e36b6b",
-            "--text-wrong-color", "e36b6b",
-            "--inside-ver-color", "0f1411",
-            "--ring-ver-color", "a3e36b",
+            "--inside-clear-color", &bg,
+            "--ring-clear-color", &blue,
+            "--inside-wrong-color", &bg,
+            "--ring-wrong-color", &danger,
+            "--text-wrong-color", &danger,
+            "--inside-ver-color", &bg,
+            "--ring-ver-color", &accent,
             "--indicator-radius", "100",
             "--indicator-thickness", "10",
         ])
