@@ -3,15 +3,20 @@
 //! Provides common functionality for all Faelight tools:
 //! - Glyph caching (70%+ CPU reduction)
 //! - Canvas drawing primitives
+//! - Theme system (consistent styling)
+//! - Wayland helpers (layer-shell configs)
 //! - Error handling
-//! - Future: Theme, Wayland helpers
 
 pub mod glyph;
 pub mod canvas;
+pub mod theme;
+pub mod wayland;
 pub mod error;
 
 pub use glyph::GlyphCache;
 pub use canvas::Canvas;
+pub use theme::Theme;
+pub use wayland::{Layer, Anchor, LayerSurfaceConfig};
 pub use error::{FaelightError, Result};
 
 #[cfg(test)]
