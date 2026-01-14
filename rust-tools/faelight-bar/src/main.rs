@@ -348,7 +348,39 @@ fn handle_click(action: &str) {
     }
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// 🏥 HEALTH CHECK  
+// ═══════════════════════════════════════════════════════════
+
+fn health_check() {
+    println!("🏥 faelight-bar health check");
+    
+    match Connection::connect_to_env() {
+        Ok(_) => println!("✅ wayland: connected"),
+        Err(e) => {
+            eprintln!("❌ wayland: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    match GlyphCache::new(FONT_DATA) {
+        Ok(_) => println!("✅ font: loaded"),
+        Err(e) => {
+            eprintln!("❌ font: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    println!("\n✅ Core checks passed!");
+}
+
 fn main() {
+    if std::env::args().any(|arg| arg == "--health-check") {
+        health_check();
+        std::process::exit(0);
+    }
+
     let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
     let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
     let qh = event_queue.handle();
@@ -387,7 +419,7 @@ fn main() {
         pointer_x: 0.0,
         last_draw: Instant::now(),
     };
-    println!("🌲 faelight-bar v0.7 starting (Sway Edition)...");
+    println!("🌲 faelight-bar v0.8 starting (Sway Edition)...");
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
     }
