@@ -20,7 +20,7 @@ use wayland_client::{
     protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use fontdue::{Font, FontSettings};
+use faelight_core::GlyphCache;
 use chrono::Local;
 use std::env;
 use std::fs;
@@ -282,12 +282,14 @@ fn get_active_window() -> String {
     String::new()
 }
 
-fn draw_text(font: &Font, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
+fn draw_text(cache: &mut GlyphCache, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
     let mut cursor_x = x;
     let font_size = 14.0;
     let baseline = y + 12;
     for ch in text.chars() {
-        let (metrics, bitmap) = font.rasterize(ch, font_size);
+        let glyph = cache.rasterize(ch, font_size);
+        let metrics = &glyph.metrics;
+        let bitmap = &glyph.bitmap;
         
         for row in 0..metrics.height {
             for col in 0..metrics.width {
@@ -368,7 +370,7 @@ fn main() {
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
     let pool = SlotPool::new(4096 * BAR_HEIGHT as usize * 4, &shm).expect("Failed to create pool");
-    let font = Font::from_bytes(FONT_DATA, FontSettings::default()).expect("Failed to load font");
+    let glyph_cache = GlyphCache::new(FONT_DATA).expect("Failed to load font");
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
         seat_state,
@@ -380,12 +382,12 @@ fn main() {
         height: BAR_HEIGHT,
         configured: false,
         running: true,
-        font,
+        glyph_cache,
         click_regions: Vec::new(),
         pointer_x: 0.0,
         last_draw: Instant::now(),
     };
-    println!("🌲 faelight-bar v0.8 starting (Sway Edition)...");
+    println!("🌲 faelight-bar v0.7 starting (Sway Edition)...");
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
     }
@@ -402,7 +404,7 @@ struct BarState {
     height: u32,
     configured: bool,
     running: bool,
-    font: Font,
+    glyph_cache: GlyphCache,
     click_regions: Vec<(i32, i32, String)>,
     pointer_x: f64,
     last_draw: Instant,
@@ -444,77 +446,77 @@ impl BarState {
         // Profile indicator (clickable)
         let profile_start = x_pos;
         let profile_icon = get_profile_icon(&profile);
-        draw_text(&self.font, canvas, width, profile_icon, x_pos, 8, accent);
+        draw_text(&mut self.glyph_cache, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
         self.click_regions.push((profile_start, x_pos, "profile".to_string()));
-        draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
         let (workspaces, active) = get_workspaces();
         for ws in &workspaces {
             let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
             let ws_str = format!("{}", ws);
-            draw_text(&self.font, canvas, width, &ws_str, x_pos, 8, color);
+            draw_text(&mut self.glyph_cache, canvas, width, &ws_str, x_pos, 8, color);
             x_pos += 18;
         }
         // Health & Lock
         x_pos += 10;
-        draw_text(&self.font, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
         
         let health = get_health();
         let health_color = if health >= 80 { ACCENT_COLOR } else if health >= 50 { AMBER_COLOR } else { RED_COLOR };
         let health_text = format!("{}%", health);
-        draw_text(&self.font, canvas, width, &health_text, x_pos, 8, health_color);
+        draw_text(&mut self.glyph_cache, canvas, width, &health_text, x_pos, 8, health_color);
         x_pos += 35;
         
         let locked = is_core_locked();
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
         let lock_text = if locked { "LCK" } else { "UNL" };
-        draw_text(&self.font, canvas, width, lock_text, x_pos, 8, lock_color);
+        draw_text(&mut self.glyph_cache, canvas, width, lock_text, x_pos, 8, lock_color);
         // === CENTER ===
         let window_title = get_active_window();
         if !window_title.is_empty() {
             let title_width = window_title.len() as i32 * 8;
             let center_x = (width as i32 / 2) - (title_width / 2);
-            draw_text(&self.font, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
+            draw_text(&mut self.glyph_cache, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
         }
         // === RIGHT SIDE ===
         let mut rx = width as i32 - 110;
         let time_str = Local::now().format("%b %d %H:%M").to_string();
-        draw_text(&self.font, canvas, width, &time_str, rx, 8, TEXT_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, &time_str, rx, 8, TEXT_COLOR);
         rx -= 15;
-        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         // Volume (clickable)
         rx -= 40;
         let vol_start = rx;
         let (vol, muted) = get_volume();
         let vol_color = if muted { DIM_COLOR } else { TEXT_COLOR };
         let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
-        draw_text(&self.font, canvas, width, &vol_text, rx, 8, vol_color);
+        draw_text(&mut self.glyph_cache, canvas, width, &vol_text, rx, 8, vol_color);
         self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
         rx -= 15;
-        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         rx -= 45;
         let (wifi_on, wifi_status) = get_wifi();
         let wifi_color = if wifi_on { BLUE_COLOR } else { DIM_COLOR };
         let wifi_text = format!("W:{}", wifi_status);
-        draw_text(&self.font, canvas, width, &wifi_text, rx, 8, wifi_color);
+        draw_text(&mut self.glyph_cache, canvas, width, &wifi_text, rx, 8, wifi_color);
         rx -= 15;
-        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         rx -= 45;
         let (bat_pct, charging) = get_battery();
         let bat_color = if bat_pct < 20 { RED_COLOR } else if charging { BLUE_COLOR } else { TEXT_COLOR };
         let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
-        draw_text(&self.font, canvas, width, &bat_text, rx, 8, bat_color);
+        draw_text(&mut self.glyph_cache, canvas, width, &bat_text, rx, 8, bat_color);
         rx -= 15;
-        draw_text(&self.font, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         // VPN (clickable)
         rx -= 60;
         let vpn_start = rx;
         let (vpn_connected, vpn_status) = get_vpn_status();
         let vpn_color = if vpn_connected { BLUE_COLOR } else { RED_COLOR };
         let vpn_text = format!("VPN:{}", vpn_status);
-        draw_text(&self.font, canvas, width, &vpn_text, rx, 8, vpn_color);
+        draw_text(&mut self.glyph_cache, canvas, width, &vpn_text, rx, 8, vpn_color);
         self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
         self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);

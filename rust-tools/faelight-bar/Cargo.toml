@@ -1,13 +1,13 @@
 [package]
 name = "faelight-bar"
-version = "0.5.0"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 wayland-client = "0.31"
 wayland-protocols = { version = "0.31", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.2", features = ["client"] }
 smithay-client-toolkit = "0.18"
-fontdue = "0.8"
 chrono = "0.4"
 serde_json = "1.0"
