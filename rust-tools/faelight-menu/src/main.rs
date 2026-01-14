@@ -1,4 +1,4 @@
-//! faelight-menu v0.4.0 - Clarity & Safety
+//! faelight-menu v0.5.0 - Clarity & Safety
 //! 🌲 Faelight Forest
 
 use faelight_core::GlyphCache;
@@ -618,7 +618,12 @@ delegate_registry!(MenuState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("⚡ faelight-menu v0.4 starting...");
+    if std::env::args().any(|arg| arg == "--health-check") {
+        health_check();
+        std::process::exit(0);
+    }
+
+    eprintln!("⚡ faelight-menu v0.5 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -669,3 +674,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 
+// ═══════════════════════════════════════════════════════════
+// 🏥 HEALTH CHECK
+// ═══════════════════════════════════════════════════════════
+
+fn health_check() {
+    println!("🏥 faelight-menu health check");
+    
+    // Check Wayland connection
+    match Connection::connect_to_env() {
+        Ok(_) => println!("✅ wayland: connected"),
+        Err(e) => {
+            eprintln!("❌ wayland: connection failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check if we can load font
+    match GlyphCache::new(FONT_DATA) {
+        Ok(_) => println!("✅ font: loaded successfully"),
+        Err(e) => {
+            eprintln!("❌ font: failed to load - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check if commands exist
+    let commands = ["swaylock", "swaymsg", "systemctl"];
+    for cmd in &commands {
+        if let Ok(check) = std::process::Command::new("which").arg(cmd).output() {
+            if check.status.success() {
+                println!("✅ {}: installed", cmd);
+            } else {
+                eprintln!("⚠️  {}: not found", cmd);
+            }
+        }
+    }
+    
+    println!("\n✅ Core checks passed!");
+}
