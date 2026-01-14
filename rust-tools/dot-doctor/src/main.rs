@@ -1,4 +1,4 @@
-//! dot-doctor v0.2 - Faelight Forest Health Engine
+//! dot-doctor v0.3 - Faelight Forest Health Engine
 //! 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
@@ -208,6 +208,15 @@ const CHECKS: &[Check] = &[
         explanation: "Validates TOML configuration files in ~/.config/faelight/. \
                       Invalid config prevents faelight commands from working.",
         run: check_faelight_config,
+    },
+    Check {
+        id: "keybinds",
+        name: "Sway Keybinds",
+        depends_on: &["stow"],
+        severity: Severity::Medium,
+        explanation: "Checks for conflicting keybindings in Sway config. \
+                      Duplicate keybinds cause unexpected behavior.",
+        run: check_keybinds,
     },
 ];
 
@@ -741,6 +750,79 @@ fn check_faelight_config(ctx: &Context) -> CheckResult {
 fn toml_valid(content: &str) -> bool {
     // Simple validation - check for basic TOML structure
     !content.is_empty() && (content.contains('[') || content.contains('='))
+}
+
+fn check_keybinds(ctx: &Context) -> CheckResult {
+    let sway_config = PathBuf::from(&ctx.home).join(".config/sway/config");
+    
+    if !sway_config.exists() {
+        return CheckResult {
+            id: "keybinds".to_string(),
+            name: "Sway Keybinds".to_string(),
+            status: Status::Warn,
+            severity: Severity::Medium,
+            message: "Sway config not found".to_string(),
+            fix: Some("Ensure wm-sway is stowed".to_string()),
+            details: None,
+        };
+    }
+
+    let output = Command::new(ctx.core_dir.join("scripts/keyscan"))
+        .arg(sway_config.to_str().unwrap())
+        .output();
+
+    match output {
+        Ok(result) if result.status.success() => {
+            let stdout = String::from_utf8_lossy(&result.stdout);
+            
+            if stdout.contains("No conflicts detected") {
+                let count = stdout
+                    .lines()
+                    .find(|l| l.contains("unique keybindings"))
+                    .and_then(|l| l.split_whitespace().next())
+                    .unwrap_or("0");
+                
+                CheckResult {
+                    id: "keybinds".to_string(),
+                    name: "Sway Keybinds".to_string(),
+                    status: Status::Pass,
+                    severity: Severity::Medium,
+                    message: format!("{} unique keybindings, no conflicts", count),
+                    fix: None,
+                    details: None,
+                }
+            } else if stdout.contains("Conflict detected") {
+                CheckResult {
+                    id: "keybinds".to_string(),
+                    name: "Sway Keybinds".to_string(),
+                    status: Status::Fail,
+                    severity: Severity::Medium,
+                    message: "Keybind conflicts detected".to_string(),
+                    fix: Some("Run: keyscan ~/.config/sway/config".to_string()),
+                    details: Some(vec!["View conflicts with keyscan".to_string()]),
+                }
+            } else {
+                CheckResult {
+                    id: "keybinds".to_string(),
+                    name: "Sway Keybinds".to_string(),
+                    status: Status::Warn,
+                    severity: Severity::Medium,
+                    message: "Unable to parse keyscan output".to_string(),
+                    fix: None,
+                    details: None,
+                }
+            }
+        }
+        _ => CheckResult {
+            id: "keybinds".to_string(),
+            name: "Sway Keybinds".to_string(),
+            status: Status::Warn,
+            severity: Severity::Medium,
+            message: "keyscan not available".to_string(),
+            fix: Some("Ensure keyscan is in ~/0-core/scripts/".to_string()),
+            details: None,
+        },
+    }
 }
 
 // ═══════════════════════════════════════════════════════════

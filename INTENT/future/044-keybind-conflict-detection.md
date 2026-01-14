@@ -3,7 +3,7 @@ id: 044
 date: 2026-01-13
 type: future
 title: "Keybind Conflict Detection"
-status: planned
+status: complete
 tags: [safety, sway, keybinds, validation, v6.9]
 ---
 
@@ -159,13 +159,13 @@ Conflict:
 ## Success Criteria
 
 **v6.9.0:**
-- [ ] keyscan tool works
-- [ ] Detects conflicts accurately
-- [ ] Shows file + line numbers
-- [ ] JSON output available
+- [x] keyscan tool works
+- [x] Detects conflicts accurately
+- [x] Shows file + line numbers
+- [x] JSON output available
 
 **Nice to have:**
-- [ ] dot-doctor integration
+- [x] dot-doctor integration
 - [ ] core-diff integration
 - [ ] Pre-commit hook option
 
