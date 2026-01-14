@@ -3,7 +3,7 @@ id: 047
 date: 2026-01-14
 type: future
 title: "faelight-core - Shared Foundation Library"
-status: planned
+status: complete
 tags: [architecture, v7.0, rust, performance, library]
 ---
 
