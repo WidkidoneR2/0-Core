@@ -120,10 +120,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-menu"
+name = "faelight-core"
 version = "0.1.0"
 dependencies = [
  "fontdue",
+ "thiserror",
+ "wayland-client",
+]
+
+[[package]]
+name = "faelight-menu"
+version = "0.4.0"
+dependencies = [
+ "faelight-core",
  "smithay-client-toolkit",
  "wayland-client",
 ]

@@ -1,7 +1,7 @@
-//! faelight-menu v0.3.0 - Clarity & Safety
+//! faelight-menu v0.4.0 - Clarity & Safety
 //! 🌲 Faelight Forest
 
-use fontdue::{Font, FontSettings};
+use faelight_core::GlyphCache;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
@@ -41,6 +41,7 @@ const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const WARN_COLOR: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xFF];
+const DANGER_COLOR: [u8; 4] = [0x6b, 0x6b, 0xe3, 0xFF]; // RED in ARGB8888 format // RED for dangerous confirmation
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
@@ -137,7 +138,7 @@ fn draw_rect(
 }
 
 fn draw_text(
-    font: &Font,
+    cache: &mut GlyphCache,
     canvas: &mut [u8],
     width: u32,
     height: u32,
@@ -150,7 +151,9 @@ fn draw_text(
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
     for ch in text.chars() {
-        let (metrics, bitmap) = font.rasterize(ch, size);
+        let glyph = cache.rasterize(ch, size);
+        let metrics = &glyph.metrics;
+        let bitmap = &glyph.bitmap;
         for row in 0..metrics.height {
             for col in 0..metrics.width {
                 let alpha = bitmap[row * metrics.width + col];
@@ -191,8 +194,10 @@ struct MenuState {
     width: u32,
     height: u32,
     configured: bool,
-    font: Font,
+    glyph_cache: GlyphCache,
     selected: usize,
+
+    confirming: bool,
     running: bool,
 }
 
@@ -224,8 +229,7 @@ impl MenuState {
         }
 
         draw_border(canvas, width, height);
-        draw_text(
-            &self.font,
+        draw_text(&mut self.glyph_cache,
             canvas,
             width,
             height,
@@ -258,6 +262,11 @@ impl MenuState {
             }
 
             if i == selected {
+                let bg_color = if self.confirming && item.dangerous {
+                    DANGER_COLOR
+                } else {
+                    SELECTED_BG
+                };
                 draw_rect(
                     canvas,
                     width,
@@ -266,11 +275,13 @@ impl MenuState {
                     y - 8,
                     width - 20,
                     46,
-                    SELECTED_BG,
+                    bg_color,
                 );
             }
 
-            let text_color = if item.dangerous {
+            let text_color = if self.confirming && i == selected && item.dangerous {
+                TEXT_COLOR
+            } else if item.dangerous {
                 if i == selected {
                     WARN_COLOR
                 } else {
@@ -284,15 +295,17 @@ impl MenuState {
                 }
             };
 
-            let text = format!("{}  {}", item.icon, item.label);
-            draw_text(
-                &self.font, canvas, width, height, &text, 25, y, text_color, FONT_ITEM,
+            let text = if self.confirming && i == selected && item.dangerous {
+                format!("{}  {} - Press Enter to CONFIRM", item.icon, item.label)
+            } else {
+                format!("{}  {}", item.icon, item.label)
+            };
+            draw_text(&mut self.glyph_cache, canvas, width, height, &text, 25, y, text_color, FONT_ITEM,
             );
         }
 
         // Hint
-        draw_text(
-            &self.font,
+        draw_text(&mut self.glyph_cache,
             canvas,
             width,
             height,
@@ -488,40 +501,74 @@ impl KeyboardHandler for MenuState {
         event: KeyEvent,
     ) {
         match event.keysym {
-            Keysym::Escape | Keysym::q => self.running = false,
+            Keysym::Escape | Keysym::q => {
+                if self.confirming {
+                    self.confirming = false;
+                    self.draw();
+                } else {
+                    self.running = false;
+                }
+            }
             Keysym::Return | Keysym::KP_Enter => {
-                self.execute_selected();
-                self.running = false;
+                let item = &MENU_ITEMS[self.selected];
+                if item.dangerous {
+                    if self.confirming {
+                        self.execute_selected();
+                        self.running = false;
+                    } else {
+                        self.confirming = true;
+                        self.draw();
+                    }
+                } else {
+                    self.execute_selected();
+                    self.running = false;
+                }
             }
             Keysym::Up | Keysym::k => {
+                self.confirming = false;
                 self.move_up();
                 self.draw();
             }
             Keysym::Down | Keysym::j => {
+                self.confirming = false;
                 self.move_down();
                 self.draw();
             }
             // Quick keys
             Keysym::l => {
-                self.selected = 0; // Lock
+                self.selected = 0;
                 self.execute_selected();
                 self.running = false;
             }
             Keysym::e => {
-                self.selected = 1; // Logout (exit)
-                self.draw();
+                self.selected = 1;
+                self.execute_selected();
+                self.running = false;
             }
             Keysym::s => {
-                self.selected = 2; // Suspend
-                self.draw();
+                self.selected = 2;
+                self.execute_selected();
+                self.running = false;
             }
             Keysym::r => {
-                self.selected = 3; // Reboot
-                self.draw();
+                self.selected = 3;
+                if self.confirming && self.selected == 3 {
+                    self.execute_selected();
+                    self.running = false;
+                } else {
+                    self.confirming = true;
+                    self.draw();
+                }
             }
             Keysym::p => {
-                self.selected = 4; // Poweroff
-                self.draw();
+                self.selected = 4;
+                if self.confirming && self.selected == 4 {
+                    self.execute_selected();
+                    self.running = false;
+                } else {
+                    self.confirming = true;
+                    self.draw();
+                }
             }
             _ => {}
         }
@@ -571,7 +618,7 @@ delegate_registry!(MenuState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("⚡ faelight-menu v0.3 starting...");
+    eprintln!("⚡ faelight-menu v0.4 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -591,7 +638,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     layer_surface.commit();
 
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
-    let font = Font::from_bytes(FONT_DATA, FontSettings::default())?;
+    let glyph_cache = GlyphCache::new(FONT_DATA)?;
 
     let mut state = MenuState {
         registry_state: RegistryState::new(&globals),
@@ -605,7 +652,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         width: WIDTH,
         height: HEIGHT,
         configured: false,
-        font,
+        glyph_cache,
+
+        confirming: false,
         selected: 0,
         running: true,
     };
@@ -617,3 +666,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("👋 Goodbye!");
     Ok(())
 }
+
+
+

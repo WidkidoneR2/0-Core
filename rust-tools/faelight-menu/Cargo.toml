@@ -1,13 +1,13 @@
 [package]
 name = "faelight-menu"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
-description = "Minimal Rust power menu for Wayland"
+description = "Minimal Rust power menu for Wayland with safety confirmation"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
-fontdue = "0.9"
 
 [profile.release]
 opt-level = "z"
