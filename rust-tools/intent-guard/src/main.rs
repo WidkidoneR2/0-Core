@@ -9,7 +9,7 @@ use std::process;
 // TYPES & STRUCTURES
 // ============================================================================
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 enum RiskLevel {
     Low,
     Medium,
@@ -26,7 +26,7 @@ impl RiskLevel {
             RiskLevel::Critical => "\x1b[1;31m", // Bold Red
         }
     }
-
+    
     fn label(&self) -> &str {
         match self {
             RiskLevel::Low => "LOW",
@@ -40,8 +40,54 @@ impl RiskLevel {
 struct Pattern {
     name: &'static str,
     description: &'static str,
-    pattern: &'static str, // Simple string matching for now
+    check: fn(&str) -> bool,  // Function to check pattern
     risk: RiskLevel,
+}
+
+// ============================================================================
+// PATTERN CHECKERS
+// ============================================================================
+
+fn check_rm_rf_root(cmd: &str) -> bool {
+    // Only trigger on actual rm commands
+    if !cmd.trim_start().starts_with("rm ") && !cmd.trim_start().starts_with("sudo rm ") {
+        return false;
+    }
+    
+    // Check for -rf or -fr flags AND dangerous targets
+    let has_recursive = cmd.contains("-rf") || cmd.contains("-fr") || 
+                       (cmd.contains("-r") && cmd.contains("-f"));
+    
+    if !has_recursive {
+        return false;
+    }
+    
+    // Check for dangerous targets
+    cmd.contains(" /") || 
+    cmd.contains("/*") ||
+    cmd.contains(" ~") ||
+    cmd.contains("~/")
+}
+
+fn check_rm_rf_core(cmd: &str) -> bool {
+    if !cmd.trim_start().starts_with("rm ") && !cmd.trim_start().starts_with("sudo rm ") {
+        return false;
+    }
+    
+    cmd.contains("~/0-core") || cmd.contains("/home/") && cmd.contains("/0-core")
+}
+
+fn check_chmod_777(cmd: &str) -> bool {
+    cmd.trim_start().starts_with("chmod ") && cmd.contains("777")
+}
+
+fn check_dd(cmd: &str) -> bool {
+    cmd.trim_start().starts_with("dd ") && (cmd.contains("of=/dev/") || cmd.contains("if=/dev/"))
+}
+
+fn check_pacman_remove(cmd: &str) -> bool {
+    (cmd.trim_start().starts_with("pacman ") || cmd.trim_start().starts_with("sudo pacman ")) &&
+    (cmd.contains("-R") || cmd.contains("--remove"))
 }
 
 // ============================================================================
@@ -51,41 +97,37 @@ struct Pattern {
 const PATTERNS: &[Pattern] = &[
     // CRITICAL - Data loss patterns
     Pattern {
-        name: "rm_rf_root",
-        description: "Recursive delete from root",
-        pattern: "rm -rf /",
-        risk: RiskLevel::Critical,
-    },
-    Pattern {
-        name: "rm_rf_home",
-        description: "Recursive delete from home",
-        pattern: "rm -rf ~",
+        name: "rm_rf_dangerous",
+        description: "Recursive delete on critical paths",
+        check: check_rm_rf_root,
         risk: RiskLevel::Critical,
     },
     Pattern {
         name: "rm_rf_core",
         description: "Delete 0-Core system",
-        pattern: "rm -rf ~/0-core",
+        check: check_rm_rf_core,
         risk: RiskLevel::Critical,
     },
+    
     // HIGH - Dangerous system operations
     Pattern {
         name: "chmod_777",
         description: "World-writable permissions",
-        pattern: "chmod 777",
+        check: check_chmod_777,
         risk: RiskLevel::High,
     },
     Pattern {
         name: "dd_device",
         description: "Direct disk write",
-        pattern: "dd", // We'll make this smarter later
+        check: check_dd,
         risk: RiskLevel::High,
     },
+    
     // MEDIUM - Package operations
     Pattern {
         name: "pacman_remove",
         description: "Remove system packages",
-        pattern: "pacman -R",
+        check: check_pacman_remove,
         risk: RiskLevel::Medium,
     },
 ];
@@ -98,41 +140,36 @@ fn check_command(cmd: &str) {
     // Find matching patterns
     let mut matches: Vec<&Pattern> = PATTERNS
         .iter()
-        .filter(|p| cmd.contains(p.pattern))
+        .filter(|p| (p.check)(cmd))
         .collect();
-
+    
     if matches.is_empty() {
         // Safe command - pass through
         process::exit(0);
     }
-
+    
     // Sort by risk (highest first)
-    matches.sort_by(|a, b| (b.risk as u8).cmp(&(a.risk as u8)));
-
+    matches.sort_by(|a, b| b.risk.partial_cmp(&a.risk).unwrap());
+    
     let highest_risk = &matches[0];
-
+    
     // Show warning
     show_warning(cmd, highest_risk);
-
+    
     // Get confirmation
     if confirm_execution(highest_risk.risk) {
-        process::exit(0); // Allow execution
+        process::exit(0);  // Allow execution
     } else {
         eprintln!("\n❌ Command cancelled");
-        process::exit(1); // Block execution
+        process::exit(1);  // Block execution
     }
 }
 
 fn show_warning(cmd: &str, pattern: &Pattern) {
     let nc = "\x1b[0m";
     let risk_color = pattern.risk.color();
-
-    eprintln!(
-        "\n{}⚠️  {} RISK DETECTED{}",
-        risk_color,
-        pattern.risk.label(),
-        nc
-    );
+    
+    eprintln!("\n{}⚠️  {} RISK DETECTED{}", risk_color, pattern.risk.label(), nc);
     eprintln!("   Command: {}", cmd);
     eprintln!("   Pattern: {}", pattern.description);
     eprintln!();
@@ -140,7 +177,7 @@ fn show_warning(cmd: &str, pattern: &Pattern) {
 
 fn confirm_execution(risk: RiskLevel) -> bool {
     match risk {
-        RiskLevel::Low => true, // No confirmation needed
+        RiskLevel::Low => true,  // No confirmation needed
         RiskLevel::Medium => confirm_yes_no(),
         RiskLevel::High => confirm_yes_no(),
         RiskLevel::Critical => confirm_exact("DELETE"),
@@ -150,20 +187,20 @@ fn confirm_execution(risk: RiskLevel) -> bool {
 fn confirm_yes_no() -> bool {
     print!("Continue? [y/N]: ");
     io::stdout().flush().unwrap();
-
+    
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-
+    
     matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
 }
 
 fn confirm_exact(word: &str) -> bool {
     print!("Type '{}' to confirm: ", word);
     io::stdout().flush().unwrap();
-
+    
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-
+    
     input.trim() == word
 }
 
@@ -173,12 +210,12 @@ fn confirm_exact(word: &str) -> bool {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
+    
     if args.len() < 2 {
         eprintln!("Usage: intent-guard check-command <cmd>");
         process::exit(1);
     }
-
+    
     match args[1].as_str() {
         "check-command" => {
             if args.len() < 3 {
