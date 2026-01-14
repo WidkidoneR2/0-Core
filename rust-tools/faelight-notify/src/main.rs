@@ -1,4 +1,4 @@
-//! faelight-notify v0.5.0 - Typography Polish
+//! faelight-notify v0.6.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -313,7 +313,7 @@ delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.5.0 starting...");
+    eprintln!("🌲 faelight-notify v0.6.0 starting...");
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
     let notifs_for_dbus = notifications.clone();
