@@ -1,4 +1,24 @@
 # Changelog
+## [7.4.0] - 2025-01-15
+
+### 🚀 New Features
+- **Faelight Launcher v2.0** - XDG desktop entry scanner with dynamic app discovery
+- **Intent System v1.0** - Complete organization with analytics and enhanced search
+- **workspace-view v0.1** - Sway X-ray vision for workspace intelligence
+
+### 📦 Tool Updates
+- faelight-launcher v2.0 - XDG integration, fuzzy search, frecency tracking, scrolling
+- intent v1.0 - Statistics, organization, enhanced filtering
+
+### 🔧 Improvements
+- Launcher: Alphabetical sorting, smart filtering, transparency, improved layout
+- Intent: Organized 36 completed intents, comprehensive documentation
+- System: Foundation for workspace automation
+
+> "The forest grows through intentional stewardship." 🌲
+
+---
+
 All notable changes to Faelight Forest / 0-Core.
 
 ## [7.3.0] - 2026-01-15
