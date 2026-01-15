@@ -3,6 +3,30 @@ All notable changes to Faelight Forest / 0-Core.
 
 
 
+## [7.0.1] - 2026-01-15
+
+### 🔒 Security
+- Fixed gitleaks integration in pre-commit hook
+- faelight-git now runs gitleaks scan before commits
+- Enhanced gitleaks config with modern token detection:
+  - GitHub fine-grained tokens (github_pat_)
+  - GitLab tokens (glpat-)
+  - Slack and Discord bot tokens
+  - High-entropy string detection
+- Expanded allowlist for .pub files, test files, INTENT/
+
+### 📜 Documentation
+- Added RELEASE.md - release process guide
+- Added GREETD.md - login screen documentation
+
+### 🔧 Fixes
+- Login screen greeting (removed emoji, added padding)
+- Password asterisks now show as ●●●●●●
+
+> "The forest guards its secrets." 🌲
+
+---
+
 ## [7.0.0] - 2026-01-14
 
 ### 🎉 Major Architectural Milestone
