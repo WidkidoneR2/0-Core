@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
+
+const VERSION: &str = "1.0.0";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -10,6 +13,7 @@ const GREEN: &str = "\x1b[0;32m";
 const YELLOW: &str = "\x1b[1;33m";
 const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
+const GRAY: &str = "\x1b[0;90m";
 const NC: &str = "\x1b[0m";
 
 fn main() {
@@ -18,12 +22,14 @@ fn main() {
 
     match command {
         "add" => cmd_add(),
-        "list" | "ls" => cmd_list(args.get(2).map(|s| s.as_str())),
+        "list" | "ls" => {
+            let filter = args.get(2).map(|s| s.as_str());
+            cmd_list(filter);
+        }
         "show" => {
             if args.len() < 3 {
                 error("Usage: intent show <id> or intent show <category> <id>");
             }
-            // Support both "future/002" and "future 002"
             if args.len() >= 4 {
                 cmd_show(&format!("{}/{}", args[2], args[3]));
             } else {
@@ -32,11 +38,24 @@ fn main() {
         }
         "search" => {
             if args.len() < 3 {
-                error("Usage: intent search <term>");
+                error("Usage: intent search <term> [--status <status>] [--tag <tag>]");
             }
-            cmd_search(&args[2]);
+            let term = &args[2];
+            let status_filter = args.iter().position(|a| a == "--status")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
+            let tag_filter = args.iter().position(|a| a == "--tag")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
+            cmd_search(term, status_filter, tag_filter);
+        }
+        "stats" => cmd_stats(),
+        "version" | "--version" | "-v" => {
+            println!("intent v{} - 0-Core Intent Ledger", VERSION);
         }
         "help" | "-h" | "--help" => cmd_help(),
+        // Shorthand: just the number
+        id if id.chars().all(|c| c.is_numeric()) => cmd_show(id),
         _ => {
             eprintln!("{}❌ Error: Unknown command: {}{}", RED, command, NC);
             cmd_help();
@@ -82,6 +101,7 @@ fn get_next_id(category: &str) -> String {
             }
         }
     }
+
     format!("{:03}", max_id + 1)
 }
 
@@ -89,7 +109,6 @@ fn cmd_add() {
     println!("{}📝 Adding New Intent{}", CYAN, NC);
     println!();
 
-    // Select category
     println!("Select category:");
     println!("  1) decisions");
     println!("  2) experiments");
@@ -108,38 +127,35 @@ fn cmd_add() {
 
     let id = get_next_id(category);
     let title = prompt("Title: ");
-    let tags_input = prompt("Tags (comma-separated): ");
+    let status = prompt("Status (planned/in-progress/complete): ");
 
-    println!("Status:");
-    println!("  1) planned");
-    println!("  2) in-progress");
-    println!("  3) complete");
-    println!("  4) abandoned");
-
-    let status = match prompt("Choice (1-4): ").as_str() {
-        "1" => "planned",
-        "2" => "in-progress",
-        "3" => "complete",
-        "4" => "abandoned",
-        _ => error("Invalid choice"),
+    let tags = prompt("Tags (comma-separated, optional): ");
+    let tags_str = if tags.is_empty() {
+        "[]".to_string()
+    } else {
+        format!(
+            "[{}]",
+            tags.split(',')
+                .map(|t| t.trim())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     };
 
-    // Create filename
-    let slug: String = title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<&str>>()
-        .join("-");
+    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-    let filename = get_intent_dir()
-        .join(category)
-        .join(format!("{}-{}.md", id, slug));
+    let filename = format!(
+        "{}-{}.md",
+        id,
+        title
+            .to_lowercase()
+            .replace(' ', "-")
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '-')
+            .collect::<String>()
+    );
 
-    let today = get_today();
+    let file_path = get_intent_dir().join(category).join(&filename);
 
     let content = format!(
         r#"---
@@ -148,80 +164,60 @@ date: {}
 type: {}
 title: "{}"
 status: {}
-tags: [{}]
+tags: {}
 ---
 
-## Why
+## Vision
+[Describe the goal and desired outcome]
 
-[Explain the reasoning behind this decision/experiment/vision]
+## The Problem
+[What problem does this solve?]
 
-## What
+## The Solution
+[High-level approach]
 
-[Describe what we're doing or planning to do]
-
-## How (if applicable)
-
-[Technical details, implementation notes]
-
-## Alternatives Considered (if applicable)
-
-[What else we thought about and why we didn't choose it]
-
-## Impact
-
-[Expected outcomes, benefits, risks]
-
-## Status Updates
-
-### {}
-
-[Initial creation]
+## Success Criteria
+- [ ] ...
 
 ---
-*Part of the 0-Core Intent Ledger* 🌲
 "#,
-        id, today, category, title, status, tags_input, today
+        id, date, category, title, status, tags_str
     );
 
-    // Ensure directory exists
-    if let Some(parent) = filename.parent() {
-        fs::create_dir_all(parent).ok();
-    }
-
-    fs::write(&filename, content).expect("Failed to write intent file");
-
-    println!("{}✅ Intent created: {}{}", GREEN, filename.display(), NC);
-    println!("{}ℹ️  Opening in editor...{}", BLUE, NC);
-
-    let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-    Command::new(&editor).arg(&filename).status().ok();
+    fs::write(&file_path, content).expect("Failed to write file");
+    println!("{}✅ Created: {}{}", GREEN, filename, NC);
 }
 
-fn cmd_list(category: Option<&str>) {
+fn cmd_list(filter: Option<&str>) {
     let intent_dir = get_intent_dir();
 
     println!("{}📋 Intent Ledger{}", CYAN, NC);
     println!();
 
-    let categories = if let Some(cat) = category {
-        vec![cat]
+    let show_complete = filter == Some("--complete") || filter == Some("-c");
+    let show_planned = filter == Some("--planned") || filter == Some("-p");
+    let show_active = filter == Some("--active") || filter == Some("-a");
+
+    let categories = if show_complete {
+        vec!["complete"]
+    } else if let Some(cat) = filter {
+        if !cat.starts_with("--") && !cat.starts_with("-") {
+            vec![cat]
+        } else {
+            vec!["decisions", "experiments", "philosophy", "future", "incidents"]
+        }
     } else {
-        vec![
-            "decisions",
-            "experiments",
-            "philosophy",
-            "future",
-            "incidents",
-        ]
+        vec!["decisions", "experiments", "philosophy", "future", "incidents"]
     };
 
-    for cat in categories {
-        println!("{}{}:{}", YELLOW, cat, NC);
+    let mut total_count = 0;
+    let mut complete_count = 0;
+    let mut planned_count = 0;
+    let mut in_progress_count = 0;
 
+    for cat in categories {
         let cat_dir = intent_dir.join(cat);
         if !cat_dir.exists() {
-            println!("  {}(empty){}", BLUE, NC);
-            println!();
             continue;
         }
 
@@ -234,44 +230,85 @@ fn cmd_list(category: Option<&str>) {
 
         files.sort_by_key(|e| e.file_name());
 
-        if files.is_empty() {
-            println!("  {}(empty){}", BLUE, NC);
-        } else {
-            for entry in files {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    // Skip index files
-                    if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
-                        continue;
-                    }
-                    let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                    let title =
-                        extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
-                    let status =
-                        extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+        let mut displayed_any = false;
 
-                    let icon = match status.as_str() {
-                        "planned" => "📅",
-                        "in-progress" => "🚧",
-                        "complete" => "✅",
-                        "decided" => "✓",
-                        "resolved" => "🔧",
-                        "abandoned" => "❌",
-                        _ => "❓",
-                    };
-
-                    println!("  {} [{}] {}", icon, id, title);
+        for entry in files {
+            if let Ok(content) = fs::read_to_string(entry.path()) {
+                let filename = entry.file_name().to_string_lossy().to_string();
+                if filename == "README.md" {
+                    continue;
                 }
+                
+                if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                    continue;
+                }
+
+                let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
+                let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
+                let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+
+                total_count += 1;
+                
+                match status.as_str() {
+                    "complete" => complete_count += 1,
+                    "planned" => planned_count += 1,
+                    "in-progress" => in_progress_count += 1,
+                    _ => {}
+                }
+
+                let should_display = if show_planned {
+                    status == "planned"
+                } else if show_active {
+                    status == "in-progress" || status == "planned"
+                } else if show_complete {
+                    status == "complete"
+                } else {
+                    true
+                };
+
+                if !should_display {
+                    continue;
+                }
+
+                if !displayed_any {
+                    println!("{}{}:{}", YELLOW, cat, NC);
+                    displayed_any = true;
+                }
+
+                let status_color = match status.as_str() {
+                    "complete" => GREEN,
+                    "planned" => BLUE,
+                    "in-progress" => YELLOW,
+                    _ => GRAY,
+                };
+
+                println!(
+                    "  {}{:<4}{} {}[{}]{} {}",
+                    GRAY, id, NC, status_color, status, NC, title
+                );
             }
         }
-        println!();
+
+        if displayed_any {
+            println!();
+        }
     }
+
+    println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", GRAY, NC);
+    println!(
+        "Total: {}  |  {}Complete: {}{}  |  {}Planned: {}{}  |  {}In Progress: {}{}",
+        total_count,
+        GREEN, complete_count, NC,
+        BLUE, planned_count, NC,
+        YELLOW, in_progress_count, NC
+    );
+    println!();
 }
 
 fn cmd_show(id: &str) {
     let intent_dir = get_intent_dir();
     let mut found_file: Option<PathBuf> = None;
 
-    // Check if id contains category (e.g., "future/002")
     if id.contains('/') {
         let parts: Vec<&str> = id.split('/').collect();
         if parts.len() == 2 {
@@ -289,13 +326,13 @@ fn cmd_show(id: &str) {
             }
         }
     } else {
-        // Search all categories for the ID
         for cat in &[
             "decisions",
             "experiments",
             "philosophy",
             "future",
             "incidents",
+            "complete",
         ] {
             let cat_dir = intent_dir.join(cat);
             if let Ok(entries) = fs::read_dir(&cat_dir) {
@@ -315,32 +352,37 @@ fn cmd_show(id: &str) {
 
     let file = found_file.unwrap_or_else(|| error(&format!("Intent {} not found", id)));
 
-    // Try bat first, fallback to cat
     let bat_status = Command::new("bat")
         .args([
-            "--style=header,grid",
-            "--theme=Monokai Extended",
+            "--style=plain",
+            "--color=always",
             "--paging=never",
+            "--decorations=always",
+            "--wrap=never",
+            file.to_str().unwrap(),
         ])
-        .arg(&file)
         .status();
 
     if bat_status.is_err() || !bat_status.unwrap().success() {
-        println!("{}─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{}", GREEN, NC);
-        println!("{}File: {}{}", GREEN, file.display(), NC);
-        println!("{}─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{}", GREEN, NC);
-        if let Ok(content) = fs::read_to_string(&file) {
-            println!("{}", content);
-        }
-        println!("{}─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{}", GREEN, NC);
+        Command::new("cat")
+            .arg(file.to_str().unwrap())
+            .status()
+            .expect("Failed to display file");
     }
 }
 
-fn cmd_search(term: &str) {
+fn cmd_search(term: &str, status_filter: Option<&str>, tag_filter: Option<&str>) {
     let intent_dir = get_intent_dir();
-
     println!("{}🔍 Searching for: {}{}", CYAN, term, NC);
+    if let Some(status) = status_filter {
+        println!("   Status: {}", status);
+    }
+    if let Some(tag) = tag_filter {
+        println!("   Tag: {}", tag);
+    }
     println!();
+
+    let mut found = false;
 
     for cat in &[
         "decisions",
@@ -348,67 +390,236 @@ fn cmd_search(term: &str) {
         "philosophy",
         "future",
         "incidents",
+        "complete",
     ] {
         let cat_dir = intent_dir.join(cat);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
-                    // Skip index files
-                    if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
-                        continue;
-                    }
-                    if content.to_lowercase().contains(&term.to_lowercase()) {
+                if entry.path().extension().map(|x| x == "md").unwrap_or(false) {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        let filename = entry.file_name().to_string_lossy().to_string();
+                        if filename == "README.md" {
+                            continue;
+                        }
+
+                        if !content.to_lowercase().contains(&term.to_lowercase()) {
+                            continue;
+                        }
+
+                        let status = extract_frontmatter(&content, "status").unwrap_or_default();
+                        if let Some(filter) = status_filter {
+                            if status != filter {
+                                continue;
+                            }
+                        }
+
+                        if let Some(tag) = tag_filter {
+                            let tags = extract_frontmatter(&content, "tags").unwrap_or_default();
+                            if !tags.contains(tag) {
+                                continue;
+                            }
+                        }
+
                         let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
                         let title = extract_frontmatter(&content, "title")
                             .unwrap_or("Untitled".to_string());
-                        println!("{}[{}]{} {} {}({}){}", GREEN, id, NC, title, BLUE, cat, NC);
+
+                        let status_color = match status.as_str() {
+                            "complete" => GREEN,
+                            "planned" => BLUE,
+                            "in-progress" => YELLOW,
+                            _ => GRAY,
+                        };
+
+                        println!(
+                            "{}{}/{:<4}{} {}[{}]{} {}",
+                            GRAY, cat, id, NC, status_color, status, NC, title
+                        );
+                        found = true;
                     }
                 }
             }
         }
     }
+
+    if !found {
+        println!("{}No results found{}", GRAY, NC);
+    }
+    println!();
+}
+
+fn cmd_stats() {
+    let intent_dir = get_intent_dir();
+    
+    println!();
+    println!("{}📊 Intent Statistics{}", CYAN, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+
+    let mut category_stats: HashMap<String, (usize, usize)> = HashMap::new();
+    let mut status_counts: HashMap<String, usize> = HashMap::new();
+    let mut tag_counts: HashMap<String, usize> = HashMap::new();
+    let mut total = 0;
+
+    for cat in &[
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "incidents",
+        "complete",
+    ] {
+        let cat_dir = intent_dir.join(cat);
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
+            let mut cat_total = 0;
+            let mut cat_complete = 0;
+
+            for entry in entries.flatten() {
+                if entry.path().extension().map(|x| x == "md").unwrap_or(false) {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        let filename = entry.file_name().to_string_lossy().to_string();
+                        if filename == "README.md" {
+                            continue;
+                        }
+
+                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                            continue;
+                        }
+
+                        cat_total += 1;
+                        total += 1;
+
+                        let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+                        *status_counts.entry(status.clone()).or_insert(0) += 1;
+
+                        if status == "complete" {
+                            cat_complete += 1;
+                        }
+
+                        // Count tags
+                        if let Some(tags) = extract_frontmatter(&content, "tags") {
+                            for tag in tags.split(',') {
+                                let clean_tag = tag.trim().trim_matches(|c| c == '[' || c == ']');
+                                if !clean_tag.is_empty() {
+                                    *tag_counts.entry(clean_tag.to_string()).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if cat_total > 0 {
+                category_stats.insert(cat.to_string(), (cat_total, cat_complete));
+            }
+        }
+    }
+
+    // Overall stats
+    let complete = status_counts.get("complete").copied().unwrap_or(0);
+    let planned = status_counts.get("planned").copied().unwrap_or(0);
+    let in_progress = status_counts.get("in-progress").copied().unwrap_or(0);
+    let success_rate = if total > 0 {
+        (complete as f64 / total as f64 * 100.0) as usize
+    } else {
+        0
+    };
+
+    println!("{}Total Intents:{} {}", YELLOW, NC, total);
+    println!("{}Success Rate:{} {}% ({} complete)", YELLOW, NC, success_rate, complete);
+    println!();
+
+    // Status breakdown
+    println!("{}By Status:{}", YELLOW, NC);
+    for (status, count) in status_counts.iter() {
+        let color = match status.as_str() {
+            "complete" => GREEN,
+            "planned" => BLUE,
+            "in-progress" => YELLOW,
+            _ => GRAY,
+        };
+        println!("  {}{}: {}{}", color, status, count, NC);
+    }
+    println!();
+
+    // Category breakdown
+    println!("{}By Category:{}", YELLOW, NC);
+    let mut cats: Vec<_> = category_stats.iter().collect();
+    cats.sort_by_key(|(_, (total, _))| std::cmp::Reverse(*total));
+    
+    for (cat, (total, complete)) in cats {
+        let rate = if *total > 0 {
+            (*complete as f64 / *total as f64 * 100.0) as usize
+        } else {
+            0
+        };
+        println!("  {}: {} total ({} complete, {}%)", cat, total, complete, rate);
+    }
+    println!();
+
+    // Top tags
+    if !tag_counts.is_empty() {
+        println!("{}Top Tags:{}", YELLOW, NC);
+        let mut tags: Vec<_> = tag_counts.iter().collect();
+        tags.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
+        
+        for (tag, count) in tags.iter().take(10) {
+            println!("  {}: {}", tag, count);
+        }
+        println!();
+    }
 }
 
 fn cmd_help() {
-    println!("{}intent{} - Intent Ledger management", CYAN, NC);
+    println!("{}intent v{} - 0-Core Intent Ledger{}", CYAN, VERSION, NC);
     println!();
-    println!("{}Usage:{}", YELLOW, NC);
-    println!("  intent add                  Add new intent (interactive)");
-    println!("  intent list [category]      List all intents (or specific category)");
-    println!("  intent show <id>            Show specific intent");
-    println!("  intent search <term>        Search intents by keyword/tag");
+    println!("USAGE:");
+    println!("   intent <command> [options]");
     println!();
-    println!("{}Categories:{}", YELLOW, NC);
-    println!("  decisions     - Major architectural choices");
-    println!("  experiments   - Things we tried (success or failure)");
-    println!("  philosophy    - Core beliefs and principles");
-    println!("  future        - Planned features and vision");
-    println!("  incidents     - System failures and lessons learned");
+    println!("COMMANDS:");
+    println!("   add                       Add a new intent");
+    println!("   list, ls [filter]         List all intents");
+    println!("     --planned, -p             Show only planned intents");
+    println!("     --active, -a              Show planned + in-progress");
+    println!("     --complete, -c            Show completed intents");
+    println!("   show <id>                 Show specific intent");
+    println!("   <id>                      Shorthand for show");
+    println!("   search <term> [filters]   Search intent content");
+    println!("     --status <status>         Filter by status");
+    println!("     --tag <tag>               Filter by tag");
+    println!("   stats                     Show intent statistics");
+    println!("   version, --version, -v    Show version");
+    println!("   help                      Show this help");
     println!();
-    println!("{}Examples:{}", YELLOW, NC);
-    println!("  intent add                  # Interactive intent creation");
-    println!("  intent list decisions       # List all decisions");
-    println!("  intent show 001             # Show intent 001");
-    println!("  intent search rust          # Find all intents mentioning rust");
-    println!();
-    println!("{}The forest remembers.{} 🌲", BLUE, NC);
+    println!("EXAMPLES:");
+    println!("   intent list                    # All active intents");
+    println!("   intent list --planned          # Only planned");
+    println!("   intent list --complete         # Completed intents");
+    println!("   intent show 036                # View intent 036");
+    println!("   intent 036                     # Same as above");
+    println!("   intent search rust             # Search for 'rust'");
+    println!("   intent search --tag v7.0       # Find v7.0 intents");
+    println!("   intent stats                   # View statistics");
 }
 
-fn extract_frontmatter(content: &str, field: &str) -> Option<String> {
-    for line in content.lines() {
-        if line.starts_with(&format!("{}: ", field)) {
-            let value = line.split(": ").skip(1).collect::<Vec<&str>>().join(": ");
-            // Remove quotes if present
-            return Some(value.trim_matches('"').to_string());
+fn extract_frontmatter(content: &str, key: &str) -> Option<String> {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut in_frontmatter = false;
+
+    for line in lines {
+        if line.trim() == "---" {
+            in_frontmatter = !in_frontmatter;
+            continue;
+        }
+
+        if in_frontmatter && line.starts_with(&format!("{}: ", key)) {
+            return Some(
+                line.trim_start_matches(&format!("{}: ", key))
+                    .trim_matches('"')
+                    .to_string(),
+            );
         }
     }
-    None
-}
 
-fn get_today() -> String {
-    let output = Command::new("date")
-        .arg("+%Y-%m-%d")
-        .output()
-        .expect("Failed to get date");
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
+    None
 }

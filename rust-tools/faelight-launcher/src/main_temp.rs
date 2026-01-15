@@ -1,4 +1,4 @@
-//! faelight-launcher v7.4 - Static List
+//! faelight-launcher v0.7 - Static List
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
@@ -31,55 +31,37 @@ use wayland_client::{
     Connection, QueueHandle,
 };
 
-
-mod desktop;
-use desktop::{DesktopEntry, icons::IconConfig};
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
 // ═══════════════════════════════════════════════════════════
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 680;
 
-const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xE8];
+const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
-const SELECTED_BG: [u8; 4] = [0x3a, 0x4a, 0x35, 0xFF];
+const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 
 // ═══════════════════════════════════════════════════════════
 // 📐 TYPOGRAPHY & LAYOUT
 // ═══════════════════════════════════════════════════════════
-const FONT_TITLE: f32 = 28.0;
-const FONT_SEARCH: f32 = 19.0;
-const FONT_ITEM: f32 = 22.0;
-const FONT_HINT: f32 = 16.0;
-const ROW_HEIGHT: u32 = 48;
-const ROW_START: u32 = 110;
-const MAX_VISIBLE: usize = 11;
+const FONT_TITLE: f32 = 22.0;
+const FONT_SEARCH: f32 = 16.0;
+const FONT_ITEM: f32 = 18.0;
+const FONT_HINT: f32 = 14.0;
+const ROW_HEIGHT: u32 = 44;
+const ROW_START: u32 = 95;
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/MesloLGLDZNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
 // ═══════════════════════════════════════════════════════════
 // 📱 APP ENTRIES
 // ═══════════════════════════════════════════════════════════
-#[derive(Debug, Clone)]
 struct AppEntry {
-    name: String,
-    exec: String,
-    icon: String,
-}
-
-impl From<&DesktopEntry> for AppEntry {
-    fn from(entry: &DesktopEntry) -> Self {
-        let icon_config = IconConfig::load();
-        let icon = icon_config.get_icon(&entry.exec, &entry.categories);
-        
-        AppEntry {
-            name: entry.name.clone(),
-            exec: entry.clean_exec(),
-            icon,
-        }
-    }
+    name: &'static str,
+    exec: &'static str,
+    icon: &'static str,
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -170,7 +152,68 @@ impl LaunchHistory {
     }
 }
 
-
+const APPS: &[AppEntry] = &[
+    AppEntry {
+        name: "Browser",
+        exec: "brave",
+        icon: "󰖟",
+    },
+    AppEntry {
+        name: "btop",
+        exec: "foot -e btop",
+        icon: "󰄪",
+    },
+    AppEntry {
+        name: "Discord",
+        exec: "discord",
+        icon: "󰙯",
+    },
+    AppEntry {
+        name: "Editor",
+        exec: "foot -e nvim",
+        icon: "",
+    },
+    AppEntry {
+        name: "Filen",
+        exec: "filen-desktop",
+        icon: "󰅟",
+    },
+    AppEntry {
+        name: "Files",
+        exec: "thunar",
+        icon: "󰉋",
+    },
+    AppEntry {
+        name: "KeePassXC",
+        exec: "keepassxc",
+        icon: "󰌋",
+    },
+    AppEntry {
+        name: "LazyGit",
+        exec: "foot -e lazygit",
+        icon: "󰊢",
+    },
+    AppEntry {
+        name: "Notesnook",
+        exec: "notesnook",
+        icon: "󱞁",
+    },
+    AppEntry {
+        name: "Terminal",
+        exec: "foot",
+        icon: "",
+    },
+    AppEntry {
+        name: "Tutanota",
+        exec: "tutanota-desktop",
+        icon: "󰇮",
+    },
+    AppEntry {
+        name: "Yazi",
+        exec: "foot -e yazi",
+        icon: "󰉖",
+    },
+];
 
 // Fuzzy matching
 fn keysym_to_char(keysym: Keysym) -> Option<char> {
@@ -245,13 +288,13 @@ fn fuzzy_score(query: &str, target: &str) -> i32 {
     }
 }
 
-fn filter_apps(query: &str, apps: &[AppEntry], history: &LaunchHistory) -> Vec<AppEntry> {
-    let mut results: Vec<(AppEntry, f32)> = apps
+fn filter_apps(query: &str, history: &LaunchHistory) -> Vec<&'static AppEntry> {
+    let mut results: Vec<(&AppEntry, f32)> = APPS
         .iter()
         .map(|app| {
-            let fuzzy = fuzzy_score(query, &app.name) as f32;
-            let frecency = history.frecency_score(&app.name) * 100.0;
-            (app.clone(), fuzzy + frecency)
+            let fuzzy = fuzzy_score(query, app.name) as f32;
+            let frecency = history.frecency_score(app.name) * 100.0;
+            (app, fuzzy + frecency)
         })
         .filter(|(_, score)| *score > 0.0)
         .collect();
@@ -309,23 +352,14 @@ fn draw_text(
 ) {
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
-    
-    // Calculate baseline offset (max ascent for this size)
-    let baseline_offset = 0; // No baseline offset
-    
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, size);
-        
-        // Calculate vertical position with proper baseline alignment
-        let glyph_y = y as i32 + baseline_offset - metrics.ymin;
-        
         for row in 0..metrics.height {
             for col in 0..metrics.width {
                 let alpha = bitmap[row * metrics.width + col];
                 if alpha > 0 {
                     let px = cursor_x + col;
-                    let py = (glyph_y + row as i32) as usize;
-                    
+                    let py = y as usize + row;
                     if px < width as usize && py < height as usize {
                         let idx = py * stride + px * 4;
                         let a = alpha as f32 / 255.0;
@@ -342,6 +376,7 @@ fn draw_text(
         cursor_x += metrics.advance_width as usize;
     }
 }
+
 // ═══════════════════════════════════════════════════════════
 // 🖼️ STATE
 // ═══════════════════════════════════════════════════════════
@@ -364,8 +399,6 @@ struct LauncherState {
     search_query: String,
     running: bool,
     history: LaunchHistory,
-    apps: Vec<AppEntry>,
-    scroll_offset: usize,
 }
 
 impl LauncherState {
@@ -440,15 +473,9 @@ impl LauncherState {
         }
 
         // Draw apps
-        let filtered_apps = filter_apps(&self.search_query, &self.apps, &self.history);
-        
-        // Calculate visible window
-        let visible_start = self.scroll_offset;
-        let visible_end = (self.scroll_offset + MAX_VISIBLE).min(filtered_apps.len());
-        
-        for (i, app) in filtered_apps.iter().enumerate().skip(visible_start).take(visible_end - visible_start) {
-            let display_index = i - visible_start;
-            let y = ROW_START + display_index as u32 * ROW_HEIGHT;
+        let filtered_apps = filter_apps(&self.search_query, &self.history);
+        for (i, app) in filtered_apps.iter().enumerate() {
+            let y = ROW_START + i as u32 * ROW_HEIGHT;
 
             if i == selected {
                 draw_rect(
@@ -481,7 +508,7 @@ impl LauncherState {
             height,
             "↑↓ Navigate  Enter Launch  Esc Close",
             20,
-            height - 25,
+            height - 35,
             DIM_COLOR,
             FONT_HINT,
         );
@@ -496,52 +523,42 @@ impl LauncherState {
     }
 
     fn launch_selected(&mut self) {
-        let filtered_apps = filter_apps(&self.search_query, &self.apps, &self.history);
+        let filtered_apps = filter_apps(&self.search_query, &self.history);
         if filtered_apps.is_empty() {
             return;
         }
-        let app = &filtered_apps[self.selected.min(filtered_apps.len() - 1)];
+        let app = filtered_apps[self.selected.min(filtered_apps.len() - 1)];
         eprintln!("🚀 Launching: {}", app.name);
 
         let parts: Vec<&str> = app.exec.split_whitespace().collect();
         if let Some((cmd, args)) = parts.split_first() {
             Command::new(cmd).args(args).spawn().ok();
-        self.history.record_launch(&app.name);
+        self.history.record_launch(app.name);
         self.history.save();
         }
     }
 
     fn move_up(&mut self) {
-        let filtered_len = filter_apps(&self.search_query, &self.apps, &self.history).len();
+        let filtered_len = filter_apps(&self.search_query, &self.history).len();
         if filtered_len == 0 {
             return;
         }
         if self.selected > 0 {
             self.selected -= 1;
-            // Scroll up if needed
-            if self.selected < self.scroll_offset {
-                self.scroll_offset = self.selected;
-            }
         } else {
             self.selected = filtered_len - 1;
-            self.scroll_offset = filtered_len.saturating_sub(MAX_VISIBLE);
         }
     }
 
     fn move_down(&mut self) {
-        let filtered_len = filter_apps(&self.search_query, &self.apps, &self.history).len();
+        let filtered_len = filter_apps(&self.search_query, &self.history).len();
         if filtered_len == 0 {
             return;
         }
         if self.selected < filtered_len - 1 {
             self.selected += 1;
-            // Scroll down if needed
-            if self.selected >= self.scroll_offset + MAX_VISIBLE {
-                self.scroll_offset = self.selected - MAX_VISIBLE + 1;
-            }
         } else {
             self.selected = 0;
-            self.scroll_offset = 0;
         }
     }
 }
@@ -685,7 +702,6 @@ impl KeyboardHandler for LauncherState {
                 if !self.search_query.is_empty() {
                     self.search_query.clear();
                     self.selected = 0;
-                    self.scroll_offset = 0;
                     self.draw();
                 } else {
                     self.running = false;
@@ -706,14 +722,12 @@ impl KeyboardHandler for LauncherState {
             Keysym::BackSpace => {
                 self.search_query.pop();
                 self.selected = 0;
-                self.scroll_offset = 0;
                 self.draw();
             }
             _ => {
                 if let Some(ch) = keysym_to_char(event.keysym) {
                     self.search_query.push(ch);
                     self.selected = 0;
-                    self.scroll_offset = 0;
                     self.draw();
                 }
             }
@@ -803,7 +817,7 @@ fn health_check() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v7.4 starting...");
+    eprintln!("🌲 faelight-launcher v0.7 starting...");
     // Check for health flag
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
@@ -835,12 +849,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     layer_surface.commit();
 
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
-        // Scan XDG desktop entries
-    println!("🌲 Faelight Launcher v2.0 - Loading...");
-    let entries = desktop::scan_applications();
-    let apps: Vec<AppEntry> = entries.iter().map(|e| e.into()).collect();
-    println!("📱 Discovered {} applications", apps.len());
-    
     let font = Font::from_bytes(FONT_DATA, FontSettings::default())?;
 
     let mut state = LauncherState {
@@ -860,8 +868,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         search_query: String::new(),
         history: LaunchHistory::load(),
         running: true,
-        apps,
-        scroll_offset: 0,
     };
 
     while state.running {

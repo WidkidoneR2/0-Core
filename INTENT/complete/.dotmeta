@@ -1,0 +1,4 @@
+# Completed Intents Archive
+package: INTENT/complete
+purpose: Archive of successfully completed intents
+visibility: hidden
