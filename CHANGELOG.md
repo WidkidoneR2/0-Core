@@ -1,6 +1,30 @@
 # Changelog
 All notable changes to Faelight Forest / 0-Core.
 
+## [7.3.0] - 2026-01-15
+
+### 🪟 New Tool (Intent 057)
+- **workspace-view v0.1** - Sway Workspace Intelligence
+  - Real-time workspace status with X-ray vision
+  - Terminal working directory detection (shows cwd for foot terminals)
+  - Focused window highlighting with green dot (●)
+  - Window counts per workspace
+  - Multiple output modes:
+    - `--active` - Active workspace only
+    - `--summary` - Compact one-line view
+    - `--json` - Machine-readable for scripting
+    - `--all` - Include empty workspaces
+  - Color-coded active/visible workspaces
+
+### ⚡ Aliases
+- `ws` - Full workspace overview
+- `wsa` - Active workspace only
+- `wss` - Compact summary
+
+> "See all, switch less." 🌲
+
+---
+
 ## [7.2.0] - 2026-01-15
 
 ### 🦀 New Tool (Intent 056)
