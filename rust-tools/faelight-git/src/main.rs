@@ -267,7 +267,36 @@ fn hook_pre_commit() -> i32 {
         return 1;
     }
 
-    0
+    // Run gitleaks to scan for secrets
+    println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
+    let gitleaks = Command::new("gitleaks")
+        .args(["protect", "--verbose", "--staged"])
+        .current_dir(get_core_dir())
+        .status();
+
+    match gitleaks {
+        Ok(status) => {
+            if status.success() {
+                println!("{}", "✅ No secrets detected".green());
+                0
+            } else {
+                eprintln!();
+                eprintln!("{}", "═══════════════════════════════════════════".red());
+                eprintln!("{}", "🔒 COMMIT BLOCKED - Secrets detected!".red().bold());
+                eprintln!("{}", "═══════════════════════════════════════════".red());
+                eprintln!();
+                eprintln!("Gitleaks found potential secrets in your staged changes.");
+                eprintln!("Remove them before committing.");
+                eprintln!();
+                1
+            }
+        }
+        Err(e) => {
+            eprintln!("{} Failed to run gitleaks: {}", "Error:".red(), e);
+            eprintln!("Blocking commit for safety.");
+            1
+        }
+    }
 }
 
 fn hook_commit_msg(file: &str) -> i32 {
