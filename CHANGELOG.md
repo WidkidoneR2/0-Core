@@ -1,6 +1,28 @@
 # Changelog
 All notable changes to Faelight Forest / 0-Core.
 
+## [7.2.0] - 2026-01-15
+
+### 🦀 New Tool (Intent 056)
+- **archaeology-0-core v0.2** - System-wide history explorer
+  - Package-specific history with file stats
+  - System timeline (`--timeline`)
+  - Time-based filtering (`--this-week`)
+  - Intent correlation (`--by-intent 036`)
+  - Version filtering (`--since v7.0.0`)
+  - Color-coded output with dates, commits, and packages
+
+### ⚡ Aliases
+- `arch <package>` - Package history
+- `archtime` - Full system timeline
+- `archwk` - Last 7 days
+- `archint <id>` - Intent-specific commits
+- `archsince <version>` - Changes since version
+
+> "The forest remembers its growth." 🌲
+
+---
+
 ## [7.1.0] - 2026-01-15
 
 ### 🦀 Rust Improvements (Intent 036)
