@@ -11,7 +11,7 @@ A revolutionary approach to Linux configuration management built on **numbered p
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.0.1 Milestone: Architectural Excellence - faelight-core, cached model, 70-90% CPU gains. 🌲🦀
+> **v7.0.1 Milestone:** Security - gitleaks pre-commit integration, enhanced token detection, login polish. 🌲🔒
 
 ---
 
@@ -270,7 +270,7 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ## 🔄 Version History
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v7.0.1 | 2026-01-14 | Architectural Excellence - cached model, faelight-core |
+| v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
 | v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection, security verification |
 | v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
 | v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |
