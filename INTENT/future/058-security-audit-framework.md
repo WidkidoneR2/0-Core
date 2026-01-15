@@ -1,6 +1,6 @@
 ---
 id: 058
-date: 2025-01-15
+date: 2026-01-15
 type: future
 title: "Security Audit Framework - The 7th Layer"
 status: planned
@@ -66,9 +66,9 @@ security-audit fix
 ### 4. Security Timeline
 ```bash
 security-audit history
-2025-01-15: CVE-2024-XXXX in openssl (patched)
-2025-01-10: SSH key rotation (30 days old)
-2025-01-05: Rust dep: tokio 1.35 → 1.36 (security)
+2026-01-15: CVE-2024-XXXX in openssl (patched)
+2026-01-10: SSH key rotation (30 days old)
+2026-01-05: Rust dep: tokio 1.35 → 1.36 (security)
 ```
 
 ## Architecture

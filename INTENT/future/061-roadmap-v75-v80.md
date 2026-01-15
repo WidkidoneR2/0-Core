@@ -1,6 +1,6 @@
 ---
 id: 061
-date: 2025-01-15
+date: 2026-01-15
 type: future
 title: "v7.5-v8.0 Roadmap - The Path to Sentient Forest"
 status: planned
@@ -14,7 +14,7 @@ version: 8.0.0
 
 ## Release Roadmap
 
-### v7.5.0 - "Foundation & Security" (Feb 2025)
+### v7.5.0 - "Foundation & Security" (Feb 2026)
 **Theme:** Build the infrastructure for intelligence
 
 **Major Features:**
@@ -28,7 +28,7 @@ version: 8.0.0
 
 ---
 
-### v7.6.0 - "Time Machine" (Mar 2025)
+### v7.6.0 - "Time Machine" (Mar 2026)
 **Theme:** Master time and history
 
 **Major Features:**
@@ -51,7 +51,7 @@ archaeology restore <snapshot>  # Time travel to working state
 
 ---
 
-### v7.7.0 - "Neural Core" (Apr 2025)
+### v7.7.0 - "Neural Core" (Apr 2026)
 **Theme:** AI and automation
 
 **Major Features:**
@@ -77,7 +77,7 @@ core tell me what's going on
 
 ---
 
-### v7.8.0 - "Living Dashboard" (May 2025)
+### v7.8.0 - "Living Dashboard" (May 2026)
 **Theme:** Visibility and beauty
 
 **Major Features:**
@@ -97,7 +97,7 @@ core tell me what's going on
 
 ---
 
-### v7.9.0 - "Self-Healing" (Jun 2025)
+### v7.9.0 - "Self-Healing" (Jun 2026)
 **Theme:** Resilience and recovery
 
 **Major Features:**
@@ -119,7 +119,7 @@ core tell me what's going on
 
 ---
 
-### v8.0.0 - "SENTIENT FOREST" (Jul 2025) 🌲🧠
+### v8.0.0 - "SENTIENT FOREST" (Jul 2026) 🌲🧠
 **Theme:** Integration and transcendence
 
 **The Grand Integration:**

@@ -1,6 +1,6 @@
 ---
 id: 059
-date: 2025-01-15
+date: 2026-01-15
 type: future
 title: "Monorepo Unification - Rust Workspace"
 status: planned
