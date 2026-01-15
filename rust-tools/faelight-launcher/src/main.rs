@@ -1,6 +1,8 @@
-//! faelight-launcher v0.5 - Static List
+//! faelight-launcher v0.7 - Static List
 //! 🌲 Faelight Forest
 
+use std::time::Duration;
+use std::env;
 use fontdue::{Font, FontSettings};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -112,7 +114,7 @@ impl LaunchHistory {
     fn record_launch(&mut self, app_name: &str) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or(Duration::from_secs(0))
             .as_secs();
         self.launches
             .entry(app_name.to_string())
@@ -130,7 +132,7 @@ impl LaunchHistory {
         if let Some(history) = self.launches.get(app_name) {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or(Duration::from_secs(0))
                 .as_secs();
             let age_hours = (now - history.last_used) / 3600;
             let recency = if age_hours < 1 {
@@ -773,10 +775,56 @@ delegate_layer!(LauncherState);
 delegate_registry!(LauncherState);
 
 // ═══════════════════════════════════════════════════════════
+fn health_check() {
+    println!("🏥 faelight-launcher health check");
+    
+    // Check Wayland
+    match Connection::connect_to_env() {
+        Ok(_) => println!("✅ wayland: connected"),
+        Err(e) => {
+            eprintln!("❌ wayland: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check font
+    let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf");
+    match Font::from_bytes(font_data as &[u8], FontSettings::default()) {
+        Ok(_) => println!("✅ font: loaded"),
+        Err(e) => {
+            eprintln!("❌ font: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check desktop files
+    let desktop_dirs = [
+        "/usr/share/applications",
+        &format!("{}/.local/share/applications", env::var("HOME").unwrap_or_default()),
+    ];
+    
+    for dir in desktop_dirs {
+        if std::path::Path::new(dir).exists() {
+            println!("✅ desktop files: {} exists", dir);
+        } else {
+            eprintln!("⚠️  desktop files: {} not found", dir);
+        }
+    }
+    
+    println!("\n✅ Core checks passed!");
+}
+
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v0.5 starting...");
+    eprintln!("🌲 faelight-launcher v0.7 starting...");
+    // Check for health flag
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
+        health_check();
+        return Ok(());
+    }
+    
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;

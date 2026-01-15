@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v7.0.1 - Sway Edition
+# 🌲 Faelight Forest v7.1.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v7.0.1-brightgreen)
+![Version](https://img.shields.io/badge/Version-v7.1.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.0.1 Milestone:** Security - gitleaks pre-commit integration, enhanced token detection, login polish. 🌲🔒
+> **v7.1.0 Milestone:** Security - gitleaks pre-commit integration, enhanced token detection, login polish. 🌲🔒
 
 ---
 
@@ -270,7 +270,9 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ## 🔄 Version History
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v7.1.0 | 2026-01-15 | Rust Hygiene - Code quality improvements |
 | v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
+| v7.0.0 | 2026-01-09 | Sway Edition - Complete migration |
 | v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection, security verification |
 | v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
 | v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |

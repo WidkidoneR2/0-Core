@@ -1,6 +1,28 @@
 # Changelog
 All notable changes to Faelight Forest / 0-Core.
 
+## [7.1.0] - 2026-01-15
+
+### 🦀 Rust Improvements (Intent 036)
+- **faelight-core** - Shared foundation library created
+  - GlyphCache for 70-90% CPU reduction in text rendering
+  - Canvas primitives with alpha blending
+  - Theme system with 3 variants
+  - Wayland helpers for layer-shell
+- **Eliminated 13 unwraps** across 4 tools for better error handling
+- **Added health_check()** to 6 tools for diagnostics
+- **Unit tests** - 6 tests added to core-diff establishing test pattern
+
+### 📦 Tool Updates
+- core-diff v1.2.0 - Unwraps fixed, health check added, 6 unit tests
+- faelight-launcher v0.7.0 - Unwraps fixed, health check added
+- dot-doctor v0.4.0 - Unwraps fixed
+- faelight-notify v0.8.0 - Unwraps fixed, health check added
+
+> "Working > Perfect. The forest improves slowly." 🌲
+
+---
+
 
 
 ## [7.0.1] - 2026-01-15

@@ -11,7 +11,51 @@ const BLUE: &str = "\x1b[0;34m";
 const GREEN: &str = "\x1b[0;32m";
 const NC: &str = "\x1b[0m";
 
+fn health_check() {
+    println!("🏥 core-diff health check");
+    
+    // Check git available
+    match Command::new("git").arg("--version").output() {
+        Ok(_) => println!("✅ git: available"),
+        Err(e) => {
+            eprintln!("❌ git: not found - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check 0-core exists
+    let home = env::var("HOME").expect("HOME not set");
+    let core_dir = PathBuf::from(&home).join("0-core");
+    
+    if core_dir.exists() {
+        println!("✅ 0-core: {} exists", core_dir.display());
+    } else {
+        eprintln!("❌ 0-core: not found at {}", core_dir.display());
+        std::process::exit(1);
+    }
+    
+    // Check it's a git repo
+    match Command::new("git")
+        .args(["-C", &core_dir.to_string_lossy(), "rev-parse", "--git-dir"])
+        .output() {
+        Ok(output) if output.status.success() => println!("✅ git repo: valid"),
+        _ => {
+            eprintln!("❌ git repo: not a repository");
+            std::process::exit(1);
+        }
+    }
+    
+    println!("\n✅ Core checks passed!");
+}
+
 fn main() {
+    // Check for health flag
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
+        health_check();
+        return;
+    }
+    
     let home = env::var("HOME").expect("HOME not set");
     let core_dir = PathBuf::from(&home).join("0-core");
     
@@ -44,7 +88,7 @@ fn main() {
     while i < args.len() {
         match args[i].as_str() {
             "-h" | "--help" => { show_help(); return; }
-            "--version" => { println!("core-diff version 1.0.0 (Rust)"); return; }
+            "--version" => { println!("core-diff version 1.2.0 (Rust)"); return; }
             "since" => {
                 mode = "since";
                 i += 1;
@@ -502,7 +546,10 @@ fn analyze_shell_policy_all() {
                 continue;
             }
             
-            let filename = path.file_name().unwrap().to_string_lossy().to_string();
+            let filename = match path.file_name() {
+                Some(name) => name.to_string_lossy().to_string(),
+                None => continue,
+            };
             
             // Skip compiled binaries (check if it's a shell script)
             if let Ok(content) = fs::read_to_string(&path) {
@@ -591,4 +638,48 @@ fn analyze_shell_policy_all() {
     println!("  • Graduate shell scripts with authority violations to Rust");
     println!("  • Use 'faelight' unified CLI instead of direct commands");
     println!("  • Document exceptions with shell-policy headers");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_risk_level_docs() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "docs"), "low");
+    }
+
+    #[test]
+    fn test_risk_level_theme_packages() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "theme-faelight"), "low");
+        assert_eq!(get_risk_level(&core_dir, "theme-dark"), "low");
+    }
+
+    #[test]
+    fn test_risk_level_scripts() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "scripts"), "medium");
+    }
+
+    #[test]
+    fn test_risk_level_hooks() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "hooks"), "high");
+    }
+
+    #[test]
+    fn test_risk_level_system() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "system"), "high");
+    }
+
+    #[test]
+    fn test_risk_level_default() {
+        let core_dir = PathBuf::from("/tmp");
+        assert_eq!(get_risk_level(&core_dir, "wm-sway"), "medium");
+        assert_eq!(get_risk_level(&core_dir, "shell-zsh"), "medium");
+    }
 }

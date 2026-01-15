@@ -1,4 +1,4 @@
-//! faelight-notify v0.6.0 - Typography Polish
+//! faelight-notify v0.8.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -80,13 +80,13 @@ impl NotificationServer {
     }
 
     fn notify(&self, app_name: String, _replaces_id: u32, _app_icon: String, summary: String, body: String, _actions: Vec<String>, _hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>, expire_timeout: i32) -> u32 {
-        let mut id = self.next_id.lock().unwrap();
+        let mut id = self.next_id.lock().expect("Failed to lock next_id mutex");
         *id += 1;
         let current_id = *id;
         drop(id);
 
         eprintln!("📨 {} - {}", summary, body);
-        self.notifications.lock().unwrap().push(Notification {
+        self.notifications.lock().expect("Failed to lock notifications mutex").push(Notification {
             app_name, summary, body,
             created: Instant::now(),
             timeout_ms: expire_timeout,
@@ -196,9 +196,9 @@ struct NotifyState {
 impl NotifyState {
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         // Clean expired
-        self.notifications.lock().unwrap().retain(|n| !n.is_expired());
+        self.notifications.lock().expect("Failed to lock notifications mutex").retain(|n| !n.is_expired());
 
-        let notifs = self.notifications.lock().unwrap();
+        let notifs = self.notifications.lock().expect("Failed to lock notifications mutex");
         let notif = notifs.first().cloned();
         let count = notifs.len();
         drop(notifs);
@@ -288,7 +288,7 @@ impl PointerHandler for NotifyState {
     fn pointer_frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_pointer::WlPointer, events: &[PointerEvent]) {
         for event in events {
             if let PointerEventKind::Press { button: 272, .. } = event.kind {
-                let mut notifs = self.notifications.lock().unwrap();
+                let mut notifs = self.notifications.lock().expect("Failed to lock notifications mutex");
                 if !notifs.is_empty() { notifs.remove(0); eprintln!("🔕 Dismissed"); }
             }
         }
@@ -312,14 +312,54 @@ delegate_pointer!(NotifyState);
 delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
+fn health_check() {
+    println!("🏥 faelight-notify health check");
+    
+    // Check Wayland
+    match Connection::connect_to_env() {
+        Ok(_) => println!("✅ wayland: connected"),
+        Err(e) => {
+            eprintln!("❌ wayland: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check font
+    match GlyphCache::new(FONT_DATA) {
+        Ok(_) => println!("✅ font: loaded"),
+        Err(e) => {
+            eprintln!("❌ font: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    // Check D-Bus
+    match zbus::blocking::Connection::session() {
+        Ok(_) => println!("✅ dbus: connected"),
+        Err(e) => {
+            eprintln!("❌ dbus: failed - {}", e);
+            std::process::exit(1);
+        }
+    }
+    
+    println!("\n✅ Core checks passed!");
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.6.0 starting...");
+    eprintln!("🌲 faelight-notify v0.8.0 starting...");
+    // Check for health flag
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
+        health_check();
+        return Ok(());
+    }
+    
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
     let notifs_for_dbus = notifications.clone();
 
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async {
             let server = NotificationServer {
                 notifications: notifs_for_dbus,

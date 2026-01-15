@@ -1,4 +1,4 @@
-//! dot-doctor v0.3 - Faelight Forest Health Engine
+//! dot-doctor v0.4 - Faelight Forest Health Engine
 //! 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
@@ -447,7 +447,7 @@ fn check_git(ctx: &Context) -> CheckResult {
 
     // Check for uncommitted changes
     let status = Command::new("git")
-        .args(["-C", ctx.core_dir.to_str().unwrap(), "status", "--porcelain"])
+        .args(["-C", &ctx.core_dir.to_string_lossy(), "status", "--porcelain"])
         .output();
 
     let has_changes = status
@@ -460,7 +460,7 @@ fn check_git(ctx: &Context) -> CheckResult {
 
     // Check for unpushed commits
     let unpushed = Command::new("git")
-        .args(["-C", ctx.core_dir.to_str().unwrap(), "log", "@{u}..", "--oneline"])
+        .args(["-C", &ctx.core_dir.to_string_lossy(), "log", "@{u}..", "--oneline"])
         .output();
 
     let has_unpushed = unpushed
@@ -768,7 +768,7 @@ fn check_keybinds(ctx: &Context) -> CheckResult {
     }
 
     let output = Command::new(ctx.core_dir.join("scripts/keyscan"))
-        .arg(sway_config.to_str().unwrap())
+        .arg(sway_config.to_string_lossy().to_string())
         .output();
 
     match output {
@@ -907,7 +907,10 @@ fn main() {
 
     // Output
     if cli.json {
-        println!("{}", serde_json::to_string_pretty(&report).unwrap());
+        match serde_json::to_string_pretty(&report) {
+            Ok(json) => println!("{}", json),
+            Err(e) => eprintln!("Error serializing JSON: {}", e),
+        }
     } else {
         print_report(&report, cli.explain);
     }

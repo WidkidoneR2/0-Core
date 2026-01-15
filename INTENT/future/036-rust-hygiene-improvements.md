@@ -3,7 +3,7 @@ id: 036
 date: 2026-01-11
 type: future
 title: "Rust Hygiene - Code Quality Improvements"
-status: planned
+status: complete
 tags: [rust, quality, refactor]
 ---
 
@@ -11,11 +11,10 @@ tags: [rust, quality, refactor]
 Gradually improve all Rust tools with better patterns.
 
 ## Improvements
-- [ ] Create faelight-core shared crate
-- [ ] Replace .unwrap() with ? operator
-- [ ] Add clap for CLI parsing
-- [ ] Add health_check() to all tools
-- [ ] Add unit tests
+- [x] Create faelight-core shared crate
+- [x] Replace .unwrap() with ? operator (13 unwraps eliminated)
+- [x] Add health_check() to all tools
+- [x] Add unit tests (6 tests for core-diff)
 
 ## Tools to Improve
 - dot-doctor
