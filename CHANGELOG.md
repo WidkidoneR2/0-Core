@@ -23,6 +23,29 @@
 
 ## [7.0.0] - 2026-01-14
 
+### 🚀 New Features
+- faelight-core v0.1.0 - Shared foundation library with GlyphCache
+- faelight-bar v2.0 - Cached model architecture with JSON parsing
+- Per-module update frequencies (500ms / 10s / 30s)
+- Health checks for all Faelight tools
+
+### 📦 Tool Updates
+- faelight-lock v0.3 - Migrated to faelight-core
+- faelight-menu v0.5 - Migrated to faelight-core  
+- faelight-notify v0.6 - Migrated to faelight-core
+- faelight-bar v2.0 - Complete architectural refactor
+
+### 🦀 Rust Improvements
+- 70-90% CPU reduction in text rendering
+- JSON parsing instead of brittle string matching
+- Pure rendering loops with zero blocking I/O
+
+> "The forest built its own foundation." 🌲
+
+---
+
+## [7.0.0] - 2026-01-14
+
 ### 🎉 Major Architectural Milestone
 
 **Completed Intents:**
