@@ -2,14 +2,6 @@
 All notable changes to Faelight Forest / 0-Core.
 
 
-### 🦀 Rust Improvements
-- 70-90% CPU reduction in text rendering
-- JSON parsing instead of brittle string matching
-- Pure rendering loops with zero blocking I/O
-
-> "The forest built its own foundation." 🌲
-
----
 
 ## [7.0.0] - 2026-01-14
 
