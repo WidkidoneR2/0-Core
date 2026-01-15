@@ -650,6 +650,7 @@ fi
 # Completions
 if [[ -f ~/.config/zsh/completions.zsh ]]; then
     source ~/.config/zsh/completions.zsh
+    source ~/.config/zsh/aliases.zsh
 fi
 
 # ═══════════════════════════════════════════════════════════
