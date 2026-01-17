@@ -65,32 +65,62 @@ Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
 
 ## 🦀 The Rust Toolchain
 
-**All 14 core tools are compiled Rust binaries:**
+All **30 core tools** are compiled Rust binaries organized in a workspace:
 
+### Core Infrastructure (10 tools)
 | Tool | Purpose | Complexity |
 |------|---------|------------|
-| `dot-doctor` | 12-check health monitor | Hard |
-| `faelight-bar` | Wayland status bar (Sway IPC) | Hard |
-| `core-protect` | Immutable filesystem protection | Hard |
-| `safe-update` | Smart system updates with snapshots | Hard |
-| `core-diff` | Package-aware diff with risk levels | Medium |
-| `dotctl` | Central control utility | Medium |
-| `intent` | Intent Ledger management | Medium |
-| `profile` | System profile switching | Medium |
-| `teach` | Interactive learning guide | Medium |
-| `theme-switch` | Dark/light theme switcher | Medium |
-| `bump-system-version` | System version management | Medium |
-| `bump-version` | Package version bumper | Medium |
-| `get-version` | Package version reader | Simple |
-| `latest-update` | Recently updated finder | Simple |
+| **dot-doctor** | 13-check health monitor | Hard |
+| **faelight-core** | Shared library (config, health, IPC) | Hard |
+| **core-protect** | Immutable filesystem protection | Hard |
+| **safe-update** | Smart system updates with snapshots | Hard |
+| **core-diff** | Package-aware diff with risk levels | Medium |
+| **dotctl** | Central control utility | Medium |
+| **entropy-check** | Drift detection system | Medium |
+| **intent-guard** | Command safety validation | Medium |
+| **faelight-stow** | Package management | Medium |
+| **faelight-snapshot** | BTRFS snapshot manager | Medium |
 
-**Benefits:**
+### Faelight Desktop Environment (7 tools)
+| Tool | Purpose | Complexity |
+|------|---------|------------|
+| **faelight-bar** | Wayland status bar (Sway IPC) | Hard |
+| **faelight-launcher** | XDG app launcher with fuzzy search | Hard |
+| **faelight-menu** | Power menu (lock/logout/shutdown) | Medium |
+| **faelight-notify** | Notification daemon | Medium |
+| **faelight-lock** | Screen locker | Medium |
+| **faelight-dashboard** | System dashboard | Medium |
+| **faelight** | Unified binary interface | Medium |
+
+### Development & Workflow (8 tools)
+| Tool | Purpose | Complexity |
+|------|---------|------------|
+| **intent** | Intent Ledger management | Medium |
+| **archaeology-0-core** | System history explorer | Medium |
+| **workspace-view** | Sway workspace intelligence | Medium |
+| **faelight-git** | Git workflow automation | Medium |
+| **profile** | System profile switching | Medium |
+| **teach** | Interactive learning guide | Medium |
+| **theme-switch** | Dark/light theme switcher | Medium |
+| **keyscan** | Keybind conflict detection | Simple |
+
+### Version Management (5 tools)
+| Tool | Purpose | Complexity |
+|------|---------|------------|
+| **bump-system-version** | System version management | Medium |
+| **bump-version** | Package version bumper | Medium |
+| **get-version** | Package version reader | Simple |
+| **latest-update** | Recently updated finder | Simple |
+| **faelight-bootstrap** | One-command system setup | Medium |
+
+### Benefits of Rust:
 - ⚡ **Faster** — Compiled binaries vs shell interpretation
 - 🔒 **Safer** — Memory safety, no buffer overflows
 - ✅ **Type-checked** — Errors caught at compile time
 - 🛠️ **Maintainable** — Better error handling, clearer structure
+- 🦀 **Modern** — Workspace monorepo with shared dependencies
 
----
+**Total Lines of Rust:** ~15,000+ across all tools
 
 ## 🏗️ Directory Structure
 
@@ -194,24 +224,41 @@ Status shown in:
 
 ## 🏥 Health Monitoring
 ```bash
-dot-doctor   # Full 12-check diagnostic
+dot-doctor   # Full 13-check diagnostic
 ```
 
-Checks:
-- ✅ Stow symlinks
-- ✅ Yazi plugins
-- ✅ Broken symlinks
-- ✅ System services
-- ✅ Binary dependencies
-- ✅ Git repository health
-- ✅ Theme packages
-- ✅ Scripts executable
-- ✅ Config aging
-- ✅ Intentional defaults
-- ✅ Intent Ledger
-- ✅ Profile System
+### Health Checks:
+1. ✅ **Stow Symlinks** — All packages properly linked
+2. ✅ **System Services** — faelight-bar, faelight-notify running
+3. ✅ **Broken Symlinks** — No orphaned links
+4. ✅ **Yazi Plugins** — All file manager plugins installed
+5. ✅ **Binary Dependencies** — All required tools present
+6. ✅ **Git Repository** — Clean state, all pushed
+7. ✅ **Theme Packages** — Faelight Forest themes present
+8. ✅ **Scripts** — All executable and present
+9. ✅ **Package Metadata** — All packages have .dotmeta
+10. ✅ **Intent Ledger** — Intent system functional
+11. ✅ **Profile System** — Profile management working
+12. ✅ **Faelight Config** — All config files valid
+13. ✅ **Sway Keybinds** — No conflicts detected
 
----
+### Output Example:
+```
+🏥 0-Core Health Check - Faelight Forest v7.4.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Stow Symlinks: All 7/7 packages properly stowed
+✅ System Services: All 2/2 services running
+✅ Broken Symlinks: No broken symlinks found
+...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ System healthy! All checks passed! 🌲
+Statistics:
+   Passed:   13
+   Warnings: 0
+   Failed:   0
+   Total:    13
+   Health:   100%
+```
 
 ## ⌨️ Key Bindings
 
