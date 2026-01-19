@@ -32,7 +32,7 @@
 > "The launcher that makes Walker look boring. From chaos to unified search." 🌲🔍
 
 ---
-## [7.4.0] - 2025-01-15
+## [7.4.0] - 2026-01-15
 
 ### 🚀 New Features
 - **Faelight Launcher v2.0** - XDG desktop entry scanner with dynamic app discovery

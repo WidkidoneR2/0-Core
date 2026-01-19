@@ -11,7 +11,7 @@ A revolutionary approach to Linux configuration management built on **numbered p
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.5.0 Milestone:** XDG Launcher + Intent System v1.0. 🌲🦀
+> **v7.5.0 Milestone:** Monorepo Unification + Universal Search. 🌲🦀
 
 ---
 
@@ -59,7 +59,7 @@ A cohesive visual identity across the entire system:
 | Amber Leaf | `#f5c177` | Warnings |
 | Fog White | `#d7e0da` | Text |
 
-Applied to: Sway, faelight-bar, Foot, Neovim, Fuzzel, Mako, tuigreet
+Applied to: Sway, faelight-bar, Foot, Neovim, tuigreet
 
 ---
 
@@ -317,19 +317,27 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ## 🔄 Version History
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v7.5.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
+| v7.5.0 | 2026-01-18 | Monorepo Unification - Universal search |
+| v7.4.0 | 2026-01-15 | Faelight Launcher v2.0 - XDG desktop scanner |
+| v7.3.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
 | v7.2.0 | 2026-01-15 | System Archaeology - History explorer |
 | v7.1.0 | 2026-01-15 | Rust Hygiene - Code quality improvements |
 | v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
-| v7.0.0 | 2026-01-09 | Sway Edition - Complete migration |
-| v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection, security verification |
+| v7.0.0 | 2026-01-14 | Sway Edition - Complete migration |
+| v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection |
+| v6.9.0 | 2026-01-14 | keyscan v0.1, entropy-check trends |
+| v6.8.1 | 2026-01-13 | Intent fixes, entropy-check JSON |
+| v6.8.0 | 2026-01-13 | entropy-check v0.1 - Drift detection |
+| v6.7.2 | 2026-01-12 | Typography polish across all tools |
+| v6.7.1 | 2026-01-11 | UI refinements - launcher, menu, notify |
+| v6.7.0 | 2026-01-11 | faelight-stow, snapshot, dashboard |
+| v6.6.0 | 2026-01-11 | Fuzzy search, Nushell integration |
+| v6.5.0 | 2026-01-10 | Security hardening - UFW, DNS, encryption |
 | v6.4.0 | 2026-01-10 | Unified CLI, typed configs, health engine |
 | v6.3.0 | 2026-01-10 | faelight-menu, faelight-lock |
-| v6.0.0 | 2026-01-09 | Sway Edition - Complete migration |
-| v5.1.0 | 2026-01-06 | faelight-bar - Custom Rust bar |
-| v5.0.0 | 2026-01-06 | Complete Rust transition |
-| v4.0.0 | 2025-12 | Profile system |
-| v3.0.0 | 2025-12 | Intent Ledger |
+| v6.2.0 | 2026-01-10 | faelight-notify v0.2, launcher v0.1 |
+| v6.1.0 | 2026-01-09 | tuigreet, GitHub cleanup |
+| v6.0.0 | 2026-01-09 | Sway Edition - Platform migration |
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
