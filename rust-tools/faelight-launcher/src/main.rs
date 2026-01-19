@@ -1,4 +1,4 @@
-//! faelight-launcher v7.4 - Static List
+//! faelight-launcher v3.0 - Static List
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
@@ -33,6 +33,7 @@ use wayland_client::{
 
 
 mod desktop;
+mod search;
 use desktop::{DesktopEntry, icons::IconConfig};
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
@@ -40,7 +41,7 @@ use desktop::{DesktopEntry, icons::IconConfig};
 const WIDTH: u32 = 500;
 const HEIGHT: u32 = 680;
 
-const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xE8];
+const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xD0];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const SELECTED_BG: [u8; 4] = [0x3a, 0x4a, 0x35, 0xFF];
@@ -51,13 +52,14 @@ const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 // ═══════════════════════════════════════════════════════════
 const FONT_TITLE: f32 = 28.0;
 const FONT_SEARCH: f32 = 19.0;
-const FONT_ITEM: f32 = 22.0;
+const FONT_ITEM: f32 = 24.0;
+const FONT_SUBTITLE: f32 = 16.0;
 const FONT_HINT: f32 = 16.0;
-const ROW_HEIGHT: u32 = 48;
+const ROW_HEIGHT: u32 = 68;
 const ROW_START: u32 = 110;
-const MAX_VISIBLE: usize = 11;
+const MAX_VISIBLE: usize = 8;
 
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/MesloLGLDZNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
 
 // ═══════════════════════════════════════════════════════════
 // 📱 APP ENTRIES
@@ -311,7 +313,7 @@ fn draw_text(
     let mut cursor_x = x as usize;
     
     // Calculate baseline offset (max ascent for this size)
-    let baseline_offset = 0; // No baseline offset
+    let baseline_offset = (size * 0.7) as i32; // No baseline offset
     
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, size);
@@ -440,38 +442,43 @@ impl LauncherState {
         }
 
         // Draw apps
-        let filtered_apps = filter_apps(&self.search_query, &self.apps, &self.history);
+        let filtered_apps = universal_search(&self.search_query, &self.apps, &self.history);
         
         // Calculate visible window
         let visible_start = self.scroll_offset;
         let visible_end = (self.scroll_offset + MAX_VISIBLE).min(filtered_apps.len());
         
-        for (i, app) in filtered_apps.iter().enumerate().skip(visible_start).take(visible_end - visible_start) {
+        for (i, result) in filtered_apps.iter().enumerate().skip(visible_start).take(visible_end - visible_start) {
             let display_index = i - visible_start;
             let y = ROW_START + display_index as u32 * ROW_HEIGHT;
 
-            if i == selected {
-                draw_rect(
-                    canvas,
-                    width,
-                    height,
-                    10,
-                    y - 8,
-                    width - 20,
-                    44,
-                    SELECTED_BG,
-                );
-            }
 
             let color = if i == selected {
                 BORDER_COLOR
             } else {
                 TEXT_COLOR
             };
-            let text = format!("{}  {}", app.icon, app.name);
-            draw_text(
-                &self.font, canvas, width, height, &text, 15, y, color, FONT_ITEM,
-            );
+            // Two-line display
+            match result {
+                search::SearchResult::App { name, icon, score, .. } => {
+                    // Line 1: Icon + Name + Score
+                    let line1 = format!("{}  {}", icon, name);
+                    draw_text(&self.font, canvas, width, height, &line1, 15, y, color, FONT_ITEM);
+                    
+                    // Line 2: Description (dimmed)
+                    draw_text(&self.font, canvas, width, height, "Application", 20, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                }
+                search::SearchResult::File { name, path, modified, score, .. } => {
+                    // Line 1: Icon + Name + Time
+                    let time = format_time_ago(*modified);
+                    let line1 = format!("📄  {}  {}", name, time);
+                    draw_text(&self.font, canvas, width, height, &line1, 15, y, color, FONT_ITEM);
+                    
+                    // Line 2: Smart path (dimmed)
+                    let short_path = smart_path(path);
+                    draw_text(&self.font, canvas, width, height, &short_path, 20, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                }
+            }
         }
 
         draw_text(
@@ -496,23 +503,30 @@ impl LauncherState {
     }
 
     fn launch_selected(&mut self) {
-        let filtered_apps = filter_apps(&self.search_query, &self.apps, &self.history);
+        let filtered_apps = universal_search(&self.search_query, &self.apps, &self.history);
         if filtered_apps.is_empty() {
             return;
         }
-        let app = &filtered_apps[self.selected.min(filtered_apps.len() - 1)];
-        eprintln!("🚀 Launching: {}", app.name);
-
-        let parts: Vec<&str> = app.exec.split_whitespace().collect();
-        if let Some((cmd, args)) = parts.split_first() {
-            Command::new(cmd).args(args).spawn().ok();
-        self.history.record_launch(&app.name);
-        self.history.save();
+        let result = &filtered_apps[self.selected.min(filtered_apps.len() - 1)];
+        match result {
+            search::SearchResult::App { name, exec, .. } => {
+                eprintln!("🚀 Launching: {}", name);
+                let parts: Vec<&str> = exec.split_whitespace().collect();
+                if let Some((cmd, args)) = parts.split_first() {
+                    Command::new(cmd).args(args).spawn().ok();
+                }
+                self.history.record_launch(name);
+                self.history.save();
+            }
+            search::SearchResult::File { name, path, .. } => {
+                eprintln!("📂 Opening: {}", name);
+                Command::new("xdg-open").arg(path).spawn().ok();
+            }
         }
     }
 
     fn move_up(&mut self) {
-        let filtered_len = filter_apps(&self.search_query, &self.apps, &self.history).len();
+        let filtered_len = universal_search(&self.search_query, &self.apps, &self.history).len();
         if filtered_len == 0 {
             return;
         }
@@ -529,7 +543,7 @@ impl LauncherState {
     }
 
     fn move_down(&mut self) {
-        let filtered_len = filter_apps(&self.search_query, &self.apps, &self.history).len();
+        let filtered_len = universal_search(&self.search_query, &self.apps, &self.history).len();
         if filtered_len == 0 {
             return;
         }
@@ -870,4 +884,86 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("👋 Goodbye!");
     Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// 🎨 DISPLAY HELPERS
+// ═══════════════════════════════════════════════════════════
+
+/// Format elapsed time (e.g., "2h ago", "3d ago")
+fn format_time_ago(modified: u64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let elapsed = now.saturating_sub(modified);
+    
+    if elapsed < 3600 {
+        format!("{}m ago", elapsed / 60)
+    } else if elapsed < 86400 {
+        format!("{}h ago", elapsed / 3600)
+    } else if elapsed < 604800 {
+        format!("{}d ago", elapsed / 86400)
+    } else {
+        format!("{}w ago", elapsed / 604800)
+    }
+}
+
+/// Smart path truncation (show parent dir + filename)
+fn smart_path(path: &str) -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let short = path.replace(&home, "~");
+    
+    // If path is short enough, return it
+    if short.len() <= 50 {
+        return short;
+    }
+    
+    // Otherwise, show last 2 path components
+    let parts: Vec<&str> = short.split('/').collect();
+    if parts.len() >= 3 {
+        format!(".../{}/{}", parts[parts.len() - 2], parts[parts.len() - 1])
+    } else {
+        short
+    }
+}
+// 🔍 UNIVERSAL SEARCH
+// ═══════════════════════════════════════════════════════════
+fn universal_search(
+    query: &str,
+    apps: &[AppEntry],
+    history: &LaunchHistory,
+) -> Vec<search::SearchResult> {
+    use search::{SearchResult, files};
+    
+    let mut results = Vec::new();
+    
+    // Search apps
+    for app in apps {
+        let fuzzy = fuzzy_score(query, &app.name) as f32;
+        let frecency = history.frecency_score(&app.name) * 100.0;
+        let score = fuzzy + frecency;
+        
+        if score > 0.0 {
+            results.push(SearchResult::App {
+                name: app.name.clone(),
+                exec: app.exec.clone(),
+                icon: app.icon.clone(),
+                score,
+            });
+        }
+    }
+    
+    // Search files (only if query has 2+ chars to avoid noise)
+    if query.len() >= 2 {
+        let file_config = files::FileSearchConfig::default();
+        let file_results = files::search_files(query, &file_config);
+        results.extend(file_results);
+    }
+    
+    // Sort by score (highest first)
+    results.sort();
+    results
 }
