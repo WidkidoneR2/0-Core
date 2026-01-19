@@ -232,7 +232,6 @@ fn check_stow(ctx: &Context) -> CheckResult {
     let checks = [
         ("sway/config", "wm-sway"),
         ("foot/foot.ini", "term-foot"),
-        ("fuzzel/fuzzel.ini", "launcher-fuzzel"),
         ("yazi/yazi.toml", "fm-yazi"),
         ("starship.toml", "prompt-starship"),
         ("topgrade.toml", "tools-topgrade"),
@@ -255,7 +254,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
         details.push("✗ .gitconfig missing".to_string());
     }
 
-    let total = 7;
+    let total = 6;
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),
