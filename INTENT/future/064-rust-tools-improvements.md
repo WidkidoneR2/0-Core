@@ -1,41 +1,53 @@
 ---
+title: "Rust Tools Improvements & Stow Structure Fix"
 id: 064
 date: 2026-01-19
 type: future
 title: "Rust Tools Improvements & Stow Structure Fix"
-status: planned
+status: in-progress
 tags: [rust, tools, stow, architecture]
 ---
 
 ## Vision
 Comprehensive improvement of all Rust tools with proper stow integration.
 
-## Problems to Fix
+## Completed (v7.6.1)
 
-### 1. Stow Structure Issues
-- `.zshrc` is absolute symlink (not stow-managed)
-- Can't add new directories to shell-zsh via stow
-- Fastfetch manually symlinked as workaround
+### 1. bump-system-version ✅ (v7.6.4)
+- Added is_valid_version() to reject invalid versions
+- Added skip_version_history to preserve README version table
+- Fixed workspace build path issue
 
-### 2. Tool Improvements Needed
-- VERSION file corruption: Commands writing to VERSION when they should not
-- bump-system-version: Replaces old version in version history table (should skip that section)
-- faelight-stow: Only verifies, doesn't actually stow new packages
-- dot-doctor: Hardcoded package list (7/7 instead of dynamic detection)
-- All 30+ tools: Need review for improvements
-- intent-guard: Too aggressive on INTENT/ moves (normal operations should not require confirmation)
+### 2. Stow Structure ✅
+- Removed absolute symlinks
+- All 11 packages properly stowed with --ignore=\.dotmeta
+- System health: 46% → 92%
+
+### 3. dot-doctor ✅
+- Dynamic detection: 11/11 packages
+- No more hardcoded checks
+
+### 4. intent-guard ✅
+- Fixed aggressive mv detection
+- Only blocks moves FROM 0-core
+
+### 5. faelight-stow v0.2.0 ✅
+- Can now stow new packages
+
+## In Progress
+
+### 6. All 30+ Tools Review
+- **Status:** Not started
+- **Plan:** Systematic review across future versions
+- **Scope:** Performance, UX, functionality improvements for each tool
 
 ## Success Criteria
-- [ ] Fix stow to manage shell-zsh properly
-- [ ] Fastfetch properly stowed (not manual symlink)
-- [ ] faelight-stow can add new packages
-- [ ] dot-doctor dynamically detects stowed packages
+- [x] Fix stow to manage shell-zsh properly
+- [x] Fastfetch properly stowed (not manual symlink)
+- [x] faelight-stow can add new packages
+- [x] dot-doctor dynamically detects stowed packages
 - [ ] All tools reviewed and improved
-- [ ] Documentation updated
-
-## Deferred From
-v7.6.0 - Noted during release process
+- [x] Documentation updated
 
 ---
-
 _"Fix the foundation before building higher."_ 🌲

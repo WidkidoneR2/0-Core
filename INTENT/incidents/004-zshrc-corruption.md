@@ -3,6 +3,7 @@ id: 004
 date: 2026-01-19
 type: incident
 status: resolved
+title: "Shell Configuration Corruption - .zshrc Recovery"
 severity: CRITICAL
 affected: shell-zsh/.zshrc
 ---
