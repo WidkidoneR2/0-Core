@@ -88,10 +88,28 @@ fn check_pacman_remove(cmd: &str) -> bool {
 }
 
 fn check_mv_core(cmd: &str) -> bool {
-    (cmd.trim_start().starts_with("mv ") || cmd.trim_start().starts_with("sudo mv "))
-        && (cmd.contains("~/0-core") || cmd.contains("/home/") && cmd.contains("/0-core"))
+    if !(cmd.trim_start().starts_with("mv ") || cmd.trim_start().starts_with("sudo mv ")) {
+        return false;
+    }
+    
+    // Parse mv command: mv [source] [dest]
+    let parts: Vec<&str> = cmd.split_whitespace().collect();
+    if parts.len() < 3 {
+        return false; // Invalid mv syntax
+    }
+    
+    // Get source (could be after 'sudo')
+    let source_idx = if parts[0] == "sudo" { 2 } else { 1 };
+    if source_idx >= parts.len() {
+        return false;
+    }
+    
+    let source = parts[source_idx];
+    
+    // Only trigger if SOURCE involves 0-core (moving FROM or moving 0-core itself)
+    // Don't trigger for moves TO 0-core subdirectories (those are safe)
+    source.contains("0-core")
 }
-
 fn check_mkfs(cmd: &str) -> bool {
     cmd.trim_start().starts_with("mkfs.") || cmd.trim_start().starts_with("sudo mkfs.")
 }
