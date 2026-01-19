@@ -1,4 +1,4 @@
-//! faelight-stow v0.1 - Stow Verification (Philosophy: verify, don't auto-fix)
+//! faelight-stow v0.2 - Stow Verification (Philosophy: verify, don't auto-fix)
 //! 🌲 Faelight Forest
 
 use std::env;
@@ -37,7 +37,7 @@ fn main() {
     }
     
     if !quiet {
-        eprintln!("🔗 faelight-stow v0.1 - Verifying symlinks...");
+        eprintln!("🔗 faelight-stow v0.2 - Verifying symlinks...");
     }
     
     let home = env::var("HOME").expect("HOME not set");
@@ -46,6 +46,34 @@ fn main() {
     
     let mut issues: Vec<Issue> = Vec::new();
     let mut verified = 0;
+
+    // Handle stowing a new package: faelight-stow <package-name>
+    if args.len() >= 2 && !args[1].starts_with("--") {
+        let pkg_name = &args[1];
+        println!("📦 Stowing new package: {}", pkg_name);
+        
+        let pkg_dir = core_dir.join(pkg_name);
+        if !pkg_dir.exists() {
+            eprintln!("❌ Package not found: {}", pkg_name);
+            std::process::exit(1);
+        }
+        
+        let status = Command::new("stow")
+            .current_dir(&core_dir)
+            .args(["--ignore=\\.dotmeta", "-R", pkg_name])
+            .status();
+        
+        match status {
+            Ok(s) if s.success() => {
+                println!("✅ Successfully stowed {}", pkg_name);
+                std::process::exit(0);
+            }
+            _ => {
+                eprintln!("❌ Failed to stow {}", pkg_name);
+                std::process::exit(1);
+            }
+        }
+    }
     
     for (package, target) in STOW_FILES {
         let expected_source = core_dir.join(package).join(target);
@@ -138,7 +166,7 @@ fn main() {
 }
 
 fn print_help() {
-    println!("faelight-stow v0.1 - Stow Symlink Verification");
+    println!("faelight-stow v0.2 - Stow Symlink Verification");
     println!();
     println!("USAGE:");
     println!("    faelight-stow [OPTIONS]");
