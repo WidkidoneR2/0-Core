@@ -1,5 +1,37 @@
 # Changelog
 
+## [7.6.0] - 2026-01-19
+
+### 🎨 New Features
+- **Fastfetch Branding (Intent 062)** - Custom forest ASCII art on terminal launch
+  - Multi-tree forest scene with Faelight color gradient
+  - Dynamic version display from ~/0-core/VERSION
+  - Health status integration with dot-doctor
+  - System info alongside custom logo
+- **wm-sway v1.2.0** - Bumped from v1.0.0 (Intent 055)
+
+### 📜 Philosophy
+- **Intent 061 Updated** - Rewrote v8.0 roadmap to be vision-focused, not prescriptive
+  - Removed detailed 6-month feature planning (violated 0-Core philosophy)
+  - Focused on principles: observe/suggest/wait vs. automate
+  - Emphasized organic discovery over predetermined paths
+
+### 🔧 Improvements
+- Added `stow` alias for easier manual stowing
+- Created Intent 064: Rust Tools Improvements & Stow Structure Fix (deferred)
+- Fixed VERSION file corruption (was showing `--help`)
+
+### 📦 Tool Updates
+- shell-zsh - Fastfetch integration, stow alias added
+- wm-sway v1.2.0 - Version bump
+
+### 🐛 Known Issues
+- Fastfetch manually symlinked (stow structure issue deferred to Intent 064)
+- dot-doctor shows 7/7 packages (should be 8/8 with fastfetch)
+
+> "Every terminal should feel like home." 🌲🎨
+
+
 ## [7.5.0] - 2026-01-18
 
 ### 🚀 New Features

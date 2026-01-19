@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
-# Version 7.5.0 - Faelight Forest
+# Version --help - Faelight Forest
 # Clean, organized, and intentional
 # Migrated from Fish for better bash compatibility
 # ═══════════════════════════════════════════════════════════
@@ -686,21 +686,19 @@ eval "$(starship init zsh)"
 if [[ -o interactive ]]; then
     fastfetch
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v7.5.0 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then
             echo -e "\033[0;36m   Latest: $latest\033[0m"
+            echo ""
         fi
     fi
-    echo ""
     echo "This is my Happy Place!!!"
     echo ""
     echo "💡 Quick: doctor | health | intent list | keys"
     echo ""
 fi
 
-# Cargo
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # ═══════════════════════════════════════════════════════════
@@ -724,6 +722,7 @@ alias snapcreate='faelight-snapshot create'
 # Stow verification
 alias stow-check='faelight-stow'
 alias stow-fix='faelight-stow --fix'
+alias stow='cd ~/0-core && command stow'
 
 # Launcher
 alias launcher='faelight-launcher'

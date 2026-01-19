@@ -1,6 +1,6 @@
 [package]
 name = "wm-sway"
-version = "1.0.0"
+version = "1.2.0"
 description = "Sway window manager configuration"
 category = "desktop"
 last_updated = "2026-01-09"

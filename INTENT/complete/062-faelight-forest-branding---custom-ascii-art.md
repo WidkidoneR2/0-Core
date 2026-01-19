@@ -3,7 +3,7 @@ id: 062
 date: 2026-01-15
 type: future
 title: "Faelight Forest Branding - Custom ASCII Art"
-status: planned
+status: complete
 tags: [v7.8, polish, ui, branding]
 ---
 
