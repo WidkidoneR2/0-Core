@@ -121,6 +121,61 @@ All **30 core tools** are compiled Rust binaries organized in a workspace:
 
 **Total Lines of Rust:** ~15,000+ across all tools
 
+## 🏗️ Directory Structure
+
+### Numbered Hierarchy
+```
+~/0-core/     🔒 Configuration (this repo) - MOST CRITICAL
+~/1-src/      📁 Source code & projects
+~/2-projects/ 💼 Active work
+~/3-archive/  💎 Completed/archived
+~/4-media/    🎬 Media files
+~/secrets/    🔐 Never committed
+```
+
+### Package Organization (Stow-Based)
+```
+0-core/
+├── stow/                  # 🎯 ALL dotfile packages (GNU Stow managed)
+│   ├── wm-sway/          Sway window manager config
+│   ├── shell-zsh/        Zsh + aliases (188+)
+│   ├── shell-nushell/    Nushell configuration
+│   ├── prompt-starship/  Starship prompt
+│   ├── term-foot/        Foot terminal
+│   ├── editor-nvim/      Neovim + Faelight theme
+│   ├── fm-yazi/          Yazi file manager
+│   ├── vcs-git/          Git configuration
+│   ├── config-faelight/  Typed TOML configs
+│   ├── browser-qutebrowser/ Qutebrowser
+│   ├── browser-brave/    Brave theming
+│   └── tools-topgrade/   System updater config
+│
+├── rust-tools/           # 🦀 Rust workspace (monorepo)
+│   ├── faelight/         Unified CLI
+│   ├── dot-doctor/       Health check engine
+│   ├── faelight-bar/     Status bar (v2.0 cached)
+│   ├── faelight-git/     Git governance
+│   ├── faelight-notify/  Wayland notifications
+│   ├── faelight-launcher/ App launcher (XDG)
+│   ├── faelight-menu/    Power menu
+│   ├── faelight-lock/    Screen locker
+│   └── faelight-bootstrap/ System bootstrap
+│
+├── scripts/              # 📜 Compiled binaries + shell scripts
+├── docs/                 # 📚 Tool references & guides
+├── INTENT/               # 🎯 Intent ledger (decision log)
+├── INCIDENTS/            # 📋 Incident tracking
+├── profiles/             # 👤 System profiles
+├── packages/             # 📦 Package lists (official/AUR)
+├── automation/           # 🤖 Automation scripts
+├── hooks/                # 🪝 Git hooks
+├── infrastructure/       # 🏗️ Architecture docs
+└── system/               # ⚙️ System-level configs
+```
+
+**Deployment:** `cd ~/0-core/stow && stow -t ~ package-name`
+
+
 ### Numbered Hierarchy
 ```
 ~/0-core/     🔒 Configuration (this repo) - MOST CRITICAL
@@ -309,6 +364,24 @@ intent add future "..."  # Add new intent
 
 Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
+
+## 🔄 Recent Version History
+
+| Version | Date | Milestone |
+|---------|------|-----------|
+| v7.6.2 | 2026-01-19 | Stow migration complete - 100% health |
+| v7.6.0 | 2026-01-19 | Visual Identity & Philosophy |
+| v7.5.0 | 2026-01-18 | Monorepo Unification - Universal search |
+| v7.4.0 | 2026-01-15 | Faelight Launcher v2.0 - XDG desktop scanner |
+| v7.3.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
+| v7.2.0 | 2026-01-15 | System Archaeology - History explorer |
+| v7.1.0 | 2026-01-15 | Rust Hygiene - Code quality improvements |
+| v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
+| v7.0.0 | 2026-01-14 | Sway Edition - Complete migration |
+| v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection |
+
+[See full version history](CHANGELOG.md)
+
 ---
 
 ## 🌟 Credits
@@ -327,73 +400,3 @@ MIT — Use freely, learn deeply, configure intentionally.
 
 > *"The forest grew its own tools, wrote its own rules, and found a new home."* 🌲🦀
 
-## 🏗️ Directory Structure
-
-### Numbered Hierarchy
-```
-~/0-core/     🔒 Configuration (this repo) - MOST CRITICAL
-~/1-src/      📁 Source code & projects
-~/2-projects/ 💼 Active work
-~/3-archive/  💎 Completed/archived
-~/4-media/    🎬 Media files
-~/secrets/    🔐 Never committed
-```
-
-### Package Organization (Stow-Based)
-```
-0-core/
-├── stow/                  # 🎯 ALL dotfile packages (GNU Stow managed)
-│   ├── wm-sway/          Sway window manager config
-│   ├── shell-zsh/        Zsh + aliases (188+)
-│   ├── shell-nushell/    Nushell configuration
-│   ├── prompt-starship/  Starship prompt
-│   ├── term-foot/        Foot terminal
-│   ├── editor-nvim/      Neovim + Faelight theme
-│   ├── fm-yazi/          Yazi file manager
-│   ├── vcs-git/          Git configuration
-│   ├── config-faelight/  Typed TOML configs
-│   ├── browser-qutebrowser/ Qutebrowser
-│   ├── browser-brave/    Brave theming
-│   └── tools-topgrade/   System updater config
-│
-├── rust-tools/           # 🦀 Rust workspace (monorepo)
-│   ├── faelight/         Unified CLI
-│   ├── dot-doctor/       Health check engine
-│   ├── faelight-bar/     Status bar (v2.0 cached)
-│   ├── faelight-git/     Git governance
-│   ├── faelight-notify/  Wayland notifications
-│   ├── faelight-launcher/ App launcher (XDG)
-│   ├── faelight-menu/    Power menu
-│   ├── faelight-lock/    Screen locker
-│   └── faelight-bootstrap/ System bootstrap
-│
-├── scripts/              # 📜 Compiled binaries + shell scripts
-├── docs/                 # 📚 Tool references & guides
-├── INTENT/               # 🎯 Intent ledger (decision log)
-├── INCIDENTS/            # 📋 Incident tracking
-├── profiles/             # 👤 System profiles
-├── packages/             # 📦 Package lists (official/AUR)
-├── automation/           # 🤖 Automation scripts
-├── hooks/                # 🪝 Git hooks
-├── infrastructure/       # 🏗️ Architecture docs
-└── system/               # ⚙️ System-level configs
-```
-
-**Deployment:** `cd ~/0-core/stow && stow -t ~ package-name`
-
-## 🔄 Recent Version History
-
-| Version | Date | Milestone |
-|---------|------|-----------|
-| v7.6.2 | 2026-01-19 | Stow migration complete - 100% health |
-| v7.6.0 | 2026-01-19 | Visual Identity & Philosophy |
-| v7.5.0 | 2026-01-18 | Monorepo Unification - Universal search |
-| v7.4.0 | 2026-01-15 | Faelight Launcher v2.0 - XDG desktop scanner |
-| v7.3.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
-| v7.2.0 | 2026-01-15 | System Archaeology - History explorer |
-| v7.1.0 | 2026-01-15 | Rust Hygiene - Code quality improvements |
-| v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
-| v7.0.0 | 2026-01-14 | Sway Edition - Complete migration |
-| v6.9.1 | 2026-01-14 | dot-doctor v0.3, keybind detection |
-
-[See full version history](CHANGELOG.md)
