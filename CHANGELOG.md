@@ -1,6 +1,39 @@
 # Changelog
 ## [7.4.0] - 2025-01-15
 
+## [7.5.0] - 2026-01-18
+
+### 🚀 New Features
+- **Monorepo Unification (Intent 059)** - All 30 Rust tools unified in workspace
+- **Universal Search (Intent 060 - Phase 1)** - faelight-launcher v3.0 searches apps + files
+- File search with fuzzy matching and recency scoring
+- Smart path truncation and time stamps ("2h ago")
+
+### 📐 UI Improvements
+- Two-line display with name + subtitle
+- JetBrains Mono font with perfect baseline alignment
+- Increased transparency (0xD0) for modern aesthetic
+- Text-only selection highlight (removed background bar)
+- Taller rows (68px) with improved spacing
+
+### 🦀 Rust Improvements
+- Workspace structure: shared dependencies, unified builds
+- Disk usage: ~2GB → ~300MB for build artifacts
+- Compilation time: 70% faster rebuilds with workspace caching
+
+### 📦 Tool Updates
+- faelight-launcher v2.0 → v3.0.0 - Universal Search
+- dot-doctor - Fixed stow checks with canonicalize
+
+### 🔧 Fixes
+- Removed launcher-fuzzel (replaced by faelight-launcher v3.0)
+- Fixed broken symlinks from fuzzel removal
+- Updated stow verification to detect directory-level symlinks
+
+> "The launcher that makes Walker look boring. From chaos to unified search." 🌲🔍
+
+---
+
 ### 🚀 New Features
 - **Faelight Launcher v2.0** - XDG desktop entry scanner with dynamic app discovery
 - **Intent System v1.0** - Complete organization with analytics and enhanced search

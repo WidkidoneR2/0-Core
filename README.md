@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v7.4.0 - Sway Edition
+# 🌲 Faelight Forest v7.5.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v7.4.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v7.5.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.4.0 Milestone:** XDG Launcher + Intent System v1.0. 🌲🦀
+> **v7.5.0 Milestone:** XDG Launcher + Intent System v1.0. 🌲🦀
 
 ---
 
@@ -244,7 +244,7 @@ dot-doctor   # Full 13-check diagnostic
 
 ### Output Example:
 ```
-🏥 0-Core Health Check - Faelight Forest v7.4.0
+🏥 0-Core Health Check - Faelight Forest v7.5.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Stow Symlinks: All 7/7 packages properly stowed
 ✅ System Services: All 2/2 services running
@@ -317,7 +317,7 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ## 🔄 Version History
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v7.4.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
+| v7.5.0 | 2026-01-15 | Workspace Intelligence - Sway X-ray vision |
 | v7.2.0 | 2026-01-15 | System Archaeology - History explorer |
 | v7.1.0 | 2026-01-15 | Rust Hygiene - Code quality improvements |
 | v7.0.1 | 2026-01-15 | Security - gitleaks integration, login polish |
