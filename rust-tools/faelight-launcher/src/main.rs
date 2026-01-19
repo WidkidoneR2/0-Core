@@ -1,4 +1,4 @@
-//! faelight-launcher v3.0 - Static List
+//! faelight-launcher v3.1 - Refined UI
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
@@ -38,7 +38,7 @@ use desktop::{DesktopEntry, icons::IconConfig};
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
 // ═══════════════════════════════════════════════════════════
-const WIDTH: u32 = 500;
+const WIDTH: u32 = 420;
 const HEIGHT: u32 = 680;
 
 const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xD0];
@@ -52,12 +52,12 @@ const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 // ═══════════════════════════════════════════════════════════
 const FONT_TITLE: f32 = 28.0;
 const FONT_SEARCH: f32 = 19.0;
-const FONT_ITEM: f32 = 24.0;
-const FONT_SUBTITLE: f32 = 16.0;
+const FONT_ITEM: f32 = 22.0;
+const FONT_SUBTITLE: f32 = 14.0;
 const FONT_HINT: f32 = 16.0;
-const ROW_HEIGHT: u32 = 68;
+const ROW_HEIGHT: u32 = 52;
 const ROW_START: u32 = 110;
-const MAX_VISIBLE: usize = 8;
+const MAX_VISIBLE: usize = 10;
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
 
@@ -74,7 +74,7 @@ struct AppEntry {
 impl From<&DesktopEntry> for AppEntry {
     fn from(entry: &DesktopEntry) -> Self {
         let icon_config = IconConfig::load();
-        let icon = icon_config.get_icon(&entry.exec, &entry.categories);
+        let icon = icon_config.get_icon(&entry.clean_exec(), &entry.categories);
         
         AppEntry {
             name: entry.name.clone(),
@@ -313,13 +313,13 @@ fn draw_text(
     let mut cursor_x = x as usize;
     
     // Calculate baseline offset (max ascent for this size)
-    let baseline_offset = (size * 0.7) as i32; // No baseline offset
+    let baseline_offset = (size * 0.7) as i32; // Calculate baseline for proper text alignment
     
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, size);
         
         // Calculate vertical position with proper baseline alignment
-        let glyph_y = y as i32 + baseline_offset - metrics.ymin;
+        let glyph_y = y as i32;
         
         for row in 0..metrics.height {
             for col in 0..metrics.width {
@@ -463,20 +463,20 @@ impl LauncherState {
                 search::SearchResult::App { name, icon, score, .. } => {
                     // Line 1: Icon + Name + Score
                     let line1 = format!("{}  {}", icon, name);
-                    draw_text(&self.font, canvas, width, height, &line1, 15, y, color, FONT_ITEM);
+                    draw_text(&self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM);
                     
                     // Line 2: Description (dimmed)
-                    draw_text(&self.font, canvas, width, height, "Application", 20, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                    draw_text(&self.font, canvas, width, height, "Application", 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
                 }
                 search::SearchResult::File { name, path, modified, score, .. } => {
                     // Line 1: Icon + Name + Time
                     let time = format_time_ago(*modified);
                     let line1 = format!("📄  {}  {}", name, time);
-                    draw_text(&self.font, canvas, width, height, &line1, 15, y, color, FONT_ITEM);
+                    draw_text(&self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM);
                     
                     // Line 2: Smart path (dimmed)
                     let short_path = smart_path(path);
-                    draw_text(&self.font, canvas, width, height, &short_path, 20, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                    draw_text(&self.font, canvas, width, height, &short_path, 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
                 }
             }
         }
@@ -788,7 +788,7 @@ fn health_check() {
     }
     
     // Check font
-    let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf");
+    let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
     match Font::from_bytes(font_data as &[u8], FontSettings::default()) {
         Ok(_) => println!("✅ font: loaded"),
         Err(e) => {
@@ -817,7 +817,7 @@ fn health_check() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v7.4 starting...");
+    eprintln!("🌲 faelight-launcher v3.1.0 starting...");
     // Check for health flag
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {

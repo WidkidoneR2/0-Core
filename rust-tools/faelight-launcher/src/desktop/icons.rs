@@ -69,3 +69,5 @@ impl IconConfig {
         super::get_category_icon(categories).to_string()
     }
 }
+
+    // Add fallback matching for terminal emulators and editors
