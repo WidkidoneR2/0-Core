@@ -369,7 +369,7 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v7.6.2 | 2026-01-19 | Stow migration complete - 100% health |
+| v7.6.3 | 2026-01-19 | Stow migration complete - 100% health |
 | v7.6.0 | 2026-01-19 | Visual Identity & Philosophy |
 | v7.5.0 | 2026-01-18 | Monorepo Unification - Universal search |
 | v7.4.0 | 2026-01-15 | Faelight Launcher v2.0 - XDG desktop scanner |
