@@ -228,7 +228,6 @@ fn check_stow(ctx: &Context) -> CheckResult {
     let config = PathBuf::from(&ctx.home).join(".config");
     let mut stowed = 0;
     let mut details = vec![];
-
     let checks = [
         ("zsh/.zshrc", "shell-zsh"),
         ("sway/config", "wm-sway"),
@@ -236,8 +235,11 @@ fn check_stow(ctx: &Context) -> CheckResult {
         ("yazi/yazi.toml", "fm-yazi"),
         ("starship.toml", "prompt-starship"),
         ("topgrade.toml", "tools-topgrade"),
+        ("qutebrowser/config.py", "browser-qutebrowser"),
+        ("faelight/config.toml", "config-faelight"),
+        ("nvim/init.lua", "editor-nvim"),
+        ("nushell/config.nu", "shell-nushell"),
     ];
-
     for (path, pkg) in checks {
         let target = config.join(path);
         let core_source = PathBuf::from(&ctx.home).join("0-core").join(pkg).join(".config").join(path);
@@ -253,7 +255,6 @@ fn check_stow(ctx: &Context) -> CheckResult {
             details.push(format!("✗ {} missing", path));
         }
     }
-
     // Check .gitconfig
     if PathBuf::from(&ctx.home).join(".gitconfig").is_symlink() {
         stowed += 1;
@@ -261,7 +262,6 @@ fn check_stow(ctx: &Context) -> CheckResult {
     } else {
         details.push("✗ .gitconfig missing".to_string());
     }
-
     let total = 11;
     if stowed == total {
         CheckResult {
@@ -285,7 +285,6 @@ fn check_stow(ctx: &Context) -> CheckResult {
         }
     }
 }
-
 fn check_services(_ctx: &Context) -> CheckResult {
     let mut running = 0;
     let mut details = vec![];
