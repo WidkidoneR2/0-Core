@@ -4,7 +4,7 @@
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v7.6.2-brightgreen)
+![Version](https://img.shields.io/badge/Version-v7.6.3-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
