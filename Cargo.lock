@@ -239,9 +239,9 @@ dependencies = [
 
 [[package]]
 name = "bump-system-version"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
- "regex",
+ "chrono",
 ]
 
 [[package]]
@@ -783,7 +783,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-snapshot"
-version = "0.1.0"
+version = "1.0.0"
 
 [[package]]
 name = "faelight-stow"
