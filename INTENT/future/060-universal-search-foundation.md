@@ -186,6 +186,18 @@ faelight-search index
 - Relates: Intent 027 (fuzzy search)
 - Relates: Intent 017 (launcher)
 
+## Progress Update (v7.5.0)
+Phase 1 complete:
+- Application search
+- File search with fuzzy matching and recency scoring
+
+Remaining scope:
+- Command search
+- Intent Ledger search
+- Git commit history search
+
+Future work targeted for v7.6.0+
+
 ---
 
 _"Everything, instantly, everywhere."_ 🌲🔍
