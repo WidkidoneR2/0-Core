@@ -11,7 +11,7 @@ A revolutionary approach to Linux configuration management built on **numbered p
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.6.3 Milestone: Stow migration complete - 100% health achieved. 🌲🦀
+> **v7.6.3 Milestone: Stow migration complete - 100% health achieved. 🌲🦀**
 
 ---
 

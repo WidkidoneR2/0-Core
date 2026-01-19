@@ -34,3 +34,8 @@ Restore automated version bumping with proper stow structure support
 
 ## Estimated Effort
 2-3 hours (worth it to save 45 min per release!)
+
+## Additional Files to Update
+- [ ] README.md milestone line: `**vX.Y.Z Milestone: Description here. 🌲🦀**`
+- [ ] CHANGELOG.md (template generation)
+- [ ] Update relevant intents to "complete" status if specified
