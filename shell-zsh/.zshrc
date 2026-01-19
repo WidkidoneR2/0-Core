@@ -686,7 +686,7 @@ eval "$(starship init zsh)"
 if [[ -o interactive ]]; then
     fastfetch
     echo ""
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v7.3.0 - Sway Edition!\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v7.6.2 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
         local latest=$(~/0-core/scripts/latest-update)
         if [[ -n "$latest" ]]; then

@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v7.6.1 - Sway Edition
+# 🌲 Faelight Forest v7.6.2 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v7.6.1-brightgreen)
+![Version](https://img.shields.io/badge/Version-v7.6.2-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.6.1 Milestone:** Foundation fixes - stow structure cleanup and tool improvements. 🌲🦀
+> **v7.6.2 Milestone:** UI refinements - launcher improvements and tool automation. 🌲🦀
 
 ---
 
@@ -243,7 +243,7 @@ dot-doctor   # Full 13-check diagnostic
 
 ### Output Example:
 ```
-🏥 0-Core Health Check - Faelight Forest v7.6.1
+🏥 0-Core Health Check - Faelight Forest v7.6.2
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Stow Symlinks: All 7/7 packages properly stowed
 ✅ System Services: All 2/2 services running
@@ -316,7 +316,7 @@ Categories: `decisions`, `experiments`, `philosophy`, `future`, `incidents`
 ## 🔄 Version History
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v7.6.1 | 2026-01-19 | Foundation fixes - stow structure cleanup |
+| v7.6.2 | 2026-01-19 | Foundation fixes - stow structure cleanup |
 | v7.6.0 | 2026-01-19 | Visual Identity & Philosophy |
 | v7.5.0 | 2026-01-18 | Monorepo Unification - Universal search |
 | v7.4.0 | 2026-01-15 | Faelight Launcher v2.0 - XDG desktop scanner |

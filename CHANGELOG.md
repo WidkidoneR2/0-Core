@@ -1,4 +1,28 @@
 # Changelog
+## [7.6.2] - 2026-01-19
+
+### 📐 Typography/UI
+- **faelight-launcher v3.1.0** - Refined UI with improved spacing and text rendering
+  - Fixed text baseline alignment (eliminated character bouncing)
+  - Optimized spacing: 52px rows (was 68px), 10 visible items (was 8)
+  - Reduced width to 420px (was 500px) for better screen utilization
+  - Better app list positioning (shifted right for balance)
+  - Fixed health check font path consistency
+
+### 📦 Tool Updates
+- **bump-system-version v2.0.0** - Complete release automation (ready for v7.7.0)
+  - Automatic snapshot creation before version changes
+  - Pre-flight checks (git status, system health)
+  - CHANGELOG template generation
+  - Shows rollback commands after completion
+- **faelight-snapshot v1.0.0** - Snapshot management wrapper
+  - Commands: list, create, rollback, diff, delete
+  - Integration-ready for system updates
+
+> "Polish the tools you use every day." 🌲
+
+---
+
 
 ## [7.6.1] - 2025-01-19
 
