@@ -137,3 +137,5 @@ target/
 
 # Temporary installation files
 .install-files/
+.dotmeta
+.gitconfig
