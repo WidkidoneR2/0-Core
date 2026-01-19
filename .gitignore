@@ -132,3 +132,8 @@ rust-tools/*/target/
 
 # Rust build artifacts
 target/
+
+# Temporary installation files
+
+# Temporary installation files
+.install-files/
