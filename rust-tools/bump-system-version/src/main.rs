@@ -1,5 +1,5 @@
-//! bump-system-version v3.0.0
-//! Complete 0-Core Release Automation - Stow-Aware
+//! bump-system-version v3.1.0
+//! Complete 0-Core Release Automation - CHANGELOG Fixed
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -213,7 +213,6 @@ fn create_snapshot(description: &str) -> Option<u32> {
 
 fn update_version_file(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
     let version_file = core_dir.join("VERSION");
-    // Write WITHOUT 'v' prefix - doctor adds it
     fs::write(&version_file, format!("{}\n", new_version))
         .map_err(|e| e.to_string())
 }
@@ -224,7 +223,6 @@ fn update_cargo_toml(core_dir: &PathBuf, old_version: &str, new_version: &str) -
     let content = fs::read_to_string(&cargo_path)
         .map_err(|e| format!("read failed: {}", e))?;
     
-    // Update workspace version (near top of file)
     let updated = content.replace(
         &format!("version = \"{}\"", old_version),
         &format!("version = \"{}\"", new_version)
@@ -235,7 +233,6 @@ fn update_cargo_toml(core_dir: &PathBuf, old_version: &str, new_version: &str) -
 }
 
 fn update_zshrc(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
-    // CORRECT PATH: stow/shell-zsh/.zshrc (root level, not in .config)
     let zshrc_path = core_dir.join("stow/shell-zsh/.zshrc");
     
     let content = fs::read_to_string(&zshrc_path)
@@ -259,7 +256,7 @@ fn update_readme(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Re
     let mut updated = content.clone();
     let mut update_count = 0;
     
-    // 1. Update header: 🌲 Faelight Forest vX.Y.Z - Sway Edition
+    // 1. Update header
     if updated.contains(&format!("Faelight Forest v{} - Sway Edition", old_version)) {
         updated = updated.replace(
             &format!("Faelight Forest v{} - Sway Edition", old_version),
@@ -268,7 +265,7 @@ fn update_readme(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Re
         update_count += 1;
     }
     
-    // 2. Update badges: shields.io URLs
+    // 2. Update badges
     updated = updated.replace(
         &format!("Version-v{}-brightgreen", old_version),
         &format!("Version-v{}-brightgreen", new_version)
@@ -288,25 +285,10 @@ fn update_readme(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Re
         update_count += 1;
     }
     
-    // 4. Insert new row in version history table
-    let today = Local::now().format("%Y-%m-%d").to_string();
-    let lines: Vec<&str> = updated.lines().collect();
-    let mut new_content = String::new();
-    let mut inserted = false;
+    // 4. Insert new row in version history table - SKIP VERSION HISTORY
+    // Users will manually edit milestone descriptions
     
-    for line in lines.iter() {
-        new_content.push_str(line);
-        new_content.push('\n');
-        
-        // Insert after table header separator
-        if !inserted && line.starts_with("|---") {
-            new_content.push_str(&format!("| v{} | {} | [Edit description] |\n", new_version, today));
-            inserted = true;
-            update_count += 1;
-        }
-    }
-    
-    fs::write(&readme_path, new_content)
+    fs::write(&readme_path, updated)
         .map_err(|e| format!("write failed: {}", e))?;
     
     Ok(update_count)
@@ -337,6 +319,7 @@ r#"## [{}] - {}
     let content = fs::read_to_string(&changelog_path)
         .map_err(|e| format!("read failed: {}", e))?;
     
+    // Find "# Changelog" and insert template right after it
     let lines: Vec<&str> = content.lines().collect();
     let mut new_content = String::new();
     let mut inserted = false;
@@ -345,15 +328,15 @@ r#"## [{}] - {}
         new_content.push_str(line);
         new_content.push('\n');
         
-        // Insert after "# Changelog" header and blank line
-        if !inserted && i > 0 && lines[i-1].contains("Changelog") && line.trim().is_empty() {
+        // Insert right after "# Changelog" header
+        if !inserted && line.trim() == "# Changelog" {
             new_content.push_str(&template);
             inserted = true;
         }
     }
     
     if !inserted {
-        return Err("Could not find insertion point in CHANGELOG.md".to_string());
+        return Err("Could not find '# Changelog' header".to_string());
     }
     
     fs::write(&changelog_path, new_content)
