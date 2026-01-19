@@ -1,4 +1,4 @@
-# 🌲 Faelight Forest v7.6.2 - Sway Edition
+# 🌲 Faelight Forest v7.6.3 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
@@ -296,7 +296,7 @@ dot-doctor   # Full 13-check diagnostic
 
 ### Output Example:
 ```
-🏥 0-Core Health Check - Faelight Forest v7.6.2
+🏥 0-Core Health Check - Faelight Forest v7.6.3
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Stow Symlinks: All 7/7 packages properly stowed
 ✅ System Services: All 2/2 services running
