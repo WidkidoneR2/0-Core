@@ -225,44 +225,49 @@ const CHECKS: &[Check] = &[
 // ═══════════════════════════════════════════════════════════
 
 fn check_stow(ctx: &Context) -> CheckResult {
+    let core_dir = PathBuf::from(&ctx.home).join("0-core");
     let config = PathBuf::from(&ctx.home).join(".config");
+    
     let mut stowed = 0;
+    let mut total = 0;
     let mut details = vec![];
-
-    let checks = [
-        ("zsh/.zshrc", "shell-zsh"),
-        ("sway/config", "wm-sway"),
-        ("foot/foot.ini", "term-foot"),
-        ("yazi/yazi.toml", "fm-yazi"),
-        ("starship.toml", "prompt-starship"),
-        ("topgrade.toml", "tools-topgrade"),
-    ];
-
-    for (path, pkg) in checks {
-        let target = config.join(path);
-        let core_source = PathBuf::from(&ctx.home).join("0-core").join(pkg).join(".config").join(path);
-        
-        if let (Ok(resolved_target), Ok(resolved_source)) = (std::fs::canonicalize(&target), std::fs::canonicalize(&core_source)) {
-            if resolved_target == resolved_source {
-                stowed += 1;
-                details.push(format!("✓ {} ({})", path, pkg));
-            } else {
-                details.push(format!("✗ {} wrong target", path));
+    
+    // Dynamically find all stowed packages by reading 0-core directory
+    if let Ok(entries) = std::fs::read_dir(&core_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            
+            // Skip non-directories
+            if !path.is_dir() {
+                continue;
             }
-        } else {
-            details.push(format!("✗ {} missing", path));
+            
+            // Check if package has .dotmeta (marks it as a stow package)
+            if !path.join(".dotmeta").exists() {
+                continue;
+            }
+            
+            let pkg_name = path.file_name().unwrap().to_string_lossy().to_string();
+            total += 1;
+            
+            // Check if this package has any symlinks pointing to it
+            let pkg_config_dir = path.join(".config");
+            let is_stowed = if pkg_config_dir.exists() {
+                check_package_stowed(&pkg_config_dir, &config)
+            } else {
+                // Special case: packages like vcs-git that stow to ~
+                check_home_stowed(&path, &PathBuf::from(&ctx.home))
+            };
+            
+            if is_stowed {
+                stowed += 1;
+                details.push(format!("✓ {}", pkg_name));
+            } else {
+                details.push(format!("✗ {} not stowed", pkg_name));
+            }
         }
     }
-
-    // Check .gitconfig
-    if PathBuf::from(&ctx.home).join(".gitconfig").is_symlink() {
-        stowed += 1;
-        details.push("✓ .gitconfig (vcs-git)".to_string());
-    } else {
-        details.push("✗ .gitconfig missing".to_string());
-    }
-
-    let total = 7;
+    
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),
@@ -280,12 +285,48 @@ fn check_stow(ctx: &Context) -> CheckResult {
             status: Status::Fail,
             severity: Severity::Critical,
             message: format!("Only {}/{} packages stowed", stowed, total),
-            fix: Some("Run: cd ~/0-core && stow <package-name>".to_string()),
+            fix: Some("Run: cd ~/0-core && stow -R <package-name>".to_string()),
             details: Some(details),
         }
     }
 }
 
+// Helper: Check if package's .config directory is stowed
+fn check_package_stowed(pkg_config: &PathBuf, target_config: &PathBuf) -> bool {
+    if let Ok(entries) = std::fs::read_dir(pkg_config) {
+        for entry in entries.flatten() {
+            let rel_path = entry.path().strip_prefix(pkg_config).unwrap().to_path_buf();
+            let target = target_config.join(&rel_path);
+            
+            if let Ok(resolved) = std::fs::canonicalize(&target) {
+                if resolved.starts_with(pkg_config) {
+                    return true; // Found at least one valid symlink
+                }
+            }
+        }
+    }
+    false
+}
+
+// Helper: Check if package stows to ~ (like vcs-git)
+fn check_home_stowed(pkg_dir: &PathBuf, home: &PathBuf) -> bool {
+    if let Ok(entries) = std::fs::read_dir(pkg_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && !path.file_name().unwrap().to_str().unwrap().starts_with('.') {
+                let filename = path.file_name().unwrap();
+                let target = home.join(filename);
+                
+                if let Ok(resolved) = std::fs::canonicalize(&target) {
+                    if resolved == path {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
 fn check_services(_ctx: &Context) -> CheckResult {
     let mut running = 0;
     let mut details = vec![];
