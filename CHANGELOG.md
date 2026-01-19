@@ -1,5 +1,21 @@
 # Changelog
 
+## [7.6.1] - 2025-01-19
+
+### 🔧 Fixes
+- Fixed stow structure - removed absolute symlinks (health: 46% → 92%)
+- Fixed intent-guard aggressive mv detection - only blocks moves FROM 0-core
+- Fixed workspace build path issue in bump-system-version
+
+### 📦 Tool Updates
+- bump-system-version - Added version validation, preserved README version table
+- dot-doctor - Dynamic detection of all 11 stowed packages (no hardcoded checks)
+- faelight-stow v0.2.0 - Can now stow new packages dynamically
+
+> "Fix the foundation before building higher." 🌲
+
+---
+
 ## [7.6.0] - 2026-01-19
 
 ### 🎨 New Features
