@@ -1,0 +1,4 @@
+name: scripts
+description: Custom Rust and shell scripts
+category: scripts
+stowable: true
