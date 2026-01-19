@@ -242,7 +242,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
     ];
     for (path, pkg) in checks {
         let target = config.join(path);
-        let core_source = PathBuf::from(&ctx.home).join("0-core").join(pkg).join(".config").join(path);
+        let core_source = PathBuf::from(&ctx.home).join("0-core/stow").join(pkg).join(".config").join(path);
         
         if let (Ok(resolved_target), Ok(resolved_source)) = (std::fs::canonicalize(&target), std::fs::canonicalize(&core_source)) {
             if resolved_target == resolved_source {
