@@ -13,6 +13,14 @@ fn main() {
     }
     
     let new_version = &args[1];
+    
+    // BUGFIX 1: Validate version format before proceeding
+    if !is_valid_version(new_version) {
+        eprintln!("❌ Invalid version format: {}", new_version);
+        eprintln!("Version must be in format: X.Y.Z (e.g., 7.6.0)");
+        process::exit(1);
+    }
+    
     let core_dir = get_core_dir();
     let home = env::var("HOME").expect("HOME not set");
     
@@ -40,7 +48,7 @@ fn main() {
     
     // 2. Update shell-zsh config
     let zshrc_path = core_dir.join("shell-zsh/.config/zsh/.zshrc");
-    match update_file(&zshrc_path, &old_version, new_version) {
+    match update_file(&zshrc_path, &old_version, new_version, false) {
         Ok(count) => {
             println!("✅ shell-zsh/.zshrc ({} replacements)", count);
             updated += 1;
@@ -51,9 +59,9 @@ fn main() {
         }
     }
     
-    // 3. Update README.md
+    // 3. Update README.md (BUGFIX 2: Skip version history section)
     let readme_path = core_dir.join("README.md");
-    match update_file(&readme_path, &old_version, new_version) {
+    match update_file(&readme_path, &old_version, new_version, true) {
         Ok(count) => {
             println!("✅ README.md ({} replacements)", count);
             updated += 1;
@@ -67,7 +75,7 @@ fn main() {
     // 4. Update faelight config.toml
     let config_path = PathBuf::from(&home).join(".config/faelight/config.toml");
     if config_path.exists() {
-        match update_file(&config_path, &old_version, new_version) {
+        match update_file(&config_path, &old_version, new_version, false) {
             Ok(count) => {
                 println!("✅ faelight/config.toml ({} replacements)", count);
                 updated += 1;
@@ -81,7 +89,7 @@ fn main() {
         // Also update the stowed version
         let stowed_config = core_dir.join("config-faelight/.config/faelight/config.toml");
         if stowed_config.exists() {
-            match update_file(&stowed_config, &old_version, new_version) {
+            match update_file(&stowed_config, &old_version, new_version, false) {
                 Ok(count) => {
                     println!("✅ config-faelight/config.toml ({} replacements)", count);
                     updated += 1;
@@ -117,15 +125,92 @@ fn get_core_dir() -> PathBuf {
     PathBuf::from(home).join("0-core")
 }
 
-fn update_file(path: &PathBuf, old_version: &str, new_version: &str) -> Result<usize, String> {
+// BUGFIX 1: Validate version format
+fn is_valid_version(version: &str) -> bool {
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() != 3 {
+        return false;
+    }
+    
+    // All parts must be valid numbers
+    parts.iter().all(|p| p.parse::<u32>().is_ok())
+}
+
+// BUGFIX 2: Add skip_version_history parameter
+fn update_file(path: &PathBuf, old_version: &str, new_version: &str, skip_version_history: bool) -> Result<usize, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read: {}", e))?;
     
     let mut count = 0;
-    let mut new_content = content.clone();
     
-    // All version patterns to replace
-    let patterns = [
+    // BUGFIX 2: For README, process line by line to skip version history section
+    let new_content = if skip_version_history && path.file_name().and_then(|n| n.to_str()) == Some("README.md") {
+        let mut result = String::new();
+        let mut in_version_history = false;
+        
+        for line in content.lines() {
+            // Detect version history section start
+            if line.contains("## 🔄 Version History") || line.contains("🔄 Version History") {
+                in_version_history = true;
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            }
+            
+            // Detect version history section end (next ## heading or "See CHANGELOG")
+            if in_version_history && (line.starts_with("## ") || line.contains("See CHANGELOG") || line.contains("See [CHANGELOG")) {
+                in_version_history = false;
+            }
+            
+            // Skip replacing versions in version history section
+            if in_version_history {
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            }
+            
+            // Normal replacement for lines outside version history
+            let mut updated_line = line.to_string();
+            let patterns = get_version_patterns(old_version, new_version);
+            
+            for (old_pat, new_pat) in &patterns {
+                if updated_line.contains(old_pat.as_str()) {
+                    updated_line = updated_line.replace(old_pat.as_str(), new_pat.as_str());
+                    count += 1;
+                }
+            }
+            
+            result.push_str(&updated_line);
+            result.push('\n');
+        }
+        
+        result
+    } else {
+        // Original behavior for non-README files
+        let mut new_content = content.clone();
+        let patterns = get_version_patterns(old_version, new_version);
+        
+        for (old_pat, new_pat) in &patterns {
+            let matches = new_content.matches(old_pat.as_str()).count();
+            if matches > 0 {
+                new_content = new_content.replace(old_pat.as_str(), new_pat.as_str());
+                count += matches;
+            }
+        }
+        
+        new_content
+    };
+    
+    if count > 0 {
+        fs::write(path, new_content)
+            .map_err(|e| format!("Failed to write: {}", e))?;
+    }
+    
+    Ok(count)
+}
+
+fn get_version_patterns(old_version: &str, new_version: &str) -> Vec<(String, String)> {
+    vec![
         // Exact version (most common)
         (format!("v{}", old_version), format!("v{}", new_version)),
         // Without v prefix in specific contexts
@@ -140,20 +225,5 @@ fn update_file(path: &PathBuf, old_version: &str, new_version: &str) -> Result<u
         (format!("HIGHLIGHTING (v{})", old_version), format!("HIGHLIGHTING (v{})", new_version)),
         // 0-Core specific
         (format!("0-Core v{}", old_version), format!("0-Core v{}", new_version)),
-    ];
-    
-    for (old_pat, new_pat) in &patterns {
-        let matches = new_content.matches(old_pat.as_str()).count();
-        if matches > 0 {
-            new_content = new_content.replace(old_pat.as_str(), new_pat.as_str());
-            count += matches;
-        }
-    }
-    
-    if count > 0 {
-        fs::write(path, new_content)
-            .map_err(|e| format!("Failed to write: {}", e))?;
-    }
-    
-    Ok(count)
+    ]
 }
