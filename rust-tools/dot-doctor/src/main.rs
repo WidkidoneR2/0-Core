@@ -230,6 +230,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
     let mut details = vec![];
 
     let checks = [
+        ("zsh/.zshrc", "shell-zsh"),
         ("sway/config", "wm-sway"),
         ("foot/foot.ini", "term-foot"),
         ("yazi/yazi.toml", "fm-yazi"),
@@ -238,9 +239,16 @@ fn check_stow(ctx: &Context) -> CheckResult {
     ];
 
     for (path, pkg) in checks {
-        if config.join(path).is_symlink() {
-            stowed += 1;
-            details.push(format!("✓ {} ({})", path, pkg));
+        let target = config.join(path);
+        let core_source = PathBuf::from(&ctx.home).join("0-core").join(pkg).join(".config").join(path);
+        
+        if let (Ok(resolved_target), Ok(resolved_source)) = (std::fs::canonicalize(&target), std::fs::canonicalize(&core_source)) {
+            if resolved_target == resolved_source {
+                stowed += 1;
+                details.push(format!("✓ {} ({})", path, pkg));
+            } else {
+                details.push(format!("✗ {} wrong target", path));
+            }
         } else {
             details.push(format!("✗ {} missing", path));
         }
@@ -254,7 +262,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
         details.push("✗ .gitconfig missing".to_string());
     }
 
-    let total = 6;
+    let total = 7;
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),
