@@ -505,13 +505,13 @@ fn check_themes(ctx: &Context) -> CheckResult {
     let mut found = 0;
 
     for pkg in packages {
-        if ctx.core_dir.join(pkg).is_dir() {
+        if ctx.core_dir.join("stow").join(pkg).is_dir() {
             found += 1;
         }
     }
 
     // Also check for any theme- prefixed directories
-    let theme_count = fs::read_dir(&ctx.core_dir)
+    let theme_count = fs::read_dir(&ctx.core_dir.join("stow"))
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
@@ -585,7 +585,7 @@ fn check_scripts(ctx: &Context) -> CheckResult {
 fn check_dotmeta(ctx: &Context) -> CheckResult {
     let mut missing = vec![];
 
-    if let Ok(entries) = fs::read_dir(&ctx.core_dir) {
+    if let Ok(entries) = fs::read_dir(&ctx.core_dir.join("stow")) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
