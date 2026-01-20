@@ -259,7 +259,7 @@ fn stow_packages(core_path: &str) {
 }
 
 fn build_rust_tools(core_path: &str) {
-    let tools = ["dot-doctor", "dotctl", "core-diff", "theme-switch", "bump-system-version"];
+    let tools = ["dot-doctor", "dotctl", "core-diff", "bump-system-version"];
     let scripts_dir = format!("{}/scripts", core_path);
 
     for tool in tools {

@@ -747,7 +747,6 @@ alias fl='faelight'
 alias lock='faelight-lock'
 
 # Theme management
-alias theme='theme-switch'
 
 # Version bumping
 alias bump='bump-system-version'
