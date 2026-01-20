@@ -1,17 +1,17 @@
-# 🌲 Faelight Forest v7.6.4 - Sway Edition
+# 🌲 Faelight Forest v7.6.5 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v7.6.4-brightgreen)
+![Version](https://img.shields.io/badge/Version-v7.6.5-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v7.6.4 Milestone: Release automation complete - bump-system-version operational. 🌲🦀**
+> **v7.6.5 Milestone:** Tool audit quick wins - 4 tools improved, 1 obsolete tool removed. 🌲🦀
 
 ---
 

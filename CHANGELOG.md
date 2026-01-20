@@ -1,4 +1,25 @@
 # Changelog
+## [7.6.5] - 2026-01-20
+
+### 📦 Tool Updates
+- **faelight-launcher v3.3.0** - PNG icon system with 8+ app icons, graceful fallback for missing icons
+- **get-version v2.0.0** - Fixed stow path support, added --help/--version/--health-check
+- **latest-update v2.0.0** - Fixed stow paths, human-readable time formatting, --all flag
+- **faelight-lock v1.0.0** - Production ready, added --version flag and README
+
+### 🧹 Cleanup
+- Removed theme-switch (282 lines of obsolete Hyprland/Omarchy code)
+- Cleaned up faelight-bootstrap tool list
+
+### 🎯 Linus Presentation Progress
+- 4/30 tools audited and polished (13%)
+- Quick wins strategy in progress
+- Intent 065 tracking
+
+> "Three tools fixed, one deleted, zero regrets. The forest grows cleaner." 🌲
+
+---
+
 
 ## [7.6.4] - 2026-01-19
 
