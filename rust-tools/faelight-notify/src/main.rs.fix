@@ -1,0 +1,12 @@
+Replace the while loop with:
+
+    while state.running {
+        // Dispatch pending Wayland events (non-blocking)
+        event_queue.dispatch_pending(&mut state)?;
+        
+        // Draw current notifications
+        state.draw();
+        
+        // Sleep briefly to avoid busy loop
+        std::thread::sleep(Duration::from_millis(100));
+    }

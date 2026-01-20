@@ -1,4 +1,4 @@
-//! faelight-notify v0.9.0 - Typography Polish
+//! faelight-notify v0.8.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -37,9 +37,6 @@ const MARGIN: u32 = 15;
 
 const BG_COLOR: [u8; 4] = [0x1a, 0x1d, 0x18, 0xF5];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
-const CRITICAL_COLOR: [u8; 4] = [0x6b, 0x6b, 0xe3, 0xFF];
-const NORMAL_COLOR: [u8; 4] = [0x00, 0xd0, 0x00, 0xFF];
-const LOW_COLOR: [u8; 4] = [0x77, 0x8f, 0x7f, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const TITLE_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
@@ -62,12 +59,9 @@ struct Notification {
     body: String,
     created: Instant,
     timeout_ms: i32,
-    urgency: u8,
 }
 
 impl Notification {
-    fn border_color(&self) -> [u8; 4] { match self.urgency { 2 => CRITICAL_COLOR, 1 => NORMAL_COLOR, _ => LOW_COLOR, } }
-
     fn is_expired(&self) -> bool {
         let timeout = if self.timeout_ms <= 0 { 5000 } else { self.timeout_ms };
         self.created.elapsed() > Duration::from_millis(timeout as u64)
@@ -85,7 +79,7 @@ impl NotificationServer {
         vec!["body".into()]
     }
 
-    fn notify(&self, app_name: String, _replaces_id: u32, _app_icon: String, summary: String, body: String, _actions: Vec<String>, hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>, expire_timeout: i32) -> u32 {
+    fn notify(&self, app_name: String, _replaces_id: u32, _app_icon: String, summary: String, body: String, _actions: Vec<String>, _hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>, expire_timeout: i32) -> u32 {
         let mut id = self.next_id.lock().expect("Failed to lock next_id mutex");
         *id += 1;
         let current_id = *id;
@@ -96,14 +90,13 @@ impl NotificationServer {
             app_name, summary, body,
             created: Instant::now(),
             timeout_ms: expire_timeout,
-            urgency: hints.get("urgency").and_then(|v| v.downcast_ref::<u8>().ok()).unwrap_or(1),
         });
         current_id
     }
 
     fn close_notification(&self, _id: u32) {}
     fn get_server_information(&self) -> (String, String, String, String) {
-        ("faelight-notify".into(), "faelight".into(), "0.9.0".into(), "1.2".into())
+        ("faelight-notify".into(), "faelight".into(), "0.4.0".into(), "1.2".into())
     }
 }
 
@@ -167,7 +160,7 @@ fn draw_text(
     }
 }
 
-fn draw_border(canvas: &mut [u8], width: u32, height: u32, color: [u8; 4]) {
+fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
     let stride = width as usize * 4;
     for t in 0..2usize {
         for x in 0..width as usize {
@@ -175,8 +168,8 @@ fn draw_border(canvas: &mut [u8], width: u32, height: u32, color: [u8; 4]) {
             canvas[(height as usize - 1 - t) * stride + x * 4..(height as usize - 1 - t) * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
         }
         for y in 0..height as usize {
-            canvas[y * stride + t * 4..y * stride + t * 4 + 4].copy_from_slice(&color);
-            canvas[y * stride + (width as usize - 1 - t) * 4..y * stride + (width as usize - 1 - t) * 4 + 4].copy_from_slice(&color);
+            canvas[y * stride + t * 4..y * stride + t * 4 + 4].copy_from_slice(&BORDER_COLOR);
+            canvas[y * stride + (width as usize - 1 - t) * 4..y * stride + (width as usize - 1 - t) * 4 + 4].copy_from_slice(&BORDER_COLOR);
         }
     }
 }
@@ -236,7 +229,7 @@ impl NotifyState {
         }
 
         if let Some(n) = notif {
-            draw_border(canvas, width, height, n.border_color());
+            draw_border(canvas, width, height);
             draw_text(&mut self.glyph_cache, canvas, width, height, &n.app_name, 12, 12, DIM_COLOR, FONT_APP);
             let summary = truncate_text(&mut self.glyph_cache, &n.summary, width - 24, FONT_TITLE);
             draw_text(&mut self.glyph_cache, canvas, width, height, &summary, 12, 28, TITLE_COLOR, FONT_TITLE);
@@ -353,7 +346,7 @@ fn health_check() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.9.0 starting...");
+    eprintln!("🌲 faelight-notify v0.8.0 starting...");
     // Check for health flag
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {

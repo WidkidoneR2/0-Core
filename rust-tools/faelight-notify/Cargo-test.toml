@@ -1,6 +1,6 @@
 [package]
-name = "faelight-notify"
-version = "0.9.0"
+name = "faelight-notify-test"
+version = "0.8.0"
 edition = "2021"
 
 [dependencies]
@@ -10,9 +10,7 @@ wayland-client = "0.31"
 zbus = { version = "4", default-features = false, features = ["tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 nix = { version = "0.29", features = ["poll"] }
-dirs = "5.0"
 
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
+[[bin]]
+name = "faelight-notify-test"
+path = "src/main-test.rs"
