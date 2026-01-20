@@ -527,7 +527,7 @@ impl BarState {
         let health_color = if health >= 80 { ACCENT_COLOR } else if health >= 50 { AMBER_COLOR } else { RED_COLOR };
         let health_text = format!("● {}%", health);
         draw_text(&mut self.glyph_cache, canvas, width, &health_text, x_pos, 8, health_color);
-        x_pos += 50;
+        x_pos += 60;
         
         let locked = is_core_locked();
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
@@ -543,14 +543,14 @@ impl BarState {
         // === RIGHT SIDE ===
         let mut rx = width as i32 - 110;
         let time_str = Local::now().format("%b %d %H:%M").to_string();
-        draw_text(&mut self.glyph_cache, canvas, width, &time_str, rx, 8, TEXT_COLOR);
+        draw_text(&mut self.glyph_cache, canvas, width, &time_str, rx, 8, AMBER_COLOR);
         rx -= 15;
         draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         // Volume (clickable)
         rx -= 40;
         let vol_start = rx;
         let (vol, muted) = get_volume();
-        let vol_color = if muted { DIM_COLOR } else { TEXT_COLOR };
+        let vol_color = if muted { DIM_COLOR } else { ACCENT_COLOR };
         let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
         draw_text(&mut self.glyph_cache, canvas, width, &vol_text, rx, 8, vol_color);
         self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
@@ -558,14 +558,14 @@ impl BarState {
         draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         rx -= 45;
         let (wifi_on, wifi_status) = get_wifi();
-        let wifi_color = if wifi_on { BLUE_COLOR } else { DIM_COLOR };
+        let wifi_color = if wifi_on { ACCENT_COLOR } else { RED_COLOR };
         let wifi_text = format!("W:{}", wifi_status);
         draw_text(&mut self.glyph_cache, canvas, width, &wifi_text, rx, 8, wifi_color);
         rx -= 15;
         draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
         rx -= 45;
         let (bat_pct, charging) = get_battery();
-        let bat_color = if bat_pct < 20 { RED_COLOR } else if charging { BLUE_COLOR } else { TEXT_COLOR };
+        let bat_color = if bat_pct < 20 { RED_COLOR } else if bat_pct < 50 { AMBER_COLOR } else if charging { BLUE_COLOR } else { ACCENT_COLOR };
         let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
         draw_text(&mut self.glyph_cache, canvas, width, &bat_text, rx, 8, bat_color);
         rx -= 15;
@@ -574,7 +574,7 @@ impl BarState {
         rx -= 60;
         let vpn_start = rx;
         let (vpn_connected, vpn_status) = get_vpn_status();
-        let vpn_color = if vpn_connected { BLUE_COLOR } else { RED_COLOR };
+        let vpn_color = if vpn_connected { ACCENT_COLOR } else { RED_COLOR };
         let vpn_text = format!("VPN:{}", vpn_status);
         draw_text(&mut self.glyph_cache, canvas, width, &vpn_text, rx, 8, vpn_color);
         self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
