@@ -2,6 +2,8 @@
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
+mod icons;
+use icons::IconCache;
 use std::env;
 use fontdue::{Font, FontSettings};
 use smithay_client_toolkit::{
@@ -68,7 +70,8 @@ const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdF
 struct AppEntry {
     name: String,
     exec: String,
-    icon: String,
+    icon: String,        // Emoji icon for display
+    desktop_icon: String, // PNG icon name from desktop file
 }
 
 impl From<&DesktopEntry> for AppEntry {
@@ -80,6 +83,7 @@ impl From<&DesktopEntry> for AppEntry {
             name: entry.name.clone(),
             exec: entry.clean_exec(),
             icon,
+            desktop_icon: entry.icon.clone(),
         }
     }
 }
@@ -395,6 +399,38 @@ struct LauncherState {
     history: LaunchHistory,
     apps: Vec<AppEntry>,
     scroll_offset: usize,
+    icon_cache: IconCache,
+}
+
+fn draw_icon(
+    canvas: &mut [u8],
+    width: u32,
+    height: u32,
+    icon: &image::RgbaImage,
+    x: u32,
+    y: u32,
+) {
+    let icon_width = icon.width();
+    let icon_height = icon.height();
+    
+    for row in 0..icon_height {
+        for col in 0..icon_width {
+            let icon_pixel = icon.get_pixel(col, row);
+            let px = x + col;
+            let py = y + row;
+            
+            if px < width && py < height {
+                let idx = (py * width + px) as usize * 4;
+                let alpha = icon_pixel[3] as f32 / 255.0;
+                
+                // Alpha blend (BGRA format)
+                canvas[idx] = ((1.0 - alpha) * canvas[idx] as f32 + alpha * icon_pixel[2] as f32) as u8;
+                canvas[idx + 1] = ((1.0 - alpha) * canvas[idx + 1] as f32 + alpha * icon_pixel[1] as f32) as u8;
+                canvas[idx + 2] = ((1.0 - alpha) * canvas[idx + 2] as f32 + alpha * icon_pixel[0] as f32) as u8;
+                canvas[idx + 3] = 255;
+            }
+        }
+    }
 }
 
 impl LauncherState {
@@ -487,10 +523,13 @@ impl LauncherState {
             };
             // Two-line display
             match result {
-                search::SearchResult::App { name, icon, score: _, .. } => {
-                    // Line 1: Icon + Name + Score
-                    let line1 = format!("{}  {}", icon, name);
-                    draw_text(&self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM);
+                search::SearchResult::App { name, icon: _, score: _, .. } => {
+                    // Draw PNG icon from cache
+                    let app_icon = self.icon_cache.get(name);
+                    draw_icon(canvas, width, height, app_icon, 20, y);
+                    
+                    // Line 1: Name (without emoji icon, we have PNG now)
+                    draw_text(&self.font, canvas, width, height, name, 60, y, color, FONT_ITEM);
                     
                     // Line 2: Description (dimmed)
                     draw_text(&self.font, canvas, width, height, "Application", 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
@@ -844,7 +883,7 @@ fn health_check() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v3.2.0 starting...");
+    eprintln!("🌲 faelight-launcher v3.3.0 starting...");
     // Check for health flag
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
@@ -877,7 +916,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
         // Scan XDG desktop entries
-    println!("🌲 Faelight Launcher v3.2.0 - Loading...");
+    println!("🌲 Faelight Launcher v3.3.0 - Loading...");
     let entries = desktop::scan_applications();
     let apps: Vec<AppEntry> = entries.iter().map(|e| e.into()).collect();
     println!("📱 Discovered {} applications", apps.len());
@@ -903,7 +942,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         running: true,
         apps,
         scroll_offset: 0,
+        icon_cache: IconCache::new(32),
     };
+
+
+    // Load icons for all discovered applications
+    println!("🎨 Loading application icons...");
+    for app in &state.apps {
+        state.icon_cache.load_icon(&app.name, Some(&app.desktop_icon));
+    }
 
     while state.running {
         event_queue.blocking_dispatch(&mut state)?;

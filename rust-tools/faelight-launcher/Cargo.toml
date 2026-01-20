@@ -1,9 +1,10 @@
 [package]
 name = "faelight-launcher"
-version = "3.2.0"
+version = "3.3.0"
 edition = "2021"
 
 [dependencies]
+image = "0.25"
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
 fontdue = "0.9"
@@ -16,5 +17,3 @@ walkdir = "2"
 opt-level = 3
 lto = true
 
-# Icon support
-image = "0.25"
