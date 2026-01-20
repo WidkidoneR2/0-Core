@@ -139,3 +139,6 @@ target/
 .install-files/
 .dotmeta
 .gitconfig
+
+# Session state files (local only)
+**/SESSION_STATE.md
