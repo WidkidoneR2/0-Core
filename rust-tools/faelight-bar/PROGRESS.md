@@ -34,3 +34,26 @@ Estimated: 9-12 sessions (1-2 hours each)
 [Your observations here]
 
 ---
+
+---
+
+## Session 1.5 - TBD
+**Goal:** Create faelight-icons shared crate
+
+**Completed:**
+- [ ] faelight-icons crate created
+- [ ] starship.toml extended with icon tokens
+- [ ] Icons loading from TOML with caching
+- [ ] faelight-bar using shared icons
+
+**Next Session:**
+- Wire model to update loop
+- Continue Phase 1
+
+**Blockers:** None
+
+**Notes:**
+This gives us a single source of truth for ALL icons
+across faelight-bar, faelight-launcher, faelight-notify, etc.
+
+---
