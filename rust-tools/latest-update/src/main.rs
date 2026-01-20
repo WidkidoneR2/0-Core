@@ -1,19 +1,85 @@
-use std::env;
+//! 📅 latest-update - Find most recently updated package
+//! 
+//! Scans stow packages to find which was updated most recently.
+
+use clap::Parser;
+use chrono::{DateTime, NaiveDateTime, Local};
 use std::fs;
 use std::path::PathBuf;
+use std::process;
+
+#[derive(Parser)]
+#[command(name = "latest-update")]
+#[command(about = "Find most recently updated package", long_about = None)]
+#[command(version = "2.0.0")]
+struct Args {
+    /// Show all packages (not just latest)
+    #[arg(short, long)]
+    all: bool,
+    
+    /// Run health check and exit
+    #[arg(long)]
+    health_check: bool,
+}
+
+struct PackageInfo {
+    name: String,
+    version: String,
+    last_updated: String,
+}
 
 fn main() {
-    let home = env::var("HOME").expect("HOME not set");
-    let core_dir = PathBuf::from(&home).join("0-core");
+    let args = Args::parse();
     
-    let mut latest_pkg = String::new();
-    let mut latest_date = String::new();
-    let mut latest_version = String::new();
+    if args.health_check {
+        health_check();
+        return;
+    }
     
-    // Read all entries in 0-core directory
-    let entries = match fs::read_dir(&core_dir) {
+    let packages = scan_packages();
+    
+    if packages.is_empty() {
+        eprintln!("⚠️  No packages found with update information");
+        process::exit(1);
+    }
+    
+    if args.all {
+        println!("📦 All packages (newest first):");
+        for pkg in &packages {
+            print_package(pkg);
+        }
+    } else {
+        // Show only the latest
+        if let Some(latest) = packages.first() {
+            print_package(latest);
+        }
+    }
+}
+
+fn scan_packages() -> Vec<PackageInfo> {
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => {
+            eprintln!("❌ HOME environment variable not set");
+            process::exit(1);
+        }
+    };
+    
+    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    
+    if !stow_dir.exists() {
+        eprintln!("❌ Stow directory not found: {}", stow_dir.display());
+        process::exit(1);
+    }
+    
+    let mut packages = Vec::new();
+    
+    let entries = match fs::read_dir(&stow_dir) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!("❌ Failed to read stow directory: {}", e);
+            process::exit(1);
+        }
     };
     
     for entry in entries.flatten() {
@@ -48,16 +114,19 @@ fn main() {
             }
         }
         
-        if !updated.is_empty() && (latest_date.is_empty() || updated > latest_date) {
-            latest_date = updated;
-            latest_pkg = pkg_name;
-            latest_version = version;
+        if !updated.is_empty() {
+            packages.push(PackageInfo {
+                name: pkg_name,
+                version,
+                last_updated: updated,
+            });
         }
     }
     
-    if !latest_pkg.is_empty() {
-        println!("{} v{} (updated {})", latest_pkg, latest_version, latest_date);
-    }
+    // Sort by date (newest first)
+    packages.sort_by(|a, b| b.last_updated.cmp(&a.last_updated));
+    
+    packages
 }
 
 fn extract_quoted_value(line: &str) -> String {
@@ -69,4 +138,57 @@ fn extract_quoted_value(line: &str) -> String {
         }
     }
     String::new()
+}
+
+fn print_package(pkg: &PackageInfo) {
+    let time_ago = format_time_ago(&pkg.last_updated);
+    println!("📦 {} v{} ({})", pkg.name, pkg.version, time_ago);
+}
+
+fn format_time_ago(date_str: &str) -> String {
+    // Try to parse the date and show relative time
+    // Format: "2026-01-19"
+    if let Ok(date) = NaiveDateTime::parse_from_str(&format!("{} 00:00:00", date_str), "%Y-%m-%d %H:%M:%S") {
+        let date_time = DateTime::<Local>::from_naive_utc_and_offset(date, *Local::now().offset());
+        let now = Local::now();
+        let duration = now.signed_duration_since(date_time);
+        
+        let days = duration.num_days();
+        if days == 0 {
+            return "today".to_string();
+        } else if days == 1 {
+            return "yesterday".to_string();
+        } else if days < 7 {
+            return format!("{} days ago", days);
+        } else if days < 30 {
+            return format!("{} weeks ago", days / 7);
+        } else {
+            return format!("{} months ago", days / 30);
+        }
+    }
+    
+    // Fallback to showing the date
+    date_str.to_string()
+}
+
+fn health_check() {
+    println!("📅 latest-update v2.0.0 - Health Check");
+    
+    let packages = scan_packages();
+    
+    if packages.is_empty() {
+        eprintln!("⚠️  No packages found");
+        println!("✅ Health check passed (tool functional)");
+        process::exit(0);
+    }
+    
+    println!("✅ Found {} packages with update info", packages.len());
+    
+    if let Some(latest) = packages.first() {
+        println!("✅ Latest: {} v{} ({})", 
+                 latest.name, latest.version, latest.last_updated);
+    }
+    
+    println!("✅ Health check passed");
+    process::exit(0);
 }
