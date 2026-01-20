@@ -1,19 +1,18 @@
 [package]
 name = "faelight-menu"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
-description = "Minimal Rust power menu for Wayland with safety confirmation"
+authors = ["Christian <christian@faelight.forest>"]
+license = "MIT"
 
 [dependencies]
+chrono = "0.4"
 faelight-core = { path = "../faelight-core" }
-smithay-client-toolkit = "0.19"
+smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop", "xkbcommon"] }
 wayland-client = "0.31"
+wayland-protocols = { version = "0.31", features = ["client", "unstable"] }
+wayland-protocols-wlr = { version = "0.2", features = ["client"] }
 
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
-
-[dependencies.clap]
-version = "4.5"
-features = ["derive"]
+[[bin]]
+name = "faelight-menu"
+path = "src/main.rs"

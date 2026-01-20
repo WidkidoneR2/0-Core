@@ -403,3 +403,17 @@ MIT — Use freely, learn deeply, configure intentionally.
 
 > *"The forest grew its own tools, wrote its own rules, and found a new home."* 🌲🦀
 
+
+## 🔨 Building
+
+**IMPORTANT:** This is part of a Cargo workspace. Always build from the workspace root:
+```bash
+# Build from workspace root
+cd ~/0-core
+cargo build --release -p faelight-menu
+
+# Copy from workspace target (NOT local target!)
+cp target/release/faelight-menu ~/0-core/scripts/
+```
+
+The workspace builds to `~/0-core/target/`, not the local `target/` directory!

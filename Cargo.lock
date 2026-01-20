@@ -980,12 +980,14 @@ dependencies = [
 
 [[package]]
 name = "faelight-menu"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
- "clap",
+ "chrono",
  "faelight-core",
  "smithay-client-toolkit 0.19.2",
  "wayland-client",
+ "wayland-protocols 0.31.2",
+ "wayland-protocols-wlr 0.2.0",
 ]
 
 [[package]]

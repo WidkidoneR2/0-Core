@@ -1,0 +1,24 @@
+#!/bin/bash
+# Graceful system poweroff - v2 (simplified, no audio stops)
+# Part of Faelight Forest 0-Core
+
+set -e
+
+LOGFILE="$HOME/0-core/logs/power.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"
+}
+
+log "🛑 Graceful poweroff initiated by $USER"
+
+# Sync filesystems twice (the important part!)
+log "💾 Syncing filesystems..."
+sync
+sleep 0.2
+sync
+
+log "✅ Graceful shutdown complete, powering off..."
+
+# Power off
+exec systemctl poweroff
