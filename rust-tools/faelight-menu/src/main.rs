@@ -1,4 +1,4 @@
-//! faelight-menu v0.5.0 - Clarity & Safety
+//! faelight-menu v0.6.0.0 - Clarity & Safety
 //! 🌲 Faelight Forest
 
 use faelight_core::GlyphCache;
@@ -37,7 +37,6 @@ const HEIGHT: u32 = 408;
 
 const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
-const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const SELECTED_BG: [u8; 4] = [0x2a, 0x3a, 0x25, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const WARN_COLOR: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xFF];
@@ -280,7 +279,7 @@ impl MenuState {
             }
 
             let text_color = if self.confirming && i == selected && item.dangerous {
-                TEXT_COLOR
+                DANGER_COLOR
             } else if item.dangerous {
                 if i == selected {
                     WARN_COLOR
@@ -291,14 +290,16 @@ impl MenuState {
                 if i == selected {
                     BORDER_COLOR
                 } else {
-                    TEXT_COLOR
+                    DANGER_COLOR
                 }
             };
 
             let text = if self.confirming && i == selected && item.dangerous {
-                format!("{}  {} - Press Enter to CONFIRM", item.icon, item.label)
+                format!("▶ {}  {} - Press Enter to CONFIRM", item.icon, item.label)
+            } else if i == selected {
+                format!("▶ {}  {}", item.icon, item.label)
             } else {
-                format!("{}  {}", item.icon, item.label)
+                format!("  {}  {}", item.icon, item.label)
             };
             draw_text(&mut self.glyph_cache, canvas, width, height, &text, 25, y, text_color, FONT_ITEM,
             );
@@ -309,7 +310,7 @@ impl MenuState {
             canvas,
             width,
             height,
-            "↑↓ Move  Enter Select  Esc Close",
+            "↑↓ or L/O/S/R/P  Enter Select  Esc Close",
             15,
             height - 25,
             DIM_COLOR,
@@ -618,12 +619,51 @@ delegate_registry!(MenuState);
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("faelight-menu v0.6.0");
+                std::process::exit(0);
+            }
+            "--help" | "-h" => {
+                println!("faelight-menu v0.6.0 - Power menu for Faelight Forest");
+                println!();
+                println!("USAGE:");
+                println!("    faelight-menu");
+                println!();
+                println!("KEYBOARD SHORTCUTS:");
+                println!("    ↑↓       Navigate menu");
+                println!("    L        Lock screen");
+                println!("    O        Logout");
+                println!("    S        Suspend");
+                println!("    R        Reboot (requires confirmation)");
+                println!("    P        Shutdown (requires confirmation)");
+                println!("    Enter    Select/Confirm");
+                println!("    Esc      Close menu");
+                println!();
+                println!("OPTIONS:");
+                println!("    -h, --help          Show this help");
+                println!("    -v, --version       Show version");
+                println!("    --health-check      Verify system dependencies");
+                std::process::exit(0);
+            }
+            "--health-check" => { /* handled below */ }
+            _ => {
+                eprintln!("Unknown argument: {}", args[1]);
+                eprintln!("Try 'faelight-menu --help' for usage information");
+                std::process::exit(1);
+            }
+        }
+    }
+    
     if std::env::args().any(|arg| arg == "--health-check") {
         health_check();
         std::process::exit(0);
     }
 
-    eprintln!("⚡ faelight-menu v0.5 starting...");
+    eprintln!("⚡ faelight-menu v0.6.0 starting...");
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
