@@ -30,12 +30,6 @@ impl SearchResult {
         }
     }
 
-    pub fn name(&self) -> &str {
-        match self {
-            SearchResult::App { name, .. } => name,
-            SearchResult::File { name, .. } => name,
-        }
-    }
 }
 
 impl PartialEq for SearchResult {

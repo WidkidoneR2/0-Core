@@ -1,4 +1,4 @@
-//! faelight-launcher v3.1 - Refined UI
+//! faelight-launcher v3.2 - Refined UI
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
@@ -247,19 +247,6 @@ fn fuzzy_score(query: &str, target: &str) -> i32 {
     }
 }
 
-fn filter_apps(query: &str, apps: &[AppEntry], history: &LaunchHistory) -> Vec<AppEntry> {
-    let mut results: Vec<(AppEntry, f32)> = apps
-        .iter()
-        .map(|app| {
-            let fuzzy = fuzzy_score(query, &app.name) as f32;
-            let frecency = history.frecency_score(&app.name) * 100.0;
-            (app.clone(), fuzzy + frecency)
-        })
-        .filter(|(_, score)| *score > 0.0)
-        .collect();
-    results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    results.into_iter().map(|(app, _)| app).collect()
-}
 // ═══════════════════════════════════════════════════════════
 // 🖼️ DRAWING HELPERS (standalone)
 // ═══════════════════════════════════════════════════════════
@@ -277,7 +264,17 @@ fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
     }
 }
 
-fn draw_rect(
+// Add these functions before draw_rect (around line 266)
+
+// Calculate distance from point to rounded rectangle
+fn rounded_rect_sdf(x: f32, y: f32, rect_w: f32, rect_h: f32, radius: f32) -> f32 {
+    let dx = x.abs().max(0.0) - (rect_w - radius).max(0.0);
+    let dy = y.abs().max(0.0) - (rect_h - radius).max(0.0);
+    
+    dx.max(0.0).hypot(dy.max(0.0)) + dx.min(0.0).max(dy.min(0.0)) - radius
+}
+
+fn draw_rounded_rect(
     canvas: &mut [u8],
     width: u32,
     height: u32,
@@ -285,14 +282,44 @@ fn draw_rect(
     y: u32,
     w: u32,
     h: u32,
+    radius: f32,
     color: [u8; 4],
 ) {
     let stride = width as usize * 4;
+    let half_w = w as f32 / 2.0;
+    let half_h = h as f32 / 2.0;
+    
     for row in y..y + h {
         for col in x..x + w {
-            if col < width && row < height {
+            if col >= width || row >= height {
+                continue;
+            }
+            
+            // Calculate position relative to rectangle center
+            let px = col as f32 - (x as f32 + half_w);
+            let py = row as f32 - (y as f32 + half_h);
+            
+            // Calculate distance to rounded rect edge
+            let dist = rounded_rect_sdf(px, py, half_w, half_h, radius);
+            
+            // Anti-aliasing: smooth transition over 1.5 pixels
+            let alpha = if dist < -0.75 {
+                1.0
+            } else if dist > 0.75 {
+                0.0
+            } else {
+                0.5 - (dist / 1.5)
+            };
+            
+            if alpha > 0.0 {
                 let idx = row as usize * stride + col as usize * 4;
-                canvas[idx..idx + 4].copy_from_slice(&color);
+                
+                // Blend with existing background
+                let a = alpha * (color[3] as f32 / 255.0);
+                canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
+                canvas[idx + 1] = ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
+                canvas[idx + 2] = ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
+                canvas[idx + 3] = 255;
             }
         }
     }
@@ -313,7 +340,7 @@ fn draw_text(
     let mut cursor_x = x as usize;
     
     // Calculate baseline offset (max ascent for this size)
-    let baseline_offset = (size * 0.7) as i32; // Calculate baseline for proper text alignment
+    let _baseline_offset = (size * 0.7) as i32; // Calculate baseline for proper text alignment
     
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, size);
@@ -421,7 +448,7 @@ impl LauncherState {
         } else {
             TEXT_COLOR
         };
-        draw_rect(canvas, width, height, 15, 45, width - 30, 32, SELECTED_BG);
+        draw_rounded_rect(canvas, width, height, 15, 45, width - 30, 32, 8.0, SELECTED_BG);
         draw_text(
             &self.font,
             canvas,
@@ -460,7 +487,7 @@ impl LauncherState {
             };
             // Two-line display
             match result {
-                search::SearchResult::App { name, icon, score, .. } => {
+                search::SearchResult::App { name, icon, score: _, .. } => {
                     // Line 1: Icon + Name + Score
                     let line1 = format!("{}  {}", icon, name);
                     draw_text(&self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM);
@@ -468,7 +495,7 @@ impl LauncherState {
                     // Line 2: Description (dimmed)
                     draw_text(&self.font, canvas, width, height, "Application", 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
                 }
-                search::SearchResult::File { name, path, modified, score, .. } => {
+                search::SearchResult::File { name, path, modified, score: _, .. } => {
                     // Line 1: Icon + Name + Time
                     let time = format_time_ago(*modified);
                     let line1 = format!("📄  {}  {}", name, time);
@@ -817,7 +844,7 @@ fn health_check() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-launcher v3.1.0 starting...");
+    eprintln!("🌲 faelight-launcher v3.2.0 starting...");
     // Check for health flag
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
@@ -850,7 +877,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
         // Scan XDG desktop entries
-    println!("🌲 Faelight Launcher v2.0 - Loading...");
+    println!("🌲 Faelight Launcher v3.2.0 - Loading...");
     let entries = desktop::scan_applications();
     let apps: Vec<AppEntry> = entries.iter().map(|e| e.into()).collect();
     println!("📱 Discovered {} applications", apps.len());
