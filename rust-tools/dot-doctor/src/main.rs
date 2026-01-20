@@ -2,7 +2,6 @@
 //! 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
-use colored::*;
 use serde::Serialize;
 use std::env;
 use std::fs;
@@ -225,44 +224,32 @@ const CHECKS: &[Check] = &[
 // ═══════════════════════════════════════════════════════════
 
 fn check_stow(ctx: &Context) -> CheckResult {
-    let config = PathBuf::from(&ctx.home).join(".config");
+    let stow_dir = PathBuf::from(&ctx.home).join("0-core/stow");
     let mut stowed = 0;
     let mut details = vec![];
-    let checks = [
-        ("zsh/.zshrc", "shell-zsh"),
-        ("sway/config", "wm-sway"),
-        ("foot/foot.ini", "term-foot"),
-        ("yazi/yazi.toml", "fm-yazi"),
-        ("starship.toml", "prompt-starship"),
-        ("topgrade.toml", "tools-topgrade"),
-        ("qutebrowser/config.py", "browser-qutebrowser"),
-        ("faelight/config.toml", "config-faelight"),
-        ("nvim/init.lua", "editor-nvim"),
-        ("nushell/config.nu", "shell-nushell"),
-    ];
-    for (path, pkg) in checks {
-        let target = config.join(path);
-        let core_source = PathBuf::from(&ctx.home).join("0-core/stow").join(pkg).join(".config").join(path);
+    
+    // Auto-discover packages
+    let packages = discover_stow_packages(&stow_dir);
+    let total = packages.len();
+    
+    for package in &packages {
+        // Package directory not needed - we find symlinks directly
         
-        if let (Ok(resolved_target), Ok(resolved_source)) = (std::fs::canonicalize(&target), std::fs::canonicalize(&core_source)) {
-            if resolved_target == resolved_source {
-                stowed += 1;
-                details.push(format!("✓ {} ({})", path, pkg));
-            } else {
-                details.push(format!("✗ {} wrong target", path));
+        // Find symlinks in ~/ that point to this package
+        let symlinks = find_stow_symlinks(&ctx.home, package);
+        
+        if !symlinks.is_empty() {
+            stowed += 1;
+            for link in &symlinks {
+                if let Ok(stripped) = link.strip_prefix(&ctx.home) {
+                    details.push(format!("✓ {} ({})", stripped.display(), package));
+                }
             }
         } else {
-            details.push(format!("✗ {} missing", path));
+            details.push(format!("✗ {} (no symlinks found)", package));
         }
     }
-    // Check .gitconfig
-    if PathBuf::from(&ctx.home).join(".gitconfig").is_symlink() {
-        stowed += 1;
-        details.push("✓ .gitconfig (vcs-git)".to_string());
-    } else {
-        details.push("✗ .gitconfig missing".to_string());
-    }
-    let total = 11;
+    
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),
@@ -280,11 +267,60 @@ fn check_stow(ctx: &Context) -> CheckResult {
             status: Status::Fail,
             severity: Severity::Critical,
             message: format!("Only {}/{} packages stowed", stowed, total),
-            fix: Some("Run: cd ~/0-core && stow <package-name>".to_string()),
+            fix: Some("Run: cd ~/0-core && stow --dir=stow -R <package>".to_string()),
             details: Some(details),
         }
     }
 }
+
+fn discover_stow_packages(stow_dir: &PathBuf) -> Vec<String> {
+    let mut packages = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(stow_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if !name.starts_with('.') {
+                        packages.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    packages.sort();
+    packages
+}
+
+fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
+    let home_path = PathBuf::from(home);
+    let mut symlinks = Vec::new();
+    
+    let search_paths = vec![
+        home_path.clone(),
+        home_path.join(".config"),
+    ];
+    
+    for search_path in search_paths {
+        if let Ok(entries) = std::fs::read_dir(&search_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                
+                if path.is_symlink() {
+                    if let Ok(target) = std::fs::read_link(&path) {
+                        let target_str = target.to_string_lossy();
+                        if target_str.contains(&format!("0-core/stow/{}", package)) {
+                            symlinks.push(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    symlinks
+}
+
 fn check_services(_ctx: &Context) -> CheckResult {
     let mut running = 0;
     let mut details = vec![];
