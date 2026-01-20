@@ -376,9 +376,37 @@ fn health_check() {
 }
 
 fn main() {
-    if std::env::args().any(|arg| arg == "--health-check") {
-        health_check();
-        std::process::exit(0);
+    let args: Vec<String> = std::env::args().collect();
+    
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("faelight-bar v0.9.0");
+                std::process::exit(0);
+            }
+            "--help" | "-h" => {
+                println!("faelight-bar v0.9.0 - Status bar for Faelight Forest");
+                println!();
+                println!("Hand-coded Wayland status bar with Sway integration");
+                println!();
+                println!("USAGE: faelight-bar [OPTIONS]");
+                println!();
+                println!("OPTIONS:");
+                println!("    -h, --help          Show this help");
+                println!("    -v, --version       Show version");
+                println!("    --health-check      Verify dependencies");
+                std::process::exit(0);
+            }
+            "--health-check" => {
+                health_check();
+                std::process::exit(0);
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", args[1]);
+                eprintln!("Try faelight-bar --help");
+                std::process::exit(1);
+            }
+        }
     }
 
     let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
@@ -419,7 +447,7 @@ fn main() {
         pointer_x: 0.0,
         last_draw: Instant::now(),
     };
-    println!("🌲 faelight-bar v0.8 starting (Sway Edition)...");
+    println!("🌲 faelight-bar v0.9.0 starting (Sway Edition)...");
     while state.running {
         event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
     }
@@ -497,13 +525,13 @@ impl BarState {
         
         let health = get_health();
         let health_color = if health >= 80 { ACCENT_COLOR } else if health >= 50 { AMBER_COLOR } else { RED_COLOR };
-        let health_text = format!("{}%", health);
+        let health_text = format!("● {}%", health);
         draw_text(&mut self.glyph_cache, canvas, width, &health_text, x_pos, 8, health_color);
-        x_pos += 35;
+        x_pos += 50;
         
         let locked = is_core_locked();
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
-        let lock_text = if locked { "LCK" } else { "UNL" };
+        let lock_text = if locked { "● LCK" } else { "○ UNL" };
         draw_text(&mut self.glyph_cache, canvas, width, lock_text, x_pos, 8, lock_color);
         // === CENTER ===
         let window_title = get_active_window();
