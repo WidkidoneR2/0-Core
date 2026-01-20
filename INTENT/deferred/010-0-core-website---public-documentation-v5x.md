@@ -3,7 +3,7 @@ id: 010
 date: 2026-01-05
 type: future
 title: "0-Core Website - Public Documentation (v5.x)"
-status: cancelled
+status: deferred
 tags: [website, documentation, community, v5.x]
 ---
 

@@ -50,6 +50,22 @@ fn main() {
             cmd_search(term, status_filter, tag_filter);
         }
         "stats" => cmd_stats(),
+        "complete" => {
+            if args.len() < 3 { error("Usage: intent complete <id>"); }
+            cmd_status_change(&args[2], "complete", "complete");
+        }
+        "cancel" => {
+            if args.len() < 3 { error("Usage: intent cancel <id>"); }
+            cmd_status_change(&args[2], "cancelled", "cancelled");
+        }
+        "defer" => {
+            if args.len() < 3 { error("Usage: intent defer <id>"); }
+            cmd_status_change(&args[2], "deferred", "deferred");
+        }
+        "start" => {
+            if args.len() < 3 { error("Usage: intent start <id>"); }
+            cmd_status_change(&args[2], "in-progress", "future");
+        }
         "version" | "--version" | "-v" => {
             println!("intent v{} - 0-Core Intent Ledger", VERSION);
         }
@@ -204,10 +220,10 @@ fn cmd_list(filter: Option<&str>) {
         if !cat.starts_with("--") && !cat.starts_with("-") {
             vec![cat]
         } else {
-            vec!["decisions", "experiments", "philosophy", "future", "incidents"]
+            vec!["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"]
         }
     } else {
-        vec!["decisions", "experiments", "philosophy", "future", "incidents"]
+        vec!["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"]
     };
 
     let mut total_count = 0;
@@ -622,4 +638,122 @@ fn extract_frontmatter(content: &str, key: &str) -> Option<String> {
     }
 
     None
+}
+
+// ============================================================================
+// Intent 052: Auto-Move on Status Change
+// ============================================================================
+
+fn cmd_status_change(id: &str, new_status: &str, target_dir: &str) {
+    let intent_dir = get_intent_dir();
+    
+    // Find the intent file across all directories
+    let intent_file = find_intent_file(&intent_dir, id);
+    if intent_file.is_none() {
+        error(&format!("Intent {} not found", id));
+    }
+    let intent_path = intent_file.unwrap();
+    
+    // Read current content
+    let content = fs::read_to_string(&intent_path)
+        .unwrap_or_else(|_| error("Failed to read intent file"));
+    
+    // Get current status
+    let current_status = extract_frontmatter(&content, "status")
+        .unwrap_or_else(|| "unknown".to_string());
+    
+    // Update status in frontmatter
+    let updated_content = update_frontmatter(&content, "status", new_status);
+    
+    // Determine target path
+    let filename = intent_path.file_name().unwrap().to_str().unwrap();
+    let target_path = intent_dir.join(target_dir).join(filename);
+    
+    // Show what we're doing
+    println!("🔄 Intent Status Change");
+    println!("   Intent: {}", id);
+    println!("   Status: {} → {}", current_status, new_status);
+    println!("   From:   {:?}", intent_path.strip_prefix(&intent_dir).unwrap());
+    println!("   To:     {:?}", target_path.strip_prefix(&intent_dir).unwrap());
+    println!();
+    
+    // Write updated content
+    fs::write(&intent_path, &updated_content)
+        .unwrap_or_else(|_| error("Failed to update intent file"));
+    
+    // Move file if directory changed
+    let current_dir = intent_path.parent().unwrap();
+    let target_dir_path = intent_dir.join(target_dir);
+    
+    if current_dir != target_dir_path {
+        // Create target directory if needed
+        fs::create_dir_all(&target_dir_path)
+            .unwrap_or_else(|_| error("Failed to create target directory"));
+        
+        // Move file
+        fs::rename(&intent_path, &target_path)
+            .unwrap_or_else(|_| error("Failed to move intent file"));
+        
+        println!("✅ Intent moved to {}/", target_dir);
+    } else {
+        println!("✅ Intent status updated (already in correct directory)");
+    }
+}
+
+fn find_intent_file(intent_dir: &PathBuf, id: &str) -> Option<PathBuf> {
+    // Search in all subdirectories
+    let subdirs = vec!["future", "complete", "cancelled", "deferred", 
+                       "decisions", "experiments", "philosophy", "incidents"];
+    
+    for subdir in subdirs {
+        let dir_path = intent_dir.join(subdir);
+        if !dir_path.exists() {
+            continue;
+        }
+        
+        if let Ok(entries) = fs::read_dir(&dir_path) {
+            for entry in entries.flatten() {
+                let filename = entry.file_name();
+                let filename_str = filename.to_string_lossy();
+                
+                // Match by ID at start of filename
+                if filename_str.starts_with(&format!("{}-", id)) 
+                    || filename_str.starts_with(&format!("0{}-", id))
+                    || filename_str.starts_with(&format!("00{}-", id)) {
+                    return Some(entry.path());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn update_frontmatter(content: &str, key: &str, value: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut result = String::new();
+    let mut in_frontmatter = false;
+    let mut updated = false;
+    
+    for line in lines {
+        if line.trim() == "---" {
+            in_frontmatter = !in_frontmatter;
+            result.push_str(line);
+            result.push('\n');
+            continue;
+        }
+        
+        if in_frontmatter && line.starts_with(&format!("{}: ", key)) {
+            result.push_str(&format!("{}: {}\n", key, value));
+            updated = true;
+        } else {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    
+    if !updated {
+        eprintln!("Warning: Could not find '{}' in frontmatter", key);
+    }
+    
+    result
 }

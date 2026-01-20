@@ -3,7 +3,7 @@ id: 029
 date: 2026-01-10
 type: future
 title: "teach-advanced - Interactive Learning"
-status: abandoned
+status: cancelled
 tags: [rust, learning, documentation]
 ---
 
