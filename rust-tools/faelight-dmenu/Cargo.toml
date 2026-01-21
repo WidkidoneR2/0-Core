@@ -21,6 +21,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 walkdir = "2"
 
+# Images & config (for apps mode)
+image = "0.25"
+toml = "0.8"
+
 [profile.release]
 opt-level = "z"
 lto = true

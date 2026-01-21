@@ -9,7 +9,7 @@
 set $mod Mod4
 set $term foot
 set $browser brave
-set $menu ~/0-core/scripts/faelight-launcher
+set $menu ~/0-core/scripts/faelight-dmenu apps
 set $filemanager thunar
 
 # ═══════════════════════════════════════════════════════════
@@ -248,7 +248,7 @@ exec wl-paste --watch cliphist store
 # ═══════════════════════════════════════════════════════════
 # 🌲 END FAELIGHT FOREST SWAY CONFIG
 # ═══════════════════════════════════════════════════════════
-bindsym $mod+space exec ~/0-core/scripts/faelight-launcher
+bindsym $mod+space exec ~/0-core/scripts/faelight-dmenu apps
 bindsym $mod+Shift+Escape exec ~/0-core/scripts/faelight-menu
 
 

@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 
 mod search;
 mod ui;
+mod desktop;
+mod icons;
 
 use ui::{DmenuState, renderer::DmenuApp};
 
@@ -41,6 +43,8 @@ enum Mode {
     },
     /// Discover all commands (future)
     Commands,
+    /// Launch applications
+    Apps,
 }
 
 fn main() {
@@ -58,6 +62,9 @@ fn main() {
         }
         Some(Mode::Commands) => {
             println!("Commands mode not implemented yet!");
+        }
+        Some(Mode::Apps) => {
+            run_apps_mode(&cli.prompt);
         }
     }
 }
@@ -109,5 +116,46 @@ fn run_stdin_mode(_prompt: &str, _multi: bool) {
     let state_lock = state.lock().unwrap();
     if let Some(result) = &state_lock.result {
         println!("{}", result);
+    }
+}
+
+fn run_apps_mode(prompt: &str) {
+    use desktop::DesktopEntry;
+    
+    eprintln!("🔍 Discovering applications...");
+    let apps = desktop::scan_applications();
+    
+    if apps.is_empty() {
+        eprintln!("No applications found");
+        std::process::exit(1);
+    }
+    
+    eprintln!("📱 Found {} applications", apps.len());
+    
+    let items: Vec<String> = apps.iter()
+        .map(|app| app.name.clone())
+        .collect();
+    
+    let state = Arc::new(Mutex::new(DmenuState::new(items)));
+    let (mut app, conn, mut event_queue) = DmenuApp::new(state.clone());
+    let qh = event_queue.handle();
+    
+    app.init_surface(&qh);
+    event_queue.roundtrip(&mut app).unwrap();
+    
+    loop {
+        event_queue.blocking_dispatch(&mut app).unwrap();
+        if app.exit { break; }
+        
+        let state_lock = state.lock().unwrap();
+        if !state_lock.running { break; }
+    }
+    
+    let state_lock = state.lock().unwrap();
+    if let Some(selected_name) = &state_lock.result {
+        if let Some(app) = apps.iter().find(|a| &a.name == selected_name) {
+            eprintln!("🚀 Launching: {}", app.name);
+            app.exec();
+        }
     }
 }

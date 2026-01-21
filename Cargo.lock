@@ -987,9 +987,11 @@ dependencies = [
  "clap",
  "colored",
  "fontdue",
+ "image",
  "serde",
  "serde_yaml",
  "smithay-client-toolkit 0.19.2",
+ "toml",
  "walkdir",
  "wayland-client",
 ]

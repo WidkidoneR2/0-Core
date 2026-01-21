@@ -150,17 +150,17 @@ impl DmenuApp {
 
         // Draw prompt and query
         let query_text = format!("> {}", query);
-        draw_text_simple(&self.font, canvas, 15, 10, &query_text, ACCENT_COLOR);
+        draw_text_simple(&self.font, canvas, 15, 10, &query_text, ACCENT_COLOR, 18.0);
 
         // Draw selected item
         if !filtered.is_empty() {
             let item = filtered.get(selected).unwrap();
             let count_text = format!("[{}/{}]", selected + 1, filtered.len());
             
-            draw_text_simple(&self.font, canvas, 15, 28, &count_text, TEXT_COLOR);
-            draw_text_simple(&self.font, canvas, 80, 28, item, SELECTED_COLOR);
+            draw_text_simple(&self.font, canvas, 15, 28, &count_text, TEXT_COLOR, 16.0);
+            draw_text_simple(&self.font, canvas, 150, 28, item, SELECTED_COLOR, 22.0);
         } else if !query.is_empty() {
-            draw_text_simple(&self.font, canvas, 15, 28, "No matches", TEXT_COLOR);
+            draw_text_simple(&self.font, canvas, 15, 28, "No matches", TEXT_COLOR, 18.0);
         }
 
         // Attach buffer and commit
@@ -211,9 +211,9 @@ fn draw_rounded_rect(canvas: &mut [u8], x: usize, y: usize, width: usize, height
 }
 
 // Simple text rendering
-fn draw_text_simple(font: &Font, canvas: &mut [u8], x: usize, y: usize, text: &str, color: u32) {
+fn draw_text_simple(font: &Font, canvas: &mut [u8], x: usize, y: usize, text: &str, color: u32, font_size: f32) {
     let mut offset_x = x;
-    let font_size = 14.0;
+    // font_size passed as parameter
     
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
