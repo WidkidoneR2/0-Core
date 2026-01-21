@@ -34,10 +34,18 @@ setopt PUSHD_SILENT          # Don't print stack on pushd/popd
 # 🎨 ENVIRONMENT & PATH
 # ═══════════════════════════════════════════════════════════
 
-# Add to PATH
-export PATH="$HOME/.local/bin:$PATH"
-export PATH="$HOME/bin:$PATH"
-export PATH="$HOME/0-core/scripts:$PATH"
+# Clean PATH setup with automatic deduplication
+typeset -U path  # Makes path unique - removes ALL duplicates automatically
+path=(
+    $HOME/.local/bin
+    $HOME/bin
+    $HOME/.cargo/bin
+    $HOME/0-core/.local/bin
+    $HOME/0-core/automation
+    $HOME/0-core/scripts
+    $path  # Preserve existing PATH entries
+)
+export PATH
 
 # Editor
 export EDITOR=nvim
@@ -698,8 +706,6 @@ if [[ -o interactive ]]; then
     echo "💡 Quick: doctor | health | intent list | keys"
     echo ""
 fi
-
-export PATH="$HOME/.cargo/bin:$PATH"
 
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION

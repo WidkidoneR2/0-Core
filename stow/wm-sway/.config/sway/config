@@ -152,7 +152,6 @@ bindsym $mod+Shift+bracketleft move container to workspace prev; workspace prev
 # ═══════════════════════════════════════════════════════════
 # 📌 SCRATCHPAD
 # ═══════════════════════════════════════════════════════════
-bindsym $mod+m scratchpad show
 bindsym $mod+Shift+m move scratchpad
 
 # ═══════════════════════════════════════════════════════════
@@ -260,3 +259,5 @@ bindsym $mod+Alt+n exec notesnook
 bindsym $mod+Alt+d exec discord
 bindsym $mod+Alt+c exec filen-desktop
 exec ~/0-core/scripts/faelight-notify
+
+
