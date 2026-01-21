@@ -259,3 +259,4 @@ bindsym $mod+Alt+e exec tutanota-desktop
 bindsym $mod+Alt+n exec notesnook
 bindsym $mod+Alt+d exec discord
 bindsym $mod+Alt+c exec filen-desktop
+exec ~/0-core/scripts/faelight-notify
