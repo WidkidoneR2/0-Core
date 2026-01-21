@@ -1,4 +1,4 @@
-//! bump-system-version v3.1.0
+//! bump-system-version v3.0.0
 //! Complete 0-Core Release Automation - CHANGELOG Fixed
 use std::env;
 use std::fs;
