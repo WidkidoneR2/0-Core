@@ -4,6 +4,7 @@ date: 2026-01-10
 type: future
 title: "teach-advanced - Interactive Learning"
 status: cancelled
+cancelled_date: 2025-01-21
 tags: [rust, learning, documentation]
 ---
 
