@@ -1,4 +1,4 @@
-//! faelight-git v0.1 - Git Governance Layer
+//! faelight-git v2.0 - Git Governance Layer
 //! 🌲 Git becomes a policy boundary
 
 use clap::{Parser, Subcommand};
@@ -9,10 +9,13 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, exit};
 
+// Import our new library modules
+use faelight_git::commands;
+
 #[derive(Parser)]
 #[command(name = "faelight-git")]
 #[command(about = "🌲 Git Governance for Faelight Forest")]
-#[command(version)]
+#[command(version = "2.0.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -20,20 +23,33 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Show risk-aware repository status (NEW v2.0)
+    Status,
+    
+    /// Show detailed risk assessment (NEW v2.0)
+    Risk,
+    
     /// Install git hooks
     InstallHooks,
+    
     /// Remove git hooks
     RemoveHooks,
+    
     /// Verify commit/push readiness
     Verify,
-    /// Check if core is locked
-    Status,
+    
+    /// Check if core is locked (DEPRECATED - use 'status')
+    #[command(hide = true)]
+    OldStatus,
+    
     /// Pre-commit hook (called by git)
     #[command(hide = true)]
     HookPreCommit,
+    
     /// Commit-msg hook (called by git)
     #[command(hide = true)]
     HookCommitMsg { file: String },
+    
     /// Pre-push hook (called by git)
     #[command(hide = true)]
     HookPrePush,
@@ -41,17 +57,39 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-
+    
     let exit_code = match cli.command {
+        // NEW v2.0 commands using git2-rs
+        Commands::Status => {
+            match commands::status::run() {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        Commands::Risk => {
+            match commands::risk::run() {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        // Existing v0.1 commands (keep working)
         Commands::InstallHooks => install_hooks(),
         Commands::RemoveHooks => remove_hooks(),
         Commands::Verify => verify(),
-        Commands::Status => status(),
+        Commands::OldStatus => old_status(),
         Commands::HookPreCommit => hook_pre_commit(),
         Commands::HookCommitMsg { file } => hook_commit_msg(&file),
         Commands::HookPrePush => hook_pre_push(),
     };
-
+    
     exit(exit_code);
 }
 
@@ -225,7 +263,7 @@ fn verify() -> i32 {
         println!("  {} All hooks installed", "✅".green());
     } else {
         println!("  {} {}/3 hooks installed", "⚠️".yellow(), hooks_installed);
-        println!("     Run: {} to install", "faelight git install-hooks".cyan());
+        println!("     Run: {} to install", "faelight-git install-hooks".cyan());
     }
 
     println!();
@@ -238,7 +276,7 @@ fn verify() -> i32 {
     }
 }
 
-fn status() -> i32 {
+fn old_status() -> i32 {
     if is_locked() {
         println!("🔒 Core is {}", "LOCKED".red());
         println!("   Commits are blocked. Run {} first.", "unlock-core".cyan());
@@ -302,7 +340,7 @@ fn hook_pre_commit() -> i32 {
 fn hook_commit_msg(file: &str) -> i32 {
     let msg = match fs::read_to_string(file) {
         Ok(m) => m,
-        Err(_) => return 0, // Can't read, let git handle it
+        Err(_) => return 0,
     };
 
     let first_line = msg.lines().next().unwrap_or("");
@@ -313,13 +351,11 @@ fn hook_commit_msg(file: &str) -> i32 {
         eprintln!("{}", "⚠️  Commit message is very short".yellow());
         eprintln!("   Consider being more descriptive.");
         eprintln!();
-        // Warning only, don't block
     }
 
     // Suggest intent reference for significant changes
     let has_intent = msg.contains("Intent:") || msg.contains("intent:");
     
-    // Check staged files
     let staged = Command::new("git")
         .args(["diff", "--cached", "--name-only"])
         .output();
@@ -340,7 +376,6 @@ fn hook_commit_msg(file: &str) -> i32 {
             eprintln!("   Consider adding an intent reference:");
             eprintln!("   {}", "Intent: 0XX".yellow());
             eprintln!();
-            // Suggestion only, don't block
         }
     }
 
@@ -348,10 +383,8 @@ fn hook_commit_msg(file: &str) -> i32 {
 }
 
 fn hook_pre_push() -> i32 {
-    // Final verification before push
     println!("{}", "🔍 Pre-push verification...".cyan());
 
-    // Run health check (quick)
     let health = Command::new("dot-doctor")
         .arg("--check")
         .arg("git")
@@ -363,7 +396,6 @@ fn hook_pre_push() -> i32 {
             eprintln!("{}", "⚠️  Health check has warnings".yellow());
             eprintln!("   Run {} for details.", "dot-doctor".cyan());
             eprintln!();
-            // Warning only for pre-push
         }
     }
 
@@ -377,20 +409,17 @@ fn hook_pre_push() -> i32 {
 const PRE_COMMIT_HOOK: &str = r#"#!/bin/bash
 # Faelight Forest Git Hook - Pre-Commit
 # Managed by faelight-git
-
 exec faelight-git hook-pre-commit
 "#;
 
 const COMMIT_MSG_HOOK: &str = r#"#!/bin/bash
 # Faelight Forest Git Hook - Commit Message
 # Managed by faelight-git
-
 exec faelight-git hook-commit-msg "$1"
 "#;
 
 const PRE_PUSH_HOOK: &str = r#"#!/bin/bash
 # Faelight Forest Git Hook - Pre-Push
 # Managed by faelight-git
-
 exec faelight-git hook-pre-push
 "#;
