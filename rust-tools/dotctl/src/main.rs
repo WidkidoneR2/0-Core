@@ -11,6 +11,9 @@ const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
+const VERSION: &str = "2.0.0";
+
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let command = args.get(1).map(|s| s.as_str()).unwrap_or("help");
@@ -20,6 +23,7 @@ fn main() {
         "bump" => cmd_bump(&args[2..]),
         "history" => cmd_history(&args[2..]),
         "health" => cmd_health(),
+        "--version" | "-v" | "version" => cmd_version(),
         "help" | "--help" | "-h" => cmd_help(),
         _ => {
             eprintln!("Unknown command: {}", command);
@@ -34,8 +38,73 @@ fn get_core_dir() -> PathBuf {
     PathBuf::from(home).join("0-core")
 }
 
+fn get_stow_dir() -> PathBuf {
+    get_core_dir().join("stow")
+}
+
+fn cmd_version() {
+    println!("dotctl v{}", VERSION);
+}
+
+fn parse_dotmeta(content: &str) -> (String, String, String, String) {
+    let mut version = "?".to_string();
+    let mut category = "misc".to_string();
+    let mut blast = "low".to_string();
+    let mut description = "".to_string();
+    
+    // Try TOML format first
+    if content.contains("[package]") {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with("version = ") {
+                version = line.split('=').nth(1)
+                    .unwrap_or("?")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string();
+            } else if line.starts_with("category = ") {
+                category = line.split('=').nth(1)
+                    .unwrap_or("misc")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string();
+            } else if line.starts_with("blast_radius = ") {
+                blast = line.split('=').nth(1)
+                    .unwrap_or("low")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string();
+            } else if line.starts_with("description = ") {
+                description = line.split('=').nth(1)
+                    .unwrap_or("")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string();
+            }
+        }
+    } else {
+        // Simple format
+        for line in content.lines() {
+            if let Some((key, value)) = line.split_once(':') {
+                let key = key.trim();
+                let value = value.trim();
+                match key {
+                    "version" => version = value.to_string(),
+                    "category" => category = value.to_string(),
+                    "blast_radius" => blast = value.to_string(),
+                    "description" => description = value.to_string(),
+                    _ => {}
+                }
+            }
+        }
+    }
+    
+    (version, category, blast, description)
+}
+
 fn cmd_status() {
     let core_dir = get_core_dir();
+    let stow_dir = get_stow_dir();
     
     println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
     println!("{}📊 0-Core System Status{}", CYAN, NC);
@@ -52,8 +121,8 @@ fn cmd_status() {
     println!("{}Package Versions:{}", BLUE, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     
-    // List all packages
-    if let Ok(entries) = fs::read_dir(&core_dir) {
+    // List all stow packages
+    if let Ok(entries) = fs::read_dir(&stow_dir) {
         let mut packages: Vec<_> = entries
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_dir())
@@ -66,9 +135,7 @@ fn cmd_status() {
             let dotmeta_path = entry.path().join(".dotmeta");
             if let Ok(content) = fs::read_to_string(&dotmeta_path) {
                 let pkg_name = entry.file_name().to_string_lossy().to_string();
-                let version = extract_field(&content, "version").unwrap_or("?".to_string());
-                let category = extract_field(&content, "category").unwrap_or("misc".to_string());
-                let blast = extract_field(&content, "blast_radius").unwrap_or("low".to_string());
+                let (version, category, blast, _) = parse_dotmeta(&content);
                 
                 let icon = match blast.as_str() {
                     "critical" => format!("{}🔴{}", RED, NC),
@@ -98,66 +165,99 @@ fn cmd_status() {
             if line.contains("100%") {
                 println!("  {}✅ 100%{}", GREEN, NC);
             } else {
-                println!("  {}⚠️  {}{}", YELLOW, line.split_whitespace().last().unwrap_or("?"), NC);
+                println!("  {}⚠️  {}{}", YELLOW, line.split("Health:").nth(1).unwrap_or("?").trim(), NC);
             }
         }
-    } else {
-        println!("  Unknown (dot-doctor not found)");
     }
     
-    println!();
     println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
 }
 
 fn cmd_bump(args: &[String]) {
     if args.len() < 2 {
-        eprintln!("Usage: dotctl bump <package> <version> [change-note]");
-        eprintln!();
-        eprintln!("Example: dotctl bump shell-zsh 3.3.1 'Added new features'");
+        eprintln!("{}Usage:{} dotctl bump <package> <version> [message]", YELLOW, NC);
         process::exit(1);
     }
     
-    let core_dir = get_core_dir();
-    let bump_cmd = core_dir.join("scripts/bump-version");
+    let pkg_name = &args[0];
+    let new_version = &args[1];
+    let message = args.get(2).map(|s| s.as_str()).unwrap_or("Version bump");
     
-    let status = Command::new(&bump_cmd)
-        .args(args)
-        .status()
-        .expect("Failed to run bump-version");
+    let stow_dir = get_stow_dir();
+    let pkg_dir = stow_dir.join(pkg_name);
+    let dotmeta_path = pkg_dir.join(".dotmeta");
     
-    process::exit(status.code().unwrap_or(1));
+    if !dotmeta_path.exists() {
+        eprintln!("{}❌ Package not found:{} {}", RED, NC, pkg_name);
+        process::exit(1);
+    }
+    
+    let content = fs::read_to_string(&dotmeta_path).expect("Failed to read .dotmeta");
+    
+    // Update version in .dotmeta
+    let updated_content = if content.contains("[package]") {
+        // TOML format
+        content.lines().map(|line| {
+            if line.trim().starts_with("version = ") {
+                format!("version = \"{}\"", new_version)
+            } else {
+                line.to_string()
+            }
+        }).collect::<Vec<_>>().join("\n")
+    } else {
+        // Simple format
+        content.lines().map(|line| {
+            if line.trim().starts_with("version:") {
+                format!("version: {}", new_version)
+            } else {
+                line.to_string()
+            }
+        }).collect::<Vec<_>>().join("\n")
+    };
+    
+    fs::write(&dotmeta_path, updated_content).expect("Failed to write .dotmeta");
+    
+    println!("{}✅ Bumped {} to v{}{}", GREEN, pkg_name, new_version, NC);
+    println!("   {}", message);
 }
 
 fn cmd_history(args: &[String]) {
     if args.is_empty() {
-        eprintln!("Usage: dotctl history <package>");
+        eprintln!("{}Usage:{} dotctl history <package>", YELLOW, NC);
         process::exit(1);
     }
     
-    let package = &args[0];
-    let core_dir = get_core_dir();
-    let dotmeta_path = core_dir.join(package).join(".dotmeta");
+    let pkg_name = &args[0];
+    let stow_dir = get_stow_dir();
+    let dotmeta_path = stow_dir.join(pkg_name).join(".dotmeta");
     
     if !dotmeta_path.exists() {
-        eprintln!("❌ No .dotmeta found for package: {}", package);
+        eprintln!("{}❌ No .dotmeta found for package:{} {}", RED, NC, pkg_name);
         process::exit(1);
     }
     
+    let content = fs::read_to_string(&dotmeta_path).expect("Failed to read .dotmeta");
+    
     println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-    println!("{}📜 Changelog: {}{}", CYAN, package, NC);
+    println!("{}📜 Change History: {}{}", CYAN, pkg_name, NC);
     println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
     println!();
     
-    if let Ok(content) = fs::read_to_string(&dotmeta_path) {
-        for line in content.lines() {
-            if line.starts_with('"') && line.contains("\" = \"") {
-                // Parse "version" = "change"
-                let parts: Vec<&str> = line.split("\" = \"").collect();
-                if parts.len() == 2 {
-                    let version = parts[0].trim_start_matches('"');
-                    let change = parts[1].trim_end_matches('"');
-                    println!("  {}v{}{}: {}", GREEN, version, NC, change);
-                }
+    // Parse changelog section (TOML format only)
+    let mut in_changelog = false;
+    for line in content.lines() {
+        if line.trim() == "[changelog]" {
+            in_changelog = true;
+            continue;
+        }
+        if in_changelog {
+            if line.trim().starts_with('[') && line.trim() != "[changelog]" {
+                break;
+            }
+            if let Some((ver, msg)) = line.split_once('=') {
+                let ver = ver.trim().trim_matches('"');
+                let msg = msg.trim().trim_matches('"');
+                println!("  {}v{}{} - {}", GREEN, ver, NC, msg);
             }
         }
     }
@@ -166,6 +266,7 @@ fn cmd_history(args: &[String]) {
 }
 
 fn cmd_health() {
+    // Just run dot-doctor
     let status = Command::new("dot-doctor")
         .status()
         .expect("Failed to run dot-doctor");
@@ -174,38 +275,22 @@ fn cmd_health() {
 }
 
 fn cmd_help() {
-    println!("═══════════════════════════════════════════════════════════");
-    println!("🎮 dotctl - 0-Core Control Utility");
-    println!("═══════════════════════════════════════════════════════════");
+    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
+    println!("{}🎮 dotctl - 0-Core Control Utility{}", CYAN, NC);
+    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
     println!();
-    println!("COMMANDS:");
+    println!("{}COMMANDS:{}", GREEN, NC);
     println!("  status              Show system and package versions");
     println!("  bump <pkg> <ver>    Bump package version");
     println!("  history <pkg>       Show package changelog");
     println!("  health              Run system health check");
+    println!("  version, -v         Show dotctl version");
     println!("  help                Show this help");
     println!();
-    println!("EXAMPLES:");
+    println!("{}EXAMPLES:{}", GREEN, NC);
     println!("  dotctl status");
     println!("  dotctl bump shell-zsh 3.3.1 \"Added aliases\"");
     println!("  dotctl history wm-sway");
     println!("  dotctl health");
-    println!();
-    println!("═══════════════════════════════════════════════════════════");
-}
-
-fn extract_field(content: &str, field: &str) -> Option<String> {
-    let prefix = format!("{} = ", field);
-    for line in content.lines() {
-        if line.starts_with(&prefix) {
-            if let Some(start) = line.find('"') {
-                if let Some(end) = line.rfind('"') {
-                    if start < end {
-                        return Some(line[start + 1..end].to_string());
-                    }
-                }
-            }
-        }
-    }
-    None
+    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
 }
