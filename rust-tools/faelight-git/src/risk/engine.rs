@@ -3,7 +3,6 @@
 use crate::git::GitRepo;
 use crate::is_core_locked;
 use anyhow::Result;
-use colored::*;
 
 #[derive(Debug, Clone)]
 pub struct RiskScore {

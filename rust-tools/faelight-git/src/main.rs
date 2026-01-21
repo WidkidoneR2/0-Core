@@ -1,4 +1,4 @@
-//! faelight-git v2.0 - Git Governance Layer
+//! faelight-git v2.1 - Git Governance Layer
 //! 🌲 Git becomes a policy boundary
 
 use clap::{Parser, Subcommand};
@@ -9,13 +9,13 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, exit};
 
-// Import our new library modules
+// Import our library modules
 use faelight_git::commands;
 
 #[derive(Parser)]
 #[command(name = "faelight-git")]
 #[command(about = "🌲 Git Governance for Faelight Forest")]
-#[command(version = "2.0.0")]
+#[command(version = "2.1.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -23,11 +23,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Show risk-aware repository status (NEW v2.0)
+    /// Show risk-aware repository status
     Status,
     
-    /// Show detailed risk assessment (NEW v2.0)
+    /// Show detailed risk assessment
     Risk,
+    
+    /// Pre-commit verification with intent checking
+    Commit {
+        #[arg(long)]
+        intent: Option<String>,
+        
+        #[arg(long)]
+        no_intent: bool,
+    },
     
     /// Install git hooks
     InstallHooks,
@@ -37,10 +46,6 @@ enum Commands {
     
     /// Verify commit/push readiness
     Verify,
-    
-    /// Check if core is locked (DEPRECATED - use 'status')
-    #[command(hide = true)]
-    OldStatus,
     
     /// Pre-commit hook (called by git)
     #[command(hide = true)]
@@ -59,7 +64,7 @@ fn main() {
     let cli = Cli::parse();
     
     let exit_code = match cli.command {
-        // NEW v2.0 commands using git2-rs
+        // v2.x commands using git2-rs
         Commands::Status => {
             match commands::status::run() {
                 Ok(_) => 0,
@@ -80,11 +85,20 @@ fn main() {
             }
         }
         
-        // Existing v0.1 commands (keep working)
+        Commands::Commit { intent, no_intent } => {
+            match commands::commit::run(intent, no_intent) {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        // v0.1 commands (preserved)
         Commands::InstallHooks => install_hooks(),
         Commands::RemoveHooks => remove_hooks(),
         Commands::Verify => verify(),
-        Commands::OldStatus => old_status(),
         Commands::HookPreCommit => hook_pre_commit(),
         Commands::HookCommitMsg { file } => hook_commit_msg(&file),
         Commands::HookPrePush => hook_pre_push(),
@@ -196,7 +210,7 @@ fn remove_hooks() -> i32 {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🔍 VERIFY & STATUS
+// 🔍 VERIFY
 // ═══════════════════════════════════════════════════════════
 
 fn verify() -> i32 {
@@ -272,18 +286,6 @@ fn verify() -> i32 {
         1
     } else {
         println!("{}", "Ready to commit! 🌲".green());
-        0
-    }
-}
-
-fn old_status() -> i32 {
-    if is_locked() {
-        println!("🔒 Core is {}", "LOCKED".red());
-        println!("   Commits are blocked. Run {} first.", "unlock-core".cyan());
-        1
-    } else {
-        println!("🔓 Core is {}", "UNLOCKED".green());
-        println!("   Commits are allowed.");
         0
     }
 }
@@ -374,7 +376,7 @@ fn hook_commit_msg(file: &str) -> i32 {
             eprintln!();
             eprintln!("{}", "💡 This looks like a significant change.".cyan());
             eprintln!("   Consider adding an intent reference:");
-            eprintln!("   {}", "Intent: 0XX".yellow());
+            eprintln!("   {}", "Intent: INT-0XX".yellow());
             eprintln!();
         }
     }
