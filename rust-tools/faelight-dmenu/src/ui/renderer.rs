@@ -1,5 +1,4 @@
 //! Wayland renderer for dmenu
-
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
@@ -25,18 +24,19 @@ use wayland_client::{
     Connection, EventQueue, QueueHandle,
 };
 use fontdue::{Font, FontSettings};
-
 use super::SharedState;
 
 const MAX_WIDTH: u32 = 700;
 const HEIGHT: u32 = 50;
 const BORDER_RADIUS: usize = 12;
+const BORDER_WIDTH: usize = 2;
 
 // 🌲 EXACT Faelight Bar Colors!
 const BG_COLOR: u32 = 0xDD0F1411;      // Dark forest green (transparent)
 const TEXT_COLOR: u32 = 0xFFD7E0DA;    // Light sage
 const ACCENT_COLOR: u32 = 0xFF6BE3A3;  // Bright mint green
 const SELECTED_COLOR: u32 = 0xFFF5C177; // Peachy amber
+const BORDER_COLOR: u32 = 0xFF6BE3A3;  // Bright mint green border
 
 pub struct DmenuApp {
     registry_state: RegistryState,
@@ -45,7 +45,6 @@ pub struct DmenuApp {
     compositor_state: CompositorState,
     shm_state: Shm,
     layer_shell: LayerShell,
-
     pub exit: bool,
     surface: Option<wl_surface::WlSurface>,
     layer: Option<LayerSurface>,
@@ -61,7 +60,7 @@ impl DmenuApp {
         let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
         let (globals, event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
         let qh = event_queue.handle();
-
+        
         let registry_state = RegistryState::new(&globals);
         let seat_state = SeatState::new(&globals, &qh);
         let output_state = OutputState::new(&globals, &qh);
@@ -69,12 +68,12 @@ impl DmenuApp {
             .expect("wl_compositor not available");
         let shm_state = Shm::bind(&globals, &qh).expect("wl_shm not available");
         let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell not available");
-
+        
         // Load font
         let font_data = include_bytes!("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
         let font = Font::from_bytes(font_data as &[u8], FontSettings::default())
             .expect("Failed to load font");
-
+        
         let app = Self {
             registry_state,
             seat_state,
@@ -90,10 +89,10 @@ impl DmenuApp {
             font,
             state,
         };
-
+        
         (app, conn, event_queue)
     }
-
+    
     pub fn init_surface(&mut self, qh: &QueueHandle<Self>) {
         let surface = self.compositor_state.create_surface(qh);
         
@@ -104,27 +103,26 @@ impl DmenuApp {
             Some("faelight-dmenu"),
             None,
         );
-
+        
         layer.set_anchor(Anchor::empty());
         layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
         layer.set_size(MAX_WIDTH, HEIGHT);
         
         surface.commit();
-
         self.surface = Some(surface);
         self.layer = Some(layer);
     }
-
+    
     pub fn draw(&mut self, _qh: &QueueHandle<Self>) {
         if self.surface.is_none() {
             return;
         }
-
+        
         let pool = self.pool.get_or_insert_with(|| {
             SlotPool::new(MAX_WIDTH as usize * HEIGHT as usize * 4, &self.shm_state)
                 .expect("Failed to create pool")
         });
-
+        
         let (buffer, canvas) = pool
             .create_buffer(
                 MAX_WIDTH as i32,
@@ -133,25 +131,28 @@ impl DmenuApp {
                 wl_shm::Format::Argb8888,
             )
             .expect("Failed to create buffer");
-
+        
         // Clear to transparent
         for pixel in canvas.chunks_exact_mut(4) {
             pixel.copy_from_slice(&0x00000000u32.to_le_bytes());
         }
-
+        
         // Draw rounded rectangle background
         draw_rounded_rect(canvas, 0, 0, MAX_WIDTH as usize, HEIGHT as usize, BORDER_RADIUS, BG_COLOR);
-
+        
+        // Draw border (NEW!)
+        draw_rounded_border(canvas, 0, 0, MAX_WIDTH as usize, HEIGHT as usize, BORDER_RADIUS, BORDER_WIDTH, BORDER_COLOR);
+        
         // Get state snapshot
         let (query, filtered, selected) = {
             let state = self.state.lock().unwrap();
             (state.query.clone(), state.filtered.clone(), state.selected)
         };
-
+        
         // Draw prompt and query
         let query_text = format!("> {}", query);
         draw_text_simple(&self.font, canvas, 15, 10, &query_text, ACCENT_COLOR, 18.0);
-
+        
         // Draw selected item
         if !filtered.is_empty() {
             let item = filtered.get(selected).unwrap();
@@ -162,7 +163,7 @@ impl DmenuApp {
         } else if !query.is_empty() {
             draw_text_simple(&self.font, canvas, 15, 28, "No matches", TEXT_COLOR, 18.0);
         }
-
+        
         // Attach buffer and commit
         if let Some(surface) = &self.surface {
             buffer.attach_to(surface).expect("Failed to attach buffer");
@@ -195,8 +196,65 @@ fn draw_rounded_rect(canvas: &mut [u8], x: usize, y: usize, width: usize, height
             } else {
                 true
             };
-
+            
             if in_rect {
+                let screen_x = x + px;
+                let screen_y = y + py;
+                if screen_x < MAX_WIDTH as usize && screen_y < HEIGHT as usize {
+                    let offset = (screen_y * MAX_WIDTH as usize + screen_x) * 4;
+                    if offset + 3 < canvas.len() {
+                        canvas[offset..offset + 4].copy_from_slice(&color.to_le_bytes());
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Draw rounded border (NEW!)
+fn draw_rounded_border(canvas: &mut [u8], x: usize, y: usize, width: usize, height: usize, radius: usize, border_width: usize, color: u32) {
+    for py in 0..height {
+        for px in 0..width {
+            // Check if pixel is on border
+            let on_border = if px < radius && py < radius {
+                // Top-left corner
+                let dx = radius as i32 - px as i32;
+                let dy = radius as i32 - py as i32;
+                let dist_sq = dx * dx + dy * dy;
+                let outer = (radius * radius) as i32;
+                let inner = ((radius - border_width) * (radius - border_width)) as i32;
+                dist_sq <= outer && dist_sq > inner
+            } else if px >= width - radius && py < radius {
+                // Top-right corner
+                let dx = px as i32 - (width - radius - 1) as i32;
+                let dy = radius as i32 - py as i32;
+                let dist_sq = dx * dx + dy * dy;
+                let outer = (radius * radius) as i32;
+                let inner = ((radius - border_width) * (radius - border_width)) as i32;
+                dist_sq <= outer && dist_sq > inner
+            } else if px < radius && py >= height - radius {
+                // Bottom-left corner
+                let dx = radius as i32 - px as i32;
+                let dy = py as i32 - (height - radius - 1) as i32;
+                let dist_sq = dx * dx + dy * dy;
+                let outer = (radius * radius) as i32;
+                let inner = ((radius - border_width) * (radius - border_width)) as i32;
+                dist_sq <= outer && dist_sq > inner
+            } else if px >= width - radius && py >= height - radius {
+                // Bottom-right corner
+                let dx = px as i32 - (width - radius - 1) as i32;
+                let dy = py as i32 - (height - radius - 1) as i32;
+                let dist_sq = dx * dx + dy * dy;
+                let outer = (radius * radius) as i32;
+                let inner = ((radius - border_width) * (radius - border_width)) as i32;
+                dist_sq <= outer && dist_sq > inner
+            } else {
+                // Straight edges
+                px < border_width || px >= width - border_width ||
+                py < border_width || py >= height - border_width
+            };
+            
+            if on_border {
                 let screen_x = x + px;
                 let screen_y = y + py;
                 if screen_x < MAX_WIDTH as usize && screen_y < HEIGHT as usize {
@@ -213,7 +271,6 @@ fn draw_rounded_rect(canvas: &mut [u8], x: usize, y: usize, width: usize, height
 // Simple text rendering
 fn draw_text_simple(font: &Font, canvas: &mut [u8], x: usize, y: usize, text: &str, color: u32, font_size: f32) {
     let mut offset_x = x;
-    // font_size passed as parameter
     
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, font_size);
@@ -268,7 +325,7 @@ fn draw_text_simple(font: &Font, canvas: &mut [u8], x: usize, y: usize, text: &s
     }
 }
 
-// Handler implementations (unchanged)
+// Handler implementations
 impl CompositorHandler for DmenuApp {
     fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
     fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
@@ -292,7 +349,6 @@ impl LayerShellHandler for DmenuApp {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         self.exit = true;
     }
-
     fn configure(
         &mut self,
         _: &Connection,
@@ -312,7 +368,6 @@ impl SeatHandler for DmenuApp {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }
-
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
     fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Keyboard && self.keyboard.is_none() {

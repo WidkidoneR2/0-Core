@@ -1,9 +1,10 @@
-//! faelight-dmenu v0.1 - Generic Selector
+//! faelight-dmenu v2.0.0 - Intent-Aware Application Launcher
 //! 🌲 Faelight Forest
 
 use clap::{Parser, Subcommand};
 use std::io::{self, BufRead};
 use std::sync::{Arc, Mutex};
+use std::process::Command;
 
 mod search;
 mod ui;
@@ -13,10 +14,12 @@ mod icons;
 
 use ui::{DmenuState, renderer::DmenuApp};
 
+const VERSION: &str = "2.0.0";
+
 #[derive(Parser)]
 #[command(name = "faelight-dmenu")]
-#[command(about = "Generic selector for Faelight Forest")]
-#[command(version)]
+#[command(about = "Intent-aware application launcher for Faelight Forest")]
+#[command(version = VERSION)]
 struct Cli {
     /// Prompt text
     #[arg(short, long, default_value = "Select:")]
@@ -46,10 +49,12 @@ enum Mode {
         #[arg(short, long)]
         query: Option<String>,
     },
-    /// Discover all commands (future)
+    /// Discover all faelight commands
     Commands,
     /// Launch applications
     Apps,
+    /// Health check
+    Health,
 }
 
 fn main() {
@@ -64,11 +69,70 @@ fn main() {
             run_intents_mode(&cli.prompt, status, category, query);
         }
         Some(Mode::Commands) => {
-            println!("Commands mode not implemented yet!");
+            run_commands_mode(&cli.prompt);
         }
         Some(Mode::Apps) => {
             run_apps_mode(&cli.prompt);
         }
+        Some(Mode::Health) => {
+            run_health_check();
+        }
+    }
+}
+
+fn run_health_check() {
+    println!("🏥 faelight-dmenu v{} - Health Check", VERSION);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check Wayland
+    print!("  Checking Wayland... ");
+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        println!("✅");
+    } else {
+        println!("❌ WAYLAND_DISPLAY not set");
+        healthy = false;
+    }
+    
+    // Check font
+    print!("  Checking font... ");
+    if std::path::Path::new("/usr/share/fonts/liberation/LiberationMono-Regular.ttf").exists() {
+        println!("✅");
+    } else {
+        println!("⚠️  Liberation Mono not found (may use fallback)");
+    }
+    
+    // Check Intent Ledger
+    print!("  Checking Intent Ledger... ");
+    let intent_dir = dirs::home_dir().unwrap().join("0-core/INTENT");
+    if intent_dir.exists() {
+        let intents = intents::scan_intents();
+        println!("✅ {} intents found", intents.len());
+    } else {
+        println!("⚠️  No Intent Ledger found");
+    }
+    
+    // Check desktop applications
+    print!("  Checking desktop apps... ");
+    let apps = desktop::scan_applications();
+    println!("✅ {} applications found", apps.len());
+    
+    // Check faelight command
+    print!("  Checking faelight CLI... ");
+    if Command::new("faelight").arg("--version").output().is_ok() {
+        println!("✅");
+    } else {
+        println!("⚠️  faelight command not found");
+    }
+    
+    println!();
+    if healthy {
+        println!("✅ All systems operational");
+        std::process::exit(0);
+    } else {
+        println!("⚠️  Some issues detected");
+        std::process::exit(1);
     }
 }
 
@@ -91,7 +155,7 @@ fn run_stdin_mode(_prompt: &str, _multi: bool) {
     let state = Arc::new(Mutex::new(DmenuState::new(items)));
     
     // Initialize Wayland app
-    let (mut app, conn, mut event_queue) = DmenuApp::new(state.clone());
+    let (mut app, _conn, mut event_queue) = DmenuApp::new(state.clone());
     let qh = event_queue.handle();
     
     // Create surface
@@ -122,9 +186,7 @@ fn run_stdin_mode(_prompt: &str, _multi: bool) {
     }
 }
 
-fn run_apps_mode(prompt: &str) {
-    use desktop::DesktopEntry;
-    
+fn run_apps_mode(_prompt: &str) {
     eprintln!("🔍 Discovering applications...");
     let apps = desktop::scan_applications();
     
@@ -140,7 +202,7 @@ fn run_apps_mode(prompt: &str) {
         .collect();
     
     let state = Arc::new(Mutex::new(DmenuState::new(items)));
-    let (mut app, conn, mut event_queue) = DmenuApp::new(state.clone());
+    let (mut app, _conn, mut event_queue) = DmenuApp::new(state.clone());
     let qh = event_queue.handle();
     
     app.init_surface(&qh);
@@ -156,9 +218,61 @@ fn run_apps_mode(prompt: &str) {
     
     let state_lock = state.lock().unwrap();
     if let Some(selected_name) = &state_lock.result {
-        if let Some(app) = apps.iter().find(|a| &a.name == selected_name) {
-            eprintln!("🚀 Launching: {}", app.name);
-            app.exec();
+        if let Some(desktop_app) = apps.iter().find(|a| &a.name == selected_name) {
+            eprintln!("🚀 Launching: {}", desktop_app.name);
+            desktop_app.exec();
+        }
+    }
+}
+
+fn run_commands_mode(_prompt: &str) {
+    eprintln!("🔍 Discovering faelight commands...");
+    
+    // Get all faelight subcommands
+    let commands = vec![
+        "faelight health - System health check",
+        "faelight status - Show system status",
+        "faelight profile list - List available profiles",
+        "faelight profile switch <name> - Switch to profile",
+        "faelight profile current - Show current profile",
+        "faelight intent list - List all intents",
+        "faelight intent show <id> - Show specific intent",
+        "faelight intent search <query> - Search intents",
+        "faelight core lock - Lock 0-core (immutable)",
+        "faelight core unlock - Unlock 0-core",
+        "faelight core status - Check protection status",
+        "faelight sway reload - Reload sway config",
+        "faelight launch launcher - Open application launcher",
+        "faelight launch menu - Open power menu",
+        "faelight launch lock - Lock screen",
+        "faelight git verify - Verify git commit readiness",
+        "faelight config validate - Validate all configs",
+        "faelight explain intent - Explain intent system",
+        "faelight explain profile - Explain profiles",
+    ];
+    
+    eprintln!("📋 Found {} commands", commands.len());
+    
+    let state = Arc::new(Mutex::new(DmenuState::new(commands.iter().map(|s| s.to_string()).collect())));
+    let (mut app, _conn, mut event_queue) = DmenuApp::new(state.clone());
+    let qh = event_queue.handle();
+    
+    app.init_surface(&qh);
+    event_queue.roundtrip(&mut app).unwrap();
+    
+    loop {
+        event_queue.blocking_dispatch(&mut app).unwrap();
+        if app.exit { break; }
+        
+        let state_lock = state.lock().unwrap();
+        if !state_lock.running { break; }
+    }
+    
+    let state_lock = state.lock().unwrap();
+    if let Some(selected) = &state_lock.result {
+        // Extract just the command part (before the dash)
+        if let Some(cmd) = selected.split(" - ").next() {
+            println!("{}", cmd);
         }
     }
 }
