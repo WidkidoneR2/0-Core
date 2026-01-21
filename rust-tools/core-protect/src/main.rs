@@ -4,6 +4,8 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
 
+const VERSION: &str = "1.0.0";
+
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
 const GREEN: &str = "\x1b[0;32m";
@@ -34,7 +36,85 @@ fn main() {
             }
             cmd_edit(&core_dir, &args[2]);
         }
+        "--version" | "-v" => {
+            println!("core-protect v{}", VERSION);
+        }
+        "--health" => cmd_health(&core_dir),
+        "--help" | "-h" => show_help(),
         _ => show_help(),
+    }
+}
+
+fn cmd_health(core_dir: &PathBuf) {
+    println!();
+    println!("{}🏥 core-protect v{} - Health Check{}", CYAN, VERSION, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check chattr available
+    print!("  Checking chattr command... ");
+    match Command::new("which").arg("chattr").output() {
+        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        _ => {
+            println!("{}❌ chattr not found{}", RED, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check lsattr available
+    print!("  Checking lsattr command... ");
+    match Command::new("which").arg("lsattr").output() {
+        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        _ => {
+            println!("{}❌ lsattr not found{}", RED, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check 0-core exists
+    print!("  Checking 0-core directory... ");
+    if core_dir.exists() {
+        println!("{}✅ {}{}", GREEN, core_dir.display(), NC);
+    } else {
+        println!("{}❌ not found at {}{}", RED, core_dir.display(), NC);
+        healthy = false;
+    }
+    
+    // Check sudo access
+    print!("  Checking sudo access... ");
+    match Command::new("sudo").args(["-n", "true"]).status() {
+        Ok(status) if status.success() => println!("{}✅{}", GREEN, NC),
+        _ => {
+            println!("{}⚠️  sudo may require password{}", YELLOW, NC);
+        }
+    }
+    
+    // Check current protection status
+    print!("  Checking protection status... ");
+    let output = Command::new("lsattr")
+        .arg("-d")
+        .arg(core_dir)
+        .output();
+    
+    if let Ok(o) = output {
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        if stdout.contains('i') {
+            println!("{}🔒 LOCKED{}", GREEN, NC);
+        } else {
+            println!("{}🔓 UNLOCKED{}", YELLOW, NC);
+        }
+    } else {
+        println!("{}❓ Unknown{}", YELLOW, NC);
+    }
+    
+    println!();
+    if healthy {
+        println!("{}✅ All systems operational{}", GREEN, NC);
+        process::exit(0);
+    } else {
+        println!("{}❌ System unhealthy{}", RED, NC);
+        process::exit(1);
     }
 }
 
@@ -293,16 +373,23 @@ fn create_backup(core_dir: &PathBuf, package: &str, blast_radius: &str) {
 }
 
 fn show_help() {
-    println!("🛡️  Core Protection - Immutable 0-core Management");
+    println!("🛡️  core-protect v{} - Immutable 0-core Management", VERSION);
     println!();
-    println!("Usage:");
-    println!("  core-protect lock          Lock 0-core (prevent changes)");
-    println!("  core-protect unlock        Unlock 0-core (allow changes)");
-    println!("  core-protect status        Check protection status");
-    println!("  core-protect edit <pkg>    Unlock, edit, re-lock (with blast radius check)");
+    println!("USAGE:");
+    println!("  core-protect <command>");
     println!();
-    println!("Examples:");
+    println!("COMMANDS:");
+    println!("  lock              Lock 0-core (prevent changes)");
+    println!("  unlock            Unlock 0-core (allow changes)");
+    println!("  status            Check protection status");
+    println!("  edit <package>    Unlock, edit, re-lock (with blast radius check)");
+    println!("  --health          Run health check");
+    println!("  --version, -v     Show version");
+    println!("  --help, -h        Show this help");
+    println!();
+    println!("EXAMPLES:");
     println!("  core-protect lock");
     println!("  core-protect edit shell-zsh");
     println!("  core-protect status");
+    println!("  core-protect --health");
 }
