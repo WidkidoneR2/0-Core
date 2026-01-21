@@ -13,6 +13,8 @@ const GRAY: &str = "\x1b[0;90m";
 const MAGENTA: &str = "\x1b[0;35m";
 const NC: &str = "\x1b[0m";
 
+const VERSION: &str = "1.0.0";
+
 struct Commit {
     hash: String,
     short_hash: String,
@@ -35,6 +37,10 @@ fn main() {
     
     // Parse mode
     match args[1].as_str() {
+        "--version" | "-v" | "version" => {
+            println!("archaeology-0-core v{}", VERSION);
+            return;
+        },
         "--timeline" => show_timeline(&core_dir),
         "--this-week" => show_since_days(&core_dir, 7),
         "--by-intent" if args.len() > 2 => show_by_intent(&core_dir, &args[2]),

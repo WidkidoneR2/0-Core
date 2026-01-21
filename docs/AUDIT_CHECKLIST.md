@@ -2,7 +2,7 @@
 
 ## Goal: Audit all 29 tools by end of week
 
-### ✅ COMPLETED (11/29 = 38%)
+### ✅ COMPLETED (12/29 = 41%)
 
 1. faelight-launcher v3.3.0 - PNG icons, health check ✅
 2. get-version v2.0.0 - Stow support, --help/--version/--health ✅
@@ -15,28 +15,28 @@
 9. faelight-notify v0.9.0 - Urgency colors (RED/GREEN/DIM) ✅
 10. **faelight-dmenu v2.0.0 - Intent-Driven Development** ✅ 🌟
 11. **faelight-git** - Git helpers ✅
+12. **dotctl v2.0.0 - Package Management** ✅
 
 ### 🔄 IN PROGRESS (0/29)
 (None currently)
 
-### 📋 REMAINING (18/29 = 62%)
+### 📋 REMAINING (17/29 = 59%)
 
-#### TIER 1: Core System Tools (1 remaining - CRITICAL)
-12. [ ] faelight-bootstrap - System installer
+#### TIER 1: Core System Tools (1 remaining)
+13. [ ] faelight-bootstrap - System installer
 
 #### TIER 2: Version/Release Tools (3 tools)
-13. [ ] bump-system-version
-14. [ ] bump-version
-15. [ ] faelight-snapshot
+14. [ ] bump-system-version (SAVE FOR LAST - v8.0.0 release)
+15. [ ] bump-version
+16. [ ] faelight-snapshot
 
 #### TIER 3: Development Tools (3 tools)
-16. [ ] faelight - Main CLI
-17. [ ] intent - Intent manager
-18. [ ] intent-guard - Intent validator
-19. [ ] archaeology-0-core - History tool
+17. [ ] faelight - Main CLI
+18. [ ] intent - Intent manager
+19. [ ] intent-guard - Intent validator
+20. [ ] archaeology-0-core - History tool
 
-#### TIER 4: Config Management (4 tools)
-20. [ ] dotctl - Dotfile controller
+#### TIER 4: Config Management (3 tools)
 21. [ ] core-diff - Config differ
 22. [ ] core-protect - Protection tool
 23. [ ] profile - Profile manager
@@ -55,16 +55,17 @@
 ---
 
 ## 📊 Progress
-- **Completed:** 11/29 (38%)
-- **Remaining:** 18/29 (62%)
-- **Days left:** 6
-- **Pace needed:** 3.0 tools/day
+- **Completed:** 12/29 (41%)
+- **Remaining:** 17/29 (59%)
+- **Pace needed:** 2.8 tools/day
 
-## 🎯 Next Target: TIER 2 Version Tools
-Recommended order:
-1. **bump-system-version** - Simple, good warm-up
-2. **bump-version** - Similar to above
-3. **faelight-snapshot** - Release automation
+## 🎯 Today's Goal: 16/29 (55%) - 4 more tools!
+
+**Remaining targets:**
+- faelight (Main CLI)
+- intent (Intent manager)
+- intent-guard (Intent validator)
+- archaeology-0-core (History tool)
 
 ---
 
@@ -80,6 +81,56 @@ Recommended order:
 8. **Intent tracking** - Every commit should reference an intent ID
 9. **Font sizing** - 16px for long text, 22px for short highlights
 10. **Query interfaces** - Always add search/filter capabilities
+11. **Directory scanning** - Scan the right directories (stow/ not root)
+12. **Format flexibility** - Support multiple config formats (simple + TOML)
+
+---
+
+### dotctl v2.0.0 ✅ COMPLETE
+
+**Date:** 2025-01-21  
+**Status:** Production Ready - Major Rewrite  
+**Commit:** `ad78283`
+
+**Implemented:**
+
+**Breaking Changes:**
+- ✅ Now scans ~/0-core/stow/ instead of ~/0-core/ (finds actual packages)
+- ✅ Parses both simple and TOML .dotmeta formats
+- ✅ Added --version/-v flag
+- ✅ Fixed history command (works with stow packages)
+- ✅ Better error messages and formatting
+
+**Improvements:**
+- Shows actual stow packages (browser-brave, shell-zsh, wm-sway, etc.)
+- Handles missing versions gracefully  
+- Color-coded blast radius indicators (🔴 critical, 🟠 high, 🔵 medium, 🟢 low)
+- Works with dual .dotmeta format standard
+
+**Technical Details:**
+- Complete rewrite from 211 lines
+- Smart .dotmeta parser handles both formats:
+  - Simple: `version: 1.0.0`
+  - TOML: `version = "3.3.2"` in `[package]` section
+- Scans correct directory: ~/0-core/stow/
+- Better error handling with color-coded output
+
+**Demo Commands:**
+```bash
+dotctl status              # Show all packages and system health
+dotctl --version           # Show dotctl version
+dotctl history shell-zsh   # Show package changelog
+dotctl bump shell-zsh 3.4.0 "New feature"  # Version bump
+dotctl health              # Run full system health check
+```
+
+**Why This Matters:**
+- Central tool for package management
+- Foundation for v8.0.0 release automation
+- Works with both old and new .dotmeta formats
+- Production-ready for Linus demo
+
+**Next Steps:** Continue auditing remaining tools
 
 ---
 
