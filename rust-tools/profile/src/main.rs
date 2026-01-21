@@ -5,6 +5,8 @@ use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
 
+const VERSION: &str = "1.0.0";
+
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
 const GREEN: &str = "\x1b[0;32m";
@@ -29,6 +31,10 @@ fn main() {
         "list" | "ls" => cmd_list(),
         "status" => cmd_status(),
         "history" => cmd_history(),
+        "health" => cmd_health(),
+        "--version" | "-v" => {
+            println!("profile v{}", VERSION);
+        }
         "edit" => {
             if args.len() < 3 {
                 error("Usage: profile edit <name>");
@@ -163,6 +169,87 @@ fn run_section(profile_path: &PathBuf, section: &str) {
                 warn(&format!("Command failed (non-fatal): {}", cmd));
             }
         }
+    }
+}
+
+fn cmd_health() {
+    println!();
+    println!("{}🏥 profile v{} - Health Check{}", CYAN, VERSION, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check profile directory
+    print!("  Checking profile directory... ");
+    let profile_dir = get_profile_dir();
+    if profile_dir.exists() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}❌ not found{}", RED, NC);
+        healthy = false;
+    }
+    
+    // Check state file
+    print!("  Checking state tracking... ");
+    let state_file = get_state_file();
+    if state_file.exists() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}⚠️  no state file (will create on first switch){}", YELLOW, NC);
+    }
+    
+    // Count profiles
+    print!("  Checking profiles... ");
+    if let Ok(entries) = fs::read_dir(&profile_dir) {
+        let count = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "profile").unwrap_or(false))
+            .count();
+        println!("{}✅ {} profiles found{}", GREEN, count, NC);
+    } else {
+        println!("{}❌ cannot read directory{}", RED, NC);
+        healthy = false;
+    }
+    
+    // Check current profile
+    print!("  Checking current profile... ");
+    let current = get_current_profile();
+    let current_file = profile_dir.join(format!("{}.profile", current));
+    if current_file.exists() {
+        println!("{}✅ {} (valid){}", GREEN, current, NC);
+    } else {
+        println!("{}⚠️  {} (file not found){}", YELLOW, current, NC);
+    }
+    
+    // Check system tools
+    print!("  Checking powerprofilesctl... ");
+    if Command::new("which").arg("powerprofilesctl").output().is_ok() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}⚠️  not found (power management unavailable){}", YELLOW, NC);
+    }
+    
+    print!("  Checking mullvad... ");
+    if Command::new("which").arg("mullvad").output().is_ok() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}⚠️  not found (VPN control unavailable){}", YELLOW, NC);
+    }
+    
+    print!("  Checking makoctl... ");
+    if Command::new("which").arg("makoctl").output().is_ok() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}⚠️  not found (notification control unavailable){}", YELLOW, NC);
+    }
+    
+    println!();
+    if healthy {
+        println!("{}✅ All systems operational{}", GREEN, NC);
+        process::exit(0);
+    } else {
+        println!("{}⚠️  Some issues detected{}", YELLOW, NC);
+        process::exit(1);
     }
 }
 
@@ -426,16 +513,18 @@ fn cmd_import(import_path: &str) {
 }
 
 fn cmd_help() {
-    println!("{}profile{} - System Profile Manager", CYAN, NC);
+    println!("{}profile v{}{} - System Profile Manager", CYAN, VERSION, NC);
     println!();
     println!("{}Usage:{}", YELLOW, NC);
     println!("  profile <name>           Switch to profile");
     println!("  profile list             List available profiles");
     println!("  profile status           Show current profile and system state");
     println!("  profile history          Show recent profile switches");
+    println!("  profile health           Run health check");
     println!("  profile edit <name>      Edit a profile");
     println!("  profile export <name>    Export profile for sharing");
     println!("  profile import <file>    Import community profile");
+    println!("  profile --version        Show version");
     println!("  profile help             Show this help");
     println!();
     println!("{}Profiles:{}", YELLOW, NC);
