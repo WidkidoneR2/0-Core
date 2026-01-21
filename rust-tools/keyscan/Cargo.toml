@@ -1,6 +1,13 @@
 [package]
 name = "keyscan"
-version = "0.1.0"
-edition = "2024"
+version = "1.0.0"
+edition = "2021"
+description = "Sway keybind analyzer for Faelight Forest"
 
 [dependencies]
+colored = "2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
