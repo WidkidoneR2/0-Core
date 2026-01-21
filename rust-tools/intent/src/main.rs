@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -50,6 +50,9 @@ fn main() {
             cmd_search(term, status_filter, tag_filter);
         }
         "stats" => cmd_stats(),
+        "timeline" => cmd_timeline(),
+        "validate" => cmd_validate(),
+        "--health" => cmd_health(),
         "complete" => {
             if args.len() < 3 { error("Usage: intent complete <id>"); }
             cmd_status_change(&args[2], "complete", "complete");
@@ -124,7 +127,6 @@ fn get_next_id(category: &str) -> String {
 fn cmd_add() {
     println!("{}📝 Adding New Intent{}", CYAN, NC);
     println!();
-
     println!("Select category:");
     println!("  1) decisions");
     println!("  2) experiments");
@@ -144,8 +146,8 @@ fn cmd_add() {
     let id = get_next_id(category);
     let title = prompt("Title: ");
     let status = prompt("Status (planned/in-progress/complete): ");
-
     let tags = prompt("Tags (comma-separated, optional): ");
+
     let tags_str = if tags.is_empty() {
         "[]".to_string()
     } else {
@@ -206,7 +208,6 @@ tags: {}
 
 fn cmd_list(filter: Option<&str>) {
     let intent_dir = get_intent_dir();
-
     println!("{}📋 Intent Ledger{}", CYAN, NC);
     println!();
 
@@ -464,6 +465,26 @@ fn cmd_search(term: &str, status_filter: Option<&str>, tag_filter: Option<&str>)
     println!();
 }
 
+fn draw_progress_bar(current: usize, total: usize, width: usize) -> String {
+    if total == 0 {
+        return format!("[{}] 0%", " ".repeat(width));
+    }
+    
+    let percentage = (current as f64 / total as f64 * 100.0) as usize;
+    let filled = (current as f64 / total as f64 * width as f64) as usize;
+    let empty = width.saturating_sub(filled);
+    
+    format!(
+        "{}[{}{}{}]{} {}%",
+        GREEN,
+        "█".repeat(filled),
+        GRAY,
+        "░".repeat(empty),
+        NC,
+        percentage
+    )
+}
+
 fn cmd_stats() {
     let intent_dir = get_intent_dir();
     
@@ -497,7 +518,7 @@ fn cmd_stats() {
                         if filename == "README.md" {
                             continue;
                         }
-
+                        
                         if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
                             continue;
                         }
@@ -533,8 +554,8 @@ fn cmd_stats() {
 
     // Overall stats
     let complete = status_counts.get("complete").copied().unwrap_or(0);
-    let planned = status_counts.get("planned").copied().unwrap_or(0);
-    let in_progress = status_counts.get("in-progress").copied().unwrap_or(0);
+    let _planned = status_counts.get("planned").copied().unwrap_or(0);
+    let _in_progress = status_counts.get("in-progress").copied().unwrap_or(0);
     let success_rate = if total > 0 {
         (complete as f64 / total as f64 * 100.0) as usize
     } else {
@@ -543,6 +564,11 @@ fn cmd_stats() {
 
     println!("{}Total Intents:{} {}", YELLOW, NC, total);
     println!("{}Success Rate:{} {}% ({} complete)", YELLOW, NC, success_rate, complete);
+    println!();
+    
+    // Visual progress bar
+    println!("{}Overall Progress:{}", YELLOW, NC);
+    println!("  {}", draw_progress_bar(complete, total, 40));
     println!();
 
     // Status breakdown
@@ -554,7 +580,8 @@ fn cmd_stats() {
             "in-progress" => YELLOW,
             _ => GRAY,
         };
-        println!("  {}{}: {}{}", color, status, count, NC);
+        let bar = draw_progress_bar(*count, total, 20);
+        println!("  {}{:15}{} {} ({})", color, status, NC, bar, count);
     }
     println!();
 
@@ -563,13 +590,13 @@ fn cmd_stats() {
     let mut cats: Vec<_> = category_stats.iter().collect();
     cats.sort_by_key(|(_, (total, _))| std::cmp::Reverse(*total));
     
-    for (cat, (total, complete)) in cats {
-        let rate = if *total > 0 {
-            (*complete as f64 / *total as f64 * 100.0) as usize
+    for (cat, (cat_total, cat_complete)) in cats {
+        let rate = if *cat_total > 0 {
+            (*cat_complete as f64 / *cat_total as f64 * 100.0) as usize
         } else {
             0
         };
-        println!("  {}: {} total ({} complete, {}%)", cat, total, complete, rate);
+        println!("  {:15} {} ({} complete, {}%)", cat, cat_total, cat_complete, rate);
     }
     println!();
 
@@ -580,9 +607,250 @@ fn cmd_stats() {
         tags.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
         
         for (tag, count) in tags.iter().take(10) {
-            println!("  {}: {}", tag, count);
+            println!("  {:20} {}", tag, count);
         }
         println!();
+    }
+}
+
+fn cmd_timeline() {
+    let intent_dir = get_intent_dir();
+    
+    println!();
+    println!("{}📅 Intent Timeline{}", CYAN, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    
+    let mut intents = Vec::new();
+    
+    for cat in &["decisions", "experiments", "philosophy", "future", "incidents", "complete", "cancelled", "deferred"] {
+        let cat_dir = intent_dir.join(cat);
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().map(|x| x == "md").unwrap_or(false) {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        let filename = entry.file_name().to_string_lossy().to_string();
+                        if filename == "README.md" {
+                            continue;
+                        }
+                        
+                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                            continue;
+                        }
+                        
+                        let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
+                        let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
+                        let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+                        let date = extract_frontmatter(&content, "date").unwrap_or("unknown".to_string());
+                        
+                        intents.push((date.clone(), id, title, status, cat.to_string()));
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort by date
+    intents.sort_by(|a, b| a.0.cmp(&b.0));
+    
+    for (date, id, title, status, _cat) in intents {
+        let status_color = match status.as_str() {
+            "complete" => GREEN,
+            "planned" => BLUE,
+            "in-progress" => YELLOW,
+            _ => GRAY,
+        };
+        
+        println!(
+            "{}{}{} - {}{:<4}{} {}[{}]{} {}",
+            GRAY, date, NC,
+            GRAY, id, NC,
+            status_color, status, NC,
+            title
+        );
+    }
+    
+    println!();
+}
+
+fn cmd_validate() {
+    let intent_dir = get_intent_dir();
+    
+    println!();
+    println!("{}🔍 Intent Ledger Validation{}", CYAN, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    
+    let mut issues = Vec::new();
+    let mut total_intents = 0;
+    
+    for cat in &["decisions", "experiments", "philosophy", "future", "incidents", "complete", "cancelled", "deferred"] {
+        let cat_dir = intent_dir.join(cat);
+        if !cat_dir.exists() {
+            continue;
+        }
+        
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|x| x == "md").unwrap_or(false) {
+                    let filename = entry.file_name().to_string_lossy().to_string();
+                    if filename == "README.md" {
+                        continue;
+                    }
+                    
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                            continue;
+                        }
+                        
+                        total_intents += 1;
+                        
+                        // Check for required frontmatter fields
+                        if extract_frontmatter(&content, "id").is_none() {
+                            issues.push(format!("{}Missing 'id' field:{} {}/{}", RED, NC, cat, filename));
+                        }
+                        if extract_frontmatter(&content, "title").is_none() {
+                            issues.push(format!("{}Missing 'title' field:{} {}/{}", RED, NC, cat, filename));
+                        }
+                        if extract_frontmatter(&content, "status").is_none() {
+                            issues.push(format!("{}Missing 'status' field:{} {}/{}", RED, NC, cat, filename));
+                        }
+                        if extract_frontmatter(&content, "date").is_none() {
+                            issues.push(format!("{}Missing 'date' field:{} {}/{}", RED, NC, cat, filename));
+                        }
+                        
+                        // Check for malformed frontmatter
+                        if !content.starts_with("---") {
+                            issues.push(format!("{}Malformed frontmatter:{} {}/{}", YELLOW, NC, cat, filename));
+                        }
+                        
+                        // Check status is valid
+                        if let Some(status) = extract_frontmatter(&content, "status") {
+                            let valid_statuses = ["planned", "in-progress", "complete", "cancelled", "deferred", "resolved", "decided"];
+                            if !valid_statuses.contains(&status.as_str()) {
+                                issues.push(format!("{}Invalid status '{}':{} {}/{}", YELLOW, status, NC, cat, filename));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if issues.is_empty() {
+        println!("{}✅ All {} intents validated successfully!{}", GREEN, total_intents, NC);
+    } else {
+        println!("{}Found {} issues:{}", YELLOW, issues.len(), NC);
+        println!();
+        for issue in issues {
+            println!("  {}", issue);
+        }
+    }
+    println!();
+}
+
+fn cmd_health() {
+    println!();
+    println!("{}🏥 Intent Ledger - Health Check{}", CYAN, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let intent_dir = get_intent_dir();
+    let mut healthy = true;
+    
+    // Check if INTENT directory exists
+    print!("  Checking Intent directory... ");
+    if intent_dir.exists() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}❌ ~/0-core/INTENT not found{}", RED, NC);
+        healthy = false;
+    }
+    
+    // Check required subdirectories
+    let required_dirs = ["decisions", "experiments", "philosophy", "future", "incidents"];
+    print!("  Checking required categories... ");
+    let mut missing = Vec::new();
+    for dir in &required_dirs {
+        if !intent_dir.join(dir).exists() {
+            missing.push(*dir);
+        }
+    }
+    if missing.is_empty() {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}❌ Missing: {}{}", RED, missing.join(", "), NC);
+        healthy = false;
+    }
+    
+    // Check for intent files
+    print!("  Checking for intent files... ");
+    let mut total_intents = 0;
+    for cat in &required_dirs {
+        let cat_dir = intent_dir.join(cat);
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().map(|x| x == "md").unwrap_or(false) {
+                    let filename = entry.file_name().to_string_lossy().to_string();
+                    if filename != "README.md" {
+                        if let Ok(content) = fs::read_to_string(entry.path()) {
+                            if !extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                                total_intents += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if total_intents > 0 {
+        println!("{}✅ {} intents found{}", GREEN, total_intents, NC);
+    } else {
+        println!("{}⚠️  No intents found{}", YELLOW, NC);
+    }
+    
+    // Check for malformed intents
+    print!("  Validating intent structure... ");
+    let mut malformed = 0;
+    for cat in &required_dirs {
+        let cat_dir = intent_dir.join(cat);
+        if let Ok(entries) = fs::read_dir(&cat_dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().map(|x| x == "md").unwrap_or(false) {
+                    if let Ok(content) = fs::read_to_string(entry.path()) {
+                        let filename = entry.file_name().to_string_lossy().to_string();
+                        if filename == "README.md" {
+                            continue;
+                        }
+                        
+                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                            continue;
+                        }
+                        
+                        if !content.starts_with("---") 
+                            || extract_frontmatter(&content, "id").is_none()
+                            || extract_frontmatter(&content, "title").is_none() {
+                            malformed += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if malformed == 0 {
+        println!("{}✅{}", GREEN, NC);
+    } else {
+        println!("{}❌ {} malformed intents{}", RED, malformed, NC);
+        healthy = false;
+    }
+    
+    println!();
+    if healthy {
+        println!("{}✅ Intent Ledger is healthy!{}", GREEN, NC);
+        std::process::exit(0);
+    } else {
+        println!("{}❌ Intent Ledger has issues - run 'intent validate' for details{}", RED, NC);
+        std::process::exit(1);
     }
 }
 
@@ -603,7 +871,10 @@ fn cmd_help() {
     println!("   search <term> [filters]   Search intent content");
     println!("     --status <status>         Filter by status");
     println!("     --tag <tag>               Filter by tag");
-    println!("   stats                     Show intent statistics");
+    println!("   stats                     Show intent statistics with visual progress");
+    println!("   timeline                  Show chronological intent history");
+    println!("   validate                  Deep integrity check of Intent Ledger");
+    println!("   --health                  System health check");
     println!("   version, --version, -v    Show version");
     println!("   help                      Show this help");
     println!();
@@ -616,6 +887,9 @@ fn cmd_help() {
     println!("   intent search rust             # Search for 'rust'");
     println!("   intent search --tag v7.0       # Find v7.0 intents");
     println!("   intent stats                   # View statistics");
+    println!("   intent timeline                # Chronological view");
+    println!("   intent validate                # Validate all intents");
+    println!("   intent --health                # Health check");
 }
 
 fn extract_frontmatter(content: &str, key: &str) -> Option<String> {
@@ -636,14 +910,12 @@ fn extract_frontmatter(content: &str, key: &str) -> Option<String> {
             );
         }
     }
-
     None
 }
 
 // ============================================================================
 // Intent 052: Auto-Move on Status Change
 // ============================================================================
-
 fn cmd_status_change(id: &str, new_status: &str, target_dir: &str) {
     let intent_dir = get_intent_dir();
     
