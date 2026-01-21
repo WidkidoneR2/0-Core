@@ -88,7 +88,7 @@ fn main() {
     while i < args.len() {
         match args[i].as_str() {
             "-h" | "--help" => { show_help(); return; }
-            "--version" => { println!("core-diff version 1.2.0 (Rust)"); return; }
+            "--version" => { println!("core-diff version 2.0.0 (Rust)"); return; }
             "since" => {
                 mode = "since";
                 i += 1;
