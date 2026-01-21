@@ -1,8 +1,10 @@
-//! faelight-snapshot v0.1 - Snapper Wrapper for Btrfs Snapshots
+//! faelight-snapshot v1.0.0 - Snapper Wrapper for Btrfs Snapshots
 //! 🌲 Faelight Forest
 
 use std::env;
 use std::process::Command;
+
+const VERSION: &str = "1.0.0";
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -20,6 +22,8 @@ fn main() {
         "rollback" => rollback_snapshot(&args),
         "status" => show_status(),
         "-h" | "--help" | "help" => print_help(),
+        "-v" | "--version" => print_version(),
+        "--health" => health_check(),
         _ => {
             eprintln!("❌ Unknown command: {}", args[1]);
             print_help();
@@ -27,8 +31,68 @@ fn main() {
     }
 }
 
+fn print_version() {
+    println!("faelight-snapshot v{}", VERSION);
+}
+
+fn health_check() {
+    println!("🏥 faelight-snapshot v{} - Health Check", VERSION);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check if snapper is installed
+    print!("  Checking snapper installation... ");
+    match Command::new("which").arg("snapper").output() {
+        Ok(out) if out.status.success() => println!("✅"),
+        _ => {
+            println!("❌ snapper not found");
+            healthy = false;
+        }
+    }
+    
+    // Check root config
+    print!("  Checking root config... ");
+    match Command::new("sudo").args(["snapper", "-c", "root", "list"]).output() {
+        Ok(out) if out.status.success() => println!("✅"),
+        _ => {
+            println!("❌ root config missing");
+            healthy = false;
+        }
+    }
+    
+    // Check home config
+    print!("  Checking home config... ");
+    match Command::new("sudo").args(["snapper", "-c", "home", "list"]).output() {
+        Ok(out) if out.status.success() => println!("✅"),
+        _ => {
+            println!("❌ home config missing");
+            healthy = false;
+        }
+    }
+    
+    // Check btrfs
+    print!("  Checking btrfs filesystem... ");
+    match Command::new("sudo").args(["btrfs", "filesystem", "df", "/"]).output() {
+        Ok(out) if out.status.success() => println!("✅"),
+        _ => {
+            println!("❌ btrfs not available");
+            healthy = false;
+        }
+    }
+    
+    println!();
+    if healthy {
+        println!("✅ All systems operational");
+        std::process::exit(0);
+    } else {
+        println!("❌ System unhealthy");
+        std::process::exit(1);
+    }
+}
+
 fn print_help() {
-    println!("🌲 faelight-snapshot v0.1 - Btrfs Snapshot Manager");
+    println!("🌲 faelight-snapshot v{} - Btrfs Snapshot Manager", VERSION);
     println!();
     println!("USAGE:");
     println!("    faelight-snapshot <command> [options]");
@@ -40,6 +104,11 @@ fn print_help() {
     println!("    diff <num>           Show changes since snapshot");
     println!("    rollback <num>       Rollback to snapshot (requires reboot)");
     println!("    status               Show snapshot system status");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help           Show this help");
+    println!("    -v, --version        Show version");
+    println!("    --health             Run health check");
     println!();
     println!("EXAMPLES:");
     println!("    faelight-snapshot list");
