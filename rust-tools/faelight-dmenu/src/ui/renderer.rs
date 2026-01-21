@@ -28,7 +28,7 @@ use fontdue::{Font, FontSettings};
 
 use super::SharedState;
 
-const MAX_WIDTH: u32 = 450;
+const MAX_WIDTH: u32 = 700;
 const HEIGHT: u32 = 50;
 const BORDER_RADIUS: usize = 12;
 
@@ -158,7 +158,7 @@ impl DmenuApp {
             let count_text = format!("[{}/{}]", selected + 1, filtered.len());
             
             draw_text_simple(&self.font, canvas, 15, 28, &count_text, TEXT_COLOR, 16.0);
-            draw_text_simple(&self.font, canvas, 150, 28, item, SELECTED_COLOR, 22.0);
+            draw_text_simple(&self.font, canvas, 100, 28, item, SELECTED_COLOR, 16.0);
         } else if !query.is_empty() {
             draw_text_simple(&self.font, canvas, 15, 28, "No matches", TEXT_COLOR, 18.0);
         }

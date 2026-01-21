@@ -25,7 +25,9 @@ walkdir = "2"
 image = "0.25"
 toml = "0.8"
 
+dirs = "5.0"
 [profile.release]
 opt-level = "z"
 lto = true
 strip = true
+dirs = "5.0"
