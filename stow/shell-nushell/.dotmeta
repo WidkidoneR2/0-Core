@@ -1,4 +1,0 @@
-package: shell-nushell
-version: 0.1.0
-description: Nushell configuration - secondary Rust shell
-blast_radius: low
