@@ -618,46 +618,17 @@ fn check_scripts(ctx: &Context) -> CheckResult {
     }
 }
 
-fn check_dotmeta(ctx: &Context) -> CheckResult {
-    let mut missing = vec![];
-
-    if let Ok(entries) = fs::read_dir(&ctx.core_dir.join("stow")) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                // Skip non-package directories
-                if name.starts_with('.') || name == "scripts" || name == "docs" 
-                    || name == "INTENT" || name == "rust-tools" || name == "target" {
-                    continue;
-                }
-                if !path.join(".dotmeta").exists() {
-                    missing.push(name);
-                }
-            }
-        }
-    }
-
-    if missing.is_empty() {
-        CheckResult {
-            id: "dotmeta".to_string(),
-            name: "Package Metadata".to_string(),
-            status: Status::Pass,
-            severity: Severity::Low,
-            message: "All packages have .dotmeta".to_string(),
-            fix: None,
-            details: None,
-        }
-    } else {
-        CheckResult {
-            id: "dotmeta".to_string(),
-            name: "Package Metadata".to_string(),
-            status: Status::Warn,
-            severity: Severity::Low,
-            message: format!("{} packages missing .dotmeta", missing.len()),
-            fix: Some("Create .dotmeta files for packages".to_string()),
-            details: Some(missing),
-        }
+fn check_dotmeta(_ctx: &Context) -> CheckResult {
+    // .dotmeta files were intentionally removed to fix stow conflicts
+    // See: v8.0.0 stow symlink fix commit
+    CheckResult {
+        id: "dotmeta".to_string(),
+        name: "Package Metadata".to_string(),
+        status: Status::Pass,
+        severity: Severity::Low,
+        message: ".dotmeta files intentionally removed (stow conflict resolution)".to_string(),
+        fix: None,
+        details: None,
     }
 }
 
