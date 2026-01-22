@@ -116,3 +116,5 @@ fi
 # ═══════════════════════════════════════════════════════════
 # 🌲 END OF FAELIGHT FOREST CONFIGURATION
 # ═══════════════════════════════════════════════════════════
+export TERM=foot
+export COLORTERM=truecolor
