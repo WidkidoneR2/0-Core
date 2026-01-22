@@ -1,4 +1,4 @@
-//! entropy-check v0.2 - Configuration Drift Detection
+//! entropy-check v1.0.0 - Configuration Drift Detection
 //! 🌲 Faelight Forest
 
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+const VERSION: &str = "1.0.0";
 const BASELINE_PATH: &str = ".config/faelight/entropy-baseline.json";
 
 // ═══════════════════════════════════════════════════════════
@@ -79,6 +80,7 @@ fn collect_symlinks() -> HashMap<String, String> {
         Ok(h) => h,
         Err(_) => return symlinks,
     };
+    
     let config_dir = format!("{}/.config", home);
     let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
@@ -86,12 +88,14 @@ fn collect_symlinks() -> HashMap<String, String> {
         .filter_map(|e| e.ok())
         .filter(|e| e.path_is_symlink())
         .collect();
+    
     for entry in entries {
         let path = entry.path();
         if let Ok(target) = std::fs::read_link(path) {
             symlinks.insert(path.display().to_string(), target.display().to_string());
         }
     }
+    
     symlinks
 }
 
@@ -101,6 +105,7 @@ fn find_broken_symlinks(baseline_symlinks: &HashMap<String, String>) -> Vec<Stri
         Ok(h) => h,
         Err(_) => return broken,
     };
+    
     let config_dir = format!("{}/.config", home);
     let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
@@ -108,100 +113,84 @@ fn find_broken_symlinks(baseline_symlinks: &HashMap<String, String>) -> Vec<Stri
         .filter_map(|e| e.ok())
         .filter(|e| e.path_is_symlink())
         .collect();
+    
     for entry in entries {
         let path = entry.path();
         let path_str = path.display().to_string();
-        if let Ok(target) = std::fs::read_link(path) {
-            if !target.exists() && !baseline_symlinks.contains_key(&path_str) {
-                broken.push(format!("   {} → {} (new broken link)", path_str, target.display()));
-            }
+        
+        // Skip if it was already broken in baseline
+        if baseline_symlinks.contains_key(&path_str) {
+            continue;
+        }
+        
+        // Check if it's broken now
+        if !path.exists() {
+            broken.push(path_str);
         }
     }
+    
     broken
 }
 
-fn find_untracked_files(baseline: &EntropyBaseline) -> Vec<String> {
-    let mut untracked = Vec::new();
-    let home = match std::env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => return untracked,
-    };
-    let config_dir = format!("{}/.config", home);
-    let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .collect();
-    for entry in entries {
-        let path = entry.path();
-        let path_str = path.display().to_string();
-        if !baseline.config_checksums.contains_key(&path_str)
-            && !baseline.symlinks.contains_key(&path_str)
-            && !path_str.contains("cache")
-            && !path_str.contains(".git") {
-            untracked.push(format!("   {} (new file)", path_str));
-        }
-    }
-    untracked.truncate(10);
-    untracked
-}
-
-fn load_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
-    let path = get_baseline_path();
-    let contents = fs::read_to_string(path)?;
-    let baseline = serde_json::from_str(&contents)?;
-    Ok(baseline)
-}
+// ═══════════════════════════════════════════════════════════
+// 📸 BASELINE MANAGEMENT
+// ═══════════════════════════════════════════════════════════
 
 fn create_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
     println!("🔨 Creating baseline...");
     let mut baseline = EntropyBaseline::new();
     
-    // 1. Hash stowed config files
+    // Collect config checksums
     println!("   📁 Scanning config files...");
     let home = std::env::var("HOME")?;
-    let configs = vec![
-        format!("{}/.config/sway/config", home),
-        format!("{}/.zshrc", home),
-        format!("{}/.config/foot/foot.ini", home),
-        format!("{}/.config/starship.toml", home),
-    ];
+    let config_dir = format!("{}/.config", home);
     
-    for config_path in configs {
-        if let Ok(hash) = hash_file(Path::new(&config_path)) {
-            baseline.config_checksums.insert(config_path, hash);
+    for entry in walkdir::WalkDir::new(&config_dir)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        if let Ok(hash) = hash_file(entry.path()) {
+            baseline.config_checksums.insert(
+                entry.path().display().to_string(),
+                hash,
+            );
         }
     }
     
-    // 2. Check service states
+    // Collect service states
     println!("   ⚙️  Checking services...");
-    let services = vec!["faelight-notify.service", "faelight-bar.service"];
-    for service in services {
-        if let Ok(output) = Command::new("systemctl")
-            .args(["--user", "is-active", service])
-            .output()
-        {
-            let state = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            baseline.service_states.insert(service.to_string(), state);
+    if let Ok(output) = Command::new("systemctl")
+        .args(["--user", "list-units", "--type=service", "--all", "--plain", "--no-legend"])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                let service = parts[0].to_string();
+                let state = parts[3].to_string();
+                baseline.service_states.insert(service, state);
+            }
         }
     }
     
-    // 3. Get package versions (key packages only)
+    // Collect package versions (key packages only)
     println!("   📦 Recording package versions...");
-    let packages = vec!["sway", "foot", "neovim", "rust"];
+    let packages = vec!["sway", "waybar", "neovim", "zsh", "kitty"];
     for pkg in packages {
         if let Ok(output) = Command::new("pacman").args(["-Q", pkg]).output() {
-            let version = String::from_utf8_lossy(&output.stdout)
-                .split_whitespace()
-                .nth(1)
-                .unwrap_or("unknown")
-                .to_string();
-            baseline.package_versions.insert(pkg.to_string(), version);
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout)
+                    .trim()
+                    .to_string();
+                baseline.package_versions.insert(pkg.to_string(), version);
+            }
         }
     }
     
-    // 4. Collect symlinks
+    // Collect symlinks
     println!("   🔗 Scanning symlinks...");
     baseline.symlinks = collect_symlinks();
     
@@ -211,8 +200,6 @@ fn create_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
 
 fn save_baseline(baseline: &EntropyBaseline) -> Result<(), Box<dyn std::error::Error>> {
     let path = get_baseline_path();
-    
-    // Ensure directory exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -224,6 +211,17 @@ fn save_baseline(baseline: &EntropyBaseline) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
+fn load_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
+    let path = get_baseline_path();
+    let data = fs::read_to_string(path)?;
+    let baseline = serde_json::from_str(&data)?;
+    Ok(baseline)
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔍 DRIFT DETECTION
+// ═══════════════════════════════════════════════════════════
+
 fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::error::Error>> {
     let mut report = DriftReport {
         config_drifts: Vec::new(),
@@ -233,55 +231,72 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
         untracked_files: Vec::new(),
     };
     
-    // 1. Check config file changes
-    for (path, old_hash) in &baseline.config_checksums {
-        if let Ok(current_hash) = hash_file(Path::new(path)) {
-            if &current_hash != old_hash {
-                report.config_drifts.push(format!("   {} (modified)", path));
+    // Check config file changes
+    let home = std::env::var("HOME")?;
+    let config_dir = format!("{}/.config", home);
+    
+    for entry in walkdir::WalkDir::new(&config_dir)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let path_str = entry.path().display().to_string();
+        
+        if let Some(baseline_hash) = baseline.config_checksums.get(&path_str) {
+            // File existed in baseline - check if it changed
+            if let Ok(current_hash) = hash_file(entry.path()) {
+                if &current_hash != baseline_hash {
+                    report.config_drifts.push(format!("{} (modified)", path_str));
+                }
             }
         } else {
-            report.config_drifts.push(format!("   {} (missing)", path));
+            // New file
+            report.untracked_files.push(format!("{} (new file)", path_str));
         }
     }
     
-    // 2. Check service state changes
-    for (service, old_state) in &baseline.service_states {
-        if let Ok(output) = Command::new("systemctl")
-            .args(["--user", "is-active", service])
-            .output()
-        {
-            let current_state = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if &current_state != old_state {
-                report.service_drifts.push(format!(
-                    "   {} ({} → {})",
-                    service, old_state, current_state
-                ));
+    // Check service state changes
+    if let Ok(output) = Command::new("systemctl")
+        .args(["--user", "list-units", "--type=service", "--all", "--plain", "--no-legend"])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                let service = parts[0];
+                let current_state = parts[3];
+                
+                if let Some(baseline_state) = baseline.service_states.get(service) {
+                    if baseline_state != current_state {
+                        report.service_drifts.push(
+                            format!("{} ({} → {})", service, baseline_state, current_state)
+                        );
+                    }
+                }
             }
         }
     }
     
-    // 3. Check package version changes
-    for (pkg, old_version) in &baseline.package_versions {
+    // Check package version changes
+    for (pkg, baseline_version) in &baseline.package_versions {
         if let Ok(output) = Command::new("pacman").args(["-Q", pkg]).output() {
-            let current_version = String::from_utf8_lossy(&output.stdout)
-                .split_whitespace()
-                .nth(1)
-                .unwrap_or("unknown")
-                .to_string();
-            if &current_version != old_version {
-                report.binary_drifts.push(format!(
-                    "   {} ({} → {})",
-                    pkg, old_version, current_version
-                ));
+            if output.status.success() {
+                let current_version = String::from_utf8_lossy(&output.stdout)
+                    .trim()
+                    .to_string();
+                if &current_version != baseline_version {
+                    report.binary_drifts.push(
+                        format!("{}: {} → {}", pkg, baseline_version, current_version)
+                    );
+                }
             }
         }
     }
     
-    // 4. Check for broken symlinks
+    // Check for new broken symlinks
     report.symlink_drifts = find_broken_symlinks(&baseline.symlinks);
-    
-    // 5. Check for untracked files
-    report.untracked_files = find_untracked_files(baseline);
     
     Ok(report)
 }
@@ -298,10 +313,9 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     } else {
         println!("⚠️  Config Drift ({} files)", drift.config_drifts.len());
         for item in &drift.config_drifts {
-            println!("{}", item);
+            println!("   {}", item);
         }
     }
-    println!();
     
     // Service drift
     if drift.service_drifts.is_empty() {
@@ -309,10 +323,9 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     } else {
         println!("⚠️  Service Drift ({} changes)", drift.service_drifts.len());
         for item in &drift.service_drifts {
-            println!("{}", item);
+            println!("   {}", item);
         }
     }
-    println!();
     
     // Binary drift
     if drift.binary_drifts.is_empty() {
@@ -320,10 +333,9 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     } else {
         println!("⚠️  Binary Drift ({} changes)", drift.binary_drifts.len());
         for item in &drift.binary_drifts {
-            println!("{}", item);
+            println!("   {}", item);
         }
     }
-    println!();
     
     // Symlink drift
     if drift.symlink_drifts.is_empty() {
@@ -331,55 +343,77 @@ fn report_drift(baseline: &EntropyBaseline, drift: &DriftReport) {
     } else {
         println!("⚠️  Symlink Drift ({} new breaks)", drift.symlink_drifts.len());
         for item in &drift.symlink_drifts {
-            println!("{}", item);
+            println!("   {}", item);
         }
     }
-    println!();
     
     // Untracked files
     if drift.untracked_files.is_empty() {
         println!("✅ Untracked Files (0 new)");
     } else {
         println!("⚠️  Untracked Files ({} new)", drift.untracked_files.len());
-        for item in &drift.untracked_files {
-            println!("{}", item);
+        for item in drift.untracked_files.iter().take(10) {
+            println!("   {}", item);
+        }
+        if drift.untracked_files.len() > 10 {
+            println!("   ... and {} more", drift.untracked_files.len() - 10);
         }
     }
+    
     println!();
     
-    // Summary
-    let total_drifts = drift.config_drifts.len() + drift.service_drifts.len() + drift.binary_drifts.len() + drift.symlink_drifts.len() + drift.untracked_files.len();
-    if total_drifts == 0 {
-        println!("✨ No drift detected. System stable.");
-    } else {
+    // Recommendation
+    let total_issues = drift.config_drifts.len() 
+                     + drift.service_drifts.len() 
+                     + drift.binary_drifts.len() 
+                     + drift.symlink_drifts.len();
+    
+    if total_issues == 0 && drift.untracked_files.is_empty() {
+        println!("🎉 System stable! No drift detected.");
+    } else if total_issues > 0 {
         println!("💡 Recommendation:");
         if !drift.config_drifts.is_empty() {
-            println!("   Review modified configs, consider restowing");
+            println!("   Config files changed - review and update baseline if intentional");
         }
         if !drift.service_drifts.is_empty() {
-            println!("   Check service states, restart if needed");
+            println!("   Services changed state - check if this is expected");
         }
         if !drift.binary_drifts.is_empty() {
-            println!("   Package updates detected, run entropy-check --baseline to update");
+            println!("   Packages updated - update baseline after verifying system health");
         }
         if !drift.symlink_drifts.is_empty() {
-            println!("   New broken symlinks detected, investigate and repair");
+            println!("   Broken symlinks detected - investigate and repair");
         }
-        if !drift.untracked_files.is_empty() {
-            println!("   New untracked files detected, review and add to baseline if intended");
-        }
+    } else if !drift.untracked_files.is_empty() {
+        println!("💡 Recommendation:");
+        println!("   New untracked files detected, review and add to baseline if intended");
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🚀 MAIN
+// 🎯 MAIN & FLAGS
 // ═══════════════════════════════════════════════════════════
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
-    // Handle trends command first
-    if args.contains(&"trends".to_string()) {
+    // Handle flags
+    if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
+        println!("entropy-check v{}", VERSION);
+        return;
+    }
+    
+    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
+        show_help();
+        return;
+    }
+    
+    if args.contains(&"--health".to_string()) {
+        show_health();
+        return;
+    }
+    
+    if args.contains(&"--trends".to_string()) {
         show_trends();
         return;
     }
@@ -387,7 +421,7 @@ fn main() {
     let json_output = args.contains(&"--json".to_string());
     
     if !json_output {
-        println!("🔍 entropy-check v0.2 - Configuration Drift Detection");
+        println!("🔍 entropy-check v{} - Configuration Drift Detection", VERSION);
         println!();
     }
     
@@ -439,9 +473,110 @@ fn main() {
     }
 }
 
+fn show_help() {
+    println!("🔍 entropy-check v{} - Configuration Drift Detection", VERSION);
+    println!();
+    println!("USAGE:");
+    println!("  entropy-check [FLAGS]");
+    println!();
+    println!("FLAGS:");
+    println!("  --baseline          Create/update baseline snapshot");
+    println!("  --trends            Show drift history (last 30 days)");
+    println!("  --json              Output in JSON format");
+    println!("  --health            Run health check");
+    println!("  --version, -v       Show version");
+    println!("  --help, -h          Show this help");
+    println!();
+    println!("EXAMPLES:");
+    println!("  entropy-check --baseline    # Create baseline");
+    println!("  entropy-check               # Check for drift");
+    println!("  entropy-check --trends      # Show history");
+    println!("  entropy-check --json        # JSON output");
+    println!();
+    println!("FILES:");
+    println!("  ~/.config/faelight/entropy-baseline.json    Baseline snapshot");
+    println!("  ~/.config/faelight/entropy-history.json     Drift history");
+    println!();
+    println!("PHILOSOPHY:");
+    println!("  Systems drift. Humans change. Contexts evolve.");
+    println!("  entropy-check watches for the silent changes.");
+}
+
+fn show_health() {
+    println!();
+    println!("🏥 entropy-check v{} - Health Check", VERSION);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check baseline exists
+    print!("  Checking baseline... ");
+    let baseline_path = get_baseline_path();
+    if baseline_path.exists() {
+        if let Ok(baseline) = load_baseline() {
+            println!("✅ Found (created {})", baseline.created_at.split('T').next().unwrap_or("unknown"));
+        } else {
+            println!("⚠️  Exists but corrupted");
+            healthy = false;
+        }
+    } else {
+        println!("❌ No baseline found");
+        healthy = false;
+    }
+    
+    // Check history
+    print!("  Checking history... ");
+    let history_path = get_history_path();
+    if history_path.exists() {
+        let history = DriftHistory::load();
+        println!("✅ {} entries", history.entries.len());
+    } else {
+        println!("⚠️  No history yet");
+    }
+    
+    // Check systemctl available
+    print!("  Checking systemctl... ");
+    if Command::new("which").arg("systemctl").output().is_ok() {
+        println!("✅");
+    } else {
+        println!("❌ Not found");
+        healthy = false;
+    }
+    
+    // Check pacman available
+    print!("  Checking pacman... ");
+    if Command::new("which").arg("pacman").output().is_ok() {
+        println!("✅");
+    } else {
+        println!("❌ Not found");
+        healthy = false;
+    }
+    
+    // Check ~/.config exists
+    print!("  Checking ~/.config... ");
+    let home = std::env::var("HOME").unwrap_or_default();
+    let config_dir = format!("{}/.config", home);
+    if PathBuf::from(&config_dir).exists() {
+        println!("✅");
+    } else {
+        println!("❌ Not found");
+        healthy = false;
+    }
+    
+    println!();
+    if healthy {
+        println!("✅ All systems operational");
+        std::process::exit(0);
+    } else {
+        println!("❌ System unhealthy");
+        std::process::exit(1);
+    }
+}
+
 fn output_json(baseline: &EntropyBaseline, drift: &DriftReport) {
     let output = serde_json::json!({
         "version": "1.0",
+        "tool_version": VERSION,
         "system_version": get_system_version(),
         "baseline_created": baseline.created_at,
         "timestamp": chrono::Utc::now().to_rfc3339(),
@@ -550,11 +685,11 @@ fn get_history_path() -> PathBuf {
 }
 
 fn show_trends() {
-    let history = DriftHistory::load();
-    
     println!("📊 Drift Trends - Last 30 days");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
+    
+    let history = DriftHistory::load();
     
     if history.entries.is_empty() {
         println!("No drift history found");
@@ -610,4 +745,3 @@ fn show_trends() {
     println!("   Highest drift: {}", max_drift);
     println!("   Clean checks: {}/{}", clean_checks, history.entries.len());
 }
-
