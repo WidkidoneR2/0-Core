@@ -1,10 +1,13 @@
-//! workspace-view v0.1 - Sway Workspace Intelligence
+//! workspace-view v1.0.0 - Sway Workspace Intelligence
 //! 🌲 Faelight Forest
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
+
+const VERSION: &str = "1.0.0";
 
 // ANSI colors
 const CYAN: &str = "\x1b[0;36m";
@@ -12,6 +15,7 @@ const GREEN: &str = "\x1b[0;32m";
 const YELLOW: &str = "\x1b[0;33m";
 const BLUE: &str = "\x1b[0;34m";
 const GRAY: &str = "\x1b[0;90m";
+const RED: &str = "\x1b[0;31m";
 const NC: &str = "\x1b[0m";
 
 #[derive(Deserialize, Debug)]
@@ -59,36 +63,106 @@ enum OutputMode {
     All,
     Summary,
     Json,
+    Watch(u64), // Watch mode with interval in seconds
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     
-    let mode = if args.len() > 1 {
+    let mode = parse_args(&args);
+    
+    // Handle watch mode specially
+    if let OutputMode::Watch(interval) = mode {
+        run_watch_mode(interval);
+        return;
+    }
+    
+    // Single execution for other modes
+    execute_mode(&mode);
+}
+
+fn parse_args(args: &[String]) -> OutputMode {
+    if args.len() > 1 {
         match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("workspace-view v{}", VERSION);
+                std::process::exit(0);
+            }
+            "--health" => {
+                run_health_check();
+                std::process::exit(0);
+            }
             "--active" | "-a" => OutputMode::Active,
             "--all" => OutputMode::All,
             "--summary" | "-s" => OutputMode::Summary,
             "--json" => OutputMode::Json,
+            "--watch" | "-w" => {
+                // Check for interval argument
+                let interval = if args.len() > 2 {
+                    args[2].parse::<u64>().unwrap_or(2)
+                } else {
+                    2 // Default 2 seconds
+                };
+                OutputMode::Watch(interval)
+            }
             "--help" | "-h" => {
                 show_help();
-                return;
+                std::process::exit(0);
             }
             _ => {
-                eprintln!("Unknown option: {}", args[1]);
+                eprintln!("{}Unknown option: {}{}", RED, args[1], NC);
                 eprintln!("Try --help for usage information");
                 std::process::exit(1);
             }
         }
     } else {
         OutputMode::Default
-    };
+    }
+}
 
+fn run_watch_mode(interval: u64) {
+    println!("{}🌲 Workspace Watch Mode{} (updating every {}s, Ctrl+C to exit)", 
+             CYAN, NC, interval);
+    println!();
+    
+    loop {
+        // Clear screen
+        print!("\x1b[2J\x1b[H");
+        
+        // Show timestamp
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap();
+        println!("{}Last updated: {} seconds since epoch{}", 
+                 GRAY, now.as_secs(), NC);
+        println!();
+        
+        // Execute in active mode for watch
+        execute_mode(&OutputMode::Default);
+        
+        // Wait for interval
+        thread::sleep(Duration::from_secs(interval));
+    }
+}
+
+fn execute_mode(mode: &OutputMode) {
     // Get all workspaces
-    let workspaces = get_workspaces();
+    let workspaces = match get_workspaces() {
+        Ok(ws) => ws,
+        Err(e) => {
+            eprintln!("{}❌ Error getting workspaces: {}{}", RED, e, NC);
+            std::process::exit(1);
+        }
+    };
     
     // Get detailed tree
-    let tree = get_tree();
+    let tree = match get_tree() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{}❌ Error getting tree: {}{}", RED, e, NC);
+            std::process::exit(1);
+        }
+    };
     
     // Build workspace map
     let mut workspace_data: Vec<WorkspaceInfo> = Vec::new();
@@ -110,6 +184,78 @@ fn main() {
         OutputMode::Active => output_active(&workspace_data),
         OutputMode::All => output_detailed(&workspace_data, true),
         OutputMode::Default => output_detailed(&workspace_data, false),
+        OutputMode::Watch(_) => unreachable!(),
+    }
+}
+
+fn run_health_check() {
+    println!();
+    println!("{}🏥 workspace-view v{} - Health Check{}", CYAN, VERSION, NC);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    let mut healthy = true;
+    
+    // Check swaymsg available
+    print!("  Checking swaymsg... ");
+    match Command::new("which").arg("swaymsg").output() {
+        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        _ => {
+            println!("{}❌ Not found{}", RED, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check if running under Sway
+    print!("  Checking Sway session... ");
+    match env::var("SWAYSOCK") {
+        Ok(_) => println!("{}✅{}", GREEN, NC),
+        Err(_) => {
+            println!("{}❌ Not running in Sway{}", RED, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check if can get workspaces
+    print!("  Checking workspace access... ");
+    match get_workspaces() {
+        Ok(ws) if !ws.is_empty() => {
+            println!("{}✅ {} workspaces detected{}", GREEN, ws.len(), NC);
+        }
+        Ok(_) => {
+            println!("{}⚠️  No workspaces found{}", YELLOW, NC);
+        }
+        Err(e) => {
+            println!("{}❌ Error: {}{}", RED, e, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check if can get tree
+    print!("  Checking tree access... ");
+    match get_tree() {
+        Ok(_) => println!("{}✅{}", GREEN, NC),
+        Err(e) => {
+            println!("{}❌ Error: {}{}", RED, e, NC);
+            healthy = false;
+        }
+    }
+    
+    // Check pgrep available (for cwd detection)
+    print!("  Checking pgrep (for cwd)... ");
+    match Command::new("which").arg("pgrep").output() {
+        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        _ => {
+            println!("{}⚠️  Not found (cwd detection disabled){}", YELLOW, NC);
+        }
+    }
+    
+    println!();
+    if healthy {
+        println!("{}✅ All systems operational{}", GREEN, NC);
+        std::process::exit(0);
+    } else {
+        println!("{}❌ System unhealthy{}", RED, NC);
+        std::process::exit(1);
     }
 }
 
@@ -133,13 +279,13 @@ fn output_summary(data: &[WorkspaceInfo]) {
         
         if ws.window_count > 0 {
             let apps: Vec<&str> = ws.windows.iter().map(|w| w.app_id.as_str()).collect();
-            println!("{}{}{} → {} window{} ({})",
+            println!("{}{}{} → {} window{} ({}){}",
                 BLUE, ws.num, NC,
                 ws.window_count,
                 if ws.window_count == 1 { "" } else { "s" },
-                apps.join(", ")
+                apps.join(", "),
+                status
             );
-            println!("{}", status);
         } else {
             println!("{}{}{} → {}(empty){}",
                 GRAY, ws.num, NC, GRAY, NC
@@ -249,22 +395,32 @@ fn display_workspace(ws: &WorkspaceInfo) {
     println!();
 }
 
-fn get_workspaces() -> Vec<Workspace> {
+fn get_workspaces() -> Result<Vec<Workspace>, String> {
     let output = Command::new("swaymsg")
         .args(["-t", "get_workspaces"])
         .output()
-        .expect("Failed to run swaymsg");
+        .map_err(|e| format!("Failed to run swaymsg: {}", e))?;
     
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|_| vec![])
+    if !output.status.success() {
+        return Err("swaymsg failed".to_string());
+    }
+    
+    serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse workspaces: {}", e))
 }
 
-fn get_tree() -> TreeNode {
+fn get_tree() -> Result<TreeNode, String> {
     let output = Command::new("swaymsg")
         .args(["-t", "get_tree"])
         .output()
-        .expect("Failed to run swaymsg");
+        .map_err(|e| format!("Failed to run swaymsg: {}", e))?;
     
-    serde_json::from_slice(&output.stdout).expect("Failed to parse tree")
+    if !output.status.success() {
+        return Err("swaymsg failed".to_string());
+    }
+    
+    serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse tree: {}", e))
 }
 
 fn get_windows_for_workspace(tree: &TreeNode, workspace_num: i32) -> Vec<Window> {
@@ -335,21 +491,36 @@ fn shorten_path(path: String) -> String {
 }
 
 fn show_help() {
-    println!("workspace-view - Sway Workspace Intelligence");
+    println!("{}🌲 workspace-view v{}{} - Sway Workspace Intelligence", CYAN, VERSION, NC);
     println!();
     println!("USAGE:");
     println!("   workspace-view [OPTIONS]");
     println!();
     println!("OPTIONS:");
-    println!("   --active, -a     Show only the active workspace");
-    println!("   --all            Show all workspaces including empty ones");
-    println!("   --summary, -s    Compact summary view");
-    println!("   --json           Machine-readable JSON output");
-    println!("   --help, -h       Show this help message");
+    println!("   --active, -a         Show only the active workspace");
+    println!("   --all                Show all workspaces including empty ones");
+    println!("   --summary, -s        Compact summary view");
+    println!("   --watch, -w [SEC]    Watch mode (default: 2 seconds)");
+    println!("   --json               Machine-readable JSON output");
+    println!("   --health             Run health check");
+    println!("   --version, -v        Show version");
+    println!("   --help, -h           Show this help message");
     println!();
     println!("EXAMPLES:");
     println!("   workspace-view              # Default detailed view");
     println!("   workspace-view --active     # Quick glance at current workspace");
     println!("   workspace-view --summary    # One-line per workspace");
+    println!("   workspace-view --watch      # Live updates every 2s");
+    println!("   workspace-view --watch 5    # Live updates every 5s");
     println!("   workspace-view --json       # JSON for scripting");
+    println!();
+    println!("ALIASES:");
+    println!("   alias ws='workspace-view'");
+    println!("   alias wsa='workspace-view --active'");
+    println!("   alias wss='workspace-view --summary'");
+    println!("   alias wsw='workspace-view --watch'");
+    println!();
+    println!("PHILOSOPHY:");
+    println!("   'Understanding over convenience'");
+    println!("   See your workspace state at a glance.");
 }
