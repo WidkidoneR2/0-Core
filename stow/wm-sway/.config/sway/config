@@ -261,3 +261,35 @@ bindsym $mod+Alt+c exec filen-desktop
 exec ~/0-core/scripts/faelight-notify
 
 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 0-Core Tool Keybindings
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# System Health & Monitoring
+bindsym $mod+Alt+h exec $term -e ~/0-core/scripts/dot-doctor
+bindsym $mod+Alt+m exec ~/0-core/scripts/faelight-dashboard
+bindsym $mod+Alt+x exec $term -e ~/0-core/scripts/entropy-check
+
+# Development & Git
+bindsym $mod+Alt+g exec $term -e ~/0-core/scripts/faelight-git
+bindsym $mod+Alt+i exec $term -e ~/0-core/scripts/intent
+bindsym $mod+Alt+z exec ~/0-core/scripts/faelight-snapshot
+
+# System Management
+bindsym $mod+Alt+u exec $term -e ~/0-core/scripts/safe-update
+bindsym $mod+Alt+p exec $term -e ~/0-core/scripts/core-protect
+bindsym $mod+Alt+f exec $term -e ~/0-core/scripts/profile
+
+# Analysis & Utilities
+bindsym $mod+Alt+a exec $term -e ~/0-core/scripts/keyscan
+bindsym $mod+Alt+v exec notify-send "🌲 Faelight Forest" "v8.0.0"
+bindsym $mod+Alt+b exec $term -e ~/0-core/scripts/bump-system-version
+bindsym $mod+Alt+l exec $term -e ~/0-core/scripts/latest-update
+bindsym $mod+Alt+w exec $term -e ~/0-core/scripts/dotctl
+
+# Specialized Tools
+bindsym $mod+Ctrl+d exec $term -e ~/0-core/scripts/core-diff
+bindsym $mod+Ctrl+a exec $term -e ~/0-core/scripts/archaeology-0-core
+bindsym $mod+Ctrl+c exec $term -e ~/0-core/scripts/compile-changelog.sh
+bindsym $mod+Ctrl+g exec $term -e ~/0-core/scripts/faelight-stow
