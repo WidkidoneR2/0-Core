@@ -10,7 +10,6 @@ mod search;
 mod ui;
 mod desktop;
 mod intents;
-mod icons;
 
 use ui::{DmenuState, renderer::DmenuApp};
 

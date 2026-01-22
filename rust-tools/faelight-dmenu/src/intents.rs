@@ -1,6 +1,5 @@
 //! Intent Ledger Parser
 use std::fs;
-use std::path::PathBuf;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]

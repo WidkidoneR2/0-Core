@@ -113,26 +113,7 @@ pub fn scan_desktop_entries() -> Vec<DesktopEntry> {
     entries
 }
 
-pub fn get_category_icon(categories: &[String]) -> &'static str {
-    for cat in categories {
-        match cat.as_str() {
-            "Network" | "WebBrowser" => return "󰖟",
-            "Development" | "IDE" | "TextEditor" => return "",
-            "Graphics" | "Photography" => return "󰋩",
-            "AudioVideo" | "Audio" | "Video" => return "󰝚",
-            "Game" => return "󰊗",
-            "Utility" | "System" => return "󰒓",
-            "Office" => return "󰈙",
-            "Settings" | "DesktopSettings" => return "󰒓",
-            "TerminalEmulator" => return "",
-            "FileManager" => return "󰉋",
-            _ => {}
-        }
-    }
-    "" // Default icon
-}
 
-pub mod icons;
 
 /// Scan all XDG application directories for .desktop files
 pub fn scan_applications() -> Vec<DesktopEntry> {

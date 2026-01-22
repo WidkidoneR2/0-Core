@@ -30,4 +30,4 @@ dirs = "5.0"
 opt-level = "z"
 lto = true
 strip = true
-dirs = "5.0"
+
