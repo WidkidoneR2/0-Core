@@ -1,4 +1,4 @@
-//! faelight-dashboard v0.1 - TUI System Overview
+//! faelight-dashboard v1.0.0 - TUI System Overview
 //! 🌲 Faelight Forest
 
 use crossterm::{
@@ -13,7 +13,33 @@ use ratatui::{
 use std::io::{stdout, Result};
 use std::process::Command;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("faelight-dashboard v{}", VERSION);
+                return Ok(());
+            }
+            "--help" | "-h" => {
+                print_help();
+                return Ok(());
+            }
+            "--health" => {
+                println!("✅ faelight-dashboard: TUI operational");
+                return Ok(());
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", args[1]);
+                eprintln!("Try 'faelight-dashboard --help'");
+                std::process::exit(1);
+            }
+        }
+    }
+    
     stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
     
@@ -25,6 +51,32 @@ fn main() -> Result<()> {
     stdout().execute(LeaveAlternateScreen)?;
     
     result
+}
+
+fn print_help() {
+    println!("faelight-dashboard v{} - TUI System Overview", VERSION);
+    println!("🌲 Faelight Forest");
+    println!();
+    println!("USAGE:");
+    println!("    faelight-dashboard [OPTIONS]");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help       Show this help message");
+    println!("    -v, --version    Show version information");
+    println!("    --health         Check tool health status");
+    println!();
+    println!("INTERACTIVE SHORTCUTS:");
+    println!("    h       Run dot-doctor health check");
+    println!("    g       Open lazygit");
+    println!("    i       List intents");
+    println!("    r       Refresh dashboard");
+    println!("    q/Esc   Quit");
+    println!();
+    println!("DASHBOARD PANELS:");
+    println!("    🏥 Health      - System health checks");
+    println!("    🔧 System      - Git status, profile, intents");
+    println!("    🔒 Security    - VPN, firewall, snapshots");
+    println!("    📊 Stats       - Tool and package counts");
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Result<()> {
@@ -117,14 +169,14 @@ fn gather_data() -> DashboardData {
         .unwrap_or_else(|_| "0".to_string());
     
     let packages = Command::new("sh")
-        .args(["-c", "cat ~/0-core/pkglist.txt 2>/dev/null | wc -l"])
+        .args(["-c", "cat ~/0-core/packages/pkglist.txt 2>/dev/null | wc -l"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "0".to_string());
     
     let stats = format!("🦀 {} Rust tools | 📦 {} packages", rust_tools, packages);
     
-    // Security
+    // Security - VPN
     let vpn = Command::new("sh")
         .args(["-c", "mullvad status 2>/dev/null | head -1"])
         .output()
@@ -134,26 +186,31 @@ fn gather_data() -> DashboardData {
         })
         .unwrap_or("❓ VPN");
     
+    // Security - Firewall (check systemctl instead of sudo ufw)
     let ufw = Command::new("sh")
-        .args(["-c", "sudo ufw status 2>/dev/null | head -1"])
+        .args(["-c", "systemctl is-active ufw 2>/dev/null"])
         .output()
         .map(|o| {
             let out = String::from_utf8_lossy(&o.stdout).to_string();
-            if out.contains("active") { "🟢 UFW" } else { "🔴 UFW" }
+            if out.trim() == "active" { "🟢 UFW" } else { "🔴 UFW" }
         })
         .unwrap_or("❓ UFW");
     
     let security = format!("{} | {}", vpn, ufw);
     
-    // Snapshots
+    // Snapshots (graceful without sudo)
     let snapshots = Command::new("sh")
-        .args(["-c", "sudo snapper -c root list 2>/dev/null | tail -1 | awk '{print $7, $8}'"])
+        .args(["-c", "snapper -c root list 2>/dev/null | tail -1 | awk '{print $7, $8}'"])
         .output()
         .map(|o| {
             let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if out.is_empty() { "No snapshots".to_string() } else { format!("Latest: {}", out) }
+            if out.is_empty() { 
+                "📸 No snapshot access".to_string() 
+            } else { 
+                format!("📸 Latest: {}", out) 
+            }
         })
-        .unwrap_or_else(|_| "Unknown".to_string());
+        .unwrap_or_else(|_| "📸 No snapshot access".to_string());
     
     DashboardData {
         version,
@@ -222,7 +279,7 @@ fn render_dashboard(frame: &mut Frame, data: &DashboardData) {
     
     // Security panel
     let security_content = format!(
-        "{}\n\n📸 {}",
+        "{}\n\n{}",
         data.security, data.snapshots
     );
     let security = Paragraph::new(security_content)
