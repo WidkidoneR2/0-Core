@@ -2,9 +2,9 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "1.0.1";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -121,12 +121,14 @@ fn cmd_health(core_dir: &PathBuf) {
 fn cmd_lock(core_dir: &PathBuf) {
     println!("🔒 Locking 0-core (immutable protection)...");
     
-    // Lock all items in core_dir
+    // Lock all items in core_dir (silently skip unsupported files)
     if let Ok(entries) = fs::read_dir(core_dir) {
         for entry in entries.flatten() {
             Command::new("sudo")
                 .args(["chattr", "+i"])
                 .arg(entry.path())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .status()
                 .ok();
         }
@@ -136,6 +138,8 @@ fn cmd_lock(core_dir: &PathBuf) {
     Command::new("sudo")
         .args(["chattr", "+i"])
         .arg(core_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .ok();
     
@@ -145,12 +149,14 @@ fn cmd_lock(core_dir: &PathBuf) {
 fn cmd_unlock(core_dir: &PathBuf) {
     println!("🔓 Unlocking 0-core for editing...");
     
-    // Unlock all items first
+    // Unlock all items first (silently skip unsupported files)
     if let Ok(entries) = fs::read_dir(core_dir) {
         for entry in entries.flatten() {
             Command::new("sudo")
                 .args(["chattr", "-i"])
                 .arg(entry.path())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .status()
                 .ok();
         }
@@ -160,6 +166,8 @@ fn cmd_unlock(core_dir: &PathBuf) {
     Command::new("sudo")
         .args(["chattr", "-i"])
         .arg(core_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .ok();
     
