@@ -142,3 +142,4 @@ target/
 
 # Session state files (local only)
 **/SESSION_STATE.md
+logs/
