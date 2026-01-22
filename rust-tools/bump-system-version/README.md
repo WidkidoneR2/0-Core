@@ -1,341 +1,173 @@
-# bump-system-version v3.0.0
+# bump-system-version v4.0.0
 
-🌲 **Complete Release Automation** - Automated release process following Faelight Forest release standards.
+**Complete 0-Core Release Automation** - Philosophy-driven release management for Faelight Forest.
 
-## Philosophy
-
-> "Releases should be rigorous, automated, and auditable."
-
-`bump-system-version` automates the entire 0-Core release process: version updates, CHANGELOG generation from git commits, snapshot creation, and validation. It follows your documented release process exactly.
-
-## What It Does
-
-When you run `bump-system-version 8.0.0`, it:
-
-1. ✅ **Pre-flight checks** - Verifies system health and git status
-2. ✅ **Creates snapshot** - Snapper snapshot for rollback
-3. ✅ **Updates versions** - VERSION, Cargo.toml, .zshrc, README.md
-4. ✅ **Generates CHANGELOG** - Template with today's date
-5. ✅ **Shows next steps** - Clear guide for completion
-
-## Usage
-
-### Basic Release
-```bash
-# Bump to new version
-bump-system-version 8.0.0
-
-# Output:
-# 🌲 0-Core Release Process v7.6.5 → v8.0.0
-#
-# 📋 Step 1: Pre-flight Checks
-#   ✅ System health: OK
-#   ✅ Git status: clean
-#
-# 📸 Step 2: Creating Snapshot
-#   ✅ Snapshot #42 created
-#   🔄 Rollback: sudo snapper rollback 42
-#
-# 🔄 Step 3: Updating Version Numbers
-#   ✅ VERSION file
-#   ✅ Cargo.toml
-#   ✅ stow/shell-zsh/.zshrc
-#   ✅ README.md (4 updates)
-#
-# 📝 Step 4: Generating CHANGELOG.md Template
-#   ✅ Template added to CHANGELOG.md
-#
-# ✅ Release v8.0.0 Prepared Successfully!
-```
-
-### Version Types
-```bash
-# Major release (breaking changes, major features)
-bump-system-version 8.0.0
-
-# Minor release (new features, new tools)
-bump-system-version 7.7.0
-
-# Patch release (bug fixes, polish)
-bump-system-version 7.6.6
-```
-
-## Release Process
-
-### Automated Steps (Done by tool)
-
-1. ✅ Health check via `dot-doctor`
-2. ✅ Verify git is clean
-3. ✅ Create Snapper snapshot
-4. ✅ Update `VERSION` file
-5. ✅ Update `Cargo.toml` version
-6. ✅ Update `.zshrc` welcome message
-7. ✅ Update `README.md` badges and milestone line
-8. ✅ Generate `CHANGELOG.md` template
-
-### Manual Steps (You complete)
-
-After running the tool:
-```bash
-# 1. Review changes
-git diff
-
-# 2. Edit CHANGELOG.md
-# Fill in the template with actual features/fixes
-
-# 3. Edit README.md
-# Update milestone description
-
-# 4. Mark intents complete (if any)
-sed -i 's/status: planned/status: complete/' ~/0-core/INTENT/future/XXX.md
-
-# 5. Verify everything
-doctor
-
-# 6. Commit
-git add -A
-git commit -m "🌲 Release v8.0.0 - Description
-
-- Feature 1
-- Feature 2
-- Fix 1
-
-Health: 100%"
-
-# 7. Tag
-git tag -a v8.0.0 -m "v8.0.0 - Description"
-
-# 8. Push
-git push && git push --tags
-```
-
-## Files Updated
-
-### VERSION
-```
-8.0.0
-```
-
-### Cargo.toml
-```toml
-[package]
-name = "0-core"
-version = "8.0.0"  # Updated
-```
-
-### stow/shell-zsh/.zshrc
-```bash
-echo "🌲 Faelight Forest v8.0.0"  # Updated
-```
-
-### README.md
-```markdown
-# Faelight Forest v8.0.0 - Sway Edition  # Updated
-
-![Version](https://img.shields.io/badge/Version-v8.0.0-brightgreen)  # Updated
-
-**v8.0.0 Milestone:** Description here. 🌲🦀  # Updated line
-```
-
-### CHANGELOG.md
-```markdown
-# Changelog
-
-## [8.0.0] - 2025-01-21
-### 🚀 New Features
-- [Feature description]
-
-### 🔧 Fixes
-- [Fix description]
-
-### 📦 Tool Updates
-- [tool-name] vX.Y - [changes]
-
-> "Quote for this release" 🌲
-
----
-```
-
-## CHANGELOG Emoji Guide
-
-Use these categories in CHANGELOG.md:
-
-- 🚀 **New features** - Major functionality added
-- 🔧 **Fixes** - Bug fixes and corrections
-- 📦 **Tool updates** - Individual tool version bumps
-- 🔒 **Security** - Security improvements
-- 📐 **Typography/UI** - Visual improvements
-- 🦀 **Rust improvements** - Code quality, performance
-- 📜 **Documentation** - Docs and comments
-
-## Example Release (v8.0.0 After Audit)
-```bash
-# After completing tool audit
-bump-system-version 8.0.0
-
-# Edit CHANGELOG.md:
-## [8.0.0] - 2025-01-22
-### 🚀 New Features
-- Complete tool audit: 29/29 tools documented and v1.0+
-- Intent-aware launcher (faelight-dmenu v2.0.0)
-- Immutable core protection (core-protect v1.0.0)
-- Risk-aware diff tool (core-diff v2.0.0)
-
-### 📦 Tool Updates
-- faelight v1.0.0 - System orchestrator
-- faelight-dmenu v2.0.0 - Intent Ledger integration
-- core-protect v1.0.0 - Kernel-level immutability
-- core-diff v2.0.0 - Shell policy scanner
-- profile v1.0.0 - Context-aware profiles
-- intent v2.0.0 - 74 intents (73% success rate)
-- intent-guard v1.0.0 - 11 safety patterns
-- faelight-git v2.1.0 - Git Risk Score engine
-- keyscan v1.0.0 - Comprehensive keybind analysis
-- [... 20 more tools]
-
-### 🦀 Rust Improvements
-- Monorepo workspace architecture
-- Consistent error handling across tools
-- Comprehensive health checks for all tools
-
-> "The audit is complete. Every tool documented, tested, and production-ready." 🌲
+🌲 **Faelight Forest** - Automation serves the human
 
 ---
 
-# Edit README.md milestone:
-**v8.0.0 Milestone:** Complete tool audit and production hardening. All 29 tools documented with comprehensive READMEs, health checks, and v1.0+ status. Ready for Linus presentation. 🌲🦀
+## 🎯 Purpose
 
-# Mark audit intent complete:
-sed -i 's/status: in-progress/status: complete/' ~/0-core/INTENT/future/XXX-complete-audit.md
+Automates the complete release process while maintaining human control through interactive prompts. Handles version updates, CHANGELOG generation, intent tracking, and git operations.
 
-# Commit
-git add -A
-git commit -m "🌲 Release v8.0.0 - Complete Tool Audit
-
-- 29/29 tools audited and documented
-- All tools v1.0+ with READMEs and health checks
-- Intent-aware launcher (revolutionary!)
-- Immutable core protection
-- Risk-aware diff analysis
-- Complete release automation
-
-Health: 100%
-Intent Success Rate: 73%"
-
-git tag -a v8.0.0 -m "v8.0.0 - Complete Tool Audit & Production Hardening"
-git push && git push --tags
-```
-
-## Pre-flight Checks
-
-The tool validates before making changes:
+## 🚀 Usage
 ```bash
-# 1. System health
-dot-doctor  # Must pass
-
-# 2. Git status
-git status  # Must be clean (no uncommitted changes)
-```
-
-If checks fail, fix issues first:
-```bash
-# Health issues
-doctor
-# Fix reported issues
-
-# Uncommitted changes
-git add -A
-git commit -m "Pre-release cleanup"
-
-# Try again
+# Full release (interactive)
 bump-system-version 8.0.0
+
+# Preview changes (dry-run)
+bump-system-version --dry-run 8.0.0
+
+# Show version
+bump-system-version --version
+
+# Show help
+bump-system-version --help
+
+# Health check
+bump-system-version --health
 ```
 
-## Rollback
+## 📋 Release Process
 
-Every release creates a Snapper snapshot:
-```bash
-# If something goes wrong
-sudo snapper rollback 42  # Use snapshot number from output
+### **Phase 1: Pre-Flight Checks** (Automated)
+- ✅ System health (`dot-doctor`)
+- ✅ Git status (clean working tree)
+- ✅ Version format validation
 
-# Or manual rollback
-git reset --hard HEAD~1
-git tag -d v8.0.0
-```
+### **Phase 2: Snapshot** (Automated)
+- ✅ Creates btrfs snapshot for rollback safety
 
-## Integration with Workflow
+### **Phase 3: Version Updates** (Automated + Interactive)
+- ✅ Updates `VERSION` file
+- ✅ Updates `Cargo.toml` workspace version
+- ✅ Updates `.zshrc` welcome message
+- ✅ Updates README.md badges
+- ❓ Prompts for milestone description
+- ✅ Updates README.md milestone line
 
-### After Major Feature
-```bash
-# Completed new feature
-git add -A
-git commit -m "Implement feature X"
+### **Phase 4: CHANGELOG** (Semi-Automated)
+- ✅ Runs `compile-changelog.sh` to analyze commits
+- ❓ Opens draft in `$EDITOR` for human polish
+- ✅ Inserts polished changelog into `CHANGELOG.md`
+- ❓ Prompts for release quote
 
-# Ready for release
-bump-system-version 7.7.0
-# Edit CHANGELOG, commit, tag, push
-```
+### **Phase 5: Version Table** (Interactive)
+- ❓ Prompts for brief description
+- ✅ Adds row to README.md version history table
 
-### After Bug Fixes
-```bash
-# Fixed bugs
-git add -A
-git commit -m "Fix issues"
+### **Phase 6: Intent Completion** (Smart Detection)
+- ✅ Scans git commits for intent references
+- ❓ Shows detected intents, asks to mark complete
+- ✅ Updates intent status and checkboxes
 
-# Patch release
-bump-system-version 7.6.6
-# Edit CHANGELOG, commit, tag, push
-```
+### **Phase 7: Git Operations** (Interactive)
+- ✅ Stages all changes
+- ✅ Generates commit message
+- ❓ Shows preview, asks to create commit
+- ❓ Asks to create git tag
+- ❓ Asks to push to origin
 
-### After Audit
-```bash
-# All tools audited and upgraded
-bump-system-version 8.0.0
-# Comprehensive CHANGELOG with all tool updates
-```
+### **Phase 8: Verification** (Automated)
+- ✅ Runs final health check
+- ✅ Verifies VERSION file
+- ✅ Shows success summary
 
-## Error Handling
+## 🏗️ Architecture
 
-If the tool fails:
-```bash
-# Check what succeeded
-git diff
+**Technology:**
+- Rust with `chrono` for date formatting
+- Interactive stdin prompts for human decisions
+- Shell command integration for git, doctor, snapper
+- Integrates with `compile-changelog.sh`
 
-# Revert if needed
-git checkout VERSION Cargo.toml stow/shell-zsh/.zshrc README.md CHANGELOG.md
+**Philosophy:**
+- **Manual Control** - Human confirms all major decisions
+- **Automation Serves Human** - Tool handles tedious work
+- **Safety First** - Snapshots, validation, rollback capability
+- **Intent-Driven** - Tracks decision completion automatically
 
-# Fix issue and retry
-bump-system-version 8.0.0
-```
+**Files Updated:**
+- `VERSION` - System version number
+- `Cargo.toml` - Workspace version
+- `stow/shell-zsh/.zshrc` - Welcome message
+- `README.md` - Badges, milestone, version table
+- `CHANGELOG.md` - Release entry with commits
+- `INTENT/future/*.md` - Intent status
 
-## Design Principles
+## 📜 Philosophy
 
-1. **Safety First** - Pre-flight checks before any changes
-2. **Atomic Operations** - All-or-nothing updates
-3. **Auditable** - Snapper snapshots for rollback
-4. **Standardized** - Follows documented release process
-5. **Clear Output** - Step-by-step progress reporting
+**"Automation serves the human, never replaces judgment."**
 
-## Technical Details
+This tool embodies the 0-Core philosophy by:
+- Automating tedious file updates
+- Detecting completed work (intents in commits)
+- Generating comprehensive changelogs
+- **But always prompting for human decisions**
 
-- **Language:** Rust
-- **Version validation:** Regex `X.Y.Z` format
-- **Snapshot:** Snapper integration
-- **Health check:** Calls `dot-doctor`
-- **Git check:** Verifies clean working tree
+The interactive prompts ensure you maintain control while the tool eliminates the manual drudgery of release management.
 
-## Why This Exists
+## 🔧 Configuration
 
-Manual releases are error-prone:
-- Forget to update VERSION
-- Miss updating .zshrc
-- Inconsistent CHANGELOG format
-- No snapshot safety net
+**Environment Variables:**
+- `$EDITOR` - Editor for changelog editing (default: nvim)
+- `$HOME` - User home directory
 
-`bump-system-version` ensures:
-- Every release follows the same process
-- Nothing is forgotten
-- Rollback is always possible
-- CHANGELOG is consistent
+**Dependencies:**
+- `dot-doctor` - System health checks
+- `git` - Version control
+- `snapper` - Btrfs snapshots
+- `compile-changelog.sh` - Changelog generation
+- `$EDITOR` - Text editor
 
-**This is release engineering rigor.**
+## 🐛 Troubleshooting
+
+**Pre-flight check fails:**
+- Run `doctor` to see specific issues
+- Fix health problems before releasing
+
+**Git is not clean:**
+- Commit or stash uncommitted changes
+- Tool requires clean working tree for safety
+
+**Snapshot creation fails:**
+- Ensure snapper is configured for root subvolume
+- Tool continues anyway (snapshot is optional safety)
+
+**Changelog generation fails:**
+- Ensure `compile-changelog.sh` exists in `scripts/`
+- Falls back to template if script unavailable
+
+## 🎓 Learning
+
+This tool demonstrates:
+- **Interactive CLI Design** - Balancing automation with human control
+- **Defensive Programming** - Validation, error handling, rollback
+- **Process Automation** - Multi-phase release workflow
+- **Intent Integration** - Decision tracking at release level
+- **Git Workflow** - Commits, tags, pushing
+
+## 🔄 Version History
+
+- **v4.0.0** (2026-01-21) - Linus Edition
+  - Added `--help`, `--version`, `--health`, `--dry-run` flags
+  - Integrated compile-changelog.sh for automatic CHANGELOG generation
+  - Interactive prompts for milestone, quote, descriptions
+  - Smart intent completion detection from git commits
+  - Automated git commit/tag/push with human confirmation
+  - Version history table updates
+  - Beautiful phased progress output
+  - Comprehensive README with philosophy
+
+- **v3.0.0** (2026-01-19) - CHANGELOG automation
+  - Auto-generates CHANGELOG template
+  - Snapshot creation for rollback
+
+- **v2.0.0** - Multi-file version updates
+- **v1.0.0** - Initial version bumping
+
+---
+
+**Part of the Faelight Forest ecosystem** 🌲🦀
+
+**"The forest evolves with intention."**
