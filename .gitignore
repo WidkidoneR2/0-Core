@@ -143,3 +143,4 @@ target/
 # Session state files (local only)
 **/SESSION_STATE.md
 logs/
+CHANGELOG-v8.0.0-DRAFT.md
