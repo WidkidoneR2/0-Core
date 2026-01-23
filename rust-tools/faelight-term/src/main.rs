@@ -20,9 +20,15 @@ use wayland_client::{
     protocol::{wl_keyboard, wl_output, wl_seat, wl_surface},
     Connection, QueueHandle,
 };
+use fontdue::Font;
+
+const FONT_DATA: &[u8] = include_bytes!("../fonts/JetBrainsMono-Regular.ttf");
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦀 Starting faelight-term...");
+    
+    let font = Font::from_bytes(FONT_DATA, fontdue::FontSettings::default())?;
+    println!("✅ Font loaded: JetBrains Mono");
     
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -40,6 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         window: None,
         keyboard: None,
         pool: None,
+        font,
     };
 
     let surface = app.compositor_state.create_surface(&qh);
@@ -76,6 +83,7 @@ struct App {
     window: Option<Window>,
     keyboard: Option<wl_keyboard::WlKeyboard>,
     pool: Option<SlotPool>,
+    font: Font,
 }
 
 impl CompositorHandler for App {
@@ -122,9 +130,52 @@ impl WindowHandler for App {
                 pixel[3] = 0xFF; // A
             }
             
+            // Render text - pass font explicitly to avoid borrow issues
+            render_text(&self.font, canvas, width as usize, height as usize);
+            
             window.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
             window.wl_surface().commit();
         }
+    }
+}
+
+// Free function to avoid borrow checker issues
+fn render_text(font: &Font, canvas: &mut [u8], width: usize, height: usize) {
+    let text = "Hello, faelight-term!";
+    let font_size = 24.0;
+    
+    let mut x = 20.0;
+    let y = 40.0;
+    
+    for ch in text.chars() {
+        let (metrics, bitmap) = font.rasterize(ch, font_size);
+        
+        // Skip zero-width characters (spaces, commas, etc)
+        if metrics.width == 0 {
+            x += metrics.advance_width;
+            continue;
+        }
+        
+        // Draw each pixel of the glyph
+        for (glyph_y, row) in bitmap.chunks(metrics.width).enumerate() {
+            for (glyph_x, &coverage) in row.iter().enumerate() {
+                if coverage > 0 {
+                    let px = (x + glyph_x as f32) as usize;
+                    let py = (y + glyph_y as f32) as usize;
+                    
+                    if px < width && py < height {
+                        let offset = (py * width + px) * 4;
+                        // White text (blend with coverage)
+                        canvas[offset + 0] = coverage; // B
+                        canvas[offset + 1] = coverage; // G
+                        canvas[offset + 2] = coverage; // R
+                        canvas[offset + 3] = 0xFF;     // A
+                    }
+                }
+            }
+        }
+        
+        x += metrics.advance_width;
     }
 }
 

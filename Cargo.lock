@@ -1078,6 +1078,7 @@ version = "0.3.0"
 name = "faelight-term"
 version = "8.0.0"
 dependencies = [
+ "fontdue",
  "smithay-client-toolkit 0.18.1",
  "wayland-client",
 ]
