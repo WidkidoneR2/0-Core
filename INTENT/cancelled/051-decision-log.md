@@ -3,7 +3,7 @@ id: 051
 date: 2026-01-14
 type: future
 title: "Decision Log - Capture the Why"
-status: planned
+status: cancelled
 tags: [v8.0, infrastructure, knowledge, 0-core]
 version: 8.0.0
 ---
@@ -28,7 +28,7 @@ Never forget why you chose X over Y. Decisions are valuable knowledge that degra
 id: DEC-XXX
 date: YYYY-MM-DD
 category: architecture|tooling|workflow
-status: active|superseded|experimental
+status: cancelled|superseded|experimental
 intent: XXX  # Which intent prompted this
 ---
 

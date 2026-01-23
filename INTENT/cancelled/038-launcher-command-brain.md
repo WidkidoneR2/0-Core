@@ -3,7 +3,7 @@ id: 038
 date: 2026-01-11
 type: future
 title: "Launcher as Command Brain"
-status: planned
+status: cancelled
 tags: [rust, launcher, v1.0]
 ---
 

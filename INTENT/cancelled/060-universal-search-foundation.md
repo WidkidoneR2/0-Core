@@ -3,7 +3,7 @@ id: 060
 date: 2026-01-15
 type: future
 title: "Universal Search Foundation - Omniscient Launcher"
-status: planned
+status: cancelled
 tags: [v7.5, search, launcher, rust]
 version: 7.5.0
 depends:

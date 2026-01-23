@@ -3,7 +3,7 @@ id: 049
 date: 2026-01-14
 type: future
 title: "faelight-launcher v2.0 - Provider Architecture"
-status: planned
+status: cancelled
 tags: [architecture, v7.0, launcher, providers, risk, teaching]
 ---
 

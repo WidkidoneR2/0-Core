@@ -3,7 +3,7 @@ id: 014
 date: 2026-01-07
 type: future
 title: "teach-advanced - System Wisdom"
-status: planned
+status: cancelled
 tags: [rust, teaching, documentation, v5.4]
 ---
 

@@ -3,7 +3,7 @@ id: 019
 date: 2026-01-09
 type: future
 title: "faelight-wall - Rust Wallpaper Manager"
-status: planned
+status: cancelled
 tags: [rust, wayland, theming, sway, v6.2]
 ---
 

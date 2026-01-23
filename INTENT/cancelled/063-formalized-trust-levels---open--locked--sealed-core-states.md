@@ -3,7 +3,7 @@ id: 063
 date: 2026-01-18
 type: future
 title: "Formalized Trust Levels - OPEN / LOCKED / SEALED Core States""
-status: planned
+status: cancelled
 tags: [[v7.9, security, governance, core, trust]]
 ---
 

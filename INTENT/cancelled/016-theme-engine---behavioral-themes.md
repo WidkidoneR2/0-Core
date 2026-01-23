@@ -3,7 +3,7 @@ id: 016
 date: 2026-01-07
 type: future
 title: "theme-engine - Behavioral Themes"
-status: planned
+status: cancelled
 tags: [rust, themes, behavior, system-state, v5.5]
 ---
 

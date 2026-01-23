@@ -3,7 +3,7 @@ id: 037
 date: 2026-01-11
 type: future
 title: "Notification Intelligence"
-status: planned
+status: cancelled
 tags: [rust, notifications, v1.0]
 ---
 

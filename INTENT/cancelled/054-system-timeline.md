@@ -3,7 +3,7 @@ id: 054
 date: 2026-01-14
 type: future
 title: "System Timeline - Time Travel for Configs"
-status: planned
+status: cancelled
 tags: [v8.0, infrastructure, history, recovery]
 version: 8.0.0
 ---

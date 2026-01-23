@@ -3,7 +3,7 @@ id: 053
 date: 2026-01-14
 type: future
 title: "Configuration Registry - Know What Changed"
-status: planned
+status: cancelled
 tags: [v8.0, infrastructure, config, tracking]
 version: 8.0.0
 ---
