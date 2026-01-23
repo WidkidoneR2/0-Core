@@ -97,7 +97,7 @@ eval "$(starship init zsh)"
 # 🚀 WELCOME MESSAGE
 # ═══════════════════════════════════════════════════════════
 if [[ -o interactive ]]; then
-    fastfetch
+    faelight-fetch
     echo ""
     echo -e "\033[1;32m🌲 Welcome to Faelight Forest v8.0.0 - Sway Edition!\033[0m"
     if [[ -x ~/0-core/scripts/latest-update ]]; then
