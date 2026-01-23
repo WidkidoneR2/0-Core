@@ -1,9 +1,9 @@
 ---
 id: 070
 date: 2026-01-22
-type: future
+type: active
 title: "Build faelight-term: Rust terminal emulator mirroring Foot quality"
-status: planned
+status: active
 priority: medium
 tags: [rust, terminal, wayland, learning, systems-programming, tool-31]
 ---
@@ -206,3 +206,17 @@ Nu:     0.4%   ← Could expand
 ## Status Updates
 
 *Post-presentation updates will be tracked here*
+
+## Status Updates
+
+**2026-01-23: Major Infrastructure Complete! 🎉**
+- ✅ Custom PTY implementation (spawn, read, write)
+- ✅ Font rendering with fontdue + JetBrains Mono
+- ✅ ANSI escape code stripping  
+- ✅ Wayland protocol verified correct
+- 🔧 Window mapping bug (interesting edge case)
+- 📈 Phases 2-4 progress in one day!
+
+**Next:** Debug window mapping, add colors, full ANSI parser
+
+Status: planned → active
