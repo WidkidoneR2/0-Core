@@ -18,7 +18,6 @@ dust
 efibootmgr
 eza
 fail2ban
-fastfetch
 fd
 filen-desktop-bin
 foot

@@ -9,3 +9,5 @@ license.workspace = true
 wayland-client.workspace = true
 smithay-client-toolkit.workspace = true
 fontdue.workspace = true
+vte.workspace = true
+nix.workspace = true
