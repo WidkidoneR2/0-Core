@@ -1,13 +1,12 @@
 [package]
 name = "faelight-term"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
+version = "8.0.0"
+edition = "2021"
 
 [dependencies]
-wayland-client.workspace = true
-smithay-client-toolkit.workspace = true
-fontdue.workspace = true
-vte.workspace = true
-nix.workspace = true
+smithay-client-toolkit = "0.20"
+wayland-client = "0.31"
+fontdue = "0.9"
+nix = { version = "0.29", features = ["term", "process", "fs"] }
+calloop = "0.14"
+calloop-wayland-source = "0.4"
