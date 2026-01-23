@@ -354,6 +354,7 @@ alias bump='bump-system-version'
 alias prof='profile'
 alias prof-list='profile list'
 alias prof-switch='profile switch'
+alias ff='faelight-fetch'
 
 # ═══════════════════════════════════════════════════════════
 # 🔧 ARCHAEOLOGY & WORKSPACE TOOLS

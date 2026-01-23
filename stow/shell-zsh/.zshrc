@@ -118,3 +118,4 @@ fi
 # ═══════════════════════════════════════════════════════════
 export TERM=foot
 export COLORTERM=truecolor
+alias ff='faelight-fetch'
