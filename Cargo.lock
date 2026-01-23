@@ -1075,6 +1075,14 @@ name = "faelight-stow"
 version = "0.3.0"
 
 [[package]]
+name = "faelight-term"
+version = "8.0.0"
+dependencies = [
+ "smithay-client-toolkit 0.18.1",
+ "wayland-client",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
