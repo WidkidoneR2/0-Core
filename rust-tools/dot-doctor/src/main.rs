@@ -217,6 +217,15 @@ const CHECKS: &[Check] = &[
                       Duplicate keybinds cause unexpected behavior.",
         run: check_keybinds,
     },
+    Check {
+        id: "security",
+        name: "Security Hardening",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Verifies security protections: UFW firewall, fail2ban, Mullvad VPN, SSH hardening. \
+                      These protect against unauthorized access.",
+        run: check_security,
+    },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -1021,4 +1030,87 @@ fn print_dependency_graph() {
              "\x1b[1;33m", "\x1b[0m",
              "\x1b[0;36m", "\x1b[0m",
              "\x1b[2m", "\x1b[0m");
+}
+
+
+fn check_security(_ctx: &Context) -> CheckResult {
+    let mut issues = vec![];
+    let mut details = vec![];
+    
+    // Check UFW
+    let ufw = fs::read_to_string("/etc/ufw/ufw.conf");
+    
+    if let Ok(content) = ufw {
+        if content.contains("ENABLED=yes") {
+            details.push("✓ UFW firewall active".to_string());
+        } else {
+            issues.push("UFW firewall not active".to_string());
+        }
+    }
+    
+    // Check fail2ban
+    let f2b = Command::new("systemctl")
+        .args(["is-active", "fail2ban"])
+        .output();
+    
+    if let Ok(output) = f2b {
+        if String::from_utf8_lossy(&output.stdout).trim() == "active" {
+            details.push("✓ fail2ban active".to_string());
+        } else {
+            issues.push("fail2ban not active".to_string());
+        }
+    }
+    
+    // Check Mullvad VPN
+    let mullvad = Command::new("mullvad")
+        .args(["status"])
+        .output();
+    
+    if let Ok(output) = mullvad {
+        let status = String::from_utf8_lossy(&output.stdout);
+        if status.contains("Connected") {
+            details.push("✓ Mullvad VPN connected".to_string());
+        } else {
+            details.push("⚠ Mullvad VPN not connected".to_string());
+        }
+    }
+    
+    // Check SSH hardening
+    let sshd = PathBuf::from("/etc/ssh/sshd_config");
+    if sshd.exists() {
+        if let Ok(content) = fs::read_to_string(&sshd) {
+            let has_root_login = content.contains("PermitRootLogin no");
+            let has_password_auth = content.contains("PasswordAuthentication no");
+            
+            if has_root_login {
+                details.push("✓ SSH root login disabled".to_string());
+            } else {
+                issues.push("SSH permits root login".to_string());
+            }
+            
+            if has_password_auth {
+                details.push("✓ SSH password auth disabled".to_string());
+            } else {
+                issues.push("SSH allows password authentication".to_string());
+            }
+        }
+    }
+    
+    CheckResult {
+        id: "security".to_string(),
+        name: "Security Hardening".to_string(),
+        status: if issues.is_empty() { Status::Pass } else { Status::Fail },
+        severity: Severity::High,
+        message: if issues.is_empty() {
+            format!("Security: {} protections active", details.len())
+        } else {
+            format!("Security: {} issues found", issues.len())
+        },
+        fix: if !issues.is_empty() {
+            Some(format!("Review security settings:\n{}", issues.join("\n")))
+        } else {
+            None
+        },
+        details: if !details.is_empty() { Some(details) } else { None },
+    }
 }
