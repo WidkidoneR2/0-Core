@@ -363,4 +363,3 @@ MIT — Use freely, learn deeply, configure intentionally.
 
 > *"The audit is complete. Every tool documented, tested, and production-ready."* 🌲🦀
 
-**Built by Christian for the Linus Torvalds Presentation, 2026.**
