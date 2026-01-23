@@ -24,12 +24,10 @@ use wayland_client::{
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦀 Starting faelight-term...");
     
-    // Connect to Wayland
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
 
-    // Create our app state
     let mut app = App {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
@@ -44,14 +42,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pool: None,
     };
 
-    // Create window
     let surface = app.compositor_state.create_surface(&qh);
     let window = app.xdg_shell_state.create_window(
         surface,
         WindowDecorations::ServerDefault,
         &qh,
     );
-    window.set_title("faelight-term - proof of concept");
+    window.set_title("faelight-term");
     window.set_app_id("faelight-term");
     window.commit();
     
@@ -59,7 +56,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Window created! Press ESC to exit");
 
-    // Event loop
     while !app.exit {
         event_queue.blocking_dispatch(&mut app)?;
     }
@@ -82,7 +78,6 @@ struct App {
     pool: Option<SlotPool>,
 }
 
-// FIX 1: Add missing transform_changed method
 impl CompositorHandler for App {
     fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
     fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
@@ -102,18 +97,13 @@ impl WindowHandler for App {
     }
 
     fn configure(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, window: &Window, configure: WindowConfigure, _serial: u32) {
-        // FIX 4: Handle the tuple of Options correctly
         let width = configure.new_size.0.map(|w| w.get()).unwrap_or(800);
         let height = configure.new_size.1.map(|h| h.get()).unwrap_or(600);
         
-        println!("📏 Window configured: {}x{}", width, height);
-        
-        // Create buffer pool if needed
         if self.pool.is_none() {
             self.pool = Some(SlotPool::new((width * height * 4) as usize, &self.shm_state).unwrap());
         }
         
-        // Draw purple background
         if let Some(pool) = &mut self.pool {
             let stride = width as i32 * 4;
             
@@ -124,30 +114,25 @@ impl WindowHandler for App {
                 wayland_client::protocol::wl_shm::Format::Argb8888,
             ).unwrap();
             
-            // Fill with purple (ARGB: 0xFF8B00FF)
+            // Fill with black
             for pixel in canvas.chunks_exact_mut(4) {
-                pixel[0] = 0x8B; // B
+                pixel[0] = 0x00; // B
                 pixel[1] = 0x00; // G
-                pixel[2] = 0xFF; // R
+                pixel[2] = 0x00; // R
                 pixel[3] = 0xFF; // A
             }
             
-            // FIX 5: Use wl_buffer() method to get the underlying buffer
             window.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
             window.wl_surface().commit();
-            
-            println!("🎨 Purple background drawn!");
         }
     }
 }
 
 impl SeatHandler for App {
     fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
-    
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
     fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Keyboard && self.keyboard.is_none() {
-            println!("⌨️  Keyboard detected");
             self.keyboard = self.seat_state.get_keyboard(qh, &seat, None).ok();
         }
     }
@@ -155,22 +140,15 @@ impl SeatHandler for App {
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 
-// FIX 2 & 3: Correct keyboard handler signatures
 impl KeyboardHandler for App {
     fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32, _: &[u32], _keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym]) {}
-    
     fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
-    
     fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: smithay_client_toolkit::seat::keyboard::KeyEvent) {
-        // ESC key is raw code 1
         if event.raw_code == 1 {
-            println!("🚪 ESC pressed - exiting!");
             self.exit = true;
         }
     }
-    
     fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: smithay_client_toolkit::seat::keyboard::KeyEvent) {}
-    
     fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _serial: u32, _modifiers: smithay_client_toolkit::seat::keyboard::Modifiers) {}
 }
 
