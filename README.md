@@ -13,7 +13,6 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 > **v8.1.0 Milestone:** The Garden - Tools growing together: faelight-update v0.2.0, enhanced security, ecosystem integration 🌲🦀
 
-**v8.0.0 Milestone:** Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture 🌲🦀
 
 ---
 
@@ -118,7 +117,7 @@ bashdoctor   # Full 14-check diagnostic (100% health)
 
 
 🔄 Version History
-VersionDateMilestonev8.1.02026-01-23Interactive updates, security hardening, ecosystem integrationv8.0.02026-01-2230 tools production-ready, full audit completev7.6.52026-01-19Tool audit quick winsv7.6.42026-01-19Release automation completev7.6.32026-01-19Stow migration completev7.0.02026-01-14Architectural excellencev6.0.02026-01-09Sway editionv5.0.02026-01-05First Rust tool
+VersionDateMilestonev8.1.02026-01-23Interactive updates, security hardening, ecosystem integrationv8.0.02026-01-2231 tools production-ready, full audit completev7.6.52026-01-19Tool audit quick winsv7.6.42026-01-19Release automation completev7.6.32026-01-19Stow migration completev7.0.02026-01-14Architectural excellencev6.0.02026-01-09Sway editionv5.0.02026-01-05First Rust tool
 See full version history
 ---
 
