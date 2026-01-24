@@ -1,89 +1,144 @@
+mod cargo_checker;
+mod neovim_checker;
+mod tui;
+
 use clap::Parser;
 use colored::*;
 use std::process::Command;
 
 #[derive(Parser)]
 #[command(name = "faelight-update")]
-#[command(about = "🌲 Intelligent update manager for Faelight Forest")]
+#[command(about = "🌲 Intelligent update manager for Faelight Forest", version = "0.2.0")]
 struct Cli {
-    /// Show what would update without updating
     #[arg(long)]
     dry_run: bool,
     
-    /// Skip health check
     #[arg(long)]
     skip_health: bool,
+    
+    #[arg(short, long)]
+    interactive: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
     
-    println!("{}", "🌲 Faelight Update Manager v0.1.0".green().bold());
+    println!("{}", "🌲 Faelight Update Manager v0.2.0".green().bold());
     println!();
     
-    // Phase 1: Health check
     if !cli.skip_health {
         println!("{}  Running health check...", "🏥".green());
         run_health_check();
     }
     
-    // Phase 2: Check for updates
     println!("{}  Checking for updates...", "🔍".cyan());
     let updates = check_all_updates();
     
-    // Phase 3: Show summary
     show_update_summary(&updates);
     
-    // Phase 4: Update (if not dry run)
-    if !cli.dry_run {
-        println!("\n{}  Ready to update!", "✨".yellow());
-        // TODO: Interactive selection
+    let total: usize = updates.iter().map(|c| c.count).sum();
+    
+    if total == 0 {
+        println!("\n{}  All packages up to date!", "✨".green());
+        return;
+    }
+    
+    if cli.interactive {
+        let selections = tui::interactive_select(&updates);
+        
+        if selections.is_empty() {
+            println!("\n{}  No packages selected", "ℹ️".blue());
+            return;
+        }
+        
+        if !cli.dry_run && tui::confirm_updates(&selections) {
+            perform_updates(&selections);
+        } else {
+            println!("\n{}  Cancelled", "ℹ️".blue());
+        }
+    } else if !cli.dry_run {
+        println!("\n{}  Ready to update {} packages!", "✨".yellow(), total);
+        println!("{}  Run with --interactive to select", "💡".blue());
     } else {
-        println!("\n{}  Dry run complete - no changes made", "ℹ️".blue());
+        println!("\n{}  Dry run complete", "ℹ️".blue());
+        println!("{}  Run with --interactive to select packages", "💡".blue());
     }
 }
 
-fn run_health_check() {
-    let output = Command::new("dot-doctor")
-        .output()
-        .expect("Failed to run doctor");
+fn perform_updates(selections: &[(String, Vec<String>)]) {
+    println!("\n{}", "🚀 Starting Updates".green().bold());
+    println!("{}", "─".repeat(50).green());
     
+    for (category, items) in selections {
+        println!("\n{}  Updating {}...", "📦".yellow(), category.bold());
+        
+        match category.as_str() {
+            "0-Core Workspace" => {
+                println!("   Running: cargo build --release");
+                let status = Command::new("cargo")
+                    .args(["build", "--release"])
+                    .current_dir("/home/christian/0-core")
+                    .status();
+                
+                match status {
+                    Ok(s) if s.success() => println!("   {}  Workspace rebuilt", "✅".green()),
+                    _ => println!("   {}  Failed", "❌".red()),
+                }
+            }
+            _ => println!("   {}  Category not implemented yet", "⚠️".yellow()),
+        }
+    }
+    
+    println!("\n{}  Updates complete!", "✨".green());
+}
+
+fn run_health_check() {
+    let output = Command::new("dot-doctor").output().expect("Failed to run doctor");
     if !output.status.success() {
-        println!("{}  Health check failed! Fix issues before updating.", "⚠️".yellow());
+        println!("{}  Health check failed!", "⚠️".yellow());
         std::process::exit(1);
     }
     println!("   {}  System healthy", "✅".green());
 }
 
-struct UpdateCategory {
-    name: String,
-    count: usize,
-    items: Vec<UpdateItem>,
+pub struct UpdateCategory {
+    pub name: String,
+    pub count: usize,
+    pub items: Vec<UpdateItem>,
 }
 
-struct UpdateItem {
-    name: String,
-    current: String,
-    new: String,
+pub struct UpdateItem {
+    pub name: String,
+    pub current: String,
+    pub new: String,
 }
 
 fn check_all_updates() -> Vec<UpdateCategory> {
     let mut categories = Vec::new();
     
-    // System packages (pacman)
     categories.push(check_pacman_updates());
-    
-    // AUR packages (paru)
     categories.push(check_paru_updates());
     
-    // Cargo tools
-    categories.push(check_cargo_updates());
+    let cargo_items = cargo_checker::check_cargo_updates();
+    categories.push(UpdateCategory {
+        name: "Cargo Tools".to_string(),
+        count: cargo_items.len(),
+        items: cargo_items,
+    });
     
-    // Neovim plugins
-    categories.push(check_neovim_updates());
+    let nvim_items = neovim_checker::check_neovim_updates();
+    categories.push(UpdateCategory {
+        name: "Neovim Plugins".to_string(),
+        count: nvim_items.len(),
+        items: nvim_items,
+    });
     
-    // 0-Core workspace
-    categories.push(check_workspace_updates());
+    let workspace_items = cargo_checker::check_workspace_updates();
+    categories.push(UpdateCategory {
+        name: "0-Core Workspace".to_string(),
+        count: workspace_items.len(),
+        items: workspace_items,
+    });
     
     categories
 }
@@ -94,11 +149,10 @@ fn check_pacman_updates() -> UpdateCategory {
     let output = Command::new("checkupdates")
         .output()
         .unwrap_or_else(|_| {
-            // checkupdates might not exist, use pacman -Qu
             Command::new("pacman")
                 .args(["-Qu"])
                 .output()
-                .expect("Failed to check pacman updates")
+                .expect("Failed to check pacman")
         });
     
     let items = parse_pacman_output(&output.stdout);
@@ -149,39 +203,6 @@ fn check_paru_updates() -> UpdateCategory {
     }
 }
 
-fn check_cargo_updates() -> UpdateCategory {
-    println!("   Checking cargo tools...");
-    
-    // TODO: Use cargo-update crate
-    UpdateCategory {
-        name: "Cargo Tools".to_string(),
-        count: 0,
-        items: Vec::new(),
-    }
-}
-
-fn check_neovim_updates() -> UpdateCategory {
-    println!("   Checking neovim plugins...");
-    
-    // TODO: Check lazy.nvim updates
-    UpdateCategory {
-        name: "Neovim Plugins".to_string(),
-        count: 0,
-        items: Vec::new(),
-    }
-}
-
-fn check_workspace_updates() -> UpdateCategory {
-    println!("   Checking 0-Core workspace...");
-    
-    // TODO: Check if workspace needs rebuild
-    UpdateCategory {
-        name: "0-Core Tools".to_string(),
-        count: 0,
-        items: Vec::new(),
-    }
-}
-
 fn show_update_summary(categories: &[UpdateCategory]) {
     println!();
     println!("{}", "📊 Update Summary".cyan().bold());
@@ -198,13 +219,17 @@ fn show_update_summary(categories: &[UpdateCategory]) {
                 format!("{} available", category.count).yellow()
             );
             
-            for item in &category.items {
+            for item in category.items.iter().take(5) {
                 println!(
                     "     {} {} → {}",
                     item.name.white(),
                     item.current.dimmed(),
                     item.new.green()
                 );
+            }
+            
+            if category.items.len() > 5 {
+                println!("     {} {} more...", "...".dimmed(), category.items.len() - 5);
             }
         } else {
             println!(
