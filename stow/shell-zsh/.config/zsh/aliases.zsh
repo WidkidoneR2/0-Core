@@ -172,6 +172,8 @@ alias gcl='git clone'
 alias dotsave='cd ~/0-core && git add -A && git commit -m "Update configs" && git push'
 alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push'
 alias dotstatus='cd ~/0-core && git status'
+alias cdcore='cd ~/0-core'
+alias dotgit='cd ~/0-core && git'
 
 # Escape hatch
 alias git!='/usr/bin/git'
