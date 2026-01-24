@@ -9,7 +9,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-${custom.faelight_zone}${custom.cargo_root}$os$username$hostname${custom.core_lock}${custom.profile}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
+${custom.faelight_zone}${custom.cargo_root}$os$username$hostname${custom.core_lock}${custom.profile}$git_branch$git_status$nodejs$python$rust$cmd_duration
 [└─](bold green)$character
 """
 

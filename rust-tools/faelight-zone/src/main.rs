@@ -8,8 +8,8 @@ fn main() {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("/"));
 
-    let zone = current_zone(&cwd, &home);
+    let (zone, path) = current_zone(&cwd, &home);
 
-    // Output format: "🦀 WORK"
-    println!("{} {}", zone.icon(), zone.short_label());
+    // Output format: "🔒 0-core" (icon + path, no label)
+    println!("{} {}", zone.icon(), path);
 }
