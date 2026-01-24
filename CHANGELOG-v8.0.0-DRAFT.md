@@ -2,11 +2,11 @@
 
 > "The audit is complete. Every tool documented, tested, and production-ready." 🌲
 
-**Release Date:** 2026-01-22
+**Release Date:** 2026-01-23
 
 ## 📊 Audit Statistics
 
-- **Total Commits:** 131
+- **Total Commits:** 163
 - **Tools Audited:** 29/29 (100%)
 - **Intent Success Rate:** 73%
 - **System Health:** 100%
@@ -29,6 +29,11 @@
 - core-diff v2.0.0 - Risk-aware diff tool for Linus presentation
 - core-protect v1.0.0 - Immutable protection for Linus presentation
 - core-protect v1.0.1 - Fix chattr error messages
+- docs: Add intent entry for v8.0.0 milestone completion
+- docs: Clean up audit files, update THEORY_OF_OPERATION for v8.0.0
+- docs: Complete intent 044 with comprehensive v8.0.0 milestone documentation
+- docs: Complete README polish for v8.0.0 presentation
+- dot-doctor v0.6.0: Security hardening checks 🔒
 - entropy-check v1.0.0 - Production ready drift detection
 - faelight-bootstrap v1.0.0 - Linus Edition one-command installer
 - faelight-dashboard v1.0.0 - Production-ready TUI system overview
@@ -41,7 +46,10 @@
 - 🔒 faelight-lock v1.0.0 - Production ready
 - faelight-snapshot v1.0.0 - Production audit complete
 - 🔧 faelight-stow v0.3.0 - Auto-discover packages
+- faelight-update v0.1.0: Foundation for ultimate update manager 🚀
+- faelight-update v0.2.0: Interactive update manager 🚀
 - faelight v1.0.0 - System orchestrator for Linus presentation
+- feat: Add faelight-fetch v1.0.0 - canonical system info (Tool #32)
 - feat(faelight-bar): Upgrade to v0.9.0 - Visual polish for Linus presentation
 - feat(faelight-launcher): v3.2.0 - selection rounded corners + README
 - feat(faelight-menu): Upgrade to v0.6.0 with UI polish and CLI standards
@@ -60,15 +68,14 @@
 - keyscan v1.0.0 - Full keybind analysis tool
 - 📅 latest-update v2.0.0 - Stow path support
 - profile v1.0.0 - System profile manager for Linus presentation
-- 🌲 Release v7.3.0 - Workspace Intelligence
-- 🚀 Release v7.4.0 - Faelight Launcher XDG + Intent System v1.0
-- 🌲 Release v7.4.0 - Version bump and CHANGELOG
+- refactor(zsh): Major reorganization and upgrade to v8.0.0
 - 🌲 Release v7.6.0 - Visual Identity & Philosophy
 - 🌲 Release v7.6.1 - Foundation Fixes
 - 🌲 Release v7.6.2 - UI Refinements
 - 🌲 Release v7.6.3 - Stow Migration Complete
 - 🌲 Release v7.6.4 - Release Automation Complete
 - 🌲 Release v7.6.5 - Tool audit quick wins
+- 🌲 Release v8.0.0 - Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture
 - safe-update v1.0.0 - Production-ready safe system updates
 - teach v1.0.0 - Ultimate interactive learning system
 - Tool audit: faelight-git v2.1.0 complete - 34% done
@@ -84,6 +91,7 @@
 ## 🔧 Changes by Category
 
 ### 🚀 New Features
+- feat(sway): Add 18 new keybindings for 0-Core tools
 - testing new feature
 - 🧹 Remove leftover CHANGELOG_NEW_ENTRY.md temp file
 - fix(dot-doctor): update stow path check for new directory structure
@@ -91,6 +99,13 @@
 - 🚀 New Features - **Monorepo Unification (Intent 059)** - All 30 Rust tools unified in workspace - **Universal Search (Intent 060 - Phase 1)** - faelight-launcher v3.0 searches apps + files - File search with fuzzy matching and recency scoring - Smart path truncation and time stamps ("2h ago")
 
 ### 🔧 Fixes & Improvements
+- Fix: Restore main README, add dot-doctor README
+- Intent cleanup: Fix cancelled intents frontmatter
+- intent: Fix and complete Intent 064 - Rust Tools Audit
+- fix(foot): Add term=foot to enable proper color support
+- feat(yazi): Enhanced theme with neon highlights for stow packages and critical files
+- fix(dot-doctor): Update .dotmeta check to reflect intentional removal
+- fix: Resolve stow symlink conflicts for automatic version propagation
 - core-protect v1.0.1 - Fix chattr error messages
 - Fix fastfetch Nerd Font icons in foot terminal
 - Fix PATH duplication with typeset -U path
@@ -104,15 +119,17 @@
 - fix: update all v7.6.2 references to v7.6.3 in README
 - fix(dot-doctor): update stow path check for new directory structure
 - ✨ faelight-launcher v3.1.0 - Refined UI & fixes
-- fix: Remove broken command substitution from fastfetch logo
-- 🔧 Fix: Restore corrupted .zshrc + Incident Report
-- 🔧 Fix: Restore corrupted .zshrc + Incident Report
-- 🌲 Release v7.6.1 - Foundation Fixes
-- 🐛 Fix intent-guard: Only block moves FROM 0-core
-- ✅ Fix dot-doctor: Detect all 11 stowable packages
-- 🐛 Fix dot-doctor: Dynamic package detection
 
 ### 📜 Documentation
+- Fix: Restore main README, add dot-doctor README
+- dot-doctor v0.6.0: Security hardening checks 🔒
+- Document investigation status
+- docs: Add Foot config reference for future matching
+- docs: Complete intent 044 with comprehensive v8.0.0 milestone documentation
+- docs: Add intent entry for v8.0.0 milestone completion
+- fix(dot-doctor): Update .dotmeta check to reflect intentional removal
+- docs: Clean up audit files, update THEORY_OF_OPERATION for v8.0.0
+- docs: Complete README polish for v8.0.0 presentation
 - feat(faelight-launcher): v3.2.0 - selection rounded corners + README
 - 🔧 fix(bump-system-version): CHANGELOG insertion and README handling
 - docs: add complete v7.6.x version history (7.6.1-7.6.3)
@@ -124,28 +141,63 @@
 - 🐛 dot-doctor: Change count from 7 to 11 packages
 - 🐛 Fix dot-doctor: Dynamic package detection
 - 🔧 Fix v7.5.0 documentation inconsistencies
-- 🔧 Fix v7.5.0 documentation inconsistencies
-- intent: mark 059 complete, document 060 phase 1 progress
-- 🔧 dot-doctor: Fix stow check with canonicalize
-- 🔧 dot-doctor: Remove launcher-fuzzel from stow checks
-- 📝 Update README: 30 Rust tools + 13 health checks
 
 ### 🦀 Rust Improvements
+- intent: Fix and complete Intent 064 - Rust Tools Audit
+- intent: Complete Intent 064 - Rust Tools Audit finished
+- refactor(zsh): Major reorganization and upgrade to v8.0.0
+- 🌲 Release v8.0.0 - Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture
 - Update Cargo.lock for safe-update v1.0.0
 - Update Cargo.lock for workspace-view v1.0.0
 - Update Cargo.lock for entropy-check v1.0.0
 - Update Cargo.lock for intent v2.0.0 and intent-guard v1.0.0
 - Update Cargo.lock and faelight-git binary for v2.0.0
 - refactor: migrate dotfile packages to stow/ directory structure
-- intent(063): formalize trust levels (OPEN / LOCKED / SEALED)
-- 🚀 New Features - **Monorepo Unification (Intent 059)** - All 30 Rust tools unified in workspace - **Universal Search (Intent 060 - Phase 1)** - faelight-launcher v3.0 searches apps + files - File search with fuzzy matching and recency scoring - Smart path truncation and time stamps ("2h ago")
-- 🚀 New Features - **Monorepo Unification (Intent 059)** - All 30 Rust tools unified in workspace - **Universal Search (Intent 060 - Phase 1)** - faelight-launcher v3.0 searches apps + files - File search with fuzzy matching and recency scoring - Smart path truncation and time stamps ("2h ago")
-- 📝 Update README: 30 Rust tools + 13 health checks
 
 ## 📅 Complete Audit Timeline
 
 
+### 2026-01-23
+- aliases: Add 0-core git helpers
+- aliases: Add faelight-update shortcuts
+- faelight-update v0.2.0: Interactive update manager 🚀
+- faelight-update v0.1.0: Foundation for ultimate update manager 🚀
+- Fix: Restore main README, add dot-doctor README
+- dot-doctor v0.6.0: Security hardening checks 🔒
+- faelight-term: INTERACTIVE TERMINAL WORKING! 🚀
+- faelight-term: WORKING TERMINAL! 🎉
+- Intent cleanup: Fix cancelled intents frontmatter
+- Intent 070: Infrastructure complete, status → active
+- Document investigation status
+- faelight-term WIP: PTY + rendering working, Wayland window visibility issue under investigation
+
 ### 2026-01-22
+- docs: Add Foot config reference for future matching
+- feat: Add font rendering to faelight-term (Phase 3)
+- feat: faelight-term proof-of-concept working! (Intent 070)
+- feat: Create faelight-term proof-of-concept (Intent 070 Phase 2)
+- research: Complete Phase 1 faelight-term research (Intent 070)
+- chore: Intent cleanup and reorganization
+- chore: Complete fastfetch → faelight-fetch migration
+- chore: Replace fastfetch with faelight-fetch in shell greeter
+- feat: Add faelight-fetch v1.0.0 - canonical system info (Tool #32)
+- intent: Fix and complete Intent 064 - Rust Tools Audit
+- intent: Complete Intent 064 - Rust Tools Audit finished
+- intent: Add Intent 070 - Build faelight-term (Tool #31)
+- chore: Add TERM environment variables for proper color support
+- fix(foot): Add term=foot to enable proper color support
+- feat(yazi): Enhanced theme with neon highlights for stow packages and critical files
+- docs: Complete intent 044 with comprehensive v8.0.0 milestone documentation
+- docs: Add intent entry for v8.0.0 milestone completion
+- chore: Remove temporary backup files after successful reorganization
+- refactor(zsh): Major reorganization and upgrade to v8.0.0
+- feat(zsh): Add 38 comprehensive tool aliases and workflows
+- feat(sway): Add 18 new keybindings for 0-Core tools
+- fix(dot-doctor): Update .dotmeta check to reflect intentional removal
+- fix: Resolve stow symlink conflicts for automatic version propagation
+- docs: Clean up audit files, update THEORY_OF_OPERATION for v8.0.0
+- docs: Complete README polish for v8.0.0 presentation
+- 🌲 Release v8.0.0 - Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture
 - chore: Update Neovim plugin lockfile
 
 ### 2026-01-21
@@ -280,14 +332,6 @@
 ### 2026-01-16
 - 🧹 Remove obsolete fuzzel power menu script
 - 📝 Update README: 30 Rust tools + 13 health checks
-- Update nvim lazy-lock.json
-
-### 2026-01-15
-- 🕐 Fix dates to 2026 + Intent 062: Forest ASCII Art
-- 🎨 Intent 062: Faelight Forest ASCII Branding
-- 🎯 Create v7.5-v8.0 Roadmap Intents (2026 Edition)
-- 🌲 Release v7.4.0 - Version bump and CHANGELOG
-- 🚀 Release v7.4.0 - Faelight Launcher XDG + Intent System v1.0
 
 ---
 
