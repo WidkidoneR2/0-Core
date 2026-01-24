@@ -9,7 +9,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-${custom.faelight_zone}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile}$git_branch$git_status$nodejs$python$rust$cmd_duration
+${custom.faelight_zone}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile}$git_branch$git_status$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
 [└─](bold green)$character
 """
 
@@ -157,3 +157,21 @@ when = 'command -v intent >/dev/null && [ "$(intent list incidents --open 2>/dev
 format = "[⚠ $output open]($style) "
 style = "bold red"
 description = "Shows count of open Intent Ledger incidents"
+
+# ──────────────────────────────────────────────
+# Enhanced Git Status - Show Counts & Details
+# ──────────────────────────────────────────────
+
+# ──────────────────────────────────────────────
+# Rust Toolchain - Version When rust-toolchain.toml Exists
+# ──────────────────────────────────────────────
+[custom.rust_toolchain]
+command = 'rustc --version | cut -d" " -f2'
+when = '[ -f rust-toolchain.toml ]'
+format = "[🦀 $output]($style) "
+style = "bold red"
+description = "Shows Rust version when rust-toolchain.toml exists"
+
+# ──────────────────────────────────────────────
+# Rust Toolchain - Version When rust-toolchain.toml Exists
+# ──────────────────────────────────────────────
