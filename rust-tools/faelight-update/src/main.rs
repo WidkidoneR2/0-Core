@@ -23,7 +23,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     
-    println!("{}", "🌲 Faelight Update Manager v0.2.0".green().bold());
+    println!("{}", "🌲 Faelight Update Manager v0.3.0".green().bold());
     println!();
     
     if !cli.skip_health {
