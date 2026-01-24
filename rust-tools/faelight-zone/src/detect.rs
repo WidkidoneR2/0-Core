@@ -10,9 +10,11 @@ pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
     // Most specific first (workspace before core)
     if path.starts_with(home.join("0-core/rust-tools")) {
         let rel = path.strip_prefix(home.join("0-core")).unwrap_or(path.as_path());
-        (Zone::Workspace, rel.display().to_string())
+        // Uppercase for critical workspace zone
+        (Zone::Workspace, rel.display().to_string().to_uppercase())
     } else if path.starts_with(home.join("0-core")) {
-        (Zone::Core, "0-core".to_string())
+        // Uppercase for critical core zone
+        (Zone::Core, "0-CORE".to_string())
     } else if path.starts_with(home.join("1-src")) {
         let rel = path.strip_prefix(home).unwrap_or(path.as_path());
         (Zone::Src, rel.display().to_string())
