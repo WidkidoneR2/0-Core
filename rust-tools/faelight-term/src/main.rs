@@ -42,8 +42,8 @@ impl Default for Cell {
     fn default() -> Self {
         Cell {
             ch: ' ',
-            fg: [0xD7, 0xE0, 0xDA], // Fog White
-            bg: [0x0F, 0x14, 0x11], // Forest Night
+            fg: [0xD7, 0xE0, 0xDA],
+            bg: [0x0F, 0x14, 0x11],
         }
     }
 }
@@ -77,9 +77,8 @@ impl Terminal {
         
         while let Some(ch) = chars.next() {
             if ch == '\x1b' {
-                // ANSI escape sequence
                 if chars.peek() == Some(&'[') {
-                    chars.next(); // consume '['
+                    chars.next();
                     let mut seq = String::new();
                     
                     while let Some(&c) = chars.peek() {
@@ -96,18 +95,18 @@ impl Terminal {
                 self.cursor_col = 0;
             } else if ch == '\n' {
                 self.new_line();
-            } else if ch == '\x08' {
-                // Backspace
+            } else if ch == '\x08' || ch == '\x7f' {
+                // BACKSPACE FIX - move back and erase
                 if self.cursor_col > 0 {
                     self.cursor_col -= 1;
+                    self.grid[self.cursor_row][self.cursor_col] = Cell::default();
                 }
             } else if ch == '\t' {
-                // Tab (8 spaces)
                 let spaces = 8 - (self.cursor_col % 8);
                 for _ in 0..spaces {
                     self.write_char(' ');
                 }
-            } else {
+            } else if !ch.is_control() {
                 self.write_char(ch);
             }
         }
@@ -116,7 +115,6 @@ impl Terminal {
     fn handle_csi_sequence(&mut self, params: &str, cmd: char) {
         match cmd {
             'H' | 'f' => {
-                // Cursor position
                 let parts: Vec<&str> = params.split(';').collect();
                 let row = parts.get(0).and_then(|s| s.parse::<usize>().ok()).unwrap_or(1).saturating_sub(1);
                 let col = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(1).saturating_sub(1);
@@ -124,29 +122,23 @@ impl Terminal {
                 self.cursor_col = col.min(self.cols - 1);
             }
             'A' => {
-                // Cursor up
                 let n = params.parse::<usize>().unwrap_or(1);
                 self.cursor_row = self.cursor_row.saturating_sub(n);
             }
             'B' => {
-                // Cursor down
                 let n = params.parse::<usize>().unwrap_or(1);
                 self.cursor_row = (self.cursor_row + n).min(self.rows - 1);
             }
             'C' => {
-                // Cursor forward
                 let n = params.parse::<usize>().unwrap_or(1);
                 self.cursor_col = (self.cursor_col + n).min(self.cols - 1);
             }
             'D' => {
-                // Cursor back
                 let n = params.parse::<usize>().unwrap_or(1);
                 self.cursor_col = self.cursor_col.saturating_sub(n);
             }
             'J' => {
-                // Clear screen
                 if params.is_empty() || params == "0" {
-                    // Clear from cursor to end
                     for col in self.cursor_col..self.cols {
                         self.grid[self.cursor_row][col] = Cell::default();
                     }
@@ -156,24 +148,28 @@ impl Terminal {
                         }
                     }
                 } else if params == "2" {
-                    // Clear entire screen
                     self.grid = vec![vec![Cell::default(); self.cols]; self.rows];
                     self.cursor_row = 0;
                     self.cursor_col = 0;
                 }
             }
             'K' => {
-                // Clear line
                 if params.is_empty() || params == "0" {
-                    // Clear from cursor to end of line
                     for col in self.cursor_col..self.cols {
                         self.grid[self.cursor_row][col] = Cell::default();
                     }
                 } else if params == "2" {
-                    // Clear entire line
                     for col in 0..self.cols {
                         self.grid[self.cursor_row][col] = Cell::default();
                     }
+                }
+            }
+            'P' => {
+                if self.cursor_col < self.cols {
+                    for col in self.cursor_col..(self.cols - 1) {
+                        self.grid[self.cursor_row][col] = self.grid[self.cursor_row][col + 1].clone();
+                    }
+                    self.grid[self.cursor_row][self.cols - 1] = Cell::default();
                 }
             }
             _ => {}
@@ -196,7 +192,6 @@ impl Terminal {
         self.cursor_row += 1;
         
         if self.cursor_row >= self.rows {
-            // Scroll up
             let old_line = self.grid.remove(0);
             self.scrollback.push(old_line);
             if self.scrollback.len() > self.max_scrollback {
@@ -209,7 +204,7 @@ impl Terminal {
 }
 
 fn main() {
-    println!("🦀 faelight-term v8.0.0 - MIND BLOWING!");
+    println!("🦀 faelight-term - BACKSPACE FIXED!");
     
     let conn = Connection::connect_to_env().unwrap();
     let (globals, event_queue) = registry_queue_init(&conn).unwrap();
@@ -234,7 +229,7 @@ fn main() {
     let pty = pty::Pty::spawn_shell(24, 80).unwrap();
     let terminal = Terminal::new(24, 80);
     
-    println!("✅ Terminal ready! Type away!");
+    println!("✅ Backspace works! Try typing and deleting!");
     
     let mut app = App {
         registry_state: RegistryState::new(&globals),
@@ -267,7 +262,6 @@ fn main() {
             _ => {}
         }
         
-        // Cursor blink (500ms)
         if app.last_blink.elapsed() > Duration::from_millis(500) {
             app.cursor_blink_state = !app.cursor_blink_state;
             app.last_blink = Instant::now();
@@ -325,7 +319,6 @@ impl App {
             }
         };
         
-        // Background: Forest Night
         for pixel in canvas.chunks_exact_mut(4) {
             pixel[0] = 0x11;
             pixel[1] = 0x14;
@@ -334,22 +327,19 @@ impl App {
         }
         
         let font_size = 16.0;
-        let char_width = 10.0;  // Monospace width
+        let char_width = 10.0;
         let line_height = 20.0;
         
-        // Render terminal grid
         for (row_idx, row) in self.terminal.grid.iter().enumerate() {
             let y = 10.0 + row_idx as f32 * line_height;
             
             for (col_idx, cell) in row.iter().enumerate() {
                 let x = 10.0 + col_idx as f32 * char_width;
                 
-                // Render cursor
                 if row_idx == self.terminal.cursor_row 
                     && col_idx == self.terminal.cursor_col 
                     && self.cursor_blink_state 
                 {
-                    // Draw cursor block
                     let cursor_x = x as usize;
                     let cursor_y = y as usize;
                     
@@ -361,7 +351,6 @@ impl App {
                             if screen_x < self.width as usize && screen_y < self.height as usize {
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
-                                    // Faelight Green cursor
                                     canvas[idx + 0] = 0xA3;
                                     canvas[idx + 1] = 0xE3;
                                     canvas[idx + 2] = 0x6B;
@@ -372,17 +361,18 @@ impl App {
                     }
                 }
                 
-                // Render character
                 if cell.ch != ' ' {
                     let (metrics, bitmap) = self.font.rasterize(cell.ch, font_size);
                     
                     if metrics.width > 0 && !bitmap.is_empty() {
+                        let baseline_y = y + line_height * 0.75;
+                        
                         for (py, row_data) in bitmap.chunks(metrics.width).enumerate() {
                             for (px, &alpha) in row_data.iter().enumerate() {
                                 if alpha == 0 { continue; }
                                 
-                                let screen_x = (x as i32 + px as i32 + metrics.xmin) as usize;
-                                let screen_y = (y as i32 + py as i32 + metrics.ymin) as usize;
+                                let screen_x = x as usize + px;
+                                let screen_y = (baseline_y as i32 + py as i32 - metrics.height as i32) as usize;
                                 
                                 if screen_x >= self.width as usize || screen_y >= self.height as usize {
                                     continue;
@@ -390,10 +380,10 @@ impl App {
                                 
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
-                                    let alpha = alpha as f32 / 255.0;
-                                    canvas[idx + 0] = (cell.fg[2] as f32 * alpha + canvas[idx + 0] as f32 * (1.0 - alpha)) as u8;
-                                    canvas[idx + 1] = (cell.fg[1] as f32 * alpha + canvas[idx + 1] as f32 * (1.0 - alpha)) as u8;
-                                    canvas[idx + 2] = (cell.fg[0] as f32 * alpha + canvas[idx + 2] as f32 * (1.0 - alpha)) as u8;
+                                    let alpha_f = alpha as f32 / 255.0;
+                                    canvas[idx + 0] = (cell.fg[2] as f32 * alpha_f + canvas[idx + 0] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 1] = (cell.fg[1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 2] = (cell.fg[0] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
                                 }
                             }
                         }
