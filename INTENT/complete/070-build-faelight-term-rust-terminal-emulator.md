@@ -3,7 +3,7 @@ id: 070
 date: 2026-01-22
 type: active
 title: "Build faelight-term: Rust terminal emulator mirroring Foot quality"
-status: active
+status: complete
 priority: medium
 tags: [rust, terminal, wayland, learning, systems-programming, tool-31]
 ---
