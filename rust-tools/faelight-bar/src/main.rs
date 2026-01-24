@@ -21,6 +21,7 @@ use wayland_client::{
     Connection, QueueHandle,
 };
 use faelight_core::GlyphCache;
+use faelight_zone::current_zone;
 use chrono::Local;
 use std::env;
 use std::fs;
@@ -62,6 +63,27 @@ fn get_current_profile() -> String {
         .unwrap_or_else(|_| "default".to_string())
         .trim()
         .to_string()
+}
+
+fn get_zone() -> String {
+    use std::path::PathBuf;
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let home = env::var("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("/"));
+    let (zone, path) = current_zone(&cwd, &home);
+    
+    // Use text prefix instead of emoji for bar compatibility
+    let prefix = match zone {
+        faelight_zone::Zone::Core => "CORE",
+        faelight_zone::Zone::Workspace => "WORK",
+        faelight_zone::Zone::Src => "SRC",
+        faelight_zone::Zone::Project => "PROJ",
+        faelight_zone::Zone::Archive => "ARCH",
+        faelight_zone::Zone::Scratch => "SCR",
+    };
+    
+    format!("{}", path)  // Just show path for now, can add prefix later
 }
 
 fn get_vpn_status() -> (bool, String) {
@@ -509,6 +531,14 @@ impl BarState {
         draw_text(&mut self.glyph_cache, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
         self.click_regions.push((profile_start, x_pos, "profile".to_string()));
+        draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        x_pos += 15;
+        
+        // Zone indicator
+        let zone_text = get_zone();
+        draw_text(&mut self.glyph_cache, canvas, width, &zone_text, x_pos, 8, ACCENT_COLOR);
+        x_pos += zone_text.len() as i32 * 8 + 10;
+        
         draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
         x_pos += 15;
         let (workspaces, active) = get_workspaces();

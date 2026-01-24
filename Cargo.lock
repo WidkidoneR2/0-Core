@@ -1006,6 +1006,7 @@ version = "0.9.0"
 dependencies = [
  "chrono",
  "faelight-core",
+ "faelight-zone",
  "serde_json",
  "smithay-client-toolkit 0.18.1",
  "wayland-client",
