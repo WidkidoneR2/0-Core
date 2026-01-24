@@ -1,0 +1,14 @@
+[package]
+name = "faelight-zone"
+version = "1.0.0"
+edition = "2021"
+authors = ["Christian <christian@faelight.forest>"]
+description = "Spatial awareness for Faelight Forest filesystem"
+
+[lib]
+name = "faelight_zone"
+path = "src/lib.rs"
+
+[[bin]]
+name = "faelight-zone"
+path = "src/main.rs"
