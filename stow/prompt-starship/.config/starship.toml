@@ -9,7 +9,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-$os$username$hostname${custom.core_lock}${custom.profile}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
+${custom.faelight_zone}${custom.cargo_root}$os$username$hostname${custom.core_lock}${custom.profile}$directory$git_branch$git_status$nodejs$python$rust$cmd_duration
 [└─](bold green)$character
 """
 
@@ -127,3 +127,23 @@ when = '[[ -f ~/.local/state/0-core/current-profile ]] && [[ "$(cat ~/.local/sta
 format = "[($output)]($style) "
 style = "bold cyan"
 
+
+# ──────────────────────────────────────────────
+# Faelight Zone - Spatial Awareness
+# ──────────────────────────────────────────────
+[custom.faelight_zone]
+command = "faelight-zone"
+when = "true"
+format = "[$output]($style) "
+style = "bold green"
+description = "Shows current filesystem zone"
+
+# ──────────────────────────────────────────────
+# Cargo Root Detection - Prevent Build Mistakes
+# ──────────────────────────────────────────────
+[custom.cargo_root]
+command = 'test -f Cargo.toml && echo "📦 root" || echo "↳ subdir"'
+when = 'git rev-parse --is-inside-work-tree >/dev/null 2>&1'
+format = "[$output]($style) "
+style = "bold yellow"
+description = "Shows if you're in cargo root or subdirectory"
