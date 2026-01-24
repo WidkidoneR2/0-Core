@@ -147,15 +147,27 @@ fn check_pacman_updates() -> UpdateCategory {
     println!("   Checking pacman...");
     
     let output = Command::new("checkupdates")
-        .output()
-        .unwrap_or_else(|_| {
-            Command::new("pacman")
+        .output();
+    
+    let items = match output {
+        Ok(out) => {
+            // checkupdates returns exit code 2 when no updates (not an error!)
+            if out.status.code() == Some(2) {
+                Vec::new()
+            } else {
+                parse_pacman_output(&out.stdout)
+            }
+        }
+        Err(_) => {
+            // Fallback to pacman -Qu if checkupdates not available
+            eprintln!("   ⚠️  checkupdates not found, using pacman -Qu (may be outdated)");
+            let fallback = Command::new("pacman")
                 .args(["-Qu"])
                 .output()
-                .expect("Failed to check pacman")
-        });
-    
-    let items = parse_pacman_output(&output.stdout);
+                .expect("Failed to check pacman");
+            parse_pacman_output(&fallback.stdout)
+        }
+    };
     
     UpdateCategory {
         name: "System Packages".to_string(),
@@ -185,8 +197,9 @@ fn parse_pacman_output(output: &[u8]) -> Vec<UpdateItem> {
 fn check_paru_updates() -> UpdateCategory {
     println!("   Checking AUR (paru)...");
     
+    // Use paru -Qua which syncs AUR database and checks for updates
     let output = Command::new("paru")
-        .args(["-Qu", "--aur"])
+        .args(["-Qua"])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::default(),
