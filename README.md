@@ -1,19 +1,19 @@
-# 🌲 Faelight Forest v8.0.0 - Sway Edition
+# 🌲 Faelight Forest v8.1.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v8.0.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v8.1.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v8.0.0 Milestone:** Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture 🌲🦀
+> **v8.1.0 Milestone:** Interactive updates, security hardening, ecosystem integration - 31 tools production-ready 🌲🦀
 
-**v7.6.5 Milestone:** Tool audit quick wins - 4 tools improved, 1 obsolete tool removed. 🌲🦀
+> **v8.0.0 Milestone:** Complete tool audit - 30 production-ready Rust tools, 100% system health, philosophy-driven architecture 🌲🦀
 
 ---
 

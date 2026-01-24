@@ -1,5 +1,44 @@
 # Changelog
 
+# v8.1.0 Release - The Garden
+> "A garden requires attention, not automation. Each update chosen, each change understood, each tool grown with care." 🌲
+
+**Release Date:** 2026-01-23
+
+## 📊 Release Statistics
+- **System Health:** 100%
+- **Total Tools:** 31 (up from 30)
+- **Health Checks:** 14 (up from 13)
+
+## 🚀 New Features
+
+### faelight-update v0.2.0 - Interactive Update Manager 🌟
+- Multi-source detection (pacman, paru, cargo, workspace, neovim)
+- Interactive TUI with checkboxes for selective updates
+- Health-check-first approach (runs doctor before updating)
+- Confirmation dialogs and dry-run mode
+- Better than topgrade: manual control, intentional updates
+
+### dot-doctor v0.6.0 - Enhanced Security Monitoring 🔒
+- Added 14th health check: Security Hardening
+- UFW firewall status verification
+- fail2ban service monitoring
+- Mullvad VPN connection check
+- SSH hardening validation (PermitRootLogin, PasswordAuthentication)
+
+## 📦 Tool Updates
+- **faelight-update**: Created v0.2.0 - Interactive update manager
+- **dot-doctor**: v0.5.0 → v0.6.0 - Added security checks
+- **Total tools**: 30 → 31
+
+## 🛠️ Improvements
+- Added aliases: `fu`, `fui`, `fuup`, `cdcore`, `dotgit`
+- Enhanced workspace organization
+- Improved ecosystem integration
+
+---
+
+
 # v8.0.0 Release - Complete Tool Audit
 
 > "The audit is complete. Every tool documented, tested, and production-ready." 🌲
