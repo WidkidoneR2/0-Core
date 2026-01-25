@@ -46,6 +46,16 @@ enum Commands {
         /// Commit message
         message: String,
     },
+    
+    /// Branch management (switch, create, delete)
+    Branch,
+    
+    /// View commit history
+    Log {
+        /// Number of commits to show (default: 10)
+        #[arg(short = 'n', long, default_value = "10")]
+        count: Option<usize>,
+    },
 
     
     /// Install git hooks
@@ -125,7 +135,28 @@ fn main() {
                 }
             }
         }
-                // v0.1 commands (preserved)
+        
+        Commands::Branch => {
+            match commands::branch::run() {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        Commands::Log { count } => {
+            match commands::log::run(count) {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        // v0.1 commands (preserved)
         Commands::InstallHooks => install_hooks(),
         Commands::RemoveHooks => remove_hooks(),
         Commands::Verify => verify(),
