@@ -33,6 +33,10 @@ const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
 const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
+
+// Lock/Unlock icons (Nerd Font glyphs)
+const ICON_LOCKED: &str = "󰌾";   // nf-md-lock
+const ICON_UNLOCKED: &str = "󰌿"; // nf-md-lock_open
 const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
 const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
 
@@ -534,8 +538,8 @@ impl BarState {
         
         let locked = is_core_locked();
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
-        let lock_text = if locked { "● LCK" } else { "○ UNL" };
-        draw_text(&mut self.glyph_cache, canvas, width, lock_text, x_pos, 8, lock_color);
+        let lock_icon = if locked { ICON_LOCKED } else { ICON_UNLOCKED };
+        draw_text(&mut self.glyph_cache, canvas, width, lock_icon, x_pos, 8, lock_color);
         // === CENTER ===
         let window_title = get_active_window();
         if !window_title.is_empty() {
