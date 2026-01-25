@@ -17,38 +17,72 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 ---
 
-## 🏆 v8.3.0 Highlights - "Tool Upgrades & Terminal Perfection"
+## 🏆 v8.3.0 — Tool Upgrades & Terminal Perfection
 
-**What's New:**
-✅ **faelight-term v9.0.0** - Color emoji support 🌲🦀🔓🟢, better than foot/alacritty/kitty!
-✅ **dot-doctor v0.5.0** - Auto-fix mode + health history tracking with trending
-✅ **bump-system-version v5.0.0** - Stress-free releases with pre-flight dashboard
-✅ **7 Tool Upgrades** - faelight-update v0.4.0, faelight-bar v1.0.0, faelight-dmenu v2.0.0, faelight-menu v0.7.0
-✅ **100% System Health** - All 14 checks passing, zero stress
+### ✨ What’s New
 
-**Philosophy:**
-> "Excellence emerges through intentional iteration" 🌲
+- **🦀 faelight-term v9.0.0 (Beta / WIP)**  
+  Color emoji support 🌲🦀🔓🟢 — active development, feature-complete core with ongoing refinement.
 
-**Flagship Tools:**
-🦀 **faelight-term v9.0.0** - Terminal emulator with color emoji, copy/paste, mouse selection - production ready!
-🏥 **dot-doctor v0.5.0** - Health monitoring with auto-fix (`--fix`) and time-traveling history (`--history`)
-📦 **bump-system-version v5.0.0** - Pre-flight dashboard, confirmation checkpoints, zero-stress releases
-🔄 **faelight-update v0.4.0** - Impact analysis for critical package updates
-🎨 **faelight-bar v1.0.0** - Beautiful gradient separators, production-ready status bar
+- **🏥 dot-doctor v0.5.0**  
+  Auto-fix mode (`--fix`) plus health history tracking with trend analysis.
+
+- **📦 bump-system-version v5.0.0**  
+  Stress-free releases with a new pre-flight dashboard and confirmation checkpoints.
+
+- **🔧 Tool Upgrades**
+  - faelight-update v0.4.0
+  - faelight-bar v1.0.0
+  - faelight-dmenu v2.0.0
+  - faelight-menu v0.7.0
+
+- **✅ 100% System Health**  
+  All 14 checks passing — zero stress.
 
 ---
 
-## 🎯 The Philosophy
+### 🌲 Flagship Tools
 
-0-Core is more than dotfiles — it's a position on how personal computing should work.
+- **🦀 faelight-term v9.0.0 (Beta / WIP)**  
+  Terminal emulator with color emoji, copy/paste, and mouse selection.  
+  Actively developed — APIs and behavior may change.
 
-**Core principles:**
-- **Manual control over automation** — YOU decide when things run
-- **Intent over convention** — Every decision documented
-- **Understanding over convenience** — Know your system
-- **Recovery over perfection** — Plan for failure
+- **🏥 dot-doctor v0.5.0**  
+  System health monitoring with auto-fixes and time-traveling history (`--history`).
 
-Read the full manifesto: [docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.md)
+- **📦 bump-system-version v5.0.0**  
+  Pre-flight dashboard, safety checks, and calm, predictable releases.
+
+- **🔄 faelight-update v0.4.0**  
+  Impact analysis for critical package updates.
+
+- **🎨 faelight-bar v1.0.0**  
+  Production-ready status bar with beautiful gradient separators.
+
+
+---
+
+## 🎯 Philosophy
+
+0-Core is more than dotfiles — it’s a clear position on how personal computing *should* work.
+
+### Core Principles
+
+- **Manual control over automation**  
+  You decide *when* and *why* things run.
+
+- **Intent over convention**  
+  Every decision is deliberate and documented.
+
+- **Understanding over convenience**  
+  Know your system instead of abstracting it away.
+
+- **Recovery over perfection**  
+  Failure is expected — resilience is designed.
+
+📖 **Read the full manifesto:**  
+[docs/THEORY_OF_OPERATION.md](docs/THEORY_OF_OPERATION.md)
+
 
 ---
 
