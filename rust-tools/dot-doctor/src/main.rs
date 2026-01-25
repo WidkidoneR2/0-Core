@@ -2,12 +2,14 @@
 //! 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
+use chrono::{DateTime, Utc};
+use std::io::{self, Write};
 
 #[derive(Parser)]
 #[command(name = "dot-doctor")]
@@ -33,13 +35,19 @@ struct Cli {
     /// Run specific check only
     #[arg(long)]
     check: Option<String>,
+    /// Automatically apply safe fixes
+    #[arg(long)]
+    fix: bool,
+    /// Show health history
+    #[arg(long)]
+    history: bool,
 }
 
 // ═══════════════════════════════════════════════════════════
 // 📊 DATA STRUCTURES
 // ═══════════════════════════════════════════════════════════
 
-#[derive(Clone, Copy, PartialEq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum Severity {
     Critical,
     High,
@@ -47,7 +55,7 @@ enum Severity {
     Low,
 }
 
-#[derive(Clone, Copy, PartialEq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum Status {
     Pass,
     Warn,
@@ -55,7 +63,7 @@ enum Status {
     Blocked,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct CheckResult {
     id: String,
     name: String,
@@ -68,7 +76,7 @@ struct CheckResult {
     details: Option<Vec<String>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct HealthReport {
     version: String,
     total: u32,
@@ -852,6 +860,173 @@ fn check_keybinds(ctx: &Context) -> CheckResult {
 // ═══════════════════════════════════════════════════════════
 
 fn main() {
+// ═══════════════════════════════════════════════════════════
+// 📊 HISTORY TRACKING
+// ═══════════════════════════════════════════════════════════
+
+#[derive(Serialize, Deserialize)]
+struct HealthSnapshot {
+    timestamp: DateTime<Utc>,
+    health_percent: u32,
+    passed: u32,
+    warnings: u32,
+    failed: u32,
+    total: u32,
+}
+
+fn save_health_snapshot(report: &HealthReport) -> std::io::Result<()> {
+    let state_dir = PathBuf::from(env::var("HOME").unwrap()).join(".local/state/0-core");
+    fs::create_dir_all(&state_dir)?;
+    
+    let history_file = state_dir.join("health-history.jsonl");
+    let snapshot = HealthSnapshot {
+        timestamp: Utc::now(),
+        health_percent: report.health_percent,
+        passed: report.passed,
+        warnings: report.warnings,
+        failed: report.failed,
+        total: report.total,
+    };
+    
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(history_file)?;
+    
+    writeln!(file, "{}", serde_json::to_string(&snapshot)?)?;
+    Ok(())
+}
+
+fn show_health_history() -> std::io::Result<()> {
+    let history_file = PathBuf::from(env::var("HOME").unwrap())
+        .join(".local/state/0-core/health-history.jsonl");
+    
+    if !history_file.exists() {
+        println!("📊 No health history yet. Run 'doctor' to start tracking!");
+        return Ok(());
+    }
+    
+    let content = fs::read_to_string(history_file)?;
+    let snapshots: Vec<HealthSnapshot> = content
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    
+    if snapshots.is_empty() {
+        println!("📊 No health history yet.");
+        return Ok(());
+    }
+    
+    println!("📊 Health History");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    for snapshot in snapshots.iter().rev().take(10).rev() {
+        let color = if snapshot.health_percent >= 95 {
+            "\x1b[0;32m"
+        } else if snapshot.health_percent >= 80 {
+            "\x1b[1;33m"
+        } else {
+            "\x1b[0;31m"
+        };
+        
+        println!("  {} - {}{}%{} ({}/{} checks)",
+                 snapshot.timestamp.format("%Y-%m-%d %H:%M"),
+                 color, snapshot.health_percent, "\x1b[0m",
+                 snapshot.passed, snapshot.total);
+    }
+    
+    if snapshots.len() >= 2 {
+        let recent = &snapshots[snapshots.len() - 1];
+        let previous = &snapshots[snapshots.len() - 2];
+        let diff = recent.health_percent as i32 - previous.health_percent as i32;
+        
+        let trend = if diff > 0 {
+            format!("\x1b[0;32m↑{}\x1b[0m", diff)
+        } else if diff < 0 {
+            format!("\x1b[0;31m↓{}\x1b[0m", diff.abs())
+        } else {
+            "→0".to_string()
+        };
+        
+        println!();
+        println!("  Trend: {} since last check", trend);
+    }
+    
+    println!();
+    println!("  Total snapshots: {}", snapshots.len());
+    
+    Ok(())
+}
+
+fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
+    let fixable: Vec<_> = results.iter()
+        .filter(|r| r.status != Status::Pass && r.fix.is_some())
+        .collect();
+    
+    if fixable.is_empty() {
+        println!("✅ No fixes needed!");
+        return Ok(());
+    }
+    
+    println!("🔧 Auto-Fix Mode");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    
+    for result in &fixable {
+        println!("  {} - {}", result.id, result.name);
+        if let Some(ref fix) = result.fix {
+            println!("    Fix: {}", fix);
+        }
+        println!();
+    }
+    
+    println!("Apply these fixes? (y/n)");
+    print!("> ");
+    io::stdout().flush()?;
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    
+    if !input.trim().eq_ignore_ascii_case("y") {
+        println!("Cancelled.");
+        return Ok(());
+    }
+    
+    for result in &fixable {
+        match result.id.as_str() {
+            "scripts" => {
+                println!("  Fixing: {}", result.id);
+                let scripts_dir = PathBuf::from(env::var("HOME").unwrap()).join("0-core/scripts");
+                if let Ok(entries) = fs::read_dir(&scripts_dir) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let _ = Command::new("chmod")
+                                .args(["+x", path.to_str().unwrap()])
+                                .output();
+                        }
+                    }
+                    println!("    ✅ Scripts made executable");
+                }
+            }
+            "profiles" => {
+                println!("  Fixing: {}", result.id);
+                let state_dir = PathBuf::from(env::var("HOME").unwrap()).join(".local/state/faelight");
+                let _ = fs::create_dir_all(&state_dir);
+                println!("    ✅ Created state directory");
+            }
+            _ => {
+                println!("  {} - Manual fix required", result.id);
+            }
+        }
+    }
+    
+    println!();
+    println!("✅ Auto-fix complete! Run 'doctor' again to verify.");
+    
+    Ok(())
+}
+
     let cli = Cli::parse();
 
     let home = env::var("HOME").expect("HOME not set");
@@ -867,6 +1042,17 @@ fn main() {
     if cli.graph {
         print_dependency_graph();
         return;
+    }
+    
+    // Show health history
+    if cli.history {
+        match show_health_history() {
+            Ok(_) => return,
+            Err(e) => {
+                eprintln!("Error reading history: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 
     // Run checks
@@ -926,6 +1112,17 @@ fn main() {
         health_percent,
         checks: results,
     };
+
+    
+    // Save health snapshot
+    let _ = save_health_snapshot(&report);
+    // Auto-fix mode
+    if cli.fix {
+        if let Err(e) = apply_fixes(&report.checks) {
+            eprintln!("Error applying fixes: {}", e);
+        }
+        return;
+    }
 
     // Output
     if cli.json {
