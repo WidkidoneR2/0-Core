@@ -30,7 +30,7 @@ pub fn run() -> Result<()> {
     }
     println!();
     
-    // Phase 2: Repository Status
+    // Phase 2: Repository Status with ACTUAL FILES
     println!("{}", "📊 Phase 2: Repository Status".yellow().bold());
     
     let status = Command::new("git")
@@ -45,28 +45,76 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
     
-    // Parse and show changes
+    // Parse and show ACTUAL FILES with colors!
     let changes = String::from_utf8_lossy(&status.stdout);
-    let mut modified = 0;
-    let mut added = 0;
-    let mut deleted = 0;
+    let mut modified_files = Vec::new();
+    let mut added_files = Vec::new();
+    let mut deleted_files = Vec::new();
     
     for line in changes.lines() {
-        if line.starts_with(" M") || line.starts_with("M ") {
-            modified += 1;
-        } else if line.starts_with("A ") || line.starts_with("??") {
-            added += 1;
-        } else if line.starts_with(" D") {
-            deleted += 1;
+        let status_code = &line[0..2];
+        let filename = line[3..].trim();
+        
+        match status_code {
+            " M" | "M " | "MM" => modified_files.push(filename),
+            "A " | "??" => added_files.push(filename),
+            " D" | "D " => deleted_files.push(filename),
+            _ => {}
         }
     }
     
-    println!("  📝 Modified: {}", modified.to_string().yellow());
-    println!("  ➕ Added: {}", added.to_string().green());
-    if deleted > 0 {
-        println!("  ➖ Deleted: {}", deleted.to_string().red());
+    // Display files with beautiful colors!
+    if !modified_files.is_empty() {
+        println!("  {} Modified files:", "📝".yellow());
+        for file in &modified_files {
+            println!("    {} {}", "M".yellow().bold(), file.yellow());
+        }
     }
+    
+    if !added_files.is_empty() {
+        println!("  {} New files:", "➕".green());
+        for file in &added_files {
+            println!("    {} {}", "+".green().bold(), file.green());
+        }
+    }
+    
+    if !deleted_files.is_empty() {
+        println!("  {} Deleted files:", "➖".red());
+        for file in &deleted_files {
+            println!("    {} {}", "D".red().bold(), file.red());
+        }
+    }
+    
     println!();
+    println!("  Summary: {} modified, {} added, {} deleted", 
+        modified_files.len().to_string().yellow(),
+        added_files.len().to_string().green(),
+        deleted_files.len().to_string().red()
+    );
+    println!();
+    
+    // Phase 2.5: Show diff preview?
+    print!("  ❓ Show diff preview? (y/n): ");
+    io::stdout().flush()?;
+    
+    let mut preview = String::new();
+    io::stdin().read_line(&mut preview)?;
+    
+    if preview.trim().to_lowercase() == "y" {
+        println!();
+        println!("{}", "  📄 Diff Preview:".cyan().bold());
+        println!("{}", "  ━".repeat(25));
+        
+        let diff = Command::new("git")
+            .args(&["diff", "--color=always", "--stat"])
+            .output()?;
+        
+        if diff.status.success() {
+            print!("{}", String::from_utf8_lossy(&diff.stdout));
+        }
+        println!("{}", "  ━".repeat(25));
+        println!();
+    }
     
     // Phase 3: Stage Changes
     println!("{}", "📝 Phase 3: Stage Changes".yellow().bold());
@@ -105,13 +153,14 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
     
-    // Preview
+    // Preview with file counts
     println!();
     println!("{}", "  Preview:".cyan());
     println!("{}", "  ━".repeat(25));
     println!("  {}", message);
     println!();
-    println!("  Files: {} modified, {} added", modified, added);
+    println!("  Files: {} modified, {} added, {} deleted", 
+        modified_files.len(), added_files.len(), deleted_files.len());
     println!("{}", "  ━".repeat(25));
     println!();
     
