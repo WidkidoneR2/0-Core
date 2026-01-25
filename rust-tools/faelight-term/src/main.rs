@@ -1,5 +1,6 @@
 mod pty;
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 use smithay_client_toolkit::{
     reexports::calloop::EventLoop,
     reexports::calloop_wayland_source::WaylandSource,
@@ -71,6 +72,27 @@ impl Default for Cell {
     }
 }
 
+
+// Helper function to get character width (1 or 2 cells)
+fn char_width(ch: char) -> usize {
+    // Emoji and wide characters take 2 cells
+    match ch {
+        '\u{1F300}'..='\u{1F9FF}' | // Emoji ranges
+        '\u{2600}'..='\u{26FF}' |   // Misc symbols
+        '\u{2700}'..='\u{27BF}' |   // Dingbats
+        '\u{FE00}'..='\u{FE0F}' |   // Variation selectors
+        '\u{1F600}'..='\u{1F64F}' | // Emoticons
+        '\u{1F680}'..='\u{1F6FF}' | // Transport
+        '\u{1F900}'..='\u{1F9FF}' | // Supplemental
+        '\u{3000}'..='\u{303F}' |   // CJK symbols
+        '\u{3040}'..='\u{309F}' |   // Hiragana
+        '\u{30A0}'..='\u{30FF}' |   // Katakana
+        '\u{4E00}'..='\u{9FFF}' |   // CJK Unified
+        '\u{AC00}'..='\u{D7AF}' => 2, // Hangul
+        _ => 1
+    }
+}
+
 struct Terminal {
     rows: usize,
     cols: usize,
@@ -83,6 +105,7 @@ struct Terminal {
     current_bg: [u8; 3],
     current_attrs: TextAttrs,
     scroll_offset: usize,
+    utf8_buffer: Vec<u8>,  // FIX 2: UTF-8 carry-over buffer
 }
 
 impl Terminal {
@@ -94,6 +117,7 @@ impl Terminal {
             current_fg: COLORS[7], current_bg: COLORS[0],
             current_attrs: TextAttrs::default(),
             scroll_offset: 0,
+            utf8_buffer: Vec::new(),  // FIX 2: Initialize buffer
         }
     }
     
@@ -109,11 +133,8 @@ impl Terminal {
         let mut text = String::new();
         
         for row in start_row..=end_row.min(self.rows - 1) {
-            let actual_row = if self.scroll_offset > 0 && row < self.scrollback.len() {
-                &self.scrollback[self.scrollback.len() - self.scroll_offset + row]
-            } else {
-                &self.grid[row.saturating_sub(self.scrollback.len().saturating_sub(self.scroll_offset))]
-            };
+            // FIX 7: Simplified - always read from grid when not scrolled
+            let actual_row = &self.grid[row];
             
             let col_start = if row == start_row { start_col } else { 0 };
             let col_end = if row == end_row { end_col } else { self.cols - 1 };
@@ -128,6 +149,30 @@ impl Terminal {
         }
         
         text
+    }
+    
+    // FIX 2: Process bytes with UTF-8 carry-over handling
+    fn process_bytes(&mut self, bytes: &[u8]) {
+        self.utf8_buffer.extend_from_slice(bytes);
+        
+        let mut valid_end = 0;
+        let mut chars_str = String::new();
+        
+        for i in 0..self.utf8_buffer.len() {
+            if let Ok(s) = std::str::from_utf8(&self.utf8_buffer[..=i]) {
+                valid_end = i + 1;
+                chars_str = s.to_string();
+            }
+        }
+        
+        if valid_end > 0 {
+            self.process_text(&chars_str);
+            self.utf8_buffer.drain(..valid_end);
+        }
+        
+        if self.utf8_buffer.len() > 4 {
+            self.utf8_buffer.clear();
+        }
     }
     
     fn process_text(&mut self, text: &str) {
@@ -153,11 +198,13 @@ impl Terminal {
                 self.cursor_col = 0;
             } else if ch == '\n' {
                 self.new_line();
-            } else if ch == '\x08' || ch == '\x7f' {
+            } else if ch == '\x08' {
+                // FIX 1: Backspace only moves cursor, does NOT erase
                 if self.cursor_col > 0 {
                     self.cursor_col -= 1;
-                    self.grid[self.cursor_row][self.cursor_col] = Cell::default();
                 }
+            } else if ch == '\x7f' {
+                // FIX 1: DEL is ignored (shell handles it)
             } else if ch == '\t' {
                 let spaces = 8 - (self.cursor_col % 8);
                 for _ in 0..spaces { self.write_char(' '); }
@@ -269,7 +316,8 @@ impl Terminal {
     }
     
     fn write_char(&mut self, ch: char) {
-        if self.cursor_col >= self.cols { self.new_line(); }
+        let width = char_width(ch);
+        if self.cursor_col + width > self.cols { self.new_line(); }
         if self.cursor_row < self.rows {
             self.grid[self.cursor_row][self.cursor_col] = Cell { 
                 ch, 
@@ -277,7 +325,7 @@ impl Terminal {
                 bg: self.current_bg,
                 attrs: self.current_attrs,
             };
-            self.cursor_col += 1;
+            self.cursor_col += width;
         }
     }
     
@@ -296,6 +344,65 @@ impl Terminal {
     }
 }
 
+// FIX 4: Glyph cache for massive performance improvement
+#[derive(Hash, Eq, PartialEq, Clone)]
+struct GlyphCacheKey {
+    ch: char,
+    font_size: u32,
+    color: [u8; 3],
+}
+
+struct CachedGlyph {
+    rgba: Vec<u8>,
+    width: usize,
+    height: usize,
+    left: i32,
+    top: i32,
+}
+
+struct GlyphCache {
+    cache: HashMap<GlyphCacheKey, CachedGlyph>,
+}
+
+impl GlyphCache {
+    fn new() -> Self {
+        Self {
+            cache: HashMap::new(),
+        }
+    }
+    
+    fn get_or_render(
+        &mut self,
+        scale_context: &mut ScaleContext,
+        main_font: &FontRef,
+        emoji_font: Option<&FontRef>,
+        ch: char,
+        font_size: f32,
+        color: [u8; 3],
+    ) -> Option<&CachedGlyph> {
+        let key = GlyphCacheKey {
+            ch,
+            font_size: (font_size * 10.0) as u32,
+            color,
+        };
+        
+        if !self.cache.contains_key(&key) {
+            if let Some((rgba, width, height, left, top)) = 
+                render_glyph(scale_context, main_font, emoji_font, ch, font_size, color) {
+                self.cache.insert(key.clone(), CachedGlyph { rgba, width, height, left, top });
+            } else {
+                return None;
+            }
+        }
+        
+        self.cache.get(&key)
+    }
+    
+    fn clear(&mut self) {
+        self.cache.clear();
+    }
+}
+
 // Standalone glyph rendering function
 fn render_glyph(
     scale_context: &mut ScaleContext,
@@ -305,7 +412,6 @@ fn render_glyph(
     font_size: f32,
     color: [u8; 3],
 ) -> Option<(Vec<u8>, usize, usize, i32, i32)> {
-    let glyph_id = main_font.charmap().map(ch);
     let glyph_id = main_font.charmap().map(ch);
     let (font, glyph_id) = if glyph_id != 0 {
         (main_font, glyph_id)
@@ -442,7 +548,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return health_check();
             }
             _ => {
-                eprintln!("Unknown argument: {}", args[1]);
                 std::process::exit(1);
             }
         }
@@ -493,15 +598,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         main_font,
         emoji_font,
         scale_context: ScaleContext::new(),
+        glyph_cache: GlyphCache::new(),  // FIX 4: Add glyph cache
     };
     
     loop {
         let mut buf = [0u8; 4096];
         match app.pty.read(&mut buf) {
             Ok(n) if n > 0 => {
-                if let Ok(text) = std::str::from_utf8(&buf[..n]) {
-                    app.terminal.process_text(text);
-                }
+                // FIX 2: Use process_bytes for proper UTF-8 handling
+                app.terminal.process_bytes(&buf[..n]);
             }
             _ => {}
         }
@@ -545,6 +650,7 @@ struct App {
     main_font: FontRef<'static>,
     emoji_font: Option<FontRef<'static>>,
     scale_context: ScaleContext,
+    glyph_cache: GlyphCache,  // FIX 4: Add glyph cache
 }
 
 impl App {
@@ -556,29 +662,37 @@ impl App {
             let text = self.terminal.get_visible_text(start_row, end_row, start_col, end_col);
             
             if !text.is_empty() {
-                let opts = Options::new();
                 let len = text.len();
-                if let Err(e) = opts.copy(ClipSource::Bytes(text.clone().into_bytes().into()), MimeType::Text) {
-                    eprintln!("⚠️  Copy failed: {}", e);
-                } else {
-                    println!("📋 Copied {} chars", len);
+                // FIX: Use the clipboard correctly - pass string data
+                let opts = Options::new();
+                match opts.copy(
+                    ClipSource::Bytes(text.as_bytes().to_vec().into()),
+                    MimeType::Text
+                ) {
+                    Ok(_) => println!("📋 Copied {} chars", len),
+                    Err(e) => eprintln!("⚠️  Copy failed: {}", e),
                 }
             }
         }
     }
     
-    
     fn paste_from_clipboard(&mut self) {
         use wl_clipboard_rs::paste::{get_contents, ClipboardType, Seat, MimeType};
+        use std::io::Read;
         
+        // FIX: Read from PipeReader
         match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text) {
-            Ok((_mime, data)) => {
-                let _ = self.pty.write(data.as_bytes());
-                println!("📋 Pasted {} bytes", data.len());
+            Ok((mut pipe, _mime)) => {
+                let mut buffer = String::new();
+                if let Ok(_) = pipe.read_to_string(&mut buffer) {
+                    let _ = self.pty.write(buffer.as_bytes());
+                    println!("📋 Pasted {} bytes", buffer.len());
+                }
             }
             Err(e) => eprintln!("⚠️  Paste failed: {}", e),
         }
     }
+    
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         let stride = self.width as i32 * 4;
         
@@ -604,13 +718,20 @@ impl App {
         let char_width = self.font_size * 0.6;
         let line_height = self.font_size * 1.45;
         
-        // Pre-extract refs we need
-        let scale_ctx = &mut self.scale_context;
-        let main_font = &self.main_font;
-        let emoji_font_ref = self.emoji_font.as_ref();
-        let font_size = self.font_size;
+        // Determine which rows to render based on scroll offset
+        let rows_to_render: Vec<&Vec<Cell>> = if self.terminal.scroll_offset > 0 {
+            // Render from scrollback
+            let start = self.terminal.scrollback.len().saturating_sub(self.terminal.scroll_offset);
+            self.terminal.scrollback[start..].iter()
+                .chain(self.terminal.grid.iter())
+                .take(self.terminal.rows)
+                .collect()
+        } else {
+            // Normal rendering
+            self.terminal.grid.iter().collect()
+        };
         
-        for (row_idx, row) in self.terminal.grid.iter().enumerate() {
+        for (row_idx, row) in rows_to_render.iter().enumerate() {
             let y = 15.0 + row_idx as f32 * line_height;
             
             for (col_idx, cell) in row.iter().enumerate() {
@@ -664,19 +785,24 @@ impl App {
                     }
                 }
                 
-                // Render character
+                // Render character - FIX 4: Use glyph cache
                 if cell.ch != ' ' {
-                    if let Some((rgba, glyph_width, glyph_height, left, top)) = 
-                        render_glyph(scale_ctx, main_font, emoji_font_ref, cell.ch, font_size, cell.fg) {
-                        
-                        let glyph_x = x + left as f32;
+                    if let Some(glyph) = self.glyph_cache.get_or_render(
+                        &mut self.scale_context,
+                        &self.main_font,
+                        self.emoji_font.as_ref(),
+                        cell.ch,
+                        self.font_size,
+                        cell.fg
+                    ) {
+                        let glyph_x = x + glyph.left as f32;
                         let baseline_y = y + line_height * 0.8;
-                        let glyph_y = baseline_y - top as f32;
+                        let glyph_y = baseline_y - glyph.top as f32;
                         
-                        for py in 0..glyph_height {
-                            for px in 0..glyph_width {
-                                let src_idx = (py * glyph_width + px) * 4;
-                                let alpha = rgba[src_idx + 3];
+                        for py in 0..glyph.height {
+                            for px in 0..glyph.width {
+                                let src_idx = (py * glyph.width + px) * 4;
+                                let alpha = glyph.rgba[src_idx + 3];
                                 if alpha == 0 { continue; }
                                 
                                 let screen_x = (glyph_x + px as f32).round() as usize;
@@ -689,9 +815,9 @@ impl App {
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
                                     let alpha_f = alpha as f32 / 255.0;
-                                    canvas[idx] = (rgba[src_idx] as f32 * alpha_f + canvas[idx] as f32 * (1.0 - alpha_f)) as u8;
-                                    canvas[idx + 1] = (rgba[src_idx + 1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
-                                    canvas[idx + 2] = (rgba[src_idx + 2] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx] = (glyph.rgba[src_idx] as f32 * alpha_f + canvas[idx] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 1] = (glyph.rgba[src_idx + 1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 2] = (glyph.rgba[src_idx + 2] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
                                 }
                             }
                         }
@@ -757,14 +883,16 @@ impl PointerHandler for App {
         for event in events {
             match event.kind {
                 PointerEventKind::Axis { vertical, .. } => {
-                    if vertical.discrete < 0 {
+                    // Use continuous scroll (absolute) since discrete is 0 on some systems
+                    if vertical.absolute < 0.0 {
                         self.terminal.scroll_up(3);
-                    } else if vertical.discrete > 0 {
+                    } else if vertical.absolute > 0.0 {
                         self.terminal.scroll_down(3);
                     }
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == 272 {
+                        self.mouse_pressed = true;  // FIX 3: Set mouse_pressed
                         let char_width = self.font_size * 0.6;
                         let line_height = self.font_size * 1.45;
                         let col = ((event.position.0 - 15.0) / char_width as f64) as usize;
@@ -789,7 +917,6 @@ impl PointerHandler for App {
                         }
                     }
                 }
-
                 _ => {}
             }
         }
@@ -801,31 +928,35 @@ impl KeyboardHandler for App {
     fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
     
     fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
-        if self.ctrl_pressed && self.shift_pressed && event.keysym == Keysym::c {
+        // FIX 6: Handle both uppercase and lowercase for copy/paste
+        if self.ctrl_pressed && self.shift_pressed && (event.keysym == Keysym::c || event.keysym == Keysym::C) {
             self.copy_selection();
             return;
-        }        
-        // Handle Ctrl+Shift+V (paste)
-        if self.ctrl_pressed && self.shift_pressed && event.keysym == Keysym::v {
+        }
+        
+        if self.ctrl_pressed && self.shift_pressed && (event.keysym == Keysym::v || event.keysym == Keysym::V) {
             self.paste_from_clipboard();
             return;
         }
-
         
+        // Font size controls
         if self.ctrl_pressed {
             match event.keysym {
                 Keysym::plus | Keysym::equal => { 
-                    self.font_size = (self.font_size + 1.0).min(30.0); 
+                    self.font_size = (self.font_size + 1.0).min(30.0);
+                    self.glyph_cache.clear();
                     println!("🔍 Font size: {}", self.font_size); 
                     return; 
                 }
                 Keysym::minus | Keysym::underscore => { 
-                    self.font_size = (self.font_size - 1.0).max(6.0); 
+                    self.font_size = (self.font_size - 1.0).max(6.0);
+                    self.glyph_cache.clear();
                     println!("🔍 Font size: {}", self.font_size); 
                     return; 
                 }
                 Keysym::_0 => { 
-                    self.font_size = 12.0; 
+                    self.font_size = 17.0;
+                    self.glyph_cache.clear();
                     println!("🔍 Reset"); 
                     return; 
                 }
@@ -833,6 +964,7 @@ impl KeyboardHandler for App {
             }
         }
         
+        // Scrolling
         if self.shift_pressed {
             match event.keysym {
                 Keysym::Page_Up => {
@@ -847,6 +979,30 @@ impl KeyboardHandler for App {
             }
         }
         
+        // FIX 5: Handle Ctrl+key combinations for terminal control
+        if self.ctrl_pressed && !self.shift_pressed {
+            let ctrl_char = match event.keysym {
+                Keysym::c => Some('\x03'),  // Ctrl+C
+                Keysym::d => Some('\x04'),  // Ctrl+D
+                Keysym::z => Some('\x1a'),  // Ctrl+Z
+                Keysym::l => Some('\x0c'),  // Ctrl+L
+                Keysym::a => Some('\x01'),  // Ctrl+A
+                Keysym::e => Some('\x05'),  // Ctrl+E
+                Keysym::k => Some('\x0b'),  // Ctrl+K
+                Keysym::u => Some('\x15'),  // Ctrl+U
+                Keysym::w => Some('\x17'),  // Ctrl+W
+                _ => None,
+            };
+            
+            if let Some(ch) = ctrl_char {
+                let mut buf = [0u8; 4];
+                let s = ch.encode_utf8(&mut buf);
+                let _ = self.pty.write(s.as_bytes());
+                return;
+            }
+        }
+        
+        // Normal key input
         if let Some(utf8) = event.utf8 { 
             let _ = self.pty.write(utf8.as_bytes()); 
         }

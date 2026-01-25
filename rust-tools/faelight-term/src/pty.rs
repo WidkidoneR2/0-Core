@@ -1,6 +1,7 @@
 //! PTY (Pseudo-Terminal) module for spawning and managing shell processes
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use nix::pty::{openpty, Winsize};
+use nix::sys::termios::{self, LocalFlags, InputFlags, OutputFlags, ControlFlags, SetArg};
 use nix::unistd::{dup2, execvp, fork, setsid, ForkResult};
 use std::ffi::CString;
 use std::fs::File;
@@ -23,8 +24,22 @@ impl Pty {
             ws_ypixel: 0,
         };
 
-        // Open a PTY (master/slave pair)
-        let pty_result = openpty(&winsize, None)
+        // Get default termios from stdin or create minimal config
+        let termios = if let Ok(t) = termios::tcgetattr(std::io::stdin()) {
+            let mut t = t;
+            // Enable signal processing (Ctrl+C, Ctrl+Z, etc)
+            t.local_flags |= LocalFlags::ISIG;
+            // Keep echo and canonical mode
+            t.local_flags |= LocalFlags::ECHO | LocalFlags::ICANON;
+            t.input_flags |= InputFlags::ICRNL;
+            t.output_flags |= OutputFlags::OPOST | OutputFlags::ONLCR;
+            Some(t)
+        } else {
+            None  // Fallback to no termios config
+        };
+        
+        // Open a PTY (master/slave pair) with termios config
+        let pty_result = openpty(&winsize, termios.as_ref())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         // Fork the process
@@ -61,6 +76,19 @@ impl Pty {
                 dup2(slave_fd, 0).expect("Failed to dup2 stdin");
                 dup2(slave_fd, 1).expect("Failed to dup2 stdout");
                 dup2(slave_fd, 2).expect("Failed to dup2 stderr");
+                
+                // Configure termios for signal processing on the slave (now stdin)
+                unsafe {
+                    use std::os::fd::BorrowedFd;
+                    let stdin_fd = BorrowedFd::borrow_raw(0);
+                    if let Ok(mut t) = termios::tcgetattr(&stdin_fd) {
+                        t.local_flags |= LocalFlags::ISIG;  // Enable signals
+                        t.local_flags |= LocalFlags::ECHO | LocalFlags::ICANON;
+                        t.input_flags |= InputFlags::ICRNL;
+                        t.output_flags |= OutputFlags::OPOST | OutputFlags::ONLCR;
+                        let _ = termios::tcsetattr(&stdin_fd, SetArg::TCSANOW, &t);
+                    }
+                }
                 
                 // Close master and slave in child (fds 0,1,2 are now connected)
                 drop(pty_result.master);
