@@ -1,4 +1,5 @@
 //! Intent Ledger Parser
+use std::path::PathBuf;
 use std::fs;
 use walkdir::WalkDir;
 
@@ -29,7 +30,7 @@ impl Intent {
 
 pub fn scan_intents() -> Vec<Intent> {
     let intent_dir = dirs::home_dir()
-        .expect("No home dir")
+        .unwrap_or_else(|| PathBuf::from("~"))
         .join("0-core/INTENT");
     
     if !intent_dir.exists() {

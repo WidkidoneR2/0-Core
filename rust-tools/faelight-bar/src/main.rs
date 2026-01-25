@@ -21,26 +21,66 @@ use wayland_client::{
     Connection, QueueHandle,
 };
 use faelight_core::GlyphCache;
-use faelight_zone::current_zone;
 use chrono::Local;
 use std::env;
 use std::fs;
 use std::process::Command;
 
+// Constants
 const BAR_HEIGHT: u32 = 32;
+const REFRESH_MS: u64 = 500;
+
+// Color scheme
 const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
 const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
-
-// Lock/Unlock icons (Nerd Font glyphs)
-const ICON_LOCKED: &str = "󰌾";   // nf-md-lock
-const ICON_UNLOCKED: &str = "󰌿"; // nf-md-lock_open
 const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
 const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
 
+// Icons (Nerd Font glyphs)
+const ICON_LOCKED: &str = "󰌾";
+const ICON_UNLOCKED: &str = "󰌿";
+
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+
+// ═══════════════════════════════════════════════════════════
+// 🎨 GRADIENT SEPARATORS
+// ═══════════════════════════════════════════════════════════
+
+/// Draw a vertical gradient separator
+fn draw_gradient_separator(canvas: &mut [u8], width: u32, x: i32, color: [u8; 4]) {
+    let height = BAR_HEIGHT;
+    let start_y = 6;
+    let end_y = height - 6;
+    
+    for y in start_y..end_y {
+        // Calculate gradient alpha (fade in/out at edges)
+        let progress = (y - start_y) as f32 / (end_y - start_y) as f32;
+        let alpha = if progress < 0.2 {
+            progress / 0.2
+        } else if progress > 0.8 {
+            (1.0 - progress) / 0.2
+        } else {
+            1.0
+        };
+        
+        if x >= 0 && x < width as i32 {
+            let idx = (y as usize * width as usize + x as usize) * 4;
+            if idx + 3 < canvas.len() {
+                canvas[idx] = ((1.0 - alpha) * BG_COLOR[0] as f32 + alpha * color[0] as f32) as u8;
+                canvas[idx + 1] = ((1.0 - alpha) * BG_COLOR[1] as f32 + alpha * color[1] as f32) as u8;
+                canvas[idx + 2] = ((1.0 - alpha) * BG_COLOR[2] as f32 + alpha * color[2] as f32) as u8;
+                canvas[idx + 3] = 255;
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔧 HELPER FUNCTIONS WITH ERROR HANDLING
+// ═══════════════════════════════════════════════════════════
 
 fn get_profile_icon(profile: &str) -> &'static str {
     match profile {
@@ -69,10 +109,8 @@ fn get_current_profile() -> String {
         .to_string()
 }
 
-
 fn get_vpn_status() -> (bool, String) {
-    let output = Command::new("mullvad").arg("status").output();
-    match output {
+    match Command::new("mullvad").arg("status").output() {
         Ok(out) => {
             let status = String::from_utf8_lossy(&out.stdout);
             let connected = status.contains("Connected");
@@ -86,6 +124,7 @@ fn get_battery() -> (u8, bool) {
     let capacity = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
         .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
         .unwrap_or_else(|_| "0".to_string());
+    
     let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
         .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
         .unwrap_or_else(|_| "Unknown".to_string());
@@ -96,39 +135,20 @@ fn get_battery() -> (u8, bool) {
 }
 
 fn get_wifi() -> (bool, String) {
-    let output = Command::new("iwctl")
-        .args(["station", "wlan0", "show"])
-        .output();
-    
-    match output {
+    match Command::new("iwctl").args(["station", "wlan0", "show"]).output() {
         Ok(out) => {
             let result = String::from_utf8_lossy(&out.stdout);
-            let mut connected = false;
+            let connected = result.lines()
+                .any(|line| line.trim().contains("State") && line.contains("connected"));
             
-            for line in result.lines() {
-                let trimmed = line.trim();
-                if trimmed.contains("State") && trimmed.contains("connected") {
-                    connected = true;
-                    break;
-                }
-            }
-            
-            if connected {
-                (true, "ON".to_string())
-            } else {
-                (false, "OFF".to_string())
-            }
+            (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
         }
         Err(_) => (false, "N/A".to_string()),
     }
 }
 
 fn get_volume() -> (u8, bool) {
-    let output = Command::new("wpctl")
-        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
-        .output();
-    
-    match output {
+    match Command::new("wpctl").args(["get-volume", "@DEFAULT_AUDIO_SINK@"]).output() {
         Ok(out) => {
             let result = String::from_utf8_lossy(&out.stdout);
             let muted = result.contains("[MUTED]");
@@ -151,10 +171,12 @@ fn get_health() -> u8 {
     let mut passed = 0;
     let total = 5;
     
+    // Check 0-core exists
     if fs::metadata(&core_path).is_ok() {
         passed += 1;
     }
     
+    // Check scripts directory
     let scripts_path = format!("{}/scripts", core_path);
     if let Ok(entries) = fs::read_dir(&scripts_path) {
         if entries.count() > 5 {
@@ -162,20 +184,23 @@ fn get_health() -> u8 {
         }
     }
     
-    let git_status = Command::new("git")
+    // Check git status
+    if let Ok(out) = Command::new("git")
         .args(["-C", &core_path, "status", "--porcelain"])
-        .output();
-    if let Ok(out) = git_status {
+        .output() 
+    {
         if out.stdout.is_empty() {
             passed += 1;
         }
     }
     
+    // Check profile exists
     let profile_path = format!("{}/.local/state/0-core/current-profile", home);
     if fs::metadata(&profile_path).is_ok() {
         passed += 1;
     }
     
+    // Check VERSION file
     let version_path = format!("{}/VERSION", core_path);
     if fs::metadata(&version_path).is_ok() {
         passed += 1;
@@ -188,29 +213,25 @@ fn is_core_locked() -> bool {
     let home = env::var("HOME").unwrap_or_default();
     let core_path = format!("{}/0-core", home);
     
-    let output = Command::new("lsattr")
-        .args(["-d", &core_path])
-        .output();
-    
-    match output {
+    match Command::new("lsattr").args(["-d", &core_path]).output() {
         Ok(out) => {
             let result = String::from_utf8_lossy(&out.stdout);
-            if let Some(attrs) = result.split_whitespace().next() {
-                attrs.contains('i')
-            } else {
-                false
-            }
+            result
+                .split_whitespace()
+                .next()
+                .map(|attrs| attrs.contains('i'))
+                .unwrap_or(false)
         }
         Err(_) => false,
     }
 }
 
 fn sway_query(cmd: &str) -> Option<String> {
-    let output = Command::new("swaymsg")
+    Command::new("swaymsg")
         .args(["-t", cmd, "-r"])
         .output()
-        .ok()?;
-    Some(String::from_utf8_lossy(&output.stdout).to_string())
+        .ok()
+        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
 }
 
 fn get_workspaces() -> (Vec<i32>, i32) {
@@ -260,6 +281,8 @@ fn get_active_window() -> String {
         let focused_pattern = "\"focused\": true";
         if let Some(focused_pos) = resp.find(focused_pattern) {
             let after = &resp[focused_pos..];
+            
+            // Try app_id first
             let app_pattern = "\"app_id\": \"";
             if let Some(app_pos) = after.find(app_pattern) {
                 let start = app_pos + 11;
@@ -270,6 +293,8 @@ fn get_active_window() -> String {
                     }
                 }
             }
+            
+            // Fallback to name/title
             let name_pattern = "\"name\": \"";
             if let Some(name_pos) = after.find(name_pattern) {
                 let start = name_pos + 9;
@@ -288,10 +313,19 @@ fn get_active_window() -> String {
     String::new()
 }
 
-fn draw_text(cache: &mut GlyphCache, canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
+fn draw_text(
+    cache: &mut GlyphCache,
+    canvas: &mut [u8],
+    width: u32,
+    text: &str,
+    x: i32,
+    y: i32,
+    color: [u8; 4],
+) {
     let mut cursor_x = x;
     let font_size = 14.0;
     let baseline = y + 12;
+    
     for ch in text.chars() {
         let glyph = cache.rasterize(ch, font_size);
         let metrics = &glyph.metrics;
@@ -327,36 +361,36 @@ fn draw_text(cache: &mut GlyphCache, canvas: &mut [u8], width: u32, text: &str, 
 fn handle_click(action: &str) {
     match action {
         "vpn" => {
-            let status = Command::new("mullvad").arg("status").output();
-            if let Ok(out) = status {
+            if let Ok(out) = Command::new("mullvad").arg("status").output() {
                 let result = String::from_utf8_lossy(&out.stdout);
                 if result.contains("Connected") {
-                    Command::new("mullvad").arg("disconnect").spawn().ok();
+                    let _ = Command::new("mullvad").arg("disconnect").spawn();
                 } else {
-                    Command::new("mullvad").arg("connect").spawn().ok();
+                    let _ = Command::new("mullvad").arg("connect").spawn();
                 }
             }
         }
         "volume" => {
-            Command::new("wpctl").args(["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]).spawn().ok();
+            let _ = Command::new("wpctl")
+                .args(["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+                .spawn();
         }
         "profile" => {
             let current = get_current_profile();
             let next = match current.as_str() {
                 "default" => "gaming",
-                "gaming" => "work", 
+                "gaming" => "work",
                 "work" => "low-power",
                 _ => "default",
             };
-            Command::new("profile").arg(next).spawn().ok();
+            let _ = Command::new("profile").arg(next).spawn();
         }
         _ => {}
     }
 }
 
-
 // ═══════════════════════════════════════════════════════════
-// 🏥 HEALTH CHECK  
+// 🏥 HEALTH CHECK
 // ═══════════════════════════════════════════════════════════
 
 fn health_check() {
@@ -387,11 +421,11 @@ fn main() {
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
-                println!("faelight-bar v0.9.0");
+                println!("faelight-bar v1.0.0");
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                println!("faelight-bar v0.9.0 - Status bar for Faelight Forest");
+                println!("faelight-bar v1.0.0 - Status bar for Faelight Forest");
                 println!();
                 println!("Hand-coded Wayland status bar with Sway integration");
                 println!();
@@ -414,15 +448,54 @@ fn main() {
             }
         }
     }
-
-    let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
-    let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
+    
+    let conn = match Connection::connect_to_env() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("❌ Failed to connect to Wayland: {}", e);
+            eprintln!("💡 Make sure you're running under Wayland/Sway");
+            std::process::exit(1);
+        }
+    };
+    
+    let (globals, mut event_queue) = match registry_queue_init(&conn) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("❌ Failed to init registry: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
     let qh = event_queue.handle();
-    let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
-    let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell not available");
-    let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
+    
+    let compositor = match CompositorState::bind(&globals, &qh) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("❌ wl_compositor not available: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let layer_shell = match LayerShell::bind(&globals, &qh) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("❌ layer shell not available: {}", e);
+            eprintln!("💡 Make sure wlr-layer-shell protocol is supported");
+            std::process::exit(1);
+        }
+    };
+    
+    let shm = match Shm::bind(&globals, &qh) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("❌ wl_shm not available: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
     let seat_state = SeatState::new(&globals, &qh);
     let surface = compositor.create_surface(&qh);
+    
     let layer_surface = layer_shell.create_layer_surface(
         &qh,
         surface,
@@ -430,13 +503,29 @@ fn main() {
         Some("faelight-bar"),
         None,
     );
+    
     layer_surface.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
     layer_surface.set_size(0, BAR_HEIGHT);
     layer_surface.set_exclusive_zone(BAR_HEIGHT as i32);
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
-    let pool = SlotPool::new(4096 * BAR_HEIGHT as usize * 4, &shm).expect("Failed to create pool");
-    let glyph_cache = GlyphCache::new(FONT_DATA).expect("Failed to load font");
+    
+    let pool = match SlotPool::new(4096 * BAR_HEIGHT as usize * 4, &shm) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("❌ Failed to create pool: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let glyph_cache = match GlyphCache::new(FONT_DATA) {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("❌ Failed to load font: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
         seat_state,
@@ -453,9 +542,14 @@ fn main() {
         pointer_x: 0.0,
         last_draw: Instant::now(),
     };
-    println!("🌲 faelight-bar v0.9.0 starting (Sway Edition)...");
+    
+    println!("🌲 faelight-bar v1.0.0 starting (Sway Edition)...");
+    
     while state.running {
-        event_queue.blocking_dispatch(&mut state).expect("Event dispatch failed");
+        if let Err(e) = event_queue.blocking_dispatch(&mut state) {
+            eprintln!("⚠️  Event dispatch error: {}", e);
+            // Don't crash, just log and continue
+        }
     }
 }
 
@@ -481,21 +575,35 @@ impl BarState {
         if self.width == 0 {
             return;
         }
+        
         self.click_regions.clear();
+        
         let width = self.width;
         let height = self.height;
         let stride = width as i32 * 4;
-        let (buffer, canvas) = self.pool
-            .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Argb8888)
-            .expect("Failed to create buffer");
+        
+        let (buffer, canvas) = match self.pool.create_buffer(
+            width as i32,
+            height as i32,
+            stride,
+            wl_shm::Format::Argb8888,
+        ) {
+            Ok(b) => b,
+            Err(_) => return, // Silently skip this frame
+        };
+        
+        // Background
         for pixel in canvas.chunks_exact_mut(4) {
             pixel[0] = BG_COLOR[0];
             pixel[1] = BG_COLOR[1];
             pixel[2] = BG_COLOR[2];
             pixel[3] = BG_COLOR[3];
         }
+        
+        // Top accent line
         let profile = get_current_profile();
         let accent = get_profile_color(&profile);
+        
         for x in 0..width as usize {
             for y in 0..2 {
                 let idx = (y * width as usize + x) * 4;
@@ -507,17 +615,22 @@ impl BarState {
                 }
             }
         }
+        
         // === LEFT SIDE ===
         let mut x_pos = 10;
+        
         // Profile indicator (clickable)
         let profile_start = x_pos;
         let profile_icon = get_profile_icon(&profile);
         draw_text(&mut self.glyph_cache, canvas, width, profile_icon, x_pos, 8, accent);
         x_pos += 40;
         self.click_regions.push((profile_start, x_pos, "profile".to_string()));
-        draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        
+        // Gradient separator
+        draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
         x_pos += 15;
         
+        // Workspaces
         let (workspaces, active) = get_workspaces();
         for ws in &workspaces {
             let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
@@ -525,13 +638,20 @@ impl BarState {
             draw_text(&mut self.glyph_cache, canvas, width, &ws_str, x_pos, 8, color);
             x_pos += 18;
         }
+        
         // Health & Lock
         x_pos += 10;
-        draw_text(&mut self.glyph_cache, canvas, width, "|", x_pos, 8, DIM_COLOR);
+        draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
         x_pos += 15;
         
         let health = get_health();
-        let health_color = if health >= 80 { ACCENT_COLOR } else if health >= 50 { AMBER_COLOR } else { RED_COLOR };
+        let health_color = if health >= 80 {
+            ACCENT_COLOR
+        } else if health >= 50 {
+            AMBER_COLOR
+        } else {
+            RED_COLOR
+        };
         let health_text = format!("● {}%", health);
         draw_text(&mut self.glyph_cache, canvas, width, &health_text, x_pos, 8, health_color);
         x_pos += 60;
@@ -540,6 +660,7 @@ impl BarState {
         let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
         let lock_icon = if locked { ICON_LOCKED } else { ICON_UNLOCKED };
         draw_text(&mut self.glyph_cache, canvas, width, lock_icon, x_pos, 8, lock_color);
+        
         // === CENTER ===
         let window_title = get_active_window();
         if !window_title.is_empty() {
@@ -547,36 +668,61 @@ impl BarState {
             let center_x = (width as i32 / 2) - (title_width / 2);
             draw_text(&mut self.glyph_cache, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
         }
+        
         // === RIGHT SIDE ===
         let mut rx = width as i32 - 110;
+        
+        // Time
         let time_str = Local::now().format("%b %d %H:%M").to_string();
         draw_text(&mut self.glyph_cache, canvas, width, &time_str, rx, 8, AMBER_COLOR);
+        
         rx -= 15;
-        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
+        
         // Volume (clickable)
         rx -= 40;
         let vol_start = rx;
         let (vol, muted) = get_volume();
         let vol_color = if muted { DIM_COLOR } else { ACCENT_COLOR };
-        let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
+        let vol_text = if muted {
+            "MUT".to_string()
+        } else {
+            format!("{}%", vol)
+        };
         draw_text(&mut self.glyph_cache, canvas, width, &vol_text, rx, 8, vol_color);
         self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
+        
         rx -= 15;
-        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
+        
+        // WiFi
         rx -= 45;
         let (wifi_on, wifi_status) = get_wifi();
         let wifi_color = if wifi_on { ACCENT_COLOR } else { RED_COLOR };
         let wifi_text = format!("W:{}", wifi_status);
         draw_text(&mut self.glyph_cache, canvas, width, &wifi_text, rx, 8, wifi_color);
+        
         rx -= 15;
-        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
+        
+        // Battery
         rx -= 45;
         let (bat_pct, charging) = get_battery();
-        let bat_color = if bat_pct < 20 { RED_COLOR } else if bat_pct < 50 { AMBER_COLOR } else if charging { BLUE_COLOR } else { ACCENT_COLOR };
+        let bat_color = if bat_pct < 20 {
+            RED_COLOR
+        } else if bat_pct < 50 {
+            AMBER_COLOR
+        } else if charging {
+            BLUE_COLOR
+        } else {
+            ACCENT_COLOR
+        };
         let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
         draw_text(&mut self.glyph_cache, canvas, width, &bat_text, rx, 8, bat_color);
+        
         rx -= 15;
-        draw_text(&mut self.glyph_cache, canvas, width, "|", rx, 8, DIM_COLOR);
+        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
+        
         // VPN (clickable)
         rx -= 60;
         let vpn_start = rx;
@@ -585,6 +731,8 @@ impl BarState {
         let vpn_text = format!("VPN:{}", vpn_status);
         draw_text(&mut self.glyph_cache, canvas, width, &vpn_text, rx, 8, vpn_color);
         self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
+        
+        // Commit
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
         self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
         self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
@@ -594,9 +742,11 @@ impl BarState {
 
 impl CompositorHandler for BarState {
     fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
+    
     fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
+    
     fn frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _time: u32) {
-        if self.last_draw.elapsed() >= Duration::from_millis(500) {
+        if self.last_draw.elapsed() >= Duration::from_millis(REFRESH_MS) {
             self.last_draw = Instant::now();
             self.draw(qh);
         } else {
@@ -610,8 +760,11 @@ impl OutputHandler for BarState {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
+    
     fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+    
     fn update_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+    
     fn output_destroyed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
 }
 
@@ -619,6 +772,7 @@ impl LayerShellHandler for BarState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
         self.running = false;
     }
+    
     fn configure(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _layer: &LayerSurface, configure: LayerSurfaceConfigure, _serial: u32) {
         if configure.new_size.0 > 0 {
             self.width = configure.new_size.0;
@@ -641,13 +795,17 @@ impl SeatHandler for BarState {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }
+    
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+    
     fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Pointer {
-            self.seat_state.get_pointer(qh, &seat).ok();
+            let _ = self.seat_state.get_pointer(qh, &seat);
         }
     }
+    
     fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat, _capability: Capability) {}
+    
     fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
 }
 

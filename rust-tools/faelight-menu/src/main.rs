@@ -46,9 +46,9 @@ const HEIGHT: u32 = 408;
 const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
-const WARN_COLOR: [u8; 4] = [0xe3, 0xc5, 0x6b, 0xFF];
-const DANGER_COLOR: [u8; 4] = [0xe3, 0x6b, 0x6b, 0xFF];
-const DANGER_DIM: [u8; 4] = [0xb3, 0x5b, 0x5b, 0xFF];
+const WARN_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];  // Amber/orange
+const DANGER_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];  // Bright red
+const DANGER_DIM: [u8; 4] = [0x5b, 0x6b, 0xb0, 0xFF];  // Dim red
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
@@ -273,21 +273,30 @@ impl MenuState {
                 }
             }
             
-            let text_color = if item.dangerous {
+            let text_color = if i == 4 {
+                // Shutdown - always red
                 if i == selected {
                     if self.confirming {
-                        DANGER_COLOR
+                        DANGER_COLOR  // Bright red when confirming
                     } else {
-                        WARN_COLOR
+                        DANGER_COLOR  // Bright red when selected
                     }
                 } else {
-                    DANGER_DIM
+                    DANGER_DIM  // Dim red when not selected
+                }
+            } else if i == 3 {
+                // Reboot - always amber/orange
+                if i == selected {
+                    WARN_COLOR  // Bright amber when selected
+                } else {
+                    [0xb3, 0x9b, 0x5b, 0xFF]  // Dim amber when not selected
                 }
             } else {
+                // Lock, Logout, Suspend - normal colors
                 if i == selected {
-                    BORDER_COLOR
+                    BORDER_COLOR  // Bright green
                 } else {
-                    DIM_COLOR
+                    DIM_COLOR  // Dim gray
                 }
             };
             

@@ -13,7 +13,7 @@ mod intents;
 
 use ui::{DmenuState, renderer::DmenuApp};
 
-const VERSION: &str = "2.0.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser)]
 #[command(name = "faelight-dmenu")]

@@ -1,12 +1,17 @@
 [package]
 name = "faelight-term"
-version = "8.0.0"
+version = "9.0.0"
 edition = "2021"
 
 [dependencies]
 smithay-client-toolkit = "0.20"
 wayland-client = "0.31"
-fontdue = "0.9"
+swash = "0.1"
 nix = { version = "0.29", features = ["term", "process", "fs"] }
 calloop = "0.14"
 calloop-wayland-source = "0.4"
+wl-clipboard-rs = "0.8"
+
+[[bin]]
+name = "faelight-term"
+path = "src/main.rs"

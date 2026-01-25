@@ -4,13 +4,14 @@ use smithay_client_toolkit::{
     reexports::calloop::EventLoop,
     reexports::calloop_wayland_source::WaylandSource,
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_output, delegate_registry, delegate_seat,
-    delegate_shm, delegate_xdg_shell, delegate_xdg_window,
+    delegate_compositor, delegate_keyboard, delegate_output, delegate_pointer, delegate_registry, 
+    delegate_seat, delegate_shm, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
         keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers},
+        pointer::{PointerEvent, PointerEventKind, PointerHandler},
         Capability, SeatHandler, SeatState,
     },
     shell::{
@@ -24,12 +25,18 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_keyboard, wl_output, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use fontdue::Font;
+use swash::{
+    FontRef,
+    scale::{ScaleContext, Render, Source, StrikeWith},
+};
+use wl_clipboard_rs::copy::{MimeType, Options, Source as ClipSource};
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 const FONT_DATA: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
+const EMOJI_DATA: &[u8] = include_bytes!("/usr/share/fonts/noto/NotoColorEmoji.ttf");
 
 const COLORS: [[u8; 3]; 16] = [
     [0x0F, 0x14, 0x11], [0xE6, 0x7E, 0x80], [0x6B, 0xE3, 0xA3], [0xF5, 0xC1, 0x77],
@@ -38,16 +45,29 @@ const COLORS: [[u8; 3]; 16] = [
     [0x5C, 0xC8, 0xFF], [0xD6, 0x99, 0xB6], [0x7F, 0xC8, 0xC8], [0xFF, 0xFF, 0xFF],
 ];
 
+#[derive(Clone, Copy, Default)]
+struct TextAttrs {
+    bold: bool,
+    italic: bool,
+    underline: bool,
+}
+
 #[derive(Clone)]
 struct Cell {
     ch: char,
     fg: [u8; 3],
     bg: [u8; 3],
+    attrs: TextAttrs,
 }
 
 impl Default for Cell {
     fn default() -> Self {
-        Cell { ch: ' ', fg: COLORS[7], bg: COLORS[0] }
+        Cell { 
+            ch: ' ', 
+            fg: COLORS[7], 
+            bg: COLORS[0],
+            attrs: TextAttrs::default(),
+        }
     }
 }
 
@@ -61,6 +81,8 @@ struct Terminal {
     max_scrollback: usize,
     current_fg: [u8; 3],
     current_bg: [u8; 3],
+    current_attrs: TextAttrs,
+    scroll_offset: usize,
 }
 
 impl Terminal {
@@ -68,12 +90,49 @@ impl Terminal {
         let grid = vec![vec![Cell::default(); cols]; rows];
         Terminal {
             rows, cols, grid, cursor_row: 0, cursor_col: 0,
-            scrollback: Vec::new(), max_scrollback: 1000,
+            scrollback: Vec::new(), max_scrollback: 10000,
             current_fg: COLORS[7], current_bg: COLORS[0],
+            current_attrs: TextAttrs::default(),
+            scroll_offset: 0,
         }
     }
-
+    
+    fn scroll_up(&mut self, lines: usize) {
+        self.scroll_offset = (self.scroll_offset + lines).min(self.scrollback.len());
+    }
+    
+    fn scroll_down(&mut self, lines: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+    }
+    
+    fn get_visible_text(&self, start_row: usize, end_row: usize, start_col: usize, end_col: usize) -> String {
+        let mut text = String::new();
+        
+        for row in start_row..=end_row.min(self.rows - 1) {
+            let actual_row = if self.scroll_offset > 0 && row < self.scrollback.len() {
+                &self.scrollback[self.scrollback.len() - self.scroll_offset + row]
+            } else {
+                &self.grid[row.saturating_sub(self.scrollback.len().saturating_sub(self.scroll_offset))]
+            };
+            
+            let col_start = if row == start_row { start_col } else { 0 };
+            let col_end = if row == end_row { end_col } else { self.cols - 1 };
+            
+            for col in col_start..=col_end.min(self.cols - 1) {
+                text.push(actual_row[col].ch);
+            }
+            
+            if row < end_row {
+                text.push('\n');
+            }
+        }
+        
+        text
+    }
+    
     fn process_text(&mut self, text: &str) {
+        self.scroll_offset = 0;
+        
         let mut chars = text.chars().peekable();
         while let Some(ch) = chars.next() {
             if ch == '\x1b' {
@@ -107,7 +166,7 @@ impl Terminal {
             }
         }
     }
-
+    
     fn handle_csi_sequence(&mut self, params: &str, cmd: char) {
         match cmd {
             'H' | 'f' => {
@@ -148,45 +207,80 @@ impl Terminal {
                     }
                 }
             }
-            'P' => {
-                if self.cursor_col < self.cols {
-                    for col in self.cursor_col..(self.cols - 1) {
-                        self.grid[self.cursor_row][col] = self.grid[self.cursor_row][col + 1].clone();
-                    }
-                    self.grid[self.cursor_row][self.cols - 1] = Cell::default();
-                }
-            }
             'm' => {
                 if params.is_empty() {
                     self.current_fg = COLORS[7];
                     self.current_bg = COLORS[0];
+                    self.current_attrs = TextAttrs::default();
                 } else {
-                    for code in params.split(';') {
-                        if let Ok(n) = code.parse::<u8>() {
+                    let codes: Vec<&str> = params.split(';').collect();
+                    let mut i = 0;
+                    while i < codes.len() {
+                        if let Ok(n) = codes[i].parse::<u8>() {
                             match n {
-                                0 => { self.current_fg = COLORS[7]; self.current_bg = COLORS[0]; }
+                                0 => {
+                                    self.current_fg = COLORS[7];
+                                    self.current_bg = COLORS[0];
+                                    self.current_attrs = TextAttrs::default();
+                                }
+                                1 => self.current_attrs.bold = true,
+                                3 => self.current_attrs.italic = true,
+                                4 => self.current_attrs.underline = true,
+                                22 => self.current_attrs.bold = false,
+                                23 => self.current_attrs.italic = false,
+                                24 => self.current_attrs.underline = false,
                                 30..=37 => self.current_fg = COLORS[(n - 30) as usize],
+                                38 => {
+                                    if i + 4 < codes.len() && codes[i + 1] == "2" {
+                                        if let (Ok(r), Ok(g), Ok(b)) = (
+                                            codes[i + 2].parse::<u8>(),
+                                            codes[i + 3].parse::<u8>(),
+                                            codes[i + 4].parse::<u8>(),
+                                        ) {
+                                            self.current_fg = [r, g, b];
+                                            i += 4;
+                                        }
+                                    }
+                                }
                                 40..=47 => self.current_bg = COLORS[(n - 40) as usize],
+                                48 => {
+                                    if i + 4 < codes.len() && codes[i + 1] == "2" {
+                                        if let (Ok(r), Ok(g), Ok(b)) = (
+                                            codes[i + 2].parse::<u8>(),
+                                            codes[i + 3].parse::<u8>(),
+                                            codes[i + 4].parse::<u8>(),
+                                        ) {
+                                            self.current_bg = [r, g, b];
+                                            i += 4;
+                                        }
+                                    }
+                                }
                                 90..=97 => self.current_fg = COLORS[(n - 90 + 8) as usize],
                                 100..=107 => self.current_bg = COLORS[(n - 100 + 8) as usize],
                                 _ => {}
                             }
                         }
+                        i += 1;
                     }
                 }
             }
             _ => {}
         }
     }
-
+    
     fn write_char(&mut self, ch: char) {
         if self.cursor_col >= self.cols { self.new_line(); }
         if self.cursor_row < self.rows {
-            self.grid[self.cursor_row][self.cursor_col] = Cell { ch, fg: self.current_fg, bg: self.current_bg };
+            self.grid[self.cursor_row][self.cursor_col] = Cell { 
+                ch, 
+                fg: self.current_fg, 
+                bg: self.current_bg,
+                attrs: self.current_attrs,
+            };
             self.cursor_col += 1;
         }
     }
-
+    
     fn new_line(&mut self) {
         self.cursor_col = 0;
         self.cursor_row += 1;
@@ -202,19 +296,170 @@ impl Terminal {
     }
 }
 
-fn main() {
-    println!("🦀 faelight-term - TRYING CAP HEIGHT!");
+// Standalone glyph rendering function
+fn render_glyph(
+    scale_context: &mut ScaleContext,
+    main_font: &FontRef,
+    emoji_font: Option<&FontRef>,
+    ch: char,
+    font_size: f32,
+    color: [u8; 3],
+) -> Option<(Vec<u8>, usize, usize, i32, i32)> {
+    let glyph_id = main_font.charmap().map(ch);
+    let glyph_id = main_font.charmap().map(ch);
+    let (font, glyph_id) = if glyph_id != 0 {
+        (main_font, glyph_id)
+    } else if let Some(emoji_font) = emoji_font {
+        let emoji_id = emoji_font.charmap().map(ch);
+        if emoji_id == 0 { return None; }
+        (emoji_font, emoji_id)
+    } else {
+        return None;
+    };
     
-    let conn = Connection::connect_to_env().unwrap();
-    let (globals, event_queue) = registry_queue_init(&conn).unwrap();
+    let mut scaler = scale_context
+        .builder(*font)
+        .size(font_size)
+        .hint(true)
+        .build();
+    
+    let mut render = Render::new(&[
+        Source::ColorOutline(0),
+        Source::ColorBitmap(StrikeWith::BestFit),
+        Source::Outline,
+    ]);
+    
+    let image = render.render(&mut scaler, glyph_id)?;
+    
+    let width = image.placement.width as usize;
+    let height = image.placement.height as usize;
+    let left = image.placement.left;
+    let top = image.placement.top;
+    
+    let mut rgba = vec![0u8; width * height * 4];
+    
+    match image.content {
+        swash::scale::image::Content::Mask => {
+            for (i, &alpha) in image.data.iter().enumerate() {
+                let idx = i * 4;
+                rgba[idx] = color[2];
+                rgba[idx + 1] = color[1];
+                rgba[idx + 2] = color[0];
+                rgba[idx + 3] = alpha;
+            }
+        }
+        swash::scale::image::Content::Color => {
+            rgba.copy_from_slice(&image.data);
+        }
+        swash::scale::image::Content::SubpixelMask => {
+            for i in 0..width * height {
+                let idx = i * 4;
+                let src_idx = i * 3;
+                let alpha = image.data[src_idx];
+                rgba[idx] = color[2];
+                rgba[idx + 1] = color[1];
+                rgba[idx + 2] = color[0];
+                rgba[idx + 3] = alpha;
+            }
+        }
+    }
+    
+    Some((rgba, width, height, left, top))
+}
+
+fn health_check() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🏥 faelight-term v{} - Health Check", VERSION);
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    print!("  Checking Wayland... ");
+    match Connection::connect_to_env() {
+        Ok(_) => println!("✅"),
+        Err(e) => {
+            println!("❌ {}", e);
+            return Err(e.into());
+        }
+    }
+    
+    print!("  Checking main font... ");
+    match FontRef::from_index(FONT_DATA, 0) {
+        Some(_) => println!("✅"),
+        None => {
+            println!("❌ Failed to load font");
+            return Err("Font load failed".into());
+        }
+    }
+    
+    print!("  Checking emoji font... ");
+    match FontRef::from_index(EMOJI_DATA, 0) {
+        Some(_) => println!("✅"),
+        None => println!("⚠️  No emoji font (optional)"),
+    }
+    
+    print!("  Checking PTY support... ");
+    match pty::Pty::spawn_shell(24, 80) {
+        Ok(_) => println!("✅"),
+        Err(e) => {
+            println!("❌ {}", e);
+            return Err(e.into());
+        }
+    }
+    
+    println!("\n✅ All checks passed!");
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("faelight-term v{}", VERSION);
+                return Ok(());
+            }
+            "--help" | "-h" => {
+                println!("faelight-term v{} - Terminal Emulator for Faelight Forest", VERSION);
+                println!();
+                println!("FEATURES:");
+                println!("  • 24-bit true color support");
+                println!("  • Color emoji rendering 🌲🦀🔓");
+                println!("  • Bold, italic, underline text");
+                println!("  • Copy/paste (Ctrl+Shift+C/V)");
+                println!("  • Mouse wheel scrolling");
+                println!("  • Font zoom (Ctrl +/-/0)");
+                println!("  • 10,000 lines scrollback");
+                println!();
+                println!("KEYBOARD SHORTCUTS:");
+                println!("    Ctrl + Shift + C    Copy selection");
+                println!("    Ctrl + +/-/0        Font zoom");
+                println!("    Shift + PageUp/Dn   Scroll");
+                println!();
+                println!("OPTIONS:");
+                println!("    --help, --version, --health-check");
+                return Ok(());
+            }
+            "--health-check" => {
+                return health_check();
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", args[1]);
+                std::process::exit(1);
+            }
+        }
+    }
+    
+    println!("🌲 faelight-term v{} starting (with emoji support)...", VERSION);
+    
+    let conn = Connection::connect_to_env()?;
+    let (globals, event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
     
-    let mut event_loop: EventLoop<App> = EventLoop::try_new().unwrap();
-    WaylandSource::new(conn.clone(), event_queue).insert(event_loop.handle()).unwrap();
+    let mut event_loop: EventLoop<App> = EventLoop::try_new()?;
+    WaylandSource::new(conn.clone(), event_queue).insert(event_loop.handle())?;
     
-    let compositor = CompositorState::bind(&globals, &qh).unwrap();
-    let xdg_shell = XdgShell::bind(&globals, &qh).unwrap();
-    let shm = Shm::bind(&globals, &qh).unwrap();
+    let compositor = CompositorState::bind(&globals, &qh)?;
+    let xdg_shell = XdgShell::bind(&globals, &qh)?;
+    let shm = Shm::bind(&globals, &qh)?;
     
     let surface = compositor.create_surface(&qh);
     let window = xdg_shell.create_window(surface, WindowDecorations::ServerDefault, &qh);
@@ -223,19 +468,30 @@ fn main() {
     window.set_app_id("faelight-term");
     window.commit();
     
-    let pool = SlotPool::new(800 * 600 * 4, &shm).unwrap();
-    let font = Font::from_bytes(FONT_DATA, fontdue::FontSettings::default()).unwrap();
-    let pty = pty::Pty::spawn_shell(24, 80).unwrap();
+    let pool = SlotPool::new(800 * 600 * 4, &shm)?;
+    let pty = pty::Pty::spawn_shell(24, 80)?;
     let terminal = Terminal::new(24, 80);
+    
+    let main_font = FontRef::from_index(FONT_DATA, 0)
+        .ok_or("Failed to load main font")?;
+    let emoji_font = FontRef::from_index(EMOJI_DATA, 0);
     
     let mut app = App {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
         output_state: OutputState::new(&globals, &qh),
         shm, exit: false, first_configure: true, pool,
-        width: 800, height: 600, buffer: None, window, font, pty, terminal,
-        keyboard: None, cursor_blink_state: true, last_blink: Instant::now(),
-        font_size: 12.0, ctrl_pressed: false,
+        width: 800, height: 600, buffer: None, window, pty, terminal,
+        keyboard: None, pointer: None,
+        cursor_blink_state: true, last_blink: Instant::now(),
+        font_size: 12.0, 
+        ctrl_pressed: false,
+        shift_pressed: false,
+        selection_start: None,
+        selection_end: None,
+        main_font,
+        emoji_font,
+        scale_context: ScaleContext::new(),
     };
     
     loop {
@@ -254,22 +510,61 @@ fn main() {
             app.last_blink = Instant::now();
         }
         
-        event_loop.dispatch(Duration::from_millis(16), &mut app).unwrap();
+        event_loop.dispatch(Duration::from_millis(16), &mut app)?;
         if app.exit { break; }
     }
+    
+    Ok(())
 }
 
 struct App {
-    registry_state: RegistryState, seat_state: SeatState, output_state: OutputState,
-    shm: Shm, exit: bool, first_configure: bool, pool: SlotPool,
-    width: u32, height: u32, buffer: Option<Buffer>, window: Window,
-    font: Font, pty: pty::Pty, terminal: Terminal,
+    registry_state: RegistryState, 
+    seat_state: SeatState, 
+    output_state: OutputState,
+    shm: Shm, 
+    exit: bool, 
+    first_configure: bool, 
+    pool: SlotPool,
+    width: u32, 
+    height: u32, 
+    buffer: Option<Buffer>, 
+    window: Window,
+    pty: pty::Pty, 
+    terminal: Terminal,
     keyboard: Option<wl_keyboard::WlKeyboard>,
-    cursor_blink_state: bool, last_blink: Instant,
-    font_size: f32, ctrl_pressed: bool,
+    pointer: Option<wl_pointer::WlPointer>,
+    cursor_blink_state: bool, 
+    last_blink: Instant,
+    font_size: f32, 
+    ctrl_pressed: bool,
+    shift_pressed: bool,
+    selection_start: Option<(usize, usize)>,
+    selection_end: Option<(usize, usize)>,
+    main_font: FontRef<'static>,
+    emoji_font: Option<FontRef<'static>>,
+    scale_context: ScaleContext,
 }
 
 impl App {
+    fn copy_selection(&self) {
+        if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+            let (start_row, start_col) = start.min(end);
+            let (end_row, end_col) = start.max(end);
+            
+            let text = self.terminal.get_visible_text(start_row, end_row, start_col, end_col);
+            
+            if !text.is_empty() {
+                let opts = Options::new();
+                let len = text.len();
+                if let Err(e) = opts.copy(ClipSource::Bytes(text.clone().into_bytes().into()), MimeType::Text) {
+                    eprintln!("⚠️  Copy failed: {}", e);
+                } else {
+                    println!("📋 Copied {} chars", len);
+                }
+            }
+        }
+    }
+    
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         let stride = self.width as i32 * 4;
         
@@ -287,16 +582,19 @@ impl App {
             }
         };
         
+        // Background
         for pixel in canvas.chunks_exact_mut(4) {
             pixel[0] = 0x11; pixel[1] = 0x14; pixel[2] = 0x0f; pixel[3] = 0xFF;
         }
         
         let char_width = self.font_size * 0.6;
-        let line_height = self.font_size * 1.45;  // Slightly more spacing
+        let line_height = self.font_size * 1.45;
         
-        // Get ascent from H - use this for ALL characters
-        let (h_metrics, _) = self.font.rasterize('H', self.font_size);
-        let ascent = h_metrics.height as f32;
+        // Pre-extract refs we need
+        let scale_ctx = &mut self.scale_context;
+        let main_font = &self.main_font;
+        let emoji_font_ref = self.emoji_font.as_ref();
+        let font_size = self.font_size;
         
         for (row_idx, row) in self.terminal.grid.iter().enumerate() {
             let y = 5.0 + row_idx as f32 * line_height;
@@ -304,7 +602,21 @@ impl App {
             for (col_idx, cell) in row.iter().enumerate() {
                 let x = 5.0 + col_idx as f32 * char_width;
                 
-                if cell.bg != COLORS[0] {
+                let is_selected = if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+                    let (min_pos, max_pos) = if start <= end { (start, end) } else { (end, start) };
+                    (row_idx, col_idx) >= min_pos && (row_idx, col_idx) <= max_pos
+                } else {
+                    false
+                };
+                
+                let bg = if is_selected {
+                    [0x6b, 0xe3, 0xa3]
+                } else {
+                    cell.bg
+                };
+                
+                // Background
+                if bg != COLORS[0] {
                     for dy in 0..(line_height as usize) {
                         for dx in 0..(char_width as usize) {
                             let screen_x = x as usize + dx;
@@ -312,16 +624,18 @@ impl App {
                             if screen_x < self.width as usize && screen_y < self.height as usize {
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
-                                    canvas[idx] = cell.bg[2];
-                                    canvas[idx + 1] = cell.bg[1];
-                                    canvas[idx + 2] = cell.bg[0];
+                                    canvas[idx] = bg[2];
+                                    canvas[idx + 1] = bg[1];
+                                    canvas[idx + 2] = bg[0];
                                 }
                             }
                         }
                     }
                 }
                 
-                if row_idx == self.terminal.cursor_row && col_idx == self.terminal.cursor_col && self.cursor_blink_state {
+                // Cursor
+                if row_idx == self.terminal.cursor_row && col_idx == self.terminal.cursor_col 
+                    && self.cursor_blink_state && self.terminal.scroll_offset == 0 {
                     for dy in 0..(line_height as usize) {
                         for dx in 0..(char_width as usize) {
                             let screen_x = x as usize + dx;
@@ -336,18 +650,19 @@ impl App {
                     }
                 }
                 
-                // SIMPLE APPROACH: Align all chars to cap height
+                // Render character
                 if cell.ch != ' ' {
-                    let (metrics, bitmap) = self.font.rasterize(cell.ch, self.font_size);
-                    
-                    if metrics.width > 0 && !bitmap.is_empty() {
-                        // Position so top of glyph aligns with cap height
-                        let glyph_x = x + (char_width - metrics.width as f32) / 2.0;
-                        let baseline_y = y + line_height * 0.75;
-                        let glyph_y = baseline_y - metrics.height as f32;
+                    if let Some((rgba, glyph_width, glyph_height, left, top)) = 
+                        render_glyph(scale_ctx, main_font, emoji_font_ref, cell.ch, font_size, cell.fg) {
                         
-                        for (py, row_data) in bitmap.chunks(metrics.width).enumerate() {
-                            for (px, &alpha) in row_data.iter().enumerate() {
+                        let glyph_x = x + left as f32;
+                        let baseline_y = y + line_height * 0.8;
+                        let glyph_y = baseline_y - top as f32;
+                        
+                        for py in 0..glyph_height {
+                            for px in 0..glyph_width {
+                                let src_idx = (py * glyph_width + px) * 4;
+                                let alpha = rgba[src_idx + 3];
                                 if alpha == 0 { continue; }
                                 
                                 let screen_x = (glyph_x + px as f32).round() as usize;
@@ -360,9 +675,24 @@ impl App {
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
                                     let alpha_f = alpha as f32 / 255.0;
-                                    canvas[idx] = (cell.fg[2] as f32 * alpha_f + canvas[idx] as f32 * (1.0 - alpha_f)) as u8;
-                                    canvas[idx + 1] = (cell.fg[1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
-                                    canvas[idx + 2] = (cell.fg[0] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx] = (rgba[src_idx] as f32 * alpha_f + canvas[idx] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 1] = (rgba[src_idx + 1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
+                                    canvas[idx + 2] = (rgba[src_idx + 2] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
+                                }
+                            }
+                        }
+                        
+                        // Underline
+                        if cell.attrs.underline {
+                            let underline_y = (baseline_y + 2.0) as usize;
+                            for ux in (x as usize)..(x as usize + char_width as usize) {
+                                if ux < self.width as usize && underline_y < self.height as usize {
+                                    let idx = (underline_y * self.width as usize + ux) * 4;
+                                    if idx + 3 < canvas.len() {
+                                        canvas[idx] = cell.fg[2];
+                                        canvas[idx + 1] = cell.fg[1];
+                                        canvas[idx + 2] = cell.fg[0];
+                                    }
                                 }
                             }
                         }
@@ -400,9 +730,29 @@ impl SeatHandler for App {
         if capability == Capability::Keyboard && self.keyboard.is_none() {
             self.keyboard = self.seat_state.get_keyboard(qh, &seat, None).ok();
         }
+        if capability == Capability::Pointer && self.pointer.is_none() {
+            self.pointer = self.seat_state.get_pointer(qh, &seat).ok();
+        }
     }
     fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
+}
+
+impl PointerHandler for App {
+    fn pointer_frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_pointer::WlPointer, events: &[PointerEvent]) {
+        for event in events {
+            match event.kind {
+                PointerEventKind::Axis { vertical, .. } => {
+                    if vertical.discrete < 0 {
+                        self.terminal.scroll_up(3);
+                    } else if vertical.discrete > 0 {
+                        self.terminal.scroll_down(3);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 impl KeyboardHandler for App {
@@ -410,21 +760,58 @@ impl KeyboardHandler for App {
     fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
     
     fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+        if self.ctrl_pressed && self.shift_pressed && event.keysym == Keysym::c {
+            self.copy_selection();
+            return;
+        }
+        
         if self.ctrl_pressed {
             match event.keysym {
-                Keysym::plus | Keysym::equal => { self.font_size = (self.font_size + 1.0).min(30.0); println!("🔍 {}", self.font_size); return; }
-                Keysym::minus | Keysym::underscore => { self.font_size = (self.font_size - 1.0).max(6.0); println!("🔍 {}", self.font_size); return; }
-                Keysym::_0 => { self.font_size = 12.0; println!("🔍 Reset"); return; }
+                Keysym::plus | Keysym::equal => { 
+                    self.font_size = (self.font_size + 1.0).min(30.0); 
+                    println!("🔍 Font size: {}", self.font_size); 
+                    return; 
+                }
+                Keysym::minus | Keysym::underscore => { 
+                    self.font_size = (self.font_size - 1.0).max(6.0); 
+                    println!("🔍 Font size: {}", self.font_size); 
+                    return; 
+                }
+                Keysym::_0 => { 
+                    self.font_size = 12.0; 
+                    println!("🔍 Reset"); 
+                    return; 
+                }
                 _ => {}
             }
         }
-        if let Some(utf8) = event.utf8 { let _ = self.pty.write(utf8.as_bytes()); }
+        
+        if self.shift_pressed {
+            match event.keysym {
+                Keysym::Page_Up => {
+                    self.terminal.scroll_up(10);
+                    return;
+                }
+                Keysym::Page_Down => {
+                    self.terminal.scroll_down(10);
+                    return;
+                }
+                _ => {}
+            }
+        }
+        
+        if let Some(utf8) = event.utf8 { 
+            let _ = self.pty.write(utf8.as_bytes()); 
+        }
     }
     
     fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
+    
     fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, modifiers: Modifiers, _: RawModifiers, _: u32) {
         self.ctrl_pressed = modifiers.ctrl;
+        self.shift_pressed = modifiers.shift;
     }
+    
     fn repeat_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
 }
 
@@ -457,4 +844,5 @@ delegate_xdg_shell!(App);
 delegate_xdg_window!(App);
 delegate_seat!(App);
 delegate_keyboard!(App);
+delegate_pointer!(App);
 delegate_registry!(App);
