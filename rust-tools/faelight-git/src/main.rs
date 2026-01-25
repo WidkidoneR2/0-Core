@@ -38,6 +38,16 @@ enum Commands {
         no_intent: bool,
     },
     
+    /// Interactive git workflow (pull → stage → commit → push)
+    Sync,
+    
+    /// Quick commit and push with message
+    Quick {
+        /// Commit message
+        message: String,
+    },
+
+    
     /// Install git hooks
     InstallHooks,
     
@@ -95,7 +105,27 @@ fn main() {
             }
         }
         
-        // v0.1 commands (preserved)
+
+        Commands::Sync => {
+            match commands::sync::run() {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+        
+        Commands::Quick { message } => {
+            match commands::quick::run(&message) {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("{} {}", "Error:".red(), e);
+                    1
+                }
+            }
+        }
+                // v0.1 commands (preserved)
         Commands::InstallHooks => install_hooks(),
         Commands::RemoveHooks => remove_hooks(),
         Commands::Verify => verify(),
