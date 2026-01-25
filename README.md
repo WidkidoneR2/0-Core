@@ -19,21 +19,24 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 ---
 
-## 🏆 v8.1.0 Highlights - "The Garden"
+## 🏆 v8.2.0 Highlights - "The Observant Garden"
 
 **What's New:**
-- ✅ **faelight-update v0.2.0** - Interactive update manager better than topgrade
-- ✅ **Enhanced Security** - 14-check health monitoring with UFW, fail2ban, Mullvad, SSH hardening
-- ✅ **Ecosystem Integration** - 31 tools working together, tools growing with intention
-- ✅ **100% System Health** - All checks passing, security hardened
-- ✅ **Philosophy-Driven** - "A garden requires attention, not automation"
+✅ **faelight-zone v1.1.0** - Spatial awareness system with filesystem zone detection
+✅ **faelight-term v0.1.0** - Terminal emulator foundation (Tool #32!)
+✅ **Operational Dashboard** - Starship prompt shows zone, cargo root, incidents, toolchain
+✅ **Enhanced Tools** - faelight-update v0.3.0, faelight-bar v0.10.1, bump-system-version v4.1.0
+✅ **100% System Health** - All 14 checks passing, zero incidents
+
+**Philosophy:**
+> "Every tool knows its place. Every path knows its purpose. The garden observes itself" 🌲
 
 **Flagship Tools:**
-- 🚀 **faelight-update v0.2.0** - Interactive update manager with multi-source detection, TUI selection, health-check-first approach
-- 🚀 **bump-system-version v4.0.0** - Complete release automation with CHANGELOG generation, intent tracking, git integration
-- 🦀 **faelight-bootstrap v1.0.0** - One-command Arch Linux installation with 7 interactive phases
-- 🏥 **dot-doctor v0.6.0** - 14-check health monitoring with security hardening verification
-- 🎓 **teach v1.0.0** - Interactive learning system with quiz mode and achievements
+🌲 **faelight-zone v1.1.0** - Filesystem spatial awareness with critical zone detection (UPPERCASE for danger zones)
+🦀 **faelight-term v0.1.0** - Rust terminal emulator with full ANSI support, cursor rendering, zoom controls
+📊 **Starship Dashboard** - Complete operational awareness (WHERE, BUILD SAFETY, INCIDENTS, SECURITY, TOOLCHAIN)
+🔄 **faelight-update v0.3.0** - Fixed update detection perfectly matching topgrade
+🏥 **dot-doctor v0.6.0** - 14-check health monitoring with security hardening verification
 
 ---
 
@@ -87,14 +90,14 @@ A cohesive visual identity across the entire system:
 
 ## 🦀 The Rust Toolchain
 
-All **31 core tools** are compiled Rust binaries organized in a workspace - 100% production-ready.
+All **33 core tools** are compiled Rust binaries organized in a workspace - 100% production-ready.
 
 ### Core Infrastructure (11 tools)
 
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | dot-doctor | 14-check health monitor | v0.6.0 | ✅ Production |
-| faelight-update | Interactive update manager | v0.2.0 | 🚀 Flagship |
+| faelight-update | Interactive update manager | v0.3.0 | 🚀 Flagship |
 | faelight-core | Shared library (config, health, IPC) | v0.1.0 | ✅ Stable |
 | core-protect | Immutable filesystem protection | v1.0.1 | ✅ Production |
 | safe-update | Smart system updates with snapshots | v1.0.0 | ✅ Production |
@@ -105,20 +108,21 @@ All **31 core tools** are compiled Rust binaries organized in a workspace - 100%
 | faelight-stow | Package management | v0.3.0 | ✅ Stable |
 | faelight-snapshot | BTRFS snapshot manager | v1.0.0 | ✅ Production |
 
-### Faelight Desktop Environment (8 tools)
+### Faelight Desktop Environment (9 tools)
 
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | faelight-fetch | System info display | v1.0.0 | ✅ Production |
-| faelight-bar | Wayland status bar (Sway IPC) | v0.9.0 | ✅ Stable |
+| faelight-bar | Wayland status bar (Sway IPC) | v0.10.1 | ✅ Production |
 | faelight-launcher | XDG app launcher with fuzzy search | v3.3.0 | ✅ Production |
 | faelight-dmenu | Wayland dmenu replacement | v2.0.0 | ✅ Production |
 | faelight-menu | Power menu (lock/logout/shutdown) | v0.7.0 | ✅ Stable |
 | faelight-notify | Notification daemon | v0.9.0 | ✅ Stable |
 | faelight-lock | Screen locker | v1.0.0 | ✅ Production |
 | faelight-dashboard | System dashboard TUI | v1.0.0 | ✅ Production |
+| faelight-term | Terminal emulator | v0.1.0 | 🚀 NEW |
 
-### Development & Workflow (8 tools)
+### Development & Workflow (9 tools)
 
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
@@ -130,12 +134,13 @@ All **31 core tools** are compiled Rust binaries organized in a workspace - 100%
 | teach | Interactive learning guide | v1.0.0 | ✅ Production |
 | faelight | Unified binary interface | v1.0.0 | ✅ Production |
 | keyscan | Keybind conflict detection | v1.0.0 | ✅ Production |
+| faelight-zone | Filesystem spatial awareness | v1.1.0 | 🚀 NEW |
 
 ### Version Management (4 tools)
 
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
-| bump-system-version | Complete release automation | v4.0.0 | 🚀 Flagship |
+| bump-system-version | Complete release automation | v4.1.0 | 🚀 Flagship |
 | faelight-bootstrap | One-command system setup | v1.0.0 | 🚀 Flagship |
 | get-version | Package version reader | v2.0.0 | ✅ Production |
 | latest-update | Recently updated finder | v2.0.0 | ✅ Production |
@@ -359,6 +364,7 @@ intent add future "..."  # Document new decision
 
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v8.2.0 | 2026-01-24 | Spatial awareness, operational dashboard, faelight-term foundation |
 | v8.1.0 | 2026-01-23 | Interactive updates, security hardening, ecosystem integration |
 | v8.0.0 | 2026-01-22 | 31 tools production-ready, full audit complete |
 | v7.6.5 | 2026-01-19 | Tool audit quick wins |
