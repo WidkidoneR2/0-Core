@@ -133,11 +133,21 @@ fn main() {
     // Phase 4: CHANGELOG Generation
     println!("📋 Phase 4: Generating CHANGELOG");
     
+    // Get date of last release tag
+    let last_tag_date = Command::new("git")
+        .args(&["log", "-1", "--format=%ai", &format!("v{}", old_version)])
+        .current_dir(&core_dir)
+        .output()
+        .ok()
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .and_then(|s| s.split_whitespace().next().map(String::from))
+        .unwrap_or_else(|| "2026-01-15".to_string());  // Fallback
+
     // Run compile-changelog.sh
     println!("  🔄 Running compile-changelog.sh...");
     let changelog_result = Command::new("bash")
         .arg(core_dir.join("scripts/compile-changelog.sh"))
-        .arg("2026-01-15")  // Audit start date
+        .arg(&last_tag_date)
         .current_dir(&core_dir)
         .output();
     
@@ -159,7 +169,7 @@ fn main() {
     if response.trim().to_lowercase() == "y" {
         let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
         Command::new(&editor)
-            .arg(core_dir.join("CHANGELOG-v8.0.0-DRAFT.md"))
+            .arg(core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version)))
             .status()
             .expect("Failed to open editor");
         println!("  ✅ Changelog edited");
@@ -512,7 +522,7 @@ fn update_readme_milestone(core_dir: &PathBuf, old_version: &str, new_version: &
 
 fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
     let changelog_path = core_dir.join("CHANGELOG.md");
-    let draft_path = core_dir.join("CHANGELOG-v8.0.0-DRAFT.md");
+    let draft_path = core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version));
     let today = Local::now().format("%Y-%m-%d").to_string();
     
     // Read draft or create template
