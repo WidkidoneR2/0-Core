@@ -155,12 +155,12 @@ All **33 core tools** are compiled Rust binaries organized in a workspace - 100%
 ### Project Scale
 ```
 Code Statistics (as of v8.2.0):
-  Rust source code:    103,420 lines  🦀
-  Configuration files:   6,949 lines  ⚙️
+  Rust source code:    104,686 lines  🦀
+  Configuration files:   1,061 lines  ⚙️
   Intent documentation:  8,590 lines  🎯
   System guides:        ~2,000 lines  📚
   ────────────────────────────────────────
-  Total authored:      ~121,000 lines
+  Total authored:      ~122,000 lines
 
 33 production-ready tools, 12 stow packages, 72+ documented decisions.
 Built from scratch in ~3 months, from catastrophic failure to 100% health.
