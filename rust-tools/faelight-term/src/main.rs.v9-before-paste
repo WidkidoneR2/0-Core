@@ -484,10 +484,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         width: 800, height: 600, buffer: None, window, pty, terminal,
         keyboard: None, pointer: None,
         cursor_blink_state: true, last_blink: Instant::now(),
-        font_size: 17.0, 
+        font_size: 12.0, 
         ctrl_pressed: false,
         shift_pressed: false,
-        mouse_pressed: false,
         selection_start: None,
         selection_end: None,
         main_font,
@@ -539,7 +538,6 @@ struct App {
     font_size: f32, 
     ctrl_pressed: bool,
     shift_pressed: bool,
-    mouse_pressed: bool,
     selection_start: Option<(usize, usize)>,
     selection_end: Option<(usize, usize)>,
     main_font: FontRef<'static>,
@@ -567,18 +565,6 @@ impl App {
         }
     }
     
-    
-    fn paste_from_clipboard(&mut self) {
-        use wl_clipboard_rs::paste::{get_contents, ClipboardType, Seat, MimeType};
-        
-        match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text) {
-            Ok((_mime, data)) => {
-                let _ = self.pty.write(data.as_bytes());
-                println!("📋 Pasted {} bytes", data.len());
-            }
-            Err(e) => eprintln!("⚠️  Paste failed: {}", e),
-        }
-    }
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         let stride = self.width as i32 * 4;
         
@@ -611,10 +597,10 @@ impl App {
         let font_size = self.font_size;
         
         for (row_idx, row) in self.terminal.grid.iter().enumerate() {
-            let y = 15.0 + row_idx as f32 * line_height;
+            let y = 5.0 + row_idx as f32 * line_height;
             
             for (col_idx, cell) in row.iter().enumerate() {
-                let x = 15.0 + col_idx as f32 * char_width;
+                let x = 5.0 + col_idx as f32 * char_width;
                 
                 let is_selected = if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
                     let (min_pos, max_pos) = if start <= end { (start, end) } else { (end, start) };
@@ -763,33 +749,6 @@ impl PointerHandler for App {
                         self.terminal.scroll_down(3);
                     }
                 }
-                PointerEventKind::Press { button, .. } => {
-                    if button == 272 {
-                        let char_width = self.font_size * 0.6;
-                        let line_height = self.font_size * 1.45;
-                        let col = ((event.position.0 - 15.0) / char_width as f64) as usize;
-                        let row = ((event.position.1 - 15.0) / line_height as f64) as usize;
-                        if row < self.terminal.rows && col < self.terminal.cols {
-                            self.selection_start = Some((row, col));
-                            self.selection_end = Some((row, col));
-                        }
-                    }
-                }
-                PointerEventKind::Release { button, .. } => {
-                    if button == 272 { self.mouse_pressed = false; }
-                }
-                PointerEventKind::Motion { .. } => {
-                    if self.mouse_pressed && self.selection_start.is_some() {
-                        let char_width = self.font_size * 0.6;
-                        let line_height = self.font_size * 1.45;
-                        let col = ((event.position.0 - 15.0) / char_width as f64) as usize;
-                        let row = ((event.position.1 - 15.0) / line_height as f64) as usize;
-                        if row < self.terminal.rows && col < self.terminal.cols {
-                            self.selection_end = Some((row, col));
-                        }
-                    }
-                }
-
                 _ => {}
             }
         }
@@ -804,13 +763,7 @@ impl KeyboardHandler for App {
         if self.ctrl_pressed && self.shift_pressed && event.keysym == Keysym::c {
             self.copy_selection();
             return;
-        }        
-        // Handle Ctrl+Shift+V (paste)
-        if self.ctrl_pressed && self.shift_pressed && event.keysym == Keysym::v {
-            self.paste_from_clipboard();
-            return;
         }
-
         
         if self.ctrl_pressed {
             match event.keysym {
