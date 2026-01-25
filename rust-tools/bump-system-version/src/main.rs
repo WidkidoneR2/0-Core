@@ -10,6 +10,44 @@ use chrono::Local;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+fn show_preflight_dashboard(core_dir: &PathBuf, old_version: &str, new_version: &str) {
+    println!("╔══════════════════════════════════════════════════════════════╗");
+    println!("║           🌲 PRE-FLIGHT RELEASE DASHBOARD 🌲                 ║");
+    println!("╚══════════════════════════════════════════════════════════════╝");
+    println!();
+    println!("📊 System Status:");
+    let health = check_system_health();
+    let git_clean = is_git_clean(core_dir);
+    let health_icon = if health { "✅" } else { "❌" };
+    let git_icon = if git_clean { "✅" } else { "❌" };
+    println!("  {} System Health: {}", health_icon, if health { "100%" } else { "DEGRADED" });
+    println!("  {} Git Status: {}", git_icon, if git_clean { "clean" } else { "UNCOMMITTED CHANGES" });
+    println!();
+    println!("📦 Version Information:");
+    println!("  Current:  v{}", old_version);
+    println!("  Target:   v{}", new_version);
+    println!();
+    println!("📝 Files That Will Be Modified:");
+    println!("  • VERSION");
+    println!("  • Cargo.toml (workspace version)");
+    println!("  • stow/shell-zsh/.zshrc (welcome message)");
+    println!("  • README.md (badges, milestone, version table)");
+    println!("  • CHANGELOG.md (new release entry)");
+    println!();
+    println!("🔧 Operations That Will Execute:");
+    println!("  1. Create btrfs snapshot");
+    println!("  2. Update all version files");
+    println!("  3. Generate CHANGELOG from git commits");
+    println!("  4. Stage changes (git add -A)");
+    println!("  5. Create commit with release message");
+    println!("  6. Create git tag v{}", new_version);
+    println!("  7. Push to origin/main");
+    println!("  8. Verify final state");
+    println!();
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+}
+
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     
@@ -33,7 +71,7 @@ fn main() {
                     eprintln!("Usage: bump-system-version --dry-run <version>");
                     exit(1);
                 }
-                dry_run(&args[2]);
+                dry_run(args[2].strip_prefix("v").unwrap_or(&args[2]));
                 return;
             }
             _ => {}
@@ -46,7 +84,7 @@ fn main() {
         exit(1);
     }
     
-    let new_version = &args[1];
+    let new_version = args[1].strip_prefix("v").unwrap_or(&args[1]);
     
     // Validate version format
     if !is_valid_version(new_version) {
@@ -58,6 +96,24 @@ fn main() {
     let core_dir = get_core_dir();
     let old_version = get_current_version(&core_dir);
     
+    
+    // Show pre-flight dashboard
+    show_preflight_dashboard(&core_dir, &old_version, new_version);
+    
+    // Ask for confirmation
+    print!("
+🤔 Ready to proceed with release? (y/n): ");
+    io::stdout().flush().unwrap();
+    let mut proceed = String::new();
+    io::stdin().read_line(&mut proceed).unwrap();
+    
+    if proceed.trim().to_lowercase() != "y" {
+        println!("
+❌ Release cancelled.");
+        exit(0);
+    }
+    
+    println!();
     println!("🌲 Faelight Forest Release System v{}", VERSION);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
