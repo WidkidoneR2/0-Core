@@ -17,24 +17,24 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 ---
 
-## 🏆 v8.2.0 Highlights - "The Observant Garden"
+## 🏆 v8.3.0 Highlights - "Tool Upgrades & Terminal Perfection"
 
 **What's New:**
-✅ **faelight-zone v1.1.0** - Spatial awareness system with filesystem zone detection
-✅ **faelight-term v0.1.0** - Terminal emulator foundation (Tool #32!)
-✅ **Operational Dashboard** - Starship prompt shows zone, cargo root, incidents, toolchain
-✅ **Enhanced Tools** - faelight-update v0.3.0, faelight-bar v0.10.1, bump-system-version v4.1.0
-✅ **100% System Health** - All 14 checks passing, zero incidents
+✅ **faelight-term v9.0.0** - Color emoji support 🌲🦀🔓🟢, better than foot/alacritty/kitty!
+✅ **dot-doctor v0.5.0** - Auto-fix mode + health history tracking with trending
+✅ **bump-system-version v5.0.0** - Stress-free releases with pre-flight dashboard
+✅ **7 Tool Upgrades** - faelight-update v0.4.0, faelight-bar v1.0.0, faelight-dmenu v2.0.0, faelight-menu v0.7.0
+✅ **100% System Health** - All 14 checks passing, zero stress
 
 **Philosophy:**
-> "Every tool knows its place. Every path knows its purpose. The garden observes itself" 🌲
+> "Excellence emerges through intentional iteration" 🌲
 
 **Flagship Tools:**
-🌲 **faelight-zone v1.1.0** - Filesystem spatial awareness with critical zone detection (UPPERCASE for danger zones)
-🦀 **faelight-term v0.1.0** - Rust terminal emulator with full ANSI support, cursor rendering, zoom controls
-📊 **Starship Dashboard** - Complete operational awareness (WHERE, BUILD SAFETY, INCIDENTS, SECURITY, TOOLCHAIN)
-🔄 **faelight-update v0.3.0** - Fixed update detection perfectly matching topgrade
-🏥 **dot-doctor v0.6.0** - 14-check health monitoring with security hardening verification
+🦀 **faelight-term v9.0.0** - Terminal emulator with color emoji, copy/paste, mouse selection - production ready!
+🏥 **dot-doctor v0.5.0** - Health monitoring with auto-fix (`--fix`) and time-traveling history (`--history`)
+📦 **bump-system-version v5.0.0** - Pre-flight dashboard, confirmation checkpoints, zero-stress releases
+🔄 **faelight-update v0.4.0** - Impact analysis for critical package updates
+🎨 **faelight-bar v1.0.0** - Beautiful gradient separators, production-ready status bar
 
 ---
 
@@ -362,6 +362,7 @@ intent add future "..."  # Document new decision
 
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v8.3.0 | 2026-01-25 | Tool upgrades, terminal perfection |
 | v8.2.0 | 2026-01-24 | Spatial awareness, operational dashboard, faelight-term foundation |
 | v8.1.0 | 2026-01-23 | Interactive updates, security hardening, ecosystem integration |
 | v8.0.0 | 2026-01-22 | 31 tools production-ready, full audit complete |
