@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 
 mod checks;
+mod install;
 
 #[derive(Parser)]
 #[command(name = "faelight-hooks")]
@@ -22,7 +23,7 @@ enum Commands {
     },
     /// Run hook checks manually
     Check {
-        /// Skip specific checks (comma-separated: secrets,syntax,conflicts)
+        /// Skip specific checks (comma-separated: secrets,conflicts,syntax)
         #[arg(long)]
         skip: Option<String>,
     },
@@ -39,8 +40,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Install { hook } => {
-            println!("{}", "🎣 Installing git hooks...".cyan().bold());
-            install_hooks(hook)?;
+            install::install_hooks(hook)?;
         }
         Commands::Check { skip } => {
             println!("{}", "🔍 Running hook checks...".cyan().bold());
@@ -54,15 +54,6 @@ fn main() -> Result<()> {
         }
     }
 
-    Ok(())
-}
-
-fn install_hooks(hook: Option<String>) -> Result<()> {
-    match hook {
-        Some(name) => println!("Installing {} hook...", name.green()),
-        None => println!("Installing all hooks..."),
-    }
-    println!("{}", "✅ Hooks installed!".green());
     Ok(())
 }
 
@@ -82,6 +73,15 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         println!("{}", "⏭️  Skipping secret scanning".yellow());
     }
 
+    // Conflict detection
+    if !skip_list.contains(&"conflicts".to_string()) {
+        if !checks::conflicts::check_conflicts()? {
+            all_passed = false;
+        }
+    } else {
+        println!("{}", "⏭️  Skipping conflict detection".yellow());
+    }
+
     println!();
     if all_passed {
         println!("{}", "✅ All checks passed! 🌲".green().bold());
@@ -95,7 +95,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
 fn show_config() -> Result<()> {
     println!("Current configuration:");
     println!("  - Secret scanning: {}", "enabled".green());
+    println!("  - Conflict detection: {}", "enabled".green());
     println!("  - Syntax validation: {}", "planned".yellow());
-    println!("  - Conflict detection: {}", "planned".yellow());
     Ok(())
 }
