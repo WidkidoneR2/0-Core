@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
+use std::io::{self, Write};
 use std::process::Command;
 
 pub fn check_push_to_main() -> Result<bool> {
@@ -14,16 +15,30 @@ pub fn check_push_to_main() -> Result<bool> {
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
     if branch == "main" || branch == "master" {
+        // Get repo name
+        let repo_output = Command::new("git")
+            .args(["rev-parse", "--show-toplevel"])
+            .output()?;
+        let repo_path = String::from_utf8_lossy(&repo_output.stdout).trim().to_string();
+        let repo_name = std::path::Path::new(&repo_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("repository");
+
         println!();
-        println!("{}", "⚠️  PUSHING DIRECTLY TO MAIN".yellow().bold());
-        println!();
-        println!("Current branch: {}", branch.yellow());
-        println!();
-        println!("{}", "This is a protected branch.".yellow());
-        println!("{}", "Are you sure you want to continue?".yellow());
-        println!();
+        println!("{}", format!("⚠️  Pushing directly to MAIN in {}", repo_name).yellow().bold());
+        print!("Proceed? (type 'push-main'): ");
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        if input.trim() != "push-main" {
+            println!("{}", "❌ Push cancelled".red());
+            return Ok(false);
+        }
         
-        // This just warns - the actual confirmation is in the hook script
+        println!();
         return Ok(true);
     }
 
