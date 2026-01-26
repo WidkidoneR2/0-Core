@@ -152,3 +152,7 @@ docs/planning/faelight-term/foot-source/
 # Research source code (local only)
 docs/planning/faelight-term/alacritty/
 docs/planning/faelight-term/foot-source/
+
+# Nushell history files (local only)
+**/nushell/history.sqlite3*
+**/nushell/history.txt

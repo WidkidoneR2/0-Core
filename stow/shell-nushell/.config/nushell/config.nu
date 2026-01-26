@@ -1,5 +1,5 @@
 # 🌲 Faelight Forest - Nushell Configuration
-# Version 6.5.0
+# Version 8.3.0
 
 # ═══════════════════════════════════════════════════════════
 # 🎨 APPEARANCE
@@ -91,5 +91,66 @@ alias nuconfig = nvim ~/.config/nushell/config.nu
 # 🚀 STARTUP
 # ═══════════════════════════════════════════════════════════
 
-print $"(ansi green)🌲 Welcome to Faelight Forest v6.5.0 - Nushell Edition!(ansi reset)"
+def welcome [] {
+    # Get system info
+   let health = try {
+    let result = (^dot-doctor | complete)
+    if ($result.stdout | str contains "100%") {
+        "🟢 100%"
+    } else if ($result.stdout | str contains "92%") {
+        "🟢 92%"
+    } else {
+        "⚠️ Check"
+    }
+} catch {
+    "🔴 Error"
+} 
+    
+    let core_status = if ("~/.core-locked" | path expand | path exists) {
+        "🔒 locked"
+    } else {
+        "🔓 unlocked"
+    }
+    
+    let profile = try {
+        open ~/.dotprofile | str trim
+    } catch {
+        "DEF"
+    }
+    
+    let uptime = try {
+        sys host | get uptime
+    } catch {
+        "N/A"
+    }
+    
+    let kernel = try {
+        ^uname -r | str trim
+    } catch {
+        "unknown"
+    }
+    
+    # Print banner
+    print $"(ansi green)🌲 Faelight Forest v8.3.0(ansi reset)"
+    print "────────────────────────"
+    print $"profile   ($profile)"
+    print $"core      ($core_status)"
+    print $"health    ($health)"
+    print "wm        sway"
+    print $"term      ($env.TERM)"
+    print "shell     nushell"
+    print $"kernel    ($kernel)"
+    print $"uptime    ($uptime)"
+    print "host      faelight"
+    print ""
+    print $"(ansi green)🌲 Welcome to Faelight Forest v8.3.0 - Nushell Edition!(ansi reset)"
+    print $"(ansi cyan)This is my Happy Place!!!(ansi reset)"
+    print $"(ansi yellow)💡 Quick: doctor | int list | keys(ansi reset)"
+}
+
+echo '
+welcome
+source ~/.cache/starship/init.nu' >> ~/.config/nushell/config.nu
+
+welcome
 source ~/.cache/starship/init.nu
