@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use std::fs;
 
 mod checks;
 mod install;
@@ -26,6 +27,14 @@ enum Commands {
         /// Skip specific checks (comma-separated: secrets,conflicts,syntax)
         #[arg(long)]
         skip: Option<String>,
+        
+        /// Run pre-push checks
+        #[arg(long)]
+        pre_push: bool,
+        
+        /// Validate commit message from file
+        #[arg(long)]
+        commit_msg: Option<String>,
     },
     /// Configure hook settings
     Config {
@@ -42,9 +51,18 @@ fn main() -> Result<()> {
         Commands::Install { hook } => {
             install::install_hooks(hook)?;
         }
-        Commands::Check { skip } => {
-            println!("{}", "🔍 Running hook checks...".cyan().bold());
-            run_checks(skip)?;
+        Commands::Check { skip, pre_push, commit_msg } => {
+            if let Some(msg_file) = commit_msg {
+                // Commit message validation
+                run_commit_msg_check(&msg_file)?;
+            } else if pre_push {
+                // Pre-push checks
+                run_pre_push_checks()?;
+            } else {
+                // Pre-commit checks
+                println!("{}", "🔍 Running hook checks...".cyan().bold());
+                run_checks(skip)?;
+            }
         }
         Commands::Config { show } => {
             if show {
@@ -92,10 +110,56 @@ fn run_checks(skip: Option<String>) -> Result<()> {
     }
 }
 
+fn run_pre_push_checks() -> Result<()> {
+    println!("{}", "🎣 Running pre-push checks...".cyan().bold());
+    
+    let mut all_passed = true;
+
+    // Check for uncommitted changes
+    if !checks::prepush::check_unpushed_changes()? {
+        all_passed = false;
+    }
+
+    // Check push target (main branch warning)
+    if !checks::prepush::check_push_to_main()? {
+        all_passed = false;
+    }
+
+    println!();
+    if all_passed {
+        println!("{}", "✅ Pre-push checks passed! 🌲".green().bold());
+        Ok(())
+    } else {
+        println!("{}", "❌ Pre-push checks failed!".red().bold());
+        std::process::exit(1);
+    }
+}
+
+fn run_commit_msg_check(msg_file: &str) -> Result<()> {
+    // Read commit message from file
+    let msg = fs::read_to_string(msg_file)?;
+    
+    if !checks::commitmsg::validate_commit_msg(&msg)? {
+        println!("{}", "❌ Commit message validation failed!".red().bold());
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
 fn show_config() -> Result<()> {
     println!("Current configuration:");
+    println!();
+    println!("{}", "Pre-commit checks:".bold());
     println!("  - Secret scanning: {}", "enabled".green());
     println!("  - Conflict detection: {}", "enabled".green());
-    println!("  - Syntax validation: {}", "planned".yellow());
+    println!();
+    println!("{}", "Pre-push checks:".bold());
+    println!("  - Branch warnings: {}", "enabled".green());
+    println!("  - Uncommitted changes: {}", "enabled".green());
+    println!();
+    println!("{}", "Commit-msg checks:".bold());
+    println!("  - Conventional commits: {}", "validation (non-blocking)".yellow());
+    println!("  - Length checks: {}", "enabled".green());
     Ok(())
 }
