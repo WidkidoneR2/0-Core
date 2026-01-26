@@ -199,20 +199,6 @@ git() {
 return 1
       fi
       ;;
-      
-    push)
-      # Warn on push to main
-      local branch=$(command git symbolic-ref --short HEAD 2>/dev/null)
-      if [[ "$branch" == "main" ]]; then
-        echo "⚠️  Pushing directly to MAIN in 0-core"
-        echo ""
-        read "ans?Proceed? (type 'push-main'): "
-        if [[ "$ans" != "push-main" ]]; then
-          echo "❌ Push cancelled"
-          return 1
-        fi
-      fi
-      ;;
   esac
   
   # Execute the actual git command
