@@ -1146,7 +1146,7 @@ version = "0.3.0"
 
 [[package]]
 name = "faelight-term"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
@@ -2493,6 +2493,16 @@ checksum = "69aacb76b5c29acfb7f90155d39759a29496aebb49395830e928a9703d2eec2f"
 dependencies = [
  "bytemuck",
  "font-types",
+]
+
+[[package]]
+name = "recent-files"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "colored",
+ "walkdir",
 ]
 
 [[package]]
