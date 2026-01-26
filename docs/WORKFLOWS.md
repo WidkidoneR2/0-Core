@@ -1,309 +1,480 @@
 # 0-Core Workflows
 
-Practical usage patterns for real-world scenarios.
+Practical usage patterns for real-world scenarios with v8.4.0 tools.
+
+**Version:** 8.4.0  
+**Philosophy:** Manual control, intentional decisions, observable changes
 
 ---
 
 ## Daily Workflows
 
-### Morning Posture Check
-
-**Goal:** Know your system's state before starting work.
-
+### Morning System Check
+**Goal:** Know your system's state before starting work
 ```bash
-# 1. Open terminal
-# 2. Check for changes
-core-diff
+# 1. Check system health (14 checks)
+doctor
 
-# 3. Check system health
-dot-doctor
+# 2. Check git status
+fg status
 
-# 4. Review and plan
+# 3. Check for updates
+faelight-update --dry-run
+
+# 4. Review current profile
+profile list
 ```
 
-**Why:** Sets intention, avoids surprises, primes the mind.
+**Why:** Sets intention, avoids surprises, confirms system integrity
+
+**Expected output:**
+- ✅ 100% health score
+- ✅ Clean git state
+- ℹ️ Available updates (if any)
+- ℹ️ Current profile (usually "default")
 
 ---
 
-### Change Review Ritual
-
-**Goal:** Make every config change intentional and observable.
-
+### Configuration Change Workflow
+**Goal:** Make every config change intentional and traceable
 ```bash
-# 1. Make changes in 0-core
+# 1. Unlock core for editing
 unlock-core
-# ... edit files ...
 
-# 2. Review what changed
-core-diff --verbose
+# 2. Edit config files
+nvim ~/0-core/stow/wm-sway/.config/sway/config
 
-# 3. Inspect critical packages carefully
-core-diff wm-sway --open delta
+# 3. Test changes
+sway -C                    # Validate Sway config
+swaymsg reload             # Apply changes
 
-# 4. Quick terminal review for others
-core-diff --open delta
+# 4. Verify health
+doctor
 
-# 5. When satisfied, commit
-git add <files>
-git commit -m "descriptive message"
+# 5. Review changes
+cd ~/0-core
+git status
+git diff
+
+# 6. Commit with intent
+git add stow/wm-sway/
+git commit -m "fix(sway): Update keybinding for launcher"
+
+# 7. Push (hooks validate automatically)
 git push
 
-# 6. Lock the core
+# 8. Lock core again
 lock-core
 ```
 
-**Why:** Turns configuration edits into deliberate thinking sessions.
+**Why:** Deliberate, documented, reversible changes
+
+**Git hooks automatically check:**
+- 🔍 Secret scanning
+- 🔍 Merge conflicts
+- 💬 Commit message format
+- 🎣 Uncommitted changes (pre-push)
+
+---
+
+### Quick Edit with Auto-Lock
+**Goal:** Fast edits with automatic protection
+```bash
+# Use fg (faelight-git) for streamlined workflow
+unlock-core
+nvim ~/0-core/stow/shell-zsh/.zshrc
+fg sync                    # Pulls, commits, pushes automatically
+lock-core
+```
 
 ---
 
 ## Weekly Workflows
 
-### Release Review
-
-**Goal:** Understand all changes before tagging a release.
-
+### System Update Routine
+**Goal:** Keep system current with controlled updates
 ```bash
-# 1. Check changes since last version
-core-diff since v3.3.5
+# 1. Check what needs updating
+faelight-update --dry-run -v
 
-# 2. Review high-risk changes carefully
-core-diff --high-risk
+# 2. Review impact analysis
+# Look for:
+# - Kernel updates (require reboot)
+# - Critical packages (systemd, glibc, etc.)
+# - Major version bumps
 
-# 3. For each critical package
-core-diff wm-sway --open delta
-core-diff shell-zsh --open delta
+# 3. Create snapshot (if using BTRFS)
+faelight-snapshot create --tag pre-update
 
-# 4. Check overall health
-dot-doctor
+# 4. Apply updates
+faelight-update
 
-# 5. If clean, tag release
-git tag v3.4.0
-git push --tags
+# 5. Verify system health
+doctor
+
+# 6. Check for .pacnew files
+find /etc -name "*.pacnew"
+
+# 7. Reboot if kernel updated
+# Check if reboot needed in update output
+```
+
+**Best day:** Sunday morning (low-pressure, time to fix issues)
+
+---
+
+### Intent Ledger Review
+**Goal:** Document decisions and review past choices
+```bash
+# 1. Review recent intents
+intent list
+
+# 2. Check planned work
+intent list future
+
+# 3. Document new decision
+intent add decision "Switching to X because Y"
+
+# 4. Review specific intent
+intent show 067
+
+# 5. Search for topic
+intent search "update"
+```
+
+**Why:** Builds institutional knowledge, prevents repeated mistakes
+
+---
+
+### Health & Maintenance Check
+**Goal:** Prevent technical debt accumulation
+```bash
+# 1. Run comprehensive health check
+doctor --explain
+
+# 2. Run automated test suite
+~/0-core/scripts/test-all-tools
+
+# 3. Check git repository
+fg status
+
+# 4. Review profile settings
+profile list
+
+# 5. Check for package drift
+entropy-check
+
+# 6. Update documentation if needed
+cd ~/0-core/docs
+# Edit outdated docs
 ```
 
 ---
 
-### Maintenance Loop
+## Profile Workflows
 
-**Goal:** Prevent accumulation of technical debt.
-
+### Switching Contexts
+**Goal:** Optimize system for different use cases
 ```bash
-# Pick a day (like Sunday) for maintenance
+# Morning: Start work mode
+profile switch work
+# Enables VPN, focused notifications
 
-# 1. System updates
-safe-update
+# Lunch break: Gaming
+profile switch gaming
+# Max GPU, minimal notifications, VPN off
 
-# 2. Health check
-dot-doctor
+# Evening: Battery saving
+profile switch low-power
+# CPU powersave, reduced bar refresh
 
-# 3. Review aging files
-# (dot-doctor shows this automatically)
-
-# 4. Check for uncommitted changes
-core-diff
-
-# 5. Small cleanup or refactoring
+# Default: Balanced
+profile switch default
+# VPN on, all features enabled
 ```
 
-**Why:** Creates rhythm, enforces manual inspection, prevents entropy.
+**Current profile shown in:** faelight-bar (DEF/WRK/GAM/LOW)
 
 ---
 
 ## Incident Response
 
 ### When Something Breaks
-
-**Goal:** Quick diagnosis and recovery.
-
+**Goal:** Quick diagnosis and recovery
 ```bash
-# 1. Check recent changes
-core-diff since HEAD~5 --high-risk
+# 1. Check system health
+doctor --explain
+# Identifies which check is failing
 
-# 2. Identify suspicious package
-# Output shows which packages changed
+# 2. Check recent git changes
+cd ~/0-core
+git log --oneline -10
 
-# 3. Deep dive on suspect package
-core-diff <package> --open delta
+# 3. Review last commit
+git show HEAD
 
-# 4. Review file-by-file
-# Meld shows exact changes
+# 4. If config issue, rollback
+git revert HEAD
+git push
 
-# 5. Revert if needed
-git checkout HEAD~1 <package>/
+# 5. If package issue, restore snapshot
+faelight-snapshot list
+faelight-snapshot restore <name>
 
-# 6. Or fix forward
-# Edit files, test, commit
+# 6. Document incident
+cd ~/0-core/INTENT/incidents
+intent add incident "Description of what broke and fix"
 
-# 7. Document in INCIDENTS.md
+# 7. Update POLICIES.md if needed
+nvim ~/0-core/docs/POLICIES.md
+```
+
+---
+
+### Lock Status Confusion
+**Goal:** Verify and fix lock state
+```bash
+# Check lock status
+core-protect status
+
+# Shows in:
+# - Starship prompt (🔒/🔓)
+# - faelight-bar (LCK/UNL)
+
+# If locked but need to edit:
+unlock-core
+
+# If unlocked but should be locked:
+lock-core
+```
+
+---
+
+## Development Workflows
+
+### Adding New Rust Tool
+**Goal:** Integrate new tool into workspace
+```bash
+# 1. Create new package
+cd ~/0-core/rust-tools
+cargo new --bin my-new-tool
+
+# 2. Add to workspace
+# Edit ~/0-core/Cargo.toml:
+# members = [..., "rust-tools/my-new-tool"]
+
+# 3. Develop tool
+cd rust-tools/my-new-tool
+nvim src/main.rs
+
+# 4. Build and test
+cd ~/0-core
+cargo build --release -p my-new-tool
+
+# 5. Copy to scripts/
+cp target/release/my-new-tool scripts/
+
+# 6. Test
+scripts/my-new-tool --help
+
+# 7. Update test suite
+nvim scripts/test-all-tools
+# Add test for new tool
+
+# 8. Update documentation
+nvim docs/TOOL_REFERENCE.md
+
+# 9. Commit
+git add rust-tools/my-new-tool Cargo.toml scripts/test-all-tools docs/
+git commit -m "feat: Add my-new-tool v0.1.0"
+git push
+```
+
+---
+
+### Workspace Build & Deploy
+**Goal:** Rebuild all tools efficiently
+```bash
+# Full rebuild (clean build)
+cd ~/0-core
+cargo clean
+cargo build --release
+
+# Copy all binaries to scripts/
+cp target/release/faelight-* scripts/
+cp target/release/dot-doctor scripts/doctor
+cp target/release/intent scripts/
+# ... etc
+
+# Or use your deployment script
+./deploy-binaries.sh   # If you have one
+
+# Verify
+~/0-core/scripts/test-all-tools
+```
+
+---
+
+### Version Bump Workflow
+**Goal:** Release new system version
+```bash
+# 1. Review changes since last version
+git log $(git describe --tags --abbrev=0)..HEAD --oneline
+
+# 2. Verify 100% health
+doctor
+
+# 3. Run full test suite
+~/0-core/scripts/test-all-tools
+
+# 4. Bump version (with pre-flight checks)
+bump-system-version 8.5.0
+
+# 5. Update CHANGELOG.md
+nvim CHANGELOG.md
+
+# 6. Commit and push
+git add CHANGELOG.md
+git commit -m "docs: Update changelog for v8.5.0"
+git push
+git push --tags
 ```
 
 ---
 
 ## Integration Patterns
 
-### With dot-doctor
-
+### Morning Routine (All-in-One)
 ```bash
-# Post-change validation
-core-diff --high-risk && dot-doctor
+# Single command health + git check
+doctor && fg status && faelight-update --dry-run
 ```
 
-### With git workflow
-
+### Pre-Commit Validation
 ```bash
-# Pre-commit review
-core-diff --verbose
-git add <files>
-git commit
-
-# Verify clean
-core-diff  # Should show nothing
+# Before committing
+doctor                     # Health check
+git status                 # Review changes
+git diff                   # Review diff
+git add .
+git commit                 # Hooks run automatically
 ```
 
-### Morning routine
-
+### Post-Update Verification
 ```bash
-# All-in-one check
-core-diff && dot-doctor
+# After system updates
+faelight-update
+doctor                     # Verify health
+~/0-core/scripts/test-all-tools  # Test tools
+reboot                     # If kernel updated
 ```
 
 ---
 
-## Workflow Aliases
+## Quick Reference Aliases
 
-Quick shortcuts for common patterns:
-
+Add to `~/.zshrc`:
 ```bash
-# Morning check
-cdiff
+# Health & Status
+alias d="doctor"
+alias dx="doctor --explain"
 
-# Detailed review
-cdv  # core-diff --verbose
+# Updates
+alias up="faelight-update --dry-run"
+alias upv="faelight-update -v"
 
-# Focus mode
-cdh  # core-diff --high-risk
+# Git
+alias gs="fg status"
+alias gsync="fg sync"
 
-# Quick stats
-cds  # core-diff summary
+# Core
+alias lock="lock-core"
+alias unlock="unlock-core"
 
-# Visual inspection
-cdm  # core-diff --open delta
-cdd  # core-diff --open delta
+# Profiles
+alias prof="profile list"
+alias profwork="profile switch work"
+alias profdef="profile switch default"
+
+# Intents
+alias intents="intent list"
+alias intentshow="intent show"
 ```
-
-See shell configuration for all aliases.
 
 ---
 
 ## Advanced Patterns
 
-### Pre-Update Snapshot
-
+### Create Pre-Update Baseline
 ```bash
-# Before major updates, capture state
-core-diff summary > /tmp/pre-update.txt
-
-# After updates
-core-diff summary > /tmp/post-update.txt
-
-# Compare
-diff /tmp/pre-update.txt /tmp/post-update.txt
+# Before major changes
+doctor > ~/backups/health-$(date +%Y%m%d).txt
+git log --oneline -20 > ~/backups/commits-$(date +%Y%m%d).txt
 ```
 
-### Package-Focused Development
-
+### Monitor Health Continuously
 ```bash
-# When working on specific package
-cd ~/0-core
+# Watch health status (updates every 5 seconds)
+watch -n 5 'doctor'
 
-# Monitor just that package
-watch -n 2 'core-diff wm-sway --verbose'
-
-# Or use delta for live diff
-core-diff wm-sway --open delta
+# Or use doctor's history feature
+doctor --history
 ```
 
-### Release Checklist
-
+### Automated Daily Check (Manual Trigger)
 ```bash
-# 1. Review changes
-core-diff since $(git describe --tags --abbrev=0)
+# Add to ~/.zshrc
+daily-check() {
+    echo "=== Daily System Check ==="
+    echo ""
+    echo "📊 Health Status:"
+    doctor
+    echo ""
+    echo "📦 Git Status:"
+    fg status
+    echo ""
+    echo "🔄 Available Updates:"
+    faelight-update --dry-run
+}
 
-# 2. Verify health
-dot-doctor  # Must be 100%
-
-# 3. Update docs if needed
-# 4. Bump version
-# 5. Commit, tag, push
-# 6. Lock
+# Run manually each morning
+daily-check
 ```
-
----
-
-## Tips & Best Practices
-
-### Use Summary Mode
-
-When you just need quick stats:
-
-```bash
-core-diff summary
-```
-
-### Combine Flags
-
-```bash
-# Verbose high-risk only
-core-diff --high-risk --verbose
-
-# Package + tool
-core-diff wm-sway --open delta
-```
-
-### Read the Output
-
-Pay attention to:
-
-- 🔴 **CRITICAL** always requires careful review
-- File counts (1 file vs 20 files matters)
-- Risk level in summary
-
-### Don't Skip Meld
-
-For critical packages, always use visual inspection:
-
-```bash
-core-diff wm-sway --open delta
-```
-
-Delta is fast, Meld is thorough.
 
 ---
 
 ## Common Scenarios
 
-**Scenario:** "I changed something yesterday, what was it?"
-
+### "What changed recently?"
 ```bash
-core-diff since HEAD~1
+git log --oneline -10
+git diff HEAD~5..HEAD
 ```
 
-**Scenario:** "Did I touch any critical configs?"
-
+### "Did updates break anything?"
 ```bash
-core-diff --high-risk
+doctor                     # Check health
+~/0-core/scripts/test-all-tools  # Test tools
+git log -1                 # Last change
 ```
 
-**Scenario:** "Show me exactly what changed in my shell config"
-
+### "Switch to gaming mode"
 ```bash
-core-diff shell-zsh --open delta
+profile switch gaming
+# Verify in faelight-bar: GAM
 ```
 
-**Scenario:** "Quick status before committing"
-
+### "Quick config edit"
 ```bash
-core-diff summary
+unlock-core
+nvim ~/0-core/stow/wm-sway/.config/sway/config
+swaymsg reload
+lock-core
+```
+
+### "Document decision"
+```bash
+intent add decision "Reason for change X"
 ```
 
 ---
@@ -312,9 +483,13 @@ core-diff summary
 
 These workflows embody 0-Core principles:
 
-- **Manual control** - You choose when to review
-- **Intent over automation** - Explicit inspection steps
-- **Recovery over perfection** - Focus on catching mistakes
-- **Human comprehension** - Tools explain, don't hide
+- **Manual Control** - You choose when to run checks, updates, changes
+- **Intent Over Convention** - Every decision is deliberate and documented
+- **Understanding Over Convenience** - Tools explain, don't hide
+- **Recovery Over Perfection** - Focus on catching and fixing mistakes
 
-See [PHILOSOPHY.md](../PHILOSOPHY.md) for deeper context.
+See `docs/THEORY_OF_OPERATION.md` for deeper context.
+
+---
+
+*Manual control over automation. Understanding over convenience.* 🌲
