@@ -198,16 +198,14 @@ All **33 core tools** are compiled Rust binaries organized in a workspace - 100%
 **Total Lines of Rust:** ~15,000+ across all tools
 
 ### Project Scale
+```
 Code Statistics (as of v8.4.0):
-Rust source code:    105,843 lines  🦀
-Configuration files:   1,061 lines  ⚙️
-Intent documentation:  8,659 lines  🎯
-System guides:        11,759 lines  📚
-────────────────────────────────────────
-Total authored:      ~127,300 lines
-
-34 production-ready tools, 12 stow packages, 26 intents (11 complete).
-Built from scratch in ~3 months, from catastrophic failure to 100% health.
+  Rust source code:    105,843 lines  🦀
+  Configuration files:   1,061 lines  ⚙️
+  Intent documentation:  8,659 lines  🎯
+  System guides:        11,759 lines  📚
+  ────────────────────────────────────────
+  Total authored:      ~127,300 lines
 ```
 
 **Philosophy:** Every line intentional. Every decision documented. Every tool understood.
@@ -227,6 +225,7 @@ Built from scratch in ~3 months, from catastrophic failure to 100% health.
 ```
 
 ### Package Organization (Source-First Architecture)
+```
 0-core/
 ├── stow/                  # 🎯 ALL dotfile packages (GNU Stow managed)
 │   ├── wm-sway/          Sway window manager config
