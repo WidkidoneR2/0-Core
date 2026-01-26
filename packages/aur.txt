@@ -1,8 +1,14 @@
-brave-bin
-ente-auth-bin
-filen-desktop-bin
-mullvad-vpn-bin
-notesnook-bin
-papirus-folders
-topgrade
-tutanota-desktop-bin
+brave-bin 1:1.86.142-1
+filen-desktop-bin 3.0.47-1
+localsend-bin 1.17.0-1
+mullvad-vpn-bin 2025.14-1
+mullvad-vpn-bin-debug 2025.14-1
+notesnook-bin 3.3.7-1
+notesnook-bin-debug 3.3.7-1
+onlyoffice-bin 9.2.1-1
+paru 2.1.0-2
+paru-debug 2.1.0-2
+topgrade 16.8.0-1
+topgrade-debug 16.8.0-1
+tutanota-desktop-bin 319.260107.1-1
+tutanota-desktop-bin-debug 319.260107.1-1
