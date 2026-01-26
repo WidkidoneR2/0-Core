@@ -1,12 +1,12 @@
 //! PTY (Pseudo-Terminal) module for spawning and managing shell processes
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use nix::pty::{openpty, Winsize};
-use nix::sys::termios::{self, LocalFlags, InputFlags, OutputFlags, ControlFlags, SetArg};
+use nix::sys::termios::{self, LocalFlags, InputFlags, OutputFlags, SetArg};
 use nix::unistd::{dup2, execvp, fork, setsid, ForkResult};
 use std::ffi::CString;
 use std::fs::File;
 use std::io::{self, Read};
-use std::os::fd::{AsFd, AsRawFd, FromRawFd, IntoRawFd};
+use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
 
 pub struct Pty {
     pub master: File,

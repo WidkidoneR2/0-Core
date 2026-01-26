@@ -190,7 +190,7 @@ fn main() {
 // ═══════════════════════════════════════════════════════════
 // 🏥 HEALTH
 // ═══════════════════════════════════════════════════════════
-fn cmd_health(explain: bool, fail_on_warning: bool, json: bool) -> i32 {
+fn cmd_health(explain: bool, _fail_on_warning: bool, json: bool) -> i32 {
     let mut args = vec![];
     if explain { args.push("--explain"); }
     if json { args.push("--json"); }

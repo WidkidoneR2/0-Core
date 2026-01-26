@@ -429,7 +429,7 @@ fn render_glyph(
         .hint(true)
         .build();
     
-    let mut render = Render::new(&[
+    let render = Render::new(&[
         Source::ColorOutline(0),
         Source::ColorBitmap(StrikeWith::BestFit),
         Source::Outline,

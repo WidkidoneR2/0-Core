@@ -594,7 +594,7 @@ fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String>
     let lines: Vec<&str> = content.lines().collect();
     let mut new_content = String::new();
     
-    for (i, line) in lines.iter().enumerate() {
+    for (_i, line) in lines.iter().enumerate() {
         new_content.push_str(line);
         new_content.push('\n');
         

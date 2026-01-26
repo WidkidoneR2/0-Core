@@ -348,7 +348,7 @@ fn cmd_health() {
     
     // Check pattern integrity
     print!("  Validating pattern functions... ");
-    let mut valid = true;
+    let valid = true;
     for pattern in PATTERNS {
         // Test that check function doesn't panic on empty string
         let _ = (pattern.check)("");
