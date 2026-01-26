@@ -564,7 +564,7 @@ fn update_workspace() -> Result<()> {
 
 /// Update system packages
 fn update_pacman(items: &[String]) -> Result<()> {
-    println!("   Running: sudo pacman -S --noconfirm {}", items.join(" "));
+    println!("   Running: sudo pacman -Su --noconfirm {}", items.join(" "));
 
     let status = Command::new("sudo")
         .arg("pacman")
@@ -585,7 +585,7 @@ fn update_pacman(items: &[String]) -> Result<()> {
 
 /// Update AUR packages
 fn update_aur(items: &[String]) -> Result<()> {
-    println!("   Running: paru -S --noconfirm {}", items.join(" "));
+    println!("   Running: paru -Su --noconfirm {}", items.join(" "));
 
     let status = Command::new("paru")
         .arg("-Su")
