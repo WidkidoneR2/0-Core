@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::io::{self, Write};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Write};
 use std::process::Command;
 
 pub fn check_push_to_main() -> Result<bool> {
@@ -30,8 +31,11 @@ pub fn check_push_to_main() -> Result<bool> {
         print!("Proceed? (type 'push-main'): ");
         io::stdout().flush()?;
 
+        // Read from /dev/tty instead of stdin (git hooks need this)
+        let tty = File::open("/dev/tty").context("Failed to open /dev/tty")?;
+        let mut reader = BufReader::new(tty);
         let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        reader.read_line(&mut input)?;
 
         if input.trim() != "push-main" {
             println!("{}", "❌ Push cancelled".red());
