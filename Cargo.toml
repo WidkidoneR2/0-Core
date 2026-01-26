@@ -44,4 +44,3 @@ nucleo = "0.5"
 # Terminal emulation
 vte = "0.13"
 nix = { version = "0.29", features = ["term", "process", "fs"] }
-    "rust-tools/recent-files",
