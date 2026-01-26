@@ -1,9 +1,10 @@
 # 🛡️ 0-Core Policies
 
-> Self-enforcing rules learned from pain. These policies prevent future-you from repeating past-you's mistakes.
+Self-enforcing rules learned from pain. These policies prevent future-you from repeating past-you's mistakes.
 
-**Last Updated:** 2025-12-17  
-**Version:** 3.3.0
+**Last Updated:** 2026-01-27  
+**Version:** 8.4.0  
+**System:** Arch Linux + Sway + 0-Core
 
 ---
 
@@ -11,7 +12,7 @@
 
 **Manual Control > Automation**
 
-Every policy stems from one principle: YOU control the system, it doesn't control you.
+Every policy stems from one principle: **YOU control the system, it doesn't control you.**
 
 ---
 
@@ -25,17 +26,18 @@ Every policy stems from one principle: YOU control the system, it doesn't contro
 - ✅ **ALWAYS** use manual-trigger scripts only
 
 ### Rationale
+
 **Incident:** 12-hour password debugging session (2025-12-14)
 
 **What happened:**
-- systemd user timer ran at boot
-- Attempted sudo without credentials
-- Triggered faillock after 3 attempts
-- Locked user account
-- Broke sudo authentication system-wide
+1. systemd user timer ran at boot
+2. Attempted sudo without credentials
+3. Triggered faillock after 3 attempts
+4. Locked user account
+5. Broke sudo authentication system-wide
 
-**Lesson learned:**
-> "Automation at boot + sudo = debugging nightmare"
+**Lesson learned:**  
+*"Automation at boot + sudo = debugging nightmare"*
 
 **Prevention:**
 - All automation requires explicit user trigger
@@ -60,7 +62,7 @@ Every policy stems from one principle: YOU control the system, it doesn't contro
 ### Examples
 
 **Bad (Automated):**
-```bash
+```ini
 # systemd timer at boot
 [Timer]
 OnBootSec=5min
@@ -68,18 +70,19 @@ OnBootSec=5min
 
 **Good (Manual Trigger):**
 ```bash
-# Fish function with confirmation
-function weekly-check
-    read -P "Continue? (y/N): " response
-    if test "$response" = "y"
-        ~/0-core/scripts/safe-update
-    end
-end
+# Zsh function with confirmation
+weekly-check() {
+    read -q "?Continue? (y/N): "
+    if [[ $? -eq 0 ]]; then
+        faelight-update
+    fi
+}
 ```
 
 ### Rationale
-**Lesson learned:**
-> "Anything that runs automatically WILL break mysteriously at the worst time."
+
+**Lesson learned:**  
+*"Anything that runs automatically WILL break mysteriously at the worst time."*
 
 **Prevention:**
 - User decides when things run
@@ -106,11 +109,12 @@ lock-core    # chattr +i ~/0-core
 # Unlock to edit
 unlock-core  # chattr -i ~/0-core
 
-# Quick edit with auto-lock
-edit-core shell-fish
+# Check status
+core-protect status
 ```
 
 ### Rationale
+
 **Problem:** Accidental `rm -rf` or file corruption
 
 **Solution:** Filesystem-level protection prevents:
@@ -126,13 +130,14 @@ edit-core shell-fish
 ## 📝 Documentation Policy
 
 ### Rules
-- ✅ **ALWAYS** document every decision
+- ✅ **ALWAYS** document every decision in Intent Ledger
 - ✅ **ALWAYS** explain failure modes
-- ✅ **ALWAYS** log breaking changes
+- ✅ **ALWAYS** log breaking changes in CHANGELOG
 - ✅ **ALWAYS** write for future-you
 - ❌ **NEVER** assume you'll remember why
 
 ### Requirements
+
 Every major change needs:
 1. **Why** - Rationale for change
 2. **What** - What changed
@@ -141,13 +146,16 @@ Every major change needs:
 5. **Rollback** - How to undo if needed
 
 ### Examples
-- `CHANGELOG-v3.x.md` - What changed per version
-- `THEORY_OF_OPERATION.md` - How system works
-- `INCIDENTS/` - What broke and why
-- `POLICIES.md` - This document
+
+- `INTENT/` - Decision history and rationale
+- `CHANGELOG.md` - Version changes
+- `docs/ARCHITECTURE.md` - System structure
+- `docs/INCIDENTS/` - What broke and why
+- `docs/POLICIES.md` - This document
 
 ### Rationale
-> "Future-you has no memory of current-you's decisions."
+
+*"Future-you has no memory of current-you's decisions."*
 
 **Prevention:**
 - Document WHY, not just WHAT
@@ -161,33 +169,36 @@ Every major change needs:
 
 ### Rules
 - ❌ **NEVER** auto-update at boot
-- ❌ **NEVER** update without snapshots
-- ❌ **NEVER** skip health checks
-- ✅ **ALWAYS** use `safe-update` script
-- ✅ **ALWAYS** create pre/post snapshots
+- ❌ **NEVER** update without health check
+- ❌ **NEVER** skip pre-update verification
+- ✅ **ALWAYS** use `faelight-update`
+- ✅ **ALWAYS** create snapshots (if available)
 - ✅ **ALWAYS** verify system health after updates
 - ✅ **ALWAYS** check for .pacnew files
 
 ### Process
 ```bash
 # Manual update (YOU decide when)
-safe-update
+faelight-update
 
-# Or prompted weekly check
-weekly-check  # Asks for confirmation first
+# Or dry-run first
+faelight-update --dry-run
+
+# With verbose output
+faelight-update -v
 ```
 
 ### Safety Features
-- Pre-update snapshot
-- Auto-detect yay issues
-- Auto-rebuild on failure
-- Post-update snapshot
-- .pacnew detection
-- Health verification
+- Pre-update health check (`doctor`)
+- Smart package detection (pacman, AUR, cargo)
+- Impact analysis (kernel, critical packages)
+- Post-update workspace rebuild
+- .pacnew detection (coming soon)
 
 ### Rationale
-**Lesson learned:**
-> "Updates break things. Be prepared to rollback."
+
+**Lesson learned:**  
+*"Updates break things. Know what changed."*
 
 ---
 
@@ -202,17 +213,18 @@ weekly-check  # Asks for confirmation first
 
 ### Verification
 ```bash
-# Check system health
-dot-doctor  # Must show 100%
+# Check system health (14 checks)
+doctor
 
 # Check git state
-git status  # Must be clean
+fg status
 
-# Check package versions
-dotctl status  # Shows all versions
+# Run full test suite
+~/0-core/scripts/test-all-tools
 ```
 
 ### Rationale
+
 **Early detection > Late debugging**
 
 **Prevention:**
@@ -225,27 +237,38 @@ dotctl status  # Shows all versions
 ## 🎯 Blast Radius Policy
 
 ### Rules
-- ⚠️  **ALWAYS** consider blast radius before editing
-- ⚠️  **ALWAYS** backup critical components first
+- ⚠️ **ALWAYS** consider blast radius before editing
+- ⚠️ **ALWAYS** backup critical components first
 - ✅ **ALWAYS** use recovery procedures for high-risk edits
 
 ### Classification
-- 🔴 **Critical:** System unusable if broken (wm-sway)
-- 🟠 **High:** Major functionality lost (shell-fish, faelight-bar)
-- 🔵 **Medium:** Important but not essential (editor-nvim)
-- 🟢 **Low:** Optional features (browser-qutebrowser)
+
+- 🔴 **Critical:** System unusable if broken (`wm-sway`)
+- 🟠 **High:** Major functionality lost (`shell-zsh`, `faelight-bar`)
+- 🔵 **Medium:** Important but not essential (`editor-nvim`)
+- 🟢 **Low:** Optional features (`browser-qutebrowser`)
 
 ### Before Editing
 ```bash
-# Check blast radius
-dotctl status  # Shows color-coded risk
+# Check current status
+dotctl status
+
+# Unlock carefully
+unlock-core
 
 # Edit with awareness
-edit-core wm-sway  # High-risk, will warn
+nvim ~/0-core/stow/wm-sway/.config/sway/config
+
+# Test changes
+sway -C
+
+# Lock again
+lock-core
 ```
 
 ### Rationale
-> "Know what you're risking before you break it."
+
+*"Know what you're risking before you break it."*
 
 ---
 
@@ -254,23 +277,30 @@ edit-core wm-sway  # High-risk, will warn
 ### Rules
 - ✅ **ALWAYS** store secrets in KeePassXC
 - ✅ **ALWAYS** use encrypted backups
+- ✅ **ALWAYS** scan for secrets before commits (gitleaks)
 - ❌ **NEVER** commit secrets to git
 - ❌ **NEVER** store plaintext passwords
 - ❌ **NEVER** expose API keys in configs
 
 ### Secrets Management
-- **Storage:** ~/vault/passwords.kdbx (KeePassXC)
-- **Backup:** filen.io (E2E encrypted)
-- **Git:** NEVER commit secrets
+
+- **Storage:** `~/vault/passwords.kdbx` (KeePassXC)
+- **Backup:** Encrypted cloud storage
+- **Git:** Pre-commit hooks block secrets (`faelight-hooks`)
 - **Configs:** Reference secrets, don't embed
 
-### Current Security
-- 73% Lynis hardening score
-- LUKS2 full disk encryption
-- UFW firewall configured
-- fail2ban active
-- DNSOverTLS (Quad9)
-- Mullvad VPN
+### Current Security (v8.4.0)
+
+- ✅ UFW firewall active
+- ✅ fail2ban protecting SSH
+- ✅ Mullvad VPN connected
+- ✅ LUKS2 full disk encryption (recommended)
+- ✅ DNSOverTLS (Quad9)
+- ✅ Git hooks scan for secrets
+```bash
+# Verify security status
+doctor --explain  # Shows security check
+```
 
 ---
 
@@ -280,23 +310,24 @@ edit-core wm-sway  # High-risk, will warn
 - ✅ **ALWAYS** use semantic package names
 - ✅ **ALWAYS** document package purpose
 - ✅ **ALWAYS** track dependencies
-- ✅ **ALWAYS** maintain .dotmeta files
+- ✅ **ALWAYS** use GNU Stow for deployment
 - ❌ **NEVER** create generic package names
 
 ### Naming Convention
-```
-<category>-<application>
 
-Examples:
-✅ wm-sway (window manager - sway)
-✅ shell-fish (shell - fish)
-✅ editor-nvim (editor - neovim)
-❌ hypr (old, removed)
-❌ config (too generic)
-```
+`<category>-<application>`
+
+**Examples:**
+- ✅ `wm-sway` (window manager - sway)
+- ✅ `shell-zsh` (shell - zsh)
+- ✅ `editor-nvim` (editor - neovim)
+- ✅ `term-foot` (terminal - foot)
+- ❌ `config` (too generic)
+- ❌ `hypr` (old, removed)
 
 ### Rationale
-> "Self-documenting structure > cryptic names"
+
+*"Self-documenting structure > cryptic names"*
 
 ---
 
@@ -306,6 +337,7 @@ Examples:
 - ✅ **ALWAYS** test changes before committing
 - ✅ **ALWAYS** verify health after changes
 - ✅ **ALWAYS** check for broken symlinks
+- ✅ **ALWAYS** run test suite for Rust tools
 - ❌ **NEVER** commit untested changes
 
 ### Testing Checklist
@@ -314,16 +346,28 @@ Examples:
 # Make your changes, test they work
 
 # 2. Check health
-dot-doctor  # Must pass 100%
+doctor
 
-# 3. Verify git
-git status  # Review changes
+# 3. Run automated tests (if Rust tools changed)
+cargo build --release
+~/0-core/scripts/test-all-tools
 
-# 4. Commit
+# 4. Verify git
+git status
+
+# 5. Commit with hooks
 git add -A
-git commit -m "description"
+git commit -m "type(scope): description"
 git push
 ```
+
+### Git Hooks (faelight-hooks v1.0.0)
+
+Automatic checks on every commit:
+- 🔍 Secret scanning (gitleaks)
+- 🔍 Merge conflict detection
+- 💬 Conventional commit validation
+- 🎣 Pre-push uncommitted change detection
 
 ---
 
@@ -333,10 +377,10 @@ git push
 
 1. **Stop immediately**
 2. **Assess damage**
-3. **Rollback if needed** (`git restore` or Btrfs snapshot)
-4. **Document incident** (add to `INCIDENTS/`)
+3. **Rollback if needed** (`git restore` or BTRFS snapshot)
+4. **Document incident** (add to `INTENT/incidents/`)
 5. **Update policy** (prevent recurrence)
-6. **Learn lesson** (update `THEORY_OF_OPERATION.md`)
+6. **Learn lesson** (update documentation)
 
 ### Example Process
 ```bash
@@ -347,9 +391,9 @@ git restore <file>  # Rollback
 lock-core  # Protect again
 
 # Document
-nvim docs/INCIDENTS/$(date +%Y-%m-%d)-description.md
+intent add incident "Description of what broke"
 
-# Update policies
+# Update policies if needed
 nvim docs/POLICIES.md
 ```
 
@@ -357,12 +401,12 @@ nvim docs/POLICIES.md
 
 ## 🎓 Policy Evolution
 
-**These policies are living documents.**
+These policies are **living documents**.
 
-When you:
+**When you:**
 - Make a mistake → Add a policy
 - Find a better way → Update a policy
-- Learn a lesson → Document it
+- Learn a lesson → Document it in Intent Ledger
 
 **Goal:** Make it impossible to repeat past mistakes.
 
@@ -370,13 +414,16 @@ When you:
 
 ## 📚 Related Documentation
 
-- `THEORY_OF_OPERATION.md` - How system works
-- `INCIDENTS/` - What broke and why
-- `CHANGELOG-v3.x.md` - Version changes
-- `PASSWORD-SOLUTION.md` - The incident that started it all
+- `docs/ARCHITECTURE.md` - System structure
+- `docs/BUILD.md` - Build workflow
+- `docs/THEORY_OF_OPERATION.md` - How system works
+- `INTENT/` - Decision history
+- `CHANGELOG.md` - Version changes
+- `docs/INCIDENTS/` - What broke and why
 
 ---
 
-**Remember:** These policies exist because we learned the hard way.
+**Remember:** These policies exist because we learned the hard way.  
+Don't repeat history. Follow the policies. 🛡️
 
-**Don't repeat history. Follow the policies.** 🛡️
+*Manual control over automation. Understanding over convenience.* 🌲
