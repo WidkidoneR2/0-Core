@@ -1090,6 +1090,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-hooks"
+version = "8.3.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "dirs",
+ "regex",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "faelight-launcher"
 version = "3.3.0"
 dependencies = [
