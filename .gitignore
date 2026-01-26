@@ -156,3 +156,13 @@ docs/planning/faelight-term/foot-source/
 # Nushell history files (local only)
 **/nushell/history.sqlite3*
 **/nushell/history.txt
+
+# ═══════════════════════════════════════════════════════════
+# 🦀 Build Artifacts (Source-First Strategy)
+# ═══════════════════════════════════════════════════════════
+
+# Compiled binaries (build fresh from rust-tools/)
+scripts/
+
+# Build debris and working backups
+backups/

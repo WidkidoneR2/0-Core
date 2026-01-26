@@ -1,4 +1,0 @@
-#!/bin/bash
-sleep 2
-killall waybar 2>/dev/null
-exec /home/christian/0-core/scripts/faelight-bar
