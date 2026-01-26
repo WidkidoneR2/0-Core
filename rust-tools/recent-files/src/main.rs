@@ -1,7 +1,6 @@
 use chrono::{DateTime, Duration, Local};
 use clap::{Parser, ValueEnum};
 use colored::*;
-use git2::Repository;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -32,14 +31,6 @@ struct Args {
     /// Open files interactively with fzf
     #[arg(short = 'o', long)]
     open: bool,
-
-    /// Show only git-tracked files
-    #[arg(long)]
-    git_only: bool,
-
-    /// Show only untracked files (not in git)
-    #[arg(long)]
-    git_untracked: bool,
 
     /// Open the most recent file immediately
     #[arg(long)]
@@ -139,20 +130,6 @@ struct RecentFile {
     path: PathBuf,
     modified: DateTime<Local>,
     size: u64,
-    file_type: FileType,
-}
-
-fn is_in_git(path: &Path, repo: Option<&Repository>) -> bool {
-    if let Some(repo) = repo {
-        if let Ok(workdir) = repo.workdir().ok_or("no workdir") {
-            if let Ok(rel_path) = path.strip_prefix(workdir) {
-                if let Ok(status) = repo.status_file(rel_path) {
-                    return !status.is_wt_new() && !status.is_ignored();
-                }
-            }
-        }
-    }
-    false
 }
 
 fn main() {
@@ -164,18 +141,10 @@ fn main() {
             .expect("HOME not set")
     });
 
-    // Try to open git repo for git-aware filtering
-    let repo = Repository::open(&search_dir).ok();
-
     println!("{}", "🕒 Recent Files Dashboard".bright_cyan().bold());
     println!("{}", "═".repeat(60).bright_black());
     println!("📂 Searching: {}", search_dir.display().to_string().bright_white());
     println!("⏰ Range: {}", args.range.label().bright_yellow());
-    if args.git_only {
-        println!("{}", "📝 Filter: Git-tracked only".bright_green());
-    } else if args.git_untracked {
-        println!("{}", "📝 Filter: Untracked only".bright_red());
-    }
     println!();
 
     let cutoff = Local::now() - args.range.duration();
@@ -204,17 +173,6 @@ fn main() {
             continue;
         }
 
-        // Git filtering
-        if args.git_only || args.git_untracked {
-            let in_git = is_in_git(path, repo.as_ref());
-            if args.git_only && !in_git {
-                continue;
-            }
-            if args.git_untracked && in_git {
-                continue;
-            }
-        }
-
         if let Ok(metadata) = fs::metadata(path) {
             if let Ok(modified) = metadata.modified() {
                 let modified: DateTime<Local> = modified.into();
@@ -225,7 +183,6 @@ fn main() {
                         path: path.to_path_buf(),
                         modified,
                         size: metadata.len(),
-                        file_type,
                     };
                     
                     files_by_type
@@ -242,7 +199,7 @@ fn main() {
     // Sort all files by modification time
     all_files.sort_by(|a, b| b.modified.cmp(&a.modified));
 
-    // Feature 6: Open first file immediately
+    // Feature: Open first file immediately
     if args.open_first {
         if let Some(first) = all_files.first() {
             let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
@@ -257,7 +214,7 @@ fn main() {
         }
     }
 
-    // Feature 1: Interactive opener
+    // Feature: Interactive opener
     if args.open {
         open_interactive(&all_files, &search_dir, args.full_paths);
         return;

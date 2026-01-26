@@ -2502,7 +2502,6 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
- "git2",
  "walkdir",
 ]
 
