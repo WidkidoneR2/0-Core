@@ -568,7 +568,7 @@ fn update_pacman(items: &[String]) -> Result<()> {
 
     let status = Command::new("sudo")
         .arg("pacman")
-        .arg("-S")
+        .arg("-Su")
         .arg("--noconfirm")
         .args(items)
         .status()
@@ -588,7 +588,7 @@ fn update_aur(items: &[String]) -> Result<()> {
     println!("   Running: paru -S --noconfirm {}", items.join(" "));
 
     let status = Command::new("paru")
-        .arg("-S")
+        .arg("-Su")
         .arg("--noconfirm")
         .args(items)
         .status()
@@ -605,10 +605,11 @@ fn update_aur(items: &[String]) -> Result<()> {
 
 /// Update cargo tools
 fn update_cargo(items: &[String]) -> Result<()> {
-    println!("   Running: cargo install-update {}", items.join(" "));
+    println!("   Running: cargo install-update -a");
 
     let status = Command::new("cargo")
         .arg("install-update")
+        .arg("-a")
         .args(items)
         .status()
         .context("Failed to update cargo tools - is cargo-update installed?")?;
