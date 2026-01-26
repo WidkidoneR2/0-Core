@@ -15,31 +15,40 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 **v8.3.0 Milestone:** Tool Upgrades & Terminal Perfection 🌲🦀
 
-> **v8.2.0 Milestone:** Spatial awareness system, Intent Ledger integration, terminal emulator foundation - The Observant Garden 🌲🦀
 
 ---
 
-## 🏆 v8.3.0 — Tool Upgrades & Terminal Perfection
+## 🏆 v8.4.0 — The Hooks & Foundation Release
 
-### ✨ What’s New
+### ✨ What's New
 
-- **🦀 faelight-term v9.0.0 (Beta / WIP)**  
-  Color emoji support 🌲🦀🔓🟢 — active development, feature-complete core with ongoing refinement.
+- **🎣 faelight-hooks v1.0.0 (Production)**  
+  Comprehensive git hooks manager with pre-commit, pre-push, and commit-msg validation.  
+  - Secret scanning (gitleaks integration)
+  - Merge conflict detection
+  - Branch protection warnings
+  - Conventional commit validation
 
-- **🏥 dot-doctor v0.5.0**  
-  Auto-fix mode (`--fix`) plus health history tracking with trend analysis.
+- **🏗️ Source-First Architecture**  
+  Repository optimized: 60MB → 10MB (83% smaller!)  
+  - Git tracks only source code now
+  - Binaries built locally, not committed
+  - Aligns with "Understanding over convenience" philosophy
 
-- **📦 bump-system-version v5.0.0**  
-  Stress-free releases with a new pre-flight dashboard and confirmation checkpoints.
+- **📚 New Documentation**
+  - `docs/ARCHITECTURE.md` - Complete system structure
+  - `docs/BUILD.md` - Build workflow guide
+  - Intent 065 & 066 documented
 
-- **🔧 Tool Upgrades**
-  - faelight-update v0.4.0
-  - faelight-bar v1.0.0
-  - faelight-dmenu v2.0.0
-  - faelight-menu v0.7.0
+- **🦀 Recent Tool Updates (v8.3.0)**
+  - faelight-term v9.0.0 (Beta) - Color emoji support
+  - dot-doctor v0.5.0 - Auto-fix mode + health history
+  - bump-system-version v5.0.0 - Pre-flight dashboard
 
 - **✅ 100% System Health**  
-  All 14 checks passing — zero stress.
+  All 14 checks passing — 34 Rust tools in production.
+
+---
 
 ---
 
@@ -189,16 +198,15 @@ All **33 core tools** are compiled Rust binaries organized in a workspace - 100%
 **Total Lines of Rust:** ~15,000+ across all tools
 
 ### Project Scale
-```
-Code Statistics (as of v8.2.0):
-  Rust source code:    104,686 lines  🦀
-  Configuration files:   1,061 lines  ⚙️
-  Intent documentation:  8,590 lines  🎯
-  System guides:        ~2,000 lines  📚
-  ────────────────────────────────────────
-  Total authored:      ~122,000 lines
+Code Statistics (as of v8.4.0):
+Rust source code:    105,843 lines  🦀
+Configuration files:   1,061 lines  ⚙️
+Intent documentation:  8,659 lines  🎯
+System guides:        11,759 lines  📚
+────────────────────────────────────────
+Total authored:      ~127,300 lines
 
-33 production-ready tools, 12 stow packages, 72+ documented decisions.
+34 production-ready tools, 12 stow packages, 26 intents (11 complete).
 Built from scratch in ~3 months, from catastrophic failure to 100% health.
 ```
 
@@ -218,8 +226,7 @@ Built from scratch in ~3 months, from catastrophic failure to 100% health.
 ~/secrets/    🔐 Never committed
 ```
 
-### Package Organization (Stow-Based)
-```
+### Package Organization (Source-First Architecture)
 0-core/
 ├── stow/                  # 🎯 ALL dotfile packages (GNU Stow managed)
 │   ├── wm-sway/          Sway window manager config
@@ -235,19 +242,30 @@ Built from scratch in ~3 months, from catastrophic failure to 100% health.
 │   ├── browser-brave/    Brave theming
 │   └── tools-topgrade/   System updater config
 │
-├── rust-tools/           # 🦀 Rust workspace (monorepo - 31 tools)
+├── rust-tools/           # 🦀 Rust workspace (monorepo - 34 tools)
 │   ├── faelight/         Unified CLI
+│   ├── faelight-hooks/   Git hooks manager (NEW!)
 │   ├── dot-doctor/       Health check engine
 │   ├── faelight-update/  Interactive update manager
 │   ├── bump-system-version/ Complete release automation
 │   ├── faelight-bootstrap/  One-command installer
 │   ├── faelight-bar/     Status bar
 │   ├── faelight-git/     Git governance
-│   └── [24 more tools]   All production-ready
+│   └── [26 more tools]   All production-ready
 │
-├── scripts/              # 📜 Compiled binaries (31 tools)
-├── docs/                 # 📚 Tool references & guides
-├── INTENT/               # 🎯 Intent ledger (78+ decisions)
+├── scripts/              # 📜 Compiled binaries (34 tools) - gitignored
+├── docs/                 # 📚 Tool references & comprehensive guides
+│   ├── ARCHITECTURE.md   Complete system structure (NEW!)
+│   ├── BUILD.md          Build workflow guide (NEW!)
+│   └── [14 more guides]  Tools, workflows, keybindings
+│
+├── INTENT/               # 🎯 Intent ledger (26 intents, 11 complete)
+│   ├── decisions/        Architectural choices
+│   ├── experiments/      What we tried and learned
+│   ├── philosophy/       Core principles
+│   └── future/           Planned improvements
+│
+├── hooks/                # 🎣 Git hooks (managed by faelight-hooks)
 ├── profiles/             # 👤 System profiles
 ├── packages/             # 📦 Package lists (official/AUR)
 └── system/               # ⚙️ System-level configs
@@ -398,6 +416,7 @@ intent add future "..."  # Document new decision
 
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v8.4.0 | 2026-01-26 | Git hooks management + source-first architecture |
 | v8.3.0 | 2026-01-25 | Tool upgrades, terminal perfection |
 | v8.2.0 | 2026-01-24 | Spatial awareness, operational dashboard, faelight-term foundation |
 | v8.1.0 | 2026-01-23 | Interactive updates, security hardening, ecosystem integration |
@@ -407,7 +426,6 @@ intent add future "..."  # Document new decision
 | v7.6.3 | 2026-01-19 | Stow migration complete |
 | v7.0.0 | 2026-01-14 | Architectural excellence |
 | v6.0.0 | 2026-01-09 | Sway edition |
-| v5.0.0 | 2026-01-05 | First Rust tool |
 
 [See full version history](#)
 
