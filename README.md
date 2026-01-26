@@ -133,10 +133,9 @@ A cohesive visual identity across the entire system:
 
 ## 🦀 The Rust Toolchain
 
-All **33 core tools** are compiled Rust binaries organized in a workspace - 100% production-ready.
+All 35 core tools are compiled Rust binaries organized in a workspace - 100% production-ready.
 
 ### Core Infrastructure (11 tools)
-
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | dot-doctor | 14-check health monitor | v0.5.0 | ✅ Production |
@@ -152,7 +151,6 @@ All **33 core tools** are compiled Rust binaries organized in a workspace - 100%
 | faelight-snapshot | BTRFS snapshot manager | v1.0.0 | ✅ Production |
 
 ### Faelight Desktop Environment (9 tools)
-
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | faelight-fetch | System info display | v1.0.0 | ✅ Production |
@@ -163,24 +161,24 @@ All **33 core tools** are compiled Rust binaries organized in a workspace - 100%
 | faelight-notify | Notification daemon | v0.9.0 | ✅ Stable |
 | faelight-lock | Screen locker | v1.0.0 | ✅ Production |
 | faelight-dashboard | System dashboard TUI | v1.0.0 | ✅ Production |
-| faelight-term | Terminal emulator with color emoji | v9.0.0 | 🧪 Beta |
+| faelight-term | Terminal emulator with color emoji | v10.0.0 | 🚀 NEW |
 
-### Development & Workflow (9 tools)
-
+### Development & Workflow (11 tools)
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | intent | Intent Ledger management | v2.0.0 | ✅ Production |
 | archaeology-0-core | System history explorer | v1.0.0 | ✅ Production |
 | workspace-view | Sway workspace intelligence | v1.0.0 | ✅ Production |
-| faelight-git | Git workflow automation | v2.1.0 | ✅ Production |
+| faelight-git | Git workflow automation | v3.0.0 | 🚀 NEW |
+| faelight-hooks | Git hooks manager (secrets, conflicts) | v1.0.0 | 🚀 NEW |
+| recent-files | Time-based file discovery dashboard | v0.2.0 | 🚀 NEW |
 | profile | System profile switching | v1.0.0 | ✅ Production |
 | teach | Interactive learning guide | v1.0.0 | ✅ Production |
 | faelight | Unified binary interface | v1.0.0 | ✅ Production |
 | keyscan | Keybind conflict detection | v1.0.0 | ✅ Production |
-| faelight-zone | Filesystem spatial awareness | v1.1.0 | 🚀 NEW |
+| faelight-zone | Filesystem spatial awareness | v1.1.0 | ✅ Production |
 
 ### Version Management (4 tools)
-
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | bump-system-version | Stress-free release automation | v5.0.0 | 🚀 Flagship |
