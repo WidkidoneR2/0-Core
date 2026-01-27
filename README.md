@@ -125,7 +125,7 @@ A cohesive visual identity across the entire system:
 ---
 
 ## 🦀 The Rust Toolchain
-All 35 core tools are compiled Rust binaries organized in a workspace - 100% production-ready.
+All 36 core tools are compiled Rust binaries organized in a workspace - 100% production-ready.
 
 ### Core Infrastructure (11 tools)
 | Tool | Purpose | Version | Status |
@@ -155,7 +155,7 @@ All 35 core tools are compiled Rust binaries organized in a workspace - 100% pro
 | faelight-dashboard | System dashboard TUI | v1.0.0 | ✅ Production |
 | faelight-term | Terminal emulator with color emoji | v9.0.0 | ⚠️ Beta/WIP |
 
-### Development & Workflow (11 tools)
+### Development ### Development & Workflow (11 tools) Workflow (12 tools)
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | intent | Intent Ledger management | v2.0.0 | ✅ Production |
@@ -169,6 +169,7 @@ All 35 core tools are compiled Rust binaries organized in a workspace - 100% pro
 | faelight | Unified binary interface | v1.0.0 | ✅ Production |
 | keyscan | Keybind conflict detection | v1.0.0 | ✅ Production |
 | faelight-zone | Filesystem spatial awareness | v1.1.0 | ✅ Production |
+| faelight-fm | Semantic file manager (zones, intents, health) | v0.1.0-beta | ⚠️ Beta/WIP |
 
 ### Version Management (4 tools)
 | Tool | Purpose | Version | Status |
@@ -190,12 +191,12 @@ All 35 core tools are compiled Rust binaries organized in a workspace - 100% pro
 ### Project Scale
 ```
 Code Statistics (as of v8.5.0):
-  Rust source code:    106,507 lines  🦀
+  Rust source code:    107,200 lines  🦀
   Configuration files:   1,061 lines  ⚙️
   Intent documentation:  8,780 lines  🎯
   System guides:         7,269 lines  📚
   ────────────────────────────────────────
-  Total authored:      ~123,600 lines
+  Total authored:      ~124,300 lines
 ```
 
 **Philosophy:** Every line intentional. Every decision documented. Every tool understood.
@@ -231,7 +232,7 @@ Code Statistics (as of v8.5.0):
 │   ├── browser-brave/    Brave theming
 │   └── tools-topgrade/   System updater config
 │
-├── rust-tools/           # 🦀 Rust workspace (monorepo - 34 tools)
+├── rust-tools/           # 🦀 Rust workspace (monorepo - 35 tools)
 │   ├── faelight/         Unified CLI
 │   ├── faelight-hooks/   Git hooks manager (NEW!)
 │   ├── dot-doctor/       Health check engine
@@ -242,7 +243,7 @@ Code Statistics (as of v8.5.0):
 │   ├── faelight-git/     Git governance
 │   └── [26 more tools]   All production-ready
 │
-├── scripts/              # 📜 Compiled binaries (34 tools) - gitignored
+├── scripts/              # 📜 Compiled binaries (35 tools) - gitignored
 ├── docs/                 # 📚 Tool references & comprehensive guides
 │   ├── ARCHITECTURE.md   Complete system structure (NEW!)
 │   ├── BUILD.md          Build workflow guide (NEW!)
