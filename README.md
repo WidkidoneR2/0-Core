@@ -155,7 +155,7 @@ All 36 core tools are compiled Rust binaries organized in a workspace - 100% pro
 | faelight-dashboard | System dashboard TUI | v1.0.0 | ✅ Production |
 | faelight-term | Terminal emulator with color emoji | v9.0.0 | ⚠️ Beta/WIP |
 
-### Development ### Development & Workflow (11 tools) Workflow (12 tools)
+### Development & Workflow (12 tools)
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | intent | Intent Ledger management | v2.0.0 | ✅ Production |

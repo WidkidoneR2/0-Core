@@ -1,0 +1,21 @@
+[package]
+name = "faelight-fm"
+version = "0.1.0-beta"
+edition = "2021"
+
+[dependencies]
+# TUI
+ratatui = "0.28"
+crossterm = "0.28"
+
+# Filesystem
+walkdir = "2.4"
+shellexpand = "3.1"
+
+# Local dependencies
+faelight-core = { path = "../faelight-core" }
+faelight-zone = { path = "../faelight-zone" }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"

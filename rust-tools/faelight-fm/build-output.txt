@@ -1,0 +1,123 @@
+warning: unused import: `crate::error::Result`
+ --> src/fs/ops.rs:2:5
+  |
+2 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `is_readable` and `parent`
+ --> src/fs/mod.rs:5:15
+  |
+5 | pub use ops::{is_readable, parent};
+  |               ^^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `std::env`
+ --> src/app.rs:2:5
+  |
+2 | use std::env;
+  |     ^^^^^^^^
+
+warning: unused import: `mode::InputMode`
+ --> src/input/mod.rs:7:9
+  |
+7 | pub use mode::InputMode;
+  |         ^^^^^^^^^^^^^^^
+
+warning: variants `InvalidPath`, `PermissionDenied`, and `ZoneViolation` are never constructed
+  --> src/error.rs:9:5
+   |
+ 4 | pub enum FmError {
+   |          ------- variants in this enum
+...
+ 9 |     InvalidPath(String),
+   |     ^^^^^^^^^^^
+...
+12 |     PermissionDenied(String),
+   |     ^^^^^^^^^^^^^^^^
+...
+15 |     ZoneViolation(String),
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `FmError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `is_immutable` is never used
+  --> src/model/zone.rs:39:12
+   |
+14 | impl Zone {
+   | --------- method in this implementation
+...
+39 |     pub fn is_immutable(&self) -> bool {
+   |            ^^^^^^^^^^^^
+
+warning: variants `Warning` and `Error` are never constructed
+  --> src/model/entry.rs:16:5
+   |
+14 | pub enum HealthStatus {
+   |          ------------ variants in this enum
+15 |     Ok,
+16 |     Warning,
+   |     ^^^^^^^
+17 |     Error,
+   |     ^^^^^
+   |
+   = note: `HealthStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `is_readable` is never used
+ --> src/fs/ops.rs:5:8
+  |
+5 | pub fn is_readable(path: &Path) -> bool {
+  |        ^^^^^^^^^^^
+
+warning: function `parent` is never used
+  --> src/fs/ops.rs:10:8
+   |
+10 | pub fn parent(path: &Path) -> Option<&Path> {
+   |        ^^^^^^
+
+warning: variant `Command` is never constructed
+  --> src/app.rs:11:5
+   |
+ 9 | pub enum Mode {
+   |          ---- variant in this enum
+10 |     Normal,
+11 |     Command,
+   |     ^^^^^^^
+   |
+   = note: `Mode` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `mode` is never read
+  --> src/app.rs:19:9
+   |
+14 | pub struct AppState {
+   |            -------- field in this struct
+...
+19 |     pub mode: Mode,
+   |         ^^^^
+
+warning: enum `InputMode` is never used
+ --> src/input/mode.rs:2:10
+  |
+2 | pub enum InputMode {
+  |          ^^^^^^^^^
+
+warning: associated constants `BG_NORMAL`, `ACCENT_ORANGE`, `MODIFIED`, and `UNTRACKED` are never used
+  --> src/ui/colors.rs:9:15
+   |
+ 6 | impl FaelightColors {
+   | ------------------- associated constants in this implementation
+...
+ 9 |     pub const BG_NORMAL: Color = Color::Rgb(25, 30, 22);
+   |               ^^^^^^^^^
+...
+15 |     pub const ACCENT_ORANGE: Color = Color::Rgb(227, 163, 107); // Amber
+   |               ^^^^^^^^^^^^^
+...
+24 |     pub const MODIFIED: Color = Color::Rgb(227, 163, 107);  // Orange
+   |               ^^^^^^^^
+25 |     pub const UNTRACKED: Color = Color::Rgb(119, 127, 111); // Dim
+   |               ^^^^^^^^^
+
+warning: `faelight-fm` (bin "faelight-fm") generated 13 warnings (run `cargo fix --bin "faelight-fm" -p faelight-fm` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.03s
