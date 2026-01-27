@@ -18,6 +18,7 @@ pub struct AppState {
     #[allow(dead_code)]
     pub mode: Mode,
     pub running: bool,
+    pub help_visible: bool,  // NEW!
     intent_dir: PathBuf,
 }
 
@@ -37,6 +38,7 @@ impl AppState {
             zone,
             mode: Mode::Normal,
             running: true,
+            help_visible: false,  // Start hidden
             intent_dir,
         };
         
@@ -53,14 +55,12 @@ impl AppState {
                 let name = path.file_name()?.to_string_lossy().to_string();
                 let is_dir = path.is_dir();
                 
-                // Check if it's a symlink
                 let is_symlink = path.symlink_metadata()
                     .map(|m| m.is_symlink())
                     .unwrap_or(false);
                 
                 let zone = zones::classify(&path);
                 
-                // Find intents for this path and create IntentInfo
                 let intents = intent::find_intents_for_path(&self.intent_dir, &path);
                 let intent_info = intents.first().map(|i| IntentInfo {
                     title: i.title.clone(),
@@ -82,6 +82,10 @@ impl AppState {
         
         self.selected = 0;
         Ok(())
+    }
+    
+    pub fn toggle_help(&mut self) {
+        self.help_visible = !self.help_visible;
     }
     
     pub fn enter_selected(&mut self) -> Result<()> {

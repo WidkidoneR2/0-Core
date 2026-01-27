@@ -79,7 +79,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut AppState) -> Result
                         app.quit();
                     }
                     
-                    input::handle_key(app, key)?;
+                    input::handle_key(key.code, app)?;
                 }
                 Event::Mouse(mouse) => {
                     input::handle_mouse(app, mouse)?;
