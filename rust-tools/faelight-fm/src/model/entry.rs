@@ -8,6 +8,7 @@ pub struct FaelightEntry {
     pub is_dir: bool,
     pub zone: Zone,
     pub health: HealthStatus,
+    pub intent_id: Option<String>,  // NEW: Intent ID if attached
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

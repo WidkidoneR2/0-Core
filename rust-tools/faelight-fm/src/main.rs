@@ -18,7 +18,7 @@ mod ui;
 
 // Placeholder modules
 mod config { pub fn _placeholder() {} }
-mod intent { pub fn _placeholder() {} }
+mod intent;
 mod health { pub fn _placeholder() {} }
 mod actions { pub fn _placeholder() {} }
 mod command { pub fn _placeholder() {} }

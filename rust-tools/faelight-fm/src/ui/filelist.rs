@@ -18,13 +18,20 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
                 FaelightColors::file_style(is_selected)
             };
             
-            // Format with better spacing
+            // Format with intent tag if present
             let zone_tag = format!("[Z:{}]", entry.zone.short_label());
+            let intent_tag = if let Some(ref id) = entry.intent_id {
+                format!("[INT:{}]", id)
+            } else {
+                String::new()
+            };
+            
             let text = format!(
-                "{} {:<35} {:<12} {}",
+                "{} {:<30} {:<12} {:<12} {}",
                 entry.icon(),
                 entry.name,
                 zone_tag,
+                intent_tag,
                 entry.health.badge()
             );
             
