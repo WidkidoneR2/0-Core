@@ -15,37 +15,32 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 **v8.4.0 Milestone:** The Hooks & Foundation Release - Comprehensive git workflow protection and architectural improvements 🌲🦀
 
-**v8.3.0 Milestone:** Tool Upgrades & Terminal Perfection 🌲🦀
 
 
 ---
 
-## 🏆 v8.4.0 — The Hooks & Foundation Release
-
+## 🏆 v8.5.0 — The Hybrid Architecture Release
 ### ✨ What's New
-
-- **🎣 faelight-hooks v1.0.0 (Production)**  
-  Comprehensive git hooks manager with pre-commit, pre-push, and commit-msg validation.  
-  - Secret scanning (gitleaks integration)
-  - Merge conflict detection
-  - Branch protection warnings
-  - Conventional commit validation
-
-- **🏗️ Source-First Architecture**  
-  Repository optimized: 60MB → 10MB (83% smaller!)  
-  - Git tracks only source code now
-  - Binaries built locally, not committed
-  - Aligns with "Understanding over convenience" philosophy
-
-- **📚 New Documentation**
-  - `docs/ARCHITECTURE.md` - Complete system structure
-  - `docs/BUILD.md` - Build workflow guide
-  - Intent 065 & 066 documented
-
-- **🦀 Recent Tool Updates (v8.3.0)**
-  - faelight-term v9.0.0 (Beta) - Color emoji support
+- **🚀 faelight-bar v2.0.0 (Production)**  
+  Revolutionary hybrid Wayland bar with integrated application launcher.  
+  - Wayland layer-shell keyboard mode switching (first implementation of its kind)
+  - Compact 400px dropdown overlay (doesn't disrupt window positions)
+  - Real-time fuzzy search with nucleo (500+ applications)
+  - Single-process architecture using compositor-mediated input modes
+  - Modular Rust codebase: state machine, render pipeline, input handlers
+- **📐 Protocol Innovation**  
+  Demonstrates what's possible with Wayland protocols.  
+  - Uses KeyboardInteractivity mode switching (Exclusive ↔ None)
+  - Transparent overlay rendering without exclusive zone changes
+  - Proves single-process composable desktop components are viable
+- **📚 Documentation Refresh**
+  - 10 core documents updated to v8.5.0
+  - CHANGELOG enhanced with architectural details
+  - Philosophy refined: "The impossible is just undiscovered architecture"
+- **🦀 Previous Tool Updates (v8.4.0)**
+  - faelight-hooks v1.0.0 - Git hooks with secret scanning
+  - Source-first architecture - 83% repo size reduction
   - dot-doctor v0.5.0 - Auto-fix mode + health history
-  - bump-system-version v5.0.0 - Pre-flight dashboard
 
 - **✅ 100% System Health**  
   All 14 checks passing — 34 Rust tools in production.
@@ -55,22 +50,18 @@ A revolutionary approach to Linux configuration management built on **numbered p
 ---
 
 ### 🌲 Flagship Tools
-
+- **🚀 faelight-bar v2.0.0**  
+  Hybrid Wayland bar with integrated application launcher using keyboard mode switching.  
+  Revolutionary single-process architecture with transparent dropdown overlay.
 - **🦀 faelight-term v9.0.0 (Beta / WIP)**  
   Terminal emulator with color emoji, copy/paste, and mouse selection.  
   Actively developed — APIs and behavior may change.
-
 - **🏥 dot-doctor v0.5.0**  
   System health monitoring with auto-fixes and time-traveling history (`--history`).
-
 - **📦 bump-system-version v5.0.0**  
   Pre-flight dashboard, safety checks, and calm, predictable releases.
-
 - **🔄 faelight-update v0.4.0**  
   Impact analysis for critical package updates.
-
-- **🎨 faelight-bar v1.0.0**  
-  Production-ready status bar with beautiful gradient separators.
 
 
 ---
@@ -134,7 +125,6 @@ A cohesive visual identity across the entire system:
 ---
 
 ## 🦀 The Rust Toolchain
-
 All 35 core tools are compiled Rust binaries organized in a workspace - 100% production-ready.
 
 ### Core Infrastructure (11 tools)
@@ -156,14 +146,14 @@ All 35 core tools are compiled Rust binaries organized in a workspace - 100% pro
 | Tool | Purpose | Version | Status |
 |------|---------|---------|--------|
 | faelight-fetch | System info display | v1.0.0 | ✅ Production |
-| faelight-bar | Wayland status bar (Sway IPC) | v1.0.0 | ✅ Production |
+| faelight-bar | Hybrid Wayland bar with integrated launcher | v2.0.0 | 🚀 Flagship |
 | faelight-launcher | XDG app launcher with fuzzy search | v3.3.0 | ✅ Production |
 | faelight-dmenu | Wayland dmenu replacement | v2.0.0 | ✅ Production |
 | faelight-menu | Power menu (lock/logout/shutdown) | v0.7.0 | ✅ Stable |
 | faelight-notify | Notification daemon | v0.9.0 | ✅ Stable |
 | faelight-lock | Screen locker | v1.0.0 | ✅ Production |
 | faelight-dashboard | System dashboard TUI | v1.0.0 | ✅ Production |
-| faelight-term | Terminal emulator with color emoji | v10.0.0 | 🚀 NEW |
+| faelight-term | Terminal emulator with color emoji | v9.0.0 | ⚠️ Beta/WIP |
 
 ### Development & Workflow (11 tools)
 | Tool | Purpose | Version | Status |
@@ -199,13 +189,13 @@ All 35 core tools are compiled Rust binaries organized in a workspace - 100% pro
 
 ### Project Scale
 ```
-Code Statistics (as of v8.4.0):
-  Rust source code:    105,843 lines  🦀
+Code Statistics (as of v8.5.0):
+  Rust source code:    106,507 lines  🦀
   Configuration files:   1,061 lines  ⚙️
-  Intent documentation:  8,659 lines  🎯
-  System guides:        11,759 lines  📚
+  Intent documentation:  8,780 lines  🎯
+  System guides:         7,269 lines  📚
   ────────────────────────────────────────
-  Total authored:      ~127,300 lines
+  Total authored:      ~123,600 lines
 ```
 
 **Philosophy:** Every line intentional. Every decision documented. Every tool understood.
@@ -410,11 +400,10 @@ intent add future "..."  # Document new decision
 - **Intent 067:** Post-presentation evolution plan
 
 ---
-
 ## 🔄 Version History
-
 | Version | Date | Milestone |
 |---------|------|-----------|
+| v8.5.0 | 2026-01-26 | Hybrid bar architecture, integrated launcher, keyboard mode switching |
 | v8.4.0 | 2026-01-26 | Git hooks management + source-first architecture |
 | v8.3.0 | 2026-01-25 | Tool upgrades, terminal perfection |
 | v8.2.0 | 2026-01-24 | Spatial awareness, operational dashboard, faelight-term foundation |
@@ -424,7 +413,6 @@ intent add future "..."  # Document new decision
 | v7.6.4 | 2026-01-19 | Release automation complete |
 | v7.6.3 | 2026-01-19 | Stow migration complete |
 | v7.0.0 | 2026-01-14 | Architectural excellence |
-| v6.0.0 | 2026-01-09 | Sway edition |
 
 [See full version history](#)
 
