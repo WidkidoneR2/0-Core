@@ -11,30 +11,45 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         .map(|(i, entry)| {
             let is_selected = i == app.selected;
             
-            let style = if entry.is_dir {
+            let base_style = if entry.is_dir {
                 FaelightColors::directory_style(is_selected)
             } else {
                 FaelightColors::file_style(is_selected)
             };
             
-            // Format with intent tag if present
+            // Build the line with styled segments
             let zone_tag = format!("[Z:{}]", entry.zone.short_label());
-            let intent_tag = if let Some(ref id) = entry.intent_id {
-                format!("[INT:{}]", id)
+            
+            // Create spans for different parts
+            let mut spans = vec![
+                Span::raw(format!("{} ", entry.icon())),
+                Span::styled(
+                    format!("{:<30} ", entry.name),
+                    base_style
+                ),
+                Span::raw(format!("{:<12} ", zone_tag)),
+            ];
+            
+            // Add intent tag with color if present
+            if let Some(ref intent_info) = entry.intent_info {
+                let intent_color = match intent_info.status {
+                    crate::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
+                    crate::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
+                    crate::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
+                    crate::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
+                };
+                
+                spans.push(Span::styled(
+                    format!("[INT:{}] ", intent_info.id),
+                    Style::default().fg(intent_color).bold()
+                ));
             } else {
-                String::new()  // Empty when no intent
-            };
+                spans.push(Span::raw(format!("{:<12} ", "")));
+            }
             
-            let text = format!(
-                "{} {:<30} {:<12} {:<12} {}",
-                entry.icon(),
-                entry.name,
-                zone_tag,
-                intent_tag,
-                entry.health.badge()
-            );
+            spans.push(Span::raw(entry.health.badge()));
             
-            ListItem::new(text).style(style)
+            ListItem::new(Line::from(spans))
         })
         .collect();
     

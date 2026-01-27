@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use crate::error::Result;
-use crate::model::{FaelightEntry, HealthStatus, Zone};
+use crate::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
 use crate::{fs, zones, intent};
 
 #[derive(Debug, Clone, Copy)]
@@ -54,9 +54,12 @@ impl AppState {
                 let is_dir = path.is_dir();
                 let zone = zones::classify(&path);
                 
-                // Find intents for this path
+                // Find intents for this path and create IntentInfo
                 let intents = intent::find_intents_for_path(&self.intent_dir, &path);
-                let intent_id = intents.first().map(|i| i.id.clone());
+                let intent_info = intents.first().map(|i| IntentInfo {
+                    id: i.id.clone(),
+                    status: i.status.clone(),
+                });
                 
                 Some(FaelightEntry {
                     path,
@@ -64,7 +67,7 @@ impl AppState {
                     is_dir,
                     zone,
                     health: HealthStatus::Ok,
-                    intent_id,
+                    intent_info,
                 })
             })
             .collect();

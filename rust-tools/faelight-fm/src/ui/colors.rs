@@ -29,13 +29,19 @@ impl FaelightColors {
     #[allow(dead_code)]
     pub const UNTRACKED: Color = Color::Rgb(119, 127, 111);
     
+    // Intent status colors
+    pub const INTENT_COMPLETE: Color = Color::Rgb(163, 227, 107);  // Green
+    pub const INTENT_FUTURE: Color = Color::Rgb(107, 163, 227);    // Blue
+    pub const INTENT_CANCELLED: Color = Color::Rgb(200, 100, 100); // Red
+    pub const INTENT_DEFERRED: Color = Color::Rgb(227, 200, 107);  // Yellow
+    
     pub fn zone_color(zone: Zone) -> Color {
         match zone {
             Zone::Core => Self::LOCKED,                      // Red - locked
             Zone::Workspace => Color::Rgb(227, 163, 107),    // Orange - active work
             Zone::Src => Self::ACCENT_GREEN,                 // Green - source
             Zone::Project => Self::ACCENT_BLUE,              // Blue - projects
-            Zone::Archive => Color::Rgb(180, 150, 200),      // Purple - dormant (BRIGHTER!)
+            Zone::Archive => Color::Rgb(180, 150, 200),      // Purple - dormant
             Zone::Scratch => Color::Rgb(150, 150, 80),       // Yellow - temporary
         }
     }

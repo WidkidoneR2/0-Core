@@ -1,5 +1,12 @@
 use std::path::PathBuf;
 use faelight_zone::Zone;
+use crate::intent::IntentStatus;
+
+#[derive(Debug, Clone)]
+pub struct IntentInfo {
+    pub id: String,
+    pub status: IntentStatus,
+}
 
 #[derive(Debug, Clone)]
 pub struct FaelightEntry {
@@ -8,7 +15,7 @@ pub struct FaelightEntry {
     pub is_dir: bool,
     pub zone: Zone,
     pub health: HealthStatus,
-    pub intent_id: Option<String>,  // NEW: Intent ID if attached
+    pub intent_info: Option<IntentInfo>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
