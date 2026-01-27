@@ -35,14 +35,17 @@ impl FaelightColors {
     pub const INTENT_CANCELLED: Color = Color::Rgb(200, 100, 100); // Red
     pub const INTENT_DEFERRED: Color = Color::Rgb(227, 200, 107);  // Yellow
     
+    // Symlink color
+    pub const SYMLINK: Color = Color::Rgb(227, 200, 107);  // Yellow/gold for links
+    
     pub fn zone_color(zone: Zone) -> Color {
         match zone {
-            Zone::Core => Self::LOCKED,                      // Red - locked
-            Zone::Workspace => Color::Rgb(227, 163, 107),    // Orange - active work
-            Zone::Src => Self::ACCENT_GREEN,                 // Green - source
-            Zone::Project => Self::ACCENT_BLUE,              // Blue - projects
-            Zone::Archive => Color::Rgb(180, 150, 200),      // Purple - dormant
-            Zone::Scratch => Color::Rgb(150, 150, 80),       // Yellow - temporary
+            Zone::Core => Self::LOCKED,
+            Zone::Workspace => Color::Rgb(227, 163, 107),
+            Zone::Src => Self::ACCENT_GREEN,
+            Zone::Project => Self::ACCENT_BLUE,
+            Zone::Archive => Color::Rgb(180, 150, 200),
+            Zone::Scratch => Color::Rgb(150, 150, 80),
         }
     }
     

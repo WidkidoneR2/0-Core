@@ -11,16 +11,26 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         .map(|(i, entry)| {
             let is_selected = i == app.selected;
             
-            let base_style = if entry.is_dir {
+            // Symlinks get special color treatment
+            let base_style = if entry.is_symlink {
+                if is_selected {
+                    Style::default()
+                        .fg(FaelightColors::SYMLINK)
+                        .bg(FaelightColors::BG_SELECTED)
+                        .italic()  // Italic for symlinks!
+                } else {
+                    Style::default()
+                        .fg(FaelightColors::SYMLINK)
+                        .italic()
+                }
+            } else if entry.is_dir {
                 FaelightColors::directory_style(is_selected)
             } else {
                 FaelightColors::file_style(is_selected)
             };
             
-            // Build the line with styled segments
             let zone_tag = format!("[Z:{}]", entry.zone.short_label());
             
-            // Create spans for different parts
             let mut spans = vec![
                 Span::raw(format!("{} ", entry.icon())),
                 Span::styled(
@@ -30,7 +40,6 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
                 Span::raw(format!("{:<12} ", zone_tag)),
             ];
             
-            // Add intent tag with color if present
             if let Some(ref intent_info) = entry.intent_info {
                 let intent_color = match intent_info.status {
                     crate::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,

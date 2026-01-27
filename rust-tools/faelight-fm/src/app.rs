@@ -52,6 +52,12 @@ impl AppState {
             .filter_map(|path| {
                 let name = path.file_name()?.to_string_lossy().to_string();
                 let is_dir = path.is_dir();
+                
+                // Check if it's a symlink
+                let is_symlink = path.symlink_metadata()
+                    .map(|m| m.is_symlink())
+                    .unwrap_or(false);
+                
                 let zone = zones::classify(&path);
                 
                 // Find intents for this path and create IntentInfo
@@ -66,6 +72,7 @@ impl AppState {
                     path,
                     name,
                     is_dir,
+                    is_symlink,
                     zone,
                     health: HealthStatus::Ok,
                     intent_info,
