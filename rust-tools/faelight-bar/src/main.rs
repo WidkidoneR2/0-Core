@@ -1,11 +1,16 @@
 use std::time::{Duration, Instant};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
+    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, 
+    delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
-    seat::{Capability, SeatHandler, SeatState, pointer::{PointerEvent, PointerEventKind, PointerHandler}},
+    seat::{
+        Capability, SeatHandler, SeatState,
+        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
+        pointer::{PointerEvent, PointerEventKind, PointerHandler}
+    },
     shell::{
         wlr_layer::{
             Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
@@ -17,346 +22,23 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use faelight_core::GlyphCache;
-use chrono::Local;
-use std::env;
-use std::fs;
 use std::process::Command;
+use std::fs;
+use std::env;
 
-// Constants
+mod state;
+mod render;
+mod input;
+mod menu;
+
+use state::{AppState, ModeState};
+use input::{handle_key_press, KeyAction, execute_command};
+
 const BAR_HEIGHT: u32 = 32;
 const REFRESH_MS: u64 = 500;
-
-// Color scheme
-const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
-const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
-const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
-const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
-const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
-const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
-const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
-
-// Icons (Nerd Font glyphs)
-const ICON_LOCKED: &str = "󰌾";
-const ICON_UNLOCKED: &str = "󰌿";
-
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
-
-// ═══════════════════════════════════════════════════════════
-// 🎨 GRADIENT SEPARATORS
-// ═══════════════════════════════════════════════════════════
-
-/// Draw a vertical gradient separator
-fn draw_gradient_separator(canvas: &mut [u8], width: u32, x: i32, color: [u8; 4]) {
-    let height = BAR_HEIGHT;
-    let start_y = 6;
-    let end_y = height - 6;
-    
-    for y in start_y..end_y {
-        // Calculate gradient alpha (fade in/out at edges)
-        let progress = (y - start_y) as f32 / (end_y - start_y) as f32;
-        let alpha = if progress < 0.2 {
-            progress / 0.2
-        } else if progress > 0.8 {
-            (1.0 - progress) / 0.2
-        } else {
-            1.0
-        };
-        
-        if x >= 0 && x < width as i32 {
-            let idx = (y as usize * width as usize + x as usize) * 4;
-            if idx + 3 < canvas.len() {
-                canvas[idx] = ((1.0 - alpha) * BG_COLOR[0] as f32 + alpha * color[0] as f32) as u8;
-                canvas[idx + 1] = ((1.0 - alpha) * BG_COLOR[1] as f32 + alpha * color[1] as f32) as u8;
-                canvas[idx + 2] = ((1.0 - alpha) * BG_COLOR[2] as f32 + alpha * color[2] as f32) as u8;
-                canvas[idx + 3] = 255;
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 🔧 HELPER FUNCTIONS WITH ERROR HANDLING
-// ═══════════════════════════════════════════════════════════
-
-fn get_profile_icon(profile: &str) -> &'static str {
-    match profile {
-        "gaming" => "GAM",
-        "work" => "WRK",
-        "low-power" => "LOW",
-        _ => "DEF",
-    }
-}
-
-fn get_profile_color(profile: &str) -> [u8; 4] {
-    match profile {
-        "gaming" => RED_COLOR,
-        "work" => BLUE_COLOR,
-        "low-power" => AMBER_COLOR,
-        _ => ACCENT_COLOR,
-    }
-}
-
-fn get_current_profile() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    let path = format!("{}/.local/state/0-core/current-profile", home);
-    fs::read_to_string(&path)
-        .unwrap_or_else(|_| "default".to_string())
-        .trim()
-        .to_string()
-}
-
-fn get_vpn_status() -> (bool, String) {
-    match Command::new("mullvad").arg("status").output() {
-        Ok(out) => {
-            let status = String::from_utf8_lossy(&out.stdout);
-            let connected = status.contains("Connected");
-            (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
-        }
-        Err(_) => (false, "N/A".to_string()),
-    }
-}
-
-fn get_battery() -> (u8, bool) {
-    let capacity = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
-        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
-        .unwrap_or_else(|_| "0".to_string());
-    
-    let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
-        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
-        .unwrap_or_else(|_| "Unknown".to_string());
-    
-    let percent: u8 = capacity.trim().parse().unwrap_or(0);
-    let charging = status.trim() == "Charging";
-    (percent, charging)
-}
-
-fn get_wifi() -> (bool, String) {
-    match Command::new("iwctl").args(["station", "wlan0", "show"]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            let connected = result.lines()
-                .any(|line| line.trim().contains("State") && line.contains("connected"));
-            
-            (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
-        }
-        Err(_) => (false, "N/A".to_string()),
-    }
-}
-
-fn get_volume() -> (u8, bool) {
-    match Command::new("wpctl").args(["get-volume", "@DEFAULT_AUDIO_SINK@"]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            let muted = result.contains("[MUTED]");
-            let vol = result
-                .split_whitespace()
-                .nth(1)
-                .and_then(|v| v.parse::<f32>().ok())
-                .map(|v| (v * 100.0) as u8)
-                .unwrap_or(0);
-            (vol, muted)
-        }
-        Err(_) => (0, false),
-    }
-}
-
-fn get_health() -> u8 {
-    let home = env::var("HOME").unwrap_or_default();
-    let core_path = format!("{}/0-core", home);
-    
-    let mut passed = 0;
-    let total = 5;
-    
-    // Check 0-core exists
-    if fs::metadata(&core_path).is_ok() {
-        passed += 1;
-    }
-    
-    // Check scripts directory
-    let scripts_path = format!("{}/scripts", core_path);
-    if let Ok(entries) = fs::read_dir(&scripts_path) {
-        if entries.count() > 5 {
-            passed += 1;
-        }
-    }
-    
-    // Check git status
-    if let Ok(out) = Command::new("git")
-        .args(["-C", &core_path, "status", "--porcelain"])
-        .output() 
-    {
-        if out.stdout.is_empty() {
-            passed += 1;
-        }
-    }
-    
-    // Check profile exists
-    let profile_path = format!("{}/.local/state/0-core/current-profile", home);
-    if fs::metadata(&profile_path).is_ok() {
-        passed += 1;
-    }
-    
-    // Check VERSION file
-    let version_path = format!("{}/VERSION", core_path);
-    if fs::metadata(&version_path).is_ok() {
-        passed += 1;
-    }
-    
-    ((passed * 100) / total) as u8
-}
-
-fn is_core_locked() -> bool {
-    let home = env::var("HOME").unwrap_or_default();
-    let core_path = format!("{}/0-core", home);
-    
-    match Command::new("lsattr").args(["-d", &core_path]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            result
-                .split_whitespace()
-                .next()
-                .map(|attrs| attrs.contains('i'))
-                .unwrap_or(false)
-        }
-        Err(_) => false,
-    }
-}
-
-fn sway_query(cmd: &str) -> Option<String> {
-    Command::new("swaymsg")
-        .args(["-t", cmd, "-r"])
-        .output()
-        .ok()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-}
-
-fn get_workspaces() -> (Vec<i32>, i32) {
-    let mut workspaces: Vec<i32> = vec![];
-    let mut active: i32 = 1;
-    
-    if let Some(resp) = sway_query("get_workspaces") {
-        // Parse JSON for workspace numbers
-        for num in 1..=10 {
-            let pattern = format!("\"num\":{}", num);
-            let pattern2 = format!("\"num\": {}", num);
-            if resp.contains(&pattern) || resp.contains(&pattern2) {
-                workspaces.push(num);
-            }
-        }
-        
-        // Find focused workspace
-        let focused_pattern = "\"focused\":true";
-        let focused_pattern2 = "\"focused\": true";
-        if let Some(focused_pos) = resp.find(focused_pattern).or_else(|| resp.find(focused_pattern2)) {
-            let before = &resp[..focused_pos];
-            let num_pattern = "\"num\":";
-            let num_pattern2 = "\"num\": ";
-            if let Some(num_pos) = before.rfind(num_pattern).or_else(|| before.rfind(num_pattern2)) {
-                let after_num = &before[num_pos + 6..];
-                let num_str: String = after_num.chars()
-                    .skip_while(|c| !c.is_numeric())
-                    .take_while(|c| c.is_numeric())
-                    .collect();
-                if let Ok(num) = num_str.parse() {
-                    active = num;
-                }
-            }
-        }
-    }
-    
-    workspaces.sort();
-    if workspaces.is_empty() {
-        workspaces = vec![1];
-    }
-    
-    (workspaces, active)
-}
-
-fn get_active_window() -> String {
-    if let Some(resp) = sway_query("get_tree") {
-        let focused_pattern = "\"focused\": true";
-        if let Some(focused_pos) = resp.find(focused_pattern) {
-            let after = &resp[focused_pos..];
-            
-            // Try app_id first
-            let app_pattern = "\"app_id\": \"";
-            if let Some(app_pos) = after.find(app_pattern) {
-                let start = app_pos + 11;
-                if let Some(end) = after[start..].find('"') {
-                    let app_id = &after[start..start + end];
-                    if !app_id.is_empty() && app_id != "null" {
-                        return app_id.to_string();
-                    }
-                }
-            }
-            
-            // Fallback to name/title
-            let name_pattern = "\"name\": \"";
-            if let Some(name_pos) = after.find(name_pattern) {
-                let start = name_pos + 9;
-                if let Some(end) = after[start..].find('"') {
-                    let title = &after[start..start + end];
-                    if !title.is_empty() && title != "null" {
-                        if title.len() > 40 {
-                            return format!("{}...", &title[..37]);
-                        }
-                        return title.to_string();
-                    }
-                }
-            }
-        }
-    }
-    String::new()
-}
-
-fn draw_text(
-    cache: &mut GlyphCache,
-    canvas: &mut [u8],
-    width: u32,
-    text: &str,
-    x: i32,
-    y: i32,
-    color: [u8; 4],
-) {
-    let mut cursor_x = x;
-    let font_size = 14.0;
-    let baseline = y + 12;
-    
-    for ch in text.chars() {
-        let glyph = cache.rasterize(ch, font_size);
-        let metrics = &glyph.metrics;
-        let bitmap = &glyph.bitmap;
-        
-        for row in 0..metrics.height {
-            for col in 0..metrics.width {
-                let alpha = bitmap[row * metrics.width + col];
-                if alpha == 0 {
-                    continue;
-                }
-                
-                let px = cursor_x + metrics.xmin as i32 + col as i32;
-                let py = baseline - metrics.height as i32 - metrics.ymin as i32 + row as i32;
-                
-                if px >= 0 && px < width as i32 && py >= 0 && py < BAR_HEIGHT as i32 {
-                    let idx = (py as usize * width as usize + px as usize) * 4;
-                    if idx + 3 < canvas.len() {
-                        let a = alpha as f32 / 255.0;
-                        canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
-                        canvas[idx + 1] = ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
-                        canvas[idx + 2] = ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
-                        canvas[idx + 3] = 255;
-                    }
-                }
-            }
-        }
-        
-        cursor_x += metrics.advance_width as i32;
-    }
-}
 
 fn handle_click(action: &str) {
     match action {
@@ -376,6 +58,7 @@ fn handle_click(action: &str) {
                 .spawn();
         }
         "profile" => {
+            // Cycle profiles
             let current = get_current_profile();
             let next = match current.as_str() {
                 "default" => "gaming",
@@ -389,9 +72,14 @@ fn handle_click(action: &str) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🏥 HEALTH CHECK
-// ═══════════════════════════════════════════════════════════
+fn get_current_profile() -> String {
+    let home = env::var("HOME").unwrap_or_default();
+    let path = format!("{}/.local/state/0-core/current-profile", home);
+    fs::read_to_string(&path)
+        .unwrap_or_else(|_| "default".to_string())
+        .trim()
+        .to_string()
+}
 
 fn health_check() {
     println!("🏥 faelight-bar health check");
@@ -400,14 +88,6 @@ fn health_check() {
         Ok(_) => println!("✅ wayland: connected"),
         Err(e) => {
             eprintln!("❌ wayland: failed - {}", e);
-            std::process::exit(1);
-        }
-    }
-    
-    match GlyphCache::new(FONT_DATA) {
-        Ok(_) => println!("✅ font: loaded"),
-        Err(e) => {
-            eprintln!("❌ font: failed - {}", e);
             std::process::exit(1);
         }
     }
@@ -421,13 +101,13 @@ fn main() {
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
-                println!("faelight-bar v1.0.0");
+                println!("faelight-bar v2.0.0");
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                println!("faelight-bar v1.0.0 - Status bar for Faelight Forest");
+                println!("faelight-bar v2.0.0 - Hybrid Bar/Menu for Faelight Forest");
                 println!();
-                println!("Hand-coded Wayland status bar with Sway integration");
+                println!("Wayland status bar with integrated application launcher");
                 println!();
                 println!("USAGE: faelight-bar [OPTIONS]");
                 println!();
@@ -435,6 +115,18 @@ fn main() {
                 println!("    -h, --help          Show this help");
                 println!("    -v, --version       Show version");
                 println!("    --health-check      Verify dependencies");
+                println!();
+                println!("INTERACTION:");
+                println!("    Click profile       Cycle power profiles");
+                println!("    Click launcher 🚀   Open application menu");
+                println!("    Click VPN           Toggle connection");
+                println!("    Click volume        Toggle mute");
+                println!();
+                println!("MENU MODE:");
+                println!("      Type              Filter applications");
+                println!("      Up/Down           Navigate");
+                println!("      Enter             Launch selected");
+                println!("      Escape            Return to bar");
                 std::process::exit(0);
             }
             "--health-check" => {
@@ -510,18 +202,10 @@ fn main() {
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
     
-    let pool = match SlotPool::new(4096 * BAR_HEIGHT as usize * 4, &shm) {
+    let pool = match SlotPool::new(4096 * 132 * 4, &shm) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("❌ Failed to create pool: {}", e);
-            std::process::exit(1);
-        }
-    };
-    
-    let glyph_cache = match GlyphCache::new(FONT_DATA) {
-        Ok(g) => g,
-        Err(e) => {
-            eprintln!("❌ Failed to load font: {}", e);
             std::process::exit(1);
         }
     };
@@ -533,22 +217,21 @@ fn main() {
         shm,
         pool,
         layer_surface,
-        width: 0,
+        app_state: AppState::new(),
         height: BAR_HEIGHT,
         configured: false,
         running: true,
-        glyph_cache,
         click_regions: Vec::new(),
         pointer_x: 0.0,
         last_draw: Instant::now(),
+        keyboard: None,
     };
     
-    println!("🌲 faelight-bar v1.0.0 starting (Sway Edition)...");
+    println!("🌲 faelight-bar v2.0.0 starting (Hybrid Edition)...");
     
     while state.running {
         if let Err(e) = event_queue.blocking_dispatch(&mut state) {
             eprintln!("⚠️  Event dispatch error: {}", e);
-            // Don't crash, just log and continue
         }
     }
 }
@@ -560,25 +243,23 @@ struct BarState {
     shm: Shm,
     pool: SlotPool,
     layer_surface: LayerSurface,
-    width: u32,
+    app_state: AppState,
     height: u32,
     configured: bool,
     running: bool,
-    glyph_cache: GlyphCache,
     click_regions: Vec<(i32, i32, String)>,
     pointer_x: f64,
     last_draw: Instant,
+    keyboard: Option<wl_keyboard::WlKeyboard>,
 }
 
 impl BarState {
     fn draw(&mut self, qh: &QueueHandle<Self>) {
-        if self.width == 0 {
+        if self.app_state.width == 0 {
             return;
         }
         
-        self.click_regions.clear();
-        
-        let width = self.width;
+        let width = self.app_state.width;
         let height = self.height;
         let stride = width as i32 * 4;
         
@@ -589,163 +270,41 @@ impl BarState {
             wl_shm::Format::Argb8888,
         ) {
             Ok(b) => b,
-            Err(_) => return, // Silently skip this frame
+            Err(_) => return,
         };
         
-        // Background
-        for pixel in canvas.chunks_exact_mut(4) {
-            pixel[0] = BG_COLOR[0];
-            pixel[1] = BG_COLOR[1];
-            pixel[2] = BG_COLOR[2];
-            pixel[3] = BG_COLOR[3];
-        }
+        // Render and get click regions
+        self.click_regions = render::render(&self.app_state, canvas, width, height);
         
-        // Top accent line
-        let profile = get_current_profile();
-        let accent = get_profile_color(&profile);
-        
-        for x in 0..width as usize {
-            for y in 0..2 {
-                let idx = (y * width as usize + x) * 4;
-                if idx + 3 < canvas.len() {
-                    canvas[idx] = accent[0];
-                    canvas[idx + 1] = accent[1];
-                    canvas[idx + 2] = accent[2];
-                    canvas[idx + 3] = accent[3];
-                }
-            }
-        }
-        
-        // === LEFT SIDE ===
-        let mut x_pos = 10;
-        
-        // Profile indicator (clickable)
-        let profile_start = x_pos;
-        let profile_icon = get_profile_icon(&profile);
-        draw_text(&mut self.glyph_cache, canvas, width, profile_icon, x_pos, 8, accent);
-        x_pos += 40;
-        self.click_regions.push((profile_start, x_pos, "profile".to_string()));
-        
-        // Gradient separator
-        draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
-        x_pos += 15;
-        
-        // Workspaces
-        let (workspaces, active) = get_workspaces();
-        for ws in &workspaces {
-            let color = if *ws == active { ACCENT_COLOR } else { DIM_COLOR };
-            let ws_str = format!("{}", ws);
-            draw_text(&mut self.glyph_cache, canvas, width, &ws_str, x_pos, 8, color);
-            x_pos += 18;
-        }
-        
-        // Health & Lock
-        x_pos += 10;
-        draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
-        x_pos += 15;
-        
-        let health = get_health();
-        let health_color = if health >= 80 {
-            ACCENT_COLOR
-        } else if health >= 50 {
-            AMBER_COLOR
-        } else {
-            RED_COLOR
-        };
-        let health_text = format!("● {}%", health);
-        draw_text(&mut self.glyph_cache, canvas, width, &health_text, x_pos, 8, health_color);
-        x_pos += 60;
-        
-        let locked = is_core_locked();
-        let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
-        let lock_icon = if locked { ICON_LOCKED } else { ICON_UNLOCKED };
-        draw_text(&mut self.glyph_cache, canvas, width, lock_icon, x_pos, 8, lock_color);
-        
-        // === CENTER ===
-        let window_title = get_active_window();
-        if !window_title.is_empty() {
-            let title_width = window_title.len() as i32 * 8;
-            let center_x = (width as i32 / 2) - (title_width / 2);
-            draw_text(&mut self.glyph_cache, canvas, width, &window_title, center_x, 8, TEXT_COLOR);
-        }
-        
-        // === RIGHT SIDE ===
-        let mut rx = width as i32 - 110;
-        
-        // Time
-        let time_str = Local::now().format("%b %d %H:%M").to_string();
-        draw_text(&mut self.glyph_cache, canvas, width, &time_str, rx, 8, AMBER_COLOR);
-        
-        rx -= 15;
-        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-        
-        // Volume (clickable)
-        rx -= 40;
-        let vol_start = rx;
-        let (vol, muted) = get_volume();
-        let vol_color = if muted { DIM_COLOR } else { ACCENT_COLOR };
-        let vol_text = if muted {
-            "MUT".to_string()
-        } else {
-            format!("{}%", vol)
-        };
-        draw_text(&mut self.glyph_cache, canvas, width, &vol_text, rx, 8, vol_color);
-        self.click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
-        
-        rx -= 15;
-        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-        
-        // WiFi
-        rx -= 45;
-        let (wifi_on, wifi_status) = get_wifi();
-        let wifi_color = if wifi_on { ACCENT_COLOR } else { RED_COLOR };
-        let wifi_text = format!("W:{}", wifi_status);
-        draw_text(&mut self.glyph_cache, canvas, width, &wifi_text, rx, 8, wifi_color);
-        
-        rx -= 15;
-        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-        
-        // Battery
-        rx -= 45;
-        let (bat_pct, charging) = get_battery();
-        let bat_color = if bat_pct < 20 {
-            RED_COLOR
-        } else if bat_pct < 50 {
-            AMBER_COLOR
-        } else if charging {
-            BLUE_COLOR
-        } else {
-            ACCENT_COLOR
-        };
-        let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
-        draw_text(&mut self.glyph_cache, canvas, width, &bat_text, rx, 8, bat_color);
-        
-        rx -= 15;
-        draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-        
-        // VPN (clickable)
-        rx -= 60;
-        let vpn_start = rx;
-        let (vpn_connected, vpn_status) = get_vpn_status();
-        let vpn_color = if vpn_connected { ACCENT_COLOR } else { RED_COLOR };
-        let vpn_text = format!("VPN:{}", vpn_status);
-        draw_text(&mut self.glyph_cache, canvas, width, &vpn_text, rx, 8, vpn_color);
-        self.click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
-        
-        // Commit
         self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
         self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
         self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
         self.layer_surface.commit();
     }
+    
+    fn enter_menu_mode(&mut self, qh: &QueueHandle<Self>) {
+        let items = menu::get_all_items();
+        self.app_state.enter_menu(items, &self.layer_surface);
+        self.height = self.app_state.current_height();
+        self.draw(qh);
+    }
+    
+    fn exit_menu_mode(&mut self, qh: &QueueHandle<Self>) {
+        self.app_state.exit_menu(&self.layer_surface);
+        self.height = self.app_state.current_height();
+        self.draw(qh);
+    }
 }
 
 impl CompositorHandler for BarState {
-    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
+    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
+                           _surface: &wl_surface::WlSurface, _new_factor: i32) {}
     
-    fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
+    fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
+                        _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
     
-    fn frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _time: u32) {
+    fn frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
+             _surface: &wl_surface::WlSurface, _time: u32) {
         if self.last_draw.elapsed() >= Duration::from_millis(REFRESH_MS) {
             self.last_draw = Instant::now();
             self.draw(qh);
@@ -754,6 +313,12 @@ impl CompositorHandler for BarState {
             self.layer_surface.wl_surface().commit();
         }
     }
+    
+    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, 
+                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    
+    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, 
+                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
 }
 
 impl OutputHandler for BarState {
@@ -773,9 +338,10 @@ impl LayerShellHandler for BarState {
         self.running = false;
     }
     
-    fn configure(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _layer: &LayerSurface, configure: LayerSurfaceConfigure, _serial: u32) {
+    fn configure(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _layer: &LayerSurface, 
+                 configure: LayerSurfaceConfigure, _serial: u32) {
         if configure.new_size.0 > 0 {
-            self.width = configure.new_size.0;
+            self.app_state.width = configure.new_size.0;
         }
         if configure.new_size.1 > 0 {
             self.height = configure.new_size.1;
@@ -798,30 +364,81 @@ impl SeatHandler for BarState {
     
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
     
-    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
+    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
+                     seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Pointer {
             let _ = self.seat_state.get_pointer(qh, &seat);
         }
+        if capability == Capability::Keyboard {
+            if let Ok(kbd) = self.seat_state.get_keyboard(qh, &seat, None) {
+                self.keyboard = Some(kbd);
+            }
+        }
     }
     
-    fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat, _capability: Capability) {}
+    fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
+                        _seat: wl_seat::WlSeat, capability: Capability) {
+        if capability == Capability::Keyboard {
+            if let Some(kbd) = self.keyboard.take() {
+                kbd.release();
+            }
+        }
+    }
     
     fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
 }
 
+impl KeyboardHandler for BarState {
+    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard,
+             _: &wl_surface::WlSurface, _: u32, _: &[u32], _: &[Keysym]) {}
+    
+    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard,
+             _: &wl_surface::WlSurface, _: u32) {}
+    
+    fn press_key(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
+                 _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+        let action = handle_key_press(&mut self.app_state, event);
+        
+        match action {
+            KeyAction::None => {}
+            KeyAction::Redraw => {
+                self.draw(qh);
+            }
+            KeyAction::ExitMenu => {
+                self.exit_menu_mode(qh);
+            }
+            KeyAction::Execute(cmd) => {
+                let _ = execute_command(&cmd);
+                self.exit_menu_mode(qh);
+            }
+        }
+    }
+    
+    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, 
+                   _: &wl_keyboard::WlKeyboard, _: u32, _event: KeyEvent) {}
+    
+    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, 
+                       _: &wl_keyboard::WlKeyboard, _serial: u32, _modifiers: Modifiers, _: u32) {}
+}
+
 impl PointerHandler for BarState {
-    fn pointer_frame(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _pointer: &wl_pointer::WlPointer, events: &[PointerEvent]) {
+    fn pointer_frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
+                    _pointer: &wl_pointer::WlPointer, events: &[PointerEvent]) {
         for event in events {
             match event.kind {
                 PointerEventKind::Motion { .. } => {
                     self.pointer_x = event.position.0;
                 }
                 PointerEventKind::Press { button, .. } => {
-                    if button == 272 {
+                    if button == 272 {  // Left click
                         let x = self.pointer_x as i32;
                         for (start, end, action) in &self.click_regions {
                             if x >= *start && x <= *end {
-                                handle_click(action);
+                                if action == "launcher" {
+                                    self.enter_menu_mode(qh);
+                                } else {
+                                    handle_click(action);
+                                }
                                 break;
                             }
                         }
@@ -846,4 +463,5 @@ delegate_layer!(BarState);
 delegate_shm!(BarState);
 delegate_registry!(BarState);
 delegate_seat!(BarState);
+delegate_keyboard!(BarState);
 delegate_pointer!(BarState);
