@@ -1,4 +1,4 @@
-# bump-system-version v4.0.0
+# bump-system-version v5.1.0
 
 **Complete 0-Core Release Automation** - Philosophy-driven release management for Faelight Forest.
 
@@ -8,15 +8,15 @@
 
 ## 🎯 Purpose
 
-Automates the complete release process while maintaining human control through interactive prompts. Handles version updates, CHANGELOG generation, intent tracking, and git operations.
+Automates the complete release process while maintaining human control through interactive prompts. Handles version updates, CHANGELOG generation, and git operations with minimal friction.
 
 ## 🚀 Usage
 ```bash
 # Full release (interactive)
-bump-system-version 8.0.0
+bump-system-version 8.5.0
 
 # Preview changes (dry-run)
-bump-system-version --dry-run 8.0.0
+bump-system-version --dry-run 8.5.0
 
 # Show version
 bump-system-version --version
@@ -31,12 +31,13 @@ bump-system-version --health
 ## 📋 Release Process
 
 ### **Phase 1: Pre-Flight Checks** (Automated)
-- ✅ System health (`dot-doctor`)
+- ✅ System health (dot-doctor)
 - ✅ Git status (clean working tree)
 - ✅ Version format validation
 
 ### **Phase 2: Snapshot** (Automated)
 - ✅ Creates btrfs snapshot for rollback safety
+- 🔄 Prints rollback command for easy recovery
 
 ### **Phase 3: Version Updates** (Automated + Interactive)
 - ✅ Updates `VERSION` file
@@ -50,28 +51,46 @@ bump-system-version --health
 - ✅ Runs `compile-changelog.sh` to analyze commits
 - ❓ Opens draft in `$EDITOR` for human polish
 - ✅ Inserts polished changelog into `CHANGELOG.md`
+- ✅ **Auto-deletes CHANGELOG draft** (NEW in v5.1.0)
 - ❓ Prompts for release quote
 
 ### **Phase 5: Version Table** (Interactive)
 - ❓ Prompts for brief description
 - ✅ Adds row to README.md version history table
 
-### **Phase 6: Intent Completion** (Smart Detection)
-- ✅ Scans git commits for intent references
-- ❓ Shows detected intents, asks to mark complete
-- ✅ Updates intent status and checkboxes
-
-### **Phase 7: Git Operations** (Interactive)
+### **Phase 6: Git Operations** (Interactive)
 - ✅ Stages all changes
-- ✅ Generates commit message
+- ✅ Generates commit message with health, quote
 - ❓ Shows preview, asks to create commit
 - ❓ Asks to create git tag
-- ❓ Asks to push to origin
+- ❓ **Single push confirmation for commits AND tags** (NEW in v5.1.0)
+- ✅ Pushes with `--follow-tags` in one operation
 
-### **Phase 8: Verification** (Automated)
+### **Phase 7: Verification** (Automated)
 - ✅ Runs final health check
 - ✅ Verifies VERSION file
 - ✅ Shows success summary
+
+## ✨ What's New in v5.1.0
+
+**Reduced Friction, Less Stress:**
+
+1. **Removed Intent Analysis Phase**
+   - Intent tracking was adding unnecessary complexity
+   - Streamlined workflow focuses on essential release tasks
+   - 6 interactive phases instead of 7
+
+2. **Auto-Delete CHANGELOG Drafts**
+   - Draft files automatically cleaned up after insertion
+   - No more manual `rm CHANGELOG-v*-DRAFT.md` needed
+   - Keeps repository tidy automatically
+
+3. **Single Push Confirmation**
+   - One `git push --follow-tags` command instead of two
+   - Only prompts for "push-main" once (not twice)
+   - Clearer messaging: "Push commits and tags to origin?"
+
+**Result:** Faster releases, fewer prompts, less manual cleanup.
 
 ## 🏗️ Architecture
 
@@ -85,7 +104,7 @@ bump-system-version --health
 - **Manual Control** - Human confirms all major decisions
 - **Automation Serves Human** - Tool handles tedious work
 - **Safety First** - Snapshots, validation, rollback capability
-- **Intent-Driven** - Tracks decision completion automatically
+- **Reduce Friction** - Minimize prompts while maintaining oversight
 
 **Files Updated:**
 - `VERSION` - System version number
@@ -93,7 +112,6 @@ bump-system-version --health
 - `stow/shell-zsh/.zshrc` - Welcome message
 - `README.md` - Badges, milestone, version table
 - `CHANGELOG.md` - Release entry with commits
-- `INTENT/future/*.md` - Intent status
 
 ## 📜 Philosophy
 
@@ -101,8 +119,8 @@ bump-system-version --health
 
 This tool embodies the 0-Core philosophy by:
 - Automating tedious file updates
-- Detecting completed work (intents in commits)
 - Generating comprehensive changelogs
+- Creating safety snapshots before changes
 - **But always prompting for human decisions**
 
 The interactive prompts ensure you maintain control while the tool eliminates the manual drudgery of release management.
@@ -138,16 +156,33 @@ The interactive prompts ensure you maintain control while the tool eliminates th
 - Ensure `compile-changelog.sh` exists in `scripts/`
 - Falls back to template if script unavailable
 
+**Push fails:**
+- Check network connectivity
+- Verify GitHub credentials
+- Ensure you have push permissions
+
 ## 🎓 Learning
 
 This tool demonstrates:
 - **Interactive CLI Design** - Balancing automation with human control
 - **Defensive Programming** - Validation, error handling, rollback
 - **Process Automation** - Multi-phase release workflow
-- **Intent Integration** - Decision tracking at release level
 - **Git Workflow** - Commits, tags, pushing
+- **Iterative Improvement** - v5.1.0 reduced friction based on real usage
 
 ## 🔄 Version History
+
+- **v5.1.0** (2026-01-26) - UX Improvements
+  - Removed Intent analysis phase (cleaner workflow)
+  - Auto-delete CHANGELOG drafts after insertion
+  - Single push confirmation with `--follow-tags`
+  - Reduced prompts and manual cleanup
+  - Focus on essential release tasks
+
+- **v5.0.0** (2026-01-25) - Pre-flight Dashboard
+  - Added comprehensive pre-flight dashboard
+  - Enhanced safety checks and validation
+  - Improved user experience with clear phase structure
 
 - **v4.0.0** (2026-01-21) - Linus Edition
   - Added `--help`, `--version`, `--health`, `--dry-run` flags
@@ -164,6 +199,7 @@ This tool demonstrates:
   - Snapshot creation for rollback
 
 - **v2.0.0** - Multi-file version updates
+
 - **v1.0.0** - Initial version bumping
 
 ---
