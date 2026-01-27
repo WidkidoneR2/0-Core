@@ -18,7 +18,8 @@ pub struct AppState {
     #[allow(dead_code)]
     pub mode: Mode,
     pub running: bool,
-    pub help_visible: bool,  // NEW!
+    pub help_visible: bool,
+    pub info_visible: bool,  // NEW!
     intent_dir: PathBuf,
 }
 
@@ -38,7 +39,8 @@ impl AppState {
             zone,
             mode: Mode::Normal,
             running: true,
-            help_visible: false,  // Start hidden
+            help_visible: false,
+            info_visible: false,  // Start hidden
             intent_dir,
         };
         
@@ -86,6 +88,10 @@ impl AppState {
     
     pub fn toggle_help(&mut self) {
         self.help_visible = !self.help_visible;
+    }
+    
+    pub fn toggle_info(&mut self) {
+        self.info_visible = !self.info_visible;
     }
     
     pub fn enter_selected(&mut self) -> Result<()> {

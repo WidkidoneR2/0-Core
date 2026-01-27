@@ -4,9 +4,14 @@ use crate::error::Result;
 use faelight_zone::Zone;
 
 pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
-    // If help is visible, any key closes it
+    // If help or info is visible, any key closes it
     if app.help_visible {
         app.toggle_help();
+        return Ok(());
+    }
+    
+    if app.info_visible {
+        app.toggle_info();
         return Ok(());
     }
     
@@ -25,8 +30,9 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         KeyCode::Char('4') => app.jump_to_zone(Zone::Archive)?,
         KeyCode::Char('5') => app.jump_to_zone(Zone::Scratch)?,
         
-        // Help
+        // Overlays
         KeyCode::Char('?') => app.toggle_help(),
+        KeyCode::Char('i') => app.toggle_info(),
         
         // Quit
         KeyCode::Char('q') | KeyCode::Esc => app.quit(),

@@ -4,6 +4,7 @@ pub mod zones;
 pub mod filelist;
 pub mod status;
 pub mod help;
+pub mod info;
 pub mod colors;
 
 use ratatui::prelude::*;
@@ -35,8 +36,12 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     // Status bar
     status::render(status_area, frame.buffer_mut(), app);
     
-    // Help overlay (renders on top if visible)
+    // Overlays (render on top)
     if app.help_visible {
         help::render(frame.area(), frame.buffer_mut());
+    }
+    
+    if app.info_visible {
+        info::render(frame.area(), frame.buffer_mut(), app);
     }
 }

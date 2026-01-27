@@ -36,6 +36,7 @@ pub fn render(area: Rect, buf: &mut Buffer) {
             Span::styled("Other:", Style::default().fg(FaelightColors::ACCENT_BLUE).bold()),
         ]),
         Line::from("  ?   - Toggle this help"),
+        Line::from("  i   - File information"),
         Line::from("  q   - Quit"),
         Line::from("  Esc - Quit"),
         Line::from(""),
