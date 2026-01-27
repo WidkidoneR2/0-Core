@@ -37,6 +37,7 @@ pub fn render(area: Rect, buf: &mut Buffer) {
         ]),
         Line::from("  ?   - Toggle this help"),
         Line::from("  i   - File information"),
+        Line::from("  /   - Search/filter files"),
         Line::from("  q   - Quit"),
         Line::from("  Esc - Quit"),
         Line::from(""),

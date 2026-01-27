@@ -15,6 +15,20 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         return Ok(());
     }
     
+    // Search mode - handle text input
+    if app.search_mode {
+        match key {
+            KeyCode::Char(c) => app.search_add_char(c),
+            KeyCode::Backspace => app.search_backspace(),
+            KeyCode::Esc | KeyCode::Enter => app.exit_search(),
+            KeyCode::Down => app.select_next(),
+            KeyCode::Up => app.select_prev(),
+            _ => {}
+        }
+        return Ok(());
+    }
+    
+    // Normal mode
     match key {
         // Navigation
         KeyCode::Char('j') | KeyCode::Down => app.select_next(),
@@ -33,6 +47,9 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         // Overlays
         KeyCode::Char('?') => app.toggle_help(),
         KeyCode::Char('i') => app.toggle_info(),
+        
+        // Search
+        KeyCode::Char('/') => app.start_search(),
         
         // Quit
         KeyCode::Char('q') | KeyCode::Esc => app.quit(),

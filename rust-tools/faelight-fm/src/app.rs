@@ -13,13 +13,16 @@ pub enum Mode {
 pub struct AppState {
     pub cwd: PathBuf,
     pub entries: Vec<FaelightEntry>,
+    pub filtered_entries: Vec<FaelightEntry>,  // NEW: filtered view
     pub selected: usize,
     pub zone: Zone,
     #[allow(dead_code)]
     pub mode: Mode,
     pub running: bool,
     pub help_visible: bool,
-    pub info_visible: bool,  // NEW!
+    pub info_visible: bool,
+    pub search_mode: bool,      // NEW: search active
+    pub search_query: String,   // NEW: search text
     intent_dir: PathBuf,
 }
 
@@ -35,12 +38,15 @@ impl AppState {
         let mut app = Self {
             cwd: start_path.clone(),
             entries: Vec::new(),
+            filtered_entries: Vec::new(),
             selected: 0,
             zone,
             mode: Mode::Normal,
             running: true,
             help_visible: false,
-            info_visible: false,  // Start hidden
+            info_visible: false,
+            search_mode: false,
+            search_query: String::new(),
             intent_dir,
         };
         
@@ -82,8 +88,49 @@ impl AppState {
             })
             .collect();
         
+        self.apply_filter();
         self.selected = 0;
         Ok(())
+    }
+    
+    pub fn apply_filter(&mut self) {
+        if self.search_query.is_empty() {
+            self.filtered_entries = self.entries.clone();
+        } else {
+            let query = self.search_query.to_lowercase();
+            self.filtered_entries = self.entries
+                .iter()
+                .filter(|e| e.name.to_lowercase().contains(&query))
+                .cloned()
+                .collect();
+        }
+        
+        // Keep selection valid
+        if self.selected >= self.filtered_entries.len() && !self.filtered_entries.is_empty() {
+            self.selected = self.filtered_entries.len() - 1;
+        }
+    }
+    
+    pub fn start_search(&mut self) {
+        self.search_mode = true;
+        self.search_query.clear();
+        self.apply_filter();
+    }
+    
+    pub fn exit_search(&mut self) {
+        self.search_mode = false;
+        self.search_query.clear();
+        self.apply_filter();
+    }
+    
+    pub fn search_add_char(&mut self, c: char) {
+        self.search_query.push(c);
+        self.apply_filter();
+    }
+    
+    pub fn search_backspace(&mut self) {
+        self.search_query.pop();
+        self.apply_filter();
     }
     
     pub fn toggle_help(&mut self) {
@@ -95,10 +142,11 @@ impl AppState {
     }
     
     pub fn enter_selected(&mut self) -> Result<()> {
-        if let Some(entry) = self.entries.get(self.selected) {
+        if let Some(entry) = self.filtered_entries.get(self.selected) {
             if entry.is_dir {
                 self.cwd = entry.path.clone();
                 self.zone = zones::classify(&self.cwd);
+                self.exit_search();  // Clear search when navigating
                 self.reload()?;
             }
         }
@@ -109,6 +157,7 @@ impl AppState {
         if let Some(parent) = self.cwd.parent() {
             self.cwd = parent.to_path_buf();
             self.zone = zones::classify(&self.cwd);
+            self.exit_search();  // Clear search when navigating
             self.reload()?;
         }
         Ok(())
@@ -122,6 +171,7 @@ impl AppState {
             if path.exists() {
                 self.cwd = path.clone();
                 self.zone = zone;
+                self.exit_search();  // Clear search when navigating
                 self.reload()?;
             }
         }
@@ -135,13 +185,13 @@ impl AppState {
     }
     
     pub fn select_next(&mut self) {
-        if self.selected + 1 < self.entries.len() {
+        if self.selected + 1 < self.filtered_entries.len() {
             self.selected += 1;
         }
     }
     
     pub fn selected_entry(&self) -> Option<&FaelightEntry> {
-        self.entries.get(self.selected)
+        self.filtered_entries.get(self.selected)
     }
     
     pub fn quit(&mut self) {

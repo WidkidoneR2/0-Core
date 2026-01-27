@@ -5,7 +5,7 @@ use super::colors::FaelightColors;
 
 pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     let items: Vec<ListItem> = app
-        .entries
+        .filtered_entries
         .iter()
         .enumerate()
         .map(|(i, entry)| {
@@ -17,7 +17,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
                     Style::default()
                         .fg(FaelightColors::SYMLINK)
                         .bg(FaelightColors::BG_SELECTED)
-                        .italic()  // Italic for symlinks!
+                        .italic()
                 } else {
                     Style::default()
                         .fg(FaelightColors::SYMLINK)
