@@ -1,0 +1,10 @@
+In src/app.rs reload(), replace:
+    let intent_id = intents.first().map(|i| i.id.clone());
+
+With:
+    // TEST: Hardcode intent for faelight-fm directory
+    let intent_id = if name == "faelight-fm" {
+        Some("074".to_string())
+    } else {
+        intents.first().map(|i| i.id.clone())
+    };

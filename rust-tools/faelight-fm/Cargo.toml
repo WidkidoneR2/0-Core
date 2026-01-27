@@ -19,3 +19,15 @@ faelight-zone = { path = "../faelight-zone" }
 # Error handling
 anyhow = "1.0"
 thiserror = "1.0"
+
+[[bin]]
+name = "faelight-fm"
+path = "src/main.rs"
+
+[[bin]]
+name = "test-intent"
+path = "src/bin/test-intent.rs"
+
+[lib]
+name = "faelight_fm"
+path = "src/lib.rs"

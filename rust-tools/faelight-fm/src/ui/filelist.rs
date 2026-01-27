@@ -11,7 +11,6 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         .map(|(i, entry)| {
             let is_selected = i == app.selected;
             
-            // Choose style based on type and selection
             let style = if entry.is_dir {
                 FaelightColors::directory_style(is_selected)
             } else {
@@ -23,7 +22,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
             let intent_tag = if let Some(ref id) = entry.intent_id {
                 format!("[INT:{}]", id)
             } else {
-                String::new()
+                String::new()  // Empty when no intent
             };
             
             let text = format!(
