@@ -5,6 +5,7 @@ use crate::intent::IntentStatus;
 #[derive(Debug, Clone)]
 pub struct IntentInfo {
     pub id: String,
+    pub title: String,
     pub status: IntentStatus,
 }
 

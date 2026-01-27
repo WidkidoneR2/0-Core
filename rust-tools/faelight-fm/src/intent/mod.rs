@@ -13,7 +13,6 @@ pub enum IntentStatus {
 pub struct Intent {
     pub id: String,
     pub title: String,
-    #[allow(dead_code)]
     pub status: IntentStatus,
     #[allow(dead_code)]
     pub path: PathBuf,

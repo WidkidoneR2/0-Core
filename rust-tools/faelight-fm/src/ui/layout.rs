@@ -7,7 +7,7 @@ pub fn create_layout(area: Rect) -> (Rect, Rect, Rect, Rect, Rect) {
             Constraint::Length(1),  // Top bar
             Constraint::Length(1),  // Path bar
             Constraint::Min(0),     // Main area
-            Constraint::Length(1),  // Status bar
+            Constraint::Length(3),  // Status bar (needs 3 for borders!)
             Constraint::Length(1),  // Command line
         ])
         .split(area);

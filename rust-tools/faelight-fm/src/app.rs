@@ -57,6 +57,7 @@ impl AppState {
                 // Find intents for this path and create IntentInfo
                 let intents = intent::find_intents_for_path(&self.intent_dir, &path);
                 let intent_info = intents.first().map(|i| IntentInfo {
+                    title: i.title.clone(),
                     id: i.id.clone(),
                     status: i.status.clone(),
                 });
