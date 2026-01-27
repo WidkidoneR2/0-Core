@@ -34,7 +34,7 @@ mod render;
 mod input;
 mod menu;
 
-use state::{AppState, ModeState};
+use state::{AppState};
 use input::{handle_key_press, KeyAction, execute_command};
 
 const BAR_HEIGHT: u32 = 32;

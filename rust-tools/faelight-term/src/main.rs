@@ -81,9 +81,6 @@ fn char_width(ch: char) -> usize {
         '\u{2600}'..='\u{26FF}' |   // Misc symbols
         '\u{2700}'..='\u{27BF}' |   // Dingbats
         '\u{FE00}'..='\u{FE0F}' |   // Variation selectors
-        '\u{1F600}'..='\u{1F64F}' | // Emoticons
-        '\u{1F680}'..='\u{1F6FF}' | // Transport
-        '\u{1F900}'..='\u{1F9FF}' | // Supplemental
         '\u{3000}'..='\u{303F}' |   // CJK symbols
         '\u{3040}'..='\u{309F}' |   // Hiragana
         '\u{30A0}'..='\u{30FF}' |   // Katakana

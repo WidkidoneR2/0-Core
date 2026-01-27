@@ -9,6 +9,7 @@ const TOTAL_HEIGHT: u32 = BAR_HEIGHT + MENU_HEIGHT; // 132px
 
 /// Application mode - explicit state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum Mode {
     Bar,
     Menu,
@@ -16,11 +17,13 @@ pub enum Mode {
 
 /// Mode-specific state
 pub enum ModeState {
+    #[allow(dead_code)]
     Bar(BarState),
     Menu(MenuState),
 }
 
 pub struct BarState {
+    #[allow(dead_code)]
     pub last_update: std::time::Instant,
 }
 
@@ -128,6 +131,7 @@ impl AppState {
         }
     }
     
+    #[allow(dead_code)]
     pub fn is_menu_mode(&self) -> bool {
         matches!(self.mode, ModeState::Menu(_))
     }

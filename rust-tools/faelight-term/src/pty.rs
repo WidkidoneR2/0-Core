@@ -10,11 +10,13 @@ use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
 
 pub struct Pty {
     pub master: File,
+    #[allow(dead_code)]
     pub pid: i32,
 }
 
 impl Pty {
     /// Spawn a new shell process in a PTY
+    #[allow(unreachable_code)]
     pub fn spawn_shell(rows: u16, cols: u16) -> io::Result<Self> {
         // Set up terminal window size
         let winsize = Winsize {

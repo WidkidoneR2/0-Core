@@ -697,6 +697,7 @@ fn update_version_table(
     fs::write(&readme_path, new_content).map_err(|e| e.to_string())
 }
 
+#[allow(dead_code)]
 fn detect_completed_intents(core_dir: &PathBuf) -> Vec<String> {
     // Get git log and look for intent references
     let output = Command::new("git")
@@ -731,6 +732,7 @@ fn detect_completed_intents(core_dir: &PathBuf) -> Vec<String> {
     intents
 }
 
+#[allow(dead_code)]
 fn mark_intent_complete(core_dir: &PathBuf, intent: &str) {
     // Extract number from "Intent 067"
     let number = intent.replace("Intent ", "");

@@ -319,6 +319,7 @@ fn run_cmd(cmd: &str, args: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
+#[allow(dead_code)]
 fn run_cmd_show(cmd: &str, args: &[&str]) -> bool {
     Command::new(cmd)
         .args(args)

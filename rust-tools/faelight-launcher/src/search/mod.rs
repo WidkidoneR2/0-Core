@@ -11,6 +11,7 @@ pub enum SearchResult {
     App {
         name: String,
         exec: String,
+        #[allow(dead_code)]
         icon: String,
         score: f32,
     },

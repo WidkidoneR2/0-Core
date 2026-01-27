@@ -8,7 +8,9 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub system: SystemConfig,
+    #[allow(dead_code)]
     pub paths: PathsConfig,
+    #[allow(dead_code)]
     pub health: HealthConfig,
     pub notifications: NotificationConfig,
     pub bar: BarConfig,
@@ -23,6 +25,7 @@ pub struct SystemConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PathsConfig {
     pub core_dir: String,
     pub scripts_dir: String,
@@ -30,12 +33,14 @@ pub struct PathsConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct HealthConfig {
     pub fail_on_warning: bool,
     pub auto_check_on_unlock: bool,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct NotificationConfig {
     pub enabled: bool,
     pub timeout_ms: u32,
@@ -43,6 +48,7 @@ pub struct NotificationConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct BarConfig {
     pub refresh_ms: u32,
     pub show_vpn: bool,
@@ -51,6 +57,7 @@ pub struct BarConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct LockConfig {
     pub timeout_minutes: u32,
     pub show_clock: bool,
@@ -58,6 +65,7 @@ pub struct LockConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct Profile {
     pub description: String,
     pub icon: String,
@@ -75,6 +83,7 @@ pub struct Profile {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ThemeColors {
     pub background: String,
     pub foreground: String,
@@ -89,6 +98,7 @@ pub struct ThemeColors {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ThemeComponent {
     pub bg: String,
     pub fg: String,
@@ -103,6 +113,7 @@ pub struct ThemeComponent {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct Theme {
     pub description: String,
     pub colors: ThemeColors,

@@ -3,6 +3,7 @@
 use nucleo::{Matcher, Utf32String};
 
 /// Fuzzy filter with scoring
+#[allow(dead_code)]
 pub fn fuzzy_filter(query: &str, items: &[String], matcher: &mut Matcher) -> Vec<(usize, u32)> {
     use nucleo::pattern::{Pattern, CaseMatching, Normalization};
     

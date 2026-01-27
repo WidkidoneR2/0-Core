@@ -100,6 +100,7 @@ struct Check {
 struct Context {
     home: String,
     core_dir: PathBuf,
+    #[allow(dead_code)]
     version: String,
 }
 
@@ -555,11 +556,9 @@ fn check_git(ctx: &Context) -> CheckResult {
 
 fn check_themes(ctx: &Context) -> CheckResult {
     let packages = ["config-faelight"];
-    let mut found = 0;
 
     for pkg in packages {
         if ctx.core_dir.join("stow").join(pkg).is_dir() {
-            found += 1;
         }
     }
 
