@@ -4,9 +4,14 @@ use crate::error::Result;
 use faelight_zone::Zone;
 
 pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
-    // If help or info is visible, any key closes it
+    // If any overlay is visible, any key closes it
     if app.help_visible {
         app.toggle_help();
+        return Ok(());
+    }
+    
+    if app.preview_visible {
+        app.toggle_preview();
         return Ok(());
     }
     
@@ -47,6 +52,10 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         // Overlays
         KeyCode::Char('?') => app.toggle_help(),
         KeyCode::Char('i') => app.toggle_info(),
+        KeyCode::Char('p') => {
+            app.load_preview();
+            app.toggle_preview();
+        },
         
         // Search
         KeyCode::Char('/') => app.start_search(),

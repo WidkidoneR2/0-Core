@@ -23,6 +23,9 @@ pub struct AppState {
     pub info_visible: bool,
     pub search_mode: bool,      // NEW: search active
     pub search_query: String,   // NEW: search text
+    pub preview_visible: bool,  // NEW: preview overlay
+    pub preview_content: Option<Vec<String>>,  // NEW: file lines
+    pub preview_path: Option<String>,  // NEW: previewed file name
     intent_dir: PathBuf,
 }
 
@@ -47,6 +50,9 @@ impl AppState {
             info_visible: false,
             search_mode: false,
             search_query: String::new(),
+            preview_visible: false,
+            preview_content: None,
+            preview_path: None,
             intent_dir,
         };
         
@@ -196,5 +202,43 @@ impl AppState {
     
     pub fn quit(&mut self) {
         self.running = false;
+    }
+    
+    pub fn toggle_preview(&mut self) {
+        self.preview_visible = !self.preview_visible;
+        if !self.preview_visible {
+            self.preview_content = None;
+            self.preview_path = None;
+        }
+    }
+    pub fn load_preview(&mut self) {
+        // Clone the entry data first to avoid borrow conflicts
+        let entry_data = self.selected_entry().map(|e| (e.path.clone(), e.name.clone(), e.is_dir, e.is_symlink));
+        
+        if let Some((path, name, is_dir, is_symlink)) = entry_data {
+            if !is_dir && !is_symlink {
+                match std::fs::read_to_string(&path) {
+                    Ok(content) => {
+                        let lines: Vec<String> = content
+                            .lines()
+                            .take(40)
+                            .map(|l| l.to_string())
+                            .collect();
+                        self.preview_content = Some(lines);
+                        self.preview_path = Some(name);
+                    }
+                    Err(_) => {
+                        self.preview_content = Some(vec!["[Binary or unreadable file]".to_string()]);
+                        self.preview_path = Some(name);
+                    }
+                }
+            } else if is_dir {
+                self.preview_content = Some(vec!["[Directory - no preview]".to_string()]);
+                self.preview_path = Some(name);
+            } else {
+                self.preview_content = Some(vec!["[Symlink - no preview]".to_string()]);
+                self.preview_path = Some(name);
+            }
+        }
     }
 }

@@ -49,4 +49,10 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     if app.info_visible {
         info::render(frame.area(), frame.buffer_mut(), app);
     }
+    
+    if app.preview_visible {
+        preview::render(frame.area(), frame.buffer_mut(), app);
+    }
 }
+pub mod preview;
+    
