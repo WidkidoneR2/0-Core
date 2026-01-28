@@ -49,3 +49,6 @@ require("lazy").setup({
 
 -- Load custom config
 -- Colorscheme is set in lua/plugins/colorscheme.lua
+
+-- Load Faelight integration
+require('config.faelight')
