@@ -4,3 +4,4 @@ pub mod zones;
 pub mod fs;
 pub mod error;
 pub mod git;
+pub mod daemon;

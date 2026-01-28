@@ -1017,6 +1017,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-daemon"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "faelight-dashboard"
 version = "1.0.0"
 dependencies = [
@@ -1057,8 +1066,11 @@ dependencies = [
  "faelight-core",
  "faelight-zone",
  "ratatui 0.28.1",
+ "serde",
+ "serde_json",
  "shellexpand",
  "thiserror 1.0.69",
+ "tokio",
  "walkdir",
 ]
 
