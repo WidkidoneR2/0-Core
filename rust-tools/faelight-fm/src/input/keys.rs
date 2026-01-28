@@ -50,12 +50,16 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         KeyCode::Char('5') => app.jump_to_zone(Zone::Scratch)?,
         
         // Overlays
+        // Overlays
         KeyCode::Char('?') => app.toggle_help(),
         KeyCode::Char('i') => app.toggle_info(),
         KeyCode::Char('p') => {
             app.load_preview();
             app.toggle_preview();
         },
+        
+        // Edit file in nvim
+        KeyCode::Char('e') => app.edit_selected()?,
         
         // Search
         KeyCode::Char('/') => app.start_search(),

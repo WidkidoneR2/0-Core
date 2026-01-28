@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH ALIASES
-# Version 8.0.0 - Complete Alias Collection
-# Total: ~267 aliases organized by category
+# Version 8.1.0 - Complete Alias Collection
+# Total: ~270 aliases organized by category
 # ═══════════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════════
@@ -252,6 +252,11 @@ alias nkitty='nvim ~/.config/kitty/kitty.conf'
 # LazyVim
 alias lazyvim-update='nvim --headless "+Lazy! sync" +qa'
 alias lazyvim-clean='nvim --headless "+Lazy! clean" +qa'
+
+# Vim Distros (Universal File Management)
+alias lazy='nvim'                              # LazyVim (default)
+alias astro='NVIM_APPNAME=astronvim nvim'     # AstroVim
+alias chad='NVIM_APPNAME=nvchad nvim'         # NvChad
 
 # ═══════════════════════════════════════════════════════════
 # 🖥️  SWAY & DESKTOP ENVIRONMENT

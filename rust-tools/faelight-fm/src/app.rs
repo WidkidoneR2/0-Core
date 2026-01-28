@@ -320,4 +320,48 @@ impl AppState {
             }
         }
     }
+
+    /// Edit the selected file in nvim
+    /// Edit the selected file in nvim
+    /// Edit the selected file in nvim
+    pub fn edit_selected(&mut self) -> Result<()> {
+        let entry = match self.selected_entry() {
+            Some(e) => e.clone(),
+            None => return Ok(()),
+        };
+        
+        // Only edit files, not directories
+        if entry.is_dir {
+            return Ok(());
+        }
+        
+        let path = entry.path.to_string_lossy().to_string();
+        
+        // Fully cleanup terminal before launching nvim
+        crossterm::terminal::disable_raw_mode()?;
+        crossterm::execute!(
+            std::io::stdout(),
+            crossterm::terminal::LeaveAlternateScreen,
+            crossterm::cursor::Show
+        )?;
+        
+        // Launch nvim
+        let status = std::process::Command::new("nvim")
+            .arg(&path)
+            .status()?;
+        
+        // Fully restore terminal state
+        crossterm::execute!(
+            std::io::stdout(),
+            crossterm::terminal::EnterAlternateScreen,
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::cursor::Hide
+        )?;
+        crossterm::terminal::enable_raw_mode()?;
+        
+        // Reload in case file changed
+        self.reload()?;
+        
+        Ok(())
+    }
 }
