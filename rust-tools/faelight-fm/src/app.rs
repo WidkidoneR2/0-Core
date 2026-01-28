@@ -3,6 +3,7 @@ use faelight_fm::git::{self, GitStatus};
 use faelight_fm::error::Result;
 use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
 use faelight_fm::{fs, zones, intent};
+use faelight_fm::daemon::DaemonClient;
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -27,6 +28,7 @@ pub struct AppState {
     pub preview_visible: bool,  // NEW: preview overlay
     pub preview_content: Option<Vec<String>>,  // NEW: file lines
     pub preview_path: Option<String>,  // NEW: previewed file name
+    pub daemon_client: Option<DaemonClient>,  // Daemon connection
     intent_dir: PathBuf,
 }
 
@@ -54,6 +56,14 @@ impl AppState {
             preview_visible: false,
             preview_content: None,
             preview_path: None,
+            daemon_client: {
+                let client = DaemonClient::new();
+                if client.is_available() {
+                    Some(client)
+                } else {
+                    None
+                }
+            },
             intent_dir,
         };
         
@@ -61,46 +71,107 @@ impl AppState {
         Ok(app)
     }
     
-    pub fn reload(&mut self) -> Result<()> {
+    /// Try to load entries from daemon
+    fn try_daemon_load(&mut self) -> Option<Vec<FaelightEntry>> {
+        let client = self.daemon_client.as_mut()?;
         
-        // Get git status for all files in directory
-        let git_statuses = git::get_status(&self.cwd);
-        let paths = fs::read_dir(&self.cwd)?;
+        // Create a tokio runtime for this sync context
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .ok()?;
         
-        self.entries = paths
-            .into_iter()
-            .filter_map(|path| {
-                let name = path.file_name()?.to_string_lossy().to_string();
-                let is_dir = path.is_dir();
-                
-                let is_symlink = path.symlink_metadata()
-                    .map(|m| m.is_symlink())
-                    .unwrap_or(false);
-                
-                let zone = zones::classify(&path);
-                
-                let intents = intent::find_intents_for_path(&self.intent_dir, &path);
-                let intent_info = intents.first().map(|i| IntentInfo {
-                    title: i.title.clone(),
-                    id: i.id.clone(),
-                    status: i.status.clone(),
-                });
-                
-                
-                // Get git status for this file
-                let git_status = git_statuses.get(&name).copied().unwrap_or(GitStatus::Clean);
-                Some(FaelightEntry {
-                    path,
-                    name,
-                    is_dir,
-                    is_symlink,
-                    git_status,
-                    zone,
-                    health: HealthStatus::Ok,
-                    intent_info,
+        let path_str = self.cwd.to_string_lossy().to_string();
+        
+        // Get entries from daemon
+        let response = rt.block_on(async {
+            use faelight_fm::daemon::client::Command;
+            client.send_command(Command::GetEntries { path: path_str }).await
+        }).ok()?;
+        
+        // Convert daemon entries to FaelightEntry
+        if let faelight_fm::daemon::client::Response::Entries { entries } = response {
+            let git_statuses = git::get_status(&self.cwd);
+            
+            let faelight_entries: Vec<FaelightEntry> = entries.into_iter()
+                .map(|daemon_entry| {
+                    let path = std::path::PathBuf::from(&daemon_entry.path);
+                    let zone = zones::classify(&path);
+                    
+                    let intents = intent::find_intents_for_path(&self.intent_dir, &path);
+                    let intent_info = intents.first().map(|i| IntentInfo {
+                        title: i.title.clone(),
+                        id: i.id.clone(),
+                        status: i.status.clone(),
+                    });
+                    
+                    let git_status = git_statuses
+                        .get(&daemon_entry.name)
+                        .copied()
+                        .unwrap_or(GitStatus::Clean);
+                    
+                    FaelightEntry {
+                        path,
+                        name: daemon_entry.name,
+                        is_dir: daemon_entry.is_dir,
+                        is_symlink: false, // TODO: daemon should track this
+                        git_status,
+                        zone,
+                        health: HealthStatus::Ok,
+                        intent_info,
+                    }
                 })
-            })
-            .collect();
+                .collect();
+            
+            return Some(faelight_entries);
+        }
+        
+        None
+    }
+    pub fn reload(&mut self) -> Result<()> {
+        // Try daemon first, fall back to filesystem
+        self.entries = if let Some(entries) = self.try_daemon_load() {
+            entries
+        } else {
+            
+            // Get git status for all files in directory
+            let git_statuses = git::get_status(&self.cwd);
+            let paths = fs::read_dir(&self.cwd)?;
+            
+            paths
+                .into_iter()
+                .filter_map(|path| {
+                    let name = path.file_name()?.to_string_lossy().to_string();
+                    let is_dir = path.is_dir();
+                    
+                    let is_symlink = path.symlink_metadata()
+                        .map(|m| m.is_symlink())
+                        .unwrap_or(false);
+                    
+                    let zone = zones::classify(&path);
+                    
+                    let intents = intent::find_intents_for_path(&self.intent_dir, &path);
+                    let intent_info = intents.first().map(|i| IntentInfo {
+                        title: i.title.clone(),
+                        id: i.id.clone(),
+                        status: i.status.clone(),
+                    });
+                    
+                    let git_status = git_statuses.get(&name).copied().unwrap_or(GitStatus::Clean);
+                    
+                    Some(FaelightEntry {
+                        path,
+                        name,
+                        is_dir,
+                        is_symlink,
+                        git_status,
+                        zone,
+                        health: HealthStatus::Ok,
+                        intent_info,
+                    })
+                })
+                .collect()
+        };
         
         self.apply_filter();
         self.selected = 0;
