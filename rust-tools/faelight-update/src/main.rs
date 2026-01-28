@@ -283,20 +283,29 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
 }
 
 /// Check for pacman updates
+/// Check for pacman updates
 fn check_pacman_updates() -> Result<UpdateCategory> {
     println!("   Checking pacman...");
-
-    let output = Command::new("checkupdates")
+    
+    // First sync the database quietly
+    let _ = Command::new("sudo")
+        .args(&["pacman", "-Sy", "--noconfirm"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    
+    // Now check for updates using the synced database
+    let output = Command::new("pacman")
+        .args(&["-Qu"])
         .output()
-        .context("Failed to run checkupdates")?;
-
-    let items = if output.status.code() == Some(2) {
-        // Exit code 2 means no updates (not an error)
+        .context("Failed to run pacman -Qu")?;
+        
+    let items = if !output.status.success() || output.stdout.is_empty() {
         Vec::new()
     } else {
         parse_pacman_output(&output.stdout)
     };
-
+    
     Ok(UpdateCategory {
         name: "System Packages".to_string(),
         emoji: "📦".to_string(),

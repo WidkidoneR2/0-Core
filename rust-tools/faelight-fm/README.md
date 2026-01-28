@@ -1,137 +1,181 @@
-# 🌲 Faelight FM v0.1.0-beta
+# 🌲 Faelight FM v0.2.0-beta
 
-**Semantic File Manager for Faelight Forest** - Intent-aware, zone-conscious navigation built in Rust.
+**Semantic File Manager for Faelight Forest** - Intent-aware, zone-conscious, daemon-powered navigation built in Rust.
 
-> ⚠️ **BETA SOFTWARE** - This is an early prototype demonstrating the architecture described in the design document. Not production-ready yet.
+> 🚀 **NEW in v0.2.0** - Daemon integration, file previews, git markers, and nvim editing!
 
 ---
 
 ## 🎯 Philosophy
 
 Faelight FM is not a generic file manager. It's a **system state inspector** that understands:
+
 - **Zones** - Spatial awareness (0-core, 1-src, 2-projects, etc.)
 - **Intent** - Why files exist (tracked via Intent Ledger)
-- **Health** - System state (via dot-doctor integration)
+- **Git Status** - Live repository state with visual markers
+- **Daemon Architecture** - Universal backend for multiple frontends
 - **Safety** - Immutability, snapshots, recovery
 
 Traditional file managers show you files. Faelight FM shows you **meaning**.
 
 ---
 
-## ✨ Current Features (v0.1.0-beta)
+## ✨ Current Features (v0.2.0-beta)
 
-### Navigation
+### 🔌 Daemon Integration (NEW!)
+- **Hybrid Architecture** - Connects to faelight-daemon when available, falls back to direct filesystem
+- **Universal Backend** - Same data layer powers TUI, Neovim plugins, and future integrations
+- **Real-time Updates** - Directory listings served via RPC for consistency
+
+### 🗂️ Navigation
 - **hjkl** or arrow keys - Navigate files
 - **Enter** or **l** - Enter directory
 - **h** - Go to parent directory
 - **0-5** - Jump to zone roots instantly
   - `0` → 0-core
-  - `1` → 1-src
+  - `1` → 1-src  
   - `2` → 2-projects
   - `3` → 3-archive
   - `4` → 4-media
   - `5` → secrets
+- **/** - Search/filter files in current directory
 - **Mouse scroll** - Navigate up/down
 - **q** or **ESC** - Quit
 
-### Visual Features
+### 📝 File Operations (NEW!)
+- **e** - Edit selected file in nvim (preserves TUI state on return)
+- **p** - Toggle preview overlay (shows file contents)
+- **i** - Toggle info overlay (file metadata, git status, intent)
+- **?** - Toggle help overlay (keybindings reference)
+
+### 🎨 Visual Features
+- **Git status markers** - Live indicators (M=modified, A=added, ??=untracked)
 - **Zone-aware colors** - Each zone has its own color identity
+- **File previews** - Inline content preview with syntax awareness
 - **Current zone highlighting** - Always know where you are
 - **Directory vs file distinction** - Different colors for clarity
 - **Selection highlighting** - Clear visual feedback
-- **Health badges** - ✔ ⚠ ✘ status indicators
 
 ---
 
 ## 🏗️ Architecture
+
+### Daemon-Powered Design
+```
+┌──────────────┐          ┌──────────────┐
+│ Faelight FM  │          │   Neovim     │
+│    (TUI)     │          │  (Plugins)   │
+└──────┬───────┘          └──────┬───────┘
+       │                         │
+       └─────────┬───────────────┘
+                 │
+           ┌─────▼─────┐
+           │  DAEMON   │
+           │   (RPC)   │
+           └─────┬─────┘
+                 │
+           ┌─────▼─────┐
+           │Filesystem │
+           └───────────┘
+```
+
+**Benefits:**
+- Single source of truth for file metadata
+- Consistent git status across all frontends
+- Intent awareness shared between tools
+- Future-ready for additional integrations
+
+### Module Structure
 ```
 faelight-fm/
 ├── src/
-│   ├── app.rs              # AppState + main loop
-│   ├── model/              # Semantic data model (Entry, Zone, Health)
-│   ├── fs/                 # Filesystem operations (read-only for now)
+│   ├── app.rs              # AppState + main loop + daemon client
+│   ├── daemon/             # RPC client for faelight-daemon
+│   ├── model/              # Semantic data model (Entry, Zone, Intent)
+│   ├── fs/                 # Filesystem operations (hybrid mode)
 │   ├── zones/              # Zone detection + navigation
 │   ├── ui/                 # TUI rendering (ratatui)
 │   │   ├── colors.rs       # Faelight Forest color system
-│   │   ├── topbar.rs       # System status bar
-│   │   ├── zones.rs        # Zone panel
-│   │   ├── filelist.rs     # Main file list
-│   │   └── status.rs       # Selection status
+│   │   ├── filelist.rs     # Main file list with git markers
+│   │   ├── preview.rs      # File preview overlay
+│   │   ├── info.rs         # File info overlay
+│   │   └── help.rs         # Keybindings overlay
 │   ├── input/              # Keyboard + mouse handlers
 │   └── error.rs            # Error types
 └── Cargo.toml
 ```
 
-**What's NOT here (by design):**
-- ❌ Plugins - No plugin system
-- ❌ Previews - No inline file previews
-- ❌ Themes - Colors are part of the design
-- ❌ Scripting - No user scripts
-
-These absences are **intentional guardrails** that prevent feature creep.
-
 ---
 
 ## 🚀 Usage
 ```bash
-# Navigate to faelight-fm directory
-cd ~/1-src/faelight-fm
+# Start faelight-daemon (auto-starts via systemd, or manually)
+systemctl --user start faelight-daemon
 
-# Build
-cargo build --release
-
-# Run (starts in current directory)
-./target/release/faelight-fm
+# Run faelight-fm (connects to daemon automatically)
+~/0-core/target/release/faelight-fm
 
 # Or start in specific directory
-./target/release/faelight-fm ~/0-core
+~/0-core/target/release/faelight-fm ~/0-core
+
+# Works without daemon too (falls back to direct filesystem)
 ```
 
+### Keybindings Reference
+
+**Navigation:**
+- `j/k` or `↓/↑` - Move selection
+- `h/l` or `←/→` - Parent/Enter directory  
+- `0-5` - Jump to zone roots
+- `/` - Search/filter
+
+**Actions:**
+- `e` - Edit file in nvim
+- `p` - Preview file
+- `i` - File info
+- `?` - Help overlay
+
+**Exit:**
+- `q` or `ESC` - Quit (or close overlay)
+
 ---
 
-## 🎨 Color System
+## 🎨 Git Integration
 
-**Faelight Forest Palette:**
-- **0-core** - Red (locked/immutable)
-- **1-src** - Green (active development)
-- **2-projects** - Blue (structured work)
-- **3-archive** - Dim gray (dormant)
-- **4-media** - Purple (creative content)
-- **secrets** - Red (protected)
+**Status Markers:**
+- `M` - Modified (orange)
+- `A` - Added/staged (green)
+- `??` - Untracked (yellow)
+- Clean files - No marker
 
-**UI Hierarchy:**
-- Bright text = directories
-- Normal text = files
-- Dim text = unselected zones
-- Bold + background = current selection/zone
+Git status is live-updated via the daemon for performance.
 
 ---
 
-## 🔮 Roadmap (Future Versions)
+## 🔮 Roadmap
 
-### v0.2.0 - Intent Integration
+### ✅ v0.2.0 - Daemon & Preview (COMPLETED!)
+- [x] Daemon integration with hybrid fallback
+- [x] Git status markers
+- [x] File preview overlay
+- [x] Edit in nvim
+- [x] Search/filter
+- [x] Info & help overlays
+
+### v0.3.0 - Intent & Health
 - [ ] Real intent detection via Intent Ledger
 - [ ] Intent display in file list
-- [ ] Intent-based warnings before destructive actions
-
-### v0.3.0 - Health Integration
-- [ ] Real health checks via dot-doctor
+- [ ] Health checks via dot-doctor
 - [ ] File-level health badges
-- [ ] Directory health aggregation
 
-### v0.4.0 - Safe Actions
+### v0.4.0 - Safe Mutations
 - [ ] Copy with intent validation
 - [ ] Move with zone awareness
 - [ ] Delete with snapshot requirement
 - [ ] Rename with intent preservation
 
-### v0.5.0 - Git Awareness
-- [ ] Git status badges (modified, untracked)
-- [ ] Read-only git context
-- [ ] Branch awareness
-
 ### v1.0.0 - Production Ready
-- [ ] Full feature parity with core workflow
+- [ ] Full feature parity with workflow
 - [ ] Comprehensive testing
 - [ ] Performance optimization
 - [ ] Documentation complete
@@ -140,49 +184,47 @@ cargo build --release
 
 ## 🎓 Design Philosophy
 
-From the design document:
-
 > **"If a feature doesn't have a place to live, it doesn't get added."**
 
 Every module has a clear responsibility. If you can't decide where code belongs, it probably doesn't belong in Faelight FM.
 
 **Separation of Concerns:**
 - `model/` - What things ARE
-- `fs/` - How to ACCESS them (thin layer)
+- `daemon/` - How to COMMUNICATE
+- `fs/` - How to ACCESS (thin layer)
 - `zones/` - Where they EXIST spatially
-- `intent/` - Why they EXIST semantically
-- `actions/` - The ONLY place that mutates
 - `ui/` - How to SHOW them (no logic)
 
 ---
 
 ## ⚠️ Known Limitations (Beta)
 
-- **No file operations yet** - Read-only navigation only
-- **Simplified zone detection** - Looks for path patterns
+- **Edit redraw issue** - Returning from nvim requires extra 'q' press (cosmetic, functional)
+- **No write operations** - Copy/move/delete coming in v0.4.0
 - **No command mode** - Planned for later
-- **No intent display** - Integration pending
-- **No health checks** - Integration pending
-- **Mouse clicking disabled** - Scroll wheel only (safety)
+- **Basic preview** - Text files only, no images/PDFs yet
 
 ---
 
-## 🤝 Comparison to Yazi
+## 🌐 Universal File Management
 
-**Yazi excels at:**
-- Blazing fast navigation
-- Rich previews (images, archives, PDFs)
-- Generic file management
-- Mature plugin ecosystem
+**ONE daemon serves MULTIPLE frontends:**
 
-**Faelight FM excels at:**
-- System awareness (zones, intent, health)
-- Safety enforcement (immutability, snapshots)
-- Meaning over content
-- 0-Core integration
+### Current Integrations:
+- ✅ **Faelight FM** (TUI) - Full-featured file browser
+- ✅ **LazyVim** - Telescope file picker, commands
+- ✅ **AstroVim** - Same faelight.lua config
+- ✅ **NvChad** - Same faelight.lua config
 
-**Can it replace Yazi?**  
-Not yet - but it's getting there. For system work in 0-Core, Faelight FM already provides better context than Yazi.
+### Neovim Commands:
+```vim
+:FaelightPing     " Check daemon
+:FaelightOpen     " List files
+:FaelightPicker   " Telescope picker
+<leader>ff        " File picker keybind
+```
+
+**Philosophy:** Write the integration ONCE, use it EVERYWHERE.
 
 ---
 
@@ -191,7 +233,7 @@ Not yet - but it's getting there. For system work in 0-Core, Faelight FM already
 # Build
 cargo build --release
 
-# Run tests (when we add them)
+# Run tests
 cargo test
 
 # Check for issues
@@ -206,11 +248,12 @@ cargo fmt
 ## 📚 Related Projects
 
 Part of the **Faelight Forest** ecosystem:
+
+- **faelight-daemon** - Universal RPC backend for file operations
 - **faelight-bar** - Hybrid Wayland status bar
 - **faelight-zone** - Spatial awareness library
 - **dot-doctor** - System health monitoring
 - **intent** - Intent Ledger management
-- **bump-system-version** - Release automation
 
 ---
 
