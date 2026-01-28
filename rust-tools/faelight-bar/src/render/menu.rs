@@ -80,10 +80,10 @@ pub fn render(menu: &MenuState, canvas: &mut [u8], width: u32, _height: u32, y_o
         let item = &menu.items[idx];
         
         // Truncate to fit dropdown width
-        let display_item = if item.len() > 45 {
-            format!("{}...", &item[..42])
+        let display_item = if item.display.len() > 45 {
+            format!("{}...", &item.display[..42])
         } else {
-            item.clone()
+            item.display.clone()
         };
         
         let text = format!("{} {}", marker, display_item);

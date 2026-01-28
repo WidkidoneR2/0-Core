@@ -1,13 +1,12 @@
 //! State machine for hybrid bar/menu architecture
-
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, KeyboardInteractivity, LayerSurface};
 use smithay_client_toolkit::shell::WaylandSurface;
+use crate::menu::MenuItem;
 
 const BAR_HEIGHT: u32 = 32;
 const MENU_HEIGHT: u32 = 100;
-const TOTAL_HEIGHT: u32 = BAR_HEIGHT + MENU_HEIGHT; // 132px
+const TOTAL_HEIGHT: u32 = BAR_HEIGHT + MENU_HEIGHT;
 
-/// Application mode - explicit state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum Mode {
@@ -15,7 +14,6 @@ pub enum Mode {
     Menu,
 }
 
-/// Mode-specific state
 pub enum ModeState {
     #[allow(dead_code)]
     Bar(BarState),
@@ -29,13 +27,13 @@ pub struct BarState {
 
 pub struct MenuState {
     pub input: String,
-    pub items: Vec<String>,
+    pub items: Vec<MenuItem>,
     pub filtered: Vec<usize>,
     pub selected: usize,
 }
 
 impl MenuState {
-    pub fn new(items: Vec<String>) -> Self {
+    pub fn new(items: Vec<MenuItem>) -> Self {
         let filtered = (0..items.len()).collect();
         Self {
             input: String::new(),
@@ -62,13 +60,12 @@ impl MenuState {
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, item)| {
-                    let haystack = Utf32String::from(item.as_str());
+                    let haystack = Utf32String::from(item.display.as_str());  // FIXED: use .display
                     pattern.score(haystack.slice(..), matcher)
                         .map(|score| (idx, score))
                 })
                 .collect();
             
-            // Sort by score (highest first)
             scored.sort_by(|a, b| b.1.cmp(&a.1));
             self.filtered = scored.into_iter().map(|(idx, _)| idx).collect();
         }
@@ -79,34 +76,30 @@ impl MenuState {
     pub fn get_selected_item(&self) -> Option<String> {
         self.filtered.get(self.selected)
             .and_then(|&idx| self.items.get(idx))
-            .cloned()
+            .map(|item| item.exec.clone())  // FIXED: return exec command
     }
 }
 
-/// Mode transition logic
 pub struct ModeTransition;
 
 impl ModeTransition {
-    /// Configure layer surface for bar mode
     pub fn to_bar(layer: &LayerSurface) {
         layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
         layer.set_size(0, BAR_HEIGHT);
-        layer.set_exclusive_zone(BAR_HEIGHT as i32);  // Always reserve 32px
+        layer.set_exclusive_zone(BAR_HEIGHT as i32);
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
         layer.wl_surface().commit();
     }
     
-    /// Configure layer surface for menu mode
     pub fn to_menu(layer: &LayerSurface) {
         layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
-        layer.set_size(0, TOTAL_HEIGHT);  // 132px tall surface
-        layer.set_exclusive_zone(BAR_HEIGHT as i32);  // STILL reserve 32px - don't change!
+        layer.set_size(0, TOTAL_HEIGHT);
+        layer.set_exclusive_zone(BAR_HEIGHT as i32);
         layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
         layer.wl_surface().commit();
     }
 }
 
-/// Application state wrapper
 pub struct AppState {
     pub mode: ModeState,
     pub width: u32,
@@ -136,7 +129,7 @@ impl AppState {
         matches!(self.mode, ModeState::Menu(_))
     }
     
-    pub fn enter_menu(&mut self, items: Vec<String>, layer: &LayerSurface) {
+    pub fn enter_menu(&mut self, items: Vec<MenuItem>, layer: &LayerSurface) {
         self.mode = ModeState::Menu(MenuState::new(items));
         ModeTransition::to_menu(layer);
     }
