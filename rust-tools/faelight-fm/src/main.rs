@@ -8,26 +8,15 @@ use crossterm::{
 };
 use ratatui::prelude::*;
 
-mod error;
-mod model;
-mod fs;
-mod zones;
+// Import from library
+use faelight_fm::error::Result;
+
+// Import binary-only modules
 mod app;
 mod input;
 mod ui;
 
-// Placeholder modules
-mod config { pub fn _placeholder() {} }
-mod intent;
-mod health { pub fn _placeholder() {} }
-mod actions { pub fn _placeholder() {} }
-mod command { pub fn _placeholder() {} }
-mod open { pub fn _placeholder() {} }
-mod snapshot { pub fn _placeholder() {} }
-mod git { pub fn _placeholder() {} }
-
 use app::AppState;
-use error::Result;
 
 fn main() -> Result<()> {
     // Get starting directory

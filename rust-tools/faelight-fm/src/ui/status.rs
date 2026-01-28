@@ -9,17 +9,17 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     let text = if let Some(entry) = entry {
         if let Some(ref intent_info) = entry.intent_info {
             let status_text = match intent_info.status {
-                crate::intent::IntentStatus::Complete => "COMPLETE",
-                crate::intent::IntentStatus::Future => "FUTURE",
-                crate::intent::IntentStatus::Cancelled => "CANCELLED",
-                crate::intent::IntentStatus::Deferred => "DEFERRED",
+                faelight_fm::intent::IntentStatus::Complete => "COMPLETE",
+                faelight_fm::intent::IntentStatus::Future => "FUTURE",
+                faelight_fm::intent::IntentStatus::Cancelled => "CANCELLED",
+                faelight_fm::intent::IntentStatus::Deferred => "DEFERRED",
             };
             
             let status_color = match intent_info.status {
-                crate::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
-                crate::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
-                crate::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
-                crate::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
+                faelight_fm::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
+                faelight_fm::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
+                faelight_fm::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
+                faelight_fm::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
             };
             
             Line::from(vec![

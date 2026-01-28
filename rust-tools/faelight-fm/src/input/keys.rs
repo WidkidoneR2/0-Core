@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 use crate::app::AppState;
-use crate::error::Result;
+use faelight_fm::error::Result;
 use faelight_zone::Zone;
 
 pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {

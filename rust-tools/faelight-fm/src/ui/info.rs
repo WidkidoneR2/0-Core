@@ -36,10 +36,10 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         
         let intent_text = if let Some(ref info) = entry.intent_info {
             let status = match info.status {
-                crate::intent::IntentStatus::Complete => "COMPLETE",
-                crate::intent::IntentStatus::Future => "FUTURE",
-                crate::intent::IntentStatus::Cancelled => "CANCELLED",
-                crate::intent::IntentStatus::Deferred => "DEFERRED",
+                faelight_fm::intent::IntentStatus::Complete => "COMPLETE",
+                faelight_fm::intent::IntentStatus::Future => "FUTURE",
+                faelight_fm::intent::IntentStatus::Cancelled => "CANCELLED",
+                faelight_fm::intent::IntentStatus::Deferred => "DEFERRED",
             };
             format!("#{} - {} - {}", info.id, status, info.title)
         } else {

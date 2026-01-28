@@ -1,7 +1,8 @@
 use std::path::PathBuf;
-use crate::error::Result;
-use crate::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
-use crate::{fs, zones, intent};
+use faelight_fm::git::{self, GitStatus};
+use faelight_fm::error::Result;
+use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
+use faelight_fm::{fs, zones, intent};
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -61,6 +62,9 @@ impl AppState {
     }
     
     pub fn reload(&mut self) -> Result<()> {
+        
+        // Get git status for all files in directory
+        let git_statuses = git::get_status(&self.cwd);
         let paths = fs::read_dir(&self.cwd)?;
         
         self.entries = paths
@@ -82,11 +86,15 @@ impl AppState {
                     status: i.status.clone(),
                 });
                 
+                
+                // Get git status for this file
+                let git_status = git_statuses.get(&name).copied().unwrap_or(GitStatus::Clean);
                 Some(FaelightEntry {
                     path,
                     name,
                     is_dir,
                     is_symlink,
+                    git_status,
                     zone,
                     health: HealthStatus::Ok,
                     intent_info,

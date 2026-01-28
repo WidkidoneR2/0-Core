@@ -2,6 +2,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListItem, Widget};
 use crate::app::AppState;
 use super::colors::FaelightColors;
+use faelight_fm::git::GitStatus;
 
 pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     let items: Vec<ListItem> = app
@@ -29,10 +30,21 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
                 FaelightColors::file_style(is_selected)
             };
             
-            let zone_tag = format!("[Z:{}]", entry.zone.short_label());
             
+            let zone_tag = format!("[Z:{}]", entry.zone.short_label());
             let mut spans = vec![
                 Span::raw(format!("{} ", entry.icon())),
+                // Git status marker
+                Span::styled(
+                    entry.git_status.marker(),
+                    Style::default().fg(match entry.git_status {
+                        GitStatus::Modified => Color::Yellow,
+                        GitStatus::Added => Color::Green,
+                        GitStatus::Deleted => Color::Red,
+                        GitStatus::Untracked => FaelightColors::TEXT_DIM,
+                        GitStatus::Clean => FaelightColors::TEXT_DIM,
+                    })
+                ),
                 Span::styled(
                     format!("{:<30} ", entry.name),
                     base_style
@@ -42,10 +54,10 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
             
             if let Some(ref intent_info) = entry.intent_info {
                 let intent_color = match intent_info.status {
-                    crate::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
-                    crate::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
-                    crate::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
-                    crate::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
+                    faelight_fm::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
+                    faelight_fm::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
+                    faelight_fm::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
+                    faelight_fm::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
                 };
                 
                 spans.push(Span::styled(

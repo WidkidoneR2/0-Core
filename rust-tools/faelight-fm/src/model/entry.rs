@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use crate::git::GitStatus;
 use faelight_zone::Zone;
 use crate::intent::IntentStatus;
 
@@ -18,6 +19,7 @@ pub struct FaelightEntry {
     pub zone: Zone,
     pub health: HealthStatus,
     pub intent_info: Option<IntentInfo>,
+    pub git_status: GitStatus,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
