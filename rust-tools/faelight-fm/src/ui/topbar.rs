@@ -12,7 +12,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     };
     
     let text = format!(
-        "🌲 Faelight FM │ Z: {} │ P: DEF │ {} │ 🏥 HEALTH: OK │ v0.1.0-beta",
+        "🌲 Faelight FM │ Z: {} │ P: DEF │ {} │ 🏥 HEALTH: OK │ v0.2.0-beta",
         app.zone.short_label(),
         lock_status
     );
