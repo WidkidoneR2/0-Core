@@ -1,5 +1,4 @@
 //! Keyboard input handling with mode awareness
-
 use smithay_client_toolkit::seat::keyboard::{KeyEvent, Keysym};
 use std::process::Command;
 use crate::state::{AppState, ModeState};
@@ -7,7 +6,6 @@ use crate::state::{AppState, ModeState};
 pub fn handle_key_press(state: &mut AppState, event: KeyEvent) -> KeyAction {
     match &mut state.mode {
         ModeState::Bar(_) => {
-            // Bar doesn't handle keyboard (shouldn't receive events anyway)
             KeyAction::None
         }
         ModeState::Menu(menu) => {

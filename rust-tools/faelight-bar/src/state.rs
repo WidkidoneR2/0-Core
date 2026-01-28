@@ -60,7 +60,7 @@ impl MenuState {
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, item)| {
-                    let haystack = Utf32String::from(item.display.as_str());  // FIXED: use .display
+                    let haystack = Utf32String::from(item.display.as_str());
                     pattern.score(haystack.slice(..), matcher)
                         .map(|score| (idx, score))
                 })
@@ -76,7 +76,7 @@ impl MenuState {
     pub fn get_selected_item(&self) -> Option<String> {
         self.filtered.get(self.selected)
             .and_then(|&idx| self.items.get(idx))
-            .map(|item| item.exec.clone())  // FIXED: return exec command
+            .map(|item| item.exec.clone())
     }
 }
 
