@@ -322,9 +322,10 @@ impl AppState {
     }
 
     /// Edit the selected file in nvim
-    /// Edit the selected file in nvim
-    /// Edit the selected file in nvim
-    pub fn edit_selected(&mut self) -> Result<()> {
+    pub fn edit_selected<B: ratatui::backend::Backend>(
+        &mut self,
+        terminal: &mut ratatui::Terminal<B>,
+    ) -> Result<()> {
         let entry = match self.selected_entry() {
             Some(e) => e.clone(),
             None => return Ok(()),
@@ -346,7 +347,7 @@ impl AppState {
         )?;
         
         // Launch nvim
-        let status = std::process::Command::new("nvim")
+        let _status = std::process::Command::new("nvim")
             .arg(&path)
             .status()?;
         
@@ -358,6 +359,9 @@ impl AppState {
             crossterm::cursor::Hide
         )?;
         crossterm::terminal::enable_raw_mode()?;
+        
+        // Force terminal backend to clear and redraw
+        terminal.clear()?;
         
         // Reload in case file changed
         self.reload()?;

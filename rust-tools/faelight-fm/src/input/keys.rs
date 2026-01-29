@@ -3,7 +3,11 @@ use crate::app::AppState;
 use faelight_fm::error::Result;
 use faelight_zone::Zone;
 
-pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
+pub fn handle_key<B: ratatui::backend::Backend>(
+    key: KeyCode,
+    app: &mut AppState,
+    terminal: &mut ratatui::Terminal<B>,
+) -> Result<()> {
     // If any overlay is visible, any key closes it
     if app.help_visible {
         app.toggle_help();
@@ -59,7 +63,7 @@ pub fn handle_key(key: KeyCode, app: &mut AppState) -> Result<()> {
         },
         
         // Edit file in nvim
-        KeyCode::Char('e') => app.edit_selected()?,
+        KeyCode::Char('e') => app.edit_selected(terminal)?,
         
         // Search
         KeyCode::Char('/') => app.start_search(),
