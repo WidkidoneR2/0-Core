@@ -8,7 +8,7 @@ mod conflict;
 
 #[derive(Parser)]
 #[command(name = "faelight-link")]
-#[command(version = "0.1.0")]
+#[command(version = "1.0.0")]
 #[command(about = "Zone-aware symlink manager for Faelight Forest", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -38,6 +38,16 @@ enum Commands {
     
     /// Show status of links
     Status,
+    
+    /// Audit link health (check for broken/orphaned links)
+    Audit,
+    
+    /// Clean up broken and orphaned links
+    Clean {
+        /// Skip confirmation prompt
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -61,6 +71,14 @@ fn main() -> Result<()> {
         Commands::Status => {
             println!("📊 Link status:");
             link::status()?;
+        }
+        Commands::Audit => {
+            println!("📊 Auditing link health:");
+            link::audit()?;
+        }
+        Commands::Clean { force } => {
+            println!("🧹 Cleaning up broken links:");
+            link::clean(force)?;
         }
     }
     

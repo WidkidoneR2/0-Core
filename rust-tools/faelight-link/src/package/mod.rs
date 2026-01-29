@@ -136,9 +136,121 @@ fn discover_package_files(pkg_dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Unstow a package
+/// Unstow a package (remove symlinks)
 pub fn unstow(package: &str) -> Result<()> {
-    println!("  {} Unstow not yet implemented", "⚠️".bright_yellow());
-    println!("  Package: {}", package);
+    let stow_dir = get_stow_dir()?;
+    let pkg_path = stow_dir.join(package);
+    
+    if !pkg_path.exists() {
+        anyhow::bail!("Package '{}' not found in {}", package, stow_dir.display());
+    }
+    
+    println!("  Package: {}", pkg_path.display().to_string().bright_black());
+    
+    // Find all symlinks for this package
+    let home = std::env::var("HOME").context("HOME not set")?;
+    let links = find_package_links(&home, package)?;
+    
+    if links.is_empty() {
+        println!("  {} No symlinks found for this package", "⚠️".bright_yellow());
+        return Ok(());
+    }
+    
+    println!("  Found {} symlinks to remove:", links.len());
+    for link in &links {
+        println!("    {} {}", "→".bright_black(), link.display().to_string().bright_black());
+    }
+    
+    // Ask for confirmation
+    use dialoguer::Confirm;
+    if !Confirm::new()
+        .with_prompt("Remove these symlinks?")
+        .default(true)
+        .interact()?
+    {
+        println!("  {}", "Cancelled".bright_yellow());
+        return Ok(());
+    }
+    
+    println!("\n  {} Removing symlinks...", "🗑️".bright_blue());
+    
+    let mut removed = 0;
+    let mut errors = 0;
+    
+    for link in &links {
+        match fs::remove_file(link) {
+            Ok(_) => {
+                println!("    {} {}", "✓".bright_green(), link.display());
+                removed += 1;
+            }
+            Err(e) => {
+                println!("    {} {} ({})", "✗".bright_red(), link.display(), e);
+                errors += 1;
+            }
+        }
+    }
+    
+    println!();
+    if removed > 0 {
+        println!("  {} Removed: {}", "✅".bright_green(), removed);
+    }
+    if errors > 0 {
+        println!("  {} Errors: {}", "✗".bright_red(), errors);
+    }
+    
+    println!("\n  {} Package unstowed successfully!", "✅".bright_green());
     Ok(())
 }
+
+/// Find all symlinks for a package
+fn find_package_links(home: &str, package: &str) -> Result<Vec<PathBuf>> {
+    let home_path = PathBuf::from(home);
+    let mut links = Vec::new();
+    
+    let search_paths = vec![
+        home_path.clone(),
+        home_path.join(".config"),
+        home_path.join(".local"),
+    ];
+    
+    for search_path in search_paths {
+        if !search_path.exists() {
+            continue;
+        }
+        
+        find_links_recursive(&search_path, package, &mut links)?;
+    }
+    
+    Ok(links)
+}
+
+/// Recursively find symlinks
+fn find_links_recursive(dir: &Path, package: &str, links: &mut Vec<PathBuf>) -> Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_symlink() {
+            if let Ok(target) = fs::read_link(&path) {
+                let target_str = target.to_string_lossy();
+                if target_str.contains(&format!("0-core/stow/{}", package)) {
+                    links.push(path);
+                }
+            }
+        } else if path.is_dir() {
+            // Skip certain directories
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name.starts_with('.') && name != ".config" && name != ".local" {
+                continue;
+            }
+            find_links_recursive(&path, package, links)?;
+        }
+    }
+    
+    Ok(())
+}
+
