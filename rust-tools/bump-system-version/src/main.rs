@@ -85,6 +85,23 @@ fn main() {
                 dry_run(args[2].strip_prefix("v").unwrap_or(&args[2]));
                 return;
             }
+            "--minor" | "--patch" | "--major" => {
+                let increment_type = args[1].strip_prefix("--").unwrap();
+                let core_dir = get_core_dir();
+                let old_version = get_current_version(&core_dir);
+                let new_version = increment_version(&old_version, increment_type);
+                
+                println!("📦 Version Calculation:");
+                println!("  Current:  v{}", old_version);
+                println!("  Type:     --{} ({})", increment_type, explain_increment_type(increment_type));
+                println!("  Target:   v{}", new_version);
+                println!();
+                
+                // Continue with the calculated version
+                run_release(&core_dir, &old_version, &new_version);
+                return;
+            }
+
             _ => {}
         }
     }
@@ -108,276 +125,282 @@ fn main() {
     let old_version = get_current_version(&core_dir);
 
     // Show pre-flight dashboard
-    show_preflight_dashboard(&core_dir, &old_version, new_version);
 
-    // Ask for confirmation
-    print!(
-        "
+    // Call the release function
+    run_release(&core_dir, &old_version, new_version);
+}
+
+fn run_release(core_dir: &PathBuf, old_version: &str, new_version: &str) {
+show_preflight_dashboard(&core_dir, &old_version, new_version);
+
+// Ask for confirmation
+print!(
+    "
 🤔 Ready to proceed with release? (y/n): "
-    );
-    io::stdout().flush().unwrap();
-    let mut proceed = String::new();
-    io::stdin().read_line(&mut proceed).unwrap();
+);
+io::stdout().flush().unwrap();
+let mut proceed = String::new();
+io::stdin().read_line(&mut proceed).unwrap();
 
-    if proceed.trim().to_lowercase() != "y" {
-        println!(
-            "
-❌ Release cancelled."
-        );
-        exit(0);
-    }
-
-    println!();
-    println!("🌲 Faelight Forest Release System v{}", VERSION);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
-
-    // Phase 1: Pre-Flight Checks
-    println!("📊 Phase 1: Pre-Flight Checks");
-
-    if !check_system_health() {
-        eprintln!("  ❌ System health check failed");
-        eprintln!("     Run: doctor");
-        exit(1);
-    }
-    println!("  ✅ System health: 100%");
-
-    if !is_git_clean(&core_dir) {
-        eprintln!("  ❌ Git has uncommitted changes");
-        eprintln!("     Commit or stash changes first");
-        exit(1);
-    }
-    println!("  ✅ Git status: clean");
-
-    if !is_valid_version(new_version) {
-        eprintln!("  ❌ Invalid version format");
-        exit(1);
-    }
-    println!("  ✅ Version format: {} valid", new_version);
-
-    println!();
-
-    // Create snapshot
-    println!("📸 Phase 2: Creating Snapshot");
-    let snapshot_id = create_snapshot(&format!("Before 0-Core v{}", new_version));
-    match snapshot_id {
-        Some(id) => {
-            println!("  ✅ Snapshot #{} created", id);
-            println!("  🔄 Rollback: sudo snapper rollback {}", id);
-        }
-        None => {
-            println!("  ⚠️  Snapshot creation failed - continuing anyway");
-        }
-    }
-
-    println!();
-
-    // Phase 3: Update Version Numbers
-    println!("📝 Phase 3: Updating Version Numbers");
-
-    update_version_file(&core_dir, new_version).expect("Failed to update VERSION");
-    println!("  ✅ VERSION: {} → {}", old_version, new_version);
-
-    update_cargo_toml(&core_dir, &old_version, new_version).expect("Failed to update Cargo.toml");
-    println!("  ✅ Cargo.toml: workspace version");
-
-    update_zshrc(&core_dir, &old_version, new_version).expect("Failed to update .zshrc");
-    println!("  ✅ .zshrc: welcome message");
-
-    let badge_count = update_readme_badges(&core_dir, &old_version, new_version)
-        .expect("Failed to update badges");
-    println!("  ✅ README.md: badges ({} updates)", badge_count);
-
-    // Interactive: Milestone description
-    println!();
-    print!("❓ Enter milestone description: ");
-    io::stdout().flush().unwrap();
-    let mut milestone = String::new();
-    io::stdin().read_line(&mut milestone).unwrap();
-    let milestone = milestone.trim();
-
-    update_readme_milestone(&core_dir, &old_version, new_version, milestone)
-        .expect("Failed to update milestone");
-    println!("  ✅ README.md: milestone updated");
-
-    println!();
-
-    // Phase 4: CHANGELOG Generation
-    println!("📋 Phase 4: Generating CHANGELOG");
-
-    // Get date of last release tag
-    let last_tag_date = Command::new("git")
-        .args(&["log", "-1", "--format=%ai", &format!("v{}", old_version)])
-        .current_dir(&core_dir)
-        .output()
-        .ok()
-        .and_then(|out| String::from_utf8(out.stdout).ok())
-        .and_then(|s| s.split_whitespace().next().map(String::from))
-        .unwrap_or_else(|| "2026-01-15".to_string()); // Fallback
-
-    // Run compile-changelog.sh
-    println!("  🔄 Running compile-changelog.sh...");
-    let changelog_result = Command::new("bash")
-        .arg(core_dir.join("scripts/compile-changelog.sh"))
-        .arg(&last_tag_date)
-        .current_dir(&core_dir)
-        .output();
-
-    match changelog_result {
-        Ok(output) if output.status.success() => {
-            println!("  ✅ Changelog draft generated");
-        }
-        _ => {
-            println!("  ⚠️  Changelog generation failed - will use template");
-        }
-    }
-
-    // Ask to edit changelog
-    print!("❓ Open changelog draft for editing? (y/n): ");
-    io::stdout().flush().unwrap();
-    let mut response = String::new();
-    io::stdin().read_line(&mut response).unwrap();
-
-    if response.trim().to_lowercase() == "y" {
-        let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-        Command::new(&editor)
-            .arg(core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version)))
-            .status()
-            .expect("Failed to open editor");
-        println!("  ✅ Changelog edited");
-    }
-
-    // Insert into main CHANGELOG
-    insert_changelog(&core_dir, new_version).expect("Failed to insert changelog");
-    // Auto-delete CHANGELOG draft
-    let draft_path = core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version));
-    if draft_path.exists() {
-        fs::remove_file(&draft_path).ok();
-    }
-    println!("  ✅ Inserted into CHANGELOG.md");
-
-    // Get release quote
-    print!("❓ Enter release quote: ");
-    io::stdout().flush().unwrap();
-    let mut quote = String::new();
-    io::stdin().read_line(&mut quote).unwrap();
-    let quote = quote.trim();
-
-    add_changelog_quote(&core_dir, quote).expect("Failed to add quote");
-    println!("  ✅ Quote added");
-
-    println!();
-
-    // Phase 5: Version History Table
-    println!("📊 Phase 5: Version History Table");
-
-    print!("❓ Brief description for version table: ");
-    io::stdout().flush().unwrap();
-    let mut table_desc = String::new();
-    io::stdin().read_line(&mut table_desc).unwrap();
-    let table_desc = table_desc.trim();
-
-    update_version_table(&core_dir, new_version, table_desc)
-        .expect("Failed to update version table");
-    println!("  ✅ Added row to README.md");
-
-    println!();
-
-    println!("📦 Phase 6: Git Operations");
-
-    // Stage all changes
-    Command::new("git")
-        .args(&["add", "-A"])
-        .current_dir(&core_dir)
-        .status()
-        .expect("Failed to stage changes");
-    println!("  ✅ Changes staged");
-
-    // Generate commit message
-    let commit_msg = format!(
-        "🌲 Release v{} - {}\n\n{}\n\nHealth: 100%\n\n\"{}\" 🌲",
-        new_version, milestone, table_desc, quote
-    );
-
-    println!();
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Preview commit message:");
-    println!("{}", commit_msg);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
-
-    print!("❓ Create commit? (y/n): ");
-    io::stdout().flush().unwrap();
-    let mut response = String::new();
-    io::stdin().read_line(&mut response).unwrap();
-
-    if response.trim().to_lowercase() != "y" {
-        println!("  ⚠️  Commit cancelled");
-        exit(0);
-    }
-
-    Command::new("git")
-        .args(&["commit", "-m", &commit_msg])
-        .current_dir(&core_dir)
-        .status()
-        .expect("Failed to create commit");
-    println!("  ✅ Commit created");
-
-    // Create tag
-    print!("❓ Create git tag v{}? (y/n): ", new_version);
-    io::stdout().flush().unwrap();
-    let mut response = String::new();
-    io::stdin().read_line(&mut response).unwrap();
-
-    if response.trim().to_lowercase() == "y" {
-        Command::new("git")
-            .args(&[
-                "tag",
-                "-a",
-                &format!("v{}", new_version),
-                "-m",
-                &format!("v{} - {}", new_version, milestone),
-            ])
-            .current_dir(&core_dir)
-            .status()
-            .expect("Failed to create tag");
-        println!("  ✅ Tag v{} created", new_version);
-    }
-
-    // Push
-    print!("❓ Push commits and tags to origin? (y/n): ");
-    io::stdout().flush().unwrap();
-    let mut response = String::new();
-    io::stdin().read_line(&mut response).unwrap();
-
-    if response.trim().to_lowercase() == "y" {
-        Command::new("git")
-            .args(&["push", "--follow-tags"])
-            .current_dir(&core_dir)
-            .status()
-            .expect("Failed to push");
-
-        println!("  ✅ Pushed commits and tags to origin/main");
-    }
-
-    // Phase 8: Verification
-    println!("🔍 Phase 8: Post-Release Verification");
-
-    let final_health = check_system_health();
+if proceed.trim().to_lowercase() != "y" {
     println!(
-        "  ✅ System health: {}",
-        if final_health { "100%" } else { "degraded" }
+        "
+❌ Release cancelled."
     );
+    exit(0);
+}
 
-    let final_version = get_current_version(&core_dir);
-    println!("  ✅ VERSION file: {}", final_version);
+println!();
+println!("🌲 Faelight Forest Release System v{}", VERSION);
+println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println!();
 
-    println!();
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("🎉 Release v{} Complete!", new_version);
-    println!();
-    println!("🌲 The forest evolves with intention.");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+// Phase 1: Pre-Flight Checks
+println!("📊 Phase 1: Pre-Flight Checks");
+
+if !check_system_health() {
+    eprintln!("  ❌ System health check failed");
+    eprintln!("     Run: doctor");
+    exit(1);
+}
+println!("  ✅ System health: 100%");
+
+if !is_git_clean(&core_dir) {
+    eprintln!("  ❌ Git has uncommitted changes");
+    eprintln!("     Commit or stash changes first");
+    exit(1);
+}
+println!("  ✅ Git status: clean");
+
+if !is_valid_version(new_version) {
+    eprintln!("  ❌ Invalid version format");
+    exit(1);
+}
+println!("  ✅ Version format: {} valid", new_version);
+
+println!();
+
+// Create snapshot
+println!("📸 Phase 2: Creating Snapshot");
+let snapshot_id = create_snapshot(&format!("Before 0-Core v{}", new_version));
+match snapshot_id {
+    Some(id) => {
+        println!("  ✅ Snapshot #{} created", id);
+        println!("  🔄 Rollback: sudo snapper rollback {}", id);
+    }
+    None => {
+        println!("  ⚠️  Snapshot creation failed - continuing anyway");
+    }
+}
+
+println!();
+
+// Phase 3: Update Version Numbers
+println!("📝 Phase 3: Updating Version Numbers");
+
+update_version_file(&core_dir, new_version).expect("Failed to update VERSION");
+println!("  ✅ VERSION: {} → {}", old_version, new_version);
+
+update_cargo_toml(&core_dir, &old_version, new_version).expect("Failed to update Cargo.toml");
+println!("  ✅ Cargo.toml: workspace version");
+
+update_zshrc(&core_dir, &old_version, new_version).expect("Failed to update .zshrc");
+println!("  ✅ .zshrc: welcome message");
+
+let badge_count = update_readme_badges(&core_dir, &old_version, new_version)
+    .expect("Failed to update badges");
+println!("  ✅ README.md: badges ({} updates)", badge_count);
+
+// Interactive: Milestone description
+println!();
+print!("❓ Enter milestone description: ");
+io::stdout().flush().unwrap();
+let mut milestone = String::new();
+io::stdin().read_line(&mut milestone).unwrap();
+let milestone = milestone.trim();
+
+update_readme_milestone(&core_dir, &old_version, new_version, milestone)
+    .expect("Failed to update milestone");
+println!("  ✅ README.md: milestone updated");
+
+println!();
+
+// Phase 4: CHANGELOG Generation
+println!("📋 Phase 4: Generating CHANGELOG");
+
+// Get date of last release tag
+let last_tag_date = Command::new("git")
+    .args(&["log", "-1", "--format=%ai", &format!("v{}", old_version)])
+    .current_dir(&core_dir)
+    .output()
+    .ok()
+    .and_then(|out| String::from_utf8(out.stdout).ok())
+    .and_then(|s| s.split_whitespace().next().map(String::from))
+    .unwrap_or_else(|| "2026-01-15".to_string()); // Fallback
+
+// Run compile-changelog.sh
+println!("  🔄 Running compile-changelog.sh...");
+let changelog_result = Command::new("bash")
+    .arg(core_dir.join("scripts/compile-changelog.sh"))
+    .arg(&last_tag_date)
+    .current_dir(&core_dir)
+    .output();
+
+match changelog_result {
+    Ok(output) if output.status.success() => {
+        println!("  ✅ Changelog draft generated");
+    }
+    _ => {
+        println!("  ⚠️  Changelog generation failed - will use template");
+    }
+}
+
+// Ask to edit changelog
+print!("❓ Open changelog draft for editing? (y/n): ");
+io::stdout().flush().unwrap();
+let mut response = String::new();
+io::stdin().read_line(&mut response).unwrap();
+
+if response.trim().to_lowercase() == "y" {
+    let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+    Command::new(&editor)
+        .arg(core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version)))
+        .status()
+        .expect("Failed to open editor");
+    println!("  ✅ Changelog edited");
+}
+
+// Insert into main CHANGELOG
+insert_changelog(&core_dir, new_version).expect("Failed to insert changelog");
+// Auto-delete CHANGELOG draft
+let draft_path = core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version));
+if draft_path.exists() {
+    fs::remove_file(&draft_path).ok();
+}
+println!("  ✅ Inserted into CHANGELOG.md");
+
+// Get release quote
+print!("❓ Enter release quote: ");
+io::stdout().flush().unwrap();
+let mut quote = String::new();
+io::stdin().read_line(&mut quote).unwrap();
+let quote = quote.trim();
+
+add_changelog_quote(&core_dir, quote).expect("Failed to add quote");
+println!("  ✅ Quote added");
+
+println!();
+
+// Phase 5: Version History Table
+println!("📊 Phase 5: Version History Table");
+
+print!("❓ Brief description for version table: ");
+io::stdout().flush().unwrap();
+let mut table_desc = String::new();
+io::stdin().read_line(&mut table_desc).unwrap();
+let table_desc = table_desc.trim();
+
+update_version_table(&core_dir, new_version, table_desc)
+    .expect("Failed to update version table");
+println!("  ✅ Added row to README.md");
+
+println!();
+
+println!("📦 Phase 6: Git Operations");
+
+// Stage all changes
+Command::new("git")
+    .args(&["add", "-A"])
+    .current_dir(&core_dir)
+    .status()
+    .expect("Failed to stage changes");
+println!("  ✅ Changes staged");
+
+// Generate commit message
+let commit_msg = format!(
+    "🌲 Release v{} - {}\n\n{}\n\nHealth: 100%\n\n\"{}\" 🌲",
+    new_version, milestone, table_desc, quote
+);
+
+println!();
+println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println!("Preview commit message:");
+println!("{}", commit_msg);
+println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println!();
+
+print!("❓ Create commit? (y/n): ");
+io::stdout().flush().unwrap();
+let mut response = String::new();
+io::stdin().read_line(&mut response).unwrap();
+
+if response.trim().to_lowercase() != "y" {
+    println!("  ⚠️  Commit cancelled");
+    exit(0);
+}
+
+Command::new("git")
+    .args(&["commit", "-m", &commit_msg])
+    .current_dir(&core_dir)
+    .status()
+    .expect("Failed to create commit");
+println!("  ✅ Commit created");
+
+// Create tag
+print!("❓ Create git tag v{}? (y/n): ", new_version);
+io::stdout().flush().unwrap();
+let mut response = String::new();
+io::stdin().read_line(&mut response).unwrap();
+
+if response.trim().to_lowercase() == "y" {
+    Command::new("git")
+        .args(&[
+            "tag",
+            "-a",
+            &format!("v{}", new_version),
+            "-m",
+            &format!("v{} - {}", new_version, milestone),
+        ])
+        .current_dir(&core_dir)
+        .status()
+        .expect("Failed to create tag");
+    println!("  ✅ Tag v{} created", new_version);
+}
+
+// Push
+print!("❓ Push commits and tags to origin? (y/n): ");
+io::stdout().flush().unwrap();
+let mut response = String::new();
+io::stdin().read_line(&mut response).unwrap();
+
+if response.trim().to_lowercase() == "y" {
+    Command::new("git")
+        .args(&["push", "--follow-tags"])
+        .current_dir(&core_dir)
+        .status()
+        .expect("Failed to push");
+
+    println!("  ✅ Pushed commits and tags to origin/main");
+}
+
+// Phase 8: Verification
+println!("🔍 Phase 8: Post-Release Verification");
+
+let final_health = check_system_health();
+println!(
+    "  ✅ System health: {}",
+    if final_health { "100%" } else { "degraded" }
+);
+
+let final_version = get_current_version(&core_dir);
+println!("  ✅ VERSION file: {}", final_version);
+
+println!();
+println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println!("🎉 Release v{} Complete!", new_version);
+println!();
+println!("🌲 The forest evolves with intention.");
+println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
 
 fn print_help() {
@@ -396,12 +419,19 @@ fn print_help() {
     println!("    --health             Check tool health status");
     println!("    --dry-run <version>  Preview changes without applying");
     println!();
+    println!("    --minor              Auto-increment minor version (X.Y.Z → X.Y+1.0)");
+    println!("    --patch              Auto-increment patch version (X.Y.Z → X.Y.Z+1)");
+    println!("    --major              Auto-increment major version (X.Y.Z → X+1.0.0)");
+    println!();
     println!("ARGUMENTS:");
     println!("    <version>    New version (format: X.Y.Z, e.g., 8.0.0)");
     println!();
     println!("EXAMPLES:");
-    println!("    bump-system-version 8.0.0          # Full release");
-    println!("    bump-system-version --dry-run 8.0.0  # Preview only");
+    println!("    bump-system-version 8.6.0          # Manual version");
+    println!("    bump-system-version --minor        # Auto: 8.5.0 → 8.6.0");
+    println!("    bump-system-version --patch        # Auto: 8.5.0 → 8.5.1");
+    println!("    bump-system-version --major        # Auto: 8.5.0 → 9.0.0");
+    println!("    bump-system-version --dry-run 8.6.0  # Preview manual");
     println!();
     println!("WHAT IT DOES:");
     println!("    1. Pre-flight checks (health, git status)");
@@ -472,6 +502,38 @@ fn check_system_health() -> bool {
     match output {
         Ok(out) => out.status.success(),
         _ => false,
+    }
+}
+
+
+fn increment_version(current: &str, increment_type: &str) -> String {
+    let parts: Vec<&str> = current.split('.').collect();
+    if parts.len() != 3 {
+        eprintln!("❌ Invalid version format: {}", current);
+        exit(1);
+    }
+    
+    let major: u32 = parts[0].parse().unwrap_or(0);
+    let minor: u32 = parts[1].parse().unwrap_or(0);
+    let patch: u32 = parts[2].parse().unwrap_or(0);
+    
+    match increment_type {
+        "major" => format!("{}.0.0", major + 1),
+        "minor" => format!("{}.{}.0", major, minor + 1),
+        "patch" => format!("{}.{}.{}", major, minor, patch + 1),
+        _ => {
+            eprintln!("❌ Unknown increment type: {}", increment_type);
+            exit(1);
+        }
+    }
+}
+
+fn explain_increment_type(increment_type: &str) -> &str {
+    match increment_type {
+        "major" => "Major version (breaking changes, big new architecture)",
+        "minor" => "Minor version (new features, backwards compatible)",
+        "patch" => "Patch version (bug fixes, small improvements)",
+        _ => "Unknown",
     }
 }
 
