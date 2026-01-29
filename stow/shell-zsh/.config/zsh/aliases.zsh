@@ -374,6 +374,8 @@ alias term='faelight-term'
 alias f-term='faelight-term'
 alias guard='intent-guard'
 alias f-guard='intent-guard'
+alias bootstrap='faelight-bootstrap'
+alias f-bootstrap='faelight-bootstrap'
 
 # ═══════════════════════════════════════════════════════════
 # 🔧 ARCHAEOLOGY & WORKSPACE TOOLS
@@ -442,6 +444,7 @@ alias f-recent='recent-files'
 alias ver='get-version'
 alias getver='get-version'
 alias f-ver='get-version'
+alias t='teach'
 
 # ═══════════════════════════════════════════════════════════
 # 🚀 COMPOSITE WORKFLOW ALIASES (Multi-tool Chains)
