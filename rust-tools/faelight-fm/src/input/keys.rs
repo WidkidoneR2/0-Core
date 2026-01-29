@@ -65,6 +65,17 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         // Edit file in nvim
         KeyCode::Char('e') => app.edit_selected(terminal)?,
         
+        // File operations
+        KeyCode::Char('y') => {
+            app.yank_file(crate::app::YankMode::Copy);
+        },
+        KeyCode::Char('d') => {
+            app.yank_file(crate::app::YankMode::Cut);
+        },
+        KeyCode::Char('v') => {
+            app.paste_file()?;
+        },
+        
         // Search
         KeyCode::Char('/') => app.start_search(),
         

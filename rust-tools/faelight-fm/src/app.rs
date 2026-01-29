@@ -12,6 +12,32 @@ pub enum Mode {
     Command,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum YankMode {
+    Copy,  // yy - copy file
+    Cut,   // dd - move file
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MessageColor {
+    Success,  // Green - operation succeeded
+    Error,    // Red - operation failed
+    Warning,  // Yellow - zone protection, etc.
+}
+
+impl Default for YankMode {
+    fn default() -> Self {
+        YankMode::Copy
+    }
+}
+
+impl Default for MessageColor {
+    fn default() -> Self {
+        MessageColor::Success
+    }
+}
+
+
 pub struct AppState {
     pub cwd: PathBuf,
     pub entries: Vec<FaelightEntry>,
@@ -30,6 +56,10 @@ pub struct AppState {
     pub preview_path: Option<String>,  // NEW: previewed file name
     pub daemon_client: Option<DaemonClient>,  // Daemon connection
     intent_dir: PathBuf,
+    pub yanked_file: Option<PathBuf>,
+    pub yank_mode: YankMode,
+    pub status_message: Option<String>,
+    pub message_color: MessageColor,
 }
 
 impl AppState {
@@ -65,6 +95,10 @@ impl AppState {
                 }
             },
             intent_dir,
+            yanked_file: None,
+            yank_mode: YankMode::Copy,
+            status_message: None,
+            message_color: MessageColor::Success,
         };
         
         app.reload()?;
@@ -367,5 +401,96 @@ impl AppState {
         self.reload()?;
         
         Ok(())
+    }
+
+    /// Yank (copy/cut) the selected file
+    pub fn yank_file(&mut self, mode: YankMode) {
+        if let Some(entry) = self.get_selected_entry() {
+            let path = entry.path.clone();
+            let filename = path.file_name().unwrap().to_string_lossy().to_string();
+            
+            self.yanked_file = Some(path);
+            self.yank_mode = mode;
+            
+            let mode_text = match mode {
+                YankMode::Copy => "Copy",
+                YankMode::Cut => "Cut",
+            };
+            
+            self.status_message = Some(format!(
+                "Yanked: {} ({})",
+                filename,
+                mode_text
+            ));
+            self.message_color = MessageColor::Success;
+        }
+    }
+    
+    /// Paste the yanked file
+    pub fn paste_file(&mut self) -> Result<()> {
+        let src = match &self.yanked_file {
+            Some(path) => path.clone(),
+            None => {
+                self.status_message = Some("No file yanked".to_string());
+                self.message_color = MessageColor::Warning;
+                return Ok(());
+            }
+        };
+        
+        if self.zone == Zone::Core && faelight_fm::fs::is_core_locked() {
+            self.status_message = Some("Cannot modify locked Core zone".to_string());
+            self.message_color = MessageColor::Warning;
+            return Ok(());
+        }
+        
+        let filename = src.file_name().unwrap();
+        let dst = self.cwd.join(filename);
+        
+        if dst.exists() {
+            self.status_message = Some(format!(
+                "File '{}' already exists",
+                filename.to_string_lossy()
+            ));
+            self.message_color = MessageColor::Error;
+            return Ok(());
+        }
+        
+        let result = match self.yank_mode {
+            YankMode::Copy => {
+                faelight_fm::fs::copy_file(&src, &dst)?;
+                format!("Copied {}", filename.to_string_lossy())
+            }
+            YankMode::Cut => {
+                faelight_fm::fs::move_file(&src, &dst)?;
+                self.yanked_file = None;
+                format!("Moved {}", filename.to_string_lossy())
+            }
+        };
+        
+        self.status_message = Some(result);
+        self.message_color = MessageColor::Success;
+        self.reload()?;
+        
+        Ok(())
+    }
+    
+    /// Get selected entry
+    fn get_selected_entry(&self) -> Option<&FaelightEntry> {
+        if self.search_mode && !self.filtered_entries.is_empty() {
+            self.filtered_entries.get(self.selected)
+        } else {
+            self.entries.get(self.selected)
+        }
+    }
+    
+    /// Set status message
+    pub fn set_message(&mut self, msg: String, color: MessageColor) {
+        self.status_message = Some(msg);
+        self.message_color = color;
+    }
+    
+    /// Clear status message  
+    pub fn clear_message(&mut self) {
+        self.status_message = None;
     }
 }
