@@ -1,5 +1,71 @@
 # Changelog
 
+## v8.7.0 - 2026-01-29
+
+**Milestone:** alias-audit v1.0.0, bump-tool-version v1.0.0, and Starship v2.0
+
+### 🆕 New Tools (2)
+
+**alias-audit v1.0.0** - Alias Health Checker
+- Check for duplicate alias definitions
+- Verify all 38 tools have proper aliases
+- Detect excessive aliasing patterns
+- Beautiful colored output with doctor integration
+- Commands: `alias-audit`, `alias-audit duplicates`, `alias-audit missing`, `alias-audit tools`
+- Result: 301 total aliases, 100% coverage (37/37 tools)
+
+**bump-tool-version v1.0.0** - Individual Tool Version Management
+- Auto-increment support (--major, --minor, --patch)
+- Manual version specification
+- Beautiful pre-flight dashboard (like bump-system-version)
+- Handles workspace versions (converts to explicit)
+- Updates Cargo.toml + README.md automatically
+- Creates tool-specific git tags (e.g., faelight-link-v1.0.1)
+- Git commit automation with confirmation prompts
+
+### ✨ Enhanced Systems
+
+**Starship Prompt v2.0**
+- Smart path display (no duplication with zone names)
+- Git diff stats (±files, insertions/deletions)
+- Enhanced git status with counts (!2, +1, ?3, etc.)
+- Profile icons: 💼 WORK, 🎮 GAMING, 🔋 LOW-POWER, 🛠️ DEV
+- Conflict indicator: ⚔️ for merge conflicts
+- Fixed: In 0-core root shows nothing, subdirs show relative path
+
+**Alias System Overhaul**
+- Hybrid pattern: short aliases (fm, fl, bar) + f-prefix (f-fm, f-link, f-bar)
+- Fixed conflicts: fm (yazi→faelight-fm), fl (faelight→faelight-link)
+- Added missing tool aliases (guard, zone, hooks, recent, ver, etc.)
+- Profile icons support (bootstrap, t for teach)
+- Updated version header: v8.1.0 → v8.6.0
+- Total: 301 aliases covering 37/37 active tools (100%)
+
+### 📊 Statistics
+
+- Tools: 38 → 40 production tools (+2)
+- Rust code: ~108,300 → ~109,000 lines (+~700)
+- Aliases: 301 total (100% tool coverage)
+- System health: 100%
+- Commits: 4 major features
+
+### 🔧 Version Management Evolution
+
+- System versions: bump-system-version (whole forest)
+- Tool versions: bump-tool-version (individual trees)
+- Both support beautiful pre-flight dashboards
+- bump-tool-version adds auto-increment flags
+
+### 🌲 Philosophy
+
+**Manual control over automation.** Two new tools exemplify this:
+- alias-audit: Verify, don't assume
+- bump-tool-version: Intentional, granular control
+
+---
+
+**Full system health maintained at 100% throughout development.**
+
 ## v8.6.0 - 2026-01-29
 
 **Milestone:** faelight-link v1.0.0 and faelight-fm v1.0.0 - Production Ready
@@ -262,6 +328,7 @@ This release deepens 0-Core's commitment to:
 > "Built from source, protected by hooks, the forest tends its own garden." 🌲
 > "The impossible is just undiscovered architecture." 🌲
 > "From beta to production - the forest matures with intention." 🌲
+> "From aliases to versions, from paths to profiles - clarity through tooling." 🌲
 ---
 
 # v8.1.0 Release - The Garden

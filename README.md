@@ -1,17 +1,19 @@
-# 🌲 Faelight Forest v8.6.0 - Sway Edition
+# 🌲 Faelight Forest v8.7.0 - Sway Edition
 
 > **From chaos to order. From generic to intentional. From dotfiles to 0-core.**
 
 A revolutionary approach to Linux configuration management built on **numbered priority**, **semantic clarity**, and **manual control**.
 
-![Version](https://img.shields.io/badge/Version-v8.6.0-brightgreen)
+![Version](https://img.shields.io/badge/Version-v8.7.0-brightgreen)
 ![Arch](https://img.shields.io/badge/Arch-Linux-blue)
 ![Sway](https://img.shields.io/badge/Sway-1.11-green)
 ![Rust](https://img.shields.io/badge/Tools-100%25%20Rust-orange)
 ![Health](https://img.shields.io/badge/Health-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **v8.6.0 Milestone:** faelight-link v1.0.0 and faelight-fm v1.0.0 - Production Ready 🌲🦀
+> **v8.7.0 Milestone:** alias-audit v1.0.0, bump-tool-version v1.0.0, and Starship v2.0 🌲🦀
+
+**v8.6.0 Milestone:** faelight-link v1.0.0 and faelight-fm v1.0.0 - Production Ready 🌲🦀
 
 
 
