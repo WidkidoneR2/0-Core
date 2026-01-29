@@ -1,5 +1,81 @@
 # Changelog
 
+## v8.6.0 - 2026-01-29
+
+**Milestone:** faelight-link v1.0.0 and faelight-fm v1.0.0 - Production Ready
+
+### 🎉 Major Achievements
+
+Two flagship tools graduate from beta to production in a single release!
+
+### ✨ New Features
+
+**bump-system-version v6.0.0** - The Confidence Release
+- Added auto-increment flags (--minor, --patch, --major)
+- Automatic version calculation removes mental math
+- Clear explanations for each increment type
+- Version calculation shown before confirmation
+- Both manual and auto-increment modes supported
+- Enhanced help with comprehensive examples
+
+**faelight-link v1.0.0** - Production Ready!
+- Implemented unstow command (full recursive symlink removal)
+- Added audit command (comprehensive health checks)
+- Added clean command (broken link cleanup)
+- Health percentage tracking (currently 100%)
+- Safe removal with confirmation prompts
+- Complete stow replacement functionality
+
+**faelight-fm v1.0.0** - Production Ready!
+- File operations: copy (y), cut (d), paste (v)
+- Real-time status message system
+- Zone protection (locked Core enforcement)
+- Enhanced status bar with contextual feedback
+- Error handling with clear user messages
+- Better than yazi in every way
+
+### 📚 Documentation
+
+- Updated faelight-link README with production status
+- Updated faelight-fm README with production status
+- Added production badges to both tools
+- Comprehensive usage examples and keybinding references
+- "Better than yazi" comparison table
+
+### 🏗️ Code Improvements
+
+- Extracted run_release() function in bump-system-version
+- Added file operation functions to faelight-fm fs/ops.rs
+- Implemented YankMode and MessageColor enums
+- Enhanced UI status bar rendering
+- Zone lock checking for safe operations
+
+### 🎯 Philosophy
+
+"It's like aging from 17 to 18 - your whole world changes."
+
+This release removes anxiety from progression through:
+- Auto-increment removes decision fatigue
+- Status messages provide real-time feedback
+- Zone protection prevents accidents
+- Confirmation prompts maintain control
+
+### 📊 Statistics
+
+- 3 major tool upgrades
+- 2 tools from beta to production (v1.0.0)
+- 1 major version bump (v5.1.0 → v6.0.0)
+- ~650 lines of new code
+- 13 commits
+- 100% system health maintained
+- 9 hours of focused development
+
+### 🌲 The Forest Grows Stronger
+
+**Production Tools:** 36 → 38 (faelight-link, faelight-fm now production-ready)
+**System Health:** 100%
+**Confidence Level:** Maximum
+
 ## [8.5.0] - 2026-01-26
 
 ### Added
@@ -185,6 +261,7 @@ This release deepens 0-Core's commitment to:
 
 > "Built from source, protected by hooks, the forest tends its own garden." 🌲
 > "The impossible is just undiscovered architecture." 🌲
+> "From beta to production - the forest matures with intention." 🌲
 ---
 
 # v8.1.0 Release - The Garden
