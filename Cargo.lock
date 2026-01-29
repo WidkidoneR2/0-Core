@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "alias-audit"
-version = "8.6.0"
+version = "8.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "bump-tool-version"
-version = "8.6.0"
+version = "8.7.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-hooks"
-version = "8.6.0"
+version = "8.7.0"
 dependencies = [
  "anyhow",
  "clap",
