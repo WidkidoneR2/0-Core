@@ -1,0 +1,17 @@
+[package]
+name = "alias-audit"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+colored = "2.1"
+
+[[bin]]
+name = "alias-audit"
+path = "src/main.rs"

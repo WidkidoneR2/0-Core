@@ -18,6 +18,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "alias-audit"
+version = "8.6.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "aligned"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1091,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-hooks"
-version = "8.5.0"
+version = "8.6.0"
 dependencies = [
  "anyhow",
  "clap",
