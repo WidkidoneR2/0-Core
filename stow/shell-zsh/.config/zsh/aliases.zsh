@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH ALIASES
-# Version 8.1.0 - Complete Alias Collection
+# Version 8.6.0 - Complete Alias Collection
 # Total: ~270 aliases organized by category
 # ═══════════════════════════════════════════════════════════
 
@@ -81,7 +81,6 @@ alias preview='fzf --preview "bat --color=always {}"'
 # Yazi (file manager)
 alias y='yazi'
 alias yy='yazi'
-alias fm='yazi'
 
 # ═══════════════════════════════════════════════════════════
 # 📦 PACKAGE MANAGEMENT (Arch/Pacman/Yay)
@@ -200,7 +199,6 @@ alias cdreview='cdv && cdh'
 # 💻 SYSTEM MONITORING & HEALTH
 # ═══════════════════════════════════════════════════════════
 # System info
-alias ff='fastfetch'
 alias neofetch='fastfetch'
 alias sysinfo='fastfetch'
 
@@ -232,7 +230,7 @@ alias weather='curl wttr.in'
 
 # Snapshots
 alias snapshots='sudo snapper -c root list'
-alias snapshot='sudo snapper -c root create --description'
+alias snapper-create='sudo snapper -c root create --description'
 
 # ═══════════════════════════════════════════════════════════
 # 📝 EDITOR SHORTCUTS
@@ -355,13 +353,27 @@ alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 alias secrets='cd ~/secrets'
 alias entropy='entropy-check'
 alias drift='entropy-check'
-alias fl='faelight'
+alias f='faelight'
 alias lock='faelight-lock'
 alias bump='bump-system-version'
 alias prof='profile'
 alias prof-list='profile list'
 alias prof-switch='profile switch'
 alias ff='faelight-fetch'
+alias bar='faelight-bar'
+alias f-bar='faelight-bar'
+alias f-launch='faelight-launcher'
+alias dmenu='faelight-dmenu'
+alias f-dmenu='faelight-dmenu'
+alias notify='faelight-notify'
+alias f-notify='faelight-notify'
+alias f-lock='faelight-lock'
+alias menu='faelight-menu'
+alias f-menu='faelight-menu'
+alias term='faelight-term'
+alias f-term='faelight-term'
+alias guard='intent-guard'
+alias f-guard='intent-guard'
 
 # ═══════════════════════════════════════════════════════════
 # 🔧 ARCHAEOLOGY & WORKSPACE TOOLS
@@ -377,7 +389,7 @@ alias wsa='workspace-view --active'
 alias wss='workspace-view --summary'
 
 # ═══════════════════════════════════════════════════════════
-# 🆕 NEW TOOL ALIASES (v8.0.0)
+# 🆕 NEW TOOL ALIASES (v8.6.0)
 # ═══════════════════════════════════════════════════════════
 # Faelight Git Workflow
 alias fg='faelight-git'
@@ -389,7 +401,7 @@ alias fgp='faelight-git push'
 # Version & Update Info
 alias latest='latest-update'
 alias lastup='latest-update'
-alias ver='echo "🌲 Faelight Forest v8.0.0"'
+alias forest-ver='echo "🌲 Faelight Forest v8.0.0"'
 alias sysver='uname -r'
 
 # Keybinding & Config Analysis
@@ -414,6 +426,22 @@ alias intl='intent list'
 alias ints='intent show'
 alias inta='intent add'
 alias intc='intent complete'
+
+# ⭐ Production v1.0.0 Tools (NEW!)
+alias fm='faelight-fm'          # File manager v1.0.0
+alias f-fm='faelight-fm'
+alias fl='faelight-link'        # Symlink manager v1.0.0
+alias f-link='faelight-link'
+alias link='faelight-link'
+alias zone='faelight-zone'
+alias f-zone='faelight-zone'
+alias hooks='faelight-hooks'
+alias f-hooks='faelight-hooks'
+alias recent='recent-files'
+alias f-recent='recent-files'
+alias ver='get-version'
+alias getver='get-version'
+alias f-ver='get-version'
 
 # ═══════════════════════════════════════════════════════════
 # 🚀 COMPOSITE WORKFLOW ALIASES (Multi-tool Chains)
