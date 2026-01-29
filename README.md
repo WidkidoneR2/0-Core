@@ -13,43 +13,63 @@ A revolutionary approach to Linux configuration management built on **numbered p
 
 > **v8.7.0 Milestone:** alias-audit v1.0.0, bump-tool-version v1.0.0, and Starship v2.0 🌲🦀
 
-**v8.6.0 Milestone:** faelight-link v1.0.0 and faelight-fm v1.0.0 - Production Ready 🌲🦀
-
-
 
 ---
 
-## 🏆 v8.6.0 — Two Tools Graduate to Production
+## 🏆 v8.7.0 — Version Management & Alias Excellence
 
 ### ✨ What's New
 
-**🎊 Production Graduations**
+**🆕 New Production Tools**
 
-Two flagship tools transition from beta to production-ready status:
+Two powerful new tools join the ecosystem:
 
-**🔗 faelight-link v1.0.0 (Beta → Production)**
-- Complete stow replacement with zone awareness
-- Six core commands: stow, unstow, list, status, audit, clean
-- Comprehensive health monitoring (100% link health tracking)
-- Interactive conflict resolution (backup/skip/overwrite)
-- Safe removal with confirmation prompts
-- Timestamped automatic backups
+**🔍 alias-audit v1.0.0**
+- Check for duplicate alias definitions
+- Verify all 40 tools have proper aliases
+- Detect excessive aliasing patterns
+- Beautiful colored output with doctor integration
+- Commands: audit, duplicates, missing, tools
+- Result: 301 total aliases, 100% coverage (37/37 active tools)
 
-**🌲 faelight-fm v1.0.0 (Beta → Production)**
-- File operations: copy (y), cut (d), paste (v)
-- Real-time status message system
-- Zone protection (locked Core enforcement)
-- Better than yazi in every way
-- Daemon integration for universal backend
-- Intent-aware file management
+**🔧 bump-tool-version v1.0.0**
+- Individual tool version management with auto-increment
+- Auto-increment flags (--major, --minor, --patch)
+- Beautiful pre-flight dashboard (like bump-system-version)
+- Handles workspace versions (converts to explicit)
+- Updates Cargo.toml + README.md automatically
+- Creates tool-specific git tags (e.g., faelight-link-v1.0.1)
+- Companion to bump-system-version for granular control
 
-**🚀 bump-system-version v6.0.0 - The Confidence Release**
-- Auto-increment flags (--minor, --patch, --major)
-- Automatic version calculation removes mental math
-- Clear explanations for each increment type
-- Both manual and auto-increment modes supported
-- Enhanced help with comprehensive examples
-- "So easy a 5-year-old could use it"
+**✨ Starship Prompt v2.0**
+- Smart path display (no duplication with zone names)
+- Git diff stats (±files, insertions/deletions)
+- Enhanced git status with counts (!2, +1, ?3, etc.)
+- Profile icons: 💼 WORK, 🎮 GAMING, 🔋 LOW-POWER, 🛠️ DEV
+- Conflict indicator: ⚔️ for merge conflicts
+- Fixed path handling to prevent "0-CORE 0-core" duplication
+
+**📋 Alias System Overhaul**
+- Hybrid pattern: short aliases (fm, fl) + f-prefix (f-fm, f-link)
+- Fixed conflicts: fm (yazi→faelight-fm), fl (faelight→faelight-link)
+- Added missing tool aliases for complete coverage
+- Profile icon support (💼 💼 🔋 🛠️)
+- Updated from v8.1.0 to v8.7.0
+- Total: 301 aliases covering 37/37 active tools (100%)
+
+**📐 Philosophy Realized**
+
+*"Tools to tend the forest, eyes to see its paths - the ecosystem grows with intention."*
+
+This release demonstrates:
+- **Versioning granularity**: System-wide OR individual tool bumps
+- **Alias excellence**: Every tool accessible, every shortcut intentional
+- **Visual clarity**: Prompts that inform without overwhelming
+- **Manual control**: Auto-increment available, confirmation required
+
+**✅ 100% System Health**
+
+All 14 checks passing — 40 Rust tools in production (+2 new!)
 
 ### 📐 Philosophy Realized
 
@@ -89,6 +109,14 @@ Six commands: stow, unstow, list, status, audit, clean.
 Semantic file manager with file operations, zone protection, and daemon integration.
 Better than yazi: Intent tracking, spatial awareness, universal backend.
 
+**🔍 alias-audit v1.0.0** ⭐ NEW!
+Alias health checker - ensures all 40 tools have proper aliases.
+Commands: audit, duplicates, missing, tools. Result: 301 aliases, 100% coverage.
+
+**🔧 bump-tool-version v1.0.0** ⭐ NEW!
+Individual tool version management with auto-increment (--major/--minor/--patch).
+Beautiful pre-flight dashboard, handles workspace versions, creates tool-specific tags.
+
 **🦀 faelight-term v9.0.0 (Beta / WIP)**
 Terminal emulator with color emoji, copy/paste, and mouse selection.
 Actively developed — APIs and behavior may change.
@@ -107,7 +135,7 @@ Impact analysis for critical package updates.
 
 ## 🦀 The Rust Toolchain
 
-All **38** core tools are compiled Rust binaries organized in a workspace - **100% production-ready**.
+All **38** core tools are compiled Rust binaries
 
 ### Core Infrastructure (11 tools)
 
@@ -157,6 +185,8 @@ faelight-zone | Filesystem spatial awareness | v1.1.0 | ✅ Production
 **faelight-fm** | **Semantic file manager** | **v1.0.0** | **✅ Production** ⭐ NEW!
 **faelight-link** | **Zone-aware symlink manager** | **v1.0.0** | **✅ Production** ⭐ NEW!
 faelight-daemon | Universal RPC backend | v0.1.0 | ✅ Stable
+**alias-audit** | **Alias health checker** | **v1.0.0** | **✅ Production** ⭐ NEW!
+**bump-tool-version** | **Individual tool version management** | **v1.0.0** | **✅ Production** ⭐ NEW!
 
 ### Version Management (4 tools)
 
@@ -180,14 +210,13 @@ latest-update | Recently updated finder | v2.0.0 | ✅ Production
 
 ## 📊 Project Scale
 
-**Code Statistics (as of v8.6.0):**
-```
-  Rust source code:    108,300 lines  🦀 (+1,100)
+Code Statistics (as of v8.7.0):
+  Rust source code:    109,000 lines  🦀 (+700)
   Configuration files:   1,061 lines  ⚙️
   Intent documentation:  8,780 lines  🎯
   System guides:         7,269 lines  📚
   ────────────────────────────────────────────
-  Total authored:      ~125,400 lines
+  Total authored:      ~126,100 lines
 ```
 
 **Philosophy:** Every line intentional. Every decision documented. Every tool understood.
@@ -198,6 +227,7 @@ latest-update | Recently updated finder | v2.0.0 | ✅ Production
 
 Version | Date | Milestone
 --------|------|----------
+**v8.7.0** | **2026-01-29** | **alias-audit, bump-tool-version, Starship v2.0**
 **v8.6.0** | **2026-01-29** | **bump v6.0.0, faelight-link & fm v1.0.0 production**
 v8.5.0 | 2026-01-26 | Hybrid bar architecture, integrated launcher, keyboard mode switching
 v8.4.0 | 2026-01-26 | Git hooks management + source-first architecture
@@ -205,10 +235,6 @@ v8.3.0 | 2026-01-25 | Tool upgrades, terminal perfection
 v8.2.0 | 2026-01-24 | Spatial awareness, operational dashboard, faelight-term foundation
 v8.1.0 | 2026-01-23 | Interactive updates, security hardening, ecosystem integration
 v8.0.0 | 2026-01-22 | 31 tools production-ready, full audit complete
-v7.6.5 | 2026-01-19 | Tool audit quick wins
-v7.6.4 | 2026-01-19 | Release automation complete
-v7.6.3 | 2026-01-19 | Stow migration complete
-v7.0.0 | 2026-01-14 | Architectural excellence
 
 [See full version history](CHANGELOG.md)
 
