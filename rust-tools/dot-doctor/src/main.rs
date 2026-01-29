@@ -235,6 +235,15 @@ const CHECKS: &[Check] = &[
                       These protect against unauthorized access.",
         run: check_security,
     },
+    Check {
+        id: "alias_coverage",
+        name: "Alias Coverage",
+        depends_on: &[],
+        severity: Severity::Low,
+        explanation: "Verifies all Rust tools have proper shell aliases for easy access. \
+                      Uses alias-audit to check coverage and detect conflicts.",
+        run: check_alias_coverage,
+    },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -1308,5 +1317,47 @@ fn check_security(_ctx: &Context) -> CheckResult {
             None
         },
         details: if !details.is_empty() { Some(details) } else { None },
+    }
+}
+
+fn check_alias_coverage(_ctx: &Context) -> CheckResult {
+    let output = Command::new("alias-audit")
+        .arg("--doctor")
+        .output();
+    
+    if let Ok(output) = output {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        
+        if stdout.contains("✅") && stdout.contains("Alias Coverage") {
+            CheckResult {
+                id: "alias_coverage".to_string(),
+                name: "Alias Coverage".to_string(),
+                status: Status::Pass,
+                severity: Severity::Low,
+                message: stdout.lines().next().unwrap_or("All tools have aliases").trim().to_string(),
+                fix: None,
+                details: None,
+            }
+        } else {
+            CheckResult {
+                id: "alias_coverage".to_string(),
+                name: "Alias Coverage".to_string(),
+                status: Status::Warn,
+                severity: Severity::Low,
+                message: "alias-audit returned unexpected output".to_string(),
+                fix: Some("Run: alias-audit".to_string()),
+                details: None,
+            }
+        }
+    } else {
+        CheckResult {
+            id: "alias_coverage".to_string(),
+            name: "Alias Coverage".to_string(),
+            status: Status::Fail,
+            severity: Severity::Low,
+            message: "alias-audit not found".to_string(),
+            fix: Some("Rebuild: cargo build --release -p alias-audit".to_string()),
+            details: None,
+        }
     }
 }
