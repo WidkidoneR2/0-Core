@@ -115,21 +115,22 @@ disabled = false
 # ──────────────────────────────────────────────
 [custom.smart_path]
 command = '''
-# In 0-core root, show nothing (zone already shows it)
-if [[ "$PWD" == "$HOME/0-core" ]]; then
-  echo ""
+# Show relative path from 0-core if inside it
+if [[ "$PWD" == "$HOME/0-core/"* ]]; then
+  echo "${PWD#$HOME/0-core/} "
 else
-  # Show relative path from 0-core, or just basename
-  if [[ "$PWD" == "$HOME/0-core/"* ]]; then
-    echo "${PWD#$HOME/0-core/}"
-  else
-    basename "$PWD"
-  fi
+  echo "$(basename "$PWD") "
 fi
 '''
-when = "true"
-format = "[$output]($style) "
+when = '''
+zone=$(faelight-zone 2>/dev/null | sed "s/.*[[:space:]]//" | tr '[:upper:]' '[:lower:]' | tr -d '-')
+pwd_lower=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -d '-')
+# Only show if NOT in a zone root
+! [[ "$zone" == *"$pwd_lower"* ]] && ! [[ "$pwd_lower" == *"$zone"* ]]
+'''
+format = "[$output]($style)"
 style = "bold cyan"
+
 
 # ──────────────────────────────────────────────
 # 🔒 Core Lock Status (0-core only)
