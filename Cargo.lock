@@ -1117,6 +1117,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-link"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "dialoguer",
+ "faelight-zone",
+ "serde",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
 name = "faelight-lock"
 version = "1.0.0"
 dependencies = [
