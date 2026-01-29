@@ -3,6 +3,7 @@ use colored::*;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
+use crate::conflict::{Conflict, ConflictAction, resolve_conflict, backup_file};
 
 /// Create symlinks for package files
 pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
@@ -11,6 +12,7 @@ pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
     
     let mut created = 0;
     let mut skipped = 0;
+    let mut backed_up = 0;
     let mut errors = 0;
     
     for file in files {
@@ -23,14 +25,70 @@ pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
             fs::create_dir_all(parent)?;
         }
         
-        // Check if target already exists
+        // Check if target already exists (CONFLICT!)
         if target.exists() || target.is_symlink() {
-            println!("    {} {}", "⊘".bright_yellow(), relative.display());
-            skipped += 1;
+            // Create conflict
+            let conflict = Conflict::new(target.clone(), file.clone());
+            
+            // Ask user what to do
+            match resolve_conflict(&conflict)? {
+                ConflictAction::Backup => {
+                    // Backup existing file
+                    match backup_file(&target) {
+                        Ok(backup_path) => {
+                            println!("    {} {} (backed up to {})", 
+                                "💾".bright_blue(), 
+                                relative.display(),
+                                backup_path.file_name().unwrap().to_string_lossy().bright_black()
+                            );
+                            backed_up += 1;
+                            
+                            // Now create the symlink
+                            if let Err(e) = symlink(file, &target) {
+                                println!("    {} {} ({})", "✗".bright_red(), relative.display(), e);
+                                errors += 1;
+                            } else {
+                                created += 1;
+                            }
+                        }
+                        Err(e) => {
+                            println!("    {} {} (backup failed: {})", "✗".bright_red(), relative.display(), e);
+                            errors += 1;
+                        }
+                    }
+                }
+                ConflictAction::Skip => {
+                    println!("    {} {}", "⊘".bright_yellow(), relative.display());
+                    skipped += 1;
+                }
+                ConflictAction::Overwrite => {
+                    // Remove existing
+                    if target.is_symlink() || target.is_file() {
+                        fs::remove_file(&target)?;
+                    }
+                    
+                    // Create symlink
+                    match symlink(file, &target) {
+                        Ok(_) => {
+                            println!("    {} {} (overwritten)", "✓".bright_green(), relative.display());
+                            created += 1;
+                        }
+                        Err(e) => {
+                            println!("    {} {} ({})", "✗".bright_red(), relative.display(), e);
+                            errors += 1;
+                        }
+                    }
+                }
+                ConflictAction::Quit => {
+                    println!("\n  {} Operation cancelled by user", "⚠️".bright_yellow());
+                    break;
+                }
+            }
+            
             continue;
         }
         
-        // Create symlink
+        // No conflict - create symlink
         match symlink(file, &target) {
             Ok(_) => {
                 println!("    {} {}", "✓".bright_green(), relative.display());
@@ -43,13 +101,19 @@ pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
         }
     }
     
+    // Summary
     println!();
-    println!("  Created: {}", created.to_string().bright_green());
+    if created > 0 {
+        println!("  {} Created: {}", "✅".bright_green(), created);
+    }
+    if backed_up > 0 {
+        println!("  {} Backed up: {}", "💾".bright_blue(), backed_up);
+    }
     if skipped > 0 {
-        println!("  Skipped: {} (already exist)", skipped.to_string().bright_yellow());
+        println!("  {} Skipped: {}", "⊘".bright_yellow(), skipped);
     }
     if errors > 0 {
-        println!("  Errors:  {}", errors.to_string().bright_red());
+        println!("  {} Errors: {}", "✗".bright_red(), errors);
     }
     
     Ok(())
@@ -120,7 +184,6 @@ fn count_package_links(home: &str, package: &str) -> Result<usize> {
     let home_path = PathBuf::from(home);
     let mut count = 0;
     
-    // Search in home and .config
     let search_paths = vec![
         home_path.clone(),
         home_path.join(".config"),
@@ -173,7 +236,6 @@ fn count_broken_links(home: &str, package: &str) -> Result<usize> {
                     if let Ok(target) = fs::read_link(&path) {
                         let target_str = target.to_string_lossy();
                         if target_str.contains(&format!("0-core/stow/{}", package)) {
-                            // Check if target exists
                             if !path.exists() {
                                 count += 1;
                             }

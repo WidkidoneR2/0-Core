@@ -1,6 +1,6 @@
 [package]
 name = "faelight-link"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Christian"]
 
@@ -15,3 +15,4 @@ toml = "0.8"
 
 # Our ecosystem libraries
 faelight-zone = { path = "../faelight-zone" }
+chrono = "0.4"
