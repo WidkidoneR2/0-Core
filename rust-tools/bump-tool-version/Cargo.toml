@@ -1,0 +1,19 @@
+[package]
+name = "bump-tool-version"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+toml.workspace = true
+colored = "2.1"
+regex.workspace = true
+
+[[bin]]
+name = "bump-tool-version"
+path = "src/main.rs"
