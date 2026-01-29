@@ -1,15 +1,14 @@
 # ═══════════════════════════════════════════════════════════
-# 🌲 Starship Config - Faelight Forest (Omarchy Edition)
-# Clean, aesthetic, performant prompt for Hyprland users
-# Fixed to remove broken custom modules and literal prints
-# ────────────────────────────────────────────────────────────
+# 🌲 Starship Config - Faelight Forest v8.6.0
+# Enhanced with git diff stats, profile icons, and health monitoring
+# ═══════════════════════════════════════════════════════════
 
 "$schema" = "https://starship.rs/config-schema.json"
 
 # Main prompt
 format = """
 [┌─](bold green) \
-${custom.faelight_zone}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile}$git_branch$git_status$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
+${custom.faelight_zone}${custom.smart_path}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile_enhanced}${custom.health_status}$git_branch$git_status${custom.git_diff_stats}$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
 [└─](bold green)$character
 """
 
@@ -30,8 +29,9 @@ vimcmd_symbol  = "[❮](bold green)"
 [os]
 disabled = false
 format = "[$symbol](bold green) "
+
 [os.symbols]
-Arch = " "
+Arch = " "
 
 # ──────────────────────────────────────────────
 # Username + Hostname
@@ -41,55 +41,49 @@ show_always = true
 style_user = "bold blue"
 style_root = "bold red"
 format = "[$user]($style) "
+
 [hostname]
 ssh_only = true
 format = "[@$hostname](bold green) "
 
 # ──────────────────────────────────────────────
-# Directory
-# ──────────────────────────────────────────────
-[directory]
-style = "bold cyan"
-truncation_length = 3
-truncate_to_repo = true
-home_symbol = "~"
-read_only = "󰌾"
-read_only_style = "bold red"
-format = "[$path]($style)[$read_only]($read_only_style) "
-
-# ──────────────────────────────────────────────
-# Git
+# Git Branch
 # ──────────────────────────────────────────────
 [git_branch]
-symbol = " "
+symbol = " "
 style  = "bold purple"
 format = "[$symbol$branch]($style) "
 
+# ──────────────────────────────────────────────
+# Git Status - Enhanced with counts
+# ──────────────────────────────────────────────
 [git_status]
 style = "yellow"
 format = '([\[$all_status$ahead_behind\]]($style) )'
-conflicted = "[=](bold red)"
+conflicted = "[⚔](bold red)"
 ahead      = "⇡${count}"
 behind     = "⇣${count}"
 diverged   = "⇕⇡${ahead_count}⇣${behind_count}"
-untracked  = "[?](yellow)"
-stashed    = "[](cyan)"
-modified   = "[!](bold red)"
-staged     = "[+](bold green)"
-renamed    = "[»](purple)"
-deleted    = "[✘](red)"
+untracked  = "[?${count}](yellow)"
+stashed    = "[${count}](cyan)"
+modified   = "[!${count}](bold red)"
+staged     = "[+${count}](bold green)"
+renamed    = "[»${count}](purple)"
+deleted    = "[✘${count}](red)"
 
 # ──────────────────────────────────────────────
 # Node / Python / Rust
 # ──────────────────────────────────────────────
 [nodejs]
-symbol = " "
+symbol = " "
 style  = "bold green"
 format = "[$symbol($version )]($style)"
+
 [python]
-symbol = " "
+symbol = " "
 style  = "bold yellow"
 format = "[$symbol($version )]($style)"
+
 [rust]
 symbol = "󱘗 "
 style  = "bold red"
@@ -112,6 +106,31 @@ symbol = "✘ "
 format = "[$symbol$status]($style) "
 disabled = false
 
+# ══════════════════════════════════════════════════════════
+# 🌲 FAELIGHT FOREST CUSTOM MODULES
+# ══════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────
+# Smart Path - Don't duplicate zone name
+# ──────────────────────────────────────────────
+[custom.smart_path]
+command = '''
+# In 0-core root, show nothing (zone already shows it)
+if [[ "$PWD" == "$HOME/0-core" ]]; then
+  echo ""
+else
+  # Show relative path from 0-core, or just basename
+  if [[ "$PWD" == "$HOME/0-core/"* ]]; then
+    echo "${PWD#$HOME/0-core/}"
+  else
+    basename "$PWD"
+  fi
+fi
+'''
+when = "true"
+format = "[$output]($style) "
+style = "bold cyan"
+
 # ──────────────────────────────────────────────
 # 🔒 Core Lock Status (0-core only)
 # ──────────────────────────────────────────────
@@ -121,12 +140,64 @@ when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
 format = "[$output]($style) "
 style = "bold yellow"
 
-[custom.profile]
-command = 'cat ~/.local/state/0-core/current-profile 2>/dev/null || echo ""'
+# ──────────────────────────────────────────────
+# 🎯 Enhanced Profile with Icons
+# ──────────────────────────────────────────────
+[custom.profile_enhanced]
+command = '''
+profile=$(cat ~/.local/state/0-core/current-profile 2>/dev/null || echo "default")
+case "$profile" in
+  work) echo "💼 WORK" ;;
+  gaming) echo "🎮 GAMING" ;;
+  low-power) echo "🔋 LOW-POWER" ;;
+  dev)  echo "🛠️  DEV" ;;
+  default) echo "" ;;
+  *) echo "🌱 $profile" ;;
+esac
+'''
 when = '[[ -f ~/.local/state/0-core/current-profile ]] && [[ "$(cat ~/.local/state/0-core/current-profile)" != "default" ]]'
-format = "[($output)]($style) "
+format = "[$output]($style) "
 style = "bold cyan"
 
+# ──────────────────────────────────────────────
+# 🏥 Health Status (0-core only, optional)
+# ──────────────────────────────────────────────
+[custom.health_status]
+command = '''
+if command -v doctor >/dev/null 2>&1; then
+  health=$(doctor 2>/dev/null | grep "Health:" | awk "{print \$2}" | tr -d "%")
+  if [ -n "$health" ]; then
+    if [ "$health" -eq 100 ]; then
+      echo "🟢 ${health}%"
+    elif [ "$health" -ge 90 ]; then
+      echo "🟡 ${health}%"
+    else
+      echo "🔴 ${health}%"
+    fi
+  fi
+fi
+'''
+when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+format = "[$output]($style) "
+style = "bold white"
+
+# ──────────────────────────────────────────────
+# 📊 Git Diff Stats
+# ──────────────────────────────────────────────
+[custom.git_diff_stats]
+command = '''
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  stats=$(git diff --stat 2>/dev/null | tail -1)
+  if [ -n "$stats" ]; then
+    files=$(echo "$stats" | awk "{print \$1}")
+    changes=$(echo "$stats" | sed "s/.*,//")
+    echo "±$files $changes"
+  fi
+fi
+'''
+when = 'git rev-parse --git-dir >/dev/null 2>&1'
+format = "[($output)]($style) "
+style = "bold magenta"
 
 # ──────────────────────────────────────────────
 # Faelight Zone - Spatial Awareness
@@ -139,7 +210,7 @@ style = "bold green"
 description = "Shows current filesystem zone"
 
 # ──────────────────────────────────────────────
-# Cargo Root Detection - Prevent Build Mistakes
+# Cargo Root Detection
 # ──────────────────────────────────────────────
 [custom.cargo_root]
 command = 'test -f Cargo.toml && echo "📦 root" || echo "↳ subdir"'
@@ -149,7 +220,7 @@ style = "bold yellow"
 description = "Shows if you're in cargo root or subdirectory"
 
 # ──────────────────────────────────────────────
-# Intent Ledger - Open Incidents Awareness
+# Intent Ledger - Open Incidents
 # ──────────────────────────────────────────────
 [custom.intent_incidents]
 command = 'intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l'
@@ -159,11 +230,7 @@ style = "bold red"
 description = "Shows count of open Intent Ledger incidents"
 
 # ──────────────────────────────────────────────
-# Enhanced Git Status - Show Counts & Details
-# ──────────────────────────────────────────────
-
-# ──────────────────────────────────────────────
-# Rust Toolchain - Version When rust-toolchain.toml Exists
+# Rust Toolchain
 # ──────────────────────────────────────────────
 [custom.rust_toolchain]
 command = 'rustc --version | cut -d" " -f2'
@@ -171,7 +238,3 @@ when = '[ -f rust-toolchain.toml ]'
 format = "[🦀 $output]($style) "
 style = "bold red"
 description = "Shows Rust version when rust-toolchain.toml exists"
-
-# ──────────────────────────────────────────────
-# Rust Toolchain - Version When rust-toolchain.toml Exists
-# ──────────────────────────────────────────────
