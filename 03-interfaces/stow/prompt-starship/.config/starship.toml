@@ -8,7 +8,7 @@
 # Main prompt
 format = """
 [┌─](bold green) \
-${custom.faelight_zone}${custom.smart_path}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile_enhanced}${custom.health_status} $git_branch $git_status${custom.git_diff_stats}$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
+${custom.faelight_zone}${custom.smart_path}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile_enhanced}${custom.health_dots}${custom.entropy}${custom.git_risk} $git_branch $git_status${custom.git_diff_stats}$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
 [└─](bold green)$character
 """
 
@@ -242,3 +242,120 @@ when = '[ -f rust-toolchain.toml ]'
 format = "[🦀 $output]($style) "
 style = "bold red"
 description = "Shows Rust version when rust-toolchain.toml exists"
+
+# ──────────────────────────────────────────────
+# 🏥 Health Dots - Signal Only (0-core only)
+# ──────────────────────────────────────────────
+[custom.health_dots]
+command = '''
+if command -v doctor >/dev/null 2>&1; then
+  output=$(doctor 2>/dev/null)
+  health=$(echo "$output" | grep "Health:" | awk "{print \$2}" | tr -d "%")
+  
+  if [ -n "$health" ] && [ "$health" -lt 100 ]; then
+    warnings=$(echo "$output" | grep -c "⚠️")
+    failures=$(echo "$output" | grep -c "❌")
+    total=15
+    bad=$((warnings + failures))
+    good=$((total - bad))
+    
+    dots=""
+    for i in $(seq 1 $good); do dots="${dots}✔︎"; done
+    for i in $(seq 1 $bad); do dots="${dots}◐"; done
+    
+    echo "$dots"
+  fi
+fi
+'''
+when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+format = "[$output]($style) "
+style = "bold white"
+
+# ──────────────────────────────────────────────
+# 🌀 Entropy Meter - System Drift Indicator
+# ──────────────────────────────────────────────
+[custom.entropy]
+command = '''
+if [ "${PWD##$HOME/0-core}" != "$PWD" ]; then
+  entropy_score=0
+  
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    uncommitted=$(git status --porcelain 2>/dev/null | wc -l)
+    unpushed=$(git log @{u}.. 2>/dev/null | wc -l)
+    entropy_score=$((entropy_score + uncommitted + unpushed))
+  fi
+  
+  if command -v doctor >/dev/null 2>&1; then
+    health=$(doctor 2>/dev/null | grep "Health:" | awk "{print \$2}" | tr -d "%")
+    if [ -n "$health" ]; then
+      degradation=$((100 - health))
+      entropy_score=$((entropy_score + degradation * 2))
+    fi
+  fi
+  
+  if command -v intent >/dev/null 2>&1; then
+    intents=$(intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l)
+    entropy_score=$((entropy_score + intents * 10))
+  fi
+  
+  if [ "$entropy_score" -ge 50 ]; then
+    echo "🌀unstable"
+  elif [ "$entropy_score" -ge 20 ]; then
+    echo "🌀rising"
+  fi
+fi
+'''
+when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+format = "[$output]($style) "
+style = "bold cyan"
+
+# ──────────────────────────────────────────────
+# ⚠️  Git Risk - Show blast radius and danger
+# ──────────────────────────────────────────────
+[custom.git_risk]
+command = '''
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  unpushed=$(git log @{u}.. 2>/dev/null | wc -l)
+  uncommitted=$(git status --porcelain 2>/dev/null | wc -l)
+  untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
+  
+  in_core=false
+  if [[ "$PWD" == *"0-core"* ]]; then
+    in_core=true
+  fi
+  
+  risk="LOW"
+  if [ "$uncommitted" -gt 10 ] || [ "$unpushed" -gt 5 ]; then
+    risk="MED"
+  fi
+  if [ "$uncommitted" -gt 20 ] || [ "$unpushed" -gt 10 ] || [ "$untracked" -gt 10 ]; then
+    risk="HIGH"
+  fi
+  if [ "$in_core" = true ] && [ "$uncommitted" -gt 0 ]; then
+    if [ "$risk" = "LOW" ]; then
+      risk="MED"
+    fi
+  fi
+  
+  if [ "$uncommitted" -gt 0 ] || [ "$unpushed" -gt 0 ] || [ "$untracked" -gt 0 ]; then
+    msg="git:"
+    if [ "$risk" = "HIGH" ]; then
+      msg="${msg}⚠︎ RISK=HIGH"
+    elif [ "$risk" = "MED" ]; then
+      msg="${msg}⚠︎ risk=MED"
+    else
+      msg="${msg}risk=LOW"
+    fi
+    
+    details=""
+    [ "$unpushed" -gt 0 ] && details="${details} ${unpushed}↑"
+    [ "$uncommitted" -gt 0 ] && details="${details} ${uncommitted}±"
+    [ "$untracked" -gt 0 ] && details="${details} ${untracked}?"
+    
+    echo "${msg}${details}"
+  fi
+fi
+'''
+when = 'git rev-parse --git-dir >/dev/null 2>&1'
+format = "[$output]($style) "
+style = "bold yellow"
