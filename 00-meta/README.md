@@ -2,10 +2,12 @@
 
 **A production-grade Linux environment built with 40 Rust tools and intentional computing principles.**
 
-[![Version](https://img.shields.io/badge/version-8.7.0-green.svg)](https://github.com/WidkidoneR2/0-Core)
+[![Version](https://img.shields.io/badge/version-8.8.0-green.svg)](https://github.com/WidkidoneR2/0-Core)
 [![Health](https://img.shields.io/badge/health-100%25-brightgreen.svg)](https://github.com/WidkidoneR2/0-Core)
 [![Rust](https://img.shields.io/badge/rust-109k%20lines-orange.svg)](https://github.com/WidkidoneR2/0-Core)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+> **v8.8.0 Milestone:** Numbered Gravity Architecture + faelight-update v2.0.0 (Linus-approved restructuring) 🌲🦀
 
 ---
 
