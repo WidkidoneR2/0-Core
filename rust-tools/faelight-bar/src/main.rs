@@ -29,6 +29,7 @@ use std::process::Command;
 use std::fs;
 use std::env;
 
+mod paths;
 mod state;
 mod render;
 mod input;
