@@ -1,0 +1,21 @@
+# System Profile Configurations
+
+[[profile]]
+name = "default"
+emoji = "🌱"
+description = "Default system profile"
+
+[[profile]]
+name = "work"
+emoji = "💼"
+description = "Work profile"
+
+[[profile]]
+name = "gaming"
+emoji = "🎮"
+description = "Gaming profile"
+
+[[profile]]
+name = "low-power"
+emoji = "🔋"
+description = "Low power profile"

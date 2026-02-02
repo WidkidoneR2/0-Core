@@ -1,4 +1,0 @@
-package: profiles
-version: 1.0.0
-description: Profile definitions and switching logic
-blast_radius: medium

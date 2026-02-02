@@ -1,0 +1,36 @@
+# Zone System Configuration
+
+[[zone]]
+id = "0-core"
+name = "Core"
+path = "~/0-core"
+protected = true
+emoji = "🔒"
+
+[[zone]]
+id = "1-src"
+name = "SRC"
+path = "~/1-src"
+protected = false
+emoji = "🌲"
+
+[[zone]]
+id = "2-projects"
+name = "Proj"
+path = "~/2-projects"
+protected = false
+emoji = "📁"
+
+[[zone]]
+id = "3-archive"
+name = "ARCH"
+path = "~/3-archive"
+protected = false
+emoji = "📦"
+
+[[zone]]
+id = "downloads"
+name = "SCR"
+path = "~/Downloads"
+protected = false
+emoji = "💾"
