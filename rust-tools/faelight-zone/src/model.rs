@@ -22,7 +22,7 @@ impl Zone {
 
     pub fn icon(&self) -> &'static str {
         match self {
-            Zone::Core      => "🔒",
+            Zone::Core      => "🌲",
             Zone::Workspace => "🦀",
             Zone::Src       => "🛠",
             Zone::Project   => "💼",
