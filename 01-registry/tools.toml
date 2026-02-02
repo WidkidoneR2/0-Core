@@ -1,40 +1,243 @@
 # 0-Core Rust Tools Registry
 # Canonical source of truth for all production tools
+# This registry defines the complete tool ecosystem
 
 [[tool]]
 name = "alias-audit"
 version = "1.0.0"
-status = "production"
 category = "development"
+description = "Audits shell aliases for coverage and conflicts"
 
 [[tool]]
 name = "archaeology-0-core"
 version = "1.0.0"
-status = "production"
 category = "development"
+description = "Analyzes 0-core history and evolution"
 
 [[tool]]
 name = "bump-system-version"
 version = "6.0.0"
-status = "production"
 category = "versioning"
+description = "Increments system version with pre-flight checks"
 
 [[tool]]
 name = "bump-tool-version"
 version = "1.0.0"
-status = "production"
 category = "versioning"
+description = "Increments individual tool versions"
+
+[[tool]]
+name = "core-diff"
+version = "1.0.0"
+category = "development"
+description = "Shows changes in 0-core with policy awareness"
+
+[[tool]]
+name = "core-protect"
+version = "1.0.0"
+category = "security"
+description = "Protects 0-core from accidental modifications"
 
 [[tool]]
 name = "dot-doctor"
 version = "0.5.0"
-status = "production"
 category = "monitoring"
+description = "Health engine with 15 system checks"
+
+[[tool]]
+name = "dotctl"
+version = "1.0.0"
+category = "management"
+description = "Unified dotfile management interface"
+
+[[tool]]
+name = "entropy-check"
+version = "1.0.0"
+category = "monitoring"
+description = "Detects configuration drift"
+
+[[tool]]
+name = "faelight"
+version = "1.0.0"
+category = "core"
+description = "Unified CLI frontend for all Faelight tools"
+
+[[tool]]
+name = "faelight-bar"
+version = "2.0.0"
+category = "desktop"
+description = "Custom Wayland status bar"
+
+[[tool]]
+name = "faelight-bootstrap"
+version = "1.0.0"
+category = "automation"
+description = "One-command system setup"
+
+[[tool]]
+name = "faelight-core"
+version = "1.0.0"
+category = "core"
+description = "Shared library for all Faelight tools"
+
+[[tool]]
+name = "faelight-daemon"
+version = "1.0.0"
+category = "desktop"
+description = "Background daemon for system services"
+
+[[tool]]
+name = "faelight-dashboard"
+version = "1.0.0"
+category = "desktop"
+description = "System overview dashboard"
+
+[[tool]]
+name = "faelight-dmenu"
+version = "1.0.0"
+category = "desktop"
+description = "Application launcher and menu system"
+
+[[tool]]
+name = "faelight-fetch"
+version = "1.0.0"
+category = "automation"
+description = "Intelligent file fetcher"
+
+[[tool]]
+name = "faelight-fm"
+version = "1.0.0"
+category = "desktop"
+description = "File manager (better than yazi)"
+
+[[tool]]
+name = "faelight-git"
+version = "2.0.0"
+category = "development"
+description = "Git workflow automation with risk scoring"
+
+[[tool]]
+name = "faelight-hooks"
+version = "1.0.0"
+category = "development"
+description = "Git hook management system"
+
+[[tool]]
+name = "faelight-launcher"
+version = "1.0.0"
+category = "desktop"
+description = "Application launcher with fuzzy search"
+
+[[tool]]
+name = "faelight-link"
+version = "1.0.0"
+category = "management"
+description = "Zone-aware symlink manager (stow replacement)"
+
+[[tool]]
+name = "faelight-lock"
+version = "1.0.0"
+category = "desktop"
+description = "Screen locker"
+
+[[tool]]
+name = "faelight-menu"
+version = "1.0.0"
+category = "desktop"
+description = "Power menu"
+
+[[tool]]
+name = "faelight-notify"
+version = "1.0.0"
+category = "desktop"
+description = "Notification daemon"
+
+[[tool]]
+name = "faelight-snapshot"
+version = "1.0.0"
+category = "automation"
+description = "BTRFS snapshot management"
+
+[[tool]]
+name = "faelight-stow"
+version = "1.0.0"
+category = "management"
+description = "GNU Stow integration"
+
+[[tool]]
+name = "faelight-term"
+version = "1.0.0"
+category = "desktop"
+description = "Custom terminal emulator"
 
 [[tool]]
 name = "faelight-update"
 version = "1.0.0"
-status = "production"
 category = "automation"
+description = "Comprehensive package updater (better than topgrade)"
 
-# TODO: Add remaining 34 tools
+[[tool]]
+name = "faelight-zone"
+version = "1.0.0"
+category = "management"
+description = "Zone management system"
+
+[[tool]]
+name = "get-version"
+version = "1.0.0"
+category = "versioning"
+description = "Retrieves package/system versions"
+
+[[tool]]
+name = "intent"
+version = "1.0.0"
+category = "development"
+description = "Intent ledger management CLI"
+
+[[tool]]
+name = "intent-guard"
+version = "1.0.0"
+category = "security"
+description = "Command safety verification"
+
+[[tool]]
+name = "keyscan"
+version = "1.0.0"
+category = "desktop"
+description = "Keybinding scanner"
+
+[[tool]]
+name = "latest-update"
+version = "1.0.0"
+category = "monitoring"
+description = "Shows most recent package updates"
+
+[[tool]]
+name = "profile"
+version = "1.0.0"
+category = "management"
+description = "System profile switcher"
+
+[[tool]]
+name = "recent-files"
+version = "1.0.0"
+category = "desktop"
+description = "Recent files tracker"
+
+[[tool]]
+name = "safe-update"
+version = "1.0.0"
+category = "automation"
+description = "Safe system update wrapper"
+
+[[tool]]
+name = "teach"
+version = "1.0.0"
+category = "education"
+description = "Interactive teaching mode"
+
+[[tool]]
+name = "workspace-view"
+version = "1.0.0"
+category = "desktop"
+description = "Workspace overview display"
