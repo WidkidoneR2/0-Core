@@ -237,3 +237,146 @@ Go through each of 40 tools:
 - Shows maturity: "I took your feedback, restructured, AND made it resilient"
 - Demonstrates intentional computing: not just fixing, but preventing
 - Sets foundation for future evolution
+
+## The Bigger Picture: Tool Ecosystem Evolution
+
+### Current State: 40 Independent Tools
+Each tool reimplements:
+- ❌ Path resolution
+- ❌ Config reading
+- ❌ Error handling
+- ❌ UI patterns (colors, formatting)
+- ❌ Git operations
+- ❌ Health checks
+- ❌ Version reading
+
+**This creates:**
+- Code duplication (same logic in 10 tools)
+- Inconsistent behavior (different error messages)
+- Maintenance burden (fix bug in 10 places)
+- Fragility (one tool works, another breaks)
+
+### Future State: Integrated Ecosystem
+Tools share common infrastructure:
+```
+faelight-core/
+├── paths.rs          # Path constants (this intent)
+├── config.rs         # Config reading/writing
+├── errors.rs         # Unified error types
+├── ui.rs             # Color schemes, formatting
+├── git.rs            # Git operations
+├── health.rs         # Health check framework
+├── version.rs        # Version management
+└── zones.rs          # Zone system
+```
+
+**Benefits:**
+- ✅ Fix once, all tools benefit
+- ✅ Consistent UX across all tools
+- ✅ Tools can call each other (composability)
+- ✅ New tools are easy to build
+- ✅ System evolves as one unit
+
+### Tool Dependency Layers
+
+**Layer 1: Core Infrastructure** (faelight-core)
+- Provides: paths, config, errors, UI
+- Used by: everyone
+
+**Layer 2: Domain Services**
+- faelight-git: Git operations
+- faelight-link: Symlink management
+- dot-doctor: Health framework
+- All use Layer 1
+
+**Layer 3: User-Facing Tools**
+- bump-system-version: uses core + git
+- faelight-update: uses core + git + doctor
+- faelight-bar: uses core + health
+- All use Layer 1 + Layer 2
+
+**Layer 4: Meta Tools**
+- faelight: CLI router (calls other tools)
+- teach: Educational wrapper
+- Use all layers
+
+### Natural Interdependency Examples
+
+**Example 1: bump-system-version calls doctor**
+```rust
+// Instead of: running `doctor` as subprocess
+// Do: use dot_doctor::run_health_check()
+
+use faelight_core::{paths, version};
+use dot_doctor::health;
+
+let health = health::check_all()?;
+if health.percent < 100 {
+    return Err("Cannot bump with system warnings");
+}
+```
+
+**Example 2: faelight-update uses faelight-git**
+```rust
+// Instead of: running `fg status` as subprocess
+// Do: use faelight_git::status()
+
+use faelight_git::repository;
+
+let repo = repository::open(paths::core_dir())?;
+if repo.has_unpushed_commits()? {
+    println!("⚠️  Git: Commits need push");
+}
+```
+
+**Example 3: All tools use shared config**
+```rust
+// Instead of: each tool reading ~/.config/faelight/config.toml
+// Do: use faelight_core::config
+
+use faelight_core::config::Config;
+
+let config = Config::load()?;
+let theme = config.theme(); // Consistent colors across all tools
+```
+
+### Implementation Strategy
+
+**Phase 1: Foundation (Months 1-2)**
+- Create robust faelight-core with paths, config, errors, UI
+- Migrate 5 critical tools to use it
+- Prove the pattern works
+
+**Phase 2: Domain Services (Month 3)**
+- Refactor faelight-git, faelight-link, dot-doctor into libraries
+- Make them usable by other tools (not just binaries)
+- Create clean APIs
+
+**Phase 3: Integration (Month 4)**
+- Migrate all 40 tools to use shared infrastructure
+- Tools call each other directly (not via subprocess)
+- Remove code duplication
+
+**Phase 4: Polish (Month 5)**
+- Documentation
+- Testing
+- Linus demo prep
+
+### Success Metrics
+- [ ] Lines of duplicated code: 0
+- [ ] Tools sharing faelight-core: 40/40
+- [ ] Tools with hardcoded paths: 0/40
+- [ ] Inter-tool dependencies: 20+ (natural composition)
+- [ ] Time to build new tool: <1 hour (because infrastructure exists)
+
+### The Linus Pitch
+
+**"I didn't just build 40 tools. I built an ecosystem."**
+
+Show him:
+1. **Numbered gravity** - Structure teaches
+2. **Shared infrastructure** - Tools compose naturally
+3. **Intentional evolution** - Not just adding features, architecting systems
+4. **Rust benefits** - Zero-cost abstractions make this possible
+
+This demonstrates **systems thinking** - the difference between a collection of scripts and a coherent platform.
