@@ -225,11 +225,14 @@ description = "Shows if you're in cargo root or subdirectory"
 # ──────────────────────────────────────────────
 [custom.intent_incidents]
 command = 'intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l'
-when = 'command -v intent >/dev/null && [ "$(intent list incidents --open 2>/dev/null | wc -l)" -gt 0 ]'
-format = "[⚠ $output open]($style)"
+when = '''
+command -v intent >/dev/null 2>&1 && \
+count=$(intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l) && \
+[ "$count" -gt 0 ]
+'''
+format = "[⚠ $output open]($style) "
 style = "bold red"
-description = "Shows count of open Intent Ledger incidents"
-
+description = "Shows count of open Intent Ledger incidents (only when >0)"
 # ──────────────────────────────────────────────
 # Rust Toolchain
 # ──────────────────────────────────────────────
