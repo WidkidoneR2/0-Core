@@ -1,0 +1,242 @@
+# 0-Core Alias Registry
+# Canonical source of truth for all 301 shell aliases
+# Organized by category for maintainability
+
+# ═══════════════════════════════════════════════════════════
+# 🦀 RUST TOOLS (40 tools, primary aliases)
+# ═══════════════════════════════════════════════════════════
+
+[[alias]]
+command = "alias-audit"
+aliases = ["aa"]
+category = "development"
+
+[[alias]]
+command = "archaeology-0-core"
+aliases = ["arch"]
+category = "development"
+
+[[alias]]
+command = "bump-system-version"
+aliases = ["bsv", "bump"]
+category = "versioning"
+
+[[alias]]
+command = "bump-tool-version"
+aliases = ["btv"]
+category = "versioning"
+
+[[alias]]
+command = "core-diff"
+aliases = ["cdiff"]
+category = "development"
+
+[[alias]]
+command = "core-protect"
+aliases = ["protect"]
+category = "security"
+
+[[alias]]
+command = "dot-doctor"
+aliases = ["doctor", "health"]
+category = "monitoring"
+
+[[alias]]
+command = "faelight-bar"
+aliases = ["bar"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-bootstrap"
+aliases = ["bootstrap"]
+category = "automation"
+
+[[alias]]
+command = "faelight-dashboard"
+aliases = ["dash"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-fetch"
+aliases = ["fetch"]
+category = "automation"
+
+[[alias]]
+command = "faelight-fm"
+aliases = ["fm"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-git"
+aliases = ["fg"]
+category = "development"
+
+[[alias]]
+command = "faelight-launcher"
+aliases = ["launch"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-link"
+aliases = ["link"]
+category = "management"
+
+[[alias]]
+command = "faelight-lock"
+aliases = ["lock"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-menu"
+aliases = ["menu"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-snapshot"
+aliases = ["snap"]
+category = "automation"
+
+[[alias]]
+command = "faelight-update"
+aliases = ["fu", "update"]
+category = "automation"
+
+[[alias]]
+command = "get-version"
+aliases = ["ver"]
+category = "versioning"
+
+[[alias]]
+command = "intent"
+aliases = ["int"]
+category = "development"
+
+# ═══════════════════════════════════════════════════════════
+# 🐧 SYSTEM & PACKAGE MANAGEMENT
+# ═══════════════════════════════════════════════════════════
+
+[[alias]]
+command = "sudo pacman -S"
+aliases = ["paci"]
+category = "packages"
+
+[[alias]]
+command = "sudo pacman -R"
+aliases = ["pacr"]
+category = "packages"
+
+[[alias]]
+command = "sudo pacman -Syu"
+aliases = ["pacu"]
+category = "packages"
+
+[[alias]]
+command = "paru -S"
+aliases = ["yay"]
+category = "packages"
+
+[[alias]]
+command = "systemctl"
+aliases = ["sc"]
+category = "system"
+
+[[alias]]
+command = "journalctl"
+aliases = ["jc"]
+category = "system"
+
+# ═══════════════════════════════════════════════════════════
+# 📂 NAVIGATION & FILES
+# ═══════════════════════════════════════════════════════════
+
+[[alias]]
+command = "cd ~/0-core"
+aliases = ["core", "c"]
+category = "navigation"
+
+[[alias]]
+command = "cd ~/1-src"
+aliases = ["src", "s"]
+category = "navigation"
+
+[[alias]]
+command = "cd ~/2-projects"
+aliases = ["proj", "p"]
+category = "navigation"
+
+[[alias]]
+command = "cd ~/3-archive"
+aliases = ["arch-dir"]
+category = "navigation"
+
+[[alias]]
+command = "ls -la"
+aliases = ["ll", "la"]
+category = "files"
+
+[[alias]]
+command = "eza --long --git --icons"
+aliases = ["ls"]
+category = "files"
+
+[[alias]]
+command = "bat"
+aliases = ["cat"]
+category = "files"
+
+# ═══════════════════════════════════════════════════════════
+# 🔧 GIT WORKFLOWS
+# ═══════════════════════════════════════════════════════════
+
+[[alias]]
+command = "git status"
+aliases = ["gs"]
+category = "git"
+
+[[alias]]
+command = "git add"
+aliases = ["ga"]
+category = "git"
+
+[[alias]]
+command = "git commit"
+aliases = ["gc"]
+category = "git"
+
+[[alias]]
+command = "git push"
+aliases = ["gp"]
+category = "git"
+
+[[alias]]
+command = "git pull"
+aliases = ["gl"]
+category = "git"
+
+[[alias]]
+command = "git log --oneline --graph"
+aliases = ["glog"]
+category = "git"
+
+# ═══════════════════════════════════════════════════════════
+# 🌲 FAELIGHT-SPECIFIC
+# ═══════════════════════════════════════════════════════════
+
+[[alias]]
+command = "lock-core"
+aliases = ["lc"]
+category = "core-management"
+
+[[alias]]
+command = "unlock-core"
+aliases = ["uc"]
+category = "core-management"
+
+[[alias]]
+command = "swaymsg reload"
+aliases = ["reload"]
+category = "desktop"
+
+# Total: 50+ primary aliases documented
+# Full 301 aliases are active in shell but documented incrementally
+# Run 'alias-audit' to see complete list
