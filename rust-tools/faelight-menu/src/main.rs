@@ -376,12 +376,20 @@ impl MenuState {
                 Command::new("swaylock").spawn().ok();
             }
             "reboot" => {
-                // Call graceful-reboot - it handles Sway exit itself
-                Command::new(crate::paths::graceful_reboot()).spawn().ok();
+                // Use setsid to detach from Sway's process tree (survives Sway death)
+                Command::new("setsid")
+                    .arg("--fork")
+                    .arg(crate::paths::graceful_reboot())
+                    .spawn()
+                    .ok();
             }
             "shutdown" => {
-                // Call graceful-poweroff - it handles Sway exit itself
-                Command::new(crate::paths::graceful_poweroff()).spawn().ok();
+                // Use setsid to detach from Sway's process tree (survives Sway death)
+                Command::new("setsid")
+                    .arg("--fork")
+                    .arg(crate::paths::graceful_poweroff())
+                    .spawn()
+                    .ok();
             }
             _ => {}
         }
