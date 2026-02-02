@@ -1,9 +1,10 @@
-//! faelight-stow v0.3.0 - Stow Verification (Auto-discovery)
+//! faelight-stow v1.0.0 - Stow Verification (Auto-discovery)
 //! 🌲 Faelight Forest
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+mod paths;
 
 #[derive(Debug)]
 struct Issue {
@@ -25,17 +26,17 @@ fn main() {
     }
     
     if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
-        println!("faelight-stow v0.3.0");
+        println!("faelight-stow v1.0.0");
         return;
     }
     
     if !quiet {
-        eprintln!("🔗 faelight-stow v0.3.0 - Verifying symlinks...");
+        eprintln!("🔗 faelight-stow v1.0.0 - Verifying symlinks...");
     }
     
     let home = env::var("HOME").expect("HOME not set");
     let core_dir = PathBuf::from(&home).join("0-core");
-    let stow_dir = core_dir.join("stow");
+    let stow_dir = PathBuf::from(crate::paths::stow_dir());
     
     // Handle stowing a new package: faelight-stow <package-name>
     if args.len() >= 2 && !args[1].starts_with("--") {
@@ -50,7 +51,7 @@ fn main() {
         
         let status = Command::new("stow")
             .current_dir(&core_dir)
-            .args(["--dir=stow", "--ignore=\\.dotmeta", "-R", pkg_name])
+            .args(["--dir=03-interfaces/stow", "--ignore=\\.dotmeta", "-R", pkg_name])
             .status();
         
         match status {
@@ -128,7 +129,7 @@ fn main() {
         for pkg in unique_packages {
             let status = Command::new("stow")
                 .current_dir(&core_dir)
-                .args(["--dir=stow", "-R", pkg])
+                .args(["--dir=03-interfaces/stow", "-R", pkg])
                 .status();
             
             match status {
@@ -138,7 +139,7 @@ fn main() {
         }
     } else {
         println!("💡 To fix manually:");
-        println!("   cd ~/0-core && stow --dir=stow -R <package>");
+        println!("   cd ~/0-core && stow --dir=03-interfaces/stow -R <package>");
         println!();
         println!("   Or run: faelight-stow --fix");
     }
@@ -214,7 +215,7 @@ fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> boo
 }
 
 fn print_help() {
-    println!("faelight-stow v0.3.0 - Stow Symlink Verification");
+    println!("faelight-stow v1.0.0 - Stow Symlink Verification");
     println!();
     println!("USAGE:");
     println!("    faelight-stow [OPTIONS] [PACKAGE]");
