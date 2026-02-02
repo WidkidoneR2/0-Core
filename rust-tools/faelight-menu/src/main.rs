@@ -41,8 +41,6 @@ use wayland_client::{
 };
 
 // Delay to allow Sway compositor to exit before system shutdown
-const SWAY_EXIT_DELAY: Duration = Duration::from_millis(500);
-
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
 // ═══════════════════════════════════════════════════════════
@@ -377,27 +375,29 @@ impl MenuState {
             "lock" => {
                 Command::new("swaylock").spawn().ok();
             }
-            "logout" => {
-                Command::new("swaymsg").arg("exit").spawn().ok();
-            }
-            "suspend" => {
-                Command::new("systemctl").arg("suspend").spawn().ok();
-            }
             "reboot" => {
-                // Exit Sway compositor first to prevent deadlock
+                // Schedule shutdown OUTSIDE Sway's process tree to survive Sway exit
+                // 1. Exit Sway
                 Command::new("swaymsg").arg("exit").spawn().ok();
-                std::thread::sleep(SWAY_EXIT_DELAY);
-                
-                // Now gracefully reboot
-                Command::new(crate::paths::graceful_reboot()).spawn().ok();
+                // 2. Use systemd-run to schedule reboot (survives Sway death)
+                Command::new("systemd-run")
+                    .arg("--user")
+                    .arg("--on-active=1")
+                    .arg(crate::paths::graceful_reboot())
+                    .spawn()
+                    .ok();
             }
             "shutdown" => {
-                // Exit Sway compositor first to prevent deadlock
+                // Schedule shutdown OUTSIDE Sway's process tree to survive Sway exit
+                // 1. Exit Sway
                 Command::new("swaymsg").arg("exit").spawn().ok();
-                std::thread::sleep(SWAY_EXIT_DELAY);
-                
-                // Now gracefully poweroff
-                Command::new(crate::paths::graceful_poweroff()).spawn().ok();
+                // 2. Use systemd-run to schedule poweroff (survives Sway death)
+                Command::new("systemd-run")
+                    .arg("--user")
+                    .arg("--on-active=1")
+                    .arg(crate::paths::graceful_poweroff())
+                    .spawn()
+                    .ok();
             }
             _ => {}
         }
