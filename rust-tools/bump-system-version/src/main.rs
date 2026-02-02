@@ -491,7 +491,7 @@ fn is_valid_version(version: &str) -> bool {
 }
 
 fn get_current_version(core_dir: &PathBuf) -> String {
-    fs::read_to_string(core_dir.join("VERSION"))
+    fs::read_to_string(core_dir.join("00-meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string()
@@ -570,7 +570,7 @@ fn create_snapshot(description: &str) -> Option<u32> {
 }
 
 fn update_version_file(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let version_file = core_dir.join("VERSION");
+    let version_file = core_dir.join("00-meta/VERSION");
     fs::write(&version_file, format!("{}\n", new_version)).map_err(|e| e.to_string())
 }
 
