@@ -376,28 +376,12 @@ impl MenuState {
                 Command::new("swaylock").spawn().ok();
             }
             "reboot" => {
-                // Schedule shutdown OUTSIDE Sway's process tree to survive Sway exit
-                // 1. Exit Sway
-                Command::new("swaymsg").arg("exit").spawn().ok();
-                // 2. Use systemd-run to schedule reboot (survives Sway death)
-                Command::new("systemd-run")
-                    .arg("--user")
-                    .arg("--on-active=1")
-                    .arg(crate::paths::graceful_reboot())
-                    .spawn()
-                    .ok();
+                // Call graceful-reboot - it handles Sway exit itself
+                Command::new(crate::paths::graceful_reboot()).spawn().ok();
             }
             "shutdown" => {
-                // Schedule shutdown OUTSIDE Sway's process tree to survive Sway exit
-                // 1. Exit Sway
-                Command::new("swaymsg").arg("exit").spawn().ok();
-                // 2. Use systemd-run to schedule poweroff (survives Sway death)
-                Command::new("systemd-run")
-                    .arg("--user")
-                    .arg("--on-active=1")
-                    .arg(crate::paths::graceful_poweroff())
-                    .spawn()
-                    .ok();
+                // Call graceful-poweroff - it handles Sway exit itself
+                Command::new(crate::paths::graceful_poweroff()).spawn().ok();
             }
             _ => {}
         }
