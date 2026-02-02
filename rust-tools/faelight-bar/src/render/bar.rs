@@ -4,7 +4,6 @@ use faelight_core::GlyphCache;
 use chrono::Local;
 use std::process::Command;
 use std::fs;
-use std::env;
 
 // Colors
 const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
@@ -251,8 +250,7 @@ fn get_profile_color(profile: &str) -> [u8; 4] {
 }
 
 fn get_current_profile() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    let path = format!("{}/.local/state/0-core/current-profile", home);
+    let path = crate::paths::current_profile_path();
     fs::read_to_string(&path)
         .unwrap_or_else(|_| "default".to_string())
         .trim()
@@ -314,8 +312,7 @@ fn get_volume() -> (u8, bool) {
 }
 
 fn get_health() -> u8 {
-    let home = env::var("HOME").unwrap_or_default();
-    let core_path = format!("{}/0-core", home);
+    let core_path = crate::paths::core_dir();
     let mut passed = 0;
     let total = 5;
     
@@ -333,7 +330,7 @@ fn get_health() -> u8 {
         if out.stdout.is_empty() { passed += 1; }
     }
     
-    let profile_path = format!("{}/.local/state/0-core/current-profile", home);
+    let profile_path = crate::paths::current_profile_path();
     if fs::metadata(&profile_path).is_ok() { passed += 1; }
     
     let version_path = format!("{}/00-meta/VERSION", core_path);
@@ -343,8 +340,7 @@ fn get_health() -> u8 {
 }
 
 fn is_core_locked() -> bool {
-    let home = env::var("HOME").unwrap_or_default();
-    let core_path = format!("{}/0-core", home);
+    let core_path = crate::paths::core_dir();
     
     match Command::new("lsattr").args(["-d", &core_path]).output() {
         Ok(out) => {
