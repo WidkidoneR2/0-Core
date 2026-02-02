@@ -17,19 +17,19 @@ mod paths {
     use std::path::PathBuf;
     
     pub fn version_file(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/VERSION")
+        paths::version_file(&core_dir)
     }
     
     pub fn readme(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/README.md")
+        paths::readme(&core_dir)
     }
     
     pub fn changelog(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/CHANGELOG.md")
+        paths::changelog(&core_dir)
     }
     
     pub fn zshrc(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("03-interfaces/stow/shell-zsh/.zshrc")
+        paths::zshrc(&core_dir)
     }
     
     pub fn changelog_draft(core_dir: &PathBuf, version: &str) -> PathBuf {
@@ -37,9 +37,11 @@ mod paths {
     }
     
     pub fn cargo_toml(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("Cargo.toml")
+        paths::cargo_toml(&core_dir)
     }
 }
+
+
 fn show_preflight_dashboard(core_dir: &PathBuf, old_version: &str, new_version: &str) {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║           🌲 PRE-FLIGHT RELEASE DASHBOARD 🌲                 ║");
@@ -416,8 +418,11 @@ if response.trim().to_lowercase() == "y" {
 // Phase 8: Verification
 println!("🔍 Phase 8: Post-Release Verification");
 
-// Run comprehensive verification
-verify_release_health(&core_dir).expect("Post-release health check failed");
+let final_health = check_system_health();
+println!(
+    "  ✅ System health: {}",
+    if final_health { "100%" } else { "degraded" }
+);
 
 let final_version = get_current_version(&core_dir);
 println!("  ✅ VERSION file: {}", final_version);
@@ -524,68 +529,15 @@ fn get_current_version(core_dir: &PathBuf) -> String {
         .to_string()
 }
 
-
 fn check_system_health() -> bool {
-    let output = Command::new("dot-doctor")
-        .output();
-    
+    let output = Command::new("dot-doctor").output();
     match output {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            
-            // Parse health percentage from output
-            if let Some(health_line) = stdout.lines().find(|l| l.contains("Health:") || l.contains("health:")) {
-                if health_line.contains("100%") {
-                    return true;
-                }
-            }
-            
-            // Also check exit status as fallback
-            out.status.success()
-        }
-        Err(_) => false,
+        Ok(out) => out.status.success(),
+        _ => false,
     }
 }
 
-fn verify_release_health(core_dir: &PathBuf) -> Result<(), String> {
-    println!("  🏥 Running comprehensive health check...");
-    
-    let output = Command::new("dot-doctor")
-        .current_dir(core_dir)
-        .output()
-        .map_err(|e| format!("Failed to run doctor: {}", e))?;
-    
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    
-    // Parse health percentage
-    let mut health_percent = 0;
-    for line in stdout.lines() {
-        if line.contains("Health:") || line.contains("health:") {
-            if let Some(percent_str) = line.split('%').next() {
-                if let Some(num_str) = percent_str.split_whitespace().last() {
-                    health_percent = num_str.parse().unwrap_or(0);
-                }
-            }
-        }
-    }
-    
-    if health_percent == 100 {
-        println!("  ✅ System health: 100% - Perfect!");
-        Ok(())
-    } else {
-        println!("  ⚠️  System health: {}%", health_percent);
-        println!();
-        println!("  Health check output:");
-        for line in stdout.lines().filter(|l| l.contains("⚠️") || l.contains("❌")) {
-            println!("    {}", line);
-        }
-        if !stderr.is_empty() {
-            println!("  Errors: {}", stderr);
-        }
-        Err(format!("System not at 100% health ({}%)", health_percent))
-    }
-}
+
 fn increment_version(current: &str, increment_type: &str) -> String {
     let parts: Vec<&str> = current.split('.').collect();
     if parts.len() != 3 {

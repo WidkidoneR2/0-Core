@@ -17,19 +17,19 @@ mod paths {
     use std::path::PathBuf;
     
     pub fn version_file(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/VERSION")
+        paths::version_file(&core_dir)
     }
     
     pub fn readme(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/README.md")
+        paths::readme(&core_dir)
     }
     
     pub fn changelog(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/CHANGELOG.md")
+        paths::changelog(&core_dir)
     }
     
     pub fn zshrc(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("03-interfaces/stow/shell-zsh/.zshrc")
+        paths::zshrc(&core_dir)
     }
     
     pub fn changelog_draft(core_dir: &PathBuf, version: &str) -> PathBuf {
@@ -37,9 +37,11 @@ mod paths {
     }
     
     pub fn cargo_toml(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("Cargo.toml")
+        paths::cargo_toml(&core_dir)
     }
 }
+
+
 fn show_preflight_dashboard(core_dir: &PathBuf, old_version: &str, new_version: &str) {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║           🌲 PRE-FLIGHT RELEASE DASHBOARD 🌲                 ║");
