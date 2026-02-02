@@ -589,7 +589,7 @@ fn update_cargo_toml(
 }
 
 fn update_zshrc(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
-    let zshrc_path = core_dir.join("stow/shell-zsh/.zshrc");
+    let zshrc_path = core_dir.join("03-interfaces/stow/shell-zsh/.zshrc");
     let content = fs::read_to_string(&zshrc_path).map_err(|e| e.to_string())?;
     let updated = content.replace(
         &format!("Faelight Forest v{}", old_version),
@@ -603,7 +603,7 @@ fn update_readme_badges(
     old_version: &str,
     new_version: &str,
 ) -> Result<usize, String> {
-    let readme_path = core_dir.join("README.md");
+    let readme_path = core_dir.join("00-meta/README.md");
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
 
     let mut updated = content;
@@ -642,7 +642,7 @@ fn update_readme_milestone(
     new_version: &str,
     description: &str,
 ) -> Result<(), String> {
-    let readme_path = core_dir.join("README.md");
+    let readme_path = core_dir.join("00-meta/README.md");
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
 
     let updated = content.replace(
@@ -657,7 +657,7 @@ fn update_readme_milestone(
 }
 
 fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let changelog_path = core_dir.join("CHANGELOG.md");
+    let changelog_path = core_dir.join("00-meta/CHANGELOG.md");
     let draft_path = core_dir.join(&format!("CHANGELOG-v{}-DRAFT.md", new_version));
     let today = Local::now().format("%Y-%m-%d").to_string();
 
@@ -694,7 +694,7 @@ fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String>
 }
 
 fn add_changelog_quote(core_dir: &PathBuf, quote: &str) -> Result<(), String> {
-    let changelog_path = core_dir.join("CHANGELOG.md");
+    let changelog_path = core_dir.join("00-meta/CHANGELOG.md");
     let content = fs::read_to_string(&changelog_path).map_err(|e| e.to_string())?;
 
     // Find the first "## [" after "# Changelog" and add quote before next "---"
@@ -725,7 +725,7 @@ fn update_version_table(
     new_version: &str,
     description: &str,
 ) -> Result<(), String> {
-    let readme_path = core_dir.join("README.md");
+    let readme_path = core_dir.join("00-meta/README.md");
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
     let today = Local::now().format("%Y-%m-%d").to_string();
 
