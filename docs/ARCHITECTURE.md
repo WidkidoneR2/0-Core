@@ -25,7 +25,7 @@ stow/                    # 🎯 ALL dotfile packages (GNU Stow managed)
 └── vcs-git/            # Git configuration + aliases
 ```
 
-**Deployment:** `cd ~/0-core/stow && stow package-name`  
+**Deployment:** `cd ~/0-core/03-interfaces/stow && stow package-name`  
 **Purpose:** All user-level dotfiles, deployed as symlinks to `~/`
 
 ---
@@ -140,7 +140,7 @@ cp target/release/* ~/0-core/scripts/
 export PATH="$HOME/0-core/scripts:$PATH"
 
 # 5. Deploy dotfiles
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow wm-sway shell-zsh editor-nvim
 ```
 

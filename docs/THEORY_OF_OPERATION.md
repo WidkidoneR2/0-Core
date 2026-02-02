@@ -202,7 +202,7 @@ stow/
 └── [9 more packages]
 ```
 
-**Deployment:** `cd ~/0-core/stow && stow -t ~ package-name`
+**Deployment:** `cd ~/0-core/03-interfaces/stow && stow -t ~ package-name`
 
 **Health Check:** `doctor` verifies all 12/12 packages properly stowed
 

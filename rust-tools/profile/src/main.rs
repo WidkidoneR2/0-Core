@@ -440,7 +440,7 @@ fn cmd_export(name: &str) {
     
     let timestamp = get_timestamp();
     let home = env::var("HOME").expect("HOME not set");
-    let version = fs::read_to_string(PathBuf::from(&home).join("0-core/VERSION"))
+    let version = fs::read_to_string(PathBuf::from(&home).join("0-core/00-meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string());
     let system = fs::read_to_string("/etc/os-release")
         .ok()

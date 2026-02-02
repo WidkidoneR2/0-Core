@@ -336,7 +336,7 @@ fn get_health() -> u8 {
     let profile_path = format!("{}/.local/state/0-core/current-profile", home);
     if fs::metadata(&profile_path).is_ok() { passed += 1; }
     
-    let version_path = format!("{}/VERSION", core_path);
+    let version_path = format!("{}/00-meta/VERSION", core_path);
     if fs::metadata(&version_path).is_ok() { passed += 1; }
     
     ((passed * 100) / total) as u8

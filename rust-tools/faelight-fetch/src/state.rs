@@ -38,7 +38,7 @@ impl SystemState {
 }
 
 fn get_version() -> String {
-    fs::read_to_string("/home/christian/0-core/VERSION")
+    fs::read_to_string("/home/christian/0-core/00-meta/VERSION")
         .unwrap_or_else(|_| "8.0.0".to_string())
         .trim()
         .to_string()

@@ -43,7 +43,7 @@ doctor --history
 
 | ID | Name | Severity | Depends On | Description |
 |----|------|----------|------------|-------------|
-| `stow` | Stow Symlinks | 🔴 Critical | - | Verifies GNU Stow symlinks from 0-core/stow to ~/.config (12 packages) |
+| `stow` | Stow Symlinks | 🔴 Critical | - | Verifies GNU Stow symlinks from 0-core/03-interfaces/stow to ~/.config (12 packages) |
 | `services` | System Services | 🟠 High | stow | Checks faelight-bar and faelight-notify running |
 | `broken_symlinks` | Broken Symlinks | 🟡 Medium | stow | Scans for symlinks to non-existent targets |
 | `yazi_plugins` | Yazi Plugins | 🟢 Low | stow | Verifies 4 Yazi plugins installed |
@@ -100,7 +100,7 @@ security (root)
 ### 1. Stow Symlinks (Critical)
 **Purpose:** Verify all configuration packages are properly symlinked
 
-**Checks:** 12 packages in `~/0-core/stow/`:
+**Checks:** 12 packages in `~/0-core/03-interfaces/stow/`:
 - wm-sway
 - shell-zsh
 - shell-nushell
@@ -116,7 +116,7 @@ security (root)
 
 **Fix:**
 ```bash
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow -t ~ wm-sway shell-zsh term-foot editor-nvim fm-yazi vcs-git config-faelight
 ```
 
@@ -155,7 +155,7 @@ find ~/.config -xtype l
 rm <broken-symlink>
 
 # Or re-stow package
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow -R <package>
 ```
 
@@ -216,7 +216,7 @@ git push
 
 **Fix:**
 ```bash
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow -t ~ config-faelight
 ```
 
@@ -266,7 +266,7 @@ cd ~/0-core/INTENT
 
 **Fix:**
 ```bash
-cd ~/0-core/stow/config-faelight/.config/faelight
+cd ~/0-core/03-interfaces/stow/config-faelight/.config/faelight
 nvim profiles.toml
 # Fix TOML syntax errors
 ```
@@ -302,7 +302,7 @@ keyscan
 
 # Edit Sway config
 unlock-core
-nvim ~/0-core/stow/wm-sway/.config/sway/config
+nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 lock-core
 ```
 

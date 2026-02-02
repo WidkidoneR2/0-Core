@@ -48,7 +48,7 @@ fn get_package_version(package: &str) -> Option<String> {
     
     // Try stow path first (current structure)
     let stow_path = PathBuf::from(&home)
-        .join("0-core/stow")
+        .join("0-core/03-interfaces/stow")
         .join(package)
         .join(".dotmeta");
     
@@ -95,7 +95,7 @@ fn health_check() {
         }
     };
     
-    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
         eprintln!("❌ Stow directory not found: {}", stow_dir.display());

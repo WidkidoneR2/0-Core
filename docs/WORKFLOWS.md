@@ -42,7 +42,7 @@ profile list
 unlock-core
 
 # 2. Edit config files
-nvim ~/0-core/stow/wm-sway/.config/sway/config
+nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 
 # 3. Test changes
 sway -C                    # Validate Sway config
@@ -82,7 +82,7 @@ lock-core
 ```bash
 # Use fg (faelight-git) for streamlined workflow
 unlock-core
-nvim ~/0-core/stow/shell-zsh/.zshrc
+nvim ~/0-core/03-interfaces/stow/shell-zsh/.zshrc
 fg sync                    # Pulls, commits, pushes automatically
 lock-core
 ```
@@ -467,7 +467,7 @@ profile switch gaming
 ### "Quick config edit"
 ```bash
 unlock-core
-nvim ~/0-core/stow/wm-sway/.config/sway/config
+nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 swaymsg reload
 lock-core
 ```

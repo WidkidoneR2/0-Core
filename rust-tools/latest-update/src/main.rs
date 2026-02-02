@@ -65,7 +65,7 @@ fn scan_packages() -> Vec<PackageInfo> {
         }
     };
     
-    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
         eprintln!("❌ Stow directory not found: {}", stow_dir.display());

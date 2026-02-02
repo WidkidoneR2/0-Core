@@ -118,7 +118,7 @@ struct DashboardData {
 
 fn gather_data() -> DashboardData {
     // Version
-    let version = std::fs::read_to_string(format!("{}/0-core/VERSION", std::env::var("HOME").unwrap_or_default()))
+    let version = std::fs::read_to_string(format!("{}/0-core/00-meta/VERSION", std::env::var("HOME").unwrap_or_default()))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
