@@ -865,6 +865,8 @@ dependencies = [
  "colored",
  "serde",
  "serde_json",
+ "toml",
+ "walkdir",
 ]
 
 [[package]]

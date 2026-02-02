@@ -8,8 +8,10 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
+use toml;
 use chrono::{DateTime, Utc};
 use std::io::{self, Write};
+use walkdir::WalkDir;
 
 #[derive(Parser)]
 #[command(name = "dot-doctor")]
@@ -76,6 +78,54 @@ struct CheckResult {
     details: Option<Vec<String>>,
 }
 
+
+impl CheckResult {
+    fn pass(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
+        CheckResult {
+            id: id.to_string(),
+            name: name.to_string(),
+            status: Status::Pass,
+            severity,
+            message: message.into(),
+            fix: None,
+            details: None,
+        }
+    }
+    
+    fn warn(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
+        CheckResult {
+            id: id.to_string(),
+            name: name.to_string(),
+            status: Status::Warn,
+            severity,
+            message: message.into(),
+            fix: None,
+            details: None,
+        }
+    }
+    
+    fn fail(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
+        CheckResult {
+            id: id.to_string(),
+            name: name.to_string(),
+            status: Status::Fail,
+            severity,
+            message: message.into(),
+            fix: None,
+            details: None,
+        }
+    }
+    
+    fn with_fix(mut self, fix: impl Into<String>) -> Self {
+        self.fix = Some(fix.into());
+        self
+    }
+    
+    fn with_details(mut self, details: Vec<String>) -> Self {
+        self.details = Some(details);
+        self
+    }
+}
 #[derive(Serialize, Deserialize)]
 struct HealthReport {
     version: String,
@@ -323,22 +373,32 @@ fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
     let home_path = PathBuf::from(home);
     let mut symlinks = Vec::new();
     
+    // Search paths to walk
     let search_paths = vec![
         home_path.clone(),
         home_path.join(".config"),
     ];
     
     for search_path in search_paths {
-        if let Ok(entries) = std::fs::read_dir(&search_path) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                
-                if path.is_symlink() {
-                    if let Ok(target) = std::fs::read_link(&path) {
-                        let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
-                            symlinks.push(path);
-                        }
+        if !search_path.exists() {
+            continue;
+        }
+        
+        // Walk recursively but cap depth at 5
+        for entry in WalkDir::new(&search_path)
+            .max_depth(5)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            
+            if path.is_symlink() {
+                if let Ok(target) = std::fs::read_link(path) {
+                    let target_str = target.to_string_lossy();
+                    // Check if symlink points to this stow package
+                    if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
+                        symlinks.push(path.to_path_buf());
                     }
                 }
             }
@@ -347,7 +407,6 @@ fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
     
     symlinks
 }
-
 fn check_services(_ctx: &Context) -> CheckResult {
     let mut running = 0;
     let mut details = vec![];
@@ -786,8 +845,8 @@ fn check_faelight_config(ctx: &Context) -> CheckResult {
 }
 
 fn toml_valid(content: &str) -> bool {
-    // Simple validation - check for basic TOML structure
-    !content.is_empty() && (content.contains('[') || content.contains('='))
+    // Actually parse TOML instead of just checking for brackets
+    toml::from_str::<toml::Value>(content).is_ok()
 }
 
 fn check_keybinds(ctx: &Context) -> CheckResult {
