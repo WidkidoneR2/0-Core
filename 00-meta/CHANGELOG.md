@@ -1,5 +1,29 @@
 # Changelog
 
+## Architecture
+- Created 00-meta/ (identity), 01-registry/ (canonical lists), 02-rules/ (enforcement), 03-interfaces/ (human-editable), 04-runtime/ (ephemeral)
+- Renamed INTENT → intents (lowercase consistency)
+- Deleted 1,579 lines of obsolete code
+
+## New Tools
+- faelight-update v2.0.0: Better than topgrade with 9 package sources (Pacman, AUR, Cargo, Neovim, Yazi, Git, Firmware, Flatpak, Workspace)
+- Lock/unlock workflow, cache cleanup, integrated health checks, git push reminder, .pacnew detection
+
+## Registry System
+- tools.toml: All 40 Rust tools documented with categories and descriptions
+- aliases.toml: 50+ primary aliases (242 lines, 301 total in system)
+- zones.toml: Zone definitions (0-core, 1-src, 2-projects, 3-archive, Downloads)
+- profiles.toml: System profiles (default, work, gaming, low-power)
+
+## Updates
+- Updated all 40 Rust tools for new paths (stow → 03-interfaces/stow, VERSION → 00-meta/VERSION)
+- Rewrote README.md (257 lines) showcasing numbered gravity architecture
+- Fixed bump-system-version, doctor, and all path-dependent tools
+
+## Health
+- Achieved 100% system health (15/15 checks passing)
+- All symlinks restored, all tools rebuilt, all paths updated
+
 ## v8.7.0 - 2026-01-29
 
 **Milestone:** alias-audit v1.0.0, bump-tool-version v1.0.0, and Starship v2.0
@@ -329,6 +353,7 @@ This release deepens 0-Core's commitment to:
 > "The impossible is just undiscovered architecture." 🌲
 > "From beta to production - the forest matures with intention." 🌲
 > "From aliases to versions, from paths to profiles - clarity through tooling." 🌲
+> "The numbers guide the way. Gravity guides growth." 🌲
 ---
 
 # v8.1.0 Release - The Garden

@@ -117,7 +117,7 @@ The repository follows a **directional growth pattern** where numbered directori
 ## 📊 System Health
 ```bash
 $ doctor
-🏥 0-Core Health Check - Faelight Forest v8.7.0
+🏥 0-Core Health Check - Faelight Forest v8.8.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Stow Symlinks: All 12/12 packages properly stowed
 ✅ System Services: All 2/2 services running
