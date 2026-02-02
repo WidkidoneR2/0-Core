@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let aliases_path = PathBuf::from(std::env::var("HOME")?)
-        .join("0-core/stow/shell-zsh/.config/zsh/aliases.zsh");
+        .join("0-core/03-interfaces/stow/shell-zsh/.config/zsh/aliases.zsh");
 
     let aliases = parse_aliases(&aliases_path)?;
 

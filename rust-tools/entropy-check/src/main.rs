@@ -55,7 +55,7 @@ impl EntropyBaseline {
 
 fn get_system_version() -> String {
     let home = std::env::var("HOME").unwrap_or_default();
-    let version_path = format!("{}/0-core/VERSION", home);
+    let version_path = format!("{}/0-core/00-meta/VERSION", home);
     fs::read_to_string(version_path)
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()

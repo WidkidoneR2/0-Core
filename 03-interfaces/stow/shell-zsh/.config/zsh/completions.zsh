@@ -106,7 +106,7 @@ _intent() {
             ;;
         show)
             # Suggest intent IDs
-            _values 'id' $(find ~/0-core/INTENT -name "*.md" 2>/dev/null | xargs -n1 basename | sed 's/-.*//' | sort -u)
+            _values 'id' $(find ~/0-core/intents -name "*.md" 2>/dev/null | xargs -n1 basename | sed 's/-.*//' | sort -u)
             ;;
         *)
             _describe -t commands 'command' commands

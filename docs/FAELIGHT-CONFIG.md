@@ -16,7 +16,7 @@ Typed TOML configuration for Faelight Forest. Configurations are **read-only dat
 └── themes.toml      # Color themes
 ```
 
-**Source:** `~/0-core/stow/config-faelight/`
+**Source:** `~/0-core/03-interfaces/stow/config-faelight/`
 
 ---
 
@@ -33,7 +33,7 @@ cat ~/.config/faelight/themes.toml
 
 # Editing (unlock core first)
 unlock-core
-nvim ~/0-core/stow/config-faelight/.config/faelight/config.toml
+nvim ~/0-core/03-interfaces/stow/config-faelight/.config/faelight/config.toml
 lock-core
 ```
 
@@ -212,13 +212,13 @@ Configs are validated on:
 Config files are stored in the 0-Core repository and symlinked via GNU Stow:
 ```bash
 # Source location
-~/0-core/stow/config-faelight/.config/faelight/
+~/0-core/03-interfaces/stow/config-faelight/.config/faelight/
 
 # Symlinked to
 ~/.config/faelight/
 
 # Deploy
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow -t ~ config-faelight
 
 # Verify
@@ -237,7 +237,7 @@ readlink ~/.config/faelight/config.toml
 
 2. **Edit source files:**
 ```bash
-   cd ~/0-core/stow/config-faelight/.config/faelight
+   cd ~/0-core/03-interfaces/stow/config-faelight/.config/faelight
    nvim config.toml
 ```
 

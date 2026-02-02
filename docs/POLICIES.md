@@ -257,7 +257,7 @@ dotctl status
 unlock-core
 
 # Edit with awareness
-nvim ~/0-core/stow/wm-sway/.config/sway/config
+nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 
 # Test changes
 sway -C

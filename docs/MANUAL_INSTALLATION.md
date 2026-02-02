@@ -88,7 +88,7 @@ cp target/release/intent scripts/
 
 ## 🔗 Stow Packages
 ```bash
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 
 # Core packages
 stow -t ~ wm-sway
@@ -160,7 +160,7 @@ pgrep -f faelight-notify
 
 2. **Edit source files:**
 ```bash
-   nvim ~/0-core/stow/wm-sway/.config/sway/config
+   nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 ```
 
 3. **Reload Sway:**
@@ -185,7 +185,7 @@ pgrep -f faelight-notify
 
 ## 🔄 Re-stowing After Changes
 ```bash
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 
 # Re-stow a package
 stow -R wm-sway
@@ -198,7 +198,7 @@ stow --adopt wm-sway
 
 ## 🗑️ Removing a Package
 ```bash
-cd ~/0-core/stow
+cd ~/0-core/03-interfaces/stow
 stow -D -t ~ wm-sway  # Delete symlinks
 
 # Verify removal

@@ -64,7 +64,7 @@ doctor && fg status && faelight-update --dry-run
 
 # Edit configs
 unlock-core
-nvim ~/0-core/stow/wm-sway/.config/sway/config
+nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
 lock-core
 
 # Update system

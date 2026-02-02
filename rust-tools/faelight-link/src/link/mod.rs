@@ -122,7 +122,7 @@ pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
 /// Show status of all links
 pub fn status() -> Result<()> {
     let home = std::env::var("HOME").context("HOME not set")?;
-    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
         println!("  {} Stow directory not found", "⚠️".bright_yellow());
@@ -201,7 +201,7 @@ fn count_package_links(home: &str, package: &str) -> Result<usize> {
                 if path.is_symlink() {
                     if let Ok(target) = fs::read_link(&path) {
                         let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/stow/{}", package)) {
+                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                             count += 1;
                         }
                     }
@@ -235,7 +235,7 @@ fn count_broken_links(home: &str, package: &str) -> Result<usize> {
                 if path.is_symlink() {
                     if let Ok(target) = fs::read_link(&path) {
                         let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/stow/{}", package)) {
+                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                             if !path.exists() {
                                 count += 1;
                             }
@@ -252,7 +252,7 @@ fn count_broken_links(home: &str, package: &str) -> Result<usize> {
 /// Audit all links - comprehensive health check
 pub fn audit() -> Result<()> {
     let home = std::env::var("HOME").context("HOME not set")?;
-    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
         println!("  {} Stow directory not found", "⚠️".bright_yellow());
@@ -350,7 +350,7 @@ pub fn audit() -> Result<()> {
 /// Clean up broken and orphaned links
 pub fn clean(force: bool) -> Result<()> {
     let home = std::env::var("HOME").context("HOME not set")?;
-    let stow_dir = PathBuf::from(&home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
         println!("  {} Stow directory not found", "⚠️".bright_yellow());
@@ -460,7 +460,7 @@ fn find_links_in_dir(dir: &Path, package: &str, links: &mut Vec<PathBuf>) -> Res
         if path.is_symlink() {
             if let Ok(target) = fs::read_link(&path) {
                 let target_str = target.to_string_lossy();
-                if target_str.contains(&format!("0-core/stow/{}", package)) {
+                if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                     links.push(path);
                 }
             }

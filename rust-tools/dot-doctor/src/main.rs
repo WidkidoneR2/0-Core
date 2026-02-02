@@ -251,7 +251,7 @@ const CHECKS: &[Check] = &[
 // ═══════════════════════════════════════════════════════════
 
 fn check_stow(ctx: &Context) -> CheckResult {
-    let stow_dir = PathBuf::from(&ctx.home).join("0-core/stow");
+    let stow_dir = PathBuf::from(&ctx.home).join("0-core/03-interfaces/stow");
     let mut stowed = 0;
     let mut details = vec![];
     
@@ -336,7 +336,7 @@ fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
                 if path.is_symlink() {
                     if let Ok(target) = std::fs::read_link(&path) {
                         let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/stow/{}", package)) {
+                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                             symlinks.push(path);
                         }
                     }
@@ -567,12 +567,12 @@ fn check_themes(ctx: &Context) -> CheckResult {
     let packages = ["config-faelight"];
 
     for pkg in packages {
-        if ctx.core_dir.join("stow").join(pkg).is_dir() {
+        if ctx.core_dir.join("03-interfaces/stow").join(pkg).is_dir() {
         }
     }
 
     // Also check for any theme- prefixed directories
-    let theme_count = fs::read_dir(&ctx.core_dir.join("stow"))
+    let theme_count = fs::read_dir(&ctx.core_dir.join("03-interfaces/stow"))
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
@@ -1039,7 +1039,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
 
     let home = env::var("HOME").expect("HOME not set");
     let core_dir = PathBuf::from(&home).join("0-core");
-    let version = fs::read_to_string(core_dir.join("VERSION"))
+    let version = fs::read_to_string(core_dir.join("00-meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();

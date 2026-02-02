@@ -127,7 +127,7 @@ fn track_intent(package: &Package) -> Result<()> {
 
 [[package]]
 name = "editor-nvim"
-source = "~/0-core/stow/editor-nvim/.config/nvim"
+source = "~/0-core/03-interfaces/stow/editor-nvim/.config/nvim"
 target = "~/.config/nvim"
 zone = "0-core"
 intent = "nvim-config"
@@ -135,7 +135,7 @@ health_check = true
 
 [[package]]
 name = "shell-zsh"
-source = "~/0-core/stow/shell-zsh/.zshrc"
+source = "~/0-core/03-interfaces/stow/shell-zsh/.zshrc"
 target = "~/.zshrc"
 zone = "0-core"
 intent = "shell-config"

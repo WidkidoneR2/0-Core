@@ -33,7 +33,7 @@ pub fn discover_packages(stow_dir: &Path) -> Result<Vec<String>> {
 /// Get the stow directory path
 pub fn get_stow_dir() -> Result<PathBuf> {
     let home = std::env::var("HOME").context("HOME not set")?;
-    Ok(PathBuf::from(home).join("0-core/stow"))
+    Ok(PathBuf::from(home).join("0-core/03-interfaces/stow"))
 }
 
 /// List all available packages
@@ -237,7 +237,7 @@ fn find_links_recursive(dir: &Path, package: &str, links: &mut Vec<PathBuf>) -> 
         if path.is_symlink() {
             if let Ok(target) = fs::read_link(&path) {
                 let target_str = target.to_string_lossy();
-                if target_str.contains(&format!("0-core/stow/{}", package)) {
+                if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                     links.push(path);
                 }
             }

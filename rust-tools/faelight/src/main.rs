@@ -412,7 +412,7 @@ fn cmd_config(action: ConfigAction) -> i32 {
 
 fn cmd_status(json: bool) -> i32 {
     let home = std::env::var("HOME").unwrap_or_default();
-    let version = std::fs::read_to_string(format!("{}/0-core/VERSION", home))
+    let version = std::fs::read_to_string(format!("{}/0-core/00-meta/VERSION", home))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();

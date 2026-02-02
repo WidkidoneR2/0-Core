@@ -187,7 +187,7 @@ fn find_package_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
                 if path.is_symlink() {
                     if let Ok(target) = fs::read_link(&path) {
                         let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/stow/{}", package)) {
+                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
                             symlinks.push(path);
                         }
                     }
