@@ -8,9 +8,6 @@
 //! - Minimal UI: arrow + color only (no background bars)
 //! - Graceful shutdown with service cleanup and sync
 
-mod paths;
-
-use std::time::Duration;
 use chrono::{Local, Timelike};
 use faelight_core::GlyphCache;
 use smithay_client_toolkit::{
@@ -39,9 +36,6 @@ use wayland_client::{
     protocol::{wl_keyboard, wl_output, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-
-// Delay to allow Sway compositor to exit before system shutdown
-const SWAY_EXIT_DELAY: Duration = Duration::from_millis(500);
 
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
@@ -371,7 +365,7 @@ impl MenuState {
         eprintln!("⚡ Executing: {}", item.label);
         
         // Get home directory for script paths
-        let _home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
         
         match item.action {
             "lock" => {
@@ -384,20 +378,14 @@ impl MenuState {
                 Command::new("systemctl").arg("suspend").spawn().ok();
             }
             "reboot" => {
-                // Exit Sway compositor first to prevent deadlock
-                Command::new("swaymsg").arg("exit").spawn().ok();
-                std::thread::sleep(SWAY_EXIT_DELAY);
-                
-                // Now gracefully reboot
-                Command::new(crate::paths::graceful_reboot()).spawn().ok();
+                // Use graceful reboot script
+                let script = format!("{}/0-core/scripts/graceful-reboot", home);
+                Command::new(&script).spawn().ok();
             }
             "shutdown" => {
-                // Exit Sway compositor first to prevent deadlock
-                Command::new("swaymsg").arg("exit").spawn().ok();
-                std::thread::sleep(SWAY_EXIT_DELAY);
-                
-                // Now gracefully poweroff
-                Command::new(crate::paths::graceful_poweroff()).spawn().ok();
+                // Use graceful poweroff script
+                let script = format!("{}/0-core/scripts/graceful-poweroff", home);
+                Command::new(&script).spawn().ok();
             }
             _ => {}
         }
@@ -715,10 +703,10 @@ fn health_check() {
     }
     
     // Check graceful shutdown scripts
-    let _home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     let scripts = ["graceful-poweroff", "graceful-reboot"];
     for script in &scripts {
-        let path = crate::paths::script_path(script);
+        let path = format!("{}/0-core/scripts/{}", home, script);
         if std::path::Path::new(&path).exists() {
             println!("✅ {}: installed", script);
         } else {
