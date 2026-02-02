@@ -367,6 +367,9 @@ impl MenuState {
     fn execute_selected(&self) {
         let item = &MENU_ITEMS[self.selected];
         eprintln!("⚡ Executing: {}", item.label);
+        std::fs::write("/tmp/faelight-debug.log", 
+            format!("execute_selected called for: {}
+", item.label)).ok();
         
         // Get home directory for script paths
         let _home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
@@ -384,6 +387,11 @@ impl MenuState {
                     .ok();
             }
             "shutdown" => {
+                // DEBUG: Write to log file
+                std::fs::write("/tmp/faelight-menu-shutdown.log", 
+                    format!("Shutdown clicked at {}
+", chrono::Local::now())).ok();
+                
                 // Use setsid to detach from Sway's process tree (survives Sway death)
                 Command::new("setsid")
                     .arg("--fork")
@@ -478,9 +486,15 @@ impl KeyboardHandler for MenuState {
                 let item = &MENU_ITEMS[self.selected];
                 if item.dangerous {
                     if self.confirming {
+                        std::fs::write("/tmp/faelight-enter.log", 
+                            format!("Enter pressed (confirmed) for: {}
+", item.label)).ok();
                         self.execute_selected();
                         self.running = false;
                     } else {
+                        std::fs::write("/tmp/faelight-confirm.log", 
+                            format!("Confirming for: {}
+", item.label)).ok();
                         self.confirming = true;
                         self.draw();
                     }
