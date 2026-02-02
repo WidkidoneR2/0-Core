@@ -1,10 +1,5 @@
 mod cargo_checker;
 mod neovim_checker;
-mod yazi_checker;
-mod git_checker;
-mod firmware_checker;
-mod flatpak_checker;
-mod cleanup_checker;
 mod tui;
 
 use anyhow::{Context, Result};
@@ -149,12 +144,6 @@ fn run() -> Result<()> {
         let input = input.trim().to_lowercase();
 
         if input.is_empty() || input == "y" || input == "yes" {
-            // LOCK CORE BEFORE UPDATES
-            let in_core = is_in_core();
-            if in_core {
-                lock_core()?;
-            }
-            
             // Convert UpdateCategory to format perform_updates expects
             let all_updates: Vec<(String, Vec<String>)> = updates
                 .iter()
@@ -164,34 +153,6 @@ fn run() -> Result<()> {
                     (cat.name.clone(), items)
                 })
                 .collect();
-            
-            // PERFORM UPDATES
-            perform_updates(&all_updates)?;
-            
-            // CLEANUP CACHES
-            cleanup_caches()?;
-            
-            // UNLOCK CORE
-            if in_core {
-                unlock_core()?;
-            }
-            
-            // FINAL HEALTH CHECK (moved from beginning!)
-            let health = run_doctor_final()?;
-            
-            // GIT STATUS CHECK
-            check_git_status()?;
-            
-            // CHECK FOR .PACNEW FILES
-            check_pacnew()?;
-            
-            // FINAL SUMMARY
-            println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-            if health == 100 {
-                println!("{}  Update complete! System: {}%", "✅".green(), health);
-            } else {
-                println!("{}  Update complete! System: {}% (check warnings)", "⚠️".yellow(), health);
-            }
             perform_updates(&all_updates)?;
         } else {
             println!("\n{}  Cancelled", "ℹ️".blue());
@@ -318,74 +279,6 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         items: workspace_items,
     });
 
-
-    // Yazi/FM packages (will rename to FM later)
-    let yazi_items: Vec<UpdateItem> = yazi_checker::check_yazi_packages()
-        .into_iter()
-        .map(|name| UpdateItem {
-            name,
-            current: "unknown".to_string(),
-            new: "available".to_string(),
-            repository: None,
-        })
-        .collect();
-    categories.push(UpdateCategory {
-        name: "Yazi Packages".to_string(),  // TODO: Change to "FM Packages" when ready
-        emoji: "📁".to_string(),
-        count: yazi_items.len(),
-        items: yazi_items,
-    });
-
-    // Git repositories
-    let git_items: Vec<UpdateItem> = git_checker::check_git_updates()
-        .into_iter()
-        .map(|name| UpdateItem {
-            name,
-            current: "local".to_string(),
-            new: "needs pull".to_string(),
-            repository: None,
-        })
-        .collect();
-    categories.push(UpdateCategory {
-        name: "Git Repositories".to_string(),
-        emoji: "🔄".to_string(),
-        count: git_items.len(),
-        items: git_items,
-    });
-
-    // Firmware updates
-    let firmware_items: Vec<UpdateItem> = firmware_checker::check_firmware_updates()
-        .into_iter()
-        .map(|name| UpdateItem {
-            name,
-            current: "unknown".to_string(),
-            new: "available".to_string(),
-            repository: None,
-        })
-        .collect();
-    categories.push(UpdateCategory {
-        name: "Firmware".to_string(),
-        emoji: "⚡".to_string(),
-        count: firmware_items.len(),
-        items: firmware_items,
-    });
-
-    // Flatpak packages
-    let flatpak_items: Vec<UpdateItem> = flatpak_checker::check_flatpak_updates()
-        .into_iter()
-        .map(|name| UpdateItem {
-            name,
-            current: "unknown".to_string(),
-            new: "available".to_string(),
-            repository: None,
-        })
-        .collect();
-    categories.push(UpdateCategory {
-        name: "Flatpak".to_string(),
-        emoji: "📦".to_string(),
-        count: flatpak_items.len(),
-        items: flatpak_items,
-    });
     Ok(categories)
 }
 
@@ -759,115 +652,5 @@ fn output_json(categories: &[UpdateCategory], total: usize) -> Result<()> {
     };
 
     println!("{}", serde_json::to_string_pretty(&output)?);
-    Ok(())
-}
-
-/// Lock 0-core before updates
-fn lock_core() -> Result<()> {
-    println!("{}  Locking 0-core...", "🔒".yellow());
-    Command::new("lock-core")
-        .output()
-        .context("Failed to lock core")?;
-    Ok(())
-}
-
-/// Unlock 0-core after updates
-fn unlock_core() -> Result<()> {
-    println!("{}  Unlocking 0-core...", "🔓".green());
-    Command::new("unlock-core")
-        .output()
-        .context("Failed to unlock core")?;
-    Ok(())
-}
-
-/// Check if we're in 0-core directory
-fn is_in_core() -> bool {
-    std::env::current_dir()
-        .ok()
-        .and_then(|p| p.to_str().map(|s| s.contains("0-core")))
-        .unwrap_or(false)
-}
-
-/// Run doctor check and return health percentage
-fn run_doctor_final() -> Result<u32> {
-    println!("\n{}  Running final health check...", "🏥".green());
-    let output = Command::new("doctor")
-        .output()
-        .context("Failed to run doctor")?;
-    
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    // Parse health percentage
-    for line in stdout.lines() {
-        if line.contains("Health:") {
-            if let Some(percent) = line.split_whitespace()
-                .find(|s| s.ends_with('%'))
-                .and_then(|s| s.trim_end_matches('%').parse::<u32>().ok())
-            {
-                return Ok(percent);
-            }
-        }
-    }
-    
-    Ok(100) // Default to 100 if not found
-}
-
-/// Check git status
-fn check_git_status() -> Result<()> {
-    let output = Command::new("git")
-        .args(["status", "--porcelain", "-b"])
-        .current_dir("/home/christian/0-core")
-        .output()?;
-    
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    if stdout.contains("[ahead") {
-        println!("{}  Git: Commits need to be pushed", "⚠️".yellow());
-        println!("    Run: git push");
-    } else if !stdout.lines().skip(1).next().is_none() {
-        println!("{}  Git: Uncommitted changes", "⚠️".yellow());
-    } else {
-        println!("{}  Git: Clean and synced", "✅".green());
-    }
-    
-    Ok(())
-}
-
-/// Check for .pacnew files
-fn check_pacnew() -> Result<()> {
-    let pacnew_files = cleanup_checker::find_pacnew_files();
-    
-    if !pacnew_files.is_empty() {
-        println!("\n{}  Found {} .pacnew config files:", "⚠️".yellow(), pacnew_files.len());
-        for file in pacnew_files.iter().take(5) {
-            println!("    {}", file);
-        }
-        if pacnew_files.len() > 5 {
-            println!("    ... and {} more", pacnew_files.len() - 5);
-        }
-        println!("    Review with: pacdiff");
-    }
-    
-    Ok(())
-}
-
-/// Cleanup caches after updates
-fn cleanup_caches() -> Result<()> {
-    println!("\n{}  Cleaning up caches...", "🧹".cyan());
-    
-    // Cargo cache
-    if let Err(e) = cleanup_checker::cleanup_cargo_cache() {
-        println!("    {}  Cargo cache cleanup failed: {}", "⚠️".yellow(), e);
-    } else {
-        println!("    {}  Cargo cache cleaned", "✓".green());
-    }
-    
-    // Pacman cache
-    if let Err(e) = cleanup_checker::cleanup_pacman_cache() {
-        println!("    {}  Pacman cache cleanup failed: {}", "⚠️".yellow(), e);
-    } else {
-        println!("    {}  Pacman cache cleaned", "✓".green());
-    }
-    
     Ok(())
 }
