@@ -19,11 +19,12 @@ dependencies = [
 
 [[package]]
 name = "alias-audit"
-version = "8.9.0"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "faelight-core",
  "serde",
  "serde_json",
 ]
