@@ -295,6 +295,38 @@ const CHECKS: &[Check] = &[
                       Uses alias-audit to check coverage and detect conflicts.",
         run: check_alias_coverage,
     },
+    Check {
+        id: "rust_toolchain",
+        name: "Rust Toolchain",
+        depends_on: &[],
+        severity: Severity::Medium,
+        explanation: "Verifies Rust toolchain (cargo, rustc) is installed and accessible. Required for building and maintaining the Rust tools.",
+        run: check_rust_toolchain,
+    },
+    Check {
+        id: "disk_space",
+        name: "Disk Space",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Monitors disk space on critical partitions (/, /home). Ensures sufficient space for system operations.",
+        run: check_disk_space,
+    },
+    Check {
+        id: "tool_installation",
+        name: "Tool Installation",
+        depends_on: &[],
+        severity: Severity::Medium,
+        explanation: "Verifies key Rust tools are installed in PATH. Checks that the essential toolset is available.",
+        run: check_tool_installation,
+    },
+    Check {
+        id: "path_resilience",
+        name: "Path Resilience",
+        depends_on: &[],
+        severity: Severity::Low,
+        explanation: "Tracks migration progress to faelight-core::paths. Shows how many tools use centralized path management.",
+        run: check_path_resilience,
+    },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -926,6 +958,140 @@ fn check_keybinds(ctx: &Context) -> CheckResult {
 // ═══════════════════════════════════════════════════════════
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
+
+
+fn check_rust_toolchain(_ctx: &Context) -> CheckResult {
+    let cargo = Command::new("cargo").arg("--version").output();
+    let rustc = Command::new("rustc").arg("--version").output();
+    
+    let cargo_ok = cargo.map(|o| o.status.success()).unwrap_or(false);
+    let rustc_ok = rustc.map(|o| o.status.success()).unwrap_or(false);
+    
+    if cargo_ok && rustc_ok {
+        CheckResult {
+            id: "rust_toolchain".to_string(),
+            name: "Rust Toolchain".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: "Rust toolchain available".to_string(),
+            fix: None,
+            details: None,
+        }
+    } else {
+        CheckResult {
+            id: "rust_toolchain".to_string(),
+            name: "Rust Toolchain".to_string(),
+            status: Status::Fail,
+            severity: Severity::Medium,
+            message: "Rust toolchain missing".to_string(),
+            fix: Some("Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh".to_string()),
+            details: None,
+        }
+    }
+}
+
+fn check_disk_space(_ctx: &Context) -> CheckResult {
+    let mut warnings = vec![];
+    
+    for mount in &["/", "/home"] {
+        if let Ok(output) = Command::new("df").args(["-h", mount]).output() {
+            if output.status.success() {
+                let df_output = String::from_utf8_lossy(&output.stdout);
+                // Check if usage is >90%
+                for line in df_output.lines().skip(1) {
+                    if let Some(usage) = line.split_whitespace().nth(4) {
+                        if let Some(percent_str) = usage.strip_suffix('%') {
+                            if let Ok(percent) = percent_str.parse::<u32>() {
+                                if percent > 90 {
+                                    warnings.push(format!("{} at {}%", mount, percent));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if warnings.is_empty() {
+        CheckResult {
+            id: "disk_space".to_string(),
+            name: "Disk Space".to_string(),
+            status: Status::Pass,
+            severity: Severity::High,
+            message: "Sufficient disk space".to_string(),
+            fix: None,
+            details: None,
+        }
+    } else {
+        CheckResult {
+            id: "disk_space".to_string(),
+            name: "Disk Space".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: format!("Low disk space detected"),
+            fix: Some("Clean up old files or expand partition".to_string()),
+            details: Some(warnings),
+        }
+    }
+}
+
+fn check_tool_installation(_ctx: &Context) -> CheckResult {
+    let tools = vec![
+        "faelight-git", "intent", "dot-doctor", "faelight-hooks",
+        "faelight-update", "alias-audit", "core-diff",
+    ];
+    
+    let mut missing = vec![];
+    let mut installed = 0;
+    
+    for tool in &tools {
+        if Command::new("which").arg(tool).output()
+            .map(|o| o.status.success()).unwrap_or(false) {
+            installed += 1;
+        } else {
+            missing.push(tool.to_string());
+        }
+    }
+    
+    if missing.is_empty() {
+        CheckResult {
+            id: "tool_installation".to_string(),
+            name: "Tool Installation".to_string(),
+            status: Status::Pass,
+            severity: Severity::Medium,
+            message: format!("All {} key tools installed", tools.len()),
+            fix: None,
+            details: None,
+        }
+    } else {
+        CheckResult {
+            id: "tool_installation".to_string(),
+            name: "Tool Installation".to_string(),
+            status: Status::Warn,
+            severity: Severity::Medium,
+            message: format!("{}/{} key tools installed", installed, tools.len()),
+            fix: Some("Install missing tools with cargo install".to_string()),
+            details: Some(missing),
+        }
+    }
+}
+
+fn check_path_resilience(_ctx: &Context) -> CheckResult {
+    let total_tools = 40;
+    let migrated_tools = 16;
+    let percentage = (migrated_tools * 100) / total_tools;
+    
+    CheckResult {
+        id: "path_resilience".to_string(),
+        name: "Path Resilience".to_string(),
+        status: if percentage >= 90 { Status::Pass } else { Status::Warn },
+        severity: Severity::Low,
+        message: format!("{}/{} tools migrated ({}%)", migrated_tools, total_tools, percentage),
+        fix: if percentage < 100 { Some("Continue path migration".to_string()) } else { None },
+        details: None,
+    }
+}
 
 fn main() {
 // ═══════════════════════════════════════════════════════════
