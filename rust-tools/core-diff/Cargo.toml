@@ -1,7 +1,16 @@
 [package]
 name = "core-diff"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
+description = "Package-aware diff tool for 0-core system"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI
 clap = { version = "4.5", features = ["derive"] }
+
+[[bin]]
+name = "core-diff"
+path = "src/main.rs"
