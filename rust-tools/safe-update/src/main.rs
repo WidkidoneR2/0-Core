@@ -6,16 +6,40 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use clap::Parser;
+use colored::*;
+use faelight_core::paths;
 
-const VERSION: &str = "1.0.0";
-
-// ANSI colors
+// ANSI colors (keeping for now - colored ready for future)
 const RED: &str = "\x1b[0;31m";
 const GREEN: &str = "\x1b[0;32m";
 const YELLOW: &str = "\x1b[1;33m";
 const CYAN: &str = "\x1b[0;36m";
 const GRAY: &str = "\x1b[0;90m";
 const NC: &str = "\x1b[0m";
+
+
+const VERSION: &str = "2.0.0";
+
+// ANSI colors
+
+
+#[derive(Parser)]
+#[command(name = "safe-update")]
+#[command(about = "🛡️ Safe System Updater - Snapshot before updating", long_about = None)]
+struct Cli {
+    /// Dry run (show what would be updated)
+    #[arg(long)]
+    dry_run: bool,
+    
+    /// Skip confirmation prompts
+    #[arg(short = 'y', long)]
+    yes: bool,
+    
+    /// Skip snapshot creation
+    #[arg(long)]
+    no_snapshot: bool,
+}
 
 struct Config {
     dry_run: bool,
@@ -368,10 +392,7 @@ fn run_doctor() {
 }
 
 fn save_update_log(success: bool, pre: Option<u32>, post: Option<u32>) {
-    let home = match env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => return,
-    };
+    let home = paths::home();
     
     let log_dir = PathBuf::from(&home).join(".local/share/faelight/update-logs");
     
