@@ -1,5 +1,106 @@
 # Changelog
 
+# v9.0.0 - PATH RESILIENCE FOUNDATION
+
+**Release Date:** 2026-02-03
+
+## 🌟 MAJOR MILESTONE: 60% Path Resilience Achieved!
+
+This is a **MAJOR VERSION** release marking fundamental architectural transformation. The system now has centralized path management with 24/40 tools (60%!) using `faelight-core::paths` - making the entire system resilient to directory changes.
+
+## 🏗️ ARCHITECTURAL CHANGES
+
+### Path Resilience Migration (60% Complete!)
+
+**24 Tools Migrated:**
+- Core: faelight-fetch, faelight-notify, faelight-link, faelight-git, faelight-hooks
+- Versioning: bump-system-version, bump-tool-version, get-version, latest-update
+- System: faelight-update, archaeology-0-core, safe-update v2.0.0
+- Development: intent, intent-guard, alias-audit, core-diff
+- Monitoring: dot-doctor v3.1.0 (enhanced!), entropy-check v2.0.0
+- Files: workspace-view v2.0.0, recent-files v0.3.0
+- Config: dotctl v3.0.0, profile v2.0.0, faelight-zone v2.0.0
+- Protection: core-protect v2.0.0 (The Guardian!)
+
+### Enhanced faelight-core::paths
+
+New path functions:
+- `entropy_baseline_file()` - Entropy monitoring
+- `entropy_history_file()` - Historical tracking
+- `current_profile_file()` - Active profile state
+- `profile_log_file()` - Profile operations
+
+## 🏥 ENHANCED MONITORING (19 Health Checks!)
+
+### NEW in dot-doctor v3.1.0
+
+1. **Rust Toolchain** (Medium) - Verifies cargo/rustc availability
+2. **Disk Space** (High) - Warns at >90% usage on / and /home
+3. **Tool Installation** (Medium) - Checks 7 key tools in PATH
+4. **Path Resilience** (Low) - **SELF-AWARE TRACKING!** Shows 24/40 (60%)
+
+Total: 15 → 19 checks | System Health: 94%
+
+## 🛡️ THE GUARDIAN DEPLOYED
+
+### core-protect v2.0.0
+
+- Lock/unlock immutable protection (chattr)
+- Blast radius warnings (high/medium/low)
+- Automatic backups (git stash)
+- Safe edit workflows
+- Modern clap CLI
+
+*"The Guardian never sleeps"*
+
+## 🔧 TOOL MODERNIZATIONS
+
+### Session 6 (40% → 50%)
+- **dot-doctor v3.1.0** - 4 new health checks
+- **workspace-view v2.0.0** - Sway intelligence
+- **entropy-check v2.0.0** - Drift detection
+- **recent-files v0.3.0** - File tracking
+- **core-protect v2.0.0** - Guardian (50% milestone!)
+
+### Session 7 (50% → 60%)
+- **dotctl v3.0.0** - Dotfile control
+- **profile v2.0.0** - Profile switching
+- **faelight-zone v2.0.0** - Zone detection
+- **safe-update v2.0.0** - Safe updates (60% milestone!)
+
+All tools received:
+- ✅ faelight-core::paths integration
+- ✅ Modern CLI (clap)
+- ✅ Future-ready (colored)
+- ✅ Version 2.0.0+
+
+## 📊 STATISTICS
+
+- Tools migrated: 16 → 24 (+8)
+- Path resilience: 40% → 60% (+20pp)
+- Health checks: 15 → 19 (+4)
+- System health: 94%
+
+## 🎯 PHILOSOPHY EMBODIED
+
+- **"We Expose Assumptions"** - 60% progress visible
+- **"Fail Loudly"** - High-severity warnings
+- **"Human Comprehension"** - Clear metrics
+- **"Tool Harmony"** - Integrated health checks
+
+**THE SYSTEM WATCHES ITSELF EVOLVE** 💎
+
+## 🚀 WHAT'S NEXT
+
+Remaining: 16 tools (40%)
+Target: 90%+ for Path Resilience check pass
+
+---
+
+*"Half the system is path-resilient. The foundation is unshakeable."*
+
+Faelight Forest v9.0.0 💎✨
+
 
 ## Architecture
 - Created 00-meta/ (identity), 01-registry/ (canonical lists), 02-rules/ (enforcement), 03-interfaces/ (human-editable), 04-runtime/ (ephemeral)
@@ -172,6 +273,7 @@ Tools updated for numbered gravity structure:
 - bump-tool-version: Intentional, granular control
 
 > "Systems thinking over quick fixes - we debug thoroughly, harden systematically, and ship with confidence." 🌲
+> "The system watches itself evolve. Half the foundation is unshakeable, centralized, resilient." 🌲
 ---
 
 **Full system health maintained at 100% throughout development.**
