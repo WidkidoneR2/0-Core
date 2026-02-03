@@ -1,11 +1,16 @@
 [package]
 name = "alias-audit"
-version.workspace = true
+version = "9.0.0"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Audit tool aliases and detect duplicates/missing commands"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI & utilities
 anyhow.workspace = true
 clap = { workspace = true }
 serde = { workspace = true }
