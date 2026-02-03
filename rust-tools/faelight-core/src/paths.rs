@@ -192,3 +192,32 @@ mod tests {
         assert!(runtime_dir().to_string_lossy().contains("04-runtime"));
     }
 }
+
+// ═══════════════════════════════════════════════════════════
+// SYSTEM FONTS (Common font locations)
+// ═══════════════════════════════════════════════════════════
+
+/// System fonts directory
+pub fn system_fonts_dir() -> PathBuf {
+    PathBuf::from("/usr/share/fonts")
+}
+
+/// TTF fonts directory
+pub fn ttf_fonts_dir() -> PathBuf {
+    system_fonts_dir().join("TTF")
+}
+
+/// Hack Nerd Font (commonly used in 0-Core)
+pub fn hack_nerd_font() -> PathBuf {
+    ttf_fonts_dir().join("HackNerdFont-Regular.ttf")
+}
+
+/// JetBrains Mono Nerd Font (used in faelight-bar)
+pub fn jetbrains_mono_nerd_font() -> PathBuf {
+    ttf_fonts_dir().join("JetBrainsMonoNerdFont-Regular.ttf")
+}
+
+/// Helper: Check if a font file exists
+pub fn font_exists(font_path: &PathBuf) -> bool {
+    font_path.exists()
+}
