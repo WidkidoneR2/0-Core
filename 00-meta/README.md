@@ -204,20 +204,27 @@ faelight-update
 
 ## 🏆 Recent Achievements
 
-**v8.8.0 (Numbered Gravity Release)**
+### v8.9.0 (Numbered Gravity Path Hardening)
+- **Fixed critical system shutdown deadlock** (4+ hour debug session!)
+- Hardened 4 critical tools with paths modules (faelight-menu, faelight-stow, faelight-bar, keyscan)
+- Integrated status bar with doctor for accurate health display
+- Shipped Prompt 2.0 (health dots, git risk, entropy metrics)
+- Achieved 100% system health with comprehensive monitoring
+- **Progress:** 15/40 tools with path improvements (37.5%)
+
+### v8.8.0 (Numbered Gravity Release)
 - Implemented numbered gravity architecture (Linus feedback)
 - Built faelight-update v2.0.0 (better than topgrade)
 - Created registry system (tools.toml, aliases.toml, zones.toml)
-- Achieved 100% system health
+- Systematic numbered structure (00-meta, 01-registry, etc.)
 
-**v8.7.0**
+### v8.7.0 (Linus Presentation)
 - Presented to Linus Torvalds + kernel developers
 - Demonstrated 40 production Rust tools
 - Showcased manual control philosophy
 
 [See complete history in CHANGELOG.md]
 
----
 
 ## 🌲 Zone System
 ```
