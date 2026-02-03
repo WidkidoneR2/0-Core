@@ -1,21 +1,16 @@
-//! faelight-git library - Git governance core
+//! Shared library functions for faelight-git
+//! Using faelight-core for all path management
 
+pub mod commands;
 pub mod git;
 pub mod risk;
-pub mod commands;
-
-pub use git::repo::GitRepo;
-pub use risk::engine::RiskScore;
 
 /// Check if 0-core is locked
-pub fn is_core_locked() -> bool {
-    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join(".0-core-locked")
-        .exists()
+pub fn is_locked() -> bool {
+    faelight_core::paths::is_core_locked()
 }
 
 /// Get 0-core directory
-pub fn get_core_dir() -> std::path::PathBuf {
-    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("0-core")
+pub fn core_dir() -> std::path::PathBuf {
+    faelight_core::paths::core_dir()
 }

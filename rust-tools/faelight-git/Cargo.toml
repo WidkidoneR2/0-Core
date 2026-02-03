@@ -1,10 +1,11 @@
 [package]
 name = "faelight-git"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 description = "Git governance for Faelight Forest"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 # Existing
 clap = { version = "4", features = ["derive"] }
 colored = "2"
@@ -17,12 +18,10 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # NEW: For risk/graph storage
-serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"
 
 # NEW: Shared Faelight infrastructure
-faelight-core = { path = "../faelight-core" }
 
 [profile.release]
 opt-level = "z"

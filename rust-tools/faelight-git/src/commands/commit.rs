@@ -2,7 +2,7 @@
 
 use crate::git::GitRepo;
 use crate::risk::RiskScore;
-use crate::is_core_locked;
+use crate::is_locked;
 use anyhow::{Result, bail};
 use colored::*;
 use std::io::{self, Write};
@@ -11,7 +11,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     let repo = GitRepo::open()?;
     
     // Check 1: Core must be unlocked
-    if is_core_locked() {
+    if is_locked() {
         bail!("Core is locked. Run 'unlock-core' before committing.");
     }
     

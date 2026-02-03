@@ -240,3 +240,32 @@ pub fn faelight_link_backups() -> PathBuf {
 pub fn faelight_state_dir() -> PathBuf {
     home().join(".local/state/0-core")
 }
+
+// ═══════════════════════════════════════════════════════════
+// GIT REPOSITORY PATHS
+// ═══════════════════════════════════════════════════════════
+
+/// Git directory within 0-core
+pub fn git_dir() -> PathBuf {
+    core_dir().join(".git")
+}
+
+/// Git hooks directory (for faelight-git governance)
+pub fn git_hooks_dir() -> PathBuf {
+    git_dir().join("hooks")
+}
+
+/// Git config directory
+pub fn git_config_dir() -> PathBuf {
+    config_dir().join("git")
+}
+
+/// Core lock file (prevents simultaneous operations)
+pub fn core_lock_file() -> PathBuf {
+    home().join(".0-core-locked")
+}
+
+/// Check if 0-core is locked
+pub fn is_core_locked() -> bool {
+    core_lock_file().exists()
+}

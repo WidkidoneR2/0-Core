@@ -2,7 +2,7 @@
 
 use crate::git::GitRepo;
 use crate::risk::RiskScore;
-use crate::is_core_locked;
+use crate::is_locked;
 use anyhow::Result;
 use colored::*;
 
@@ -27,7 +27,7 @@ pub fn run() -> Result<()> {
     }
     
     // Lock status
-    let lock_status = if is_core_locked() {
+    let lock_status = if is_locked() {
         "🔒 LOCKED".red()
     } else {
         "🔓 UNLOCKED".green()
