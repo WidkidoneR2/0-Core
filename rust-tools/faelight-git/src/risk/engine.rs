@@ -1,7 +1,7 @@
 //! Git Risk Score engine
 
 use crate::git::GitRepo;
-use crate::is_core_locked;
+use crate::is_locked;
 use anyhow::Result;
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ impl RiskScore {
         }
 
         // Factor 2: Core locked
-        if is_core_locked() {
+        if is_locked() {
             let delta = 10;
             total += delta;
             breakdown.push(RiskFactor {

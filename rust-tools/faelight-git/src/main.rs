@@ -3,19 +3,18 @@
 
 use clap::{Parser, Subcommand};
 use colored::*;
-use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
 use std::process::{Command, exit};
 
 // Import our library modules
 use faelight_git::commands;
+use faelight_core::paths;
 
 #[derive(Parser)]
 #[command(name = "faelight-git")]
 #[command(about = "🌲 Git Governance for Faelight Forest")]
-#[command(version = "3.0.0")]
+#[command(version = "3.1.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -168,28 +167,12 @@ fn main() {
     exit(exit_code);
 }
 
-fn get_core_dir() -> PathBuf {
-    let home = env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join("0-core")
-}
-
-fn get_hooks_dir() -> PathBuf {
-    get_core_dir().join(".git/hooks")
-}
-
-fn is_locked() -> bool {
-    let home = env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".0-core-locked").exists()
-}
 
 // ═══════════════════════════════════════════════════════════
-// 🔧 INSTALL/REMOVE HOOKS
-// ═══════════════════════════════════════════════════════════
-
 fn install_hooks() -> i32 {
     println!("{}", "🔧 Installing git hooks...".cyan());
     
-    let hooks_dir = get_hooks_dir();
+    let hooks_dir = paths::git_hooks_dir();
     if !hooks_dir.exists() {
         eprintln!("{} .git/hooks directory not found", "Error:".red());
         return 1;
@@ -239,7 +222,7 @@ fn install_hooks() -> i32 {
 fn remove_hooks() -> i32 {
     println!("{}", "🔧 Removing git hooks...".cyan());
     
-    let hooks_dir = get_hooks_dir();
+    let hooks_dir = paths::git_hooks_dir();
     let hooks = ["pre-commit", "commit-msg", "pre-push"];
 
     for name in hooks {
@@ -281,7 +264,7 @@ fn verify() -> i32 {
     let mut issues = 0;
 
     // Check lock status
-    if is_locked() {
+    if paths::is_core_locked() {
         println!("  {} Core is locked - commits blocked", "❌".red());
         issues += 1;
     } else {
@@ -290,7 +273,7 @@ fn verify() -> i32 {
 
     // Check for uncommitted changes
     let status = Command::new("git")
-        .args(["-C", get_core_dir().to_str().unwrap(), "status", "--porcelain"])
+        .args(["-C", paths::core_dir().to_str().unwrap(), "status", "--porcelain"])
         .output();
 
     if let Ok(output) = status {
@@ -306,7 +289,7 @@ fn verify() -> i32 {
 
     // Check for unpushed commits
     let unpushed = Command::new("git")
-        .args(["-C", get_core_dir().to_str().unwrap(), "log", "@{u}..", "--oneline"])
+        .args(["-C", paths::core_dir().to_str().unwrap(), "log", "@{u}..", "--oneline"])
         .output();
 
     if let Ok(output) = unpushed {
@@ -321,7 +304,7 @@ fn verify() -> i32 {
     }
 
     // Check hooks installed
-    let hooks_dir = get_hooks_dir();
+    let hooks_dir = paths::git_hooks_dir();
     let hooks_installed = ["pre-commit", "commit-msg", "pre-push"]
         .iter()
         .filter(|h| {
@@ -357,7 +340,7 @@ fn verify() -> i32 {
 
 fn hook_pre_commit() -> i32 {
     // Check if core is locked
-    if is_locked() {
+    if paths::is_core_locked() {
         eprintln!();
         eprintln!("{}", "═══════════════════════════════════════════".red());
         eprintln!("{}", "🔒 COMMIT BLOCKED - Core is locked!".red().bold());
@@ -372,7 +355,7 @@ fn hook_pre_commit() -> i32 {
     println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
     let gitleaks = Command::new("gitleaks")
         .args(["protect", "--verbose", "--staged"])
-        .current_dir(get_core_dir())
+        .current_dir(paths::core_dir())
         .status();
 
     match gitleaks {
