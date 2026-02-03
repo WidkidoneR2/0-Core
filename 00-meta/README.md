@@ -9,8 +9,6 @@
 
 > **v8.9.0 Milestone:** Numbered Gravity Path Hardening - Critical shutdown fix, 4 tools hardened with paths modules, Prompt 2.0 🌲🦀
 
-**v8.8.0 Milestone:** Numbered Gravity Architecture + faelight-update v2.0.0 (Linus-approved restructuring) 🌲🦀
-
 ---
 
 ## 🎯 What is 0-Core?
@@ -217,11 +215,6 @@ faelight-update
 - Built faelight-update v2.0.0 (better than topgrade)
 - Created registry system (tools.toml, aliases.toml, zones.toml)
 - Systematic numbered structure (00-meta, 01-registry, etc.)
-
-### v8.7.0 (Linus Presentation)
-- Presented to Linus Torvalds + kernel developers
-- Demonstrated 40 production Rust tools
-- Showcased manual control philosophy
 
 [See complete history in CHANGELOG.md]
 
