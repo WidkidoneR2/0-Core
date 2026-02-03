@@ -1733,7 +1733,10 @@ dependencies = [
 
 [[package]]
 name = "intent-guard"
-version = "1.0.0"
+version = "2.0.0"
+dependencies = [
+ "faelight-core",
+]
 
 [[package]]
 name = "interpolate_name"
