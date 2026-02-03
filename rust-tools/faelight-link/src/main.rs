@@ -5,10 +5,11 @@ use colored::*;
 mod package;
 mod link;
 mod conflict;
+mod paths;
 
 #[derive(Parser)]
 #[command(name = "faelight-link")]
-#[command(version = "1.0.0")]
+#[command(version = "1.1.0")]
 #[command(about = "Zone-aware symlink manager for Faelight Forest", long_about = None)]
 struct Cli {
     #[command(subcommand)]

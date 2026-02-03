@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -7,7 +7,7 @@ use crate::conflict::{Conflict, ConflictAction, resolve_conflict, backup_file};
 
 /// Create symlinks for package files
 pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
-    let home = std::env::var("HOME").context("HOME not set")?;
+    let home = crate::paths::home();
     let home_path = PathBuf::from(&home);
     
     let mut created = 0;
@@ -121,7 +121,7 @@ pub fn create_links(pkg_dir: &Path, files: &[PathBuf]) -> Result<()> {
 
 /// Show status of all links
 pub fn status() -> Result<()> {
-    let home = std::env::var("HOME").context("HOME not set")?;
+    let home = crate::paths::home();
     let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
@@ -180,7 +180,7 @@ pub fn status() -> Result<()> {
 }
 
 /// Count symlinks for a package
-fn count_package_links(home: &str, package: &str) -> Result<usize> {
+fn count_package_links(home: &PathBuf, package: &str) -> Result<usize> {
     let home_path = PathBuf::from(home);
     let mut count = 0;
     
@@ -214,7 +214,7 @@ fn count_package_links(home: &str, package: &str) -> Result<usize> {
 }
 
 /// Count broken symlinks for a package
-fn count_broken_links(home: &str, package: &str) -> Result<usize> {
+fn count_broken_links(home: &PathBuf, package: &str) -> Result<usize> {
     let home_path = PathBuf::from(home);
     let mut count = 0;
     
@@ -251,7 +251,7 @@ fn count_broken_links(home: &str, package: &str) -> Result<usize> {
 
 /// Audit all links - comprehensive health check
 pub fn audit() -> Result<()> {
-    let home = std::env::var("HOME").context("HOME not set")?;
+    let home = crate::paths::home();
     let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
@@ -349,7 +349,7 @@ pub fn audit() -> Result<()> {
 
 /// Clean up broken and orphaned links
 pub fn clean(force: bool) -> Result<()> {
-    let home = std::env::var("HOME").context("HOME not set")?;
+    let home = crate::paths::home();
     let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
     
     if !stow_dir.exists() {
@@ -426,7 +426,7 @@ pub fn clean(force: bool) -> Result<()> {
 }
 
 /// Find all symlinks for a package (recursive)
-fn find_all_package_links(home: &str, package: &str) -> Result<Vec<PathBuf>> {
+fn find_all_package_links(home: &PathBuf, package: &str) -> Result<Vec<PathBuf>> {
     let home_path = PathBuf::from(home);
     let mut links = Vec::new();
     

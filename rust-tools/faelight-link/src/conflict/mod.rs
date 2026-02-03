@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use dialoguer::Select;
 use std::fs;
@@ -58,8 +58,8 @@ pub fn resolve_conflict(conflict: &Conflict) -> Result<ConflictAction> {
 
 /// Create backup of existing file
 pub fn backup_file(target: &Path) -> Result<PathBuf> {
-    let home = std::env::var("HOME").context("HOME not set")?;
-    let backup_root = PathBuf::from(home).join(".local/share/faelight-link/backups");
+    // Using faelight_core paths
+    let backup_root = crate::paths::backup_dir();
     
     // Create backup directory
     fs::create_dir_all(&backup_root)?;
