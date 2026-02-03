@@ -4,6 +4,90 @@
 - Created 00-meta/ (identity), 01-registry/ (canonical lists), 02-rules/ (enforcement), 03-interfaces/ (human-editable), 04-runtime/ (ephemeral)
 - Renamed INTENT → intents (lowercase consistency)
 - Deleted 1,579 lines of obsolete code
+## [8.9.0] - 2026-02-02
+
+### 🎯 Major Theme: Numbered Gravity Path Hardening
+
+Systematic fixes for numbered gravity structure migration. Added paths modules to critical tools and fixed breaking path issues.
+
+### 🔧 Critical Fixes
+
+#### faelight-menu v2.0.0 (BREAKING)
+- **CRITICAL**: Fixed system shutdown deadlock bug (4+ hour debug session!)
+  - Root cause: Script exited Sway manually, killing itself before systemctl could run
+  - Solution: Let systemd handle Sway termination
+- Created `src/paths.rs` module for script paths
+- Graceful shutdown now works reliably
+- See: `intents/incidents/2026-02-03-shutdown-broken-numbered-gravity.md`
+
+#### faelight-stow v1.0.0 (BREAKING)
+- **BREAKING**: Updated for numbered gravity structure
+- Created `src/paths.rs` module
+- Fixed stow directory: `stow` → `03-interfaces/stow`
+- All 13 packages now properly detected
+
+#### faelight-bar v2.1.0
+- **MAJOR**: Replaced simple 5-check health with doctor integration
+- Created `src/paths.rs` module with `doctor_path()`
+- Added lazy_static for 30-second health caching (prevents performance impact)
+- Status bar now shows accurate system health matching doctor
+
+#### keyscan v1.1.0
+- Created `src/paths.rs` module
+- Centralized sway config path management
+- Better error handling with `unwrap_or_default()`
+
+### 📦 Path Fixes (Previous Sessions)
+
+Tools updated for numbered gravity structure:
+- dot-doctor: stow, VERSION, themes paths
+- bump-system-version: VERSION, stow, README, CHANGELOG paths
+- get-version, latest-update, faelight-link: stow paths
+- alias-audit: stow paths
+- faelight-dashboard, entropy-check: VERSION paths
+- profile, faelight, faelight-fetch: VERSION paths
+
+**Path hardening progress: 15/40 tools (37.5%)**
+
+### ✨ Features
+
+#### Prompt 2.0
+- Health indicators (● 100%, ● 93%, ● 53% with color coding)
+- Git risk score (⚠️ risk=LOW/MED/HIGH)
+- Entropy metrics in segment separators
+
+### 🏥 Health
+
+- **100%** when git is clean
+- **93%** with uncommitted changes
+- All 15 health checks passing
+- Status bar accurately reflects system health
+
+### 📝 Documentation
+
+- Created Intent 077: Tool Hardening Sprint
+- Incident report: 2026-02-03 shutdown deadlock
+- Updated Intent 076: Path Resilience Audit (15/40 tools complete)
+
+### 🎓 Lessons Learned
+
+**Debugging Methodology:**
+1. Comprehensive logging at all decision points
+2. Manual testing to verify assumptions
+3. Understanding session termination behavior
+4. Don't overcomplicate (simple fixes often best)
+
+**Architecture:**
+- Individual `src/paths.rs` modules prepare for future `faelight-core/paths.rs`
+- Incremental hardening is sustainable
+- Critical tools first, then systematic audit
+
+### Related
+
+- Intent 076: Path Resilience Audit
+- Intent 077: Tool Hardening Sprint
+- Numbered gravity migration (v8.8.0)
+
 
 ## New Tools
 - faelight-update v2.0.0: Better than topgrade with 9 package sources (Pacman, AUR, Cargo, Neovim, Yazi, Git, Firmware, Flatpak, Workspace)
