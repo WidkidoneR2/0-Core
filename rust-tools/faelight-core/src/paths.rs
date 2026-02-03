@@ -310,3 +310,47 @@ pub fn zshrc_file() -> PathBuf {
 pub fn changelog_draft(version: &str) -> PathBuf {
     logs_dir().join(format!("CHANGELOG-v{}-DRAFT.md", version))
 }
+
+// ═══════════════════════════════════════════════════════════
+// INTENT SYSTEM PATHS
+// ═══════════════════════════════════════════════════════════
+
+/// Intent future directory
+pub fn intents_future() -> PathBuf {
+    intents_dir().join("future")
+}
+
+/// Intent complete directory
+pub fn intents_complete() -> PathBuf {
+    intents_dir().join("complete")
+}
+
+/// Intent cancelled directory
+pub fn intents_cancelled() -> PathBuf {
+    intents_dir().join("cancelled")
+}
+
+/// Intent deferred directory
+pub fn intents_deferred() -> PathBuf {
+    intents_dir().join("deferred")
+}
+
+/// Intent decisions directory
+pub fn intents_decisions() -> PathBuf {
+    intents_dir().join("decisions")
+}
+
+/// Intent experiments directory
+pub fn intents_experiments() -> PathBuf {
+    intents_dir().join("experiments")
+}
+
+/// Intent philosophy directory
+pub fn intents_philosophy() -> PathBuf {
+    intents_dir().join("philosophy")
+}
+
+/// Intent incidents directory
+pub fn intents_incidents() -> PathBuf {
+    intents_dir().join("incidents")
+}

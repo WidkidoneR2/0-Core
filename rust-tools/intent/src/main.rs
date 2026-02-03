@@ -4,8 +4,9 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
+use faelight_core::paths;
 
-const VERSION: &str = "2.0.0";
+const VERSION: &str = "3.0.0";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -84,8 +85,7 @@ fn main() {
 }
 
 fn get_intent_dir() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join("0-core/INTENT")
+    paths::intents_dir()
 }
 
 fn error(msg: &str) -> ! {
@@ -763,7 +763,7 @@ fn cmd_health() {
     if intent_dir.exists() {
         println!("{}✅{}", GREEN, NC);
     } else {
-        println!("{}❌ ~/0-core/INTENT not found{}", RED, NC);
+        println!("{}❌ Intent directory not found{}", RED, NC);
         healthy = false;
     }
     
