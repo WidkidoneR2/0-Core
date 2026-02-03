@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,7 +32,7 @@ pub fn discover_packages(stow_dir: &Path) -> Result<Vec<String>> {
 
 /// Get the stow directory path
 pub fn get_stow_dir() -> Result<PathBuf> {
-    let home = std::env::var("HOME").context("HOME not set")?;
+    let home = crate::paths::home();
     Ok(PathBuf::from(home).join("0-core/03-interfaces/stow"))
 }
 
@@ -148,8 +148,7 @@ pub fn unstow(package: &str) -> Result<()> {
     println!("  Package: {}", pkg_path.display().to_string().bright_black());
     
     // Find all symlinks for this package
-    let home = std::env::var("HOME").context("HOME not set")?;
-    let links = find_package_links(&home, package)?;
+    let links = find_package_links(&crate::paths::home(), package)?;
     
     if links.is_empty() {
         println!("  {} No symlinks found for this package", "⚠️".bright_yellow());
@@ -203,7 +202,7 @@ pub fn unstow(package: &str) -> Result<()> {
 }
 
 /// Find all symlinks for a package
-fn find_package_links(home: &str, package: &str) -> Result<Vec<PathBuf>> {
+fn find_package_links(home: &PathBuf, package: &str) -> Result<Vec<PathBuf>> {
     let home_path = PathBuf::from(home);
     let mut links = Vec::new();
     

@@ -1,10 +1,11 @@
 [package]
 name = "faelight-link"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Christian"]
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 clap = { version = "4.5", features = ["derive"] }
 colored = "2.1"
 anyhow = "1.0"

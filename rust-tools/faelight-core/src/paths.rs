@@ -9,7 +9,7 @@ use std::env;
 use std::path::PathBuf;
 
 /// Get home directory - PANICS if HOME not set (fail fast philosophy)
-fn home() -> PathBuf {
+pub fn home() -> PathBuf {
     PathBuf::from(
         env::var("HOME").expect("HOME environment variable must be set - this is a critical assumption")
     )
@@ -220,4 +220,23 @@ pub fn jetbrains_mono_nerd_font() -> PathBuf {
 /// Helper: Check if a font file exists
 pub fn font_exists(font_path: &PathBuf) -> bool {
     font_path.exists()
+}
+
+// ═══════════════════════════════════════════════════════════
+// USER DATA (XDG-like directories)
+// ═══════════════════════════════════════════════════════════
+
+/// User's local data directory (~/.local/share)
+pub fn local_data_dir() -> PathBuf {
+    home().join(".local/share")
+}
+
+/// faelight-link backups directory
+pub fn faelight_link_backups() -> PathBuf {
+    local_data_dir().join("faelight-link/backups")
+}
+
+/// faelight-core state directory
+pub fn faelight_state_dir() -> PathBuf {
+    home().join(".local/state/0-core")
 }
