@@ -1,14 +1,9 @@
 //! faelight-stow v2.0.0 - Stow Verification (Auto-discovery)
 //! 🌲 Faelight Forest
-
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use faelight_core::paths as core_paths;
-use clap::Parser;
-use colored::*;
-
 mod paths;
 
 #[derive(Debug)]
@@ -31,14 +26,13 @@ fn main() {
     }
     
     if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
-        println!("faelight-stow v1.0.0");
+        println!("faelight-stow v2.0.0");
         return;
     }
     
     if !quiet {
-        eprintln!("🔗 faelight-stow v1.0.0 - Verifying symlinks...");
+        eprintln!("🔗 faelight-stow v2.0.0 - Verifying symlinks...");
     }
-    
     
     let core_dir = core_paths::core_dir();
     let stow_dir = PathBuf::from(crate::paths::stow_dir());
@@ -84,7 +78,7 @@ fn main() {
     
     for package in &packages {
         // Find symlinks in ~/ that point to this package
-        let symlinks = find_package_symlinks(&core_paths::home().display().to_string(), package);
+        let symlinks = find_package_symlinks(&home, package);
         
         if symlinks.is_empty() {
             issues.push(Issue {
@@ -102,7 +96,7 @@ fn main() {
             } else {
                 issues.push(Issue {
                     package: package.clone(),
-                    path: link_path.strip_prefix(&core_paths::home()).unwrap_or(&link_path).display().to_string(),
+                    path: link_path.strip_prefix(&home).unwrap_or(&link_path).display().to_string(),
                     problem: "Invalid symlink".to_string(),
                 });
             }
@@ -174,7 +168,7 @@ fn discover_packages(stow_dir: &PathBuf) -> Vec<String> {
     packages
 }
 
-fn find_package_symlinks(_home: &str, package: &str) -> Vec<PathBuf> {
+fn find_package_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
     let home_path = core_paths::home();
     let mut symlinks = Vec::new();
     
@@ -220,7 +214,7 @@ fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> boo
 }
 
 fn print_help() {
-    println!("faelight-stow v1.0.0 - Stow Symlink Verification");
+    println!("faelight-stow v2.0.0 - Stow Symlink Verification");
     println!();
     println!("USAGE:");
     println!("    faelight-stow [OPTIONS] [PACKAGE]");
