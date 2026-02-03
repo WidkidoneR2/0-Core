@@ -1,5 +1,6 @@
 //! keyscan v1.0.0 - Sway Keybind Analysis
 //! 🌲 Faelight Forest
+mod paths;
 
 use colored::*;
 use std::collections::{HashMap, HashSet};
@@ -36,8 +37,7 @@ struct KeybindStats {
 // ============================================================================
 
 fn get_sway_config_path() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join(".config/sway/config")
+    crate::paths::sway_config_path()
 }
 
 fn parse_sway_config(path: &PathBuf) -> Result<Vec<Keybind>, String> {
