@@ -1,191 +1,396 @@
-//! archaeology-0-core v0.2 - System-Wide History Explorer
-//! 🌲 Faelight Forest
+//! archaeology-0-core v2.0 - System-Wide History Explorer
+//! 🌲 Faelight Forest - Dig through your system's evolution
 
-use std::env;
-use std::process::{self, Command};
+use anyhow::{Context, Result};
+use chrono::DateTime;
+use clap::{Parser, Subcommand};
+use colored::*;
+use faelight_core::paths;
+use serde::{Deserialize, Serialize};
+use std::process::Command;
 
-// ANSI colors
-const CYAN: &str = "\x1b[0;36m";
-const GREEN: &str = "\x1b[0;32m";
-const YELLOW: &str = "\x1b[0;33m";
-const BLUE: &str = "\x1b[0;34m";
-const GRAY: &str = "\x1b[0;90m";
-const MAGENTA: &str = "\x1b[0;35m";
-const NC: &str = "\x1b[0m";
+#[derive(Parser)]
+#[command(name = "archaeology-0-core")]
+#[command(about = "🏛️ System-wide history explorer for 0-Core", long_about = None)]
+#[command(version = "2.0.0")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+    
+    /// Package to explore (if no subcommand provided)
+    package: Option<String>,
+    
+    /// Output as JSON
+    #[arg(long, global = true)]
+    json: bool,
+}
 
-const VERSION: &str = "1.0.0";
+#[derive(Subcommand)]
+enum Commands {
+    /// Show chronological timeline of all packages
+    Timeline {
+        /// Limit number of commits
+        #[arg(short, long, default_value = "50")]
+        limit: usize,
+    },
+    
+    /// Show activity from last N days
+    Recent {
+        /// Number of days to look back
+        #[arg(short, long, default_value = "7")]
+        days: i32,
+    },
+    
+    /// Show commits for a specific intent
+    Intent {
+        /// Intent ID to filter by
+        id: String,
+    },
+    
+    /// Show changes since a version or tag
+    Since {
+        /// Version or tag (e.g., v7.0.0)
+        version: String,
+    },
+    
+    /// Show history for specific package
+    Package {
+        /// Package name
+        name: String,
+        
+        /// Limit number of commits
+        #[arg(short, long, default_value = "50")]
+        limit: usize,
+    },
+    
+    /// Show statistics about system evolution
+    Stats {
+        /// Show stats since version/tag
+        #[arg(long)]
+        since: Option<String>,
+    },
+}
 
+#[derive(Debug, Serialize, Deserialize)]
 struct Commit {
     hash: String,
     short_hash: String,
     date: String,
+    timestamp: i64,
     subject: String,
     intent: Option<String>,
     packages: Vec<String>,
+    stats: Option<CommitStats>,
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    
-    if args.len() < 2 || args[1] == "--help" || args[1] == "-h" {
-        show_help();
-        return;
-    }
-    
-    let home = env::var("HOME").expect("HOME not set");
-    let core_dir = format!("{}/0-core", home);
-    
-    // Parse mode
-    match args[1].as_str() {
-        "--version" | "-v" | "version" => {
-            println!("archaeology-0-core v{}", VERSION);
-            return;
-        },
-        "--timeline" => show_timeline(&core_dir),
-        "--this-week" => show_since_days(&core_dir, 7),
-        "--by-intent" if args.len() > 2 => show_by_intent(&core_dir, &args[2]),
-        "--since" if args.len() > 2 => show_since_version(&core_dir, &args[2]),
-        package => show_package(&core_dir, package),
-    }
+#[derive(Debug, Serialize, Deserialize)]
+struct CommitStats {
+    files: usize,
+    insertions: usize,
+    deletions: usize,
 }
 
-fn show_package(core_dir: &str, package: &str) {
-    println!();
-    println!("{}🌲 0-Core Archaeology - {}{}", CYAN, package, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
+fn main() -> Result<()> {
+    let cli = Cli::parse();
     
-    let output = Command::new("git")
-        .args(["-C", core_dir, "log", "--format=%H|%h|%ai|%s", "--", &format!("{}/", package)])
-        .output()
-        .expect("Failed to run git log");
+    let core_dir = paths::core_dir();
     
-    if !output.status.success() {
-        eprintln!("{}❌ Error: Package not found{}", YELLOW, NC);
-        process::exit(1);
+    // Check if we're in a git repo
+    if !core_dir.join(".git").exists() {
+        eprintln!("{}", "❌ Not in a git repository!".red().bold());
+        std::process::exit(1);
     }
     
-    let commits = parse_simple_commits(&String::from_utf8_lossy(&output.stdout));
-    
-    if commits.is_empty() {
-        println!("{}No commits found{}", YELLOW, NC);
-        return;
+    match cli.command {
+        Some(Commands::Timeline { limit }) => {
+            show_timeline(&core_dir, limit, cli.json)?;
+        }
+        Some(Commands::Recent { days }) => {
+            show_recent(&core_dir, days, cli.json)?;
+        }
+        Some(Commands::Intent { id }) => {
+            show_by_intent(&core_dir, &id, cli.json)?;
+        }
+        Some(Commands::Since { version }) => {
+            show_since(&core_dir, &version, cli.json)?;
+        }
+        Some(Commands::Package { name, limit }) => {
+            show_package(&core_dir, &name, limit, cli.json)?;
+        }
+        Some(Commands::Stats { since }) => {
+            show_stats(&core_dir, since.as_deref(), cli.json)?;
+        }
+        None => {
+            // If no subcommand but package name provided
+            if let Some(pkg) = cli.package {
+                show_package(&core_dir, &pkg, 50, cli.json)?;
+            } else {
+                // Default: show recent activity
+                show_recent(&core_dir, 7, cli.json)?;
+            }
+        }
     }
     
-    display_commits(core_dir, &commits, package);
-    println!("{}Total commits: {}{}", CYAN, commits.len(), NC);
-    println!();
+    Ok(())
 }
 
-fn show_timeline(core_dir: &str) {
-    println!();
-    println!("{}🌲 0-Core System Timeline{}", CYAN, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
+fn show_timeline(core_dir: &std::path::PathBuf, limit: usize, json: bool) -> Result<()> {
+    if !json {
+        println!();
+        println!("{}", "🏛️ 0-Core System Timeline".cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+    }
     
-    let output = Command::new("git")
-        .args(["-C", core_dir, "log", "--format=%H|%h|%ai|%s", "--name-only"])
-        .output()
-        .expect("Failed to run git log");
+    let commits = get_commits_with_files(
+        core_dir,
+        &["-n", &limit.to_string()],
+    )?;
     
-    let commits = parse_commits_with_files(&String::from_utf8_lossy(&output.stdout));
+    if json {
+        println!("{}", serde_json::to_string_pretty(&commits)?);
+    } else {
+        display_commits(&commits);
+        println!("{}", format!("Total: {} commits", commits.len()).cyan());
+        println!();
+    }
     
-    display_commits_with_packages(core_dir, &commits);
-    println!("{}Total commits: {}{}", CYAN, commits.len(), NC);
-    println!();
+    Ok(())
 }
 
-fn show_since_days(core_dir: &str, days: i32) {
-    println!();
-    println!("{}🌲 0-Core - Last {} Days{}", CYAN, days, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
+fn show_recent(core_dir: &std::path::PathBuf, days: i32, json: bool) -> Result<()> {
+    if !json {
+        println!();
+        println!("{}", format!("🏛️ Last {} Days", days).cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+    }
     
     let since = format!("{} days ago", days);
-    let output = Command::new("git")
-        .args(["-C", core_dir, "log", &format!("--since={}", since), "--format=%H|%h|%ai|%s", "--name-only"])
-        .output()
-        .expect("Failed to run git log");
-    
-    let commits = parse_commits_with_files(&String::from_utf8_lossy(&output.stdout));
+    let commits = get_commits_with_files(
+        core_dir,
+        &["--since", &since],
+    )?;
     
     if commits.is_empty() {
-        println!("{}No commits in last {} days{}", YELLOW, days, NC);
-        return;
+        if !json {
+            println!("{}", format!("No commits in last {} days", days).yellow());
+        }
+        return Ok(());
     }
     
-    display_commits_with_packages(core_dir, &commits);
-    println!("{}Total commits: {}{}", CYAN, commits.len(), NC);
-    println!();
+    if json {
+        println!("{}", serde_json::to_string_pretty(&commits)?);
+    } else {
+        display_commits(&commits);
+        println!("{}", format!("Total: {} commits", commits.len()).cyan());
+        println!();
+    }
+    
+    Ok(())
 }
 
-fn show_by_intent(core_dir: &str, intent_id: &str) {
-    println!();
-    println!("{}🌲 0-Core - Intent {}{}", CYAN, intent_id, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
+fn show_by_intent(core_dir: &std::path::PathBuf, intent_id: &str, json: bool) -> Result<()> {
+    if !json {
+        println!();
+        println!("{}", format!("🏛️ Intent {}", intent_id).cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+    }
     
-    let output = Command::new("git")
-        .args(["-C", core_dir, "log", "--format=%H|%h|%ai|%s", "--name-only", &format!("--grep=Intent.*{}", intent_id)])
-        .output()
-        .expect("Failed to run git log");
-    
-    let commits = parse_commits_with_files(&String::from_utf8_lossy(&output.stdout));
+    let grep = format!("Intent.*{}", intent_id);
+    let commits = get_commits_with_files(
+        core_dir,
+        &["--grep", &grep],
+    )?;
     
     if commits.is_empty() {
-        println!("{}No commits found for Intent {}{}", YELLOW, intent_id, NC);
-        return;
+        if !json {
+            println!("{}", format!("No commits for Intent {}", intent_id).yellow());
+        }
+        return Ok(());
     }
     
-    display_commits_with_packages(core_dir, &commits);
-    println!("{}Total commits: {}{}", CYAN, commits.len(), NC);
-    println!();
+    if json {
+        println!("{}", serde_json::to_string_pretty(&commits)?);
+    } else {
+        display_commits(&commits);
+        println!("{}", format!("Total: {} commits", commits.len()).cyan());
+        println!();
+    }
+    
+    Ok(())
 }
 
-fn show_since_version(core_dir: &str, version: &str) {
-    println!();
-    println!("{}🌲 0-Core - Since {}{}", CYAN, version, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
+fn show_since(core_dir: &std::path::PathBuf, version: &str, json: bool) -> Result<()> {
+    if !json {
+        println!();
+        println!("{}", format!("🏛️ Since {}", version).cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+    }
     
-    let output = Command::new("git")
-        .args(["-C", core_dir, "log", &format!("{}..HEAD", version), "--format=%H|%h|%ai|%s", "--name-only"])
-        .output()
-        .expect("Failed to run git log");
-    
-    let commits = parse_commits_with_files(&String::from_utf8_lossy(&output.stdout));
+    let range = format!("{}..HEAD", version);
+    let commits = get_commits_with_files(
+        core_dir,
+        &[&range],
+    )?;
     
     if commits.is_empty() {
-        println!("{}No commits since {}{}", YELLOW, version, NC);
-        return;
+        if !json {
+            println!("{}", format!("No commits since {}", version).yellow());
+        }
+        return Ok(());
     }
     
-    display_commits_with_packages(core_dir, &commits);
-    println!("{}Total commits: {}{}", CYAN, commits.len(), NC);
-    println!();
+    if json {
+        println!("{}", serde_json::to_string_pretty(&commits)?);
+    } else {
+        display_commits(&commits);
+        println!("{}", format!("Total: {} commits", commits.len()).cyan());
+        println!();
+    }
+    
+    Ok(())
 }
 
-fn parse_simple_commits(log: &str) -> Vec<Commit> {
+fn show_package(core_dir: &std::path::PathBuf, package: &str, limit: usize, json: bool) -> Result<()> {
+    if !json {
+        println!();
+        println!("{}", format!("🏛️ Package: {}", package).cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+    }
+    
+    let pkg_path = format!("{}/", package);
+    let commits = get_commits_simple(
+        core_dir,
+        &["-n", &limit.to_string(), "--", &pkg_path],
+    )?;
+    
+    if commits.is_empty() {
+        if !json {
+            println!("{}", format!("No commits for package '{}'", package).yellow());
+        }
+        return Ok(());
+    }
+    
+    if json {
+        println!("{}", serde_json::to_string_pretty(&commits)?);
+    } else {
+        display_commits(&commits);
+        println!("{}", format!("Total: {} commits", commits.len()).cyan());
+        println!();
+    }
+    
+    Ok(())
+}
+
+fn show_stats(core_dir: &std::path::PathBuf, since: Option<&str>, json: bool) -> Result<()> {
+    let mut args = vec!["--shortstat", "--format=%H"];
+    let range;
+    if let Some(ver) = since {
+        range = format!("{}..HEAD", ver);
+        args.push(&range);
+    }
+    
+    let commits = get_commits_with_files(core_dir, &args)?;
+    
+    let total_commits = commits.len();
+    let total_files: usize = commits.iter().filter_map(|c| c.stats.as_ref().map(|s| s.files)).sum();
+    let total_insertions: usize = commits.iter().filter_map(|c| c.stats.as_ref().map(|s| s.insertions)).sum();
+    let total_deletions: usize = commits.iter().filter_map(|c| c.stats.as_ref().map(|s| s.deletions)).sum();
+    
+    if json {
+        let stats = serde_json::json!({
+            "commits": total_commits,
+            "files_changed": total_files,
+            "insertions": total_insertions,
+            "deletions": total_deletions,
+            "since": since,
+        });
+        println!("{}", serde_json::to_string_pretty(&stats)?);
+    } else {
+        println!();
+        println!("{}", "📊 System Statistics".cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!();
+        if let Some(ver) = since {
+            println!("  Since: {}", ver.yellow());
+        } else {
+            println!("  Scope: {}", "All time".yellow());
+        }
+        println!();
+        println!("  Commits:      {}", total_commits.to_string().green());
+        println!("  Files changed: {}", total_files.to_string().blue());
+        println!("  Insertions:   {}", format!("+{}", total_insertions).green());
+        println!("  Deletions:    {}", format!("-{}", total_deletions).red());
+        println!();
+    }
+    
+    Ok(())
+}
+
+fn get_commits_simple(core_dir: &std::path::PathBuf, extra_args: &[&str]) -> Result<Vec<Commit>> {
+    let mut args = vec!["-C", core_dir.to_str().unwrap(), "log", "--format=%H|%h|%ai|%s"];
+    args.extend_from_slice(extra_args);
+    
+    let output = Command::new("git")
+        .args(&args)
+        .output()
+        .context("Failed to run git log")?;
+    
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+    
+    parse_simple_commits(&String::from_utf8_lossy(&output.stdout), core_dir)
+}
+
+fn get_commits_with_files(core_dir: &std::path::PathBuf, extra_args: &[&str]) -> Result<Vec<Commit>> {
+    let mut args = vec!["-C", core_dir.to_str().unwrap(), "log", "--format=%H|%h|%ai|%s", "--name-only"];
+    args.extend_from_slice(extra_args);
+    
+    let output = Command::new("git")
+        .args(&args)
+        .output()
+        .context("Failed to run git log")?;
+    
+    parse_commits_with_files(&String::from_utf8_lossy(&output.stdout), core_dir)
+}
+
+fn parse_simple_commits(log: &str, core_dir: &std::path::PathBuf) -> Result<Vec<Commit>> {
     let mut commits = Vec::new();
     
     for line in log.lines() {
         let parts: Vec<&str> = line.split('|').collect();
         if parts.len() >= 4 {
+            let date_str = parts[2];
+            let timestamp = parse_timestamp(date_str);
+            
+            let subject = parts[3..].join("|");
+            let intent = extract_intent(&subject);
+            
+            let hash = parts[0].to_string();
+            let stats = get_commit_stats(core_dir, &hash, None)?;
+            
             commits.push(Commit {
-                hash: parts[0].to_string(),
+                hash,
                 short_hash: parts[1].to_string(),
-                date: parts[2].to_string(),
-                subject: parts[3..].join("|"),
-                intent: extract_intent(&parts[3..].join("|")),
+                date: date_str.to_string(),
+                timestamp,
+                subject,
+                intent,
                 packages: Vec::new(),
+                stats,
             });
         }
     }
     
-    commits
+    Ok(commits)
 }
 
-fn parse_commits_with_files(log: &str) -> Vec<Commit> {
+fn parse_commits_with_files(log: &str, core_dir: &std::path::PathBuf) -> Result<Vec<Commit>> {
     let mut commits = Vec::new();
     let lines: Vec<&str> = log.lines().collect();
     
@@ -199,6 +404,7 @@ fn parse_commits_with_files(log: &str) -> Vec<Commit> {
                 let hash = parts[0].to_string();
                 let short_hash = parts[1].to_string();
                 let date = parts[2].to_string();
+                let timestamp = parse_timestamp(&date);
                 let subject = parts[3..].join("|");
                 let intent = extract_intent(&subject);
                 
@@ -216,13 +422,17 @@ fn parse_commits_with_files(log: &str) -> Vec<Commit> {
                     i += 1;
                 }
                 
+                let stats = get_commit_stats(core_dir, &hash, None)?;
+                
                 commits.push(Commit {
                     hash,
                     short_hash,
                     date,
+                    timestamp,
                     subject,
                     intent,
                     packages,
+                    stats,
                 });
                 
                 continue;
@@ -232,62 +442,31 @@ fn parse_commits_with_files(log: &str) -> Vec<Commit> {
         i += 1;
     }
     
-    commits
+    Ok(commits)
 }
 
-fn display_commits(core_dir: &str, commits: &[Commit], package: &str) {
+fn display_commits(commits: &[Commit]) {
     for commit in commits {
-        let stats = get_commit_stats(core_dir, &commit.hash, package);
-        
-        println!("{}📅 {}{}", BLUE, &commit.date[..10], NC);
-        println!("   {}{}  {}{}", GRAY, commit.short_hash, commit.subject, NC);
+        println!("{} {}", "📅".cyan(), &commit.date[..10].blue());
+        println!("   {}  {}", commit.short_hash.dimmed(), commit.subject);
         
         if let Some(intent) = &commit.intent {
-            println!("   {}Intent: {}{}", GREEN, intent, NC);
+            println!("   {} {}", "Intent:".green(), intent.green());
         }
         
-        if let Some((files, insertions, deletions)) = stats {
-            if files > 0 {
-                print!("   Files: {}", files);
-                if insertions > 0 {
-                    print!(" {}(+{}){}", GREEN, insertions, NC);
-                }
-                if deletions > 0 {
-                    print!(" {}(-{}){}", YELLOW, deletions, NC);
-                }
-                println!();
-            }
-        }
-        
-        println!();
-    }
-}
-
-fn display_commits_with_packages(core_dir: &str, commits: &[Commit]) {
-    for commit in commits {
-        let stats = get_commit_stats_all(core_dir, &commit.hash);
-        
-        println!("{}📅 {}{}", BLUE, &commit.date[..10], NC);
-        println!("   {}{}  {}{}", GRAY, commit.short_hash, commit.subject, NC);
-        
-        if let Some(intent) = &commit.intent {
-            println!("   {}Intent: {}{}", GREEN, intent, NC);
-        }
-        
-        // Show affected packages
         if !commit.packages.is_empty() {
             let pkg_list = commit.packages.join(", ");
-            println!("   {}Packages: {}{}", MAGENTA, pkg_list, NC);
+            println!("   {} {}", "Packages:".magenta(), pkg_list.magenta());
         }
         
-        if let Some((files, insertions, deletions)) = stats {
-            if files > 0 {
-                print!("   Files: {}", files);
-                if insertions > 0 {
-                    print!(" {}(+{}){}", GREEN, insertions, NC);
+        if let Some(stats) = &commit.stats {
+            if stats.files > 0 {
+                print!("   Files: {}", stats.files);
+                if stats.insertions > 0 {
+                    print!(" {}", format!("+{}", stats.insertions).green());
                 }
-                if deletions > 0 {
-                    print!(" {}(-{}){}", YELLOW, deletions, NC);
+                if stats.deletions > 0 {
+                    print!(" {}", format!("-{}", stats.deletions).red());
                 }
                 println!();
             }
@@ -297,25 +476,7 @@ fn display_commits_with_packages(core_dir: &str, commits: &[Commit]) {
     }
 }
 
-fn get_commit_stats(core_dir: &str, hash: &str, package: &str) -> Option<(usize, usize, usize)> {
-    let output = Command::new("git")
-        .args(["-C", core_dir, "show", "--stat", "--format=", hash, "--", &format!("{}/", package)])
-        .output()
-        .ok()?;
-    
-    parse_stats(&String::from_utf8_lossy(&output.stdout))
-}
-
-fn get_commit_stats_all(core_dir: &str, hash: &str) -> Option<(usize, usize, usize)> {
-    let output = Command::new("git")
-        .args(["-C", core_dir, "show", "--stat", "--format=", hash])
-        .output()
-        .ok()?;
-    
-    parse_stats(&String::from_utf8_lossy(&output.stdout))
-}
-
-fn parse_stats(stat_output: &str) -> Option<(usize, usize, usize)> {
+fn parse_stats(stat_output: &str) -> Option<CommitStats> {
     let mut files = 0;
     let mut insertions = 0;
     let mut deletions = 0;
@@ -343,7 +504,11 @@ fn parse_stats(stat_output: &str) -> Option<(usize, usize, usize)> {
         }
     }
     
-    Some((files, insertions, deletions))
+    Some(CommitStats {
+        files,
+        insertions,
+        deletions,
+    })
 }
 
 fn extract_intent(subject: &str) -> Option<String> {
@@ -359,22 +524,27 @@ fn extract_intent(subject: &str) -> Option<String> {
     None
 }
 
-fn show_help() {
-    println!("archaeology-0-core - System-Wide History Explorer");
-    println!();
-    println!("USAGE:");
-    println!("   archaeology-0-core <package>              # Package-specific history");
-    println!("   archaeology-0-core --timeline             # All packages chronologically");
-    println!("   archaeology-0-core --this-week            # Last 7 days");
-    println!("   archaeology-0-core --since <version>      # Changes since version/tag");
-    println!("   archaeology-0-core --by-intent <id>       # Commits for specific intent");
-    println!();
-    println!("EXAMPLES:");
-    println!("   archaeology-0-core wm-sway                # Sway history");
-    println!("   archaeology-0-core --timeline             # System timeline");
-    println!("   archaeology-0-core --this-week            # This week's work");
-    println!("   archaeology-0-core --since v7.0.0         # Since v7.0.0");
-    println!("   archaeology-0-core --by-intent 036        # Intent 036 commits");
-    println!();
-    println!("Shows git history with dates, changes, intents, and affected packages.");
+fn parse_timestamp(date_str: &str) -> i64 {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+        dt.timestamp()
+    } else {
+        0
+    }
+}
+
+fn get_commit_stats(core_dir: &std::path::PathBuf, hash: &str, package: Option<&str>) -> Result<Option<CommitStats>> {
+    let pkg_path;
+    let args = if let Some(pkg) = package {
+        pkg_path = format!("{}/", pkg);
+        vec!["-C", core_dir.to_str().unwrap(), "show", "--stat", "--format=", hash, "--", &pkg_path]
+    } else {
+        vec!["-C", core_dir.to_str().unwrap(), "show", "--stat", "--format=", hash]
+    };
+    
+    let output = Command::new("git")
+        .args(&args)
+        .output()
+        .context("Failed to get commit stats")?;
+    
+    Ok(parse_stats(&String::from_utf8_lossy(&output.stdout)))
 }
