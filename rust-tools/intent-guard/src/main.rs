@@ -5,7 +5,7 @@ use std::env;
 use std::io::{self, Write};
 use std::process;
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 // ============================================================================
 // TYPES & STRUCTURES
