@@ -288,3 +288,25 @@ pub fn git_attributes() -> PathBuf {
 pub fn git_ignore() -> PathBuf {
     core_dir().join(".gitignore")
 }
+
+// ═══════════════════════════════════════════════════════════
+// VERSION MANAGEMENT PATHS
+
+// ═══════════════════════════════════════════════════════════
+// ADDITIONAL VERSION MANAGEMENT PATHS
+// ═══════════════════════════════════════════════════════════
+
+/// Workspace Cargo.toml
+pub fn cargo_toml() -> PathBuf {
+    core_dir().join("Cargo.toml")
+}
+
+/// Zshrc file in stow
+pub fn zshrc_file() -> PathBuf {
+    stow_dir().join("shell-zsh/.zshrc")
+}
+
+/// Changelog draft for a specific version
+pub fn changelog_draft(version: &str) -> PathBuf {
+    logs_dir().join(format!("CHANGELOG-v{}-DRAFT.md", version))
+}

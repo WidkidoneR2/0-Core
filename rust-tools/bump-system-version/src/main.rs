@@ -1,8 +1,11 @@
-//! bump-system-version v4.0.0
-//! Complete 0-Core Release Automation - Linus Edition 🌲
+//! bump-system-version v8.0.0
+//! Complete 0-Core Release Automation - Joyful Edition 🎉
 
+use anyhow::Result;
 use chrono::Local;
+use colored::*;
 use std::env;
+use faelight_core::paths;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -10,37 +13,12 @@ use std::process::{exit, Command};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// ═══════════════════════════════════════════════════════════
-// Path Constants - Numbered Gravity Structure
-// ═══════════════════════════════════════════════════════════
-mod paths {
-    use std::path::PathBuf;
-    
-    pub fn version_file(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/VERSION")
-    }
-    
-    pub fn readme(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/README.md")
-    }
-    
-    pub fn changelog(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("00-meta/CHANGELOG.md")
-    }
-    
-    pub fn zshrc(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("03-interfaces/stow/shell-zsh/.zshrc")
-    }
-    
-    pub fn changelog_draft(core_dir: &PathBuf, version: &str) -> PathBuf {
-        core_dir.join(&format!("04-runtime/logs/CHANGELOG-v{}-DRAFT.md", version))
-    }
-    
-    pub fn cargo_toml(core_dir: &PathBuf) -> PathBuf {
-        core_dir.join("Cargo.toml")
-    }
-}
 fn show_preflight_dashboard(core_dir: &PathBuf, old_version: &str, new_version: &str) {
+    println!("╔══════════════════════════════════════════════════════════════╗");
+    println!("║           {} PRE-FLIGHT RELEASE DASHBOARD {}                 ║", "🌲".green(), "🌲".green());
+    println!("╚══════════════════════════════════════════════════════════════╝");
+    println!();
+    println!("{}", "📊 System Status:".cyan().bold());
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║           🌲 PRE-FLIGHT RELEASE DASHBOARD 🌲                 ║");
     println!("╚══════════════════════════════════════════════════════════════╝");
@@ -294,7 +272,7 @@ io::stdin().read_line(&mut response).unwrap();
 if response.trim().to_lowercase() == "y" {
     let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
     Command::new(&editor)
-        .arg(paths::changelog_draft(&core_dir, new_version))
+        .arg(paths::changelog_draft(new_version))
         .status()
         .expect("Failed to open editor");
     println!("  ✅ Changelog edited");
@@ -303,7 +281,7 @@ if response.trim().to_lowercase() == "y" {
 // Insert into main CHANGELOG
 insert_changelog(&core_dir, new_version).expect("Failed to insert changelog");
 // Auto-delete CHANGELOG draft
-let draft_path = paths::changelog_draft(&core_dir, new_version);
+let draft_path = paths::changelog_draft(new_version);
 if draft_path.exists() {
     fs::remove_file(&draft_path).ok();
 }
@@ -505,8 +483,7 @@ fn dry_run(new_version: &str) {
 }
 
 fn get_core_dir() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join("0-core")
+    paths::core_dir()
 }
 
 fn is_valid_version(version: &str) -> bool {
@@ -517,8 +494,8 @@ fn is_valid_version(version: &str) -> bool {
     parts.iter().all(|p| p.parse::<u32>().is_ok())
 }
 
-fn get_current_version(core_dir: &PathBuf) -> String {
-    fs::read_to_string(paths::version_file(&core_dir))
+fn get_current_version(_core_dir: &PathBuf) -> String {
+    fs::read_to_string(paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string()
@@ -649,17 +626,17 @@ fn create_snapshot(description: &str) -> Option<u32> {
     }
 }
 
-fn update_version_file(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let version_file = paths::version_file(&core_dir);
+fn update_version_file(_core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
+    let version_file = paths::version_file();
     fs::write(&version_file, format!("{}\n", new_version)).map_err(|e| e.to_string())
 }
 
 fn update_cargo_toml(
-    core_dir: &PathBuf,
+    _core_dir: &PathBuf,
     old_version: &str,
     new_version: &str,
 ) -> Result<(), String> {
-    let cargo_path = paths::cargo_toml(&core_dir);
+    let cargo_path = paths::cargo_toml();
     let content = fs::read_to_string(&cargo_path).map_err(|e| e.to_string())?;
     let updated = content.replace(
         &format!("version = \"{}\"", old_version),
@@ -668,8 +645,8 @@ fn update_cargo_toml(
     fs::write(&cargo_path, updated).map_err(|e| e.to_string())
 }
 
-fn update_zshrc(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
-    let zshrc_path = paths::zshrc(&core_dir);
+fn update_zshrc(_core_dir: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
+    let zshrc_path = paths::zshrc_file();
     let content = fs::read_to_string(&zshrc_path).map_err(|e| e.to_string())?;
     let updated = content.replace(
         &format!("Faelight Forest v{}", old_version),
@@ -679,11 +656,11 @@ fn update_zshrc(core_dir: &PathBuf, old_version: &str, new_version: &str) -> Res
 }
 
 fn update_readme_badges(
-    core_dir: &PathBuf,
+    _core_dir: &PathBuf,
     old_version: &str,
     new_version: &str,
 ) -> Result<usize, String> {
-    let readme_path = paths::readme(&core_dir);
+    let readme_path = paths::readme_file();
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
 
     let mut updated = content;
@@ -717,12 +694,12 @@ fn update_readme_badges(
 }
 
 fn update_readme_milestone(
-    core_dir: &PathBuf,
+    _core_dir: &PathBuf,
     old_version: &str,
     new_version: &str,
     description: &str,
 ) -> Result<(), String> {
-    let readme_path = paths::readme(&core_dir);
+    let readme_path = paths::readme_file();
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
 
     let updated = content.replace(
@@ -762,9 +739,9 @@ r#"## [{}] - {}
     )
 }
 
-fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let changelog_path = paths::changelog(&core_dir);
-    let draft_path = paths::changelog_draft(&core_dir, new_version);
+fn insert_changelog(_core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
+    let changelog_path = paths::changelog_file();
+    let draft_path = paths::changelog_draft(new_version);
     let today = Local::now().format("%Y-%m-%d").to_string();
     
     // Read draft or create comprehensive template
@@ -792,8 +769,8 @@ fn insert_changelog(core_dir: &PathBuf, new_version: &str) -> Result<(), String>
     
     fs::write(&changelog_path, new_content).map_err(|e| e.to_string())
 }
-fn add_changelog_quote(core_dir: &PathBuf, quote: &str) -> Result<(), String> {
-    let changelog_path = paths::changelog(&core_dir);
+fn add_changelog_quote(_core_dir: &PathBuf, quote: &str) -> Result<(), String> {
+    let changelog_path = paths::changelog_file();
     let content = fs::read_to_string(&changelog_path).map_err(|e| e.to_string())?;
 
     // Find the first "## [" after "# Changelog" and add quote before next "---"
@@ -820,11 +797,11 @@ fn add_changelog_quote(core_dir: &PathBuf, quote: &str) -> Result<(), String> {
 }
 
 fn update_version_table(
-    core_dir: &PathBuf,
+    _core_dir: &PathBuf,
     new_version: &str,
     description: &str,
 ) -> Result<(), String> {
-    let readme_path = paths::readme(&core_dir);
+    let readme_path = paths::readme_file();
     let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
     let today = Local::now().format("%Y-%m-%d").to_string();
 
