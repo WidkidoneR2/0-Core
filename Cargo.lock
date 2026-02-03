@@ -1228,7 +1228,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-update"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1236,6 +1236,7 @@ dependencies = [
  "colored",
  "crossterm",
  "dialoguer",
+ "faelight-core",
  "indicatif",
  "once_cell",
  "ratatui 0.29.0",
