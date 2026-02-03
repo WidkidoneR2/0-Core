@@ -7,7 +7,7 @@ use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 // ANSI colors
 const CYAN: &str = "\x1b[0;36m";
