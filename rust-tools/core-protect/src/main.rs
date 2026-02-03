@@ -3,10 +3,11 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
+use clap::{Parser, Subcommand};
+use colored::*;
+use faelight_core::paths;
 
-const VERSION: &str = "1.0.1";
-
-// ANSI colors
+// ANSI colors (keeping for now - colored crate ready for future)
 const RED: &str = "\x1b[0;31m";
 const GREEN: &str = "\x1b[0;32m";
 const YELLOW: &str = "\x1b[1;33m";
@@ -14,10 +15,37 @@ const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
+
+const VERSION: &str = "2.0.0";
+
+// ANSI colors
+
+
+#[derive(Parser)]
+#[command(name = "core-protect")]
+#[command(about = "🛡️  System Guardian - Immutable protection for 0-core", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Lock 0-core (prevent changes)
+    Lock,
+    /// Unlock 0-core (allow changes)
+    Unlock,
+    /// Check protection status
+    Status,
+    /// Health check
+    Health,
+    /// Edit a package safely
+    Edit { package: String },
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let home = env::var("HOME").expect("HOME not set");
-    let core_dir = PathBuf::from(&home).join("0-core");
+    let core_dir = paths::core_dir();
     
     if args.len() < 2 {
         show_help();
