@@ -7,9 +7,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use clap::{Parser, Subcommand};
+use colored::*;
+use faelight_core::paths;
 
-const VERSION: &str = "1.0.0";
-const BASELINE_PATH: &str = ".config/faelight/entropy-baseline.json";
+const VERSION: &str = "2.0.0";
+
 
 // ═══════════════════════════════════════════════════════════
 // 📊 BASELINE STRUCTURE
@@ -54,8 +57,7 @@ impl EntropyBaseline {
 // ═══════════════════════════════════════════════════════════
 
 fn get_system_version() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let version_path = format!("{}/0-core/00-meta/VERSION", home);
+    let version_path = paths::version_file();
     fs::read_to_string(version_path)
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
@@ -63,8 +65,7 @@ fn get_system_version() -> String {
 }
 
 fn get_baseline_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(BASELINE_PATH)
+    paths::entropy_baseline_file()
 }
 
 fn hash_file(path: &Path) -> Result<String, std::io::Error> {
@@ -76,12 +77,7 @@ fn hash_file(path: &Path) -> Result<String, std::io::Error> {
 
 fn collect_symlinks() -> HashMap<String, String> {
     let mut symlinks = HashMap::new();
-    let home = match std::env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => return symlinks,
-    };
-    
-    let config_dir = format!("{}/.config", home);
+    let config_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config");
     let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
         .into_iter()
@@ -101,12 +97,7 @@ fn collect_symlinks() -> HashMap<String, String> {
 
 fn find_broken_symlinks(baseline_symlinks: &HashMap<String, String>) -> Vec<String> {
     let mut broken = Vec::new();
-    let home = match std::env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => return broken,
-    };
-    
-    let config_dir = format!("{}/.config", home);
+    let config_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config");
     let entries: Vec<_> = walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
         .into_iter()
@@ -142,8 +133,8 @@ fn create_baseline() -> Result<EntropyBaseline, Box<dyn std::error::Error>> {
     
     // Collect config checksums
     println!("   📁 Scanning config files...");
-    let home = std::env::var("HOME")?;
-    let config_dir = format!("{}/.config", home);
+    // HOME not needed - using paths
+    let config_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config");
     
     for entry in walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
@@ -232,8 +223,8 @@ fn check_drift(baseline: &EntropyBaseline) -> Result<DriftReport, Box<dyn std::e
     };
     
     // Check config file changes
-    let home = std::env::var("HOME")?;
-    let config_dir = format!("{}/.config", home);
+    // HOME not needed - using paths
+    let config_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config");
     
     for entry in walkdir::WalkDir::new(&config_dir)
         .max_depth(3)
@@ -554,8 +545,7 @@ fn show_health() {
     
     // Check ~/.config exists
     print!("  Checking ~/.config... ");
-    let home = std::env::var("HOME").unwrap_or_default();
-    let config_dir = format!("{}/.config", home);
+    let config_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config");
     if PathBuf::from(&config_dir).exists() {
         println!("✅");
     } else {
@@ -680,8 +670,7 @@ impl DriftHistory {
 }
 
 fn get_history_path() -> PathBuf {
-    let home = std::env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join(".config/faelight/entropy-history.json")
+    paths::entropy_history_file()
 }
 
 fn show_trends() {
