@@ -1092,11 +1092,12 @@ dependencies = [
 
 [[package]]
 name = "faelight-dmenu"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "clap",
  "colored",
  "dirs",
+ "faelight-core",
  "fontdue",
  "image",
  "serde",
@@ -1238,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-term"
-version = "10.0.0"
+version = "10.1.0"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
