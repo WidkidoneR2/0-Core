@@ -1,6 +1,7 @@
 //! XDG Desktop Entry Parser
 use std::fs;
 use std::path::PathBuf;
+use faelight_core::paths;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -120,7 +121,7 @@ pub fn scan_applications() -> Vec<DesktopEntry> {
     let mut entries = Vec::new();
     
     let home_dir = format!("{}/.local/share/applications", 
-        std::env::var("HOME").unwrap_or_default());
+        paths::home().display().to_string());
     
     let search_dirs = vec![
         "/usr/share/applications",
