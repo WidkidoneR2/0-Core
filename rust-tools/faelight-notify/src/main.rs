@@ -1,4 +1,4 @@
-//! faelight-notify v0.9.0 - Typography Polish
+//! faelight-notify v1.0.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -45,6 +45,8 @@ const TITLE_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
+// Font path documented in faelight_core::paths::hack_nerd_font()
+// Using include_bytes! to embed font at compile time (zero runtime overhead)
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 // ═══════════════════════════════════════════════════════════
@@ -353,7 +355,7 @@ fn health_check() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v0.9.0 starting...");
+    eprintln!("🌲 faelight-notify v1.0.0 starting...");
     // Check for health flag
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
