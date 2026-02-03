@@ -1123,6 +1123,7 @@ dependencies = [
  "clap",
  "colored",
  "dirs",
+ "faelight-core",
  "regex",
  "serde",
  "toml",
