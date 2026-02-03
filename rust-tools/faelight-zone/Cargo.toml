@@ -1,9 +1,12 @@
 [package]
 name = "faelight-zone"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
-authors = ["Christian <christian@faelight.forest>"]
-description = "Spatial awareness for Faelight Forest filesystem"
+description = "Zone detection - identify numbered gravity zones"
+
+[dependencies]
+# Core infrastructure  
+faelight-core = { path = "../faelight-core" }
 
 [lib]
 name = "faelight_zone"
