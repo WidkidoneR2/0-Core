@@ -1,4 +1,5 @@
 mod cargo_checker;
+use faelight_core::paths;
 mod neovim_checker;
 mod yazi_checker;
 mod git_checker;
@@ -765,20 +766,21 @@ fn output_json(categories: &[UpdateCategory], total: usize) -> Result<()> {
 /// Lock 0-core before updates
 fn lock_core() -> Result<()> {
     println!("{}  Locking 0-core...", "🔒".yellow());
-    Command::new("lock-core")
-        .output()
-        .context("Failed to lock core")?;
+    std::fs::write(paths::core_lock_file(), "")?;
     Ok(())
 }
+/// Lock 0-core before updates
 
 /// Unlock 0-core after updates
 fn unlock_core() -> Result<()> {
     println!("{}  Unlocking 0-core...", "🔓".green());
-    Command::new("unlock-core")
-        .output()
-        .context("Failed to unlock core")?;
+    let lock_file = paths::core_lock_file();
+    if lock_file.exists() {
+        std::fs::remove_file(lock_file)?;
+    }
     Ok(())
 }
+/// Unlock 0-core after updates
 
 /// Check if we're in 0-core directory
 fn is_in_core() -> bool {
