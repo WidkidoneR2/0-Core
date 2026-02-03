@@ -377,3 +377,17 @@ pub fn entropy_baseline_file() -> PathBuf {
 pub fn entropy_history_file() -> PathBuf {
     faelight_config_dir().join("entropy-history.json")
 }
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE STATE FILES
+// ═══════════════════════════════════════════════════════════
+
+/// Current active profile file
+pub fn current_profile_file() -> PathBuf {
+    faelight_state_dir().join("current-profile")
+}
+
+/// Profile operation log
+pub fn profile_log_file() -> PathBuf {
+    faelight_state_dir().join("profile.log")
+}

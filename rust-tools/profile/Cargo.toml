@@ -1,6 +1,19 @@
 [package]
 name = "profile"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
+description = "Profile management - switch between system configurations"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# Modern CLI
+clap = { version = "4", features = ["derive"] }
+
+# Beautiful output
+colored = "2.1"
+
+[[bin]]
+name = "profile"
+path = "src/main.rs"

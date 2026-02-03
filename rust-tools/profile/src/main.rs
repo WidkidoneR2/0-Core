@@ -2,10 +2,13 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
+use clap::{Parser, Subcommand};
+use colored::*;
+use faelight_core::paths;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -16,8 +19,7 @@ const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
 fn main() {
-    let home = env::var("HOME").expect("HOME not set");
-    let state_dir = PathBuf::from(&home).join(".local/state/0-core");
+    let state_dir = paths::faelight_state_dir();
     fs::create_dir_all(&state_dir).ok();
     
     let args: Vec<String> = env::args().collect();
@@ -63,15 +65,7 @@ fn get_profile_dir() -> PathBuf {
     PathBuf::from(home).join("0-core/profiles")
 }
 
-fn get_state_file() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join(".local/state/0-core/current-profile")
-}
 
-fn get_log_file() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join(".local/state/0-core/profile.log")
-}
 
 fn error(msg: &str) -> ! {
     eprintln!("{}❌ Error: {}{}", RED, msg, NC);
@@ -104,13 +98,13 @@ fn get_profile_icon(name: &str) -> &'static str {
 }
 
 fn get_current_profile() -> String {
-    fs::read_to_string(get_state_file())
+    fs::read_to_string(paths::current_profile_file())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|_| "default".to_string())
 }
 
 fn set_current_profile(name: &str) {
-    fs::write(get_state_file(), name).ok();
+    fs::write(paths::current_profile_file(), name).ok();
 }
 
 fn log_switch(from: &str, to: &str) {
@@ -119,7 +113,7 @@ fn log_switch(from: &str, to: &str) {
     fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(get_log_file())
+        .open(paths::profile_log_file())
         .and_then(|mut f| f.write_all(entry.as_bytes()))
         .ok();
 }
@@ -191,7 +185,7 @@ fn cmd_health() {
     
     // Check state file
     print!("  Checking state tracking... ");
-    let state_file = get_state_file();
+    let state_file = paths::current_profile_file();
     if state_file.exists() {
         println!("{}✅{}", GREEN, NC);
     } else {
@@ -396,7 +390,7 @@ fn cmd_history() {
     println!("{}📜 Profile History{}", CYAN, NC);
     println!();
     
-    if let Ok(file) = fs::File::open(get_log_file()) {
+    if let Ok(file) = fs::File::open(paths::profile_log_file()) {
         let lines: Vec<String> = io::BufReader::new(file)
             .lines()
             .filter_map(|l| l.ok())
@@ -439,8 +433,7 @@ fn cmd_export(name: &str) {
     let export_file = export_dir.join(format!("{}.profile", name));
     
     let timestamp = get_timestamp();
-    let home = env::var("HOME").expect("HOME not set");
-    let version = fs::read_to_string(PathBuf::from(&home).join("0-core/00-meta/VERSION"))
+    let version = fs::read_to_string(paths::version_file())
         .unwrap_or_else(|_| "unknown".to_string());
     let system = fs::read_to_string("/etc/os-release")
         .ok()
