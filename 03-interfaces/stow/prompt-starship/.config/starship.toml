@@ -1,17 +1,34 @@
 # ═══════════════════════════════════════════════════════════
-# 🌲 Starship Config - Faelight Forest v8.6.0
-# Enhanced with git diff stats, profile icons, and health monitoring
+# 🌲 Starship Config - Faelight Forest v9.0.0
+# Enhanced with PERFECT SPACING!
 # ═══════════════════════════════════════════════════════════
-
 "$schema" = "https://starship.rs/config-schema.json"
 
-# Main prompt
+# Main prompt - FIXED SPACING!
 format = """
 [┌─](bold green) \
-${custom.faelight_zone}${custom.smart_path}${custom.cargo_root}${custom.intent_incidents}$os$username$hostname${custom.core_lock}${custom.profile_enhanced}${custom.health_dots}${custom.entropy}${custom.git_risk} $git_branch $git_status${custom.git_diff_stats}$nodejs$python$rust${custom.rust_toolchain}$cmd_duration
+${custom.faelight_zone}\
+${custom.smart_path}\
+${custom.cargo_root}\
+${custom.intent_incidents}\
+$os\
+$username\
+$hostname\
+${custom.core_lock} \
+${custom.profile_enhanced}\
+${custom.health_dots}\
+${custom.entropy}\
+${custom.git_risk}\
+$git_branch \
+$git_status\
+${custom.git_diff_stats}\
+$nodejs\
+$python\
+$rust\
+${custom.rust_toolchain}\
+$cmd_duration
 [└─](bold green)$character
 """
-
 add_newline = true
 command_timeout = 1000
 
@@ -131,7 +148,6 @@ pwd_lower=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -d '-')
 format = "[$output]($style)"
 style = "bold cyan"
 
-
 # ──────────────────────────────────────────────
 # 🔒 Core Lock Status (0-core only)
 # ──────────────────────────────────────────────
@@ -214,7 +230,7 @@ description = "Shows current filesystem zone"
 # Cargo Root Detection
 # ──────────────────────────────────────────────
 [custom.cargo_root]
-command = 'test -f Cargo.toml && echo "📦 root" || echo "↳ subdir"'
+command = 'test -f Cargo.toml && echo "📦 root" || echo ""'
 when = 'git rev-parse --is-inside-work-tree >/dev/null 2>&1'
 format = "[$output]($style)"
 style = "bold yellow"
@@ -233,6 +249,7 @@ count=$(intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep
 format = "[⚠ $output open]($style) "
 style = "bold red"
 description = "Shows count of open Intent Ledger incidents (only when >0)"
+
 # ──────────────────────────────────────────────
 # Rust Toolchain
 # ──────────────────────────────────────────────
@@ -255,7 +272,7 @@ if command -v doctor >/dev/null 2>&1; then
   if [ -n "$health" ] && [ "$health" -lt 100 ]; then
     warnings=$(echo "$output" | grep -c "⚠️")
     failures=$(echo "$output" | grep -c "❌")
-    total=15
+    total=19
     bad=$((warnings + failures))
     good=$((total - bad))
     
