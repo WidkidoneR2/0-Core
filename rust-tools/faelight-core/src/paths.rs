@@ -354,3 +354,12 @@ pub fn intents_philosophy() -> PathBuf {
 pub fn intents_incidents() -> PathBuf {
     intents_dir().join("incidents")
 }
+
+// ═══════════════════════════════════════════════════════════
+// SHELL CONFIGURATION PATHS
+// ═══════════════════════════════════════════════════════════
+
+/// ZSH aliases file
+pub fn aliases_file() -> PathBuf {
+    stow_dir().join("shell-zsh/.config/zsh/aliases.zsh")
+}

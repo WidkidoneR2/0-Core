@@ -1,4 +1,5 @@
 use anyhow::Result;
+use faelight_core::paths;
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::collections::{HashMap, HashSet};
@@ -49,9 +50,7 @@ const EXPECTED_TOOLS: [&str; 38] = [
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-
-    let aliases_path = PathBuf::from(std::env::var("HOME")?)
-        .join("0-core/03-interfaces/stow/shell-zsh/.config/zsh/aliases.zsh");
+    let aliases_path = paths::aliases_file();
 
     let aliases = parse_aliases(&aliases_path)?;
 
