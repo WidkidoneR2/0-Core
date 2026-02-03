@@ -1,4 +1,5 @@
 use sysinfo::System;
+use faelight_core::paths;
 use std::fs;
 use std::process::Command;
 use std::time::Duration;
@@ -38,14 +39,14 @@ impl SystemState {
 }
 
 fn get_version() -> String {
-    fs::read_to_string("/home/christian/0-core/00-meta/VERSION")
-        .unwrap_or_else(|_| "8.0.0".to_string())
+    fs::read_to_string(paths::version_file())
+        .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string()
 }
 
 fn get_profile() -> String {
-    fs::read_to_string("/home/christian/.config/faelight/profile")
+    fs::read_to_string(paths::profile_file())
         .unwrap_or_else(|_| "DEF".to_string())
         .trim()
         .to_string()
@@ -55,13 +56,13 @@ fn get_core_state() -> (String, String) {
     // Check if 0-core directory has immutable attribute (chattr +i)
     let output = Command::new("lsattr")
         .arg("-d")
-        .arg("/home/christian/0-core")
+        .arg(paths::core_dir())
         .output();
     
     match output {
         Ok(result) if result.status.success() => {
             let stdout = String::from_utf8_lossy(&result.stdout);
-            // lsattr output: "----i----------------- /home/christian/0-core"
+            // lsattr output: "----i----------------- <core_dir>"
             // Only check the first part (attributes), not the path!
             let parts: Vec<&str> = stdout.split_whitespace().collect();
             if let Some(attrs) = parts.first() {

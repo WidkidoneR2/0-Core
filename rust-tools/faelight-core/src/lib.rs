@@ -12,6 +12,7 @@ pub mod canvas;
 pub mod theme;
 pub mod wayland;
 pub mod error;
+pub mod paths;
 
 pub use glyph::GlyphCache;
 pub use canvas::Canvas;

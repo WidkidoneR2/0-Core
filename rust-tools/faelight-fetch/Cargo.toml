@@ -1,14 +1,16 @@
 [package]
 name = "faelight-fetch"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Christian <your@email.com>"]
 description = "Canonical system information for Faelight Forest"
 
 [dependencies]
+faelight-core = { path = "../faelight-core" }
 sysinfo = "0.31"
 
 [profile.release]
 strip = true
 lto = true
 codegen-units = 1
+
