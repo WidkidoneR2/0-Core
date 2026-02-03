@@ -391,3 +391,12 @@ pub fn current_profile_file() -> PathBuf {
 pub fn profile_log_file() -> PathBuf {
     faelight_state_dir().join("profile.log")
 }
+
+// ═══════════════════════════════════════════════════════════
+// SWAY WINDOW MANAGER
+// ═══════════════════════════════════════════════════════════
+
+/// Sway config file
+pub fn sway_config() -> PathBuf {
+    home().join(".config/sway/config")
+}

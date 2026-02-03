@@ -1,10 +1,17 @@
 [package]
 name = "keyscan"
-version = "1.1.0"
+version = "2.0.0"
 edition = "2021"
-description = "Sway keybind analyzer for Faelight Forest"
+description = "Sway keybinding analyzer - find conflicts and duplicates"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# Modern CLI
+clap = { version = "4", features = ["derive"] }
+
+# Beautiful output
 colored = "2"
 
 [profile.release]
