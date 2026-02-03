@@ -4009,8 +4009,11 @@ dependencies = [
 
 [[package]]
 name = "workspace-view"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
+ "clap",
+ "colored",
+ "faelight-core",
  "serde",
  "serde_json",
 ]
