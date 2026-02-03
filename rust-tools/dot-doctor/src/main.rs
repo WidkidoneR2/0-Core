@@ -1,5 +1,6 @@
 //! dot-doctor v0.4 - Faelight Forest Health Engine
-//! 🌲 Model system integrity with dependency awareness
+use faelight_core::paths;
+/// 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
 use serde::{Serialize, Deserialize};
@@ -301,7 +302,7 @@ const CHECKS: &[Check] = &[
 // ═══════════════════════════════════════════════════════════
 
 fn check_stow(ctx: &Context) -> CheckResult {
-    let stow_dir = PathBuf::from(&ctx.home).join("0-core/03-interfaces/stow");
+    let stow_dir = paths::stow_dir();
     let mut stowed = 0;
     let mut details = vec![];
     
@@ -942,7 +943,7 @@ struct HealthSnapshot {
 }
 
 fn save_health_snapshot(report: &HealthReport) -> std::io::Result<()> {
-    let state_dir = PathBuf::from(env::var("HOME").unwrap()).join(".local/state/0-core");
+    let state_dir = paths::faelight_state_dir();
     fs::create_dir_all(&state_dir)?;
     
     let history_file = state_dir.join("health-history.jsonl");
@@ -966,7 +967,7 @@ fn save_health_snapshot(report: &HealthReport) -> std::io::Result<()> {
 
 fn show_health_history() -> std::io::Result<()> {
     let history_file = PathBuf::from(env::var("HOME").unwrap())
-        .join(".local/state/0-core/health-history.jsonl");
+        .join("health-history.jsonl");
     
     if !history_file.exists() {
         println!("📊 No health history yet. Run 'doctor' to start tracking!");
@@ -1063,7 +1064,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
         match result.id.as_str() {
             "scripts" => {
                 println!("  Fixing: {}", result.id);
-                let scripts_dir = PathBuf::from(env::var("HOME").unwrap()).join("0-core/scripts");
+                let scripts_dir = paths::scripts_dir();
                 if let Ok(entries) = fs::read_dir(&scripts_dir) {
                     for entry in entries.filter_map(|e| e.ok()) {
                         let path = entry.path();
@@ -1078,7 +1079,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
             }
             "profiles" => {
                 println!("  Fixing: {}", result.id);
-                let state_dir = PathBuf::from(env::var("HOME").unwrap()).join(".local/state/faelight");
+                let state_dir = paths::faelight_state_dir();
                 let _ = fs::create_dir_all(&state_dir);
                 println!("    ✅ Created state directory");
             }
@@ -1096,8 +1097,8 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
 
     let cli = Cli::parse();
 
-    let home = env::var("HOME").expect("HOME not set");
-    let core_dir = PathBuf::from(&home).join("0-core");
+    let home = std::env::var("HOME").expect("HOME not set");
+    let core_dir = paths::core_dir();
     let version = fs::read_to_string(core_dir.join("00-meta/VERSION"))
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
