@@ -1,8 +1,15 @@
 [package]
 name = "faelight-bootstrap"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
-description = "One-command 0-Core setup for Arch Linux"
+description = "One-command 0-Core setup for Arch Linux - path-resilient!"
 
 [dependencies]
-colored = "2"
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# Modern CLI
+clap = { version = "4", features = ["derive"] }
+
+# Beautiful output
+colored = "2.1"
