@@ -1,17 +1,24 @@
 [package]
 name = "bump-tool-version"
-version.workspace = true
+version = "2.0.0"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Joyful individual tool version management - stress-free updates! 🎉"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI & output
 anyhow.workspace = true
 clap = { workspace = true }
+colored = "2.1"
+
+# Parsing
 serde = { workspace = true }
 serde_json.workspace = true
 toml.workspace = true
-colored = "2.1"
 regex.workspace = true
 
 [[bin]]
