@@ -129,9 +129,21 @@ impl Terminal {
     fn get_visible_text(&self, start_row: usize, end_row: usize, start_col: usize, end_col: usize) -> String {
         let mut text = String::new();
         
-        for row in start_row..=end_row.min(self.rows - 1) {
-            // FIX 7: Simplified - always read from grid when not scrolled
-            let actual_row = &self.grid[row];
+        // Build the same visible rows as in draw()
+        let rows_to_render: Vec<&Vec<Cell>> = if self.scroll_offset > 0 {
+            // Render from scrollback
+            let start = self.scrollback.len().saturating_sub(self.scroll_offset);
+            self.scrollback[start..].iter()
+                .chain(self.grid.iter())
+                .take(self.rows)
+                .collect()
+        } else {
+            // Normal rendering
+            self.grid.iter().collect()
+        };
+        
+        for row in start_row..=end_row.min(rows_to_render.len() - 1) {
+            let actual_row = rows_to_render[row];
             
             let col_start = if row == start_row { start_col } else { 0 };
             let col_end = if row == end_row { end_col } else { self.cols - 1 };
@@ -793,7 +805,10 @@ impl App {
                         cell.fg
                     ) {
                         let glyph_x = x + glyph.left as f32;
-                        let baseline_y = y + line_height * 0.8;
+                        // Use proper font ascent for baseline
+                        let metrics = self.main_font.metrics(&[]);
+                        let ascent = metrics.ascent * self.font_size / metrics.units_per_em as f32;
+                        let baseline_y = y + ascent;
                         let glyph_y = baseline_y - glyph.top as f32;
                         
                         for py in 0..glyph.height {
