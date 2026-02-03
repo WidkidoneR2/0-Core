@@ -118,7 +118,7 @@ The repository follows a **directional growth pattern** where numbered directori
 ## 📊 System Health
 ```bash
 $ doctor
-🏥 0-Core Health Check - Faelight Forest v9.0.0
+🏥 0-Core Health Check - Faelight Forest v9.1.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Stow Symlinks: All 13/13 packages properly stowed
 ✅ System Services: All 2/2 services running
@@ -138,7 +138,7 @@ $ doctor
 ✅ Rust Toolchain: Rust toolchain available
 ✅ Disk Space: Sufficient disk space
 ✅ Tool Installation: All 7 key tools installed
-⚠️  Path Resilience: 24/40 tools migrated (60%)
+⚠️  Path Resilience: 30/40 tools migrated (75%)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  System mostly healthy (94%)
 Statistics:
@@ -147,18 +147,16 @@ Statistics:
    Failed:   0
    Total:    19
    Health:   94%
-```
-
-**19 automated checks** covering:
-- Configuration integrity (stow, symlinks, configs)
-- Service health (systemd services)
-- Security hardening (3 active protections)
-- Git repository state
-- Package consistency
-- **NEW: Rust toolchain verification**
-- **NEW: Disk space monitoring** 
-- **NEW: Tool installation checks**
-- **NEW: Path resilience tracking (60%!)**
+19 automated checks covering:
+Configuration integrity (stow, symlinks, configs)
+Service health (systemd services)
+Security hardening (3 active protections)
+Git repository state
+Package consistency
+Rust toolchain verification
+Disk space monitoring
+Tool installation checks
+Path resilience tracking (75%!) 🎊'''
 
 
 ---
@@ -216,31 +214,14 @@ faelight-update
 
 ## 🏆 Recent Achievements
 
-### v9.0.0 (Path Resilience Foundation) 🎊
-- **MAJOR MILESTONE: 60% Path Resilience Achieved!**
-- Enhanced monitoring: 19 health checks (was 15) with self-aware tracking
-- **NEW:** Path Resilience check - system tracks its own evolution (24/40 tools)
-- **NEW:** Rust Toolchain check - build environment verification
-- **NEW:** Disk Space check - high-severity warnings at 90%
-- **NEW:** Tool Installation check - key tools presence verification
-- Deployed The Guardian (core-protect v2.0.0) - immutable protection
-- Migrated 8 more tools: dotctl, profile, faelight-zone, safe-update, workspace-view, entropy-check, recent-files, core-protect
-- System health: 94% (honest tracking with Path Resilience warning)
-- **THE SYSTEM WATCHES ITSELF EVOLVE** 💎
+### v9.1.0 (Three Quarters Complete) 🎊
+- **75% Path Resilience Achieved!** (30/40 tools)
+- Migrated 10 tools in Session 7: keyscan, faelight-stow, teach, faelight-bootstrap, faelight-dmenu, faelight-lock
+- **faelight-term v10.1.0:** Fixed font baseline rendering - better than foot!
+- Fixed scrollback copy/paste in terminal
+- System self-awareness: tracks own evolution (75%)
+- **THREE QUARTERS COMPLETE** 💎
 
-### v8.9.0 (Numbered Gravity Path Hardening)
-- **Fixed critical system shutdown deadlock** (4+ hour debug session!)
-- Hardened 4 critical tools with paths modules (faelight-menu, faelight-stow, faelight-bar, keyscan)
-- Integrated status bar with doctor for accurate health display
-- Shipped Prompt 2.0 (health dots, git risk, entropy metrics)
-- Achieved 100% system health with comprehensive monitoring
-- **Progress:** 15/40 tools with path improvements (37.5%)
-
-### v8.8.0 (Numbered Gravity Release)
-- Implemented numbered gravity architecture (Linus feedback)
-- Built faelight-update v2.0.0 (better than topgrade)
-- Created registry system (tools.toml, aliases.toml, zones.toml)
-- Systematic numbered structure (00-meta, 01-registry, etc.)
 ## 🌲 Zone System
 ```
 ~/
