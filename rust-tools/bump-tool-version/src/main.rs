@@ -5,10 +5,11 @@ use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use faelight_core::paths;
 
 #[derive(Parser)]
 #[command(name = "bump-tool-version")]
-#[command(version = "1.0.0")]
+#[command(version = "2.0.0")]
 #[command(about = "Bump individual tool versions with auto-increment support", long_about = None)]
 struct Cli {
     /// Tool name (e.g., faelight-link, faelight-fm)
@@ -79,7 +80,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Find tool directory
-    let tool_dir = PathBuf::from("rust-tools").join(&cli.tool);
+    let tool_dir = paths::core_dir().join("rust-tools").join(&cli.tool);
     if !tool_dir.exists() {
         return Err(anyhow!("Tool '{}' not found in rust-tools/", cli.tool));
     }
@@ -167,7 +168,7 @@ fn read_tool_version(cargo_toml: &PathBuf) -> Result<String> {
     // Check if using workspace version
     if content.contains("version.workspace = true") {
         // Read from workspace Cargo.toml
-        let workspace_toml = PathBuf::from("Cargo.toml");
+        let workspace_toml = paths::cargo_toml();
         let workspace_content = fs::read_to_string(&workspace_toml)?;
         let re = Regex::new(r#"\[workspace\.package\][\s\S]*?version\s*=\s*\"([^\"]+)\""#)?;
         
