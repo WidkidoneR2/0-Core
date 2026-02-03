@@ -125,7 +125,16 @@ checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
 
 [[package]]
 name = "archaeology-0-core"
-version = "1.0.0"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "faelight-core",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "arg_enum_proc_macro"
