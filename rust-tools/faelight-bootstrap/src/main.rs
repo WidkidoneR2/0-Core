@@ -1,4 +1,4 @@
-//! faelight-bootstrap v1.0.0 - One-Command 0-Core Setup
+//! faelight-bootstrap v2.0.0 - One-Command 0-Core Setup
 //! 🌲 Faelight Forest - Linus Edition
 //!
 //! Philosophy: Automation serves installation, but human controls choices
@@ -9,6 +9,8 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, exit};
+use faelight_core::paths;
+use clap::Parser;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -473,7 +475,7 @@ fn stow_packages(core_path: &str) {
             
             let status = Command::new("stow")
                 .current_dir(&stow_dir)
-                .args(&["--ignore=\\.dotmeta", "-t", &env::var("HOME").unwrap(), pkg])
+                .args(&["--ignore=\\.dotmeta", "-t", &paths::home().display().to_string(), pkg])
                 .status();
             
             match status {
