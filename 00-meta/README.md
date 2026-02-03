@@ -243,13 +243,6 @@ Zones provide **spatial organization** with protection levels and semantic meani
 
 ---
 
-## 🤝 Acknowledgments
-
-- **Linus Torvalds** - Feedback on numbered gravity architecture
-- **Graydon Hoare** - Challenge to build full Rust distro
-- **Lennart Poettering** - systemd integration discussions
-
----
 
 ## 📜 License
 
