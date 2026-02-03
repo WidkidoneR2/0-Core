@@ -2,8 +2,11 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{self, Command};
+use clap::{Parser, Subcommand};
+use colored::*;
+use faelight_core::paths;
 
-// ANSI colors
+// ANSI colors (keeping for now - colored ready for future)
 const RED: &str = "\x1b[0;31m";
 const GREEN: &str = "\x1b[0;32m";
 const YELLOW: &str = "\x1b[1;33m";
@@ -11,35 +14,45 @@ const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
-const VERSION: &str = "2.0.0";
 
+// ANSI colors
+
+const VERSION: &str = "3.0.0";
+
+
+
+#[derive(Parser)]
+#[command(name = "dotctl")]
+#[command(about = "🎮 Dotfile Control Center - Manage stow packages", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Show status of all stow packages
+    Status,
+    /// Bump package version
+    Bump { args: Vec<String> },
+    /// Show version history
+    History { args: Vec<String> },
+    /// Health check
+    Health,
+    /// Show version
+    Version,
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let command = args.get(1).map(|s| s.as_str()).unwrap_or("help");
+    let cli = Cli::parse();
     
-    match command {
-        "status" => cmd_status(),
-        "bump" => cmd_bump(&args[2..]),
-        "history" => cmd_history(&args[2..]),
-        "health" => cmd_health(),
-        "--version" | "-v" | "version" => cmd_version(),
-        "help" | "--help" | "-h" => cmd_help(),
-        _ => {
-            eprintln!("Unknown command: {}", command);
-            cmd_help();
-            process::exit(1);
-        }
+    match cli.command {
+        Commands::Status => cmd_status(),
+        Commands::Bump { args } => cmd_bump(&args),
+        Commands::History { args } => cmd_history(&args),
+        Commands::Health => cmd_health(),
+        Commands::Version => cmd_version(),
     }
-}
-
-fn get_core_dir() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join("0-core")
-}
-
-fn get_stow_dir() -> PathBuf {
-    get_core_dir().join("stow")
 }
 
 fn cmd_version() {
@@ -103,8 +116,8 @@ fn parse_dotmeta(content: &str) -> (String, String, String, String) {
 }
 
 fn cmd_status() {
-    let core_dir = get_core_dir();
-    let stow_dir = get_stow_dir();
+    let core_dir = paths::core_dir();
+    let stow_dir = paths::stow_dir();
     
     println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
     println!("{}📊 0-Core System Status{}", CYAN, NC);
@@ -183,7 +196,7 @@ fn cmd_bump(args: &[String]) {
     let new_version = &args[1];
     let message = args.get(2).map(|s| s.as_str()).unwrap_or("Version bump");
     
-    let stow_dir = get_stow_dir();
+    let stow_dir = paths::stow_dir();
     let pkg_dir = stow_dir.join(pkg_name);
     let dotmeta_path = pkg_dir.join(".dotmeta");
     
@@ -228,7 +241,7 @@ fn cmd_history(args: &[String]) {
     }
     
     let pkg_name = &args[0];
-    let stow_dir = get_stow_dir();
+    let stow_dir = paths::stow_dir();
     let dotmeta_path = stow_dir.join(pkg_name).join(".dotmeta");
     
     if !dotmeta_path.exists() {
