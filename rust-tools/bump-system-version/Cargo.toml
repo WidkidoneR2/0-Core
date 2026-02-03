@@ -1,7 +1,22 @@
 [package]
 name = "bump-system-version"
-version = "7.0.0"
+version = "8.0.0"
 edition = "2021"
+description = "Joyful 0-Core release automation - celebrating every version! 🎉"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# Date/time
 chrono = "0.4"
+
+# Joyful colors!
+colored = "2.1"
+
+# Proper error handling
+anyhow = "1.0"
+
+[[bin]]
+name = "bump-system-version"
+path = "src/main.rs"
