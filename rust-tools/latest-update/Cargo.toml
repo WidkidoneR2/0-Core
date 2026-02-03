@@ -1,8 +1,17 @@
 [package]
 name = "latest-update"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
+description = "Show latest package updates from .dotmeta files"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI & utilities
 clap = { version = "4.5", features = ["derive"] }
 chrono = "0.4"
+
+[[bin]]
+name = "latest-update"
+path = "src/main.rs"
