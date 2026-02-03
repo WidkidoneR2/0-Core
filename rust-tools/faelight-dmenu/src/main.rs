@@ -1,7 +1,8 @@
-//! faelight-dmenu v2.0.0 - Intent-Aware Application Launcher
+//! faelight-dmenu v2.1.0 - Intent-Aware Application Launcher
 //! 🌲 Faelight Forest
 
 use clap::{Parser, Subcommand};
+use faelight_core::paths;
 use std::io::{self, BufRead};
 use std::sync::{Arc, Mutex};
 use std::process::Command;
@@ -104,7 +105,7 @@ fn run_health_check() {
     
     // Check Intent Ledger
     print!("  Checking Intent Ledger... ");
-    let intent_dir = dirs::home_dir().unwrap().join("0-core/INTENT");
+    let intent_dir = paths::intents_dir();
     if intent_dir.exists() {
         let intents = intents::scan_intents();
         println!("✅ {} intents found", intents.len());

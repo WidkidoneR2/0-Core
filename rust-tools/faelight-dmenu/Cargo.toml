@@ -1,11 +1,14 @@
 [package]
 name = "faelight-dmenu"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
-description = "Generic selector for Faelight Forest"
+description = "Intent-aware application launcher - path-resilient!"
 
 [dependencies]
-# Wayland (reuse from launcher)
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# Wayland
 wayland-client = "0.31"
 smithay-client-toolkit = "0.19"
 fontdue = "0.9"
@@ -24,10 +27,9 @@ walkdir = "2"
 # Images & config (for apps mode)
 image = "0.25"
 toml = "0.8"
-
 dirs = "5.0"
+
 [profile.release]
 opt-level = "z"
 lto = true
 strip = true
-
