@@ -1,7 +1,6 @@
-use std::env;
+use faelight_core::paths;
 
 /// Get the stow packages directory
 pub fn stow_dir() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    format!("{}/0-core/03-interfaces/stow", home)
+    paths::stow_dir().display().to_string()
 }
