@@ -793,7 +793,7 @@ fn is_in_core() -> bool {
 /// Run doctor check and return health percentage
 fn run_doctor_final() -> Result<u32> {
     println!("\n{}  Running final health check...", "🏥".green());
-    let output = Command::new("doctor")
+    let output = Command::new("dot-doctor")
         .output()
         .context("Failed to run doctor")?;
     
