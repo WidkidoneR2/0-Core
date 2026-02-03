@@ -1,7 +1,16 @@
 [package]
 name = "get-version"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
+description = "Get system version from VERSION file"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI
 clap = { version = "4.5", features = ["derive"] }
+
+[[bin]]
+name = "get-version"
+path = "src/main.rs"
