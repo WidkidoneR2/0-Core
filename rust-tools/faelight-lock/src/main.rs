@@ -1,4 +1,4 @@
-//! faelight-lock v1.0.0 - Screen Locker (swaylock wrapper)
+//! faelight-lock v2.0.0 - Screen Locker (swaylock wrapper)
 //! 🌲 Faelight Forest
 //!
 //! Uses faelight-core Theme to provide consistent colors to swaylock
@@ -10,7 +10,7 @@ use std::process::Command;
 #[derive(Parser)]
 #[command(name = "faelight-lock")]
 #[command(about = "Screen locker with Faelight Forest theming", long_about = None)]
-#[command(version = "1.0.0")]
+#[command(version = "2.0.0")]
 struct Args {
     /// Run health check and exit
     #[arg(long)]
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return health_check();
     }
     
-    eprintln!("🔒 faelight-lock v1.0.0");
+    eprintln!("🔒 faelight-lock v2.0.0");
     
     let theme = Theme::faelight_default();
     
