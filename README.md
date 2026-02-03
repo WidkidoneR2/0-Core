@@ -123,7 +123,7 @@ The repository follows a **directional growth pattern** where numbered directori
 $ doctor
 🏥 0-Core Health Check - Faelight Forest v9.0.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Stow Symlinks: All 12/12 packages properly stowed
+✅ Stow Symlinks: All 13/13 packages properly stowed
 ✅ System Services: All 2/2 services running
 ✅ Broken Symlinks: No broken symlinks found
 ✅ Yazi Plugins: All 4 plugins installed
@@ -131,23 +131,38 @@ $ doctor
 ✅ Git Repository: Working tree clean, all commits pushed
 ✅ Theme Packages: 1/1 theme packages present
 ✅ Scripts: All scripts present and executable
-✅ Intent Ledger: 28 intents (11 complete, 6 planned)
+✅ Package Metadata: .dotmeta files intentionally removed
+✅ Intent Ledger: 0 intents (0 complete, 0 planned)
 ✅ Profile System: Profile system OK (current: default)
 ✅ Faelight Config: All config files valid
 ✅ Sway Keybinds: 116 unique keybindings, no conflicts
-✅ Security Hardening: 3 protections active
+✅ Security Hardening: Security: 3 protections active
 ✅ Alias Coverage: All 37 tools have aliases (301 total)
+✅ Rust Toolchain: Rust toolchain available
+✅ Disk Space: Sufficient disk space
+✅ Tool Installation: All 7 key tools installed
+⚠️  Path Resilience: 24/40 tools migrated (60%)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ System healthy! All checks passed! 🌲
-Health: 100%
+⚠️  System mostly healthy (94%)
+Statistics:
+   Passed:   18
+   Warnings: 1
+   Failed:   0
+   Total:    19
+   Health:   94%
 ```
 
-**15 automated checks** covering:
-- Configuration integrity
-- Service health
-- Security hardening
+**19 automated checks** covering:
+- Configuration integrity (stow, symlinks, configs)
+- Service health (systemd services)
+- Security hardening (3 active protections)
 - Git repository state
 - Package consistency
+- **NEW: Rust toolchain verification**
+- **NEW: Disk space monitoring** 
+- **NEW: Tool installation checks**
+- **NEW: Path resilience tracking (60%!)**
+
 
 ---
 
