@@ -1,54 +1,64 @@
-//! 🔍 get-version - Extract version from package .dotmeta files
-//! 
-//! Reads version information from stow package metadata.
-
-use clap::Parser;
+//! get-version v3.0.0
+//! Simple utility to read system version from VERSION file
+use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::PathBuf;
 use std::process;
+use faelight_core::paths;
 
 #[derive(Parser)]
 #[command(name = "get-version")]
-#[command(about = "Get version from package .dotmeta file", long_about = None)]
-#[command(version = "2.0.0")]
-struct Args {
-    /// Package name to query
-    package: Option<String>,
-    
-    /// Run health check and exit
-    #[arg(long)]
-    health_check: bool,
+#[command(version = "3.0.0")]
+#[command(about = "Get 0-Core system version", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Show system version
+    System,
+    /// Show package version from .dotmeta
+    Package { name: String },
+    /// Run health check
+    Health,
 }
 
 fn main() {
-    let args = Args::parse();
-    
-    if args.health_check {
-        health_check();
-        return;
-    }
-    
-    let package = match args.package {
-        Some(p) => p,
-        None => {
-            eprintln!("❌ Error: Package name required");
-            eprintln!("Usage: get-version <package-name>");
-            process::exit(1);
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::System) | None => {
+            if let Some(version) = get_system_version() {
+                println!("{}", version);
+            } else {
+                eprintln!("❌ Could not read system version");
+                process::exit(1);
+            }
         }
-    };
-    
-    match get_package_version(&package) {
-        Some(version) => println!("{}", version),
-        None => println!("unknown"),
+        Some(Commands::Package { name }) => {
+            if let Some(version) = get_package_version(&name) {
+                println!("{}", version);
+            } else {
+                eprintln!("❌ Could not find version for package: {}", name);
+                process::exit(1);
+            }
+        }
+        Some(Commands::Health) => {
+            health_check();
+        }
     }
 }
 
+fn get_system_version() -> Option<String> {
+    let version_file = paths::version_file();
+    fs::read_to_string(version_file).ok()?.trim().to_string().into()
+}
+
 fn get_package_version(package: &str) -> Option<String> {
-    let home = std::env::var("HOME").ok()?;
-    
     // Try stow path first (current structure)
-    let stow_path = PathBuf::from(&home)
-        .join("0-core/03-interfaces/stow")
+    let stow_path = paths::stow_dir()
         .join(package)
         .join(".dotmeta");
     
@@ -57,8 +67,7 @@ fn get_package_version(package: &str) -> Option<String> {
     }
     
     // Fallback to old path (for backwards compatibility)
-    let old_path = PathBuf::from(&home)
-        .join("0-core")
+    let old_path = paths::core_dir()
         .join(package)
         .join(".dotmeta");
     
@@ -69,15 +78,8 @@ fn read_version_from_dotmeta(path: &PathBuf) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     
     for line in content.lines() {
-        if line.starts_with("version = ") {
-            // Extract value between quotes
-            if let Some(start) = line.find('"') {
-                if let Some(end) = line.rfind('"') {
-                    if start < end {
-                        return Some(line[start + 1..end].to_string());
-                    }
-                }
-            }
+        if line.starts_with("version=") {
+            return Some(line.trim_start_matches("version=").to_string());
         }
     }
     
@@ -85,17 +87,9 @@ fn read_version_from_dotmeta(path: &PathBuf) -> Option<String> {
 }
 
 fn health_check() {
-    println!("🔍 get-version v2.0.0 - Health Check");
+    println!("🔍 get-version v3.0.0 - Health Check");
     
-    let home = match std::env::var("HOME") {
-        Ok(h) => h,
-        Err(_) => {
-            eprintln!("❌ HOME environment variable not set");
-            process::exit(1);
-        }
-    };
-    
-    let stow_dir = PathBuf::from(&home).join("0-core/03-interfaces/stow");
+    let stow_dir = paths::stow_dir();
     
     if !stow_dir.exists() {
         eprintln!("❌ Stow directory not found: {}", stow_dir.display());
@@ -104,12 +98,17 @@ fn health_check() {
     
     // Test with a known package
     if let Some(version) = get_package_version("shell-zsh") {
-        println!("✅ Successfully read shell-zsh version: {}", version);
-        println!("✅ Health check passed");
-        process::exit(0);
+        println!("✅ Can read package versions (shell-zsh: {})", version);
     } else {
-        eprintln!("⚠️  Could not read shell-zsh version (package may not exist)");
-        println!("✅ Health check passed (tool functional)");
-        process::exit(0);
+        eprintln!("⚠️  Could not read test package version");
     }
+    
+    if let Some(version) = get_system_version() {
+        println!("✅ System version: {}", version);
+    } else {
+        eprintln!("❌ Could not read system version");
+        process::exit(1);
+    }
+    
+    println!("✅ All checks passed");
 }
