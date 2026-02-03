@@ -363,3 +363,17 @@ pub fn intents_incidents() -> PathBuf {
 pub fn aliases_file() -> PathBuf {
     stow_dir().join("shell-zsh/.config/zsh/aliases.zsh")
 }
+
+// ═══════════════════════════════════════════════════════════
+// ENTROPY MONITORING PATHS
+// ═══════════════════════════════════════════════════════════
+
+/// Entropy baseline file
+pub fn entropy_baseline_file() -> PathBuf {
+    faelight_config_dir().join("entropy-baseline.json")
+}
+
+/// Entropy history file
+pub fn entropy_history_file() -> PathBuf {
+    faelight_config_dir().join("entropy-history.json")
+}
