@@ -395,11 +395,12 @@ dependencies = [
 
 [[package]]
 name = "bump-tool-version"
-version = "8.9.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "faelight-core",
  "regex",
  "serde",
  "serde_json",
