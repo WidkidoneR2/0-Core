@@ -311,33 +311,51 @@ fn get_volume() -> (u8, bool) {
     }
 }
 
-fn get_health() -> u8 {
-    let core_path = crate::paths::core_dir();
-    let mut passed = 0;
-    let total = 5;
-    
-    if fs::metadata(&core_path).is_ok() { passed += 1; }
-    
-    let scripts_path = format!("{}/scripts", core_path);
-    if let Ok(entries) = fs::read_dir(&scripts_path) {
-        if entries.count() > 5 { passed += 1; }
-    }
-    
-    if let Ok(out) = Command::new("git")
-        .args(["-C", &core_path, "status", "--porcelain"])
-        .output() 
-    {
-        if out.stdout.is_empty() { passed += 1; }
-    }
-    
-    let profile_path = crate::paths::current_profile_path();
-    if fs::metadata(&profile_path).is_ok() { passed += 1; }
-    
-    let version_path = format!("{}/00-meta/VERSION", core_path);
-    if fs::metadata(&version_path).is_ok() { passed += 1; }
-    
-    ((passed * 100) / total) as u8
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+lazy_static::lazy_static! {
+    static ref HEALTH_CACHE: Arc<Mutex<(u8, Instant)>> = Arc::new(Mutex::new((50, Instant::now())));
 }
+
+fn get_health() -> u8 {
+    const CACHE_DURATION: Duration = Duration::from_secs(30);
+    
+    let mut cache = HEALTH_CACHE.lock().unwrap();
+    let (cached_health, last_check) = *cache;
+    
+    // Return cached value if fresh
+    if last_check.elapsed() < CACHE_DURATION {
+        return cached_health;
+    }
+    
+    // Call doctor and update cache
+    let health = match Command::new(crate::paths::doctor_path()).output() {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            for line in stdout.lines() {
+                if line.contains("Health:") {
+                    if let Some(after_health) = line.split("Health:").nth(1) {
+                        let cleaned = after_health.trim().trim_end_matches('%').trim();
+                        if let Ok(h) = cleaned.parse::<u8>() {
+                            *cache = (h, Instant::now());
+                            return h;
+                        }
+                    }
+                }
+            }
+            50
+        }
+        _ => 50,
+    };
+    
+    *cache = (health, Instant::now());
+    health
+}
+
+
+
+
 
 fn is_core_locked() -> bool {
     let core_path = crate::paths::core_dir();

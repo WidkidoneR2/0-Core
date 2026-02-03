@@ -102,11 +102,11 @@ fn main() {
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
-                println!("faelight-bar v2.0.0");
+                println!("faelight-bar v2.1.0");
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                println!("faelight-bar v2.0.0 - Hybrid Bar/Menu for Faelight Forest");
+                println!("faelight-bar v2.1.0 - Hybrid Bar/Menu for Faelight Forest");
                 println!();
                 println!("Wayland status bar with integrated application launcher");
                 println!();
@@ -228,7 +228,7 @@ fn main() {
         keyboard: None,
     };
     
-    println!("🌲 faelight-bar v2.0.0 starting (Hybrid Edition)...");
+    println!("🌲 faelight-bar v2.1.0 starting (Hybrid Edition)...");
     
     while state.running {
         if let Err(e) = event_queue.blocking_dispatch(&mut state) {
