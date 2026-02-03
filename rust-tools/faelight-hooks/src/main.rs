@@ -24,7 +24,7 @@ enum Commands {
     },
     /// Run hook checks manually
     Check {
-        /// Skip specific checks (comma-separated: secrets,conflicts,syntax)
+        /// Skip specific checks (comma-separated: secrets,conflicts,filesize,branch)
         #[arg(long)]
         skip: Option<String>,
         
@@ -46,7 +46,7 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-
+    
     match cli.command {
         Commands::Install { hook } => {
             install::install_hooks(hook)?;
@@ -61,6 +61,7 @@ fn main() -> Result<()> {
             } else {
                 // Pre-commit checks
                 println!("{}", "🔍 Running hook checks...".cyan().bold());
+                println!();
                 run_checks(skip)?;
             }
         }
@@ -71,7 +72,7 @@ fn main() -> Result<()> {
             }
         }
     }
-
+    
     Ok(())
 }
 
@@ -79,28 +80,43 @@ fn run_checks(skip: Option<String>) -> Result<()> {
     let skip_list: Vec<String> = skip
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_default();
-
+    
     let mut all_passed = true;
-
-    // Secret scanning
+    
+    // Branch name validation (non-blocking)
+    if !skip_list.contains(&"branch".to_string()) {
+        let _ = checks::branch::validate_branch_name()?;
+        println!();
+    }
+    
+    // File size check (non-blocking warning)
+    if !skip_list.contains(&"filesize".to_string()) {
+        let _ = checks::filesize::check_file_sizes()?;
+        println!();
+    }
+    
+    // Secret scanning (BLOCKING)
     if !skip_list.contains(&"secrets".to_string()) {
         if !checks::secrets::check_secrets()? {
             all_passed = false;
         }
+        println!();
     } else {
         println!("{}", "⏭️  Skipping secret scanning".yellow());
+        println!();
     }
-
-    // Conflict detection
+    
+    // Conflict detection (BLOCKING)
     if !skip_list.contains(&"conflicts".to_string()) {
         if !checks::conflicts::check_conflicts()? {
             all_passed = false;
         }
+        println!();
     } else {
         println!("{}", "⏭️  Skipping conflict detection".yellow());
+        println!();
     }
-
-    println!();
+    
     if all_passed {
         println!("{}", "✅ All checks passed! 🌲".green().bold());
         Ok(())
@@ -112,20 +128,19 @@ fn run_checks(skip: Option<String>) -> Result<()> {
 
 fn run_pre_push_checks() -> Result<()> {
     println!("{}", "🎣 Running pre-push checks...".cyan().bold());
+    println!();
     
     let mut all_passed = true;
-
-    // Check for uncommitted changes
-    if !checks::prepush::check_unpushed_changes()? {
-        all_passed = false;
-    }
-
+    
+    // Check for uncommitted changes (warning)
+    let _ = checks::prepush::check_unpushed_changes()?;
+    println!();
+    
     // Check push target (main branch warning)
     if !checks::prepush::check_push_to_main()? {
         all_passed = false;
     }
-
-    println!();
+    
     if all_passed {
         println!("{}", "✅ Pre-push checks passed! 🌲".green().bold());
         Ok(())
@@ -143,7 +158,7 @@ fn run_commit_msg_check(msg_file: &str) -> Result<()> {
         println!("{}", "❌ Commit message validation failed!".red().bold());
         std::process::exit(1);
     }
-
+    
     Ok(())
 }
 
@@ -151,15 +166,21 @@ fn show_config() -> Result<()> {
     println!("Current configuration:");
     println!();
     println!("{}", "Pre-commit checks:".bold());
-    println!("  - Secret scanning: {}", "enabled".green());
-    println!("  - Conflict detection: {}", "enabled".green());
+    println!("  - Branch name validation: {}", "enabled (non-blocking)".yellow());
+    println!("  - File size check: {}", "enabled (50MB warning)".yellow());
+    println!("  - Secret scanning: {}", "enabled (BLOCKING)".red());
+    println!("  - Conflict detection: {}", "enabled (BLOCKING)".red());
     println!();
     println!("{}", "Pre-push checks:".bold());
     println!("  - Branch warnings: {}", "enabled".green());
-    println!("  - Uncommitted changes: {}", "enabled".green());
+    println!("  - Uncommitted changes: {}", "enabled (warning)".yellow());
     println!();
     println!("{}", "Commit-msg checks:".bold());
     println!("  - Conventional commits: {}", "validation (non-blocking)".yellow());
     println!("  - Length checks: {}", "enabled".green());
+    println!();
+    println!("{}", "Skip checks with:".dimmed());
+    println!("  {}", "faelight-hooks check --skip secrets,filesize".dimmed());
+    
     Ok(())
 }

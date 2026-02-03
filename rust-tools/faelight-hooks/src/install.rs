@@ -3,26 +3,19 @@ use colored::Colorize;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::process::Command;
+use faelight_core::paths;
 
 pub fn install_hooks(hook_name: Option<String>) -> Result<()> {
-    // Find git root
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .context("Not in a git repository")?;
-
-    let git_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let hooks_dir = PathBuf::from(&git_root).join(".git/hooks");
-
+    let hooks_dir = paths::git_hooks_dir();
+    
     // Create hooks directory if it doesn't exist
     fs::create_dir_all(&hooks_dir)?;
-
+    
     match hook_name {
         Some(name) => install_single_hook(&hooks_dir, &name)?,
         None => install_all_hooks(&hooks_dir)?,
     }
-
+    
     Ok(())
 }
 
@@ -37,7 +30,7 @@ fn install_all_hooks(hooks_dir: &PathBuf) -> Result<()> {
     println!("{}", "✅ All hooks installed successfully!".green().bold());
     println!();
     println!("Hooks installed:");
-    println!("  • {} - Secret scanning, conflict detection", "pre-commit".green());
+    println!("  • {} - Branch validation, file size, secrets, conflicts", "pre-commit".green());
     println!("  • {} - Branch warnings, uncommitted changes", "pre-push".green());
     println!("  • {} - Conventional commit validation", "commit-msg".green());
     println!();
@@ -77,18 +70,18 @@ if command -v faelight-hooks &> /dev/null; then
     exit $?
 else
     echo "❌ faelight-hooks not found in PATH"
-    echo "Install with: cargo build --release -p faelight-hooks"
+    echo "Install with: cargo install --path rust-tools/faelight-hooks"
     exit 1
 fi
 "#;
 
     fs::write(&hook_path, hook_content)
         .context("Failed to write pre-commit hook")?;
-
+        
     let mut perms = fs::metadata(&hook_path)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&hook_path, perms)?;
-
+    
     println!("{}", "  ✅ pre-commit hook installed".green());
     Ok(())
 }
@@ -102,21 +95,7 @@ fn install_pre_push(hooks_dir: &PathBuf) -> Result<()> {
 
 if command -v faelight-hooks &> /dev/null; then
     faelight-hooks check --pre-push
-    
-    # Check if pushing to main
-    current_branch=$(git rev-parse --abbrev-ref HEAD)
-    if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
-        echo ""
-        echo "⚠️  Pushing directly to MAIN in $(basename $(git rev-parse --show-toplevel))"
-        read -p "Proceed? (type 'push-main'): " confirmation
-        
-        if [[ "$confirmation" != "push-main" ]]; then
-            echo "❌ Push cancelled"
-            exit 1
-        fi
-    fi
-    
-    exit 0
+    exit $?
 else
     echo "❌ faelight-hooks not found in PATH"
     exit 1
@@ -125,11 +104,11 @@ fi
 
     fs::write(&hook_path, hook_content)
         .context("Failed to write pre-push hook")?;
-
+        
     let mut perms = fs::metadata(&hook_path)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&hook_path, perms)?;
-
+    
     println!("{}", "  ✅ pre-push hook installed".green());
     Ok(())
 }
@@ -152,11 +131,11 @@ fi
 
     fs::write(&hook_path, hook_content)
         .context("Failed to write commit-msg hook")?;
-
+        
     let mut perms = fs::metadata(&hook_path)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&hook_path, perms)?;
-
+    
     println!("{}", "  ✅ commit-msg hook installed".green());
     Ok(())
 }

@@ -269,3 +269,22 @@ pub fn core_lock_file() -> PathBuf {
 pub fn is_core_locked() -> bool {
     core_lock_file().exists()
 }
+
+// ═══════════════════════════════════════════════════════════
+// GIT CONFIGURATION FILES
+// ═══════════════════════════════════════════════════════════
+
+/// Gitleaks configuration file in 0-core root
+pub fn gitleaks_config() -> PathBuf {
+    core_dir().join(".gitleaks.toml")
+}
+
+/// Git attributes file
+pub fn git_attributes() -> PathBuf {
+    core_dir().join(".gitattributes")
+}
+
+/// Git ignore file  
+pub fn git_ignore() -> PathBuf {
+    core_dir().join(".gitignore")
+}
