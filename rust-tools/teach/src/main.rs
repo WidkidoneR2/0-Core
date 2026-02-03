@@ -1,4 +1,4 @@
-//! teach v1.0.0 - Interactive Learning System
+//! teach v2.0.0 - Interactive Learning System
 //! 🌲 Faelight Forest
 
 use serde::{Deserialize, Serialize};
@@ -6,8 +6,11 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
+use faelight_core::paths;
+use clap::Parser;
+use colored::*;
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 #[derive(Serialize, Deserialize, Default)]
 struct LearningProgress {
@@ -43,8 +46,7 @@ impl LearningProgress {
     }
     
     fn get_path() -> PathBuf {
-        let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(&home).join(".local/state/faelight/learning.json")
+        paths::faelight_state_dir().join("learning.json")
     }
     
     fn mark_lesson_complete(&mut self, lesson: usize) {
