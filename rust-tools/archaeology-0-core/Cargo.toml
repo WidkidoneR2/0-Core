@@ -1,6 +1,29 @@
 [package]
 name = "archaeology-0-core"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
+description = "System-wide history explorer for 0-Core"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Terminal colors
+colored = "2.1"
+
+# Error handling
+anyhow = "1.0"
+
+# JSON output
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date/time
+chrono = "0.4"
+
+[[bin]]
+name = "archaeology-0-core"
+path = "src/main.rs"
