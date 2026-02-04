@@ -753,11 +753,8 @@ impl App {
                     false
                 };
                 
-                let bg = if is_selected {
-                    [0x6b, 0xe3, 0xa3]
-                } else {
-                    cell.bg
-                };
+                // Keep normal background for selected text
+                let bg = cell.bg;
                 
                 // Background
                 if bg != COLORS[0] {
@@ -777,11 +774,12 @@ impl App {
                     }
                 }
                 
-                // Cursor
+                // Cursor (vertical line)
                 if row_idx == self.terminal.cursor_row && col_idx == self.terminal.cursor_col 
                     && self.cursor_blink_state && self.terminal.scroll_offset == 0 {
+                    // Draw a 2px wide vertical line
                     for dy in 0..(line_height as usize) {
-                        for dx in 0..(char_width as usize) {
+                        for dx in 0..2 {  // Only 2 pixels wide
                             let screen_x = x as usize + dx;
                             let screen_y = y as usize + dy;
                             if screen_x < self.width as usize && screen_y < self.height as usize {
@@ -830,6 +828,63 @@ impl App {
                                     canvas[idx] = (glyph.rgba[src_idx] as f32 * alpha_f + canvas[idx] as f32 * (1.0 - alpha_f)) as u8;
                                     canvas[idx + 1] = (glyph.rgba[src_idx + 1] as f32 * alpha_f + canvas[idx + 1] as f32 * (1.0 - alpha_f)) as u8;
                                     canvas[idx + 2] = (glyph.rgba[src_idx + 2] as f32 * alpha_f + canvas[idx + 2] as f32 * (1.0 - alpha_f)) as u8;
+                                }
+                            }
+                        }
+                        
+                        
+                        // Selection indicators (underline + left border)
+                        if is_selected {
+                            // Get baseline for proper positioning
+                            let metrics = self.main_font.metrics(&[]);
+                            let ascent = metrics.ascent * self.font_size / metrics.units_per_em as f32;
+                            let baseline_y = y + ascent;
+                            
+                            // Bottom underline (2px thick)
+                            let underline_y = (baseline_y + 2.0) as usize;
+                            for ux in (x as usize)..(x as usize + char_width as usize) {
+                                for uy in underline_y..(underline_y + 2) {
+                                    if ux < self.width as usize && uy < self.height as usize {
+                                        let idx = (uy * self.width as usize + ux) * 4;
+                                        if idx + 3 < canvas.len() {
+                                            // Accent color: #6BE3A3
+                                            canvas[idx] = 0xA3;
+                                            canvas[idx + 1] = 0xE3; 
+                                            canvas[idx + 2] = 0x6B;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Left border (3px wide) - only draw at start of selection
+                            let is_selection_start = col_idx == 0 || {
+                                if let Some(_prev_cell) = row.get(col_idx.saturating_sub(1)) {
+                                    // Check if previous cell is NOT selected
+                                    if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+                                        let (min_pos, max_pos) = if start <= end { (start, end) } else { (end, start) };
+                                        !((row_idx, col_idx - 1) >= min_pos && (row_idx, col_idx - 1) <= max_pos)
+                                    } else {
+                                        true
+                                    }
+                                } else {
+                                    true
+                                }
+                            };
+                            
+                            if is_selection_start {
+                                for dy in 0..(line_height as usize) {
+                                    for dx in 0..3 {
+                                        let screen_x = x as usize + dx;
+                                        let screen_y = y as usize + dy;
+                                        if screen_x < self.width as usize && screen_y < self.height as usize {
+                                            let idx = (screen_y * self.width as usize + screen_x) * 4;
+                                            if idx + 3 < canvas.len() {
+                                                canvas[idx] = 0xA3;
+                                                canvas[idx + 1] = 0xE3;
+                                                canvas[idx + 2] = 0x6B;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
