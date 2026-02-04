@@ -1,4 +1,4 @@
-//! faelight-dashboard v1.0.0 - TUI System Overview
+//! faelight-dashboard v2.0.0 - TUI System Overview
 //! 🌲 Faelight Forest
 
 use crossterm::{
@@ -12,6 +12,7 @@ use ratatui::{
 };
 use std::io::{stdout, Result};
 use std::process::Command;
+use faelight_core::paths;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -118,7 +119,7 @@ struct DashboardData {
 
 fn gather_data() -> DashboardData {
     // Version
-    let version = std::fs::read_to_string(format!("{}/0-core/00-meta/VERSION", std::env::var("HOME").unwrap_or_default()))
+    let version = std::fs::read_to_string(paths::meta_dir().join("VERSION").display().to_string())
         .unwrap_or_else(|_| "unknown".to_string())
         .trim()
         .to_string();
@@ -132,7 +133,7 @@ fn gather_data() -> DashboardData {
     
     // Git status
     let git_output = Command::new("sh")
-        .args(["-c", "cd ~/0-core && git status -s 2>/dev/null | head -5"])
+        .args(["-c", &format!("cd {} && git status -s 2>/dev/null | head -5", paths::core_dir().display())])
         .output()
         .map(|o| {
             let out = String::from_utf8_lossy(&o.stdout).to_string();
@@ -153,7 +154,7 @@ fn gather_data() -> DashboardData {
     
     // Intents
     let intents = Command::new("sh")
-        .args(["-c", "ls ~/0-core/INTENT/future/*.md 2>/dev/null | wc -l"])
+        .args(["-c", &format!("ls {}/future/*.md 2>/dev/null | wc -l", paths::intents_dir().display())])
         .output()
         .map(|o| {
             let count = String::from_utf8_lossy(&o.stdout).trim().to_string();
@@ -163,13 +164,13 @@ fn gather_data() -> DashboardData {
     
     // Stats
     let rust_tools = Command::new("sh")
-        .args(["-c", "ls ~/0-core/rust-tools/ 2>/dev/null | wc -l"])
+        .args(["-c", &format!("ls {}/ 2>/dev/null | wc -l", paths::rust_tools_dir().display())])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "0".to_string());
     
     let packages = Command::new("sh")
-        .args(["-c", "cat ~/0-core/packages/pkglist.txt 2>/dev/null | wc -l"])
+        .args(["-c", &format!("cat {}/packages/pkglist.txt 2>/dev/null | wc -l", paths::core_dir().display())])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "0".to_string());
