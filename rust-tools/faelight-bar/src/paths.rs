@@ -1,18 +1,21 @@
-//! Path constants for faelight-bar
-use std::env;
+//! Path functions for faelight-bar - now using faelight-core
+use faelight_core::paths;
 
 pub fn core_dir() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    format!("{}/0-core", home)
+    paths::core_dir().display().to_string()
 }
 
 pub fn current_profile_path() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    format!("{}/.local/state/0-core/current-profile", home)
+    paths::faelight_state_dir()
+        .join("current-profile")
+        .display()
+        .to_string()
 }
 
 /// Get path to doctor binary
 pub fn doctor_path() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    format!("{}/0-core/scripts/dot-doctor", home)
+    paths::scripts_dir()
+        .join("dot-doctor")
+        .display()
+        .to_string()
 }
