@@ -1,4 +1,6 @@
-//! The faelight daemon server
+//! The faelight daemon server - LEGENDARY EDITION
+
+use colored::*;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use std::path::Path;
@@ -20,28 +22,41 @@ impl Daemon {
             std::fs::remove_file(path)?;
         }
         
+        // Create parent directory if needed
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        
         // Bind to Unix socket
         let listener = UnixListener::bind(&self.socket_path)?;
-        println!("🌲 faelight-daemon listening on {}", self.socket_path);
+        
+        let mut connection_count = 0;
         
         loop {
             match listener.accept().await {
                 Ok((stream, _)) => {
+                    connection_count += 1;
+                    let conn_id = connection_count;
+                    
+                    println!("{} Connection #{} established", "🔌".green(), conn_id);
+                    
                     tokio::spawn(async move {
-                        if let Err(e) = handle_client(stream).await {
-                            eprintln!("Error handling client: {}", e);
+                        if let Err(e) = handle_client(stream, conn_id).await {
+                            eprintln!("{} Connection #{} error: {}", "❌".red(), conn_id, e);
+                        } else {
+                            println!("{} Connection #{} closed", "✅".green(), conn_id);
                         }
                     });
                 }
                 Err(e) => {
-                    eprintln!("Accept error: {}", e);
+                    eprintln!("{} Accept error: {}", "❌".red(), e);
                 }
             }
         }
     }
 }
 
-async fn handle_client(stream: UnixStream) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_client(stream: UnixStream, conn_id: u64) -> Result<(), Box<dyn std::error::Error>> {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
@@ -59,10 +74,15 @@ async fn handle_client(stream: UnixStream) -> Result<(), Box<dyn std::error::Err
         let message: Message = match serde_json::from_str(&line) {
             Ok(msg) => msg,
             Err(e) => {
-                eprintln!("Failed to parse message: {}", e);
+                eprintln!("{} [#{}] Failed to parse message: {}", "⚠️".yellow(), conn_id, e);
                 continue;
             }
         };
+        
+        // Log command
+        if let MessagePayload::Command(ref cmd) = message.payload {
+            println!("{} [#{}] Command: {:?}", "📨".cyan(), conn_id, cmd);
+        }
         
         // Process command
         let response = match message.payload {
@@ -109,14 +129,14 @@ async fn process_command(cmd: Command) -> Response {
             }
         }
         
-        Command::Search { query } => {
+        Command::Search { query: _ } => {
             // TODO: Implement search
             Response::Error { 
                 message: "Search not implemented yet".to_string() 
             }
         }
         
-        Command::GitStatus { path } => {
+        Command::GitStatus { path: _ } => {
             // TODO: Implement git status
             Response::GitStatus { 
                 status: "Git status not implemented yet".to_string() 
@@ -124,7 +144,7 @@ async fn process_command(cmd: Command) -> Response {
         }
         
         Command::Shutdown => {
-            println!("Shutdown requested");
+            println!("{} Shutdown requested", "🛑".red().bold());
             std::process::exit(0);
         }
     }
