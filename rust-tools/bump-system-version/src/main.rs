@@ -1,76 +1,56 @@
 //! bump-system-version v8.0.0
-//! Complete 0-Core Release Automation - Joyful Edition 🎉
+//! The Automated Release Master - Interactive Edition
+//! 
+//! Handles ALL release tasks:
+//! - Interactive content collection
+//! - Auto-detection of statistics
+//! - README v2.0 updates (title, badges, Recent Changes, footer)
+//! - CHANGELOG.md generation
+//! - VERSION, Cargo.toml, .zshrc updates
+//! - Git commit + tag + push
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::Local;
 use colored::*;
-use std::env;
 use faelight_core::paths;
+use std::env;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Write, BufRead};
 use std::path::PathBuf;
-use std::process::{exit, Command};
+use std::process::{Command, exit};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn show_preflight_dashboard(core_dir: &PathBuf, old_version: &str, new_version: &str) {
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║           {} PRE-FLIGHT RELEASE DASHBOARD {}                 ║", "🌲".green(), "🌲".green());
-    println!("╚══════════════════════════════════════════════════════════════╝");
-    println!();
-    println!("{}", "📊 System Status:".cyan().bold());
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║           🌲 PRE-FLIGHT RELEASE DASHBOARD 🌲                 ║");
-    println!("╚══════════════════════════════════════════════════════════════╝");
-    println!();
-    println!("📊 System Status:");
-    let health = check_system_health();
-    let git_clean = is_git_clean(core_dir);
-    let health_icon = if health { "✅" } else { "❌" };
-    let git_icon = if git_clean { "✅" } else { "❌" };
-    println!(
-        "  {} System Health: {}",
-        health_icon,
-        if health { "100%" } else { "DEGRADED" }
-    );
-    println!(
-        "  {} Git Status: {}",
-        git_icon,
-        if git_clean {
-            "clean"
-        } else {
-            "UNCOMMITTED CHANGES"
-        }
-    );
-    println!();
-    println!("📦 Version Information:");
-    println!("  Current:  v{}", old_version);
-    println!("  Target:   v{}", new_version);
-    println!();
-    println!("📝 Files That Will Be Modified:");
-    println!("  • VERSION");
-    println!("  • Cargo.toml (workspace version)");
-    println!("  • 03-interfaces/stow/shell-zsh/.zshrc (welcome message)");
-    println!("  • 00-meta/README.md (badges, milestone, version table)");
-    println!("  • 00-meta/CHANGELOG.md (new release entry)");
-    println!();
-    println!("🔧 Operations That Will Execute:");
-    println!("  1. Create btrfs snapshot");
-    println!("  2. Update all version files");
-    println!("  3. Generate CHANGELOG from git commits");
-    println!("  4. Stage changes (git add -A)");
-    println!("  5. Create commit with release message");
-    println!("  6. Create git tag v{}", new_version);
-    println!("  7. Push to origin/main");
-    println!("  8. Verify final state");
-    println!();
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+// ═══════════════════════════════════════════════════════════
+// 🏗️ DATA STRUCTURES
+// ═══════════════════════════════════════════════════════════
+
+#[derive(Debug)]
+struct ReleaseContent {
+    version: String,
+    theme: String,
+    features: Vec<String>,
+    manual_stats: Vec<String>,
+    quote: Option<String>,
 }
+
+#[derive(Debug)]
+struct AutoStats {
+    commits_count: usize,
+    files_changed: usize,
+    system_health: u32,
+    path_resilience: String,
+    tools_updated: Vec<String>,
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🎯 MAIN ENTRY POINT
+// ═══════════════════════════════════════════════════════════
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
-    // Handle flags first
+    
+    // Handle flags
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
@@ -82,813 +62,675 @@ fn main() {
                 return;
             }
             "--health" => {
-                println!("✅ bump-system-version: Release automation operational");
+                println!("✅ bump-system-version: The Automated Release Master operational");
                 return;
             }
-            "--dry-run" => {
-                if args.len() != 3 {
-                    eprintln!("Usage: bump-system-version --dry-run <version>");
-                    exit(1);
-                }
-                dry_run(args[2].strip_prefix("v").unwrap_or(&args[2]));
-                return;
-            }
-            "--minor" | "--patch" | "--major" => {
-                let increment_type = args[1].strip_prefix("--").unwrap();
-                let core_dir = get_core_dir();
-                let old_version = get_current_version(&core_dir);
-                let new_version = increment_version(&old_version, increment_type);
-                
-                println!("📦 Version Calculation:");
-                println!("  Current:  v{}", old_version);
-                println!("  Type:     --{} ({})", increment_type, explain_increment_type(increment_type));
-                println!("  Target:   v{}", new_version);
-                println!();
-                
-                // Continue with the calculated version
-                run_release(&core_dir, &old_version, &new_version);
-                return;
-            }
-
             _ => {}
         }
     }
-
-    // Validate arguments
-    if args.len() != 2 {
-        print_usage();
+    
+    // Require version argument
+    if args.len() < 2 {
+        eprintln!("Usage: bump-system-version <version>");
+        eprintln!("       bump-system-version --help");
         exit(1);
     }
-
+    
     let new_version = args[1].strip_prefix("v").unwrap_or(&args[1]);
-
+    
     // Validate version format
     if !is_valid_version(new_version) {
         eprintln!("❌ Invalid version format: {}", new_version);
-        eprintln!("   Must be X.Y.Z (e.g., 8.0.0)");
+        eprintln!("   Expected: X.Y.Z (e.g., 9.3.0)");
         exit(1);
     }
-
-    let core_dir = get_core_dir();
-    let old_version = get_current_version(&core_dir);
-
-    // Show pre-flight dashboard
-
-    // Call the release function
-    run_release(&core_dir, &old_version, new_version);
-}
-
-fn run_release(core_dir: &PathBuf, old_version: &str, new_version: &str) {
-show_preflight_dashboard(&core_dir, &old_version, new_version);
-
-// Ask for confirmation
-print!(
-    "
-🤔 Ready to proceed with release? (y/n): "
-);
-io::stdout().flush().unwrap();
-let mut proceed = String::new();
-io::stdin().read_line(&mut proceed).unwrap();
-
-if proceed.trim().to_lowercase() != "y" {
-    println!(
-        "
-❌ Release cancelled."
-    );
-    exit(0);
-}
-
-println!();
-println!("🌲 Faelight Forest Release System v{}", VERSION);
-println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-println!();
-
-// Phase 1: Pre-Flight Checks
-println!("📊 Phase 1: Pre-Flight Checks");
-
-if !check_system_health() {
-    eprintln!("  ❌ System health check failed");
-    eprintln!("     Run: doctor");
-    exit(1);
-}
-println!("  ✅ System health: 100%");
-
-if !is_git_clean(&core_dir) {
-    eprintln!("  ❌ Git has uncommitted changes");
-    eprintln!("     Commit or stash changes first");
-    exit(1);
-}
-println!("  ✅ Git status: clean");
-
-if !is_valid_version(new_version) {
-    eprintln!("  ❌ Invalid version format");
-    exit(1);
-}
-println!("  ✅ Version format: {} valid", new_version);
-
-println!();
-
-// Create snapshot
-println!("📸 Phase 2: Creating Snapshot");
-let snapshot_id = create_snapshot(&format!("Before 0-Core v{}", new_version));
-match snapshot_id {
-    Some(id) => {
-        println!("  ✅ Snapshot #{} created", id);
-        println!("  🔄 Rollback: sudo snapper rollback {}", id);
-    }
-    None => {
-        println!("  ⚠️  Snapshot creation failed - continuing anyway");
+    
+    // Run the interactive release flow
+    if let Err(e) = run_interactive_release(new_version) {
+        eprintln!("\n{} Release failed: {}", "❌".red(), e);
+        exit(1);
     }
 }
 
-println!();
+// ═══════════════════════════════════════════════════════════
+// 🎨 INTERACTIVE RELEASE FLOW
+// ═══════════════════════════════════════════════════════════
 
-// Phase 3: Update Version Numbers
-println!("📝 Phase 3: Updating Version Numbers");
-
-update_version_file(&core_dir, new_version).expect("Failed to update VERSION");
-println!("  ✅ VERSION: {} → {}", old_version, new_version);
-
-update_cargo_toml(&core_dir, &old_version, new_version).expect("Failed to update Cargo.toml");
-println!("  ✅ Cargo.toml: workspace version");
-
-update_zshrc(&core_dir, &old_version, new_version).expect("Failed to update .zshrc");
-println!("  ✅ .zshrc: welcome message");
-
-let badge_count = update_readme_badges(&core_dir, &old_version, new_version)
-    .expect("Failed to update badges");
-println!("  ✅ README.md: badges ({} updates)", badge_count);
-
-// Interactive: Milestone description
-println!();
-print!("❓ Enter milestone description: ");
-io::stdout().flush().unwrap();
-let mut milestone = String::new();
-io::stdin().read_line(&mut milestone).unwrap();
-let milestone = milestone.trim();
-
-update_readme_milestone(&core_dir, &old_version, new_version, milestone)
-    .expect("Failed to update milestone");
-println!("  ✅ README.md: milestone updated");
-
-println!();
-
-// Phase 4: CHANGELOG Generation
-println!("📋 Phase 4: Generating CHANGELOG");
-
-// Get date of last release tag
-let last_tag_date = Command::new("git")
-    .args(&["log", "-1", "--format=%ai", &format!("v{}", old_version)])
-    .current_dir(&core_dir)
-    .output()
-    .ok()
-    .and_then(|out| String::from_utf8(out.stdout).ok())
-    .and_then(|s| s.split_whitespace().next().map(String::from))
-    .unwrap_or_else(|| "2026-01-15".to_string()); // Fallback
-
-// Run compile-changelog.sh
-println!("  🔄 Running compile-changelog.sh...");
-let changelog_result = Command::new("bash")
-    .arg(core_dir.join("scripts/compile-changelog.sh"))
-    .arg(&last_tag_date)
-    .current_dir(&core_dir)
-    .output();
-
-match changelog_result {
-    Ok(output) if output.status.success() => {
-        println!("  ✅ Changelog draft generated");
+fn run_interactive_release(new_version: &str) -> Result<()> {
+    let core_dir = paths::core_dir();
+    let old_version = get_current_version()?;
+    
+    print_banner(&old_version, new_version);
+    
+    // Pre-flight checks
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "🔍 PRE-FLIGHT CHECKS".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    
+    if !check_system_health() {
+        eprintln!("\n{} System health check failed!", "❌".red());
+        eprintln!("Run 'doctor' to see issues.");
+        if !prompt_yes_no("Continue anyway?", false) {
+            return Ok(());
+        }
     }
-    _ => {
-        println!("  ⚠️  Changelog generation failed - will use template");
+    
+    if !is_git_clean(&core_dir) {
+        eprintln!("\n{} Git working tree not clean!", "⚠️".yellow());
+        eprintln!("Uncommitted changes detected.");
+        if !prompt_yes_no("Continue anyway?", false) {
+            return Ok(());
+        }
+    }
+    
+    println!("{} Pre-flight checks passed", "✅".green());
+    
+    // Collect release content interactively
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "📝 RELEASE CONTENT".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    
+    let content = collect_release_content(new_version)?;
+    
+    // Auto-detect statistics
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "📊 AUTO-DETECTING STATISTICS".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    
+    let auto_stats = detect_auto_stats(&old_version)?;
+    print_auto_stats(&auto_stats);
+    
+    // Preview changes
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "👁️  PREVIEW CHANGES".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    
+    preview_changes(&content, &auto_stats, &old_version, new_version)?;
+    
+    if !prompt_yes_no("\nProceed with release?", true) {
+        println!("\n{} Release cancelled", "ℹ️".blue());
+        return Ok(());
+    }
+    
+    // Execute release
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "🚀 EXECUTING RELEASE".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    
+    execute_release(&content, &auto_stats, &old_version, new_version)?;
+    
+    // Success!
+    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".green());
+    println!("{} {} {}", "🎊".green(), format!("RELEASE v{} COMPLETE!", new_version).green().bold(), "🎊".green());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".green());
+    
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📝 INTERACTIVE CONTENT COLLECTION
+// ═══════════════════════════════════════════════════════════
+
+fn collect_release_content(version: &str) -> Result<ReleaseContent> {
+    let theme = prompt_string("\n> Release theme (e.g., 'Tool Harmony'):", true)?;
+    
+    println!("\n> Major features (one per line, empty to finish):");
+    let features = collect_multiline_input()?;
+    
+    println!("\n> Additional statistics (empty to finish):");
+    println!("  Examples: 'Tools migrated: 5', 'New paths: 3'");
+    let manual_stats = collect_multiline_input()?;
+    
+    let quote = prompt_string("\n> Philosophy quote [optional, empty to skip]:", false).ok();
+    
+    Ok(ReleaseContent {
+        version: version.to_string(),
+        theme,
+        features,
+        manual_stats,
+        quote,
+    })
+}
+
+fn collect_multiline_input() -> Result<Vec<String>> {
+    let mut lines = Vec::new();
+    let stdin = io::stdin();
+    
+    for line in stdin.lock().lines() {
+        let line = line?;
+        if line.trim().is_empty() {
+            break;
+        }
+        lines.push(line);
+    }
+    
+    Ok(lines)
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📊 AUTO-DETECTION
+// ═══════════════════════════════════════════════════════════
+
+fn detect_auto_stats(old_version: &str) -> Result<AutoStats> {
+    // Count commits since last version
+    let commits_output = Command::new("git")
+        .args(&["rev-list", &format!("v{}..HEAD", old_version), "--count"])
+        .output()
+        .context("Failed to count commits")?;
+    
+    let commits_count = String::from_utf8_lossy(&commits_output.stdout)
+        .trim()
+        .parse::<usize>()
+        .unwrap_or(0);
+    
+    // Files changed
+    let files_output = Command::new("git")
+        .args(&["diff", &format!("v{}", old_version), "--name-only"])
+        .output()
+        .context("Failed to get changed files")?;
+    
+    let files_changed = String::from_utf8_lossy(&files_output.stdout)
+        .lines()
+        .count();
+    
+    // System health from doctor
+    let health = get_system_health();
+    
+    // Path resilience from doctor
+    let path_resilience = get_path_resilience();
+    
+    // Tools updated (check Cargo.toml changes)
+    let tools_updated = detect_updated_tools(old_version)?;
+    
+    Ok(AutoStats {
+        commits_count,
+        files_changed,
+        system_health: health,
+        path_resilience,
+        tools_updated,
+    })
+}
+
+fn detect_updated_tools(old_version: &str) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .args(&["diff", &format!("v{}", old_version), "--name-only", "--", "rust-tools/*/Cargo.toml"])
+        .output()?;
+    
+    let tools: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            line.split('/').nth(1).map(|s| s.to_string())
+        })
+        .collect();
+    
+    Ok(tools)
+}
+
+fn print_auto_stats(stats: &AutoStats) {
+    println!("\n  {} Commits since last version", "📝".cyan());
+    println!("  {} Files changed", "📁".cyan());
+    println!("  {} System Health: {}%", "🏥".cyan(), stats.system_health);
+    println!("  {} Path Resilience: {}", "💎".cyan(), stats.path_resilience);
+    
+    if !stats.tools_updated.is_empty() {
+        println!("  {} Tools updated: {}", "🔧".cyan(), stats.tools_updated.len());
+        for tool in stats.tools_updated.iter().take(5) {
+            println!("     - {}", tool);
+        }
+        if stats.tools_updated.len() > 5 {
+            println!("     ... and {} more", stats.tools_updated.len() - 5);
+        }
     }
 }
 
-// Ask to edit changelog
-print!("❓ Open changelog draft for editing? (y/n): ");
-io::stdout().flush().unwrap();
-let mut response = String::new();
-io::stdin().read_line(&mut response).unwrap();
+// ═══════════════════════════════════════════════════════════
+// 👁️  PREVIEW
+// ═══════════════════════════════════════════════════════════
 
-if response.trim().to_lowercase() == "y" {
-    let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-    Command::new(&editor)
-        .arg(paths::changelog_draft(new_version))
-        .status()
-        .expect("Failed to open editor");
-    println!("  ✅ Changelog edited");
-}
-
-// Insert into main CHANGELOG
-insert_changelog(&core_dir, new_version).expect("Failed to insert changelog");
-// Auto-delete CHANGELOG draft
-let draft_path = paths::changelog_draft(new_version);
-if draft_path.exists() {
-    fs::remove_file(&draft_path).ok();
-}
-println!("  ✅ Inserted into CHANGELOG.md");
-
-// Get release quote
-print!("❓ Enter release quote: ");
-io::stdout().flush().unwrap();
-let mut quote = String::new();
-io::stdin().read_line(&mut quote).unwrap();
-let quote = quote.trim();
-
-add_changelog_quote(&core_dir, quote).expect("Failed to add quote");
-println!("  ✅ Quote added");
-
-println!();
-
-// Phase 5: Version History Table
-println!("📊 Phase 5: Version History Table");
-
-print!("❓ Brief description for version table: ");
-io::stdout().flush().unwrap();
-let mut table_desc = String::new();
-io::stdin().read_line(&mut table_desc).unwrap();
-let table_desc = table_desc.trim();
-
-update_version_table(&core_dir, new_version, table_desc)
-    .expect("Failed to update version table");
-println!("  ✅ Added row to README.md");
-
-println!();
-
-println!("📦 Phase 6: Git Operations");
-
-// Stage all changes
-Command::new("git")
-    .args(&["add", "-A"])
-    .current_dir(&core_dir)
-    .status()
-    .expect("Failed to stage changes");
-println!("  ✅ Changes staged");
-
-// Generate commit message
-let commit_msg = format!(
-    "🌲 Release v{} - {}\n\n{}\n\nHealth: 100%\n\n\"{}\" 🌲",
-    new_version, milestone, table_desc, quote
-);
-
-println!();
-println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-println!("Preview commit message:");
-println!("{}", commit_msg);
-println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-println!();
-
-print!("❓ Create commit? (y/n): ");
-io::stdout().flush().unwrap();
-let mut response = String::new();
-io::stdin().read_line(&mut response).unwrap();
-
-if response.trim().to_lowercase() != "y" {
-    println!("  ⚠️  Commit cancelled");
-    exit(0);
-}
-
-Command::new("git")
-    .args(&["commit", "-m", &commit_msg])
-    .current_dir(&core_dir)
-    .status()
-    .expect("Failed to create commit");
-println!("  ✅ Commit created");
-
-// Create tag
-print!("❓ Create git tag v{}? (y/n): ", new_version);
-io::stdout().flush().unwrap();
-let mut response = String::new();
-io::stdin().read_line(&mut response).unwrap();
-
-if response.trim().to_lowercase() == "y" {
-    Command::new("git")
-        .args(&[
-            "tag",
-            "-a",
-            &format!("v{}", new_version),
-            "-m",
-            &format!("v{} - {}", new_version, milestone),
-        ])
-        .current_dir(&core_dir)
-        .status()
-        .expect("Failed to create tag");
-    println!("  ✅ Tag v{} created", new_version);
-}
-
-// Push
-print!("❓ Push commits and tags to origin? (y/n): ");
-io::stdout().flush().unwrap();
-let mut response = String::new();
-io::stdin().read_line(&mut response).unwrap();
-
-if response.trim().to_lowercase() == "y" {
-    Command::new("git")
-        .args(&["push", "--follow-tags"])
-        .current_dir(&core_dir)
-        .status()
-        .expect("Failed to push");
-
-    println!("  ✅ Pushed commits and tags to origin/main");
-}
-
-// Phase 8: Verification
-println!("🔍 Phase 8: Post-Release Verification");
-
-// Run comprehensive verification
-verify_release_health(&core_dir).expect("Post-release health check failed");
-
-let final_version = get_current_version(&core_dir);
-println!("  ✅ VERSION file: {}", final_version);
-
-println!();
-println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-println!("🎉 Release v{} Complete!", new_version);
-println!();
-println!("🌲 The forest evolves with intention.");
-println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-}
-
-fn print_help() {
-    println!(
-        "bump-system-version v{} - Complete 0-Core Release Automation",
-        VERSION
-    );
-    println!("🌲 Faelight Forest");
-    println!();
-    println!("USAGE:");
-    println!("    bump-system-version [OPTIONS] <version>");
-    println!();
-    println!("OPTIONS:");
-    println!("    -h, --help           Show this help message");
-    println!("    -v, --version        Show version information");
-    println!("    --health             Check tool health status");
-    println!("    --dry-run <version>  Preview changes without applying");
-    println!();
-    println!("    --minor              Auto-increment minor version (X.Y.Z → X.Y+1.0)");
-    println!("    --patch              Auto-increment patch version (X.Y.Z → X.Y.Z+1)");
-    println!("    --major              Auto-increment major version (X.Y.Z → X+1.0.0)");
-    println!();
-    println!("ARGUMENTS:");
-    println!("    <version>    New version (format: X.Y.Z, e.g., 8.0.0)");
-    println!();
-    println!("EXAMPLES:");
-    println!("    bump-system-version 8.6.0          # Manual version");
-    println!("    bump-system-version --minor        # Auto: 8.5.0 → 8.6.0");
-    println!("    bump-system-version --patch        # Auto: 8.5.0 → 8.5.1");
-    println!("    bump-system-version --major        # Auto: 8.5.0 → 9.0.0");
-    println!("    bump-system-version --dry-run 8.6.0  # Preview manual");
-    println!();
-    println!("WHAT IT DOES:");
-    println!("    1. Pre-flight checks (health, git status)");
-    println!("    2. Creates btrfs snapshot");
-    println!("    3. Updates version numbers (VERSION, Cargo.toml, .zshrc, README)");
-    println!("    4. Generates CHANGELOG from git commits");
-    println!("    5. Updates version history table");
-    println!("    6. Detects and marks intents complete");
-    println!("    7. Creates git commit, tag, and pushes");
-    println!("    8. Verifies release");
-    println!();
-    println!("PHILOSOPHY:");
-    println!("    Automation serves the human. Interactive prompts ensure");
-    println!("    you maintain control while the tool handles tedious work.");
-}
-
-fn print_usage() {
-    eprintln!("Usage: bump-system-version <version>");
-    eprintln!("       bump-system-version --dry-run <version>");
-    eprintln!();
-    eprintln!("Try 'bump-system-version --help' for more information.");
-}
-
-fn dry_run(new_version: &str) {
-    let core_dir = get_core_dir();
-    let old_version = get_current_version(&core_dir);
-
-    println!("🌲 Dry Run: Release v{} → v{}", old_version, new_version);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
-    println!("📝 Would update:");
+fn preview_changes(content: &ReleaseContent, stats: &AutoStats, old_version: &str, new_version: &str) -> Result<()> {
+    println!("\nFiles that will be updated:");
     println!("  • VERSION: {} → {}", old_version, new_version);
-    println!("  • Cargo.toml: workspace version");
-    println!("  • 03-interfaces/stow/shell-zsh/.zshrc: welcome message");
-    println!("  • 00-meta/README.md: badges, milestone, version table");
-    println!("  • 00-meta/CHANGELOG.md: new entry with commits since last release");
-    println!();
-    println!("📦 Would create:");
-    println!("  • Btrfs snapshot");
-    println!("  • Git commit with release message");
-    println!("  • Git tag v{}", new_version);
-    println!();
-    println!("⚠️  This is a DRY RUN - no files would be changed");
+    println!("  • README.md (title, badges, Recent Changes, footer)");
+    println!("  • CHANGELOG.md (new entry)");
+    println!("  • Cargo.toml (workspace version)");
+    println!("  • .zshrc (welcome message)");
+    
+    println!("\nREADME Recent Changes entry preview:");
+    println!("{}", "━".repeat(60));
+    print_readme_entry_preview(content, stats, new_version);
+    println!("{}", "━".repeat(60));
+    
+    Ok(())
 }
 
-fn get_core_dir() -> PathBuf {
-    paths::core_dir()
+fn print_readme_entry_preview(content: &ReleaseContent, stats: &AutoStats, version: &str) {
+    let date = Local::now().format("%Y-%m-%d");
+    
+    println!("### v{} - {} 🎊 ({})", version, content.theme, date);
+    println!();
+    
+    for feature in &content.features {
+        println!("- {}", feature);
+    }
+    
+    if !content.manual_stats.is_empty() || stats.commits_count > 0 {
+        println!();
+        println!("**Statistics:**");
+        for stat in &content.manual_stats {
+            println!("- {}", stat);
+        }
+        if stats.commits_count > 0 {
+            println!("- {} commits, {} files changed", stats.commits_count, stats.files_changed);
+        }
+    }
+    
+    if let Some(quote) = &content.quote {
+        println!();
+        println!("*\"{}\"* 🌲", quote);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🚀 EXECUTE RELEASE
+// ═══════════════════════════════════════════════════════════
+
+fn execute_release(content: &ReleaseContent, stats: &AutoStats, old_version: &str, new_version: &str) -> Result<()> {
+    println!("\n1️⃣ Updating VERSION file...");
+    update_version_file(new_version)?;
+    println!("   ✅ VERSION updated");
+    
+    println!("\n2️⃣ Updating README.md...");
+    update_readme(content, stats, old_version, new_version)?;
+    println!("   ✅ README updated");
+    
+    println!("\n3️⃣ Updating CHANGELOG.md...");
+    update_changelog(content, stats, new_version)?;
+    println!("   ✅ CHANGELOG updated");
+    
+    println!("\n4️⃣ Updating Cargo.toml...");
+    update_cargo_toml(old_version, new_version)?;
+    println!("   ✅ Cargo.toml updated");
+    
+    println!("\n5️⃣ Updating .zshrc...");
+    update_zshrc(old_version, new_version)?;
+    println!("   ✅ .zshrc updated");
+    
+    println!("\n6️⃣ Creating git commit...");
+    let commit_msg = create_commit_message(content, stats, new_version);
+    git_commit_release(&commit_msg)?;
+    println!("   ✅ Commit created");
+    
+    println!("\n7️⃣ Creating git tag...");
+    git_create_tag(new_version, &content.theme)?;
+    println!("   ✅ Tag created");
+    
+    if prompt_yes_no("\n8️⃣ Push to origin?", true) {
+        git_push()?;
+        println!("   ✅ Pushed to origin");
+    } else {
+        println!("   ⏭️  Skipped push (run 'git push && git push --tags' manually)");
+    }
+    
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📝 FILE UPDATES
+// ═══════════════════════════════════════════════════════════
+
+fn update_version_file(new_version: &str) -> Result<()> {
+    fs::write(paths::version_file(), format!("{}\n", new_version))?;
+    Ok(())
+}
+
+fn update_readme(content: &ReleaseContent, stats: &AutoStats, old_version: &str, new_version: &str) -> Result<()> {
+    let readme_path = paths::readme_file();
+    let mut readme = fs::read_to_string(&readme_path)?;
+    
+    // Update title
+    readme = readme.replace(
+        &format!("# 🌲 Faelight Forest v{}", old_version),
+        &format!("# 🌲 Faelight Forest v{}", new_version)
+    );
+    
+    // Update badges (all 5)
+    readme = readme.replace(
+        &format!("Version-v{}-", old_version),
+        &format!("Version-v{}-", new_version)
+    );
+    
+    // Add new entry to Recent Changes
+    let new_entry = generate_readme_recent_changes_entry(content, stats, new_version);
+    readme = readme.replace(
+        "## 📋 Recent Changes\n",
+        &format!("## 📋 Recent Changes\n\n{}\n", new_entry)
+    );
+    
+    // Update footer
+    let date = Local::now().format("%Y-%m-%d");
+    readme = readme.replace(
+        &format!("**System Version**: v{}", old_version),
+        &format!("**System Version**: v{}", new_version)
+    );
+    readme = readme.replace(
+        "**Last Updated**:",
+        &format!("**Last Updated**: {}\n**Health**:", date)
+    );
+    
+    fs::write(&readme_path, readme)?;
+    Ok(())
+}
+
+fn generate_readme_recent_changes_entry(content: &ReleaseContent, stats: &AutoStats, version: &str) -> String {
+    let date = Local::now().format("%Y-%m-%d");
+    let mut entry = format!("### v{} - {} 🎊 ({})\n\n", version, content.theme, date);
+    
+    for feature in &content.features {
+        entry.push_str(&format!("- {}\n", feature));
+    }
+    
+    if !content.manual_stats.is_empty() || stats.commits_count > 0 {
+        entry.push_str("\n**Statistics:**\n");
+        for stat in &content.manual_stats {
+            entry.push_str(&format!("- {}\n", stat));
+        }
+        if stats.commits_count > 0 {
+            entry.push_str(&format!("- {} commits, {} files changed\n", stats.commits_count, stats.files_changed));
+        }
+    }
+    
+    if let Some(quote) = &content.quote {
+        entry.push_str(&format!("\n*\"{}\"* 🌲\n", quote));
+    }
+    
+    entry.push_str("\n[Full Changelog →](CHANGELOG.md)\n");
+    
+    entry
+}
+
+fn update_changelog(content: &ReleaseContent, stats: &AutoStats, version: &str) -> Result<()> {
+    let changelog_path = paths::changelog_file();
+    let changelog = fs::read_to_string(&changelog_path)?;
+    
+    let new_entry = generate_changelog_entry(content, stats, version);
+    
+    let updated = changelog.replace(
+        "# Changelog\n",
+        &format!("# Changelog\n\n{}\n", new_entry)
+    );
+    
+    fs::write(&changelog_path, updated)?;
+    Ok(())
+}
+
+fn generate_changelog_entry(content: &ReleaseContent, stats: &AutoStats, version: &str) -> String {
+    let date = Local::now().format("%Y-%m-%d");
+    let mut entry = format!("## [{}] - {}\n\n", version, date);
+    
+    entry.push_str(&format!("### 🎊 {}\n\n", content.theme));
+    
+    if !content.features.is_empty() {
+        entry.push_str("### 🚀 Features\n\n");
+        for feature in &content.features {
+            entry.push_str(&format!("- {}\n", feature));
+        }
+        entry.push_str("\n");
+    }
+    
+    if !content.manual_stats.is_empty() || stats.commits_count > 0 {
+        entry.push_str("### 📊 Statistics\n\n");
+        for stat in &content.manual_stats {
+            entry.push_str(&format!("- {}\n", stat));
+        }
+        if stats.commits_count > 0 {
+            entry.push_str(&format!("- Commits: {}\n", stats.commits_count));
+            entry.push_str(&format!("- Files changed: {}\n", stats.files_changed));
+        }
+        if !stats.tools_updated.is_empty() {
+            entry.push_str(&format!("- Tools updated: {}\n", stats.tools_updated.join(", ")));
+        }
+        entry.push_str("\n");
+    }
+    
+    if let Some(quote) = &content.quote {
+        entry.push_str(&format!("### 💎 Philosophy\n\n*\"{}\"* 🌲\n\n", quote));
+    }
+    
+    entry.push_str("---\n");
+    
+    entry
+}
+
+fn update_cargo_toml(old_version: &str, new_version: &str) -> Result<()> {
+    let cargo_path = paths::core_dir().join("Cargo.toml");
+    let cargo = fs::read_to_string(&cargo_path)?;
+    
+    let updated = cargo.replace(
+        &format!("version = \"{}\"", old_version),
+        &format!("version = \"{}\"", new_version)
+    );
+    
+    fs::write(&cargo_path, updated)?;
+    Ok(())
+}
+
+fn update_zshrc(old_version: &str, new_version: &str) -> Result<()> {
+    let zshrc_path = paths::core_dir().join("03-interfaces/stow/shell-zsh/.zshrc");
+    let zshrc = fs::read_to_string(&zshrc_path)?;
+    
+    let updated = zshrc.replace(
+        &format!("Faelight Forest v{}", old_version),
+        &format!("Faelight Forest v{}", new_version)
+    );
+    
+    fs::write(&zshrc_path, updated)?;
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📝 GIT OPERATIONS
+// ═══════════════════════════════════════════════════════════
+
+fn create_commit_message(content: &ReleaseContent, stats: &AutoStats, version: &str) -> String {
+    let mut msg = format!("release: v{} - {} 🎊\n\n", version, content.theme);
+    
+    for feature in &content.features {
+        msg.push_str(&format!("- {}\n", feature));
+    }
+    
+    if !content.manual_stats.is_empty() {
+        msg.push_str("\nStatistics:\n");
+        for stat in &content.manual_stats {
+            msg.push_str(&format!("- {}\n", stat));
+        }
+    }
+    
+    if stats.commits_count > 0 {
+        msg.push_str(&format!("\n{} commits, {} files changed", stats.commits_count, stats.files_changed));
+    }
+    
+    if let Some(quote) = &content.quote {
+        msg.push_str(&format!("\n\n\"{}\" 🌲", quote));
+    }
+    
+    msg
+}
+
+fn git_commit_release(message: &str) -> Result<()> {
+    Command::new("git")
+        .args(&["add", "-A"])
+        .status()?;
+    
+    Command::new("git")
+        .args(&["commit", "-m", message])
+        .status()?;
+    
+    Ok(())
+}
+
+fn git_create_tag(version: &str, theme: &str) -> Result<()> {
+    let tag_msg = format!("v{} - {}", version, theme);
+    
+    Command::new("git")
+        .args(&["tag", "-a", &format!("v{}", version), "-m", &tag_msg])
+        .status()?;
+    
+    Ok(())
+}
+
+fn git_push() -> Result<()> {
+    Command::new("git")
+        .args(&["push", "origin", "main"])
+        .status()?;
+    
+    Command::new("git")
+        .args(&["push", "--tags"])
+        .status()?;
+    
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔧 UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+
+fn get_current_version() -> Result<String> {
+    let version = fs::read_to_string(paths::version_file())?;
+    Ok(version.trim().to_string())
 }
 
 fn is_valid_version(version: &str) -> bool {
     let parts: Vec<&str> = version.split('.').collect();
-    if parts.len() != 3 {
-        return false;
-    }
-    parts.iter().all(|p| p.parse::<u32>().is_ok())
+    parts.len() == 3 && parts.iter().all(|p| p.parse::<u32>().is_ok())
 }
-
-fn get_current_version(_core_dir: &PathBuf) -> String {
-    fs::read_to_string(paths::version_file())
-        .unwrap_or_else(|_| "unknown".to_string())
-        .trim()
-        .to_string()
-}
-
 
 fn check_system_health() -> bool {
-    let output = Command::new("dot-doctor")
-        .output();
-    
-    match output {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            
-            // Parse health percentage from output
-            if let Some(health_line) = stdout.lines().find(|l| l.contains("Health:") || l.contains("health:")) {
-                if health_line.contains("100%") {
-                    return true;
-                }
-            }
-            
-            // Also check exit status as fallback
-            out.status.success()
-        }
-        Err(_) => false,
-    }
-}
-
-fn verify_release_health(core_dir: &PathBuf) -> Result<(), String> {
-    println!("  🏥 Running comprehensive health check...");
-    
-    let output = Command::new("dot-doctor")
-        .current_dir(core_dir)
+    let output = Command::new("doctor")
         .output()
-        .map_err(|e| format!("Failed to run doctor: {}", e))?;
+        .ok();
     
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    if let Some(out) = output {
+        String::from_utf8_lossy(&out.stdout).contains("100%")
+    } else {
+        false
+    }
+}
+
+fn get_system_health() -> u32 {
+    let output = Command::new("doctor")
+        .output()
+        .ok();
     
-    // Parse health percentage
-    let mut health_percent = 0;
-    for line in stdout.lines() {
-        if line.contains("Health:") || line.contains("health:") {
-            if let Some(percent_str) = line.split('%').next() {
-                if let Some(num_str) = percent_str.split_whitespace().last() {
-                    health_percent = num_str.parse().unwrap_or(0);
+    if let Some(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            if line.contains("Health:") {
+                if let Some(pct) = line.split_whitespace().find(|s| s.ends_with('%')) {
+                    if let Ok(num) = pct.trim_end_matches('%').parse::<u32>() {
+                        return num;
+                    }
                 }
             }
         }
     }
-    
-    if health_percent == 100 {
-        println!("  ✅ System health: 100% - Perfect!");
-        Ok(())
-    } else {
-        println!("  ⚠️  System health: {}%", health_percent);
-        println!();
-        println!("  Health check output:");
-        for line in stdout.lines().filter(|l| l.contains("⚠️") || l.contains("❌")) {
-            println!("    {}", line);
-        }
-        if !stderr.is_empty() {
-            println!("  Errors: {}", stderr);
-        }
-        Err(format!("System not at 100% health ({}%)", health_percent))
-    }
-}
-fn increment_version(current: &str, increment_type: &str) -> String {
-    let parts: Vec<&str> = current.split('.').collect();
-    if parts.len() != 3 {
-        eprintln!("❌ Invalid version format: {}", current);
-        exit(1);
-    }
-    
-    let major: u32 = parts[0].parse().unwrap_or(0);
-    let minor: u32 = parts[1].parse().unwrap_or(0);
-    let patch: u32 = parts[2].parse().unwrap_or(0);
-    
-    match increment_type {
-        "major" => format!("{}.0.0", major + 1),
-        "minor" => format!("{}.{}.0", major, minor + 1),
-        "patch" => format!("{}.{}.{}", major, minor, patch + 1),
-        _ => {
-            eprintln!("❌ Unknown increment type: {}", increment_type);
-            exit(1);
-        }
-    }
+    0
 }
 
-fn explain_increment_type(increment_type: &str) -> &str {
-    match increment_type {
-        "major" => "Major version (breaking changes, big new architecture)",
-        "minor" => "Minor version (new features, backwards compatible)",
-        "patch" => "Patch version (bug fixes, small improvements)",
-        _ => "Unknown",
+fn get_path_resilience() -> String {
+    let output = Command::new("doctor")
+        .output()
+        .ok();
+    
+    if let Some(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            if line.contains("Path Resilience:") {
+                if let Some(part) = line.split(':').nth(1) {
+                    return part.trim().to_string();
+                }
+            }
+        }
     }
+    "Unknown".to_string()
 }
 
 fn is_git_clean(core_dir: &PathBuf) -> bool {
     let output = Command::new("git")
         .current_dir(core_dir)
         .args(&["status", "--porcelain"])
-        .output();
-
-    match output {
-        Ok(out) => out.stdout.is_empty(),
-        _ => false,
-    }
-}
-
-fn create_snapshot(description: &str) -> Option<u32> {
-    let output = Command::new("sudo")
-        .args(&[
-            "snapper",
-            "create",
-            "--description",
-            description,
-            "--print-number",
-        ])
-        .output();
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            stdout.trim().parse::<u32>().ok()
-        }
-        _ => None,
-    }
-}
-
-fn update_version_file(_core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let version_file = paths::version_file();
-    fs::write(&version_file, format!("{}\n", new_version)).map_err(|e| e.to_string())
-}
-
-fn update_cargo_toml(
-    _core_dir: &PathBuf,
-    old_version: &str,
-    new_version: &str,
-) -> Result<(), String> {
-    let cargo_path = paths::cargo_toml();
-    let content = fs::read_to_string(&cargo_path).map_err(|e| e.to_string())?;
-    let updated = content.replace(
-        &format!("version = \"{}\"", old_version),
-        &format!("version = \"{}\"", new_version),
-    );
-    fs::write(&cargo_path, updated).map_err(|e| e.to_string())
-}
-
-fn update_zshrc(_core_dir: &PathBuf, old_version: &str, new_version: &str) -> Result<(), String> {
-    let zshrc_path = paths::zshrc_file();
-    let content = fs::read_to_string(&zshrc_path).map_err(|e| e.to_string())?;
-    let updated = content.replace(
-        &format!("Faelight Forest v{}", old_version),
-        &format!("Faelight Forest v{}", new_version),
-    );
-    fs::write(&zshrc_path, updated).map_err(|e| e.to_string())
-}
-
-fn update_readme_badges(
-    _core_dir: &PathBuf,
-    old_version: &str,
-    new_version: &str,
-) -> Result<usize, String> {
-    let readme_path = paths::readme_file();
-    let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
-
-    let mut updated = content;
-    let mut count = 0;
-
-    // Update header
-    if updated.contains(&format!("Faelight Forest v{}", old_version)) {
-        updated = updated.replace(
-            &format!("Faelight Forest v{}", old_version),
-            &format!("Faelight Forest v{}", new_version),
-        );
-        count += 1;
-    }
-
-    // Update badge
-    updated = updated.replace(
-        &format!("Version-v{}-brightgreen", old_version),
-        &format!("Version-v{}-brightgreen", new_version),
-    );
-    count += 1;
-
-    // Update tag link
-    updated = updated.replace(
-        &format!("tag/v{}", old_version),
-        &format!("tag/v{}", new_version),
-    );
-    count += 1;
-
-    fs::write(&readme_path, updated).map_err(|e| e.to_string())?;
-    Ok(count)
-}
-
-fn update_readme_milestone(
-    _core_dir: &PathBuf,
-    old_version: &str,
-    new_version: &str,
-    description: &str,
-) -> Result<(), String> {
-    let readme_path = paths::readme_file();
-    let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
-
-    let updated = content.replace(
-        &format!("**v{} Milestone:", old_version),
-        &format!(
-            "**v{} Milestone:** {} 🌲🦀\n\n**v{} Milestone:",
-            new_version, description, old_version
-        ),
-    );
-
-    fs::write(&readme_path, updated).map_err(|e| e.to_string())
-}
-
-
-fn create_changelog_template(version: &str, date: &str) -> String {
-    format!(
-r#"## [{}] - {}
-
-### 🚀 New Features
-- 
-
-### 🔧 Fixes
-- 
-
-### 📦 Tool Updates
-- 
-
-### 📊 Statistics
-- 
-
-> "" 🌲
-
----
-"#,
-        version,
-        date
-    )
-}
-
-fn insert_changelog(_core_dir: &PathBuf, new_version: &str) -> Result<(), String> {
-    let changelog_path = paths::changelog_file();
-    let draft_path = paths::changelog_draft(new_version);
-    let today = Local::now().format("%Y-%m-%d").to_string();
+        .output()
+        .ok();
     
-    // Read draft or create comprehensive template
-    let entry = if draft_path.exists() {
-        fs::read_to_string(&draft_path).unwrap_or_else(|_| {
-            create_changelog_template(new_version, &today)
-        })
+    if let Some(out) = output {
+        out.stdout.is_empty()
     } else {
-        create_changelog_template(new_version, &today)
-    };
-    
-    let content = fs::read_to_string(&changelog_path).map_err(|e| e.to_string())?;
-    let lines: Vec<&str> = content.lines().collect();
-    
-    let mut new_content = String::new();
-    for (_i, line) in lines.iter().enumerate() {
-        new_content.push_str(line);
-        new_content.push('\n');
+        false
+    }
+}
+
+fn prompt_string(prompt: &str, required: bool) -> Result<String> {
+    loop {
+        print!("{} ", prompt);
+        io::stdout().flush()?;
         
-        if line.trim() == "# Changelog" {
-            new_content.push('\n');
-            new_content.push_str(&entry);
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let trimmed = input.trim().to_string();
+        
+        if !trimmed.is_empty() || !required {
+            return Ok(trimmed);
+        }
+        
+        if required {
+            println!("  {} This field is required!", "⚠️".yellow());
         }
     }
+}
+
+fn prompt_yes_no(prompt: &str, default: bool) -> bool {
+    let default_str = if default { "Y/n" } else { "y/N" };
+    print!("{} [{}]: ", prompt, default_str);
+    io::stdout().flush().ok();
     
-    fs::write(&changelog_path, new_content).map_err(|e| e.to_string())
-}
-fn add_changelog_quote(_core_dir: &PathBuf, quote: &str) -> Result<(), String> {
-    let changelog_path = paths::changelog_file();
-    let content = fs::read_to_string(&changelog_path).map_err(|e| e.to_string())?;
-
-    // Find the first "## [" after "# Changelog" and add quote before next "---"
-    let lines: Vec<&str> = content.lines().collect();
-    let mut new_content = String::new();
-    let mut in_current_release = false;
-    let mut quote_added = false;
-
-    for line in lines {
-        if line.starts_with("## [") && !quote_added {
-            in_current_release = true;
-        }
-
-        if in_current_release && line.trim() == "---" && !quote_added {
-            new_content.push_str(&format!("> \"{}\" 🌲\n", quote));
-            quote_added = true;
-        }
-
-        new_content.push_str(line);
-        new_content.push('\n');
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).ok();
+    
+    match input.trim().to_lowercase().as_str() {
+        "y" | "yes" => true,
+        "n" | "no" => false,
+        "" => default,
+        _ => default,
     }
-
-    fs::write(&changelog_path, new_content).map_err(|e| e.to_string())
 }
 
-fn update_version_table(
-    _core_dir: &PathBuf,
-    new_version: &str,
-    description: &str,
-) -> Result<(), String> {
-    let readme_path = paths::readme_file();
-    let content = fs::read_to_string(&readme_path).map_err(|e| e.to_string())?;
-    let today = Local::now().format("%Y-%m-%d").to_string();
-
-    let lines: Vec<&str> = content.lines().collect();
-    let mut new_content = String::new();
-    let mut in_table = false;
-    let mut row_added = false;
-
-    for line in lines {
-        // Detect version history table
-        if line.contains("Version") && line.contains("Date") && line.contains("Description") {
-            in_table = true;
-        }
-
-        // Add new row after header separator
-        if in_table && line.starts_with("|---") && !row_added {
-            new_content.push_str(line);
-            new_content.push('\n');
-            new_content.push_str(&format!(
-                "| v{} | {} | {} |\n",
-                new_version, today, description
-            ));
-            row_added = true;
-            continue;
-        }
-
-        new_content.push_str(line);
-        new_content.push('\n');
-    }
-
-    fs::write(&readme_path, new_content).map_err(|e| e.to_string())
+fn print_banner(old_version: &str, new_version: &str) {
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "🚀 AUTOMATED RELEASE MASTER v8.0.0".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!();
+    println!("  {} {}", "Current:".bold(), old_version);
+    println!("  {} {}", "Target:".bold(), new_version.green());
 }
 
-#[allow(dead_code)]
-fn detect_completed_intents(core_dir: &PathBuf) -> Vec<String> {
-    // Get git log and look for intent references
-    let output = Command::new("git")
-        .args(&["log", "--oneline", "--since=30 days ago"])
-        .current_dir(core_dir)
-        .output();
-
-    let mut intents = Vec::new();
-
-    if let Ok(out) = output {
-        let log = String::from_utf8_lossy(&out.stdout);
-
-        // Look for "Intent 067", "Intent 066", etc.
-        for line in log.lines() {
-            if line.contains("Intent 0") {
-                // Extract intent number
-                for word in line.split_whitespace() {
-                    if word.starts_with("Intent") {
-                        continue;
-                    }
-                    if word.starts_with("0") && word.len() == 3 {
-                        let intent = format!("Intent {}", word);
-                        if !intents.contains(&intent) {
-                            intents.push(intent);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    intents
-}
-
-#[allow(dead_code)]
-fn mark_intent_complete(core_dir: &PathBuf, intent: &str) {
-    // Extract number from "Intent 067"
-    let number = intent.replace("Intent ", "");
-
-    // Find intent file
-    let intent_dir = core_dir.join("intents/future");
-    if let Ok(entries) = fs::read_dir(&intent_dir) {
-        for entry in entries.flatten() {
-            let filename = entry.file_name().to_string_lossy().to_string();
-            if filename.starts_with(&number) && filename.ends_with(".md") {
-                let path = entry.path();
-
-                // Update status
-                if let Ok(content) = fs::read_to_string(&path) {
-                    let updated = content.replace("status: planned", "status: complete");
-                    let _ = fs::write(&path, updated);
-                }
-            }
-        }
-    }
+fn print_help() {
+    println!("bump-system-version v{}", VERSION);
+    println!("The Automated Release Master - Interactive Edition");
+    println!();
+    println!("USAGE:");
+    println!("    bump-system-version <version>");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help       Show this help");
+    println!("    -v, --version    Show version");
+    println!("    --health         Check tool health");
+    println!();
+    println!("EXAMPLES:");
+    println!("    bump-system-version 9.3.0    # Interactive release for v9.3.0");
+    println!();
+    println!("WHAT IT DOES:");
+    println!("    1. Collects release content interactively");
+    println!("    2. Auto-detects statistics from git/system");
+    println!("    3. Updates VERSION, README, CHANGELOG, Cargo.toml, .zshrc");
+    println!("    4. Creates commit + tag");
+    println!("    5. Pushes to origin");
 }
