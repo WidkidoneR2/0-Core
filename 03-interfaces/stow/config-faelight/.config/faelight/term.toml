@@ -1,0 +1,63 @@
+# Faelight Terminal Configuration
+# Located at: ~/.config/faelight/term.toml
+
+[colors]
+# Foreground/Background
+foreground = "#E6E6E6"
+background = "#0F140E"
+
+# Cursor and selection (Faelight Forest accent)
+cursor = "#6BE3A3"
+selection = "#6BE3A3"
+
+# ANSI Colors (Faelight Forest theme)
+black = "#0F140E"
+red = "#E36B6B"
+green = "#6BE3A3"
+yellow = "#E3C66B"
+blue = "#6BA3E3"
+magenta = "#C66BE3"
+cyan = "#6BE3C6"
+white = "#E6E6E6"
+
+# Bright ANSI Colors
+bright_black = "#4A4A4A"
+bright_red = "#FF7A7A"
+bright_green = "#7AFFB2"
+bright_yellow = "#FFD67A"
+bright_blue = "#7AB2FF"
+bright_magenta = "#D67AFF"
+bright_cyan = "#7AFFD6"
+bright_white = "#FFFFFF"
+
+[font]
+# Font family (path to .ttf file)
+family = "JetBrainsMono Nerd Font"
+size = 14.0
+
+[window]
+# Padding around terminal content (pixels)
+padding = 15
+
+[behavior]
+# Scrollback buffer size (lines)
+scrollback_lines = 10000
+
+# Cursor blink rate (milliseconds, 0 = no blink)
+cursor_blink_ms = 500
+
+# Cursor style: "line", "block", or "underline"
+cursor_style = "line"
+
+# Selection style: "underline-border", "background", or "underline"
+selection_style = "underline-border"
+
+[keybindings]
+# Format: "Modifiers+Key" where Modifiers = Ctrl, Shift, Alt
+copy = "Ctrl+Shift+C"
+paste = "Ctrl+Shift+V"
+zoom_in = "Ctrl+Plus"
+zoom_out = "Ctrl+Minus"
+zoom_reset = "Ctrl+0"
+scroll_up = "Shift+PageUp"
+scroll_down = "Shift+PageDown"
