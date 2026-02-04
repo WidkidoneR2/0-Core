@@ -1256,6 +1256,7 @@ dependencies = [
  "calloop-wayland-source 0.4.1",
  "faelight-core",
  "nix 0.29.0",
+ "regex",
  "serde",
  "smithay-client-toolkit 0.20.0",
  "swash",
