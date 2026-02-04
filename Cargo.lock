@@ -1215,8 +1215,9 @@ dependencies = [
 
 [[package]]
 name = "faelight-notify"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
+ "colored",
  "dirs",
  "faelight-core",
  "nix 0.29.0",
