@@ -12,7 +12,11 @@ use protocol::{Message, MessagePayload, Command, Response};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 Connecting to faelight-daemon...");
     
-    let stream = UnixStream::connect("/tmp/faelight-daemon.sock").await?;
+    let socket_path = std::env::var("HOME")
+        .map(|h| format!("{}/.local/state/faelight/daemon.sock", h))
+        .unwrap_or_else(|_| "/tmp/faelight-daemon.sock".to_string());
+    
+    let stream = UnixStream::connect(&socket_path).await?;
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     
