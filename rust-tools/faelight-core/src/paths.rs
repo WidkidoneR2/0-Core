@@ -168,6 +168,11 @@ pub fn projects_dir() -> PathBuf {
     home().join("2-projects")
 }
 
+/// Get the applications directory (~/.local/share/applications)
+pub fn applications_dir() -> PathBuf {
+    home().join(".local/share/applications")
+}
+
 pub fn archive_dir() -> PathBuf {
     home().join("3-archive")
 }

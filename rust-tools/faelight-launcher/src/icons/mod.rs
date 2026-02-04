@@ -2,6 +2,7 @@
 use image::{RgbaImage, imageops::FilterType};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use faelight_core::paths;
 
 pub struct IconCache {
     icons: HashMap<String, RgbaImage>,
@@ -55,7 +56,7 @@ fn find_icon(name: &str, size: u32) -> Option<PathBuf> {
         format!("/usr/share/icons/hicolor/scalable/apps"),
         format!("/usr/share/pixmaps"),
         format!("{}/.local/share/icons/hicolor/{}x{}/apps", 
-                std::env::var("HOME").ok()?, size, size),
+                paths::home().display().to_string(), size, size),
     ];
     
     // Try different extensions
