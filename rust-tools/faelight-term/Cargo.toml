@@ -7,6 +7,7 @@ edition = "2021"
 faelight-core = { path = "../faelight-core" }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+regex = "1.10"
 smithay-client-toolkit = "0.20"
 wayland-client = "0.31"
 swash = "0.1"

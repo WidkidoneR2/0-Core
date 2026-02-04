@@ -37,6 +37,7 @@ use wl_clipboard_rs::copy::{MimeType, Options, Source as ClipSource};
 
 use std::io::Write;
 mod config;
+mod urls;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const FONT_DATA: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
@@ -99,6 +100,7 @@ struct Terminal {
     grid: Vec<Vec<Cell>>,
     cursor_row: usize,
     cursor_col: usize,
+    detected_urls: Vec<urls::Url>,
     scrollback: Vec<Vec<Cell>>,
     max_scrollback: usize,
     current_fg: [u8; 3],
@@ -113,6 +115,7 @@ impl Terminal {
         let grid = vec![vec![Cell::default(); cols]; rows];
         Terminal {
             rows, cols, grid, cursor_row: 0, cursor_col: 0,
+            detected_urls: Vec::new(),
             scrollback: Vec::new(), max_scrollback: 10000,
             current_fg: COLORS[7], current_bg: COLORS[0],
             current_attrs: TextAttrs::default(),
@@ -165,6 +168,27 @@ impl Terminal {
         }
         
         text
+    }
+    
+    /// Scan all visible rows for URLs
+    fn scan_urls(&mut self) {
+        self.detected_urls.clear();
+        
+        for row_idx in 0..self.rows {
+            if row_idx >= self.grid.len() {
+                break;
+            }
+            
+            // Build text from row
+            let mut text = String::new();
+            for cell in &self.grid[row_idx] {
+                text.push(cell.ch);
+            }
+            
+            // Detect URLs in this line
+            let row_urls = urls::detect_urls_in_line(&text, row_idx);
+            self.detected_urls.extend(row_urls);
+        }
     }
     
     // FIX 2: Process bytes with UTF-8 carry-over handling
@@ -621,7 +645,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         font_size,
         bg_color,
         cursor_color,
-        selection_color, 
+        selection_color,
+        hovered_url: None, 
         ctrl_pressed: false,
         shift_pressed: false,
         mouse_pressed: false,
@@ -639,6 +664,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(n) if n > 0 => {
                 // FIX 2: Use process_bytes for proper UTF-8 handling
                 app.terminal.process_bytes(&buf[..n]);
+                // Scan for URLs after terminal updates
+                app.terminal.scan_urls();
             }
             _ => {}
         }
@@ -678,7 +705,8 @@ struct App {
     // Pre-parsed colors for performance
     bg_color: [u8; 3],
     cursor_color: [u8; 3],
-    selection_color: [u8; 3], 
+    selection_color: [u8; 3],
+    hovered_url: Option<urls::Url>, 
     ctrl_pressed: bool,
     shift_pressed: bool,
     mouse_pressed: bool,
@@ -925,8 +953,29 @@ impl App {
                             }
                         }
                         
-                        // Underline
-                        if cell.attrs.underline {
+                        // Check if this cell is part of a hovered URL
+                        let is_hovered_url = if let Some(url) = &self.hovered_url {
+                            url.row == row_idx && col_idx >= url.start_col && col_idx < url.end_col
+                        } else {
+                            false
+                        };
+                        
+                        // Underline for URLs (blue) or regular underline
+                        if is_hovered_url {
+                            // Blue underline for URLs
+                            let underline_y = (baseline_y + 2.0) as usize;
+                            for ux in (x as usize)..(x as usize + char_width as usize) {
+                                if ux < self.width as usize && underline_y < self.height as usize {
+                                    let idx = (underline_y * self.width as usize + ux) * 4;
+                                    if idx + 3 < canvas.len() {
+                                        // Blue underline for URLs
+                                        canvas[idx] = 0xFF;     // B
+                                        canvas[idx + 1] = 0xA3; // G
+                                        canvas[idx + 2] = 0x6B; // R (accent color)
+                                    }
+                                }
+                            }
+                        } else if cell.attrs.underline {
                             let underline_y = (baseline_y + 2.0) as usize;
                             for ux in (x as usize)..(x as usize + char_width as usize) {
                                 if ux < self.width as usize && underline_y < self.height as usize {
@@ -995,12 +1044,25 @@ impl PointerHandler for App {
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == 272 {
-                        self.mouse_pressed = true;  // FIX 3: Set mouse_pressed
                         let char_width = self.font_size * 0.6;
                         let line_height = self.font_size * 1.45;
                         let padding = self.config.window.padding as f64;
                         let col = ((event.position.0 - padding) / char_width as f64) as usize;
                         let row = ((event.position.1 - padding) / line_height as f64) as usize;
+                        
+                        // Ctrl+Click to open URL
+                        if self.ctrl_pressed {
+                            if let Some(url) = &self.hovered_url {
+                                match urls::open_url(&url.url) {
+                                    Ok(_) => println!("🔗 Opened: {}", url.url),
+                                    Err(e) => eprintln!("⚠️  Failed to open URL: {}", e),
+                                }
+                                return;
+                            }
+                        }
+                        
+                        // Normal click - start selection
+                        self.mouse_pressed = true;
                         if row < self.terminal.rows && col < self.terminal.cols {
                             self.selection_start = Some((row, col));
                             self.selection_end = Some((row, col));
@@ -1011,14 +1073,28 @@ impl PointerHandler for App {
                     if button == 272 { self.mouse_pressed = false; }
                 }
                 PointerEventKind::Motion { .. } => {
+                    // Calculate mouse position
+                    let char_width = self.font_size * 0.6;
+                    let line_height = self.font_size * 1.45;
+                    let padding = self.config.window.padding as f64;
+                    let col = ((event.position.0 - padding) / char_width as f64) as usize;
+                    let row = ((event.position.1 - padding) / line_height as f64) as usize;
+                    
+                    // Handle selection dragging
                     if self.mouse_pressed && self.selection_start.is_some() {
-                        let char_width = self.font_size * 0.6;
-                        let line_height = self.font_size * 1.45;
-                        let padding = self.config.window.padding as f64;
-                        let col = ((event.position.0 - padding) / char_width as f64) as usize;
-                        let row = ((event.position.1 - padding) / line_height as f64) as usize;
                         if row < self.terminal.rows && col < self.terminal.cols {
                             self.selection_end = Some((row, col));
+                        }
+                    }
+                    
+                    // Check for URL hover
+                    self.hovered_url = None;
+                    if row < self.terminal.rows && col < self.terminal.cols {
+                        for url in &self.terminal.detected_urls {
+                            if url.row == row && col >= url.start_col && col < url.end_col {
+                                self.hovered_url = Some(url.clone());
+                                break;
+                            }
                         }
                     }
                 }
