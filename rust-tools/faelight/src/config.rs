@@ -1,163 +1,62 @@
-//! Configuration loading and validation
-
-use serde::Deserialize;
-use std::collections::HashMap;
+//! Configuration management for faelight CLI
+use faelight_core::paths;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize)]
-pub struct Config {
-    pub system: SystemConfig,
-    #[allow(dead_code)]
-    pub paths: PathsConfig,
-    #[allow(dead_code)]
-    pub health: HealthConfig,
-    pub notifications: NotificationConfig,
-    pub bar: BarConfig,
-    pub lock: LockConfig,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SystemConfig {
-    pub version: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FaelightConfig {
     pub theme: String,
-    pub default_profile: String,
+    pub profile: String,
+    pub features: Features,
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct PathsConfig {
-    pub core_dir: String,
-    pub scripts_dir: String,
-    pub state_dir: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Features {
+    pub auto_update: bool,
+    pub doctor_notifications: bool,
+    pub git_hooks: bool,
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct HealthConfig {
-    pub fail_on_warning: bool,
-    pub auto_check_on_unlock: bool,
+impl Default for FaelightConfig {
+    fn default() -> Self {
+        Self {
+            theme: "faelight-forest".to_string(),
+            profile: "default".to_string(),
+            features: Features {
+                auto_update: true,
+                doctor_notifications: true,
+                git_hooks: true,
+            },
+        }
+    }
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct NotificationConfig {
-    pub enabled: bool,
-    pub timeout_ms: u32,
-    pub position: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct BarConfig {
-    pub refresh_ms: u32,
-    pub show_vpn: bool,
-    pub show_battery: bool,
-    pub show_volume: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct LockConfig {
-    pub timeout_minutes: u32,
-    pub show_clock: bool,
-    pub blur_background: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct Profile {
-    pub description: String,
-    pub icon: String,
-    pub vpn: bool,
-    pub cpu_governor: String,
-    pub notifications: String,
-    #[serde(default)]
-    pub gpu_mode: Option<String>,
-    #[serde(default)]
-    pub bar_modules: Vec<String>,
-    #[serde(default)]
-    pub auto_launch: Vec<String>,
-    #[serde(default)]
-    pub bar_refresh_ms: Option<u32>,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct ThemeColors {
-    pub background: String,
-    pub foreground: String,
-    pub accent: String,
-    pub accent_secondary: String,
-    pub highlight: String,
-    pub warning: String,
-    pub error: String,
-    pub dim: String,
-    pub border: String,
-    pub selected: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct ThemeComponent {
-    pub bg: String,
-    pub fg: String,
-    #[serde(default)]
-    pub border: Option<String>,
-    #[serde(default)]
-    pub accent: Option<String>,
-    #[serde(default)]
-    pub separator: Option<String>,
-    #[serde(default)]
-    pub selected_bg: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct Theme {
-    pub description: String,
-    pub colors: ThemeColors,
-    #[serde(default)]
-    pub bar: Option<ThemeComponent>,
-    #[serde(default)]
-    pub notify: Option<ThemeComponent>,
-    #[serde(default)]
-    pub menu: Option<ThemeComponent>,
-}
-
-pub fn config_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
-    PathBuf::from(home).join(".config/faelight")
-}
-
-pub fn load_config() -> Result<Config, String> {
-    let path = config_dir().join("config.toml");
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read config.toml: {}", e))?;
-    toml::from_str(&content)
-        .map_err(|e| format!("Failed to parse config.toml: {}", e))
-}
-
-pub fn load_profiles() -> Result<HashMap<String, Profile>, String> {
-    let path = config_dir().join("profiles.toml");
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read profiles.toml: {}", e))?;
-    toml::from_str(&content)
-        .map_err(|e| format!("Failed to parse profiles.toml: {}", e))
-}
-
-pub fn load_themes() -> Result<HashMap<String, Theme>, String> {
-    let path = config_dir().join("themes.toml");
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read themes.toml: {}", e))?;
-    toml::from_str(&content)
-        .map_err(|e| format!("Failed to parse themes.toml: {}", e))
-}
-
-pub fn validate_all() -> Vec<(String, Result<(), String>)> {
-    vec![
-        ("config.toml".to_string(), load_config().map(|_| ())),
-        ("profiles.toml".to_string(), load_profiles().map(|_| ())),
-        ("themes.toml".to_string(), load_themes().map(|_| ())),
-    ]
+impl FaelightConfig {
+    pub fn load() -> Self {
+        let config_path = Self::config_path();
+        
+        if let Ok(contents) = fs::read_to_string(&config_path) {
+            toml::from_str(&contents).unwrap_or_default()
+        } else {
+            Self::default()
+        }
+    }
+    
+    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let config_path = Self::config_path();
+        
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        let contents = toml::to_string_pretty(self)?;
+        fs::write(&config_path, contents)?;
+        
+        Ok(())
+    }
+    
+    pub fn config_path() -> PathBuf {
+        paths::faelight_config_dir().join("cli.toml")
+    }
 }
