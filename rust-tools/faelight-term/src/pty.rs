@@ -71,6 +71,9 @@ impl Pty {
                 // Create new session
                 setsid().expect("Failed to create new session");
                 
+                // Set TERM environment variable for proper terminal emulation
+                std::env::set_var("TERM", "xterm-256color");
+                
                 // Get raw fds
                 let slave_fd = pty_result.slave.as_raw_fd();
                 
@@ -97,6 +100,12 @@ impl Pty {
                 drop(pty_result.slave);
                 
                 // Execute shell
+                // Set TERM environment variable using putenv
+                let term_env = CString::new("TERM=xterm-256color").unwrap();
+                unsafe {
+                    nix::libc::putenv(term_env.as_ptr() as *mut nix::libc::c_char);
+                }
+                
                 let shell = CString::new("/bin/zsh").unwrap();
                 let args = [
                     CString::new("zsh").unwrap(),
