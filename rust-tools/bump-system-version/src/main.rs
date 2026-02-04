@@ -605,19 +605,23 @@ fn is_valid_version(version: &str) -> bool {
 }
 
 fn check_system_health() -> bool {
-    let output = Command::new("doctor")
+    let doctor_path = paths::scripts_dir().join("dot-doctor");
+    let output = Command::new(&doctor_path)
         .output()
         .ok();
     
     if let Some(out) = output {
-        String::from_utf8_lossy(&out.stdout).contains("100%")
+        let text = String::from_utf8_lossy(&out.stdout);
+        // Check for "System healthy" which appears when all checks pass
+        text.contains("System healthy") || text.contains("Health:   100%")
     } else {
         false
     }
 }
 
 fn get_system_health() -> u32 {
-    let output = Command::new("doctor")
+    let doctor_path = paths::scripts_dir().join("dot-doctor");
+    let output = Command::new(&doctor_path)
         .output()
         .ok();
     
@@ -637,7 +641,8 @@ fn get_system_health() -> u32 {
 }
 
 fn get_path_resilience() -> String {
-    let output = Command::new("doctor")
+    let doctor_path = paths::scripts_dir().join("dot-doctor");
+    let output = Command::new(&doctor_path)
         .output()
         .ok();
     
