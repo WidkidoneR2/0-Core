@@ -1163,8 +1163,9 @@ dependencies = [
 
 [[package]]
 name = "faelight-launcher"
-version = "3.3.0"
+version = "4.0.0"
 dependencies = [
+ "faelight-core",
  "fontdue",
  "image",
  "serde",
