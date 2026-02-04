@@ -1,22 +1,30 @@
-use std::env;
+use faelight_core::paths;
 
 /// Get the scripts directory path
 pub fn scripts_dir() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    format!("{}/0-core/scripts", home)
+    paths::scripts_dir().display().to_string()
 }
 
 /// Get path to graceful-poweroff script
 pub fn graceful_poweroff() -> String {
-    format!("{}/graceful-poweroff", scripts_dir())
+    paths::scripts_dir()
+        .join("graceful-poweroff")
+        .display()
+        .to_string()
 }
 
 /// Get path to graceful-reboot script
 pub fn graceful_reboot() -> String {
-    format!("{}/graceful-reboot", scripts_dir())
+    paths::scripts_dir()
+        .join("graceful-reboot")
+        .display()
+        .to_string()
 }
 
 /// Get path to a specific script by name
 pub fn script_path(name: &str) -> String {
-    format!("{}/{}", scripts_dir(), name)
+    paths::scripts_dir()
+        .join(name)
+        .display()
+        .to_string()
 }

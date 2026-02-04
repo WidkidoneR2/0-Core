@@ -1,4 +1,4 @@
-//! faelight-menu v0.7.0 - Smart Power Menu
+//! faelight-menu v2.1.0 - Smart Power Menu
 //! 🌲 Faelight Forest
 //! 
 //! Features:
@@ -372,7 +372,6 @@ impl MenuState {
 ", item.label)).ok();
         
         // Get home directory for script paths
-        let _home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
         
         match item.action {
             "lock" => {
@@ -587,11 +586,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
-                println!("faelight-menu v0.7.0");
+                println!("faelight-menu v2.1.0");
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                println!("faelight-menu v0.7.0 - Smart Power Menu for Faelight Forest");
+                println!("faelight-menu v2.1.0 - Smart Power Menu for Faelight Forest");
                 println!();
                 println!("FEATURES:");
                 println!("  • Minimal UI: arrow + color (no background bars)");
@@ -631,7 +630,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     
-    eprintln!("⚡ faelight-menu v0.7.0 starting...");
+    eprintln!("⚡ faelight-menu v2.1.0 starting...");
     
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -691,7 +690,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 // ═══════════════════════════════════════════════════════════
 
 fn health_check() {
-    println!("🏥 faelight-menu v0.7.0 health check");
+    println!("🏥 faelight-menu v2.1.0 health check");
     
     match Connection::connect_to_env() {
         Ok(_) => println!("✅ wayland: connected"),
@@ -721,7 +720,6 @@ fn health_check() {
     }
     
     // Check graceful shutdown scripts
-    let _home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     let scripts = ["graceful-poweroff", "graceful-reboot"];
     for script in &scripts {
         let path = crate::paths::script_path(script);
