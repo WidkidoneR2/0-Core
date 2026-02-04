@@ -1,8 +1,16 @@
 [package]
 name = "faelight-dashboard"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
+description = "TUI system overview - path-resilient!"
 
 [dependencies]
+# Core infrastructure
+faelight-core = { path = "../faelight-core" }
+
+# TUI
 ratatui = "0.29"
 crossterm = "0.28"
+
+# Beautiful output
+colored = "2.1"
