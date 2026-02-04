@@ -1149,7 +1149,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-hooks"
-version = "9.0.0"
+version = "9.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1202,7 +1202,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-menu"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "chrono",
  "faelight-core",
