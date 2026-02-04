@@ -27,7 +27,6 @@ use wayland_client::{
 };
 use std::process::Command;
 use std::fs;
-use std::env;
 
 mod paths;
 mod state;
@@ -74,8 +73,7 @@ fn handle_click(action: &str) {
 }
 
 fn get_current_profile() -> String {
-    let home = env::var("HOME").unwrap_or_default();
-    let path = format!("{}/.local/state/0-core/current-profile", home);
+    let path = crate::paths::current_profile_path();
     fs::read_to_string(&path)
         .unwrap_or_else(|_| "default".to_string())
         .trim()
