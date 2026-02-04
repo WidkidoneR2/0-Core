@@ -1,17 +1,21 @@
 [Unit]
-Description=Faelight Daemon - Universal File Management RPC Server
+Description=Faelight Forest Daemon
 Documentation=https://github.com/WidkidoneR2/0-Core
-After=graphical-session.target
+After=network.target
 
 [Service]
 Type=simple
-ExecStart=%h/0-core/04-runtime/target/release/faelight-daemon
+ExecStart=%h/0-core/target/release/faelight-daemon
 Restart=on-failure
-RestartSec=5
+RestartSec=5s
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=faelight-daemon
 
-# Security hardening (removed PrivateTmp - conflicts with /tmp socket)
+# Security
+PrivateTmp=true
 NoNewPrivileges=true
 
 [Install]
