@@ -148,9 +148,13 @@ impl Terminal {
             let col_start = if row == start_row { start_col } else { 0 };
             let col_end = if row == end_row { end_col } else { self.cols - 1 };
             
+            let mut row_text = String::new();
             for col in col_start..=col_end.min(self.cols - 1) {
-                text.push(actual_row[col].ch);
+                row_text.push(actual_row[col].ch);
             }
+            
+            // Trim trailing spaces from each line (but keep internal spaces)
+            text.push_str(row_text.trim_end());
             
             if row < end_row {
                 text.push('\n');
@@ -687,15 +691,21 @@ impl App {
     
     fn paste_from_clipboard(&mut self) {
         use wl_clipboard_rs::paste::{get_contents, ClipboardType, Seat, MimeType};
-        use std::io::Read;
+        use std::io::{Read, Write};
         
-        // FIX: Read from PipeReader
         match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text) {
             Ok((mut pipe, _mime)) => {
                 let mut buffer = String::new();
                 if let Ok(_) = pipe.read_to_string(&mut buffer) {
-                    let _ = self.pty.write(buffer.as_bytes());
-                    println!("📋 Pasted {} bytes", buffer.len());
+                    // Write to pty and flush immediately
+                    match self.pty.master.write_all(buffer.as_bytes()) {
+                        Ok(_) => {
+                            // Flush to ensure data is sent immediately
+                            let _ = self.pty.master.flush();
+                            println!("📋 Pasted {} bytes", buffer.len());
+                        }
+                        Err(e) => eprintln!("⚠️  Paste write failed: {}", e),
+                    }
                 }
             }
             Err(e) => eprintln!("⚠️  Paste failed: {}", e),
