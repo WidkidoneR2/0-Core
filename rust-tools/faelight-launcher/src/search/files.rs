@@ -2,6 +2,7 @@
 use super::SearchResult;
 use std::fs;
 use std::path::PathBuf;
+use faelight_core::paths;
 use std::time::SystemTime;
 use walkdir::WalkDir;
 
@@ -17,12 +18,11 @@ pub struct FileSearchConfig {
 
 impl Default for FileSearchConfig {
     fn default() -> Self {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
         Self {
             search_dirs: vec![
-                PathBuf::from(format!("{}/0-core", home)),
-                PathBuf::from(format!("{}/1-src", home)),
-                PathBuf::from(format!("{}/2-projects", home)),
+                paths::core_dir(),
+                paths::src_dir(),
+                paths::projects_dir(),
             ],
             max_age_days: 30, // Last 30 days
             max_results: 50,

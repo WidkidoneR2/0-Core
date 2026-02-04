@@ -1,10 +1,11 @@
-//! faelight-launcher v3.2 - Refined UI
+//! faelight-launcher v4.0.0 - Refined UI
 //! 🌲 Faelight Forest
 
 use std::time::Duration;
 mod icons;
 use icons::IconCache;
 use std::env;
+use faelight_core::paths;
 use fontdue::{Font, FontSettings};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -131,8 +132,7 @@ impl LaunchHistory {
     }
 
     fn history_path() -> std::path::PathBuf {
-        let home = std::env::var("HOME").expect("HOME not set");
-        std::path::PathBuf::from(home).join(".local/state/faelight/launcher-history.json")
+        paths::faelight_state_dir().join("launcher-history.json")
     }
 
     fn record_launch(&mut self, app_name: &str) {
@@ -866,7 +866,7 @@ fn health_check() {
     // Check desktop files
     let desktop_dirs = [
         "/usr/share/applications",
-        &format!("{}/.local/share/applications", env::var("HOME").unwrap_or_default()),
+        &paths::applications_dir().display().to_string(),
     ];
     
     for dir in desktop_dirs {
@@ -987,7 +987,7 @@ fn format_time_ago(modified: u64) -> String {
 
 /// Smart path truncation (show parent dir + filename)
 fn smart_path(path: &str) -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
+    let home = paths::home().display().to_string();
     let short = path.replace(&home, "~");
     
     // If path is short enough, return it
