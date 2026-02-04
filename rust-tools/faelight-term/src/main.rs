@@ -35,6 +35,9 @@ use swash::{
 };
 use wl_clipboard_rs::copy::{MimeType, Options, Source as ClipSource};
 
+use std::io::Write;
+mod config;
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const FONT_DATA: &[u8] = include_bytes!("../fonts/JetBrainsMonoNerdFont-Regular.ttf");
 const EMOJI_DATA: &[u8] = include_bytes!("/usr/share/fonts/noto/NotoColorEmoji.ttf");
@@ -554,7 +557,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("    Shift + PageUp/Dn   Scroll");
                 println!();
                 println!("OPTIONS:");
-                println!("    --help, --version, --health-check");
+                println!("    --help              Show this help");
+                println!("    --version           Show version");
+                println!("    --health-check      Verify dependencies");
+                println!("    --create-config     Create default config file");
                 return Ok(());
             }
             "--health-check" => {
@@ -594,6 +600,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Failed to load main font")?;
     let emoji_font = FontRef::from_index(EMOJI_DATA, 0);
     
+    // Load configuration
+    let config = config::Config::load();
+    let font_size = config.font.size;
+    
+    // Pre-parse colors for performance
+    let bg_color = config::Config::parse_color(&config.colors.background);
+    let cursor_color = config::Config::parse_color(&config.colors.cursor);
+    let selection_color = config::Config::parse_color(&config.colors.selection);
+    
     let mut app = App {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
@@ -602,7 +617,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         width: 800, height: 600, buffer: None, window, pty, terminal,
         keyboard: None, pointer: None,
         cursor_blink_state: true, last_blink: Instant::now(),
-        font_size: 17.0, 
+        config,
+        font_size,
+        bg_color,
+        cursor_color,
+        selection_color, 
         ctrl_pressed: false,
         shift_pressed: false,
         mouse_pressed: false,
@@ -654,7 +673,12 @@ struct App {
     pointer: Option<wl_pointer::WlPointer>,
     cursor_blink_state: bool, 
     last_blink: Instant,
-    font_size: f32, 
+    config: config::Config,
+    font_size: f32,
+    // Pre-parsed colors for performance
+    bg_color: [u8; 3],
+    cursor_color: [u8; 3],
+    selection_color: [u8; 3], 
     ctrl_pressed: bool,
     shift_pressed: bool,
     mouse_pressed: bool,
@@ -731,7 +755,7 @@ impl App {
         
         // Background
         for pixel in canvas.chunks_exact_mut(4) {
-            pixel[0] = 0x11; pixel[1] = 0x14; pixel[2] = 0x0f; pixel[3] = 0xFF;
+            pixel[0] = self.bg_color[2]; pixel[1] = self.bg_color[1]; pixel[2] = self.bg_color[0]; pixel[3] = 0xFF;
         }
         
         let char_width = self.font_size * 0.6;
@@ -751,10 +775,11 @@ impl App {
         };
         
         for (row_idx, row) in rows_to_render.iter().enumerate() {
-            let y = 15.0 + row_idx as f32 * line_height;
+            let padding = self.config.window.padding as f32;
+            let y = padding + row_idx as f32 * line_height;
             
             for (col_idx, cell) in row.iter().enumerate() {
-                let x = 15.0 + col_idx as f32 * char_width;
+                let x = padding + col_idx as f32 * char_width;
                 
                 let is_selected = if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
                     let (min_pos, max_pos) = if start <= end { (start, end) } else { (end, start) };
@@ -795,7 +820,9 @@ impl App {
                             if screen_x < self.width as usize && screen_y < self.height as usize {
                                 let idx = (screen_y * self.width as usize + screen_x) * 4;
                                 if idx + 3 < canvas.len() {
-                                    canvas[idx] = 0xA3; canvas[idx + 1] = 0xE3; canvas[idx + 2] = 0x6B;
+                                    canvas[idx] = self.cursor_color[2];
+                                    canvas[idx + 1] = self.cursor_color[1];
+                                    canvas[idx + 2] = self.cursor_color[0];
                                 }
                             }
                         }
@@ -857,10 +884,9 @@ impl App {
                                     if ux < self.width as usize && uy < self.height as usize {
                                         let idx = (uy * self.width as usize + ux) * 4;
                                         if idx + 3 < canvas.len() {
-                                            // Accent color: #6BE3A3
-                                            canvas[idx] = 0xA3;
-                                            canvas[idx + 1] = 0xE3; 
-                                            canvas[idx + 2] = 0x6B;
+                                            canvas[idx] = self.selection_color[2];
+                                            canvas[idx + 1] = self.selection_color[1]; 
+                                            canvas[idx + 2] = self.selection_color[0];
                                         }
                                     }
                                 }
@@ -972,8 +998,9 @@ impl PointerHandler for App {
                         self.mouse_pressed = true;  // FIX 3: Set mouse_pressed
                         let char_width = self.font_size * 0.6;
                         let line_height = self.font_size * 1.45;
-                        let col = ((event.position.0 - 15.0) / char_width as f64) as usize;
-                        let row = ((event.position.1 - 15.0) / line_height as f64) as usize;
+                        let padding = self.config.window.padding as f64;
+                        let col = ((event.position.0 - padding) / char_width as f64) as usize;
+                        let row = ((event.position.1 - padding) / line_height as f64) as usize;
                         if row < self.terminal.rows && col < self.terminal.cols {
                             self.selection_start = Some((row, col));
                             self.selection_end = Some((row, col));
@@ -987,8 +1014,9 @@ impl PointerHandler for App {
                     if self.mouse_pressed && self.selection_start.is_some() {
                         let char_width = self.font_size * 0.6;
                         let line_height = self.font_size * 1.45;
-                        let col = ((event.position.0 - 15.0) / char_width as f64) as usize;
-                        let row = ((event.position.1 - 15.0) / line_height as f64) as usize;
+                        let padding = self.config.window.padding as f64;
+                        let col = ((event.position.0 - padding) / char_width as f64) as usize;
+                        let row = ((event.position.1 - padding) / line_height as f64) as usize;
                         if row < self.terminal.rows && col < self.terminal.cols {
                             self.selection_end = Some((row, col));
                         }
@@ -1055,6 +1083,36 @@ impl KeyboardHandler for App {
                 _ => {}
             }
         }
+        
+        // Arrow keys for navigation and history
+        match event.keysym {
+            Keysym::Up => {
+                let _ = self.pty.master.write_all(b"\x1b[A");
+                return;
+            }
+            Keysym::Down => {
+                let _ = self.pty.master.write_all(b"\x1b[B");
+                return;
+            }
+            Keysym::Right => {
+                let _ = self.pty.master.write_all(b"\x1b[C");
+                return;
+            }
+            Keysym::Left => {
+                let _ = self.pty.master.write_all(b"\x1b[D");
+                return;
+            }
+            Keysym::Home => {
+                let _ = self.pty.master.write_all(b"\x1b[H");
+                return;
+            }
+            Keysym::End => {
+                let _ = self.pty.master.write_all(b"\x1b[F");
+                return;
+            }
+            _ => {}
+        }
+        
         
         // FIX 5: Handle Ctrl+key combinations for terminal control
         if self.ctrl_pressed && !self.shift_pressed {
