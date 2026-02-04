@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use faelight_core::paths;
 use faelight_fm::git::{self, GitStatus};
 use faelight_fm::error::Result;
 use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
@@ -284,7 +285,7 @@ impl AppState {
     
     pub fn jump_to_zone(&mut self, zone: Zone) -> Result<()> {
         if let Some(zone_path) = zones::zone_root(zone) {
-            let expanded = shellexpand::tilde(zone_path).to_string();
+            let expanded = shellexpand::tilde(&zone_path).to_string();
             let path = PathBuf::from(&expanded);
             
             if path.exists() {

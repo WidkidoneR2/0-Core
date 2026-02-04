@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::env;
+use faelight_core::paths;
 use faelight_zone::Zone;
 
 /// Detect zone using faelight-zone library
@@ -13,13 +14,13 @@ pub fn classify(path: &Path) -> Zone {
 }
 
 /// Get root path for a zone
-pub fn zone_root(zone: Zone) -> Option<&'static str> {
+pub fn zone_root(zone: Zone) -> Option<String> {
     match zone {
-        Zone::Core => Some("~/0-core"),
-        Zone::Workspace => Some("~/0-core/rust-tools"),
-        Zone::Src => Some("~/1-src"),
-        Zone::Project => Some("~/2-projects"),
-        Zone::Archive => Some("~/3-archive"),
+        Zone::Core => Some(paths::core_dir().display().to_string()),
+        Zone::Workspace => Some(paths::rust_tools_dir().display().to_string()),
+        Zone::Src => Some(paths::src_dir().display().to_string()),
+        Zone::Project => Some(paths::projects_dir().display().to_string()),
+        Zone::Archive => Some(paths::archive_dir().display().to_string()),
         Zone::Scratch => None,
     }
 }

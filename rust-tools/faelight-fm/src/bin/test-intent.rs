@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::env;
+use faelight_core::paths;
 
 fn main() {
-    let home = env::var("HOME").unwrap();
-    let intent_dir = PathBuf::from(format!("{}/0-core/INTENT", home));
-    let test_path = PathBuf::from(format!("{}/0-core/rust-tools/faelight-fm", home));
+    let intent_dir = paths::intents_dir();
+    let test_path = paths::rust_tools_dir().join("faelight-fm");
     
     println!("Intent dir: {:?}", intent_dir);
     println!("Intent dir exists: {}", intent_dir.exists());
@@ -24,7 +24,7 @@ fn main() {
         println!("\nNO INTENTS FOUND - debugging...");
         
         // Test if we can read the intent file directly
-        let intent_file = PathBuf::from(format!("{}/0-core/INTENT/future/074-faelight-fm-semantic-file-manager.md", home));
+        let intent_file = paths::intents_dir().join("future/074-faelight-fm-semantic-file-manager.md");
         println!("Testing direct file read: {:?}", intent_file);
         
         if let Some(intent) = faelight_fm::intent::Intent::from_file(&intent_file) {
