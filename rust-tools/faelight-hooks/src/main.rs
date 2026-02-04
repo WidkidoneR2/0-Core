@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::fs;
+use std::time::Instant;
 
 mod checks;
 mod install;
@@ -24,7 +25,7 @@ enum Commands {
     },
     /// Run hook checks manually
     Check {
-        /// Skip specific checks (comma-separated: secrets,conflicts,filesize,branch)
+        /// Skip specific checks (comma-separated: secrets,conflicts,filesize,branch,rustfmt,clippy)
         #[arg(long)]
         skip: Option<String>,
         
@@ -81,25 +82,53 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_default();
     
+    let start_time = Instant::now();
     let mut all_passed = true;
+    let mut check_times: Vec<(&str, u128)> = Vec::new();
     
     // Branch name validation (non-blocking)
     if !skip_list.contains(&"branch".to_string()) {
+        let check_start = Instant::now();
         let _ = checks::branch::validate_branch_name()?;
+        check_times.push(("Branch", check_start.elapsed().as_millis()));
         println!();
     }
     
     // File size check (non-blocking warning)
     if !skip_list.contains(&"filesize".to_string()) {
+        let check_start = Instant::now();
         let _ = checks::filesize::check_file_sizes()?;
+        check_times.push(("FileSize", check_start.elapsed().as_millis()));
+        println!();
+    }
+    
+    // Rustfmt check (BLOCKING)
+    if !skip_list.contains(&"rustfmt".to_string()) {
+        let check_start = Instant::now();
+        if !checks::rustfmt::check_rustfmt()? {
+            all_passed = false;
+        }
+        check_times.push(("Rustfmt", check_start.elapsed().as_millis()));
+        println!();
+    }
+    
+    // Clippy check (BLOCKING)
+    if !skip_list.contains(&"clippy".to_string()) {
+        let check_start = Instant::now();
+        if !checks::clippy::check_clippy()? {
+            all_passed = false;
+        }
+        check_times.push(("Clippy", check_start.elapsed().as_millis()));
         println!();
     }
     
     // Secret scanning (BLOCKING)
     if !skip_list.contains(&"secrets".to_string()) {
+        let check_start = Instant::now();
         if !checks::secrets::check_secrets()? {
             all_passed = false;
         }
+        check_times.push(("Secrets", check_start.elapsed().as_millis()));
         println!();
     } else {
         println!("{}", "⏭️  Skipping secret scanning".yellow());
@@ -108,9 +137,11 @@ fn run_checks(skip: Option<String>) -> Result<()> {
     
     // Conflict detection (BLOCKING)
     if !skip_list.contains(&"conflicts".to_string()) {
+        let check_start = Instant::now();
         if !checks::conflicts::check_conflicts()? {
             all_passed = false;
         }
+        check_times.push(("Conflicts", check_start.elapsed().as_millis()));
         println!();
     } else {
         println!("{}", "⏭️  Skipping conflict detection".yellow());
@@ -118,6 +149,16 @@ fn run_checks(skip: Option<String>) -> Result<()> {
     }
     
     if all_passed {
+        let total_time = start_time.elapsed();
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!("{}", "📊 Check Statistics".cyan().bold());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        for (name, time) in check_times {
+            println!("   {:<12} {}ms", name, time);
+        }
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        println!("   {:<12} {}ms", "Total".bold(), total_time.as_millis());
+        println!();
         println!("{}", "✅ All checks passed! 🌲".green().bold());
         Ok(())
     } else {
