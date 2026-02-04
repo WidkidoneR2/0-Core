@@ -1,17 +1,29 @@
-//! faelight - Unified CLI for Faelight Forest
-//! 🌲 The Core Spine
+//! faelight v2.0.0 - Unified CLI for Faelight Forest
+//! 🌲 The Core Spine - LEGENDARY EDITION
 //!
-//! Usage: faelight <command> [args]
+//! The main entry point for all Faelight Forest operations.
+//! Provides a unified interface that delegates to specialized tools.
 
 use clap::{Parser, Subcommand};
 use colored::*;
-mod config;
+use faelight_core::paths;
+use which;
 use std::process::{Command, exit};
+
+pub mod config;
+use config::FaelightConfig;
 
 #[derive(Parser)]
 #[command(name = "faelight")]
 #[command(about = "🌲 Faelight Forest - Unified CLI", long_about = None)]
 #[command(version)]
+#[command(after_help = "Examples:
+  faelight health              # Run system health check
+  faelight doctor              # Alias for health
+  faelight profile switch dev  # Switch to dev profile
+  faelight core lock           # Lock 0-core directory
+  faelight --version           # Show CLI and ecosystem versions
+")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -27,7 +39,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// System health check
+    /// System health check (powered by dot-doctor)
+    #[command(alias = "doctor")]
     Health {
         /// Show detailed explanations
         #[arg(long)]
@@ -36,6 +49,10 @@ enum Commands {
         /// Fail on warnings (for CI)
         #[arg(long)]
         fail_on_warning: bool,
+        
+        /// Show all tool versions
+        #[arg(long)]
+        versions: bool,
     },
     
     /// Profile management
@@ -56,37 +73,16 @@ enum Commands {
         action: CoreAction,
     },
     
-    /// Sway window manager
-    Sway {
-        #[command(subcommand)]
-        action: SwayAction,
-    },
-    
     /// Launch applications
     Launch {
         #[command(subcommand)]
         app: LaunchApp,
     },
     
-    /// Git governance
-    Git {
-        #[command(subcommand)]
-        action: GitAction,
-    },
-
     /// Configuration management
     Config {
         #[command(subcommand)]
         action: ConfigAction,
-    },
-
-    /// Show system info
-    Status,
-    
-    /// Explain a concept
-    Explain {
-        /// Topic to explain
-        topic: String,
     },
 }
 
@@ -102,434 +98,306 @@ enum ProfileAction {
 
 #[derive(Subcommand)]
 enum IntentAction {
-    /// List all intents
-    List {
-        /// Filter by category
-        category: Option<String>,
-    },
-    /// Show specific intent
+    /// Create new intent
+    New { title: String },
+    /// List intents
+    List,
+    /// Show intent details
     Show { id: String },
-    /// Search intents
-    Search { term: String },
 }
 
 #[derive(Subcommand)]
 enum CoreAction {
-    /// Lock core (protect from changes)
+    /// Lock 0-core directory (immutable)
     Lock,
-    /// Unlock core
+    /// Unlock 0-core directory
     Unlock,
-    /// Show lock status
-    Status,
-}
-
-#[derive(Subcommand)]
-enum SwayAction {
-    /// Reload sway config
-    Reload,
-    /// Show sway status
+    /// Check core status
     Status,
 }
 
 #[derive(Subcommand)]
 enum LaunchApp {
-    /// App launcher
+    /// File manager
+    Fm,
+    /// Terminal
+    Term,
+    /// Launcher
     Launcher,
-    /// Power menu
+    /// Menu
     Menu,
-    /// Lock screen
-    Lock,
-    /// Notifications test
-    Notify { message: String },
-}
-
-#[derive(Subcommand)]
-enum GitAction {
-    /// Install git hooks
-    InstallHooks,
-    /// Remove git hooks
-    RemoveHooks,
-    /// Verify commit readiness
-    Verify,
-    Status,
 }
 
 #[derive(Subcommand)]
 enum ConfigAction {
-    /// Validate all config files
-    Validate,
-    /// Show current configuration
+    /// Show current config
     Show,
-    /// Show config file path
-    Path,
-    /// Edit config in editor
+    /// Edit config file
     Edit,
+    /// Reset to defaults
+    Reset,
 }
 
 fn main() {
     let cli = Cli::parse();
     
-    let exit_code = match cli.command {
-        Commands::Health { explain, fail_on_warning } => {
-            cmd_health(explain, fail_on_warning, cli.json)
+    match cli.command {
+        Commands::Health { explain, fail_on_warning, versions } => {
+            if versions {
+                show_ecosystem_versions();
+            } else {
+                run_health_check(explain, fail_on_warning);
+            }
         }
-        Commands::Profile { action } => cmd_profile(action, cli.dry_run),
-        Commands::Intent { action } => cmd_intent(action),
-        Commands::Core { action } => cmd_core(action, cli.dry_run),
-        Commands::Sway { action } => cmd_sway(action, cli.dry_run),
-        Commands::Launch { app } => cmd_launch(app),
-        Commands::Git { action } => cmd_git(action),
-        Commands::Config { action } => cmd_config(action),
-        Commands::Status => cmd_status(cli.json),
-        Commands::Explain { topic } => cmd_explain(&topic),
-    };
-    
-    exit(exit_code);
+        Commands::Profile { action } => handle_profile(action),
+        Commands::Intent { action } => handle_intent(action),
+        Commands::Core { action } => handle_core(action),
+        Commands::Launch { app } => handle_launch(app),
+        Commands::Config { action } => handle_config(action),
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🏥 HEALTH
+// 🏥 HEALTH CHECK - Enhanced with better output
 // ═══════════════════════════════════════════════════════════
-fn cmd_health(explain: bool, _fail_on_warning: bool, json: bool) -> i32 {
-    let mut args = vec![];
-    if explain { args.push("--explain"); }
-    if json { args.push("--json"); }
+
+fn run_health_check(explain: bool, fail_on_warning: bool) {
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "🏥 FAELIGHT FOREST HEALTH CHECK".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!();
     
-    // Delegate to dot-doctor for now
-    let status = Command::new("dot-doctor")
-        .args(&args)
-        .status();
+    let doctor_path = paths::scripts_dir().join("dot-doctor");
     
-    match status {
-        Ok(s) => s.code().unwrap_or(1),
-        Err(_) => {
-            eprintln!("{} dot-doctor not found", "Error:".red());
-            1
+    if !check_tool_exists(&doctor_path) {
+        eprintln!("{} dot-doctor not found!", "❌".red());
+        eprintln!("   Expected at: {}", doctor_path.display());
+        eprintln!("   Run: cargo build --release -p dot-doctor");
+        exit(1);
+    }
+    
+    let mut cmd = Command::new(&doctor_path);
+    
+    if explain {
+        cmd.arg("--explain");
+    }
+    
+    let status = cmd.status().expect("Failed to run dot-doctor");
+    
+    if !status.success() {
+        if fail_on_warning {
+            exit(1);
+        }
+    }
+}
+
+fn show_ecosystem_versions() {
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "🌲 FAELIGHT FOREST ECOSYSTEM".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!();
+    
+    // Show system version
+    if let Ok(version) = std::fs::read_to_string(paths::meta_dir().join("VERSION")) {
+        println!("  {} {}", "System:".bold(), version.trim().green());
+    }
+    
+    println!("  {} {}", "faelight CLI:".bold(), env!("CARGO_PKG_VERSION").green());
+    println!();
+    
+    // Show key tool versions
+    let tools = vec![
+        ("dot-doctor", "scripts/dot-doctor"),
+        ("faelight-fm", "target/release/faelight-fm"),
+        ("faelight-bar", "target/release/faelight-bar"),
+        ("faelight-term", "target/release/faelight-term"),
+        ("faelight-hooks", "target/release/faelight-hooks"),
+    ];
+    
+    println!("  {} Key Tools:", "📦".bold());
+    for (name, bin_path) in tools {
+        let full_path = paths::core_dir().join(bin_path);
+        if full_path.exists() {
+            println!("    ✅ {}", name.cyan());
+        } else {
+            println!("    ⚠️  {} (not built)", name.yellow());
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎭 PROFILE
+// 📊 PROFILE MANAGEMENT
 // ═══════════════════════════════════════════════════════════
-fn cmd_profile(action: ProfileAction, dry_run: bool) -> i32 {
+
+fn handle_profile(action: ProfileAction) {
+    let profile_cmd = find_tool("profile");
+    
     match action {
         ProfileAction::List => {
-            exec_script("profile", &["list"])
+            run_tool(&profile_cmd, &["list"]);
         }
         ProfileAction::Switch { name } => {
-            if dry_run {
-                println!("{} Would switch to profile: {}", "DRY-RUN:".yellow(), name);
-                return 0;
-            }
-            exec_script("profile", &[&name])
+            run_tool(&profile_cmd, &["switch", &name]);
         }
         ProfileAction::Current => {
-            exec_script("profile", &["current"])
+            run_tool(&profile_cmd, &["current"]);
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 📜 INTENT
+// 📝 INTENT MANAGEMENT
 // ═══════════════════════════════════════════════════════════
-fn cmd_intent(action: IntentAction) -> i32 {
+
+fn handle_intent(action: IntentAction) {
+    let intent_cmd = find_tool("intent");
+    
     match action {
-        IntentAction::List { category } => {
-            match category {
-                Some(cat) => exec_script("intent", &["list", &cat]),
-                None => exec_script("intent", &["list"]),
-            }
+        IntentAction::New { title } => {
+            run_tool(&intent_cmd, &["new", &title]);
+        }
+        IntentAction::List => {
+            run_tool(&intent_cmd, &["list"]);
         }
         IntentAction::Show { id } => {
-            exec_script("intent", &["show", &id])
-        }
-        IntentAction::Search { term } => {
-            exec_script("intent", &["search", &term])
+            run_tool(&intent_cmd, &["show", &id]);
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🔒 CORE
+// 🛡️ CORE PROTECTION
 // ═══════════════════════════════════════════════════════════
-fn cmd_core(action: CoreAction, dry_run: bool) -> i32 {
+
+fn handle_core(action: CoreAction) {
+    let core_protect = find_tool("core-protect");
+    
     match action {
         CoreAction::Lock => {
-            if dry_run {
-                println!("{} Would lock core", "DRY-RUN:".yellow());
-                return 0;
-            }
-            exec_script("lock-core", &[])
+            run_tool(&core_protect, &["lock"]);
         }
         CoreAction::Unlock => {
-            if dry_run {
-                println!("{} Would unlock core", "DRY-RUN:".yellow());
-                return 0;
-            }
-            exec_script("unlock-core", &[])
+            run_tool(&core_protect, &["unlock"]);
         }
         CoreAction::Status => {
-            // Check if locked
-            let home = std::env::var("HOME").unwrap_or_default();
-            let lock_file = format!("{}/.0-core-locked", home);
-            if std::path::Path::new(&lock_file).exists() {
-                println!("🔒 Core is {}", "LOCKED".red());
-            } else {
-                println!("🔓 Core is {}", "UNLOCKED".green());
-            }
-            0
+            run_tool(&core_protect, &["status"]);
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🪟 SWAY
+// 🚀 LAUNCH APPLICATIONS
 // ═══════════════════════════════════════════════════════════
-fn cmd_sway(action: SwayAction, dry_run: bool) -> i32 {
-    match action {
-        SwayAction::Reload => {
-            if dry_run {
-                println!("{} Would reload sway", "DRY-RUN:".yellow());
-                return 0;
-            }
-            let status = Command::new("swaymsg").arg("reload").status();
-            match status {
-                Ok(s) if s.success() => {
-                    println!("✅ Sway configuration reloaded");
-                    0
-                }
-                _ => {
-                    eprintln!("{} Failed to reload sway", "Error:".red());
-                    1
-                }
-            }
-        }
-        SwayAction::Status => {
-            let _ = Command::new("swaymsg").args(["-t", "get_version"]).status();
-            0
-        }
-    }
-}
 
-// ═══════════════════════════════════════════════════════════
-// 🚀 LAUNCH
-// ═══════════════════════════════════════════════════════════
-fn cmd_launch(app: LaunchApp) -> i32 {
+fn handle_launch(app: LaunchApp) {
     match app {
-        LaunchApp::Launcher => exec_faelight_tool("faelight-launcher"),
-        LaunchApp::Menu => exec_faelight_tool("faelight-menu"),
-        LaunchApp::Lock => exec_faelight_tool("faelight-lock"),
-        LaunchApp::Notify { message } => {
-            let status = Command::new("notify-send")
-                .args(["Faelight", &message])
-                .status();
-            match status {
-                Ok(s) => s.code().unwrap_or(1),
-                Err(_) => 1,
-            }
+        LaunchApp::Fm => {
+            let fm = find_tool("faelight-fm");
+            run_tool_bg(&fm, &[]);
+        }
+        LaunchApp::Term => {
+            let term = find_tool("faelight-term");
+            run_tool_bg(&term, &[]);
+        }
+        LaunchApp::Launcher => {
+            let launcher = find_tool("faelight-launcher");
+            run_tool_bg(&launcher, &[]);
+        }
+        LaunchApp::Menu => {
+            let menu = find_tool("faelight-menu");
+            run_tool_bg(&menu, &[]);
         }
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 📊 STATUS
+// ⚙️ CONFIGURATION
 // ═══════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════
-// ⚙️ CONFIG
-// ═══════════════════════════════════════════════════════════
-// 🔧 GIT
-// ═══════════════════════════════════════════════════════════
-fn cmd_git(action: GitAction) -> i32 {
-    let cmd = match action {
-        GitAction::InstallHooks => "install-hooks",
-        GitAction::RemoveHooks => "remove-hooks",
-        GitAction::Verify => "verify",
-        GitAction::Status => "status",
-    };
-    exec_script("faelight-git", &[cmd])
-}
 
-// ═══════════════════════════════════════════════════════════
-fn cmd_config(action: ConfigAction) -> i32 {
-    use colored::*;
+fn handle_config(action: ConfigAction) {
     match action {
-        ConfigAction::Validate => {
-            println!("{}", "⚙️ Validating configuration files...".cyan());
-            println!();
-            let results = config::validate_all();
-            let mut all_ok = true;
-            for (file, result) in results {
-                match result {
-                    Ok(()) => println!("  {} {}", "✅".green(), file),
-                    Err(e) => {
-                        println!("  {} {} - {}", "❌".red(), file, e);
-                        all_ok = false;
-                    }
-                }
-            }
-            println!();
-            if all_ok {
-                println!("{}", "All configuration files valid! 🌲".green());
-                0
-            } else {
-                println!("{}", "Some configuration files have errors.".red());
-                1
-            }
-        }
         ConfigAction::Show => {
-            match config::load_config() {
-                Ok(cfg) => {
-                    println!("{}", "⚙️ Current Configuration".cyan().bold());
-                    println!();
-                    println!("  Theme:    {}", cfg.system.theme);
-                    println!("  Profile:  {}", cfg.system.default_profile);
-                    println!("  Version:  {}", cfg.system.version);
-                    println!();
-                    println!("  Bar refresh:    {}ms", cfg.bar.refresh_ms);
-                    println!("  Notify timeout: {}ms", cfg.notifications.timeout_ms);
-                    println!("  Lock timeout:   {}min", cfg.lock.timeout_minutes);
-                    0
-                }
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
-            }
-        }
-        ConfigAction::Path => {
-            println!("{}", config::config_dir().display());
-            0
+            let config = FaelightConfig::load();
+            println!("{}", toml::to_string_pretty(&config).unwrap());
         }
         ConfigAction::Edit => {
-            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-            let path = config::config_dir().join("config.toml");
-            std::process::Command::new(editor).arg(path).status().ok();
-            0
+            let config_path = FaelightConfig::config_path();
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+            
+            Command::new(editor)
+                .arg(&config_path)
+                .status()
+                .expect("Failed to open editor");
+        }
+        ConfigAction::Reset => {
+            let config = FaelightConfig::default();
+            config.save().expect("Failed to save config");
+            println!("{} Config reset to defaults", "✅".green());
         }
     }
 }
 
-fn cmd_status(json: bool) -> i32 {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let version = std::fs::read_to_string(format!("{}/0-core/00-meta/VERSION", home))
-        .unwrap_or_else(|_| "unknown".to_string())
-        .trim()
-        .to_string();
-    
-    let locked = std::path::Path::new(&format!("{}/.0-core-locked", home)).exists();
-    
-    let profile = std::fs::read_to_string(format!("{}/.local/state/faelight/current-profile", home))
-        .unwrap_or_else(|_| "default".to_string())
-        .trim()
-        .to_string();
-    
-    if json {
-        println!(r#"{{"version":"{}","locked":{},"profile":"{}"}}"#, version, locked, profile);
-    } else {
-        println!("{}", "═".repeat(50).green());
-        println!("{}", "🌲 Faelight Forest Status".green().bold());
-        println!("{}", "═".repeat(50).green());
-        println!("  Version:  {}", format!("v{}", version).cyan());
-        println!("  Profile:  {}", profile.cyan());
-        println!("  Core:     {}", if locked { "🔒 Locked".red().to_string() } else { "🔓 Unlocked".green().to_string() });
-        println!("{}", "═".repeat(50).green());
+// ═══════════════════════════════════════════════════════════
+// 🛠️ HELPER FUNCTIONS - Enhanced error handling
+// ═══════════════════════════════════════════════════════════
+
+fn find_tool(name: &str) -> String {
+    // First check in target/release
+    let release_path = paths::core_dir().join("target/release").join(name);
+    if release_path.exists() {
+        return release_path.display().to_string();
     }
-    0
+    
+    // Then check in scripts
+    let scripts_path = paths::scripts_dir().join(name);
+    if scripts_path.exists() {
+        return scripts_path.display().to_string();
+    }
+    
+    // Finally check PATH using which
+    if let Ok(path) = which::which(name) {
+        return path.display().to_string();
+    }
+    
+    // Tool not found
+    eprintln!("{} Tool '{}' not found!", "❌".red().bold(), name.yellow());
+    eprintln!();
+    eprintln!("Searched locations:");
+    eprintln!("  • {}", release_path.display());
+    eprintln!("  • {}", scripts_path.display());
+    eprintln!("  • System PATH");
+    eprintln!();
+    eprintln!("To install:");
+    eprintln!("  {}", format!("cargo build --release -p {}", name).cyan());
+    exit(1);
 }
 
-// ═══════════════════════════════════════════════════════════
-// 📖 EXPLAIN
-// ═══════════════════════════════════════════════════════════
-fn cmd_explain(topic: &str) -> i32 {
-    match topic.to_lowercase().as_str() {
-        "profile" | "profiles" => {
-            println!("{}", "🎭 Profiles".green().bold());
-            println!("Profiles control system behavior for different contexts.");
-            println!();
-            println!("Available profiles:");
-            println!("  {} - Normal daily use", "default".cyan());
-            println!("  {} - VPN on, focused notifications", "work".cyan());
-            println!("  {} - VPN off, performance mode", "gaming".cyan());
-            println!("  {} - Minimal distractions", "focus".cyan());
-            println!();
-            println!("Usage: {} switch <profile>", "faelight profile".yellow());
-        }
-        "intent" | "intents" => {
-            println!("{}", "📜 Intent Ledger".green().bold());
-            println!("Every major decision is documented with rationale.");
-            println!();
-            println!("Categories:");
-            println!("  {} - Major architectural choices", "decisions".cyan());
-            println!("  {} - Things we tried", "experiments".cyan());
-            println!("  {} - Core beliefs", "philosophy".cyan());
-            println!("  {} - Planned features", "future".cyan());
-            println!();
-            println!("Usage: {} list [category]", "faelight intent".yellow());
-        }
-        "health" => {
-            println!("{}", "🏥 Health System".green().bold());
-            println!("Validates system integrity across multiple dimensions.");
-            println!();
-            println!("Checks:");
-            println!("  - Stow symlinks");
-            println!("  - Running services");
-            println!("  - Git repository state");
-            println!("  - Theme packages");
-            println!("  - Intent ledger");
-            println!();
-            println!("Usage: {} [--explain]", "faelight health".yellow());
-        }
-        "core" => {
-            println!("{}", "🔒 Core Protection".green().bold());
-            println!("Prevents accidental changes to 0-core repository.");
-            println!();
-            println!("When locked:");
-            println!("  - Git commits blocked");
-            println!("  - Changes warned");
-            println!();
-            println!("Usage:");
-            println!("  {} lock", "faelight core".yellow());
-            println!("  {} unlock", "faelight core".yellow());
-        }
-        _ => {
-            println!("{} Unknown topic: {}", "Error:".red(), topic);
-            println!();
-            println!("Available topics:");
-            println!("  profile, intent, health, core");
-            return 1;
-        }
-    }
-    0
+fn check_tool_exists(path: &std::path::Path) -> bool {
+    path.exists()
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🔧 HELPERS
-// ═══════════════════════════════════════════════════════════
-fn exec_script(name: &str, args: &[&str]) -> i32 {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let script_path = format!("{}/0-core/scripts/{}", home, name);
+fn run_tool(tool: &str, args: &[&str]) {
+    let status = Command::new(tool)
+        .args(args)
+        .status()
+        .unwrap_or_else(|e| {
+            eprintln!("{} Failed to run {}: {}", "❌".red(), tool, e);
+            exit(1);
+        });
     
-    let status = Command::new(&script_path).args(args).status();
-    match status {
-        Ok(s) => s.code().unwrap_or(1),
-        Err(_) => {
-            eprintln!("{} Script not found: {}", "Error:".red(), name);
-            1
-        }
+    if !status.success() {
+        exit(status.code().unwrap_or(1));
     }
 }
 
-fn exec_faelight_tool(name: &str) -> i32 {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let tool_path = format!("{}/0-core/scripts/{}", home, name);
+fn run_tool_bg(tool: &str, args: &[&str]) {
+    Command::new(tool)
+        .args(args)
+        .spawn()
+        .unwrap_or_else(|e| {
+            eprintln!("{} Failed to launch {}: {}", "❌".red(), tool, e);
+            exit(1);
+        });
     
-    let status = Command::new(&tool_path).spawn();
-    match status {
-        Ok(_) => 0,
-        Err(_) => {
-            eprintln!("{} Tool not found: {}", "Error:".red(), name);
-            1
-        }
-    }
+    println!("{} Launched {}", "✅".green(), tool.split('/').last().unwrap());
 }
