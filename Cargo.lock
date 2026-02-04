@@ -1254,9 +1254,12 @@ version = "10.1.0"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
+ "faelight-core",
  "nix 0.29.0",
+ "serde",
  "smithay-client-toolkit 0.20.0",
  "swash",
+ "toml",
  "wayland-client",
  "wl-clipboard-rs",
 ]
