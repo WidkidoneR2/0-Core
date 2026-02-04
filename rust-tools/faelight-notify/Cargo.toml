@@ -1,16 +1,27 @@
 [package]
 name = "faelight-notify"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
+description = "Notification daemon - path-resilient!"
 
 [dependencies]
+# Core infrastructure
 faelight-core = { path = "../faelight-core" }
+
+# Wayland
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
+
+# DBus
 zbus = { version = "4", default-features = false, features = ["tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+# System
 nix = { version = "0.29", features = ["poll"] }
 dirs = "5.0"
+
+# Beautiful output
+colored = "2.1"
 
 [profile.release]
 opt-level = "z"

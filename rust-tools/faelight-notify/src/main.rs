@@ -1,4 +1,4 @@
-//! faelight-notify v1.0.0 - Typography Polish
+//! faelight-notify v2.0.0 - Typography Polish
 //! 🌲 Faelight Forest
 
 use smithay_client_toolkit::{
@@ -355,7 +355,7 @@ fn health_check() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("🌲 faelight-notify v1.0.0 starting...");
+    eprintln!("🌲 faelight-notify v2.0.0 starting...");
     // Check for health flag
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && (args[1] == "--health" || args[1] == "health") {
