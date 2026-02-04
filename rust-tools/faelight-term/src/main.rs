@@ -633,6 +633,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cursor_color = config::Config::parse_color(&config.colors.cursor);
     let selection_color = config::Config::parse_color(&config.colors.selection);
     
+    // Cache layout values
+    let padding_f32 = config.window.padding as f32;
+    let char_width = font_size * 0.6;
+    let line_height = font_size * 1.45;
+    
     let mut app = App {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
@@ -646,7 +651,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         bg_color,
         cursor_color,
         selection_color,
-        hovered_url: None, 
+        hovered_url: None,
+        char_width,
+        line_height,
+        padding_f32,
+        last_url_scan: Instant::now(), 
         ctrl_pressed: false,
         shift_pressed: false,
         mouse_pressed: false,
@@ -664,8 +673,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(n) if n > 0 => {
                 // FIX 2: Use process_bytes for proper UTF-8 handling
                 app.terminal.process_bytes(&buf[..n]);
-                // Scan for URLs after terminal updates
-                app.terminal.scan_urls();
+                // Debounce URL scanning to 100ms (performance)
+                if app.last_url_scan.elapsed() > Duration::from_millis(100) {
+                    app.terminal.scan_urls();
+                    app.last_url_scan = Instant::now();
+                }
             }
             _ => {}
         }
@@ -706,7 +718,12 @@ struct App {
     bg_color: [u8; 3],
     cursor_color: [u8; 3],
     selection_color: [u8; 3],
-    hovered_url: Option<urls::Url>, 
+    hovered_url: Option<urls::Url>,
+    // Cached layout values for performance
+    char_width: f32,
+    line_height: f32,
+    padding_f32: f32,
+    last_url_scan: Instant, 
     ctrl_pressed: bool,
     shift_pressed: bool,
     mouse_pressed: bool,
@@ -786,8 +803,8 @@ impl App {
             pixel[0] = self.bg_color[2]; pixel[1] = self.bg_color[1]; pixel[2] = self.bg_color[0]; pixel[3] = 0xFF;
         }
         
-        let char_width = self.font_size * 0.6;
-        let line_height = self.font_size * 1.45;
+        let char_width = self.char_width;
+        let line_height = self.line_height;
         
         // Determine which rows to render based on scroll offset
         let rows_to_render: Vec<&Vec<Cell>> = if self.terminal.scroll_offset > 0 {
@@ -803,7 +820,7 @@ impl App {
         };
         
         for (row_idx, row) in rows_to_render.iter().enumerate() {
-            let padding = self.config.window.padding as f32;
+            let padding = self.padding_f32;
             let y = padding + row_idx as f32 * line_height;
             
             for (col_idx, cell) in row.iter().enumerate() {
@@ -1046,7 +1063,7 @@ impl PointerHandler for App {
                     if button == 272 {
                         let char_width = self.font_size * 0.6;
                         let line_height = self.font_size * 1.45;
-                        let padding = self.config.window.padding as f64;
+                        let padding = self.padding_f32 as f64;
                         let col = ((event.position.0 - padding) / char_width as f64) as usize;
                         let row = ((event.position.1 - padding) / line_height as f64) as usize;
                         
@@ -1076,7 +1093,7 @@ impl PointerHandler for App {
                     // Calculate mouse position
                     let char_width = self.font_size * 0.6;
                     let line_height = self.font_size * 1.45;
-                    let padding = self.config.window.padding as f64;
+                    let padding = self.padding_f32 as f64;
                     let col = ((event.position.0 - padding) / char_width as f64) as usize;
                     let row = ((event.position.1 - padding) / line_height as f64) as usize;
                     
@@ -1125,18 +1142,24 @@ impl KeyboardHandler for App {
             match event.keysym {
                 Keysym::plus | Keysym::equal => { 
                     self.font_size = (self.font_size + 1.0).min(30.0);
+                    self.char_width = self.font_size * 0.6;
+                    self.line_height = self.font_size * 1.45;
                     self.glyph_cache.clear();
                     println!("🔍 Font size: {}", self.font_size); 
                     return; 
                 }
                 Keysym::minus | Keysym::underscore => { 
                     self.font_size = (self.font_size - 1.0).max(6.0);
+                    self.char_width = self.font_size * 0.6;
+                    self.line_height = self.font_size * 1.45;
                     self.glyph_cache.clear();
                     println!("🔍 Font size: {}", self.font_size); 
                     return; 
                 }
                 Keysym::_0 => { 
                     self.font_size = 17.0;
+                    self.char_width = self.font_size * 0.6;
+                    self.line_height = self.font_size * 1.45;
                     self.glyph_cache.clear();
                     println!("🔍 Reset"); 
                     return; 
