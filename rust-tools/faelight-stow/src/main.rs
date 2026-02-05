@@ -174,33 +174,34 @@ fn discover_packages(stow_dir: &PathBuf) -> Vec<String> {
     packages
 }
 
+fn search_symlinks_recursive(dir: &PathBuf, package: &str, symlinks: &mut Vec<PathBuf>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            
+            // Check if it's a symlink
+            if path.is_symlink() {
+                if let Ok(target) = fs::read_link(&path) {
+                    let target_str = target.to_string_lossy();
+                    if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
+                        symlinks.push(path);
+                    }
+                }
+            }
+            // Recurse into directories (but not symlinked dirs)
+            else if path.is_dir() {
+                search_symlinks_recursive(&path, package, symlinks);
+            }
+        }
+    }
+}
+
 fn find_package_symlinks(_home: &str, package: &str) -> Vec<PathBuf> {
     let home_path = core_paths::home();
     let mut symlinks = Vec::new();
     
-    // Search common locations
-    let search_paths = vec![
-        home_path.clone(),
-        home_path.join(".config"),
-    ];
-    
-    for search_path in search_paths {
-        if let Ok(entries) = fs::read_dir(&search_path) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                
-                // Check if it's a symlink pointing to our stow package
-                if path.is_symlink() {
-                    if let Ok(target) = fs::read_link(&path) {
-                        let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
-                            symlinks.push(path);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Recursively search home directory for symlinks
+    search_symlinks_recursive(&home_path, package, &mut symlinks);
     
     symlinks
 }
