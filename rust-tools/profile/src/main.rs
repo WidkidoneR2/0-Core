@@ -61,8 +61,7 @@ fn main() {
 }
 
 fn get_profile_dir() -> PathBuf {
-    let home = env::var("HOME").expect("HOME not set");
-    PathBuf::from(home).join("0-core/profiles")
+    paths::profiles_dir()
 }
 
 
