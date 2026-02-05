@@ -64,19 +64,35 @@ pub fn render(menu: &MenuState, canvas: &mut [u8], width: u32, _height: u32, y_o
         }
     }
     
-    // Results - show only 3-4 items
+    // Results - scrolling viewport that follows selection
     let start_y = y_offset + 28;
-    let items_to_show = menu.filtered.len().min(4);
+    let max_visible = 4;
+    let items_to_show = menu.filtered.len().min(max_visible);
     
-    for (i, &idx) in menu.filtered.iter().take(items_to_show).enumerate() {
+    // Calculate scroll offset to keep selected item visible
+    let scroll_offset = if menu.selected >= max_visible {
+        menu.selected - max_visible + 1
+    } else {
+        0
+    };
+    
+    for i in 0..items_to_show {
+        let actual_idx = i + scroll_offset;
+        if actual_idx >= menu.filtered.len() {
+            break;
+        }
+        
+        let idx = menu.filtered[actual_idx];
         let y = start_y + (i as i32 * 16);
-        let color = if i == menu.selected {
+        let is_selected = actual_idx == menu.selected;
+        
+        let color = if is_selected {
             SELECTED_COLOR
         } else {
             TEXT_COLOR
         };
         
-        let marker = if i == menu.selected { "▶" } else { " " };
+        let marker = if is_selected { "▶" } else { " " };
         let item = &menu.items[idx];
         
         // Truncate to fit dropdown width
@@ -91,8 +107,9 @@ pub fn render(menu: &MenuState, canvas: &mut [u8], width: u32, _height: u32, y_o
     }
     
     // Scroll indicator if more items
-    if menu.filtered.len() > items_to_show {
-        let more_text = format!("... {} more", menu.filtered.len() - items_to_show);
+    if menu.filtered.len() > max_visible {
+        let more_text = format!("... {} more ({}/{})", 
+            menu.filtered.len() - max_visible, menu.selected + 1, menu.filtered.len());
         draw_text(&mut cache, canvas, width, &more_text, DROPDOWN_X + 10, 
                  start_y + (items_to_show as i32 * 16) + 2, DIM_COLOR);
     }

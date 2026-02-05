@@ -67,9 +67,22 @@ pub enum KeyAction {
 }
 
 pub fn execute_command(cmd: &str) -> Result<(), Box<dyn std::error::Error>> {
-    Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
-        .spawn()?;
+    use std::env;
+    
+    let mut command = Command::new("sh");
+    command.arg("-c").arg(cmd);
+    
+    // Ensure Wayland/X11 environment is passed to launched apps
+    if let Ok(display) = env::var("WAYLAND_DISPLAY") {
+        command.env("WAYLAND_DISPLAY", display);
+    }
+    if let Ok(display) = env::var("DISPLAY") {
+        command.env("DISPLAY", display);
+    }
+    if let Ok(xdg) = env::var("XDG_RUNTIME_DIR") {
+        command.env("XDG_RUNTIME_DIR", xdg);
+    }
+    
+    command.spawn()?;
     Ok(())
 }
