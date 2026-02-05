@@ -751,7 +751,7 @@ impl App {
                     ClipSource::Bytes(text.as_bytes().to_vec().into()),
                     MimeType::Text
                 ) {
-                    Ok(_) => println!("📋 Copied {} chars", len),
+                    Ok(_) => {},
                     Err(e) => eprintln!("⚠️  Copy failed: {}", e),
                 }
             }
@@ -770,9 +770,7 @@ impl App {
                     match self.pty.master.write_all(buffer.as_bytes()) {
                         Ok(_) => {
                             // Flush to ensure data is sent immediately
-                            let _ = self.pty.master.flush();
-                            println!("📋 Pasted {} bytes", buffer.len());
-                        }
+                            let _ = self.pty.master.flush();                        }
                         Err(e) => eprintln!("⚠️  Paste write failed: {}", e),
                     }
                 }
