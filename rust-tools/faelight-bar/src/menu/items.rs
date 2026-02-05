@@ -34,6 +34,7 @@ pub fn get_shell_commands() -> Result<Vec<MenuItem>, Box<dyn std::error::Error>>
 pub fn get_desktop_apps() -> Result<Vec<MenuItem>, Box<dyn std::error::Error>> {
     let mut apps = Vec::new();
     let app_dirs = [
+        "/home/christian/.local/share/applications",  // User overrides first
         "/usr/share/applications",
         "/usr/local/share/applications",
     ];
