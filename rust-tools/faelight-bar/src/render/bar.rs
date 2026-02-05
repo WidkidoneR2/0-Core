@@ -117,14 +117,14 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     rx -= 15;
     draw_gradient_separator(canvas, width, rx, DIM_COLOR);
     
-    // Volume (CLICKABLE)
+    // Volume (CLICKABLE) - wider region includes separator gap
     rx -= 40;
-    let vol_start = rx;
+    let vol_start = rx - 50;  // Start earlier to catch clicks before text
     let (vol, muted) = get_volume();
     let vol_color = if muted { DIM_COLOR } else { ACCENT_COLOR };
     let vol_text = if muted { "MUT".to_string() } else { format!("{}%", vol) };
     draw_text(&mut cache, canvas, width, &vol_text, rx, 8, vol_color);
-    click_regions.push((vol_start, vol_start + 35, "volume".to_string()));
+    click_regions.push((vol_start, rx + 35, "volume".to_string()));
     
     rx -= 15;
     draw_gradient_separator(canvas, width, rx, DIM_COLOR);
