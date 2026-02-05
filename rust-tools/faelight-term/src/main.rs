@@ -766,12 +766,24 @@ impl App {
             Ok((mut pipe, _mime)) => {
                 let mut buffer = String::new();
                 if let Ok(_) = pipe.read_to_string(&mut buffer) {
-                    // Write to pty and flush immediately
-                    match self.pty.master.write_all(buffer.as_bytes()) {
-                        Ok(_) => {
-                            // Flush to ensure data is sent immediately
-                            let _ = self.pty.master.flush();                        }
-                        Err(e) => eprintln!("⚠️  Paste write failed: {}", e),
+                    // Chunk large pastes to avoid buffer overflow (4KB chunks)
+                    const CHUNK_SIZE: usize = 4096;
+                    let bytes = buffer.as_bytes();
+                    
+                    for chunk in bytes.chunks(CHUNK_SIZE) {
+                        match self.pty.master.write_all(chunk) {
+                            Ok(_) => {
+                                let _ = self.pty.master.flush();
+                                // Small delay for large pastes
+                                if bytes.len() > CHUNK_SIZE {
+                                    std::thread::sleep(std::time::Duration::from_millis(5));
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️  Paste chunk failed: {}", e);
+                                break;
+                            }
+                        }
                     }
                 }
             }
