@@ -6,6 +6,9 @@ mod git_checker;
 mod firmware_checker;
 mod flatpak_checker;
 mod cleanup_checker;
+mod rustup_checker;
+mod npm_checker;
+mod pip_checker;
 mod tui;
 
 use anyhow::{Context, Result};
@@ -193,7 +196,6 @@ fn run() -> Result<()> {
             } else {
                 println!("{}  Update complete! System: {}% (check warnings)", "⚠️".yellow(), health);
             }
-            perform_updates(&all_updates)?;
         } else {
             println!("\n{}  Cancelled", "ℹ️".blue());
         }
@@ -321,6 +323,58 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
 
 
     // Yazi/FM packages (will rename to FM later)
+
+    // Rustup toolchain
+    let rustup_items: Vec<UpdateItem> = rustup_checker::check_rustup_updates()
+        .into_iter()
+        .map(|name| UpdateItem {
+            name,
+            current: "unknown".to_string(),
+            new: "available".to_string(),
+            repository: None,
+        })
+        .collect();
+    categories.push(UpdateCategory {
+        name: "Rust Toolchain".to_string(),
+        emoji: "🦀".to_string(),
+        count: rustup_items.len(),
+        items: rustup_items,
+    });
+
+    // NPM global packages
+    let npm_items: Vec<UpdateItem> = npm_checker::check_npm_updates()
+        .into_iter()
+        .map(|name| UpdateItem {
+            name,
+            current: "unknown".to_string(),
+            new: "available".to_string(),
+            repository: None,
+        })
+        .collect();
+    categories.push(UpdateCategory {
+        name: "NPM Packages".to_string(),
+        emoji: "📦".to_string(),
+        count: npm_items.len(),
+        items: npm_items,
+    });
+
+    // Pip/pipx packages
+    let pip_items: Vec<UpdateItem> = pip_checker::check_pip_updates()
+        .into_iter()
+        .map(|name| UpdateItem {
+            name,
+            current: "unknown".to_string(),
+            new: "available".to_string(),
+            repository: None,
+        })
+        .collect();
+    categories.push(UpdateCategory {
+        name: "Python Packages".to_string(),
+        emoji: "🐍".to_string(),
+        count: pip_items.len(),
+        items: pip_items,
+    });
+
     let yazi_items: Vec<UpdateItem> = yazi_checker::check_yazi_packages()
         .into_iter()
         .map(|name| UpdateItem {
@@ -649,6 +703,18 @@ fn perform_updates(selections: &[(String, Vec<String>)]) -> Result<()> {
             }
             "Cargo Tools" => {
                 update_cargo(items)?;
+            }
+            "Rust Toolchain" => {
+                rustup_checker::update_rustup()?;
+                println!("   ✅  Rust toolchain updated");
+            }
+            "NPM Packages" => {
+                npm_checker::update_npm()?;
+                println!("   ✅  NPM packages updated");
+            }
+            "Python Packages" => {
+                pip_checker::update_pip()?;
+                println!("   ✅  Python packages updated");
             }
             _ => {
                 println!("   {}  Category not implemented yet", "⚠️".yellow());
