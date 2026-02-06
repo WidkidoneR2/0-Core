@@ -30,3 +30,15 @@
 🖱️ Full mouse support in FM
 🎯 Zone clicking working
 ✨ Clean UX with helpful messages
+
+## 5. FM EDITOR ENHANCEMENT
+- [ ] Add FM_EDITOR environment variable support
+- [ ] Default to Helix (`hx`) for FM quick edits
+- [ ] Fallback chain: FM_EDITOR → EDITOR → hx
+- [ ] Test with both Helix and Neovim
+- [ ] Document in FM README
+
+RATIONALE:
+- Helix = fast, clean, Rust-aligned (FM context)
+- Neovim = heavy dev work (terminal context)
+- Best of both worlds approach
