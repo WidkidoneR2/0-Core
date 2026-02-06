@@ -305,6 +305,12 @@ impl AppState {
                 self.exit_search();  // Clear search when navigating
                 self.reload()?;
             }
+        } else {
+            // Zone not configured
+            self.set_message(
+                format!("{} zone not configured yet", zone.short_label()),
+                MessageColor::Warning
+            );
         }
         Ok(())
     }
