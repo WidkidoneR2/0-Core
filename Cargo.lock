@@ -386,11 +386,12 @@ checksum = "f4ad8f11f288f48ca24471bbd51ac257aaeaaa07adae295591266b792902ae64"
 
 [[package]]
 name = "bump-system-version"
-version = "8.0.0"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "chrono",
  "colored",
+ "dirs",
  "faelight-core",
 ]
 

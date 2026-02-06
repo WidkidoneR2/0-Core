@@ -1,21 +1,15 @@
 [package]
 name = "bump-system-version"
-version = "8.0.0"
+version = "9.0.0"
 edition = "2021"
-description = "Joyful 0-Core release automation - celebrating every version! 🎉"
+description = "The LEGENDARY Release Master - Comprehensive system version bumping"
 
 [dependencies]
-# Core infrastructure
-faelight-core = { path = "../faelight-core" }
-
-# Date/time
-chrono = "0.4"
-
-# Joyful colors!
-colored = "2.1"
-
-# Proper error handling
 anyhow = "1.0"
+chrono = "0.4"
+colored = "2.1"
+dirs = "5.0"
+faelight-core = { path = "../faelight-core" }
 
 [[bin]]
 name = "bump-system-version"
