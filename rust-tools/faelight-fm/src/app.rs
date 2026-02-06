@@ -400,8 +400,12 @@ impl AppState {
             crossterm::cursor::Show
         )?;
         
-        // Launch nvim
-        let _status = std::process::Command::new("nvim")
+        // Launch editor (FM_EDITOR → EDITOR → hx)
+        let editor = std::env::var("FM_EDITOR")
+            .or_else(|_| std::env::var("EDITOR"))
+            .unwrap_or_else(|_| "hx".to_string());
+        
+        let _status = std::process::Command::new(&editor)
             .arg(&path)
             .status()?;
         

@@ -120,3 +120,6 @@ export TERM=foot
 export COLORTERM=truecolor
 alias ff='faelight-fetch'
 fpath=(~/.zsh/completions $fpath)
+
+# FM Editor (Helix for quick edits, nvim for coding)
+export FM_EDITOR=nvim
