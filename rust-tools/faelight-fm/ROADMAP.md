@@ -1,6 +1,6 @@
 # 🗺️ Faelight FM Development Roadmap
 
-## Current Status: v0.1.0-beta
+## Current Status: v2.1.0-alpha
 ✅ Navigation working
 ✅ Zone detection basic
 ✅ Color system implemented
