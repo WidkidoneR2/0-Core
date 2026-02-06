@@ -61,6 +61,8 @@ pub struct AppState {
     pub yank_mode: YankMode,
     pub status_message: Option<String>,
     pub message_color: MessageColor,
+    pub file_click_regions: Vec<(u16, u16, usize)>,  // (row, width, file_index)
+    pub zone_click_regions: Vec<(u16, u16, u16, u16, u8)>,  // (x, y, width, height, zone_num)
 }
 
 impl AppState {
@@ -100,6 +102,8 @@ impl AppState {
             yank_mode: YankMode::Copy,
             status_message: None,
             message_color: MessageColor::Success,
+            file_click_regions: Vec::new(),
+            zone_click_regions: Vec::new(),
         };
         
         app.reload()?;
@@ -264,10 +268,17 @@ impl AppState {
     pub fn enter_selected(&mut self) -> Result<()> {
         if let Some(entry) = self.filtered_entries.get(self.selected) {
             if entry.is_dir {
+                // Enter directory
                 self.cwd = entry.path.clone();
                 self.zone = zones::classify(&self.cwd);
-                self.exit_search();  // Clear search when navigating
+                self.exit_search();
                 self.reload()?;
+            } else {
+                // For files, use 'e' key to edit instead
+                self.set_message(
+                    format!("Press 'e' to edit {}", entry.name),
+                    MessageColor::Warning
+                );
             }
         }
         Ok(())
@@ -377,6 +388,7 @@ impl AppState {
         crossterm::terminal::disable_raw_mode()?;
         crossterm::execute!(
             std::io::stdout(),
+            crossterm::event::DisableMouseCapture,
             crossterm::terminal::LeaveAlternateScreen,
             crossterm::cursor::Show
         )?;
@@ -390,6 +402,7 @@ impl AppState {
         crossterm::execute!(
             std::io::stdout(),
             crossterm::terminal::EnterAlternateScreen,
+            crossterm::event::EnableMouseCapture,
             crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
             crossterm::cursor::Hide
         )?;
