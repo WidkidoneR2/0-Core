@@ -86,30 +86,30 @@ alias yy='yazi'
 # 📦 PACKAGE MANAGEMENT (Arch/Pacman/Yay)
 # ═══════════════════════════════════════════════════════════
 # Pacman
-alias pacu='sudo pacman -Syu'
-alias paci='sudo pacman -S'
+alias pacu='paru -Syu'             # Update system
+alias paci='paru -S'               # Install package
 alias pacs='pacman -Ss'
-alias pacr='sudo pacman -R'
+alias pacr='paru -R'               # Remove package
 alias pacrem='sudo pacman -Rns'
 alias pacinfo='pacman -Qi'
 alias paclist='pacman -Qqe'
 
 # Yay
-alias yay='yay --color=auto'
-alias yayu='yay -Syu'
-alias yays='yay -Ss'
-alias yayi='yay -S'
-alias yayr='yay -R'
-alias ins='yay -S'
-alias uns='yay -Rns'
-alias yup='yay -Syu'
+alias yay='paru --color=auto'
+alias yayu='paru -Syu'
+alias yays='paru -Ss'
+alias yayi='paru -S'
+alias yayr='paru -R'
+alias ins='paru -S'                # Install package
+alias uns='paru -Rns'              # Uninstall + remove deps
+alias yup='paru -Syu'
 
 # Maintenance
-alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null || true'
+alias cleanup='paru -Rns $(paru -Qtdq) 2>/dev/null || true'
 alias unlock='sudo rm /var/lib/pacman/db.lck'
 alias orphans='pacman -Qtdq'
 alias mirror='sudo reflector --verbose --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist'
-alias clean-all='yay -Sc && yay -Yc && sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null || true'
+alias clean-all='paru -Sc && paru -Yc'
 alias fix-keys='sudo pacman-key --init && sudo pacman-key --populate && sudo pacman-key --refresh-keys'
 
 # ═══════════════════════════════════════════════════════════
@@ -245,7 +245,6 @@ alias svi='sudo nvim'
 alias nzsh='nvim ~/.config/zsh/.zshrc'
 alias nsway='nvim ~/.config/sway/config'
 alias nbar='nvim ~/0-core/rust-tools/faelight-bar/src/main.rs'
-alias nkitty='nvim ~/.config/kitty/kitty.conf'
 
 # LazyVim
 alias lazyvim-update='nvim --headless "+Lazy! sync" +qa'
@@ -315,7 +314,6 @@ alias ban-list='sudo fail2ban-client status sshd'
 alias keys='bat ~/0-core/docs/KEYBINDINGS.md'
 alias guide='bat ~/0-core/COMPLETE_GUIDE.md'
 alias roadmap='nvim ~/0-core/docs/planning/ROADMAP.md'
-alias ideas='nvim ~/0-core/docs/planning/ROADMAP.md'
 alias planning='cd ~/0-core/docs/planning && ls'
 
 # ═══════════════════════════════════════════════════════════
@@ -340,6 +338,7 @@ alias envrc-status='direnv status'
 # ═══════════════════════════════════════════════════════════
 alias dashboard='faelight-dashboard'
 alias dash='faelight-dashboard'
+alias d='doctor'                    # System health check
 alias snap='faelight-snapshot'
 alias snapshot='faelight-snapshot'
 alias snaplist='faelight-snapshot list'
@@ -467,6 +466,6 @@ alias card='echo "╔═══════════════════�
 # ═══════════════════════════════════════════════════════════
 
 # faelight-update
-alias fu='faelight-update --dry-run'
-alias fui='faelight-update --interactive --dry-run'
-alias fuup='faelight-update --interactive'
+alias fu='faelight-update'           # System update
+alias fui='faelight-update --interactive'  # Interactive update
+alias fuup='faelight-update'        # Quick update
