@@ -1,5 +1,30 @@
 # Changelog
 
+## v9.3.0 - Tools and Automation Upgrade! (2026-02-06)
+
+- Bar health fix - shows accurate 100%
+- FM v2.1.0-alpha - mouse + status polish
+- FM EDITOR support - Helix/Neovim switching
+- README restructured for automation
+- bump-system-version v9.0.0 upgrade
+- Health improved 94% to 100%
+
+**Tools Updated:** bump-system-version, faelight-bar, faelight-fm
+
+**Statistics:**
+- 3 tools upgraded (bar, FM, bump-system-version)
+- System health 94% to 100%
+- 900+ lines of new release automation
+
+- System Health: 100%
+- Commits: 0
+- Files Changed: 21
+
+> From manual updates to legendary automation - the system evolves! 🌲
+
+---
+
+
 ## [9.2.0] - 2026-02-04
 
 ### 🎊 MILESTONE: 100% Path Resilience Achieved!
