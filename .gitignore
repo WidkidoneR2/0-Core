@@ -166,3 +166,7 @@ scripts/
 
 # Build debris and working backups
 backups/
+
+# Stow-created symlinks (should be in stow/ subdirectory)
+03-interfaces/.zshrc
+03-interfaces/.config/
