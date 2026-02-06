@@ -3,7 +3,7 @@
 
 ![Version](https://img.shields.io/badge/version-9.3.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-40/40 tools migrated (100%25)[0m-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25[0m-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
