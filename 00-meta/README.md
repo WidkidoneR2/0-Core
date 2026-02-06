@@ -1,75 +1,59 @@
+<!-- DYNAMIC SECTION - Updated by bump-system-version -->
 # 🌲 Faelight Forest v9.2.0
 
-![Version](https://img.shields.io/badge/Version-v9.2.0-brightgreen)
-![Health](https://img.shields.io/badge/Health-100%25-success)
-![Path Resilience](https://img.shields.io/badge/Path%20Resilience-100%25-blue)
-![Rust](https://img.shields.io/badge/Rust-40%20tools-orange)
-![License](https://img.shields.io/badge/License-Intentional%20Stewardship-purple)
+![Version](https://img.shields.io/badge/version-9.2.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-94%25-green?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
+![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> *A self-aware, path-resilient personal computing environment built from first principles.*
+> **A self-aware, path-resilient personal computing environment built from first principles.**
 
+## 🎊 Latest Release
 
----
-
-## 📋 Recent Changes
-
-### v9.2.0 - 100% Path Resilience! 🎊💎 (2026-02-04)
+### v9.2.0 - 100% Path Resilience! 💎 (2026-02-04)
 
 **THE MILESTONE:** Every single tool (40/40) now uses centralized path management!
 
-- ✅ **10 tools migrated in Session 8**: menu, launcher, notify, dashboard, hooks, fetch, fm, bar, faelight CLI, daemon
-- 🎣 **faelight-hooks v10.0.0**: LEGENDARY upgrade with rustfmt/clippy checks + performance stats
-- 👑 **faelight-fm v2.0.0**: Crown jewel file manager now path-resilient
-- 📊 **faelight-bar v3.0.0**: Status bar your baby is safe
-- 🌲 **faelight v2.0.0**: Main CLI LEGENDARY - enhanced error handling, ecosystem version display
-- 🔌 **faelight-daemon v2.0.0**: Background daemon with systemd integration
-- 💯 **100% System Health**: All 19 checks passing - absolute perfection
-
-**Progress**: 75% → 100% in one epic session!
+- ✅ 10 tools migrated in Session 8
+- 🎣 faelight-hooks v10.0.0: LEGENDARY upgrade
+- 👑 faelight-fm v2.0.0: Crown jewel file manager
+- 📊 faelight-bar v3.0.0: Status bar safe
+- 💯 100% System Health: All 19 checks passing
 
 [Full Changelog →](CHANGELOG.md)
 
-### v9.1.0 - Three Quarters Complete (2026-02-03)
-
-- 75% Path Resilience (30/40 tools)
-- faelight-term v10.1.0: Better than foot
-- System self-awareness deployed
-
-[Details →](CHANGELOG.md#910)
-
-### v9.0.0 - Path Resilience Foundation (2026-02-03)
-
-- MAJOR MILESTONE: 60% Path Resilience
-- 19 health checks (was 15)
-- The Guardian deployed (core-protect)
-
-[Details →](CHANGELOG.md#900)
-
 ---
+<!-- END DYNAMIC SECTION -->
+
+<!-- STATIC SECTION - Comprehensive Documentation -->
 
 ## 🤔 What is 0-Core?
 
-**0-Core** (Zero-Core) is a *completely custom Linux environment* built on vanilla Arch Linux, where every single component is understood, controlled, and intentionally chosen. It's not a dotfiles collection - it's a **personal operating system** built from scratch.
+**0-Core** (Zero-Core) is a completely custom Linux environment built on vanilla Arch Linux, where every single component is understood, controlled, and intentionally chosen. It's not a dotfiles collection - it's a **personal operating system built from scratch**.
 
 ### For Everyday Users
 
-Think of it like this: instead of accepting whatever Ubuntu or Windows gives you, 0-Core is building your *entire computer setup* from the ground up - choosing every tool, every color, every keyboard shortcut. It's like building a custom motorcycle instead of buying one from the dealer - you know every bolt, every wire, every piece.
+Think of it like this: instead of accepting whatever Ubuntu or Windows gives you, 0-Core is building your entire computer setup from the ground up - choosing every tool, every color, every keyboard shortcut. 
+
+It's like **building a custom motorcycle** instead of buying one from the dealer - you know every bolt, every wire, every piece.
 
 **You get:**
-- 🎨 Custom everything (terminal, file manager, bar, launcher, menus)
-- 🔧 40 Rust tools you fully understand
-- 🛡️ Security through comprehension (no mystery packages)
-- ⚡ Lightning fast (because you removed all the bloat)
-- 💎 It's YOURS - you control it completely
+- 🎨 **Custom everything** (terminal, file manager, bar, launcher, menus)
+- 🔧 **40 Rust tools** you fully understand
+- 🛡️ **Security through comprehension** (no mystery packages)
+- ⚡ **Lightning fast** (because you removed all the bloat)
+- 💎 **It's YOURS** - you control it completely
 
 ### For Technical People
 
 A comprehensive computing environment featuring:
-- **Numbered Gravity Architecture**: 00-meta, 01-registry, 02-rules, 03-interfaces, 04-runtime
+
+- **Numbered Gravity Architecture**: `00-meta`, `01-registry`, `02-rules`, `03-interfaces`, `04-runtime`
 - **40 custom Rust tools** with 100% path resilience
 - **Self-aware health monitoring** (19 automated checks)
-- **Intent Ledger** system for architectural decisions
-- **Wayland-native** everything (Sway, custom compositor tools)
+- **Intent Ledger system** for architectural decisions
+- **Wayland-native everything** (Sway, custom compositor tools)
 - **Btrfs snapshots** for fearless experimentation
 - **Git-based governance** with semantic versioning
 
@@ -91,23 +75,27 @@ A comprehensive computing environment featuring:
 ### The Numbered Gravity System
 
 Each directory has a **gravity number** (00-04) that defines its role:
-- **00**: Identity - what the system IS
-- **01**: Registry - what the system KNOWS
-- **02**: Rules - what the system DOES
-- **03**: Interfaces - what the system SHOWS
-- **04**: Runtime - what the system RUNS
 
-This isn't just organization - it's *philosophy made tangible*.
+- **00**: Identity - what the system **IS**
+- **01**: Registry - what the system **KNOWS**
+- **02**: Rules - what the system **DOES**
+- **03**: Interfaces - what the system **SHOWS**
+- **04**: Runtime - what the system **RUNS**
+
+This isn't just organization - it's **philosophy made tangible**.
 
 ---
 
 ## ✨ Key Features
 
 ### 🎯 100% Path Resilience
+
 Every tool uses `faelight-core::paths` - change your directory structure once, everything adapts. No more hardcoded paths, no more broken configs.
 
 ### 🏥 Self-Aware Health Monitoring
-The system monitors itself with 19 automated checks:
+
+The system monitors itself with **19 automated checks**:
+
 - Stow symlinks integrity
 - Service health
 - Git repository status
@@ -120,10 +108,13 @@ The system monitors itself with 19 automated checks:
 Run `doctor` anytime to see your system's health.
 
 ### 🛡️ The Guardian (core-protect)
-Immutable protection for critical system files using `chattr +i`. The system can protect itself from accidental deletion.
+
+Immutable protection for critical system files using `chattr +i`. The system can **protect itself** from accidental deletion.
 
 ### 🎣 Git Hooks (faelight-hooks v10.0.0)
+
 LEGENDARY git workflow with:
+
 - Rustfmt checking
 - Clippy linting
 - Secret scanning (gitleaks)
@@ -131,13 +122,17 @@ LEGENDARY git workflow with:
 - Pre-commit and pre-push protection
 
 ### 📝 Intent Ledger
+
 Every architectural decision documented in markdown:
+
 - Future intents (planned features)
 - Complete intents (implemented designs)
 - Git-trackable decision history
 
 ### 🎨 Theme System
-Faelight Forest theme with:
+
+**Faelight Forest** theme with:
+
 - Consistent colors across all tools
 - Terminal, bar, menus, file manager
 - Easy theming via TOML configs
@@ -147,8 +142,9 @@ Faelight Forest theme with:
 ## 🦀 The Rust Ecosystem (40 Tools)
 
 ### Core Tools
+
 - **faelight**: Main CLI - unified interface to everything
-- **faelight-fm**: File manager (crown jewel, replacing yazi)
+- **faelight-fm**: File manager (crown jewel v2.1.0-alpha)
 - **faelight-term**: Terminal emulator (better than foot)
 - **faelight-bar**: Wayland status bar
 - **faelight-launcher**: Application launcher
@@ -156,6 +152,7 @@ Faelight Forest theme with:
 - **faelight-daemon**: Background operations daemon
 
 ### Development Tools
+
 - **faelight-git**: Git governance & risk scoring
 - **faelight-hooks**: Git workflow automation (rustfmt, clippy, secrets)
 - **intent**: Intent ledger management
@@ -163,6 +160,7 @@ Faelight Forest theme with:
 - **bump-tool-version**: Individual tool versioning
 
 ### System Tools
+
 - **dot-doctor**: Health monitoring (19 checks)
 - **core-protect**: Guardian immutable protection
 - **entropy-check**: Entropy monitoring
@@ -170,50 +168,32 @@ Faelight Forest theme with:
 - **safe-update**: Package updates with snapshots
 
 ### Configuration Tools
+
 - **dotctl**: Dotfile management
 - **faelight-stow**: Stow wrapper
 - **profile**: Profile switching
 - **faelight-zone**: Zone detection (Core, Workspace, Src, etc.)
 
-**[See full tool list →](docs/TOOLS.md)**
-
----
-
-## 🎊 Recent Achievements
-
-### v9.2.0 (100% Path Resilience!) 🎊💎
-- **PERFECTION ACHIEVED**: 40/40 tools using faelight-core::paths
-- 3 LEGENDARY tool upgrades (hooks, CLI, daemon)
-- Crown jewel (file manager) and status bar both safe and enhanced
-- 100% System Health - all checks passing
-- Ready for Linus & Graydon summer 2026! 🐧🦀
-
-### v9.1.0 (Three Quarters Complete) 🎊
-- **75% Path Resilience Achieved!** (30/40 tools)
-- faelight-term v10.1.0: Fixed font baseline - better than foot!
-- System self-awareness: tracks own evolution
-- **THREE QUARTERS COMPLETE** 💎
-
-### v9.0.0 (Path Resilience Foundation) 🎊
-- **MAJOR MILESTONE: 60% Path Resilience Achieved!**
-- 19 health checks with self-aware tracking
-- The Guardian deployed (core-protect v2.0.0)
-- **THE SYSTEM WATCHES ITSELF EVOLVE** 💎
+[See full tool list →](docs/TOOLS.md)
 
 ---
 
 ## 🧭 Philosophy
 
 ### "We Control Our Tools"
-Every tool is either written by us or fully understood. No mystery packages. No hidden behaviors. Complete intentional stewardship.
+
+Every tool is either written by us or fully understood. No mystery packages. No hidden behaviors. **Complete intentional stewardship**.
 
 ### "Fail Loudly"
+
 Errors are explicit, informative, and guide you to solutions. No silent failures, no cryptic messages.
 
 ### "Human Comprehension First"
-Readable code, clear documentation, thoughtful naming. If you can't explain it, you don't understand it.
+
+Readable code, clear documentation, thoughtful naming. **If you can't explain it, you don't understand it**.
 
 ### "Manual Over Automation"
+
 Automation serves comprehension, not convenience. Every automated process can be understood and overridden.
 
 ---
@@ -240,13 +220,15 @@ faelight profile switch work
 
 ## 📊 System Statistics
 
-- **Total Rust Tools**: 40
-- **Path Resilience**: 100% (40/40 tools)
-- **System Health**: 100% (19/19 checks passing)
-- **Lines of Rust**: ~50,000+
-- **Health Checks**: 19 automated
-- **Documented Intents**: [See INTENT/ directory]
-- **Packages**: Explicitly tracked in packages/pkglist.txt
+| Metric | Value |
+|--------|-------|
+| Total Rust Tools | 40 |
+| Path Resilience | 100% (40/40 tools) |
+| System Health | 94% (18/19 checks passing) |
+| Lines of Rust | ~50,000+ |
+| Health Checks | 19 automated |
+| Documented Intents | See INTENT/ directory |
+| Packages | Explicitly tracked in packages/pkglist.txt |
 
 ---
 
@@ -268,15 +250,17 @@ faelight-hooks
 ```
 
 ### Adding a New Tool
+
 1. Create tool in `rust-tools/`
-2. Add to workspace Cargo.toml
+2. Add to workspace `Cargo.toml`
 3. Use `faelight-core::paths` for all paths
-4. Add health check in dot-doctor if critical
+4. Add health check in `dot-doctor` if critical
 5. Document in Intent Ledger
 6. Add to this README
 
 ### Path Resilience
-All tools MUST use `faelight-core::paths`:
+
+All tools **MUST** use `faelight-core::paths`:
 ```rust
 use faelight_core::paths;
 
@@ -284,7 +268,7 @@ let config = paths::faelight_config_dir();
 let core = paths::core_dir();
 ```
 
-Never use hardcoded paths or `env::var("HOME")`.
+**Never** use hardcoded paths or `env::var("HOME")`.
 
 ---
 
@@ -300,23 +284,23 @@ Never use hardcoded paths or `env::var("HOME")`.
 
 ## 🌲 The Journey
 
-**Started**: Late 2024 - "extremely new to Linux"  
-**v8.9.0**: Intensive debugging, system hardening  
-**v9.0.0**: 60% Path Resilience - Foundation laid  
-**v9.1.0**: 75% Path Resilience - Three quarters complete  
-**v9.2.0**: 100% Path Resilience - **PERFECTION ACHIEVED** 💎
+- **Started**: Late 2024 - "extremely new to Linux"
+- **v8.9.0**: Intensive debugging, system hardening
+- **v9.0.0**: 60% Path Resilience - Foundation laid
+- **v9.1.0**: 75% Path Resilience - Three quarters complete
+- **v9.2.0**: 100% Path Resilience - **PERFECTION ACHIEVED** 💎
 
 From hardcoded paths to centralized elegance.  
 From mystery packages to complete comprehension.  
 From "new to Linux" to presenting to legends.
 
-
 ---
 
 ## 📝 License
 
-Intentional Stewardship - This is a personal computing environment, not a product.  
-Feel free to learn from it, but build your own. That's the whole point.
+**Intentional Stewardship** - This is a personal computing environment, not a product.
+
+Feel free to learn from it, but **build your own**. That's the whole point.
 
 ---
 
@@ -331,5 +315,5 @@ Feel free to learn from it, but build your own. That's the whole point.
 
 **System Version**: v9.2.0  
 **Last Updated**: 2026-02-04  
-**Health**: 100% ✅  
+**Health**: 94% ✅  
 **Path Resilience**: 100% 💎
