@@ -1,4 +1,4 @@
-# 🌲 Faelight FM v1.0.0
+# 🌲 Faelight FM v2.1.0-alpha
 **Semantic File Manager for Faelight Forest**
 
 ![Production Ready](https://img.shields.io/badge/status-production-brightgreen)

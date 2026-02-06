@@ -302,7 +302,8 @@ impl AppState {
             if path.exists() {
                 self.cwd = path.clone();
                 self.zone = zone;
-                self.exit_search();  // Clear search when navigating
+                self.exit_search();
+                self.clear_message();  // Clear any previous warning
                 self.reload()?;
             }
         } else {
