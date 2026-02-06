@@ -3,8 +3,8 @@ use ratatui::widgets::{Block, Borders, List, ListItem, Widget};
 use crate::app::AppState;
 use super::colors::FaelightColors;
 use faelight_fm::git::GitStatus;
-
-pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
+pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, usize)> {
+    let mut file_regions = Vec::new();
     let items: Vec<ListItem> = app
         .filtered_entries
         .iter()
@@ -83,4 +83,18 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         );
     
     Widget::render(list, area, buf);
+
+    // Calculate click regions based on rendered area
+    // Files start at area.y + 1 (after border), one per row
+    let start_y = area.y + 1;  // After top border
+    let visible_count = (area.height - 2).min(app.filtered_entries.len() as u16);  // -2 for borders
+    
+    for i in 0..visible_count as usize {
+        if i < app.filtered_entries.len() {
+            file_regions.push((start_y + i as u16, area.width, i));
+        }
+    }
+    
+    // Return click regions (row, width, file_index)
+    file_regions
 }
