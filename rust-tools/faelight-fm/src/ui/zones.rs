@@ -3,7 +3,7 @@ use ratatui::widgets::{Block, Borders, List, ListItem, Widget};
 use faelight_zone::Zone;
 use super::colors::FaelightColors;
 
-pub fn render(area: Rect, buf: &mut Buffer, current_zone: Zone) {
+pub fn render(area: Rect, buf: &mut Buffer, current_zone: Zone) -> Vec<(u16, u16, u16, u16, u8)> {
     let zones = [
         Zone::Core,
         Zone::Workspace,
@@ -43,4 +43,21 @@ pub fn render(area: Rect, buf: &mut Buffer, current_zone: Zone) {
         );
     
     Widget::render(list, area, buf);
+    
+    // Calculate click regions for each zone (x, y, width, height, zone_num)
+    let mut zone_regions = Vec::new();
+    let start_y = area.y + 1;  // After top border
+    let zone_height = 1;  // Each zone is one row
+    
+    for i in 0..6 {  // 6 zones
+        zone_regions.push((
+            area.x,           // x
+            start_y + i,      // y
+            area.width,       // width
+            zone_height,      // height
+            i as u8,          // zone number 0-5
+        ));
+    }
+    
+    zone_regions
 }

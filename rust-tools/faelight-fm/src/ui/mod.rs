@@ -32,15 +32,14 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
         frame.render_widget(path_paragraph, path_area);
     }
     
-    // Zones panel
-    zones::render(zones_area, frame.buffer_mut(), app.zone);
+    // Zones panel - capture click regions
+    let zone_regions = zones::render(zones_area, frame.buffer_mut(), app.zone);
+    app.zone_click_regions = zone_regions;
     
     // File list (filtered) - capture and store click regions
     let file_regions = filelist::render(filelist_area, frame.buffer_mut(), app);
     app.file_click_regions = file_regions;
     
-    // TODO: Capture zone click regions from zones::render
-    app.zone_click_regions.clear();
     
     // Status bar
     status::render(status_area, frame.buffer_mut(), app);

@@ -42,15 +42,18 @@ fn handle_left_click(app: &mut AppState, x: u16, y: u16) -> Result<()> {
         }
     };
     
+    // CHECK ZONES FIRST (priority over files)
+    if let Some(zone) = find_clicked_zone(app, x, y) {
+        app.jump_to_zone(zone)?;
+        return Ok(());
+    }
+    
+    // Then check files
     if is_double_click {
         app.enter_selected()?;
     } else {
         if let Some(file_idx) = find_clicked_file(app, x, y) {
             app.selected = file_idx;
-        }
-        
-        if let Some(zone) = find_clicked_zone(app, x, y) {
-            app.jump_to_zone(zone)?;
         }
     }
     
