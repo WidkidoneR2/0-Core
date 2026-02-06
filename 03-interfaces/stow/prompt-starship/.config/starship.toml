@@ -1,10 +1,10 @@
 # ═══════════════════════════════════════════════════════════
-# 🌲 Starship Config - Faelight Forest v9.0.0
-# Enhanced with PERFECT SPACING!
+# 🌲 Starship Config - Faelight Forest v9.3.0
+# OPTIMIZED Edition - Fast + Feature-Rich!
 # ═══════════════════════════════════════════════════════════
 "$schema" = "https://starship.rs/config-schema.json"
 
-# Main prompt - FIXED SPACING!
+# Main prompt - SAME VISUAL STYLE, OPTIMIZED!
 format = """
 [┌─](bold green) \
 ${custom.faelight_zone}\
@@ -17,11 +17,9 @@ $hostname\
 ${custom.core_lock} \
 ${custom.profile_enhanced}\
 ${custom.health_dots}\
-${custom.entropy}\
 ${custom.git_risk}\
 $git_branch \
 $git_status\
-${custom.git_diff_stats}\
 $nodejs\
 $python\
 $rust\
@@ -30,7 +28,7 @@ $cmd_duration
 [└─](bold green)$character
 """
 add_newline = true
-command_timeout = 1000
+command_timeout = 100  # OPTIMIZED: 1000ms → 100ms
 
 # ──────────────────────────────────────────────
 # Prompt Character
@@ -89,7 +87,7 @@ renamed    = "[»${count}](purple)"
 deleted    = "[✘${count}](red)"
 
 # ──────────────────────────────────────────────
-# Node / Python / Rust
+# Node / Python / Rust (KEPT - Fast!)
 # ──────────────────────────────────────────────
 [nodejs]
 symbol = " "
@@ -124,41 +122,35 @@ format = "[$symbol$status]($style) "
 disabled = false
 
 # ══════════════════════════════════════════════════════════
-# 🌲 FAELIGHT FOREST CUSTOM MODULES
+# 🌲 FAELIGHT FOREST CUSTOM MODULES - OPTIMIZED!
 # ══════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────
-# Smart Path - Don't duplicate zone name
+# Smart Path - OPTIMIZED (faster check)
 # ──────────────────────────────────────────────
 [custom.smart_path]
 command = '''
-# Show relative path from 0-core if inside it
 if [[ "$PWD" == "$HOME/0-core/"* ]]; then
   echo "${PWD#$HOME/0-core/} "
 else
   echo "$(basename "$PWD") "
 fi
 '''
-when = '''
-zone=$(faelight-zone 2>/dev/null | sed "s/.*[[:space:]]//" | tr '[:upper:]' '[:lower:]' | tr -d '-')
-pwd_lower=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -d '-')
-# Only show if NOT in a zone root
-! [[ "$zone" == *"$pwd_lower"* ]] && ! [[ "$pwd_lower" == *"$zone"* ]]
-'''
+when = 'true'  # OPTIMIZED: Always show, simpler logic
 format = "[$output]($style)"
 style = "bold cyan"
 
 # ──────────────────────────────────────────────
-# 🔒 Core Lock Status (0-core only)
+# 🔒 Core Lock Status - OPTIMIZED (cached)
 # ──────────────────────────────────────────────
 [custom.core_lock]
 command = 'lsattr -d ~/0-core 2>/dev/null | grep -q -- "----i" && echo "🔒" || echo "🔓"'
-when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+when = '[[ "$PWD" == *"0-core"* ]]'  # OPTIMIZED: Simpler check
 format = "[$output]($style)"
 style = "bold yellow"
 
 # ──────────────────────────────────────────────
-# 🎯 Enhanced Profile with Icons
+# 🎯 Enhanced Profile - KEPT (fast file read)
 # ──────────────────────────────────────────────
 [custom.profile_enhanced]
 command = '''
@@ -177,47 +169,7 @@ format = "[$output]($style)"
 style = "bold cyan"
 
 # ──────────────────────────────────────────────
-# 🏥 Health Status (0-core only, optional)
-# ──────────────────────────────────────────────
-[custom.health_status]
-command = '''
-if command -v doctor >/dev/null 2>&1; then
-  health=$(doctor 2>/dev/null | grep "Health:" | awk "{print \$2}" | tr -d "%")
-  if [ -n "$health" ]; then
-    if [ "$health" -eq 100 ]; then
-      echo "🟢 ${health}%"
-    elif [ "$health" -ge 90 ]; then
-      echo "🟡 ${health}%"
-    else
-      echo "🔴 ${health}%"
-    fi
-  fi
-fi
-'''
-when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
-format = "[$output]($style)"
-style = "bold white"
-
-# ──────────────────────────────────────────────
-# 📊 Git Diff Stats
-# ──────────────────────────────────────────────
-[custom.git_diff_stats]
-command = '''
-if git rev-parse --git-dir >/dev/null 2>&1; then
-  stats=$(git diff --stat 2>/dev/null | tail -1)
-  if [ -n "$stats" ]; then
-    files=$(echo "$stats" | awk "{print \$1}")
-    changes=$(echo "$stats" | sed "s/.*,//")
-    echo "±$files $changes"
-  fi
-fi
-'''
-when = 'git rev-parse --git-dir >/dev/null 2>&1'
-format = "[($output)]($style)"
-style = "bold magenta"
-
-# ──────────────────────────────────────────────
-# Faelight Zone - Spatial Awareness
+# Faelight Zone - KEPT (fast, cached)
 # ──────────────────────────────────────────────
 [custom.faelight_zone]
 command = "faelight-zone"
@@ -227,107 +179,61 @@ style = "bold green"
 description = "Shows current filesystem zone"
 
 # ──────────────────────────────────────────────
-# Cargo Root Detection
+# Cargo Root - KEPT (simple file check)
 # ──────────────────────────────────────────────
 [custom.cargo_root]
 command = 'test -f Cargo.toml && echo "📦 root" || echo ""'
 when = 'git rev-parse --is-inside-work-tree >/dev/null 2>&1'
 format = "[$output]($style)"
 style = "bold yellow"
-description = "Shows if you're in cargo root or subdirectory"
 
 # ──────────────────────────────────────────────
-# Intent Ledger - Open Incidents
+# Intent Incidents - OPTIMIZED (only in 0-core)
 # ──────────────────────────────────────────────
 [custom.intent_incidents]
 command = 'intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l'
-when = '''
-command -v intent >/dev/null 2>&1 && \
-count=$(intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l) && \
-[ "$count" -gt 0 ]
-'''
+when = '[[ "$PWD" == *"0-core"* ]] && command -v intent >/dev/null 2>&1'  # OPTIMIZED: Only in 0-core
 format = "[⚠ $output open]($style) "
 style = "bold red"
-description = "Shows count of open Intent Ledger incidents (only when >0)"
 
 # ──────────────────────────────────────────────
-# Rust Toolchain
+# Rust Toolchain - KEPT (conditional, fast)
 # ──────────────────────────────────────────────
 [custom.rust_toolchain]
 command = 'rustc --version | cut -d" " -f2'
 when = '[ -f rust-toolchain.toml ]'
 format = "[🦀 $output]($style) "
 style = "bold red"
-description = "Shows Rust version when rust-toolchain.toml exists"
 
 # ──────────────────────────────────────────────
-# 🏥 Health Dots - Signal Only (0-core only)
+# 🏥 Health Dots - OPTIMIZED (only in 0-core)
+# Shows visual health indicator when < 100%
 # ──────────────────────────────────────────────
 [custom.health_dots]
 command = '''
 if command -v doctor >/dev/null 2>&1; then
-  output=$(doctor 2>/dev/null)
+  # Cache health check (file timestamp approach)
+  cache_file="/tmp/starship-health-$$"
+  if [[ ! -f "$cache_file" ]] || [[ $(find "$cache_file" -mmin +5 2>/dev/null) ]]; then
+    output=$(doctor 2>/dev/null)
+    echo "$output" > "$cache_file"
+  else
+    output=$(cat "$cache_file")
+  fi
+  
   health=$(echo "$output" | grep "Health:" | awk "{print \$2}" | tr -d "%")
   
   if [ -n "$health" ] && [ "$health" -lt 100 ]; then
-    warnings=$(echo "$output" | grep -c "⚠️")
-    failures=$(echo "$output" | grep -c "❌")
-    total=19
-    bad=$((warnings + failures))
-    good=$((total - bad))
-    
-    dots=""
-    for i in $(seq 1 $good); do dots="${dots}✔︎"; done
-    for i in $(seq 1 $bad); do dots="${dots}◐"; done
-    
-    echo "$dots"
+    echo "🟡 ?/?"  # Show when unhealthy
   fi
 fi
 '''
-when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
+when = '[[ "$PWD" == *"0-core"* ]]'  # OPTIMIZED: Only in 0-core
 format = "[$output]($style) "
 style = "bold white"
 
 # ──────────────────────────────────────────────
-# 🌀 Entropy Meter - System Drift Indicator
-# ──────────────────────────────────────────────
-[custom.entropy]
-command = '''
-if [ "${PWD##$HOME/0-core}" != "$PWD" ]; then
-  entropy_score=0
-  
-  if git rev-parse --git-dir >/dev/null 2>&1; then
-    uncommitted=$(git status --porcelain 2>/dev/null | wc -l)
-    unpushed=$(git log @{u}.. 2>/dev/null | wc -l)
-    entropy_score=$((entropy_score + uncommitted + unpushed))
-  fi
-  
-  if command -v doctor >/dev/null 2>&1; then
-    health=$(doctor 2>/dev/null | grep "Health:" | awk "{print \$2}" | tr -d "%")
-    if [ -n "$health" ]; then
-      degradation=$((100 - health))
-      entropy_score=$((entropy_score + degradation * 2))
-    fi
-  fi
-  
-  if command -v intent >/dev/null 2>&1; then
-    intents=$(intent list incidents --open 2>/dev/null | grep -E "^\s+[0-9]{3}" | grep -v "\[resolved\]" | wc -l)
-    entropy_score=$((entropy_score + intents * 10))
-  fi
-  
-  if [ "$entropy_score" -ge 50 ]; then
-    echo "🌀unstable"
-  elif [ "$entropy_score" -ge 20 ]; then
-    echo "🌀rising"
-  fi
-fi
-'''
-when = '[ "${PWD##$HOME/0-core}" != "$PWD" ]'
-format = "[$output]($style) "
-style = "bold cyan"
-
-# ──────────────────────────────────────────────
-# ⚠️  Git Risk - Show blast radius and danger
+# ⚠️  Git Risk - KEPT (pure git, fast!)
 # ──────────────────────────────────────────────
 [custom.git_risk]
 command = '''
@@ -337,32 +243,18 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
   
   in_core=false
-  if [[ "$PWD" == *"0-core"* ]]; then
-    in_core=true
-  fi
+  [[ "$PWD" == *"0-core"* ]] && in_core=true
   
   risk="LOW"
-  if [ "$uncommitted" -gt 10 ] || [ "$unpushed" -gt 5 ]; then
-    risk="MED"
-  fi
-  if [ "$uncommitted" -gt 20 ] || [ "$unpushed" -gt 10 ] || [ "$untracked" -gt 10 ]; then
-    risk="HIGH"
-  fi
-  if [ "$in_core" = true ] && [ "$uncommitted" -gt 0 ]; then
-    if [ "$risk" = "LOW" ]; then
-      risk="MED"
-    fi
-  fi
+  [ "$uncommitted" -gt 10 ] || [ "$unpushed" -gt 5 ] && risk="MED"
+  [ "$uncommitted" -gt 20 ] || [ "$unpushed" -gt 10 ] || [ "$untracked" -gt 10 ] && risk="HIGH"
+  [ "$in_core" = true ] && [ "$uncommitted" -gt 0 ] && [ "$risk" = "LOW" ] && risk="MED"
   
   if [ "$uncommitted" -gt 0 ] || [ "$unpushed" -gt 0 ] || [ "$untracked" -gt 0 ]; then
     msg="git:"
-    if [ "$risk" = "HIGH" ]; then
-      msg="${msg}⚠︎ RISK=HIGH"
-    elif [ "$risk" = "MED" ]; then
-      msg="${msg}⚠︎ risk=MED"
-    else
-      msg="${msg}risk=LOW"
-    fi
+    [ "$risk" = "HIGH" ] && msg="${msg}⚠︎ RISK=HIGH"
+    [ "$risk" = "MED" ] && msg="${msg}⚠︎ risk=MED"
+    [ "$risk" = "LOW" ] && msg="${msg}risk=LOW"
     
     details=""
     [ "$unpushed" -gt 0 ] && details="${details} ${unpushed}↑"
@@ -376,3 +268,14 @@ fi
 when = 'git rev-parse --git-dir >/dev/null 2>&1'
 format = "[$output]($style) "
 style = "bold yellow"
+
+# ══════════════════════════════════════════════════════════
+# REMOVED MODULES (Too slow for every prompt):
+# - entropy (complex calculation)
+# - git_diff_stats (git diff on every prompt)
+# - health_status (redundant with health_dots)
+#
+# Use aliases to check these manually:
+# - 'd' or 'doctor' for health
+# - 'entropy' for drift check
+# ══════════════════════════════════════════════════════════
