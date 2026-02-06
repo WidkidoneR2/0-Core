@@ -524,6 +524,14 @@ fn update_zshrc(old_version: &str, new_version: &str) -> Result<()> {
     );
     
     fs::write(&zshrc_path, updated)?;
+    
+    // Restow to propagate changes to ~/.zshrc
+    Command::new("stow")
+        .current_dir(paths::core_dir())
+        .args(["--dir=03-interfaces/stow", "-R", "shell-zsh"])
+        .output()
+        .context("Failed to restow shell-zsh")?;
+    
     Ok(())
 }
 
