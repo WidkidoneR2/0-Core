@@ -1,9 +1,9 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v9.2.0
+# 🌲 Faelight Forest v9.3.0
 
-![Version](https://img.shields.io/badge/version-9.2.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-94%25-green?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-9.3.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25[0m-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
@@ -11,15 +11,18 @@
 
 ## 🎊 Latest Release
 
-### v9.2.0 - 100% Path Resilience! 💎 (2026-02-04)
+### v9.3.0 - Tools and Automation Upgrade! (2026-02-06)
 
-**THE MILESTONE:** Every single tool (40/40) now uses centralized path management!
+- Bar health fix - shows accurate 100%
+- FM v2.1.0-alpha - mouse + status polish
+- FM EDITOR support - Helix/Neovim switching
+- README restructured for automation
+- bump-system-version v9.0.0 upgrade
+- Health improved 94% to 100%
 
-- ✅ 10 tools migrated in Session 8
-- 🎣 faelight-hooks v10.0.0: LEGENDARY upgrade
-- 👑 faelight-fm v2.0.0: Crown jewel file manager
-- 📊 faelight-bar v3.0.0: Status bar safe
-- 💯 100% System Health: All 19 checks passing
+- 3 tools upgraded (bar, FM, bump-system-version)
+- System health 94% to 100%
+- 900+ lines of new release automation
 
 [Full Changelog →](CHANGELOG.md)
 
@@ -68,7 +71,7 @@ A comprehensive computing environment featuring:
 ├── 03-interfaces/    # Dotfiles (Sway, zsh, foot, yazi) via GNU Stow
 ├── 04-runtime/       # Systemd services, active state
 ├── rust-tools/       # 40 custom Rust tools (the heart!)
-├── intent/           # Architectural decision records
+├── INTENT/           # Architectural decision records
 └── packages/         # Explicit package lists
 ```
 
@@ -227,7 +230,7 @@ faelight profile switch work
 | System Health | 94% (18/19 checks passing) |
 | Lines of Rust | ~50,000+ |
 | Health Checks | 19 automated |
-| Documented Intents | See intent/ directory |
+| Documented Intents | See INTENT/ directory |
 | Packages | Explicitly tracked in packages/pkglist.txt |
 
 ---
@@ -276,7 +279,7 @@ let core = paths::core_dir();
 
 - [Architecture](docs/ARCHITECTURE.md) - System design principles
 - [Tools Guide](docs/TOOLS.md) - Complete tool documentation
-- [Intent Ledger](intent/) - Architectural decisions
+- [Intent Ledger](INTENT/) - Architectural decisions
 - [Changelog](CHANGELOG.md) - Version history
 - [Philosophy](docs/PHILOSOPHY.md) - Core principles
 
@@ -313,7 +316,7 @@ Feel free to learn from it, but **build your own**. That's the whole point.
 
 ---
 
-**System Version**: v9.2.0  
-**Last Updated**: 2026-02-04  
-**Health**: 94% ✅  
+**System Version**: v9.3.0  
+**Last Updated**: 2026-02-06  
+**Health**: 100% ✅  
 **Path Resilience**: 100% 💎
