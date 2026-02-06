@@ -324,23 +324,30 @@ fn get_health() -> u8 {
     let mut cache = HEALTH_CACHE.lock().unwrap();
     let (cached_health, last_check) = *cache;
     
-    // Return cached value if fresh
     if last_check.elapsed() < CACHE_DURATION {
         return cached_health;
     }
     
-    // Call doctor and update cache
     let health = match Command::new(crate::paths::doctor_path()).output() {
         Ok(out) if out.status.success() => {
-            let stdout = String::from_utf8_lossy(&out.stdout);            for line in stdout.lines() {
-                if line.contains("Health:") {                    if let Some(after_health) = line.split("Health:").nth(1) {                        let cleaned = after_health.trim().trim_end_matches('%').trim();                        if let Ok(h) = cleaned.parse::<u8>() {                            *cache = (h, Instant::now());
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            
+            for line in stdout.lines() {
+                if line.contains("Health:") {
+                    if let Some(after_health) = line.split("Health:").nth(1) {
+                        let cleaned = after_health.trim().trim_end_matches('%').trim();
+                        if let Ok(h) = cleaned.parse::<u8>() {
+                            *cache = (h, Instant::now());
                             return h;
-                        } else {                        }
+                        } else {
+                        }
                     }
                 }
-            }            50
+            }
+            50
         }
-        _ => {            50
+        _ => {
+            50
         }
     };
     
