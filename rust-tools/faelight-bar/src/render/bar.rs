@@ -17,6 +17,8 @@ const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const ICON_LOCKED: &str = "󰌾";
 const ICON_UNLOCKED: &str = "󰌿";
 const ICON_LAUNCHER: &str = "▶";
+const ICON_INTENTS: &str = "";
+const ICON_UPDATES: &str = "";
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 lazy_static::lazy_static! {
@@ -74,16 +76,19 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     x_pos += 15;
     
     // Health
-    let health = get_health();
-    let health_color = if health >= 80 {
-        ACCENT_COLOR
-    } else if health >= 50 {
-        AMBER_COLOR
-    } else {
-        RED_COLOR
-    };
-    let health_text = format!("● {}%", health);
-    draw_text(&mut cache, canvas, width, &health_text, x_pos, 8, health_color);
+    // Intent tracking
+    let intents = get_intent_count();
+    let intent_text = format!(" {}", intents);
+    draw_text(&mut cache, canvas, width, &intent_text, x_pos, 8, ACCENT_COLOR);
+    x_pos += 60;
+    
+    draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
+    x_pos += 15;
+    
+    // Update counter
+    let updates = get_update_count();
+    let update_text = format!(" {}", updates);
+    draw_text(&mut cache, canvas, width, &update_text, x_pos, 8, BLUE_COLOR);
     x_pos += 60;
     
     // Lock status
@@ -456,4 +461,45 @@ fn get_active_window() -> String {
         }
     }
     String::new()
+}
+
+fn get_intent_count() -> String {
+    let output = Command::new("intent")
+        .arg("list")
+        .arg("--active")
+        .output();
+    
+    if let Ok(out) = output {
+        let content = String::from_utf8_lossy(&out.stdout);
+        let count = content.lines()
+            .filter(|line| line.contains("[in-progress]"))
+            .count();
+        
+        if count > 0 {
+            format!("{}", count)
+        } else {
+            "✓".to_string()
+        }
+    } else {
+        "?".to_string()
+    }
+}
+
+fn get_update_count() -> String {
+    let output = Command::new("checkupdates")
+        .output();
+    
+    if let Ok(out) = output {
+        let count = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .count();
+        
+        if count > 0 {
+            format!("{}", count)
+        } else {
+            "✓".to_string()
+        }
+    } else {
+        "?".to_string()
+    }
 }
