@@ -1,6 +1,23 @@
+---
+id: 076
+date: 2026-02-02
+type: future
+title: "Path Resilience Audit - Systematic Tool Migration"
+status: in-progress
+tags: [paths, migration, infrastructure, numbered-gravity]
+progress: 20%
+started: 2026-02-06
+---
+
 # Intent 076: Path Resilience Audit - ACTIVE 🚀
+
 **Status:** in-progress (20% complete!)  
 **Started:** 2026-02-02  
+**Target:** March 2026
+
+## Problem
+After numbered gravity restructuring, we fixed paths reactively as tools crashed. This creates technical debt and potential failures. We need a systematic audit of all 40 tools to ensure path resilience.
+
 **Target:** March 2026
 
 ## Problem

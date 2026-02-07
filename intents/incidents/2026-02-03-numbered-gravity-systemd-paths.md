@@ -1,4 +1,15 @@
+---
+id: 2026-02-03-systemd
+date: 2026-02-03
+type: incident
+title: "Numbered Gravity Breaking systemd Service Paths"
+status: resolved
+severity: high
+tags: [systemd, numbered-gravity, daemon]
+---
+
 # Incident: Numbered Gravity Breaking systemd Service Paths
+
 
 ## Date: 2026-02-03
 ## Severity: HIGH (blocked shutdown)

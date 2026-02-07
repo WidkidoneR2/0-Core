@@ -1,3 +1,13 @@
+---
+id: 2026-02-03-shutdown
+date: 2026-02-03
+type: incident
+title: "Shutdown Broken - Numbered Gravity Migration"
+status: resolved
+severity: critical
+tags: [shutdown, systemd, numbered-gravity]
+---
+
 # Incident: System Shutdown Broken After Numbered Gravity
 
 **Date:** 2026-02-02  

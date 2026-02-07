@@ -1,5 +1,13 @@
 ---
 id: 075
+date: 2026-01-28
+type: future
+title: "Hybrid Bar/Dmenu - The Wayland Solution"
+status: planned
+tags: [wayland, bar, dmenu, research, v8.0]
+---
+
+id: 075
 title: "Hybrid Bar/Dmenu - The Wayland Solution"
 status: research
 created: 2026-01-27

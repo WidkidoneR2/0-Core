@@ -10,6 +10,7 @@ faelight-core = { path = "../faelight-core" }
 
 # Date/time
 chrono = "0.4"
+serde_yaml = "0.9"
 
 # Joyful colors
 colored = "2.1"
