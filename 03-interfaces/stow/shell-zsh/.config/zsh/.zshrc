@@ -701,7 +701,7 @@ if [[ -o interactive ]]; then
             echo ""
         fi
     fi
-    echo "This is my Happy Place!!!"
+    echo "This is the way. 🚀"
     echo ""
     echo "💡 Quick: doctor | health | intent list | keys"
     echo ""
