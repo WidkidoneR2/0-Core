@@ -130,7 +130,7 @@ else
 fi
 '''
 when = 'true'  # OPTIMIZED: Always show, simpler logic
-format = "[$output]($style)"
+format = "[$output ]($style)"
 style = "bold cyan"
 
 # ──────────────────────────────────────────────
@@ -139,7 +139,7 @@ style = "bold cyan"
 [custom.core_lock]
 command = 'lsattr -d ~/0-core 2>/dev/null | grep -q -- "----i" && echo "🔒" || echo "🔓"'
 when = '[[ "$PWD" == *"0-core"* ]]'  # OPTIMIZED: Simpler check
-format = "[$output]($style)"
+format = "[$output ]($style)"
 style = "bold yellow"
 
 # ──────────────────────────────────────────────
@@ -158,7 +158,7 @@ case "$profile" in
 esac
 '''
 when = '[[ -f ~/.local/state/0-core/current-profile ]] && [[ "$(cat ~/.local/state/0-core/current-profile)" != "default" ]]'
-format = "[$output]($style)"
+format = "[$output ]($style)"
 style = "bold cyan"
 
 # ──────────────────────────────────────────────
@@ -167,7 +167,7 @@ style = "bold cyan"
 [custom.faelight_zone]
 command = "faelight-zone"
 when = "true"
-format = "[$output]($style) "
+format = "[$output ]($style) "
 style = "bold green"
 description = "Shows current filesystem zone"
 
@@ -177,7 +177,7 @@ description = "Shows current filesystem zone"
 [custom.cargo_root]
 command = 'test -f Cargo.toml && echo "📦 root" || echo ""'
 when = 'git rev-parse --is-inside-work-tree >/dev/null 2>&1'
-format = "[$output]($style)"
+format = "[$output ]($style)"
 style = "bold yellow"
 
 # ──────────────────────────────────────────────
@@ -236,7 +236,7 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 '''
 when = 'git rev-parse --git-dir >/dev/null 2>&1'
-format = "[$output]($style) "
+format = "[$output ]($style) "
 style = "bold yellow"
 
 # ══════════════════════════════════════════════════════════
@@ -256,8 +256,9 @@ style = "bold yellow"
 
 
 
+
 [custom.health_dot]
-command = 'echo "🟡"'
+command = '/home/christian/0-core/scripts/prompt-health-dot'
 when = 'true'
 format = '[$output ]($style)'
 style = 'bold'
