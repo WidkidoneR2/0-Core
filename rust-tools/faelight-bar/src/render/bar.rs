@@ -16,7 +16,6 @@ const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 
 const ICON_LOCKED: &str = "󰌾";
 const ICON_UNLOCKED: &str = "󰌿";
-const ICON_LAUNCHER: &str = "▶";
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 lazy_static::lazy_static! {
@@ -76,18 +75,18 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     // Health
     // Intent tracking
     let intents = get_intent_count();
-    let intent_text = format!(" {}", intents);
+    let intent_text = if intents != "0" { format!("WIP {}", intents) } else { String::new() };
     draw_text(&mut cache, canvas, width, &intent_text, x_pos, 8, ACCENT_COLOR);
-    x_pos += 60;
+    x_pos += 35;
     
     draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
     x_pos += 15;
     
     // Update counter
     let updates = get_update_count();
-    let update_text = format!(" {}", updates);
-    draw_text(&mut cache, canvas, width, &update_text, x_pos, 8, BLUE_COLOR);
-    x_pos += 60;
+    let update_text = updates;
+    draw_text(&mut cache, canvas, width, &update_text, x_pos, 8, TEXT_COLOR);
+    x_pos += 30;
     
     // Lock status
     let locked = is_core_locked();
@@ -96,11 +95,6 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     draw_text(&mut cache, canvas, width, lock_icon, x_pos, 8, lock_color);
     x_pos += 25;
     
-    // Launcher icon (CLICKABLE)
-    let launcher_start = x_pos;
-    draw_text(&mut cache, canvas, width, ICON_LAUNCHER, x_pos, 8, BLUE_COLOR);
-    x_pos += 25;
-    click_regions.push((launcher_start, x_pos, "launcher".to_string()));
     
     // Center - active window
     let window_title = get_active_window();
