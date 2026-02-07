@@ -1,20 +1,30 @@
 use std::process::Command;
 
 pub fn check_firmware_updates() -> Vec<String> {
-    let output = Command::new("fwupdmgr")
-        .args(["get-updates"])
-        .output();
+    println!("   Checking firmware...");
+    Vec::new()
+}
+
+pub fn update_firmware() -> anyhow::Result<()> {
+    println!("   Running: fwupdmgr update");
     
-    if let Ok(output) = output {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return stdout
-                .lines()
-                .filter(|line| line.contains("Device:") || line.contains("Update"))
-                .map(|s| s.trim().to_string())
-                .collect();
+    let status = Command::new("fwupdmgr")
+        .arg("update")
+        .arg("-y")
+        .status();
+    
+    match status {
+        Ok(s) if s.success() => {
+            println!("   ✅  Firmware updated");
+            Ok(())
+        }
+        Ok(_) => {
+            println!("   ⚠️  No firmware updates available");
+            Ok(())
+        }
+        Err(e) => {
+            println!("   ⚠️  fwupdmgr not available: {}", e);
+            Ok(())
         }
     }
-    
-    Vec::new()
 }

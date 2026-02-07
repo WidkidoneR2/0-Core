@@ -23,7 +23,3 @@ chrono = "0.4"
 
 # NEW: Shared Faelight infrastructure
 
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true

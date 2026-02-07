@@ -15,7 +15,3 @@ sysinfo = "0.31"
 # Beautiful output
 colored = "2.1"
 
-[profile.release]
-strip = true
-lto = true
-codegen-units = 1

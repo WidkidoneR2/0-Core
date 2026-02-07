@@ -23,7 +23,3 @@ dirs = "5.0"
 # Beautiful output
 colored = "2.1"
 
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
