@@ -93,7 +93,7 @@ impl ModeTransition {
     
     pub fn to_menu(layer: &LayerSurface) {
         layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
-        layer.set_size(0, BAR_HEIGHT);
+        layer.set_size(0, TOTAL_HEIGHT);
         layer.set_exclusive_zone(BAR_HEIGHT as i32);
         layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
         layer.wl_surface().commit();

@@ -439,7 +439,7 @@ impl PointerHandler for BarState {
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == 272 {  // Left click
-                        let x = self.pointer_x as i32;                        for (start, end, action) in &self.click_regions {                            if x >= *start && x <= *end {                                if action == "launcher" {
+                        let x = self.pointer_x as i32;                        for (start, end, action) in &self.click_regions {                            if x >= *start && x <= *end {                                if action == "launcher" || action == "search" {
                                     self.enter_menu_mode(qh);
                                 } else {
                                     handle_click(action);

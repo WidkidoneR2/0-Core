@@ -96,6 +96,12 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     x_pos += 25;
     
     
+    // Search icon (CLICKABLE)
+    let search_start = x_pos;
+    draw_text(&mut cache, canvas, width, "🔍", x_pos, 8, ACCENT_COLOR);
+    x_pos += 30;
+    click_regions.push((search_start, x_pos, "search".to_string()));
+    
     // Center - active window
     let window_title = get_active_window();
     if !window_title.is_empty() {
