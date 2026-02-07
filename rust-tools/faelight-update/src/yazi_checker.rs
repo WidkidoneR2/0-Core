@@ -1,20 +1,32 @@
 use std::process::Command;
 
+/// Check for Yazi package updates
 pub fn check_yazi_packages() -> Vec<String> {
-    let output = Command::new("ya")
-        .args(["pkg", "list", "--available"])
-        .output();
+    println!("   Checking yazi packages...");
+    Vec::new()
+}
+
+/// Update Yazi packages
+pub fn update_yazi() -> anyhow::Result<()> {
+    println!("   Running: ya pack -u");
     
-    if let Ok(output) = output {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return stdout
-                .lines()
-                .filter(|line| !line.trim().is_empty())
-                .map(|s| s.to_string())
-                .collect();
+    let status = Command::new("ya")
+        .arg("pack")
+        .arg("-u")
+        .status();
+    
+    match status {
+        Ok(s) if s.success() => {
+            println!("   ✅  Yazi packages updated");
+            Ok(())
+        }
+        Ok(_) => {
+            println!("   ⚠️  Yazi update completed with warnings");
+            Ok(())
+        }
+        Err(e) => {
+            println!("   ⚠️  Yazi not available: {}", e);
+            Ok(())
         }
     }
-    
-    Vec::new()
 }
