@@ -1,7 +1,6 @@
 //! Rendering abstraction for bar and menu modes
 
 pub mod bar;
-pub mod menu;
 
 use crate::state::{AppState, ModeState};
 
@@ -31,7 +30,7 @@ pub fn render(
             let click_regions = bar::render(canvas, width, height);
             
             // Menu renders its own green box with background
-            menu::render(menu, canvas, width, height, 32);
+            menu_horizontal::render(menu, canvas, width, height);
             
             // Only launcher is clickable in menu mode
             click_regions.into_iter()
@@ -54,3 +53,4 @@ fn fill_rect(canvas: &mut [u8], width: u32, x: u32, y: u32, w: u32, h: u32, colo
         }
     }
 }
+pub mod menu_horizontal;
