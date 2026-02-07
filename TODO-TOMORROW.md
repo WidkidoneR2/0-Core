@@ -1,44 +1,106 @@
-# TODO - 2026-02-06
+# 🌲 Tomorrow's Plan - 0-Core Improvements
 
-## 1. SYSTEM VERSION BUMP
-- [ ] Run bump-system-version to v9.3.0
-- [ ] Verify .zshrc version
-- [ ] Git commit system bump
+## 1. Intent System Review
+- [ ] Review intent ledger structure
+- [ ] Look at existing intents (if any)
+- [ ] Make suggestions for improvements
+- [ ] Document intent workflow
 
-## 2. FIX FAELIGHT-BAR HEALTH
-- [ ] Debug why bar shows 50% when dot-doctor shows 100%
-- [ ] Check health calculation in bar
-- [ ] Verify dot-doctor health.json integration
-- [ ] Test fix
+## 2. Cleanup
+- [ ] Remove old TODO.md from yesterday
+- [ ] Clean up any leftover temp files
 
-## 3. FM VERSION CLEANUP
-- [ ] Remove all "beta" / "alpha" tags
-- [ ] Consolidate version to v2.1.0 everywhere:
-  - Cargo.toml
-  - README.md
-  - ROADMAP.md
-  - Any other docs
-- [ ] Update feature status (production-ready)
-- [ ] Git commit cleanup
+## 3. Faelight-Git
+- [ ] Review faelight-git features (GRS, risk scoring)
+- [ ] Set up as primary git tool
+- [ ] Create aliases for common operations
+- [ ] Test workflow integration
 
-## 4. FOCUS TARGETS
-- Term (faelight-term)
-- Bar (faelight-bar) 
-- FM (faelight-fm)
+## 4. Shell Improvements (ZSH)
+- [ ] Create short aliases:
+  - `c` → clear terminal
+  - `g` → faelight-git (or git)
+  - `fm` → faelight-fm
+  - `d` → doctor
+  - `h` → health
+  - More suggestions?
+- [ ] Improve prompt performance
+- [ ] Better command completion
+- [ ] Optimize startup time
 
-## WINS FROM TONIGHT
-🖱️ Full mouse support in FM
-🎯 Zone clicking working
-✨ Clean UX with helpful messages
+## 5. Quality of Life
+- [ ] Fast tool access (1-letter aliases)
+- [ ] Better shell feedback
+- [ ] Command shortcuts for daily workflow
 
-## 5. FM EDITOR ENHANCEMENT
-- [ ] Add FM_EDITOR environment variable support
-- [ ] Default to Helix (`hx`) for FM quick edits
-- [ ] Fallback chain: FM_EDITOR → EDITOR → hx
-- [ ] Test with both Helix and Neovim
-- [ ] Document in FM README
+---
 
-RATIONALE:
-- Helix = fast, clean, Rust-aligned (FM context)
-- Neovim = heavy dev work (terminal context)
-- Best of both worlds approach
+## Today's Achievements 🎊
+
+### Tools Upgraded
+✅ faelight-bar v3.0.0 - Health fixed (50% → 100%)
+✅ faelight-fm v2.1.0-alpha - Mouse + editor support
+✅ bump-system-version v9.1.0 - BULLETPROOF automation
+
+### System Improvements
+✅ Health: 94% → 100% → 94% (git cleanup)
+✅ README: Restructured (dynamic/static)
+✅ Release automation: Fully bulletproof
+✅ FM_EDITOR: Helix/Neovim switching
+✅ Git: Clean and organized
+
+### Releases
+🎉 v9.3.0 - Tools and Automation Upgrade
+🛡️ bump-system-version v9.1.0 - Production ready
+
+**YOU BUILT LEGENDARY TOOLS TODAY!** 💎
+
+## 6. Code Quality - Fix ALL Rust Warnings 🧹
+
+### Cargo Profile Warnings (9 tools)
+Fix workspace profile conflicts:
+- [ ] Remove `[profile]` sections from individual Cargo.toml files
+- [ ] Keep only workspace root profile
+- Tools: faelight, faelight-bar, faelight-dmenu, faelight-fetch, faelight-git, faelight-launcher, faelight-lock, faelight-notify, keyscan
+
+### Unused Imports (15+ tools)
+Run `cargo fix` and clean up:
+- [ ] entropy-check (Parser, Subcommand, colored)
+- [ ] faelight-link
+- [ ] faelight-fm
+- [ ] faelight-menu
+- [ ] faelight-update
+- [ ] faelight-term
+- [ ] core-protect
+- [ ] faelight-stow
+- [ ] teach
+- [ ] faelight-bootstrap
+- [ ] profile
+- [ ] recent-files
+- [ ] safe-update
+- [ ] dotctl
+
+### Dead Code & Unused Variables
+- [ ] bump-system-version (VERSION const, unused fields)
+- [ ] dot-doctor (unused helper functions)
+- [ ] faelight-term (unused config, len variable)
+- [ ] faelight-link (unused functions)
+- [ ] dotctl (cmd_help function)
+
+### Future Incompatibility
+- [ ] wl-clipboard-rs v0.8.1 - update or replace
+
+### Faelight-Update Improvements
+- [ ] Silence benign warnings during updates
+- [ ] Show only critical errors
+- [ ] Add flag: `--show-warnings` for verbose output
+- [ ] Implement "Category not implemented" features:
+  - [ ] Neovim Plugins
+  - [ ] Yazi Packages  
+  - [ ] Git Repositories
+  - [ ] Firmware
+  - [ ] Flatpak
+
+### Goal
+**0 warnings, 100% clean builds** 🎯
+
