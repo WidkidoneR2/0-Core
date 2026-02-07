@@ -3,8 +3,9 @@ id: 071
 date: 2026-01-23
 type: future
 title: ""bump-system-version v5.0.0 - Enhanced Release Experience"
-status: planned
+status: complete
 tags: [bump-system]
+completed: 2026-02-07
 ---
 
 CONTEXT:
