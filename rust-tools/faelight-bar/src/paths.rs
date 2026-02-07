@@ -12,8 +12,3 @@ pub fn current_profile_path() -> String {
         .to_string()
 }
 
-
-pub fn core_lock_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
-    std::path::PathBuf::from(home).join(".cache/faelight/core.lock")
-}
