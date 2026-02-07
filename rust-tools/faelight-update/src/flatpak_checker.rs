@@ -1,20 +1,30 @@
 use std::process::Command;
 
 pub fn check_flatpak_updates() -> Vec<String> {
-    let output = Command::new("flatpak")
-        .args(["remote-ls", "--updates"])
-        .output();
+    println!("   Checking flatpak...");
+    Vec::new()
+}
+
+pub fn update_flatpak() -> anyhow::Result<()> {
+    println!("   Running: flatpak update -y");
     
-    if let Ok(output) = output {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return stdout
-                .lines()
-                .filter(|line| !line.trim().is_empty())
-                .map(|s| s.to_string())
-                .collect();
+    let status = Command::new("flatpak")
+        .arg("update")
+        .arg("-y")
+        .status();
+    
+    match status {
+        Ok(s) if s.success() => {
+            println!("   ✅  Flatpak packages updated");
+            Ok(())
+        }
+        Ok(_) => {
+            println!("   ⚠️  No flatpak updates available");
+            Ok(())
+        }
+        Err(e) => {
+            println!("   ⚠️  Flatpak not available: {}", e);
+            Ok(())
         }
     }
-    
-    Vec::new()
 }

@@ -12,7 +12,3 @@ toml = "0.8"
 serde = { version = "1", features = ["derive"] }
 which = "6.0"
 
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true

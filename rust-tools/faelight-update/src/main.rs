@@ -1,3 +1,4 @@
+mod config;
 mod cargo_checker;
 mod neovim_checker;
 mod yazi_checker;
@@ -174,6 +175,9 @@ fn run() -> Result<()> {
             // CLEANUP CACHES
             cleanup_caches()?;
             
+            // UPDATE PROMPT CACHE
+            update_prompt_cache()?;
+            
             // UNLOCK CORE
             if in_core {
                 // lock_core()?; // Disabled
@@ -187,6 +191,9 @@ fn run() -> Result<()> {
             
             // CHECK FOR .PACNEW FILES
             check_pacnew()?;
+            
+            // CHECK AUR REBUILDS
+            check_aur_rebuilds()?;
             
             // FINAL SUMMARY
             println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
@@ -303,7 +310,15 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     });
 
     // Neovim plugins
-    let nvim_items = neovim_checker::check_neovim_updates();
+    let nvim_items: Vec<UpdateItem> = neovim_checker::check_neovim_updates()
+        .into_iter()
+        .map(|name| UpdateItem {
+            name,
+            current: "unknown".to_string(),
+            new: "available".to_string(),
+            repository: None,
+        })
+        .collect();
     categories.push(UpdateCategory {
         name: "Neovim Plugins".to_string(),
         emoji: "📝".to_string(),
@@ -715,6 +730,21 @@ fn perform_updates(selections: &[(String, Vec<String>)]) -> Result<()> {
                 pip_checker::update_pip()?;
                 println!("   ✅  Python packages updated");
             }
+            "Neovim Plugins" => {
+                neovim_checker::update_neovim()?;
+            }
+            "Yazi Packages" => {
+                yazi_checker::update_yazi()?;
+            }
+            "Git Repositories" => {
+                git_checker::update_git_repos()?;
+            }
+            "Firmware" => {
+                firmware_checker::update_firmware()?;
+            }
+            "Flatpak" => {
+                flatpak_checker::update_flatpak()?;
+            }
             _ => {
                 println!("   {}  Category not implemented yet", "⚠️".yellow());
             }
@@ -746,11 +776,12 @@ fn update_workspace() -> Result<()> {
 
 /// Update system packages
 fn update_pacman(items: &[String]) -> Result<()> {
-    println!("   Running: sudo pacman -Su --noconfirm {}", items.join(" "));
+    println!("   Running: sudo pacman -S --needed --noconfirm {}", items.join(" "));
 
     let status = Command::new("sudo")
         .arg("pacman")
-        .arg("-Su")
+        .arg("--needed")
+        .arg("-S")
         .arg("--noconfirm")
         .args(items)
         .status()
@@ -770,7 +801,8 @@ fn update_aur(items: &[String]) -> Result<()> {
     println!("   Running: paru -Su --noconfirm {}", items.join(" "));
 
     let status = Command::new("paru")
-        .arg("-Su")
+        .arg("-S")
+        .arg("--needed")
         .arg("--noconfirm")
         .args(items)
         .status()
@@ -888,22 +920,6 @@ fn check_git_status() -> Result<()> {
 }
 
 /// Check for .pacnew files
-fn check_pacnew() -> Result<()> {
-    let pacnew_files = cleanup_checker::find_pacnew_files();
-    
-    if !pacnew_files.is_empty() {
-        println!("\n{}  Found {} .pacnew config files:", "⚠️".yellow(), pacnew_files.len());
-        for file in pacnew_files.iter().take(5) {
-            println!("    {}", file);
-        }
-        if pacnew_files.len() > 5 {
-            println!("    ... and {} more", pacnew_files.len() - 5);
-        }
-        println!("    Review with: pacdiff");
-    }
-    
-    Ok(())
-}
 
 /// Cleanup caches after updates
 fn cleanup_caches() -> Result<()> {
@@ -921,6 +937,127 @@ fn cleanup_caches() -> Result<()> {
         println!("    {}  Pacman cache cleanup failed: {}", "⚠️".yellow(), e);
     } else {
         println!("    {}  Pacman cache cleaned", "✓".green());
+    }
+    
+    Ok(())
+}
+
+/// Update prompt cache after successful update
+fn update_prompt_cache() -> Result<()> {
+    println!("🔄  Updating prompt cache...");
+    
+    // Run the prompt-update-count script to refresh the cache
+    let home = std::env::var("HOME")?;
+    let script = format!("{}/0-core/scripts/prompt-update-count", home);
+    
+    if std::path::Path::new(&script).exists() {
+        let output = std::process::Command::new(&script)
+            .output()
+            .context("Failed to update prompt cache")?;
+        
+        if output.status.success() {
+            println!("   ✅  Prompt cache updated");
+        } else {
+            println!("   ⚠️  Prompt cache update failed (non-critical)");
+        }
+    } else {
+        println!("   ℹ️  Prompt script not found (skipping)");
+    }
+    
+    Ok(())
+}
+/// Check for .pacnew files and offer to handle them
+
+/// Check for .pacnew files and offer to handle them
+fn check_pacnew() -> Result<()> {
+    let output = Command::new("find")
+        .args(&["/etc", "-name", "*.pacnew"])
+        .output()
+        .context("Failed to find .pacnew files")?;
+    
+    let output_str = String::from_utf8_lossy(&output.stdout).to_string();
+    let pacnew_files: Vec<_> = output_str
+        .lines()
+        .filter(|line| !line.is_empty())
+        .collect();
+    
+    if pacnew_files.is_empty() {
+        return Ok(());
+    }
+    
+    println!("⚠️  Found {} .pacnew config files:", pacnew_files.len());
+    for file in &pacnew_files {
+        println!("    {}", file);
+    }
+    
+    println!("    Review with: pacdiff");
+    if !pacnew_files.is_empty() {
+        let original = pacnew_files[0].trim_end_matches(".pacnew");
+        println!("    Or manually: sudo vimdiff {} {}", pacnew_files[0], original);
+    }
+    
+    // Offer to run pacdiff if available
+    if Command::new("which").arg("pacdiff").output()?.status.success() {
+        println!("\n💡 Run pacdiff now to merge changes? (y/N)");
+        use std::io::{self, Write};
+        print!("> ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if input.trim().to_lowercase() == "y" {
+            println!("\n🔧 Running pacdiff...");
+            let status = Command::new("sudo")
+                .arg("pacdiff")
+                .status()
+                .context("Failed to run pacdiff")?;
+            
+            if status.success() {
+                println!("   ✅  Config files merged");
+            } else {
+                println!("   ⚠️  pacdiff exited with errors");
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Check for AUR packages that need rebuilding after library updates
+fn check_aur_rebuilds() -> Result<()> {
+    println!("🔍  Checking for AUR packages needing rebuild...");
+    
+    // Check if checkrebuild or similar tool exists
+    let has_checkrebuild = Command::new("which")
+        .arg("checkrebuild")
+        .output()?
+        .status
+        .success();
+    
+    if has_checkrebuild {
+        let output = Command::new("checkrebuild")
+            .output()
+            .context("Failed to run checkrebuild")?;
+        
+        let rebuild_list = String::from_utf8_lossy(&output.stdout).to_string();
+        let packages: Vec<_> = rebuild_list
+            .lines()
+            .filter(|line| !line.is_empty())
+            .collect();
+        
+        if !packages.is_empty() {
+            println!("   ⚠️  {} packages need rebuilding:", packages.len());
+            for pkg in &packages {
+                println!("      - {}", pkg);
+            }
+            
+            println!("\n   💡 Rebuild with: paru -S --rebuild {}", packages.join(" "));
+        } else {
+            println!("   ✅  No packages need rebuilding");
+        }
+    } else {
+        println!("   ℹ️  checkrebuild not available (optional)");
     }
     
     Ok(())
