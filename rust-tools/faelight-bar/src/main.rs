@@ -33,6 +33,7 @@ mod state;
 mod render;
 mod input;
 mod menu;
+mod blocks;
 
 use state::{AppState};
 use input::{handle_key_press, KeyAction, execute_command};
