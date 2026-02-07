@@ -154,3 +154,4 @@ source ~/.cache/starship/init.nu' >> ~/.config/nushell/config.nu
 
 welcome
 source ~/.cache/starship/init.nu
+source $"($nu.home-path)/.cargo/env.nu"

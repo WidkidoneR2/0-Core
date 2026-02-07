@@ -13,6 +13,7 @@ pub enum ConflictAction {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Conflict {
     pub target: PathBuf,
     pub source: PathBuf,

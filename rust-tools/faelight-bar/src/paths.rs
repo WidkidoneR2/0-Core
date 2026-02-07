@@ -12,10 +12,3 @@ pub fn current_profile_path() -> String {
         .to_string()
 }
 
-/// Get path to doctor binary
-pub fn doctor_path() -> String {
-    paths::scripts_dir()
-        .join("dot-doctor")
-        .display()
-        .to_string()
-}

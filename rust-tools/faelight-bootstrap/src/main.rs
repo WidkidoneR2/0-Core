@@ -10,7 +10,6 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, exit};
 use faelight_core::paths;
-use clap::Parser;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 

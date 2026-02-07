@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use clap::{Parser, Subcommand};
-use colored::*;
 use faelight_core::paths;
 
 const VERSION: &str = "2.0.0";

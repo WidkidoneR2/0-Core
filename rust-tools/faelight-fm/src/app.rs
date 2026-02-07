@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use faelight_core::paths;
 use faelight_fm::git::{self, GitStatus};
 use faelight_fm::error::Result;
 use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};

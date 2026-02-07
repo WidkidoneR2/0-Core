@@ -26,16 +26,35 @@ pub fn check_pip_updates() -> Vec<String> {
 }
 
 pub fn update_pip() -> std::io::Result<()> {
-    println!("   Running: pip install --upgrade pip");
-    Command::new("pip")
-        .args(&["install", "--upgrade", "pip"])
-        .status()?;
+    // Check if pip is installed first
+    if Command::new("pip").arg("--version").output().is_err() {
+        println!("   ⚠️  pip not installed, skipping");
+        return Ok(());
+    }
     
+    println!("   Running: pip install --upgrade pip");
+    match Command::new("pip")
+        .args(&["install", "--upgrade", "pip"])
+        .status()
+    {
+        Ok(s) if s.success() => {
+            // Success - continue to pipx
+        }
+        Ok(_) => {
+            println!("   ⚠️  pip update had warnings (non-critical)");
+        }
+        Err(e) => {
+            println!("   ⚠️  pip update failed: {}", e);
+            return Ok(());  // Don't fail the whole update
+        }
+    }
+    
+    // Check pipx
     if Command::new("pipx").arg("--version").output().is_ok() {
         println!("   Running: pipx upgrade-all");
-        Command::new("pipx")
+        let _ = Command::new("pipx")
             .arg("upgrade-all")
-            .status()?;
+            .status();  // Don't fail if pipx has issues
     }
     
     Ok(())

@@ -1,9 +1,6 @@
-use std::env;
 use std::fs;
-use std::path::PathBuf;
 use std::process::{self, Command};
 use clap::{Parser, Subcommand};
-use colored::*;
 use faelight_core::paths;
 
 // ANSI colors (keeping for now - colored ready for future)
@@ -287,23 +284,3 @@ fn cmd_health() {
     process::exit(status.code().unwrap_or(1));
 }
 
-fn cmd_help() {
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-    println!("{}🎮 dotctl - 0-Core Control Utility{}", CYAN, NC);
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-    println!();
-    println!("{}COMMANDS:{}", GREEN, NC);
-    println!("  status              Show system and package versions");
-    println!("  bump <pkg> <ver>    Bump package version");
-    println!("  history <pkg>       Show package changelog");
-    println!("  health              Run system health check");
-    println!("  version, -v         Show dotctl version");
-    println!("  help                Show this help");
-    println!();
-    println!("{}EXAMPLES:{}", GREEN, NC);
-    println!("  dotctl status");
-    println!("  dotctl bump shell-zsh 3.3.1 \"Added aliases\"");
-    println!("  dotctl history wm-sway");
-    println!("  dotctl health");
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-}

@@ -7,8 +7,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
 use faelight_core::paths;
-use clap::Parser;
-use colored::*;
 
 const VERSION: &str = "2.0.0";
 

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-use std::env;
 use faelight_core::paths;
 
 fn main() {

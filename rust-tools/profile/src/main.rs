@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
-use clap::{Parser, Subcommand};
-use colored::*;
 use faelight_core::paths;
 use std::path::PathBuf;
 use std::process::{self, Command};

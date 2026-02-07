@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::process::Command;
 
 pub fn check_yazi_packages() -> Vec<String> {

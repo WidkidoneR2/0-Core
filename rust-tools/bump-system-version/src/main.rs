@@ -19,13 +19,13 @@ use std::fs;
 use std::io::{self, Write, BufRead};
 use std::process::{Command, exit};
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ═══════════════════════════════════════════════════════════
 // 🏗️ DATA STRUCTURES
 // ═══════════════════════════════════════════════════════════
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ReleaseContent {
     version: String,
     theme: String,
@@ -45,6 +45,7 @@ struct AutoStats {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PreflightResults {
     git_clean: bool,
     health: u32,
