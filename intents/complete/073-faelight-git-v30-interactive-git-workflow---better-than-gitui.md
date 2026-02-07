@@ -5,6 +5,7 @@ type: future
 title: "faelight-git v3.0: Interactive git workflow - Better than gitui"
 status: complete
 tags: [faelight-git, gitui]
+completed: 2026-02-07
 ---
 
 ## Vision

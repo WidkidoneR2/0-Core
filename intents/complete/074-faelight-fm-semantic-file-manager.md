@@ -3,8 +3,9 @@ id: 074
 date: 2026-01-28
 type: future
 title: "faelight-fm - Semantic File Manager (Better than Yazi)"
-status: planned
+status: complete
 tags: [file-manager, wayland, future, v8.0]
+completed: 2026-02-07
 ---
 
 id: 074
