@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+mod workflow;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -54,21 +55,35 @@ fn main() {
         "timeline" => cmd_timeline(),
         "validate" => cmd_validate(),
         "--health" => cmd_health(),
-        "complete" => {
-            if args.len() < 3 { error("Usage: intent complete <id>"); }
-            cmd_status_change(&args[2], "complete", "complete");
+        "start" => {
+            if let Some(id) = args.get(2) {
+                workflow::start_intent(id);
+            } else {
+                eprintln!("{}Usage: intent start <id>{}", YELLOW, NC);
+            }
         }
-        "cancel" => {
-            if args.len() < 3 { error("Usage: intent cancel <id>"); }
-            cmd_status_change(&args[2], "cancelled", "cancelled");
+        "complete" | "done" => {
+            if let Some(id) = args.get(2) {
+                workflow::complete_intent(id);
+            } else {
+                eprintln!("{}Usage: intent complete <id>{}", YELLOW, NC);
+            }
         }
         "defer" => {
-            if args.len() < 3 { error("Usage: intent defer <id>"); }
-            cmd_status_change(&args[2], "deferred", "deferred");
+            if let Some(id) = args.get(2) {
+                let reason = args.get(3).map(|s| s.as_str());
+                workflow::defer_intent(id, reason);
+            } else {
+                eprintln!("{}Usage: intent defer <id> [reason]{}", YELLOW, NC);
+            }
         }
-        "start" => {
-            if args.len() < 3 { error("Usage: intent start <id>"); }
-            cmd_status_change(&args[2], "in-progress", "future");
+        "cancel" => {
+            if let Some(id) = args.get(2) {
+                let reason = args.get(3).map(|s| s.as_str());
+                workflow::cancel_intent(id, reason);
+            } else {
+                eprintln!("{}Usage: intent cancel <id> [reason]{}", YELLOW, NC);
+            }
         }
         "version" | "--version" | "-v" => {
             println!("intent v{} - 0-Core Intent Ledger", VERSION);

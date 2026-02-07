@@ -1,4 +1,16 @@
+---
+id: 077
+date: 2026-02-03
+type: future
+title: "Tool Hardening Sprint - Centralized Paths"
+status: in-progress
+tags: [hardening, paths, infrastructure, technical-debt]
+progress: 10%
+---
+
 # Intent 077: Tool Hardening Sprint - COMPLETED SESSION 1
+
+## Status: IN PROGRESS (4/40 tools completed)
 
 ## Status: IN PROGRESS (4/40 tools completed)
 
