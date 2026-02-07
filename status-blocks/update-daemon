@@ -1,0 +1,56 @@
+#!/bin/bash
+# faelight-bar-update-daemon with proper signal handling
+
+CACHE_DIR="$HOME/.cache/faelight-bar"
+BLOCKS_DIR="$HOME/0-core/status-blocks"
+
+# Trap signals for clean shutdown
+trap 'echo "🛑 Daemon shutting down..."; exit 0' SIGTERM SIGINT SIGHUP
+
+mkdir -p "$CACHE_DIR"
+
+update_profile() { "$BLOCKS_DIR/profile" > "$CACHE_DIR/profile" 2>/dev/null; }
+update_health() { "$BLOCKS_DIR/health" > "$CACHE_DIR/health" 2>/dev/null; }
+update_updates() { "$BLOCKS_DIR/updates" > "$CACHE_DIR/updates" 2>/dev/null; }
+update_lock() { "$BLOCKS_DIR/lock" > "$CACHE_DIR/lock" 2>/dev/null; }
+update_time() { "$BLOCKS_DIR/time" > "$CACHE_DIR/time" 2>/dev/null; }
+update_vpn() { "$BLOCKS_DIR/vpn" > "$CACHE_DIR/vpn" 2>/dev/null; }
+update_network() { "$BLOCKS_DIR/network" > "$CACHE_DIR/network" 2>/dev/null; }
+update_volume() { "$BLOCKS_DIR/volume" > "$CACHE_DIR/volume" 2>/dev/null; }
+update_intents() { "$BLOCKS_DIR/intents" > "$CACHE_DIR/intents" 2>/dev/null; }
+update_workspaces() { "$BLOCKS_DIR/workspaces" > "$CACHE_DIR/workspaces" 2>/dev/null; }
+
+update_fast() {
+    update_time &
+    update_lock &
+    update_workspaces &
+    update_vpn &
+    wait
+}
+
+update_medium() {
+    update_profile &
+    update_volume &
+    update_network &
+    wait
+}
+
+update_slow() {
+    update_health &
+    update_updates &
+    update_intents &
+    wait
+}
+
+echo "🌲 faelight-bar-update-daemon starting..."
+update_fast & update_medium & update_slow & wait
+echo "✅ Caches populated"
+
+COUNTER=0
+while true; do
+    update_fast &
+    (( COUNTER % 5 == 0 )) && update_medium &
+    (( COUNTER % 30 == 0 )) && update_slow &
+    COUNTER=$(( (COUNTER + 1) % 30 ))
+    sleep 1 || exit 0  # Exit if sleep is interrupted
+done

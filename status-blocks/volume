@@ -1,0 +1,12 @@
+#!/bin/bash
+# Volume status block
+# Outputs: 🔊 XX% or 🔇 (muted)
+
+VOL_INFO=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || echo "Volume: 0.50")
+
+if echo "$VOL_INFO" | grep -q "MUTED"; then
+    echo "🔇"
+else
+    PERCENT=$(echo "$VOL_INFO" | awk '{print int($2 * 100)}')
+    echo "🔊 ${PERCENT}%"
+fi

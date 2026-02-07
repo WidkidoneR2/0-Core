@@ -1,0 +1,5 @@
+#!/bin/bash
+# Time display block
+# Outputs: HH:MM in 24-hour format
+
+date +"%H:%M"

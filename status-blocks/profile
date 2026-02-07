@@ -1,0 +1,29 @@
+#!/bin/bash
+# Profile indicator block - shows current power profile
+# Outputs: Profile icon/text
+
+PROFILE_CACHE="$HOME/.cache/faelight/current-profile"
+
+# Check if we have a cached profile
+if [[ -f "$PROFILE_CACHE" ]]; then
+    PROFILE=$(cat "$PROFILE_CACHE")
+else
+    # Default profile
+    PROFILE="default"
+fi
+
+# Map profile to icon/text
+case "$PROFILE" in
+    performance)
+        echo "⚡"
+        ;;
+    balanced|default)
+        echo "⚖️"
+        ;;
+    power-saver)
+        echo "🔋"
+        ;;
+    *)
+        echo "󰀥"
+        ;;
+esac

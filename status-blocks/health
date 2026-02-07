@@ -1,0 +1,20 @@
+#!/bin/bash
+# Health indicator block - reads doctor cache
+# Outputs: 🟢 (100%), 🟡 (90-99%), 🔴 (<90%)
+
+CACHE_FILE="$HOME/.cache/faelight/health-status"
+
+if [[ ! -f "$CACHE_FILE" ]]; then
+    echo "🔴"
+    exit 0
+fi
+
+HEALTH=$(cat "$CACHE_FILE")
+
+if [[ "$HEALTH" -eq 100 ]]; then
+    echo "🟢"
+elif [[ "$HEALTH" -ge 90 ]]; then
+    echo "🟡"
+else
+    echo "🔴"
+fi
