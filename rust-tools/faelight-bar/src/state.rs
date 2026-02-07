@@ -101,8 +101,6 @@ impl ModeTransition {
 }
 
 pub struct AppState {
-        #[allow(dead_code)]
-    pub block_manager: crate::blocks::BlockManager,
     pub mode: ModeState,
     pub width: u32,
     pub matcher: nucleo::Matcher,
@@ -110,18 +108,12 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let mut block_manager = crate::blocks::BlockManager::new();
-        block_manager.add_block(Box::new(crate::blocks::profile::ProfileBlock::new()));
-        block_manager.add_block(Box::new(crate::blocks::lock::LockBlock::new()));
-        block_manager.add_block(Box::new(crate::blocks::time::TimeBlock::new()));
-        
         Self {
             mode: ModeState::Bar(BarState {
                 last_update: std::time::Instant::now(),
             }),
             width: 0,
             matcher: nucleo::Matcher::new(nucleo::Config::DEFAULT),
-            block_manager,
         }
     }
     

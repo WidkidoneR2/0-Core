@@ -33,7 +33,6 @@ mod state;
 mod render;
 mod input;
 mod menu;
-mod blocks;
 
 use state::{AppState};
 use input::{handle_key_press, KeyAction, execute_command};
@@ -227,7 +226,16 @@ fn main() {
         keyboard: None,
     };
     
-    println!("🌲 faelight-bar v2.1.0 starting (Hybrid Edition)...");
+    // Bar starting silently
+    
+    // Wait for initial configure event
+    event_queue.roundtrip(&mut state).expect("Failed initial roundtrip");
+    
+    if !state.configured {
+        eprintln!("❌ Never received configure event from compositor!");
+        std::process::exit(1);
+    }
+    
     
     while state.running {
         if let Err(e) = event_queue.blocking_dispatch(&mut state) {
