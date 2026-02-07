@@ -1,3 +1,4 @@
+mod config;
 mod cargo_checker;
 mod neovim_checker;
 mod yazi_checker;
