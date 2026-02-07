@@ -1,0 +1,9 @@
+#!/bin/bash
+# VPN status block
+# Outputs: 🔒 (connected) or 🔓 (disconnected)
+
+if mullvad status 2>/dev/null | grep -q "Connected"; then
+    echo "🔒"
+else
+    echo "🔓"
+fi

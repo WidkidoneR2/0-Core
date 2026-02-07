@@ -1,0 +1,14 @@
+#!/bin/bash
+# Updates indicator block - reads update cache
+# Outputs:  ✓ (no updates) or  N (N updates available)
+
+CACHE_FILE="$HOME/.cache/faelight/update-count"
+
+if [[ ! -f "$CACHE_FILE" ]]; then
+    echo " ?"
+    exit 0
+fi
+
+# Read the cache (contains either " ✓" or a number)
+UPDATES=$(cat "$CACHE_FILE")
+echo "$UPDATES"

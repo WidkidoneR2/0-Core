@@ -1,0 +1,11 @@
+#!/bin/bash
+# Intents status block
+# Outputs: WIP count or nothing if 0
+
+COUNT=$(intent list --active 2>/dev/null | grep -c "in-progress" || echo "0")
+
+if [[ "$COUNT" -eq 0 ]]; then
+    echo ""
+else
+    echo "WIP $COUNT"
+fi

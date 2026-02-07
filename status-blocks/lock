@@ -1,0 +1,12 @@
+#!/bin/bash
+# Lock status block - checks if 0-core is locked
+# Outputs: 🔒 (locked) or 🔓 (unlocked)
+
+CORE_PATH="$HOME/0-core"
+
+# Check if directory has immutable flag (locked)
+if lsattr -d "$CORE_PATH" 2>/dev/null | grep -q '^....i'; then
+    echo "🔒"
+else
+    echo "🔓"
+fi

@@ -261,10 +261,10 @@ fn get_current_profile() -> String {
 }
 
 fn get_vpn_status() -> (bool, String) {
-    match Command::new("mullvad").arg("status").output() {
-        Ok(out) => {
-            let status = String::from_utf8_lossy(&out.stdout);
-            let connected = status.contains("Connected");
+    let cache_file = format!("{}/.cache/faelight-bar/vpn", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => {
+            let connected = content.trim().contains("🔒");
             (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
         }
         Err(_) => (false, "N/A".to_string()),
@@ -286,11 +286,10 @@ fn get_battery() -> (u8, bool) {
 }
 
 fn get_wifi() -> (bool, String) {
-    match Command::new("iwctl").args(["station", "wlan0", "show"]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            let connected = result.lines()
-                .any(|line| line.trim().contains("State") && line.contains("connected"));
+    let cache_file = format!("{}/.cache/faelight-bar/network", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => {
+            let connected = content.trim().contains("📶");
             (connected, if connected { "ON".to_string() } else { "OFF".to_string() })
         }
         Err(_) => (false, "N/A".to_string()),
@@ -298,19 +297,22 @@ fn get_wifi() -> (bool, String) {
 }
 
 fn get_volume() -> (u8, bool) {
-    match Command::new("wpctl").args(["get-volume", "@DEFAULT_AUDIO_SINK@"]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            let muted = result.contains("[MUTED]");
-            let vol = result
-                .split_whitespace()
-                .nth(1)
-                .and_then(|v| v.parse::<f32>().ok())
-                .map(|v| (v * 100.0) as u8)
-                .unwrap_or(0);
-            (vol, muted)
+    let cache_file = format!("{}/.cache/faelight-bar/volume", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => {
+            let text = content.trim();
+            let muted = text.contains("🔇");
+            if muted {
+                (0, true)
+            } else {
+                let vol = text.split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.trim_end_matches('%').parse().ok())
+                    .unwrap_or(50);
+                (vol, false)
+            }
         }
-        Err(_) => (0, false),
+        Err(_) => (50, false),
     }
 }
 
@@ -327,17 +329,9 @@ lazy_static::lazy_static! {
 
 
 fn is_core_locked() -> bool {
-    let core_path = crate::paths::core_dir();
-    
-    match Command::new("lsattr").args(["-d", &core_path]).output() {
-        Ok(out) => {
-            let result = String::from_utf8_lossy(&out.stdout);
-            result
-                .split_whitespace()
-                .next()
-                .map(|attrs| attrs.contains('i'))
-                .unwrap_or(false)
-        }
+    let cache_file = format!("{}/.cache/faelight-bar/lock", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => content.trim().contains("🔒"),
         Err(_) => false,
     }
 }
@@ -426,42 +420,24 @@ fn get_active_window() -> String {
 }
 
 fn get_intent_count() -> String {
-    let output = Command::new("intent")
-        .arg("list")
-        .arg("--active")
-        .output();
-    
-    if let Ok(out) = output {
-        let content = String::from_utf8_lossy(&out.stdout);
-        let count = content.lines()
-            .filter(|line| line.contains("[in-progress]"))
-            .count();
-        
-        if count > 0 {
-            format!("{}", count)
-        } else {
-            "✓".to_string()
+    let cache_file = format!("{}/.cache/faelight-bar/intents", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => {
+            let text = content.trim();
+            if text.is_empty() {
+                "0".to_string()
+            } else {
+                text.split_whitespace().nth(1).unwrap_or("0").to_string()
+            }
         }
-    } else {
-        "?".to_string()
+        Err(_) => "0".to_string(),
     }
 }
 
 fn get_update_count() -> String {
-    let output = Command::new("checkupdates")
-        .output();
-    
-    if let Ok(out) = output {
-        let count = String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .count();
-        
-        if count > 0 {
-            format!("{}", count)
-        } else {
-            "✓".to_string()
-        }
-    } else {
-        "?".to_string()
+    let cache_file = format!("{}/.cache/faelight-bar/updates", std::env::var("HOME").unwrap());
+    match fs::read_to_string(&cache_file) {
+        Ok(content) => content.trim().to_string(),
+        Err(_) => "✓".to_string(),
     }
 }

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Workspaces status block
+# Outputs: Current workspace number
+
+swaymsg -t get_workspaces 2>/dev/null | \
+    jq -r '.[] | select(.focused==true) | .name' || echo "1"
