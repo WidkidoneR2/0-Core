@@ -279,7 +279,8 @@ compdef _pacman yay
 bindkey '^I' complete-word          # Tab
 bindkey '^[[Z' reverse-menu-complete # Shift+Tab
 
-bindkey -M menuselect '^C' send-break
+# Disabled - menuselect not available
+# bindkey -M menuselect '^C' send-break
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🎯 MENU SELECTION KEYBINDINGS
@@ -290,18 +291,18 @@ zmodload zsh/complist
 
 # Menu navigation (arrow keys work automatically)
 # Use Ctrl+N/P for menu navigation
-bindkey -M menuselect '^N' down-line-or-history
-bindkey -M menuselect '^P' up-line-or-history
+# bindkey -M menuselect '^N' down-line-or-history
+# bindkey -M menuselect '^P' up-line-or-history
 
 # Accept with Enter
-bindkey -M menuselect '^M' .accept-line
+# bindkey -M menuselect '^M' .accept-line
 
 # Cancel with Escape or Ctrl+C
-bindkey -M menuselect '^[' send-break
-bindkey -M menuselect '^C' send-break
+# bindkey -M menuselect '^[' send-break
+# bindkey -M menuselect '^C' send-break
 
 # Use Ctrl+Space to accept and continue
-bindkey -M menuselect '^ ' accept-and-hold
+# bindkey -M menuselect '^ ' accept-and-hold
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🎯 MENU SELECTION KEYBINDINGS
@@ -312,7 +313,7 @@ zmodload -i zsh/complist
 
 # Then set up keybindings (arrow keys work by default!)
 # These are optional - for Ctrl+N/P navigation
-bindkey -M menuselect '^N' down-line-or-history   # Ctrl+N
-bindkey -M menuselect '^P' up-line-or-history     # Ctrl+P
-bindkey -M menuselect '^M' .accept-line           # Enter
-bindkey -M menuselect '^[' send-break             # Escape
+# bindkey -M menuselect '^N' down-line-or-history   # Ctrl+N
+# bindkey -M menuselect '^P' up-line-or-history     # Ctrl+P
+# bindkey -M menuselect '^M' .accept-line           # Enter
+# bindkey -M menuselect '^[' send-break             # Escape
