@@ -8,6 +8,8 @@
 format = """
 [┌─](bold green) \
 ${custom.health_dot}\
+${custom.intent_count}\
+${custom.update_count}\
 ${custom.faelight_zone}\
 🏠\
 ${custom.core_lock} \
@@ -17,11 +19,12 @@ $git_branch \
 $git_status\
 $rust\
 ${custom.rust_toolchain}\
+${custom.time_display}\
 $cmd_duration
 [└─](bold green)$character
 """
 add_newline = true
-command_timeout = 100  # OPTIMIZED: 1000ms → 100ms
+command_timeout = 5000  # 5 seconds for all commands (checkupdates is slow)
 
 # ──────────────────────────────────────────────
 # Prompt Character
@@ -262,3 +265,24 @@ command = '/home/christian/0-core/scripts/prompt-health-dot'
 when = 'true'
 format = '[$output ]($style)'
 style = 'bold'
+
+[custom.intent_count]
+command = '/home/christian/0-core/scripts/prompt-intent-count'
+when = 'true'
+format = '[$output ]($style)'
+style = 'bold green'
+description = 'Active intent count'
+
+[custom.update_count]
+command = '/home/christian/0-core/scripts/prompt-update-count'
+when = 'true'
+format = '[$output ]($style)'
+style = 'bold red'
+description = 'Package update count (red when available)'
+
+[custom.time_display]
+command = '/home/christian/0-core/scripts/prompt-time'
+when = 'true'
+format = '[$output ]($style)'
+style = 'bold cyan'
+description = 'Current time'
