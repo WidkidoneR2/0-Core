@@ -82,3 +82,6 @@ fi
 bindkey -e
 bindkey '^R' history-incremental-search-backward
 bindkey '^S' history-incremental-search-forward
+
+# Health cache for prompt
+source ~/.config/zsh/health-cache.zsh
