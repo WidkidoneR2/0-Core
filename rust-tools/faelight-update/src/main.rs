@@ -303,7 +303,15 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
     });
 
     // Neovim plugins
-    let nvim_items = neovim_checker::check_neovim_updates();
+    let nvim_items: Vec<UpdateItem> = neovim_checker::check_neovim_updates()
+        .into_iter()
+        .map(|name| UpdateItem {
+            name,
+            current: "unknown".to_string(),
+            new: "available".to_string(),
+            repository: None,
+        })
+        .collect();
     categories.push(UpdateCategory {
         name: "Neovim Plugins".to_string(),
         emoji: "📝".to_string(),
@@ -714,6 +722,21 @@ fn perform_updates(selections: &[(String, Vec<String>)]) -> Result<()> {
             "Python Packages" => {
                 pip_checker::update_pip()?;
                 println!("   ✅  Python packages updated");
+            }
+            "Neovim Plugins" => {
+                neovim_checker::update_neovim()?;
+            }
+            "Yazi Packages" => {
+                yazi_checker::update_yazi()?;
+            }
+            "Git Repositories" => {
+                git_checker::update_git_repos()?;
+            }
+            "Firmware" => {
+                firmware_checker::update_firmware()?;
+            }
+            "Flatpak" => {
+                flatpak_checker::update_flatpak()?;
             }
             _ => {
                 println!("   {}  Category not implemented yet", "⚠️".yellow());
