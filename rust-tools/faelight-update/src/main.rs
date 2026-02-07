@@ -776,6 +776,7 @@ fn update_workspace() -> Result<()> {
 
 /// Update system packages
 fn update_pacman(items: &[String]) -> Result<()> {
+    if items.is_empty() { return Ok(()); }
     println!("   Running: sudo pacman -S --needed --noconfirm {}", items.join(" "));
 
     let status = Command::new("sudo")
@@ -798,6 +799,7 @@ fn update_pacman(items: &[String]) -> Result<()> {
 
 /// Update AUR packages
 fn update_aur(items: &[String]) -> Result<()> {
+    if items.is_empty() { return Ok(()); }
     println!("   Running: paru -Su --noconfirm {}", items.join(" "));
 
     let status = Command::new("paru")
