@@ -694,7 +694,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(dead_code)]
 struct App {
+    config: config::Config,
     registry_state: RegistryState, 
     seat_state: SeatState, 
     output_state: OutputState,
@@ -712,7 +714,6 @@ struct App {
     pointer: Option<wl_pointer::WlPointer>,
     cursor_blink_state: bool, 
     last_blink: Instant,
-    config: config::Config,
     font_size: f32,
     // Pre-parsed colors for performance
     bg_color: [u8; 3],
@@ -744,7 +745,7 @@ impl App {
             let text = self.terminal.get_visible_text(start_row, end_row, start_col, end_col);
             
             if !text.is_empty() {
-                let len = text.len();
+                let _len = text.len();
                 // FIX: Use the clipboard correctly - pass string data
                 let opts = Options::new();
                 match opts.copy(

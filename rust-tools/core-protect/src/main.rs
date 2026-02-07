@@ -4,7 +4,6 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
 use clap::{Parser, Subcommand};
-use colored::*;
 use faelight_core::paths;
 
 // ANSI colors (keeping for now - colored crate ready for future)

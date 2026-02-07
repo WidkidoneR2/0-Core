@@ -1,5 +1,4 @@
 use std::process::Command;
-use std::path::Path;
 use walkdir::WalkDir;
 
 pub fn find_pacnew_files() -> Vec<String> {

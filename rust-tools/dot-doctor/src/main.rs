@@ -81,51 +81,10 @@ struct CheckResult {
 
 
 impl CheckResult {
-    fn pass(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
-        CheckResult {
-            id: id.to_string(),
-            name: name.to_string(),
-            status: Status::Pass,
-            severity,
-            message: message.into(),
-            fix: None,
-            details: None,
-        }
-    }
     
-    fn warn(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
-        CheckResult {
-            id: id.to_string(),
-            name: name.to_string(),
-            status: Status::Warn,
-            severity,
-            message: message.into(),
-            fix: None,
-            details: None,
-        }
-    }
     
-    fn fail(id: &str, name: &str, severity: Severity, message: impl Into<String>) -> Self {
-        CheckResult {
-            id: id.to_string(),
-            name: name.to_string(),
-            status: Status::Fail,
-            severity,
-            message: message.into(),
-            fix: None,
-            details: None,
-        }
-    }
     
-    fn with_fix(mut self, fix: impl Into<String>) -> Self {
-        self.fix = Some(fix.into());
-        self
-    }
     
-    fn with_details(mut self, details: Vec<String>) -> Self {
-        self.details = Some(details);
-        self
-    }
 }
 #[derive(Serialize, Deserialize)]
 struct HealthReport {

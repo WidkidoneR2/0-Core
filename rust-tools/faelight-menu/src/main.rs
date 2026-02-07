@@ -10,7 +10,6 @@
 
 mod paths;
 
-use std::time::Duration;
 use chrono::{Local, Timelike};
 use faelight_core::GlyphCache;
 use smithay_client_toolkit::{

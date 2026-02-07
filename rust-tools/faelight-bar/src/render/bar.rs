@@ -17,8 +17,6 @@ const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const ICON_LOCKED: &str = "󰌾";
 const ICON_UNLOCKED: &str = "󰌿";
 const ICON_LAUNCHER: &str = "▶";
-const ICON_INTENTS: &str = "";
-const ICON_UPDATES: &str = "";
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 lazy_static::lazy_static! {
@@ -317,48 +315,12 @@ fn get_volume() -> (u8, bool) {
 }
 
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 lazy_static::lazy_static! {
     static ref HEALTH_CACHE: Arc<Mutex<(u8, Instant)>> = Arc::new(Mutex::new((50, Instant::now())));
 }
 
-fn get_health() -> u8 {
-    const CACHE_DURATION: Duration = Duration::from_secs(30);
-    
-    let mut cache = HEALTH_CACHE.lock().unwrap();
-    let (cached_health, last_check) = *cache;
-    
-    if last_check.elapsed() < CACHE_DURATION {
-        return cached_health;
-    }
-    
-    let health = match Command::new(crate::paths::doctor_path()).output() {
-        Ok(out) if out.status.success() => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            
-            for line in stdout.lines() {
-                if line.contains("Health:") {
-                    if let Some(after_health) = line.split("Health:").nth(1) {
-                        let cleaned = after_health.trim().trim_end_matches('%').trim();
-                        if let Ok(h) = cleaned.parse::<u8>() {
-                            *cache = (h, Instant::now());
-                            return h;
-                        } else {
-                        }
-                    }
-                }
-            }
-            50
-        }
-        _ => {
-            50
-        }
-    };
-    
-    *cache = (health, Instant::now());
-    health
-}
 
 
 

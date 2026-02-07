@@ -260,22 +260,6 @@ impl Config {
         faelight_core::paths::faelight_config_dir().join("term.toml")
     }
     
-    pub fn save_default() -> std::io::Result<()> {
-        let config_path = Self::config_path();
-        
-        // Create parent directory if needed
-        if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        
-        let default_config = Config::default();
-        let toml_string = toml::to_string_pretty(&default_config)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        
-        fs::write(&config_path, toml_string)?;
-        println!("✅ Created default config at: {}", config_path.display());
-        Ok(())
-    }
     
     /// Parse hex color to RGB bytes [r, g, b]
     pub fn parse_color(hex: &str) -> [u8; 3] {

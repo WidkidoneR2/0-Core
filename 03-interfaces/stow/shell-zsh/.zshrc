@@ -126,3 +126,4 @@ bindkey '^S' history-incremental-search-forward
 
 # Uncomment to see startup time:
 # echo "Startup time: ${(( $(date +%s%N) - $EPOCHREALTIME ))%.*}ms"
+export PATH=~/.npm-global/bin:$PATH

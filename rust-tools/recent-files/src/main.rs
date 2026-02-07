@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use faelight_core::paths;
 use std::process::Command;
 use walkdir::WalkDir;
 

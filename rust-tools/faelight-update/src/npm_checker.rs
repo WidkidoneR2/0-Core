@@ -16,8 +16,6 @@ pub fn check_npm_updates() -> Vec<String> {
             if stdout.trim().is_empty() || stdout == "{}" {
                 vec![]
             } else {
-                // Parse JSON and extract package names
-                // For now, simple check if there's content
                 vec!["Global NPM packages".to_string()]
             }
         }
@@ -26,9 +24,26 @@ pub fn check_npm_updates() -> Vec<String> {
 }
 
 pub fn update_npm() -> std::io::Result<()> {
+    // Check if npm is installed first
+    if Command::new("npm").arg("--version").output().is_err() {
+        println!("   ⚠️  npm not installed, skipping");
+        return Ok(());
+    }
+    
     println!("   Running: npm update -g");
-    Command::new("npm")
+    let status = Command::new("npm")
         .args(&["update", "-g"])
-        .status()?;
-    Ok(())
+        .status();
+    
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        Ok(_) => {
+            println!("   ⚠️  npm update had warnings (non-critical)");
+            Ok(())
+        }
+        Err(e) => {
+            println!("   ⚠️  npm update failed: {}", e);
+            Ok(())
+        }
+    }
 }
