@@ -1242,7 +1242,7 @@ version = "1.0.0"
 
 [[package]]
 name = "faelight-stow"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "clap",
  "colored",
