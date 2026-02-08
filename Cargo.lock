@@ -909,6 +909,7 @@ dependencies = [
  "clap",
  "colored",
  "faelight-core",
+ "faelight-zone",
 ]
 
 [[package]]
@@ -1129,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-fetch"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "colored",
  "faelight-core",

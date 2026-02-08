@@ -175,3 +175,37 @@ One of 30+ Rust tools in the Faelight Forest ecosystem.
 Central control interface for package-based dotfile management.
 
 See: https://github.com/WidkidoneR2/0-Core
+
+---
+
+## ✨ v3.1.0 Improvements
+
+### Beautiful Formatting
+- **Box Border Header** - Professional UI like faelight-fetch
+- **Zone Detection** - Shows current directory zone with icon
+- **Package Zones** - Each package shows its zone icon
+- **Better Health Display** - Clearer health status
+
+### Zone Integration
+Shows zone context at a glance:
+- 🦀 WORK - Rust projects
+- 🌲 CORE - System files  
+- 💻 CODE - Development
+- 📚 DOCS - Documentation
+
+### Example Output
+```
+╭─────────────────────────────────────────────────╮
+│ 🎮 Dotfile Control Center                      │
+╰─────────────────────────────────────────────────╯
+
+  Current Zone: 🦀 WORK
+
+📦 Packages:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🌲 🟢 shell-zsh              v3.2.0   shell
+  🌲 🟡 wm-sway                v4.1.0   wm
+
+🏥 System Health:
+  ⚠️  89%
+```
