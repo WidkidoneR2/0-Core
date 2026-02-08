@@ -103,7 +103,6 @@ if [[ -o interactive ]]; then
     echo -e "\033[1;32m🌲 Welcome to Faelight Forest v9.4.0 - Sway Edition!\033[0m"
     
     # Quick system check (async to not slow terminal)
-    (checkupdates 2>/dev/null || echo "⚠️  No packages found with update information") &
     
     echo "This is the way. 🚀"
     echo "💡 Quick: doctor | health | int list | keys"
