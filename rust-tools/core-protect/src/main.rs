@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
 use clap::{Parser, Subcommand};
 use faelight_core::paths;
@@ -254,7 +254,7 @@ fn cmd_edit(core_dir: &PathBuf, package: &str) {
     println!("{}✅ Edits complete, core re-locked!{}", GREEN, NC);
 }
 
-fn get_blast_radius(core_dir: &PathBuf, package: &str) -> String {
+fn get_blast_radius(core_dir: &Path, package: &str) -> String {
     let dotmeta = core_dir.join(package).join(".dotmeta");
     
     if let Ok(content) = fs::read_to_string(&dotmeta) {
@@ -273,7 +273,7 @@ fn get_blast_radius(core_dir: &PathBuf, package: &str) -> String {
     "unknown".to_string()
 }
 
-fn get_failure_modes(core_dir: &PathBuf, package: &str) -> Vec<String> {
+fn get_failure_modes(core_dir: &Path, package: &str) -> Vec<String> {
     let dotmeta = core_dir.join(package).join(".dotmeta");
     let mut modes = vec![];
     
@@ -312,7 +312,7 @@ fn prompt(msg: &str) -> String {
     input.trim().to_string()
 }
 
-fn show_blast_warning(core_dir: &PathBuf, package: &str, blast_radius: &str) -> bool {
+fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> bool {
     let failure_modes = get_failure_modes(core_dir, package);
     
     match blast_radius {
@@ -381,7 +381,7 @@ fn show_blast_warning(core_dir: &PathBuf, package: &str, blast_radius: &str) -> 
     true
 }
 
-fn create_backup(core_dir: &PathBuf, package: &str, blast_radius: &str) {
+fn create_backup(core_dir: &Path, package: &str, blast_radius: &str) {
     if blast_radius == "critical" || blast_radius == "high" {
         println!("💾 Creating backup...");
         
