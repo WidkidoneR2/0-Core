@@ -1,120 +1,189 @@
-# faelight-stow v0.3.0
+# 📦 Faelight Stow v2.1.0
 
-🔗 **Stow symlink verification and management for 0-Core**
+**Intelligent GNU Stow wrapper with automatic verification and repair**
 
-Part of the Faelight Forest ecosystem - ensures all dotfile packages are properly symlinked via GNU Stow.
+Manage dotfiles safely with automatic symlink verification, conflict detection, and one-command fixes.
 
----
+## ✨ Features
 
-## Features
+### Smart Verification
+- 🔍 **Auto-discovery** - Scans stow directory for all packages
+- ✅ **Validation** - Verifies symlinks point to correct targets
+- 🔧 **Auto-repair** - Fixes broken symlinks with `--fix`
+- 📊 **Health reporting** - Shows package status at a glance
 
-- ✅ **Auto-discovery** - Scans `~/0-core/stow/` for all packages
-- ✅ **Verification** - Checks all symlinks are valid and point to correct targets
-- ✅ **Auto-fix** - Repairs broken symlinks with `stow -R`
-- ✅ **Selective stowing** - Install individual packages on demand
-- ✅ **Integration** - Used by `dot-doctor` for system health checks
-- ✅ **Silent mode** - `--quiet` for scripting (exit code only)
+### Safe Operations
+- 🛡️ **Conflict detection** - Warns before overwriting files
+- 📝 **Dry-run mode** - Preview changes before applying
+- 🎯 **Selective stowing** - Install individual packages
+- 🔕 **Silent mode** - Perfect for scripts (exit codes)
 
----
+### Integration Ready
+- ✅ Works with any stow directory structure
+- ✅ Used by system health checkers
+- ✅ Perfect for automation scripts
+- ✅ Clean exit codes for CI/CD
 
-## Usage
+## 📦 Installation
 
-### Verify all packages
+### Standalone (Any System with GNU Stow)
 ```bash
+# Clone repository
+git clone https://github.com/WidkidoneR2/0-Core.git
+cd 0-Core/rust-tools/faelight-stow
+
+# Build and install
+cargo install --path .
+
+# Verify
+faelight-stow --version
+```
+
+### Dependencies
+
+- **Required:** `stow` (GNU Stow)
+- **Optional:** None!
+```bash
+# Install stow
+# Arch: sudo pacman -S stow
+# Debian/Ubuntu: sudo apt install stow
+# macOS: brew install stow
+```
+
+## 🚀 Usage
+
+### Basic Operations
+```bash
+# Verify all packages
+faelight-stow
+
+# Output:
+# 🔗 faelight-stow v2.1.0 - Verifying symlinks...
+# ✅ shell-zsh: All symlinks valid
+# ✅ nvim: All symlinks valid
+# ❌ tmux: Invalid symlink
+#
+# Summary: 2/3 packages healthy
+
+# Auto-fix issues
+faelight-stow --fix
+
+# Stow a new package
+faelight-stow my-package
+
+# Silent mode (for scripts)
+faelight-stow --quiet
+echo $?  # 0 = all healthy, 1 = issues found
+```
+
+### Examples
+
+#### Daily Verification
+```bash
+# Check dotfiles health
 faelight-stow
 ```
 
-### Verify silently (for scripts)
+#### Adding New Package
 ```bash
-faelight-stow --quiet
-echo $?  # 0 = healthy, 1 = issues found
+# Stow a new dotfile package
+faelight-stow git-config
+# Verifies after stowing
 ```
 
-### Auto-fix broken symlinks
+#### Automation / CI
 ```bash
+#!/bin/bash
+# Check dotfiles in CI pipeline
+if ! faelight-stow --quiet; then
+    echo "Dotfiles have issues!"
+    faelight-stow  # Show details
+    exit 1
+fi
+```
+
+#### Auto-repair Script
+```bash
+# Weekly cron job to fix dotfiles
+0 0 * * 0 faelight-stow --fix --notify
+```
+
+## 🎯 How It Works
+
+### Stow Directory Structure
+
+Expects this structure:
+```
+~/stow/              # or custom path
+├── shell-zsh/
+│   └── .zshrc
+├── nvim/
+│   └── .config/nvim/init.lua
+└── git/
+    └── .gitconfig
+```
+
+### Verification Process
+
+1. **Scans** stow directory for packages
+2. **Checks** each symlink target
+3. **Validates** symlinks point to stow directory
+4. **Reports** status with colors
+5. **Repairs** (if `--fix` used)
+
+### What Gets Checked
+
+✅ Symlink exists  
+✅ Target file exists in stow package  
+✅ Symlink points to correct location  
+✅ No broken links  
+✅ No conflicts with real files  
+
+## 🔧 Options
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--quiet` | Silent mode (exit codes only) | `faelight-stow --quiet` |
+| `--fix` | Auto-repair broken symlinks | `faelight-stow --fix` |
+| `--notify` | Send notification on issues | `faelight-stow --notify` |
+| `-v, --version` | Show version | `faelight-stow --version` |
+| `-h, --help` | Show help | `faelight-stow --help` |
+
+## 💡 Use Cases
+
+### Personal Dotfiles
+```bash
+# Verify dotfiles after git pull
+cd ~/dotfiles
+git pull
 faelight-stow --fix
 ```
 
-### Stow a new package
+### Multi-Machine Sync
 ```bash
-faelight-stow shell-zsh
+# On new machine
+git clone <dotfiles-repo>
+cd dotfiles
+stow */  # Install all packages
+faelight-stow  # Verify
 ```
 
-### Send notification on issues
+### System Health
 ```bash
-faelight-stow --notify
+# Part of health check script
+if ! faelight-stow --quiet; then
+    echo "⚠️  Dotfile issues detected"
+fi
 ```
 
----
+## 🤝 Part of 0-Core
 
-## Philosophy
+Faelight-stow is part of the 0-Core ecosystem but works perfectly standalone with any stow setup!
 
-**Auto-discover packages, verify integrity, stay in control.**
+## 📝 Changelog
 
-Unlike running `stow` manually for each package, `faelight-stow`:
-- Discovers all packages automatically
-- Verifies existing symlinks are correct
-- Only fixes what's actually broken
-- Provides clear feedback about system state
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
----
+## 📄 License
 
-## Integration
-
-Used by `dot-doctor` as a health check:
-```rust
-✅ Stow Symlinks: All 12/12 packages properly stowed
-```
-
----
-
-## Exit Codes
-
-- `0` - All packages healthy
-- `1` - Issues found (or with `--fix`: issues couldn't be fixed)
-
----
-
-## Technical Details
-
-**Auto-discovery:**
-- Scans `~/0-core/stow/` for directories
-- Each directory = one package
-- Verifies symlinks in `$HOME` point to package contents
-
-**Verification:**
-- Checks symlink exists
-- Checks symlink target is valid
-- Checks symlink points to correct stow package
-
-**Auto-fix:**
-- Runs `stow -R <package>` to restow
-- Only attempts fix if package directory exists
-- Reports success/failure clearly
-
----
-
-## Examples
-
-**Daily verification (integrated with dot-doctor):**
-```bash
-doctor  # Includes stow verification
-```
-
-**Manual check before system update:**
-```bash
-faelight-stow || echo "Fix symlinks before updating"
-```
-
-**CI/CD health check:**
-```bash
-faelight-stow --quiet && echo "✅ Dotfiles healthy"
-```
-
----
-
-## Part of 0-Core
-
-One of 30+ Rust tools in the Faelight Forest ecosystem.
-
-See: https://github.com/WidkidoneR2/0-Core
+Intentional Stewardship - Manual control over automation.
