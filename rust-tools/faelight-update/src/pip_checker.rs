@@ -11,7 +11,7 @@ pub fn check_pip_updates() -> Vec<String> {
     
     // Check pip
     if let Ok(output) = Command::new("pip")
-        .args(&["list", "--outdated", "--format=freeze"])
+        .args(["list", "--outdated", "--format=freeze"])
         .output()
     {
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -46,7 +46,7 @@ pub fn update_pip() -> std::io::Result<()> {
     
     println!("   Running: pip install --upgrade pip");
     match Command::new("pip")
-        .args(&["install", "--upgrade", "pip"])
+        .args(["install", "--upgrade", "pip"])
         .status()
     {
         Ok(s) if s.success() => {

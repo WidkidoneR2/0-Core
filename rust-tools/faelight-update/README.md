@@ -27,6 +27,70 @@ Intelligent, comprehensive update manager for Arch Linux and the Faelight Forest
 - ⚡ **Firmware** (fwupdmgr)
 - 📦 **Flatpak** (flatpak)
 
+## 📦 Installation
+
+### Standalone (Any Arch Linux System)
+```bash
+# Clone the repository
+git clone https://github.com/WidkidoneR2/0-Core.git
+cd 0-Core/rust-tools/faelight-update
+
+# Build and install
+cargo install --path .
+
+# Verify
+faelight-update --version
+```
+
+### Dependencies
+- **Required:** `pacman`, `paru` (or `yay`)
+- **Optional:** `cargo-update`, `npm`, `pip`, `nvim`, `fwupdmgr`, `flatpak`
+
+### First Run
+```bash
+# Dry run to see what would be updated
+faelight-update --dry-run
+
+# Interactive mode to select packages
+faelight-update --interactive
+
+# Full update
+faelight-update
+```
+
+## 📚 Examples
+
+### Basic Usage
+```bash
+# Check for updates (dry run)
+faelight-update -n
+
+# Update everything
+faelight-update
+
+# Skip health check
+faelight-update --skip-health
+```
+
+### Scripting
+```bash
+# Get update count for status bars
+faelight-update --count-only
+
+# JSON output for parsing
+faelight-update --json
+```
+
+### Selective Updates
+```bash
+# Only update specific categories
+faelight-update --only pacman,aur
+
+# Skip specific categories
+faelight-update --skip neovim,workspace
+```
+
+
 ## 🚀 Usage
 ```bash
 # Standard update
