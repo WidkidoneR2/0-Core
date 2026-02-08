@@ -1,13 +1,10 @@
 #!/bin/bash
-CACHE_FILE="$HOME/.cache/faelight/update-count"
-if [[ ! -f "$CACHE_FILE" ]]; then
-    echo ""
-    exit 0
-fi
-UPDATES=$(cat "$CACHE_FILE")
-# Only show if there are actual updates, hide the checkmark
-if [[ "$UPDATES" == " ✓" ]]; then
-    echo ""
+# Get update count from faelight-update
+COUNT=$(faelight-update --count-only 2>/dev/null | tail -1)
+
+# Write to cache for bar
+if [[ -n "$COUNT" ]]; then
+    echo "$COUNT" > "$HOME/.cache/faelight-bar/updates"
 else
-    echo "$UPDATES"
+    echo "0" > "$HOME/.cache/faelight-bar/updates"
 fi

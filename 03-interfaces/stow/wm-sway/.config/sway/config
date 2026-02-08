@@ -242,7 +242,7 @@ for_window [title="Picture-in-Picture"] floating enable, sticky enable
 # ═══════════════════════════════════════════════════════════
 # 🚀 AUTOSTART
 # ═══════════════════════════════════════════════════════════
-exec ~/0-core/scripts/faelight-bar
+exec ~/0-core/scripts/start-bar
 exec ~/0-core/scripts/faelight-notify
 exec wl-paste --watch cliphist store
 
