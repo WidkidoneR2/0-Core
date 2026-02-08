@@ -1,44 +1,202 @@
-# dot-doctor
+# 🏥 Dot-Doctor v3.2.0
 
-🏥 **Faelight Forest Health Engine** - Comprehensive system health monitoring for 0-Core
+**Comprehensive system health monitoring for Linux desktop environments**
 
-## What It Does
+Dependency-aware health checking engine that validates your entire desktop stack - from stow symlinks to security hardening.
 
-Runs 14 health checks to ensure your system is operating correctly:
+## ✨ Features
 
-1. **Stow Symlinks** - Verifies all config packages are properly stowed
-2. **System Services** - Checks faelight-bar and faelight-notify are running
-3. **Broken Symlinks** - Scans for broken symlinks in config directories
-4. **Yazi Plugins** - Verifies file manager plugins are installed
-5. **Binary Dependencies** - Ensures all required CLI tools are available
-6. **Git Repository** - Checks for uncommitted changes and unpushed commits
-7. **Theme Packages** - Verifies theme packages exist
-8. **Scripts** - Ensures core scripts are present and executable
-9. **Package Metadata** - Validates .dotmeta documentation
-10. **Intent Ledger** - Validates Intent system integrity
-11. **Profile System** - Checks profile configuration
-12. **Faelight Config** - Validates TOML configuration files
-13. **Sway Keybinds** - Detects conflicting keybindings
-14. **Security Hardening** - Verifies UFW, fail2ban, Mullvad VPN, SSH hardening
+### Smart Health Checks (19 Total)
+- 🔗 **Stow Symlinks** - Verifies all dotfile packages properly deployed
+- 💔 **Broken Symlinks** - Comprehensive scan of ~/.config and stow directory
+- 📋 **Intent Ledger** - Validates intent system with all categories (decisions, experiments, philosophy, future, cancelled, deferred, incidents)
+- 🔒 **Security Hardening** - Checks UFW firewall, fail2ban, Mullvad VPN, SSH hardening
+- 🔧 **System Services** - Monitors running daemons
+- 📦 **Binary Dependencies** - Ensures all required tools available
+- 🎨 **Yazi Plugins** - File manager plugin validation
+- ⚙️ **Faelight Config** - TOML configuration validation
+- ⌨️ **Sway Keybinds** - Duplicate keybinding detection
+- 📝 **Scripts** - Core script availability
+- 🎯 **Path Resilience** - Migration tracking
+- 💿 **Disk Space** - Storage monitoring
+- 🦀 **Rust Toolchain** - Development environment check
+- 🔀 **Git Repository** - Uncommitted changes detection
+- 👤 **Profile System** - Profile configuration validation
+- 🎭 **Theme Packages** - Theme availability
+- 📊 **Alias Coverage** - Shell alias verification
+- ⚙️ **Tool Installation** - Key tool installation status
+- 📦 **Package Metadata** - Documentation validation
 
-## Usage
+### Dependency Awareness
+- Checks have explicit dependencies (e.g., broken_symlinks depends on stow)
+- Failed dependencies block dependent checks
+- Dependency graph visualization with `--explain`
+
+### Exit Codes
+- `0` - All checks passed
+- `1` - One or more checks failed
+- `2` - (with --fail-on-warning) Warnings present
+
+## 📦 Installation
+
+### Standalone (Any Linux System)
 ```bash
-# Run all checks
-doctor
+# Clone repository
+git clone https://github.com/WidkidoneR2/0-Core.git
+cd 0-Core/rust-tools/dot-doctor
 
-# Show detailed explanations
-doctor --explain
+# Build and install
+cargo install --path .
 
-# Run specific check
-doctor --check security
-
-# Show dependency graph
-doctor --graph
-
-# Output as JSON
-doctor --json
+# Verify
+dot-doctor --version
 ```
 
-## Version
+### Dependencies
 
-Current: **0.6.0** - Added security hardening checks (v8.1.0)
+**Required:**
+- None! (self-contained)
+
+**Optional (for specific checks):**
+- `stow` - For stow symlink verification
+- `mullvad` - For VPN status check
+- `fail2ban` - For security hardening check
+- `yazi` - For file manager plugin check
+
+## 🚀 Usage
+
+### Basic Operations
+```bash
+# Run all health checks
+dot-doctor
+
+# Output:
+# 🏥 0-Core Health Check - Faelight Forest v9.4.0
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ✅ Stow Symlinks: All 13/13 packages properly stowed
+# ❌ Broken Symlinks: 7 broken symlinks found
+# ✅ Intent Ledger: 42 intents (10 complete, 7 planned)
+# ✅ Security Hardening: 3 protections active
+# ...
+# Health: 89%
+
+# Quiet mode (for scripts)
+dot-doctor --quiet
+echo $?  # 0 = healthy, 1 = issues
+
+# Show dependency graph
+dot-doctor --explain
+
+# Fail on warnings (stricter)
+dot-doctor --fail-on-warning
+```
+
+### Examples
+
+#### Daily Health Check
+```bash
+# Morning routine
+dot-doctor
+# Review any failed checks
+```
+
+#### CI/CD Integration
+```bash
+#!/bin/bash
+# System integrity check in CI pipeline
+if ! dot-doctor --quiet; then
+    echo "System health issues detected!"
+    dot-doctor  # Show details
+    exit 1
+fi
+```
+
+#### Cron Job Monitoring
+```bash
+# /etc/cron.daily/system-health
+#!/bin/bash
+if ! /usr/local/bin/dot-doctor --quiet; then
+    /usr/local/bin/dot-doctor | mail -s "System Health Issues" admin@example.com
+fi
+```
+
+#### Pre-commit Hook
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+# Verify system health before commit
+dot-doctor --fail-on-warning || {
+    echo "Fix system health issues before committing"
+    exit 1
+}
+```
+
+## 🔍 Health Checks Explained
+
+### Stow Symlinks
+Verifies GNU Stow has properly deployed all dotfile packages. Checks that expected symlinks exist and point to correct targets.
+
+### Broken Symlinks
+**COMPREHENSIVE SCAN** (v3.2.0+):
+- Searches ~/.config (depth 6)
+- Searches stow directory (depth 6)
+- Reports exact broken link paths
+- Previously only checked 5 specific directories - now finds ALL broken links!
+
+### Intent Ledger
+**ACCURATE COUNTING** (v3.2.0+):
+- Scans ALL categories: decisions, experiments, philosophy, future, cancelled, deferred, incidents
+- Previously missed "cancelled" and "deferred" categories
+- Validates proper intent file format
+
+### Security Hardening
+Checks multiple security layers:
+- UFW firewall active
+- fail2ban running
+- Mullvad VPN connected
+- SSH root login disabled
+
+## 💡 Troubleshooting
+
+### Broken Symlinks Found
+```bash
+# See which symlinks are broken
+dot-doctor | grep -A10 "Broken Symlinks"
+
+# Find and remove broken symlinks
+find ~/.config -xtype l -delete
+```
+
+### Intent Ledger Shows Wrong Count
+Fixed in v3.2.0! Now scans all categories correctly.
+
+### Stow Package Failed
+```bash
+# Re-stow the package
+cd ~/0-core
+stow -R <package-name> --dir=03-interfaces/stow
+```
+
+## 🎯 Design Philosophy
+
+**Trust, but verify** - Every check is validated against reality:
+- Intent Ledger: Scans actual intent files in all categories
+- Broken Symlinks: Comprehensive filesystem scan, not just specific dirs
+- Security: Checks actual service status, not config files
+- Stow: Verifies actual symlink targets
+
+**Dependency awareness** - Checks run in dependency order, failed deps block dependent checks.
+
+**Exit codes for automation** - Silent mode with clear exit codes for scripting.
+
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## 🤝 Part of 0-Core
+
+Dot-doctor is part of the 0-Core ecosystem but works perfectly standalone for any Linux desktop environment!
+
+## 📄 License
+
+Intentional Stewardship - Manual control over automation.

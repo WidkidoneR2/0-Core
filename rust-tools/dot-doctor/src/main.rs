@@ -1,6 +1,5 @@
 //! dot-doctor v0.4 - Faelight Forest Health Engine
 use faelight_core::paths;
-/// 🌲 Model system integrity with dependency awareness
 
 use clap::Parser;
 use serde::{Serialize, Deserialize};
@@ -9,7 +8,6 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
-use toml;
 use chrono::{DateTime, Utc};
 use std::io::{self, Write};
 use walkdir::WalkDir;
@@ -439,24 +437,30 @@ fn check_services(_ctx: &Context) -> CheckResult {
 }
 
 fn check_broken_symlinks(ctx: &Context) -> CheckResult {
-    let config = PathBuf::from(&ctx.home).join(".config");
-    let dirs = ["sway", "foot", "fuzzel", "yazi", "zsh"];
     let mut broken = vec![];
-
-    for dir in dirs {
-        let path = config.join(dir);
-        if path.exists() {
-            if let Ok(entries) = fs::read_dir(&path) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_symlink() && !p.exists() {
-                        broken.push(p.display().to_string());
-                    }
-                }
+    
+    // Check ~/.config
+    let config = PathBuf::from(&ctx.home).join(".config");
+    for entry in WalkDir::new(&config).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+        let p = entry.path();
+        if p.is_symlink() && !p.exists() {
+            if let Ok(rel) = p.strip_prefix(&ctx.home) {
+                broken.push(format!("~/{}", rel.display()));
             }
         }
     }
-
+    
+    // Check stow directory
+    let stow_dir = ctx.core_dir.join("03-interfaces/stow");
+    for entry in WalkDir::new(&stow_dir).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+        let p = entry.path();
+        if p.is_symlink() && !p.exists() {
+            if let Ok(rel) = p.strip_prefix(&ctx.core_dir) {
+                broken.push(format!("0-core/{}", rel.display()));
+            }
+        }
+    }
+    
     if broken.is_empty() {
         CheckResult {
             id: "broken_symlinks".to_string(),
@@ -474,12 +478,11 @@ fn check_broken_symlinks(ctx: &Context) -> CheckResult {
             status: Status::Fail,
             severity: Severity::Medium,
             message: format!("{} broken symlinks found", broken.len()),
-            fix: Some("Remove broken links: rm <path>".to_string()),
+            fix: Some("Review and remove broken links".to_string()),
             details: Some(broken),
         }
     }
 }
-
 fn check_yazi_plugins(ctx: &Context) -> CheckResult {
     let plugin_dir = PathBuf::from(&ctx.home).join(".config/yazi/plugins");
     let plugins = ["full-border.yazi", "git.yazi", "jump-to-char.yazi", "smart-enter.yazi"];
@@ -623,7 +626,7 @@ fn check_themes(ctx: &Context) -> CheckResult {
     }
 
     // Also check for any theme- prefixed directories
-    let theme_count = fs::read_dir(&ctx.core_dir.join("03-interfaces/stow"))
+    let theme_count = fs::read_dir(ctx.core_dir.join("03-interfaces/stow"))
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
@@ -709,12 +712,12 @@ fn check_dotmeta(_ctx: &Context) -> CheckResult {
 }
 
 fn check_intents(ctx: &Context) -> CheckResult {
-    let intent_dir = ctx.core_dir.join("INTENT");
+    let intent_dir = ctx.core_dir.join("intents");
     let mut total = 0;
     let mut complete = 0;
     let mut planned = 0;
 
-    for category in ["decisions", "experiments", "philosophy", "future", "incidents"] {
+    for category in ["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"] {
         let cat_dir = intent_dir.join(category);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
@@ -988,7 +991,7 @@ fn check_disk_space(_ctx: &Context) -> CheckResult {
             name: "Disk Space".to_string(),
             status: Status::Warn,
             severity: Severity::High,
-            message: format!("Low disk space detected"),
+            message: "Low disk space detected".to_string(),
             fix: Some("Clean up old files or expand partition".to_string()),
             details: Some(warnings),
         }
@@ -1122,9 +1125,9 @@ fn show_health_history() -> std::io::Result<()> {
             "\x1b[0;31m"
         };
         
-        println!("  {} - {}{}%{} ({}/{} checks)",
+        println!("  {} - {}{}\x1b[0m% ({}/{} checks)",
                  snapshot.timestamp.format("%Y-%m-%d %H:%M"),
-                 color, snapshot.health_percent, "\x1b[0m",
+                 color, snapshot.health_percent,
                  snapshot.passed, snapshot.total);
     }
     
@@ -1270,7 +1273,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
                 name: check.name.to_string(),
                 status: Status::Blocked,
                 severity: check.severity,
-                message: format!("Blocked by failed dependency"),
+                message: "Blocked by failed dependency".to_string(),
                 fix: None,
                 details: None,
             });
@@ -1328,9 +1331,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
     }
 
     // Exit code
-    let exit_code = if failed > 0 {
-        1
-    } else if cli.fail_on_warning && warnings > 0 {
+    let exit_code = if failed > 0 || (cli.fail_on_warning && warnings > 0) {
         1
     } else {
         0
@@ -1340,8 +1341,7 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
 }
 
 fn print_report(report: &HealthReport, explain: bool) {
-    println!("{}🏥 0-Core Health Check - Faelight Forest v{}{}", 
-             "\x1b[0;36m", report.version, "\x1b[0m");
+    println!("\x1b[0;36m🏥 0-Core Health Check - Faelight Forest v{}\x1b[0m", report.version);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     for check in &report.checks {
@@ -1352,7 +1352,7 @@ fn print_report(report: &HealthReport, explain: bool) {
             Status::Blocked => ("🚫", "\x1b[2m"),
         };
 
-        println!("{}{} {}: {}{}", color, icon, check.name, check.message, "\x1b[0m");
+        println!("{}{} {}: {}\x1b[0m", color, icon, check.name, check.message);
 
         if explain {
             // Find explanation
@@ -1394,7 +1394,7 @@ fn print_report(report: &HealthReport, explain: bool) {
 }
 
 fn print_dependency_graph() {
-    println!("{}🔗 Health Check Dependency Graph{}", "\x1b[0;36m", "\x1b[0m");
+    println!("\x1b[0;36m🔗 Health Check Dependency Graph\x1b[0m");
     println!();
     
     for check in CHECKS {
@@ -1411,15 +1411,10 @@ fn print_dependency_graph() {
             Severity::Low => "\x1b[2m",
         };
         
-        println!("  {}{:<20}{} {}", severity_color, check.id, "\x1b[0m", deps);
+        println!("  {}{:<20}\x1b[0m {}", severity_color, check.id, deps);
     }
-    
+    println!("Legend: \x1b[0;31mCritical\x1b[0m \x1b[1;33mHigh\x1b[0m \x1b[0;36mMedium\x1b[0m \x1b[2mLow\x1b[0m");
     println!();
-    println!("Legend: {}Critical{} {}High{} {}Medium{} {}Low{}",
-             "\x1b[0;31m", "\x1b[0m",
-             "\x1b[1;33m", "\x1b[0m",
-             "\x1b[0;36m", "\x1b[0m",
-             "\x1b[2m", "\x1b[0m");
 }
 
 
