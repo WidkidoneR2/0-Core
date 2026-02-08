@@ -19,18 +19,27 @@ pub fn check_cargo_updates() -> Vec<crate::UpdateItem> {
                     return Vec::new();
                 }
                 
+                // cargo-update not installed
+                if stderr.contains("cargo: 'install-update' is not a cargo command") {
+                    eprintln!("      ⚠️  cargo-update not installed");
+                    eprintln!("      💡 Install: cargo install cargo-update");
+                    return Vec::new();
+                }
+                
                 // Other error
                 eprintln!("      ⚠️  Failed to check cargo updates: {}", stderr);
+                eprintln!("      💡 Try: cargo install-update --help");
                 return Vec::new();
             }
             
             parse_cargo_update_list(&output.stdout)
         }
         Err(e) => {
-            eprintln!("      ⚠️  Failed to run cargo: {}", e);
+            eprintln!("      ⚠️  Cargo not available: {}", e);
+            eprintln!("      💡 Install Rust: https://rustup.rs");
             Vec::new()
         }
-    }
+        }
 }
 
 /// Parse cargo-update output

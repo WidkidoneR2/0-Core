@@ -254,7 +254,7 @@ fn create_snapshot() -> Result<()> {
         println!("   {}  Snapshot created", "✅".green());
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Snapshot failed: {}", stderr);
+        anyhow::bail!("Snapshot failed: {}\n💡 Install faelight-snapshot or run without --snapshot flag", stderr);
     }
 
     Ok(())
@@ -268,6 +268,7 @@ fn run_health_check() -> Result<()> {
 
     if !output.status.success() {
         println!("{}  Health check failed!", "⚠️".yellow());
+        println!("   💡 Run 'doctor' for details or use --skip-health to proceed");
         anyhow::bail!("System health check did not pass");
     }
 
