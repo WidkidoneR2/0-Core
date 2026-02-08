@@ -192,10 +192,10 @@ fn draw_text(cache: &mut GlyphCache, canvas: &mut [u8], width: u32,
                 let alpha = bitmap[row * metrics.width + col];
                 if alpha == 0 { continue; }
                 
-                let px = cursor_x + metrics.xmin as i32 + col as i32;
-                let py = baseline - metrics.height as i32 - metrics.ymin as i32 + row as i32;
+                let px = cursor_x + metrics.xmin + col as i32;
+                let py = baseline - metrics.height as i32 - metrics.ymin + row as i32;
                 
-                if px >= 0 && px < width as i32 && py >= 0 && py < 32 {
+                if px >= 0 && px < width as i32 && (0..32).contains(&py) {
                     let idx = (py as usize * width as usize + px as usize) * 4;
                     if idx + 3 < canvas.len() {
                         let a = alpha as f32 / 255.0;
