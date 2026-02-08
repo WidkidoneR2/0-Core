@@ -444,6 +444,8 @@ fn check_broken_symlinks(ctx: &Context) -> CheckResult {
     for entry in WalkDir::new(&config).max_depth(6).into_iter().filter_map(|e| e.ok()) {
         let p = entry.path();
         if p.is_symlink() && !p.exists() {
+            // Skip Brave runtime locks
+            if p.to_string_lossy().contains("BraveSoftware") { continue; }
             if let Ok(rel) = p.strip_prefix(&ctx.home) {
                 broken.push(format!("~/{}", rel.display()));
             }
@@ -455,6 +457,8 @@ fn check_broken_symlinks(ctx: &Context) -> CheckResult {
     for entry in WalkDir::new(&stow_dir).max_depth(6).into_iter().filter_map(|e| e.ok()) {
         let p = entry.path();
         if p.is_symlink() && !p.exists() {
+            // Skip Brave runtime locks
+            if p.to_string_lossy().contains("BraveSoftware") { continue; }
             if let Ok(rel) = p.strip_prefix(&ctx.core_dir) {
                 broken.push(format!("0-core/{}", rel.display()));
             }
