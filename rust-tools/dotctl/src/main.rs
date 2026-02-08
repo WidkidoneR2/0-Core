@@ -1,5 +1,7 @@
 use std::fs;
 use std::process::{self, Command};
+use std::path::PathBuf;
+use faelight_zone;
 use clap::{Parser, Subcommand};
 use faelight_core::paths;
 
@@ -14,7 +16,7 @@ const NC: &str = "\x1b[0m";
 
 // ANSI colors
 
-const VERSION: &str = "3.0.0";
+const VERSION: &str = "3.1.0";
 
 
 
@@ -115,23 +117,30 @@ fn parse_dotmeta(content: &str) -> (String, String, String, String) {
 fn cmd_status() {
     let core_dir = paths::core_dir();
     let stow_dir = paths::stow_dir();
+    let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
     
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-    println!("{}📊 0-Core System Status{}", CYAN, NC);
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
-    println!();
+    // Header with box
+    println!("╭─────────────────────────────────────────────────╮");
+    println!("│ 🎮 Dotfile Control Center                      │");
     
     // System version
     let version_file = core_dir.join("VERSION");
     if let Ok(version) = fs::read_to_string(&version_file) {
-        println!("{}System Version:{} v{}", GREEN, NC, version.trim());
+        println!("│ System: v{:<38} │", version.trim());
     }
-    
+    println!("╰─────────────────────────────────────────────────╯");
     println!();
-    println!("{}Package Versions:{}", BLUE, NC);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     
-    // List all stow packages
+    // Current zone
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let (zone_enum, _) = faelight_zone::current_zone(&cwd, &home);
+    println!("  Current Zone: {} {}", zone_enum.icon(), zone_enum.short_label());
+    println!();
+    
+    // Packages
+    println!("{}📦 Packages:{}", BLUE, NC);
+    println!("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
     if let Ok(entries) = fs::read_dir(&stow_dir) {
         let mut packages: Vec<_> = entries
             .filter_map(|e| e.ok())
@@ -147,42 +156,46 @@ fn cmd_status() {
                 let pkg_name = entry.file_name().to_string_lossy().to_string();
                 let (version, category, blast, _) = parse_dotmeta(&content);
                 
-                let icon = match blast.as_str() {
+                // Detect package zone
+                let pkg_path = entry.path();
+                let (pkg_zone, _) = faelight_zone::current_zone(&pkg_path, &home);
+                let zone_icon = pkg_zone.icon();
+                
+                let blast_icon = match blast.as_str() {
                     "critical" => format!("{}🔴{}", RED, NC),
-                    "high" => format!("{}🟠{}", YELLOW, NC),
+                    "high" => format!("{}🟡{}", YELLOW, NC),
                     "medium" => format!("{}🔵{}", BLUE, NC),
                     _ => format!("{}🟢{}", GREEN, NC),
                 };
                 
-                println!("  {} {:<25} v{:<8} ({})", icon, pkg_name, version, category);
+                println!("  {} {} {:<22} v{:<8} {}", 
+                    zone_icon, blast_icon, pkg_name, version, category);
             }
         }
     }
     
     println!();
-    println!("{}Latest Update:{}", BLUE, NC);
-    let latest_cmd = core_dir.join("scripts/latest-update");
-    if let Ok(output) = Command::new(&latest_cmd).output() {
-        let latest = String::from_utf8_lossy(&output.stdout);
-        println!("  {}", latest.trim());
-    }
     
-    println!();
-    println!("{}Health Status:{}", BLUE, NC);
-    if let Ok(output) = Command::new("dot-doctor").output() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if let Some(line) = stdout.lines().find(|l| l.contains("Health:")) {
-            if line.contains("100%") {
-                println!("  {}✅ 100%{}", GREEN, NC);
-            } else {
-                println!("  {}⚠️  {}{}", YELLOW, line.split("Health:").nth(1).unwrap_or("?").trim(), NC);
+    // Health with better display
+    println!("{}🏥 System Health:{}", BLUE, NC);
+    if let Ok(output) = Command::new("dot-doctor").arg("--quiet").output() {
+        let exit_code = output.status.code().unwrap_or(1);
+        if exit_code == 0 {
+            println!("  {}✅ All checks passed{}", GREEN, NC);
+        } else {
+            // Run with output to get percentage
+            if let Ok(full) = Command::new("dot-doctor").output() {
+                let stdout = String::from_utf8_lossy(&full.stdout);
+                if let Some(line) = stdout.lines().find(|l| l.contains("Health:")) {
+                    let health = line.split("Health:").nth(1).unwrap_or("?").trim();
+                    println!("  {}⚠️  {}{}", YELLOW, health, NC);
+                }
             }
         }
     }
     
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
+    println!();
 }
-
 fn cmd_bump(args: &[String]) {
     if args.len() < 2 {
         eprintln!("{}Usage:{} dotctl bump <package> <version> [message]", YELLOW, NC);
