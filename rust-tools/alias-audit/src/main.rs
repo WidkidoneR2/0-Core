@@ -5,6 +5,7 @@ use colored::*;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
+use faelight_zone;
 
 #[derive(Parser)]
 #[command(name = "alias-audit")]
@@ -147,7 +148,7 @@ fn check_conflicts(aliases: &HashMap<String, String>) -> Result<()> {
 
     for (alias, target) in aliases {
         tool_aliases.entry(target.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(alias.clone());
     }
 
@@ -197,28 +198,39 @@ fn show_tools(aliases: &HashMap<String, String>) -> Result<()> {
 }
 
 fn run_full_audit(aliases: &HashMap<String, String>) -> Result<()> {
-    println!("{}", "🔍 ALIAS AUDIT - Full Check".cyan().bold());
-    println!("{}", "═".repeat(60));
+    // Get current zone
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
+    let (zone_enum, _) = faelight_zone::current_zone(&cwd, &home);
+    
+    // Header with box
+    println!("╭─────────────────────────────────────────────────╮");
+    println!("│ 🔍 Alias Audit - Full Check                    │");
+    println!("╰─────────────────────────────────────────────────╯");
     println!();
-
+    
+    // Current zone
+    println!("  Current Zone: {} {}", zone_enum.icon(), zone_enum.short_label());
+    println!();
+    
     // Check duplicates
     println!("{}", "📋 Checking for duplicates...".bold());
     check_duplicates(aliases)?;
     println!();
-
+    
     // Check coverage
     println!("{}", "📦 Checking tool coverage...".bold());
     check_missing(aliases)?;
     println!();
-
-    // Summary
-    println!("{}", "═".repeat(60));
-    println!("{}", format!("📊 Total aliases: {}", aliases.len()).cyan());
-    println!("{}", "✅ Audit complete!".green().bold());
-
+    
+    // Summary with box
+    println!("╭─────────────────────────────────────────────────╮");
+    println!("│ 📊 Total aliases: {:<30} │", aliases.len());
+    println!("│ {} Audit complete!{:<29} │", "✅".green().bold(), "");
+    println!("╰─────────────────────────────────────────────────╯");
+    
     Ok(())
 }
-
 fn output_doctor_format(aliases: &HashMap<String, String>) -> Result<()> {
     // Check for issues
     let mut missing = Vec::new();
