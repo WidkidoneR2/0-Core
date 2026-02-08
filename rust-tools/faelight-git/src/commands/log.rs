@@ -13,7 +13,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
     
     // Get commit history with pretty format
     let output = Command::new("git")
-        .args(&[
+        .args([
             "log",
             &format!("-{}", n),
             "--pretty=format:%h|%an|%ar|%s",
@@ -22,7 +22,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
         .output()?;
     
     if !output.status.success() {
-        anyhow::bail!("Failed to get git log");
+        anyhow::bail!("Failed to get git log\n💡 Check: git log works manually?\n💡 Are you in a git repository?");
     }
     
     let log = String::from_utf8_lossy(&output.stdout);
@@ -62,7 +62,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
     
     // Show stats
     let stats = Command::new("git")
-        .args(&["log", &format!("-{}", n), "--oneline"])
+        .args(["log", &format!("-{}", n), "--oneline"])
         .output()?;
     
     let commit_count = String::from_utf8_lossy(&stats.stdout).lines().count();
@@ -91,7 +91,7 @@ fn show_commit_diff(hash: &str) -> Result<()> {
     
     // Show commit details
     let show = Command::new("git")
-        .args(&["show", "--stat", "--color=always", hash])
+        .args(["show", "--stat", "--color=always", hash])
         .output()?;
     
     if show.status.success() {

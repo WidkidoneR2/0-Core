@@ -10,7 +10,7 @@ pub fn run(message: &str) -> Result<()> {
     
     // Check if there are changes
     let status = Command::new("git")
-        .args(&["status", "--porcelain"])
+        .args(["status", "--porcelain"])
         .output()?;
     
     if status.stdout.is_empty() {
@@ -20,31 +20,31 @@ pub fn run(message: &str) -> Result<()> {
     
     // Stage all changes
     let stage = Command::new("git")
-        .args(&["add", "-A"])
+        .args(["add", "-A"])
         .status()?;
     
     if !stage.success() {
-        anyhow::bail!("Failed to stage changes");
+        anyhow::bail!("Failed to stage changes\n💡 Check: git status shows files?\n💡 Try: git add . manually");
     }
     println!("{}", "  ✅ Changes staged".green());
     
     // Commit
     let commit = Command::new("git")
-        .args(&["commit", "-m", message])
+        .args(["commit", "-m", message])
         .status()?;
     
     if !commit.success() {
-        anyhow::bail!("Failed to commit");
+        anyhow::bail!("Failed to commit\n💡 Check: Commit message format correct?\n💡 Try: git commit manually");
     }
     println!("{}", format!("  ✅ Commit: {}", message).green());
     
     // Push
     let push = Command::new("git")
-        .args(&["push"])
+        .args(["push"])
         .status()?;
     
     if !push.success() {
-        anyhow::bail!("Failed to push");
+        anyhow::bail!("Failed to push\n💡 Check: Upstream branch exists?\n💡 Try: git push -u origin <branch>");
     }
     println!("{}", "  🚀 Pushed to origin".green());
     

@@ -15,7 +15,7 @@ pub fn run() -> Result<()> {
     io::stdout().flush()?;
     
     let pull = Command::new("git")
-        .args(&["pull"])
+        .args(["pull"])
         .output()?;
     
     if pull.status.success() {
@@ -34,7 +34,7 @@ pub fn run() -> Result<()> {
     println!("{}", "📊 Phase 2: Repository Status".yellow().bold());
     
     let status = Command::new("git")
-        .args(&["status", "--porcelain"])
+        .args(["status", "--porcelain"])
         .output()?;
     
     if status.stdout.is_empty() {
@@ -106,7 +106,7 @@ pub fn run() -> Result<()> {
         println!("{}", "  ━".repeat(25));
         
         let diff = Command::new("git")
-            .args(&["diff", "--color=always", "--stat"])
+            .args(["diff", "--color=always", "--stat"])
             .output()?;
         
         if diff.status.success() {
@@ -130,11 +130,11 @@ pub fn run() -> Result<()> {
     }
     
     let stage = Command::new("git")
-        .args(&["add", "-A"])
+        .args(["add", "-A"])
         .status()?;
     
     if !stage.success() {
-        anyhow::bail!("Failed to stage changes");
+        anyhow::bail!("Failed to stage changes\n💡 Check: git status shows files?\n💡 Try: git add . manually");
     }
     println!("{}", "  ✅ All changes staged".green());
     println!();
@@ -176,11 +176,11 @@ pub fn run() -> Result<()> {
     }
     
     let commit = Command::new("git")
-        .args(&["commit", "-m", message])
+        .args(["commit", "-m", message])
         .status()?;
     
     if !commit.success() {
-        anyhow::bail!("Failed to commit");
+        anyhow::bail!("Failed to commit\n💡 Check: Commit message not empty?\n💡 Try: git commit manually");
     }
     println!("{}", "  ✅ Commit created".green());
     println!();
@@ -202,11 +202,11 @@ pub fn run() -> Result<()> {
     }
     
     let push = Command::new("git")
-        .args(&["push"])
+        .args(["push"])
         .status()?;
     
     if !push.success() {
-        anyhow::bail!("Failed to push");
+        anyhow::bail!("Failed to push\n💡 Check: Remote exists?\n💡 Try: git remote -v");
     }
     println!("{}", "  🚀 Pushed to origin".green());
     
