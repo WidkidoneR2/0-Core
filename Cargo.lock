@@ -336,6 +336,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bin-doctor"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "faelight-core",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "bit_field"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
