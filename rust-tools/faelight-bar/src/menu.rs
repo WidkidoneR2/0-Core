@@ -40,12 +40,25 @@ pub fn get_all_items() -> Vec<MenuItem> {
 fn parse_desktop_file(content: &str) -> Option<MenuItem> {
     let mut name = None;
     let mut exec = None;
+    let mut in_desktop_entry = false;
     
     for line in content.lines() {
-        if line.starts_with("Name=") {
-            name = Some(line[5..].to_string());
-        } else if line.starts_with("Exec=") {
-            exec = Some(line[5..].split_whitespace().next()?.to_string());
+        let line = line.trim();
+        
+        if line == "[Desktop Entry]" {
+            in_desktop_entry = true;
+            continue;
+        } else if line.starts_with('[') {
+            // Entered a different section, stop parsing
+            break;
+        }
+        
+        if in_desktop_entry {
+            if line.starts_with("Name=") && name.is_none() {
+                name = Some(line[5..].to_string());
+            } else if line.starts_with("Exec=") && exec.is_none() {
+                exec = Some(line[5..].split_whitespace().next()?.to_string());
+            }
         }
     }
     
