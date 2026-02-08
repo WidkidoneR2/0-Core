@@ -49,6 +49,10 @@ struct Cli {
     json: bool,
 
     /// Only check specific categories (comma-separated: pacman,aur,cargo,neovim,workspace)
+    
+    /// Output only the total count of updates (for scripts/bar)
+    #[arg(long)]
+    count_only: bool,
     #[arg(long, value_delimiter = ',')]
     only: Option<Vec<String>>,
 
@@ -68,7 +72,7 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Print banner with version from Cargo.toml
-    if !cli.json {
+    if !cli.json && !cli.count_only {
         println!(
             "{} v{}",
             "🌲 Faelight Update Manager".green().bold(),
@@ -78,7 +82,7 @@ fn run() -> Result<()> {
     }
 
     // Health check
-    if !cli.skip_health && !cli.json {
+    if !cli.skip_health && !cli.json && !cli.count_only {
         println!("{}  Running health check...", "🏥".green());
         run_health_check()?;
     }
@@ -89,7 +93,7 @@ fn run() -> Result<()> {
     }
 
     // Check for updates
-    if !cli.json {
+    if !cli.json && !cli.count_only {
         println!("{}  Checking for updates...", "🔍".cyan());
     }
 
@@ -106,6 +110,12 @@ fn run() -> Result<()> {
 
     let total: usize = updates.iter().map(|c| c.count).sum();
 
+    
+    // Count-only output
+    if cli.count_only {
+        println!("{}", total);
+        return Ok(());
+    }
     // JSON output
     if cli.json {
         output_json(&updates, total)?;

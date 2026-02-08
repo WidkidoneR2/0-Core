@@ -82,11 +82,15 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
     x_pos += 15;
     
-    // Update counter
+    // Update counter with package icon
     let updates = get_update_count();
-    let update_text = updates;
-    draw_text(&mut cache, canvas, width, &update_text, x_pos, 8, TEXT_COLOR);
-    x_pos += 30;
+    let (update_text, update_color) = if updates == "0" {
+        ("".to_string(), DIM_COLOR)  // Dim when no updates
+    } else {
+        (format!("{} ", updates), RED_COLOR)  // Red with count when updates available
+    };
+    draw_text(&mut cache, canvas, width, &update_text, x_pos, 8, update_color);
+    x_pos += if updates == "0" { 25 } else { 50 };
     
     // Lock status
     let locked = is_core_locked();

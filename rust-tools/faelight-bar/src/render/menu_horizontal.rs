@@ -55,11 +55,9 @@ fn draw_text(cache: &mut GlyphCache, canvas: &mut [u8], width: u32,
 pub fn render(menu: &MenuState, canvas: &mut [u8], width: u32, _height: u32) {
     let mut cache = GLYPH_CACHE.lock().unwrap();
     
-    for pixel in canvas.chunks_exact_mut(4) {
-        pixel.copy_from_slice(&BG_COLOR);
-    }
-    
-    let mut x_pos = 10;
+    // NO background clearing - transparent overlay!
+    // Start right after search icon (~130px)
+    let mut x_pos = 250;
     
     draw_text(&mut cache, canvas, width, "Search:", x_pos, 8, TEXT_COLOR);
     x_pos += 70;
