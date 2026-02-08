@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::Path;
 use faelight_core::paths;
 
 pub fn install_hooks(hook_name: Option<String>) -> Result<()> {
@@ -19,7 +19,7 @@ pub fn install_hooks(hook_name: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn install_all_hooks(hooks_dir: &PathBuf) -> Result<()> {
+fn install_all_hooks(hooks_dir: &Path) -> Result<()> {
     println!("{}", "📦 Installing all hooks...".cyan());
     
     install_pre_commit(hooks_dir)?;
@@ -39,7 +39,7 @@ fn install_all_hooks(hooks_dir: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn install_single_hook(hooks_dir: &PathBuf, name: &str) -> Result<()> {
+fn install_single_hook(hooks_dir: &Path, name: &str) -> Result<()> {
     println!("Installing {} hook...", name.green());
     
     match name {
@@ -58,7 +58,7 @@ fn install_single_hook(hooks_dir: &PathBuf, name: &str) -> Result<()> {
     Ok(())
 }
 
-fn install_pre_commit(hooks_dir: &PathBuf) -> Result<()> {
+fn install_pre_commit(hooks_dir: &Path) -> Result<()> {
     let hook_path = hooks_dir.join("pre-commit");
     
     let hook_content = r#"#!/usr/bin/env bash
@@ -86,7 +86,7 @@ fi
     Ok(())
 }
 
-fn install_pre_push(hooks_dir: &PathBuf) -> Result<()> {
+fn install_pre_push(hooks_dir: &Path) -> Result<()> {
     let hook_path = hooks_dir.join("pre-push");
     
     let hook_content = r#"#!/usr/bin/env bash
@@ -113,7 +113,7 @@ fi
     Ok(())
 }
 
-fn install_commit_msg(hooks_dir: &PathBuf) -> Result<()> {
+fn install_commit_msg(hooks_dir: &Path) -> Result<()> {
     let hook_path = hooks_dir.join("commit-msg");
     
     let hook_content = r#"#!/usr/bin/env bash
