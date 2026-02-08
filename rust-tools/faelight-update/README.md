@@ -1,4 +1,4 @@
-# 🌲 Faelight Update Manager v3.0.0
+# 🌲 Faelight Update Manager v3.1.0
 
 Intelligent, comprehensive update manager for Arch Linux and the Faelight Forest ecosystem.
 
@@ -170,7 +170,7 @@ Works seamlessly with:
 
 ## 📊 Example Output
 ```
-🌲 Faelight Update Manager v3.0.0
+🌲 Faelight Update Manager v3.1.0
 
 🏥  Running health check...
    ✅  System healthy
