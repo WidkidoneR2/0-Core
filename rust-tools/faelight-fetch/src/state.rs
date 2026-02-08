@@ -17,6 +17,8 @@ pub struct SystemState {
     pub kernel: String,
     pub uptime: String,
     pub hostname: String,
+    pub zone: String,
+    pub zone_icon: String,
 }
 
 impl SystemState {
@@ -34,6 +36,8 @@ impl SystemState {
             kernel: get_kernel(),
             uptime: get_uptime(),
             hostname: get_hostname(),
+            zone: get_zone().0,
+            zone_icon: get_zone().1,
         }
     }
 }
@@ -136,7 +140,7 @@ fn get_shell() -> String {
     std::env::var("SHELL")
         .unwrap_or_else(|_| "unknown".to_string())
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("unknown")
         .to_string()
 }
@@ -168,3 +172,19 @@ fn format_duration(duration: Duration) -> String {
         format!("{}m", minutes)
     }
 }
+
+
+fn get_zone() -> (String, String) {
+    use std::env;
+    use std::path::PathBuf;
+    
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let home = PathBuf::from(env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
+    
+    let (zone_enum, _reason) = faelight_zone::current_zone(&cwd, &home);
+    let zone_str = zone_enum.short_label();
+    let icon = zone_enum.icon();
+    
+    (zone_str.to_string(), icon.to_string())
+}
+

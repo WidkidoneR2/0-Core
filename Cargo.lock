@@ -1133,6 +1133,7 @@ version = "2.0.0"
 dependencies = [
  "colored",
  "faelight-core",
+ "faelight-zone",
  "sysinfo",
 ]
 
