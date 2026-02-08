@@ -8,7 +8,7 @@ pub fn check_npm_updates() -> Vec<String> {
     
     // List globally installed packages
     match Command::new("npm")
-        .args(&["outdated", "-g", "--json"])
+        .args(["outdated", "-g", "--json"])
         .output()
     {
         Ok(output) => {
@@ -32,7 +32,7 @@ pub fn update_npm() -> std::io::Result<()> {
     
     println!("   Running: npm update -g");
     let status = Command::new("npm")
-        .args(&["update", "-g"])
+        .args(["update", "-g"])
         .status();
     
     match status {

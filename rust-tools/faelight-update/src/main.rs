@@ -47,7 +47,6 @@ struct Cli {
     /// Output results in JSON format
     #[arg(long)]
     json: bool,
-
     /// Only check specific categories (comma-separated: pacman,aur,cargo,neovim,workspace)
     
     /// Output only the total count of updates (for scripts/bar)
@@ -475,14 +474,14 @@ fn check_pacman_updates() -> Result<UpdateCategory> {
     
     // First sync the database quietly
     let _ = Command::new("sudo")
-        .args(&["pacman", "-Sy", "--noconfirm"])
+        .args(["pacman", "-Sy", "--noconfirm"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
     
     // Now check for updates using the synced database
     let output = Command::new("pacman")
-        .args(&["-Qu"])
+        .args(["-Qu"])
         .output()
         .context("Failed to run pacman -Qu")?;
         
@@ -874,10 +873,7 @@ fn output_json(categories: &[UpdateCategory], total: usize) -> Result<()> {
 
 /// Lock 0-core before updates
 /// Lock 0-core before updates
-
 /// Unlock 0-core after updates
-/// Unlock 0-core after updates
-
 /// Check if we're in 0-core directory
 fn is_in_core() -> bool {
     std::env::current_dir()
@@ -922,7 +918,7 @@ fn check_git_status() -> Result<()> {
     if stdout.contains("[ahead") {
         println!("{}  Git: Commits need to be pushed", "⚠️".yellow());
         println!("    Run: git push");
-    } else if !stdout.lines().skip(1).next().is_none() {
+    } else if stdout.lines().nth(1).is_some() {
         println!("{}  Git: Uncommitted changes", "⚠️".yellow());
     } else {
         println!("{}  Git: Clean and synced", "✅".green());
@@ -932,10 +928,8 @@ fn check_git_status() -> Result<()> {
 }
 
 /// Check for .pacnew files
-
 /// Cleanup caches after updates
 fn cleanup_caches() -> Result<()> {
-    println!("\n{}  Cleaning up caches...", "🧹".cyan());
     
     // Cargo cache
     if let Err(e) = cleanup_checker::cleanup_cargo_cache() {
@@ -979,11 +973,9 @@ fn update_prompt_cache() -> Result<()> {
     Ok(())
 }
 /// Check for .pacnew files and offer to handle them
-
 /// Check for .pacnew files and offer to handle them
 fn check_pacnew() -> Result<()> {
     let output = Command::new("find")
-        .args(&["/etc", "-name", "*.pacnew"])
         .output()
         .context("Failed to find .pacnew files")?;
     
