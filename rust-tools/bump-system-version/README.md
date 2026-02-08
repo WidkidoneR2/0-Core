@@ -1,4 +1,4 @@
-# bump-system-version v5.1.0
+# bump-system-version v9.2.0
 
 **Complete 0-Core Release Automation** - Philosophy-driven release management for Faelight Forest.
 
@@ -27,6 +27,62 @@ bump-system-version --help
 # Health check
 bump-system-version --health
 ```
+
+## 🌿 Auto-Merge Workflow (NEW in v9.2.0!)
+
+**Work on feature branches, release to main automatically!**
+
+### How It Works
+
+When you run `bump-system-version` on a **feature branch**:
+
+1. ✅ Commits all changes to feature branch
+2. ✅ Creates tag on feature branch  
+3. ✅ Pushes feature branch
+4. ✅ **Switches to main**
+5. ✅ **Merges feature branch to main**
+6. ✅ **Pushes main**
+7. ✅ **Returns you to feature branch**
+
+When you run on **main branch**:
+- Works as before (commit → tag → push)
+
+### Example
+```bash
+# You're on feature/awesome-tool
+git branch
+# * feature/awesome-tool
+#   main
+
+# Run bump
+bump-system-version 9.5.0
+
+# Output:
+# 🌿 Feature branch detected: feature/awesome-tool
+#    Will auto-merge to main after tagging
+# 
+# 4️⃣ Pushing feature branch...
+# 5️⃣ Pushing tags...
+# 6️⃣ Merging to main...
+#    ✅ Switched to main
+#    ✅ Merged feature/awesome-tool → main
+# 7️⃣ Pushing main...
+# 8️⃣ Returning to feature/awesome-tool...
+#    ✅ Back on feature/awesome-tool
+
+# You're back where you started!
+git branch
+# * feature/awesome-tool
+#   main
+```
+
+### Benefits
+
+- 🚀 **Zero manual work** - No switching branches manually
+- ✅ **Main always updated** - Tags appear on GitHub immediately
+- 🔄 **Stay in context** - Returns to your working branch
+- 🎯 **Professional workflow** - Feature branches → main
+
 
 ## 📋 Release Process
 

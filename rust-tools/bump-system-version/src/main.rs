@@ -1,4 +1,4 @@
-//! bump-system-version v9.1.0
+//! bump-system-version v9.2.0
 //! The BULLETPROOF Release Master
 //! 
 //! FIXES FROM v9.0.0:
@@ -74,7 +74,7 @@ fn main() {
 }
 
 fn print_help() {
-    println!("{}", "bump-system-version v9.1.0".cyan().bold());
+    println!("{}", "bump-system-version v9.2.0".cyan().bold());
     println!("The BULLETPROOF Release Master\n");
     println!("USAGE:");
     println!("  bump-system-version           Run normal release");
@@ -663,7 +663,7 @@ fn build_readme_content(
     
     // Update footer
     let new_readme = new_readme.replace(
-        &format!("**System Version**: v", ),
+        "**System Version**: v",
         &format!("**System Version**: v{}", new_version)
     );
     let new_readme = new_readme.replace(
@@ -849,9 +849,9 @@ fn print_success_summary(version: &str, stats: &AutoStats) -> Result<()> {
 fn print_banner(dry_run: bool) {
     println!("{}", "═══════════════════════════════════════════════════════════".cyan());
     if dry_run {
-        println!("{}", "🔍 bump-system-version v9.1.0 [DRY RUN]".cyan().bold());
+        println!("{}", "🔍 bump-system-version v9.2.0 [DRY RUN]".cyan().bold());
     } else {
-        println!("{}", "🌲 bump-system-version v9.1.0".cyan().bold());
+        println!("{}", "🌲 bump-system-version v9.2.0".cyan().bold());
     }
     println!("{}", "   The BULLETPROOF Release Master".cyan());
     println!("{}", "═══════════════════════════════════════════════════════════".cyan());
