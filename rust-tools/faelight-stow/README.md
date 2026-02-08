@@ -67,6 +67,11 @@ faelight-stow
 
 # Auto-fix issues
 faelight-stow --fix
+    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
+
+# Check for conflicts before stowing
+faelight-stow check shell-zsh wm-sway
+
 
 # Stow a new package
 faelight-stow my-package
@@ -106,6 +111,7 @@ fi
 ```bash
 # Weekly cron job to fix dotfiles
 0 0 * * 0 faelight-stow --fix --notify
+    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
 ```
 
 ## 🎯 How It Works
@@ -145,6 +151,7 @@ Expects this structure:
 |------|-------------|---------|
 | `--quiet` | Silent mode (exit codes only) | `faelight-stow --quiet` |
 | `--fix` | Auto-repair broken symlinks | `faelight-stow --fix` |
+    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
 | `--notify` | Send notification on issues | `faelight-stow --notify` |
 | `-v, --version` | Show version | `faelight-stow --version` |
 | `-h, --help` | Show help | `faelight-stow --help` |
@@ -157,6 +164,7 @@ Expects this structure:
 cd ~/dotfiles
 git pull
 faelight-stow --fix
+    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
 ```
 
 ### Multi-Machine Sync

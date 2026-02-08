@@ -1,37 +1,29 @@
 # Changelog - Faelight Stow
 
-## [2.1.0] - 2026-02-08
+## [2.2.0] - 2026-02-08
 
-### 🎊 Production-Ready Standalone Release
+### 🎯 Collision Detection Feature
 
 #### Added
-- **Comprehensive README** (189 lines) with standalone installation
-- **Installation Guide** for any system with GNU Stow
-- **Examples Section** covering daily use, automation, CI/CD
-- **Use Cases** demonstrating personal dotfiles, multi-machine sync
-- **CHANGELOG.md** documenting improvements
-
-#### Fixed
-- All clippy warnings (2 errors fixed)
-  - Removed needless borrow in path handling
-  - Changed `&PathBuf` to `&Path` for better API
-- Version consistency across Cargo.toml, code, and README
+- **🔍 Collision Preflight** - New `check` subcommand!
+  - Detects pre-existing non-symlink files
+  - Finds duplicate targets between packages
+  - Safe dry-run before stowing
+  - Example: `faelight-stow check shell-zsh wm-sway`
 
 #### Improved
-- **Error messages** with helpful recovery steps:
-  - Stow failures: Show manual stow command
-  - Restow failures: Suggest checking for conflicts
-- README highlights universal usefulness
-- Documentation for automation and scripting
+- Prevents accidental file overwrites
+- Shows exactly what conflicts exist
+- Recommends backup strategy before stowing
 
 ---
 
+## [2.1.0] - 2026-02-08
+
+Production-ready standalone release with comprehensive docs.
+
 ## [2.0.0] - Earlier
 
-Initial production release:
-- Auto-discovery of stow packages
-- Symlink verification
-- Auto-repair with --fix
-- Silent mode for scripting
+Initial release with auto-discovery and verification.
 
 See git history for full changelog.

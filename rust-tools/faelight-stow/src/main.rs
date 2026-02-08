@@ -1,12 +1,12 @@
 //! faelight-stow v2.0.0 - Stow Verification (Auto-discovery)
 //! 🌲 Faelight Forest
-
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::path::Path;
+use std::collections::HashMap;
 use std::process::Command;
 use faelight_core::paths as core_paths;
-
 mod paths;
 
 #[derive(Debug)]
@@ -14,6 +14,21 @@ struct Issue {
     package: String,
     path: String,
     problem: String,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+struct Conflict {
+    package: String,
+    target_path: PathBuf,
+    conflict_type: ConflictType,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+enum ConflictType {
+    PreExistingFile,
+    DuplicateTarget(String),
 }
 
 fn main() {
@@ -29,17 +44,33 @@ fn main() {
     }
     
     if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
-        println!("faelight-stow v2.1.0");
+        println!("faelight-stow v2.0.0");
         return;
     }
     
     if !quiet {
-        eprintln!("🔗 faelight-stow v2.1.0 - Verifying symlinks...");
+        eprintln!("🔗 faelight-stow v2.0.0 - Verifying symlinks...");
     }
-    
     
     let core_dir = core_paths::core_dir();
     let stow_dir = PathBuf::from(crate::paths::stow_dir());
+    
+    // Handle check subcommand: faelight-stow check <packages...>
+    if args.len() >= 2 && args[1] == "check" {
+        let packages: Vec<String> = args[2..].iter()
+            .filter(|arg| !arg.starts_with("--"))
+            .cloned()
+            .collect();
+        
+        if packages.is_empty() {
+            eprintln!("❌ No packages specified for check");
+            eprintln!("   Usage: faelight-stow check <package1> [package2...]");
+            std::process::exit(1);
+        }
+        
+        check_collisions(&stow_dir, &packages);
+        return;
+    }
     
     // Handle stowing a new package: faelight-stow <package-name>
     if args.len() >= 2 && !args[1].starts_with("--") {
@@ -64,8 +95,6 @@ fn main() {
             }
             _ => {
                 eprintln!("❌ Failed to stow {}", pkg_name);
-                eprintln!("   💡 Try: cd ~/0-core/stow && stow {}", pkg_name);
-                eprintln!("   💡 Check: Package exists in stow directory?");
                 std::process::exit(1);
             }
         }
@@ -84,7 +113,7 @@ fn main() {
     
     for package in &packages {
         // Find symlinks in ~/ that point to this package
-        let symlinks = find_package_symlinks(&core_paths::home().display().to_string(), package);
+        let symlinks = find_package_symlinks(&core_paths::home().to_string_lossy(), package);
         
         if symlinks.is_empty() {
             issues.push(Issue {
@@ -102,7 +131,7 @@ fn main() {
             } else {
                 issues.push(Issue {
                     package: package.clone(),
-                    path: link_path.strip_prefix(core_paths::home()).unwrap_or(&link_path).display().to_string(),
+                    path: link_path.strip_prefix(&core_paths::home()).unwrap_or(&link_path).display().to_string(),
                     problem: "Invalid symlink".to_string(),
                 });
             }
@@ -174,39 +203,38 @@ fn discover_packages(stow_dir: &PathBuf) -> Vec<String> {
     packages
 }
 
-fn search_symlinks_recursive(dir: &PathBuf, package: &str, symlinks: &mut Vec<PathBuf>) {
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            
-            // Check if it's a symlink
-            if path.is_symlink() {
-                if let Ok(target) = fs::read_link(&path) {
-                    let target_str = target.to_string_lossy();
-                    if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
-                        symlinks.push(path);
-                    }
-                }
-            }
-            // Recurse into directories (but not symlinked dirs)
-            else if path.is_dir() {
-                search_symlinks_recursive(&path, package, symlinks);
-            }
-        }
-    }
-}
-
 fn find_package_symlinks(_home: &str, package: &str) -> Vec<PathBuf> {
     let home_path = core_paths::home();
     let mut symlinks = Vec::new();
     
-    // Recursively search home directory for symlinks
-    search_symlinks_recursive(&home_path, package, &mut symlinks);
+    // Search common locations
+    let search_paths = vec![
+        home_path.clone(),
+        home_path.join(".config"),
+    ];
+    
+    for search_path in search_paths {
+        if let Ok(entries) = fs::read_dir(&search_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                
+                // Check if it's a symlink pointing to our stow package
+                if path.is_symlink() {
+                    if let Ok(target) = fs::read_link(&path) {
+                        let target_str = target.to_string_lossy();
+                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
+                            symlinks.push(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     symlinks
 }
 
-fn verify_symlink(link_path: &Path, stow_dir: &Path, package: &str) -> bool {
+fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> bool {
     // Check if symlink target contains the package path
     if let Ok(target) = fs::read_link(link_path) {
         let target_str = target.to_string_lossy();
@@ -221,7 +249,7 @@ fn verify_symlink(link_path: &Path, stow_dir: &Path, package: &str) -> bool {
 }
 
 fn print_help() {
-    println!("faelight-stow v2.1.0 - Stow Symlink Verification");
+    println!("faelight-stow v2.0.0 - Stow Symlink Verification");
     println!();
     println!("USAGE:");
     println!("    faelight-stow [OPTIONS] [PACKAGE]");
@@ -250,4 +278,101 @@ fn send_notification(issues: &[Issue]) {
         .args([&summary, &body.join(", ")])
         .spawn()
         .ok();
+}
+
+fn check_collisions(stow_dir: &Path, packages: &[String]) {
+    println!("🔍 Stow Collision Preflight Check");
+    println!("{}", "━".repeat(50));
+    println!();
+    
+    let mut all_conflicts = Vec::new();
+    let mut target_map: HashMap<PathBuf, String> = HashMap::new();
+    let home = PathBuf::from(std::env::var("HOME").unwrap());
+    
+    for package in packages {
+        let pkg_dir = stow_dir.join(package);
+        
+        if !pkg_dir.exists() {
+            println!("📦 {}: ❌ Package not found in stow directory", package);
+            continue;
+        }
+        
+        println!("📦 {}:", package);
+        let mut pkg_ok = true;
+        
+        // Walk the package directory
+        if let Ok(entries) = walk_dir(&pkg_dir) {
+            for entry in entries {
+                // Calculate where this file would be symlinked to
+                if let Ok(rel_path) = entry.strip_prefix(&pkg_dir) {
+                    let target = home.join(rel_path);
+                    
+                    // Check 1: Pre-existing non-symlink file
+                    if target.exists() && !target.is_symlink() {
+                        println!("  ⚠️  CONFLICT: {}", rel_path.display());
+                        println!("      Exists as regular file (not symlink)");
+                        all_conflicts.push(Conflict {
+                            package: package.clone(),
+                            target_path: target.clone(),
+                            conflict_type: ConflictType::PreExistingFile,
+                        });
+                        pkg_ok = false;
+                    }
+                    
+                    // Check 2: Duplicate target across packages
+                    if let Some(other_pkg) = target_map.get(&target) {
+                        println!("  ⚠️  DUPLICATE: {}", rel_path.display());
+                        println!("      Also in package: {}", other_pkg);
+                        all_conflicts.push(Conflict {
+                            package: package.clone(),
+                            target_path: target.clone(),
+                            conflict_type: ConflictType::DuplicateTarget(other_pkg.clone()),
+                        });
+                        pkg_ok = false;
+                    } else {
+                        target_map.insert(target, package.clone());
+                    }
+                }
+            }
+        }
+        
+        if pkg_ok {
+            println!("  ✅ No conflicts");
+        }
+        println!();
+    }
+    
+    // Summary
+    println!("{}", "━".repeat(50));
+    if all_conflicts.is_empty() {
+        println!("✅ All clear! Safe to stow.");
+    } else {
+        println!("⚠️  {} conflicts detected", all_conflicts.len());
+        println!();
+        println!("💡 To backup conflicting files:");
+        println!("   mv <file> <file>.bak");
+        std::process::exit(1);
+    }
+}
+
+fn walk_dir(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    
+    fn visit(path: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
+        if path.is_dir() {
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(&path, files)?;
+                } else {
+                    files.push(path);
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    visit(dir, &mut files)?;
+    Ok(files)
 }
