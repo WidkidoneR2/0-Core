@@ -3,7 +3,7 @@
 
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use faelight_core::paths as core_paths;
 
@@ -29,12 +29,12 @@ fn main() {
     }
     
     if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
-        println!("faelight-stow v1.0.0");
+        println!("faelight-stow v2.1.0");
         return;
     }
     
     if !quiet {
-        eprintln!("🔗 faelight-stow v1.0.0 - Verifying symlinks...");
+        eprintln!("🔗 faelight-stow v2.1.0 - Verifying symlinks...");
     }
     
     
@@ -64,6 +64,8 @@ fn main() {
             }
             _ => {
                 eprintln!("❌ Failed to stow {}", pkg_name);
+                eprintln!("   💡 Try: cd ~/0-core/stow && stow {}", pkg_name);
+                eprintln!("   💡 Check: Package exists in stow directory?");
                 std::process::exit(1);
             }
         }
@@ -100,7 +102,7 @@ fn main() {
             } else {
                 issues.push(Issue {
                     package: package.clone(),
-                    path: link_path.strip_prefix(&core_paths::home()).unwrap_or(&link_path).display().to_string(),
+                    path: link_path.strip_prefix(core_paths::home()).unwrap_or(&link_path).display().to_string(),
                     problem: "Invalid symlink".to_string(),
                 });
             }
@@ -204,7 +206,7 @@ fn find_package_symlinks(_home: &str, package: &str) -> Vec<PathBuf> {
     symlinks
 }
 
-fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> bool {
+fn verify_symlink(link_path: &Path, stow_dir: &Path, package: &str) -> bool {
     // Check if symlink target contains the package path
     if let Ok(target) = fs::read_link(link_path) {
         let target_str = target.to_string_lossy();
@@ -219,7 +221,7 @@ fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> boo
 }
 
 fn print_help() {
-    println!("faelight-stow v1.0.0 - Stow Symlink Verification");
+    println!("faelight-stow v2.1.0 - Stow Symlink Verification");
     println!();
     println!("USAGE:");
     println!("    faelight-stow [OPTIONS] [PACKAGE]");
