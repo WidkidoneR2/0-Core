@@ -1,6 +1,12 @@
 use std::process::Command;
+use std::path::Path;
 
 pub fn check_pip_updates() -> Vec<String> {
+    // Skip on Arch (PEP 668 - externally managed)
+    if Path::new("/etc/arch-release").exists() {
+        return vec![];
+    }
+    
     let mut outdated = vec![];
     
     // Check pip
@@ -26,6 +32,12 @@ pub fn check_pip_updates() -> Vec<String> {
 }
 
 pub fn update_pip() -> std::io::Result<()> {
+    // Skip on Arch (PEP 668)
+    if Path::new("/etc/arch-release").exists() {
+        println!("   ⏭️  Skipping pip on Arch (use pacman for Python packages)");
+        return Ok(());
+    }
+    
     // Check if pip is installed first
     if Command::new("pip").arg("--version").output().is_err() {
         println!("   ⚠️  pip not installed, skipping");
@@ -45,7 +57,7 @@ pub fn update_pip() -> std::io::Result<()> {
         }
         Err(e) => {
             println!("   ⚠️  pip update failed: {}", e);
-            return Ok(());  // Don't fail the whole update
+            return Ok(());
         }
     }
     
@@ -54,7 +66,7 @@ pub fn update_pip() -> std::io::Result<()> {
         println!("   Running: pipx upgrade-all");
         let _ = Command::new("pipx")
             .arg("upgrade-all")
-            .status();  // Don't fail if pipx has issues
+            .status();
     }
     
     Ok(())
