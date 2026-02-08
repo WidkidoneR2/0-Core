@@ -6,7 +6,6 @@ const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
 const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const SELECTED_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
-const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
 
 lazy_static::lazy_static! {

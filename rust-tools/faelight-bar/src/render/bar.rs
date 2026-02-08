@@ -102,7 +102,7 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, Str
     
     // Search icon (CLICKABLE)
     let search_start = x_pos;
-    draw_text(&mut cache, canvas, width, "🔍", x_pos, 8, ACCENT_COLOR);
+    draw_text(&mut cache, canvas, width, "S", x_pos, 8, ACCENT_COLOR);
     x_pos += 30;
     click_regions.push((search_start, x_pos, "search".to_string()));
     
