@@ -11,13 +11,13 @@ pub fn run() -> Result<()> {
     
     // Get current branch
     let current = Command::new("git")
-        .args(&["branch", "--show-current"])
+        .args(["branch", "--show-current"])
         .output()?;
     let current_branch = String::from_utf8_lossy(&current.stdout).trim().to_string();
     
     // List all branches
     let branches = Command::new("git")
-        .args(&["branch", "-a"])
+        .args(["branch", "-a"])
         .output()?;
     
     println!("{}", "📋 Branches:".yellow().bold());
@@ -35,7 +35,7 @@ pub fn run() -> Result<()> {
             println!("  {} {}", " ".dimmed(), name.dimmed());
         } else {
             // Local branch
-            println!("  {} {}", " ", branch);
+            println!("    {}", branch);
         }
     }
     
@@ -88,7 +88,7 @@ fn switch_branch(current: &str) -> Result<()> {
     }
     
     let result = Command::new("git")
-        .args(&["checkout", branch])
+        .args(["checkout", branch])
         .status()?;
     
     if result.success() {
@@ -170,7 +170,7 @@ fn delete_branch(current: &str) -> Result<()> {
     }
     
     let result = Command::new("git")
-        .args(&["branch", "-d", branch])
+        .args(["branch", "-d", branch])
         .status()?;
     
     if result.success() {
