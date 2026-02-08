@@ -105,7 +105,7 @@ if [[ -o interactive ]]; then
     # Quick system check (async to not slow terminal)
     (checkupdates 2>/dev/null || echo "⚠️  No packages found with update information") &
     
-    echo "This is my Happy Place!!!"
+    echo "This is the way. 🚀"
     echo "💡 Quick: doctor | health | int list | keys"
 fi
 
