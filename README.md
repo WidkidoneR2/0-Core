@@ -2,8 +2,8 @@
 # 🌲 Faelight Forest v9.5.0
 
 ![Version](https://img.shields.io/badge/version-9.5.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-94%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-75%25-brightgreen?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
@@ -176,6 +176,8 @@ Every architectural decision documented in markdown:
 - **entropy-check**: Entropy monitoring
 - **faelight-update**: System updates
 - **safe-update**: Package updates with snapshots
+- **bin-doctor**: Binary manifest tracking and drift detection
+- **verify-bootstrap**: Installation verification system
 
 ### Configuration Tools
 
@@ -184,7 +186,7 @@ Every architectural decision documented in markdown:
 - **profile**: Profile switching
 - **faelight-zone**: Zone detection (Core, Workspace, Src, etc.)
 
-[See full tool list →](docs/TOOLS.md)
+[See full tool list →](TOOLS.md)
 
 ---
 
@@ -285,7 +287,7 @@ let core = paths::core_dir();
 ## 📚 Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) - System design principles
-- [Tools Guide](docs/TOOLS.md) - Complete tool documentation
+- [Tools Guide](TOOLS.md) - Complete tool documentation
 - [Intent Ledger](INTENT/) - Architectural decisions
 - [Changelog](CHANGELOG.md) - Version history
 - [Philosophy](docs/PHILOSOPHY.md) - Core principles
