@@ -163,6 +163,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         Ok(())
     } else {
         println!("{}", "❌ Some checks failed!".red().bold());
+        println!("   💡 Check the errors above for details");
         std::process::exit(1);
     }
 }
@@ -187,6 +188,7 @@ fn run_pre_push_checks() -> Result<()> {
         Ok(())
     } else {
         println!("{}", "❌ Pre-push checks failed!".red().bold());
+        println!("   💡 Fix the issues above or use --no-verify to skip");
         std::process::exit(1);
     }
 }
@@ -197,6 +199,9 @@ fn run_commit_msg_check(msg_file: &str) -> Result<()> {
     
     if !checks::commitmsg::validate_commit_msg(&msg)? {
         println!("{}", "❌ Commit message validation failed!".red().bold());
+        println!("   💡 Use format: type: description");
+        println!("   💡 Example: feat: Add user authentication");
+        println!("   💡 Types: feat, fix, docs, style, refactor, test, chore");
         std::process::exit(1);
     }
     
