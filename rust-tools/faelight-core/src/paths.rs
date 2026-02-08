@@ -6,7 +6,7 @@
 //! If HOME is not set, we FAIL LOUDLY - no silent fallbacks.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Get home directory - PANICS if HOME not set (fail fast philosophy)
 pub fn home() -> PathBuf {
@@ -223,7 +223,7 @@ pub fn jetbrains_mono_nerd_font() -> PathBuf {
 }
 
 /// Helper: Check if a font file exists
-pub fn font_exists(font_path: &PathBuf) -> bool {
+pub fn font_exists(font_path: &Path) -> bool {
     font_path.exists()
 }
 

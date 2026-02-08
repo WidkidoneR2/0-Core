@@ -100,7 +100,7 @@ impl Canvas {
             // Draw glyph bitmap
             for gy in 0..glyph_height {
                 for gx in 0..glyph_width {
-                    let bitmap_idx = (gy * glyph_width + gx) as usize;
+                    let bitmap_idx = gy * glyph_width + gx;
                     let alpha = glyph.bitmap[bitmap_idx];
                     
                     if alpha > 0 {
