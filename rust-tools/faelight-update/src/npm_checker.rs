@@ -43,6 +43,7 @@ pub fn update_npm() -> std::io::Result<()> {
         }
         Err(e) => {
             println!("   ⚠️  npm update failed: {}", e);
+            println!("   💡 Try: npm update -g manually or use --skip npm");
             Ok(())
         }
     }
