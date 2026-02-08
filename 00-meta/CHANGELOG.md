@@ -1,5 +1,39 @@
 # Changelog
 
+## v9.4.0 - Modular Bar & Update System (2026-02-07)
+
+- - Complete faelight-bar modular rebuild with cache-based architecture
+- - Working search overlay with transparent positioning and keyboard input
+- - Lock status colors (green=locked, amber=unlocked)
+- - Update counter integrated with faelight-update --count-only
+- - faelight-update v3.0: Skip pip/yazi on Arch, zero warnings
+- - Bar and daemon survive terminal close
+- - Fixed .desktop parser to only read [Desktop Entry] section
+- - Health dot in prompt (🟢/🟡/🔴)
+- - 100% system health, 86.5% Rust ecosystem
+- - 40/40 tools migrated to resilient paths
+
+**Tools Updated:** faelight-bar, faelight-update
+
+**Statistics:**
+- - 38 Rust tools, 109,000+ lines of code
+- - 86.5% Rust ecosystem (climbing toward 100%)
+- - 100% system health (19/19 checks passing)
+- - 40/40 tools migrated to resilient paths
+- - 297 shell aliases across 37 tools
+- - 117 unique Sway keybindings
+- - 10 modular status blocks in faelight-bar
+- - 13 stow packages properly symlinked
+
+- System Health: 94%
+- Commits: 41
+- Files Changed: 32
+
+> This is the way. 🚀
+
+---
+
+
 ## v9.3.0 - Tools and Automation Upgrade! (2026-02-06)
 
 - Bar health fix - shows accurate 100%

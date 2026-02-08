@@ -1,9 +1,9 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v9.3.0
+# 🌲 Faelight Forest v9.4.0
 
-![Version](https://img.shields.io/badge/version-9.3.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-100%25[0m-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-9.4.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-94%25-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-75%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
@@ -11,18 +11,27 @@
 
 ## 🎊 Latest Release
 
-### v9.3.0 - Tools and Automation Upgrade! (2026-02-06)
+### v9.4.0 - Modular Bar & Update System (2026-02-07)
 
-- Bar health fix - shows accurate 100%
-- FM v2.1.0-alpha - mouse + status polish
-- FM EDITOR support - Helix/Neovim switching
-- README restructured for automation
-- bump-system-version v9.0.0 upgrade
-- Health improved 94% to 100%
+- - Complete faelight-bar modular rebuild with cache-based architecture
+- - Working search overlay with transparent positioning and keyboard input
+- - Lock status colors (green=locked, amber=unlocked)
+- - Update counter integrated with faelight-update --count-only
+- - faelight-update v3.0: Skip pip/yazi on Arch, zero warnings
+- - Bar and daemon survive terminal close
+- - Fixed .desktop parser to only read [Desktop Entry] section
+- - Health dot in prompt (🟢/🟡/🔴)
+- - 100% system health, 86.5% Rust ecosystem
+- - 40/40 tools migrated to resilient paths
 
-- 3 tools upgraded (bar, FM, bump-system-version)
-- System health 94% to 100%
-- 900+ lines of new release automation
+- - 38 Rust tools, 109,000+ lines of code
+- - 86.5% Rust ecosystem (climbing toward 100%)
+- - 100% system health (19/19 checks passing)
+- - 40/40 tools migrated to resilient paths
+- - 297 shell aliases across 37 tools
+- - 117 unique Sway keybindings
+- - 10 modular status blocks in faelight-bar
+- - 13 stow packages properly symlinked
 
 [Full Changelog →](CHANGELOG.md)
 
@@ -316,7 +325,7 @@ Feel free to learn from it, but **build your own**. That's the whole point.
 
 ---
 
-**System Version**: v9.3.0  
-**Last Updated**: 2026-02-06  
+**System Version**: v9.4.09.3.0  
+**Last Updated**: 2026-02-0706  
 **Health**: 100% ✅  
 **Path Resilience**: 100% 💎
