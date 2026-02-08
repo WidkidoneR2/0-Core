@@ -386,7 +386,7 @@ checksum = "f4ad8f11f288f48ca24471bbd51ac257aaeaaa07adae295591266b792902ae64"
 
 [[package]]
 name = "bump-system-version"
-version = "9.1.0"
+version = "9.2.0"
 dependencies = [
  "anyhow",
  "chrono",
