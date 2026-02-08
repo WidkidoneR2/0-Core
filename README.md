@@ -318,8 +318,6 @@ Feel free to learn from it, but **build your own**. That's the whole point.
 
 ## 🙏 Acknowledgments
 
-- **Linus Torvalds**: For Linux and git
-- **Graydon Hoare**: For Rust
 - **The Arch Linux community**: For vanilla excellence
 - **You**: For reading this far. Now go build your own! 💎
 
