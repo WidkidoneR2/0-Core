@@ -717,7 +717,7 @@ fn check_intents(ctx: &Context) -> CheckResult {
     let mut complete = 0;
     let mut planned = 0;
 
-    for category in ["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"] {
+    for category in ["complete", "decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"] {
         let cat_dir = intent_dir.join(category);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
