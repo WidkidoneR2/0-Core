@@ -5,16 +5,16 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command, exit};
+use std::process::{exit, Command};
 
 // Import our library modules
-use faelight_git::commands;
 use faelight_core::paths;
+use faelight_git::commands;
 
 #[derive(Parser)]
 #[command(name = "faelight-git")]
 #[command(about = "🌲 Git Governance for Faelight Forest")]
-#[command(version = "3.1.0")]
+#[command(version = "3.2.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -24,31 +24,31 @@ struct Cli {
 enum Commands {
     /// Show risk-aware repository status
     Status,
-    
+
     /// Show detailed risk assessment
     Risk,
-    
+
     /// Pre-commit verification with intent checking
     Commit {
         #[arg(long)]
         intent: Option<String>,
-        
+
         #[arg(long)]
         no_intent: bool,
     },
-    
+
     /// Interactive git workflow (pull → stage → commit → push)
     Sync,
-    
+
     /// Quick commit and push with message
     Quick {
         /// Commit message
         message: String,
     },
-    
+
     /// Branch management (switch, create, delete)
     Branch,
-    
+
     /// View commit history
     Log {
         /// Number of commits to show (default: 10)
@@ -56,24 +56,23 @@ enum Commands {
         count: Option<usize>,
     },
 
-    
     /// Install git hooks
     InstallHooks,
-    
+
     /// Remove git hooks
     RemoveHooks,
-    
+
     /// Verify commit/push readiness
     Verify,
-    
+
     /// Pre-commit hook (called by git)
     #[command(hide = true)]
     HookPreCommit,
-    
+
     /// Commit-msg hook (called by git)
     #[command(hide = true)]
     HookCommitMsg { file: String },
-    
+
     /// Pre-push hook (called by git)
     #[command(hide = true)]
     HookPrePush,
@@ -81,80 +80,65 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     let exit_code = match cli.command {
         // v2.x commands using git2-rs
-        Commands::Status => {
-            match commands::status::run() {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
+        Commands::Status => match commands::status::run() {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
-        }
-        
-        Commands::Risk => {
-            match commands::risk::run() {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
-            }
-        }
-        
-        Commands::Commit { intent, no_intent } => {
-            match commands::commit::run(intent, no_intent) {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
-            }
-        }
-        
+        },
 
-        Commands::Sync => {
-            match commands::sync::run() {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
+        Commands::Risk => match commands::risk::run() {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
-        }
-        
-        Commands::Quick { message } => {
-            match commands::quick::run(&message) {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
+        },
+
+        Commands::Commit { intent, no_intent } => match commands::commit::run(intent, no_intent) {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
-        }
-        
-        Commands::Branch => {
-            match commands::branch::run() {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
+        },
+
+        Commands::Sync => match commands::sync::run() {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
-        }
-        
-        Commands::Log { count } => {
-            match commands::log::run(count) {
-                Ok(_) => 0,
-                Err(e) => {
-                    eprintln!("{} {}", "Error:".red(), e);
-                    1
-                }
+        },
+
+        Commands::Quick { message } => match commands::quick::run(&message) {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
-        }
-        
+        },
+
+        Commands::Branch => match commands::branch::run() {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
+            }
+        },
+
+        Commands::Log { count } => match commands::log::run(count) {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
+            }
+        },
+
         // v0.1 commands (preserved)
         Commands::InstallHooks => install_hooks(),
         Commands::RemoveHooks => remove_hooks(),
@@ -163,15 +147,14 @@ fn main() {
         Commands::HookCommitMsg { file } => hook_commit_msg(&file),
         Commands::HookPrePush => hook_pre_push(),
     };
-    
+
     exit(exit_code);
 }
-
 
 // ═══════════════════════════════════════════════════════════
 fn install_hooks() -> i32 {
     println!("{}", "🔧 Installing git hooks...".cyan());
-    
+
     let hooks_dir = paths::git_hooks_dir();
     if !hooks_dir.exists() {
         eprintln!("{} .git/hooks directory not found", "Error:".red());
@@ -186,7 +169,7 @@ fn install_hooks() -> i32 {
 
     for (name, content) in hooks {
         let path = hooks_dir.join(name);
-        
+
         // Backup existing
         if path.exists() {
             let backup = hooks_dir.join(format!("{}.backup", name));
@@ -212,16 +195,19 @@ fn install_hooks() -> i32 {
     println!("{}", "Git hooks installed! 🌲".green());
     println!();
     println!("Hooks will:");
-    println!("  • {} Block commits when core is locked", "pre-commit:".cyan());
+    println!(
+        "  • {} Block commits when core is locked",
+        "pre-commit:".cyan()
+    );
     println!("  • {} Suggest intent references", "commit-msg:".cyan());
     println!("  • {} Final verification before push", "pre-push:".cyan());
-    
+
     0
 }
 
 fn remove_hooks() -> i32 {
     println!("{}", "🔧 Removing git hooks...".cyan());
-    
+
     let hooks_dir = paths::git_hooks_dir();
     let hooks = ["pre-commit", "commit-msg", "pre-push"];
 
@@ -233,7 +219,7 @@ fn remove_hooks() -> i32 {
                 if content.contains("faelight-git") {
                     fs::remove_file(&path).ok();
                     println!("   {} Removed {}", "✅".green(), name);
-                    
+
                     // Restore backup if exists
                     let backup = hooks_dir.join(format!("{}.backup", name));
                     if backup.exists() {
@@ -241,7 +227,11 @@ fn remove_hooks() -> i32 {
                         println!("   {} Restored {}.backup", "📦".yellow(), name);
                     }
                 } else {
-                    println!("   {} {} is not a faelight hook, skipping", "⚠️".yellow(), name);
+                    println!(
+                        "   {} {} is not a faelight hook, skipping",
+                        "⚠️".yellow(),
+                        name
+                    );
                 }
             }
         }
@@ -249,7 +239,7 @@ fn remove_hooks() -> i32 {
 
     println!();
     println!("{}", "Git hooks removed.".green());
-    
+
     0
 }
 
@@ -273,32 +263,39 @@ fn verify() -> i32 {
 
     // Check for uncommitted changes
     let status = Command::new("git")
-        .args(["-C", paths::core_dir().to_str().unwrap(), "status", "--porcelain"])
+        .args([
+            "-C",
+            paths::core_dir().to_str().unwrap(),
+            "status",
+            "--porcelain",
+        ])
         .output();
 
     if let Ok(output) = status {
         if output.stdout.is_empty() {
             println!("  {} Working tree clean", "✅".green());
         } else {
-            let lines = String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .count();
+            let lines = String::from_utf8_lossy(&output.stdout).lines().count();
             println!("  {} {} uncommitted changes", "⚠️".yellow(), lines);
         }
     }
 
     // Check for unpushed commits
     let unpushed = Command::new("git")
-        .args(["-C", paths::core_dir().to_str().unwrap(), "log", "@{u}..", "--oneline"])
+        .args([
+            "-C",
+            paths::core_dir().to_str().unwrap(),
+            "log",
+            "@{u}..",
+            "--oneline",
+        ])
         .output();
 
     if let Ok(output) = unpushed {
         if output.stdout.is_empty() {
             println!("  {} All commits pushed", "✅".green());
         } else {
-            let count = String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .count();
+            let count = String::from_utf8_lossy(&output.stdout).lines().count();
             println!("  {} {} unpushed commits", "⚠️".yellow(), count);
         }
     }
@@ -321,7 +318,10 @@ fn verify() -> i32 {
         println!("  {} All hooks installed", "✅".green());
     } else {
         println!("  {} {}/3 hooks installed", "⚠️".yellow(), hooks_installed);
-        println!("     Run: {} to install", "faelight-git install-hooks".cyan());
+        println!(
+            "     Run: {} to install",
+            "faelight-git install-hooks".cyan()
+        );
     }
 
     println!();
@@ -390,7 +390,7 @@ fn hook_commit_msg(file: &str) -> i32 {
     };
 
     let first_line = msg.lines().next().unwrap_or("");
-    
+
     // Check for very short messages
     if first_line.len() < 10 {
         eprintln!();
@@ -401,7 +401,7 @@ fn hook_commit_msg(file: &str) -> i32 {
 
     // Suggest intent reference for significant changes
     let has_intent = msg.contains("Intent:") || msg.contains("intent:");
-    
+
     let staged = Command::new("git")
         .args(["diff", "--cached", "--name-only"])
         .output();
@@ -409,11 +409,11 @@ fn hook_commit_msg(file: &str) -> i32 {
     if let Ok(output) = staged {
         let files = String::from_utf8_lossy(&output.stdout);
         let significant = files.lines().any(|f| {
-            f.starts_with("rust-tools/") ||
-            f.starts_with("INTENT/") ||
-            f.ends_with("main.rs") ||
-            f == "VERSION" ||
-            f == "CHANGELOG.md"
+            f.starts_with("rust-tools/")
+                || f.starts_with("INTENT/")
+                || f.ends_with("main.rs")
+                || f == "VERSION"
+                || f == "CHANGELOG.md"
         });
 
         if significant && !has_intent {
