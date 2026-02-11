@@ -14,14 +14,6 @@ mod paths;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-
-    /// Preview changes without applying (dry-run mode)
-    #[arg(long, global = true)]
-    dry_run: bool,
-
-    /// Output in JSON format
-    #[arg(long, global = true)]
-    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -62,16 +54,16 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    println!("{}", "🔗 faelight-link v2.0.0".bright_blue().bold());
+    println!("{}", "🔗 faelight-link v0.1.0".bright_blue().bold());
 
     match cli.command {
         Commands::Stow { package, force } => {
             println!("📦 Stowing package: {}", package.bright_green());
-            package::stow(&package, force, cli.dry_run)?;
+            package::stow(&package, force)?;
         }
         Commands::Unstow { package } => {
             println!("📦 Unstowing package: {}", package.bright_yellow());
-            package::unstow(&package, cli.dry_run)?;
+            package::unstow(&package)?;
         }
         Commands::List => {
             println!("📋 Available packages:");
