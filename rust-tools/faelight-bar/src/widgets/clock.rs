@@ -1,17 +1,17 @@
-//! Clock widget - simplest widget for testing
+//! Clock widget - Shows current time
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use chrono::Local;
 
 pub struct ClockWidget {
-    current_time: String,
+    time: String,
 }
 
 impl ClockWidget {
     pub fn new() -> Self {
         Self {
-            current_time: String::new(),
+            time: String::new(),
         }
     }
 }
@@ -22,15 +22,15 @@ impl Widget for ClockWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.current_time = Local::now().format("%H:%M").to_string();
+        self.time = Local::now().format("%H:%M").to_string();
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
         Ok(WidgetOutput {
-            text: format!("🕐 {}", self.current_time),
+            text: self.time.clone(), // Just time, no emoji
             color: colors::FG,
-            width: 80, // Approximate width in pixels
+            width: 40,
             clickable: false,
         })
     }
