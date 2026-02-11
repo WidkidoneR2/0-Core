@@ -1,7 +1,5 @@
 use faelight_core::paths;
 
-/// Get the scripts directory path
-
 /// Get path to graceful-poweroff script
 pub fn graceful_poweroff() -> String {
     paths::scripts_dir()
@@ -20,8 +18,5 @@ pub fn graceful_reboot() -> String {
 
 /// Get path to a specific script by name
 pub fn script_path(name: &str) -> String {
-    paths::scripts_dir()
-        .join(name)
-        .display()
-        .to_string()
+    paths::scripts_dir().join(name).display().to_string()
 }

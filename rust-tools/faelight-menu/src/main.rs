@@ -1,6 +1,6 @@
 //! faelight-menu v2.1.0 - Smart Power Menu
 //! 🌲 Faelight Forest
-//! 
+//!
 //! Features:
 //! - Red letters (not background) for dangerous actions
 //! - Power state awareness (battery %)
@@ -49,9 +49,9 @@ const HEIGHT: u32 = 408;
 const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
 const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
-const WARN_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];  // Amber/orange
-const DANGER_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];  // Bright red
-const DANGER_DIM: [u8; 4] = [0x5b, 0x6b, 0xb0, 0xFF];  // Dim red
+const WARN_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF]; // Amber/orange
+const DANGER_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF]; // Bright red
+const DANGER_DIM: [u8; 4] = [0x5b, 0x6b, 0xb0, 0xFF]; // Dim red
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
 
@@ -114,15 +114,15 @@ const MENU_ITEMS: &[MenuItem] = &[
 fn get_power_state() -> (Option<u8>, bool) {
     let capacity_path = "/sys/class/power_supply/BAT0/capacity";
     let status_path = "/sys/class/power_supply/BAT0/status";
-    
+
     let capacity = std::fs::read_to_string(capacity_path)
         .ok()
         .and_then(|s| s.trim().parse().ok());
-    
+
     let on_battery = std::fs::read_to_string(status_path)
         .map(|s| !s.contains("Charging"))
         .unwrap_or(false);
-    
+
     (capacity, on_battery)
 }
 
@@ -152,6 +152,7 @@ fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_text(
     cache: &mut GlyphCache,
     canvas: &mut [u8],
@@ -224,12 +225,12 @@ impl MenuState {
         let height = self.height;
         let stride = width as i32 * 4;
         let selected = self.selected;
-        
+
         let pool = match &mut self.pool {
             Some(p) => p,
             None => return,
         };
-        
+
         let (buffer, canvas) = match pool.create_buffer(
             width as i32,
             height as i32,
@@ -239,13 +240,13 @@ impl MenuState {
             Ok(b) => b,
             Err(_) => return,
         };
-        
+
         for pixel in canvas.chunks_exact_mut(4) {
             pixel.copy_from_slice(&BG_COLOR);
         }
-        
+
         draw_border(canvas, width, height);
-        
+
         draw_text(
             &mut self.glyph_cache,
             canvas,
@@ -257,15 +258,15 @@ impl MenuState {
             BORDER_COLOR,
             FONT_TITLE,
         );
-        
+
         for x in 15..width as usize - 15 {
             let idx = 55 * width as usize * 4 + x * 4;
             canvas[idx..idx + 4].copy_from_slice(&DIM_COLOR);
         }
-        
+
         for (i, item) in MENU_ITEMS.iter().enumerate() {
             let y = ROW_START + i as u32 * ROW_HEIGHT;
-            
+
             if i == 3 {
                 let div_y = y - 18;
                 for x in 20..width as usize - 20 {
@@ -275,34 +276,30 @@ impl MenuState {
                     }
                 }
             }
-            
+
             let text_color = if i == 4 {
                 // Shutdown - always red
                 if i == selected {
-                    if self.confirming {
-                        DANGER_COLOR  // Bright red when confirming
-                    } else {
-                        DANGER_COLOR  // Bright red when selected
-                    }
+                    DANGER_COLOR // Bright red (shutdown always)
                 } else {
-                    DANGER_DIM  // Dim red when not selected
+                    DANGER_DIM // Dim red when not selected
                 }
             } else if i == 3 {
                 // Reboot - always amber/orange
                 if i == selected {
-                    WARN_COLOR  // Bright amber when selected
+                    WARN_COLOR // Bright amber when selected
                 } else {
-                    [0xb3, 0x9b, 0x5b, 0xFF]  // Dim amber when not selected
+                    [0xb3, 0x9b, 0x5b, 0xFF] // Dim amber when not selected
                 }
             } else {
                 // Lock, Logout, Suspend - normal colors
                 if i == selected {
-                    BORDER_COLOR  // Bright green
+                    BORDER_COLOR // Bright green
                 } else {
-                    DIM_COLOR  // Dim gray
+                    DIM_COLOR // Dim gray
                 }
             };
-            
+
             let text = if self.confirming && i == selected && item.dangerous {
                 format!("▶ {}  {} [CONFIRM]", item.icon, item.label)
             } else if i == selected {
@@ -310,7 +307,7 @@ impl MenuState {
             } else {
                 format!("  {}  {}", item.icon, item.label)
             };
-            
+
             draw_text(
                 &mut self.glyph_cache,
                 canvas,
@@ -323,7 +320,7 @@ impl MenuState {
                 FONT_ITEM,
             );
         }
-        
+
         if let Some(percent) = self.battery_percent {
             if self.on_battery {
                 let icon = if percent < 20 { "⚠️" } else { "🔋" };
@@ -341,7 +338,7 @@ impl MenuState {
                 );
             }
         }
-        
+
         draw_text(
             &mut self.glyph_cache,
             canvas,
@@ -353,7 +350,7 @@ impl MenuState {
             DIM_COLOR,
             FONT_HINT,
         );
-        
+
         if let Some(ref surface) = self.layer_surface {
             surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
             surface
@@ -362,16 +359,22 @@ impl MenuState {
             surface.wl_surface().commit();
         }
     }
-    
+
     fn execute_selected(&self) {
         let item = &MENU_ITEMS[self.selected];
         eprintln!("⚡ Executing: {}", item.label);
-        std::fs::write("/tmp/faelight-debug.log", 
-            format!("execute_selected called for: {}
-", item.label)).ok();
-        
+        std::fs::write(
+            "/tmp/faelight-debug.log",
+            format!(
+                "execute_selected called for: {}
+",
+                item.label
+            ),
+        )
+        .ok();
+
         // Get home directory for script paths
-        
+
         match item.action {
             "lock" => {
                 Command::new("swaylock").spawn().ok();
@@ -386,10 +389,16 @@ impl MenuState {
             }
             "shutdown" => {
                 // DEBUG: Write to log file
-                std::fs::write("/tmp/faelight-menu-shutdown.log", 
-                    format!("Shutdown clicked at {}
-", chrono::Local::now())).ok();
-                
+                std::fs::write(
+                    "/tmp/faelight-menu-shutdown.log",
+                    format!(
+                        "Shutdown clicked at {}
+",
+                        chrono::Local::now()
+                    ),
+                )
+                .ok();
+
                 // Use setsid to detach from Sway's process tree (survives Sway death)
                 Command::new("setsid")
                     .arg("--fork")
@@ -400,7 +409,7 @@ impl MenuState {
             _ => {}
         }
     }
-    
+
     fn move_up(&mut self) {
         if self.selected > 0 {
             self.selected -= 1;
@@ -408,7 +417,7 @@ impl MenuState {
             self.selected = MENU_ITEMS.len() - 1;
         }
     }
-    
+
     fn move_down(&mut self) {
         if self.selected < MENU_ITEMS.len() - 1 {
             self.selected += 1;
@@ -423,11 +432,39 @@ impl MenuState {
 // ═══════════════════════════════════════════════════════════
 
 impl CompositorHandler for MenuState {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
     fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for MenuState {
@@ -443,7 +480,14 @@ impl LayerShellHandler for MenuState {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         self.running = false;
     }
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+    fn configure(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _: u32,
+    ) {
         self.width = configure.new_size.0.max(WIDTH);
         self.height = configure.new_size.1.max(HEIGHT);
         self.configured = true;
@@ -456,21 +500,68 @@ impl SeatHandler for MenuState {
         &mut self.seat_state
     }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wl_seat::WlSeat, capability: Capability) {
+    fn new_capability(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: Capability,
+    ) {
         if capability == Capability::Keyboard {
             self.seat_state.get_keyboard(qh, &seat, None).ok();
         }
     }
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
+    fn remove_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat,
+        _: Capability,
+    ) {
+    }
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 
 impl KeyboardHandler for MenuState {
-    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32, _: &[u32], _: &[Keysym]) {}
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
-    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: Modifiers, _: u32) {}
-    
-    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+    fn enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+        _: &[u32],
+        _: &[Keysym],
+    ) {
+    }
+    fn leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+    ) {
+    }
+    fn update_modifiers(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: Modifiers,
+        _: u32,
+    ) {
+    }
+
+    fn press_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        event: KeyEvent,
+    ) {
         match event.keysym {
             Keysym::Escape | Keysym::q => {
                 if self.confirming {
@@ -484,15 +575,27 @@ impl KeyboardHandler for MenuState {
                 let item = &MENU_ITEMS[self.selected];
                 if item.dangerous {
                     if self.confirming {
-                        std::fs::write("/tmp/faelight-enter.log", 
-                            format!("Enter pressed (confirmed) for: {}
-", item.label)).ok();
+                        std::fs::write(
+                            "/tmp/faelight-enter.log",
+                            format!(
+                                "Enter pressed (confirmed) for: {}
+",
+                                item.label
+                            ),
+                        )
+                        .ok();
                         self.execute_selected();
                         self.running = false;
                     } else {
-                        std::fs::write("/tmp/faelight-confirm.log", 
-                            format!("Confirming for: {}
-", item.label)).ok();
+                        std::fs::write(
+                            "/tmp/faelight-confirm.log",
+                            format!(
+                                "Confirming for: {}
+",
+                                item.label
+                            ),
+                        )
+                        .ok();
                         self.confirming = true;
                         self.draw();
                     }
@@ -549,9 +652,24 @@ impl KeyboardHandler for MenuState {
             _ => {}
         }
     }
-    
-    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
-    fn update_repeat_info(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: RepeatInfo) {}
+
+    fn release_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: KeyEvent,
+    ) {
+    }
+    fn update_repeat_info(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: RepeatInfo,
+    ) {
+    }
 }
 
 impl ShmHandler for MenuState {
@@ -581,7 +699,7 @@ delegate_registry!(MenuState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
@@ -628,34 +746,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     eprintln!("⚡ faelight-menu v2.1.0 starting...");
-    
+
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
-    
+
     let compositor = CompositorState::bind(&globals, &qh)?;
     let layer_shell = LayerShell::bind(&globals, &qh)?;
     let shm = Shm::bind(&globals, &qh)?;
-    
+
     let surface = compositor.create_surface(&qh);
-    let layer_surface = layer_shell.create_layer_surface(&qh, surface, Layer::Overlay, Some("faelight-menu"), None);
-    
+    let layer_surface =
+        layer_shell.create_layer_surface(&qh, surface, Layer::Overlay, Some("faelight-menu"), None);
+
     layer_surface.set_anchor(Anchor::empty());
     layer_surface.set_size(WIDTH, HEIGHT);
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
     layer_surface.commit();
-    
+
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
     let glyph_cache = GlyphCache::new(FONT_DATA)?;
-    
+
     let (battery_percent, on_battery) = get_power_state();
     let smart_default = get_smart_default();
-    
-    eprintln!("🔋 Power state: battery={:?}, on_battery={}", battery_percent, on_battery);
-    eprintln!("🎯 Smart default: {} ({})", smart_default, MENU_ITEMS[smart_default].label);
-    
+
+    eprintln!(
+        "🔋 Power state: battery={:?}, on_battery={}",
+        battery_percent, on_battery
+    );
+    eprintln!(
+        "🎯 Smart default: {} ({})",
+        smart_default, MENU_ITEMS[smart_default].label
+    );
+
     let mut state = MenuState {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
@@ -675,11 +800,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         on_battery,
         running: true,
     };
-    
+
     while state.running {
         event_queue.blocking_dispatch(&mut state)?;
     }
-    
+
     eprintln!("👋 Goodbye!");
     Ok(())
 }
@@ -690,7 +815,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn health_check() {
     println!("🏥 faelight-menu v2.1.0 health check");
-    
+
     match Connection::connect_to_env() {
         Ok(_) => println!("✅ wayland: connected"),
         Err(e) => {
@@ -698,7 +823,7 @@ fn health_check() {
             std::process::exit(1);
         }
     }
-    
+
     match GlyphCache::new(FONT_DATA) {
         Ok(_) => println!("✅ font: loaded successfully"),
         Err(e) => {
@@ -706,7 +831,7 @@ fn health_check() {
             std::process::exit(1);
         }
     }
-    
+
     let commands = ["swaylock", "swaymsg", "systemctl"];
     for cmd in &commands {
         if let Ok(check) = std::process::Command::new("which").arg(cmd).output() {
@@ -717,7 +842,7 @@ fn health_check() {
             }
         }
     }
-    
+
     // Check graceful shutdown scripts
     let scripts = ["graceful-poweroff", "graceful-reboot"];
     for script in &scripts {
@@ -728,20 +853,19 @@ fn health_check() {
             eprintln!("⚠️  {}: not found", script);
         }
     }
-    
+
     let (battery_percent, on_battery) = get_power_state();
     match battery_percent {
         Some(pct) => println!("✅ battery: {}% (on_battery: {})", pct, on_battery),
         None => println!("ℹ️  battery: not detected (desktop/AC only?)"),
     }
-    
+
     let smart_default = get_smart_default();
     let hour = Local::now().hour();
-    println!("✅ smart_default: {} at hour {} ({})", 
-        smart_default, 
-        hour,
-        MENU_ITEMS[smart_default].label
+    println!(
+        "✅ smart_default: {} at hour {} ({})",
+        smart_default, hour, MENU_ITEMS[smart_default].label
     );
-    
+
     println!("\n✅ All checks passed!");
 }
