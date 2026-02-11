@@ -1,20 +1,28 @@
 [package]
 name = "faelight-bar"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
+description = "Faelight Forest status bar - Rock-solid Wayland bar with widgets"
 
 [[bin]]
 name = "faelight-bar"
 path = "src/main.rs"
 
 [dependencies]
-smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop", "xkbcommon"] }
+# Core Wayland
+smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
-wayland-protocols-wlr = "0.3"
-faelight-core = { path = "../faelight-core" }
-chrono = "0.4"
-nucleo = "0.5"
-lazy_static = "1.4"
+wayland-protocols = "0.32"
+
+# Error handling
 anyhow = "1.0"
 thiserror = "1.0"
 
+# Time
+chrono = "0.4"
+
+# Logging (placeholder for now)
+# Will add tokio/async later in Phase 4
+
+# Existing from v3
+faelight-core = { path = "../faelight-core" }

@@ -1,0 +1,20 @@
+[package]
+name = "faelight-bar"
+version = "3.0.0"
+edition = "2021"
+
+[[bin]]
+name = "faelight-bar"
+path = "src/main.rs"
+
+[dependencies]
+smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop", "xkbcommon"] }
+wayland-client = "0.31"
+wayland-protocols-wlr = "0.3"
+faelight-core = { path = "../faelight-core" }
+chrono = "0.4"
+nucleo = "0.5"
+lazy_static = "1.4"
+anyhow = "1.0"
+thiserror = "1.0"
+
