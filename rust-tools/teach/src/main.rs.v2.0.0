@@ -1,4 +1,4 @@
-//! teach v3.0.0 - Interactive Learning System
+//! teach v2.0.0 - Interactive Learning System
 //! 🌲 Faelight Forest
 
 use faelight_core::paths;
