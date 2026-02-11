@@ -6,6 +6,7 @@ authors = ["Christian <your@email.com>"]
 description = "System information display - path-resilient!"
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
 # Core infrastructure
 faelight-core = { path = "../faelight-core" }
 
