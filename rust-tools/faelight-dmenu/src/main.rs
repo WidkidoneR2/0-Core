@@ -147,6 +147,7 @@ fn run_stdin_mode(_prompt: &str, _multi: bool) {
 
     if items.is_empty() {
         eprintln!("No items provided");
+        eprintln!("💡 Pipe items to faelight-dmenu, e.g.: echo \"test\" | faelight-dmenu");
         std::process::exit(1);
     }
 
@@ -193,6 +194,7 @@ fn run_apps_mode(_prompt: &str) {
 
     if apps.is_empty() {
         eprintln!("No applications found");
+        eprintln!("💡 Check /usr/share/applications for .desktop files");
         std::process::exit(1);
     }
 
