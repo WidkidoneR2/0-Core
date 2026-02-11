@@ -1142,7 +1142,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-fm"
-version = "2.1.0-alpha"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "crossterm",

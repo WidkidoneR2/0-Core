@@ -36,6 +36,14 @@ pub fn render(area: Rect, buf: &mut Buffer) {
         Line::from("  5 - Scratch    (temporary)"),
         Line::from(""),
         Line::from(vec![Span::styled(
+            "Multi-Select (Phase 1):",
+            Style::default().fg(FaelightColors::ACCENT_BLUE).bold(),
+        )]),
+        Line::from("  Space  - Toggle file selection [✓]"),
+        Line::from("  Shift+Y - Bulk yank selected files"),
+        Line::from("  Shift+C - Clear all selections"),
+        Line::from(""),
+        Line::from(vec![Span::styled(
             "Other:",
             Style::default().fg(FaelightColors::ACCENT_BLUE).bold(),
         )]),
