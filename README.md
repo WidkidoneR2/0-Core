@@ -149,7 +149,7 @@ Every architectural decision documented in markdown:
 
 ---
 
-## 🦀 The Rust Ecosystem (40 Tools)
+## 🦀 The Rust Ecosystem (42 Tools)
 
 ### Core Tools
 
@@ -234,8 +234,8 @@ faelight profile switch work
 
 | Metric | Value |
 |--------|-------|
-| Total Rust Tools | 40 |
-| Path Resilience | 100% (40/40 tools) |
+| Total Rust Tools | 42 |
+| Path Resilience | 100% (42/42 tools) |
 | System Health | 94% (18/19 checks passing) |
 | Lines of Rust | ~50,000+ |
 | Health Checks | 19 automated |
