@@ -76,23 +76,6 @@ v2.1.0 - Production-ready power menu
 - systemctl (for power actions)
 
 
-## Installation
-
-### From 0-Core Workspace
-```bash
-cd ~/0-core
-cargo build --release -p faelight-menu
-cargo install --path rust-tools/faelight-menu
-```
-
-Binary installs to: `~/.cargo/bin/faelight-menu`
-
-### Sway Integration
-```bash
-# Add to ~/.config/sway/config
-bindsym $mod+Escape exec faelight-menu
-```
-
 **Safety First:**
 - Red highlighting for dangerous actions
 - Double-confirmation required
@@ -131,6 +114,19 @@ Enter      # Second confirmation (executes)
 Super+Esc  # Opens menu
 s          # Suspend immediately
 ```
+
+## 🎨 Visual Design
+
+**Color Scheme:**
+- White text for safe actions
+- Red text for dangerous actions (shutdown/reboot)
+- Amber/orange for reboot
+- Arrow indicator (▶) shows selection
+
+**Confirmation State:**
+- First press: Shows "Press again to confirm"
+- Second press: Executes action
+- Cancel: Press Esc or select different option
 
 ## 🔄 Integration
 
