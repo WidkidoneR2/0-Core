@@ -6,7 +6,7 @@ use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
 
-const VERSION: &str = "2.1.0";
+const VERSION: const VERSION: &str = "2.0.0";str = "2.1.0";
 
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -64,13 +64,6 @@ fn get_profile_dir() -> PathBuf {
 
 fn error(msg: &str) -> ! {
     eprintln!("{}❌ Error: {}{}", RED, msg, NC);
-    if msg.contains("not found") || msg.contains("doesn't exist") {
-        eprintln!("💡 Run 'profile list' to see available profiles");
-    } else if msg.contains("script") {
-        eprintln!("💡 Check activation/deactivation scripts in profile directory");
-    } else if msg.contains("Usage") {
-        eprintln!("💡 Run 'profile help' for command details");
-    }
     process::exit(1);
 }
 

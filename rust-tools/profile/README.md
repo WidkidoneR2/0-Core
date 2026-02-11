@@ -1,4 +1,4 @@
-# profile v1.0.0
+# profile v2.1.0
 
 🎮 **System Profile Manager** - Context-aware system configuration switching.
 
