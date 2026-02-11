@@ -94,7 +94,7 @@ impl RiskScore {
         // - core-diff risk multiplier
 
         let total = total.clamp(0, 100) as u8;
-        
+
         Ok(Self { total, breakdown })
     }
 

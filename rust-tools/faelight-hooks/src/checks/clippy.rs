@@ -14,7 +14,14 @@ pub fn check_clippy() -> Result<bool> {
 
     // Run clippy on workspace
     let check = Command::new("cargo")
-        .args(["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])
+        .args([
+            "clippy",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings",
+        ])
         .output()?;
 
     if !check.status.success() {

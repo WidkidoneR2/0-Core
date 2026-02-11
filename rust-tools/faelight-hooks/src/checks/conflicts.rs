@@ -29,7 +29,7 @@ pub fn check_conflicts() -> Result<bool> {
 
     for file in files {
         let path = PathBuf::from(&file);
-        
+
         // Skip binary files and files that don't exist
         if !path.exists() {
             continue;
@@ -50,8 +50,9 @@ pub fn check_conflicts() -> Result<bool> {
                     println!();
                 }
                 conflicts_found = true;
-                println!("  {}:{} {}", 
-                    file.yellow(), 
+                println!(
+                    "  {}:{} {}",
+                    file.yellow(),
                     (line_num + 1).to_string().yellow(),
                     line.red()
                 );
@@ -61,7 +62,10 @@ pub fn check_conflicts() -> Result<bool> {
 
     if conflicts_found {
         println!();
-        println!("{}", "⚠️  Please resolve merge conflicts before committing!".yellow());
+        println!(
+            "{}",
+            "⚠️  Please resolve merge conflicts before committing!".yellow()
+        );
         println!();
         return Ok(false);
     }

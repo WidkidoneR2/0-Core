@@ -8,37 +8,39 @@ use colored::*;
 pub fn run() -> Result<()> {
     let repo = GitRepo::open()?;
     let risk = RiskScore::calculate(&repo)?;
-    
+
     println!("{}", "⚠️  Git Risk Assessment".cyan().bold());
     println!("{}", "━".repeat(50).dimmed());
     println!();
-    
-    println!("{}: {} {}", 
+
+    println!(
+        "{}: {} {}",
         "Total Risk".bold(),
         risk.emoji(),
         format!("{}/100", risk.total).color(risk.color()).bold()
     );
-    
+
     println!("{}: {:?}", "Band".dimmed(), risk.band());
-    
+
     println!();
     println!("{}", "Risk Factors:".bold());
-    
+
     if risk.breakdown.is_empty() {
         println!("  {} No risk factors detected", "✅".green());
     } else {
         for factor in &risk.breakdown {
-            println!("  {} {}: {}", 
+            println!(
+                "  {} {}: {}",
                 format!("{:+3}", factor.delta).color(risk.color()),
                 factor.name.bold(),
                 factor.reason.dimmed()
             );
         }
     }
-    
+
     println!();
     println!("{}", "━".repeat(50).dimmed());
-    
+
     // Recommendations
     if risk.total > 50 {
         println!("{}", "⚠️  High Risk - Recommendations:".yellow().bold());
@@ -52,6 +54,6 @@ pub fn run() -> Result<()> {
     } else {
         println!("{}", "✅ Low Risk - Good to proceed".green());
     }
-    
+
     Ok(())
 }

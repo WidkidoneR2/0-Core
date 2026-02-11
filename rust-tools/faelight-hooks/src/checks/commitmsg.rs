@@ -7,11 +7,12 @@ pub fn validate_commit_msg(msg: &str) -> Result<bool> {
 
     // Conventional commit format: type(scope): subject
     let conventional_regex = Regex::new(
-        r"^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?: .{1,}"
-    ).unwrap();
+        r"^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?: .{1,}",
+    )
+    .unwrap();
 
     let lines: Vec<&str> = msg.lines().collect();
-    
+
     if lines.is_empty() {
         println!("{}", "❌ Empty commit message!".red().bold());
         return Ok(false);
@@ -28,16 +29,21 @@ pub fn validate_commit_msg(msg: &str) -> Result<bool> {
 
     // Check if it follows conventional commits
     if !conventional_regex.is_match(subject) {
-        println!("{}", "⚠️  Not following conventional commit format".yellow());
+        println!(
+            "{}",
+            "⚠️  Not following conventional commit format".yellow()
+        );
         println!();
         println!("Expected format:");
-        println!("  {}({}): {}", 
-            "type".green(), 
-            "scope".cyan(), 
+        println!(
+            "  {}({}): {}",
+            "type".green(),
+            "scope".cyan(),
             "description".dimmed()
         );
         println!();
-        println!("Valid types: {}", 
+        println!(
+            "Valid types: {}",
             "feat, fix, docs, style, refactor, perf, test, chore, build, ci, revert".dimmed()
         );
         println!();

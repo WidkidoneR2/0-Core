@@ -26,14 +26,14 @@ impl GitStatus {
 /// Get git status for all files in a directory
 pub fn get_status(dir: &Path) -> std::collections::HashMap<String, GitStatus> {
     let mut status_map = std::collections::HashMap::new();
-    
+
     // Run git status --porcelain
     let output = Command::new("git")
         .arg("status")
         .arg("--porcelain")
         .current_dir(dir)
         .output();
-    
+
     if let Ok(output) = output {
         if output.status.success() {
             let status_text = String::from_utf8_lossy(&output.stdout);
@@ -41,7 +41,7 @@ pub fn get_status(dir: &Path) -> std::collections::HashMap<String, GitStatus> {
                 if line.len() >= 3 {
                     let status_code = &line[0..2];
                     let filename = line[3..].trim();
-                    
+
                     let status = match status_code.trim() {
                         "M" | " M" | "MM" => GitStatus::Modified,
                         "A" | "AM" => GitStatus::Added,
@@ -49,12 +49,12 @@ pub fn get_status(dir: &Path) -> std::collections::HashMap<String, GitStatus> {
                         "??" => GitStatus::Untracked,
                         _ => GitStatus::Clean,
                     };
-                    
+
                     status_map.insert(filename.to_string(), status);
                 }
             }
         }
     }
-    
+
     status_map
 }

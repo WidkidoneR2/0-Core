@@ -1,7 +1,7 @@
-use std::path::PathBuf;
 use crate::git::GitStatus;
-use faelight_zone::Zone;
 use crate::intent::IntentStatus;
+use faelight_zone::Zone;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct IntentInfo {
@@ -15,7 +15,7 @@ pub struct FaelightEntry {
     pub path: PathBuf,
     pub name: String,
     pub is_dir: bool,
-    pub is_symlink: bool,  // NEW!
+    pub is_symlink: bool, // NEW!
     pub zone: Zone,
     pub health: HealthStatus,
     pub intent_info: Option<IntentInfo>,
@@ -44,7 +44,7 @@ impl HealthStatus {
 impl FaelightEntry {
     pub fn icon(&self) -> &'static str {
         if self.is_symlink {
-            "🔗"  // Symlink icon!
+            "🔗" // Symlink icon!
         } else if self.is_dir {
             "📁"
         } else {

@@ -1,10 +1,10 @@
+use clap::{Parser, Subcommand};
+use faelight_core::paths;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
-use clap::{Parser, Subcommand};
-use faelight_core::paths;
 
 // ANSI colors (keeping for now - colored crate ready for future)
 const RED: &str = "\x1b[0;31m";
@@ -14,11 +14,9 @@ const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
-
 const VERSION: &str = "2.0.0";
 
 // ANSI colors
-
 
 #[derive(Parser)]
 #[command(name = "core-protect")]
@@ -45,12 +43,12 @@ enum Commands {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let core_dir = paths::core_dir();
-    
+
     if args.len() < 2 {
         show_help();
         return;
     }
-    
+
     match args[1].as_str() {
         "lock" => cmd_lock(&core_dir),
         "unlock" => cmd_unlock(&core_dir),
@@ -76,9 +74,9 @@ fn cmd_health(core_dir: &PathBuf) {
     println!();
     println!("{}🏥 core-protect v{} - Health Check{}", CYAN, VERSION, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let mut healthy = true;
-    
+
     // Check chattr available
     print!("  Checking chattr command... ");
     match Command::new("which").arg("chattr").output() {
@@ -88,7 +86,7 @@ fn cmd_health(core_dir: &PathBuf) {
             healthy = false;
         }
     }
-    
+
     // Check lsattr available
     print!("  Checking lsattr command... ");
     match Command::new("which").arg("lsattr").output() {
@@ -98,7 +96,7 @@ fn cmd_health(core_dir: &PathBuf) {
             healthy = false;
         }
     }
-    
+
     // Check 0-core exists
     print!("  Checking 0-core directory... ");
     if core_dir.exists() {
@@ -107,7 +105,7 @@ fn cmd_health(core_dir: &PathBuf) {
         println!("{}❌ not found at {}{}", RED, core_dir.display(), NC);
         healthy = false;
     }
-    
+
     // Check sudo access
     print!("  Checking sudo access... ");
     match Command::new("sudo").args(["-n", "true"]).status() {
@@ -116,14 +114,11 @@ fn cmd_health(core_dir: &PathBuf) {
             println!("{}⚠️  sudo may require password{}", YELLOW, NC);
         }
     }
-    
+
     // Check current protection status
     print!("  Checking protection status... ");
-    let output = Command::new("lsattr")
-        .arg("-d")
-        .arg(core_dir)
-        .output();
-    
+    let output = Command::new("lsattr").arg("-d").arg(core_dir).output();
+
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
         if stdout.contains('i') {
@@ -134,7 +129,7 @@ fn cmd_health(core_dir: &PathBuf) {
     } else {
         println!("{}❓ Unknown{}", YELLOW, NC);
     }
-    
+
     println!();
     if healthy {
         println!("{}✅ All systems operational{}", GREEN, NC);
@@ -147,7 +142,7 @@ fn cmd_health(core_dir: &PathBuf) {
 
 fn cmd_lock(core_dir: &PathBuf) {
     println!("🔒 Locking 0-core (immutable protection)...");
-    
+
     // Lock all items in core_dir (silently skip unsupported files)
     if let Ok(entries) = fs::read_dir(core_dir) {
         for entry in entries.flatten() {
@@ -160,7 +155,7 @@ fn cmd_lock(core_dir: &PathBuf) {
                 .ok();
         }
     }
-    
+
     // Lock the directory itself
     Command::new("sudo")
         .args(["chattr", "+i"])
@@ -169,13 +164,16 @@ fn cmd_lock(core_dir: &PathBuf) {
         .stderr(Stdio::null())
         .status()
         .ok();
-    
-    println!("{}✅ Core protected! Cannot modify without unlocking.{}", GREEN, NC);
+
+    println!(
+        "{}✅ Core protected! Cannot modify without unlocking.{}",
+        GREEN, NC
+    );
 }
 
 fn cmd_unlock(core_dir: &PathBuf) {
     println!("🔓 Unlocking 0-core for editing...");
-    
+
     // Unlock all items first (silently skip unsupported files)
     if let Ok(entries) = fs::read_dir(core_dir) {
         for entry in entries.flatten() {
@@ -188,7 +186,7 @@ fn cmd_unlock(core_dir: &PathBuf) {
                 .ok();
         }
     }
-    
+
     // Unlock the directory
     Command::new("sudo")
         .args(["chattr", "-i"])
@@ -197,18 +195,15 @@ fn cmd_unlock(core_dir: &PathBuf) {
         .stderr(Stdio::null())
         .status()
         .ok();
-    
+
     println!("{}✅ Core unlocked! You can now edit.{}", GREEN, NC);
 }
 
 fn cmd_status(core_dir: &PathBuf) {
     println!("📊 Checking 0-core protection status...");
-    
-    let output = Command::new("lsattr")
-        .arg("-d")
-        .arg(core_dir)
-        .output();
-    
+
+    let output = Command::new("lsattr").arg("-d").arg(core_dir).output();
+
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
         if stdout.contains('i') {
@@ -223,23 +218,23 @@ fn cmd_status(core_dir: &PathBuf) {
 
 fn cmd_edit(core_dir: &PathBuf, package: &str) {
     let pkg_dir = core_dir.join(package);
-    
+
     if !pkg_dir.exists() {
         eprintln!("{}❌ Package not found: {}{}", RED, package, NC);
         process::exit(1);
     }
-    
+
     let blast_radius = get_blast_radius(core_dir, package);
-    
+
     if !show_blast_warning(core_dir, package, &blast_radius) {
         return;
     }
-    
+
     create_backup(core_dir, package, &blast_radius);
-    
+
     println!("🔓 Temporarily unlocking for edit...");
     cmd_unlock(core_dir);
-    
+
     println!("📝 Opening editor...");
     let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
     Command::new(&editor)
@@ -247,16 +242,16 @@ fn cmd_edit(core_dir: &PathBuf, package: &str) {
         .current_dir(&pkg_dir)
         .status()
         .ok();
-    
+
     println!("🔒 Re-locking core...");
     cmd_lock(core_dir);
-    
+
     println!("{}✅ Edits complete, core re-locked!{}", GREEN, NC);
 }
 
 fn get_blast_radius(core_dir: &Path, package: &str) -> String {
     let dotmeta = core_dir.join(package).join(".dotmeta");
-    
+
     if let Ok(content) = fs::read_to_string(&dotmeta) {
         for line in content.lines() {
             if line.contains("blast_radius") {
@@ -276,7 +271,7 @@ fn get_blast_radius(core_dir: &Path, package: &str) -> String {
 fn get_failure_modes(core_dir: &Path, package: &str) -> Vec<String> {
     let dotmeta = core_dir.join(package).join(".dotmeta");
     let mut modes = vec![];
-    
+
     if let Ok(content) = fs::read_to_string(&dotmeta) {
         let mut in_section = false;
         for line in content.lines() {
@@ -291,7 +286,8 @@ fn get_failure_modes(core_dir: &Path, package: &str) -> Vec<String> {
                 continue;
             }
             if in_section && line.trim().starts_with('"') {
-                let clean = line.trim()
+                let clean = line
+                    .trim()
                     .trim_matches(|c| c == '"' || c == ',' || c == '[' || c == ']')
                     .trim()
                     .to_string();
@@ -314,7 +310,7 @@ fn prompt(msg: &str) -> String {
 
 fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> bool {
     let failure_modes = get_failure_modes(core_dir, package);
-    
+
     match blast_radius {
         "critical" => {
             println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", RED, NC);
@@ -329,9 +325,12 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
                 println!("  {}•{} {}", RED, NC, mode);
             }
             println!();
-            println!("{}⚠️  Auto-backup will be created before editing{}", YELLOW, NC);
+            println!(
+                "{}⚠️  Auto-backup will be created before editing{}",
+                YELLOW, NC
+            );
             println!();
-            
+
             let confirm = prompt("Type 'CRITICAL' to proceed: ");
             if confirm != "CRITICAL" {
                 println!("❌ Edit cancelled");
@@ -344,16 +343,22 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", YELLOW, NC);
             println!();
             println!("Package: {}{}{}", CYAN, package, NC);
-            println!("Risk: {}🟠 High{} (major functionality affected)", YELLOW, NC);
+            println!(
+                "Risk: {}🟠 High{} (major functionality affected)",
+                YELLOW, NC
+            );
             println!();
             println!("Failure may cause:");
             for mode in &failure_modes {
                 println!("  {}•{} {}", YELLOW, NC, mode);
             }
             println!();
-            println!("{}⚠️  Auto-backup will be created before editing{}", YELLOW, NC);
+            println!(
+                "{}⚠️  Auto-backup will be created before editing{}",
+                YELLOW, NC
+            );
             println!();
-            
+
             let confirm = prompt("Type 'yes' to proceed: ");
             if confirm != "yes" {
                 println!("❌ Edit cancelled");
@@ -366,9 +371,12 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", BLUE, NC);
             println!();
             println!("Package: {}{}{}", CYAN, package, NC);
-            println!("Risk: {}🔵 Medium{} (important but not essential)", BLUE, NC);
+            println!(
+                "Risk: {}🔵 Medium{} (important but not essential)",
+                BLUE, NC
+            );
             println!();
-            
+
             let confirm = prompt("Continue? (y/N): ");
             if confirm != "y" {
                 println!("❌ Edit cancelled");
@@ -377,38 +385,48 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
         }
         _ => {}
     }
-    
+
     true
 }
 
 fn create_backup(core_dir: &Path, package: &str, blast_radius: &str) {
     if blast_radius == "critical" || blast_radius == "high" {
         println!("💾 Creating backup...");
-        
+
         Command::new("git")
             .args(["-C", &core_dir.to_string_lossy(), "add", "-A"])
             .status()
             .ok();
-        
+
         let timestamp = Command::new("date")
             .arg("+%Y-%m-%d-%H%M")
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_default();
-        
+
         let msg = format!("Pre-edit backup: {} {}", package, timestamp);
         Command::new("git")
-            .args(["-C", &core_dir.to_string_lossy(), "stash", "push", "-m", &msg])
+            .args([
+                "-C",
+                &core_dir.to_string_lossy(),
+                "stash",
+                "push",
+                "-m",
+                &msg,
+            ])
             .status()
             .ok();
-        
+
         println!("{}✅ Backup created (git stash){}", GREEN, NC);
         println!();
     }
 }
 
 fn show_help() {
-    println!("🛡️  core-protect v{} - Immutable 0-core Management", VERSION);
+    println!(
+        "🛡️  core-protect v{} - Immutable 0-core Management",
+        VERSION
+    );
     println!();
     println!("USAGE:");
     println!("  core-protect <command>");

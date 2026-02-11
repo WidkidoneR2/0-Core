@@ -1,6 +1,6 @@
+mod format;
 mod icons;
 mod state;
-mod format;
 
 use state::SystemState;
 

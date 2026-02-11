@@ -1,15 +1,14 @@
-use std::time::{Duration, Instant};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, 
-    delegate_pointer, delegate_registry, delegate_seat, delegate_shm,
+    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
+    delegate_registry, delegate_seat, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
-        Capability, SeatHandler, SeatState,
         keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
-        pointer::{PointerEvent, PointerEventKind, PointerHandler}
+        pointer::{PointerEvent, PointerEventKind, PointerHandler},
+        Capability, SeatHandler, SeatState,
     },
     shell::{
         wlr_layer::{
@@ -20,22 +19,23 @@ use smithay_client_toolkit::{
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
+use std::fs;
+use std::process::Command;
+use std::time::{Duration, Instant};
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use std::process::Command;
-use std::fs;
 
-mod paths;
-mod state;
-mod render;
 mod input;
 mod menu;
+mod paths;
+mod render;
+mod state;
 
-use state::{AppState};
-use input::{handle_key_press, KeyAction, execute_command};
+use input::{execute_command, handle_key_press, KeyAction};
+use state::AppState;
 
 const BAR_HEIGHT: u32 = 32;
 const REFRESH_MS: u64 = 500;
@@ -82,7 +82,7 @@ fn get_current_profile() -> String {
 
 fn health_check() {
     println!("🏥 faelight-bar health check");
-    
+
     match Connection::connect_to_env() {
         Ok(_) => println!("✅ wayland: connected"),
         Err(e) => {
@@ -90,13 +90,13 @@ fn health_check() {
             std::process::exit(1);
         }
     }
-    
+
     println!("\n✅ Core checks passed!");
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    
+
     if args.len() > 1 {
         match args[1].as_str() {
             "--version" | "-v" => {
@@ -139,7 +139,7 @@ fn main() {
             }
         }
     }
-    
+
     let conn = match Connection::connect_to_env() {
         Ok(c) => c,
         Err(e) => {
@@ -148,7 +148,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let (globals, mut event_queue) = match registry_queue_init(&conn) {
         Ok(r) => r,
         Err(e) => {
@@ -156,9 +156,9 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let qh = event_queue.handle();
-    
+
     let compositor = match CompositorState::bind(&globals, &qh) {
         Ok(c) => c,
         Err(e) => {
@@ -166,7 +166,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let layer_shell = match LayerShell::bind(&globals, &qh) {
         Ok(l) => l,
         Err(e) => {
@@ -175,7 +175,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let shm = match Shm::bind(&globals, &qh) {
         Ok(s) => s,
         Err(e) => {
@@ -183,24 +183,19 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let seat_state = SeatState::new(&globals, &qh);
     let surface = compositor.create_surface(&qh);
-    
-    let layer_surface = layer_shell.create_layer_surface(
-        &qh,
-        surface,
-        Layer::Top,
-        Some("faelight-bar"),
-        None,
-    );
-    
+
+    let layer_surface =
+        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-bar"), None);
+
     layer_surface.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
     layer_surface.set_size(0, BAR_HEIGHT);
     layer_surface.set_exclusive_zone(BAR_HEIGHT as i32);
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
-    
+
     let pool = match SlotPool::new(4096 * 132 * 4, &shm) {
         Ok(p) => p,
         Err(e) => {
@@ -208,7 +203,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
         seat_state,
@@ -225,18 +220,19 @@ fn main() {
         last_draw: Instant::now(),
         keyboard: None,
     };
-    
+
     // Bar starting silently
-    
+
     // Wait for initial configure event
-    event_queue.roundtrip(&mut state).expect("Failed initial roundtrip");
-    
+    event_queue
+        .roundtrip(&mut state)
+        .expect("Failed initial roundtrip");
+
     if !state.configured {
         eprintln!("❌ Never received configure event from compositor!");
         std::process::exit(1);
     }
-    
-    
+
     while state.running {
         if let Err(e) = event_queue.blocking_dispatch(&mut state) {
             eprintln!("⚠️  Event dispatch error: {}", e);
@@ -266,11 +262,11 @@ impl BarState {
         if self.app_state.width == 0 {
             return;
         }
-        
+
         let width = self.app_state.width;
         let height = self.height;
         let stride = width as i32 * 4;
-        
+
         let (buffer, canvas) = match self.pool.create_buffer(
             width as i32,
             height as i32,
@@ -280,23 +276,29 @@ impl BarState {
             Ok(b) => b,
             Err(_) => return,
         };
-        
+
         // Render and get click regions
         self.click_regions = render::render(&self.app_state, canvas, width, height);
-        
-        self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
-        self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
+
+        self.layer_surface
+            .wl_surface()
+            .attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer_surface
+            .wl_surface()
+            .damage_buffer(0, 0, width as i32, height as i32);
+        self.layer_surface
+            .wl_surface()
+            .frame(qh, self.layer_surface.wl_surface().clone());
         self.layer_surface.commit();
     }
-    
+
     fn enter_menu_mode(&mut self, qh: &QueueHandle<Self>) {
         let items = menu::get_all_items();
         self.app_state.enter_menu(items, &self.layer_surface);
         self.height = self.app_state.current_height();
         self.draw(qh);
     }
-    
+
     fn exit_menu_mode(&mut self, qh: &QueueHandle<Self>) {
         self.app_state.exit_menu(&self.layer_surface);
         self.height = self.app_state.current_height();
@@ -305,49 +307,104 @@ impl BarState {
 }
 
 impl CompositorHandler for BarState {
-    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
-                           _surface: &wl_surface::WlSurface, _new_factor: i32) {}
-    
-    fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
-                        _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
-    
-    fn frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
-             _surface: &wl_surface::WlSurface, _time: u32) {
+    fn scale_factor_changed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _new_factor: i32,
+    ) {
+    }
+
+    fn transform_changed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _new_transform: wl_output::Transform,
+    ) {
+    }
+
+    fn frame(
+        &mut self,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _time: u32,
+    ) {
         if self.last_draw.elapsed() >= Duration::from_millis(REFRESH_MS) {
             self.last_draw = Instant::now();
             self.draw(qh);
         } else {
-            self.layer_surface.wl_surface().frame(qh, self.layer_surface.wl_surface().clone());
+            self.layer_surface
+                .wl_surface()
+                .frame(qh, self.layer_surface.wl_surface().clone());
             self.layer_surface.wl_surface().commit();
         }
     }
-    
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, 
-                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, 
-                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for BarState {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
-    
-    fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
-    
-    fn update_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
-    
-    fn output_destroyed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+
+    fn new_output(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _output: wl_output::WlOutput,
+    ) {
+    }
+
+    fn update_output(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _output: wl_output::WlOutput,
+    ) {
+    }
+
+    fn output_destroyed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _output: wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl LayerShellHandler for BarState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
         self.running = false;
     }
-    
-    fn configure(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, _layer: &LayerSurface, 
-                 configure: LayerSurfaceConfigure, _serial: u32) {
+
+    fn configure(
+        &mut self,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        _layer: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _serial: u32,
+    ) {
         if configure.new_size.0 > 0 {
             self.app_state.width = configure.new_size.0;
         }
@@ -369,11 +426,16 @@ impl SeatHandler for BarState {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }
-    
+
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
-    
-    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
-                     seat: wl_seat::WlSeat, capability: Capability) {
+
+    fn new_capability(
+        &mut self,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: Capability,
+    ) {
         if capability == Capability::Pointer {
             let _ = self.seat_state.get_pointer(qh, &seat);
         }
@@ -383,30 +445,58 @@ impl SeatHandler for BarState {
             }
         }
     }
-    
-    fn remove_capability(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, 
-                        _seat: wl_seat::WlSeat, capability: Capability) {
+
+    fn remove_capability(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _seat: wl_seat::WlSeat,
+        capability: Capability,
+    ) {
         if capability == Capability::Keyboard {
             if let Some(kbd) = self.keyboard.take() {
                 kbd.release();
             }
         }
     }
-    
-    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+    }
 }
 
 impl KeyboardHandler for BarState {
-    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard,
-             _: &wl_surface::WlSurface, _: u32, _: &[u32], _: &[Keysym]) {}
-    
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard,
-             _: &wl_surface::WlSurface, _: u32) {}
-    
-    fn press_key(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
-                 _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+    fn enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+        _: &[u32],
+        _: &[Keysym],
+    ) {
+    }
+
+    fn leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+    ) {
+    }
+
+    fn press_key(
+        &mut self,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        event: KeyEvent,
+    ) {
         let action = handle_key_press(&mut self.app_state, event);
-        
+
         match action {
             KeyAction::None => {}
             KeyAction::Redraw => {
@@ -421,25 +511,49 @@ impl KeyboardHandler for BarState {
             }
         }
     }
-    
-    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, 
-                   _: &wl_keyboard::WlKeyboard, _: u32, _event: KeyEvent) {}
-    
-    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, 
-                       _: &wl_keyboard::WlKeyboard, _serial: u32, _modifiers: Modifiers, _: u32) {}
+
+    fn release_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _event: KeyEvent,
+    ) {
+    }
+
+    fn update_modifiers(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _serial: u32,
+        _modifiers: Modifiers,
+        _: u32,
+    ) {
+    }
 }
 
 impl PointerHandler for BarState {
-    fn pointer_frame(&mut self, _conn: &Connection, qh: &QueueHandle<Self>, 
-                    _pointer: &wl_pointer::WlPointer, events: &[PointerEvent]) {
+    fn pointer_frame(
+        &mut self,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        _pointer: &wl_pointer::WlPointer,
+        events: &[PointerEvent],
+    ) {
         for event in events {
             match event.kind {
                 PointerEventKind::Motion { .. } => {
                     self.pointer_x = event.position.0;
                 }
                 PointerEventKind::Press { button, .. } => {
-                    if button == 272 {  // Left click
-                        let x = self.pointer_x as i32;                        for (start, end, action) in &self.click_regions {                            if x >= *start && x <= *end {                                if action == "launcher" || action == "search" {
+                    if button == 272 {
+                        // Left click
+                        let x = self.pointer_x as i32;
+                        for (start, end, action) in &self.click_regions {
+                            if x >= *start && x <= *end {
+                                if action == "launcher" || action == "search" {
                                     self.enter_menu_mode(qh);
                                 } else {
                                     handle_click(action);

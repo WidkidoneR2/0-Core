@@ -6,19 +6,19 @@ use serde::{Deserialize, Serialize};
 pub enum Command {
     /// List entries in a directory
     GetEntries { path: String },
-    
+
     /// Search for files
     Search { query: String },
-    
+
     /// Get file preview
     Preview { path: String },
-    
+
     /// Get git status for directory
     GitStatus { path: String },
-    
+
     /// Ping to check daemon is alive
     Ping,
-    
+
     /// Shutdown daemon
     Shutdown,
 }
@@ -28,19 +28,19 @@ pub enum Command {
 pub enum Response {
     /// Success with entries
     Entries { entries: Vec<Entry> },
-    
+
     /// Success with preview
     Preview { content: String },
-    
+
     /// Success with git status
     GitStatus { status: String },
-    
+
     /// Pong response
     Pong,
-    
+
     /// Generic success
     Ok,
-    
+
     /// Error occurred
     Error { message: String },
 }

@@ -8,12 +8,12 @@ const VERSION: &str = "1.0.0";
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() < 2 {
         print_help();
         return;
     }
-    
+
     match args[1].as_str() {
         "list" | "ls" => list_snapshots(&args),
         "create" => create_snapshot(&args),
@@ -38,9 +38,9 @@ fn print_version() {
 fn health_check() {
     println!("🏥 faelight-snapshot v{} - Health Check", VERSION);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let mut healthy = true;
-    
+
     // Check if snapper is installed
     print!("  Checking snapper installation... ");
     match Command::new("which").arg("snapper").output() {
@@ -50,37 +50,46 @@ fn health_check() {
             healthy = false;
         }
     }
-    
+
     // Check root config
     print!("  Checking root config... ");
-    match Command::new("sudo").args(["snapper", "-c", "root", "list"]).output() {
+    match Command::new("sudo")
+        .args(["snapper", "-c", "root", "list"])
+        .output()
+    {
         Ok(out) if out.status.success() => println!("✅"),
         _ => {
             println!("❌ root config missing");
             healthy = false;
         }
     }
-    
+
     // Check home config
     print!("  Checking home config... ");
-    match Command::new("sudo").args(["snapper", "-c", "home", "list"]).output() {
+    match Command::new("sudo")
+        .args(["snapper", "-c", "home", "list"])
+        .output()
+    {
         Ok(out) if out.status.success() => println!("✅"),
         _ => {
             println!("❌ home config missing");
             healthy = false;
         }
     }
-    
+
     // Check btrfs
     print!("  Checking btrfs filesystem... ");
-    match Command::new("sudo").args(["btrfs", "filesystem", "df", "/"]).output() {
+    match Command::new("sudo")
+        .args(["btrfs", "filesystem", "df", "/"])
+        .output()
+    {
         Ok(out) if out.status.success() => println!("✅"),
         _ => {
             println!("❌ btrfs not available");
             healthy = false;
         }
     }
-    
+
     println!();
     if healthy {
         println!("✅ All systems operational");
@@ -120,34 +129,42 @@ fn print_help() {
 
 fn list_snapshots(args: &[String]) {
     let config = if args.len() > 2 { &args[2] } else { "both" };
-    
+
     println!("📸 Btrfs Snapshots");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     if config == "both" || config == "root" {
         println!("\n🔧 Root (/) snapshots:");
         let output = Command::new("sudo")
             .args(["snapper", "-c", "root", "list"])
             .output();
-        
+
         if let Ok(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
             // Show last 10 lines
-            for line in stdout.lines().take(1).chain(stdout.lines().skip(stdout.lines().count().saturating_sub(10))) {
+            for line in stdout.lines().take(1).chain(
+                stdout
+                    .lines()
+                    .skip(stdout.lines().count().saturating_sub(10)),
+            ) {
                 println!("  {}", line);
             }
         }
     }
-    
+
     if config == "both" || config == "home" {
         println!("\n🏠 Home (/home) snapshots:");
         let output = Command::new("sudo")
             .args(["snapper", "-c", "home", "list"])
             .output();
-        
+
         if let Ok(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
-            for line in stdout.lines().take(1).chain(stdout.lines().skip(stdout.lines().count().saturating_sub(10))) {
+            for line in stdout.lines().take(1).chain(
+                stdout
+                    .lines()
+                    .skip(stdout.lines().count().saturating_sub(10)),
+            ) {
                 println!("  {}", line);
             }
         }
@@ -160,29 +177,29 @@ fn create_snapshot(args: &[String]) {
     } else {
         "manual snapshot".to_string()
     };
-    
+
     println!("📸 Creating snapshots: {}", desc);
-    
+
     // Create root snapshot
     let root_result = Command::new("sudo")
         .args(["snapper", "-c", "root", "create", "-d", &desc])
         .status();
-    
+
     match root_result {
         Ok(s) if s.success() => println!("  ✅ Root snapshot created"),
         _ => println!("  ❌ Failed to create root snapshot"),
     }
-    
+
     // Create home snapshot
     let home_result = Command::new("sudo")
         .args(["snapper", "-c", "home", "create", "-d", &desc])
         .status();
-    
+
     match home_result {
         Ok(s) if s.success() => println!("  ✅ Home snapshot created"),
         _ => println!("  ❌ Failed to create home snapshot"),
     }
-    
+
     println!();
     println!("💡 Run 'faelight-snapshot list' to see snapshots");
 }
@@ -192,24 +209,24 @@ fn delete_snapshot(args: &[String]) {
         eprintln!("❌ Usage: faelight-snapshot delete <number>");
         return;
     }
-    
+
     let num = &args[2];
-    
+
     println!("🗑️  Deleting snapshot #{}", num);
     println!();
     println!("⚠️  This will delete from BOTH root and home configs.");
     println!("    Press Ctrl+C to cancel, or wait 3 seconds...");
-    
+
     std::thread::sleep(std::time::Duration::from_secs(3));
-    
+
     let _ = Command::new("sudo")
         .args(["snapper", "-c", "root", "delete", num])
         .status();
-    
+
     let _ = Command::new("sudo")
         .args(["snapper", "-c", "home", "delete", num])
         .status();
-    
+
     println!("✅ Snapshot #{} deleted", num);
 }
 
@@ -218,20 +235,20 @@ fn diff_snapshot(args: &[String]) {
         eprintln!("❌ Usage: faelight-snapshot diff <number>");
         return;
     }
-    
+
     let num = &args[2];
-    
+
     println!("📊 Changes since snapshot #{}:", num);
     println!();
-    
+
     let output = Command::new("sudo")
         .args(["snapper", "-c", "root", "status", &format!("{}..0", num)])
         .output();
-    
+
     if let Ok(out) = output {
         let stdout = String::from_utf8_lossy(&out.stdout);
         let lines: Vec<&str> = stdout.lines().collect();
-        
+
         if lines.is_empty() {
             println!("  No changes detected");
         } else {
@@ -251,9 +268,9 @@ fn rollback_snapshot(args: &[String]) {
         eprintln!("❌ Usage: faelight-snapshot rollback <number>");
         return;
     }
-    
+
     let num = &args[2];
-    
+
     println!("⚠️  ROLLBACK WARNING");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
@@ -261,22 +278,22 @@ fn rollback_snapshot(args: &[String]) {
     println!("A reboot is required after rollback.");
     println!();
     println!("Type 'rollback-confirm' to proceed:");
-    
+
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).ok();
-    
+
     if input.trim() != "rollback-confirm" {
         println!("❌ Rollback cancelled");
         return;
     }
-    
+
     println!();
     println!("🔄 Rolling back to snapshot #{}...", num);
-    
+
     let result = Command::new("sudo")
         .args(["snapper", "-c", "root", "rollback", num])
         .status();
-    
+
     match result {
         Ok(s) if s.success() => {
             println!("✅ Rollback prepared");
@@ -291,34 +308,42 @@ fn rollback_snapshot(args: &[String]) {
 fn show_status() {
     println!("📊 Snapshot System Status");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     // Show configs
-    let configs = Command::new("snapper")
-        .args(["list-configs"])
-        .output();
-    
+    let configs = Command::new("snapper").args(["list-configs"]).output();
+
     if let Ok(out) = configs {
         println!("\n🔧 Configurations:");
         print!("{}", String::from_utf8_lossy(&out.stdout));
     }
-    
+
     // Count snapshots
     let root_count = Command::new("sudo")
         .args(["snapper", "-c", "root", "list"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).lines().count().saturating_sub(2))
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .count()
+                .saturating_sub(2)
+        })
         .unwrap_or(0);
-    
+
     let home_count = Command::new("sudo")
         .args(["snapper", "-c", "home", "list"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).lines().count().saturating_sub(2))
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .count()
+                .saturating_sub(2)
+        })
         .unwrap_or(0);
-    
+
     println!("\n📸 Snapshot counts:");
     println!("  Root: {} snapshots", root_count);
     println!("  Home: {} snapshots", home_count);
-    
+
     // Disk usage
     println!("\n💾 Btrfs disk usage:");
     let _ = Command::new("sudo")

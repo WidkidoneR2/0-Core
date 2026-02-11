@@ -5,7 +5,7 @@ pub fn check_npm_updates() -> Vec<String> {
     if Command::new("npm").arg("--version").output().is_err() {
         return vec![];
     }
-    
+
     // List globally installed packages
     match Command::new("npm")
         .args(["outdated", "-g", "--json"])
@@ -29,12 +29,10 @@ pub fn update_npm() -> std::io::Result<()> {
         println!("   ⚠️  npm not installed, skipping");
         return Ok(());
     }
-    
+
     println!("   Running: npm update -g");
-    let status = Command::new("npm")
-        .args(["update", "-g"])
-        .status();
-    
+    let status = Command::new("npm").args(["update", "-g"]).status();
+
     match status {
         Ok(s) if s.success() => Ok(()),
         Ok(_) => {

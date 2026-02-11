@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::process::Command;
 use faelight_core::paths;
+use std::process::Command;
 
 pub fn check_secrets() -> Result<bool> {
     println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
-    
+
     let core_dir = paths::core_dir();
     let gitleaks_config = paths::gitleaks_config();
-    
+
     // Run gitleaks
     let output = Command::new("gitleaks")
         .args([
@@ -22,7 +22,7 @@ pub fn check_secrets() -> Result<bool> {
         .current_dir(&core_dir)
         .output()
         .context("Failed to run gitleaks - is it installed?")?;
-    
+
     // Check exit code
     if !output.status.success() {
         println!();
@@ -36,7 +36,7 @@ pub fn check_secrets() -> Result<bool> {
         println!();
         return Ok(false);
     }
-    
+
     println!("{}", "✅ No secrets detected".green());
     Ok(true)
 }

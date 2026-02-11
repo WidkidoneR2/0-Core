@@ -1,8 +1,8 @@
+use super::colors::FaelightColors;
+use crate::app::AppState;
+use faelight_fm::git::GitStatus;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListItem, Widget};
-use crate::app::AppState;
-use super::colors::FaelightColors;
-use faelight_fm::git::GitStatus;
 pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, usize)> {
     let mut file_regions = Vec::new();
     let items: Vec<ListItem> = app
@@ -11,7 +11,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
         .enumerate()
         .map(|(i, entry)| {
             let is_selected = i == app.selected;
-            
+
             // Symlinks get special color treatment
             let base_style = if entry.is_symlink {
                 if is_selected {
@@ -20,17 +20,14 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                         .bg(FaelightColors::BG_SELECTED)
                         .italic()
                 } else {
-                    Style::default()
-                        .fg(FaelightColors::SYMLINK)
-                        .italic()
+                    Style::default().fg(FaelightColors::SYMLINK).italic()
                 }
             } else if entry.is_dir {
                 FaelightColors::directory_style(is_selected)
             } else {
                 FaelightColors::file_style(is_selected)
             };
-            
-            
+
             let zone_tag = format!("[Z:{}]", entry.zone.short_label());
             let mut spans = vec![
                 Span::raw(format!("{} ", entry.icon())),
@@ -43,58 +40,56 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                         GitStatus::Deleted => Color::Red,
                         GitStatus::Untracked => FaelightColors::TEXT_DIM,
                         GitStatus::Clean => FaelightColors::TEXT_DIM,
-                    })
+                    }),
                 ),
-                Span::styled(
-                    format!("{:<30} ", entry.name),
-                    base_style
-                ),
+                Span::styled(format!("{:<30} ", entry.name), base_style),
                 Span::raw(format!("{:<12} ", zone_tag)),
             ];
-            
+
             if let Some(ref intent_info) = entry.intent_info {
                 let intent_color = match intent_info.status {
                     faelight_fm::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
                     faelight_fm::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
-                    faelight_fm::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
+                    faelight_fm::intent::IntentStatus::Cancelled => {
+                        FaelightColors::INTENT_CANCELLED
+                    }
                     faelight_fm::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
                 };
-                
+
                 spans.push(Span::styled(
                     format!("[INT:{}] ", intent_info.id),
-                    Style::default().fg(intent_color).bold()
+                    Style::default().fg(intent_color).bold(),
                 ));
             } else {
                 spans.push(Span::raw(format!("{:<12} ", "")));
             }
-            
+
             spans.push(Span::raw(entry.health.badge()));
-            
+
             ListItem::new(Line::from(spans))
         })
         .collect();
-    
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title("FILE LIST")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(FaelightColors::TEXT_DIM))
-        );
-    
+
+    let list = List::new(items).block(
+        Block::default()
+            .title("FILE LIST")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(FaelightColors::TEXT_DIM)),
+    );
+
     Widget::render(list, area, buf);
 
     // Calculate click regions based on rendered area
     // Files start at area.y + 1 (after border), one per row
-    let start_y = area.y + 1;  // After top border
-    let visible_count = (area.height - 2).min(app.filtered_entries.len() as u16);  // -2 for borders
-    
+    let start_y = area.y + 1; // After top border
+    let visible_count = (area.height - 2).min(app.filtered_entries.len() as u16); // -2 for borders
+
     for i in 0..visible_count as usize {
         if i < app.filtered_entries.len() {
             file_regions.push((start_y + i as u16, area.width, i));
         }
     }
-    
+
     // Return click regions (row, width, file_index)
     file_regions
 }

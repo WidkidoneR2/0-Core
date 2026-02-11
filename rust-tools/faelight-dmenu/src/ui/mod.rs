@@ -29,7 +29,7 @@ impl DmenuState {
 
     pub fn update_query(&mut self, query: String) {
         self.query = query;
-        
+
         // Filter items by fuzzy match
         if self.query.is_empty() {
             self.filtered = self.items.clone();
@@ -39,7 +39,7 @@ impl DmenuState {
                 .map(|(_, item)| item)
                 .collect();
         }
-        
+
         // Reset selection
         self.selected = 0;
     }

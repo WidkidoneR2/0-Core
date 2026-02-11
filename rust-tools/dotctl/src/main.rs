@@ -1,9 +1,8 @@
-use std::fs;
-use std::process::{self, Command};
-use std::path::PathBuf;
-use faelight_zone;
 use clap::{Parser, Subcommand};
 use faelight_core::paths;
+use std::fs;
+use std::path::PathBuf;
+use std::process::{self, Command};
 
 // ANSI colors (keeping for now - colored ready for future)
 const RED: &str = "\x1b[0;31m";
@@ -13,12 +12,9 @@ const CYAN: &str = "\x1b[0;36m";
 const BLUE: &str = "\x1b[0;34m";
 const NC: &str = "\x1b[0m";
 
-
 // ANSI colors
 
 const VERSION: &str = "3.1.0";
-
-
 
 #[derive(Parser)]
 #[command(name = "dotctl")]
@@ -44,7 +40,7 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     match cli.command {
         Commands::Status => cmd_status(),
         Commands::Bump { args } => cmd_bump(&args),
@@ -63,31 +59,39 @@ fn parse_dotmeta(content: &str) -> (String, String, String, String) {
     let mut category = "misc".to_string();
     let mut blast = "low".to_string();
     let mut description = "".to_string();
-    
+
     // Try TOML format first
     if content.contains("[package]") {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("version = ") {
-                version = line.split('=').nth(1)
+                version = line
+                    .split('=')
+                    .nth(1)
                     .unwrap_or("?")
                     .trim()
                     .trim_matches('"')
                     .to_string();
             } else if line.starts_with("category = ") {
-                category = line.split('=').nth(1)
+                category = line
+                    .split('=')
+                    .nth(1)
                     .unwrap_or("misc")
                     .trim()
                     .trim_matches('"')
                     .to_string();
             } else if line.starts_with("blast_radius = ") {
-                blast = line.split('=').nth(1)
+                blast = line
+                    .split('=')
+                    .nth(1)
                     .unwrap_or("low")
                     .trim()
                     .trim_matches('"')
                     .to_string();
             } else if line.starts_with("description = ") {
-                description = line.split('=').nth(1)
+                description = line
+                    .split('=')
+                    .nth(1)
                     .unwrap_or("")
                     .trim()
                     .trim_matches('"')
@@ -110,7 +114,7 @@ fn parse_dotmeta(content: &str) -> (String, String, String, String) {
             }
         }
     }
-    
+
     (version, category, blast, description)
 }
 
@@ -118,11 +122,11 @@ fn cmd_status() {
     let core_dir = paths::core_dir();
     let stow_dir = paths::stow_dir();
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
-    
+
     // Header with box
     println!("╭─────────────────────────────────────────────────╮");
     println!("│ 🎮 Dotfile Control Center                      │");
-    
+
     // System version
     let version_file = core_dir.join("VERSION");
     if let Ok(version) = fs::read_to_string(&version_file) {
@@ -130,52 +134,58 @@ fn cmd_status() {
     }
     println!("╰─────────────────────────────────────────────────╯");
     println!();
-    
+
     // Current zone
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let (zone_enum, _) = faelight_zone::current_zone(&cwd, &home);
-    println!("  Current Zone: {} {}", zone_enum.icon(), zone_enum.short_label());
+    println!(
+        "  Current Zone: {} {}",
+        zone_enum.icon(),
+        zone_enum.short_label()
+    );
     println!();
-    
+
     // Packages
     println!("{}📦 Packages:{}", BLUE, NC);
     println!("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     if let Ok(entries) = fs::read_dir(&stow_dir) {
         let mut packages: Vec<_> = entries
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_dir())
             .filter(|e| e.path().join(".dotmeta").exists())
             .collect();
-        
+
         packages.sort_by_key(|e| e.file_name());
-        
+
         for entry in packages {
             let dotmeta_path = entry.path().join(".dotmeta");
             if let Ok(content) = fs::read_to_string(&dotmeta_path) {
                 let pkg_name = entry.file_name().to_string_lossy().to_string();
                 let (version, category, blast, _) = parse_dotmeta(&content);
-                
+
                 // Detect package zone
                 let pkg_path = entry.path();
                 let (pkg_zone, _) = faelight_zone::current_zone(&pkg_path, &home);
                 let zone_icon = pkg_zone.icon();
-                
+
                 let blast_icon = match blast.as_str() {
                     "critical" => format!("{}🔴{}", RED, NC),
                     "high" => format!("{}🟡{}", YELLOW, NC),
                     "medium" => format!("{}🔵{}", BLUE, NC),
                     _ => format!("{}🟢{}", GREEN, NC),
                 };
-                
-                println!("  {} {} {:<22} v{:<8} {}", 
-                    zone_icon, blast_icon, pkg_name, version, category);
+
+                println!(
+                    "  {} {} {:<22} v{:<8} {}",
+                    zone_icon, blast_icon, pkg_name, version, category
+                );
             }
         }
     }
-    
+
     println!();
-    
+
     // Health with better display
     println!("{}🏥 System Health:{}", BLUE, NC);
     if let Ok(output) = Command::new("dot-doctor").arg("--quiet").output() {
@@ -193,53 +203,64 @@ fn cmd_status() {
             }
         }
     }
-    
+
     println!();
 }
 fn cmd_bump(args: &[String]) {
     if args.len() < 2 {
-        eprintln!("{}Usage:{} dotctl bump <package> <version> [message]", YELLOW, NC);
+        eprintln!(
+            "{}Usage:{} dotctl bump <package> <version> [message]",
+            YELLOW, NC
+        );
         process::exit(1);
     }
-    
+
     let pkg_name = &args[0];
     let new_version = &args[1];
     let message = args.get(2).map(|s| s.as_str()).unwrap_or("Version bump");
-    
+
     let stow_dir = paths::stow_dir();
     let pkg_dir = stow_dir.join(pkg_name);
     let dotmeta_path = pkg_dir.join(".dotmeta");
-    
+
     if !dotmeta_path.exists() {
         eprintln!("{}❌ Package not found:{} {}", RED, NC, pkg_name);
         process::exit(1);
     }
-    
+
     let content = fs::read_to_string(&dotmeta_path).expect("Failed to read .dotmeta");
-    
+
     // Update version in .dotmeta
     let updated_content = if content.contains("[package]") {
         // TOML format
-        content.lines().map(|line| {
-            if line.trim().starts_with("version = ") {
-                format!("version = \"{}\"", new_version)
-            } else {
-                line.to_string()
-            }
-        }).collect::<Vec<_>>().join("\n")
+        content
+            .lines()
+            .map(|line| {
+                if line.trim().starts_with("version = ") {
+                    format!("version = \"{}\"", new_version)
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     } else {
         // Simple format
-        content.lines().map(|line| {
-            if line.trim().starts_with("version:") {
-                format!("version: {}", new_version)
-            } else {
-                line.to_string()
-            }
-        }).collect::<Vec<_>>().join("\n")
+        content
+            .lines()
+            .map(|line| {
+                if line.trim().starts_with("version:") {
+                    format!("version: {}", new_version)
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     };
-    
+
     fs::write(&dotmeta_path, updated_content).expect("Failed to write .dotmeta");
-    
+
     println!("{}✅ Bumped {} to v{}{}", GREEN, pkg_name, new_version, NC);
     println!("   {}", message);
 }
@@ -249,23 +270,32 @@ fn cmd_history(args: &[String]) {
         eprintln!("{}Usage:{} dotctl history <package>", YELLOW, NC);
         process::exit(1);
     }
-    
+
     let pkg_name = &args[0];
     let stow_dir = paths::stow_dir();
     let dotmeta_path = stow_dir.join(pkg_name).join(".dotmeta");
-    
+
     if !dotmeta_path.exists() {
-        eprintln!("{}❌ No .dotmeta found for package:{} {}", RED, NC, pkg_name);
+        eprintln!(
+            "{}❌ No .dotmeta found for package:{} {}",
+            RED, NC, pkg_name
+        );
         process::exit(1);
     }
-    
+
     let content = fs::read_to_string(&dotmeta_path).expect("Failed to read .dotmeta");
-    
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
+
+    println!(
+        "{}═══════════════════════════════════════════════════════════{}",
+        CYAN, NC
+    );
     println!("{}📜 Change History: {}{}", CYAN, pkg_name, NC);
-    println!("{}═══════════════════════════════════════════════════════════{}", CYAN, NC);
+    println!(
+        "{}═══════════════════════════════════════════════════════════{}",
+        CYAN, NC
+    );
     println!();
-    
+
     // Parse changelog section (TOML format only)
     let mut in_changelog = false;
     for line in content.lines() {
@@ -284,7 +314,7 @@ fn cmd_history(args: &[String]) {
             }
         }
     }
-    
+
     println!();
 }
 
@@ -293,7 +323,6 @@ fn cmd_health() {
     let status = Command::new("dot-doctor")
         .status()
         .expect("Failed to run dot-doctor");
-    
+
     process::exit(status.code().unwrap_or(1));
 }
-

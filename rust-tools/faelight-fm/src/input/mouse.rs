@@ -1,5 +1,5 @@
-use crossterm::event::{MouseEvent, MouseButton};
 use crate::app::AppState;
+use crossterm::event::{MouseButton, MouseEvent};
 use faelight_fm::error::Result;
 use faelight_zone::Zone;
 use std::time::{Duration, Instant};
@@ -9,18 +9,18 @@ const DOUBLE_CLICK_MS: u64 = 500;
 
 pub fn handle_mouse(app: &mut AppState, event: MouseEvent) -> Result<()> {
     use crossterm::event::MouseEventKind;
-    
+
     match event.kind {
         MouseEventKind::ScrollDown => app.select_next(),
         MouseEventKind::ScrollUp => app.select_prev(),
-        
+
         MouseEventKind::Down(MouseButton::Left) => {
             handle_left_click(app, event.column, event.row)?;
         }
-        
+
         _ => {}
     }
-    
+
     Ok(())
 }
 
@@ -28,8 +28,7 @@ fn handle_left_click(app: &mut AppState, x: u16, y: u16) -> Result<()> {
     let is_double_click = unsafe {
         if let Some((last_time, last_x, last_y)) = LAST_CLICK {
             let elapsed = last_time.elapsed();
-            if elapsed < Duration::from_millis(DOUBLE_CLICK_MS) 
-               && last_x == x && last_y == y {
+            if elapsed < Duration::from_millis(DOUBLE_CLICK_MS) && last_x == x && last_y == y {
                 LAST_CLICK = None;
                 true
             } else {
@@ -41,22 +40,20 @@ fn handle_left_click(app: &mut AppState, x: u16, y: u16) -> Result<()> {
             false
         }
     };
-    
+
     // CHECK ZONES FIRST (priority over files)
     if let Some(zone) = find_clicked_zone(app, x, y) {
         app.jump_to_zone(zone)?;
         return Ok(());
     }
-    
+
     // Then check files
     if is_double_click {
         app.enter_selected()?;
-    } else {
-        if let Some(file_idx) = find_clicked_file(app, x, y) {
-            app.selected = file_idx;
-        }
+    } else if let Some(file_idx) = find_clicked_file(app, x, y) {
+        app.selected = file_idx;
     }
-    
+
     Ok(())
 }
 

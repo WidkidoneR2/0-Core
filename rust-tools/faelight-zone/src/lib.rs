@@ -1,5 +1,5 @@
-mod model;
 mod detect;
+mod model;
 
 pub use model::Zone;
 

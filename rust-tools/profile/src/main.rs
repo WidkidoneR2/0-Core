@@ -1,8 +1,8 @@
+use faelight_core::paths;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
-use faelight_core::paths;
 use std::path::PathBuf;
 use std::process::{self, Command};
 
@@ -19,14 +19,14 @@ const NC: &str = "\x1b[0m";
 fn main() {
     let state_dir = paths::faelight_state_dir();
     fs::create_dir_all(&state_dir).ok();
-    
+
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() < 2 {
         cmd_status();
         return;
     }
-    
+
     match args[1].as_str() {
         "list" | "ls" => cmd_list(),
         "status" => cmd_status(),
@@ -61,8 +61,6 @@ fn main() {
 fn get_profile_dir() -> PathBuf {
     paths::profiles_dir()
 }
-
-
 
 fn error(msg: &str) -> ! {
     eprintln!("{}❌ Error: {}{}", RED, msg, NC);
@@ -127,7 +125,7 @@ fn get_profile_section(content: &str, section: &str) -> Vec<String> {
     let mut in_section = false;
     let section_header = format!("[{}]", section);
     let mut commands = Vec::new();
-    
+
     for line in content.lines() {
         if line.trim() == section_header {
             in_section = true;
@@ -152,10 +150,7 @@ fn run_section(profile_path: &PathBuf, section: &str) {
         let commands = get_profile_section(&content, section);
         for cmd in commands {
             info(&format!("Running: {}", cmd));
-            let status = Command::new("sh")
-                .arg("-c")
-                .arg(&cmd)
-                .status();
+            let status = Command::new("sh").arg("-c").arg(&cmd).status();
             if status.is_err() || !status.unwrap().success() {
                 warn(&format!("Command failed (non-fatal): {}", cmd));
             }
@@ -167,9 +162,9 @@ fn cmd_health() {
     println!();
     println!("{}🏥 profile v{} - Health Check{}", CYAN, VERSION, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let mut healthy = true;
-    
+
     // Check profile directory
     print!("  Checking profile directory... ");
     let profile_dir = get_profile_dir();
@@ -179,29 +174,37 @@ fn cmd_health() {
         println!("{}❌ not found{}", RED, NC);
         healthy = false;
     }
-    
+
     // Check state file
     print!("  Checking state tracking... ");
     let state_file = paths::current_profile_file();
     if state_file.exists() {
         println!("{}✅{}", GREEN, NC);
     } else {
-        println!("{}⚠️  no state file (will create on first switch){}", YELLOW, NC);
+        println!(
+            "{}⚠️  no state file (will create on first switch){}",
+            YELLOW, NC
+        );
     }
-    
+
     // Count profiles
     print!("  Checking profiles... ");
     if let Ok(entries) = fs::read_dir(&profile_dir) {
         let count = entries
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map(|x| x == "profile").unwrap_or(false))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|x| x == "profile")
+                    .unwrap_or(false)
+            })
             .count();
         println!("{}✅ {} profiles found{}", GREEN, count, NC);
     } else {
         println!("{}❌ cannot read directory{}", RED, NC);
         healthy = false;
     }
-    
+
     // Check current profile
     print!("  Checking current profile... ");
     let current = get_current_profile();
@@ -211,29 +214,39 @@ fn cmd_health() {
     } else {
         println!("{}⚠️  {} (file not found){}", YELLOW, current, NC);
     }
-    
+
     // Check system tools
     print!("  Checking powerprofilesctl... ");
-    if Command::new("which").arg("powerprofilesctl").output().is_ok() {
+    if Command::new("which")
+        .arg("powerprofilesctl")
+        .output()
+        .is_ok()
+    {
         println!("{}✅{}", GREEN, NC);
     } else {
-        println!("{}⚠️  not found (power management unavailable){}", YELLOW, NC);
+        println!(
+            "{}⚠️  not found (power management unavailable){}",
+            YELLOW, NC
+        );
     }
-    
+
     print!("  Checking mullvad... ");
     if Command::new("which").arg("mullvad").output().is_ok() {
         println!("{}✅{}", GREEN, NC);
     } else {
         println!("{}⚠️  not found (VPN control unavailable){}", YELLOW, NC);
     }
-    
+
     print!("  Checking makoctl... ");
     if Command::new("which").arg("makoctl").output().is_ok() {
         println!("{}✅{}", GREEN, NC);
     } else {
-        println!("{}⚠️  not found (notification control unavailable){}", YELLOW, NC);
+        println!(
+            "{}⚠️  not found (notification control unavailable){}",
+            YELLOW, NC
+        );
     }
-    
+
     println!();
     if healthy {
         println!("{}✅ All systems operational{}", GREEN, NC);
@@ -247,42 +260,47 @@ fn cmd_health() {
 fn cmd_list() {
     let profile_dir = get_profile_dir();
     let current = get_current_profile();
-    
+
     println!("{}📋 Available Profiles{}", CYAN, NC);
     println!();
-    
+
     if let Ok(entries) = fs::read_dir(&profile_dir) {
         let mut profiles: Vec<_> = entries
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map(|x| x == "profile").unwrap_or(false))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|x| x == "profile")
+                    .unwrap_or(false)
+            })
             .collect();
-        
+
         profiles.sort_by_key(|e| e.file_name());
-        
+
         for entry in profiles {
-            let name = entry.path()
+            let name = entry
+                .path()
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown")
                 .to_string();
-            
+
             let icon = get_profile_icon(&name);
-            
+
             // Get description from file
-            let desc = fs::read_to_string(entry.path())
-                .ok()
-                .and_then(|content| {
-                    content.lines()
-                        .find(|l| l.starts_with("# Description:"))
-                        .map(|l| l.replace("# Description:", "").trim().to_string())
-                });
-            
+            let desc = fs::read_to_string(entry.path()).ok().and_then(|content| {
+                content
+                    .lines()
+                    .find(|l| l.starts_with("# Description:"))
+                    .map(|l| l.replace("# Description:", "").trim().to_string())
+            });
+
             if name == current {
                 println!("  {}▶ {} {}{} (active)", GREEN, icon, name, NC);
             } else {
                 println!("  {} {}", icon, name);
             }
-            
+
             if let Some(d) = desc {
                 println!("    {}{}{}", BLUE, d, NC);
             }
@@ -294,13 +312,13 @@ fn cmd_list() {
 fn cmd_status() {
     let current = get_current_profile();
     let icon = get_profile_icon(&current);
-    
+
     println!("{}📊 Profile Status{}", CYAN, NC);
     println!();
     println!("  Current: {} {}{}{}", icon, GREEN, current, NC);
     println!();
     println!("  {}System State:{}", BLUE, NC);
-    
+
     // Power profile
     let power = Command::new("powerprofilesctl")
         .arg("get")
@@ -308,7 +326,7 @@ fn cmd_status() {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
     println!("    Power: {}", power);
-    
+
     // VPN status
     let vpn = Command::new("mullvad")
         .arg("status")
@@ -322,7 +340,7 @@ fn cmd_status() {
         })
         .unwrap_or_else(|_| "unknown".to_string());
     println!("    VPN: {}", vpn);
-    
+
     // Notifications
     let notif = Command::new("makoctl")
         .arg("mode")
@@ -337,48 +355,51 @@ fn cmd_status() {
         })
         .unwrap_or_else(|_| "unknown".to_string());
     println!("    Notifications: {}", notif);
-    
+
     println!();
 }
 
 fn cmd_switch(target: &str) {
     let profile_dir = get_profile_dir();
     let profile_file = profile_dir.join(format!("{}.profile", target));
-    
+
     if !profile_file.exists() {
-        error(&format!("Profile '{}' not found. Run 'profile list' to see available profiles.", target));
+        error(&format!(
+            "Profile '{}' not found. Run 'profile list' to see available profiles.",
+            target
+        ));
     }
-    
+
     let current = get_current_profile();
     let current_file = profile_dir.join(format!("{}.profile", current));
-    
+
     if target == current {
         info(&format!("Already on profile '{}'", target));
         return;
     }
-    
+
     let target_icon = get_profile_icon(target);
     let current_icon = get_profile_icon(&current);
-    
+
     println!("{}🔄 Switching Profile{}", CYAN, NC);
     println!("  From: {} {}", current_icon, current);
     println!("  To:   {} {}", target_icon, target);
     println!();
-    
+
     // Deactivate current
     if current_file.exists() {
         info(&format!("Deactivating {}...", current));
         run_section(&current_file, "deactivate");
     }
-    
+
     // Activate new
     info(&format!("Activating {}...", target));
     run_section(&profile_file, "activate");
-    
+
     // Update state
     log_switch(&current, target);
     set_current_profile(target);
-    
+
     println!();
     success(&format!("Switched to {} {}", target_icon, target));
 }
@@ -386,13 +407,13 @@ fn cmd_switch(target: &str) {
 fn cmd_history() {
     println!("{}📜 Profile History{}", CYAN, NC);
     println!();
-    
+
     if let Ok(file) = fs::File::open(paths::profile_log_file()) {
         let lines: Vec<String> = io::BufReader::new(file)
             .lines()
-            .filter_map(|l| l.ok())
+            .map_while(Result::ok)
             .collect();
-        
+
         for line in lines.iter().rev().take(10).rev() {
             println!("  {}", line);
         }
@@ -404,34 +425,31 @@ fn cmd_history() {
 
 fn cmd_edit(name: &str) {
     let profile_file = get_profile_dir().join(format!("{}.profile", name));
-    
+
     if !profile_file.exists() {
         error(&format!("Profile '{}' not found", name));
     }
-    
+
     let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-    Command::new(&editor)
-        .arg(&profile_file)
-        .status()
-        .ok();
+    Command::new(&editor).arg(&profile_file).status().ok();
 }
 
 fn cmd_export(name: &str) {
     let profile_dir = get_profile_dir();
     let profile_file = profile_dir.join(format!("{}.profile", name));
-    
+
     if !profile_file.exists() {
         error(&format!("Profile '{}' not found", name));
     }
-    
+
     let export_dir = profile_dir.join("exports");
     fs::create_dir_all(&export_dir).ok();
-    
+
     let export_file = export_dir.join(format!("{}.profile", name));
-    
+
     let timestamp = get_timestamp();
-    let version = fs::read_to_string(paths::version_file())
-        .unwrap_or_else(|_| "unknown".to_string());
+    let version =
+        fs::read_to_string(paths::version_file()).unwrap_or_else(|_| "unknown".to_string());
     let system = fs::read_to_string("/etc/os-release")
         .ok()
         .and_then(|c| {
@@ -440,9 +458,9 @@ fn cmd_export(name: &str) {
                 .map(|l| l.replace("PRETTY_NAME=", "").trim_matches('"').to_string())
         })
         .unwrap_or_else(|| "unknown".to_string());
-    
+
     let original = fs::read_to_string(&profile_file).unwrap_or_default();
-    
+
     let header = format!(
         "# ═══════════════════════════════════════════════════════════\n\
          # 0-Core Profile Export\n\
@@ -451,30 +469,33 @@ fn cmd_export(name: &str) {
          # System: {}\n\
          # Version: {}\n\
          # ═══════════════════════════════════════════════════════════\n\n",
-        name, timestamp, system, version.trim()
+        name,
+        timestamp,
+        system,
+        version.trim()
     );
-    
+
     fs::write(&export_file, format!("{}{}", header, original)).ok();
-    
+
     success(&format!("Exported to: {}", export_file.display()));
     info("Share this file with others!");
 }
 
 fn cmd_import(import_path: &str) {
     let import_file = PathBuf::from(import_path);
-    
+
     if !import_file.exists() {
         error(&format!("File not found: {}", import_path));
     }
-    
+
     let name = import_file
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("imported")
         .to_string();
-    
+
     let dest = get_profile_dir().join(format!("{}.profile", name));
-    
+
     if dest.exists() {
         warn(&format!("Profile '{}' already exists", name));
         print!("Overwrite? [y/N] ");
@@ -486,24 +507,27 @@ fn cmd_import(import_path: &str) {
             return;
         }
     }
-    
+
     let content = fs::read_to_string(&import_file).unwrap_or_default();
-    
+
     // Strip export header if present
     let final_content = if content.contains("# 0-Core Profile Export") {
         content.lines().skip(8).collect::<Vec<&str>>().join("\n")
     } else {
         content
     };
-    
+
     fs::write(&dest, final_content).ok();
-    
+
     success(&format!("Imported profile: {}", name));
     info(&format!("Try it: profile {}", name));
 }
 
 fn cmd_help() {
-    println!("{}profile v{}{} - System Profile Manager", CYAN, VERSION, NC);
+    println!(
+        "{}profile v{}{} - System Profile Manager",
+        CYAN, VERSION, NC
+    );
     println!();
     println!("{}Usage:{}", YELLOW, NC);
     println!("  profile <name>           Switch to profile");
@@ -523,5 +547,8 @@ fn cmd_help() {
     println!("  work        💼  VPN on, focus mode");
     println!("  low-power   🔋  Battery optimization");
     println!();
-    println!("{}The Omega Legacy - You control your system.{} 🎮", BLUE, NC);
+    println!(
+        "{}The Omega Legacy - You control your system.{} 🎮",
+        BLUE, NC
+    );
 }

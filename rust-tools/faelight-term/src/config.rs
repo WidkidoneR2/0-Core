@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub colors: Colors,
@@ -26,7 +26,7 @@ pub struct Colors {
     pub cursor: String,
     #[serde(default = "default_selection")]
     pub selection: String,
-    
+
     // ANSI colors
     #[serde(default = "default_black")]
     pub black: String,
@@ -44,7 +44,7 @@ pub struct Colors {
     pub cyan: String,
     #[serde(default = "default_white")]
     pub white: String,
-    
+
     // Bright colors
     #[serde(default = "default_bright_black")]
     pub bright_black: String,
@@ -109,52 +109,108 @@ pub struct KeyBindings {
 }
 
 // Default value functions
-fn default_foreground() -> String { "#E6E6E6".to_string() }
-fn default_background() -> String { "#0F140E".to_string() }
-fn default_cursor() -> String { "#6BE3A3".to_string() }
-fn default_selection() -> String { "#6BE3A3".to_string() }
-fn default_black() -> String { "#0F140E".to_string() }
-fn default_red() -> String { "#E36B6B".to_string() }
-fn default_green() -> String { "#6BE3A3".to_string() }
-fn default_yellow() -> String { "#E3C66B".to_string() }
-fn default_blue() -> String { "#6BA3E3".to_string() }
-fn default_magenta() -> String { "#C66BE3".to_string() }
-fn default_cyan() -> String { "#6BE3C6".to_string() }
-fn default_white() -> String { "#E6E6E6".to_string() }
-fn default_bright_black() -> String { "#4A4A4A".to_string() }
-fn default_bright_red() -> String { "#FF7A7A".to_string() }
-fn default_bright_green() -> String { "#7AFFB2".to_string() }
-fn default_bright_yellow() -> String { "#FFD67A".to_string() }
-fn default_bright_blue() -> String { "#7AB2FF".to_string() }
-fn default_bright_magenta() -> String { "#D67AFF".to_string() }
-fn default_bright_cyan() -> String { "#7AFFD6".to_string() }
-fn default_bright_white() -> String { "#FFFFFF".to_string() }
+fn default_foreground() -> String {
+    "#E6E6E6".to_string()
+}
+fn default_background() -> String {
+    "#0F140E".to_string()
+}
+fn default_cursor() -> String {
+    "#6BE3A3".to_string()
+}
+fn default_selection() -> String {
+    "#6BE3A3".to_string()
+}
+fn default_black() -> String {
+    "#0F140E".to_string()
+}
+fn default_red() -> String {
+    "#E36B6B".to_string()
+}
+fn default_green() -> String {
+    "#6BE3A3".to_string()
+}
+fn default_yellow() -> String {
+    "#E3C66B".to_string()
+}
+fn default_blue() -> String {
+    "#6BA3E3".to_string()
+}
+fn default_magenta() -> String {
+    "#C66BE3".to_string()
+}
+fn default_cyan() -> String {
+    "#6BE3C6".to_string()
+}
+fn default_white() -> String {
+    "#E6E6E6".to_string()
+}
+fn default_bright_black() -> String {
+    "#4A4A4A".to_string()
+}
+fn default_bright_red() -> String {
+    "#FF7A7A".to_string()
+}
+fn default_bright_green() -> String {
+    "#7AFFB2".to_string()
+}
+fn default_bright_yellow() -> String {
+    "#FFD67A".to_string()
+}
+fn default_bright_blue() -> String {
+    "#7AB2FF".to_string()
+}
+fn default_bright_magenta() -> String {
+    "#D67AFF".to_string()
+}
+fn default_bright_cyan() -> String {
+    "#7AFFD6".to_string()
+}
+fn default_bright_white() -> String {
+    "#FFFFFF".to_string()
+}
 
-fn default_font_family() -> String { "JetBrainsMono Nerd Font".to_string() }
-fn default_font_size() -> f32 { 14.0 }
-fn default_padding() -> u32 { 15 }
-fn default_scrollback_lines() -> usize { 10000 }
-fn default_cursor_blink_ms() -> u64 { 500 }
-fn default_cursor_style() -> String { "line".to_string() }
-fn default_selection_style() -> String { "underline-border".to_string() }
-fn default_copy() -> String { "Ctrl+Shift+C".to_string() }
-fn default_paste() -> String { "Ctrl+Shift+V".to_string() }
-fn default_zoom_in() -> String { "Ctrl+Plus".to_string() }
-fn default_zoom_out() -> String { "Ctrl+Minus".to_string() }
-fn default_zoom_reset() -> String { "Ctrl+0".to_string() }
-fn default_scroll_up() -> String { "Shift+PageUp".to_string() }
-fn default_scroll_down() -> String { "Shift+PageDown".to_string() }
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            colors: Colors::default(),
-            font: Font::default(),
-            window: Window::default(),
-            behavior: Behavior::default(),
-            keybindings: KeyBindings::default(),
-        }
-    }
+fn default_font_family() -> String {
+    "JetBrainsMono Nerd Font".to_string()
+}
+fn default_font_size() -> f32 {
+    14.0
+}
+fn default_padding() -> u32 {
+    15
+}
+fn default_scrollback_lines() -> usize {
+    10000
+}
+fn default_cursor_blink_ms() -> u64 {
+    500
+}
+fn default_cursor_style() -> String {
+    "line".to_string()
+}
+fn default_selection_style() -> String {
+    "underline-border".to_string()
+}
+fn default_copy() -> String {
+    "Ctrl+Shift+C".to_string()
+}
+fn default_paste() -> String {
+    "Ctrl+Shift+V".to_string()
+}
+fn default_zoom_in() -> String {
+    "Ctrl+Plus".to_string()
+}
+fn default_zoom_out() -> String {
+    "Ctrl+Minus".to_string()
+}
+fn default_zoom_reset() -> String {
+    "Ctrl+0".to_string()
+}
+fn default_scroll_up() -> String {
+    "Shift+PageUp".to_string()
+}
+fn default_scroll_down() -> String {
+    "Shift+PageDown".to_string()
 }
 
 impl Default for Colors {
@@ -195,7 +251,9 @@ impl Default for Font {
 
 impl Default for Window {
     fn default() -> Self {
-        Self { padding: default_padding() }
+        Self {
+            padding: default_padding(),
+        }
     }
 }
 
@@ -227,22 +285,20 @@ impl Default for KeyBindings {
 impl Config {
     pub fn load() -> Self {
         let config_path = Self::config_path();
-        
+
         if config_path.exists() {
             match fs::read_to_string(&config_path) {
-                Ok(contents) => {
-                    match toml::from_str(&contents) {
-                        Ok(config) => {
-                            println!("✅ Loaded config from: {}", config_path.display());
-                            config
-                        }
-                        Err(e) => {
-                            eprintln!("⚠️  Failed to parse config: {}", e);
-                            eprintln!("   Using defaults");
-                            Config::default()
-                        }
+                Ok(contents) => match toml::from_str(&contents) {
+                    Ok(config) => {
+                        println!("✅ Loaded config from: {}", config_path.display());
+                        config
                     }
-                }
+                    Err(e) => {
+                        eprintln!("⚠️  Failed to parse config: {}", e);
+                        eprintln!("   Using defaults");
+                        Config::default()
+                    }
+                },
                 Err(e) => {
                     eprintln!("⚠️  Failed to read config: {}", e);
                     eprintln!("   Using defaults");
@@ -255,12 +311,11 @@ impl Config {
             Config::default()
         }
     }
-    
+
     pub fn config_path() -> PathBuf {
         faelight_core::paths::faelight_config_dir().join("term.toml")
     }
-    
-    
+
     /// Parse hex color to RGB bytes [r, g, b]
     pub fn parse_color(hex: &str) -> [u8; 3] {
         let hex = hex.trim_start_matches('#');

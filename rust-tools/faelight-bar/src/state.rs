@@ -1,7 +1,7 @@
 //! State machine for hybrid bar/menu architecture
+use crate::menu::MenuItem;
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, KeyboardInteractivity, LayerSurface};
 use smithay_client_toolkit::shell::WaylandSurface;
-use crate::menu::MenuItem;
 
 const BAR_HEIGHT: u32 = 32;
 const MENU_HEIGHT: u32 = 100;
@@ -42,11 +42,11 @@ impl MenuState {
             selected: 0,
         }
     }
-    
+
     pub fn refilter(&mut self, matcher: &mut nucleo::Matcher) {
-        use nucleo::pattern::{Pattern, CaseMatching};
+        use nucleo::pattern::{CaseMatching, Pattern};
         use nucleo::Utf32String;
-        
+
         if self.input.is_empty() {
             self.filtered = (0..self.items.len()).collect();
         } else {
@@ -55,26 +55,29 @@ impl MenuState {
                 CaseMatching::Smart,
                 nucleo::pattern::Normalization::Smart,
             );
-            
-            let mut scored: Vec<_> = self.items
+
+            let mut scored: Vec<_> = self
+                .items
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, item)| {
                     let haystack = Utf32String::from(item.display.as_str());
-                    pattern.score(haystack.slice(..), matcher)
+                    pattern
+                        .score(haystack.slice(..), matcher)
                         .map(|score| (idx, score))
                 })
                 .collect();
-            
+
             scored.sort_by(|a, b| b.1.cmp(&a.1));
             self.filtered = scored.into_iter().map(|(idx, _)| idx).collect();
         }
-        
+
         self.selected = 0;
     }
-    
+
     pub fn get_selected_item(&self) -> Option<String> {
-        self.filtered.get(self.selected)
+        self.filtered
+            .get(self.selected)
             .and_then(|&idx| self.items.get(idx))
             .map(|item| item.exec.clone())
     }
@@ -90,7 +93,7 @@ impl ModeTransition {
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
         layer.wl_surface().commit();
     }
-    
+
     pub fn to_menu(layer: &LayerSurface) {
         layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
         layer.set_size(0, BAR_HEIGHT);
@@ -116,24 +119,24 @@ impl AppState {
             matcher: nucleo::Matcher::new(nucleo::Config::DEFAULT),
         }
     }
-    
+
     pub fn current_height(&self) -> u32 {
         match self.mode {
             ModeState::Bar(_) => BAR_HEIGHT,
             ModeState::Menu(_) => TOTAL_HEIGHT,
         }
     }
-    
+
     #[allow(dead_code)]
     pub fn is_menu_mode(&self) -> bool {
         matches!(self.mode, ModeState::Menu(_))
     }
-    
+
     pub fn enter_menu(&mut self, items: Vec<MenuItem>, layer: &LayerSurface) {
         self.mode = ModeState::Menu(MenuState::new(items));
         ModeTransition::to_menu(layer);
     }
-    
+
     pub fn exit_menu(&mut self, layer: &LayerSurface) {
         self.mode = ModeState::Bar(BarState {
             last_update: std::time::Instant::now(),
