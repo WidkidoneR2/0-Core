@@ -33,7 +33,7 @@ mod logger;
 mod render;
 mod widgets;
 
-use widgets::{ClockWidget, RenderContext, Widget};
+use widgets::{ClockWidget, ProfileWidget, RenderContext, VolumeWidget, VpnWidget, Widget};
 
 const BAR_HEIGHT: u32 = 32;
 
@@ -132,8 +132,13 @@ fn main() {
         }
     };
 
-    // Create widgets
-    let widgets: Vec<Box<dyn Widget>> = vec![Box::new(ClockWidget::new())];
+    // Create widgets (right to left order)
+    let widgets: Vec<Box<dyn Widget>> = vec![
+        Box::new(ClockWidget::new()),
+        Box::new(VolumeWidget::new()),
+        Box::new(VpnWidget::new()),
+        Box::new(ProfileWidget::new()),
+    ];
 
     let mut state = BarState {
         registry_state: RegistryState::new(&globals),
@@ -231,24 +236,50 @@ impl BarState {
             pixel.copy_from_slice(&render::BG.to_le_bytes());
         }
 
-        // Render widgets (clock on the right for now)
-        let ctx = RenderContext {
-            width,
-            height,
-            x_offset: width as i32 - 100, // Right side
-        };
+        // Render widgets with actual data
+        let y = 12;
 
-        for widget in &self.widgets {
-            if let Ok(output) = widget.render(&ctx) {
-                // NOW ACTUALLY DRAW THE TEXT!
-                let text_w = render::text_width(&output.text);
-                let x = (width as i32) - text_w - 10; // 10px from right
-                let y = 8; // Centered vertically
-
-                render::draw_text(canvas, stride, x, y, &output.text, output.color);
-            }
+        // Update all widgets
+        for widget in &mut self.widgets {
+            let _ = widget.update();
         }
 
+        // Profile on left (teal)
+        if let Ok(output) = self.widgets[3].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            render::draw_text(canvas, stride, 20, y, &output.text, output.color);
+        }
+
+        // VPN (white/green)
+        if let Ok(output) = self.widgets[2].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            render::draw_text(canvas, stride, 150, y, &output.text, output.color);
+        }
+
+        // Volume (white/red)
+        if let Ok(output) = self.widgets[1].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            render::draw_text(canvas, stride, 250, y, &output.text, output.color);
+        }
+
+        // Clock on right (white)
+        if let Ok(output) = self.widgets[0].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let clock_x = (width as i32) - 80;
+            render::draw_text(canvas, stride, clock_x, y, &output.text, output.color);
+        }
         self.layer_surface
             .wl_surface()
             .attach(Some(buffer.wl_buffer()), 0, 0);
