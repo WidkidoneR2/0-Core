@@ -1,65 +1,69 @@
-# faelight-snapshot v1.0.0
+# faelight-snapshot v2.0.0
 
-🌲 **Btrfs Snapshot Manager** - Elegant wrapper around `snapper` for managing system snapshots.
+Btrfs snapshot manager - wrapper around `snapper` for safe system snapshots.
 
 ## Features
 
-- **Dual-config management** - Manages both `root` and `home` snapshots simultaneously
-- **Safety confirmations** - 3-second delay before destructive operations
-- **Rollback protection** - Type-to-confirm before system rollback
-- **Health monitoring** - Verify snapper installation and btrfs functionality
-- **Production-tested** - Used daily on Faelight Forest systems
+- ✅ List root and home snapshots
+- ✅ Create named snapshots
+- ✅ Delete snapshots by number
+- ✅ Compare changes (diff)
+- ✅ Rollback to previous state
+- ✅ System status
+- ✅ Health check integration
 
 ## Usage
 ```bash
-# List all snapshots (root + home)
+# List all snapshots
 faelight-snapshot list
 
-# Create pre-update snapshot
+# Create snapshot before update
 faelight-snapshot create "before kernel update"
 
-# Show changes since snapshot #42
-faelight-snapshot diff 42
+# Show what changed since snapshot #22
+faelight-snapshot diff 22
 
-# Delete snapshot #42 (3-second confirmation)
-faelight-snapshot delete 42
+# Delete snapshot
+faelight-snapshot delete 22
 
-# Rollback to snapshot #42 (requires confirmation + reboot)
-faelight-snapshot rollback 42
+# Rollback (requires reboot)
+faelight-snapshot rollback 22
 
-# System status (configs, counts, disk usage)
+# Check status
 faelight-snapshot status
 
 # Health check
 faelight-snapshot --health
 ```
 
-## Architecture
+## Commands
 
-Wraps `snapper` with:
-- Automatic dual-config operations (root + home)
-- UX improvements (emojis, confirmations, truncated output)
-- Safety guardrails (delays, type-to-confirm)
+- `list [root|home]` - List snapshots (default: both)
+- `create <description>` - Create pre-update snapshot
+- `delete <number>` - Delete snapshot by number
+- `diff <number>` - Show changes since snapshot
+- `rollback <number>` - Rollback to snapshot (requires reboot)
+- `status` - Show snapshot system status
+
+## Security
+
+Uses `sudo` for snapper operations. Requires:
+- Btrfs filesystem
+- snapper installed
+- Proper sudo configuration
+
+## Integration
+
+Part of Faelight Forest:
 - Health monitoring
+- Pre-update workflow
+- System recovery
 
-## System Requirements
+## Notes
 
-- `snapper` installed and configured
-- Btrfs filesystem on `/` and `/home`
-- Snapper configs: `root` and `home`
-- `sudo` privileges for snapshot operations
+- Automatic hourly snapshots enabled via snapper
+- Snapshots are stored on Btrfs subvolumes
+- Rollback requires reboot to take effect
+- Only works on Btrfs filesystems
 
-## Demo for Linus
-```bash
-# Show health status
-faelight-snapshot --health
-
-# Show current snapshots
-faelight-snapshot list
-
-# Create a test snapshot
-faelight-snapshot create "demo for Linus"
-
-# Show system status
-faelight-snapshot status
-```
+## Version: 2.0.0
