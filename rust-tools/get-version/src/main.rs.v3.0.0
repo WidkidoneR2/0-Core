@@ -1,4 +1,4 @@
-//! get-version v4.0.0
+//! get-version v3.0.0
 //! Simple utility to read system version from VERSION file
 use clap::{Parser, Subcommand};
 use faelight_core::paths;
@@ -87,7 +87,7 @@ fn read_version_from_dotmeta(path: &PathBuf) -> Option<String> {
 }
 
 fn health_check() {
-    println!("🔍 get-version v4.0.0 - Health Check");
+    println!("🔍 get-version v3.0.0 - Health Check");
 
     let stow_dir = paths::stow_dir();
 
