@@ -53,15 +53,6 @@ struct Manifest {
     binaries: HashMap<String, BinaryEntry>,
 }
 
-#[allow(dead_code)]
-fn check_git_available() -> bool {
-    std::process::Command::new("git")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
-
 fn main() {
     let cli = Cli::parse();
 
@@ -74,12 +65,7 @@ fn main() {
 }
 
 fn manifest_path() -> PathBuf {
-    PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| {
-        eprintln!("❌ HOME environment variable not set");
-        eprintln!("💡 This is required for manifest location");
-        std::process::exit(1);
-    }))
-    .join(".cargo/.manifest.toml")
+    PathBuf::from(std::env::var("HOME").unwrap()).join(".cargo/.manifest.toml")
 }
 
 fn load_manifest() -> Manifest {
@@ -98,16 +84,8 @@ fn load_manifest() -> Manifest {
 
 fn save_manifest(manifest: &Manifest) {
     let path = manifest_path();
-    let content = toml::to_string_pretty(manifest).unwrap_or_else(|e| {
-        eprintln!("❌ Failed to serialize manifest: {}", e);
-        eprintln!("💡 Check manifest data structure");
-        std::process::exit(1);
-    });
-    if let Err(e) = fs::write(&path, content) {
-        eprintln!("❌ Failed to write manifest: {}", e);
-        eprintln!("💡 Check permissions: {}", path.display());
-        std::process::exit(1);
-    }
+    let content = toml::to_string_pretty(manifest).unwrap();
+    fs::write(&path, content).expect("Failed to write manifest");
 }
 
 fn register_binary(tool: &str) {
@@ -139,13 +117,9 @@ fn register_binary(tool: &str) {
     let version = get_tool_version(&source);
 
     // Binary path
-    let binary = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| {
-        eprintln!("❌ HOME environment variable not set");
-        eprintln!("💡 This is required for manifest location");
-        std::process::exit(1);
-    }))
-    .join(".cargo/bin")
-    .join(tool);
+    let binary = PathBuf::from(std::env::var("HOME").unwrap())
+        .join(".cargo/bin")
+        .join(tool);
 
     let entry = BinaryEntry {
         version,
