@@ -141,11 +141,7 @@ fn main() {
     let search_dir = args.dir.clone().unwrap_or_else(|| {
         std::env::var("HOME")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                eprintln!("❌ HOME environment variable not set");
-                eprintln!("💡 Set HOME or use -d <dir> to specify directory");
-                std::process::exit(1);
-            })
+            .expect("HOME not set")
     });
 
     println!("{}", "🕒 Recent Files Dashboard".bright_cyan().bold());
@@ -335,19 +331,6 @@ fn open_interactive(files: &[RecentFile], base_dir: &Path, full_paths: bool) {
     }
 
     // Run fzf
-    // Check if fzf is available
-    if std::process::Command::new("which")
-        .arg("fzf")
-        .output()
-        .map(|o| !o.status.success())
-        .unwrap_or(true)
-    {
-        eprintln!("❌ fzf not found");
-        eprintln!("💡 Install with: sudo pacman -S fzf");
-        eprintln!("💡 Or use --open-first to skip interactive selection");
-        return;
-    }
-
     let mut fzf = Command::new("fzf")
         .arg("--prompt=Select file to open: ")
         .arg("--height=50%")
