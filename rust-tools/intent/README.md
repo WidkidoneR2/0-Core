@@ -1,4 +1,4 @@
-# intent v2.0.0
+# intent v3.0.0
 
 🌲 **Intent Ledger Manager** - Track every system change with intentionality.
 
@@ -138,3 +138,51 @@ Traditional system administration is reactive - you fix what breaks. Faelight Fo
 4. **When** - Success criteria
 
 This creates an **audit trail of thought** that makes the system explainable, maintainable, and trustworthy.
+
+## Installation
+
+### From 0-Core Workspace
+```bash
+cd ~/0-core
+cargo build --release -p intent
+cargo install --path rust-tools/intent
+```
+
+Binary installs to: `~/.cargo/bin/intent`
+
+## Intent Ledger Structure
+
+Intents are organized into directories by status:
+- `00-meta/intents/future/` - Long-term ideas
+- `00-meta/intents/planned/` - Ready to start
+- `00-meta/intents/complete/` - Finished work
+- `00-meta/intents/cancelled/` - Abandoned ideas
+- `00-meta/intents/deferred/` - On hold
+- `00-meta/intents/decisions/` - Architecture decisions
+- `00-meta/intents/experiments/` - Trials and tests
+- `00-meta/intents/philosophy/` - System principles
+- `00-meta/intents/incidents/` - Post-mortems
+
+## Intent Format
+
+Each intent is a markdown file with YAML frontmatter:
+```markdown
+---
+status: planned
+tags: [rust, wayland, v9.0]
+created: 2026-01-15
+---
+
+# Intent 052: Build Custom Notification Daemon
+
+## Vision
+Create a native Wayland notification daemon...
+```
+
+## Part of 0-Core
+
+One of 40 Rust tools in the Faelight Forest ecosystem.
+
+**Philosophy:** Document decisions, track evolution, maintain intentionality.
+
+See: https://github.com/WidkidoneR2/0-Core

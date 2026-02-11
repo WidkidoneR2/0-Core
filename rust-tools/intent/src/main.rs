@@ -64,6 +64,7 @@ fn main() {
                 workflow::start_intent(id);
             } else {
                 eprintln!("{}Usage: intent start <id>{}", YELLOW, NC);
+                eprintln!("💡 Example: intent start 036");
             }
         }
         "complete" | "done" => {
@@ -71,6 +72,7 @@ fn main() {
                 workflow::complete_intent(id);
             } else {
                 eprintln!("{}Usage: intent complete <id>{}", YELLOW, NC);
+                eprintln!("💡 Example: intent complete 036");
             }
         }
         "defer" => {
@@ -79,6 +81,7 @@ fn main() {
                 workflow::defer_intent(id, reason);
             } else {
                 eprintln!("{}Usage: intent defer <id> [reason]{}", YELLOW, NC);
+                eprintln!("💡 Example: intent defer 036 \"waiting on dependency\"");
             }
         }
         "cancel" => {
@@ -87,6 +90,7 @@ fn main() {
                 workflow::cancel_intent(id, reason);
             } else {
                 eprintln!("{}Usage: intent cancel <id> [reason]{}", YELLOW, NC);
+                eprintln!("💡 Example: intent cancel 036 \"no longer needed\"");
             }
         }
         "version" | "--version" | "-v" => {
@@ -97,6 +101,7 @@ fn main() {
         id if id.chars().all(|c| c.is_numeric()) => cmd_show(id),
         _ => {
             eprintln!("{}❌ Error: Unknown command: {}{}", RED, command, NC);
+            eprintln!("💡 Run 'intent help' to see available commands");
             cmd_help();
             process::exit(1);
         }
