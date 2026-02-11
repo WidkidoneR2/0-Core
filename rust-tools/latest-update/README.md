@@ -1,27 +1,65 @@
-# 📅 latest-update
+# latest-update v4.0.0
 
-Find the most recently updated package in 0-Core.
-
-## Usage
-```bash
-# Show latest updated package
-latest-update
-# Output: 📦 wm-sway v1.2.0 (1 weeks ago)
-
-# Show all packages (sorted by update date)
-latest-update --all
-
-# Health check
-latest-update --health-check
-```
+Show the most recently updated packages from .dotmeta files.
 
 ## Features
 
-- Scans `~/0-core/stow/` packages
-- Human-readable time formatting
-- Sorted by most recent first
-- Shows package name, version, and update time
+- ✅ Scan .dotmeta files for update times
+- ✅ Sort by most recent updates
+- ✅ Configurable output count
+- ✅ Multiple output formats (normal, quiet, JSON)
+- ✅ Clean, simple interface
 
-## Version
+## Usage
+```bash
+# Show last 10 updates (default)
+latest-update
 
-v2.0.0 - Stow-aware package scanner
+# Show last 20 updates
+latest-update -n 20
+
+# Show all packages
+latest-update --all
+
+# Quiet mode (names only)
+latest-update --quiet
+
+# JSON output
+latest-update --json
+```
+
+## Output Formats
+
+**Normal:**
+```
+📦 Latest 3 package updates:
+
+  shell-zsh 2.1.0 - 2026-02-11 13:00
+  editor-nvim 3.2.0 - 2026-02-10 15:30
+  fm-yazi 1.5.0 - 2026-02-09 09:15
+```
+
+**Quiet (names only):**
+```
+shell-zsh
+editor-nvim
+fm-yazi
+```
+
+**JSON:**
+```json
+[
+  {"name":"shell-zsh","version":"2.1.0","updated":"2026-02-11T13:00:00Z"},
+  {"name":"editor-nvim","version":"3.2.0","updated":"2026-02-10T15:30:00Z"}
+]
+```
+
+## Integration
+
+Part of Faelight Forest:
+- Reads from `~/0-core/03-interfaces/stow/<package>/.dotmeta`
+- Shows package update activity
+- Helps track maintenance work
+- Used in update workflows
+
+## Version: 4.0.0

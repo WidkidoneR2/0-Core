@@ -1,6 +1,6 @@
 [package]
 name = "latest-update"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
 description = "Show latest package updates from .dotmeta files"
 
