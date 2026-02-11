@@ -456,3 +456,7 @@ alias envrc-inspect='bat .envrc && echo "" && echo "⚠️  INSPECT CAREFULLY BE
 # 🎯 END OF ALIASES
 # Total: 300+ aliases for maximum productivity!
 # ═══════════════════════════════════════════════════════════
+
+# Auth health monitoring (added 2026-02-11)
+alias auth-health='~/0-core/scripts/check-auth-health'
+alias reset-auth='~/0-core/scripts/reset-auth'
