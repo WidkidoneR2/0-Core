@@ -43,6 +43,8 @@ pub fn list() -> Result<()> {
 
     if packages.is_empty() {
         println!("  {}", "No packages found".bright_black());
+        println!("💡 Expected location: ~/0-core/03-interfaces/stow/");
+        println!("💡 Create packages with: mkdir -p ~/0-core/03-interfaces/stow/my-package");
         return Ok(());
     }
 
@@ -72,12 +74,27 @@ fn count_files(dir: &Path) -> Result<usize> {
 }
 
 /// Stow a package
-pub fn stow(package: &str, force: bool) -> Result<()> {
+pub fn stow(package: &str, force: bool, dry_run: bool) -> Result<()> {
+    if dry_run {
+        println!(
+            "  {} [DRY-RUN] Would stow package: {}",
+            "🔍".bright_blue(),
+            package
+        );
+        return Ok(());
+    }
+
     let stow_dir = get_stow_dir()?;
     let pkg_path = stow_dir.join(package);
 
     if !pkg_path.exists() {
-        anyhow::bail!("Package '{}' not found in {}", package, stow_dir.display());
+        eprintln!("💡 Available packages:");
+        if let Ok(packages) = discover_packages(&stow_dir) {
+            for pkg in packages.iter().take(5) {
+                eprintln!("   • {}", pkg);
+            }
+        }
+        anyhow::bail!("Package '{}' not found in {:?}", package, stow_dir);
     }
 
     println!(
@@ -148,7 +165,16 @@ fn discover_package_files(pkg_dir: &Path) -> Result<Vec<PathBuf>> {
 }
 
 /// Unstow a package (remove symlinks)
-pub fn unstow(package: &str) -> Result<()> {
+pub fn unstow(package: &str, dry_run: bool) -> Result<()> {
+    if dry_run {
+        println!(
+            "  {} [DRY-RUN] Would unstow package: {}",
+            "🔍".bright_blue(),
+            package
+        );
+        return Ok(());
+    }
+
     let stow_dir = get_stow_dir()?;
     let pkg_path = stow_dir.join(package);
 
