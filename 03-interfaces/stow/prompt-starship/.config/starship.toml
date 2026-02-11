@@ -8,8 +8,6 @@
 format = """
 [┌─](bold green) \
 ${custom.health_dot}\
-${custom.intent_count}\
-${custom.update_count}\
 ${custom.faelight_zone}\
 🏠\
 ${custom.core_lock} \
