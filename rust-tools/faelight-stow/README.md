@@ -1,197 +1,147 @@
-# 📦 Faelight Stow v2.1.0
+# faelight-stow v3.0.0
 
-**Intelligent GNU Stow wrapper with automatic verification and repair**
+🌟 **LEGENDARY Dotfile Manager** - Backup, rollback, groups, and intelligent health monitoring.
 
-Manage dotfiles safely with automatic symlink verification, conflict detection, and one-command fixes.
+## 🎉 What Makes v3.0.0 Legendary
 
-## ✨ Features
+### 🏆 Tier 1 - Critical Features
 
-### Smart Verification
-- 🔍 **Auto-discovery** - Scans stow directory for all packages
-- ✅ **Validation** - Verifies symlinks point to correct targets
-- 🔧 **Auto-repair** - Fixes broken symlinks with `--fix`
-- 📊 **Health reporting** - Shows package status at a glance
-
-### Safe Operations
-- 🛡️ **Conflict detection** - Warns before overwriting files
-- 📝 **Dry-run mode** - Preview changes before applying
-- 🎯 **Selective stowing** - Install individual packages
-- 🔕 **Silent mode** - Perfect for scripts (exit codes)
-
-### Integration Ready
-- ✅ Works with any stow directory structure
-- ✅ Used by system health checkers
-- ✅ Perfect for automation scripts
-- ✅ Clean exit codes for CI/CD
-
-## 📦 Installation
-
-### Standalone (Any System with GNU Stow)
+**1. Backup & Rollback System**
 ```bash
-# Clone repository
-git clone https://github.com/WidkidoneR2/0-Core.git
-cd 0-Core/rust-tools/faelight-stow
-
-# Build and install
-cargo install --path .
-
-# Verify
-faelight-stow --version
+faelight-stow --backup stow shell-zsh   # Auto-backup before stowing
+faelight-stow rollback                  # List available backups
+faelight-stow rollback 20260211_230000  # Restore specific backup
 ```
 
-### Dependencies
-
-- **Required:** `stow` (GNU Stow)
-- **Optional:** None!
+**2. Package Groups**
 ```bash
-# Install stow
-# Arch: sudo pacman -S stow
-# Debian/Ubuntu: sudo apt install stow
-# macOS: brew install stow
+faelight-stow group dev      # Stow: editor-nvim, vcs-git, wm-sway
+faelight-stow group minimal  # Stow: shell-zsh, vcs-git
+faelight-stow group full     # Stow: complete environment
 ```
 
-## 🚀 Usage
-
-### Basic Operations
+**3. Dry-Run Preview**
 ```bash
-# Verify all packages
-faelight-stow
+faelight-stow --dry-run stow shell-zsh    # Preview without changes
+faelight-stow --dry-run group dev         # Preview group stow
+```
 
+### 🎯 Tier 2 - Power Features
+
+**4. Health Scoring**
+```bash
+faelight-stow health
 # Output:
-# 🔗 faelight-stow v2.1.0 - Verifying symlinks...
-# ✅ shell-zsh: All symlinks valid
-# ✅ nvim: All symlinks valid
-# ❌ tmux: Invalid symlink
-#
-# Summary: 2/3 packages healthy
-
-# Auto-fix issues
-faelight-stow --fix
-    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
-
-# Check for conflicts before stowing
-faelight-stow check shell-zsh wm-sway
-
-
-# Stow a new package
-faelight-stow my-package
-
-# Silent mode (for scripts)
-faelight-stow --quiet
-echo $?  # 0 = all healthy, 1 = issues found
+# 📊 Health Score: 85%
+#    Stowed: 11/13 packages
 ```
 
-### Examples
-
-#### Daily Verification
+**5. Conflict Checking**
 ```bash
-# Check dotfiles health
-faelight-stow
+faelight-stow check shell-zsh editor-nvim
+# Shows what conflicts BEFORE stowing
 ```
 
-#### Adding New Package
+**6. Diff Mode (Coming Soon)**
 ```bash
-# Stow a new dotfile package
-faelight-stow git-config
-# Verifies after stowing
+faelight-stow diff shell-zsh
+# Will show differences between package and current dotfiles
 ```
 
-#### Automation / CI
+## Usage
+
+### Basic Commands
+
+**Verify All Packages:**
 ```bash
-#!/bin/bash
-# Check dotfiles in CI pipeline
-if ! faelight-stow --quiet; then
-    echo "Dotfiles have issues!"
-    faelight-stow  # Show details
-    exit 1
+faelight-stow verify          # Check all packages
+faelight-stow --quiet verify  # Only show issues
+faelight-stow --fix verify    # Auto-fix issues
+```
+
+**Stow Packages:**
+```bash
+faelight-stow stow shell-zsh
+faelight-stow stow shell-zsh editor-nvim  # Multiple packages
+faelight-stow --backup stow shell-zsh     # With backup
+```
+
+**Check Health:**
+```bash
+faelight-stow health
+```
+
+## Philosophy
+
+> "Every dotfile change should be intentional, backed up, and reversible."
+
+Features:
+- ✅ **Auto-discover packages** from stow directory
+- ✅ **Verify symlink integrity** automatically
+- ✅ **Backup system** with rollback capability
+- ✅ **Package groups** for common workflows
+- ✅ **Health monitoring** (0-100% score)
+- ✅ **Dry-run mode** for safe previews
+- ✅ **Smart error messages** with helpful hints
+- 🚧 **Conflict detection** (advanced - coming soon)
+- 🚧 **Diff mode** (coming soon)
+
+## Installation
+```bash
+cd ~/0-core
+cargo build --release -p faelight-stow
+cargo install --path rust-tools/faelight-stow
+```
+
+Binary installs to: `~/.cargo/bin/faelight-stow`
+
+## Package Groups
+
+Predefined groups for common setups:
+
+| Group | Packages |
+|-------|----------|
+| **dev** | editor-nvim, vcs-git, wm-sway |
+| **minimal** | shell-zsh, vcs-git |
+| **full** | shell-zsh, editor-nvim, fm-yazi, vcs-git, wm-sway, term-foot |
+
+Add custom groups by editing `src/main.rs` (config file coming soon).
+
+## Advanced Usage
+
+**Backup Workflow:**
+```bash
+# Create backup before major changes
+faelight-stow --backup stow shell-zsh
+
+# Make changes...
+
+# Rollback if needed
+faelight-stow rollback
+```
+
+**CI/CD Integration:**
+```bash
+# Verify dotfiles in pipeline
+faelight-stow --quiet verify || exit 1
+```
+
+**Health Monitoring:**
+```bash
+# Check health score
+if [ $(faelight-stow health | grep "Health Score" | awk '{print $4}' | tr -d '%') -lt 80 ]; then
+    echo "⚠️  Dotfile health below 80%!"
 fi
 ```
 
-#### Auto-repair Script
-```bash
-# Weekly cron job to fix dotfiles
-0 0 * * 0 faelight-stow --fix --notify
-    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
-```
+## Part of 0-Core
 
-## 🎯 How It Works
+One of 40 Rust tools in the Faelight Forest ecosystem.
 
-### Stow Directory Structure
+**Philosophy:** Manual control over automation, intentional changes, complete reversibility.
 
-Expects this structure:
-```
-~/stow/              # or custom path
-├── shell-zsh/
-│   └── .zshrc
-├── nvim/
-│   └── .config/nvim/init.lua
-└── git/
-    └── .gitconfig
-```
+See: https://github.com/WidkidoneR2/0-Core
 
-### Verification Process
-
-1. **Scans** stow directory for packages
-2. **Checks** each symlink target
-3. **Validates** symlinks point to stow directory
-4. **Reports** status with colors
-5. **Repairs** (if `--fix` used)
-
-### What Gets Checked
-
-✅ Symlink exists  
-✅ Target file exists in stow package  
-✅ Symlink points to correct location  
-✅ No broken links  
-✅ No conflicts with real files  
-
-## 🔧 Options
-
-| Flag | Description | Example |
-|------|-------------|---------|
-| `--quiet` | Silent mode (exit codes only) | `faelight-stow --quiet` |
-| `--fix` | Auto-repair broken symlinks | `faelight-stow --fix` |
-    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
-| `--notify` | Send notification on issues | `faelight-stow --notify` |
-| `-v, --version` | Show version | `faelight-stow --version` |
-| `-h, --help` | Show help | `faelight-stow --help` |
-
-## 💡 Use Cases
-
-### Personal Dotfiles
-```bash
-# Verify dotfiles after git pull
-cd ~/dotfiles
-git pull
-faelight-stow --fix
-    faelight-stow check shell-zsh wm-sway  # Check for conflicts before stowing
-```
-
-### Multi-Machine Sync
-```bash
-# On new machine
-git clone <dotfiles-repo>
-cd dotfiles
-stow */  # Install all packages
-faelight-stow  # Verify
-```
-
-### System Health
-```bash
-# Part of health check script
-if ! faelight-stow --quiet; then
-    echo "⚠️  Dotfile issues detected"
-fi
-```
-
-## 🤝 Part of 0-Core
-
-Faelight-stow is part of the 0-Core ecosystem but works perfectly standalone with any stow setup!
-
-## 📝 Changelog
+## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## 📄 License
-
-Intentional Stewardship - Manual control over automation.
