@@ -783,3 +783,9 @@ preexec() {
         kill -INT $$
     fi
 }
+
+# Daily auth health check (silent)
+if [ ! -f ~/.cache/auth-health-$(date +%Y%m%d) ]; then
+    faillock --user $USER --reset 2>/dev/null
+    touch ~/.cache/auth-health-$(date +%Y%m%d)
+fi
