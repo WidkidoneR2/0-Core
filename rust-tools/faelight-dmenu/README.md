@@ -1,4 +1,4 @@
-# faelight-dmenu v2.0.0
+# faelight-dmenu v2.1.0
 
 🌲 **Intent-Aware Application Launcher** - Wayland-native dmenu with Intent Ledger integration.
 
