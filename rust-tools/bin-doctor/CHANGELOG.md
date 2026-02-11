@@ -1,54 +1,50 @@
-# Changelog - Bin-Doctor
+# Changelog - bin-doctor
 
-## [1.0.0] - 2026-02-08
+## [2.0.0] - 2026-02-11
 
-### 🎊 Initial Release - Binary Manifest System
+### 🎉 PRODUCTION READY - BULLETPROOF
 
-#### Features
-- **Binary Registration** - Track installed binaries with metadata
-  - Version from Cargo.toml
-  - Git commit hash
-  - Build timestamp
-  - Rustc version
-  - Source path for easy rebuilding
-  
-- **Drift Detection** - Compare binary vs source
-  - Version mismatch detection
-  - Commit hash verification
-  - Clear rebuild instructions
-  
-- **Multiple Commands**:
-  - `register <tool>` - Track a binary after cargo install
-  - `check` - Verify all binaries (--quiet for scripts)
-  - `list` - Show all tracked binaries with full metadata
-  - `drift` - Show only drifted binaries
-  
-- **Automation Ready**:
-  - Exit code 0 = all in sync
-  - Exit code 1 = drift detected
-  - Quiet mode for scripts/CI
+**Security Improvements:**
+- ✅ Fixed all critical .unwrap() calls
+- ✅ Proper error handling for HOME variable
+- ✅ Safe TOML parsing with fallbacks
+- ✅ File I/O error checking
+- ✅ Git availability verification
 
-#### Manifest Storage
-- Location: `~/.cargo/.manifest.toml`
-- Format: TOML with per-tool sections
-- Human-readable and editable
+**New Features:**
+- `--json` flag for JSON output
+- `--quiet` flag for minimal output
+- Git availability check on register
+- Comprehensive error hints
 
-#### Testing
-- ✅ Verified registration works
-- ✅ Verified drift detection catches version changes
-- ✅ Verified drift detection catches commit changes
-- ✅ Verified exit codes
-- ✅ Verified all commands work
+**Commands:**
+- `register <name>` - Register binary after cargo install
+- `check` - Check all binaries for drift
+- `list` - List all tracked binaries
+- `drift` - Show only drifted binaries
 
-#### Production Quality
-- ✅ Zero clippy warnings
-- ✅ Comprehensive README (196 lines)
-- ✅ Standalone installation docs
-- ✅ Examples for daily use, CI/CD, automation
-- ✅ Design philosophy documented
+**Error Handling:**
+- HOME not set → Clear error message
+- Git not found → Installation hint
+- Manifest parse error → Use empty manifest
+- File write error → Permission hint
+- All errors have helpful hints
+
+**Code Quality:**
+- Zero clippy warnings
+- Proper error handling
+- 310+ lines of clean code
+- Helpful error messages
+
+**Dependencies:**
+- Git (checked at runtime)
 
 ---
 
-**Why bin-doctor exists:**
+## [1.0.0] - Earlier
 
-Without it, you have NO way to know if your installed binaries match your source code. You could edit `faelight-git` source to v3.3.0, but still be running the old v3.2.0 binary without realizing it. Bin-doctor solves this gap.
+Binary manifest tracking system.
+
+---
+
+**Version Format:** MAJOR.MINOR.PATCH
