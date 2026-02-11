@@ -74,3 +74,118 @@ v0.6.0 - Production-ready power menu
 - Wayland compositor (Sway)
 - swaylock (for lock action)
 - systemctl (for power actions)
+
+## 🎨 Menu Options
+
+### Standard Actions
+- **Lock** - Lock screen immediately (faelight-lock)
+- **Logout** - Exit Wayland session gracefully
+- **Suspend** - Suspend to RAM
+- **Hibernate** - Suspend to disk
+
+### Dangerous Actions (Red Text)
+- **Shutdown** - Power off the system (requires confirmation)
+- **Reboot** - Restart the system (requires confirmation)
+
+All dangerous actions require double-confirmation to prevent accidental execution.
+
+## ⌨️ Keyboard Controls
+
+| Key | Action |
+|-----|--------|
+| `↑/k` | Move selection up |
+| `↓/j` | Move selection down |
+| `Enter/Space` | Confirm selection |
+| `Esc/q` | Cancel and close |
+| `l` | Quick lock |
+| `o` | Quick logout |
+| `s` | Quick suspend |
+| `h` | Quick hibernate |
+
+## 🎯 Design Philosophy
+
+**Text-Only Interface:**
+- No background bars or panels
+- Clean, minimal visual noise
+- Focus on the essentials
+
+**Safety First:**
+- Red highlighting for dangerous actions
+- Double-confirmation required
+- Clear visual feedback
+
+**Keyboard-Driven:**
+- Fast access via single keys
+- Vim-like navigation (j/k)
+- No mouse required
+
+## 🔧 Technical Details
+
+- **Lines of Code:** ~774
+- **Dependencies:** faelight-core, smithay-client-toolkit, rusttype
+- **Integration:** Wayland layer-shell (no X11)
+- **Safety:** Double-confirmation for shutdown/reboot
+
+## 💡 Use Cases
+
+### Daily Workflow
+```bash
+# Quick lock when stepping away
+Super+Esc  # Opens menu
+l          # Lock immediately
+
+# End of day shutdown
+Super+Esc  # Opens menu
+↓↓↓↓      # Navigate to Shutdown
+Enter      # First confirmation
+Enter      # Second confirmation (executes)
+```
+
+### System Suspend
+```bash
+# Quick suspend
+Super+Esc  # Opens menu
+s          # Suspend immediately
+```
+
+## 🎨 Visual Design
+
+**Color Scheme:**
+- White text for safe actions
+- Red text for dangerous actions (shutdown/reboot)
+- Amber/orange for reboot
+- Arrow indicator (▶) shows selection
+
+**Confirmation State:**
+- First press: Shows "Press again to confirm"
+- Second press: Executes action
+- Cancel: Press Esc or select different option
+
+## 🔄 Integration
+
+### Power Scripts
+Uses scripts from `~/0-core/scripts/`:
+- `graceful-poweroff` - Safe shutdown
+- `graceful-reboot` - Safe reboot
+
+### Sway Binding
+```
+# Open power menu
+bindsym $mod+Escape exec faelight-menu
+```
+
+## 📊 Health Check
+```bash
+faelight-menu --health-check
+```
+
+Verifies:
+- Script availability
+- Wayland compositor connection
+- Layer-shell support
+
+---
+
+## 🌲 Part of 0-Core
+
+Power menu for Faelight Forest desktop environment.
