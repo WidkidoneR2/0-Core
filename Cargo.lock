@@ -1257,8 +1257,9 @@ version = "1.0.0"
 
 [[package]]
 name = "faelight-stow"
-version = "2.2.0"
+version = "3.0.0"
 dependencies = [
+ "chrono",
  "clap",
  "colored",
  "faelight-core",
