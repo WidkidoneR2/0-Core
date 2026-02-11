@@ -1,4 +1,4 @@
-# faelight-zone v1.0.0
+# faelight-zone v2.1.0
 
 🗺️ **Spatial awareness for the Faelight Forest filesystem**
 
@@ -186,3 +186,62 @@ One of 30+ Rust tools in the Faelight Forest ecosystem.
 Enables "spatial awareness" - your tools know where they're running and can adapt behavior accordingly.
 
 See: https://github.com/WidkidoneR2/0-Core
+
+## Quick Wins (v2.1.0)
+
+### New CLI Options
+```bash
+# Default: icon + path
+faelight-zone
+# Output: 🦀 RUST-TOOLS/FAELIGHT-ZONE
+
+# Icon only (for prompts)
+faelight-zone --icon
+# Output: 🦀
+
+# Label only (for scripts)
+faelight-zone --label
+# Output: WORK
+
+# JSON (for integrations)
+faelight-zone --json
+# Output: {"zone":"Workspace","label":"WORK","icon":"🦀","path":"...","critical":true}
+
+# Health check
+faelight-zone --health
+```
+
+### Scripting Examples
+
+**Shell Prompt Integration:**
+```bash
+# Add to .zshrc
+ZONE_ICON=$(faelight-zone --icon)
+PS1="%F{cyan}${ZONE_ICON}%f %~ %# "
+```
+
+**Conditional Commands:**
+```bash
+# Only run if in critical zone
+if [ "$(faelight-zone --json | jq -r .critical)" = "true" ]; then
+    echo "⚠️  Critical zone - proceed with caution"
+fi
+```
+
+**Zone-Based Aliases:**
+```bash
+# Different git behavior per zone
+if [ "$(faelight-zone --label)" = "CORE" ]; then
+    alias gp="git push --no-verify"  # Skip hooks in core
+fi
+```
+
+## Installation
+```bash
+cd ~/0-core
+cargo build --release -p faelight-zone
+cargo install --path rust-tools/faelight-zone
+```
+
+Binary installs to: `~/.cargo/bin/faelight-zone`
+
