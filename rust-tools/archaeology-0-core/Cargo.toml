@@ -1,6 +1,6 @@
 [package]
 name = "archaeology-0-core"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
 description = "System-wide history explorer for 0-Core"
 
