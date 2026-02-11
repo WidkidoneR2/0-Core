@@ -132,7 +132,7 @@ fn main() {
         }
     };
 
-    // Create widgets (right to left order)
+    // Create widgets
     let widgets: Vec<Box<dyn Widget>> = vec![
         Box::new(ClockWidget::new()),
         Box::new(VolumeWidget::new()),
@@ -153,6 +153,8 @@ fn main() {
         configured: false,
         running: true,
         last_update: Instant::now(),
+        pointer_position: None,
+        click_regions: Vec::new(),
     };
 
     logger::log_info("Bar initialized, waiting for configure");
@@ -192,6 +194,8 @@ struct BarState {
     configured: bool,
     running: bool,
     last_update: Instant,
+    pointer_position: Option<(i32, i32)>,
+    click_regions: Vec<(i32, i32, usize)>,
 }
 
 impl BarState {
@@ -236,42 +240,58 @@ impl BarState {
             pixel.copy_from_slice(&render::BG.to_le_bytes());
         }
 
-        // Render widgets with actual data
+        // Render widgets with proper spacing
         let y = 12;
+        self.click_regions.clear();
 
         // Update all widgets
         for widget in &mut self.widgets {
             let _ = widget.update();
         }
 
-        // Profile on left (teal)
+        // Profile (teal) - widget[3]
         if let Ok(output) = self.widgets[3].render(&RenderContext {
             width,
             height,
             x_offset: 0,
         }) {
-            render::draw_text(canvas, stride, 20, y, &output.text, output.color);
+            let x = 20;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+            if output.clickable {
+                self.click_regions
+                    .push((x, output.text.len() as i32 * 8, 3));
+            }
         }
 
-        // VPN (white/green)
+        // VPN - widget[2]
         if let Ok(output) = self.widgets[2].render(&RenderContext {
             width,
             height,
             x_offset: 0,
         }) {
-            render::draw_text(canvas, stride, 150, y, &output.text, output.color);
+            let x = 160;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+            if output.clickable {
+                self.click_regions
+                    .push((x, output.text.len() as i32 * 8, 2));
+            }
         }
 
-        // Volume (white/red)
+        // Volume - widget[1]
         if let Ok(output) = self.widgets[1].render(&RenderContext {
             width,
             height,
             x_offset: 0,
         }) {
-            render::draw_text(canvas, stride, 250, y, &output.text, output.color);
+            let x = 270;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+            if output.clickable {
+                self.click_regions
+                    .push((x, output.text.len() as i32 * 8, 1));
+            }
         }
 
-        // Clock on right (white)
+        // Clock - widget[0]
         if let Ok(output) = self.widgets[0].render(&RenderContext {
             width,
             height,
@@ -280,6 +300,7 @@ impl BarState {
             let clock_x = (width as i32) - 80;
             render::draw_text(canvas, stride, clock_x, y, &output.text, output.color);
         }
+
         self.layer_surface
             .wl_surface()
             .attach(Some(buffer.wl_buffer()), 0, 0);
@@ -290,6 +311,25 @@ impl BarState {
             .wl_surface()
             .frame(qh, self.layer_surface.wl_surface().clone());
         self.layer_surface.commit();
+    }
+
+    fn handle_click(&mut self, x: i32, _y: i32, qh: &QueueHandle<Self>) {
+        logger::log_info(&format!("Click at x={}", x));
+
+        for (widget_x, widget_width, widget_idx) in &self.click_regions {
+            if x >= *widget_x && x < (*widget_x + *widget_width) {
+                logger::log_info(&format!("Clicked widget {}", widget_idx));
+                if let Some(widget) = self.widgets.get_mut(*widget_idx) {
+                    if let Err(e) = widget.on_click() {
+                        logger::log_error(&format!("Click error: {}", e));
+                    } else {
+                        logger::log_info("Widget clicked successfully!");
+                        self.draw(qh);
+                    }
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -455,11 +495,34 @@ impl KeyboardHandler for BarState {
 impl PointerHandler for BarState {
     fn pointer_frame(
         &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_pointer::WlPointer,
-        _: &[PointerEvent],
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        _pointer: &wl_pointer::WlPointer,
+        events: &[PointerEvent],
     ) {
+        use smithay_client_toolkit::seat::pointer::PointerEventKind;
+
+        for event in events {
+            match event.kind {
+                PointerEventKind::Enter { .. } => {}
+                PointerEventKind::Leave { .. } => {
+                    self.pointer_position = None;
+                }
+                PointerEventKind::Motion { .. } => {
+                    let (x, y) = event.position;
+                    self.pointer_position = Some((x as i32, y as i32));
+                }
+                PointerEventKind::Press { button, .. } => {
+                    if button == 272 {
+                        if let Some((x, y)) = self.pointer_position {
+                            self.handle_click(x, y, qh);
+                        }
+                    }
+                }
+                PointerEventKind::Release { .. } => {}
+                _ => {}
+            }
+        }
     }
 }
 
