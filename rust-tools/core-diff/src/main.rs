@@ -1,8 +1,9 @@
+use faelight_core::paths;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
-use faelight_core::paths;
+#[allow(unused_imports)] // Used in tests
+use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 // ANSI colors
 const RED: &str = "\x1b[0;31m";
@@ -31,7 +32,8 @@ fn health_check() {
     // Check it's a git repo
     match Command::new("git")
         .args(["-C", &core_dir.to_string_lossy(), "rev-parse", "--git-dir"])
-        .output() {
+        .output()
+    {
         Ok(output) if output.status.success() => println!("✅ git repo: valid"),
         _ => {
             eprintln!("❌ git repo: not a repository");
@@ -107,8 +109,12 @@ fn main() {
         process::exit(1);
     }
     // Verify git repo
-    if !Command::new("git").args(["rev-parse", "--git-dir"]).output()
-        .map(|o| o.status.success()).unwrap_or(false) {
+    if !Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
         eprintln!("❌ Error: Not a git repository");
         process::exit(1);
     }
@@ -137,12 +143,13 @@ fn main() {
     }
     // Filter by package if specified
     let filtered_changes: Vec<&str> = if let Some(ref target_package) = cli.package {
-        let pkg_dir = core_dir.join(&target_package);
+        let pkg_dir = core_dir.join(target_package);
         if !pkg_dir.exists() {
             eprintln!("❌ Error: Package does not exist: {}", target_package);
             process::exit(2);
         }
-        changes.iter()
+        changes
+            .iter()
             .map(|s| s.as_str())
             .filter(|line| {
                 let path = line.get(2..).unwrap_or("");
@@ -153,16 +160,24 @@ fn main() {
         changes.iter().map(|s| s.as_str()).collect()
     };
     if filtered_changes.is_empty() {
-        println!("✅ No changes in package: {}", cli.package.as_ref().unwrap());
+        println!(
+            "✅ No changes in package: {}",
+            cli.package.as_ref().unwrap()
+        );
         return;
     }
     // Parse changes into packages
     let mut package_files: HashMap<String, Vec<String>> = HashMap::new();
     for line in &filtered_changes {
-        if line.len() < 2 { continue; }
+        if line.len() < 2 {
+            continue;
+        }
         let filepath = &line[2..];
         let package = filepath.split('/').next().unwrap_or(filepath).to_string();
-        package_files.entry(package).or_default().push(filepath.to_string());
+        package_files
+            .entry(package)
+            .or_default()
+            .push(filepath.to_string());
     }
     // Get risk levels
     let mut package_risk: HashMap<String, String> = HashMap::new();
@@ -183,17 +198,25 @@ fn main() {
         }
     }
     // Sort each group
-    critical.sort(); high.sort(); medium.sort(); low.sort();
+    critical.sort();
+    high.sort();
+    medium.sort();
+    low.sort();
     // Summary mode
     if cli.summary {
         let total_pkgs = package_files.len();
         let total_files: usize = package_files.values().map(|v| v.len()).sum();
         println!("Packages: {}", total_pkgs);
         println!("Files: {}", total_files);
-        let risk = if !critical.is_empty() { "CRITICAL" }
-            else if !high.is_empty() { "HIGH" }
-            else if !medium.is_empty() { "MEDIUM" }
-            else { "LOW" };
+        let risk = if !critical.is_empty() {
+            "CRITICAL"
+        } else if !high.is_empty() {
+            "HIGH"
+        } else if !medium.is_empty() {
+            "MEDIUM"
+        } else {
+            "LOW"
+        };
         println!("Risk: {}", risk);
         return;
     }
@@ -213,7 +236,7 @@ fn main() {
     // Open tool if requested
     if let Some(ref open_tool) = cli.open {
         match open_tool.as_str() {
-            "delta" => open_delta(&mode, &git_ref, cli.package.as_deref().unwrap_or("")),
+            "delta" => open_delta(&mode, git_ref, cli.package.as_deref().unwrap_or("")),
             "meld" => println!("⚠️  Meld integration not yet in Rust version"),
             _ => eprintln!("❌ Unknown tool: {}", open_tool),
         }
@@ -260,10 +283,15 @@ fn main() {
     println!("Summary:");
     println!("   Packages: {}", total_pkgs);
     println!("   Files: {}", total_files);
-    let (risk_color, risk_label) = if !critical.is_empty() { (RED, "CRITICAL") }
-        else if !high.is_empty() { (ORANGE, "HIGH") }
-        else if !medium.is_empty() { (BLUE, "MEDIUM") }
-        else { (GREEN, "LOW") };
+    let (risk_color, risk_label) = if !critical.is_empty() {
+        (RED, "CRITICAL")
+    } else if !high.is_empty() {
+        (ORANGE, "HIGH")
+    } else if !medium.is_empty() {
+        (BLUE, "MEDIUM")
+    } else {
+        (GREEN, "LOW")
+    };
     println!("   Risk: {}{}{}", risk_color, risk_label, NC);
 }
 fn get_changes(mode: &DiffMode) -> Vec<String> {
@@ -271,18 +299,18 @@ fn get_changes(mode: &DiffMode) -> Vec<String> {
         DiffMode::Since(ref git_ref) => Command::new("git")
             .args(["diff", "--name-status", git_ref])
             .output(),
-        DiffMode::WorkingTree => Command::new("git")
-            .args(["diff", "--name-status"])
-            .output(),
+        DiffMode::WorkingTree => Command::new("git").args(["diff", "--name-status"]).output(),
     };
-    output.map(|o| {
-        String::from_utf8_lossy(&o.stdout)
-            .lines()
-            .map(|s| s.to_string())
-            .collect()
-    }).unwrap_or_default()
+    output
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default()
 }
-fn get_risk_level(core_dir: &PathBuf, package: &str) -> String {
+fn get_risk_level(core_dir: &Path, package: &str) -> String {
     let dotmeta = core_dir.join(package).join(".dotmeta");
     if let Ok(content) = fs::read_to_string(&dotmeta) {
         for line in content.lines() {
@@ -355,7 +383,7 @@ fn open_delta(mode: &DiffMode, git_ref: &str, package: &str) {
 // 🛡️ SHELL POLICY ANALYSIS
 // ═══════════════════════════════════════════════════════════
 fn analyze_shell_policy(changes: &Vec<String>) {
-    println!("{}🛡️  Shell Authority Policy Analysis{}", "\x1b[0;36m", NC);
+    println!("\x1b[0;36m🛡️  Shell Authority Policy Analysis{}", NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
     let forbidden_patterns: &[(&str, &str, &str)] = &[
@@ -371,6 +399,7 @@ fn analyze_shell_policy(changes: &Vec<String>) {
         ("eval \"$(", "Dynamic Execution", "Medium"),
     ];
     let mut total_violations = 0;
+    #[allow(clippy::type_complexity)] // Nested violation tracking
     let mut file_violations: Vec<(String, Vec<(&str, &str, &str)>)> = Vec::new();
     for file in changes {
         // Only check shell scripts
@@ -405,7 +434,7 @@ fn analyze_shell_policy(changes: &Vec<String>) {
         } else {
             format!("{}🟡 MEDIUM{}", BLUE, NC)
         };
-        println!("{}File: {}{} ({})", "\x1b[1m", file, NC, severity_icon);
+        println!("\x1b[1mFile: {}{} ({})", file, NC, severity_icon);
         for (pattern, domain, severity) in violations {
             let sev_color = match *severity {
                 "Critical" => RED,
@@ -413,20 +442,31 @@ fn analyze_shell_policy(changes: &Vec<String>) {
                 _ => BLUE,
             };
             println!("  {}❌{} Pattern: {}", sev_color, NC, pattern);
-            println!("     Domain: {} | Severity: {}{}{}", domain, sev_color, severity, NC);
+            println!(
+                "     Domain: {} | Severity: {}{}{}",
+                domain, sev_color, severity, NC
+            );
         }
         println!();
     }
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("{}Summary:{} {} violations in {} files", "\x1b[1m", NC, total_violations, file_violations.len());
+    println!(
+        "\x1b[1mSummary:{} {} violations in {} files",
+        NC,
+        total_violations,
+        file_violations.len()
+    );
     println!();
-    println!("{}Recommendations:{}", "\x1b[1m", NC);
+    println!("\x1b[1mRecommendations:{}", NC);
     println!("  • Graduate shell scripts with authority violations to Rust");
     println!("  • Use 'faelight' unified CLI instead of direct commands");
     println!("  • Add shell-policy headers for temporary exceptions");
 }
 fn analyze_shell_policy_all() {
-    println!("{}🛡️  Shell Authority Policy Analysis (Full Scan){}", "\x1b[0;36m", NC);
+    println!(
+        "\x1b[0;36m🛡️  Shell Authority Policy Analysis (Full Scan){}",
+        NC
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
     let forbidden_patterns: &[(&str, &str, &str)] = &[
@@ -443,6 +483,7 @@ fn analyze_shell_policy_all() {
     ];
     let scripts_dir = paths::scripts_dir();
     let mut total_violations = 0;
+    #[allow(clippy::type_complexity)] // Nested violation tracking
     let mut file_violations: Vec<(String, Vec<(&str, &str, &str)>)> = Vec::new();
     // Scan scripts directory
     if let Ok(entries) = fs::read_dir(&scripts_dir) {
@@ -458,7 +499,10 @@ fn analyze_shell_policy_all() {
             // Skip compiled binaries (check if it's a shell script)
             if let Ok(content) = fs::read_to_string(&path) {
                 // Skip if not a shell script
-                if !content.starts_with("#!/bin/bash") && !content.starts_with("#!/bin/sh") && !content.starts_with("#!/usr/bin/env bash") {
+                if !content.starts_with("#!/bin/bash")
+                    && !content.starts_with("#!/bin/sh")
+                    && !content.starts_with("#!/usr/bin/env bash")
+                {
                     continue;
                 }
                 let mut violations: Vec<(&str, &str, &str)> = Vec::new();
@@ -510,7 +554,7 @@ fn analyze_shell_policy_all() {
         } else {
             format!("{}🟡 MEDIUM{}", BLUE, NC)
         };
-        println!("{}File: {}{} ({})", "\x1b[1m", file, NC, severity_icon);
+        println!("\x1b[1mFile: {}{} ({})", file, NC, severity_icon);
         for (pattern, domain, severity) in violations {
             let sev_color = match *severity {
                 "Critical" => RED,
@@ -518,14 +562,22 @@ fn analyze_shell_policy_all() {
                 _ => BLUE,
             };
             println!("  {}❌{} Pattern: {}", sev_color, NC, pattern);
-            println!("     Domain: {} | Severity: {}{}{}", domain, sev_color, severity, NC);
+            println!(
+                "     Domain: {} | Severity: {}{}{}",
+                domain, sev_color, severity, NC
+            );
         }
         println!();
     }
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("{}Summary:{} {} violations in {} files", "\x1b[1m", NC, total_violations, file_violations.len());
+    println!(
+        "\x1b[1mSummary:{} {} violations in {} files",
+        NC,
+        total_violations,
+        file_violations.len()
+    );
     println!();
-    println!("{}Recommendations:{}", "\x1b[1m", NC);
+    println!("\x1b[1mRecommendations:{}", NC);
     println!("  • Graduate shell scripts with authority violations to Rust");
     println!("  • Use 'faelight' unified CLI instead of direct commands");
     println!("  • Document exceptions with shell-policy headers");
@@ -533,7 +585,6 @@ fn analyze_shell_policy_all() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     #[test]
     fn test_risk_level_docs() {
         let core_dir = PathBuf::from("/tmp");

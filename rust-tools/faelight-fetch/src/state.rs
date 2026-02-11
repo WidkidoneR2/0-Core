@@ -1,8 +1,8 @@
-use sysinfo::System;
 use faelight_core::paths;
 use std::fs;
 use std::process::Command;
 use std::time::Duration;
+use sysinfo::System;
 
 pub struct SystemState {
     pub version: String,
@@ -62,7 +62,7 @@ fn get_core_state() -> (String, String) {
         .arg("-d")
         .arg(paths::core_dir())
         .output();
-    
+
     match output {
         Ok(result) if result.status.success() => {
             let stdout = String::from_utf8_lossy(&result.stdout);
@@ -85,18 +85,17 @@ fn get_core_state() -> (String, String) {
 }
 
 fn get_health() -> (String, String) {
-    let output = Command::new("dot-doctor")
-        .output();
-    
+    let output = Command::new("dot-doctor").output();
+
     match output {
         Ok(result) if result.status.success() => {
             let stdout = String::from_utf8_lossy(&result.stdout);
-            
+
             for line in stdout.lines() {
                 if line.contains("Health:") && !line.contains("Check") {
                     if let Some(health_part) = line.split(':').nth(1) {
                         let health = health_part.trim();
-                        
+
                         let icon = if health == "100%" {
                             crate::icons::HEALTHY
                         } else if health.ends_with('%') {
@@ -114,12 +113,12 @@ fn get_health() -> (String, String) {
                         } else {
                             crate::icons::WARNING
                         };
-                        
+
                         return (health.to_string(), icon.to_string());
                     }
                 }
             }
-            
+
             ("100%".to_string(), crate::icons::HEALTHY.to_string())
         }
         _ => ("?/?".to_string(), crate::icons::WARNING.to_string()),
@@ -163,7 +162,7 @@ fn format_duration(duration: Duration) -> String {
     let days = total_seconds / 86400;
     let hours = (total_seconds % 86400) / 3600;
     let minutes = (total_seconds % 3600) / 60;
-    
+
     if days > 0 {
         format!("{}d {}h {}m", days, hours, minutes)
     } else if hours > 0 {
@@ -173,18 +172,16 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
-
 fn get_zone() -> (String, String) {
     use std::env;
     use std::path::PathBuf;
-    
+
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let home = PathBuf::from(env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
-    
+
     let (zone_enum, _reason) = faelight_zone::current_zone(&cwd, &home);
     let zone_str = zone_enum.short_label();
     let icon = zone_enum.icon();
-    
+
     (zone_str.to_string(), icon.to_string())
 }
-

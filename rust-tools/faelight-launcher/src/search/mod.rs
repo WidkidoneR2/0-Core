@@ -30,7 +30,6 @@ impl SearchResult {
             SearchResult::File { score, .. } => *score,
         }
     }
-
 }
 
 impl PartialEq for SearchResult {
@@ -41,6 +40,7 @@ impl PartialEq for SearchResult {
 
 impl Eq for SearchResult {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)] // Reverse sort by score
 impl PartialOrd for SearchResult {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         other.score().partial_cmp(&self.score())

@@ -28,11 +28,11 @@ enum Commands {
         /// Skip specific checks (comma-separated: secrets,conflicts,filesize,branch,rustfmt,clippy)
         #[arg(long)]
         skip: Option<String>,
-        
+
         /// Run pre-push checks
         #[arg(long)]
         pre_push: bool,
-        
+
         /// Validate commit message from file
         #[arg(long)]
         commit_msg: Option<String>,
@@ -47,12 +47,16 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     match cli.command {
         Commands::Install { hook } => {
             install::install_hooks(hook)?;
         }
-        Commands::Check { skip, pre_push, commit_msg } => {
+        Commands::Check {
+            skip,
+            pre_push,
+            commit_msg,
+        } => {
             if let Some(msg_file) = commit_msg {
                 // Commit message validation
                 run_commit_msg_check(&msg_file)?;
@@ -73,7 +77,7 @@ fn main() -> Result<()> {
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -81,11 +85,11 @@ fn run_checks(skip: Option<String>) -> Result<()> {
     let skip_list: Vec<String> = skip
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_default();
-    
+
     let start_time = Instant::now();
     let mut all_passed = true;
     let mut check_times: Vec<(&str, u128)> = Vec::new();
-    
+
     // Branch name validation (non-blocking)
     if !skip_list.contains(&"branch".to_string()) {
         let check_start = Instant::now();
@@ -93,7 +97,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         check_times.push(("Branch", check_start.elapsed().as_millis()));
         println!();
     }
-    
+
     // File size check (non-blocking warning)
     if !skip_list.contains(&"filesize".to_string()) {
         let check_start = Instant::now();
@@ -101,7 +105,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         check_times.push(("FileSize", check_start.elapsed().as_millis()));
         println!();
     }
-    
+
     // Rustfmt check (BLOCKING)
     if !skip_list.contains(&"rustfmt".to_string()) {
         let check_start = Instant::now();
@@ -111,7 +115,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         check_times.push(("Rustfmt", check_start.elapsed().as_millis()));
         println!();
     }
-    
+
     // Clippy check (BLOCKING)
     if !skip_list.contains(&"clippy".to_string()) {
         let check_start = Instant::now();
@@ -121,7 +125,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         check_times.push(("Clippy", check_start.elapsed().as_millis()));
         println!();
     }
-    
+
     // Secret scanning (BLOCKING)
     if !skip_list.contains(&"secrets".to_string()) {
         let check_start = Instant::now();
@@ -134,7 +138,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         println!("{}", "⏭️  Skipping secret scanning".yellow());
         println!();
     }
-    
+
     // Conflict detection (BLOCKING)
     if !skip_list.contains(&"conflicts".to_string()) {
         let check_start = Instant::now();
@@ -147,7 +151,7 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         println!("{}", "⏭️  Skipping conflict detection".yellow());
         println!();
     }
-    
+
     if all_passed {
         let total_time = start_time.elapsed();
         println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
@@ -171,18 +175,18 @@ fn run_checks(skip: Option<String>) -> Result<()> {
 fn run_pre_push_checks() -> Result<()> {
     println!("{}", "🎣 Running pre-push checks...".cyan().bold());
     println!();
-    
+
     let mut all_passed = true;
-    
+
     // Check for uncommitted changes (warning)
     let _ = checks::prepush::check_unpushed_changes()?;
     println!();
-    
+
     // Check push target (main branch warning)
     if !checks::prepush::check_push_to_main()? {
         all_passed = false;
     }
-    
+
     if all_passed {
         println!("{}", "✅ Pre-push checks passed! 🌲".green().bold());
         Ok(())
@@ -196,7 +200,7 @@ fn run_pre_push_checks() -> Result<()> {
 fn run_commit_msg_check(msg_file: &str) -> Result<()> {
     // Read commit message from file
     let msg = fs::read_to_string(msg_file)?;
-    
+
     if !checks::commitmsg::validate_commit_msg(&msg)? {
         println!("{}", "❌ Commit message validation failed!".red().bold());
         println!("   💡 Use format: type: description");
@@ -204,7 +208,7 @@ fn run_commit_msg_check(msg_file: &str) -> Result<()> {
         println!("   💡 Types: feat, fix, docs, style, refactor, test, chore");
         std::process::exit(1);
     }
-    
+
     Ok(())
 }
 
@@ -212,7 +216,10 @@ fn show_config() -> Result<()> {
     println!("Current configuration:");
     println!();
     println!("{}", "Pre-commit checks:".bold());
-    println!("  - Branch name validation: {}", "enabled (non-blocking)".yellow());
+    println!(
+        "  - Branch name validation: {}",
+        "enabled (non-blocking)".yellow()
+    );
     println!("  - File size check: {}", "enabled (50MB warning)".yellow());
     println!("  - Secret scanning: {}", "enabled (BLOCKING)".red());
     println!("  - Conflict detection: {}", "enabled (BLOCKING)".red());
@@ -222,11 +229,17 @@ fn show_config() -> Result<()> {
     println!("  - Uncommitted changes: {}", "enabled (warning)".yellow());
     println!();
     println!("{}", "Commit-msg checks:".bold());
-    println!("  - Conventional commits: {}", "validation (non-blocking)".yellow());
+    println!(
+        "  - Conventional commits: {}",
+        "validation (non-blocking)".yellow()
+    );
     println!("  - Length checks: {}", "enabled".green());
     println!();
     println!("{}", "Skip checks with:".dimmed());
-    println!("  {}", "faelight-hooks check --skip secrets,filesize".dimmed());
-    
+    println!(
+        "  {}",
+        "faelight-hooks check --skip secrets,filesize".dimmed()
+    );
+
     Ok(())
 }

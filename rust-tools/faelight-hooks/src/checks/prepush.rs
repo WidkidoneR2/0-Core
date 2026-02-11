@@ -20,14 +20,21 @@ pub fn check_push_to_main() -> Result<bool> {
         let repo_output = Command::new("git")
             .args(["rev-parse", "--show-toplevel"])
             .output()?;
-        let repo_path = String::from_utf8_lossy(&repo_output.stdout).trim().to_string();
+        let repo_path = String::from_utf8_lossy(&repo_output.stdout)
+            .trim()
+            .to_string();
         let repo_name = std::path::Path::new(&repo_path)
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("repository");
 
         println!();
-        println!("{}", format!("⚠️  Pushing directly to MAIN in {}", repo_name).yellow().bold());
+        println!(
+            "{}",
+            format!("⚠️  Pushing directly to MAIN in {}", repo_name)
+                .yellow()
+                .bold()
+        );
         print!("Proceed? (type 'push-main'): ");
         io::stdout().flush()?;
 
@@ -41,7 +48,7 @@ pub fn check_push_to_main() -> Result<bool> {
             println!("{}", "❌ Push cancelled".red());
             return Ok(false);
         }
-        
+
         println!();
         return Ok(true);
     }

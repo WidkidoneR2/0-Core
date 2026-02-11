@@ -79,23 +79,26 @@ enum FileType {
 impl FileType {
     fn from_path(path: &Path) -> Self {
         match path.extension().and_then(|s| s.to_str()) {
-            Some("rs") | Some("py") | Some("js") | Some("ts") | Some("c") | Some("cpp") 
+            Some("rs") | Some("py") | Some("js") | Some("ts") | Some("c") | Some("cpp")
             | Some("h") | Some("go") | Some("java") | Some("sh") => FileType::Code,
-            
-            Some("md") | Some("txt") | Some("pdf") | Some("doc") | Some("docx") 
-            | Some("odt") => FileType::Document,
-            
-            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("svg") 
-            | Some("webp") => FileType::Image,
-            
+
+            Some("md") | Some("txt") | Some("pdf") | Some("doc") | Some("docx") | Some("odt") => {
+                FileType::Document
+            }
+
+            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("svg") | Some("webp") => {
+                FileType::Image
+            }
+
             Some("mp4") | Some("mkv") | Some("avi") | Some("mov") | Some("webm") => FileType::Video,
-            
-            Some("zip") | Some("tar") | Some("gz") | Some("xz") | Some("7z") 
-            | Some("rar") => FileType::Archive,
-            
-            Some("toml") | Some("yaml") | Some("yml") | Some("json") | Some("ini") 
+
+            Some("zip") | Some("tar") | Some("gz") | Some("xz") | Some("7z") | Some("rar") => {
+                FileType::Archive
+            }
+
+            Some("toml") | Some("yaml") | Some("yml") | Some("json") | Some("ini")
             | Some("conf") => FileType::Config,
-            
+
             _ => FileType::Other,
         }
     }
@@ -143,7 +146,10 @@ fn main() {
 
     println!("{}", "🕒 Recent Files Dashboard".bright_cyan().bold());
     println!("{}", "═".repeat(60).bright_black());
-    println!("📂 Searching: {}", search_dir.display().to_string().bright_white());
+    println!(
+        "📂 Searching: {}",
+        search_dir.display().to_string().bright_white()
+    );
     println!("⏰ Range: {}", args.range.label().bright_yellow());
     println!();
 
@@ -162,7 +168,7 @@ fn main() {
         }
 
         let path = entry.path();
-        
+
         // Skip hidden files and common ignore patterns
         if path.components().any(|c| {
             c.as_os_str()
@@ -176,7 +182,7 @@ fn main() {
         if let Ok(metadata) = fs::metadata(path) {
             if let Ok(modified) = metadata.modified() {
                 let modified: DateTime<Local> = modified.into();
-                
+
                 if modified > cutoff {
                     let file_type = FileType::from_path(path);
                     let recent_file = RecentFile {
@@ -184,12 +190,12 @@ fn main() {
                         modified,
                         size: metadata.len(),
                     };
-                    
+
                     files_by_type
                         .entry(file_type)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(recent_file.clone());
-                    
+
                     all_files.push(recent_file);
                 }
             }
@@ -203,10 +209,11 @@ fn main() {
     if args.open_first {
         if let Some(first) = all_files.first() {
             let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-            println!("{}", format!("📝 Opening: {}", first.path.display()).bright_green());
-            let _ = Command::new(editor)
-                .arg(&first.path)
-                .status();
+            println!(
+                "{}",
+                format!("📝 Opening: {}", first.path.display()).bright_green()
+            );
+            let _ = Command::new(editor).arg(&first.path).status();
             return;
         } else {
             println!("{}", "❌ No recent files found".bright_red());
@@ -245,13 +252,14 @@ fn main() {
 
             files.sort_by(|a, b| b.modified.cmp(&a.modified));
             let count = files.len();
-            
-            println!("{} {} ({})", 
-                category.icon(), 
+
+            println!(
+                "{} {} ({})",
+                category.icon(),
                 category.label().bright_green().bold(),
                 format!("{} files", count).bright_black()
             );
-            
+
             for file in files.iter().take(args.limit) {
                 let rel_path = if args.full_paths {
                     file.path.clone()
@@ -261,23 +269,25 @@ fn main() {
                         .unwrap_or(&file.path)
                         .to_path_buf()
                 };
-                
+
                 let size = format_size(file.size);
                 let time_ago = format_time_ago(&file.modified);
-                
-                println!("  {} {} {}",
+
+                println!(
+                    "  {} {} {}",
                     rel_path.display().to_string().bright_white(),
                     size.bright_black(),
                     time_ago.bright_yellow()
                 );
             }
-            
+
             if count > args.limit {
-                println!("  {} more files...", 
+                println!(
+                    "  {} more files...",
                     format!("(+{}", count - args.limit).bright_black()
                 );
             }
-            
+
             println!();
         }
     }
@@ -285,7 +295,8 @@ fn main() {
     // Summary
     let total: usize = files_by_type.values().map(|v| v.len()).sum();
     println!("{}", "─".repeat(60).bright_black());
-    println!("{} {}", 
+    println!(
+        "{} {}",
         "📊 Total:".bright_cyan(),
         format!("{} files modified in {}", total, args.range.label()).bright_white()
     );
@@ -308,12 +319,13 @@ fn open_interactive(files: &[RecentFile], base_dir: &Path, full_paths: bool) {
                 .unwrap_or(&file.path)
                 .to_path_buf()
         };
-        
+
         let size = format_size(file.size);
         let time_ago = format_time_ago(&file.modified);
-        fzf_input.push_str(&format!("{} │ {} │ {}\n", 
-            display_path.display(), 
-            size, 
+        fzf_input.push_str(&format!(
+            "{} │ {} │ {}\n",
+            display_path.display(),
+            size,
             time_ago
         ));
     }
@@ -346,12 +358,13 @@ fn open_interactive(files: &[RecentFile], base_dir: &Path, full_paths: bool) {
             } else {
                 base_dir.join(filename.trim())
             };
-            
+
             let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-            println!("{}", format!("📝 Opening: {}", path.display()).bright_green());
-            let _ = Command::new(editor)
-                .arg(path)
-                .status();
+            println!(
+                "{}",
+                format!("📝 Opening: {}", path.display()).bright_green()
+            );
+            let _ = Command::new(editor).arg(path).status();
         }
     }
 }

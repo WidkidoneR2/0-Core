@@ -5,7 +5,7 @@ pub fn check_rustup_updates() -> Vec<String> {
     if Command::new("rustup").arg("--version").output().is_err() {
         return vec![];
     }
-    
+
     // Run rustup check
     match Command::new("rustup").arg("check").output() {
         Ok(output) => {
@@ -22,8 +22,6 @@ pub fn check_rustup_updates() -> Vec<String> {
 
 pub fn update_rustup() -> std::io::Result<()> {
     println!("   Running: rustup update");
-    Command::new("rustup")
-        .arg("update")
-        .status()?;
+    Command::new("rustup").arg("update").status()?;
     Ok(())
 }

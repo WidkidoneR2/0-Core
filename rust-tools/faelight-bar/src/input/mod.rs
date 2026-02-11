@@ -2,4 +2,4 @@
 
 pub mod keyboard;
 
-pub use keyboard::{handle_key_press, KeyAction, execute_command};
+pub use keyboard::{execute_command, handle_key_press, KeyAction};

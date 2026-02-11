@@ -7,8 +7,7 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use faelight_core::paths;
-use which;
-use std::process::{Command, exit};
+use std::process::{exit, Command};
 
 pub mod config;
 use config::FaelightConfig;
@@ -27,11 +26,11 @@ use config::FaelightConfig;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    
+
     /// Output as JSON
     #[arg(long, global = true)]
     json: bool,
-    
+
     /// Dry run (show what would happen)
     #[arg(long, global = true)]
     dry_run: bool,
@@ -45,40 +44,40 @@ enum Commands {
         /// Show detailed explanations
         #[arg(long)]
         explain: bool,
-        
+
         /// Fail on warnings (for CI)
         #[arg(long)]
         fail_on_warning: bool,
-        
+
         /// Show all tool versions
         #[arg(long)]
         versions: bool,
     },
-    
+
     /// Profile management
     Profile {
         #[command(subcommand)]
         action: ProfileAction,
     },
-    
+
     /// Intent ledger
     Intent {
         #[command(subcommand)]
         action: IntentAction,
     },
-    
+
     /// Core protection
     Core {
         #[command(subcommand)]
         action: CoreAction,
     },
-    
+
     /// Launch applications
     Launch {
         #[command(subcommand)]
         app: LaunchApp,
     },
-    
+
     /// Configuration management
     Config {
         #[command(subcommand)]
@@ -140,9 +139,13 @@ enum ConfigAction {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     match cli.command {
-        Commands::Health { explain, fail_on_warning, versions } => {
+        Commands::Health {
+            explain,
+            fail_on_warning,
+            versions,
+        } => {
             if versions {
                 show_ecosystem_versions();
             } else {
@@ -166,28 +169,26 @@ fn run_health_check(explain: bool, fail_on_warning: bool) {
     println!("{}", "🏥 FAELIGHT FOREST HEALTH CHECK".cyan().bold());
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
     println!();
-    
+
     let doctor_path = paths::scripts_dir().join("dot-doctor");
-    
+
     if !check_tool_exists(&doctor_path) {
         eprintln!("{} dot-doctor not found!", "❌".red());
         eprintln!("   Expected at: {}", doctor_path.display());
         eprintln!("   Run: cargo build --release -p dot-doctor");
         exit(1);
     }
-    
+
     let mut cmd = Command::new(&doctor_path);
-    
+
     if explain {
         cmd.arg("--explain");
     }
-    
+
     let status = cmd.status().expect("Failed to run dot-doctor");
-    
-    if !status.success() {
-        if fail_on_warning {
-            exit(1);
-        }
+
+    if !status.success() && fail_on_warning {
+        exit(1);
     }
 }
 
@@ -196,15 +197,19 @@ fn show_ecosystem_versions() {
     println!("{}", "🌲 FAELIGHT FOREST ECOSYSTEM".cyan().bold());
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
     println!();
-    
+
     // Show system version
     if let Ok(version) = std::fs::read_to_string(paths::meta_dir().join("VERSION")) {
         println!("  {} {}", "System:".bold(), version.trim().green());
     }
-    
-    println!("  {} {}", "faelight CLI:".bold(), env!("CARGO_PKG_VERSION").green());
+
+    println!(
+        "  {} {}",
+        "faelight CLI:".bold(),
+        env!("CARGO_PKG_VERSION").green()
+    );
     println!();
-    
+
     // Show key tool versions
     let tools = vec![
         ("dot-doctor", "scripts/dot-doctor"),
@@ -213,7 +218,7 @@ fn show_ecosystem_versions() {
         ("faelight-term", "target/release/faelight-term"),
         ("faelight-hooks", "target/release/faelight-hooks"),
     ];
-    
+
     println!("  {} Key Tools:", "📦".bold());
     for (name, bin_path) in tools {
         let full_path = paths::core_dir().join(bin_path);
@@ -231,7 +236,7 @@ fn show_ecosystem_versions() {
 
 fn handle_profile(action: ProfileAction) {
     let profile_cmd = find_tool("profile");
-    
+
     match action {
         ProfileAction::List => {
             run_tool(&profile_cmd, &["list"]);
@@ -251,7 +256,7 @@ fn handle_profile(action: ProfileAction) {
 
 fn handle_intent(action: IntentAction) {
     let intent_cmd = find_tool("intent");
-    
+
     match action {
         IntentAction::New { title } => {
             run_tool(&intent_cmd, &["new", &title]);
@@ -271,7 +276,7 @@ fn handle_intent(action: IntentAction) {
 
 fn handle_core(action: CoreAction) {
     let core_protect = find_tool("core-protect");
-    
+
     match action {
         CoreAction::Lock => {
             run_tool(&core_protect, &["lock"]);
@@ -323,7 +328,7 @@ fn handle_config(action: ConfigAction) {
         ConfigAction::Edit => {
             let config_path = FaelightConfig::config_path();
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
-            
+
             Command::new(editor)
                 .arg(&config_path)
                 .status()
@@ -347,18 +352,18 @@ fn find_tool(name: &str) -> String {
     if release_path.exists() {
         return release_path.display().to_string();
     }
-    
+
     // Then check in scripts
     let scripts_path = paths::scripts_dir().join(name);
     if scripts_path.exists() {
         return scripts_path.display().to_string();
     }
-    
+
     // Finally check PATH using which
     if let Ok(path) = which::which(name) {
         return path.display().to_string();
     }
-    
+
     // Tool not found
     eprintln!("{} Tool '{}' not found!", "❌".red().bold(), name.yellow());
     eprintln!();
@@ -377,27 +382,25 @@ fn check_tool_exists(path: &std::path::Path) -> bool {
 }
 
 fn run_tool(tool: &str, args: &[&str]) {
-    let status = Command::new(tool)
-        .args(args)
-        .status()
-        .unwrap_or_else(|e| {
-            eprintln!("{} Failed to run {}: {}", "❌".red(), tool, e);
-            exit(1);
-        });
-    
+    let status = Command::new(tool).args(args).status().unwrap_or_else(|e| {
+        eprintln!("{} Failed to run {}: {}", "❌".red(), tool, e);
+        exit(1);
+    });
+
     if !status.success() {
         exit(status.code().unwrap_or(1));
     }
 }
-
+#[allow(clippy::zombie_processes)] // Intentional: background launcher
 fn run_tool_bg(tool: &str, args: &[&str]) {
-    Command::new(tool)
-        .args(args)
-        .spawn()
-        .unwrap_or_else(|e| {
-            eprintln!("{} Failed to launch {}: {}", "❌".red(), tool, e);
-            exit(1);
-        });
-    
-    println!("{} Launched {}", "✅".green(), tool.split('/').last().unwrap());
+    Command::new(tool).args(args).spawn().unwrap_or_else(|e| {
+        eprintln!("{} Failed to launch {}: {}", "❌".red(), tool, e);
+        exit(1);
+    });
+
+    println!(
+        "{} Launched {}",
+        "✅".green(),
+        tool.split('/').next_back().unwrap()
+    );
 }

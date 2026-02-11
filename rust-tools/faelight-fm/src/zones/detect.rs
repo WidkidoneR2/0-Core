@@ -1,14 +1,14 @@
-use std::path::Path;
-use std::env;
 use faelight_core::paths;
 use faelight_zone::Zone;
+use std::env;
+use std::path::Path;
 
 /// Detect zone using faelight-zone library
 pub fn classify(path: &Path) -> Zone {
     let home = env::var("HOME")
-        .map(|h| std::path::PathBuf::from(h))
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from("/home"));
-    
+
     let (zone, _display_path) = faelight_zone::current_zone(path, &home);
     zone
 }

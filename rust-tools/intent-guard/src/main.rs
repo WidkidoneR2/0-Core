@@ -86,17 +86,17 @@ fn check_mv_core(cmd: &str) -> bool {
     if !(cmd.trim_start().starts_with("mv ") || cmd.trim_start().starts_with("sudo mv ")) {
         return false;
     }
-    
+
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     if parts.len() < 3 {
         return false;
     }
-    
+
     let source_idx = if parts[0] == "sudo" { 2 } else { 1 };
     if source_idx >= parts.len() {
         return false;
     }
-    
+
     let source = parts[source_idx];
     source.contains("0-core")
 }
@@ -235,13 +235,13 @@ fn check_command(cmd: &str) {
 
 fn test_command(cmd: &str) {
     let matches: Vec<&Pattern> = PATTERNS.iter().filter(|p| (p.check)(cmd)).collect();
-    
+
     let nc = "\x1b[0m";
-    
+
     if matches.is_empty() {
-        println!("{}✅ Safe command - no patterns matched{}", "\x1b[0;32m", nc);
+        println!("\x1b[0;32m✅ Safe command - no patterns matched{}", nc);
     } else {
-        println!("{}⚠️  Dangerous command detected:{}", "\x1b[0;33m", nc);
+        println!("\x1b[0;33m⚠️  Dangerous command detected:{}", nc);
         println!();
         for pattern in matches {
             let risk_color = pattern.risk.color();
@@ -299,29 +299,34 @@ fn confirm_exact(word: &str) -> bool {
 fn list_patterns() {
     let nc = "\x1b[0m";
     let cyan = "\x1b[0;36m";
-    
+
     println!();
     println!("{}🛡️  Intent Guard - Safety Patterns{}", cyan, nc);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
-    
+
     // Group by risk level
-    for risk_level in [RiskLevel::Critical, RiskLevel::High, RiskLevel::Medium, RiskLevel::Low] {
+    for risk_level in [
+        RiskLevel::Critical,
+        RiskLevel::High,
+        RiskLevel::Medium,
+        RiskLevel::Low,
+    ] {
         let patterns: Vec<&Pattern> = PATTERNS.iter().filter(|p| p.risk == risk_level).collect();
-        
+
         if patterns.is_empty() {
             continue;
         }
-        
+
         let risk_color = risk_level.color();
         println!("{}{} RISK:{}", risk_color, risk_level.label(), nc);
-        
+
         for pattern in patterns {
             println!("  • {} - {}", pattern.name, pattern.description);
         }
         println!();
     }
-    
+
     println!("Total patterns: {}", PATTERNS.len());
     println!();
 }
@@ -330,13 +335,13 @@ fn cmd_health() {
     let nc = "\x1b[0m";
     let green = "\x1b[0;32m";
     let cyan = "\x1b[0;36m";
-    
+
     println!();
     println!("{}🏥 intent-guard v{} - Health Check{}", cyan, VERSION, nc);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let mut healthy = true;
-    
+
     // Check pattern database
     print!("  Checking pattern database... ");
     if PATTERNS.is_empty() {
@@ -345,7 +350,7 @@ fn cmd_health() {
     } else {
         println!("{}✅ {} patterns loaded{}", green, PATTERNS.len(), nc);
     }
-    
+
     // Check pattern integrity
     print!("  Validating pattern functions... ");
     let valid = true;
@@ -359,20 +364,29 @@ fn cmd_health() {
         println!("❌ Some patterns failed validation");
         healthy = false;
     }
-    
+
     // Count by risk level
     print!("  Risk level distribution... ");
-    let critical = PATTERNS.iter().filter(|p| p.risk == RiskLevel::Critical).count();
-    let high = PATTERNS.iter().filter(|p| p.risk == RiskLevel::High).count();
-    let medium = PATTERNS.iter().filter(|p| p.risk == RiskLevel::Medium).count();
+    let critical = PATTERNS
+        .iter()
+        .filter(|p| p.risk == RiskLevel::Critical)
+        .count();
+    let high = PATTERNS
+        .iter()
+        .filter(|p| p.risk == RiskLevel::High)
+        .count();
+    let medium = PATTERNS
+        .iter()
+        .filter(|p| p.risk == RiskLevel::Medium)
+        .count();
     let low = PATTERNS.iter().filter(|p| p.risk == RiskLevel::Low).count();
-    
+
     println!("{}✅{}", green, nc);
     println!("     Critical: {}", critical);
     println!("     High:     {}", high);
     println!("     Medium:   {}", medium);
     println!("     Low:      {}", low);
-    
+
     println!();
     if healthy {
         println!("{}✅ All systems operational{}", green, nc);

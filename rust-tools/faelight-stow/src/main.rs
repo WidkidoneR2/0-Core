@@ -4,8 +4,7 @@ use faelight_core::paths as core_paths;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 mod paths;
 
@@ -138,7 +137,7 @@ fn main() {
                 issues.push(Issue {
                     package: package.clone(),
                     path: link_path
-                        .strip_prefix(&core_paths::home())
+                        .strip_prefix(core_paths::home())
                         .unwrap_or(&link_path)
                         .display()
                         .to_string(),
@@ -197,7 +196,7 @@ fn main() {
     }
 }
 
-fn discover_packages(stow_dir: &PathBuf) -> Vec<String> {
+fn discover_packages(stow_dir: &Path) -> Vec<String> {
     let mut packages = Vec::new();
 
     if let Ok(entries) = fs::read_dir(stow_dir) {
@@ -245,7 +244,7 @@ fn find_package_symlinks(_home: &str, package: &str) -> Vec<PathBuf> {
     symlinks
 }
 
-fn verify_symlink(link_path: &PathBuf, stow_dir: &PathBuf, package: &str) -> bool {
+fn verify_symlink(link_path: &PathBuf, stow_dir: &Path, package: &str) -> bool {
     // Check if symlink target contains the package path
     if let Ok(target) = fs::read_link(link_path) {
         let target_str = target.to_string_lossy();

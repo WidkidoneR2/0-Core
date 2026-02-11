@@ -1,8 +1,8 @@
 //! Icon loading and caching system
-use image::{RgbaImage, imageops::FilterType};
+use faelight_core::paths;
+use image::{imageops::FilterType, RgbaImage};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use faelight_core::paths;
 
 pub struct IconCache {
     icons: HashMap<String, RgbaImage>,
@@ -19,7 +19,7 @@ impl IconCache {
             icon_size,
         }
     }
-    
+
     pub fn load_icon(&mut self, app_id: &str, icon_name: Option<&str>) {
         let name = icon_name.unwrap_or(app_id);
         if let Some(icon_path) = find_icon(name, self.icon_size) {
@@ -31,7 +31,7 @@ impl IconCache {
             eprintln!("❌ No icon found for: {}", name);
         }
     }
-    
+
     pub fn get(&self, app_id: &str) -> &RgbaImage {
         self.icons.get(app_id).unwrap_or(&self.default_icon)
     }
@@ -40,12 +40,12 @@ impl IconCache {
 fn create_default_icon(size: u32) -> RgbaImage {
     // Create a simple default icon (rounded square with app symbol)
     let mut img = RgbaImage::new(size, size);
-    
+
     // Fill with semi-transparent gray
     for pixel in img.pixels_mut() {
         *pixel = image::Rgba([100, 100, 100, 200]);
     }
-    
+
     img
 }
 
@@ -55,13 +55,17 @@ fn find_icon(name: &str, size: u32) -> Option<PathBuf> {
         format!("/usr/share/icons/hicolor/{}x{}/apps", size, size),
         format!("/usr/share/icons/hicolor/scalable/apps"),
         format!("/usr/share/pixmaps"),
-        format!("{}/.local/share/icons/hicolor/{}x{}/apps", 
-                paths::home().display().to_string(), size, size),
+        format!(
+            "{}/.local/share/icons/hicolor/{}x{}/apps",
+            paths::home().display().to_string(),
+            size,
+            size
+        ),
     ];
-    
+
     // Try different extensions
     let extensions = vec!["png", "svg", "xpm"];
-    
+
     for dir in search_paths {
         for ext in &extensions {
             let path = PathBuf::from(&dir).join(format!("{}.{}", name, ext));
@@ -70,7 +74,7 @@ fn find_icon(name: &str, size: u32) -> Option<PathBuf> {
             }
         }
     }
-    
+
     None
 }
 
@@ -79,7 +83,7 @@ fn load_and_scale_icon(path: &Path, size: u32) -> Option<RgbaImage> {
     if path.extension()?.to_str()? != "png" {
         return None;
     }
-    
+
     let img = image::open(path).ok()?;
     let resized = img.resize_exact(size, size, FilterType::Lanczos3);
     Some(resized.to_rgba8())

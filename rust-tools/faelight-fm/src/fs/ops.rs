@@ -1,5 +1,5 @@
-use std::path::Path;
 use faelight_core::paths;
+use std::path::Path;
 
 /// Check if path is readable
 #[allow(dead_code)]
@@ -50,7 +50,7 @@ pub fn delete_file(path: &std::path::Path) -> Result<()> {
 /// Check if core zone is locked
 pub fn is_core_locked() -> bool {
     let core_path = paths::core_dir();
-    
+
     // Check if directory has immutable attribute
     if let Ok(output) = std::process::Command::new("lsattr")
         .arg("-d")
@@ -63,6 +63,6 @@ pub fn is_core_locked() -> bool {
             return attrs.contains('i');
         }
     }
-    
+
     false
 }

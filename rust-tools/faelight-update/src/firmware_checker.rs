@@ -7,12 +7,9 @@ pub fn check_firmware_updates() -> Vec<String> {
 
 pub fn update_firmware() -> anyhow::Result<()> {
     println!("   Running: fwupdmgr update");
-    
-    let status = Command::new("fwupdmgr")
-        .arg("update")
-        .arg("-y")
-        .status();
-    
+
+    let status = Command::new("fwupdmgr").arg("update").arg("-y").status();
+
     match status {
         Ok(s) if s.success() => {
             println!("   ✅  Firmware updated");

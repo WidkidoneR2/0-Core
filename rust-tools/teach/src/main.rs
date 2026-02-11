@@ -1,12 +1,12 @@
 //! teach v2.0.0 - Interactive Learning System
 //! 🌲 Faelight Forest
 
+use faelight_core::paths;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
-use faelight_core::paths;
 
 const VERSION: &str = "2.0.0";
 
@@ -23,30 +23,30 @@ struct LearningProgress {
 impl LearningProgress {
     fn load() -> Self {
         let path = Self::get_path();
-        
+
         if let Ok(content) = fs::read_to_string(&path) {
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             Self::default()
         }
     }
-    
+
     fn save(&self) {
         let path = Self::get_path();
-        
+
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).ok();
         }
-        
+
         if let Ok(json) = serde_json::to_string_pretty(&self) {
             fs::write(&path, json).ok();
         }
     }
-    
+
     fn get_path() -> PathBuf {
         paths::faelight_state_dir().join("learning.json")
     }
-    
+
     fn mark_lesson_complete(&mut self, lesson: usize) {
         if !self.lessons_completed.contains(&lesson) {
             self.lessons_completed.push(lesson);
@@ -54,11 +54,11 @@ impl LearningProgress {
             self.check_new_achievements();
         }
     }
-    
+
     fn is_lesson_complete(&self, lesson: usize) -> bool {
         self.lessons_completed.contains(&lesson)
     }
-    
+
     fn record_quiz_score(&mut self, score: usize) {
         self.quiz_scores.push(score);
         if score > self.best_quiz_score {
@@ -66,57 +66,72 @@ impl LearningProgress {
         }
         self.check_new_achievements();
     }
-    
+
     fn check_new_achievements(&mut self) {
         let mut new_achievements = Vec::new();
-        
+
         // Individual lesson achievements
         if self.is_lesson_complete(1) && !self.achievements.contains(&"First Steps".to_string()) {
             new_achievements.push("🌱 First Steps");
         }
-        if self.is_lesson_complete(2) && !self.achievements.contains(&"Directory Master".to_string()) {
+        if self.is_lesson_complete(2)
+            && !self.achievements.contains(&"Directory Master".to_string())
+        {
             new_achievements.push("🌿 Directory Master");
         }
-        if self.is_lesson_complete(3) && !self.achievements.contains(&"Tool Proficient".to_string()) {
+        if self.is_lesson_complete(3) && !self.achievements.contains(&"Tool Proficient".to_string())
+        {
             new_achievements.push("🔧 Tool Proficient");
         }
-        if self.is_lesson_complete(4) && !self.achievements.contains(&"Workflow Expert".to_string()) {
+        if self.is_lesson_complete(4) && !self.achievements.contains(&"Workflow Expert".to_string())
+        {
             new_achievements.push("📅 Workflow Expert");
         }
         if self.is_lesson_complete(5) && !self.achievements.contains(&"Profile Pro".to_string()) {
             new_achievements.push("🎮 Profile Pro");
         }
-        if self.is_lesson_complete(6) && !self.achievements.contains(&"Intent Scholar".to_string()) {
+        if self.is_lesson_complete(6) && !self.achievements.contains(&"Intent Scholar".to_string())
+        {
             new_achievements.push("📜 Intent Scholar");
         }
-        if self.is_lesson_complete(7) && !self.achievements.contains(&"Customization Guru".to_string()) {
+        if self.is_lesson_complete(7)
+            && !self
+                .achievements
+                .contains(&"Customization Guru".to_string())
+        {
             new_achievements.push("🎨 Customization Guru");
         }
         if self.is_lesson_complete(8) && !self.achievements.contains(&"Alias Ninja".to_string()) {
             new_achievements.push("⚡ Alias Ninja");
         }
-        
+
         // Full course achievement
-        if self.lessons_completed.len() >= 8 && !self.achievements.contains(&"Full Course".to_string()) {
+        if self.lessons_completed.len() >= 8
+            && !self.achievements.contains(&"Full Course".to_string())
+        {
             new_achievements.push("🎓 Full Course");
         }
-        
+
         // Quiz achievements
-        if self.best_quiz_score == 10 && !self.achievements.contains(&"Forest Scholar".to_string()) {
+        if self.best_quiz_score == 10 && !self.achievements.contains(&"Forest Scholar".to_string())
+        {
             new_achievements.push("🏆 Forest Scholar");
         }
-        
+
         // Master achievement
-        if self.lessons_completed.len() >= 8 && self.best_quiz_score == 10 && !self.achievements.contains(&"Faelight Master".to_string()) {
+        if self.lessons_completed.len() >= 8
+            && self.best_quiz_score == 10
+            && !self.achievements.contains(&"Faelight Master".to_string())
+        {
             new_achievements.push("🌲 Faelight Master");
         }
-        
+
         for achievement in new_achievements {
             self.achievements.push(achievement.to_string());
             show_achievement_unlock(achievement);
         }
     }
-    
+
     fn completion_percentage(&self) -> usize {
         (self.lessons_completed.len() * 100) / 8
     }
@@ -124,65 +139,65 @@ impl LearningProgress {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     // Check for flags
     if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
         println!("teach v{}", VERSION);
         return;
     }
-    
+
     if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
         show_help();
         return;
     }
-    
+
     if args.contains(&"--health".to_string()) {
         run_health_check();
         return;
     }
-    
+
     if args.contains(&"--stats".to_string()) {
         show_statistics();
         return;
     }
-    
+
     if args.contains(&"--tips".to_string()) {
         show_daily_wisdom();
         return;
     }
-    
+
     if args.contains(&"--quiz".to_string()) {
         run_quiz();
         return;
     }
-    
+
     if args.contains(&"--reset".to_string()) {
         reset_progress();
         return;
     }
-    
+
     if args.contains(&"--begin".to_string()) {
         run_full_course();
         return;
     }
-    
+
     if args.contains(&"--random".to_string()) {
         run_random_lesson();
         return;
     }
-    
+
     // Check for gum
     if !check_command_exists("gum") {
         eprintln!("Error: gum is required. Install with: yay -S gum");
         process::exit(1);
     }
-    
+
     // Update session count
     let mut progress = LearningProgress::load();
     progress.total_sessions += 1;
     progress.last_studied = get_timestamp();
     progress.save();
-    
+
     main_menu();
 }
 
@@ -214,8 +229,18 @@ fn gum_style(text: &str, fg: u8) {
 fn gum_section(title: &str) {
     Command::new("clear").status().ok();
     Command::new("gum")
-        .args(["style", "--border", "double", "--border-foreground", "10", 
-               "--padding", "1 2", "--margin", "1", title])
+        .args([
+            "style",
+            "--border",
+            "double",
+            "--border-foreground",
+            "10",
+            "--padding",
+            "1 2",
+            "--margin",
+            "1",
+            title,
+        ])
         .status()
         .ok();
     println!();
@@ -223,11 +248,16 @@ fn gum_section(title: &str) {
 
 fn pause(lesson_num: Option<usize>) -> bool {
     let result = Command::new("gum")
-        .args(["confirm", "Continue?", "--affirmative=Next →", "--negative=Exit"])
+        .args([
+            "confirm",
+            "Continue?",
+            "--affirmative=Next →",
+            "--negative=Exit",
+        ])
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    
+
     if result {
         // Mark lesson as complete
         if let Some(num) = lesson_num {
@@ -236,7 +266,7 @@ fn pause(lesson_num: Option<usize>) -> bool {
             progress.save();
         }
     }
-    
+
     result
 }
 
@@ -262,9 +292,11 @@ fn lesson_welcome() {
     println!();
     println!("You control when things happen. Nothing runs without your say.");
     println!();
-    println!("This is {}intentional stewardship{}.", "\x1b[1;32m", "\x1b[0m");
+    println!("This is \x1b[1;32mintentional stewardship\x1b[0m.");
     println!();
-    if !pause(Some(1)) { process::exit(0); }
+    if !pause(Some(1)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_structure() {
@@ -279,7 +311,10 @@ fn lesson_structure() {
     println!();
     println!("Inside 0-core:");
     println!();
-    gum_style("  rust-tools/    → Rust tools (workspace-view, safe-update, etc.)", 10);
+    gum_style(
+        "  rust-tools/    → Rust tools (workspace-view, safe-update, etc.)",
+        10,
+    );
     gum_style("  scripts/       → Compiled binaries", 10);
     gum_style("  packages/      → Stow-managed dotfiles", 10);
     gum_style("  INTENT/        → Decision ledger & roadmap", 10);
@@ -287,7 +322,9 @@ fn lesson_structure() {
     println!();
     println!("The numbers enforce order. 0 comes before 1. Always.");
     println!();
-    if !pause(Some(2)) { process::exit(0); }
+    if !pause(Some(2)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_tools() {
@@ -318,7 +355,9 @@ fn lesson_tools() {
     println!("  Lock/unlock 0-core for safe editing.");
     println!("  Try: core-protect --status");
     println!();
-    if !pause(Some(3)) { process::exit(0); }
+    if !pause(Some(3)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_workflow() {
@@ -335,12 +374,16 @@ fn lesson_workflow() {
     println!();
     println!("Weekly:");
     gum_style("  safe-update                → Update system safely", 14);
-    gum_style("  teach --quiz               → Test knowledge retention", 14);
+    gum_style(
+        "  teach --quiz               → Test knowledge retention",
+        14,
+    );
     println!();
-    println!("The workflow is {}simple{}, but {}powerful{}.",
-             "\x1b[0;32m", "\x1b[0m", "\x1b[1;33m", "\x1b[0m");
+    println!("The workflow is \x1b[0;32msimple\x1b[0m, but \x1b[1;33mpowerful\x1b[0m.");
     println!();
-    if !pause(Some(4)) { process::exit(0); }
+    if !pause(Some(4)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_profiles() {
@@ -362,10 +405,11 @@ fn lesson_profiles() {
     println!();
     println!("Your prompt shows active profile (hidden when default).");
     println!();
-    println!("Profiles are {}declarative{}. Define the state, not the steps.",
-             "\x1b[0;36m", "\x1b[0m");
+    println!("Profiles are \x1b[0;36mdeclarative\x1b[0m. Define the state, not the steps.");
     println!();
-    if !pause(Some(5)) { process::exit(0); }
+    if !pause(Some(5)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_intent() {
@@ -386,13 +430,14 @@ fn lesson_intent() {
     gum_style("  intent show 001   → View specific intent", 14);
     gum_style("  intent add        → Create new intent", 14);
     println!();
-    println!("Every decision has a {}why{}. Future you will thank you.",
-             "\x1b[1;33m", "\x1b[0m");
+    println!("Every decision has a \x1b[1;33mwhy\x1b[0m. Future you will thank you.");
     println!();
     println!("Example: Incident 001 taught us to never automate sudo at boot.");
     println!("That lesson became safe-update v1.0.0.");
     println!();
-    if !pause(Some(6)) { process::exit(0); }
+    if !pause(Some(6)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_customize() {
@@ -418,9 +463,11 @@ fn lesson_customize() {
     gum_style("  4. cp target/release/newtool scripts/", 14);
     gum_style("  5. Document in INTENT/", 14);
     println!();
-    println!("The system {}grows{} with you.", "\x1b[0;32m", "\x1b[0m");
+    println!("The system \x1b[0;32mgrows\x1b[0m with you.");
     println!();
-    if !pause(Some(7)) { process::exit(0); }
+    if !pause(Some(7)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_aliases() {
@@ -455,9 +502,11 @@ fn lesson_aliases() {
     gum_style("  ll          → exa long format", 14);
     gum_style("  tree        → exa tree view", 14);
     println!();
-    println!("See all aliases: {}alias | less{}", "\x1b[0;36m", "\x1b[0m");
+    println!("See all aliases: \x1b[0;36malias | less\x1b[0m");
     println!();
-    if !pause(Some(8)) { process::exit(0); }
+    if !pause(Some(8)) {
+        process::exit(0);
+    }
 }
 
 fn lesson_complete() {
@@ -488,61 +537,102 @@ fn run_quiz() {
     println!("10 questions. Pass with 7/10 (70%).");
     println!("Perfect score earns: 🏆 Forest Scholar");
     println!();
-    
+
     Command::new("gum")
-        .args(["confirm", "Ready to begin?", "--affirmative=Let's go!", "--negative=Not yet"])
+        .args([
+            "confirm",
+            "Ready to begin?",
+            "--affirmative=Let's go!",
+            "--negative=Not yet",
+        ])
         .status()
         .ok();
-    
+
     let questions = vec![
-        ("What's the core philosophy of 0-Core?",
-         vec!["Automation over control", "Manual control over automation", "Convenience over understanding", "Perfection over recovery"],
-         1),
-        
-        ("Which tool checks system health?",
-         vec!["health-check", "system-doctor", "doctor", "check-health"],
-         2),
-        
-        ("What does workspace-view do?",
-         vec!["Manage windows", "Show Sway workspace state", "Create workspaces", "Delete workspaces"],
-         1),
-        
-        ("How do you safely update the system?",
-         vec!["sudo pacman -Syu", "yay", "safe-update", "update-system"],
-         2),
-        
-        ("Where are decision logs stored?",
-         vec!["docs/", "INTENT/", "logs/", "decisions/"],
-         1),
-        
-        ("What does entropy-check detect?",
-         vec!["File changes", "System drift", "Errors", "Viruses"],
-         1),
-        
-        ("Which directory is for active projects?",
-         vec!["~/0-core/", "~/1-src/", "~/2-projects/", "~/3-archive/"],
-         2),
-        
-        ("What does core-protect do?",
-         vec!["Delete files", "Lock/unlock 0-core", "Backup system", "Check security"],
-         1),
-        
-        ("How do you switch to gaming mode?",
-         vec!["gaming-mode", "profile gaming", "mode gaming", "switch gaming"],
-         1),
-        
-        ("What's the purpose of Intent Ledger?",
-         vec!["Store code", "Track decisions & reasoning", "List bugs", "Plan sprints"],
-         1),
+        (
+            "What's the core philosophy of 0-Core?",
+            vec![
+                "Automation over control",
+                "Manual control over automation",
+                "Convenience over understanding",
+                "Perfection over recovery",
+            ],
+            1,
+        ),
+        (
+            "Which tool checks system health?",
+            vec!["health-check", "system-doctor", "doctor", "check-health"],
+            2,
+        ),
+        (
+            "What does workspace-view do?",
+            vec![
+                "Manage windows",
+                "Show Sway workspace state",
+                "Create workspaces",
+                "Delete workspaces",
+            ],
+            1,
+        ),
+        (
+            "How do you safely update the system?",
+            vec!["sudo pacman -Syu", "yay", "safe-update", "update-system"],
+            2,
+        ),
+        (
+            "Where are decision logs stored?",
+            vec!["docs/", "INTENT/", "logs/", "decisions/"],
+            1,
+        ),
+        (
+            "What does entropy-check detect?",
+            vec!["File changes", "System drift", "Errors", "Viruses"],
+            1,
+        ),
+        (
+            "Which directory is for active projects?",
+            vec!["~/0-core/", "~/1-src/", "~/2-projects/", "~/3-archive/"],
+            2,
+        ),
+        (
+            "What does core-protect do?",
+            vec![
+                "Delete files",
+                "Lock/unlock 0-core",
+                "Backup system",
+                "Check security",
+            ],
+            1,
+        ),
+        (
+            "How do you switch to gaming mode?",
+            vec![
+                "gaming-mode",
+                "profile gaming",
+                "mode gaming",
+                "switch gaming",
+            ],
+            1,
+        ),
+        (
+            "What's the purpose of Intent Ledger?",
+            vec![
+                "Store code",
+                "Track decisions & reasoning",
+                "List bugs",
+                "Plan sprints",
+            ],
+            1,
+        ),
     ];
-    
+
     let mut score = 0;
-    
+
     for (i, (question, options, correct)) in questions.iter().enumerate() {
         gum_section(&format!("Question {}/10", i + 1));
         println!("{}", question);
         println!();
-        
+
         let output = Command::new("gum")
             .args(["choose"])
             .args(options)
@@ -551,10 +641,10 @@ fn run_quiz() {
             .stderr(Stdio::inherit())
             .output()
             .expect("Failed to run gum");
-        
+
         let answer = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let user_choice = options.iter().position(|&o| o == answer).unwrap_or(99);
-        
+
         if user_choice == *correct {
             score += 1;
             gum_style("✅ Correct!", 10);
@@ -562,16 +652,16 @@ fn run_quiz() {
             gum_style("❌ Incorrect", 9);
             println!("   Correct answer: {}", options[*correct]);
         }
-        
+
         println!();
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    
+
     // Show results
     gum_section("🎯 Quiz Results");
     println!("Score: {}/10 ({}%)", score, score * 10);
     println!();
-    
+
     if score == 10 {
         gum_style("🏆 PERFECT SCORE! Forest Scholar!", 11);
     } else if score >= 7 {
@@ -579,9 +669,9 @@ fn run_quiz() {
     } else {
         gum_style("⚠️  Keep learning! Try teach --begin", 14);
     }
-    
+
     println!();
-    
+
     // Save score
     let mut progress = LearningProgress::load();
     progress.record_quiz_score(score);
@@ -590,25 +680,38 @@ fn run_quiz() {
 
 fn show_statistics() {
     let progress = LearningProgress::load();
-    
+
     gum_section("🎓 Your Learning Journey");
-    
-    println!("📊 Progress: {}% ({}/8 lessons)", progress.completion_percentage(), progress.lessons_completed.len());
-    
+
+    println!(
+        "📊 Progress: {}% ({}/8 lessons)",
+        progress.completion_percentage(),
+        progress.lessons_completed.len()
+    );
+
     if !progress.quiz_scores.is_empty() {
-        println!("🎯 Best Quiz Score: {}/10 ({}%)", progress.best_quiz_score, progress.best_quiz_score * 10);
-        let avg: f32 = progress.quiz_scores.iter().sum::<usize>() as f32 / progress.quiz_scores.len() as f32;
+        println!(
+            "🎯 Best Quiz Score: {}/10 ({}%)",
+            progress.best_quiz_score,
+            progress.best_quiz_score * 10
+        );
+        let avg: f32 =
+            progress.quiz_scores.iter().sum::<usize>() as f32 / progress.quiz_scores.len() as f32;
         println!("📈 Average Quiz Score: {:.1}/10", avg);
     }
-    
+
     println!("🏆 Achievements: {}/11", progress.achievements.len());
     println!("📅 Last Studied: {}", progress.last_studied);
     println!("🔢 Total Sessions: {}", progress.total_sessions);
     println!();
-    
+
     println!("Completed Lessons:");
     for i in 1..=8 {
-        let status = if progress.is_lesson_complete(i) { "✅" } else { "⬜" };
+        let status = if progress.is_lesson_complete(i) {
+            "✅"
+        } else {
+            "⬜"
+        };
         let lesson_name = match i {
             1 => "Welcome & Philosophy",
             2 => "Directory Structure",
@@ -622,9 +725,9 @@ fn show_statistics() {
         };
         println!("  {} {}. {}", status, i, lesson_name);
     }
-    
+
     println!();
-    
+
     if !progress.achievements.is_empty() {
         println!("Achievements Earned:");
         for achievement in &progress.achievements {
@@ -632,7 +735,7 @@ fn show_statistics() {
         }
         println!();
     }
-    
+
     // Next goal
     if progress.lessons_completed.len() < 8 {
         println!("Next Goal: Complete all lessons for 🎓 Full Course");
@@ -641,35 +744,86 @@ fn show_statistics() {
     } else {
         println!("🌲 Congratulations! You've mastered the Faelight Forest!");
     }
-    
+
     println!();
 }
 
 fn show_daily_wisdom() {
     let tips = vec![
-        ("Use workspace-view --watch for live workspace monitoring.", "Lesson 3"),
-        ("safe-update --dry-run shows what would update without doing it.", "Lesson 3"),
-        ("entropy-check detects silent system drift over time.", "Lesson 3"),
-        ("The Intent Ledger preserves the 'why' behind every decision.", "Lesson 6"),
-        ("Profiles are declarative - define the state, not the steps.", "Lesson 5"),
-        ("doctor should be run daily. Make it part of your morning routine.", "Lesson 4"),
-        ("core-protect locks 0-core with chattr. Safe from accidents.", "Lesson 3"),
-        ("Directory numbers enforce order: 0-core before 1-src, always.", "Lesson 2"),
-        ("Manual control over automation. You decide when things happen.", "Lesson 1"),
-        ("Incident 001 taught us: Never automate sudo at boot.", "Lesson 6"),
-        ("gci commits with intent reference. Links code to decisions.", "Lesson 8"),
-        ("workspace-view shows terminal working directories for foot.", "Lesson 3"),
-        ("safe-update creates snapshots before/after with rollback path.", "Lesson 3"),
-        ("Profile prompt indicator hidden when in default mode.", "Lesson 5"),
-        ("Understanding over convenience. Know how your system works.", "Lesson 1"),
-        ("Recovery over perfection. Systems break. Be ready.", "Lesson 1"),
+        (
+            "Use workspace-view --watch for live workspace monitoring.",
+            "Lesson 3",
+        ),
+        (
+            "safe-update --dry-run shows what would update without doing it.",
+            "Lesson 3",
+        ),
+        (
+            "entropy-check detects silent system drift over time.",
+            "Lesson 3",
+        ),
+        (
+            "The Intent Ledger preserves the 'why' behind every decision.",
+            "Lesson 6",
+        ),
+        (
+            "Profiles are declarative - define the state, not the steps.",
+            "Lesson 5",
+        ),
+        (
+            "doctor should be run daily. Make it part of your morning routine.",
+            "Lesson 4",
+        ),
+        (
+            "core-protect locks 0-core with chattr. Safe from accidents.",
+            "Lesson 3",
+        ),
+        (
+            "Directory numbers enforce order: 0-core before 1-src, always.",
+            "Lesson 2",
+        ),
+        (
+            "Manual control over automation. You decide when things happen.",
+            "Lesson 1",
+        ),
+        (
+            "Incident 001 taught us: Never automate sudo at boot.",
+            "Lesson 6",
+        ),
+        (
+            "gci commits with intent reference. Links code to decisions.",
+            "Lesson 8",
+        ),
+        (
+            "workspace-view shows terminal working directories for foot.",
+            "Lesson 3",
+        ),
+        (
+            "safe-update creates snapshots before/after with rollback path.",
+            "Lesson 3",
+        ),
+        (
+            "Profile prompt indicator hidden when in default mode.",
+            "Lesson 5",
+        ),
+        (
+            "Understanding over convenience. Know how your system works.",
+            "Lesson 1",
+        ),
+        (
+            "Recovery over perfection. Systems break. Be ready.",
+            "Lesson 1",
+        ),
         ("The forest teaches those who listen. 🌲", "Philosophy"),
     ];
-    
+
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize;
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
     let (tip, source) = &tips[seed % tips.len()];
-    
+
     gum_section("💡 Daily Wisdom from the Faelight Forest");
     println!("{}", tip);
     println!();
@@ -680,13 +834,18 @@ fn show_daily_wisdom() {
 fn reset_progress() {
     println!("⚠️  This will delete all your learning progress!");
     println!();
-    
+
     let confirm = Command::new("gum")
-        .args(["confirm", "Are you SURE?", "--affirmative=Yes, reset", "--negative=Cancel"])
+        .args([
+            "confirm",
+            "Are you SURE?",
+            "--affirmative=Yes, reset",
+            "--negative=Cancel",
+        ])
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    
+
     if confirm {
         let path = LearningProgress::get_path();
         fs::remove_file(&path).ok();
@@ -712,9 +871,12 @@ fn run_full_course() {
 
 fn run_random_lesson() {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize;
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
     let lesson = (seed % 8) + 1;
-    
+
     match lesson {
         1 => lesson_welcome(),
         2 => lesson_structure(),
@@ -730,42 +892,109 @@ fn run_random_lesson() {
 
 fn main_menu() {
     let progress = LearningProgress::load();
-    
+
     loop {
         Command::new("clear").status().ok();
         Command::new("gum")
-            .args(["style", "--border", "double", "--border-foreground", "10",
-                   "--padding", "1 2", "--margin", "1", 
-                   &format!("🌲 0-Core Teaching Mode v{}", VERSION)])
+            .args([
+                "style",
+                "--border",
+                "double",
+                "--border-foreground",
+                "10",
+                "--padding",
+                "1 2",
+                "--margin",
+                "1",
+                &format!("🌲 0-Core Teaching Mode v{}", VERSION),
+            ])
             .status()
             .ok();
-        
+
         println!();
-        println!("Progress: {}% | Achievements: {}/11 | Quiz: {}/10",
-                 progress.completion_percentage(),
-                 progress.achievements.len(),
-                 progress.best_quiz_score);
+        println!(
+            "Progress: {}% | Achievements: {}/11 | Quiz: {}/10",
+            progress.completion_percentage(),
+            progress.achievements.len(),
+            progress.best_quiz_score
+        );
         println!();
-        
+
         let choices = vec![
             "🚀 Start from beginning".to_string(),
-            format!("{} 1. Welcome & Philosophy", if progress.is_lesson_complete(1) { "✅" } else { "⬜" }),
-            format!("{} 2. Directory Structure", if progress.is_lesson_complete(2) { "✅" } else { "⬜" }),
-            format!("{} 3. Core Tools", if progress.is_lesson_complete(3) { "✅" } else { "⬜" }),
-            format!("{} 4. Daily Workflow", if progress.is_lesson_complete(4) { "✅" } else { "⬜" }),
-            format!("{} 5. System Profiles", if progress.is_lesson_complete(5) { "✅" } else { "⬜" }),
-            format!("{} 6. Intent Ledger", if progress.is_lesson_complete(6) { "✅" } else { "⬜" }),
-            format!("{} 7. Customization", if progress.is_lesson_complete(7) { "✅" } else { "⬜" }),
-            format!("{} 8. Useful Aliases", if progress.is_lesson_complete(8) { "✅" } else { "⬜" }),
+            format!(
+                "{} 1. Welcome & Philosophy",
+                if progress.is_lesson_complete(1) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 2. Directory Structure",
+                if progress.is_lesson_complete(2) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 3. Core Tools",
+                if progress.is_lesson_complete(3) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 4. Daily Workflow",
+                if progress.is_lesson_complete(4) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 5. System Profiles",
+                if progress.is_lesson_complete(5) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 6. Intent Ledger",
+                if progress.is_lesson_complete(6) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 7. Customization",
+                if progress.is_lesson_complete(7) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
+            format!(
+                "{} 8. Useful Aliases",
+                if progress.is_lesson_complete(8) {
+                    "✅"
+                } else {
+                    "⬜"
+                }
+            ),
             "🎯 Take the Quiz".to_string(),
             "📊 View Statistics".to_string(),
             "💡 Daily Wisdom".to_string(),
             "🎲 Random Lesson".to_string(),
             "🚪 Exit".to_string(),
         ];
-        
+
         let choice_refs: Vec<&str> = choices.iter().map(|s| s.as_str()).collect();
-        
+
         let output = Command::new("gum")
             .args(["choose"])
             .args(&choice_refs)
@@ -774,9 +1003,9 @@ fn main_menu() {
             .stderr(Stdio::inherit())
             .output()
             .expect("Failed to run gum");
-        
+
         let choice = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        
+
         if choice.contains("Start from beginning") {
             run_full_course();
         } else if choice.contains("1. Welcome") {
@@ -821,7 +1050,7 @@ fn run_health_check() {
     println!();
     println!("🏥 teach v{} - Health Check", VERSION);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     print!("  Checking gum... ");
     if check_command_exists("gum") {
         println!("✅");
@@ -830,7 +1059,7 @@ fn run_health_check() {
         println!("      Install with: yay -S gum");
         std::process::exit(1);
     }
-    
+
     println!();
     println!("✅ All dependencies available");
     println!();

@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use colored::*;
-use regex::Regex;
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
 use faelight_core::paths;
+use regex::Regex;
+use std::fmt;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[derive(Parser)]
 #[command(name = "bump-tool-version")]
@@ -42,22 +43,24 @@ struct Version {
     patch: u32,
 }
 
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
 impl Version {
     fn parse(s: &str) -> Result<Self> {
         let parts: Vec<&str> = s.split('.').collect();
         if parts.len() != 3 {
             return Err(anyhow!("Invalid version format: {}", s));
         }
-        
+
         Ok(Version {
             major: parts[0].parse()?,
             minor: parts[1].parse()?,
             patch: parts[2].parse()?,
         })
-    }
-
-    fn to_string(&self) -> String {
-        format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
 
     fn bump_major(&mut self) {
@@ -107,7 +110,9 @@ fn main() -> Result<()> {
         version.bump_patch();
         version
     } else {
-        return Err(anyhow!("Must specify new version or use --major, --minor, or --patch"));
+        return Err(anyhow!(
+            "Must specify new version or use --major, --minor, or --patch"
+        ));
     };
 
     let increment_type = if cli.major {
@@ -121,7 +126,12 @@ fn main() -> Result<()> {
     };
 
     // Show pre-flight
-    show_preflight(&cli.tool, &current_version, &new_version.to_string(), increment_type)?;
+    show_preflight(
+        &cli.tool,
+        &current_version,
+        &new_version.to_string(),
+        increment_type,
+    )?;
 
     if !cli.yes {
         println!("\n{}", "Ready to proceed? (y/n): ".cyan());
@@ -145,17 +155,25 @@ fn main() -> Result<()> {
 
     // Git operations
     println!("\n{}", "🔧 Git operations...".cyan().bold());
-    
-    let tag = format!("{}-v{}", cli.tool, new_version.to_string());
+
+    let tag = format!("{}-v{}", cli.tool, new_version);
     let commit_msg = format!(
         "feat({}): bump to v{}\n\nIncrement type: {}",
-        cli.tool, new_version.to_string(), increment_type
+        cli.tool, new_version, increment_type
     );
 
     git_commit_and_tag(&cli.tool, &commit_msg, &tag)?;
-    
+
     println!("\n{}", "━".repeat(60));
-    println!("{}", format!("🎉 {} bumped: {} → {}", cli.tool, current_version, new_version.to_string()).green().bold());
+    println!(
+        "{}",
+        format!(
+            "🎉 {} bumped: {} → {}",
+            cli.tool, current_version, new_version
+        )
+        .green()
+        .bold()
+    );
     println!("{}", format!("📦 Tag created: {}", tag).cyan());
     println!("{}", "━".repeat(60));
 
@@ -164,20 +182,20 @@ fn main() -> Result<()> {
 
 fn read_tool_version(cargo_toml: &PathBuf) -> Result<String> {
     let content = fs::read_to_string(cargo_toml)?;
-    
+
     // Check if using workspace version
     if content.contains("version.workspace = true") {
         // Read from workspace Cargo.toml
         let workspace_toml = paths::cargo_toml();
         let workspace_content = fs::read_to_string(&workspace_toml)?;
         let re = Regex::new(r#"\[workspace\.package\][\s\S]*?version\s*=\s*\"([^\"]+)\""#)?;
-        
+
         if let Some(caps) = re.captures(&workspace_content) {
             return Ok(caps[1].to_string());
         }
         return Err(anyhow!("Could not find workspace version"));
     }
-    
+
     // Regular version field
     let re = Regex::new(r#"version\s*=\s*"([^"]+)""#)?;
     if let Some(caps) = re.captures(&content) {
@@ -188,9 +206,18 @@ fn read_tool_version(cargo_toml: &PathBuf) -> Result<String> {
 }
 
 fn show_preflight(tool: &str, current: &str, new: &str, increment_type: &str) -> Result<()> {
-    println!("{}", "╔══════════════════════════════════════════════════════════════╗".cyan());
-    println!("{}", "║           🌲 TOOL VERSION BUMP - PRE-FLIGHT 🌲              ║".cyan());
-    println!("{}", "╚══════════════════════════════════════════════════════════════╝".cyan());
+    println!(
+        "{}",
+        "╔══════════════════════════════════════════════════════════════╗".cyan()
+    );
+    println!(
+        "{}",
+        "║           🌲 TOOL VERSION BUMP - PRE-FLIGHT 🌲              ║".cyan()
+    );
+    println!(
+        "{}",
+        "╚══════════════════════════════════════════════════════════════╝".cyan()
+    );
     println!();
     println!("{}", "📦 Tool Information:".bold());
     println!("  Tool:     {}", tool.green());
@@ -208,29 +235,30 @@ fn show_preflight(tool: &str, current: &str, new: &str, increment_type: &str) ->
     println!("  3. Git commit with bump message");
     println!("  4. Create git tag: {}-v{}", tool, new);
     println!("{}", "━".repeat(60));
-    
+
     Ok(())
 }
 
 fn update_tool_cargo(cargo_toml: &PathBuf, new_version: &str) -> Result<()> {
     let content = fs::read_to_string(cargo_toml)?;
-    
+
     // If using workspace version, convert to explicit version
     let new_content = if content.contains("version.workspace = true") {
         content.replace(
             "version.workspace = true",
-            &format!(r#"version = "{}""#, new_version)
+            &format!(r#"version = "{}""#, new_version),
         )
     } else {
         let re = Regex::new(r#"(version\s*=\s*)"[^"]+""#)?;
-        re.replace(&content, format!(r#"${{1}}"{}""#, new_version).as_str()).to_string()
+        re.replace(&content, format!(r#"${{1}}"{}""#, new_version).as_str())
+            .to_string()
     };
-    
+
     fs::write(cargo_toml, new_content)?;
     Ok(())
 }
 
-fn find_tool_readme(tool_dir: &PathBuf) -> Option<PathBuf> {
+fn find_tool_readme(tool_dir: &Path) -> Option<PathBuf> {
     let readme = tool_dir.join("README.md");
     if readme.exists() {
         Some(readme)
@@ -241,15 +269,15 @@ fn find_tool_readme(tool_dir: &PathBuf) -> Option<PathBuf> {
 
 fn update_tool_readme(readme: &PathBuf, old_version: &str, new_version: &str) -> Result<()> {
     let content = fs::read_to_string(readme)?;
-    
+
     // Update header version (e.g., "# tool v1.0.0")
     let re1 = Regex::new(&format!(r"(#.*?v){}", regex::escape(old_version)))?;
     let content = re1.replace_all(&content, format!("${{1}}{}", new_version));
-    
+
     // Update badge version if present
     let re2 = Regex::new(&format!(r"(version-){}(-)", regex::escape(old_version)))?;
     let content = re2.replace_all(&content, format!("${{1}}{}${{2}}", new_version));
-    
+
     fs::write(readme, content.as_ref())?;
     Ok(())
 }

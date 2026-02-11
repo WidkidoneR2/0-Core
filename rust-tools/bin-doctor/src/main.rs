@@ -1,14 +1,14 @@
 //! bin-doctor v1.0.0 - Binary Manifest System
 //! Track installed binaries and detect version drift
 
-use clap::{Parser, Subcommand};
 use chrono::{DateTime, Utc};
+use clap::{Parser, Subcommand};
+use faelight_core::paths;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use faelight_core::paths;
 
 #[derive(Parser)]
 #[command(name = "bin-doctor")]
@@ -75,7 +75,7 @@ fn load_manifest() -> Manifest {
             binaries: HashMap::new(),
         };
     }
-    
+
     let content = fs::read_to_string(&path).unwrap_or_default();
     toml::from_str(&content).unwrap_or(Manifest {
         binaries: HashMap::new(),
@@ -90,7 +90,7 @@ fn save_manifest(manifest: &Manifest) {
 
 fn register_binary(tool: &str) {
     println!("📦 Registering binary: {}", tool);
-    
+
     // Get current git commit
     let commit = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
@@ -100,7 +100,7 @@ fn register_binary(tool: &str) {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    
+
     // Get rustc version
     let rustc = Command::new("rustc")
         .arg("--version")
@@ -109,18 +109,18 @@ fn register_binary(tool: &str) {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.split_whitespace().nth(1).map(|v| v.to_string()))
         .unwrap_or_else(|| "unknown".to_string());
-    
+
     // Find the tool's source directory
     let source = find_tool_source(tool);
-    
+
     // Get version from Cargo.toml
     let version = get_tool_version(&source);
-    
+
     // Binary path
     let binary = PathBuf::from(std::env::var("HOME").unwrap())
         .join(".cargo/bin")
         .join(tool);
-    
+
     let entry = BinaryEntry {
         version,
         commit,
@@ -129,11 +129,11 @@ fn register_binary(tool: &str) {
         source: source.display().to_string(),
         binary: binary.display().to_string(),
     };
-    
+
     let mut manifest = load_manifest();
     manifest.binaries.insert(tool.to_string(), entry.clone());
     save_manifest(&manifest);
-    
+
     println!("✅ Registered:");
     println!("   Version:  {}", entry.version);
     println!("   Commit:   {}", entry.commit);
@@ -145,13 +145,13 @@ fn register_binary(tool: &str) {
 fn find_tool_source(tool: &str) -> PathBuf {
     let core_dir = paths::core_dir();
     let rust_tools = core_dir.join("rust-tools");
-    
+
     // Try exact match first
     let exact = rust_tools.join(tool);
     if exact.join("Cargo.toml").exists() {
         return exact;
     }
-    
+
     // Try finding by binary name
     if let Ok(entries) = fs::read_dir(&rust_tools) {
         for entry in entries.flatten() {
@@ -168,7 +168,7 @@ fn find_tool_source(tool: &str) -> PathBuf {
             }
         }
     }
-    
+
     rust_tools.join(tool)
 }
 
@@ -188,7 +188,7 @@ fn get_tool_version(source: &Path) -> String {
 
 fn check_binaries(quiet: bool) {
     let manifest = load_manifest();
-    
+
     if manifest.binaries.is_empty() {
         if !quiet {
             println!("⚠️  No binaries registered");
@@ -196,15 +196,15 @@ fn check_binaries(quiet: bool) {
         }
         std::process::exit(1);
     }
-    
+
     if !quiet {
         println!("🔍 Checking {} binaries...", manifest.binaries.len());
         println!();
     }
-    
+
     let mut drifted = Vec::new();
     let mut ok = Vec::new();
-    
+
     for (name, entry) in &manifest.binaries {
         let source_version = get_tool_version(&PathBuf::from(&entry.source));
         let source_commit = Command::new("git")
@@ -215,19 +215,19 @@ fn check_binaries(quiet: bool) {
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        
+
         if source_version != entry.version || source_commit != entry.commit {
             drifted.push((name.clone(), entry.clone(), source_version, source_commit));
         } else {
             ok.push(name.clone());
         }
     }
-    
+
     if !quiet {
         for name in &ok {
             println!("✅ {}", name);
         }
-        
+
         for (name, entry, src_ver, src_commit) in &drifted {
             println!("❌ {}: DRIFT DETECTED", name);
             println!("   Binary:  v{} @ {}", entry.version, entry.commit);
@@ -235,15 +235,19 @@ fn check_binaries(quiet: bool) {
             println!("   💡 Rebuild: cargo install --path {}", entry.source);
             println!();
         }
-        
+
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         if drifted.is_empty() {
             println!("✅ All {} binaries in sync!", manifest.binaries.len());
         } else {
-            println!("⚠️  {}/{} binaries drifted", drifted.len(), manifest.binaries.len());
+            println!(
+                "⚠️  {}/{} binaries drifted",
+                drifted.len(),
+                manifest.binaries.len()
+            );
         }
     }
-    
+
     if !drifted.is_empty() {
         std::process::exit(1);
     }
@@ -251,18 +255,18 @@ fn check_binaries(quiet: bool) {
 
 fn list_binaries() {
     let manifest = load_manifest();
-    
+
     if manifest.binaries.is_empty() {
         println!("No binaries registered");
         return;
     }
-    
+
     println!("📦 Tracked Binaries ({}):", manifest.binaries.len());
     println!();
-    
+
     let mut binaries: Vec<_> = manifest.binaries.iter().collect();
     binaries.sort_by_key(|(name, _)| name.as_str());
-    
+
     for (name, entry) in binaries {
         println!("{}", name);
         println!("  Version:  {}", entry.version);
@@ -278,7 +282,7 @@ fn list_binaries() {
 fn show_drift() {
     let manifest = load_manifest();
     let mut found_drift = false;
-    
+
     for (name, entry) in &manifest.binaries {
         let source_version = get_tool_version(&PathBuf::from(&entry.source));
         let source_commit = Command::new("git")
@@ -289,7 +293,7 @@ fn show_drift() {
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        
+
         if source_version != entry.version || source_commit != entry.commit {
             found_drift = true;
             println!("❌ {}", name);
@@ -299,7 +303,7 @@ fn show_drift() {
             println!();
         }
     }
-    
+
     if !found_drift {
         println!("✅ No drift detected - all binaries in sync!");
     }

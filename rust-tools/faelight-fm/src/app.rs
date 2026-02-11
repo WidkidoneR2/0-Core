@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use faelight_fm::git::{self, GitStatus};
-use faelight_fm::error::Result;
-use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
-use faelight_fm::{fs, zones, intent};
 use faelight_fm::daemon::DaemonClient;
+use faelight_fm::error::Result;
+use faelight_fm::git::{self, GitStatus};
+use faelight_fm::model::{FaelightEntry, HealthStatus, IntentInfo, Zone};
+use faelight_fm::{fs, intent, zones};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -12,36 +12,25 @@ pub enum Mode {
     Command,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum YankMode {
-    Copy,  // yy - copy file
-    Cut,   // dd - move file
+    #[default]
+    Copy, // yy - copy file
+    Cut, // dd - move file
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum MessageColor {
-    Success,  // Green - operation succeeded
-    Error,    // Red - operation failed
-    Warning,  // Yellow - zone protection, etc.
+    #[default]
+    Success, // Green - operation succeeded
+    Error,   // Red - operation failed
+    Warning, // Yellow - zone protection, etc.
 }
-
-impl Default for YankMode {
-    fn default() -> Self {
-        YankMode::Copy
-    }
-}
-
-impl Default for MessageColor {
-    fn default() -> Self {
-        MessageColor::Success
-    }
-}
-
 
 pub struct AppState {
     pub cwd: PathBuf,
     pub entries: Vec<FaelightEntry>,
-    pub filtered_entries: Vec<FaelightEntry>,  // NEW: filtered view
+    pub filtered_entries: Vec<FaelightEntry>, // NEW: filtered view
     pub selected: usize,
     pub zone: Zone,
     #[allow(dead_code)]
@@ -49,30 +38,30 @@ pub struct AppState {
     pub running: bool,
     pub help_visible: bool,
     pub info_visible: bool,
-    pub search_mode: bool,      // NEW: search active
-    pub search_query: String,   // NEW: search text
-    pub preview_visible: bool,  // NEW: preview overlay
-    pub preview_content: Option<Vec<String>>,  // NEW: file lines
-    pub preview_path: Option<String>,  // NEW: previewed file name
+    pub search_mode: bool,                    // NEW: search active
+    pub search_query: String,                 // NEW: search text
+    pub preview_visible: bool,                // NEW: preview overlay
+    pub preview_content: Option<Vec<String>>, // NEW: file lines
+    pub preview_path: Option<String>,         // NEW: previewed file name
     pub daemon_client: Option<DaemonClient>,  // Daemon connection
     intent_dir: PathBuf,
     pub yanked_file: Option<PathBuf>,
     pub yank_mode: YankMode,
     pub status_message: Option<String>,
     pub message_color: MessageColor,
-    pub file_click_regions: Vec<(u16, u16, usize)>,  // (row, width, file_index)
-    pub zone_click_regions: Vec<(u16, u16, u16, u16, u8)>,  // (x, y, width, height, zone_num)
+    pub file_click_regions: Vec<(u16, u16, usize)>, // (row, width, file_index)
+    pub zone_click_regions: Vec<(u16, u16, u16, u16, u8)>, // (x, y, width, height, zone_num)
 }
 
 impl AppState {
     pub fn new(start_path: PathBuf) -> Result<Self> {
         let zone = zones::classify(&start_path);
-        
+
         let home = std::env::var("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("/home"));
         let intent_dir = home.join("0-core/INTENT");
-        
+
         let mut app = Self {
             cwd: start_path.clone(),
             entries: Vec::new(),
@@ -104,50 +93,55 @@ impl AppState {
             file_click_regions: Vec::new(),
             zone_click_regions: Vec::new(),
         };
-        
+
         app.reload()?;
         Ok(app)
     }
-    
+
     /// Try to load entries from daemon
     fn try_daemon_load(&mut self) -> Option<Vec<FaelightEntry>> {
         let client = self.daemon_client.as_mut()?;
-        
+
         // Create a tokio runtime for this sync context
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .ok()?;
-        
+
         let path_str = self.cwd.to_string_lossy().to_string();
-        
+
         // Get entries from daemon
-        let response = rt.block_on(async {
-            use faelight_fm::daemon::client::Command;
-            client.send_command(Command::GetEntries { path: path_str }).await
-        }).ok()?;
-        
+        let response = rt
+            .block_on(async {
+                use faelight_fm::daemon::client::Command;
+                client
+                    .send_command(Command::GetEntries { path: path_str })
+                    .await
+            })
+            .ok()?;
+
         // Convert daemon entries to FaelightEntry
         if let faelight_fm::daemon::client::Response::Entries { entries } = response {
             let git_statuses = git::get_status(&self.cwd);
-            
-            let faelight_entries: Vec<FaelightEntry> = entries.into_iter()
+
+            let faelight_entries: Vec<FaelightEntry> = entries
+                .into_iter()
                 .map(|daemon_entry| {
                     let path = std::path::PathBuf::from(&daemon_entry.path);
                     let zone = zones::classify(&path);
-                    
+
                     let intents = intent::find_intents_for_path(&self.intent_dir, &path);
                     let intent_info = intents.first().map(|i| IntentInfo {
                         title: i.title.clone(),
                         id: i.id.clone(),
                         status: i.status.clone(),
                     });
-                    
+
                     let git_status = git_statuses
                         .get(&daemon_entry.name)
                         .copied()
                         .unwrap_or(GitStatus::Clean);
-                    
+
                     FaelightEntry {
                         path,
                         name: daemon_entry.name,
@@ -160,10 +154,10 @@ impl AppState {
                     }
                 })
                 .collect();
-            
+
             return Some(faelight_entries);
         }
-        
+
         None
     }
     pub fn reload(&mut self) -> Result<()> {
@@ -171,32 +165,32 @@ impl AppState {
         self.entries = if let Some(entries) = self.try_daemon_load() {
             entries
         } else {
-            
             // Get git status for all files in directory
             let git_statuses = git::get_status(&self.cwd);
             let paths = fs::read_dir(&self.cwd)?;
-            
+
             paths
                 .into_iter()
                 .filter_map(|path| {
                     let name = path.file_name()?.to_string_lossy().to_string();
                     let is_dir = path.is_dir();
-                    
-                    let is_symlink = path.symlink_metadata()
+
+                    let is_symlink = path
+                        .symlink_metadata()
                         .map(|m| m.is_symlink())
                         .unwrap_or(false);
-                    
+
                     let zone = zones::classify(&path);
-                    
+
                     let intents = intent::find_intents_for_path(&self.intent_dir, &path);
                     let intent_info = intents.first().map(|i| IntentInfo {
                         title: i.title.clone(),
                         id: i.id.clone(),
                         status: i.status.clone(),
                     });
-                    
+
                     let git_status = git_statuses.get(&name).copied().unwrap_or(GitStatus::Clean);
-                    
+
                     Some(FaelightEntry {
                         path,
                         name,
@@ -210,60 +204,61 @@ impl AppState {
                 })
                 .collect()
         };
-        
+
         self.apply_filter();
         self.selected = 0;
         Ok(())
     }
-    
+
     pub fn apply_filter(&mut self) {
         if self.search_query.is_empty() {
             self.filtered_entries = self.entries.clone();
         } else {
             let query = self.search_query.to_lowercase();
-            self.filtered_entries = self.entries
+            self.filtered_entries = self
+                .entries
                 .iter()
                 .filter(|e| e.name.to_lowercase().contains(&query))
                 .cloned()
                 .collect();
         }
-        
+
         // Keep selection valid
         if self.selected >= self.filtered_entries.len() && !self.filtered_entries.is_empty() {
             self.selected = self.filtered_entries.len() - 1;
         }
     }
-    
+
     pub fn start_search(&mut self) {
         self.search_mode = true;
         self.search_query.clear();
         self.apply_filter();
     }
-    
+
     pub fn exit_search(&mut self) {
         self.search_mode = false;
         self.search_query.clear();
         self.apply_filter();
     }
-    
+
     pub fn search_add_char(&mut self, c: char) {
         self.search_query.push(c);
         self.apply_filter();
     }
-    
+
     pub fn search_backspace(&mut self) {
         self.search_query.pop();
         self.apply_filter();
     }
-    
+
     pub fn toggle_help(&mut self) {
         self.help_visible = !self.help_visible;
     }
-    
+
     pub fn toggle_info(&mut self) {
         self.info_visible = !self.info_visible;
     }
-    
+
     pub fn enter_selected(&mut self) -> Result<()> {
         if let Some(entry) = self.filtered_entries.get(self.selected) {
             if entry.is_dir {
@@ -276,65 +271,65 @@ impl AppState {
                 // For files, use 'e' key to edit instead
                 self.set_message(
                     format!("Press 'e' to edit {}", entry.name),
-                    MessageColor::Warning
+                    MessageColor::Warning,
                 );
             }
         }
         Ok(())
     }
-    
+
     pub fn go_parent(&mut self) -> Result<()> {
         if let Some(parent) = self.cwd.parent() {
             self.cwd = parent.to_path_buf();
             self.zone = zones::classify(&self.cwd);
-            self.exit_search();  // Clear search when navigating
+            self.exit_search(); // Clear search when navigating
             self.reload()?;
         }
         Ok(())
     }
-    
+
     pub fn jump_to_zone(&mut self, zone: Zone) -> Result<()> {
         if let Some(zone_path) = zones::zone_root(zone) {
             let expanded = shellexpand::tilde(&zone_path).to_string();
             let path = PathBuf::from(&expanded);
-            
+
             if path.exists() {
                 self.cwd = path.clone();
                 self.zone = zone;
                 self.exit_search();
-                self.clear_message();  // Clear any previous warning
+                self.clear_message(); // Clear any previous warning
                 self.reload()?;
             }
         } else {
             // Zone not configured
             self.set_message(
                 format!("{} zone not configured yet", zone.short_label()),
-                MessageColor::Warning
+                MessageColor::Warning,
             );
         }
         Ok(())
     }
-    
+
     pub fn select_prev(&mut self) {
         if self.selected > 0 {
             self.selected -= 1;
         }
     }
-    
+
     pub fn select_next(&mut self) {
         if self.selected + 1 < self.filtered_entries.len() {
             self.selected += 1;
         }
     }
-    
+
     pub fn selected_entry(&self) -> Option<&FaelightEntry> {
         self.filtered_entries.get(self.selected)
     }
-    
+
     pub fn quit(&mut self) {
         self.running = false;
     }
-    
+
     pub fn toggle_preview(&mut self) {
         self.preview_visible = !self.preview_visible;
         if !self.preview_visible {
@@ -344,22 +339,22 @@ impl AppState {
     }
     pub fn load_preview(&mut self) {
         // Clone the entry data first to avoid borrow conflicts
-        let entry_data = self.selected_entry().map(|e| (e.path.clone(), e.name.clone(), e.is_dir, e.is_symlink));
-        
+        let entry_data = self
+            .selected_entry()
+            .map(|e| (e.path.clone(), e.name.clone(), e.is_dir, e.is_symlink));
+
         if let Some((path, name, is_dir, is_symlink)) = entry_data {
             if !is_dir && !is_symlink {
                 match std::fs::read_to_string(&path) {
                     Ok(content) => {
-                        let lines: Vec<String> = content
-                            .lines()
-                            .take(40)
-                            .map(|l| l.to_string())
-                            .collect();
+                        let lines: Vec<String> =
+                            content.lines().take(40).map(|l| l.to_string()).collect();
                         self.preview_content = Some(lines);
                         self.preview_path = Some(name);
                     }
                     Err(_) => {
-                        self.preview_content = Some(vec!["[Binary or unreadable file]".to_string()]);
+                        self.preview_content =
+                            Some(vec!["[Binary or unreadable file]".to_string()]);
                         self.preview_path = Some(name);
                     }
                 }
@@ -382,14 +377,14 @@ impl AppState {
             Some(e) => e.clone(),
             None => return Ok(()),
         };
-        
+
         // Only edit files, not directories
         if entry.is_dir {
             return Ok(());
         }
-        
+
         let path = entry.path.to_string_lossy().to_string();
-        
+
         // Fully cleanup terminal before launching nvim
         crossterm::terminal::disable_raw_mode()?;
         crossterm::execute!(
@@ -398,16 +393,14 @@ impl AppState {
             crossterm::terminal::LeaveAlternateScreen,
             crossterm::cursor::Show
         )?;
-        
+
         // Launch editor (FM_EDITOR → EDITOR → hx)
         let editor = std::env::var("FM_EDITOR")
             .or_else(|_| std::env::var("EDITOR"))
             .unwrap_or_else(|_| "hx".to_string());
-        
-        let _status = std::process::Command::new(&editor)
-            .arg(&path)
-            .status()?;
-        
+
+        let _status = std::process::Command::new(&editor).arg(&path).status()?;
+
         // Fully restore terminal state
         crossterm::execute!(
             std::io::stdout(),
@@ -417,13 +410,13 @@ impl AppState {
             crossterm::cursor::Hide
         )?;
         crossterm::terminal::enable_raw_mode()?;
-        
+
         // Force terminal backend to clear and redraw
         terminal.clear()?;
-        
+
         // Reload in case file changed
         self.reload()?;
-        
+
         Ok(())
     }
 
@@ -432,24 +425,20 @@ impl AppState {
         if let Some(entry) = self.get_selected_entry() {
             let path = entry.path.clone();
             let filename = path.file_name().unwrap().to_string_lossy().to_string();
-            
+
             self.yanked_file = Some(path);
             self.yank_mode = mode;
-            
+
             let mode_text = match mode {
                 YankMode::Copy => "Copy",
                 YankMode::Cut => "Cut",
             };
-            
-            self.status_message = Some(format!(
-                "Yanked: {} ({})",
-                filename,
-                mode_text
-            ));
+
+            self.status_message = Some(format!("Yanked: {} ({})", filename, mode_text));
             self.message_color = MessageColor::Success;
         }
     }
-    
+
     /// Paste the yanked file
     pub fn paste_file(&mut self) -> Result<()> {
         let src = match &self.yanked_file {
@@ -460,16 +449,16 @@ impl AppState {
                 return Ok(());
             }
         };
-        
+
         if self.zone == Zone::Core && faelight_fm::fs::is_core_locked() {
             self.status_message = Some("Cannot modify locked Core zone".to_string());
             self.message_color = MessageColor::Warning;
             return Ok(());
         }
-        
+
         let filename = src.file_name().unwrap();
         let dst = self.cwd.join(filename);
-        
+
         if dst.exists() {
             self.status_message = Some(format!(
                 "File '{}' already exists",
@@ -478,7 +467,7 @@ impl AppState {
             self.message_color = MessageColor::Error;
             return Ok(());
         }
-        
+
         let result = match self.yank_mode {
             YankMode::Copy => {
                 faelight_fm::fs::copy_file(&src, &dst)?;
@@ -490,14 +479,14 @@ impl AppState {
                 format!("Moved {}", filename.to_string_lossy())
             }
         };
-        
+
         self.status_message = Some(result);
         self.message_color = MessageColor::Success;
         self.reload()?;
-        
+
         Ok(())
     }
-    
+
     /// Get selected entry
     fn get_selected_entry(&self) -> Option<&FaelightEntry> {
         if self.search_mode && !self.filtered_entries.is_empty() {
@@ -506,13 +495,13 @@ impl AppState {
             self.entries.get(self.selected)
         }
     }
-    
+
     /// Set status message
     pub fn set_message(&mut self, msg: String, color: MessageColor) {
         self.status_message = Some(msg);
         self.message_color = color;
     }
-    
+
     /// Clear status message  
     pub fn clear_message(&mut self) {
         self.status_message = None;

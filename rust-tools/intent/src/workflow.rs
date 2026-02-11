@@ -1,10 +1,10 @@
 //! Intent workflow commands - lifecycle management
-//! 
+//!
 //! Handles state transitions: planned → in-progress → complete
 
+use faelight_core::paths;
 use std::fs;
 use std::path::PathBuf;
-use faelight_core::paths;
 
 // Colors (re-export from main)
 const GREEN: &str = "\x1b[32m";
@@ -20,24 +20,33 @@ fn get_current_date() -> String {
 /// Find intent file by ID across all categories
 fn find_intent_by_id(id: &str) -> Option<PathBuf> {
     let intent_dir = paths::intents_dir();
-    let categories = ["future", "complete", "decisions", "deferred", 
-                      "cancelled", "experiments", "philosophy", "incidents"];
-    
+    let categories = [
+        "future",
+        "complete",
+        "decisions",
+        "deferred",
+        "cancelled",
+        "experiments",
+        "philosophy",
+        "incidents",
+    ];
+
     for cat in &categories {
         let cat_dir = intent_dir.join(cat);
         if !cat_dir.exists() {
             continue;
         }
-        
+
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
                 let filename = entry.file_name();
                 let filename_str = filename.to_string_lossy();
-                
+
                 // Match by ID at start of filename
-                if filename_str.starts_with(&format!("{}-", id)) ||
-                   filename_str.starts_with(&format!("0{}-", id)) ||
-                   filename_str.starts_with(&format!("00{}-", id)) {
+                if filename_str.starts_with(&format!("{}-", id))
+                    || filename_str.starts_with(&format!("0{}-", id))
+                    || filename_str.starts_with(&format!("00{}-", id))
+                {
                     return Some(entry.path());
                 }
             }
@@ -53,7 +62,7 @@ fn update_frontmatter_field(content: &str, key: &str, value: &str) -> String {
     let mut in_frontmatter = false;
     let mut frontmatter_end = 0;
     let mut field_updated = false;
-    
+
     // Find frontmatter bounds
     for (i, line) in lines.iter().enumerate() {
         if line.trim() == "---" {
@@ -65,33 +74,33 @@ fn update_frontmatter_field(content: &str, key: &str, value: &str) -> String {
             }
         }
     }
-    
+
     if frontmatter_end == 0 {
         eprintln!("{}⚠️  No frontmatter found{}", YELLOW, NC);
         return content.to_string();
     }
-    
+
     // Build result, updating field if found
     for (i, line) in lines.iter().enumerate() {
-        if i > 0 && i < frontmatter_end {
-            if line.starts_with(&format!("{}: ", key)) || 
-               line.starts_with(&format!("{}:", key)) {
-                result.push_str(&format!("{}: {}\n", key, value));
-                field_updated = true;
-                continue;
-            }
+        if i > 0
+            && i < frontmatter_end
+            && (line.starts_with(&format!("{}: ", key)) || line.starts_with(&format!("{}:", key)))
+        {
+            result.push_str(&format!("{}: {}\n", key, value));
+            field_updated = true;
+            continue;
         }
         result.push_str(line);
         result.push('\n');
     }
-    
+
     // If field not found, add it before closing ---
     if !field_updated {
         let mut lines_vec: Vec<String> = result.lines().map(|s| s.to_string()).collect();
         lines_vec.insert(frontmatter_end, format!("{}: {}", key, value));
         result = lines_vec.join("\n") + "\n";
     }
-    
+
     result
 }
 
@@ -104,16 +113,14 @@ pub fn start_intent(id: &str) {
             return;
         }
     };
-    
-    let content = fs::read_to_string(&intent_path)
-        .expect("Failed to read intent file");
-    
+
+    let content = fs::read_to_string(&intent_path).expect("Failed to read intent file");
+
     let mut updated = update_frontmatter_field(&content, "status", "in-progress");
     updated = update_frontmatter_field(&updated, "started", &get_current_date());
-    
-    fs::write(&intent_path, updated)
-        .expect("Failed to write intent file");
-    
+
+    fs::write(&intent_path, updated).expect("Failed to write intent file");
+
     println!("{}🚀 Started intent {}{}", GREEN, id, NC);
     println!("{}   Status: planned → in-progress{}", GREEN, NC);
     println!("{}   Started: {}{}", GREEN, get_current_date(), NC);
@@ -128,32 +135,42 @@ pub fn complete_intent(id: &str) {
             return;
         }
     };
-    
-    let filename = intent_path.file_name().unwrap().to_string_lossy().to_string();
-    let content = fs::read_to_string(&intent_path)
-        .expect("Failed to read intent file");
-    
+
+    let filename = intent_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let content = fs::read_to_string(&intent_path).expect("Failed to read intent file");
+
     let mut updated = update_frontmatter_field(&content, "status", "complete");
     updated = update_frontmatter_field(&updated, "completed", &get_current_date());
-    
+
     let complete_dir = paths::intents_complete();
     fs::create_dir_all(&complete_dir).ok();
     let new_path = complete_dir.join(&filename);
-    
-    fs::write(&new_path, updated)
-        .expect("Failed to write completed intent");
-    fs::remove_file(&intent_path)
-        .expect("Failed to remove old intent file");
-    
+
+    fs::write(&new_path, updated).expect("Failed to write completed intent");
+    fs::remove_file(&intent_path).expect("Failed to remove old intent file");
+
     println!();
-    println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", GREEN, NC);
+    println!(
+        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
+        GREEN, NC
+    );
     println!("{}🎊 INTENT {} COMPLETE!{}", GREEN, id, NC);
-    println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", GREEN, NC);
+    println!(
+        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
+        GREEN, NC
+    );
     println!("{}   Status: → complete{}", GREEN, NC);
     println!("{}   Completed: {}{}", GREEN, get_current_date(), NC);
     println!("{}   Moved to: complete/{}{}", GREEN, filename, NC);
     println!();
-    println!("{}🌲 Well done! Another step forward in the Forest.{}", GREEN, NC);
+    println!(
+        "{}🌲 Well done! Another step forward in the Forest.{}",
+        GREEN, NC
+    );
     println!();
 }
 
@@ -166,25 +183,28 @@ pub fn defer_intent(id: &str, reason: Option<&str>) {
             return;
         }
     };
-    
-    let filename = intent_path.file_name().unwrap().to_string_lossy().to_string();
-    let content = fs::read_to_string(&intent_path)
-        .expect("Failed to read intent file");
-    
+
+    let filename = intent_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let content = fs::read_to_string(&intent_path).expect("Failed to read intent file");
+
     let mut updated = update_frontmatter_field(&content, "status", "deferred");
     updated = update_frontmatter_field(&updated, "deferred_date", &get_current_date());
-    
+
     if let Some(r) = reason {
         updated = update_frontmatter_field(&updated, "deferred_reason", &format!("\"{}\"", r));
     }
-    
+
     let deferred_dir = paths::intents_deferred();
     fs::create_dir_all(&deferred_dir).ok();
     let new_path = deferred_dir.join(&filename);
-    
+
     fs::write(&new_path, updated).expect("Failed to write deferred intent");
     fs::remove_file(&intent_path).expect("Failed to remove old intent");
-    
+
     println!("{}📌 Deferred intent {}{}", YELLOW, id, NC);
     println!("{}   Moved to: deferred/{}{}", YELLOW, filename, NC);
     if let Some(r) = reason {
@@ -201,25 +221,28 @@ pub fn cancel_intent(id: &str, reason: Option<&str>) {
             return;
         }
     };
-    
-    let filename = intent_path.file_name().unwrap().to_string_lossy().to_string();
-    let content = fs::read_to_string(&intent_path)
-        .expect("Failed to read intent file");
-    
+
+    let filename = intent_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let content = fs::read_to_string(&intent_path).expect("Failed to read intent file");
+
     let mut updated = update_frontmatter_field(&content, "status", "cancelled");
     updated = update_frontmatter_field(&updated, "cancelled_date", &get_current_date());
-    
+
     if let Some(r) = reason {
         updated = update_frontmatter_field(&updated, "cancelled_reason", &format!("\"{}\"", r));
     }
-    
+
     let cancelled_dir = paths::intents_cancelled();
     fs::create_dir_all(&cancelled_dir).ok();
     let new_path = cancelled_dir.join(&filename);
-    
+
     fs::write(&new_path, updated).expect("Failed to write cancelled intent");
     fs::remove_file(&intent_path).expect("Failed to remove old intent");
-    
+
     println!("{}🚫 Cancelled intent {}{}", RED, id, NC);
     println!("{}   Moved to: cancelled/{}{}", RED, filename, NC);
     if let Some(r) = reason {

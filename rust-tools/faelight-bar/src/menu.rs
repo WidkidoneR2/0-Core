@@ -11,12 +11,12 @@ use std::path::PathBuf;
 
 pub fn get_all_items() -> Vec<MenuItem> {
     let mut items = Vec::new();
-    
+
     let app_dirs = vec![
         PathBuf::from("/usr/share/applications"),
         PathBuf::from("/usr/local/share/applications"),
     ];
-    
+
     for dir in app_dirs {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
@@ -32,7 +32,7 @@ pub fn get_all_items() -> Vec<MenuItem> {
             }
         }
     }
-    
+
     items.sort_by(|a, b| a.display.cmp(&b.display));
     items
 }
@@ -41,10 +41,10 @@ fn parse_desktop_file(content: &str) -> Option<MenuItem> {
     let mut name = None;
     let mut exec = None;
     let mut in_desktop_entry = false;
-    
+
     for line in content.lines() {
         let line = line.trim();
-        
+
         if line == "[Desktop Entry]" {
             in_desktop_entry = true;
             continue;
@@ -52,7 +52,7 @@ fn parse_desktop_file(content: &str) -> Option<MenuItem> {
             // Entered a different section, stop parsing
             break;
         }
-        
+
         if in_desktop_entry {
             if line.starts_with("Name=") && name.is_none() {
                 name = Some(line[5..].to_string());
@@ -61,7 +61,7 @@ fn parse_desktop_file(content: &str) -> Option<MenuItem> {
             }
         }
     }
-    
+
     Some(MenuItem {
         display: name?,
         exec: exec?,

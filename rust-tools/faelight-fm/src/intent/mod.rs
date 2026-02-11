@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntentStatus {
@@ -25,9 +25,9 @@ impl Intent {
         if parts.len() < 3 {
             return None;
         }
-        
+
         let frontmatter = parts[1];
-        
+
         let id = frontmatter
             .lines()
             .find(|line| line.starts_with("id:"))?
@@ -35,7 +35,7 @@ impl Intent {
             .nth(1)?
             .trim()
             .to_string();
-        
+
         let title = frontmatter
             .lines()
             .find(|line| line.starts_with("title:"))?
@@ -44,14 +44,14 @@ impl Intent {
             .trim()
             .trim_matches('"')
             .to_string();
-        
+
         let status_str = frontmatter
             .lines()
             .find(|line| line.starts_with("status:"))?
             .split(':')
             .nth(1)?
             .trim();
-        
+
         let status = match status_str {
             "complete" => IntentStatus::Complete,
             "future" => IntentStatus::Future,
@@ -59,7 +59,7 @@ impl Intent {
             "deferred" => IntentStatus::Deferred,
             _ => return None,
         };
-        
+
         Some(Intent {
             id,
             title,
@@ -67,29 +67,31 @@ impl Intent {
             path: path.to_path_buf(),
         })
     }
-    
+
     pub fn matches_path(&self, target: &Path) -> bool {
-        let target_name = target
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-        
-        if !target_name.is_empty() && self.title.to_lowercase().contains(&target_name.to_lowercase()) {
+        let target_name = target.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+        if !target_name.is_empty()
+            && self
+                .title
+                .to_lowercase()
+                .contains(&target_name.to_lowercase())
+        {
             return true;
         }
-        
+
         false
     }
 }
 
 pub fn find_intents_for_path(intent_dir: &Path, target: &Path) -> Vec<Intent> {
     let mut intents = Vec::new();
-    
+
     for status_dir in &["complete", "future", "deferred", "cancelled"] {
         let dir = intent_dir.join(status_dir);
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
-                if entry.path().extension().map_or(false, |e| e == "md") {
+                if entry.path().extension().is_some_and(|e| e == "md") {
                     if let Some(intent) = Intent::from_file(&entry.path()) {
                         if intent.matches_path(target) {
                             intents.push(intent);
@@ -99,6 +101,6 @@ pub fn find_intents_for_path(intent_dir: &Path, target: &Path) -> Vec<Intent> {
             }
         }
     }
-    
+
     intents
 }

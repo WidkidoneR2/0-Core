@@ -11,23 +11,23 @@ pub enum Zone {
 impl Zone {
     pub fn short_label(&self) -> &'static str {
         match self {
-            Zone::Core      => "CORE",
+            Zone::Core => "CORE",
             Zone::Workspace => "WORK",
-            Zone::Src       => "SRC",
-            Zone::Project   => "PROJ",
-            Zone::Archive   => "ARCH",
-            Zone::Scratch   => "SCR",
+            Zone::Src => "SRC",
+            Zone::Project => "PROJ",
+            Zone::Archive => "ARCH",
+            Zone::Scratch => "SCR",
         }
     }
 
     pub fn icon(&self) -> &'static str {
         match self {
-            Zone::Core      => "🌲",
+            Zone::Core => "🌲",
             Zone::Workspace => "🦀",
-            Zone::Src       => "🛠",
-            Zone::Project   => "💼",
-            Zone::Archive   => "💎",
-            Zone::Scratch   => "🧪",
+            Zone::Src => "🛠",
+            Zone::Project => "💼",
+            Zone::Archive => "💎",
+            Zone::Scratch => "🧪",
         }
     }
 

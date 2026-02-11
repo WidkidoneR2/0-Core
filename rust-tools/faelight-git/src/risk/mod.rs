@@ -2,4 +2,4 @@
 
 pub mod engine;
 
-pub use engine::{RiskScore, RiskBand, RiskFactor};
+pub use engine::{RiskBand, RiskFactor, RiskScore};

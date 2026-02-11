@@ -1,8 +1,8 @@
 //! Path management for 0-Core numbered gravity structure
-//! 
+//!
 //! Philosophy: Paths should be explicit, never hidden.
 //! All filesystem assumptions are documented here.
-//! 
+//!
 //! If HOME is not set, we FAIL LOUDLY - no silent fallbacks.
 
 use std::env;
@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 /// Get home directory - PANICS if HOME not set (fail fast philosophy)
 pub fn home() -> PathBuf {
     PathBuf::from(
-        env::var("HOME").expect("HOME environment variable must be set - this is a critical assumption")
+        env::var("HOME")
+            .expect("HOME environment variable must be set - this is a critical assumption"),
     )
 }
 
@@ -177,28 +178,6 @@ pub fn archive_dir() -> PathBuf {
     home().join("3-archive")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_version_file_path() {
-        let path = version_file();
-        assert!(path.to_string_lossy().contains("00-meta/VERSION"));
-    }
-
-    #[test]
-    fn test_numbered_gravity() {
-        // Verify numbered structure is preserved
-        assert!(meta_dir().to_string_lossy().contains("00-meta"));
-        assert!(registry_dir().to_string_lossy().contains("01-registry"));
-        assert!(rules_dir().to_string_lossy().contains("02-rules"));
-        assert!(interfaces_dir().to_string_lossy().contains("03-interfaces"));
-        assert!(runtime_dir().to_string_lossy().contains("04-runtime"));
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
 // SYSTEM FONTS (Common font locations)
 // ═══════════════════════════════════════════════════════════
 
@@ -405,3 +384,25 @@ pub fn profile_log_file() -> PathBuf {
 pub fn sway_config() -> PathBuf {
     home().join(".config/sway/config")
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_file_path() {
+        let path = version_file();
+        assert!(path.to_string_lossy().contains("00-meta/VERSION"));
+    }
+
+    #[test]
+    fn test_numbered_gravity() {
+        // Verify numbered structure is preserved
+        assert!(meta_dir().to_string_lossy().contains("00-meta"));
+        assert!(registry_dir().to_string_lossy().contains("01-registry"));
+        assert!(rules_dir().to_string_lossy().contains("02-rules"));
+        assert!(interfaces_dir().to_string_lossy().contains("03-interfaces"));
+        assert!(runtime_dir().to_string_lossy().contains("04-runtime"));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════

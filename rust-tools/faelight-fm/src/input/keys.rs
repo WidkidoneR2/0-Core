@@ -1,5 +1,5 @@
-use crossterm::event::KeyCode;
 use crate::app::AppState;
+use crossterm::event::KeyCode;
 use faelight_fm::error::Result;
 use faelight_zone::Zone;
 
@@ -13,17 +13,17 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         app.toggle_help();
         return Ok(());
     }
-    
+
     if app.preview_visible {
         app.toggle_preview();
         return Ok(());
     }
-    
+
     if app.info_visible {
         app.toggle_info();
         return Ok(());
     }
-    
+
     // Search mode - handle text input
     if app.search_mode {
         match key {
@@ -36,7 +36,7 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         }
         return Ok(());
     }
-    
+
     // Normal mode
     match key {
         // Navigation
@@ -44,7 +44,7 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         KeyCode::Char('k') | KeyCode::Up => app.select_prev(),
         KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => app.enter_selected()?,
         KeyCode::Char('h') | KeyCode::Left => app.go_parent()?,
-        
+
         // Zone jumping
         KeyCode::Char('0') => app.jump_to_zone(Zone::Core)?,
         KeyCode::Char('1') => app.jump_to_zone(Zone::Workspace)?,
@@ -52,7 +52,7 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         KeyCode::Char('3') => app.jump_to_zone(Zone::Project)?,
         KeyCode::Char('4') => app.jump_to_zone(Zone::Archive)?,
         KeyCode::Char('5') => app.jump_to_zone(Zone::Scratch)?,
-        
+
         // Overlays
         // Overlays
         KeyCode::Char('?') => app.toggle_help(),
@@ -60,30 +60,30 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         KeyCode::Char('p') => {
             app.load_preview();
             app.toggle_preview();
-        },
-        
+        }
+
         // Edit file in nvim
         KeyCode::Char('e') => app.edit_selected(terminal)?,
-        
+
         // File operations
         KeyCode::Char('y') => {
             app.yank_file(crate::app::YankMode::Copy);
-        },
+        }
         KeyCode::Char('d') => {
             app.yank_file(crate::app::YankMode::Cut);
-        },
+        }
         KeyCode::Char('v') => {
             app.paste_file()?;
-        },
-        
+        }
+
         // Search
         KeyCode::Char('/') => app.start_search(),
-        
+
         // Quit
         KeyCode::Char('q') | KeyCode::Esc => app.quit(),
-        
+
         _ => {}
     }
-    
+
     Ok(())
 }

@@ -1,15 +1,15 @@
 //! dot-doctor v0.4 - Faelight Forest Health Engine
 use faelight_core::paths;
 
+use chrono::{DateTime, Utc};
 use clap::Parser;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
-use chrono::{DateTime, Utc};
-use std::io::{self, Write};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -77,13 +77,7 @@ struct CheckResult {
     details: Option<Vec<String>>,
 }
 
-
-impl CheckResult {
-    
-    
-    
-    
-}
+impl CheckResult {}
 #[derive(Serialize, Deserialize)]
 struct HealthReport {
     version: String,
@@ -294,17 +288,17 @@ fn check_stow(ctx: &Context) -> CheckResult {
     let stow_dir = paths::stow_dir();
     let mut stowed = 0;
     let mut details = vec![];
-    
+
     // Auto-discover packages
     let packages = discover_stow_packages(&stow_dir);
     let total = packages.len();
-    
+
     for package in &packages {
         // Package directory not needed - we find symlinks directly
-        
+
         // Find symlinks in ~/ that point to this package
         let symlinks = find_stow_symlinks(&ctx.home, package);
-        
+
         if !symlinks.is_empty() {
             stowed += 1;
             for link in &symlinks {
@@ -316,7 +310,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
             details.push(format!("✗ {} (no symlinks found)", package));
         }
     }
-    
+
     if stowed == total {
         CheckResult {
             id: "stow".to_string(),
@@ -342,7 +336,7 @@ fn check_stow(ctx: &Context) -> CheckResult {
 
 fn discover_stow_packages(stow_dir: &PathBuf) -> Vec<String> {
     let mut packages = Vec::new();
-    
+
     if let Ok(entries) = std::fs::read_dir(stow_dir) {
         for entry in entries.flatten() {
             if entry.path().is_dir() {
@@ -354,7 +348,7 @@ fn discover_stow_packages(stow_dir: &PathBuf) -> Vec<String> {
             }
         }
     }
-    
+
     packages.sort();
     packages
 }
@@ -362,18 +356,15 @@ fn discover_stow_packages(stow_dir: &PathBuf) -> Vec<String> {
 fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
     let home_path = PathBuf::from(home);
     let mut symlinks = Vec::new();
-    
+
     // Search paths to walk
-    let search_paths = vec![
-        home_path.clone(),
-        home_path.join(".config"),
-    ];
-    
+    let search_paths = vec![home_path.clone(), home_path.join(".config")];
+
     for search_path in search_paths {
         if !search_path.exists() {
             continue;
         }
-        
+
         // Walk recursively but cap depth at 5
         for entry in WalkDir::new(&search_path)
             .max_depth(5)
@@ -382,7 +373,7 @@ fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            
+
             if path.is_symlink() {
                 if let Ok(target) = std::fs::read_link(path) {
                     let target_str = target.to_string_lossy();
@@ -394,14 +385,17 @@ fn find_stow_symlinks(home: &str, package: &str) -> Vec<PathBuf> {
             }
         }
     }
-    
+
     symlinks
 }
 fn check_services(_ctx: &Context) -> CheckResult {
     let mut running = 0;
     let mut details = vec![];
 
-    let services = [("faelight-bar", "Status bar"), ("faelight-notify", "Notifications")];
+    let services = [
+        ("faelight-bar", "Status bar"),
+        ("faelight-notify", "Notifications"),
+    ];
 
     for (name, desc) in services {
         let output = Command::new("pgrep").arg("-x").arg(name).output();
@@ -438,33 +432,45 @@ fn check_services(_ctx: &Context) -> CheckResult {
 
 fn check_broken_symlinks(ctx: &Context) -> CheckResult {
     let mut broken = vec![];
-    
+
     // Check ~/.config
     let config = PathBuf::from(&ctx.home).join(".config");
-    for entry in WalkDir::new(&config).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&config)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let p = entry.path();
         if p.is_symlink() && !p.exists() {
             // Skip Brave runtime locks
-            if p.to_string_lossy().contains("BraveSoftware") { continue; }
+            if p.to_string_lossy().contains("BraveSoftware") {
+                continue;
+            }
             if let Ok(rel) = p.strip_prefix(&ctx.home) {
                 broken.push(format!("~/{}", rel.display()));
             }
         }
     }
-    
+
     // Check stow directory
     let stow_dir = ctx.core_dir.join("03-interfaces/stow");
-    for entry in WalkDir::new(&stow_dir).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&stow_dir)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let p = entry.path();
         if p.is_symlink() && !p.exists() {
             // Skip Brave runtime locks
-            if p.to_string_lossy().contains("BraveSoftware") { continue; }
+            if p.to_string_lossy().contains("BraveSoftware") {
+                continue;
+            }
             if let Ok(rel) = p.strip_prefix(&ctx.core_dir) {
                 broken.push(format!("0-core/{}", rel.display()));
             }
         }
     }
-    
+
     if broken.is_empty() {
         CheckResult {
             id: "broken_symlinks".to_string(),
@@ -489,7 +495,12 @@ fn check_broken_symlinks(ctx: &Context) -> CheckResult {
 }
 fn check_yazi_plugins(ctx: &Context) -> CheckResult {
     let plugin_dir = PathBuf::from(&ctx.home).join(".config/yazi/plugins");
-    let plugins = ["full-border.yazi", "git.yazi", "jump-to-char.yazi", "smart-enter.yazi"];
+    let plugins = [
+        "full-border.yazi",
+        "git.yazi",
+        "jump-to-char.yazi",
+        "smart-enter.yazi",
+    ];
     let mut found = vec![];
     let mut missing = vec![];
 
@@ -530,15 +541,32 @@ fn check_yazi_plugins(ctx: &Context) -> CheckResult {
 
 fn check_binaries(_ctx: &Context) -> CheckResult {
     let bins = [
-        "sway", "foot", "fuzzel", "yazi", "nvim", "git", "stow",
-        "starship", "bat", "eza", "fd", "rg", "zoxide",
-        "brightnessctl", "wpctl",
+        "sway",
+        "foot",
+        "fuzzel",
+        "yazi",
+        "nvim",
+        "git",
+        "stow",
+        "starship",
+        "bat",
+        "eza",
+        "fd",
+        "rg",
+        "zoxide",
+        "brightnessctl",
+        "wpctl",
     ];
     let mut found = 0;
     let mut missing = vec![];
 
     for bin in bins {
-        if Command::new("which").arg(bin).output().map(|o| o.status.success()).unwrap_or(false) {
+        if Command::new("which")
+            .arg(bin)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
             found += 1;
         } else {
             missing.push(bin.to_string());
@@ -574,12 +602,15 @@ fn check_git(ctx: &Context) -> CheckResult {
 
     // Check for uncommitted changes
     let status = Command::new("git")
-        .args(["-C", &ctx.core_dir.to_string_lossy(), "status", "--porcelain"])
+        .args([
+            "-C",
+            &ctx.core_dir.to_string_lossy(),
+            "status",
+            "--porcelain",
+        ])
         .output();
 
-    let has_changes = status
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
+    let has_changes = status.map(|o| !o.stdout.is_empty()).unwrap_or(false);
 
     if has_changes {
         issues.push("Uncommitted changes".to_string());
@@ -587,12 +618,16 @@ fn check_git(ctx: &Context) -> CheckResult {
 
     // Check for unpushed commits
     let unpushed = Command::new("git")
-        .args(["-C", &ctx.core_dir.to_string_lossy(), "log", "@{u}..", "--oneline"])
+        .args([
+            "-C",
+            &ctx.core_dir.to_string_lossy(),
+            "log",
+            "@{u}..",
+            "--oneline",
+        ])
         .output();
 
-    let has_unpushed = unpushed
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
+    let has_unpushed = unpushed.map(|o| !o.stdout.is_empty()).unwrap_or(false);
 
     if has_unpushed {
         issues.push("Unpushed commits".to_string());
@@ -625,8 +660,7 @@ fn check_themes(ctx: &Context) -> CheckResult {
     let packages = ["config-faelight"];
 
     for pkg in packages {
-        if ctx.core_dir.join("03-interfaces/stow").join(pkg).is_dir() {
-        }
+        if ctx.core_dir.join("03-interfaces/stow").join(pkg).is_dir() {}
     }
 
     // Also check for any theme- prefixed directories
@@ -634,7 +668,12 @@ fn check_themes(ctx: &Context) -> CheckResult {
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
-                .filter(|e| e.file_name().to_string_lossy().starts_with("config-faelight") || e.file_name().to_string_lossy().starts_with("theme-"))
+                .filter(|e| {
+                    e.file_name()
+                        .to_string_lossy()
+                        .starts_with("config-faelight")
+                        || e.file_name().to_string_lossy().starts_with("theme-")
+                })
                 .count()
         })
         .unwrap_or(0);
@@ -721,7 +760,16 @@ fn check_intents(ctx: &Context) -> CheckResult {
     let mut complete = 0;
     let mut planned = 0;
 
-    for category in ["complete", "decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"] {
+    for category in [
+        "complete",
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "cancelled",
+        "deferred",
+        "incidents",
+    ] {
         let cat_dir = intent_dir.join(category);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
@@ -744,7 +792,10 @@ fn check_intents(ctx: &Context) -> CheckResult {
         name: "Intent Ledger".to_string(),
         status: Status::Pass,
         severity: Severity::Low,
-        message: format!("{} intents ({} complete, {} planned)", total, complete, planned),
+        message: format!(
+            "{} intents ({} complete, {} planned)",
+            total, complete, planned
+        ),
         fix: None,
         details: Some(vec![
             format!("Total: {}", total),
@@ -834,7 +885,11 @@ fn check_faelight_config(ctx: &Context) -> CheckResult {
         CheckResult {
             id: "config".to_string(),
             name: "Faelight Config".to_string(),
-            status: if missing.iter().any(|m| m.contains("invalid")) { Status::Fail } else { Status::Warn },
+            status: if missing.iter().any(|m| m.contains("invalid")) {
+                Status::Fail
+            } else {
+                Status::Warn
+            },
             severity: Severity::Medium,
             message: format!("{} config issues", missing.len()),
             fix: Some("Run: faelight config validate".to_string()),
@@ -850,7 +905,7 @@ fn toml_valid(content: &str) -> bool {
 
 fn check_keybinds(ctx: &Context) -> CheckResult {
     let sway_config = PathBuf::from(&ctx.home).join(".config/sway/config");
-    
+
     if !sway_config.exists() {
         return CheckResult {
             id: "keybinds".to_string(),
@@ -870,14 +925,14 @@ fn check_keybinds(ctx: &Context) -> CheckResult {
     match output {
         Ok(result) if result.status.success() => {
             let stdout = String::from_utf8_lossy(&result.stdout);
-            
+
             if stdout.contains("No conflicts detected") {
                 let count = stdout
                     .lines()
                     .find(|l| l.contains("unique keybindings"))
                     .and_then(|l| l.split_whitespace().next())
                     .unwrap_or("0");
-                
+
                 CheckResult {
                     id: "keybinds".to_string(),
                     name: "Sway Keybinds".to_string(),
@@ -925,14 +980,13 @@ fn check_keybinds(ctx: &Context) -> CheckResult {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════
 
-
 fn check_rust_toolchain(_ctx: &Context) -> CheckResult {
     let cargo = Command::new("cargo").arg("--version").output();
     let rustc = Command::new("rustc").arg("--version").output();
-    
+
     let cargo_ok = cargo.map(|o| o.status.success()).unwrap_or(false);
     let rustc_ok = rustc.map(|o| o.status.success()).unwrap_or(false);
-    
+
     if cargo_ok && rustc_ok {
         CheckResult {
             id: "rust_toolchain".to_string(),
@@ -950,7 +1004,10 @@ fn check_rust_toolchain(_ctx: &Context) -> CheckResult {
             status: Status::Fail,
             severity: Severity::Medium,
             message: "Rust toolchain missing".to_string(),
-            fix: Some("Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh".to_string()),
+            fix: Some(
+                "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+                    .to_string(),
+            ),
             details: None,
         }
     }
@@ -958,7 +1015,7 @@ fn check_rust_toolchain(_ctx: &Context) -> CheckResult {
 
 fn check_disk_space(_ctx: &Context) -> CheckResult {
     let mut warnings = vec![];
-    
+
     for mount in &["/", "/home"] {
         if let Ok(output) = Command::new("df").args(["-h", mount]).output() {
             if output.status.success() {
@@ -978,7 +1035,7 @@ fn check_disk_space(_ctx: &Context) -> CheckResult {
             }
         }
     }
-    
+
     if warnings.is_empty() {
         CheckResult {
             id: "disk_space".to_string(),
@@ -1004,22 +1061,31 @@ fn check_disk_space(_ctx: &Context) -> CheckResult {
 
 fn check_tool_installation(_ctx: &Context) -> CheckResult {
     let tools = vec![
-        "faelight-git", "intent", "dot-doctor", "faelight-hooks",
-        "faelight-update", "alias-audit", "core-diff",
+        "faelight-git",
+        "intent",
+        "dot-doctor",
+        "faelight-hooks",
+        "faelight-update",
+        "alias-audit",
+        "core-diff",
     ];
-    
+
     let mut missing = vec![];
     let mut installed = 0;
-    
+
     for tool in &tools {
-        if Command::new("which").arg(tool).output()
-            .map(|o| o.status.success()).unwrap_or(false) {
+        if Command::new("which")
+            .arg(tool)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
             installed += 1;
         } else {
             missing.push(tool.to_string());
         }
     }
-    
+
     if missing.is_empty() {
         CheckResult {
             id: "tool_installation".to_string(),
@@ -1047,185 +1113,200 @@ fn check_path_resilience(_ctx: &Context) -> CheckResult {
     let total_tools = 40;
     let migrated_tools = 40;
     let percentage = (migrated_tools * 100) / total_tools;
-    
+
     CheckResult {
         id: "path_resilience".to_string(),
         name: "Path Resilience".to_string(),
-        status: if percentage >= 90 { Status::Pass } else { Status::Warn },
+        status: if percentage >= 90 {
+            Status::Pass
+        } else {
+            Status::Warn
+        },
         severity: Severity::Low,
-        message: format!("{}/{} tools migrated ({}%)", migrated_tools, total_tools, percentage),
-        fix: if percentage < 100 { Some("Continue path migration".to_string()) } else { None },
+        message: format!(
+            "{}/{} tools migrated ({}%)",
+            migrated_tools, total_tools, percentage
+        ),
+        fix: if percentage < 100 {
+            Some("Continue path migration".to_string())
+        } else {
+            None
+        },
         details: None,
     }
 }
 
 fn main() {
-// ═══════════════════════════════════════════════════════════
-// 📊 HISTORY TRACKING
-// ═══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // 📊 HISTORY TRACKING
+    // ═══════════════════════════════════════════════════════════
 
-#[derive(Serialize, Deserialize)]
-struct HealthSnapshot {
-    timestamp: DateTime<Utc>,
-    health_percent: u32,
-    passed: u32,
-    warnings: u32,
-    failed: u32,
-    total: u32,
-}
-
-fn save_health_snapshot(report: &HealthReport) -> std::io::Result<()> {
-    let state_dir = paths::faelight_state_dir();
-    fs::create_dir_all(&state_dir)?;
-    
-    let history_file = state_dir.join("health-history.jsonl");
-    let snapshot = HealthSnapshot {
-        timestamp: Utc::now(),
-        health_percent: report.health_percent,
-        passed: report.passed,
-        warnings: report.warnings,
-        failed: report.failed,
-        total: report.total,
-    };
-    
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(history_file)?;
-    
-    writeln!(file, "{}", serde_json::to_string(&snapshot)?)?;
-    Ok(())
-}
-
-fn show_health_history() -> std::io::Result<()> {
-    let history_file = PathBuf::from(env::var("HOME").unwrap())
-        .join("health-history.jsonl");
-    
-    if !history_file.exists() {
-        println!("📊 No health history yet. Run 'doctor' to start tracking!");
-        return Ok(());
+    #[derive(Serialize, Deserialize)]
+    struct HealthSnapshot {
+        timestamp: DateTime<Utc>,
+        health_percent: u32,
+        passed: u32,
+        warnings: u32,
+        failed: u32,
+        total: u32,
     }
-    
-    let content = fs::read_to_string(history_file)?;
-    let snapshots: Vec<HealthSnapshot> = content
-        .lines()
-        .filter_map(|line| serde_json::from_str(line).ok())
-        .collect();
-    
-    if snapshots.is_empty() {
-        println!("📊 No health history yet.");
-        return Ok(());
-    }
-    
-    println!("📊 Health History");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
-    for snapshot in snapshots.iter().rev().take(10).rev() {
-        let color = if snapshot.health_percent >= 95 {
-            "\x1b[0;32m"
-        } else if snapshot.health_percent >= 80 {
-            "\x1b[1;33m"
-        } else {
-            "\x1b[0;31m"
+
+    fn save_health_snapshot(report: &HealthReport) -> std::io::Result<()> {
+        let state_dir = paths::faelight_state_dir();
+        fs::create_dir_all(&state_dir)?;
+
+        let history_file = state_dir.join("health-history.jsonl");
+        let snapshot = HealthSnapshot {
+            timestamp: Utc::now(),
+            health_percent: report.health_percent,
+            passed: report.passed,
+            warnings: report.warnings,
+            failed: report.failed,
+            total: report.total,
         };
-        
-        println!("  {} - {}{}\x1b[0m% ({}/{} checks)",
-                 snapshot.timestamp.format("%Y-%m-%d %H:%M"),
-                 color, snapshot.health_percent,
-                 snapshot.passed, snapshot.total);
-    }
-    
-    if snapshots.len() >= 2 {
-        let recent = &snapshots[snapshots.len() - 1];
-        let previous = &snapshots[snapshots.len() - 2];
-        let diff = recent.health_percent as i32 - previous.health_percent as i32;
-        
-        let trend = if diff > 0 {
-            format!("\x1b[0;32m↑{}\x1b[0m", diff)
-        } else if diff < 0 {
-            format!("\x1b[0;31m↓{}\x1b[0m", diff.abs())
-        } else {
-            "→0".to_string()
-        };
-        
-        println!();
-        println!("  Trend: {} since last check", trend);
-    }
-    
-    println!();
-    println!("  Total snapshots: {}", snapshots.len());
-    
-    Ok(())
-}
 
-fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
-    let fixable: Vec<_> = results.iter()
-        .filter(|r| r.status != Status::Pass && r.fix.is_some())
-        .collect();
-    
-    if fixable.is_empty() {
-        println!("✅ No fixes needed!");
-        return Ok(());
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(history_file)?;
+
+        writeln!(file, "{}", serde_json::to_string(&snapshot)?)?;
+        Ok(())
     }
-    
-    println!("🔧 Auto-Fix Mode");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!();
-    
-    for result in &fixable {
-        println!("  {} - {}", result.id, result.name);
-        if let Some(ref fix) = result.fix {
-            println!("    Fix: {}", fix);
+
+    fn show_health_history() -> std::io::Result<()> {
+        let history_file = PathBuf::from(env::var("HOME").unwrap()).join("health-history.jsonl");
+
+        if !history_file.exists() {
+            println!("📊 No health history yet. Run 'doctor' to start tracking!");
+            return Ok(());
         }
+
+        let content = fs::read_to_string(history_file)?;
+        let snapshots: Vec<HealthSnapshot> = content
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+
+        if snapshots.is_empty() {
+            println!("📊 No health history yet.");
+            return Ok(());
+        }
+
+        println!("📊 Health History");
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+        for snapshot in snapshots.iter().rev().take(10).rev() {
+            let color = if snapshot.health_percent >= 95 {
+                "\x1b[0;32m"
+            } else if snapshot.health_percent >= 80 {
+                "\x1b[1;33m"
+            } else {
+                "\x1b[0;31m"
+            };
+
+            println!(
+                "  {} - {}{}\x1b[0m% ({}/{} checks)",
+                snapshot.timestamp.format("%Y-%m-%d %H:%M"),
+                color,
+                snapshot.health_percent,
+                snapshot.passed,
+                snapshot.total
+            );
+        }
+
+        if snapshots.len() >= 2 {
+            let recent = &snapshots[snapshots.len() - 1];
+            let previous = &snapshots[snapshots.len() - 2];
+            let diff = recent.health_percent as i32 - previous.health_percent as i32;
+
+            let trend = if diff > 0 {
+                format!("\x1b[0;32m↑{}\x1b[0m", diff)
+            } else if diff < 0 {
+                format!("\x1b[0;31m↓{}\x1b[0m", diff.abs())
+            } else {
+                "→0".to_string()
+            };
+
+            println!();
+            println!("  Trend: {} since last check", trend);
+        }
+
         println!();
+        println!("  Total snapshots: {}", snapshots.len());
+
+        Ok(())
     }
-    
-    println!("Apply these fixes? (y/n)");
-    print!("> ");
-    io::stdout().flush()?;
-    
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    
-    if !input.trim().eq_ignore_ascii_case("y") {
-        println!("Cancelled.");
-        return Ok(());
-    }
-    
-    for result in &fixable {
-        match result.id.as_str() {
-            "scripts" => {
-                println!("  Fixing: {}", result.id);
-                let scripts_dir = paths::scripts_dir();
-                if let Ok(entries) = fs::read_dir(&scripts_dir) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let _ = Command::new("chmod")
-                                .args(["+x", path.to_str().unwrap()])
-                                .output();
+
+    fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
+        let fixable: Vec<_> = results
+            .iter()
+            .filter(|r| r.status != Status::Pass && r.fix.is_some())
+            .collect();
+
+        if fixable.is_empty() {
+            println!("✅ No fixes needed!");
+            return Ok(());
+        }
+
+        println!("🔧 Auto-Fix Mode");
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!();
+
+        for result in &fixable {
+            println!("  {} - {}", result.id, result.name);
+            if let Some(ref fix) = result.fix {
+                println!("    Fix: {}", fix);
+            }
+            println!();
+        }
+
+        println!("Apply these fixes? (y/n)");
+        print!("> ");
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("Cancelled.");
+            return Ok(());
+        }
+
+        for result in &fixable {
+            match result.id.as_str() {
+                "scripts" => {
+                    println!("  Fixing: {}", result.id);
+                    let scripts_dir = paths::scripts_dir();
+                    if let Ok(entries) = fs::read_dir(&scripts_dir) {
+                        for entry in entries.filter_map(|e| e.ok()) {
+                            let path = entry.path();
+                            if path.is_file() {
+                                let _ = Command::new("chmod")
+                                    .args(["+x", path.to_str().unwrap()])
+                                    .output();
+                            }
                         }
+                        println!("    ✅ Scripts made executable");
                     }
-                    println!("    ✅ Scripts made executable");
+                }
+                "profiles" => {
+                    println!("  Fixing: {}", result.id);
+                    let state_dir = paths::faelight_state_dir();
+                    let _ = fs::create_dir_all(&state_dir);
+                    println!("    ✅ Created state directory");
+                }
+                _ => {
+                    println!("  {} - Manual fix required", result.id);
                 }
             }
-            "profiles" => {
-                println!("  Fixing: {}", result.id);
-                let state_dir = paths::faelight_state_dir();
-                let _ = fs::create_dir_all(&state_dir);
-                println!("    ✅ Created state directory");
-            }
-            _ => {
-                println!("  {} - Manual fix required", result.id);
-            }
         }
+
+        println!();
+        println!("✅ Auto-fix complete! Run 'doctor' again to verify.");
+
+        Ok(())
     }
-    
-    println!();
-    println!("✅ Auto-fix complete! Run 'doctor' again to verify.");
-    
-    Ok(())
-}
 
     let cli = Cli::parse();
 
@@ -1236,14 +1317,18 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
         .trim()
         .to_string();
 
-    let ctx = Context { home: home.clone(), core_dir, version: version.clone() };
+    let ctx = Context {
+        home: home.clone(),
+        core_dir,
+        version: version.clone(),
+    };
 
     // Show dependency graph
     if cli.graph {
         print_dependency_graph();
         return;
     }
-    
+
     // Show health history
     if cli.history {
         match show_health_history() {
@@ -1269,7 +1354,10 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
         }
 
         // Check dependencies
-        let blocked = check.depends_on.iter().any(|dep| failed_checks.contains(dep));
+        let blocked = check
+            .depends_on
+            .iter()
+            .any(|dep| failed_checks.contains(dep));
 
         if blocked {
             results.push(CheckResult {
@@ -1285,11 +1373,11 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
         }
 
         let result = (check.run)(&ctx);
-        
+
         if result.status == Status::Fail {
             failed_checks.push(check.id);
         }
-        
+
         completed.push(check.id);
         results.push(result);
     }
@@ -1299,7 +1387,10 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
     let passed = results.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = results.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = results.iter().filter(|r| r.status == Status::Fail).count() as u32;
-    let blocked = results.iter().filter(|r| r.status == Status::Blocked).count() as u32;
+    let blocked = results
+        .iter()
+        .filter(|r| r.status == Status::Blocked)
+        .count() as u32;
     let health_percent = if total > 0 { (passed * 100) / total } else { 0 };
 
     let report = HealthReport {
@@ -1313,7 +1404,6 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
         checks: results,
     };
 
-    
     // Save health snapshot
     let _ = save_health_snapshot(&report);
     // Auto-fix mode
@@ -1345,7 +1435,10 @@ fn apply_fixes(results: &[CheckResult]) -> std::io::Result<()> {
 }
 
 fn print_report(report: &HealthReport, explain: bool) {
-    println!("\x1b[0;36m🏥 0-Core Health Check - Faelight Forest v{}\x1b[0m", report.version);
+    println!(
+        "\x1b[0;36m🏥 0-Core Health Check - Faelight Forest v{}\x1b[0m",
+        report.version
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     for check in &report.checks {
@@ -1378,11 +1471,20 @@ fn print_report(report: &HealthReport, explain: bool) {
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     let status_msg = if report.failed > 0 {
-        format!("{}❌ {} checks failed{}", "\x1b[0;31m", report.failed, "\x1b[0m")
+        format!(
+            "{}❌ {} checks failed{}",
+            "\x1b[0;31m", report.failed, "\x1b[0m"
+        )
     } else if report.warnings > 0 {
-        format!("{}⚠️  System mostly healthy ({}%){}", "\x1b[1;33m", report.health_percent, "\x1b[0m")
+        format!(
+            "{}⚠️  System mostly healthy ({}%){}",
+            "\x1b[1;33m", report.health_percent, "\x1b[0m"
+        )
     } else {
-        format!("{}✅ System healthy! All checks passed! 🌲{}", "\x1b[0;32m", "\x1b[0m")
+        format!(
+            "{}✅ System healthy! All checks passed! 🌲{}",
+            "\x1b[0;32m", "\x1b[0m"
+        )
     };
 
     println!("{}", status_msg);
@@ -1400,35 +1502,34 @@ fn print_report(report: &HealthReport, explain: bool) {
 fn print_dependency_graph() {
     println!("\x1b[0;36m🔗 Health Check Dependency Graph\x1b[0m");
     println!();
-    
+
     for check in CHECKS {
         let deps = if check.depends_on.is_empty() {
             "(root)".to_string()
         } else {
             format!("← {}", check.depends_on.join(", "))
         };
-        
+
         let severity_color = match check.severity {
             Severity::Critical => "\x1b[0;31m",
             Severity::High => "\x1b[1;33m",
             Severity::Medium => "\x1b[0;36m",
             Severity::Low => "\x1b[2m",
         };
-        
+
         println!("  {}{:<20}\x1b[0m {}", severity_color, check.id, deps);
     }
     println!("Legend: \x1b[0;31mCritical\x1b[0m \x1b[1;33mHigh\x1b[0m \x1b[0;36mMedium\x1b[0m \x1b[2mLow\x1b[0m");
     println!();
 }
 
-
 fn check_security(_ctx: &Context) -> CheckResult {
     let mut issues = vec![];
     let mut details = vec![];
-    
+
     // Check UFW
     let ufw = fs::read_to_string("/etc/ufw/ufw.conf");
-    
+
     if let Ok(content) = ufw {
         if content.contains("ENABLED=yes") {
             details.push("✓ UFW firewall active".to_string());
@@ -1436,12 +1537,12 @@ fn check_security(_ctx: &Context) -> CheckResult {
             issues.push("UFW firewall not active".to_string());
         }
     }
-    
+
     // Check fail2ban
     let f2b = Command::new("systemctl")
         .args(["is-active", "fail2ban"])
         .output();
-    
+
     if let Ok(output) = f2b {
         if String::from_utf8_lossy(&output.stdout).trim() == "active" {
             details.push("✓ fail2ban active".to_string());
@@ -1449,12 +1550,10 @@ fn check_security(_ctx: &Context) -> CheckResult {
             issues.push("fail2ban not active".to_string());
         }
     }
-    
+
     // Check Mullvad VPN
-    let mullvad = Command::new("mullvad")
-        .args(["status"])
-        .output();
-    
+    let mullvad = Command::new("mullvad").args(["status"]).output();
+
     if let Ok(output) = mullvad {
         let status = String::from_utf8_lossy(&output.stdout);
         if status.contains("Connected") {
@@ -1463,20 +1562,20 @@ fn check_security(_ctx: &Context) -> CheckResult {
             details.push("⚠ Mullvad VPN not connected".to_string());
         }
     }
-    
+
     // Check SSH hardening
     let sshd = PathBuf::from("/etc/ssh/sshd_config");
     if sshd.exists() {
         if let Ok(content) = fs::read_to_string(&sshd) {
             let has_root_login = content.contains("PermitRootLogin no");
             let has_password_auth = content.contains("PasswordAuthentication no");
-            
+
             if has_root_login {
                 details.push("✓ SSH root login disabled".to_string());
             } else {
                 issues.push("SSH permits root login".to_string());
             }
-            
+
             if has_password_auth {
                 details.push("✓ SSH password auth disabled".to_string());
             } else {
@@ -1484,11 +1583,15 @@ fn check_security(_ctx: &Context) -> CheckResult {
             }
         }
     }
-    
+
     CheckResult {
         id: "security".to_string(),
         name: "Security Hardening".to_string(),
-        status: if issues.is_empty() { Status::Pass } else { Status::Fail },
+        status: if issues.is_empty() {
+            Status::Pass
+        } else {
+            Status::Fail
+        },
         severity: Severity::High,
         message: if issues.is_empty() {
             format!("Security: {} protections active", details.len())
@@ -1500,25 +1603,32 @@ fn check_security(_ctx: &Context) -> CheckResult {
         } else {
             None
         },
-        details: if !details.is_empty() { Some(details) } else { None },
+        details: if !details.is_empty() {
+            Some(details)
+        } else {
+            None
+        },
     }
 }
 
 fn check_alias_coverage(_ctx: &Context) -> CheckResult {
-    let output = Command::new("alias-audit")
-        .arg("--doctor")
-        .output();
-    
+    let output = Command::new("alias-audit").arg("--doctor").output();
+
     if let Ok(output) = output {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        
+
         if stdout.contains("✅") && stdout.contains("Alias Coverage") {
             CheckResult {
                 id: "alias_coverage".to_string(),
                 name: "Alias Coverage".to_string(),
                 status: Status::Pass,
                 severity: Severity::Low,
-                message: stdout.lines().next().unwrap_or("All tools have aliases").trim().to_string(),
+                message: stdout
+                    .lines()
+                    .next()
+                    .unwrap_or("All tools have aliases")
+                    .trim()
+                    .to_string(),
                 fix: None,
                 details: None,
             }

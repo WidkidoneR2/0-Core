@@ -7,12 +7,9 @@ pub fn check_flatpak_updates() -> Vec<String> {
 
 pub fn update_flatpak() -> anyhow::Result<()> {
     println!("   Running: flatpak update -y");
-    
-    let status = Command::new("flatpak")
-        .arg("update")
-        .arg("-y")
-        .status();
-    
+
+    let status = Command::new("flatpak").arg("update").arg("-y").status();
+
     match status {
         Ok(s) if s.success() => {
             println!("   ✅  Flatpak packages updated");

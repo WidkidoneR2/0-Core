@@ -68,15 +68,15 @@ enum OutputMode {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     let mode = parse_args(&args);
-    
+
     // Handle watch mode specially
     if let OutputMode::Watch(interval) = mode {
         run_watch_mode(interval);
         return;
     }
-    
+
     // Single execution for other modes
     execute_mode(&mode);
 }
@@ -121,25 +121,31 @@ fn parse_args(args: &[String]) -> OutputMode {
 }
 
 fn run_watch_mode(interval: u64) {
-    println!("{}🌲 Workspace Watch Mode{} (updating every {}s, Ctrl+C to exit)", 
-             CYAN, NC, interval);
+    println!(
+        "{}🌲 Workspace Watch Mode{} (updating every {}s, Ctrl+C to exit)",
+        CYAN, NC, interval
+    );
     println!();
-    
+
     loop {
         // Clear screen
         print!("\x1b[2J\x1b[H");
-        
+
         // Show timestamp
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap();
-        println!("{}Last updated: {} seconds since epoch{}", 
-                 GRAY, now.as_secs(), NC);
+        println!(
+            "{}Last updated: {} seconds since epoch{}",
+            GRAY,
+            now.as_secs(),
+            NC
+        );
         println!();
-        
+
         // Execute in active mode for watch
         execute_mode(&OutputMode::Default);
-        
+
         // Wait for interval
         thread::sleep(Duration::from_secs(interval));
     }
@@ -154,7 +160,7 @@ fn execute_mode(mode: &OutputMode) {
             std::process::exit(1);
         }
     };
-    
+
     // Get detailed tree
     let tree = match get_tree() {
         Ok(t) => t,
@@ -163,10 +169,10 @@ fn execute_mode(mode: &OutputMode) {
             std::process::exit(1);
         }
     };
-    
+
     // Build workspace map
     let mut workspace_data: Vec<WorkspaceInfo> = Vec::new();
-    
+
     for workspace in &workspaces {
         let windows = get_windows_for_workspace(&tree, workspace.num);
         workspace_data.push(WorkspaceInfo {
@@ -177,7 +183,7 @@ fn execute_mode(mode: &OutputMode) {
             windows,
         });
     }
-    
+
     match mode {
         OutputMode::Json => output_json(&workspace_data),
         OutputMode::Summary => output_summary(&workspace_data),
@@ -190,11 +196,14 @@ fn execute_mode(mode: &OutputMode) {
 
 fn run_health_check() {
     println!();
-    println!("{}🏥 workspace-view v{} - Health Check{}", CYAN, VERSION, NC);
+    println!(
+        "{}🏥 workspace-view v{} - Health Check{}",
+        CYAN, VERSION, NC
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let mut healthy = true;
-    
+
     // Check swaymsg available
     print!("  Checking swaymsg... ");
     match Command::new("which").arg("swaymsg").output() {
@@ -204,7 +213,7 @@ fn run_health_check() {
             healthy = false;
         }
     }
-    
+
     // Check if running under Sway
     print!("  Checking Sway session... ");
     match env::var("SWAYSOCK") {
@@ -214,7 +223,7 @@ fn run_health_check() {
             healthy = false;
         }
     }
-    
+
     // Check if can get workspaces
     print!("  Checking workspace access... ");
     match get_workspaces() {
@@ -229,7 +238,7 @@ fn run_health_check() {
             healthy = false;
         }
     }
-    
+
     // Check if can get tree
     print!("  Checking tree access... ");
     match get_tree() {
@@ -239,7 +248,7 @@ fn run_health_check() {
             healthy = false;
         }
     }
-    
+
     // Check pgrep available (for cwd detection)
     print!("  Checking pgrep (for cwd)... ");
     match Command::new("which").arg("pgrep").output() {
@@ -248,7 +257,7 @@ fn run_health_check() {
             println!("{}⚠️  Not found (cwd detection disabled){}", YELLOW, NC);
         }
     }
-    
+
     println!();
     if healthy {
         println!("{}✅ All systems operational{}", GREEN, NC);
@@ -267,7 +276,7 @@ fn output_summary(data: &[WorkspaceInfo]) {
     println!();
     println!("{}🌲 Workspaces Summary{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     for ws in data {
         let status = if ws.focused {
             format!(" {}[ACTIVE]{}", GREEN, NC)
@@ -276,20 +285,21 @@ fn output_summary(data: &[WorkspaceInfo]) {
         } else {
             String::new()
         };
-        
+
         if ws.window_count > 0 {
             let apps: Vec<&str> = ws.windows.iter().map(|w| w.app_id.as_str()).collect();
-            println!("{}{}{} → {} window{} ({}){}",
-                BLUE, ws.num, NC,
+            println!(
+                "{}{}{} → {} window{} ({}){}",
+                BLUE,
+                ws.num,
+                NC,
                 ws.window_count,
                 if ws.window_count == 1 { "" } else { "s" },
                 apps.join(", "),
                 status
             );
         } else {
-            println!("{}{}{} → {}(empty){}",
-                GRAY, ws.num, NC, GRAY, NC
-            );
+            println!("{}{}{} → {}(empty){}", GRAY, ws.num, NC, GRAY, NC);
         }
     }
     println!();
@@ -310,30 +320,31 @@ fn output_detailed(data: &[WorkspaceInfo], show_all: bool) {
     println!("{}🌲 Workspace Overview{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
-    
+
     let mut displayed = vec![];
-    
+
     for ws in data {
         if ws.window_count > 0 || show_all {
             display_workspace(ws);
             displayed.push(ws.num);
         }
     }
-    
+
     if !show_all {
         // Find empty workspaces
-        let empty: Vec<i32> = data.iter()
+        let empty: Vec<i32> = data
+            .iter()
             .filter(|ws| ws.window_count == 0)
             .map(|ws| ws.num)
             .collect();
-        
+
         if !empty.is_empty() {
             let range = if empty.len() == 1 {
                 format!("Workspace {}", empty[0])
             } else {
                 format!("Workspaces {}-{}", empty[0], empty[empty.len() - 1])
             };
-            
+
             println!("{}{}{}", GRAY, range, NC);
             println!("  {}└─ (empty){}", GRAY, NC);
             println!();
@@ -349,9 +360,10 @@ fn display_workspace(ws: &WorkspaceInfo) {
     } else {
         String::new()
     };
-    
+
     let count_info = if ws.window_count > 0 {
-        format!(" {}({} window{}){}",
+        format!(
+            " {}({} window{}){}",
             GRAY,
             ws.window_count,
             if ws.window_count == 1 { "" } else { "s" },
@@ -360,38 +372,36 @@ fn display_workspace(ws: &WorkspaceInfo) {
     } else {
         String::new()
     };
-    
+
     println!("{}Workspace {}{}{}{}", BLUE, ws.num, NC, status, count_info);
-    
+
     if ws.windows.is_empty() {
         println!("  {}└─ (empty){}", GRAY, NC);
     } else {
         for (i, window) in ws.windows.iter().enumerate() {
             let is_last = i == ws.windows.len() - 1;
             let branch = if is_last { "└─" } else { "├─" };
-            
+
             let focus_marker = if window.focused {
                 format!(" {}●{}", GREEN, NC)
             } else {
                 String::new()
             };
-            
+
             // Use cwd if available, otherwise use window name
             let detail = if let Some(cwd) = &window.cwd {
                 format!(" - {}", cwd)
             } else {
                 format!(" - {}", window.name)
             };
-            
-            println!("  {}{} {}{}{}{}", 
-                GRAY, branch, NC,
-                window.app_id, 
-                detail,
-                focus_marker
+
+            println!(
+                "  {}{} {}{}{}{}",
+                GRAY, branch, NC, window.app_id, detail, focus_marker
             );
         }
     }
-    
+
     println!();
 }
 
@@ -400,13 +410,12 @@ fn get_workspaces() -> Result<Vec<Workspace>, String> {
         .args(["-t", "get_workspaces"])
         .output()
         .map_err(|e| format!("Failed to run swaymsg: {}", e))?;
-    
+
     if !output.status.success() {
         return Err("swaymsg failed".to_string());
     }
-    
-    serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse workspaces: {}", e))
+
+    serde_json::from_slice(&output.stdout).map_err(|e| format!("Failed to parse workspaces: {}", e))
 }
 
 fn get_tree() -> Result<TreeNode, String> {
@@ -414,13 +423,12 @@ fn get_tree() -> Result<TreeNode, String> {
         .args(["-t", "get_tree"])
         .output()
         .map_err(|e| format!("Failed to run swaymsg: {}", e))?;
-    
+
     if !output.status.success() {
         return Err("swaymsg failed".to_string());
     }
-    
-    serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse tree: {}", e))
+
+    serde_json::from_slice(&output.stdout).map_err(|e| format!("Failed to parse tree: {}", e))
 }
 
 fn get_windows_for_workspace(tree: &TreeNode, workspace_num: i32) -> Vec<Window> {
@@ -434,7 +442,7 @@ fn find_workspace_windows(node: &TreeNode, workspace_num: i32, windows: &mut Vec
         collect_windows(node, windows);
         return;
     }
-    
+
     for child in &node.nodes {
         find_workspace_windows(child, workspace_num, windows);
     }
@@ -447,7 +455,7 @@ fn collect_windows(node: &TreeNode, windows: &mut Vec<Window>) {
         } else {
             None
         };
-        
+
         windows.push(Window {
             app_id: app_id.clone(),
             name: node.name.clone().unwrap_or_default(),
@@ -456,7 +464,7 @@ fn collect_windows(node: &TreeNode, windows: &mut Vec<Window>) {
             focused: node.focused.unwrap_or(false),
         });
     }
-    
+
     for child in &node.nodes {
         collect_windows(child, windows);
     }
@@ -464,21 +472,24 @@ fn collect_windows(node: &TreeNode, windows: &mut Vec<Window>) {
 
 fn get_terminal_cwd(pid: Option<u32>) -> Option<String> {
     let pid = pid?;
-    
+
     let output = Command::new("pgrep")
         .args(["-P", &pid.to_string()])
         .output()
         .ok()?;
-    
+
     let child_pid = String::from_utf8_lossy(&output.stdout)
         .trim()
         .lines()
         .next()?
         .parse::<u32>()
         .ok()?;
-    
+
     let cwd_path = format!("/proc/{}/cwd", child_pid);
-    std::fs::read_link(cwd_path).ok()?.to_str().map(String::from)
+    std::fs::read_link(cwd_path)
+        .ok()?
+        .to_str()
+        .map(String::from)
 }
 
 fn shorten_path(path: String) -> String {
@@ -491,7 +502,10 @@ fn shorten_path(path: String) -> String {
 }
 
 fn show_help() {
-    println!("{}🌲 workspace-view v{}{} - Sway Workspace Intelligence", CYAN, VERSION, NC);
+    println!(
+        "{}🌲 workspace-view v{}{} - Sway Workspace Intelligence",
+        CYAN, VERSION, NC
+    );
     println!();
     println!("USAGE:");
     println!("   workspace-view [OPTIONS]");

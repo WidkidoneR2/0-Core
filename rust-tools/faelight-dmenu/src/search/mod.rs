@@ -8,10 +8,10 @@ pub fn fuzzy_score(query: &str, text: &str) -> Option<usize> {
 
     let query_lower = query.to_lowercase();
     let text_lower = text.to_lowercase();
-    
+
     let mut score = 0;
     let mut last_idx = 0;
-    
+
     for ch in query_lower.chars() {
         if let Some(idx) = text_lower[last_idx..].find(ch) {
             score += 1;
@@ -20,7 +20,7 @@ pub fn fuzzy_score(query: &str, text: &str) -> Option<usize> {
             return None; // No match
         }
     }
-    
+
     // Bonus for consecutive matches
     Some(score)
 }
@@ -29,14 +29,12 @@ pub fn fuzzy_score(query: &str, text: &str) -> Option<usize> {
 pub fn fuzzy_filter(query: &str, items: &[String]) -> Vec<(usize, String)> {
     let mut results: Vec<(usize, String)> = items
         .iter()
-        .filter_map(|item| {
-            fuzzy_score(query, item).map(|score| (score, item.clone()))
-        })
+        .filter_map(|item| fuzzy_score(query, item).map(|score| (score, item.clone())))
         .collect();
-    
+
     // Sort by score (higher is better)
     results.sort_by(|a, b| b.0.cmp(&a.0));
-    
+
     results
 }
 

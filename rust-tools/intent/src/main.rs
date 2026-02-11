@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 mod workflow;
+use faelight_core::paths;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{self, Command};
-use faelight_core::paths;
 
 const VERSION: &str = "3.0.0";
 
@@ -43,10 +43,14 @@ fn main() {
                 error("Usage: intent search <term> [--status <status>] [--tag <tag>]");
             }
             let term = &args[2];
-            let status_filter = args.iter().position(|a| a == "--status")
+            let status_filter = args
+                .iter()
+                .position(|a| a == "--status")
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.as_str());
-            let tag_filter = args.iter().position(|a| a == "--tag")
+            let tag_filter = args
+                .iter()
+                .position(|a| a == "--tag")
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.as_str());
             cmd_search(term, status_filter, tag_filter);
@@ -236,10 +240,26 @@ fn cmd_list(filter: Option<&str>) {
         if !cat.starts_with("--") && !cat.starts_with("-") {
             vec![cat]
         } else {
-            vec!["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"]
+            vec![
+                "decisions",
+                "experiments",
+                "philosophy",
+                "future",
+                "cancelled",
+                "deferred",
+                "incidents",
+            ]
         }
     } else {
-        vec!["decisions", "experiments", "philosophy", "future", "cancelled", "deferred", "incidents"]
+        vec![
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "cancelled",
+            "deferred",
+            "incidents",
+        ]
     };
 
     let mut total_count = 0;
@@ -270,17 +290,22 @@ fn cmd_list(filter: Option<&str>) {
                 if filename == "README.md" {
                     continue;
                 }
-                
-                if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+
+                if extract_frontmatter(&content, "type")
+                    .map(|t| t == "index")
+                    .unwrap_or(false)
+                {
                     continue;
                 }
 
                 let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
-                let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+                let title =
+                    extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
+                let status =
+                    extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
 
                 total_count += 1;
-                
+
                 match status.as_str() {
                     "complete" => complete_count += 1,
                     "planned" => planned_count += 1,
@@ -330,9 +355,15 @@ fn cmd_list(filter: Option<&str>) {
     println!(
         "Total: {}  |  {}Complete: {}{}  |  {}Planned: {}{}  |  {}In Progress: {}{}",
         total_count,
-        GREEN, complete_count, NC,
-        BLUE, planned_count, NC,
-        YELLOW, in_progress_count, NC
+        GREEN,
+        complete_count,
+        NC,
+        BLUE,
+        planned_count,
+        NC,
+        YELLOW,
+        in_progress_count,
+        NC
     );
     println!();
 }
@@ -484,11 +515,11 @@ fn draw_progress_bar(current: usize, total: usize, width: usize) -> String {
     if total == 0 {
         return format!("[{}] 0%", " ".repeat(width));
     }
-    
+
     let percentage = (current as f64 / total as f64 * 100.0) as usize;
     let filled = (current as f64 / total as f64 * width as f64) as usize;
     let empty = width.saturating_sub(filled);
-    
+
     format!(
         "{}[{}{}{}]{} {}%",
         GREEN,
@@ -502,7 +533,7 @@ fn draw_progress_bar(current: usize, total: usize, width: usize) -> String {
 
 fn cmd_stats() {
     let intent_dir = get_intent_dir();
-    
+
     println!();
     println!("{}📊 Intent Statistics{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -533,15 +564,19 @@ fn cmd_stats() {
                         if filename == "README.md" {
                             continue;
                         }
-                        
-                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+
+                        if extract_frontmatter(&content, "type")
+                            .map(|t| t == "index")
+                            .unwrap_or(false)
+                        {
                             continue;
                         }
 
                         cat_total += 1;
                         total += 1;
 
-                        let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
+                        let status = extract_frontmatter(&content, "status")
+                            .unwrap_or("unknown".to_string());
                         *status_counts.entry(status.clone()).or_insert(0) += 1;
 
                         if status == "complete" {
@@ -578,9 +613,12 @@ fn cmd_stats() {
     };
 
     println!("{}Total Intents:{} {}", YELLOW, NC, total);
-    println!("{}Success Rate:{} {}% ({} complete)", YELLOW, NC, success_rate, complete);
+    println!(
+        "{}Success Rate:{} {}% ({} complete)",
+        YELLOW, NC, success_rate, complete
+    );
     println!();
-    
+
     // Visual progress bar
     println!("{}Overall Progress:{}", YELLOW, NC);
     println!("  {}", draw_progress_bar(complete, total, 40));
@@ -604,14 +642,17 @@ fn cmd_stats() {
     println!("{}By Category:{}", YELLOW, NC);
     let mut cats: Vec<_> = category_stats.iter().collect();
     cats.sort_by_key(|(_, (total, _))| std::cmp::Reverse(*total));
-    
+
     for (cat, (cat_total, cat_complete)) in cats {
         let rate = if *cat_total > 0 {
             (*cat_complete as f64 / *cat_total as f64 * 100.0) as usize
         } else {
             0
         };
-        println!("  {:15} {} ({} complete, {}%)", cat, cat_total, cat_complete, rate);
+        println!(
+            "  {:15} {} ({} complete, {}%)",
+            cat, cat_total, cat_complete, rate
+        );
     }
     println!();
 
@@ -620,7 +661,7 @@ fn cmd_stats() {
         println!("{}Top Tags:{}", YELLOW, NC);
         let mut tags: Vec<_> = tag_counts.iter().collect();
         tags.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
-        
+
         for (tag, count) in tags.iter().take(10) {
             println!("  {:20} {}", tag, count);
         }
@@ -630,15 +671,24 @@ fn cmd_stats() {
 
 fn cmd_timeline() {
     let intent_dir = get_intent_dir();
-    
+
     println!();
     println!("{}📅 Intent Timeline{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
-    
+
     let mut intents = Vec::new();
-    
-    for cat in &["decisions", "experiments", "philosophy", "future", "incidents", "complete", "cancelled", "deferred"] {
+
+    for cat in &[
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "incidents",
+        "complete",
+        "cancelled",
+        "deferred",
+    ] {
         let cat_dir = intent_dir.join(cat);
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
@@ -648,26 +698,32 @@ fn cmd_timeline() {
                         if filename == "README.md" {
                             continue;
                         }
-                        
-                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+
+                        if extract_frontmatter(&content, "type")
+                            .map(|t| t == "index")
+                            .unwrap_or(false)
+                        {
                             continue;
                         }
-                        
+
                         let id = extract_frontmatter(&content, "id").unwrap_or("?".to_string());
-                        let title = extract_frontmatter(&content, "title").unwrap_or("Untitled".to_string());
-                        let status = extract_frontmatter(&content, "status").unwrap_or("unknown".to_string());
-                        let date = extract_frontmatter(&content, "date").unwrap_or("unknown".to_string());
-                        
+                        let title = extract_frontmatter(&content, "title")
+                            .unwrap_or("Untitled".to_string());
+                        let status = extract_frontmatter(&content, "status")
+                            .unwrap_or("unknown".to_string());
+                        let date =
+                            extract_frontmatter(&content, "date").unwrap_or("unknown".to_string());
+
                         intents.push((date.clone(), id, title, status, cat.to_string()));
                     }
                 }
             }
         }
     }
-    
+
     // Sort by date
     intents.sort_by(|a, b| a.0.cmp(&b.0));
-    
+
     for (date, id, title, status, _cat) in intents {
         let status_color = match status.as_str() {
             "complete" => GREEN,
@@ -675,36 +731,42 @@ fn cmd_timeline() {
             "in-progress" => YELLOW,
             _ => GRAY,
         };
-        
+
         println!(
             "{}{}{} - {}{:<4}{} {}[{}]{} {}",
-            GRAY, date, NC,
-            GRAY, id, NC,
-            status_color, status, NC,
-            title
+            GRAY, date, NC, GRAY, id, NC, status_color, status, NC, title
         );
     }
-    
+
     println!();
 }
 
 fn cmd_validate() {
     let intent_dir = get_intent_dir();
-    
+
     println!();
     println!("{}🔍 Intent Ledger Validation{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
-    
+
     let mut issues = Vec::new();
     let mut total_intents = 0;
-    
-    for cat in &["decisions", "experiments", "philosophy", "future", "incidents", "complete", "cancelled", "deferred"] {
+
+    for cat in &[
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "incidents",
+        "complete",
+        "cancelled",
+        "deferred",
+    ] {
         let cat_dir = intent_dir.join(cat);
         if !cat_dir.exists() {
             continue;
         }
-        
+
         if let Ok(entries) = fs::read_dir(&cat_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -713,38 +775,67 @@ fn cmd_validate() {
                     if filename == "README.md" {
                         continue;
                     }
-                    
+
                     if let Ok(content) = fs::read_to_string(&path) {
-                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                        if extract_frontmatter(&content, "type")
+                            .map(|t| t == "index")
+                            .unwrap_or(false)
+                        {
                             continue;
                         }
-                        
+
                         total_intents += 1;
-                        
+
                         // Check for required frontmatter fields
                         if extract_frontmatter(&content, "id").is_none() {
-                            issues.push(format!("{}Missing 'id' field:{} {}/{}", RED, NC, cat, filename));
+                            issues.push(format!(
+                                "{}Missing 'id' field:{} {}/{}",
+                                RED, NC, cat, filename
+                            ));
                         }
                         if extract_frontmatter(&content, "title").is_none() {
-                            issues.push(format!("{}Missing 'title' field:{} {}/{}", RED, NC, cat, filename));
+                            issues.push(format!(
+                                "{}Missing 'title' field:{} {}/{}",
+                                RED, NC, cat, filename
+                            ));
                         }
                         if extract_frontmatter(&content, "status").is_none() {
-                            issues.push(format!("{}Missing 'status' field:{} {}/{}", RED, NC, cat, filename));
+                            issues.push(format!(
+                                "{}Missing 'status' field:{} {}/{}",
+                                RED, NC, cat, filename
+                            ));
                         }
                         if extract_frontmatter(&content, "date").is_none() {
-                            issues.push(format!("{}Missing 'date' field:{} {}/{}", RED, NC, cat, filename));
+                            issues.push(format!(
+                                "{}Missing 'date' field:{} {}/{}",
+                                RED, NC, cat, filename
+                            ));
                         }
-                        
+
                         // Check for malformed frontmatter
                         if !content.starts_with("---") {
-                            issues.push(format!("{}Malformed frontmatter:{} {}/{}", YELLOW, NC, cat, filename));
+                            issues.push(format!(
+                                "{}Malformed frontmatter:{} {}/{}",
+                                YELLOW, NC, cat, filename
+                            ));
                         }
-                        
+
                         // Check status is valid
                         if let Some(status) = extract_frontmatter(&content, "status") {
-                            let valid_statuses = ["planned", "in-progress", "complete", "cancelled", "deferred", "resolved", "decided"];
+                            let valid_statuses = [
+                                "planned",
+                                "in-progress",
+                                "complete",
+                                "cancelled",
+                                "deferred",
+                                "resolved",
+                                "decided",
+                            ];
                             if !valid_statuses.contains(&status.as_str()) {
-                                issues.push(format!("{}Invalid status '{}':{} {}/{}", YELLOW, status, NC, cat, filename));
+                                issues.push(format!(
+                                    "{}Invalid status '{}':{} {}/{}",
+                                    YELLOW, status, NC, cat, filename
+                                ));
                             }
                         }
                     }
@@ -752,9 +843,12 @@ fn cmd_validate() {
             }
         }
     }
-    
+
     if issues.is_empty() {
-        println!("{}✅ All {} intents validated successfully!{}", GREEN, total_intents, NC);
+        println!(
+            "{}✅ All {} intents validated successfully!{}",
+            GREEN, total_intents, NC
+        );
     } else {
         println!("{}Found {} issues:{}", YELLOW, issues.len(), NC);
         println!();
@@ -769,10 +863,10 @@ fn cmd_health() {
     println!();
     println!("{}🏥 Intent Ledger - Health Check{}", CYAN, NC);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    
+
     let intent_dir = get_intent_dir();
     let mut healthy = true;
-    
+
     // Check if INTENT directory exists
     print!("  Checking Intent directory... ");
     if intent_dir.exists() {
@@ -781,9 +875,15 @@ fn cmd_health() {
         println!("{}❌ Intent directory not found{}", RED, NC);
         healthy = false;
     }
-    
+
     // Check required subdirectories
-    let required_dirs = ["decisions", "experiments", "philosophy", "future", "incidents"];
+    let required_dirs = [
+        "decisions",
+        "experiments",
+        "philosophy",
+        "future",
+        "incidents",
+    ];
     print!("  Checking required categories... ");
     let mut missing = Vec::new();
     for dir in &required_dirs {
@@ -797,7 +897,7 @@ fn cmd_health() {
         println!("{}❌ Missing: {}{}", RED, missing.join(", "), NC);
         healthy = false;
     }
-    
+
     // Check for intent files
     print!("  Checking for intent files... ");
     let mut total_intents = 0;
@@ -809,7 +909,10 @@ fn cmd_health() {
                     let filename = entry.file_name().to_string_lossy().to_string();
                     if filename != "README.md" {
                         if let Ok(content) = fs::read_to_string(entry.path()) {
-                            if !extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+                            if !extract_frontmatter(&content, "type")
+                                .map(|t| t == "index")
+                                .unwrap_or(false)
+                            {
                                 total_intents += 1;
                             }
                         }
@@ -823,7 +926,7 @@ fn cmd_health() {
     } else {
         println!("{}⚠️  No intents found{}", YELLOW, NC);
     }
-    
+
     // Check for malformed intents
     print!("  Validating intent structure... ");
     let mut malformed = 0;
@@ -837,14 +940,18 @@ fn cmd_health() {
                         if filename == "README.md" {
                             continue;
                         }
-                        
-                        if extract_frontmatter(&content, "type").map(|t| t == "index").unwrap_or(false) {
+
+                        if extract_frontmatter(&content, "type")
+                            .map(|t| t == "index")
+                            .unwrap_or(false)
+                        {
                             continue;
                         }
-                        
-                        if !content.starts_with("---") 
+
+                        if !content.starts_with("---")
                             || extract_frontmatter(&content, "id").is_none()
-                            || extract_frontmatter(&content, "title").is_none() {
+                            || extract_frontmatter(&content, "title").is_none()
+                        {
                             malformed += 1;
                         }
                     }
@@ -858,13 +965,16 @@ fn cmd_health() {
         println!("{}❌ {} malformed intents{}", RED, malformed, NC);
         healthy = false;
     }
-    
+
     println!();
     if healthy {
         println!("{}✅ Intent Ledger is healthy!{}", GREEN, NC);
         std::process::exit(0);
     } else {
-        println!("{}❌ Intent Ledger has issues - run 'intent validate' for details{}", RED, NC);
+        println!(
+            "{}❌ Intent Ledger has issues - run 'intent validate' for details{}",
+            RED, NC
+        );
         std::process::exit(1);
     }
 }
@@ -931,5 +1041,3 @@ fn extract_frontmatter(content: &str, key: &str) -> Option<String> {
 // ============================================================================
 // Intent 052: Auto-Move on Status Change
 // ============================================================================
-
-

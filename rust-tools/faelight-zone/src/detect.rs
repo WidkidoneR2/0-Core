@@ -1,5 +1,5 @@
-use std::path::Path;
 use crate::model::Zone;
+use std::path::Path;
 
 pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
     let path = match path.canonicalize() {
@@ -9,7 +9,9 @@ pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
 
     // Most specific first (workspace before core)
     if path.starts_with(home.join("0-core/rust-tools")) {
-        let rel = path.strip_prefix(home.join("0-core")).unwrap_or(path.as_path());
+        let rel = path
+            .strip_prefix(home.join("0-core"))
+            .unwrap_or(path.as_path());
         // Uppercase for critical workspace zone
         (Zone::Workspace, rel.display().to_string().to_uppercase())
     } else if path.starts_with(home.join("0-core")) {

@@ -1,15 +1,15 @@
-mod config;
 mod cargo_checker;
-mod neovim_checker;
-mod yazi_checker;
-mod git_checker;
+mod cleanup_checker;
+mod config;
 mod firmware_checker;
 mod flatpak_checker;
-mod cleanup_checker;
-mod rustup_checker;
+mod git_checker;
+mod neovim_checker;
 mod npm_checker;
 mod pip_checker;
+mod rustup_checker;
 mod tui;
+mod yazi_checker;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -48,7 +48,7 @@ struct Cli {
     #[arg(long)]
     json: bool,
     /// Only check specific categories (comma-separated: pacman,aur,cargo,neovim,workspace)
-    
+
     /// Output only the total count of updates (for scripts/bar)
     #[arg(long)]
     count_only: bool,
@@ -109,7 +109,6 @@ fn run() -> Result<()> {
 
     let total: usize = updates.iter().map(|c| c.count).sum();
 
-    
     // Count-only output
     if cli.count_only {
         println!("{}", total);
@@ -167,7 +166,7 @@ fn run() -> Result<()> {
             if in_core {
                 // lock_core()?; // Disabled - using simple file lock instead
             }
-            
+
             // Convert UpdateCategory to format perform_updates expects
             let all_updates: Vec<(String, Vec<String>)> = updates
                 .iter()
@@ -177,39 +176,43 @@ fn run() -> Result<()> {
                     (cat.name.clone(), items)
                 })
                 .collect();
-            
+
             // PERFORM UPDATES
             perform_updates(&all_updates)?;
-            
+
             // CLEANUP CACHES
             cleanup_caches()?;
-            
+
             // UPDATE PROMPT CACHE
             update_prompt_cache()?;
-            
+
             // UNLOCK CORE
             if in_core {
                 // lock_core()?; // Disabled
             }
-            
+
             // FINAL HEALTH CHECK (moved from beginning!)
             let health = run_doctor_final()?;
-            
+
             // GIT STATUS CHECK
             check_git_status()?;
-            
+
             // CHECK FOR .PACNEW FILES
             check_pacnew()?;
-            
+
             // CHECK AUR REBUILDS
             check_aur_rebuilds()?;
-            
+
             // FINAL SUMMARY
             println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
             if health == 100 {
                 println!("{}  Update complete! System: {}%", "✅".green(), health);
             } else {
-                println!("{}  Update complete! System: {}% (check warnings)", "⚠️".yellow(), health);
+                println!(
+                    "{}  Update complete! System: {}% (check warnings)",
+                    "⚠️".yellow(),
+                    health
+                );
             }
         } else {
             println!("\n{}  Cancelled", "ℹ️".blue());
@@ -254,7 +257,10 @@ fn create_snapshot() -> Result<()> {
         println!("   {}  Snapshot created", "✅".green());
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Snapshot failed: {}\n💡 Install faelight-snapshot or run without --snapshot flag", stderr);
+        anyhow::bail!(
+            "Snapshot failed: {}\n💡 Install faelight-snapshot or run without --snapshot flag",
+            stderr
+        );
     }
 
     Ok(())
@@ -345,7 +351,6 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         items: workspace_items,
     });
 
-
     // Yazi/FM packages (will rename to FM later)
 
     // Rustup toolchain
@@ -409,7 +414,7 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
         })
         .collect();
     categories.push(UpdateCategory {
-        name: "Yazi Packages".to_string(),  // TODO: Change to "FM Packages" when ready
+        name: "Yazi Packages".to_string(), // TODO: Change to "FM Packages" when ready
         emoji: "📁".to_string(),
         count: yazi_items.len(),
         items: yazi_items,
@@ -472,26 +477,26 @@ fn check_all_updates() -> Result<Vec<UpdateCategory>> {
 /// Check for pacman updates
 fn check_pacman_updates() -> Result<UpdateCategory> {
     println!("   Checking pacman...");
-    
+
     // First sync the database quietly
     let _ = Command::new("sudo")
         .args(["pacman", "-Sy", "--noconfirm"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
-    
+
     // Now check for updates using the synced database
     let output = Command::new("pacman")
         .args(["-Qu"])
         .output()
         .context("Failed to run pacman -Qu")?;
-        
+
     let items = if !output.status.success() || output.stdout.is_empty() {
         Vec::new()
     } else {
         parse_pacman_output(&output.stdout)
     };
-    
+
     Ok(UpdateCategory {
         name: "System Packages".to_string(),
         emoji: "📦".to_string(),
@@ -786,8 +791,13 @@ fn update_workspace() -> Result<()> {
 
 /// Update system packages
 fn update_pacman(items: &[String]) -> Result<()> {
-    if items.is_empty() { return Ok(()); }
-    println!("   Running: sudo pacman -S --needed --noconfirm {}", items.join(" "));
+    if items.is_empty() {
+        return Ok(());
+    }
+    println!(
+        "   Running: sudo pacman -S --needed --noconfirm {}",
+        items.join(" ")
+    );
 
     let status = Command::new("sudo")
         .arg("pacman")
@@ -809,7 +819,9 @@ fn update_pacman(items: &[String]) -> Result<()> {
 
 /// Update AUR packages
 fn update_aur(items: &[String]) -> Result<()> {
-    if items.is_empty() { return Ok(()); }
+    if items.is_empty() {
+        return Ok(());
+    }
     println!("   Running: paru -Su --noconfirm {}", items.join(" "));
 
     let status = Command::new("paru")
@@ -889,13 +901,14 @@ fn run_doctor_final() -> Result<u32> {
     let output = Command::new("dot-doctor")
         .output()
         .context("Failed to run doctor")?;
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Parse health percentage
     for line in stdout.lines() {
         if line.contains("Health:") {
-            if let Some(percent) = line.split_whitespace()
+            if let Some(percent) = line
+                .split_whitespace()
                 .find(|s| s.ends_with('%'))
                 .and_then(|s| s.trim_end_matches('%').parse::<u32>().ok())
             {
@@ -903,7 +916,7 @@ fn run_doctor_final() -> Result<u32> {
             }
         }
     }
-    
+
     Ok(100) // Default to 100 if not found
 }
 
@@ -913,9 +926,9 @@ fn check_git_status() -> Result<()> {
         .args(["status", "--porcelain", "-b"])
         .current_dir("/home/christian/0-core")
         .output()?;
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     if stdout.contains("[ahead") {
         println!("{}  Git: Commits need to be pushed", "⚠️".yellow());
         println!("    Run: git push");
@@ -924,44 +937,43 @@ fn check_git_status() -> Result<()> {
     } else {
         println!("{}  Git: Clean and synced", "✅".green());
     }
-    
+
     Ok(())
 }
 
 /// Check for .pacnew files
 /// Cleanup caches after updates
 fn cleanup_caches() -> Result<()> {
-    
     // Cargo cache
     if let Err(e) = cleanup_checker::cleanup_cargo_cache() {
         println!("    {}  Cargo cache cleanup failed: {}", "⚠️".yellow(), e);
     } else {
         println!("    {}  Cargo cache cleaned", "✓".green());
     }
-    
+
     // Pacman cache
     if let Err(e) = cleanup_checker::cleanup_pacman_cache() {
         println!("    {}  Pacman cache cleanup failed: {}", "⚠️".yellow(), e);
     } else {
         println!("    {}  Pacman cache cleaned", "✓".green());
     }
-    
+
     Ok(())
 }
 
 /// Update prompt cache after successful update
 fn update_prompt_cache() -> Result<()> {
     println!("🔄  Updating prompt cache...");
-    
+
     // Run the prompt-update-count script to refresh the cache
     let home = std::env::var("HOME")?;
     let script = format!("{}/0-core/scripts/prompt-update-count", home);
-    
+
     if std::path::Path::new(&script).exists() {
         let output = std::process::Command::new(&script)
             .output()
             .context("Failed to update prompt cache")?;
-        
+
         if output.status.success() {
             println!("   ✅  Prompt cache updated");
         } else {
@@ -970,7 +982,7 @@ fn update_prompt_cache() -> Result<()> {
     } else {
         println!("   ℹ️  Prompt script not found (skipping)");
     }
-    
+
     Ok(())
 }
 /// Check for .pacnew files and offer to handle them
@@ -979,45 +991,50 @@ fn check_pacnew() -> Result<()> {
     let output = Command::new("find")
         .output()
         .context("Failed to find .pacnew files")?;
-    
+
     let output_str = String::from_utf8_lossy(&output.stdout).to_string();
-    let pacnew_files: Vec<_> = output_str
-        .lines()
-        .filter(|line| !line.is_empty())
-        .collect();
-    
+    let pacnew_files: Vec<_> = output_str.lines().filter(|line| !line.is_empty()).collect();
+
     if pacnew_files.is_empty() {
         return Ok(());
     }
-    
+
     println!("⚠️  Found {} .pacnew config files:", pacnew_files.len());
     for file in &pacnew_files {
         println!("    {}", file);
     }
-    
+
     println!("    Review with: pacdiff");
     if !pacnew_files.is_empty() {
         let original = pacnew_files[0].trim_end_matches(".pacnew");
-        println!("    Or manually: sudo vimdiff {} {}", pacnew_files[0], original);
+        println!(
+            "    Or manually: sudo vimdiff {} {}",
+            pacnew_files[0], original
+        );
     }
-    
+
     // Offer to run pacdiff if available
-    if Command::new("which").arg("pacdiff").output()?.status.success() {
+    if Command::new("which")
+        .arg("pacdiff")
+        .output()?
+        .status
+        .success()
+    {
         println!("\n💡 Run pacdiff now to merge changes? (y/N)");
         use std::io::{self, Write};
         print!("> ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        
+
         if input.trim().to_lowercase() == "y" {
             println!("\n🔧 Running pacdiff...");
             let status = Command::new("sudo")
                 .arg("pacdiff")
                 .status()
                 .context("Failed to run pacdiff")?;
-            
+
             if status.success() {
                 println!("   ✅  Config files merged");
             } else {
@@ -1025,45 +1042,48 @@ fn check_pacnew() -> Result<()> {
             }
         }
     }
-    
+
     Ok(())
 }
 
 /// Check for AUR packages that need rebuilding after library updates
 fn check_aur_rebuilds() -> Result<()> {
     println!("🔍  Checking for AUR packages needing rebuild...");
-    
+
     // Check if checkrebuild or similar tool exists
     let has_checkrebuild = Command::new("which")
         .arg("checkrebuild")
         .output()?
         .status
         .success();
-    
+
     if has_checkrebuild {
         let output = Command::new("checkrebuild")
             .output()
             .context("Failed to run checkrebuild")?;
-        
+
         let rebuild_list = String::from_utf8_lossy(&output.stdout).to_string();
         let packages: Vec<_> = rebuild_list
             .lines()
             .filter(|line| !line.is_empty())
             .collect();
-        
+
         if !packages.is_empty() {
             println!("   ⚠️  {} packages need rebuilding:", packages.len());
             for pkg in &packages {
                 println!("      - {}", pkg);
             }
-            
-            println!("\n   💡 Rebuild with: paru -S --rebuild {}", packages.join(" "));
+
+            println!(
+                "\n   💡 Rebuild with: paru -S --rebuild {}",
+                packages.join(" ")
+            );
         } else {
             println!("   ✅  No packages need rebuilding");
         }
     } else {
         println!("   ℹ️  checkrebuild not available (optional)");
     }
-    
+
     Ok(())
 }

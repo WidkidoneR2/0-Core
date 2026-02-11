@@ -13,12 +13,9 @@ pub fn check_rustfmt() -> Result<bool> {
     }
 
     let rust_files = String::from_utf8_lossy(&output.stdout);
-    
+
     for file in rust_files.lines() {
-        let check = Command::new("rustfmt")
-            .arg("--check")
-            .arg(file)
-            .output()?;
+        let check = Command::new("rustfmt").arg("--check").arg(file).output()?;
 
         if !check.status.success() {
             println!("{}", "❌ Rustfmt check failed".red().bold());
@@ -29,6 +26,9 @@ pub fn check_rustfmt() -> Result<bool> {
         }
     }
 
-    println!("{}", "✅ Rustfmt: All Rust files properly formatted".green());
+    println!(
+        "{}",
+        "✅ Rustfmt: All Rust files properly formatted".green()
+    );
     Ok(true)
 }

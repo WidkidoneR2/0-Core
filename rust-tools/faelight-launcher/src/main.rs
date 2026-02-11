@@ -3,10 +3,9 @@
 
 use std::time::Duration;
 mod icons;
-use icons::IconCache;
-use std::env;
 use faelight_core::paths;
 use fontdue::{Font, FontSettings};
+use icons::IconCache;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
@@ -27,6 +26,7 @@ use smithay_client_toolkit::{
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
+use std::env;
 use std::process::Command;
 use wayland_client::{
     globals::registry_queue_init,
@@ -34,10 +34,9 @@ use wayland_client::{
     Connection, QueueHandle,
 };
 
-
 mod desktop;
 mod search;
-use desktop::{DesktopEntry, icons::IconConfig};
+use desktop::{icons::IconConfig, DesktopEntry};
 // ═══════════════════════════════════════════════════════════
 // 🎨 FAELIGHT FOREST COLORS
 // ═══════════════════════════════════════════════════════════
@@ -71,7 +70,7 @@ const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdF
 struct AppEntry {
     name: String,
     exec: String,
-    icon: String,        // Emoji icon for display
+    icon: String,         // Emoji icon for display
     desktop_icon: String, // PNG icon name from desktop file
 }
 
@@ -79,7 +78,7 @@ impl From<&DesktopEntry> for AppEntry {
     fn from(entry: &DesktopEntry) -> Self {
         let icon_config = IconConfig::load();
         let icon = icon_config.get_icon(&entry.clean_exec(), &entry.categories);
-        
+
         AppEntry {
             name: entry.name.clone(),
             exec: entry.clean_exec(),
@@ -175,8 +174,6 @@ impl LaunchHistory {
         }
     }
 }
-
-
 
 // Fuzzy matching
 fn keysym_to_char(keysym: Keysym) -> Option<char> {
@@ -274,10 +271,11 @@ fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
 fn rounded_rect_sdf(x: f32, y: f32, rect_w: f32, rect_h: f32, radius: f32) -> f32 {
     let dx = x.abs().max(0.0) - (rect_w - radius).max(0.0);
     let dy = y.abs().max(0.0) - (rect_h - radius).max(0.0);
-    
+
     dx.max(0.0).hypot(dy.max(0.0)) + dx.min(0.0).max(dy.min(0.0)) - radius
 }
 
+#[allow(clippy::too_many_arguments)] // Drawing function
 fn draw_rounded_rect(
     canvas: &mut [u8],
     width: u32,
@@ -292,20 +290,20 @@ fn draw_rounded_rect(
     let stride = width as usize * 4;
     let half_w = w as f32 / 2.0;
     let half_h = h as f32 / 2.0;
-    
+
     for row in y..y + h {
         for col in x..x + w {
             if col >= width || row >= height {
                 continue;
             }
-            
+
             // Calculate position relative to rectangle center
             let px = col as f32 - (x as f32 + half_w);
             let py = row as f32 - (y as f32 + half_h);
-            
+
             // Calculate distance to rounded rect edge
             let dist = rounded_rect_sdf(px, py, half_w, half_h, radius);
-            
+
             // Anti-aliasing: smooth transition over 1.5 pixels
             let alpha = if dist < -0.75 {
                 1.0
@@ -314,10 +312,10 @@ fn draw_rounded_rect(
             } else {
                 0.5 - (dist / 1.5)
             };
-            
+
             if alpha > 0.0 {
                 let idx = row as usize * stride + col as usize * 4;
-                
+
                 // Blend with existing background
                 let a = alpha * (color[3] as f32 / 255.0);
                 canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
@@ -329,6 +327,7 @@ fn draw_rounded_rect(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Drawing function
 fn draw_text(
     font: &Font,
     canvas: &mut [u8],
@@ -342,23 +341,23 @@ fn draw_text(
 ) {
     let stride = width as usize * 4;
     let mut cursor_x = x as usize;
-    
+
     // Calculate baseline offset (max ascent for this size)
     let _baseline_offset = (size * 0.7) as i32; // Calculate baseline for proper text alignment
-    
+
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, size);
-        
+
         // Calculate vertical position with proper baseline alignment
         let glyph_y = y as i32;
-        
+
         for row in 0..metrics.height {
             for col in 0..metrics.width {
                 let alpha = bitmap[row * metrics.width + col];
                 if alpha > 0 {
                     let px = cursor_x + col;
                     let py = (glyph_y + row as i32) as usize;
-                    
+
                     if px < width as usize && py < height as usize {
                         let idx = py * stride + px * 4;
                         let a = alpha as f32 / 255.0;
@@ -402,31 +401,27 @@ struct LauncherState {
     icon_cache: IconCache,
 }
 
-fn draw_icon(
-    canvas: &mut [u8],
-    width: u32,
-    height: u32,
-    icon: &image::RgbaImage,
-    x: u32,
-    y: u32,
-) {
+fn draw_icon(canvas: &mut [u8], width: u32, height: u32, icon: &image::RgbaImage, x: u32, y: u32) {
     let icon_width = icon.width();
     let icon_height = icon.height();
-    
+
     for row in 0..icon_height {
         for col in 0..icon_width {
             let icon_pixel = icon.get_pixel(col, row);
             let px = x + col;
             let py = y + row;
-            
+
             if px < width && py < height {
                 let idx = (py * width + px) as usize * 4;
                 let alpha = icon_pixel[3] as f32 / 255.0;
-                
+
                 // Alpha blend (BGRA format)
-                canvas[idx] = ((1.0 - alpha) * canvas[idx] as f32 + alpha * icon_pixel[2] as f32) as u8;
-                canvas[idx + 1] = ((1.0 - alpha) * canvas[idx + 1] as f32 + alpha * icon_pixel[1] as f32) as u8;
-                canvas[idx + 2] = ((1.0 - alpha) * canvas[idx + 2] as f32 + alpha * icon_pixel[0] as f32) as u8;
+                canvas[idx] =
+                    ((1.0 - alpha) * canvas[idx] as f32 + alpha * icon_pixel[2] as f32) as u8;
+                canvas[idx + 1] =
+                    ((1.0 - alpha) * canvas[idx + 1] as f32 + alpha * icon_pixel[1] as f32) as u8;
+                canvas[idx + 2] =
+                    ((1.0 - alpha) * canvas[idx + 2] as f32 + alpha * icon_pixel[0] as f32) as u8;
                 canvas[idx + 3] = 255;
             }
         }
@@ -484,7 +479,17 @@ impl LauncherState {
         } else {
             TEXT_COLOR
         };
-        draw_rounded_rect(canvas, width, height, 15, 45, width - 30, 32, 8.0, SELECTED_BG);
+        draw_rounded_rect(
+            canvas,
+            width,
+            height,
+            15,
+            45,
+            width - 30,
+            32,
+            8.0,
+            SELECTED_BG,
+        );
         draw_text(
             &self.font,
             canvas,
@@ -506,15 +511,19 @@ impl LauncherState {
 
         // Draw apps
         let filtered_apps = universal_search(&self.search_query, &self.apps, &self.history);
-        
+
         // Calculate visible window
         let visible_start = self.scroll_offset;
         let visible_end = (self.scroll_offset + MAX_VISIBLE).min(filtered_apps.len());
-        
-        for (i, result) in filtered_apps.iter().enumerate().skip(visible_start).take(visible_end - visible_start) {
+
+        for (i, result) in filtered_apps
+            .iter()
+            .enumerate()
+            .skip(visible_start)
+            .take(visible_end - visible_start)
+        {
             let display_index = i - visible_start;
             let y = ROW_START + display_index as u32 * ROW_HEIGHT;
-
 
             let color = if i == selected {
                 BORDER_COLOR
@@ -523,26 +532,61 @@ impl LauncherState {
             };
             // Two-line display
             match result {
-                search::SearchResult::App { name, icon: _, score: _, .. } => {
+                search::SearchResult::App {
+                    name,
+                    icon: _,
+                    score: _,
+                    ..
+                } => {
                     // Draw PNG icon from cache
                     let app_icon = self.icon_cache.get(name);
                     draw_icon(canvas, width, height, app_icon, 20, y);
-                    
+
                     // Line 1: Name (without emoji icon, we have PNG now)
-                    draw_text(&self.font, canvas, width, height, name, 60, y, color, FONT_ITEM);
-                    
+                    draw_text(
+                        &self.font, canvas, width, height, name, 60, y, color, FONT_ITEM,
+                    );
+
                     // Line 2: Description (dimmed)
-                    draw_text(&self.font, canvas, width, height, "Application", 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                    draw_text(
+                        &self.font,
+                        canvas,
+                        width,
+                        height,
+                        "Application",
+                        40,
+                        y + 28,
+                        DIM_COLOR,
+                        FONT_SUBTITLE,
+                    );
                 }
-                search::SearchResult::File { name, path, modified, score: _, .. } => {
+                search::SearchResult::File {
+                    name,
+                    path,
+                    modified,
+                    score: _,
+                    ..
+                } => {
                     // Line 1: Icon + Name + Time
                     let time = format_time_ago(*modified);
                     let line1 = format!("📄  {}  {}", name, time);
-                    draw_text(&self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM);
-                    
+                    draw_text(
+                        &self.font, canvas, width, height, &line1, 35, y, color, FONT_ITEM,
+                    );
+
                     // Line 2: Smart path (dimmed)
                     let short_path = smart_path(path);
-                    draw_text(&self.font, canvas, width, height, &short_path, 40, y + 28, DIM_COLOR, FONT_SUBTITLE);
+                    draw_text(
+                        &self.font,
+                        canvas,
+                        width,
+                        height,
+                        &short_path,
+                        40,
+                        y + 28,
+                        DIM_COLOR,
+                        FONT_SUBTITLE,
+                    );
                 }
             }
         }
@@ -843,7 +887,7 @@ delegate_registry!(LauncherState);
 // ═══════════════════════════════════════════════════════════
 fn health_check() {
     println!("🏥 faelight-launcher health check");
-    
+
     // Check Wayland
     match Connection::connect_to_env() {
         Ok(_) => println!("✅ wayland: connected"),
@@ -852,7 +896,7 @@ fn health_check() {
             std::process::exit(1);
         }
     }
-    
+
     // Check font
     let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
     match Font::from_bytes(font_data as &[u8], FontSettings::default()) {
@@ -862,13 +906,13 @@ fn health_check() {
             std::process::exit(1);
         }
     }
-    
+
     // Check desktop files
     let desktop_dirs = [
         "/usr/share/applications",
         &paths::applications_dir().display().to_string(),
     ];
-    
+
     for dir in desktop_dirs {
         if std::path::Path::new(dir).exists() {
             println!("✅ desktop files: {} exists", dir);
@@ -876,7 +920,7 @@ fn health_check() {
             eprintln!("⚠️  desktop files: {} not found", dir);
         }
     }
-    
+
     println!("\n✅ Core checks passed!");
 }
 
@@ -890,7 +934,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         health_check();
         return Ok(());
     }
-    
 
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -915,12 +958,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     layer_surface.commit();
 
     let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
-        // Scan XDG desktop entries
+    // Scan XDG desktop entries
     println!("🌲 Faelight Launcher v3.3.0 - Loading...");
     let entries = desktop::scan_applications();
     let apps: Vec<AppEntry> = entries.iter().map(|e| e.into()).collect();
     println!("📱 Discovered {} applications", apps.len());
-    
+
     let font = Font::from_bytes(FONT_DATA, FontSettings::default())?;
 
     let mut state = LauncherState {
@@ -945,11 +988,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         icon_cache: IconCache::new(32),
     };
 
-
     // Load icons for all discovered applications
     println!("🎨 Loading application icons...");
     for app in &state.apps {
-        state.icon_cache.load_icon(&app.name, Some(&app.desktop_icon));
+        state
+            .icon_cache
+            .load_icon(&app.name, Some(&app.desktop_icon));
     }
 
     while state.running {
@@ -973,7 +1017,7 @@ fn format_time_ago(modified: u64) -> String {
         .unwrap()
         .as_secs();
     let elapsed = now.saturating_sub(modified);
-    
+
     if elapsed < 3600 {
         format!("{}m ago", elapsed / 60)
     } else if elapsed < 86400 {
@@ -989,12 +1033,12 @@ fn format_time_ago(modified: u64) -> String {
 fn smart_path(path: &str) -> String {
     let home = paths::home().display().to_string();
     let short = path.replace(&home, "~");
-    
+
     // If path is short enough, return it
     if short.len() <= 50 {
         return short;
     }
-    
+
     // Otherwise, show last 2 path components
     let parts: Vec<&str> = short.split('/').collect();
     if parts.len() >= 3 {
@@ -1010,16 +1054,16 @@ fn universal_search(
     apps: &[AppEntry],
     history: &LaunchHistory,
 ) -> Vec<search::SearchResult> {
-    use search::{SearchResult, files};
-    
+    use search::{files, SearchResult};
+
     let mut results = Vec::new();
-    
+
     // Search apps
     for app in apps {
         let fuzzy = fuzzy_score(query, &app.name) as f32;
         let frecency = history.frecency_score(&app.name) * 100.0;
         let score = fuzzy + frecency;
-        
+
         if score > 0.0 {
             results.push(SearchResult::App {
                 name: app.name.clone(),
@@ -1029,14 +1073,14 @@ fn universal_search(
             });
         }
     }
-    
+
     // Search files (only if query has 2+ chars to avoid noise)
     if query.len() >= 2 {
         let file_config = files::FileSearchConfig::default();
         let file_results = files::search_files(query, &file_config);
         results.extend(file_results);
     }
-    
+
     // Sort by score (highest first)
     results.sort();
     results

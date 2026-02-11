@@ -4,7 +4,6 @@
 use faelight_core::paths;
 use std::path::PathBuf;
 
-
 pub fn backup_dir() -> PathBuf {
     paths::faelight_link_backups()
 }
@@ -12,4 +11,3 @@ pub fn backup_dir() -> PathBuf {
 pub fn home() -> PathBuf {
     paths::home()
 }
-

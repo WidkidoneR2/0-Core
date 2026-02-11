@@ -1,8 +1,8 @@
 //! File search - Find recent files across configured directories
 use super::SearchResult;
+use faelight_core::paths;
 use std::fs;
 use std::path::PathBuf;
-use faelight_core::paths;
 use std::time::SystemTime;
 use walkdir::WalkDir;
 
@@ -19,11 +19,7 @@ pub struct FileSearchConfig {
 impl Default for FileSearchConfig {
     fn default() -> Self {
         Self {
-            search_dirs: vec![
-                paths::core_dir(),
-                paths::src_dir(),
-                paths::projects_dir(),
-            ],
+            search_dirs: vec![paths::core_dir(), paths::src_dir(), paths::projects_dir()],
             max_age_days: 30, // Last 30 days
             max_results: 50,
         }
@@ -54,9 +50,7 @@ pub fn search_files(query: &str, config: &FileSearchConfig) -> Vec<SearchResult>
             .filter_entry(|e| {
                 // Skip hidden dirs, .git, target, node_modules
                 let name = e.file_name().to_string_lossy();
-                !name.starts_with('.') 
-                    && name != "target" 
-                    && name != "node_modules"
+                !name.starts_with('.') && name != "target" && name != "node_modules"
             })
             .filter_map(|e| e.ok())
         {

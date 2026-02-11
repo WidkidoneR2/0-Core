@@ -28,26 +28,32 @@ impl Conflict {
 /// Ask user what to do with a conflict
 pub fn resolve_conflict(conflict: &Conflict) -> Result<ConflictAction> {
     println!("\n  {} Conflict detected!", "⚠️".bright_yellow());
-    println!("    Target: {}", conflict.target.display().to_string().bright_white());
-    
+    println!(
+        "    Target: {}",
+        conflict.target.display().to_string().bright_white()
+    );
+
     // Check what exists
     if conflict.target.is_symlink() {
         let existing = fs::read_link(&conflict.target)?;
-        println!("    Existing: {} (symlink)", existing.display().to_string().bright_black());
+        println!(
+            "    Existing: {} (symlink)",
+            existing.display().to_string().bright_black()
+        );
     } else if conflict.target.is_file() {
         println!("    Existing: {} (regular file)", "file".bright_black());
     } else if conflict.target.is_dir() {
         println!("    Existing: {} (directory)", "directory".bright_black());
     }
-    
+
     let options = vec!["Backup", "Skip", "Overwrite", "Quit"];
-    
+
     let selection = Select::new()
         .with_prompt("How to resolve?")
         .items(&options)
         .default(0)
         .interact()?;
-    
+
     match selection {
         0 => Ok(ConflictAction::Backup),
         1 => Ok(ConflictAction::Skip),
@@ -61,17 +67,18 @@ pub fn resolve_conflict(conflict: &Conflict) -> Result<ConflictAction> {
 pub fn backup_file(target: &Path) -> Result<PathBuf> {
     // Using faelight_core paths
     let backup_root = crate::paths::backup_dir();
-    
+
     // Create backup directory
     fs::create_dir_all(&backup_root)?;
-    
+
     // Generate backup path with timestamp
     let timestamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
-    let filename = target.file_name()
+    let filename = target
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
     let backup_path = backup_root.join(format!("{}.{}", filename, timestamp));
-    
+
     // Copy or move
     if target.is_symlink() {
         // For symlinks, just remove (we'll create new one)
@@ -84,6 +91,6 @@ pub fn backup_file(target: &Path) -> Result<PathBuf> {
         // For directories, this is more complex - skip for now
         anyhow::bail!("Cannot backup directories yet");
     }
-    
+
     Ok(backup_path)
 }

@@ -2,9 +2,9 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::*;
 
-mod package;
-mod link;
 mod conflict;
+mod link;
+mod package;
 mod paths;
 
 #[derive(Parser)]
@@ -22,27 +22,27 @@ enum Commands {
     Stow {
         /// Package name
         package: String,
-        
+
         /// Skip verification prompts
         #[arg(long)]
         force: bool,
     },
-    
+
     /// Unstow a package (remove symlinks)
     Unstow {
         /// Package name
         package: String,
     },
-    
+
     /// List all packages
     List,
-    
+
     /// Show status of links
     Status,
-    
+
     /// Audit link health (check for broken/orphaned links)
     Audit,
-    
+
     /// Clean up broken and orphaned links
     Clean {
         /// Skip confirmation prompt
@@ -53,9 +53,9 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     println!("{}", "🔗 faelight-link v0.1.0".bright_blue().bold());
-    
+
     match cli.command {
         Commands::Stow { package, force } => {
             println!("📦 Stowing package: {}", package.bright_green());
@@ -82,6 +82,6 @@ fn main() -> Result<()> {
             link::clean(force)?;
         }
     }
-    
+
     Ok(())
 }

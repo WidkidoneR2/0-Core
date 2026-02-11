@@ -35,27 +35,27 @@ impl Default for FaelightConfig {
 impl FaelightConfig {
     pub fn load() -> Self {
         let config_path = Self::config_path();
-        
+
         if let Ok(contents) = fs::read_to_string(&config_path) {
             toml::from_str(&contents).unwrap_or_default()
         } else {
             Self::default()
         }
     }
-    
+
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let config_path = Self::config_path();
-        
+
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         let contents = toml::to_string_pretty(self)?;
         fs::write(&config_path, contents)?;
-        
+
         Ok(())
     }
-    
+
     pub fn config_path() -> PathBuf {
         paths::faelight_config_dir().join("cli.toml")
     }
