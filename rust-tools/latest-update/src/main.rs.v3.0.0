@@ -1,4 +1,4 @@
-//! latest-update v4.0.0
+//! latest-update v3.0.0
 //! Show the most recently updated packages from .dotmeta files
 use chrono::{DateTime, Local};
 use clap::Parser;
@@ -18,14 +18,6 @@ struct Cli {
     /// Show all packages (no limit)
     #[arg(short, long)]
     all: bool,
-
-    /// Output in JSON format
-    #[arg(long)]
-    json: bool,
-
-    /// Quiet mode (names only)
-    #[arg(short, long)]
-    quiet: bool,
 }
 
 #[derive(Debug)]
