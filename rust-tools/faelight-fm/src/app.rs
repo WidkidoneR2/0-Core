@@ -1,3 +1,4 @@
+use faelight_fm::daemon::client::Command;
 use faelight_fm::daemon::DaemonClient;
 use faelight_fm::error::Result;
 use faelight_fm::git::{self, GitStatus};
@@ -51,6 +52,11 @@ pub struct AppState {
     pub message_color: MessageColor,
     pub file_click_regions: Vec<(u16, u16, usize)>, // (row, width, file_index)
     pub zone_click_regions: Vec<(u16, u16, u16, u16, u8)>, // (x, y, width, height, zone_num)
+    // === PHASE 1: Multi-select ===
+    #[allow(dead_code)]
+    pub selected_files: std::collections::HashSet<PathBuf>, // Multi-selected files
+    #[allow(dead_code)]
+    pub multi_select_mode: bool, // Visual mode active
 }
 
 impl AppState {
@@ -92,6 +98,9 @@ impl AppState {
             message_color: MessageColor::Success,
             file_click_regions: Vec::new(),
             zone_click_regions: Vec::new(),
+            // Phase 1 fields
+            selected_files: std::collections::HashSet::new(),
+            multi_select_mode: false,
         };
 
         app.reload()?;
@@ -113,7 +122,6 @@ impl AppState {
         // Get entries from daemon
         let response = rt
             .block_on(async {
-                use faelight_fm::daemon::client::Command;
                 client
                     .send_command(Command::GetEntries { path: path_str })
                     .await
@@ -497,6 +505,70 @@ impl AppState {
     }
 
     /// Set status message
+    /// === PHASE 1: Multi-select ===
+    pub fn toggle_selection(&mut self) {
+        if self.entries.is_empty() {
+            return;
+        }
+
+        let current_file = self.entries[self.selected].path.clone();
+
+        if self.selected_files.contains(&current_file) {
+            self.selected_files.remove(&current_file);
+            self.status_message = Some("Deselected".to_string());
+            self.message_color = MessageColor::Warning;
+        } else {
+            self.selected_files.insert(current_file);
+            self.status_message = Some(format!("Selected ({} files)", self.selected_files.len()));
+            self.message_color = MessageColor::Success;
+        }
+
+        // Move to next file for easy multi-select
+        self.select_next();
+    }
+    /// Bulk delete selected files
+    pub fn bulk_delete(&mut self) -> Result<()> {
+        if self.selected_files.is_empty() {
+            self.status_message = Some("No files selected".to_string());
+            self.message_color = MessageColor::Warning;
+            return Ok(());
+        }
+
+        let count = self.selected_files.len();
+        // TODO: Add confirmation dialog
+        // For now, just show what would be deleted
+        self.status_message = Some(format!(
+            "Would delete {} files (confirmation pending)",
+            count
+        ));
+        self.message_color = MessageColor::Warning;
+        Ok(())
+    }
+
+    /// Bulk yank (copy) selected files
+    pub fn bulk_yank(&mut self) {
+        if self.selected_files.is_empty() {
+            self.status_message = Some("No files selected".to_string());
+            self.message_color = MessageColor::Warning;
+            return;
+        }
+
+        let count = self.selected_files.len();
+        self.status_message = Some(format!("Yanked {} files (bulk copy)", count));
+        self.message_color = MessageColor::Success;
+        // TODO: Store multiple files for bulk paste
+    }
+
+    /// Clear all selections
+    pub fn clear_selections(&mut self) {
+        let count = self.selected_files.len();
+        self.selected_files.clear();
+        if count > 0 {
+            self.status_message = Some(format!("Cleared {} selections", count));
+            self.message_color = MessageColor::Warning;
+        }
+    }
+
     pub fn set_message(&mut self, msg: String, color: MessageColor) {
         self.status_message = Some(msg);
         self.message_color = color;

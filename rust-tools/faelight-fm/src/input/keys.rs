@@ -76,6 +76,12 @@ pub fn handle_key<B: ratatui::backend::Backend>(
             app.paste_file()?;
         }
 
+        // === PHASE 1: Multi-select ===
+        KeyCode::Char(' ') => app.toggle_selection(),
+        KeyCode::Char('D') => app.bulk_delete()?, // Shift+D
+        KeyCode::Char('Y') => app.bulk_yank(),    // Shift+Y
+        KeyCode::Char('C') => app.clear_selections(), // Shift+C
+
         // Search
         KeyCode::Char('/') => app.start_search(),
 

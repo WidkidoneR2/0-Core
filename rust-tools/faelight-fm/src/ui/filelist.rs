@@ -29,7 +29,16 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
             };
 
             let zone_tag = format!("[Z:{}]", entry.zone.short_label());
+            // === PHASE 1: Multi-select checkbox ===
+            let is_multiselected = app.selected_files.contains(&entry.path);
+            let checkbox = if is_multiselected {
+                Span::styled("[✓] ", Style::default().fg(Color::Green).bold())
+            } else {
+                Span::raw("[ ] ")
+            };
+
             let mut spans = vec![
+                checkbox,
                 Span::raw(format!("{} ", entry.icon())),
                 // Git status marker
                 Span::styled(
