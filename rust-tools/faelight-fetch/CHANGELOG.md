@@ -1,55 +1,53 @@
 # Changelog - Faelight-Fetch
 
-## [2.1.0] - 2026-02-08
+## [2.1.0] - 2026-02-11
 
-### ✨ Major Visual Improvements
+### 🎉 Production Ready
 
-**Better Formatting:**
-- Added box border header (╭─────╮ style)
-- Right-aligned labels with consistent spacing
-- Better visual hierarchy with grouping
-- Cleaner, more professional output
+**Enhanced Error Handling:**
+- 12 error messages with helpful hints
+- Health check validates all dependencies
+- Graceful fallbacks for missing tools
+- User-friendly error output with 💡 solutions
 
-**Zone Integration:**
-- Added zone detection with icons
-- Shows current directory zone (🦀 WORK, 🌲 CORE, etc.)
-- Integrated with faelight-zone v2.0.0
-- Zone-aware context at a glance
+**CLI Improvements:**
+- Added --health-check flag
+- Added --help and --version
+- Proper clap-based argument parsing
 
-### 🔧 Technical Improvements
+**Documentation:**
+- 170-line comprehensive README
+- Installation instructions
+- Examples and usage
+- CHANGELOG.md maintained
 
 **Code Quality:**
-- Fixed clippy error (double_ended_iterator_last)
-- Changed `.last()` to `.next_back()` for efficiency
-- Added faelight-zone dependency
-- Improved SystemState struct
+- Zero clippy warnings
+- Safe error handling (unwrap_or_else with fallbacks)
+- Health checks for: directory access, HOME, dot-doctor, profile, faelight-zone
 
-**New Fields:**
-- `zone: String` - Current directory zone
-- `zone_icon: String` - Zone visual indicator
+### ✨ Major Visual Improvements (from earlier v2.1.0)
 
-### 📚 Documentation
+**Better Formatting:**
+- Box border header (╭─────╮ style)
+- Right-aligned labels with consistent spacing
+- Clean, professional output
 
-**Comprehensive README (170 lines):**
-- Complete feature documentation
-- Zone detection table
-- Health icon meanings
-- Installation instructions
-- Use cases and examples
-- Philosophy section
+**Zone Integration:**
+- Zone detection with icons (🦀 WORK, 🌲 CORE)
+- Integrated with faelight-zone v2.0.0
 
-### Production Quality
-
-- ✅ Zero clippy warnings
-- ✅ Comprehensive README
-- ✅ CHANGELOG.md added
-- ✅ Zone integration
-- ✅ Standalone ready
+### Technical
+- Lines of code: 277
+- Dependencies: faelight-zone, sysinfo, clap
+- Error messages: 12 helpful hints
 
 ---
 
 ## [2.0.0] - Earlier
 
-Initial release with basic system information display.
+Initial production version with zone awareness.
 
-See git history for full changelog.
+---
+
+**Version Format:** MAJOR.MINOR.PATCH
