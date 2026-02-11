@@ -200,3 +200,46 @@ Dot-doctor is part of the 0-Core ecosystem but works perfectly standalone for an
 ## 📄 License
 
 Intentional Stewardship - Manual control over automation.
+
+## v4.0.0 - Flagship Intelligent Monitoring
+
+### New Power Features
+
+**Watch Mode - Continuous Monitoring:**
+```bash
+doctor --watch              # Monitor every 60 seconds
+doctor --watch --interval 30  # Custom interval
+```
+
+**Dry-Run Fixes:**
+```bash
+doctor --fix-dry-run        # Preview fixes without applying
+doctor --fix                # Apply fixes (existing)
+```
+
+**Selective Checks:**
+```bash
+doctor --skip git           # Skip git checks
+doctor --skip security --skip disk  # Skip multiple
+doctor --check stow         # Run only stow check (existing)
+```
+
+**Health Thresholds:**
+```bash
+doctor --min-health 95      # Fail if health < 95%
+# Perfect for CI/CD pipelines
+```
+
+### Integration Examples
+
+**CI/CD Pipeline:**
+```yaml
+- name: Health Check
+  run: doctor --min-health 90 --fail-on-warning
+```
+
+**Cron Monitoring:**
+```bash
+# Monitor every hour, alert if <95%
+0 * * * * doctor --min-health 95 || notify-send "Health Alert"
+```

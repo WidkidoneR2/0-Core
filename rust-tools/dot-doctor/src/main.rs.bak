@@ -42,29 +42,6 @@ struct Cli {
     /// Show health history
     #[arg(long)]
     history: bool,
-    /// Show fixes without applying (dry-run mode)
-    #[arg(long, name = "fix-dry-run")]
-    fix_dry_run: bool,
-
-    /// Continuous monitoring (watch mode)
-    #[arg(long)]
-    watch: bool,
-
-    /// Watch interval in seconds
-    #[arg(long, default_value = "60")]
-    interval: u64,
-
-    /// Generate HTML health report
-    #[arg(long)]
-    report: bool,
-
-    /// Skip specific check(s)
-    #[arg(long)]
-    skip: Option<Vec<String>>,
-
-    /// Minimum health threshold (0-100)
-    #[arg(long, name = "min-health")]
-    min_health: Option<u8>,
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1374,13 +1351,6 @@ fn main() {
             if check.id != only {
                 continue;
             }
-
-            // Skip if check is in skip list
-            if let Some(ref skip_list) = cli.skip {
-                if skip_list.iter().any(|s| s == check.id) {
-                    continue;
-                }
-            }
         }
 
         // Check dependencies
@@ -1452,17 +1422,6 @@ fn main() {
         }
     } else {
         print_report(&report, cli.explain);
-    }
-
-    // Check minimum health threshold
-    if let Some(min_health) = cli.min_health {
-        if health_percent < min_health as u32 {
-            eprintln!(
-                "❌ Health {}% is below minimum threshold {}%",
-                health_percent, min_health
-            );
-            std::process::exit(1);
-        }
     }
 
     // Exit code
