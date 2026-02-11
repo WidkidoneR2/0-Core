@@ -337,11 +337,7 @@ fn show_stats(core_dir: &std::path::Path, since: Option<&str>, json: bool) -> Re
 fn get_commits_simple(core_dir: &std::path::Path, extra_args: &[&str]) -> Result<Vec<Commit>> {
     let mut args = vec![
         "-C",
-        core_dir.to_str().ok_or_else(|| {
-            eprintln!("❌ Invalid path encoding");
-            eprintln!("💡 Path contains non-UTF8 characters");
-            anyhow::anyhow!("Invalid path")
-        })?,
+        core_dir.to_str().unwrap(),
         "log",
         "--format=%H|%h|%ai|%s",
     ];
@@ -362,11 +358,7 @@ fn get_commits_simple(core_dir: &std::path::Path, extra_args: &[&str]) -> Result
 fn get_commits_with_files(core_dir: &std::path::Path, extra_args: &[&str]) -> Result<Vec<Commit>> {
     let mut args = vec![
         "-C",
-        core_dir.to_str().ok_or_else(|| {
-            eprintln!("❌ Invalid path encoding");
-            eprintln!("💡 Path contains non-UTF8 characters");
-            anyhow::anyhow!("Invalid path")
-        })?,
+        core_dir.to_str().unwrap(),
         "log",
         "--format=%H|%h|%ai|%s",
         "--name-only",
@@ -564,11 +556,7 @@ fn get_commit_stats(
         pkg_path = format!("{}/", pkg);
         vec![
             "-C",
-            core_dir.to_str().ok_or_else(|| {
-                eprintln!("❌ Invalid path encoding");
-                eprintln!("💡 Path contains non-UTF8 characters");
-                anyhow::anyhow!("Invalid path")
-            })?,
+            core_dir.to_str().unwrap(),
             "show",
             "--stat",
             "--format=",
@@ -579,11 +567,7 @@ fn get_commit_stats(
     } else {
         vec![
             "-C",
-            core_dir.to_str().ok_or_else(|| {
-                eprintln!("❌ Invalid path encoding");
-                eprintln!("💡 Path contains non-UTF8 characters");
-                anyhow::anyhow!("Invalid path")
-            })?,
+            core_dir.to_str().unwrap(),
             "show",
             "--stat",
             "--format=",
