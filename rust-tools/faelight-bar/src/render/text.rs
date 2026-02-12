@@ -1,88 +1,63 @@
-//! Text rendering using 8x8 bitmap font
+//! Ultra-smooth text rendering
 
-const CHAR_WIDTH: i32 = 8;
-#[allow(dead_code)]
-const CHAR_HEIGHT: i32 = 8;
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
+use fontdue::{Font, FontSettings};
+use std::sync::OnceLock;
 
-/// Get glyph data for a character
-fn get_glyph(ch: char) -> [u8; 8] {
-    let char_code = ch as u8;
+const FONT_SIZE: f32 = 24.0;
 
-    match char_code {
-        // Space (32)
-        32 => [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+static MAIN_FONT: OnceLock<Font> = OnceLock::new();
 
-        // 0-9 (48-57)
-        48 => [0x3C, 0x66, 0x6E, 0x76, 0x66, 0x66, 0x3C, 0x00], // 0
-        49 => [0x18, 0x38, 0x18, 0x18, 0x18, 0x18, 0x7E, 0x00], // 1
-        50 => [0x3C, 0x66, 0x06, 0x0C, 0x18, 0x30, 0x7E, 0x00], // 2
-        51 => [0x3C, 0x66, 0x06, 0x1C, 0x06, 0x66, 0x3C, 0x00], // 3
-        52 => [0x0C, 0x1C, 0x3C, 0x6C, 0x7E, 0x0C, 0x0C, 0x00], // 4
-        53 => [0x7E, 0x60, 0x7C, 0x06, 0x06, 0x66, 0x3C, 0x00], // 5
-        54 => [0x1C, 0x30, 0x60, 0x7C, 0x66, 0x66, 0x3C, 0x00], // 6
-        55 => [0x7E, 0x06, 0x0C, 0x18, 0x30, 0x30, 0x30, 0x00], // 7
-        56 => [0x3C, 0x66, 0x66, 0x3C, 0x66, 0x66, 0x3C, 0x00], // 8
-        57 => [0x3C, 0x66, 0x66, 0x3E, 0x06, 0x0C, 0x38, 0x00], // 9
-
-        // : (58)
-        58 => [0x00, 0x18, 0x18, 0x00, 0x18, 0x18, 0x00, 0x00],
-
-        // A-Z (65-90)
-        65 => [0x3C, 0x66, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x00], // A
-        66 => [0x7C, 0x66, 0x66, 0x7C, 0x66, 0x66, 0x7C, 0x00], // B
-        67 => [0x3C, 0x66, 0x60, 0x60, 0x60, 0x66, 0x3C, 0x00], // C
-        68 => [0x78, 0x6C, 0x66, 0x66, 0x66, 0x6C, 0x78, 0x00], // D
-        69 => [0x7E, 0x60, 0x60, 0x7C, 0x60, 0x60, 0x7E, 0x00], // E
-        70 => [0x7E, 0x60, 0x60, 0x7C, 0x60, 0x60, 0x60, 0x00], // F
-        71 => [0x3C, 0x66, 0x60, 0x6E, 0x66, 0x66, 0x3E, 0x00], // G
-        72 => [0x66, 0x66, 0x66, 0x7E, 0x66, 0x66, 0x66, 0x00], // H
-        73 => [0x7E, 0x18, 0x18, 0x18, 0x18, 0x18, 0x7E, 0x00], // I
-        74 => [0x3E, 0x0C, 0x0C, 0x0C, 0x0C, 0x6C, 0x38, 0x00], // J
-        75 => [0x66, 0x6C, 0x78, 0x70, 0x78, 0x6C, 0x66, 0x00], // K
-        76 => [0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x7E, 0x00], // L
-        77 => [0x63, 0x77, 0x7F, 0x6B, 0x63, 0x63, 0x63, 0x00], // M
-        78 => [0x66, 0x76, 0x7E, 0x6E, 0x66, 0x66, 0x66, 0x00], // N
-        79 => [0x3C, 0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x00], // O
-        80 => [0x7C, 0x66, 0x66, 0x7C, 0x60, 0x60, 0x60, 0x00], // P
-        81 => [0x3C, 0x66, 0x66, 0x66, 0x6A, 0x6C, 0x36, 0x00], // Q
-        82 => [0x7C, 0x66, 0x66, 0x7C, 0x6C, 0x66, 0x66, 0x00], // R
-        83 => [0x3C, 0x66, 0x60, 0x3C, 0x06, 0x66, 0x3C, 0x00], // S
-        84 => [0x7E, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x00], // T
-        85 => [0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x00], // U
-        86 => [0x66, 0x66, 0x66, 0x66, 0x66, 0x3C, 0x18, 0x00], // V
-        87 => [0x63, 0x63, 0x63, 0x6B, 0x7F, 0x77, 0x63, 0x00], // W
-        88 => [0x66, 0x66, 0x3C, 0x18, 0x3C, 0x66, 0x66, 0x00], // X
-        89 => [0x66, 0x66, 0x66, 0x3C, 0x18, 0x18, 0x18, 0x00], // Y
-        90 => [0x7E, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x7E, 0x00], // Z
-
-        // Default: box outline for unknown chars
-        _ => [0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF, 0x00],
-    }
+fn get_main_font() -> &'static Font {
+    MAIN_FONT.get_or_init(|| {
+        let font_data = include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf");
+        Font::from_bytes(font_data as &[u8], FontSettings::default()).expect("Failed to load font")
+    })
 }
 
 pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, color: u32) {
-    let mut current_x = x;
-    for ch in text.chars() {
-        draw_char(canvas, stride, current_x, y, ch, color);
-        current_x += CHAR_WIDTH;
-    }
-}
+    let font = get_main_font();
 
-fn draw_char(canvas: &mut [u8], stride: i32, x: i32, y: i32, ch: char, color: u32) {
-    let glyph = get_glyph(ch);
-    let color_bytes = color.to_le_bytes();
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+    layout.reset(&LayoutSettings {
+        x: 0.0,
+        y: 0.0,
+        max_width: Some(3000.0),
+        max_height: Some(200.0),
+        ..LayoutSettings::default()
+    });
 
-    for row in 0..8 {
-        let bits = glyph[row as usize];
-        for col in 0..8 {
-            if bits & (1 << (7 - col)) != 0 {
-                let px = x + col;
-                let py = y + row;
+    layout.append(&[font], &TextStyle::new(text, FONT_SIZE, 0));
+
+    let color_r = ((color >> 16) & 0xFF) as u8;
+    let color_g = ((color >> 8) & 0xFF) as u8;
+    let color_b = (color & 0xFF) as u8;
+
+    for glyph in layout.glyphs() {
+        let (metrics, bitmap) = font.rasterize_config(glyph.key);
+
+        for (i, &alpha) in bitmap.iter().enumerate() {
+            if alpha > 20 {
+                let glyph_x = i % metrics.width;
+                let glyph_y = i / metrics.width;
+
+                let px = x + glyph.x as i32 + glyph_x as i32;
+                let py = y + glyph.y as i32 + glyph_y as i32 - 4;
 
                 if px >= 0 && py >= 0 {
                     let offset = (py * stride + px * 4) as usize;
                     if offset + 3 < canvas.len() {
-                        canvas[offset..offset + 4].copy_from_slice(&color_bytes);
+                        let alpha_f = (alpha as f32 / 255.0).powf(1.0 / 2.2);
+                        let inv_alpha = 1.0 - alpha_f;
+
+                        let bg_b = canvas[offset] as f32;
+                        let bg_g = canvas[offset + 1] as f32;
+                        let bg_r = canvas[offset + 2] as f32;
+
+                        canvas[offset] = (color_b as f32 * alpha_f + bg_b * inv_alpha) as u8;
+                        canvas[offset + 1] = (color_g as f32 * alpha_f + bg_g * inv_alpha) as u8;
+                        canvas[offset + 2] = (color_r as f32 * alpha_f + bg_r * inv_alpha) as u8;
+                        canvas[offset + 3] = 0xFF;
                     }
                 }
             }
@@ -92,5 +67,14 @@ fn draw_char(canvas: &mut [u8], stride: i32, x: i32, y: i32, ch: char, color: u3
 
 #[allow(dead_code)]
 pub fn text_width(text: &str) -> i32 {
-    text.chars().count() as i32 * CHAR_WIDTH
+    let font = get_main_font();
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+    layout.reset(&LayoutSettings::default());
+    layout.append(&[font], &TextStyle::new(text, FONT_SIZE, 0));
+
+    layout
+        .glyphs()
+        .last()
+        .map(|g| (g.x + g.width as f32) as i32)
+        .unwrap_or((text.len() * 14) as i32)
 }

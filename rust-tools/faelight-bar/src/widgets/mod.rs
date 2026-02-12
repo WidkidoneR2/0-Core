@@ -64,3 +64,31 @@ pub use clock::ClockWidget;
 pub use profile::ProfileWidget;
 pub use volume::VolumeWidget;
 pub use vpn::VpnWidget;
+
+// Battery widget
+mod battery;
+pub use battery::BatteryWidget;
+
+// Network widget
+mod network;
+pub use network::NetworkWidget;
+
+// Date widget
+mod date;
+pub use date::DateWidget;
+
+// Lock widget
+mod lock;
+pub use lock::LockWidget;
+
+// Zone widget
+mod zone;
+pub use zone::ZoneWidget;
+
+// Health widget
+mod health;
+pub use health::HealthWidget;
+
+// Search widget
+mod search;
+pub use search::SearchWidget;

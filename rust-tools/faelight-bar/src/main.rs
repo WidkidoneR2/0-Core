@@ -33,9 +33,12 @@ mod logger;
 mod render;
 mod widgets;
 
-use widgets::{ClockWidget, ProfileWidget, RenderContext, VolumeWidget, VpnWidget, Widget};
+use widgets::{
+    BatteryWidget, ClockWidget, DateWidget, HealthWidget, LockWidget, NetworkWidget, ProfileWidget,
+    RenderContext, SearchWidget, VolumeWidget, VpnWidget, Widget, ZoneWidget,
+};
 
-const BAR_HEIGHT: u32 = 32;
+const BAR_HEIGHT: u32 = 64;
 
 fn main() {
     // Parse arguments
@@ -133,11 +136,19 @@ fn main() {
     };
 
     // Create widgets
+    // Create widgets
     let widgets: Vec<Box<dyn Widget>> = vec![
         Box::new(ClockWidget::new()),
         Box::new(VolumeWidget::new()),
         Box::new(VpnWidget::new()),
         Box::new(ProfileWidget::new()),
+        Box::new(BatteryWidget::new()),
+        Box::new(NetworkWidget::new()),
+        Box::new(DateWidget::new()),
+        Box::new(LockWidget::new()),
+        Box::new(ZoneWidget::new()),
+        Box::new(HealthWidget::new()),
+        Box::new(SearchWidget::new()),
     ];
 
     let mut state = BarState {
@@ -241,7 +252,7 @@ impl BarState {
         }
 
         // Render widgets with proper spacing
-        let y = 12;
+        let y = 24;
         self.click_regions.clear();
 
         // Update all widgets
@@ -255,7 +266,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 20;
+            let x = 30;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -269,7 +280,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 160;
+            let x = 1850;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -283,7 +294,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 270;
+            let x = 2030;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -292,13 +303,91 @@ impl BarState {
         }
 
         // Clock - widget[0]
+
+        // Battery - widget[4]
+        if let Ok(output) = self.widgets[4].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 2170;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+        }
+
+        // Network - widget[5]
+        if let Ok(output) = self.widgets[5].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 1650;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+        }
+
+        // Lock - widget[7]
+        if let Ok(output) = self.widgets[7].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 500;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+            if output.clickable {
+                self.click_regions
+                    .push((x, output.text.len() as i32 * 8, 7));
+            }
+        }
+
+        // Zone - widget[8]
+        if let Ok(output) = self.widgets[8].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 280;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+        }
+
+        // Health - widget[9]
+        if let Ok(output) = self.widgets[9].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 750;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+        }
+
+        // Search - widget[10]
+        if let Ok(output) = self.widgets[10].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let x = 980;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
+            if output.clickable {
+                self.click_regions
+                    .push((x, output.text.len() as i32 * 8, 10));
+            }
+        }
         if let Ok(output) = self.widgets[0].render(&RenderContext {
             width,
             height,
             x_offset: 0,
         }) {
-            let clock_x = (width as i32) - 80;
+            let clock_x = (width as i32) - 130;
             render::draw_text(canvas, stride, clock_x, y, &output.text, output.color);
+        }
+
+        // Date - widget[6] (next to clock)
+        if let Ok(output) = self.widgets[6].render(&RenderContext {
+            width,
+            height,
+            x_offset: 0,
+        }) {
+            let date_x = (width as i32) - 250;
+            render::draw_text(canvas, stride, date_x, y, &output.text, output.color);
         }
 
         self.layer_surface
@@ -353,7 +442,16 @@ impl CompositorHandler for BarState {
     }
 
     fn frame(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {
-        self.draw(qh);
+        // Only redraw if we need to update (every second)
+        if self.last_update.elapsed().as_secs() >= 1 {
+            self.draw(qh);
+        } else {
+            // Request next frame for smooth updates
+            self.layer_surface
+                .wl_surface()
+                .frame(qh, self.layer_surface.wl_surface().clone());
+            self.layer_surface.commit();
+        }
     }
 
     fn surface_enter(
