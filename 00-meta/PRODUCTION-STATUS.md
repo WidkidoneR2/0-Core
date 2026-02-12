@@ -1,50 +1,40 @@
 # 🌲 0-Core Tools Production Status
-Last Updated: 2026-02-11 (After 25-Tool Audit)
-
-## ✅ Production-Ready Standalone Tools (25/38 = 66%)
-
-### Flagship Tools (6)
-| Tool | Version | Lines | Status | Specialty |
-|------|---------|-------|--------|-----------|
-| **faelight-update** | v3.1.0 | 1,792 | ✅ Complete | System package updates |
-| **faelight-hooks** | v10.1.0 | 817 | ✅ Complete | Git hooks with safety |
-| **faelight-git** | v3.2.0 | 1,538 | ✅ Complete | Risk-aware git workflow |
-| **bump-system-version** | v9.2.0 | 864 | ✅ Complete | Auto-merge releases |
-| **faelight-stow** | v3.0.0 | 257 | ✅ LEGENDARY | Dotfile mgmt + rollback |
-| **dot-doctor** | v4.0.0 | 1,548 | ✅ FLAGSHIP | Health checking + auto-fix |
-
-### System Management (8)
-| Tool | Version | Lines | Status | Specialty |
-|------|---------|-------|--------|-----------|
-| **bin-doctor** | v2.0.0 | 310 | ✅ Complete | Binary manifest + drift |
-| **verify-bootstrap** | v2.0.0 | ~150 | ✅ Complete | Installation verification |
-| **faelight-fetch** | v2.1.0 | 213 | ✅ Complete | Zone-aware system info 🌐 |
-| **dotctl** | v3.1.0 | 286 | ✅ Complete | Zone-aware package mgmt 🎮 |
-| **faelight-link** | v2.0.0 | 968 | ✅ Complete | Symlink manager |
-| **faelight-snapshot** | v2.0.0 | 352 | ✅ Complete | Btrfs snapshots |
-| **get-version** | v4.0.0 | 114 | ✅ Complete | Version utility |
-| **entropy-check** | v2.0.0 | ~250 | ✅ Complete | Drift detection |
-
-### Analysis & Intelligence (7)
-| Tool | Version | Lines | Status | Specialty |
-|------|---------|-------|--------|-----------|
-| **alias-audit** | v9.1.0 | 318 | ✅ VERIFIED | Zone-aware alias audit 🔍 |
-| **archaeology-0-core** | v3.0.0 | 584 | ✅ BULLETPROOF | System history (zero .unwrap!) |
-| **latest-update** | v4.0.0 | 129 | ✅ Complete | Update tracker + JSON |
-| **recent-files** | v2.0.0 | 399 | ✅ Complete | File activity dashboard |
-| **workspace-view** | v2.0.0 | 540 | ✅ Complete | Sway workspace intel |
-| **keyscan** | v3.0.0 | 547 | ✅ Complete | Keybind analyzer |
-| **teach** | v3.0.0 | 1,112 | ✅ Complete | Interactive learning |
-
-### File Management (4)
-| Tool | Version | Lines | Status | Specialty |
-|------|---------|-------|--------|-----------|
-| **faelight-fm** | v2.2.0 | 2,090 | ✅ Phase 1 | File manager + multi-select |
-| **faelight-menu** | v2.1.0 | 774 | ✅ Complete | Wayland menu |
-| **faelight-launcher** | v4.0.0 | 1,613 | ✅ Complete | Application launcher |
-| **faelight-notify** | v2.0.0 | ~500 | ✅ Complete | Notification system |
-
-**Total: 25/38 Production-Ready (66%)**
+Last Updated: 2026-02-12 (After Commit f3e13b2)
+## ✅ Production-Ready Standalone Tools
+| Tool | Version | Lines | Status | Commit | Specialty |
+|------|---------|-------|--------|--------|-----------|
+| **faelight-update** | v3.1.0 | 1,792 | ✅ Complete | #1000 | System package updates |
+| **faelight-hooks** | v10.1.0 | 817 | ✅ Complete | #1001 | Git hooks with safety |
+| **faelight-git** | v3.2.0 | 1,538 | ✅ Complete | #1002 | Risk-aware git workflow |
+| **bump-system-version** | v9.2.0 | 864 | ✅ Complete | #1003 | Auto-merge releases |
+| **faelight-stow** | v3.0.0 | ~300 | ✅ Complete | v9.6.0 | Complete rewrite - LEGENDARY |
+| **dot-doctor** | v4.0.0 | 1,800+ | ✅ Complete | v9.6.0 | Intelligent health monitoring |
+| **bin-doctor** | v2.0.0 | ~250 | ✅ Complete | v9.6.0 | BULLETPROOF Production |
+| **verify-bootstrap** | v2.0.0 | ~200 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-fetch** | v2.1.0 | 213 | ✅ Complete | #1014 | Zone-aware system info 🌐 |
+| **dotctl** | v3.1.0 | 286 | ✅ Complete | #1015 | Zone-aware package mgmt 🎮 |
+| **alias-audit** | v9.1.0 | 242 | ✅ Complete | #1016 | Zone-aware alias audit 🔍 |
+| **faelight-menu** | v2.1.0 | 774 | ✅ Complete | v9.6.0 | Production polish |
+| **faelight-launcher** | v4.0.0 | 1,613 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-notify** | v2.0.0 | ~300 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-lock** | v2.1.0 | ~250 | ✅ Complete | v9.6.0 | Quick Wins |
+| **faelight-dmenu** | v2.1.0 | ~400 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-zone** | v2.1.0 | ~300 | ✅ Complete | v9.6.0 | Quick Wins |
+| **faelight-link** | v2.0.0 | ~200 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-snapshot** | v2.0.0 | ~300 | ✅ Complete | v9.6.0 | Production ready |
+| **faelight-fm** | v2.2.0 | 2,000+ | ✅ Complete | v9.6.0 | Multi-select Phase 1 |
+| **faelight-bar** | v4.0.0 | 1,200+ | ✅ Complete | f3e13b2 | Multi-widget status bar 🎨 |
+| **profile** | v2.1.0 | ~250 | ✅ Complete | v9.6.0 | Enhanced error handling |
+| **intent** | v3.0.0 | ~300 | ✅ Complete | v9.6.0 | Production ready |
+| **get-version** | v4.0.0 | ~200 | ✅ Complete | v9.6.0 | Production ready |
+| **latest-update** | v4.0.0 | ~200 | ✅ Complete | v9.6.0 | Production ready |
+| **recent-files** | v2.0.0 | ~200 | ✅ Complete | v9.6.0 | Production ready |
+| **archaeology-0-core** | v3.0.0 | ~300 | ✅ Complete | v9.6.0 | BULLETPROOF Production |
+| **entropy-check** | v2.0.0 | ~200 | ✅ Complete | v9.6.0 | CHANGELOG added |
+| **workspace-view** | v2.0.0 | ~200 | ✅ Complete | v9.6.0 | CHANGELOG added |
+| **keyscan** | v3.0.0 | ~250 | ✅ Complete | v9.6.0 | Production ready |
+| **teach** | v3.0.0 | ~300 | ✅ Complete | v9.6.0 | Production ready |
+**Total: 31/42 Production-Ready (74%)**
 
 ---
 
