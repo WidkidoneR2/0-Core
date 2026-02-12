@@ -280,7 +280,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 1850;
+            let x = (width as i32) - 610;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -294,7 +294,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 2030;
+            let x = (width as i32) - 490;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -310,7 +310,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 2170;
+            let x = (width as i32) - 398;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
@@ -320,7 +320,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 1650;
+            let x = (width as i32) - 717;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
@@ -330,7 +330,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 500;
+            let x = 400;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -344,7 +344,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 280;
+            let x = 250;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
@@ -354,7 +354,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 750;
+            let x = 630;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
@@ -364,7 +364,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = 980;
+            let x = 800;
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -386,8 +386,8 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let date_x = (width as i32) - 250;
-            render::draw_text(canvas, stride, date_x, y, &output.text, output.color);
+            let x = (width as i32) - 240;
+            render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
         self.layer_surface
