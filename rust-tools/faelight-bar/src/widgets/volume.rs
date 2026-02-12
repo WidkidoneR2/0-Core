@@ -1,28 +1,31 @@
 //! Volume widget - Shows mute status
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
-use crate::render::colors;
 use std::process::Command;
 
 pub struct VolumeWidget {
-    muted: bool,
+    status: String,
 }
 
 impl VolumeWidget {
     pub fn new() -> Self {
-        Self { muted: false }
+        Self {
+            status: String::from("♪ ??"),
+        }
     }
 
-    fn check_mute_status() -> bool {
+    fn check_volume() -> (bool, String) {
         if let Ok(output) = Command::new("wpctl")
             .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
             .output()
         {
-            let result = String::from_utf8_lossy(&output.stdout);
-            result.contains("MUTED")
-        } else {
-            false
+            if let Ok(result) = String::from_utf8(output.stdout) {
+                let muted = result.contains("MUTED");
+                let status = if muted { "× MUTE" } else { "♪ ON" };
+                return (muted, status.to_string());
+            }
         }
+        (false, String::from("♪ ??"))
     }
 }
 
@@ -32,27 +35,28 @@ impl Widget for VolumeWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.muted = Self::check_mute_status();
+        let (_, status) = Self::check_volume();
+        self.status = status;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let (text, color) = if self.muted {
-            ("VOL MUTE", colors::ERROR)
+        let (muted, _) = Self::check_volume();
+        let color = if muted {
+            0xFFFF6B6B // Red when muted
         } else {
-            ("VOL ON", colors::FG)
+            0xFFFFA500 // Orange when on
         };
 
         Ok(WidgetOutput {
-            text: text.to_string(),
+            text: self.status.clone(),
             color,
-            width: 70,
+            width: 80,
             clickable: true,
         })
     }
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
-        // Toggle mute
         let _ = Command::new("wpctl")
             .args(["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
             .spawn();

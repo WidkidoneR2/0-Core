@@ -2,7 +2,7 @@
 
 #![allow(dead_code)] // Colors used in Phase 2+
 
-pub const BG: u32 = 0xFF1A1A2E; // Dark background
+pub const BG: u32 = 0xFF000000; // Pure black // Dark background
 pub const FG: u32 = 0xFFE8E8F0; // Light text
 pub const ACCENT: u32 = 0xFF4ECCA3; // Teal accent
 pub const WARNING: u32 = 0xFFF39C12; // Orange

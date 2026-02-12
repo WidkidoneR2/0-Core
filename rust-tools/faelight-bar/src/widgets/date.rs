@@ -1,36 +1,40 @@
-//! Clock widget - Shows current time
+//! Date widget - Shows current date
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use chrono::Local;
 
-pub struct ClockWidget {
-    time: String,
+pub struct DateWidget {
+    date: String,
 }
 
-impl ClockWidget {
+impl DateWidget {
     pub fn new() -> Self {
         Self {
-            time: String::new(),
+            date: String::new(),
         }
     }
 }
 
-impl Widget for ClockWidget {
+impl Widget for DateWidget {
     fn name(&self) -> &'static str {
-        "clock"
+        "date"
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.time = Local::now().format("%H:%M").to_string();
+        self.date = Local::now().format("%b %d").to_string();
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
         Ok(WidgetOutput {
-            text: self.time.clone(), // Just time, no emoji
-            color: 0xFFFFFFFF,       // Bright white
-            width: 40,
+            text: self.date.clone(),
+            color: 0xFF87CEEB, // Sky blue
+            width: 60,
             clickable: false,
         })
+    }
+
+    fn on_click(&mut self) -> Result<(), WidgetError> {
+        Ok(())
     }
 }
