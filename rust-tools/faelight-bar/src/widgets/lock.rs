@@ -2,6 +2,7 @@
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
+use std::process::Command;
 
 pub struct LockWidget {
     status: String,
@@ -16,13 +17,17 @@ impl LockWidget {
         }
     }
 
-    fn check_core_lock_status() -> bool {
-        // Check if core is locked via dot-doctor or a lock file
-        // TODO: Determine the correct way to check core lock status
-        // For now, check if a lock file exists
+    fn check_lock_status() -> bool {
+        // Run the status-blocks/lock script
         if let Some(home) = dirs::home_dir() {
-            let lock_file = home.join(".local/share/0-core/lock");
-            return lock_file.exists();
+            let lock_script = home.join("0-core/status-blocks/lock");
+
+            if let Ok(output) = Command::new(&lock_script).output() {
+                if let Ok(result) = String::from_utf8(output.stdout) {
+                    // Check if output contains 🔒 (locked)
+                    return result.contains("🔒");
+                }
+            }
         }
         false
     }
@@ -34,7 +39,7 @@ impl Widget for LockWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.locked = Self::check_core_lock_status();
+        self.locked = Self::check_lock_status();
 
         if self.locked {
             self.status = String::from("● LOCKED");
