@@ -1,29 +1,23 @@
-//! safe-update v1.0.0 - Safe System Updates
+//! safe-update v2.1.0 - Safe System Updates
 //! 🌲 Faelight Forest
 
 use clap::Parser;
+use colored::*;
 use faelight_core::paths;
-use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-// ANSI colors (keeping for now - colored ready for future)
-const RED: &str = "\x1b[0;31m";
-const GREEN: &str = "\x1b[0;32m";
-const YELLOW: &str = "\x1b[1;33m";
-const CYAN: &str = "\x1b[0;36m";
-const GRAY: &str = "\x1b[0;90m";
-const NC: &str = "\x1b[0m";
-
-const VERSION: &str = "2.0.0";
-
-// ANSI colors
+const VERSION: &str = "2.1.0";
 
 #[derive(Parser)]
 #[command(name = "safe-update")]
-#[command(about = "🛡️ Safe System Updater - Snapshot before updating", long_about = None)]
+#[command(version = VERSION)]
+#[command(about = "🛡️ Safe System Updater - Snapshot before updating")]
+#[command(
+    long_about = "Safe system update tool with btrfs snapshots, health checks, and automatic recovery"
+)]
 struct Cli {
     /// Dry run (show what would be updated)
     #[arg(long)]
@@ -34,8 +28,12 @@ struct Cli {
     yes: bool,
 
     /// Skip snapshot creation
-    #[arg(long)]
+    #[arg(long = "skip-snapshot")]
     no_snapshot: bool,
+
+    /// Run pre-flight checks only
+    #[arg(long)]
+    health: bool,
 }
 
 struct Config {
@@ -44,57 +42,52 @@ struct Config {
     skip_snapshot: bool,
 }
 
+impl From<Cli> for Config {
+    fn from(cli: Cli) -> Self {
+        Config {
+            dry_run: cli.dry_run,
+            skip_confirmation: cli.yes,
+            skip_snapshot: cli.no_snapshot,
+        }
+    }
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Cli::parse();
 
-    // Parse flags
-    if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
-        println!("safe-update v{}", VERSION);
-        return;
-    }
-
-    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
-        show_help();
-        return;
-    }
-
-    if args.contains(&"--health".to_string()) {
+    if args.health {
         run_health_check(false);
         std::process::exit(0);
     }
 
-    let config = Config {
-        dry_run: args.contains(&"--dry-run".to_string()),
-        skip_confirmation: args.contains(&"--yes".to_string()) || args.contains(&"-y".to_string()),
-        skip_snapshot: args.contains(&"--skip-snapshot".to_string()),
-    };
-
-    // Start update process
+    let config = Config::from(args);
     run_safe_update(&config);
 }
 
 fn run_safe_update(config: &Config) {
     println!();
     println!(
-        "{}═══════════════════════════════════════════════════════════{}",
-        CYAN, NC
+        "{}",
+        "═══════════════════════════════════════════════════════════".cyan()
     );
     if config.dry_run {
-        println!("{}🔍 Safe System Update v{} - DRY RUN{}", CYAN, VERSION, NC);
+        println!(
+            "{}",
+            format!("🔍 Safe System Update v{} - DRY RUN", VERSION).cyan()
+        );
     } else {
-        println!("{}🛡️  Safe System Update v{}{}", CYAN, VERSION, NC);
+        println!("{}", format!("🛡️  Safe System Update v{}", VERSION).cyan());
     }
     println!(
-        "{}═══════════════════════════════════════════════════════════{}",
-        CYAN, NC
+        "{}",
+        "═══════════════════════════════════════════════════════════".cyan()
     );
     println!();
 
-    // Pre-flight checks
-    println!("{}🏥 Pre-flight Checks{}", CYAN, NC);
+    println!("{}", "🏥 Pre-flight Checks".cyan());
     println!(
-        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-        CYAN, NC
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
     );
 
     if !run_health_check(!config.skip_snapshot) {
@@ -104,12 +97,11 @@ fn run_safe_update(config: &Config) {
 
     println!();
 
-    // Preview updates
     if !config.dry_run {
-        println!("{}📋 Update Preview{}", CYAN, NC);
+        println!("{}", "📋 Update Preview".cyan());
         println!(
-            "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-            CYAN, NC
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
         );
         log_info("Running dry-run to preview updates...");
         println!();
@@ -119,28 +111,33 @@ fn run_safe_update(config: &Config) {
         println!();
     }
 
-    // Confirmation
     if config.dry_run {
         println!();
         println!(
-            "{}═══════════════════════════════════════════════════════════{}",
-            CYAN, NC
+            "{}",
+            "═══════════════════════════════════════════════════════════".cyan()
         );
         log_info("Dry-run complete! No changes made.");
         println!(
-            "{}═══════════════════════════════════════════════════════════{}",
-            CYAN, NC
+            "{}",
+            "═══════════════════════════════════════════════════════════".cyan()
         );
         println!();
         return;
     }
 
     if !config.skip_confirmation {
-        print!("\n{}⚠️  Proceed with update? (yes/no): {}", YELLOW, NC);
-        io::stdout().flush().unwrap();
+        print!("\n{}", "⚠️  Proceed with update? (yes/no): ".yellow());
+        if let Err(e) = io::stdout().flush() {
+            log_error(&format!("Failed to flush stdout: {}", e));
+            std::process::exit(1);
+        }
 
         let mut response = String::new();
-        io::stdin().read_line(&mut response).unwrap();
+        if let Err(e) = io::stdin().read_line(&mut response) {
+            log_error(&format!("Failed to read input: {}", e));
+            std::process::exit(1);
+        }
 
         if response.trim() != "yes" {
             log_info("Update cancelled by user");
@@ -149,12 +146,11 @@ fn run_safe_update(config: &Config) {
         println!();
     }
 
-    // Create pre-update snapshot
     let pre_snapshot = if !config.skip_snapshot {
-        println!("{}📸 Creating Snapshots{}", CYAN, NC);
+        println!("{}", "📸 Creating Snapshots".cyan());
         println!(
-            "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-            CYAN, NC
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
         );
 
         log_info("Creating pre-update snapshot...");
@@ -175,11 +171,10 @@ fn run_safe_update(config: &Config) {
         None
     };
 
-    // Run update
-    println!("{}🔄 System Update{}", CYAN, NC);
+    println!("{}", "🔄 System Update".cyan());
     println!(
-        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-        CYAN, NC
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
     );
     log_info("Running topgrade...");
     println!();
@@ -188,19 +183,16 @@ fn run_safe_update(config: &Config) {
 
     println!();
 
-    // Post-update checks
-    println!("{}📋 Post-Update Checks{}", CYAN, NC);
+    println!("{}", "📋 Post-Update Checks".cyan());
     println!(
-        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-        CYAN, NC
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
     );
 
-    // Check for .pacnew files
     check_pacnew_files();
 
     println!();
 
-    // Create post-update snapshot
     let post_snapshot = if !config.skip_snapshot {
         log_info("Creating post-update snapshot...");
         let timestamp = get_timestamp();
@@ -220,11 +212,10 @@ fn run_safe_update(config: &Config) {
         None
     };
 
-    // Health check
-    println!("{}🏥 System Health Check{}", CYAN, NC);
+    println!("{}", "🏥 System Health Check".cyan());
     println!(
-        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-        CYAN, NC
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
     );
     log_info("Running system health check...");
     println!();
@@ -233,11 +224,10 @@ fn run_safe_update(config: &Config) {
 
     println!();
 
-    // Update entropy baseline
-    println!("{}📊 Drift Tracking{}", CYAN, NC);
+    println!("{}", "📊 Drift Tracking".cyan());
     println!(
-        "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-        CYAN, NC
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
     );
 
     if check_command_exists("entropy-check") {
@@ -254,30 +244,40 @@ fn run_safe_update(config: &Config) {
 
     println!();
 
-    // Show rollback instructions
     if let (Some(pre), Some(post)) = (pre_snapshot, post_snapshot) {
-        println!("{}💡 Rollback Available{}", CYAN, NC);
+        println!("{}", "💡 Rollback Available".cyan());
         println!(
-            "{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}",
-            CYAN, NC
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan()
         );
-        println!("  {}Before:{} Snapshot #{}", GRAY, NC, pre);
-        println!("  {}After: {} Snapshot #{}", GRAY, NC, post);
+        println!(
+            "  {}Before:{} Snapshot #{}",
+            "".bright_black(),
+            "".normal(),
+            pre
+        );
+        println!(
+            "  {}After: {} Snapshot #{}",
+            "".bright_black(),
+            "".normal(),
+            post
+        );
         println!();
         println!(
             "  {}To rollback: {}sudo snapper -c root rollback {}{}",
-            GRAY, YELLOW, pre, NC
+            "".bright_black(),
+            "".yellow(),
+            pre,
+            "".normal()
         );
         println!();
     }
 
-    // Save update log
     save_update_log(update_success, pre_snapshot, post_snapshot);
 
-    // Final result
     println!(
-        "{}═══════════════════════════════════════════════════════════{}",
-        CYAN, NC
+        "{}",
+        "═══════════════════════════════════════════════════════════".cyan()
     );
 
     if update_success {
@@ -287,8 +287,8 @@ fn run_safe_update(config: &Config) {
     }
 
     println!(
-        "{}═══════════════════════════════════════════════════════════{}",
-        CYAN, NC
+        "{}",
+        "═══════════════════════════════════════════════════════════".cyan()
     );
     println!();
 }
@@ -296,60 +296,68 @@ fn run_safe_update(config: &Config) {
 fn run_health_check(check_snapper: bool) -> bool {
     let mut all_healthy = true;
 
-    // Check snapper (if needed)
     if check_snapper {
         print!("  Checking snapper... ");
         if check_command_exists("snapper") {
-            // Try to access snapper
             if run_sudo(&["snapper", "-c", "root", "list"]) {
-                println!("{}✅{}", GREEN, NC);
+                println!("{}", "✅".green());
             } else {
-                println!("{}⚠️  Available but not configured{}", YELLOW, NC);
+                println!("{}", "⚠️  Available but not configured".yellow());
                 all_healthy = false;
             }
         } else {
-            println!("{}❌ Not installed{}", RED, NC);
-            println!("      {}Install with: yay -S snapper{}", GRAY, NC);
-            println!("      {}Or use: safe-update --skip-snapshot{}", GRAY, NC);
+            println!("{}", "❌ Not installed".red());
+            println!(
+                "      {}Install with: paru -S snapper{}",
+                "".bright_black(),
+                "".normal()
+            );
+            println!(
+                "      {}Or use: safe-update --skip-snapshot{}",
+                "".bright_black(),
+                "".normal()
+            );
             all_healthy = false;
         }
     }
 
-    // Check internet
     print!("  Checking internet connection... ");
     if test_internet() {
-        println!("{}✅{}", GREEN, NC);
+        println!("{}", "✅".green());
     } else {
-        println!("{}❌ No connection{}", RED, NC);
+        println!("{}", "❌ No connection".red());
         all_healthy = false;
     }
 
-    // Check disk space
     print!("  Checking disk space... ");
     if let Some(free_gb) = get_free_space() {
         if free_gb >= 2.0 {
-            println!("{}✅ {:.1} GB free{}", GREEN, free_gb, NC);
+            println!("{}", format!("✅ {:.1} GB free", free_gb).green());
         } else {
-            println!("{}❌ Only {:.1} GB free (need 2GB){}", RED, free_gb, NC);
+            println!(
+                "{}",
+                format!("❌ Only {:.1} GB free (need 2GB)", free_gb).red()
+            );
             all_healthy = false;
         }
     } else {
-        println!("{}⚠️  Could not determine{}", YELLOW, NC);
+        println!("{}", "⚠️  Could not determine".yellow());
     }
 
-    // Check system health (if doctor exists)
     if check_command_exists("doctor") {
         print!("  Checking system health... ");
-        io::stdout().flush().unwrap();
+        if let Err(e) = io::stdout().flush() {
+            log_warning(&format!("Failed to flush stdout: {}", e));
+        }
 
         if Command::new("doctor")
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)
         {
-            println!("{}✅ 100%{}", GREEN, NC);
+            println!("{}", "✅ 100%".green());
         } else {
-            println!("{}⚠️  System has warnings{}", YELLOW, NC);
+            println!("{}", "⚠️  System has warnings".yellow());
         }
     }
 
@@ -361,37 +369,36 @@ fn handle_update() -> bool {
         log_success("Update completed successfully!");
         true
     } else {
-        log_warning("Update encountered an issue - checking for yay problems...");
+        log_warning("Update encountered an issue - checking for paru problems...");
 
-        // Check if it's the yay library issue
-        let yay_check = Command::new("yay").arg("--version").output();
+        let paru_check = Command::new("paru").arg("--version").output();
 
-        let needs_rebuild = yay_check
+        let needs_rebuild = paru_check
             .map(|o| {
                 String::from_utf8_lossy(&o.stderr).contains("error while loading shared libraries")
             })
             .unwrap_or(false);
 
         if needs_rebuild {
-            log_info("Detected yay library mismatch - rebuilding yay...");
+            log_info("Detected paru library mismatch - rebuilding paru...");
             println!();
 
-            if rebuild_yay() {
-                log_success("yay rebuilt successfully!");
+            if rebuild_paru() {
+                log_success("paru rebuilt successfully!");
                 println!();
 
                 log_info("Retrying system update...");
                 println!();
 
                 if run_interactive("topgrade", &[]) {
-                    log_success("Update completed after yay rebuild!");
+                    log_success("Update completed after paru rebuild!");
                     true
                 } else {
                     log_error("Update still failed - manual intervention needed");
                     false
                 }
             } else {
-                log_error("Failed to rebuild yay");
+                log_error("Failed to rebuild paru");
                 false
             }
         } else {
@@ -435,10 +442,10 @@ fn run_doctor() {
 
 fn save_update_log(success: bool, pre: Option<u32>, post: Option<u32>) {
     let home = paths::home();
-
     let log_dir = PathBuf::from(&home).join(".local/share/faelight/update-logs");
 
-    if fs::create_dir_all(&log_dir).is_err() {
+    if let Err(e) = fs::create_dir_all(&log_dir) {
+        log_warning(&format!("Could not create log directory: {}", e));
         return;
     }
 
@@ -460,9 +467,19 @@ fn save_update_log(success: bool, pre: Option<u32>, post: Option<u32>) {
         log_content.push_str(&format!("Post-snapshot: #{}\n", post_num));
     }
 
-    if fs::write(&log_file, log_content).is_ok() {
-        println!();
-        println!("{}Update log: {}{}", GRAY, log_file.display(), NC);
+    match fs::write(&log_file, log_content) {
+        Ok(_) => {
+            println!();
+            println!(
+                "{}Update log: {}{}",
+                "".bright_black(),
+                log_file.display(),
+                "".normal()
+            );
+        }
+        Err(e) => {
+            log_warning(&format!("Could not save update log: {}", e));
+        }
     }
 }
 
@@ -531,13 +548,11 @@ fn run_command(cmd: &str, args: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
-fn rebuild_yay() -> bool {
-    // Clean up any existing yay directory
-    Command::new("rm").args(["-rf", "/tmp/yay"]).status().ok();
+fn rebuild_paru() -> bool {
+    let _ = Command::new("rm").args(["-rf", "/tmp/paru"]).status();
 
-    // Clone yay
     let clone = Command::new("git")
-        .args(["clone", "https://aur.archlinux.org/yay.git"])
+        .args(["clone", "https://aur.archlinux.org/paru.git"])
         .current_dir("/tmp")
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
@@ -545,14 +560,13 @@ fn rebuild_yay() -> bool {
         .status();
 
     if !clone.map(|s| s.success()).unwrap_or(false) {
-        log_error("Failed to clone yay repository");
+        log_error("Failed to clone paru repository");
         return false;
     }
 
-    // Build yay
     let build = Command::new("makepkg")
         .args(["-si", "--noconfirm"])
-        .current_dir("/tmp/yay")
+        .current_dir("/tmp/paru")
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -562,19 +576,19 @@ fn rebuild_yay() -> bool {
 }
 
 fn log_info(msg: &str) {
-    println!("  {}ℹ {}{}", CYAN, NC, msg);
+    println!("  {}ℹ {}{}", "".cyan(), "".normal(), msg);
 }
 
 fn log_success(msg: &str) {
-    println!("  {}✅ {}{}", GREEN, NC, msg);
+    println!("  {}✅ {}{}", "".green(), "".normal(), msg);
 }
 
 fn log_warning(msg: &str) {
-    println!("  {}⚠️  {}{}", YELLOW, NC, msg);
+    println!("  {}⚠️  {}{}", "".yellow(), "".normal(), msg);
 }
 
 fn log_error(msg: &str) {
-    println!("  {}❌ {}{}", RED, NC, msg);
+    println!("  {}❌ {}{}", "".red(), "".normal(), msg);
 }
 
 fn get_timestamp() -> String {
@@ -604,43 +618,4 @@ fn run_interactive(cmd: &str, args: &[&str]) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
-}
-
-fn show_help() {
-    println!(
-        "{}🛡️  safe-update v{}{} - Safe System Updates",
-        CYAN, VERSION, NC
-    );
-    println!();
-    println!("USAGE:");
-    println!("   safe-update [OPTIONS]");
-    println!();
-    println!("OPTIONS:");
-    println!("   --dry-run            Preview updates without applying");
-    println!("   --yes, -y            Skip confirmation prompt");
-    println!("   --skip-snapshot      Don't create snapshots");
-    println!("   --health             Run pre-flight checks only");
-    println!("   --version, -v        Show version");
-    println!("   --help, -h           Show this help");
-    println!();
-    println!("EXAMPLES:");
-    println!("   safe-update                      # Standard update with all safety");
-    println!("   safe-update --dry-run            # Preview what would update");
-    println!("   safe-update --yes                # Skip confirmation");
-    println!("   safe-update --skip-snapshot      # Fast update without snapshots");
-    println!("   safe-update --health             # Check if system ready to update");
-    println!();
-    println!("SAFETY FEATURES:");
-    println!("   ✅ Pre-flight health checks");
-    println!("   ✅ Btrfs snapshots (before/after)");
-    println!("   ✅ Automatic yay recovery");
-    println!("   ✅ .pacnew file detection");
-    println!("   ✅ Post-update verification");
-    println!("   ✅ Rollback instructions");
-    println!("   ✅ Drift baseline updates");
-    println!("   ✅ Update logging");
-    println!();
-    println!("PHILOSOPHY:");
-    println!("   'Manual control over automation. Reliability over convenience.'");
-    println!("   Updates are never automatic - you control when they happen.");
 }
