@@ -1,18 +1,30 @@
-//! Lock widget with symbol
+//! Lock widget - Shows 0-Core lock status (read-only)
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
-use std::process::Command;
 
 pub struct LockWidget {
-    text: String,
+    status: String,
+    locked: bool,
 }
 
 impl LockWidget {
     pub fn new() -> Self {
         Self {
-            text: String::from("◯ UNLOCKED"), // Simple circle
+            status: String::from("◯ UNLOCKED"),
+            locked: false,
         }
+    }
+
+    fn check_core_lock_status() -> bool {
+        // Check if core is locked via dot-doctor or a lock file
+        // TODO: Determine the correct way to check core lock status
+        // For now, check if a lock file exists
+        if let Some(home) = dirs::home_dir() {
+            let lock_file = home.join(".local/share/0-core/lock");
+            return lock_file.exists();
+        }
+        false
     }
 }
 
@@ -22,20 +34,34 @@ impl Widget for LockWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
+        self.locked = Self::check_core_lock_status();
+
+        if self.locked {
+            self.status = String::from("● LOCKED");
+        } else {
+            self.status = String::from("◯ UNLOCKED");
+        }
+
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
+        let color = if self.locked {
+            0xFFFF6B6B // Red when locked
+        } else {
+            colors::SUCCESS // Green when unlocked
+        };
+
         Ok(WidgetOutput {
-            text: self.text.clone(),
-            color: colors::FG,
+            text: self.status.clone(),
+            color,
             width: 140,
-            clickable: true,
+            clickable: false, // READ-ONLY - no click action!
         })
     }
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
-        let _ = Command::new("swaylock").arg("-f").spawn();
+        // NO ACTION - this widget is read-only
         Ok(())
     }
 }

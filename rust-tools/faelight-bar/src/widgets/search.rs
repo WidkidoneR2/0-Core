@@ -1,4 +1,4 @@
-//! Search widget - Click to launch dmenu/rofi
+//! Search widget - Launches dmenu on click
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
@@ -28,14 +28,14 @@ impl Widget for SearchWidget {
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
         Ok(WidgetOutput {
             text: self.text.clone(),
-            color: colors::ACCENT, // Teal to stand out
-            width: 60,
+            color: colors::ACCENT,
+            width: 90,
             clickable: true,
         })
     }
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
-        // Launch faelight-dmenu (your custom dmenu)
+        // Launch faelight-dmenu
         let _ = Command::new("faelight-dmenu").spawn();
         Ok(())
     }

@@ -1064,6 +1064,8 @@ dependencies = [
  "chrono",
  "dirs",
  "faelight-core",
+ "fontdue",
+ "lazy_static",
  "smithay-client-toolkit 0.19.2",
  "thiserror 1.0.69",
  "wayland-client",

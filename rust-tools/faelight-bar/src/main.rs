@@ -522,11 +522,15 @@ impl SeatHandler for BarState {
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
     fn new_capability(
         &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: wl_seat::WlSeat,
-        _: Capability,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: Capability,
     ) {
+        if capability == Capability::Pointer {
+            logger::log_info("Pointer capability available - creating pointer");
+            self.seat_state.get_pointer(qh, &seat).ok();
+        }
     }
     fn remove_capability(
         &mut self,

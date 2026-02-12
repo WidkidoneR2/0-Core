@@ -1,29 +1,27 @@
-//! VPN widget - Shows Mullvad connection status
+//! VPN widget
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use std::process::Command;
 
 pub struct VpnWidget {
-    connected: bool,
-    last_check: std::time::Instant,
+    status: String,
 }
 
 impl VpnWidget {
     pub fn new() -> Self {
         Self {
-            connected: false,
-            last_check: std::time::Instant::now(),
+            status: String::from("VPN:??"),
         }
     }
 
-    fn check_vpn_status() -> bool {
+    fn check_vpn() -> bool {
         if let Ok(output) = Command::new("mullvad").arg("status").output() {
-            let result = String::from_utf8_lossy(&output.stdout);
-            result.contains("Connected")
-        } else {
-            false
+            if let Ok(result) = String::from_utf8(output.stdout) {
+                return result.to_lowercase().contains("connected");
+            }
         }
+        false
     }
 }
 
@@ -33,36 +31,33 @@ impl Widget for VpnWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        // Check every 5 seconds
-        if self.last_check.elapsed().as_secs() >= 5 {
-            self.connected = Self::check_vpn_status();
-            self.last_check = std::time::Instant::now();
-        }
+        let connected = Self::check_vpn();
+        self.status = if connected {
+            String::from("VPN ON")
+        } else {
+            String::from("VPN OFF")
+        };
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let (text, color) = if self.connected {
-            ("VPN ON", colors::SUCCESS)
+        let connected = Self::check_vpn();
+        let color = if connected {
+            colors::SUCCESS
         } else {
-            ("VPN OFF", colors::FG)
+            colors::FG
         };
 
         Ok(WidgetOutput {
-            text: text.to_string(),
+            text: self.status.clone(),
             color,
-            width: 60,
-            clickable: true,
+            width: 80,
+            clickable: false, // Disable for now
         })
     }
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
-        // Toggle VPN
-        if self.connected {
-            let _ = Command::new("mullvad").arg("disconnect").spawn();
-        } else {
-            let _ = Command::new("mullvad").arg("connect").spawn();
-        }
+        // Do nothing for now
         Ok(())
     }
 }
