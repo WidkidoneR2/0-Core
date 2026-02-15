@@ -1,4 +1,4 @@
-# 🔧 bump-tool-version v1.0.0
+# 🔧 bump-tool-version v2.1.0
 
 **Individual tool version management with auto-increment support**
 
