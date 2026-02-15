@@ -10,7 +10,7 @@ use std::process::Command;
 
 #[derive(Parser)]
 #[command(name = "bump-tool-version")]
-#[command(version = "2.0.0")]
+#[command(version = "2.1.0")]
 #[command(about = "Bump individual tool versions with auto-increment support", long_about = None)]
 struct Cli {
     /// Tool name (e.g., faelight-link, faelight-fm)
