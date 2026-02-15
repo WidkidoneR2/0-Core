@@ -294,5 +294,3 @@ bindsym $mod+Ctrl+a exec $term -e ~/0-core/scripts/archaeology-0-core
 bindsym $mod+Ctrl+c exec $term -e ~/0-core/scripts/compile-changelog.sh
 bindsym $mod+Ctrl+g exec $term -e ~/0-core/scripts/faelight-stow
 
-# Faelight Bar - Custom status bar
-exec ~/0-core/target/release/faelight-bar
