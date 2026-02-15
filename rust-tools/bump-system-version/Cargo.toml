@@ -1,6 +1,6 @@
 [package]
 name = "bump-system-version"
-version = "9.2.0"
+version = "9.3.0"
 edition = "2021"
 description = "The LEGENDARY Release Master - Comprehensive system version bumping"
 
