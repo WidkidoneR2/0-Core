@@ -45,7 +45,7 @@ fn health_check() {
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "core-diff")]
-#[command(version = "2.0.0")]
+#[command(version = "3.1.0")]
 #[command(about = "Policy-aware git diff analyzer for 0-Core", long_about = None)]
 struct Cli {
     /// Verbose output
@@ -162,7 +162,7 @@ fn main() {
     if filtered_changes.is_empty() {
         println!(
             "✅ No changes in package: {}",
-            cli.package.as_ref().unwrap()
+            cli.package.as_deref().unwrap_or("unknown")
         );
         return;
     }
