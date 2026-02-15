@@ -1,4 +1,4 @@
-//! bump-system-version v9.2.0
+//! bump-system-version v9.3.0
 //! The BULLETPROOF Release Master
 //!
 //! FIXES FROM v9.0.0:
@@ -73,7 +73,7 @@ fn main() {
 }
 
 fn print_help() {
-    println!("{}", "bump-system-version v9.2.0".cyan().bold());
+    println!("{}", "bump-system-version v9.3.0".cyan().bold());
     println!("The BULLETPROOF Release Master\n");
     println!("USAGE:");
     println!("  bump-system-version           Run normal release");
@@ -177,7 +177,7 @@ fn run(dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    println!("\n{}", "Proceed with release? (y/n): ".yellow().bold());
+    println!("\n{}", "Proceed with release? (yes/y): ".yellow().bold());
     print!("> ");
     io::stdout().flush()?;
     let mut confirm = String::new();
@@ -377,6 +377,9 @@ fn collect_release_content_multiline(version: &str) -> Result<ReleaseContent> {
     let manual_stats = read_multiline_input()?;
 
     println!("\nOptional quote (or press Enter to skip):");
+    println!("  Examples:");
+    println!("    • \"The only way to do great work is to love what you do.\" - Steve Jobs");
+    println!("    • \"Excellence is a continuous journey.\" - Brian Tracy");
     print!("> ");
     io::stdout().flush()?;
     let mut quote = String::new();
@@ -905,6 +908,11 @@ fn print_success_summary(version: &str, stats: &AutoStats) -> Result<()> {
         println!("  🔧 Tools Updated: {}", stats.tools_updated.len());
     }
 
+    println!(
+        "  🔗 Release: https://github.com/WidkidoneR2/0-Core/releases/tag/v{}",
+        version
+    );
+    println!("\n{}", "🎊 Celebrate on GitHub:".cyan().bold());
     println!("\n{}", "Next Steps:".cyan());
     println!("  • Run: source ~/.zshrc");
     println!("  • Verify: cat 00-meta/VERSION");
@@ -928,10 +936,10 @@ fn print_banner(dry_run: bool) {
     if dry_run {
         println!(
             "{}",
-            "🔍 bump-system-version v9.2.0 [DRY RUN]".cyan().bold()
+            "🔍 bump-system-version v9.3.0 [DRY RUN]".cyan().bold()
         );
     } else {
-        println!("{}", "🌲 bump-system-version v9.2.0".cyan().bold());
+        println!("{}", "🌲 bump-system-version v9.3.0".cyan().bold());
     }
     println!("{}", "   The BULLETPROOF Release Master".cyan());
     println!(
