@@ -1,11 +1,13 @@
-//! intent-guard v1.0.0 - Command Safety Guard
+//! intent-guard v2.1.0 - Command Safety Guard
 //! 🌲 Faelight Forest
 
 use std::env;
 use std::io::{self, Write};
+
+use colored::*;
 use std::process;
 
-const VERSION: &str = "2.0.0";
+const VERSION: &str = "2.1.0";
 
 // ============================================================================
 // TYPES & STRUCTURES
@@ -20,12 +22,12 @@ enum RiskLevel {
 }
 
 impl RiskLevel {
-    fn color(&self) -> &str {
+    fn colored_label(&self) -> ColoredString {
         match self {
-            RiskLevel::Low => "\x1b[0;34m",      // Blue
-            RiskLevel::Medium => "\x1b[0;33m",   // Yellow
-            RiskLevel::High => "\x1b[0;31m",     // Red
-            RiskLevel::Critical => "\x1b[1;31m", // Bold Red
+            RiskLevel::Low => self.label().blue(),
+            RiskLevel::Medium => self.label().yellow(),
+            RiskLevel::High => self.label().red(),
+            RiskLevel::Critical => self.label().red().bold(),
         }
     }
 
@@ -220,7 +222,11 @@ fn check_command(cmd: &str) {
         process::exit(0);
     }
 
-    matches.sort_by(|a, b| b.risk.partial_cmp(&a.risk).unwrap());
+    matches.sort_by(|a, b| {
+        b.risk
+            .partial_cmp(&a.risk)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let highest_risk = &matches[0];
 
     show_warning(cmd, highest_risk);
@@ -236,20 +242,15 @@ fn check_command(cmd: &str) {
 fn test_command(cmd: &str) {
     let matches: Vec<&Pattern> = PATTERNS.iter().filter(|p| (p.check)(cmd)).collect();
 
-    let nc = "\x1b[0m";
-
     if matches.is_empty() {
-        println!("\x1b[0;32m✅ Safe command - no patterns matched{}", nc);
+        println!("{}", "✅ Safe command - no patterns matched".green());
     } else {
-        println!("\x1b[0;33m⚠️  Dangerous command detected:{}", nc);
+        println!("{}", "⚠️  Dangerous command detected:".yellow());
         println!();
         for pattern in matches {
-            let risk_color = pattern.risk.color();
             println!(
-                "  {}{:8}{} {} - {}",
-                risk_color,
-                pattern.risk.label(),
-                nc,
+                "  {} {} - {}",
+                pattern.risk.colored_label(),
                 pattern.name,
                 pattern.description
             );
@@ -258,14 +259,7 @@ fn test_command(cmd: &str) {
 }
 
 fn show_warning(cmd: &str, pattern: &Pattern) {
-    let nc = "\x1b[0m";
-    let risk_color = pattern.risk.color();
-    eprintln!(
-        "\n{}⚠️  {} RISK DETECTED{}",
-        risk_color,
-        pattern.risk.label(),
-        nc
-    );
+    eprintln!("\n⚠️  {} RISK DETECTED", pattern.risk.colored_label());
     eprintln!("   Command: {}", cmd);
     eprintln!("   Pattern: {}", pattern.description);
     eprintln!();
@@ -282,26 +276,31 @@ fn confirm_execution(risk: RiskLevel) -> bool {
 
 fn confirm_yes_no() -> bool {
     print!("Continue? [y/N]: ");
-    io::stdout().flush().unwrap();
+    if io::stdout().flush().is_err() {
+        return false; // Default to "no" on error
+    }
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    if io::stdin().read_line(&mut input).is_err() {
+        return false; // Default to "no" on error
+    }
     matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
 }
 
 fn confirm_exact(word: &str) -> bool {
     print!("Type '{}' to confirm: ", word);
-    io::stdout().flush().unwrap();
+    if io::stdout().flush().is_err() {
+        return false; // Default to "no" on error
+    }
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    if io::stdin().read_line(&mut input).is_err() {
+        return false; // Default to "no" on error
+    }
     input.trim() == word
 }
 
 fn list_patterns() {
-    let nc = "\x1b[0m";
-    let cyan = "\x1b[0;36m";
-
     println!();
-    println!("{}🛡️  Intent Guard - Safety Patterns{}", cyan, nc);
+    println!("{}", "🛡️  Intent Guard - Safety Patterns".cyan().bold());
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
 
@@ -318,8 +317,7 @@ fn list_patterns() {
             continue;
         }
 
-        let risk_color = risk_level.color();
-        println!("{}{} RISK:{}", risk_color, risk_level.label(), nc);
+        println!("{} RISK:", risk_level.colored_label());
 
         for pattern in patterns {
             println!("  • {} - {}", pattern.name, pattern.description);
@@ -332,12 +330,13 @@ fn list_patterns() {
 }
 
 fn cmd_health() {
-    let nc = "\x1b[0m";
-    let green = "\x1b[0;32m";
-    let cyan = "\x1b[0;36m";
-
     println!();
-    println!("{}🏥 intent-guard v{} - Health Check{}", cyan, VERSION, nc);
+    println!(
+        "{}",
+        format!("🏥 intent-guard v{} - Health Check", VERSION)
+            .cyan()
+            .bold()
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     let mut healthy = true;
@@ -348,7 +347,10 @@ fn cmd_health() {
         println!("❌ No patterns loaded");
         healthy = false;
     } else {
-        println!("{}✅ {} patterns loaded{}", green, PATTERNS.len(), nc);
+        println!(
+            "{}",
+            format!("✅ {} patterns loaded", PATTERNS.len()).green()
+        );
     }
 
     // Check pattern integrity
@@ -359,7 +361,7 @@ fn cmd_health() {
         let _ = (pattern.check)("");
     }
     if valid {
-        println!("{}✅{}", green, nc);
+        println!("{}", "✅".green());
     } else {
         println!("❌ Some patterns failed validation");
         healthy = false;
@@ -381,7 +383,7 @@ fn cmd_health() {
         .count();
     let low = PATTERNS.iter().filter(|p| p.risk == RiskLevel::Low).count();
 
-    println!("{}✅{}", green, nc);
+    println!("{}", "✅".green());
     println!("     Critical: {}", critical);
     println!("     High:     {}", high);
     println!("     Medium:   {}", medium);
@@ -389,7 +391,7 @@ fn cmd_health() {
 
     println!();
     if healthy {
-        println!("{}✅ All systems operational{}", green, nc);
+        println!("{}", "✅ All systems operational".green().bold());
         process::exit(0);
     } else {
         println!("❌ System unhealthy");
