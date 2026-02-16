@@ -1,4 +1,4 @@
-# faelight-bootstrap v1.0.0
+# faelight-bootstrap v2.1.0
 
 **One-Command 0-Core Setup** - Automated installation for Faelight Forest on Arch Linux.
 
