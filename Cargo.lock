@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-term"
-version = "10.1.0"
+version = "10.2.0"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
