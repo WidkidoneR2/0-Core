@@ -1,4 +1,4 @@
-//! Health widget - Shows system health percentage
+//! Health widget - Shows system health percentage from doctor
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
@@ -16,17 +16,17 @@ impl HealthWidget {
     }
 
     fn get_health() -> String {
-        // Use the actual binary, not the alias
-        let doctor_path = "/home/christian/.local/bin/dot-doctor";
-
-        if let Ok(output) = Command::new(doctor_path).output() {
+        // Use actual binary path (doctor is an alias)
+        if let Ok(output) = Command::new("dot-doctor").output() {
             if let Ok(result) = String::from_utf8(output.stdout) {
+                // Look for "   Health:   94%" line in Statistics section
                 for line in result.lines() {
-                    if line.contains("Health:") && line.contains("%") {
+                    if line.trim_start().starts_with("Health:") {
+                        // Extract percentage after "Health:"
                         let parts: Vec<&str> = line.split_whitespace().collect();
-                        for part in parts {
-                            if part.ends_with('%') {
-                                return format!("HP:{}", part);
+                        if let Some(pct) = parts.last() {
+                            if pct.ends_with('%') {
+                                return format!("HP:{}", pct);
                             }
                         }
                     }
@@ -59,12 +59,8 @@ impl Widget for HealthWidget {
         Ok(WidgetOutput {
             text: self.health.clone(),
             color,
-            width: 60,
+            width: 70,
             clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        Ok(())
     }
 }

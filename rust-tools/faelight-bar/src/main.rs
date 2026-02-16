@@ -280,7 +280,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = (width as i32) - 610;
+            let x = (width as i32) - 555; // VPN
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -294,7 +294,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = (width as i32) - 490;
+            let x = (width as i32) - 440; // Volume
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
             if output.clickable {
                 self.click_regions
@@ -310,7 +310,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = (width as i32) - 398;
+            let x = (width as i32) - 360; // Battery
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
@@ -320,7 +320,7 @@ impl BarState {
             height,
             x_offset: 0,
         }) {
-            let x = (width as i32) - 717;
+            let x = (width as i32) - 640; // Network
             render::draw_text(canvas, stride, x, y, &output.text, output.color);
         }
 
