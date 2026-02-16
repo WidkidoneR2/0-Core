@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use colored::*;
 use faelight_core::paths;
 use std::env;
 use std::fs;
@@ -6,17 +7,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
 
-// ANSI colors (keeping for now - colored crate ready for future)
-const RED: &str = "\x1b[0;31m";
-const GREEN: &str = "\x1b[0;32m";
-const YELLOW: &str = "\x1b[1;33m";
-const CYAN: &str = "\x1b[0;36m";
-const BLUE: &str = "\x1b[0;34m";
-const NC: &str = "\x1b[0m";
-
-const VERSION: &str = "2.0.0";
-
-// ANSI colors
+const VERSION: &str = "2.1.0";
 
 #[derive(Parser)]
 #[command(name = "core-protect")]
@@ -72,7 +63,10 @@ fn main() {
 
 fn cmd_health(core_dir: &PathBuf) {
     println!();
-    println!("{}🏥 core-protect v{} - Health Check{}", CYAN, VERSION, NC);
+    println!(
+        "{}",
+        format!("🏥 core-protect v{} - Health Check", VERSION).cyan()
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     let mut healthy = true;
@@ -80,9 +74,9 @@ fn cmd_health(core_dir: &PathBuf) {
     // Check chattr available
     print!("  Checking chattr command... ");
     match Command::new("which").arg("chattr").output() {
-        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        Ok(output) if output.status.success() => println!("{}", "✅".green()),
         _ => {
-            println!("{}❌ chattr not found{}", RED, NC);
+            println!("{}", "❌ chattr not found".red());
             healthy = false;
         }
     }
@@ -90,9 +84,9 @@ fn cmd_health(core_dir: &PathBuf) {
     // Check lsattr available
     print!("  Checking lsattr command... ");
     match Command::new("which").arg("lsattr").output() {
-        Ok(output) if output.status.success() => println!("{}✅{}", GREEN, NC),
+        Ok(output) if output.status.success() => println!("{}", "✅".green()),
         _ => {
-            println!("{}❌ lsattr not found{}", RED, NC);
+            println!("{}", "❌ lsattr not found".red());
             healthy = false;
         }
     }
@@ -100,18 +94,21 @@ fn cmd_health(core_dir: &PathBuf) {
     // Check 0-core exists
     print!("  Checking 0-core directory... ");
     if core_dir.exists() {
-        println!("{}✅ {}{}", GREEN, core_dir.display(), NC);
+        println!("{}", format!("✅ {}", core_dir.display()).green());
     } else {
-        println!("{}❌ not found at {}{}", RED, core_dir.display(), NC);
+        println!(
+            "{}",
+            format!("❌ not found at {}", core_dir.display()).red()
+        );
         healthy = false;
     }
 
     // Check sudo access
     print!("  Checking sudo access... ");
     match Command::new("sudo").args(["-n", "true"]).status() {
-        Ok(status) if status.success() => println!("{}✅{}", GREEN, NC),
+        Ok(status) if status.success() => println!("{}", "✅".green()),
         _ => {
-            println!("{}⚠️  sudo may require password{}", YELLOW, NC);
+            println!("{}", "⚠️  sudo may require password".yellow());
         }
     }
 
@@ -122,20 +119,20 @@ fn cmd_health(core_dir: &PathBuf) {
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
         if stdout.contains('i') {
-            println!("{}🔒 LOCKED{}", GREEN, NC);
+            println!("{}", "🔒 LOCKED".green());
         } else {
-            println!("{}🔓 UNLOCKED{}", YELLOW, NC);
+            println!("{}", "🔓 UNLOCKED".yellow());
         }
     } else {
-        println!("{}❓ Unknown{}", YELLOW, NC);
+        println!("{}", "❓ Unknown".yellow());
     }
 
     println!();
     if healthy {
-        println!("{}✅ All systems operational{}", GREEN, NC);
+        println!("{}", "✅ All systems operational".green());
         process::exit(0);
     } else {
-        println!("{}❌ System unhealthy{}", RED, NC);
+        println!("{}", "❌ System unhealthy".red());
         process::exit(1);
     }
 }
@@ -166,8 +163,8 @@ fn cmd_lock(core_dir: &PathBuf) {
         .ok();
 
     println!(
-        "{}✅ Core protected! Cannot modify without unlocking.{}",
-        GREEN, NC
+        "{}",
+        "✅ Core protected! Cannot modify without unlocking.".green()
     );
 }
 
@@ -196,7 +193,7 @@ fn cmd_unlock(core_dir: &PathBuf) {
         .status()
         .ok();
 
-    println!("{}✅ Core unlocked! You can now edit.{}", GREEN, NC);
+    println!("{}", "✅ Core unlocked! You can now edit.".green());
 }
 
 fn cmd_status(core_dir: &PathBuf) {
@@ -220,7 +217,7 @@ fn cmd_edit(core_dir: &PathBuf, package: &str) {
     let pkg_dir = core_dir.join(package);
 
     if !pkg_dir.exists() {
-        eprintln!("{}❌ Package not found: {}{}", RED, package, NC);
+        eprintln!("{}", format!("❌ Package not found: {}", package).red());
         process::exit(1);
     }
 
@@ -246,7 +243,7 @@ fn cmd_edit(core_dir: &PathBuf, package: &str) {
     println!("🔒 Re-locking core...");
     cmd_lock(core_dir);
 
-    println!("{}✅ Edits complete, core re-locked!{}", GREEN, NC);
+    println!("{}", "✅ Edits complete, core re-locked!".green());
 }
 
 fn get_blast_radius(core_dir: &Path, package: &str) -> String {
@@ -313,21 +310,21 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
 
     match blast_radius {
         "critical" => {
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", RED, NC);
-            println!("{}⚠️  CRITICAL BLAST RADIUS COMPONENT{}", RED, NC);
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", RED, NC);
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".red());
+            println!("{}", "⚠️  CRITICAL BLAST RADIUS COMPONENT".red());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".red());
             println!();
-            println!("Package: {}{}{}", CYAN, package, NC);
-            println!("Risk: {}🔴 Critical{} (system unusable if broken)", RED, NC);
+            println!("{}", format!("Package: {}", package).cyan());
+            println!("{}", "Risk: 🔴 Critical (system unusable if broken)".red());
             println!();
             println!("Failure may cause:");
             for mode in &failure_modes {
-                println!("  {}•{} {}", RED, NC, mode);
+                println!("  {} {}", "•".red(), mode);
             }
             println!();
             println!(
-                "{}⚠️  Auto-backup will be created before editing{}",
-                YELLOW, NC
+                "{}",
+                "⚠️  Auto-backup will be created before editing".yellow()
             );
             println!();
 
@@ -338,24 +335,24 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             }
         }
         "high" => {
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", YELLOW, NC);
-            println!("{}⚠️  HIGH BLAST RADIUS COMPONENT{}", YELLOW, NC);
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", YELLOW, NC);
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".yellow());
+            println!("{}", "⚠️  HIGH BLAST RADIUS COMPONENT".yellow());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".yellow());
             println!();
-            println!("Package: {}{}{}", CYAN, package, NC);
+            println!("{}", format!("Package: {}", package).cyan());
             println!(
-                "Risk: {}🟠 High{} (major functionality affected)",
-                YELLOW, NC
+                "{}",
+                "Risk: 🟠 High (major functionality affected)".yellow()
             );
             println!();
             println!("Failure may cause:");
             for mode in &failure_modes {
-                println!("  {}•{} {}", YELLOW, NC, mode);
+                println!("  {} {}", "•".yellow(), mode);
             }
             println!();
             println!(
-                "{}⚠️  Auto-backup will be created before editing{}",
-                YELLOW, NC
+                "{}",
+                "⚠️  Auto-backup will be created before editing".yellow()
             );
             println!();
 
@@ -366,15 +363,12 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             }
         }
         "medium" => {
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", BLUE, NC);
-            println!("{}ℹ️  MEDIUM BLAST RADIUS COMPONENT{}", BLUE, NC);
-            println!("{}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{}", BLUE, NC);
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".blue());
+            println!("{}", "ℹ️  MEDIUM BLAST RADIUS COMPONENT".blue());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".blue());
             println!();
-            println!("Package: {}{}{}", CYAN, package, NC);
-            println!(
-                "Risk: {}🔵 Medium{} (important but not essential)",
-                BLUE, NC
-            );
+            println!("{}", format!("Package: {}", package).cyan());
+            println!("{}", "Risk: 🔵 Medium (important but not essential)".blue());
             println!();
 
             let confirm = prompt("Continue? (y/N): ");
@@ -417,7 +411,7 @@ fn create_backup(core_dir: &Path, package: &str, blast_radius: &str) {
             .status()
             .ok();
 
-        println!("{}✅ Backup created (git stash){}", GREEN, NC);
+        println!("{}", "✅ Backup created (git stash)".green());
         println!();
     }
 }
