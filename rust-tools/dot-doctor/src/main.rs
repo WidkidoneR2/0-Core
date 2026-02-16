@@ -1133,8 +1133,8 @@ fn check_tool_installation(_ctx: &Context) -> CheckResult {
 }
 
 fn check_path_resilience(_ctx: &Context) -> CheckResult {
-    let total_tools = 40;
-    let migrated_tools = 40;
+    let total_tools = 43;
+    let migrated_tools = 43;
     let percentage = (migrated_tools * 100) / total_tools;
 
     CheckResult {
