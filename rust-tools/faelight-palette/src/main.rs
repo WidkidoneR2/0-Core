@@ -104,6 +104,7 @@ enum Mode {
     Files,
     Intents,
     Emoji,
+    Stats,
 }
 
 impl App {
@@ -248,6 +249,106 @@ impl App {
                 self.items
                     .push(ItemType::Emoji("party".into(), "🎉".into()));
             }
+            Mode::Stats => {
+                // Calculate Rust code statistics
+                let rust_tools_dir = "/home/christian/0-core/rust-tools";
+
+                // Count Rust LOC
+                if let Ok(output) = Command::new("sh")
+                    .arg("-c")
+                    .arg(format!(
+                        "find {} -name '*.rs' -exec wc -l {{}} + 2>/dev/null | tail -1",
+                        rust_tools_dir
+                    ))
+                    .output()
+                {
+                    if let Ok(result) = String::from_utf8(output.stdout) {
+                        if let Some(total) = result.split_whitespace().next() {
+                            self.items
+                                .push(ItemType::App(format!("📝 Total Rust LOC: {}", total)));
+                        }
+                    }
+                }
+
+                // Tool count
+                self.items
+                    .push(ItemType::App("🔧 Total Tools: 43".to_string()));
+                self.items
+                    .push(ItemType::App("🔗 Total Aliases: 299".to_string()));
+
+                // Disk usage
+                if let Ok(output) = Command::new("du")
+                    .args(["-sh", "/home/christian/0-core"])
+                    .output()
+                {
+                    if let Ok(result) = String::from_utf8(output.stdout) {
+                        if let Some(size) = result.split_whitespace().next() {
+                            self.items
+                                .push(ItemType::App(format!("💾 0-Core Size: {}", size)));
+                        }
+                    }
+                }
+
+                // Intent stats
+                if let Ok(output) = Command::new("sh")
+                    .arg("-c")
+                    .arg("intent list 2>/dev/null | tail -1")
+                    .output()
+                {
+                    if let Ok(result) = String::from_utf8(output.stdout) {
+                        let trimmed = result.trim();
+                        if !trimmed.is_empty() {
+                            self.items.push(ItemType::App(format!("📋 {}", trimmed)));
+                        }
+                    }
+                }
+
+                // Add individual tool stats - Top 10 Largest
+                if let Ok(entries) = std::fs::read_dir(rust_tools_dir) {
+                    let mut tool_sizes: Vec<(String, usize)> = Vec::new();
+
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        let src_dir = entry.path().join("src");
+
+                        if src_dir.exists() {
+                            if let Ok(output) = Command::new("sh")
+                                .arg("-c")
+                                .arg(format!(
+                                    "find {} -name '*.rs' -exec wc -l {{}} + 2>/dev/null | tail -1",
+                                    src_dir.display()
+                                ))
+                                .output()
+                            {
+                                if let Ok(result) = String::from_utf8(output.stdout) {
+                                    if let Some(lines) = result.split_whitespace().next() {
+                                        if let Ok(count) = lines.parse::<usize>() {
+                                            tool_sizes.push((name, count));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Sort by size (largest first)
+                    tool_sizes.sort_by(|a, b| b.1.cmp(&a.1));
+
+                    // Show top 10
+                    self.items
+                        .push(ItemType::App("━━━━━━━━━━━━━━━━━━━━━━━━━━".to_string()));
+                    self.items
+                        .push(ItemType::App("🏆 Top 10 Largest Tools:".to_string()));
+                    for (i, (name, lines)) in tool_sizes.iter().take(10).enumerate() {
+                        self.items.push(ItemType::App(format!(
+                            "  {}. {} - {} lines",
+                            i + 1,
+                            name,
+                            lines
+                        )));
+                    }
+                }
+            }
         }
     }
 
@@ -257,7 +358,9 @@ impl App {
         } else {
             // Remove mode prefix
             match self.input.chars().next() {
-                Some('>') | Some('@') | Some('$') | Some('#') | Some(':') => &self.input[1..],
+                Some('>') | Some('@') | Some('$') | Some('#') | Some(':') | Some('!') => {
+                    &self.input[1..]
+                }
                 _ => &self.input,
             }
         };
@@ -290,6 +393,7 @@ impl App {
             Some('@') => Mode::Files,
             Some('#') => Mode::Intents,
             Some(':') => Mode::Emoji,
+            Some('!') => Mode::Stats,
             _ => Mode::Apps,
         };
 
@@ -383,6 +487,7 @@ fn ui(f: &mut Frame, app: &App) {
         Mode::Files => "📁 RECENT FILES",
         Mode::Intents => "📋 INTENT LEDGER",
         Mode::Emoji => "😀 EMOJI PICKER",
+        Mode::Stats => "📊 STATISTICS",
     };
 
     let title = Paragraph::new(format!("🎨 FAELIGHT COMMAND PALETTE │ {}", mode_text))
@@ -409,7 +514,7 @@ fn ui(f: &mut Frame, app: &App) {
         .filtered_items
         .iter()
         .enumerate()
-        .map(|(i, (item, score))| {
+        .map(|(i, (item, _score))| {
             let style = if i == app.selected {
                 Style::default()
                     .bg(Color::Blue)
@@ -418,7 +523,7 @@ fn ui(f: &mut Frame, app: &App) {
                 Style::default()
             };
 
-            let text = format!("{} ({})", item.display(), score);
+            let text = item.display();
             ListItem::new(text).style(style)
         })
         .collect();
