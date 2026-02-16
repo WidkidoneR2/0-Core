@@ -294,3 +294,15 @@ bindsym $mod+Ctrl+a exec $term -e ~/0-core/scripts/archaeology-0-core
 bindsym $mod+Ctrl+c exec $term -e ~/0-core/scripts/compile-changelog.sh
 bindsym $mod+Ctrl+g exec $term -e ~/0-core/scripts/faelight-stow
 
+
+# Faelight Palette - Centered floating window
+for_window [app_id="faelight-palette-float"] {
+    floating enable
+    resize set 800 600
+    move position center
+    border pixel 2
+    border_color #00FFFF
+}
+
+# Global Faelight Palette - Ctrl+Space
+bindsym Control+Space exec foot --app-id=faelight-palette-float -e /home/christian/0-core/target/release/faelight-palette
