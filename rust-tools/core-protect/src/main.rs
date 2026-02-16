@@ -203,7 +203,9 @@ fn cmd_status(core_dir: &PathBuf) {
 
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
-        if stdout.contains('i') {
+        // Only check the flags section (first 20 chars), not the path
+        let flags = stdout.chars().take(20).collect::<String>();
+        if flags.contains('i') {
             println!("🔒 Core is LOCKED (immutable)");
         } else {
             println!("🔓 Core is UNLOCKED (editable)");
