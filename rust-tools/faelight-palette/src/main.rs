@@ -100,6 +100,7 @@ struct App {
 enum Mode {
     Apps,
     Actions,
+    Commands,
     Files,
     Intents,
     Emoji,
@@ -125,22 +126,51 @@ impl App {
 
         match self.mode {
             Mode::Apps => {
-                // Auto-detect installed apps from /usr/bin
-                if let Ok(output) = Command::new("sh")
-                    .arg("-c")
-                    .arg("ls /usr/bin | grep -E '^(brave|firefox|kitty|thunar|discord|spotify|foot|code|nvim)$'")
-                    .output()
-                {
-                    if let Ok(result) = String::from_utf8(output.stdout) {
-                        for app in result.lines() {
-                            self.items.push(ItemType::App(app.to_string()));
+                // Parse .desktop files for rich app discovery
+                let desktop_dirs = ["/usr/share/applications"];
+
+                for dir in &desktop_dirs {
+                    if let Ok(entries) = std::fs::read_dir(dir) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.extension().and_then(|s| s.to_str()) == Some("desktop") {
+                                if let Ok(content) = std::fs::read_to_string(&path) {
+                                    let mut in_main_section = false;
+                                    let mut name = String::new();
+                                    let mut exec = String::new();
+
+                                    for line in content.lines() {
+                                        let trimmed = line.trim();
+                                        if trimmed == "[Desktop Entry]" {
+                                            in_main_section = true;
+                                        } else if trimmed.starts_with('[') {
+                                            in_main_section = false;
+                                        } else if in_main_section {
+                                            if trimmed.starts_with("Name=") && name.is_empty() {
+                                                name = trimmed[5..].to_string();
+                                            } else if trimmed.starts_with("Exec=")
+                                                && exec.is_empty()
+                                            {
+                                                exec = trimmed[5..]
+                                                    .split_whitespace()
+                                                    .next()
+                                                    .unwrap_or("")
+                                                    .to_string();
+                                            }
+                                        }
+                                        if !name.is_empty() && !exec.is_empty() {
+                                            break;
+                                        }
+                                    }
+
+                                    if !name.is_empty() && !exec.is_empty() {
+                                        self.items.push(ItemType::App(name));
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-
-                // Add Faelight tools
-                self.items.push(ItemType::App("faelight-dashboard".into()));
-                self.items.push(ItemType::App("faelight-term".into()));
             }
             Mode::Actions => {
                 self.items.push(ItemType::Action(
@@ -167,6 +197,19 @@ impl App {
                     "Reload Sway".into(),
                     "swaymsg reload".into(),
                 ));
+            }
+            Mode::Commands => {
+                // Discover all Faelight tools from scripts directory
+                let scripts_dir = "/home/christian/0-core/scripts";
+                if let Ok(entries) = std::fs::read_dir(scripts_dir) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        // Skip hidden files and backups
+                        if !name.starts_with('.') && !name.ends_with('~') {
+                            self.items.push(ItemType::App(name));
+                        }
+                    }
+                }
             }
             Mode::Files => {
                 // Recent files in 0-core
@@ -243,6 +286,7 @@ impl App {
     fn update_mode(&mut self) {
         let new_mode = match self.input.chars().next() {
             Some('>') => Mode::Actions,
+            Some('$') => Mode::Commands,
             Some('@') => Mode::Files,
             Some('#') => Mode::Intents,
             Some(':') => Mode::Emoji,
@@ -335,6 +379,7 @@ fn ui(f: &mut Frame, app: &App) {
     let mode_text = match app.mode {
         Mode::Apps => "🚀 LAUNCH APPS",
         Mode::Actions => "⚡ QUICK ACTIONS",
+        Mode::Commands => "🔧 FAELIGHT TOOLS",
         Mode::Files => "📁 RECENT FILES",
         Mode::Intents => "📋 INTENT LEDGER",
         Mode::Emoji => "😀 EMOJI PICKER",
