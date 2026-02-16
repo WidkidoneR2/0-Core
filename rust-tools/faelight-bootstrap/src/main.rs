@@ -1,4 +1,4 @@
-//! faelight-bootstrap v2.0.0 - One-Command 0-Core Setup
+//! faelight-bootstrap v2.1.0 - One-Command 0-Core Setup
 //! 🌲 Faelight Forest - Linus Edition
 //!
 //! Philosophy: Automation serves installation, but human controls choices
@@ -250,7 +250,7 @@ fn print_success() {
 
 fn check_arch_linux() {
     print!("  {} Checking Arch Linux... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     if !Path::new("/etc/arch-release").exists() {
         println!("{}", "FAIL".red());
@@ -267,7 +267,7 @@ fn check_arch_linux() {
 
 fn check_not_root() {
     print!("  {} Checking permissions... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     if env::var("USER").unwrap_or_default() == "root" {
         println!("{}", "FAIL".red());
@@ -284,7 +284,7 @@ fn check_not_root() {
 
 fn check_internet() {
     print!("  {} Checking internet... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     let status = Command::new("ping")
         .args(["-c", "1", "-W", "3", "archlinux.org"])
@@ -303,7 +303,7 @@ fn check_internet() {
 
 fn check_disk_space() {
     print!("  {} Checking disk space... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     // Simple check - just verify /home has space
     let output = Command::new("df").args(["-h", "/home"]).output();
@@ -317,10 +317,10 @@ fn check_disk_space() {
 
 fn confirm(prompt: &str) -> bool {
     print!("{} [y/N] ", prompt);
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    let _ = io::stdin().read_line(&mut input); // Continue on error
 
     matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
 }
@@ -399,7 +399,7 @@ fn install_dependencies() {
 
     // Update database
     print!("  {} Updating package database... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     if run_cmd("sudo", &["pacman", "-Sy", "--noconfirm"]) {
         println!("{}", "✓".green());
@@ -414,7 +414,7 @@ fn install_dependencies() {
 
     // Install packages
     print!("  {} Installing packages... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     let mut args = vec!["pacman", "-S", "--needed", "--noconfirm"];
     for pkg in &packages {
@@ -429,7 +429,7 @@ fn install_dependencies() {
 
     // Setup Rust
     print!("  {} Setting up Rust toolchain... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     run_cmd("rustup", &["default", "stable"]);
     println!("{}", "✓".green());
@@ -445,7 +445,7 @@ fn clone_repo(home: &str, core_path: &str) {
         let backup = format!("{}/0-core.backup.{}", home, timestamp);
 
         print!("  {} Backing up existing to {}... ", "▸".cyan(), backup);
-        io::stdout().flush().unwrap();
+        let _ = io::stdout().flush(); // Ignore flush errors
 
         if fs::rename(core_path, &backup).is_ok() {
             println!("{}", "✓".green());
@@ -457,7 +457,7 @@ fn clone_repo(home: &str, core_path: &str) {
 
     // Clone
     print!("  {} Cloning repository... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     let repo_url = "https://github.com/WidkidoneR2/0-Core.git";
 
@@ -483,7 +483,7 @@ fn timestamp() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs()
         .to_string()
 }
@@ -514,7 +514,7 @@ fn stow_packages(core_path: &str) {
 
         if Path::new(&pkg_path).exists() {
             print!("    {} {}... ", "▸".cyan(), pkg);
-            io::stdout().flush().unwrap();
+            let _ = io::stdout().flush(); // Ignore flush errors
 
             let status = Command::new("stow")
                 .current_dir(&stow_dir)
@@ -545,7 +545,7 @@ fn build_rust_workspace(core_path: &str) {
     println!();
 
     print!("  {} Running cargo build --release... ", "▸".cyan());
-    io::stdout().flush().unwrap();
+    let _ = io::stdout().flush(); // Ignore flush errors
 
     let status = Command::new("cargo")
         .current_dir(core_path)
