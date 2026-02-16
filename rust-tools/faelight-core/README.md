@@ -1,4 +1,4 @@
-# faelight-core v0.1.0
+# faelight-core v1.0.0
 
 Shared foundation library for all Faelight tools.
 

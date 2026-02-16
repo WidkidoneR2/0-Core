@@ -1,4 +1,4 @@
-//! faelight-core v0.1.0 - Shared Foundation Library
+//! faelight-core v1.0.0 - Shared Foundation Library
 //!
 //! Provides common functionality for all Faelight tools:
 //! - Glyph caching (70%+ CPU reduction)
