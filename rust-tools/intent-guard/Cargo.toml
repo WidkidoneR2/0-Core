@@ -1,12 +1,15 @@
 [package]
 name = "intent-guard"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 description = "Command safety guard - protecting your system 🛡️"
 
 [dependencies]
 # Core infrastructure
 faelight-core = { path = "../faelight-core" }
+
+# Beautiful output
+colored = "2.1"
 
 [[bin]]
 name = "intent-guard"

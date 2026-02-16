@@ -1,4 +1,4 @@
-# intent-guard v1.0.0
+# intent-guard v2.1.0
 
 🛡️ **Command Safety Guard** - Prevent dangerous commands with risk-based confirmations.
 
