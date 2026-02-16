@@ -36,7 +36,13 @@ impl Widget for SearchWidget {
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
         // Launch faelight-dmenu
-        let _ = Command::new("faelight-dmenu").spawn();
+        let _ = Command::new("foot")
+            .args([
+                "--app-id=faelight-palette-float",
+                "-e",
+                "/home/christian/0-core/target/release/faelight-palette",
+            ])
+            .spawn();
         Ok(())
     }
 }
