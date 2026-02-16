@@ -1,6 +1,6 @@
 [package]
 name = "faelight"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 description = "Unified CLI for Faelight Forest"
 
@@ -12,3 +12,6 @@ toml = "0.8"
 serde = { version = "1", features = ["derive"] }
 which = "6.0"
 
+[[bin]]
+name = "faelight"
+path = "src/main.rs"

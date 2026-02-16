@@ -1,4 +1,4 @@
-//! faelight v2.0.0 - Unified CLI for Faelight Forest
+//! faelight v2.1.0 - Unified CLI for Faelight Forest
 //! 🌲 The Core Spine - LEGENDARY EDITION
 //!
 //! The main entry point for all Faelight Forest operations.
@@ -323,7 +323,10 @@ fn handle_config(action: ConfigAction) {
     match action {
         ConfigAction::Show => {
             let config = FaelightConfig::load();
-            println!("{}", toml::to_string_pretty(&config).unwrap());
+            match toml::to_string_pretty(&config) {
+                Ok(s) => println!("{}", s),
+                Err(e) => eprintln!("❌ Failed to serialize config: {}", e),
+            }
         }
         ConfigAction::Edit => {
             let config_path = FaelightConfig::config_path();
@@ -401,6 +404,6 @@ fn run_tool_bg(tool: &str, args: &[&str]) {
     println!(
         "{} Launched {}",
         "✅".green(),
-        tool.split('/').next_back().unwrap()
+        tool.split('/').next_back().unwrap_or("unknown")
     );
 }

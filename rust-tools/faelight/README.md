@@ -1,4 +1,4 @@
-# faelight v1.0.0
+# faelight v2.1.0
 
 🌲 **The Core Spine** - Unified CLI orchestrator for Faelight Forest.
 
