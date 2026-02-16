@@ -1,4 +1,4 @@
-//! faelight-daemon v2.0.0 - Background daemon for Faelight Forest
+//! faelight-daemon v2.1.0 - Background daemon for Faelight Forest
 //! 🌲 LEGENDARY EDITION
 
 mod daemon;
