@@ -1,4 +1,4 @@
-# core-protect v1.0.0
+# core-protect v2.1.0
 
 🛡️ **Immutable Core Protection** - Filesystem-level protection for 0-Core using Linux immutability flags.
 
