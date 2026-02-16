@@ -1,4 +1,4 @@
-//! faelight-dashboard v2.0.0 - TUI System Overview
+//! faelight-dashboard v2.1.0 - TUI System Overview
 //! 🌲 Faelight Forest
 
 use crossterm::{

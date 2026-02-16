@@ -1,4 +1,4 @@
-# faelight-dashboard v1.0.0
+# faelight-dashboard v2.1.0
 
 **TUI System Overview** - Real-time dashboard for Faelight Forest system health and status.
 
