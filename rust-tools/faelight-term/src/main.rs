@@ -259,10 +259,12 @@ impl Terminal {
                     let mut seq = String::new();
                     while let Some(&c) = chars.peek() {
                         if c.is_ascii_alphabetic() {
+                            // SAFETY: peek() guarantees next() exists
                             let cmd = chars.next().unwrap();
                             self.handle_csi_sequence(&seq, cmd);
                             break;
                         } else {
+                            // SAFETY: peek() guarantees next() exists
                             seq.push(chars.next().unwrap());
                         }
                     }

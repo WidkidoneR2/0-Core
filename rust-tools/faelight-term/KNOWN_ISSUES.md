@@ -1,4 +1,4 @@
-# Known Issues - faelight-term v10.0.0
+# Known Issues - faelight-term v10.2.0
 
 ## Critical Issues
 

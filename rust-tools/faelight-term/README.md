@@ -1,4 +1,4 @@
-# faelight-term v10.0.0
+# faelight-term v10.2.0
 
 🚀 **Custom Wayland terminal emulator with color emoji support**
 
