@@ -1,0 +1,51 @@
+[package]
+name = "faelight-browser"
+version = "0.1.0"
+edition = "2021"
+authors = ["Christian"]
+description = "A browser built on 0-Core principles - security, transparency, comprehension"
+
+[[bin]]
+name = "faelight-browser"
+path = "src/main.rs"
+
+[lib]
+name = "faelight_browser"
+path = "src/lib.rs"
+
+[dependencies]
+# Core
+faelight-core = { path = "../faelight-core" }
+
+# Wayland (from faelight-bar)
+smithay-client-toolkit = "0.19"
+wayland-client = "0.31"
+
+# Rendering (from faelight-bar)
+fontdue = "0.9"
+lazy_static = "1.4"
+
+# Storage (flat files - human readable)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Error handling (production-grade)
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Utilities
+chrono = "0.4"
+url = "2"
+
+# Servo (Phase 3 - COMMENTED OUT for now)
+# servo = { git = "https://github.com/servo/servo" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 1
