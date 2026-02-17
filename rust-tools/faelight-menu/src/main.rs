@@ -65,10 +65,12 @@ impl MenuItem {
                 let _ = Command::new("systemctl").arg("suspend").spawn();
             }
             MenuItem::Reboot => {
-                let _ = Command::new("systemctl").arg("reboot").spawn();
+                let script = "/home/christian/0-core/scripts/graceful-reboot";
+                let _ = Command::new("setsid").arg("-f").arg(script).spawn();
             }
             MenuItem::Shutdown => {
-                let _ = Command::new("systemctl").arg("poweroff").spawn();
+                let script = "/home/christian/0-core/scripts/graceful-poweroff";
+                let _ = Command::new("setsid").arg("-f").arg(script).spawn();
             }
             MenuItem::App(_, exec) => {
                 let parts: Vec<&str> = exec.split_whitespace().collect();

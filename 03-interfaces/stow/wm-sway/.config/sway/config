@@ -312,4 +312,4 @@ xwayland enable
 for_window [app_id="faelight-menu-float"] floating enable, resize set 450 350, move position center
 
 # Keybind: SUPER+ESC for menu
-bindsym $mod+Escape exec foot --app-id=faelight-menu-float -e /home/christian/0-core/target/release/faelight-menu
+bindsym $mod+Escape exec foot --app-id=faelight-menu-float -e /home/christian/.cargo/bin/faelight-menu
