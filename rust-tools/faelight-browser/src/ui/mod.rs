@@ -1,3 +1,4 @@
-//! User interface components
+//! UI components
 
-// Module implementation coming in phases
+pub mod colors;
+pub mod tab_bar;

@@ -1,3 +1,5 @@
-//! Flat file storage - human-readable configs
+//! Flat file storage - human readable
 
-// Module implementation coming in phases
+pub mod bookmarks;
+
+pub use bookmarks::BookmarkStore;

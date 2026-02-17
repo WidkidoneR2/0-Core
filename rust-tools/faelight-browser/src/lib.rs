@@ -1,5 +1,5 @@
 //! faelight-browser v0.1.0
-//!
+//! 
 //! A web browser built on 0-Core principles:
 //! - Security through transparency
 //! - Intent over automation
@@ -8,6 +8,7 @@
 
 pub mod error;
 pub mod navigation;
+pub mod render;
 pub mod security;
 pub mod storage;
 pub mod ui;
