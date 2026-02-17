@@ -1,871 +1,393 @@
-//! faelight-menu v2.1.0 - Smart Power Menu
-//! 🌲 Faelight Forest
-//!
-//! Features:
-//! - Red letters (not background) for dangerous actions
-//! - Power state awareness (battery %)
-//! - Smart defaults by time of day
-//! - Minimal UI: arrow + color only (no background bars)
-//! - Graceful shutdown with service cleanup and sync
+//! faelight-menu v3.0.0 - Power Menu + Apps + Health
+//! 🌲 Faelight Forest - Matches palette/FM aesthetic
 
-mod paths;
-
-use chrono::{Local, Timelike};
-use faelight_core::GlyphCache;
-use smithay_client_toolkit::{
-    compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
-    delegate_seat, delegate_shm,
-    output::{OutputHandler, OutputState},
-    registry::{ProvidesRegistryState, RegistryState},
-    registry_handlers,
-    seat::{
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RepeatInfo},
-        Capability, SeatHandler, SeatState,
-    },
-    shell::{
-        wlr_layer::{
-            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
-            LayerSurfaceConfigure,
-        },
-        WaylandSurface,
-    },
-    shm::{slot::SlotPool, Shm, ShmHandler},
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::process::Command;
-use wayland_client::{
-    globals::registry_queue_init,
-    protocol::{wl_keyboard, wl_output, wl_seat, wl_shm, wl_surface},
-    Connection, QueueHandle,
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+    Terminal,
 };
+use std::{io, process::Command};
 
-// Delay to allow Sway compositor to exit before system shutdown
-// ═══════════════════════════════════════════════════════════
-// 🎨 FAELIGHT FOREST COLORS
-// ═══════════════════════════════════════════════════════════
-const WIDTH: u32 = 345;
-const HEIGHT: u32 = 408;
-
-const BG_COLOR: [u8; 4] = [0x14, 0x17, 0x11, 0xF8];
-const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
-const DIM_COLOR: [u8; 4] = [0x7f, 0x8f, 0x77, 0xFF];
-const WARN_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF]; // Amber/orange
-const DANGER_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF]; // Bright red
-const DANGER_DIM: [u8; 4] = [0x5b, 0x6b, 0xb0, 0xFF]; // Dim red
-
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Bold.ttf");
-
-// ═══════════════════════════════════════════════════════════
-// 📐 TYPOGRAPHY & LAYOUT
-// ═══════════════════════════════════════════════════════════
-const FONT_TITLE: f32 = 20.0;
-const FONT_ITEM: f32 = 18.0;
-const FONT_HINT: f32 = 14.0;
-const ROW_HEIGHT: u32 = 44;
-const ROW_START: u32 = 75;
-
-// ═══════════════════════════════════════════════════════════
-// 📱 MENU ENTRIES
-// ═══════════════════════════════════════════════════════════
-struct MenuItem {
-    icon: &'static str,
-    label: &'static str,
-    action: &'static str,
-    dangerous: bool,
+#[derive(Debug, Clone, PartialEq)]
+enum Mode {
+    Power,
+    Apps,
+    Health,
 }
 
-const MENU_ITEMS: &[MenuItem] = &[
-    MenuItem {
-        icon: "󰌾",
-        label: "Lock",
-        action: "lock",
-        dangerous: false,
-    },
-    MenuItem {
-        icon: "󰗽",
-        label: "Logout",
-        action: "logout",
-        dangerous: false,
-    },
-    MenuItem {
-        icon: "󰤄",
-        label: "Suspend",
-        action: "suspend",
-        dangerous: false,
-    },
-    MenuItem {
-        icon: "󰜉",
-        label: "Reboot",
-        action: "reboot",
-        dangerous: true,
-    },
-    MenuItem {
-        icon: "󰐥",
-        label: "Shutdown",
-        action: "shutdown",
-        dangerous: true,
-    },
-];
-
-// ═══════════════════════════════════════════════════════════
-// ⚡ POWER STATE HELPERS
-// ═══════════════════════════════════════════════════════════
-
-fn get_power_state() -> (Option<u8>, bool) {
-    let capacity_path = "/sys/class/power_supply/BAT0/capacity";
-    let status_path = "/sys/class/power_supply/BAT0/status";
-
-    let capacity = std::fs::read_to_string(capacity_path)
-        .ok()
-        .and_then(|s| s.trim().parse().ok());
-
-    let on_battery = std::fs::read_to_string(status_path)
-        .map(|s| !s.contains("Charging"))
-        .unwrap_or(false);
-
-    (capacity, on_battery)
+#[derive(Debug, Clone, PartialEq)]
+enum MenuItem {
+    // Power items
+    Lock,
+    Logout,
+    Suspend,
+    Reboot,
+    Shutdown,
+    // Apps
+    App(String, String), // (name, exec)
+    // Health
+    HealthInfo(String),
 }
 
-fn get_smart_default() -> usize {
-    let hour = Local::now().hour();
-    match hour {
-        23..=24 | 0..=6 => 4,
-        _ => 0,
+impl MenuItem {
+    fn display(&self) -> String {
+        match self {
+            MenuItem::Lock => "🔒 Lock Screen".to_string(),
+            MenuItem::Logout => "🚪 Logout".to_string(),
+            MenuItem::Suspend => "💤 Suspend".to_string(),
+            MenuItem::Reboot => "🔄 Reboot".to_string(),
+            MenuItem::Shutdown => "⚠️  Shutdown".to_string(),
+            MenuItem::App(name, _) => format!("🚀 {}", name),
+            MenuItem::HealthInfo(info) => info.clone(),
+        }
     }
-}
 
-// ═══════════════════════════════════════════════════════════
-// 🖼️ DRAWING HELPERS
-// ═══════════════════════════════════════════════════════════
-
-fn draw_border(canvas: &mut [u8], width: u32, height: u32) {
-    let stride = width as usize * 4;
-    for x in 0..width as usize {
-        canvas[x * 4..x * 4 + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[(height as usize - 1) * stride + x * 4..(height as usize - 1) * stride + x * 4 + 4]
-            .copy_from_slice(&BORDER_COLOR);
+    fn is_dangerous(&self) -> bool {
+        matches!(self, MenuItem::Reboot | MenuItem::Shutdown)
     }
-    for y in 0..height as usize {
-        canvas[y * stride..y * stride + 4].copy_from_slice(&BORDER_COLOR);
-        canvas[y * stride + (width as usize - 1) * 4..y * stride + (width as usize - 1) * 4 + 4]
-            .copy_from_slice(&BORDER_COLOR);
-    }
-}
 
-#[allow(clippy::too_many_arguments)]
-fn draw_text(
-    cache: &mut GlyphCache,
-    canvas: &mut [u8],
-    width: u32,
-    height: u32,
-    text: &str,
-    x: u32,
-    y: u32,
-    color: [u8; 4],
-    size: f32,
-) {
-    let stride = width as usize * 4;
-    let mut cursor_x = x as usize;
-    for ch in text.chars() {
-        let glyph = cache.rasterize(ch, size);
-        let metrics = &glyph.metrics;
-        let bitmap = &glyph.bitmap;
-        for row in 0..metrics.height {
-            for col in 0..metrics.width {
-                let alpha = bitmap[row * metrics.width + col];
-                if alpha > 0 {
-                    let px = cursor_x + col;
-                    let py = y as usize + row;
-                    if px < width as usize && py < height as usize {
-                        let idx = py * stride + px * 4;
-                        let a = alpha as f32 / 255.0;
-                        canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
-                        canvas[idx + 1] =
-                            ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
-                        canvas[idx + 2] =
-                            ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
-                        canvas[idx + 3] = 255;
-                    }
+    fn execute(&self) {
+        match self {
+            MenuItem::Lock => {
+                let _ = Command::new("swaylock").spawn();
+            }
+            MenuItem::Logout => {
+                let _ = Command::new("swaymsg").arg("exit").spawn();
+            }
+            MenuItem::Suspend => {
+                let _ = Command::new("systemctl").arg("suspend").spawn();
+            }
+            MenuItem::Reboot => {
+                let _ = Command::new("systemctl").arg("reboot").spawn();
+            }
+            MenuItem::Shutdown => {
+                let _ = Command::new("systemctl").arg("poweroff").spawn();
+            }
+            MenuItem::App(_, exec) => {
+                let parts: Vec<&str> = exec.split_whitespace().collect();
+                if let Some((cmd, args)) = parts.split_first() {
+                    let _ = Command::new("setsid").arg("-f").arg(cmd).args(args).spawn();
                 }
             }
+            MenuItem::HealthInfo(_) => {
+                // Not executable
+            }
         }
-        cursor_x += metrics.advance_width as usize;
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🖼️ STATE
-// ═══════════════════════════════════════════════════════════
-
-struct MenuState {
-    registry_state: RegistryState,
-    seat_state: SeatState,
-    output_state: OutputState,
-    #[allow(dead_code)]
-    compositor_state: CompositorState,
-    shm: Shm,
-    #[allow(dead_code)]
-    layer_shell: LayerShell,
-    layer_surface: Option<LayerSurface>,
-    pool: Option<SlotPool>,
-    width: u32,
-    height: u32,
-    configured: bool,
-    glyph_cache: GlyphCache,
+struct App {
+    mode: Mode,
+    items: Vec<MenuItem>,
     selected: usize,
-    confirming: bool,
-    running: bool,
-    battery_percent: Option<u8>,
-    on_battery: bool,
+    should_quit: bool,
 }
 
-impl MenuState {
-    fn draw(&mut self) {
-        let width = self.width;
-        let height = self.height;
-        let stride = width as i32 * 4;
-        let selected = self.selected;
-
-        let pool = match &mut self.pool {
-            Some(p) => p,
-            None => return,
+impl App {
+    fn new() -> Self {
+        let mut app = Self {
+            mode: Mode::Power,
+            items: Vec::new(),
+            selected: 0,
+            should_quit: false,
         };
+        app.load_items();
+        app
+    }
 
-        let (buffer, canvas) = match pool.create_buffer(
-            width as i32,
-            height as i32,
-            stride,
-            wl_shm::Format::Argb8888,
-        ) {
-            Ok(b) => b,
-            Err(_) => return,
-        };
+    fn load_items(&mut self) {
+        self.items.clear();
+        self.selected = 0;
 
-        for pixel in canvas.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&BG_COLOR);
-        }
+        match self.mode {
+            Mode::Power => {
+                self.items = vec![
+                    MenuItem::Lock,
+                    MenuItem::Logout,
+                    MenuItem::Suspend,
+                    MenuItem::Reboot,
+                    MenuItem::Shutdown,
+                ];
+            }
+            Mode::Apps => {
+                // Parse .desktop files
+                if let Ok(entries) = std::fs::read_dir("/usr/share/applications") {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().and_then(|s| s.to_str()) == Some("desktop") {
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                let mut in_main_section = false;
+                                let mut name = String::new();
+                                let mut exec = String::new();
 
-        draw_border(canvas, width, height);
+                                for line in content.lines() {
+                                    let trimmed = line.trim();
+                                    if trimmed == "[Desktop Entry]" {
+                                        in_main_section = true;
+                                    } else if trimmed.starts_with('[') {
+                                        in_main_section = false;
+                                    } else if in_main_section {
+                                        if trimmed.starts_with("Name=") && name.is_empty() {
+                                            name = trimmed[5..].to_string();
+                                        } else if trimmed.starts_with("Exec=") && exec.is_empty() {
+                                            exec = trimmed[5..]
+                                                .split_whitespace()
+                                                .next()
+                                                .unwrap_or("")
+                                                .to_string();
+                                        }
+                                    }
+                                    if !name.is_empty() && !exec.is_empty() {
+                                        break;
+                                    }
+                                }
 
-        draw_text(
-            &mut self.glyph_cache,
-            canvas,
-            width,
-            height,
-            "⚡ Power Menu",
-            20,
-            20,
-            BORDER_COLOR,
-            FONT_TITLE,
-        );
-
-        for x in 15..width as usize - 15 {
-            let idx = 55 * width as usize * 4 + x * 4;
-            canvas[idx..idx + 4].copy_from_slice(&DIM_COLOR);
-        }
-
-        for (i, item) in MENU_ITEMS.iter().enumerate() {
-            let y = ROW_START + i as u32 * ROW_HEIGHT;
-
-            if i == 3 {
-                let div_y = y - 18;
-                for x in 20..width as usize - 20 {
-                    let idx = div_y as usize * width as usize * 4 + x * 4;
-                    if idx + 4 <= canvas.len() {
-                        canvas[idx..idx + 4].copy_from_slice(&DIM_COLOR);
+                                if !name.is_empty() && !exec.is_empty() {
+                                    self.items.push(MenuItem::App(name, exec));
+                                }
+                            }
+                        }
                     }
                 }
+                // Sort alphabetically
+                self.items.sort_by_key(|a| a.display().to_lowercase());
             }
-
-            let text_color = if i == 4 {
-                // Shutdown - always red
-                if i == selected {
-                    DANGER_COLOR // Bright red (shutdown always)
-                } else {
-                    DANGER_DIM // Dim red when not selected
+            Mode::Health => {
+                // Quick health check
+                if let Ok(output) = Command::new("/home/christian/.local/bin/doctor").output() {
+                    if let Ok(result) = String::from_utf8(output.stdout) {
+                        // Parse last line for health percentage
+                        for line in result.lines() {
+                            if line.contains("Health:")
+                                || line.starts_with('✅')
+                                || line.starts_with('❌')
+                                || line.starts_with('⚠')
+                            {
+                                self.items
+                                    .push(MenuItem::HealthInfo(line.trim().to_string()));
+                            }
+                        }
+                    }
                 }
-            } else if i == 3 {
-                // Reboot - always amber/orange
-                if i == selected {
-                    WARN_COLOR // Bright amber when selected
-                } else {
-                    [0xb3, 0x9b, 0x5b, 0xFF] // Dim amber when not selected
+                if self.items.is_empty() {
+                    self.items
+                        .push(MenuItem::HealthInfo("Running health check...".to_string()));
                 }
-            } else {
-                // Lock, Logout, Suspend - normal colors
-                if i == selected {
-                    BORDER_COLOR // Bright green
-                } else {
-                    DIM_COLOR // Dim gray
-                }
-            };
-
-            let text = if self.confirming && i == selected && item.dangerous {
-                format!("▶ {}  {} [CONFIRM]", item.icon, item.label)
-            } else if i == selected {
-                format!("▶ {}  {}", item.icon, item.label)
-            } else {
-                format!("  {}  {}", item.icon, item.label)
-            };
-
-            draw_text(
-                &mut self.glyph_cache,
-                canvas,
-                width,
-                height,
-                &text,
-                25,
-                y,
-                text_color,
-                FONT_ITEM,
-            );
-        }
-
-        if let Some(percent) = self.battery_percent {
-            if self.on_battery {
-                let icon = if percent < 20 { "⚠️" } else { "🔋" };
-                let text = format!("Battery: {}% {}", percent, icon);
-                draw_text(
-                    &mut self.glyph_cache,
-                    canvas,
-                    width,
-                    height,
-                    &text,
-                    15,
-                    height - 50,
-                    if percent < 20 { WARN_COLOR } else { DIM_COLOR },
-                    FONT_HINT,
-                );
             }
-        }
-
-        draw_text(
-            &mut self.glyph_cache,
-            canvas,
-            width,
-            height,
-            "↑↓ or L/E/S/R/P  Enter Select  Esc Close",
-            15,
-            height - 25,
-            DIM_COLOR,
-            FONT_HINT,
-        );
-
-        if let Some(ref surface) = self.layer_surface {
-            surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-            surface
-                .wl_surface()
-                .damage_buffer(0, 0, width as i32, height as i32);
-            surface.wl_surface().commit();
         }
     }
 
-    fn execute_selected(&self) {
-        let item = &MENU_ITEMS[self.selected];
-        eprintln!("⚡ Executing: {}", item.label);
-        std::fs::write(
-            "/tmp/faelight-debug.log",
-            format!(
-                "execute_selected called for: {}
-",
-                item.label
-            ),
-        )
-        .ok();
-
-        // Get home directory for script paths
-
-        match item.action {
-            "lock" => {
-                Command::new("swaylock").spawn().ok();
-            }
-            "reboot" => {
-                // Use setsid to detach from Sway's process tree (survives Sway death)
-                Command::new("setsid")
-                    .arg("--fork")
-                    .arg(crate::paths::graceful_reboot())
-                    .spawn()
-                    .ok();
-            }
-            "shutdown" => {
-                // DEBUG: Write to log file
-                std::fs::write(
-                    "/tmp/faelight-menu-shutdown.log",
-                    format!(
-                        "Shutdown clicked at {}
-",
-                        chrono::Local::now()
-                    ),
-                )
-                .ok();
-
-                // Use setsid to detach from Sway's process tree (survives Sway death)
-                Command::new("setsid")
-                    .arg("--fork")
-                    .arg(crate::paths::graceful_poweroff())
-                    .spawn()
-                    .ok();
-            }
-            _ => {}
+    fn next(&mut self) {
+        if self.selected < self.items.len().saturating_sub(1) {
+            self.selected += 1;
         }
     }
 
-    fn move_up(&mut self) {
+    fn previous(&mut self) {
         if self.selected > 0 {
             self.selected -= 1;
-        } else {
-            self.selected = MENU_ITEMS.len() - 1;
         }
     }
 
-    fn move_down(&mut self) {
-        if self.selected < MENU_ITEMS.len() - 1 {
-            self.selected += 1;
-        } else {
-            self.selected = 0;
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 🔧 HANDLERS (unchanged)
-// ═══════════════════════════════════════════════════════════
-
-impl CompositorHandler for MenuState {
-    fn scale_factor_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: i32,
-    ) {
-    }
-    fn transform_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: wl_output::Transform,
-    ) {
-    }
-    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
-    fn surface_leave(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
-}
-
-impl OutputHandler for MenuState {
-    fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
-    fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
-    fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
-    fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
-}
-
-impl LayerShellHandler for MenuState {
-    fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
-        self.running = false;
-    }
-    fn configure(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &LayerSurface,
-        configure: LayerSurfaceConfigure,
-        _: u32,
-    ) {
-        self.width = configure.new_size.0.max(WIDTH);
-        self.height = configure.new_size.1.max(HEIGHT);
-        self.configured = true;
-        self.draw();
-    }
-}
-
-impl SeatHandler for MenuState {
-    fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
-    }
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(
-        &mut self,
-        _: &Connection,
-        qh: &QueueHandle<Self>,
-        seat: wl_seat::WlSeat,
-        capability: Capability,
-    ) {
-        if capability == Capability::Keyboard {
-            self.seat_state.get_keyboard(qh, &seat, None).ok();
-        }
-    }
-    fn remove_capability(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: wl_seat::WlSeat,
-        _: Capability,
-    ) {
-    }
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-}
-
-impl KeyboardHandler for MenuState {
-    fn enter(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: &wl_surface::WlSurface,
-        _: u32,
-        _: &[u32],
-        _: &[Keysym],
-    ) {
-    }
-    fn leave(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: &wl_surface::WlSurface,
-        _: u32,
-    ) {
-    }
-    fn update_modifiers(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        _: Modifiers,
-        _: u32,
-    ) {
-    }
-
-    fn press_key(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        event: KeyEvent,
-    ) {
-        match event.keysym {
-            Keysym::Escape | Keysym::q => {
-                if self.confirming {
-                    self.confirming = false;
-                    self.draw();
-                } else {
-                    self.running = false;
-                }
-            }
-            Keysym::Return | Keysym::KP_Enter => {
-                let item = &MENU_ITEMS[self.selected];
-                if item.dangerous {
-                    if self.confirming {
-                        std::fs::write(
-                            "/tmp/faelight-enter.log",
-                            format!(
-                                "Enter pressed (confirmed) for: {}
-",
-                                item.label
-                            ),
-                        )
-                        .ok();
-                        self.execute_selected();
-                        self.running = false;
-                    } else {
-                        std::fs::write(
-                            "/tmp/faelight-confirm.log",
-                            format!(
-                                "Confirming for: {}
-",
-                                item.label
-                            ),
-                        )
-                        .ok();
-                        self.confirming = true;
-                        self.draw();
-                    }
-                } else {
-                    self.execute_selected();
-                    self.running = false;
-                }
-            }
-            Keysym::Up | Keysym::k => {
-                self.confirming = false;
-                self.move_up();
-                self.draw();
-            }
-            Keysym::Down | Keysym::j => {
-                self.confirming = false;
-                self.move_down();
-                self.draw();
-            }
-            Keysym::l => {
-                self.selected = 0;
-                self.execute_selected();
-                self.running = false;
-            }
-            Keysym::e => {
-                self.selected = 1;
-                self.execute_selected();
-                self.running = false;
-            }
-            Keysym::s => {
-                self.selected = 2;
-                self.execute_selected();
-                self.running = false;
-            }
-            Keysym::r => {
-                self.selected = 3;
-                if self.confirming && self.selected == 3 {
-                    self.execute_selected();
-                    self.running = false;
-                } else {
-                    self.confirming = true;
-                    self.draw();
-                }
-            }
-            Keysym::p => {
-                self.selected = 4;
-                if self.confirming && self.selected == 4 {
-                    self.execute_selected();
-                    self.running = false;
-                } else {
-                    self.confirming = true;
-                    self.draw();
-                }
-            }
-            _ => {}
+    fn execute_selected(&mut self) {
+        if let Some(item) = self.items.get(self.selected) {
+            item.execute();
+            self.should_quit = true;
         }
     }
 
-    fn release_key(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        _: KeyEvent,
-    ) {
-    }
-    fn update_repeat_info(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: RepeatInfo,
-    ) {
+    fn switch_mode(&mut self, mode: Mode) {
+        self.mode = mode;
+        self.load_items();
     }
 }
-
-impl ShmHandler for MenuState {
-    fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm
-    }
-}
-
-impl ProvidesRegistryState for MenuState {
-    fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
-    }
-    registry_handlers![OutputState, SeatState];
-}
-
-delegate_compositor!(MenuState);
-delegate_output!(MenuState);
-delegate_shm!(MenuState);
-delegate_seat!(MenuState);
-delegate_keyboard!(MenuState);
-delegate_layer!(MenuState);
-delegate_registry!(MenuState);
-
-// ═══════════════════════════════════════════════════════════
-// 🚀 MAIN
-// ═══════════════════════════════════════════════════════════
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
-    if args.len() > 1 {
-        match args[1].as_str() {
-            "--version" | "-v" => {
-                println!("faelight-menu v2.1.0");
-                std::process::exit(0);
-            }
-            "--help" | "-h" => {
-                println!("faelight-menu v2.1.0 - Smart Power Menu for Faelight Forest");
-                println!();
-                println!("FEATURES:");
-                println!("  • Minimal UI: arrow + color (no background bars)");
-                println!("  • Red letters for dangerous actions");
-                println!("  • Battery awareness when unplugged");
-                println!("  • Smart defaults by time (shutdown at night, lock during day)");
-                println!("  • Graceful shutdown (stops services, syncs filesystems, logs events)");
-                println!();
-                println!("USAGE:");
-                println!("    faelight-menu");
-                println!();
-                println!("KEYBOARD SHORTCUTS:");
-                println!("    ↑↓       Navigate menu");
-                println!("    L        Lock screen");
-                println!("    E        Logout");
-                println!("    S        Suspend");
-                println!("    R        Reboot (requires confirmation)");
-                println!("    P        Shutdown (requires confirmation)");
-                println!("    Enter    Select/Confirm");
-                println!("    Esc      Close menu");
-                println!();
-                println!("OPTIONS:");
-                println!("    -h, --help          Show this help");
-                println!("    -v, --version       Show version");
-                println!("    --health-check      Verify system dependencies");
-                std::process::exit(0);
-            }
-            "--health-check" => {
-                health_check();
-                std::process::exit(0);
-            }
-            _ => {
-                eprintln!("Unknown argument: {}", args[1]);
-                eprintln!("Try 'faelight-menu --help' for usage information");
-                std::process::exit(1);
-            }
-        }
+    // Create app and run
+    let mut app = App::new();
+    let res = run_app(&mut terminal, &mut app);
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
     }
 
-    eprintln!("⚡ faelight-menu v2.1.0 starting...");
-
-    let conn = Connection::connect_to_env()?;
-    let (globals, mut event_queue) = registry_queue_init(&conn)?;
-    let qh = event_queue.handle();
-
-    let compositor = CompositorState::bind(&globals, &qh)?;
-    let layer_shell = LayerShell::bind(&globals, &qh)?;
-    let shm = Shm::bind(&globals, &qh)?;
-
-    let surface = compositor.create_surface(&qh);
-    let layer_surface =
-        layer_shell.create_layer_surface(&qh, surface, Layer::Overlay, Some("faelight-menu"), None);
-
-    layer_surface.set_anchor(Anchor::empty());
-    layer_surface.set_size(WIDTH, HEIGHT);
-    layer_surface.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
-    layer_surface.commit();
-
-    let pool = SlotPool::new(WIDTH as usize * HEIGHT as usize * 4, &shm)?;
-    let glyph_cache = GlyphCache::new(FONT_DATA)?;
-
-    let (battery_percent, on_battery) = get_power_state();
-    let smart_default = get_smart_default();
-
-    eprintln!(
-        "🔋 Power state: battery={:?}, on_battery={}",
-        battery_percent, on_battery
-    );
-    eprintln!(
-        "🎯 Smart default: {} ({})",
-        smart_default, MENU_ITEMS[smart_default].label
-    );
-
-    let mut state = MenuState {
-        registry_state: RegistryState::new(&globals),
-        seat_state: SeatState::new(&globals, &qh),
-        output_state: OutputState::new(&globals, &qh),
-        compositor_state: compositor,
-        shm,
-        layer_shell,
-        layer_surface: Some(layer_surface),
-        pool: Some(pool),
-        width: WIDTH,
-        height: HEIGHT,
-        configured: false,
-        glyph_cache,
-        confirming: false,
-        selected: smart_default,
-        battery_percent,
-        on_battery,
-        running: true,
-    };
-
-    while state.running {
-        event_queue.blocking_dispatch(&mut state)?;
-    }
-
-    eprintln!("👋 Goodbye!");
     Ok(())
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🏥 HEALTH CHECK
-// ═══════════════════════════════════════════════════════════
+fn run_app<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+) -> io::Result<()> {
+    loop {
+        terminal.draw(|f| ui(f, app))?;
 
-fn health_check() {
-    println!("🏥 faelight-menu v2.1.0 health check");
+        if let Event::Key(key) = event::read()? {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => {
+                    app.should_quit = true;
+                }
+                KeyCode::Down | KeyCode::Char('j') => app.next(),
+                KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                KeyCode::Enter => app.execute_selected(),
 
-    match Connection::connect_to_env() {
-        Ok(_) => println!("✅ wayland: connected"),
-        Err(e) => {
-            eprintln!("❌ wayland: connection failed - {}", e);
-            std::process::exit(1);
-        }
-    }
+                // Mode switching
+                KeyCode::Char('>') => app.switch_mode(Mode::Apps),
+                KeyCode::Char('!') => app.switch_mode(Mode::Health),
+                KeyCode::Backspace => app.switch_mode(Mode::Power),
 
-    match GlyphCache::new(FONT_DATA) {
-        Ok(_) => println!("✅ font: loaded successfully"),
-        Err(e) => {
-            eprintln!("❌ font: failed to load - {}", e);
-            std::process::exit(1);
-        }
-    }
-
-    let commands = ["swaylock", "swaymsg", "systemctl"];
-    for cmd in &commands {
-        if let Ok(check) = std::process::Command::new("which").arg(cmd).output() {
-            if check.status.success() {
-                println!("✅ {}: installed", cmd);
-            } else {
-                eprintln!("⚠️  {}: not found", cmd);
+                // Quick shortcuts (Power mode only)
+                KeyCode::Char('l') if app.mode == Mode::Power => {
+                    MenuItem::Lock.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('e') if app.mode == Mode::Power => {
+                    MenuItem::Logout.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('s') if app.mode == Mode::Power => {
+                    MenuItem::Suspend.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('r') if app.mode == Mode::Power => {
+                    MenuItem::Reboot.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('p') if app.mode == Mode::Power => {
+                    MenuItem::Shutdown.execute();
+                    app.should_quit = true;
+                }
+                _ => {}
             }
         }
-    }
 
-    // Check graceful shutdown scripts
-    let scripts = ["graceful-poweroff", "graceful-reboot"];
-    for script in &scripts {
-        let path = crate::paths::script_path(script);
-        if std::path::Path::new(&path).exists() {
-            println!("✅ {}: installed", script);
-        } else {
-            eprintln!("⚠️  {}: not found", script);
+        if app.should_quit {
+            break;
         }
     }
+    Ok(())
+}
 
-    let (battery_percent, on_battery) = get_power_state();
-    match battery_percent {
-        Some(pct) => println!("✅ battery: {}% (on_battery: {})", pct, on_battery),
-        None => println!("ℹ️  battery: not detected (desktop/AC only?)"),
-    }
+fn ui(f: &mut ratatui::Frame, app: &App) {
+    // Adjust size based on mode
+    let (width, height) = match app.mode {
+        Mode::Power => (98, 95),
+        Mode::Apps => (40, 60),
+        Mode::Health => (60, 40),
+    };
 
-    let smart_default = get_smart_default();
-    let hour = Local::now().hour();
-    println!(
-        "✅ smart_default: {} at hour {} ({})",
-        smart_default, hour, MENU_ITEMS[smart_default].label
+    let area = centered_rect(width, height, f.area());
+
+    // Title based on mode
+    let title = match app.mode {
+        Mode::Power => "⚡ POWER MENU",
+        Mode::Apps => "🚀 LAUNCH APPS",
+        Mode::Health => "🏥 SYSTEM HEALTH",
+    };
+
+    // Split area into list and help sections
+    let _chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(3),    // List items
+            Constraint::Length(2), // Help text (2 lines)
+        ])
+        .split(area);
+
+    // Create menu items
+    let items: Vec<ListItem> = app
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            let style = if i == app.selected {
+                Style::default()
+                    .bg(Color::Blue)
+                    .add_modifier(Modifier::BOLD)
+            } else if item.is_dangerous() {
+                Style::default().fg(Color::Red)
+            } else {
+                Style::default()
+            };
+            ListItem::new(item.display()).style(style)
+        })
+        .collect();
+
+    let menu = List::new(items).block(
+        Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green)),
     );
 
-    println!("\n✅ All checks passed!");
+    f.render_widget(menu, area);
+
+    // Help text INSIDE at bottom
+    let help_lines = match app.mode {
+        Mode::Power => vec![
+            "L:Lock  S:Suspend  R:Reboot  P:Power-off",
+            ">:Apps  !:Health  Esc:Quit",
+        ],
+        Mode::Apps => vec!["Enter:Launch  Backspace:Back", ">:Apps  !:Health"],
+        Mode::Health => vec!["Backspace:Back", ">:Apps  !:Health"],
+    };
+
+    // Position help at bottom INSIDE the border
+    let help_area = Rect {
+        x: area.x + 1,               // Inside border
+        y: area.y + area.height - 3, // Bottom of area, above border
+        width: area.width - 2,       // Account for borders
+        height: 2,
+    };
+
+    let help_widget = Paragraph::new(help_lines.join(
+        "
+",
+    ))
+    .style(Style::default().fg(Color::DarkGray))
+    .alignment(Alignment::Left);
+
+    f.render_widget(help_widget, help_area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
