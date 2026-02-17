@@ -21,7 +21,7 @@ use std::process::Command;
 // Item types in the palette
 #[derive(Debug, Clone)]
 enum ItemType {
-    App(String),            // Application to launch
+    App(String, String),    // Application (display_name, executable)
     Action(String, String), // Quick action (display, command)
     File(String),           // Recent file
     Intent(String),         // Intent ledger item
@@ -31,7 +31,7 @@ enum ItemType {
 impl ItemType {
     fn display(&self) -> String {
         match self {
-            ItemType::App(name) => format!("🚀 {}", name),
+            ItemType::App(name, _) => format!("🚀 {}", name),
             ItemType::Action(name, _) => format!("⚡ {}", name),
             ItemType::File(path) => format!("📁 {}", path),
             ItemType::Intent(name) => format!("📋 {}", name),
@@ -41,11 +41,13 @@ impl ItemType {
 
     fn execute(&self) -> bool {
         match self {
-            ItemType::App(name) => {
-                let _ = Command::new("sh")
-                    .arg("-c")
-                    .arg(format!("{} &", name.to_lowercase()))
-                    .spawn();
+            ItemType::App(_, exec) => {
+                // Use setsid to daemonize - app survives terminal close
+                eprintln!("🚀 Launching: {}", exec);
+                let cmd = format!("setsid -f {} >/dev/null 2>&1", exec);
+                eprintln!("📝 Command: {}", cmd);
+                let result = Command::new("sh").arg("-c").arg(&cmd).spawn();
+                eprintln!("✅ Result: {:?}", result);
                 false
             }
             ItemType::Action(_, cmd) => {
@@ -165,13 +167,17 @@ impl App {
                                     }
 
                                     if !name.is_empty() && !exec.is_empty() {
-                                        self.items.push(ItemType::App(name));
+                                        self.items.push(ItemType::App(name, exec));
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                // Sort apps alphabetically by name
+                self.items
+                    .sort_by_key(|a| a.display().to_lowercase());
             }
             Mode::Actions => {
                 self.items.push(ItemType::Action(
@@ -207,7 +213,9 @@ impl App {
                         let name = entry.file_name().to_string_lossy().to_string();
                         // Skip hidden files and backups
                         if !name.starts_with('.') && !name.ends_with('~') {
-                            self.items.push(ItemType::App(name));
+                            // For scripts, the name is the executable
+                            let exec = format!("/home/christian/0-core/scripts/{}", name);
+                            self.items.push(ItemType::App(name, exec));
                         }
                     }
                 }
@@ -264,17 +272,23 @@ impl App {
                 {
                     if let Ok(result) = String::from_utf8(output.stdout) {
                         if let Some(total) = result.split_whitespace().next() {
-                            self.items
-                                .push(ItemType::App(format!("📝 Total Rust LOC: {}", total)));
+                            self.items.push(ItemType::App(
+                                format!("📝 Total Rust LOC: {}", total),
+                                String::new(),
+                            ));
                         }
                     }
                 }
 
                 // Tool count
-                self.items
-                    .push(ItemType::App("🔧 Total Tools: 43".to_string()));
-                self.items
-                    .push(ItemType::App("🔗 Total Aliases: 299".to_string()));
+                self.items.push(ItemType::App(
+                    "🔧 Total Tools: 43".to_string(),
+                    String::new(),
+                ));
+                self.items.push(ItemType::App(
+                    "🔗 Total Aliases: 299".to_string(),
+                    String::new(),
+                ));
 
                 // Disk usage
                 if let Ok(output) = Command::new("du")
@@ -283,8 +297,10 @@ impl App {
                 {
                     if let Ok(result) = String::from_utf8(output.stdout) {
                         if let Some(size) = result.split_whitespace().next() {
-                            self.items
-                                .push(ItemType::App(format!("💾 0-Core Size: {}", size)));
+                            self.items.push(ItemType::App(
+                                format!("💾 0-Core Size: {}", size),
+                                String::new(),
+                            ));
                         }
                     }
                 }
@@ -298,7 +314,8 @@ impl App {
                     if let Ok(result) = String::from_utf8(output.stdout) {
                         let trimmed = result.trim();
                         if !trimmed.is_empty() {
-                            self.items.push(ItemType::App(format!("📋 {}", trimmed)));
+                            self.items
+                                .push(ItemType::App(format!("📋 {}", trimmed), String::new()));
                         }
                     }
                 }
@@ -335,17 +352,19 @@ impl App {
                     tool_sizes.sort_by(|a, b| b.1.cmp(&a.1));
 
                     // Show top 10
-                    self.items
-                        .push(ItemType::App("━━━━━━━━━━━━━━━━━━━━━━━━━━".to_string()));
-                    self.items
-                        .push(ItemType::App("🏆 Top 10 Largest Tools:".to_string()));
+                    self.items.push(ItemType::App(
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━".to_string(),
+                        String::new(),
+                    ));
+                    self.items.push(ItemType::App(
+                        "🏆 Top 10 Largest Tools:".to_string(),
+                        String::new(),
+                    ));
                     for (i, (name, lines)) in tool_sizes.iter().take(10).enumerate() {
-                        self.items.push(ItemType::App(format!(
-                            "  {}. {} - {} lines",
-                            i + 1,
-                            name,
-                            lines
-                        )));
+                        self.items.push(ItemType::App(
+                            format!("  {}. {} - {} lines", i + 1, name, lines),
+                            String::new(),
+                        ));
                     }
                 }
             }
