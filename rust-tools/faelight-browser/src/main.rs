@@ -1,7 +1,7 @@
 //! faelight-browser v0.1.0 - Graphical Wayland version
 //! Same dual-pane layout as TUI, but graphical
 
-use faelight_browser::{Result, storage::BookmarkStore, security::SecurityStatus};
+use faelight_browser::{security::SecurityStatus, storage::BookmarkStore, Result};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_registry,
@@ -39,12 +39,12 @@ const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
 
 // Layout dimensions
-const LEFT_PANE_WIDTH: u32 = 576;  // 30% of 1920
+const LEFT_PANE_WIDTH: u32 = 576; // 30% of 1920
 const SEPARATOR_WIDTH: u32 = 2;
 #[allow(dead_code)]
 const RIGHT_PANE_WIDTH: u32 = WINDOW_WIDTH - LEFT_PANE_WIDTH - SEPARATOR_WIDTH;
 
-const TAB_LIST_HEIGHT: u32 = 600;  // 60% of left pane
+const TAB_LIST_HEIGHT: u32 = 600; // 60% of left pane
 #[allow(dead_code)]
 const BOOKMARK_LIST_HEIGHT: u32 = WINDOW_HEIGHT - TAB_LIST_HEIGHT - 50;
 
@@ -75,13 +75,8 @@ fn main() -> Result<()> {
     let seat_state = SeatState::new(&globals, &qh);
 
     let surface = compositor.create_surface(&qh);
-    let layer_surface = layer_shell.create_layer_surface(
-        &qh,
-        surface,
-        Layer::Top,
-        Some("faelight-browser"),
-        None,
-    );
+    let layer_surface =
+        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-browser"), None);
 
     layer_surface.set_size(WINDOW_WIDTH, WINDOW_HEIGHT);
     layer_surface.set_anchor(Anchor::empty());
@@ -92,7 +87,7 @@ fn main() -> Result<()> {
         .map_err(|e| faelight_browser::error::BrowserError::Rendering(e.to_string()))?;
 
     let bookmark_store = BookmarkStore::new().unwrap_or_default();
-    
+
     let tabs = vec![
         Tab {
             title: "Home".to_string(),
@@ -123,11 +118,13 @@ fn main() -> Result<()> {
         running: true,
     };
 
-    event_queue.roundtrip(&mut state)
+    event_queue
+        .roundtrip(&mut state)
         .map_err(|e| faelight_browser::error::BrowserError::WaylandConnection(e.to_string()))?;
 
     while state.running {
-        event_queue.blocking_dispatch(&mut state)
+        event_queue
+            .blocking_dispatch(&mut state)
             .map_err(|e| faelight_browser::error::BrowserError::WaylandConnection(e.to_string()))?;
     }
 
@@ -178,16 +175,16 @@ impl BrowserState {
         // LEFT PANE - Tabs
         let tab_y_start = 20;
         let mut tab_y = tab_y_start;
-        
+
         draw_text(canvas, width, "📑 Tabs", 20, 10, ACCENT_BLUE);
-        
+
         for (i, tab) in self.tabs.iter().enumerate() {
             let color = if i == self.active_tab {
                 ACCENT_BLUE
             } else {
                 TEXT_DIM
             };
-            
+
             let security_icon = tab.security.icon();
             let text = format!("{} {}", security_icon, tab.title);
             draw_text(canvas, width, &text, 30, tab_y, color);
@@ -207,16 +204,30 @@ impl BrowserState {
 
         // LEFT PANE - Bookmarks
         let mut bm_y = bookmark_y_start + 20;
-        draw_text(canvas, width, "🔖 Bookmarks", 20, bookmark_y_start + 10, ACCENT_GREEN);
-        
+        draw_text(
+            canvas,
+            width,
+            "🔖 Bookmarks",
+            20,
+            bookmark_y_start + 10,
+            ACCENT_GREEN,
+        );
+
         for (i, bookmark) in self.bookmark_store.list().iter().enumerate() {
             let color = if i == self.active_bookmark {
                 ACCENT_GREEN
             } else {
                 TEXT_DIM
             };
-            
-            draw_text(canvas, width, &format!("⭐ {}", bookmark.name), 30, bm_y, color);
+
+            draw_text(
+                canvas,
+                width,
+                &format!("⭐ {}", bookmark.name),
+                30,
+                bm_y,
+                color,
+            );
             bm_y += 30;
         }
 
@@ -229,7 +240,7 @@ impl BrowserState {
 
         // RIGHT PANE - Content
         let content_x = LEFT_PANE_WIDTH as i32 + SEPARATOR_WIDTH as i32 + 20;
-        
+
         if let Some(tab) = self.tabs.get(self.active_tab) {
             // Title with security indicator
             let security_color = match tab.security {
@@ -237,10 +248,10 @@ impl BrowserState {
                 SecurityStatus::Insecure => [0x70, 0x87, 0xd0, 0xFF], // RED
                 _ => ACCENT_BLUE,
             };
-            
+
             let title_text = format!("{} {} - {}", tab.security.icon(), tab.title, tab.url);
             draw_text(canvas, width, &title_text, content_x, 10, security_color);
-            
+
             // Content
             let mut content_y = 50;
             let content_lines = vec![
@@ -253,31 +264,65 @@ impl BrowserState {
                 "📝 Flat-file bookmarks",
                 "🎨 Faelight Forest colors",
             ];
-            
+
             for line in content_lines {
                 draw_text(canvas, width, line, content_x, content_y, TEXT_BRIGHT);
                 content_y += 25;
             }
         }
 
-        self.layer_surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer_surface.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
+        self.layer_surface
+            .wl_surface()
+            .attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer_surface
+            .wl_surface()
+            .damage_buffer(0, 0, width as i32, height as i32);
         self.layer_surface.commit();
     }
 }
 
 impl CompositorHandler for BrowserState {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
     fn frame(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {
         self.draw(qh);
     }
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for BrowserState {
-    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
+    fn output_state(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
@@ -287,44 +332,128 @@ impl LayerShellHandler for BrowserState {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         self.running = false;
     }
-    fn configure(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
-        if configure.new_size.0 > 0 { self.width = configure.new_size.0; }
-        if configure.new_size.1 > 0 { self.height = configure.new_size.1; }
+    fn configure(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        _: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _: u32,
+    ) {
+        if configure.new_size.0 > 0 {
+            self.width = configure.new_size.0;
+        }
+        if configure.new_size.1 > 0 {
+            self.height = configure.new_size.1;
+        }
         self.configured = true;
         self.draw(qh);
     }
 }
 
 impl ShmHandler for BrowserState {
-    fn shm_state(&mut self) -> &mut Shm { &mut self.shm }
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
+    }
 }
 
 impl SeatHandler for BrowserState {
-    fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wayland_client::protocol::wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, qh: &QueueHandle<Self>, seat: wayland_client::protocol::wl_seat::WlSeat, capability: Capability) {
+    fn seat_state(&mut self) -> &mut SeatState {
+        &mut self.seat_state
+    }
+    fn new_seat(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wayland_client::protocol::wl_seat::WlSeat,
+    ) {
+    }
+    fn new_capability(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        seat: wayland_client::protocol::wl_seat::WlSeat,
+        capability: Capability,
+    ) {
         if capability == Capability::Keyboard {
             self.seat_state.get_keyboard(qh, &seat, None).ok();
         }
     }
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wayland_client::protocol::wl_seat::WlSeat, _: Capability) {}
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wayland_client::protocol::wl_seat::WlSeat) {}
+    fn remove_capability(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wayland_client::protocol::wl_seat::WlSeat,
+        _: Capability,
+    ) {
+    }
+    fn remove_seat(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: wayland_client::protocol::wl_seat::WlSeat,
+    ) {
+    }
 }
 
 impl KeyboardHandler for BrowserState {
-    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32, _: &[u32], _: &[Keysym]) {}
-    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
-    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+    fn enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+        _: &[u32],
+        _: &[Keysym],
+    ) {
+    }
+    fn leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: &wl_surface::WlSurface,
+        _: u32,
+    ) {
+    }
+    fn press_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        event: KeyEvent,
+    ) {
         if event.keysym == Keysym::Escape {
             self.running = false;
         }
     }
-    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
-    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_keyboard::WlKeyboard, _: u32, _: Modifiers, _: u32) {}
+    fn release_key(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: KeyEvent,
+    ) {
+    }
+    fn update_modifiers(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard,
+        _: u32,
+        _: Modifiers,
+        _: u32,
+    ) {
+    }
 }
 
 impl ProvidesRegistryState for BrowserState {
-    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
+    fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
     registry_handlers![OutputState, SeatState];
 }
 

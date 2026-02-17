@@ -16,6 +16,12 @@ pub struct TabBar {
     pub tabs: Vec<Tab>,
 }
 
+impl Default for TabBar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TabBar {
     pub fn new() -> Self {
         Self {
