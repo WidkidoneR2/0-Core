@@ -9,6 +9,10 @@ description = "A browser built on 0-Core principles - security, transparency, co
 name = "faelight-browser"
 path = "src/main.rs"
 
+[[bin]]
+name = "faelight-browser-tui"
+path = "src/bin/tui.rs"
+
 [lib]
 name = "faelight_browser"
 path = "src/lib.rs"
@@ -17,11 +21,16 @@ path = "src/lib.rs"
 # Core
 faelight-core = { path = "../faelight-core" }
 
-# Wayland (from faelight-bar)
+# Wayland (for graphical version)
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
 
-# Rendering (from faelight-bar)
+# TUI (for terminal version)
+ratatui = "0.28"
+crossterm = "0.28"
+fuzzy-matcher = "0.3"
+
+# Rendering (both versions)
 fontdue = "0.9"
 lazy_static = "1.4"
 
@@ -38,8 +47,16 @@ thiserror = "1.0"
 chrono = "0.4"
 url = "2"
 
-# Servo (Phase 3 - COMMENTED OUT for now)
-# servo = { git = "https://github.com/servo/servo" }
+# Web rendering (secure HTTPS)
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
+html2text = "0.12"
+
+# Security
+rustls = "0.23"
+webpki-roots = "0.26"
+
+# Async runtime
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [profile.release]
 opt-level = 3

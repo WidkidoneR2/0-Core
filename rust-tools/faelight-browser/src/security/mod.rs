@@ -1,3 +1,5 @@
-//! Security module - permissions, certificates, audit logging
+//! Security module - HTTPS verification, permissions
 
-// Module implementation coming in phases
+pub mod https;
+
+pub use https::SecurityStatus;
