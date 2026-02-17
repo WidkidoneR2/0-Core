@@ -1,17 +1,13 @@
 [package]
 name = "faelight-menu"
-version = "2.1.0"
+version = "3.0.0"
 edition = "2021"
 authors = ["Christian <christian@faelight.forest>"]
 license = "MIT"
 
 [dependencies]
-chrono = "0.4"
-faelight-core = { path = "../faelight-core" }
-smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop", "xkbcommon"] }
-wayland-client = "0.31"
-wayland-protocols = { version = "0.31", features = ["client", "unstable"] }
-wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+crossterm = "0.28"
+ratatui = "0.28"
 
 [[bin]]
 name = "faelight-menu"

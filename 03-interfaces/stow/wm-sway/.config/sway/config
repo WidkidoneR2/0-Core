@@ -200,7 +200,6 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 bindsym $mod+Ctrl+Escape exec ~/0-core/scripts/faelight-lock
 
 # Power menu
-bindsym $mod+Escape exec ~/0-core/scripts/faelight-menu
 
 # Session
 bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit Sway?' -B 'Yes' 'swaymsg exit'
@@ -242,7 +241,6 @@ for_window [title="Picture-in-Picture"] floating enable, sticky enable
 # ═══════════════════════════════════════════════════════════
 # 🚀 AUTOSTART
 # ═══════════════════════════════════════════════════════════
-exec ~/0-core/scripts/start-bar
 exec ~/0-core/scripts/faelight-notify
 exec wl-paste --watch cliphist store
 
@@ -250,7 +248,6 @@ exec wl-paste --watch cliphist store
 # 🌲 END FAELIGHT FOREST SWAY CONFIG
 # ═══════════════════════════════════════════════════════════
 bindsym $mod+space exec ~/0-core/scripts/faelight-dmenu apps
-bindsym $mod+Shift+Escape exec ~/0-core/scripts/faelight-menu
 
 
 # Apps (Alt+key)
@@ -310,3 +307,9 @@ bindsym Control+Space exec foot --app-id=faelight-palette-float -e /home/christi
 # Faelight Bar - Auto-start detached
 exec ~/0-core/scripts/launch-bar
 xwayland enable
+
+# Faelight Menu - Floating window
+for_window [app_id="faelight-menu-float"] floating enable, resize set 450 350, move position center
+
+# Keybind: SUPER+ESC for menu
+bindsym $mod+Escape exec foot --app-id=faelight-menu-float -e /home/christian/0-core/target/release/faelight-menu
