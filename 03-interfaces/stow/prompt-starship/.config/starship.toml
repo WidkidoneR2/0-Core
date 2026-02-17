@@ -69,7 +69,7 @@ elif [[ "$PWD" == "$HOME/0-core/"* ]]; then
   relative="${PWD#$HOME/0-core/}"
   echo "${relative^^} "
 elif [[ "$PWD" == "$HOME" ]]; then
-  echo "/home/christian "
+  echo ""
 else
   echo "$(basename "$PWD") "
 fi
