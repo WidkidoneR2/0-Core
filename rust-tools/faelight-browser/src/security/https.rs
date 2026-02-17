@@ -4,9 +4,9 @@ use url::Url;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SecurityStatus {
-    Secure,      // HTTPS with valid cert
-    Insecure,    // HTTP
-    LocalFile,   // file:// or about:
+    Secure,    // HTTPS with valid cert
+    Insecure,  // HTTP
+    LocalFile, // file:// or about:
     Unknown,
 }
 
@@ -22,7 +22,7 @@ impl SecurityStatus {
             Err(_) => Self::Unknown,
         }
     }
-    
+
     pub fn icon(&self) -> &'static str {
         match self {
             Self::Secure => "🔒",
@@ -31,14 +31,14 @@ impl SecurityStatus {
             Self::Unknown => "❓",
         }
     }
-    
+
     pub fn color(&self) -> ratatui::style::Color {
         use ratatui::style::Color;
         match self {
-            Self::Secure => Color::Rgb(163, 227, 107), // Green
-            Self::Insecure => Color::Rgb(200, 100, 100), // Red
+            Self::Secure => Color::Rgb(163, 227, 107),    // Green
+            Self::Insecure => Color::Rgb(200, 100, 100),  // Red
             Self::LocalFile => Color::Rgb(107, 163, 227), // Blue
-            Self::Unknown => Color::Rgb(119, 127, 111), // Dim
+            Self::Unknown => Color::Rgb(119, 127, 111),   // Dim
         }
     }
 }

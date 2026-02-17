@@ -3,13 +3,7 @@
 
 use crate::ui::colors::BG_COLOR;
 
-pub fn draw_gradient_separator(
-    canvas: &mut [u8],
-    width: u32,
-    height: u32,
-    x: i32,
-    color: [u8; 4],
-) {
+pub fn draw_gradient_separator(canvas: &mut [u8], width: u32, height: u32, x: i32, color: [u8; 4]) {
     let start_y = 6;
     let end_y = height as i32 - 6;
 

@@ -2,12 +2,14 @@
 //! Dual-pane + fuzzy search + web rendering + bookmarks + security
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -17,8 +19,8 @@ use ratatui::{
 };
 use std::io;
 
-use faelight_browser::storage::BookmarkStore;
 use faelight_browser::security::SecurityStatus;
+use faelight_browser::storage::BookmarkStore;
 
 // EXACT colors from faelight-fm
 const BG_DARK: Color = Color::Rgb(17, 20, 15);
@@ -57,37 +59,35 @@ struct App {
 impl App {
     fn new() -> Self {
         let bookmark_store = BookmarkStore::new().unwrap_or_default();
-        
-        let tabs = vec![
-            Tab {
-                title: "Home".to_string(),
-                url: "about:home".to_string(),
-                content: vec![
-                    "🌲 Faelight Browser - 0-Core Edition".to_string(),
-                    "".to_string(),
-                    "Security-first, transparent web browsing".to_string(),
-                    "".to_string(),
-                    "Features:".to_string(),
-                    "  🔒 HTTPS-only by default".to_string(),
-                    "  📝 Flat-file bookmarks".to_string(),
-                    "  🔍 Fuzzy search".to_string(),
-                    "  📊 Dual-pane layout".to_string(),
-                    "".to_string(),
-                    "Keys:".to_string(),
-                    "  j/k       Navigate tabs".to_string(),
-                    "  J/K       Navigate bookmarks".to_string(),
-                    "  /         Search tabs".to_string(),
-                    "  Ctrl+L    Edit address".to_string(),
-                    "  Ctrl+B    Bookmark current page".to_string(),
-                    "  Ctrl+D    Delete bookmark".to_string(),
-                    "  Enter     Open (address/bookmark)".to_string(),
-                    "  g         Go to URL".to_string(),
-                    "  q         Quit".to_string(),
-                ],
-                security: SecurityStatus::LocalFile,
-            },
-        ];
-        
+
+        let tabs = vec![Tab {
+            title: "Home".to_string(),
+            url: "about:home".to_string(),
+            content: vec![
+                "🌲 Faelight Browser - 0-Core Edition".to_string(),
+                "".to_string(),
+                "Security-first, transparent web browsing".to_string(),
+                "".to_string(),
+                "Features:".to_string(),
+                "  🔒 HTTPS-only by default".to_string(),
+                "  📝 Flat-file bookmarks".to_string(),
+                "  🔍 Fuzzy search".to_string(),
+                "  📊 Dual-pane layout".to_string(),
+                "".to_string(),
+                "Keys:".to_string(),
+                "  j/k       Navigate tabs".to_string(),
+                "  J/K       Navigate bookmarks".to_string(),
+                "  /         Search tabs".to_string(),
+                "  Ctrl+L    Edit address".to_string(),
+                "  Ctrl+B    Bookmark current page".to_string(),
+                "  Ctrl+D    Delete bookmark".to_string(),
+                "  Enter     Open (address/bookmark)".to_string(),
+                "  g         Go to URL".to_string(),
+                "  q         Quit".to_string(),
+            ],
+            security: SecurityStatus::LocalFile,
+        }];
+
         Self {
             tabs: tabs.clone(),
             bookmark_store,
@@ -100,7 +100,7 @@ impl App {
             status_message: String::new(),
         }
     }
-    
+
     fn fetch_url(&mut self, url: String) {
         // Auto-add https:// if no scheme
         let url = if !url.contains("://") && !url.starts_with("about:") {
@@ -108,17 +108,17 @@ impl App {
         } else {
             url
         };
-        
+
         self.status_message = format!("Loading {}...", url);
-        
+
         let security = SecurityStatus::check(&url);
-        
+
         // Only allow HTTPS or local
         if matches!(security, SecurityStatus::Insecure) {
             self.status_message = "❌ HTTP blocked - HTTPS only!".to_string();
             return;
         }
-        
+
         let content = if url.starts_with("about:") {
             vec!["About page".to_string()]
         } else {
@@ -132,38 +132,43 @@ impl App {
                 ],
             }
         };
-        
+
         let title = url.split('/').nth(2).unwrap_or(&url).to_string();
-        
+
         self.tabs[self.active_tab] = Tab {
             title,
             url: url.clone(),
             content,
             security,
         };
-        
+
         self.address_bar = url;
         self.status_message = "✅ Loaded".to_string();
     }
-    
+
     fn add_bookmark(&mut self) {
         let tab = &self.tabs[self.active_tab];
-        match self.bookmark_store.add(tab.title.clone(), tab.url.clone(), vec![]) {
+        match self
+            .bookmark_store
+            .add(tab.title.clone(), tab.url.clone(), vec![])
+        {
             Ok(_) => self.status_message = "✅ Bookmarked!".to_string(),
             Err(e) => self.status_message = format!("❌ Failed: {}", e),
         }
     }
-    
+
     fn update_search(&mut self) {
         if self.search_input.is_empty() {
             self.filtered_tabs = self.tabs.iter().enumerate().map(|(i, _)| (i, 0)).collect();
         } else {
             let matcher = SkimMatcherV2::default();
-            let mut results: Vec<(usize, i64)> = self.tabs
+            let mut results: Vec<(usize, i64)> = self
+                .tabs
                 .iter()
                 .enumerate()
                 .filter_map(|(i, tab)| {
-                    matcher.fuzzy_match(&tab.title, &self.search_input)
+                    matcher
+                        .fuzzy_match(&tab.title, &self.search_input)
                         .map(|score| (i, score))
                 })
                 .collect();
@@ -171,40 +176,40 @@ impl App {
             self.filtered_tabs = results;
         }
     }
-    
+
     fn next_tab(&mut self) {
         if self.active_tab < self.tabs.len().saturating_sub(1) {
             self.active_tab += 1;
             self.update_address();
         }
     }
-    
+
     fn prev_tab(&mut self) {
         if self.active_tab > 0 {
             self.active_tab -= 1;
             self.update_address();
         }
     }
-    
+
     fn next_bookmark(&mut self) {
         let count = self.bookmark_store.list().len();
         if count > 0 && self.active_bookmark < count - 1 {
             self.active_bookmark += 1;
         }
     }
-    
+
     fn prev_bookmark(&mut self) {
         if self.active_bookmark > 0 {
             self.active_bookmark -= 1;
         }
     }
-    
+
     fn open_bookmark(&mut self) {
         if let Some(bookmark) = self.bookmark_store.list().get(self.active_bookmark) {
             self.fetch_url(bookmark.url.clone());
         }
     }
-    
+
     fn update_address(&mut self) {
         if let Some(tab) = self.tabs.get(self.active_tab) {
             self.address_bar = tab.url.clone();
@@ -219,25 +224,28 @@ fn fetch_web_content(url: &str) -> Result<Vec<String>, String> {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Client error: {}", e))?;
-    
+
     let response = client
         .get(url)
         .send()
         .map_err(|e| format!("Request failed: {}", e))?;
-    
+
     let status = response.status();
     if !status.is_success() {
-        return Err(format!("HTTP {}: {}", status.as_u16(), status.canonical_reason().unwrap_or("Error")));
+        return Err(format!(
+            "HTTP {}: {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("Error")
+        ));
     }
-    
-    let html = response.text()
-        .map_err(|e| format!("Read error: {}", e))?;
-    
+
+    let html = response.text().map_err(|e| format!("Read error: {}", e))?;
+
     // Convert HTML to text
     let text = html2text::from_read(html.as_bytes(), 80);
-    
+
     let lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
-    
+
     if lines.is_empty() {
         Ok(vec!["(empty page)".to_string()])
     } else {
@@ -256,7 +264,11 @@ fn main() -> io::Result<()> {
     let res = run_app(&mut terminal, &mut app);
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
 
     if let Err(err) = res {
@@ -266,7 +278,10 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+fn run_app<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, app))?;
 
@@ -328,7 +343,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             app.fetch_url(url);
                         }
                         KeyCode::Char(c) => app.address_bar.push(c),
-                        KeyCode::Backspace => { app.address_bar.pop(); }
+                        KeyCode::Backspace => {
+                            app.address_bar.pop();
+                        }
                         _ => {}
                     },
                 }
@@ -340,10 +357,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
 fn ui(f: &mut Frame, app: &App) {
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(70),
-        ])
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
         .split(f.area());
 
     let left_chunks = Layout::default()
@@ -361,54 +375,80 @@ fn ui(f: &mut Frame, app: &App) {
         Mode::EditAddress => "📝 Go to URL",
         Mode::Normal => "Navigation",
     };
-    
+
     let search_text = match app.mode {
         Mode::Search => &app.search_input,
         Mode::EditAddress => &app.address_bar,
         Mode::Normal => "",
     };
-    
+
     let search_style = match app.mode {
         Mode::Search | Mode::EditAddress => Style::default().fg(Color::Yellow),
         Mode::Normal => Style::default().fg(TEXT_DIM),
     };
-    
-    let cursor = if matches!(app.mode, Mode::Search | Mode::EditAddress) { "█" } else { "" };
+
+    let cursor = if matches!(app.mode, Mode::Search | Mode::EditAddress) {
+        "█"
+    } else {
+        ""
+    };
     let search = Paragraph::new(format!("{}{}", search_text, cursor))
         .style(search_style.bg(BG_DARK))
         .block(Block::default().borders(Borders::ALL).title(search_title));
     f.render_widget(search, left_chunks[0]);
 
     // Tabs with security indicators
-    let tab_items: Vec<ListItem> = app.tabs.iter().enumerate().map(|(i, tab)| {
-        let selected = i == app.active_tab;
-        let style = if selected {
-            Style::default().fg(ACCENT_BLUE).bg(BG_SELECTED).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(TEXT_BRIGHT)
-        };
-        let security_icon = tab.security.icon();
-        ListItem::new(format!("  {} {}", security_icon, tab.title)).style(style)
-    }).collect();
+    let tab_items: Vec<ListItem> = app
+        .tabs
+        .iter()
+        .enumerate()
+        .map(|(i, tab)| {
+            let selected = i == app.active_tab;
+            let style = if selected {
+                Style::default()
+                    .fg(ACCENT_BLUE)
+                    .bg(BG_SELECTED)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(TEXT_BRIGHT)
+            };
+            let security_icon = tab.security.icon();
+            ListItem::new(format!("  {} {}", security_icon, tab.title)).style(style)
+        })
+        .collect();
 
     let tabs_list = List::new(tab_items)
-        .block(Block::default().borders(Borders::ALL).title("📑 Tabs (j/k, g=go)"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("📑 Tabs (j/k, g=go)"),
+        )
         .style(Style::default().bg(BG_DARK));
     f.render_widget(tabs_list, left_chunks[1]);
 
     // Bookmarks
-    let bookmark_items: Vec<ListItem> = app.bookmark_store.list().iter().enumerate().map(|(i, bm)| {
-        let selected = i == app.active_bookmark;
-        let style = if selected {
-            Style::default().fg(ACCENT_GREEN).bg(BG_SELECTED)
-        } else {
-            Style::default().fg(TEXT_DIM)
-        };
-        ListItem::new(format!("  ⭐ {}", bm.name)).style(style)
-    }).collect();
+    let bookmark_items: Vec<ListItem> = app
+        .bookmark_store
+        .list()
+        .iter()
+        .enumerate()
+        .map(|(i, bm)| {
+            let selected = i == app.active_bookmark;
+            let style = if selected {
+                Style::default().fg(ACCENT_GREEN).bg(BG_SELECTED)
+            } else {
+                Style::default().fg(TEXT_DIM)
+            };
+            ListItem::new(format!("  ⭐ {}", bm.name)).style(style)
+        })
+        .collect();
 
     let bookmarks_list = List::new(bookmark_items)
-        .block(Block::default().borders(Borders::ALL).title("🔖 Bookmarks (J/K, Enter)"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("🔖 Bookmarks (J/K, Enter)"),
+        )
         .style(Style::default().bg(BG_DARK));
     f.render_widget(bookmarks_list, left_chunks[2]);
 
@@ -425,21 +465,31 @@ fn ui(f: &mut Frame, app: &App) {
     // Title with security status
     let current_tab = &app.tabs[app.active_tab];
     let security_color = current_tab.security.color();
-    let title_text = format!("{} {} - {}", 
+    let title_text = format!(
+        "{} {} - {}",
         current_tab.security.icon(),
         current_tab.title,
         current_tab.url
     );
 
     let title = Paragraph::new(title_text)
-        .style(Style::default().fg(security_color).add_modifier(Modifier::BOLD).bg(BG_DARK))
+        .style(
+            Style::default()
+                .fg(security_color)
+                .add_modifier(Modifier::BOLD)
+                .bg(BG_DARK),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, right_chunks[0]);
 
     // Content
-    let content_items: Vec<ListItem> = current_tab.content.iter().map(|line| {
-        ListItem::new(line.as_str()).style(Style::default().fg(TEXT_BRIGHT).bg(BG_DARK))
-    }).collect();
+    let content_items: Vec<ListItem> = current_tab
+        .content
+        .iter()
+        .map(|line| {
+            ListItem::new(line.as_str()).style(Style::default().fg(TEXT_BRIGHT).bg(BG_DARK))
+        })
+        .collect();
 
     let content_list = List::new(content_items)
         .block(Block::default().borders(Borders::ALL).title("Content"))

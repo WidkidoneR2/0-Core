@@ -13,9 +13,11 @@ pub fn check_npm_updates() -> Vec<String> {
     {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            if stdout.trim().is_empty() || stdout == "{}" {
+            // npm outdated -g --json returns {} if nothing outdated
+            if stdout.trim().is_empty() || stdout.trim() == "{}" {
                 vec![]
             } else {
+                // Has outdated packages
                 vec!["Global NPM packages".to_string()]
             }
         }

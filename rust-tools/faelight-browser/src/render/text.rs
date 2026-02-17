@@ -12,14 +12,7 @@ lazy_static::lazy_static! {
     };
 }
 
-pub fn draw_text(
-    canvas: &mut [u8],
-    width: u32,
-    text: &str,
-    x: i32,
-    y: i32,
-    color: [u8; 4],
-) {
+pub fn draw_text(canvas: &mut [u8], width: u32, text: &str, x: i32, y: i32, color: [u8; 4]) {
     let mut cache = GLYPH_CACHE.lock().unwrap();
     let mut cursor_x = x;
     let font_size = 14.0;

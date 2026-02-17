@@ -9,6 +9,7 @@ mod npm_checker;
 mod pip_checker;
 mod rustup_checker;
 mod tui;
+mod tui_v2;
 mod yazi_checker;
 
 use anyhow::{Context, Result};
@@ -39,6 +40,10 @@ struct Cli {
     /// Create pre-update snapshot (requires faelight-snapshot)
     #[arg(long)]
     snapshot: bool,
+
+    /// Skip interactive TUI and update immediately
+    #[arg(short = 'y', long)]
+    yes: bool,
 
     /// Show detailed version information for each update
     #[arg(short, long)]
@@ -134,21 +139,64 @@ fn run() -> Result<()> {
         println!("{}", impact);
     }
 
-    // Interactive mode
-    if cli.interactive {
-        let selections = tui::interactive_select(&updates);
+    // Interactive TUI mode (default unless --yes or --dry-run)
+    if !cli.dry_run && !cli.yes && updates.iter().any(|c| c.count > 0) {
+        let selections = match tui_v2::run_interactive_tui(&updates) {
+            Ok(sel) => sel,
+            Err(e) => {
+                eprintln!("{}  TUI error: {}", "❌".red(), e);
+                return Ok(());
+            }
+        };
 
         if selections.is_empty() {
             println!("\n{}  No packages selected", "ℹ️".blue());
             return Ok(());
         }
 
-        if !cli.dry_run && tui::confirm_updates(&selections) {
-            perform_updates(&selections)?;
-        } else {
-            println!("\n{}  Cancelled", "ℹ️".blue());
+        // LOCK CORE
+        let in_core = is_in_core();
+
+        // PERFORM UPDATES
+        perform_updates(&selections)?;
+
+        // CLEANUP CACHES
+        cleanup_caches()?;
+
+        // UPDATE PROMPT CACHE
+        update_prompt_cache()?;
+
+        // UNLOCK CORE
+        if in_core {
+            // unlock handled automatically
         }
-    } else if !cli.dry_run {
+
+        // FINAL HEALTH CHECK
+        let health = run_doctor_final()?;
+
+        // GIT STATUS CHECK
+        check_git_status()?;
+
+        // CHECK FOR .PACNEW FILES
+        check_pacnew()?;
+
+        // CHECK AUR REBUILDS
+        check_aur_rebuilds()?;
+
+        // FINAL SUMMARY
+        println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+        if health == 100 {
+            println!("{}  Update complete! System: {}%", "✅".green(), health);
+        } else {
+            println!(
+                "{}  Update complete! System: {}% (check warnings)",
+                "⚠️".yellow(),
+                health
+            );
+        }
+
+        return Ok(());
+    } else if cli.dry_run {
         println!("\n{}  Ready to update {} packages!", "✨".yellow(), total);
 
         // Prompt for confirmation
@@ -989,6 +1037,7 @@ fn update_prompt_cache() -> Result<()> {
 /// Check for .pacnew files and offer to handle them
 fn check_pacnew() -> Result<()> {
     let output = Command::new("find")
+        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
         .output()
         .context("Failed to find .pacnew files")?;
 

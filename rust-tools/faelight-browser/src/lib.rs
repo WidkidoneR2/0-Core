@@ -1,5 +1,5 @@
 //! faelight-browser v0.1.0
-//! 
+//!
 //! A web browser built on 0-Core principles:
 //! - Security through transparency
 //! - Intent over automation

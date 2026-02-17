@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::UpdateCategory;
 use colored::*;
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
