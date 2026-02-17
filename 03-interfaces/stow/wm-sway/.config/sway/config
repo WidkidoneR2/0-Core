@@ -309,3 +309,4 @@ bindsym Control+Space exec foot --app-id=faelight-palette-float -e /home/christi
 
 # Faelight Bar - Auto-start detached
 exec ~/0-core/scripts/launch-bar
+xwayland enable

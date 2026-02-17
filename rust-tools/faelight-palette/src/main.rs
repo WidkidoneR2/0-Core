@@ -176,8 +176,7 @@ impl App {
                 }
 
                 // Sort apps alphabetically by name
-                self.items
-                    .sort_by_key(|a| a.display().to_lowercase());
+                self.items.sort_by_key(|a| a.display().to_lowercase());
             }
             Mode::Actions => {
                 self.items.push(ItemType::Action(
