@@ -1,5 +1,5 @@
-//! faelight-menu v3.2.0 - Power Menu (Fixed with systemctl)
-//! 🌲 Faelight Forest
+//! faelight-menu v3.0.0 - Power Menu + Apps + Health
+//! 🌲 Faelight Forest - Matches palette/FM aesthetic
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -24,12 +24,15 @@ enum Mode {
 
 #[derive(Debug, Clone, PartialEq)]
 enum MenuItem {
+    // Power items
     Lock,
     Logout,
     Suspend,
     Reboot,
     Shutdown,
-    App(String, String),
+    // Apps
+    App(String, String), // (name, exec)
+    // Health
     HealthInfo(String),
 }
 
@@ -50,38 +53,34 @@ impl MenuItem {
         matches!(self, MenuItem::Reboot | MenuItem::Shutdown)
     }
 
-    fn execute(&self) -> bool {
+    fn execute(&self) {
         match self {
             MenuItem::Lock => {
                 let _ = Command::new("swaylock").spawn();
-                true
             }
             MenuItem::Logout => {
                 let _ = Command::new("swaymsg").arg("exit").spawn();
-                true
             }
             MenuItem::Suspend => {
-                let _ = Command::new("systemctl").arg("suspend").status();
-                true
+                let _ = Command::new("systemctl").arg("suspend").spawn();
             }
             MenuItem::Reboot => {
-                // Use systemctl with .status() to run blocking in current session
-                let _ = Command::new("systemctl").arg("reboot").status();
-                false
+                let script = "/home/christian/0-core/scripts/graceful-reboot";
+                let _ = Command::new("setsid").arg("-f").arg(script).spawn();
             }
             MenuItem::Shutdown => {
-                // Use systemctl with .status() to run blocking in current session
-                let _ = Command::new("systemctl").arg("poweroff").status();
-                false
+                let script = "/home/christian/0-core/scripts/graceful-poweroff";
+                let _ = Command::new("setsid").arg("-f").arg(script).spawn();
             }
             MenuItem::App(_, exec) => {
                 let parts: Vec<&str> = exec.split_whitespace().collect();
                 if let Some((cmd, args)) = parts.split_first() {
                     let _ = Command::new("setsid").arg("-f").arg(cmd).args(args).spawn();
                 }
-                true
             }
-            MenuItem::HealthInfo(_) => true,
+            MenuItem::HealthInfo(_) => {
+                // Not executable
+            }
         }
     }
 }
@@ -120,6 +119,7 @@ impl App {
                 ];
             }
             Mode::Apps => {
+                // Parse .desktop files
                 if let Ok(entries) = std::fs::read_dir("/usr/share/applications") {
                     for entry in entries.flatten() {
                         let path = entry.path();
@@ -158,11 +158,14 @@ impl App {
                         }
                     }
                 }
+                // Sort alphabetically
                 self.items.sort_by_key(|a| a.display().to_lowercase());
             }
             Mode::Health => {
+                // Quick health check
                 if let Ok(output) = Command::new("/home/christian/.local/bin/doctor").output() {
                     if let Ok(result) = String::from_utf8(output.stdout) {
+                        // Parse last line for health percentage
                         for line in result.lines() {
                             if line.contains("Health:")
                                 || line.starts_with('✅')
@@ -196,8 +199,9 @@ impl App {
     }
 
     fn execute_selected(&mut self) {
-        if let Some(item) = self.items.get(self.selected).cloned() {
-            self.should_quit = item.execute();
+        if let Some(item) = self.items.get(self.selected) {
+            item.execute();
+            self.should_quit = true;
         }
     }
 
@@ -208,15 +212,18 @@ impl App {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    // Create app and run
     let mut app = App::new();
     let res = run_app(&mut terminal, &mut app);
 
+    // Restore terminal
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
@@ -247,9 +254,13 @@ fn run_app<B: ratatui::backend::Backend>(
                 KeyCode::Down | KeyCode::Char('j') => app.next(),
                 KeyCode::Up | KeyCode::Char('k') => app.previous(),
                 KeyCode::Enter => app.execute_selected(),
+
+                // Mode switching
                 KeyCode::Char('>') => app.switch_mode(Mode::Apps),
                 KeyCode::Char('!') => app.switch_mode(Mode::Health),
                 KeyCode::Backspace => app.switch_mode(Mode::Power),
+
+                // Quick shortcuts (Power mode only)
                 KeyCode::Char('l') if app.mode == Mode::Power => {
                     MenuItem::Lock.execute();
                     app.should_quit = true;
@@ -263,14 +274,12 @@ fn run_app<B: ratatui::backend::Backend>(
                     app.should_quit = true;
                 }
                 KeyCode::Char('r') if app.mode == Mode::Power => {
-                    if MenuItem::Reboot.execute() {
-                        app.should_quit = true;
-                    }
+                    MenuItem::Reboot.execute();
+                    app.should_quit = true;
                 }
                 KeyCode::Char('p') if app.mode == Mode::Power => {
-                    if MenuItem::Shutdown.execute() {
-                        app.should_quit = true;
-                    }
+                    MenuItem::Shutdown.execute();
+                    app.should_quit = true;
                 }
                 _ => {}
             }
@@ -284,6 +293,7 @@ fn run_app<B: ratatui::backend::Backend>(
 }
 
 fn ui(f: &mut ratatui::Frame, app: &App) {
+    // Adjust size based on mode
     let (width, height) = match app.mode {
         Mode::Power => (98, 95),
         Mode::Apps => (40, 60),
@@ -292,12 +302,23 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
 
     let area = centered_rect(width, height, f.area());
 
+    // Title based on mode
     let title = match app.mode {
         Mode::Power => "⚡ POWER MENU",
         Mode::Apps => "🚀 LAUNCH APPS",
         Mode::Health => "🏥 SYSTEM HEALTH",
     };
 
+    // Split area into list and help sections
+    let _chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(3),    // List items
+            Constraint::Length(2), // Help text (2 lines)
+        ])
+        .split(area);
+
+    // Create menu items
     let items: Vec<ListItem> = app
         .items
         .iter()
@@ -325,6 +346,7 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
 
     f.render_widget(menu, area);
 
+    // Help text INSIDE at bottom
     let help_lines = match app.mode {
         Mode::Power => vec![
             "L:Lock  S:Suspend  R:Reboot  P:Power-off",
@@ -334,16 +356,20 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
         Mode::Health => vec!["Backspace:Back", ">:Apps  !:Health"],
     };
 
+    // Position help at bottom INSIDE the border
     let help_area = Rect {
-        x: area.x + 1,
-        y: area.y + area.height - 3,
-        width: area.width - 2,
+        x: area.x + 1,               // Inside border
+        y: area.y + area.height - 3, // Bottom of area, above border
+        width: area.width - 2,       // Account for borders
         height: 2,
     };
 
-    let help_widget = Paragraph::new(help_lines.join("\n"))
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(Alignment::Left);
+    let help_widget = Paragraph::new(help_lines.join(
+        "
+",
+    ))
+    .style(Style::default().fg(Color::DarkGray))
+    .alignment(Alignment::Left);
 
     f.render_widget(help_widget, help_area);
 }
