@@ -1,0 +1,27 @@
+fn fetch_web_content(url: &str) -> Result<Vec<String>, String> {
+    // Use reqwest with webpki-roots for certificates
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Mozilla/5.0 (X11; Linux x86_64) faelight-browser/0.1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .use_rustls_tls()  // Explicitly use rustls
+        .build()
+        .map_err(|e| format!("Client error: {}", e))?;
+        
+    let response = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("Request failed: {}", e))?;
+        
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!(
+            "HTTP {}: {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("Error")
+        ));
+    }
+    
+    let html = response.text().map_err(|e| format!("Body error: {}", e))?;
+    let text = html2text::from_read(html.as_bytes(), 80);
+    Ok(text.lines().map(|s| s.to_string()).collect())
+}
