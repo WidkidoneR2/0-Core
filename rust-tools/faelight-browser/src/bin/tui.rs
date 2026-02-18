@@ -222,6 +222,7 @@ fn fetch_web_content(url: &str) -> Result<Vec<String>, String> {
     let client = reqwest::blocking::Client::builder()
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) faelight-browser/0.1.0")
         .timeout(std::time::Duration::from_secs(10))
+        .danger_accept_invalid_certs(true) // TEMPORARY for testing
         .build()
         .map_err(|e| format!("Client error: {}", e))?;
 
@@ -309,6 +310,26 @@ fn run_app<B: ratatui::backend::Backend>(
                         }
                         KeyCode::Enter => {
                             app.open_bookmark();
+                        }
+                        KeyCode::Char('y') => {
+                            if let Some(tab) = app.tabs.get(app.active_tab) {
+                                let text = tab.content.join("\n");
+                                // Use wl-copy for Wayland clipboard
+                                use std::io::Write;
+                                use std::process::{Command, Stdio};
+
+                                if let Ok(mut child) =
+                                    Command::new("wl-copy").stdin(Stdio::piped()).spawn()
+                                {
+                                    if let Some(mut stdin) = child.stdin.take() {
+                                        let _ = stdin.write_all(text.as_bytes());
+                                    }
+                                    let _ = child.wait();
+                                    app.status_message = format!("📋 Copied {} chars!", text.len());
+                                } else {
+                                    app.status_message = "❌ wl-copy not found".to_string();
+                                }
+                            }
                         }
                         _ => {}
                     },
