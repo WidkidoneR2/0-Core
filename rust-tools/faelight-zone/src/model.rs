@@ -27,7 +27,7 @@ impl Zone {
             Zone::Src => "🛠",
             Zone::Project => "💼",
             Zone::Archive => "💎",
-            Zone::Scratch => "🧪",
+            Zone::Scratch => "🌿",
         }
     }
 

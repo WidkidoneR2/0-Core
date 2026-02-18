@@ -27,6 +27,16 @@ pub fn detect_zone(path: &Path, home: &Path) -> (Zone, String) {
         let rel = path.strip_prefix(home).unwrap_or(path.as_path());
         (Zone::Archive, rel.display().to_string())
     } else {
-        (Zone::Scratch, path.display().to_string())
+        // For Scratch zone, replace home path with ~
+        let display_path = if path.starts_with(home) {
+            path.strip_prefix(home)
+                .map(|p| format!("~/{}", p.display()))
+                .unwrap_or_else(|_| "~".to_string())
+        } else if path == home {
+            "~".to_string()
+        } else {
+            path.display().to_string()
+        };
+        (Zone::Scratch, display_path)
     }
 }
