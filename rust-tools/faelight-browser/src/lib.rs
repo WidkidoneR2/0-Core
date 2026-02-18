@@ -7,11 +7,8 @@
 //! - Comprehension over convenience
 
 pub mod error;
-pub mod navigation;
-pub mod render;
 pub mod security;
 pub mod storage;
-pub mod ui;
 
 // Re-export common types
 pub use error::{BrowserError, Result};
