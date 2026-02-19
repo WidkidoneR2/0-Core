@@ -90,5 +90,3 @@ mod health;
 pub use health::HealthWidget;
 
 // Search widget
-mod search;
-pub use search::SearchWidget;

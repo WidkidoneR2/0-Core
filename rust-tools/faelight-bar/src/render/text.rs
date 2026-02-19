@@ -10,12 +10,13 @@ static MAIN_FONT: OnceLock<Font> = OnceLock::new();
 
 fn get_main_font() -> &'static Font {
     MAIN_FONT.get_or_init(|| {
-        let font_data = include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf");
+        let font_data = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
         Font::from_bytes(font_data as &[u8], FontSettings::default()).expect("Failed to load font")
     })
 }
 
-pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, color: u32) {
+/// Draw text left-aligned, returns the x position after the text (for chaining)
+pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, color: u32) -> i32 {
     let font = get_main_font();
 
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -32,6 +33,8 @@ pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, col
     let color_r = ((color >> 16) & 0xFF) as u8;
     let color_g = ((color >> 8) & 0xFF) as u8;
     let color_b = (color & 0xFF) as u8;
+
+    let mut max_x = x;
 
     for glyph in layout.glyphs() {
         let (metrics, bitmap) = font.rasterize_config(glyph.key);
@@ -62,10 +65,16 @@ pub fn draw_text(canvas: &mut [u8], stride: i32, x: i32, y: i32, text: &str, col
                 }
             }
         }
+
+        let glyph_end = x + glyph.x as i32 + glyph.width as i32;
+        if glyph_end > max_x {
+            max_x = glyph_end;
+        }
     }
+
+    max_x
 }
 
-#[allow(dead_code)]
 pub fn text_width(text: &str) -> i32 {
     let font = get_main_font();
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
