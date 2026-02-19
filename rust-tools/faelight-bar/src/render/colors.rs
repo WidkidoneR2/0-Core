@@ -1,15 +1,17 @@
-//! Faelight Forest color palette
+//! Faelight Forest color palette - FM/Palette Edition 🎨
 
-#![allow(dead_code)] // Colors used in Phase 2+
+#![allow(dead_code)]
 
-pub const BG: u32 = 0xFF000000; // Pure black // Dark background
-pub const FG: u32 = 0xFFE8E8F0; // Light text
-pub const ACCENT: u32 = 0xFF4ECCA3; // Teal accent
-pub const WARNING: u32 = 0xFFF39C12; // Orange
-pub const ERROR: u32 = 0xFFE74C3C; // Red
-pub const SUCCESS: u32 = 0xFF2ECC71; // Green
-pub const BG_HOVER: u32 = 0xFF2A2A3E; // Hover state
-pub const SEPARATOR: u32 = 0xFF3A3A4E; // Widget separator
+// Core FM/Palette colors
+pub const BG: u32 = 0xFF11140F; // BG_DARK: RGB(17, 20, 15)
+pub const FG: u32 = 0xFFDAE0D7; // TEXT_BRIGHT: RGB(218, 224, 215)
+pub const ACCENT: u32 = 0xFFA3E36B; // ACCENT_GREEN: RGB(163, 227, 107)
+pub const SUCCESS: u32 = 0xFFA3E36B; // Same as ACCENT_GREEN
+pub const WARNING: u32 = 0xFFFFAA00; // Orange
+pub const ERROR: u32 = 0xFFFF6B6B; // Red
+pub const BG_SELECTED: u32 = 0xFF2D3426; // BG_SELECTED: RGB(45, 52, 38)
+pub const ACCENT_BLUE: u32 = 0xFF6BA3E3; // ACCENT_BLUE: RGB(107, 163, 227)
+pub const SEPARATOR: u32 = 0xFF2D3426; // Subtle separator
 
 /// Helper to blend two colors
 pub fn blend(color1: u32, color2: u32, ratio: f32) -> u32 {

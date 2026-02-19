@@ -1,0 +1,341 @@
+//! faelight-bar v5.0.0 - FM Topbar Style
+//! Simple colored text with pipes, NO boxes
+
+use smithay_client_toolkit::{
+    compositor::{CompositorHandler, CompositorState},
+    delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_shm,
+    output::{OutputHandler, OutputState},
+    registry::{ProvidesRegistryState, RegistryState},
+    registry_handlers,
+    shell::{
+        wlr_layer::{
+            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
+            LayerSurfaceConfigure,
+        },
+        WaylandSurface,
+    },
+    shm::{slot::SlotPool, Shm, ShmHandler},
+};
+use std::process::Command;
+use std::time::{Duration, Instant};
+use wayland_client::{
+    globals::registry_queue_init,
+    protocol::{wl_output, wl_shm, wl_surface},
+    Connection, QueueHandle,
+};
+
+mod render;
+use render::colors;
+
+const BAR_HEIGHT: u32 = 32;
+const UPDATE_INTERVAL: Duration = Duration::from_secs(1);
+
+// ════════════════════════════════════════════════════════════
+// STATUS FUNCTIONS - Get actual data
+// ════════════════════════════════════════════════════════════
+
+fn get_profile() -> String {
+    let output = Command::new("profile").arg("status").output().ok();
+    if let Some(out) = output {
+        let result = String::from_utf8_lossy(&out.stdout);
+        // Parse "Current: 🏠 default" line
+        for line in result.lines() {
+            if line.contains("Current:") {
+                if let Some(name) = line.split_whitespace().last() {
+                    return name.to_uppercase();
+                }
+            }
+        }
+    }
+    "DEFAULT".to_string()
+}
+
+fn get_zone() -> String {
+    let output = Command::new("faelight-zone").arg("--label").output().ok();
+    if let Some(out) = output {
+        String::from_utf8_lossy(&out.stdout).trim().to_uppercase()
+    } else {
+        "WORK".to_string()
+    }
+}
+
+fn get_lock_status() -> (String, u32) {
+    let output = Command::new("core-protect").arg("status").output().ok();
+    if let Some(out) = output {
+        let status = String::from_utf8_lossy(&out.stdout);
+        if status.contains("LOCKED") {
+            ("LOCKED".to_string(), colors::ERROR)
+        } else {
+            ("UNLOCKED".to_string(), colors::SUCCESS)
+        }
+    } else {
+        ("UNLOCKED".to_string(), colors::SUCCESS)
+    }
+}
+
+fn get_health() -> String {
+    let output = Command::new("dot-doctor").output().ok();
+    if let Some(out) = output {
+        let result = String::from_utf8_lossy(&out.stdout);
+        // Parse "System mostly healthy (94%)" or "Health:   94%"
+        for line in result.lines() {
+            if line.contains("Health:") && line.contains("%") {
+                if let Some(pct) = line.split('%').next().and_then(|s| s.split_whitespace().last()) {
+                    return format!("{}%", pct);
+                }
+            }
+            if line.contains("healthy") && line.contains("(") && line.contains("%)") {
+                if let Some(start) = line.find('(') {
+                    if let Some(end) = line.find("%)") {
+                        return line[start+1..end+1].to_string();
+                    }
+                }
+            }
+        }
+    }
+    "??%".to_string()
+}
+
+fn get_wifi() -> String {
+    let output = Command::new("nmcli").args(["-t", "-f", "active,ssid", "dev", "wifi"]).output().ok();
+    if let Some(out) = output {
+        let result = String::from_utf8_lossy(&out.stdout);
+        for line in result.lines() {
+            if line.starts_with("yes:") {
+                return "WIFI".to_string();
+            }
+        }
+    }
+    "WIFI-OFF".to_string()
+}
+
+fn get_vpn() -> String {
+    let output = Command::new("nmcli").args(["-t", "-f", "type,state", "con", "show", "--active"]).output().ok();
+    if let Some(out) = output {
+        let result = String::from_utf8_lossy(&out.stdout);
+        if result.contains("vpn:activated") || result.contains("wireguard:activated") {
+            return "VPN".to_string();
+        }
+    }
+    "VPN-OFF".to_string()
+}
+
+fn get_battery() -> String {
+    let output = Command::new("cat").arg("/sys/class/power_supply/BAT0/capacity").output().ok();
+    if let Some(out) = output {
+        let pct = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Ok(num) = pct.parse::<i32>() {
+            return format!("BAT:{}%", num);
+        }
+    }
+    "BAT:??".to_string()
+}
+
+fn get_time() -> String {
+    let output = Command::new("date").arg("+%H:%M").output().ok();
+    if let Some(out) = output {
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    } else {
+        "??:??".to_string()
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// MAIN APPLICATION
+// ════════════════════════════════════════════════════════════
+
+struct FaelightBar {
+    registry_state: RegistryState,
+    output_state: OutputState,
+    shm: Shm,
+    layer: LayerSurface,
+    pool: SlotPool,
+    width: u32,
+    height: u32,
+    last_update: Instant,
+    first_configure: bool,
+}
+
+impl FaelightBar {
+    fn draw(&mut self) {
+        let width = self.width;
+        let stride = (width * 4) as i32;
+
+        let (buffer, canvas) = match self.pool.create_buffer(
+            width as i32,
+            BAR_HEIGHT as i32,
+            stride,
+            wl_shm::Format::Argb8888,
+        ) {
+            Ok(b) => b,
+            Err(_) => return,
+        };
+
+        // Dark background like FM
+        for pixel in canvas.chunks_exact_mut(4) {
+            pixel.copy_from_slice(&colors::BG.to_be_bytes());
+        }
+
+        // Get status
+        let profile = get_profile();
+        let zone = get_zone();
+        let (lock_text, lock_color) = get_lock_status();
+        let health = get_health();
+        let wifi = get_wifi();
+        let vpn = get_vpn();
+        let battery = get_battery();
+        let time = get_time();
+
+        let y = 8;  // Vertical position
+
+        // LEFT SIDE - like FM topbar: PROF:DEFAULT | Z: WORK | UNLOCKED | HP:94%
+        let mut x = 10;
+        
+        x = render::text::draw_text(canvas, stride, x, y, &format!("PROF:{}", profile), colors::ACCENT);
+        x += 10;
+        x = render::text::draw_text(canvas, stride, x, y, "|", colors::SEPARATOR);
+        x += 10;
+        
+        x = render::text::draw_text(canvas, stride, x, y, &format!("Z: {}", zone), colors::ACCENT_BLUE);
+        x += 10;
+        x = render::text::draw_text(canvas, stride, x, y, "|", colors::SEPARATOR);
+        x += 10;
+        
+        x = render::text::draw_text(canvas, stride, x, y, &lock_text, lock_color);
+        x += 10;
+        x = render::text::draw_text(canvas, stride, x, y, "|", colors::SEPARATOR);
+        x += 10;
+        
+        render::text::draw_text(canvas, stride, x, y, &format!("HP:{}", health), colors::SUCCESS);
+
+        // RIGHT SIDE - work backwards from right
+        let time_w = render::text::text_width(&time);
+        let mut x = (width as i32) - time_w - 10;
+        render::text::draw_text(canvas, stride, x, y, &time, colors::FG);
+        
+        x -= 20;
+        let bat_w = render::text::text_width(&battery);
+        x -= bat_w;
+        x = render::text::draw_text(canvas, stride, x, y, &battery, colors::SUCCESS);
+        x -= 10;
+        x = render::text::draw_text(canvas, stride, x, y, "|", colors::SEPARATOR);
+        x -= 10;
+        
+        let vpn_w = render::text::text_width(&vpn);
+        x -= vpn_w;
+        x = render::text::draw_text(canvas, stride, x, y, &vpn, colors::ACCENT_BLUE);
+        x -= 10;
+        x = render::text::draw_text(canvas, stride, x, y, "|", colors::SEPARATOR);
+        x -= 10;
+        
+        let wifi_w = render::text::text_width(&wifi);
+        x -= wifi_w;
+        render::text::draw_text(canvas, stride, x, y, &wifi, colors::SUCCESS);
+
+        self.layer.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer.wl_surface().commit();
+    }
+}
+
+impl LayerShellHandler for FaelightBar {
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
+        std::process::exit(0);
+    }
+
+    fn configure(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _layer: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _serial: u32,
+    ) {
+        let (width, height) = configure.new_size;
+        if width > 0 && height > 0 {
+            self.width = width;
+            self.height = height;
+        }
+
+        if !self.first_configure {
+            self.first_configure = true;
+            self.draw();
+        }
+    }
+}
+
+delegate_compositor!(FaelightBar);
+delegate_output!(FaelightBar);
+delegate_shm!(FaelightBar);
+delegate_layer!(FaelightBar);
+delegate_registry!(FaelightBar);
+
+impl OutputHandler for FaelightBar {
+    fn output_state(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
+    fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+    fn update_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+    fn output_destroyed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: wl_output::WlOutput) {}
+}
+
+impl ShmHandler for FaelightBar {
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
+    }
+}
+
+impl CompositorHandler for FaelightBar {
+    fn scale_factor_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_factor: i32) {}
+    fn frame(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _time: u32) {}
+    fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _new_transform: wl_output::Transform) {}
+    fn surface_enter(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _output: &wl_output::WlOutput) {}
+    fn surface_leave(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &wl_surface::WlSurface, _output: &wl_output::WlOutput) {}
+}
+
+impl ProvidesRegistryState for FaelightBar {
+    fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
+    registry_handlers![OutputState];
+}
+
+fn main() {
+    let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
+    let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
+    let qh = event_queue.handle();
+
+    let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
+    let layer_shell = LayerShell::bind(&globals, &qh).expect("Layer shell not available");
+    let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
+
+    let surface = compositor.create_surface(&qh);
+    let layer = layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-bar"), None);
+
+    layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
+    layer.set_size(0, BAR_HEIGHT);
+    layer.set_exclusive_zone(BAR_HEIGHT as i32);
+    layer.set_keyboard_interactivity(KeyboardInteractivity::None);
+    layer.commit();
+
+    let pool = SlotPool::new(1920 * BAR_HEIGHT as usize * 4, &shm).expect("Failed to create pool");
+
+    let mut app = FaelightBar {
+        registry_state: RegistryState::new(&globals),
+        output_state: OutputState::new(&globals, &qh),
+        shm,
+        layer,
+        pool,
+        width: 1920,
+        height: BAR_HEIGHT,
+        last_update: Instant::now(),
+        first_configure: false,
+    };
+
+    loop {
+        event_queue.blocking_dispatch(&mut app).expect("Event loop failed");
+        if app.first_configure && app.last_update.elapsed() >= UPDATE_INTERVAL {
+            app.last_update = Instant::now();
+            app.draw();
+        }
+    }
+}

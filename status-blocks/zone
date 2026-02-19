@@ -1,0 +1,3 @@
+#!/bin/bash
+# Get current zone from faelight-zone
+~/0-core/scripts/faelight-zone 2>/dev/null | grep -oE '[A-Z-]+$' || echo "CORE"
