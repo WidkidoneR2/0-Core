@@ -1,6 +1,6 @@
 [package]
 name = "faelight-palette"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
 description = "🎨 The legendary command palette - Terminal TUI Edition"
 
@@ -18,3 +18,7 @@ fuzzy-matcher = "0.3"
 
 # Process execution
 anyhow = "1.0"
+
+# CLI parsing
+clap = { version = "4.4", features = ["derive"] }
+atty = "0.2"

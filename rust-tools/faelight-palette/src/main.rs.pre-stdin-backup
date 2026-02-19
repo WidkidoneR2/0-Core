@@ -1,7 +1,6 @@
-//! faelight-palette v2.0.0 - The LEGENDARY Command Palette
-//! 🎨 One interface to rule them all - With EVERYTHING!
+//! faelight-palette v1.0.0 - The Legendary Command Palette
+//! 🎨 One interface to rule them all
 
-use clap::Parser;
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
@@ -16,22 +15,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
-use std::io::{self, BufRead};
+use std::io;
 use std::process::Command;
-
-#[derive(Parser)]
-#[command(name = "faelight-palette")]
-#[command(about = "🎨 The legendary command palette - Ultimate edition")]
-#[command(version = "2.0.0")]
-struct Cli {
-    /// Use stdin mode (dmenu compatibility)
-    #[arg(long)]
-    dmenu: bool,
-
-    /// Prompt text for stdin mode
-    #[arg(short, long, default_value = "Select:")]
-    prompt: String,
-}
 
 // Item types in the palette
 #[derive(Debug, Clone)]
@@ -41,7 +26,6 @@ enum ItemType {
     File(String),           // Recent file
     Intent(String),         // Intent ledger item
     Emoji(String, String),  // Emoji (name, char)
-    Stdin(String),          // Stdin item for dmenu mode
 }
 
 impl ItemType {
@@ -52,51 +36,53 @@ impl ItemType {
             ItemType::File(path) => format!("📁 {}", path),
             ItemType::Intent(name) => format!("📋 {}", name),
             ItemType::Emoji(name, emoji) => format!("{} :{}", emoji, name),
-            ItemType::Stdin(line) => line.clone(),
         }
     }
 
     fn execute(&self) -> bool {
         match self {
             ItemType::App(_, exec) => {
-                if exec.is_empty() {
-                    return false; // Stats items have empty exec
-                }
+                // Use setsid to daemonize - app survives terminal close
+                eprintln!("🚀 Launching: {}", exec);
                 let cmd = format!("setsid -f {} >/dev/null 2>&1", exec);
-                let _ = Command::new("sh").arg("-c").arg(&cmd).spawn();
+                eprintln!("📝 Command: {}", cmd);
+                let result = Command::new("sh").arg("-c").arg(&cmd).spawn();
+                eprintln!("✅ Result: {:?}", result);
                 false
             }
             ItemType::Action(_, cmd) => {
+                // Special handling for terminal commands
                 if cmd.starts_with("TERMINAL_COMMAND:") {
                     let real_cmd = cmd.strip_prefix("TERMINAL_COMMAND:").unwrap();
-
-                    // Replace sudo with pkexec for graphical prompt
-                    let fixed_cmd = if real_cmd.starts_with("sudo ") {
-                        real_cmd.replacen("sudo ", "pkexec ", 1)
-                    } else {
-                        real_cmd.to_string()
-                    };
-
-                    println!("\n🎨 Executing: {}\n", fixed_cmd);
-                    let _ = Command::new("sh").arg("-c").arg(&fixed_cmd).status();
-                    return true;
+                    println!(
+                        "
+[1;36m🎨 Executing: {}[0m
+",
+                        real_cmd
+                    );
+                    let _ = Command::new("sh").arg("-c").arg(real_cmd).status();
+                    return true; // Signal to wait for key
                 }
                 let _ = Command::new("sh").arg("-c").arg(cmd).spawn();
                 false
             }
             ItemType::File(path) => {
-                let expanded = path.replace("~", &std::env::var("HOME").unwrap_or_default());
-                let _ = Command::new("xdg-open").arg(&expanded).spawn();
+                let _ = Command::new("xdg-open").arg(path).spawn();
                 false
             }
-            ItemType::Intent(_) => false,
+            ItemType::Intent(_) => {
+                // TODO: Open intent in editor
+                false
+            }
             ItemType::Emoji(_, emoji) => {
+                // Copy emoji to clipboard
                 let _ = Command::new("wl-copy").arg(emoji).spawn();
-                println!("\n✅ Emoji {} copied to clipboard!\n", emoji);
-                false
-            }
-            ItemType::Stdin(line) => {
-                println!("{}", line);
+                println!(
+                    "
+[1;32m✅ Emoji {} copied to clipboard![0m
+",
+                    emoji
+                );
                 false
             }
         }
@@ -106,11 +92,10 @@ impl ItemType {
 struct App {
     input: String,
     items: Vec<ItemType>,
-    filtered_items: Vec<(ItemType, i64)>,
+    filtered_items: Vec<(ItemType, i64)>, // (item, score)
     selected: usize,
     matcher: SkimMatcherV2,
     mode: Mode,
-    prompt: String,
 }
 
 #[derive(Debug, PartialEq)]
@@ -122,11 +107,10 @@ enum Mode {
     Intents,
     Emoji,
     Stats,
-    Stdin,
 }
 
 impl App {
-    fn new(prompt: String) -> Self {
+    fn new() -> Self {
         let mut app = Self {
             input: String::new(),
             items: Vec::new(),
@@ -134,32 +118,20 @@ impl App {
             selected: 0,
             matcher: SkimMatcherV2::default(),
             mode: Mode::Apps,
-            prompt,
         };
         app.load_items();
         app.filter_items();
         app
     }
 
-    fn new_stdin(items: Vec<String>, prompt: String) -> Self {
-        let items: Vec<ItemType> = items.into_iter().map(ItemType::Stdin).collect();
-        let filtered_items = items.iter().map(|i| (i.clone(), 100)).collect();
-        Self {
-            input: String::new(),
-            items: items.clone(),
-            filtered_items,
-            selected: 0,
-            matcher: SkimMatcherV2::default(),
-            mode: Mode::Stdin,
-            prompt,
-        }
-    }
-
     fn load_items(&mut self) {
         self.items.clear();
+
         match self.mode {
             Mode::Apps => {
+                // Parse .desktop files for rich app discovery
                 let desktop_dirs = ["/usr/share/applications"];
+
                 for dir in &desktop_dirs {
                     if let Ok(entries) = std::fs::read_dir(dir) {
                         for entry in entries.flatten() {
@@ -202,6 +174,8 @@ impl App {
                         }
                     }
                 }
+
+                // Sort apps alphabetically by name
                 self.items.sort_by_key(|a| a.display().to_lowercase());
             }
             Mode::Actions => {
@@ -231,24 +205,27 @@ impl App {
                 ));
             }
             Mode::Commands => {
+                // Discover all Faelight tools from scripts directory
                 let scripts_dir = "/home/christian/0-core/scripts";
                 if let Ok(entries) = std::fs::read_dir(scripts_dir) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
-                        if !name.starts_with('.') && !name.ends_with('~') && !name.ends_with(".d") {
+                        // Skip hidden files and backups
+                        if !name.starts_with('.') && !name.ends_with('~') {
+                            // For scripts, the name is the executable
                             let exec = format!("/home/christian/0-core/scripts/{}", name);
                             self.items.push(ItemType::App(name, exec));
                         }
                     }
                 }
-                self.items.sort_by_key(|a| a.display().to_lowercase());
             }
             Mode::Files => {
+                // Recent files in 0-core
                 self.items
                     .push(ItemType::File("~/.config/sway/config".into()));
                 self.items.push(ItemType::File("~/0-core/README.md".into()));
                 self.items
-                    .push(ItemType::File("~/0-core/CHANGELOG-v10.0.0.md".into()));
+                    .push(ItemType::File("~/0-core/CHANGELOG.md".into()));
             }
             Mode::Intents => {
                 if let Ok(output) = Command::new("sh")
@@ -262,32 +239,28 @@ impl App {
                         }
                     }
                 }
-                if self.items.is_empty() {
-                    self.items.push(ItemType::Intent("No intents found".into()));
-                }
             }
             Mode::Emoji => {
-                let emojis = vec![
-                    ("rocket", "🚀"),
-                    ("fire", "🔥"),
-                    ("tree", "🌲"),
-                    ("check", "✅"),
-                    ("star", "⭐"),
-                    ("heart", "❤️"),
-                    ("thumbsup", "👍"),
-                    ("party", "🎉"),
-                    ("eyes", "👀"),
-                    ("100", "💯"),
-                ];
-                for (name, emoji) in emojis {
-                    self.items
-                        .push(ItemType::Emoji(name.to_string(), emoji.to_string()));
-                }
+                // Popular emojis
+                self.items
+                    .push(ItemType::Emoji("rocket".into(), "🚀".into()));
+                self.items.push(ItemType::Emoji("fire".into(), "🔥".into()));
+                self.items.push(ItemType::Emoji("tree".into(), "🌲".into()));
+                self.items
+                    .push(ItemType::Emoji("check".into(), "✅".into()));
+                self.items.push(ItemType::Emoji("star".into(), "⭐".into()));
+                self.items
+                    .push(ItemType::Emoji("heart".into(), "❤️".into()));
+                self.items
+                    .push(ItemType::Emoji("thumbsup".into(), "👍".into()));
+                self.items
+                    .push(ItemType::Emoji("party".into(), "🎉".into()));
             }
             Mode::Stats => {
+                // Calculate Rust code statistics
                 let rust_tools_dir = "/home/christian/0-core/rust-tools";
 
-                // Count total Rust LOC
+                // Count Rust LOC
                 if let Ok(output) = Command::new("sh")
                     .arg("-c")
                     .arg(format!(
@@ -306,7 +279,7 @@ impl App {
                     }
                 }
 
-                // Tool counts
+                // Tool count
                 self.items.push(ItemType::App(
                     "🔧 Total Tools: 43".to_string(),
                     String::new(),
@@ -334,7 +307,7 @@ impl App {
                 // Intent stats
                 if let Ok(output) = Command::new("sh")
                     .arg("-c")
-                    .arg("int list 2>/dev/null | tail -1")
+                    .arg("intent list 2>/dev/null | tail -1")
                     .output()
                 {
                     if let Ok(result) = String::from_utf8(output.stdout) {
@@ -346,12 +319,14 @@ impl App {
                     }
                 }
 
-                // Top 10 Largest Tools
+                // Add individual tool stats - Top 10 Largest
                 if let Ok(entries) = std::fs::read_dir(rust_tools_dir) {
                     let mut tool_sizes: Vec<(String, usize)> = Vec::new();
+
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
                         let src_dir = entry.path().join("src");
+
                         if src_dir.exists() {
                             if let Ok(output) = Command::new("sh")
                                 .arg("-c")
@@ -372,8 +347,10 @@ impl App {
                         }
                     }
 
+                    // Sort by size (largest first)
                     tool_sizes.sort_by(|a, b| b.1.cmp(&a.1));
 
+                    // Show top 10
                     self.items.push(ItemType::App(
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━".to_string(),
                         String::new(),
@@ -382,7 +359,6 @@ impl App {
                         "🏆 Top 10 Largest Tools:".to_string(),
                         String::new(),
                     ));
-
                     for (i, (name, lines)) in tool_sizes.iter().take(10).enumerate() {
                         self.items.push(ItemType::App(
                             format!("  {}. {} - {} lines", i + 1, name, lines),
@@ -391,9 +367,6 @@ impl App {
                     }
                 }
             }
-            Mode::Stdin => {
-                // Items already loaded in new_stdin()
-            }
         }
     }
 
@@ -401,6 +374,7 @@ impl App {
         let query = if self.input.is_empty() {
             ""
         } else {
+            // Remove mode prefix
             match self.input.chars().next() {
                 Some('>') | Some('@') | Some('$') | Some('#') | Some(':') | Some('!') => {
                     &self.input[1..]
@@ -422,29 +396,15 @@ impl App {
                         .map(|score| (item.clone(), score))
                 })
                 .collect();
+
             scored.sort_by(|a, b| b.1.cmp(&a.1));
             self.filtered_items = scored;
         }
+
         self.selected = 0;
     }
 
-    fn next(&mut self) {
-        if self.selected < self.filtered_items.len().saturating_sub(1) {
-            self.selected += 1;
-        }
-    }
-
-    fn prev(&mut self) {
-        if self.selected > 0 {
-            self.selected -= 1;
-        }
-    }
-
-    fn detect_mode_switch(&mut self) {
-        if self.input.is_empty() {
-            return;
-        }
-
+    fn update_mode(&mut self) {
         let new_mode = match self.input.chars().next() {
             Some('>') => Mode::Actions,
             Some('$') => Mode::Commands,
@@ -452,44 +412,25 @@ impl App {
             Some('#') => Mode::Intents,
             Some(':') => Mode::Emoji,
             Some('!') => Mode::Stats,
-            _ => return,
+            _ => Mode::Apps,
         };
 
         if new_mode != self.mode {
             self.mode = new_mode;
-            self.input = self.input.chars().skip(1).collect();
             self.load_items();
-            self.filter_items();
         }
     }
 }
 
 fn main() -> Result<(), io::Error> {
-    let cli = Cli::parse();
-
-    let stdin_has_data = !atty::is(atty::Stream::Stdin);
-
-    if cli.dmenu || stdin_has_data {
-        let stdin = io::stdin();
-        let lines: Vec<String> = stdin.lock().lines().map_while(Result::ok).collect();
-
-        if lines.is_empty() {
-            eprintln!("No input provided");
-            return Ok(());
-        }
-
-        run_app(App::new_stdin(lines, cli.prompt))
-    } else {
-        run_app(App::new(cli.prompt))
-    }
-}
-
-fn run_app(mut app: App) -> Result<(), io::Error> {
+    // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+
+    let mut app = App::new();
 
     loop {
         terminal.draw(|f| ui(f, &app))?;
@@ -499,102 +440,125 @@ fn run_app(mut app: App) -> Result<(), io::Error> {
                 KeyCode::Esc => break,
                 KeyCode::Enter => {
                     if !app.filtered_items.is_empty() {
+                        // Restore terminal before executing
                         disable_raw_mode()?;
                         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
 
                         let needs_wait = app.filtered_items[app.selected].0.execute();
 
                         if needs_wait {
-                            println!("\nPress Enter to continue...");
-                            let _ = io::stdin().read_line(&mut String::new());
+                            println!(
+                                "
+[1;33mPress Enter to continue...[0m"
+                            );
+                            let _ = std::io::stdin().read_line(&mut String::new());
                         }
                         break;
                     }
                 }
                 KeyCode::Char(c) => {
                     app.input.push(c);
-                    app.detect_mode_switch();
+                    app.update_mode();
                     app.filter_items();
                 }
                 KeyCode::Backspace => {
                     app.input.pop();
+                    app.update_mode();
                     app.filter_items();
                 }
-                KeyCode::Down => app.next(),
-                KeyCode::Up => app.prev(),
+                KeyCode::Down => {
+                    if app.selected < app.filtered_items.len().saturating_sub(1) {
+                        app.selected += 1;
+                    }
+                }
+                KeyCode::Up => {
+                    app.selected = app.selected.saturating_sub(1);
+                }
                 _ => {}
             }
         }
     }
 
+    // Restore terminal
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+
     Ok(())
 }
 
 fn ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .constraints([
+            Constraint::Length(3), // Title
+            Constraint::Length(3), // Input
+            Constraint::Min(0),    // Results
+            Constraint::Length(3), // Help
+        ])
         .split(f.area());
 
-    let title = match app.mode {
+    // Title
+    let mode_text = match app.mode {
         Mode::Apps => "🚀 LAUNCH APPS",
         Mode::Actions => "⚡ QUICK ACTIONS",
         Mode::Commands => "🔧 FAELIGHT TOOLS",
         Mode::Files => "📁 RECENT FILES",
         Mode::Intents => "📋 INTENT LEDGER",
-        Mode::Emoji => "🎨 EMOJI PICKER",
+        Mode::Emoji => "😀 EMOJI PICKER",
         Mode::Stats => "📊 STATISTICS",
-        Mode::Stdin => &app.prompt,
     };
 
-    let input_text = if app.input.is_empty() {
-        format!(
-            "{} (>actions $commands @files #intents :emoji !stats)",
-            title
+    let title = Paragraph::new(format!("🎨 FAELIGHT COMMAND PALETTE │ {}", mode_text))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )
-    } else {
-        format!("{} > {}", title, app.input)
-    };
-
-    let input_widget = Paragraph::new(input_text)
-        .style(Style::default().fg(Color::Rgb(163, 227, 107)))
         .block(Block::default().borders(Borders::ALL));
+    f.render_widget(title, chunks[0]);
 
-    f.render_widget(input_widget, chunks[0]);
+    // Input
+    let input = Paragraph::new(app.input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Search (Esc to quit, Enter to execute)"),
+        );
+    f.render_widget(input, chunks[1]);
 
-    // Calculate scroll offset to keep selected item visible
-    let list_height = (chunks[1].height.saturating_sub(2)) as usize; // Account for borders
-    let scroll_offset = if app.selected < list_height / 2 {
-        0
-    } else {
-        app.selected.saturating_sub(list_height / 2)
-    };
-
+    // Results
     let items: Vec<ListItem> = app
         .filtered_items
         .iter()
-        .skip(scroll_offset)
-        .take(list_height)
         .enumerate()
         .map(|(i, (item, _score))| {
-            let actual_index = i + scroll_offset;
-            let style = if actual_index == app.selected {
+            let style = if i == app.selected {
                 Style::default()
-                    .fg(Color::Rgb(17, 20, 15))
-                    .bg(Color::Rgb(163, 227, 107))
+                    .bg(Color::Blue)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::Rgb(218, 224, 215))
+                Style::default()
             };
-            ListItem::new(item.display()).style(style)
+
+            let text = item.display();
+            ListItem::new(text).style(style)
         })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL))
-        .style(Style::default().bg(Color::Rgb(17, 20, 15)));
+    let results = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("{} results", app.filtered_items.len())),
+        )
+        .highlight_style(Style::default().bg(Color::Blue));
 
-    f.render_widget(list, chunks[1]);
+    f.render_widget(results, chunks[2]);
+
+    // Help
+    let help = Paragraph::new("Modes: Apps (default) | >Actions | @Files | #Intents | :Emoji")
+        .style(Style::default().fg(Color::DarkGray))
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(help, chunks[3]);
 }
