@@ -207,11 +207,11 @@ impl App {
             Mode::Actions => {
                 self.items.push(ItemType::Action(
                     "Lock Core".into(),
-                    "TERMINAL_COMMAND:sudo /home/christian/0-core/scripts/core-protect lock && pkill faelight-bar && faelight-bar &".into(),
+                    "TERMINAL_COMMAND:sudo /home/christian/0-core/scripts/core-protect lock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1".into(),
                 ));
                 self.items.push(ItemType::Action(
                     "Unlock Core".into(),
-                    "TERMINAL_COMMAND:sudo /home/christian/0-core/scripts/core-protect unlock && pkill faelight-bar && faelight-bar &".into(),
+                    "TERMINAL_COMMAND:sudo /home/christian/0-core/scripts/core-protect unlock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1".into(),
                 ));
                 self.items.push(ItemType::Action(
                     "Health Check".into(),
@@ -223,7 +223,7 @@ impl App {
                 ));
                 self.items.push(ItemType::Action(
                     "Reload Bar".into(),
-                    "pkill faelight-bar && faelight-bar &".into(),
+                    "pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1".into(),
                 ));
                 self.items.push(ItemType::Action(
                     "Reload Sway".into(),
