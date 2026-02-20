@@ -101,6 +101,9 @@ alias recent='recent-files'
 
 # ─── Shortened Tool Names ───
 alias f-bar='faelight-bar'
+alias f-daemon='faelight-daemon'
+alias daemon-status='systemctl --user status faelight-daemon'
+alias daemon-log='journalctl --user -u faelight-daemon -n 20 --no-pager'
 alias f-bootstrap='faelight-bootstrap'
 alias f-dmenu='faelight-dmenu'
 alias f-fm='faelight-fm'
@@ -257,7 +260,9 @@ alias paclist='pacman -Qqe'               # List installed
 # ─── Maintenance ───
 alias ins='paru -S'                       # Install package
 alias uns='paru -Rns'                     # Uninstall + remove deps
-alias cleanup='paru -Rns $(paru -Qtdq) 2>/dev/null || true'
+alias orphan-clean='paru -Rns $(paru -Qtdq) 2>/dev/null || true'
+alias cleanup='faelight-cleanup'
+alias f-cleanup='faelight-cleanup'
 alias clean-all='paru -Sc && paru -Yc'
 alias orphans='pacman -Qtdq'
 alias unlock='sudo rm /var/lib/pacman/db.lck'
@@ -312,7 +317,7 @@ alias ban-list='sudo fail2ban-client status sshd'
 # ─── Sway WM ───
 alias sway-reload='swaymsg reload'
 alias sway-info='swaymsg -t get_tree'
-alias bar-restart='pkill faelight-bar; ~/0-core/scripts/faelight-bar & disown'
+alias bar-restart='~/0-core/scripts/launch-bar'
 
 # ─── Disk & Storage ───
 alias df='df -h'
