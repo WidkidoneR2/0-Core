@@ -34,18 +34,18 @@ pub fn check_rustfmt() -> Result<bool> {
         return Ok(true);
     }
 
-    let rust_files = String::from_utf8_lossy(&output.stdout);
+    let _rust_files = String::from_utf8_lossy(&output.stdout);
 
-    for file in rust_files.lines() {
-        let check = Command::new("rustfmt").arg("--check").arg(file).output()?;
+    // Use cargo fmt --check to respect workspace edition
+    let check = Command::new("cargo")
+        .args(["fmt", "--all", "--", "--check"])
+        .output()?;
 
-        if !check.status.success() {
-            println!("{}", "❌ Rustfmt check failed".red().bold());
-            println!("   File needs formatting: {}", file.yellow());
-            println!();
-            println!("   Run: {}", "cargo fmt".cyan());
-            return Ok(false);
-        }
+    if !check.status.success() {
+        println!("{}", "❌ Rustfmt check failed".red().bold());
+        println!();
+        println!("   Run: {}", "cargo fmt".cyan());
+        return Ok(false);
     }
 
     println!(

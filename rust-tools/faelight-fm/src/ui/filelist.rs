@@ -2,7 +2,7 @@ use super::colors::FaelightColors;
 use crate::app::AppState;
 use faelight_fm::git::GitStatus;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListItem, Widget};
+use ratatui::widgets::{Block, Borders, List, ListItem};
 pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, usize)> {
     let mut file_regions = Vec::new();
     let items: Vec<ListItem> = app
@@ -28,7 +28,6 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                 FaelightColors::file_style(is_selected)
             };
 
-            let zone_tag = format!("[Z:{}]", entry.zone.short_label());
             // === PHASE 1: Multi-select checkbox ===
             let is_multiselected = app.selected_files.contains(&entry.path);
             let checkbox = if is_multiselected {
@@ -52,7 +51,6 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                     }),
                 ),
                 Span::styled(format!("{:<30} ", entry.name), base_style),
-                Span::raw(format!("{:<12} ", zone_tag)),
             ];
 
             if let Some(ref intent_info) = entry.intent_info {
@@ -79,14 +77,25 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
         })
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .title("FILE LIST")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(FaelightColors::TEXT_DIM)),
-    );
+    use ratatui::widgets::ListState;
 
-    Widget::render(list, area, buf);
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title("FILE LIST")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(FaelightColors::TEXT_DIM)),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(FaelightColors::BG_SELECTED)
+                .fg(FaelightColors::TEXT_BRIGHT),
+        )
+        .highlight_symbol("▶ ");
+
+    let mut state = ListState::default();
+    state.select(Some(app.selected));
+    ratatui::widgets::StatefulWidget::render(list, area, buf, &mut state);
 
     // Calculate click regions based on rendered area
     // Files start at area.y + 1 (after border), one per row

@@ -3,6 +3,7 @@ pub mod filelist;
 pub mod help;
 pub mod info;
 pub mod layout;
+pub mod preview;
 pub mod search;
 pub mod status;
 pub mod topbar;
@@ -33,18 +34,24 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
         frame.render_widget(path_paragraph, path_area);
     }
 
-    // Zones panel - capture click regions
+    // Zones panel
     let zone_regions = zones::render(zones_area, frame.buffer_mut(), app.zone);
     app.zone_click_regions = zone_regions;
 
-    // File list (filtered) - capture and store click regions
-    let file_regions = filelist::render(filelist_area, frame.buffer_mut(), app);
+    // Split file list area into file list + persistent preview pane
+    let (list_area, pane_area) = layout::create_split_layout(filelist_area);
+
+    // File list
+    let file_regions = filelist::render(list_area, frame.buffer_mut(), app);
     app.file_click_regions = file_regions;
+
+    // Persistent preview pane (always visible)
+    preview::render_pane(pane_area, frame.buffer_mut(), app);
 
     // Status bar
     status::render(status_area, frame.buffer_mut(), app);
 
-    // Overlays (render on top)
+    // Overlays (render on top of everything)
     if app.help_visible {
         help::render(frame.area(), frame.buffer_mut());
     }
@@ -52,9 +59,4 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     if app.info_visible {
         info::render(frame.area(), frame.buffer_mut(), app);
     }
-
-    if app.preview_visible {
-        preview::render(frame.area(), frame.buffer_mut(), app);
-    }
 }
-pub mod preview;

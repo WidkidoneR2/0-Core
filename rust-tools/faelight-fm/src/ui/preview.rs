@@ -1,81 +1,58 @@
-//! File preview overlay
+//! File preview - persistent pane and overlay
 use crate::app::AppState;
 use crate::ui::colors::FaelightColors;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
-    if !app.preview_visible {
+/// Persistent side pane — always visible, shows selected file
+pub fn render_pane(area: Rect, buf: &mut Buffer, app: &AppState) {
+    let border_color = FaelightColors::TEXT_DIM;
+
+    let title = if let Some(ref path) = app.preview_path {
+        format!(" 📄 {} ", path)
+    } else {
+        " PREVIEW ".to_string()
+    };
+
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color))
+        .style(Style::default().bg(FaelightColors::BG_DARK));
+
+    if app.preview_content.is_none() {
+        // Nothing selected or empty
+        let empty = Paragraph::new("\n  Select a file to preview")
+            .block(block)
+            .style(Style::default().fg(FaelightColors::TEXT_DIM));
+        Widget::render(empty, area, buf);
         return;
     }
 
-    // Small box (45% width, 30% height), positioned low
-    let preview_area = bottom_rect(45, 30, area);
-
-    // Build content
     let mut lines = vec![];
+    let inner_height = area.height.saturating_sub(2) as usize; // subtract borders
 
-    // Title
-    if let Some(ref path) = app.preview_path {
-        lines.push(Line::from(vec![
-            Span::styled("📄 ", Style::default().fg(FaelightColors::INTENT_FUTURE)),
-            Span::styled(
-                path,
-                Style::default().fg(FaelightColors::TEXT_BRIGHT).bold(),
-            ),
-        ]));
-        lines.push(Line::from(""));
-    }
-
-    // Content (show up to 20 lines for smaller box)
     if let Some(ref content) = app.preview_content {
-        for (i, line) in content.iter().take(20).enumerate() {
-            let line_num = format!("{:2} │ ", i + 1);
+        for (i, line) in content.iter().take(inner_height).enumerate() {
+            let line_num = format!("{:3} │ ", i + 1);
             lines.push(Line::from(vec![
-                Span::styled(line_num, Style::default().fg(FaelightColors::INTENT_FUTURE)),
-                Span::raw(line),
+                Span::styled(line_num, Style::default().fg(FaelightColors::TEXT_DIM)),
+                Span::raw(line.as_str()),
             ]));
+        }
+
+        // If file has more lines than visible
+        if content.len() > inner_height {
+            lines.push(Line::from(Span::styled(
+                format!("  ... {} more lines", content.len() - inner_height),
+                Style::default().fg(FaelightColors::TEXT_DIM).italic(),
+            )));
         }
     }
 
-    // Footer
-    lines.push(Line::from(""));
-    lines.push(Line::from(Span::styled(
-        "Press any key to close",
-        Style::default().fg(FaelightColors::INTENT_FUTURE).italic(),
-    )));
-
     let paragraph = Paragraph::new(lines)
-        .block(
-            Block::default()
-                .title(" PREVIEW ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(FaelightColors::INTENT_COMPLETE))
-                .style(Style::default().bg(Color::Rgb(10, 12, 8))), // Very dark green background
-        )
-        .wrap(Wrap { trim: false })
-        .style(Style::default().bg(Color::Rgb(10, 12, 8))); // Very dark green
+        .block(block)
+        .wrap(Wrap { trim: false });
 
-    Widget::render(paragraph, preview_area, buf);
-}
-
-// Position in bottom portion (starts at 55% down)
-fn bottom_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(55),        // 55% top (pushes preview down)
-            Constraint::Percentage(percent_y), // Preview takes 30%
-            Constraint::Percentage(15),        // 15% bottom spacing
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
+    Widget::render(paragraph, area, buf);
 }
