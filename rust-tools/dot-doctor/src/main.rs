@@ -369,10 +369,18 @@ fn discover_stow_packages(stow_dir: &PathBuf) -> Vec<String> {
 
     if let Ok(entries) = std::fs::read_dir(stow_dir) {
         for entry in entries.flatten() {
-            if entry.path().is_dir() {
+            let path = entry.path();
+            if path.is_dir() {
                 if let Some(name) = entry.file_name().to_str() {
                     if !name.starts_with('.') {
-                        packages.push(name.to_string());
+                        // Skip empty packages - no files means nothing to stow
+                        let has_files = walkdir::WalkDir::new(&path)
+                            .into_iter()
+                            .filter_map(|e| e.ok())
+                            .any(|e| e.file_type().is_file());
+                        if has_files {
+                            packages.push(name.to_string());
+                        }
                     }
                 }
             }
