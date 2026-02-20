@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::*;
 use faelight_core::paths;
@@ -7,11 +8,14 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
 
-const VERSION: &str = "2.1.0";
+mod audit;
+
+const VERSION: &str = "2.3.0";
 
 #[derive(Parser)]
 #[command(name = "core-protect")]
-#[command(about = "🛡️  System Guardian - Immutable protection for 0-core", long_about = None)]
+#[command(version = VERSION)]
+#[command(about = "🛡️  System Guardian - Immutable protection for 0-core")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -25,39 +29,55 @@ enum Commands {
     Unlock,
     /// Check protection status
     Status,
-    /// Health check
+    /// Verify all files have +i immutable flag
+    Verify,
+    /// Run health check
     Health,
-    /// Edit a package safely
-    Edit { package: String },
+    /// Show audit log of lock/unlock events
+    Audit,
+
+    /// Edit a package safely (unlock, edit, relock)
+    Edit {
+        /// Package name to edit
+        package: String,
+    },
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let cli = Cli::parse();
     let core_dir = paths::core_dir();
 
-    if args.len() < 2 {
-        show_help();
-        return;
-    }
+    let result = match cli.command {
+        Commands::Lock => {
+            cmd_lock(&core_dir);
+            Ok(())
+        }
+        Commands::Unlock => {
+            cmd_unlock(&core_dir);
+            Ok(())
+        }
+        Commands::Status => {
+            cmd_status(&core_dir);
+            Ok(())
+        }
+        Commands::Verify => cmd_verify(&core_dir),
+        Commands::Health => {
+            cmd_health(&core_dir);
+            Ok(())
+        }
+        Commands::Audit => {
+            cmd_audit();
+            Ok(())
+        }
+        Commands::Edit { package } => {
+            cmd_edit(&core_dir, &package);
+            Ok(())
+        }
+    };
 
-    match args[1].as_str() {
-        "lock" => cmd_lock(&core_dir),
-        "unlock" => cmd_unlock(&core_dir),
-        "status" => cmd_status(&core_dir),
-        "edit" => {
-            if args.len() < 3 {
-                eprintln!("Usage: core-protect edit <package-name>");
-                eprintln!("Example: core-protect edit shell-zsh");
-                process::exit(1);
-            }
-            cmd_edit(&core_dir, &args[2]);
-        }
-        "--version" | "-v" => {
-            println!("core-protect v{}", VERSION);
-        }
-        "--health" => cmd_health(&core_dir),
-        "--help" | "-h" => show_help(),
-        _ => show_help(),
+    if let Err(e) = result {
+        eprintln!("{}", format!("❌ Error: {}", e).red());
+        process::exit(1);
     }
 }
 
@@ -71,7 +91,6 @@ fn cmd_health(core_dir: &PathBuf) {
 
     let mut healthy = true;
 
-    // Check chattr available
     print!("  Checking chattr command... ");
     match Command::new("which").arg("chattr").output() {
         Ok(output) if output.status.success() => println!("{}", "✅".green()),
@@ -81,7 +100,6 @@ fn cmd_health(core_dir: &PathBuf) {
         }
     }
 
-    // Check lsattr available
     print!("  Checking lsattr command... ");
     match Command::new("which").arg("lsattr").output() {
         Ok(output) if output.status.success() => println!("{}", "✅".green()),
@@ -91,7 +109,6 @@ fn cmd_health(core_dir: &PathBuf) {
         }
     }
 
-    // Check 0-core exists
     print!("  Checking 0-core directory... ");
     if core_dir.exists() {
         println!("{}", format!("✅ {}", core_dir.display()).green());
@@ -103,19 +120,14 @@ fn cmd_health(core_dir: &PathBuf) {
         healthy = false;
     }
 
-    // Check sudo access
     print!("  Checking sudo access... ");
     match Command::new("sudo").args(["-n", "true"]).status() {
         Ok(status) if status.success() => println!("{}", "✅".green()),
-        _ => {
-            println!("{}", "⚠️  sudo may require password".yellow());
-        }
+        _ => println!("{}", "⚠️  sudo may require password".yellow()),
     }
 
-    // Check current protection status
     print!("  Checking protection status... ");
     let output = Command::new("lsattr").arg("-d").arg(core_dir).output();
-
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
         if stdout.contains('i') {
@@ -137,30 +149,11 @@ fn cmd_health(core_dir: &PathBuf) {
     }
 }
 
-fn cmd_lock(core_dir: &PathBuf) {
+fn cmd_lock(core_dir: &Path) {
     println!("🔒 Locking 0-core (immutable protection)...");
+    audit::log_event("LOCK");
 
-    // Lock all items in core_dir (silently skip unsupported files)
-    if let Ok(entries) = fs::read_dir(core_dir) {
-        for entry in entries.flatten() {
-            Command::new("sudo")
-                .args(["chattr", "+i"])
-                .arg(entry.path())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .ok();
-        }
-    }
-
-    // Lock the directory itself
-    Command::new("sudo")
-        .args(["chattr", "+i"])
-        .arg(core_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .ok();
+    lock_recursive(core_dir, "+i");
 
     println!(
         "{}",
@@ -168,32 +161,115 @@ fn cmd_lock(core_dir: &PathBuf) {
     );
 }
 
-fn cmd_unlock(core_dir: &PathBuf) {
+fn cmd_unlock(core_dir: &Path) {
     println!("🔓 Unlocking 0-core for editing...");
+    audit::log_event("UNLOCK");
 
-    // Unlock all items first (silently skip unsupported files)
-    if let Ok(entries) = fs::read_dir(core_dir) {
-        for entry in entries.flatten() {
-            Command::new("sudo")
-                .args(["chattr", "-i"])
-                .arg(entry.path())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .ok();
-        }
-    }
+    lock_recursive(core_dir, "-i");
 
-    // Unlock the directory
+    println!("{}", "✅ Core unlocked! You can now edit.".green());
+}
+
+fn lock_recursive(dir: &Path, flag: &str) {
+    // Use chattr -R for speed — one call instead of 46,000
     Command::new("sudo")
-        .args(["chattr", "-i"])
-        .arg(core_dir)
+        .args(["chattr", "-R", flag])
+        .arg(dir)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .ok();
+}
 
-    println!("{}", "✅ Core unlocked! You can now edit.".green());
+fn cmd_verify(core_dir: &Path) -> Result<()> {
+    println!("{}", "🔍 Verifying immutable flags on 0-core...".cyan());
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    let mut total = 0;
+    let mut protected = 0;
+    let mut unprotected: Vec<PathBuf> = Vec::new();
+
+    verify_recursive(core_dir, &mut total, &mut protected, &mut unprotected);
+
+    println!();
+    println!("  Total checked:   {}", total);
+    println!("  Protected (+i):  {}", format!("{}", protected).green());
+    println!(
+        "  Unprotected:     {}",
+        if unprotected.is_empty() {
+            "0".green()
+        } else {
+            format!("{}", unprotected.len()).red()
+        }
+    );
+
+    if !unprotected.is_empty() {
+        println!();
+        println!("{}", "⚠️  Files missing immutable flag:".yellow());
+        for path in &unprotected {
+            println!("  {}", path.display().to_string().yellow());
+        }
+        println!();
+        println!("{}", "💡 Run: core-protect lock  to re-protect".cyan());
+    } else {
+        println!();
+        println!("{}", "✅ All files properly protected!".green());
+    }
+
+    Ok(())
+}
+
+fn verify_recursive(
+    dir: &Path,
+    total: &mut usize,
+    protected: &mut usize,
+    unprotected: &mut Vec<PathBuf>,
+) {
+    let output = Command::new("lsattr").arg("-d").arg(dir).output();
+
+    if let Ok(o) = output {
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        *total += 1;
+        if stdout.contains('i') {
+            *protected += 1;
+        } else {
+            unprotected.push(dir.to_path_buf());
+        }
+    }
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            let output = Command::new("lsattr").arg("-d").arg(&path).output();
+
+            if let Ok(o) = output {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                *total += 1;
+                if stdout.contains('i') {
+                    *protected += 1;
+                } else {
+                    unprotected.push(path.clone());
+                }
+            }
+
+            if path.is_dir() {
+                verify_recursive(&path, total, protected, unprotected);
+            }
+        }
+    }
+}
+
+fn cmd_audit() {
+    use colored::Colorize;
+    println!("{}", "📋 core-protect Audit Log".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!(
+        "  Log: {}",
+        audit::audit_log_path().display().to_string().dimmed()
+    );
+    println!();
+    audit::show_log();
 }
 
 fn cmd_status(core_dir: &PathBuf) {
@@ -203,19 +279,18 @@ fn cmd_status(core_dir: &PathBuf) {
 
     if let Ok(o) = output {
         let stdout = String::from_utf8_lossy(&o.stdout);
-        // Only check the flags section (first 20 chars), not the path
         let flags = stdout.chars().take(20).collect::<String>();
         if flags.contains('i') {
-            println!("🔒 Core is LOCKED (immutable)");
+            println!("{}", "🔒 Core is LOCKED (immutable)".green());
         } else {
-            println!("🔓 Core is UNLOCKED (editable)");
+            println!("{}", "🔓 Core is UNLOCKED (editable)".yellow());
         }
     } else {
-        println!("❓ Could not determine status");
+        println!("{}", "❓ Could not determine status".yellow());
     }
 }
 
-fn cmd_edit(core_dir: &PathBuf, package: &str) {
+fn cmd_edit(core_dir: &Path, package: &str) {
     let pkg_dir = core_dir.join(package);
 
     if !pkg_dir.exists() {
@@ -234,6 +309,7 @@ fn cmd_edit(core_dir: &PathBuf, package: &str) {
     println!("🔓 Temporarily unlocking for edit...");
     cmd_unlock(core_dir);
 
+    audit::log_event(&format!("EDIT package={}", package));
     println!("📝 Opening editor...");
     let editor = env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
     Command::new(&editor)
@@ -319,17 +395,18 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             println!("{}", format!("Package: {}", package).cyan());
             println!("{}", "Risk: 🔴 Critical (system unusable if broken)".red());
             println!();
-            println!("Failure may cause:");
-            for mode in &failure_modes {
-                println!("  {} {}", "•".red(), mode);
+            if !failure_modes.is_empty() {
+                println!("Failure may cause:");
+                for mode in &failure_modes {
+                    println!("  {} {}", "•".red(), mode);
+                }
+                println!();
             }
-            println!();
             println!(
                 "{}",
                 "⚠️  Auto-backup will be created before editing".yellow()
             );
             println!();
-
             let confirm = prompt("Type 'CRITICAL' to proceed: ");
             if confirm != "CRITICAL" {
                 println!("❌ Edit cancelled");
@@ -347,17 +424,18 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
                 "Risk: 🟠 High (major functionality affected)".yellow()
             );
             println!();
-            println!("Failure may cause:");
-            for mode in &failure_modes {
-                println!("  {} {}", "•".yellow(), mode);
+            if !failure_modes.is_empty() {
+                println!("Failure may cause:");
+                for mode in &failure_modes {
+                    println!("  {} {}", "•".yellow(), mode);
+                }
+                println!();
             }
-            println!();
             println!(
                 "{}",
                 "⚠️  Auto-backup will be created before editing".yellow()
             );
             println!();
-
             let confirm = prompt("Type 'yes' to proceed: ");
             if confirm != "yes" {
                 println!("❌ Edit cancelled");
@@ -372,7 +450,6 @@ fn show_blast_warning(core_dir: &Path, package: &str, blast_radius: &str) -> boo
             println!("{}", format!("Package: {}", package).cyan());
             println!("{}", "Risk: 🔵 Medium (important but not essential)".blue());
             println!();
-
             let confirm = prompt("Continue? (y/N): ");
             if confirm != "y" {
                 println!("❌ Edit cancelled");
@@ -416,29 +493,4 @@ fn create_backup(core_dir: &Path, package: &str, blast_radius: &str) {
         println!("{}", "✅ Backup created (git stash)".green());
         println!();
     }
-}
-
-fn show_help() {
-    println!(
-        "🛡️  core-protect v{} - Immutable 0-core Management",
-        VERSION
-    );
-    println!();
-    println!("USAGE:");
-    println!("  core-protect <command>");
-    println!();
-    println!("COMMANDS:");
-    println!("  lock              Lock 0-core (prevent changes)");
-    println!("  unlock            Unlock 0-core (allow changes)");
-    println!("  status            Check protection status");
-    println!("  edit <package>    Unlock, edit, re-lock (with blast radius check)");
-    println!("  --health          Run health check");
-    println!("  --version, -v     Show version");
-    println!("  --help, -h        Show this help");
-    println!();
-    println!("EXAMPLES:");
-    println!("  core-protect lock");
-    println!("  core-protect edit shell-zsh");
-    println!("  core-protect status");
-    println!("  core-protect --health");
 }
