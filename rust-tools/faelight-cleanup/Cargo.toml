@@ -1,0 +1,16 @@
+[package]
+name = "faelight-cleanup"
+version = "1.0.0"
+edition = "2021"
+description = "Faelight Forest Cleanup - System hygiene scanner and cleaner"
+
+[dependencies]
+faelight-core = { path = "../faelight-core" }
+clap = { version = "4", features = ["derive"] }
+colored = "2"
+walkdir = "2"
+dirs = "5"
+
+[[bin]]
+name = "faelight-cleanup"
+path = "src/main.rs"
