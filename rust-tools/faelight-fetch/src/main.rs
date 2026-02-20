@@ -12,7 +12,7 @@ use std::process::Command;
 #[derive(Parser)]
 #[command(name = "faelight-fetch")]
 #[command(about = "Zone-aware system information for Faelight Forest", long_about = None)]
-#[command(version = "2.1.0")]
+#[command(version)]
 struct Args {
     /// Run health check and exit
     #[arg(long)]
@@ -32,7 +32,10 @@ fn main() {
 }
 
 fn health_check() {
-    println!("🏥 faelight-fetch v2.1.0 health check");
+    println!(
+        "🏥 faelight-fetch v{} health check",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Check zone detection
     match std::env::current_dir() {
