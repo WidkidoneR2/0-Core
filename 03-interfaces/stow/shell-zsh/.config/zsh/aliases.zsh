@@ -52,6 +52,8 @@ alias audit='echo "🏥 Running full audit..." && dot-doctor && entropy-check &&
 
 # ─── Updates & Maintenance ───
 alias fu='faelight-update'                # System update
+alias topgrade='faelight-update'           # Topgrade replaced by faelight-update
+alias fudr='faelight-update --dry-run'     # Check updates without applying
 alias fui='faelight-update --interactive' # Interactive update
 alias fuup='faelight-update'              # Quick update
 alias update='safe-update'
