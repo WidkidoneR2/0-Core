@@ -215,6 +215,7 @@ impl AppState {
 
         self.apply_filter();
         self.selected = 0;
+        self.load_preview();
         Ok(())
     }
 
@@ -321,12 +322,14 @@ impl AppState {
     pub fn select_prev(&mut self) {
         if self.selected > 0 {
             self.selected -= 1;
+            self.load_preview();
         }
     }
 
     pub fn select_next(&mut self) {
         if self.selected + 1 < self.filtered_entries.len() {
             self.selected += 1;
+            self.load_preview();
         }
     }
 
@@ -529,19 +532,45 @@ impl AppState {
     /// Bulk delete selected files
     pub fn bulk_delete(&mut self) -> Result<()> {
         if self.selected_files.is_empty() {
-            self.status_message = Some("No files selected".to_string());
-            self.message_color = MessageColor::Warning;
+            self.set_message(
+                "No files selected — use Space to select".to_string(),
+                MessageColor::Warning,
+            );
             return Ok(());
         }
 
-        let count = self.selected_files.len();
-        // TODO: Add confirmation dialog
-        // For now, just show what would be deleted
-        self.status_message = Some(format!(
-            "Would delete {} files (confirmation pending)",
-            count
-        ));
-        self.message_color = MessageColor::Warning;
+        let files: Vec<PathBuf> = self.selected_files.iter().cloned().collect();
+        let mut deleted = 0;
+        let mut failed = 0;
+
+        for path in &files {
+            match std::fs::remove_file(path) {
+                Ok(_) => deleted += 1,
+                Err(_) => {
+                    // Try removing directory
+                    match std::fs::remove_dir_all(path) {
+                        Ok(_) => deleted += 1,
+                        Err(_) => failed += 1,
+                    }
+                }
+            }
+        }
+
+        self.selected_files.clear();
+
+        if failed > 0 {
+            self.set_message(
+                format!("Deleted {}, failed {}", deleted, failed),
+                MessageColor::Warning,
+            );
+        } else {
+            self.set_message(
+                format!("Deleted {} file(s)", deleted),
+                MessageColor::Success,
+            );
+        }
+
+        self.reload()?;
         Ok(())
     }
 
