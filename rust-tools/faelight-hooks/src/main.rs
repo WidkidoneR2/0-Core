@@ -5,7 +5,9 @@ use std::fs;
 use std::time::Instant;
 
 mod checks;
+mod config;
 mod install;
+mod status;
 
 #[derive(Parser)]
 #[command(name = "faelight-hooks")]
@@ -37,11 +39,18 @@ enum Commands {
         #[arg(long)]
         commit_msg: Option<String>,
     },
+    /// Show status of installed hooks
+    Status,
+
     /// Configure hook settings
     Config {
         /// Show current configuration
         #[arg(long)]
         show: bool,
+
+        /// Create default config file at ~/.config/faelight/hooks.toml
+        #[arg(long)]
+        init: bool,
     },
 }
 
@@ -70,10 +79,14 @@ fn main() -> Result<()> {
                 run_checks(skip)?;
             }
         }
-        Commands::Config { show } => {
-            if show {
-                println!("{}", "⚙️  Hook Configuration".cyan().bold());
-                show_config()?;
+        Commands::Status => {
+            status::show_status()?;
+        }
+        Commands::Config { show: _, init } => {
+            if init {
+                config::init_config()?;
+            } else {
+                config::show_config()?;
             }
         }
     }
@@ -152,17 +165,18 @@ fn run_checks(skip: Option<String>) -> Result<()> {
         println!();
     }
 
+    let total_time = start_time.elapsed();
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("{}", "📊 Check Statistics".cyan().bold());
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    for (name, time) in check_times {
+        println!("   {:<12} {}ms", name, time);
+    }
+    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
+    println!("   {:<12} {}ms", "Total".bold(), total_time.as_millis());
+    println!();
+
     if all_passed {
-        let total_time = start_time.elapsed();
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-        println!("{}", "📊 Check Statistics".cyan().bold());
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-        for (name, time) in check_times {
-            println!("   {:<12} {}ms", name, time);
-        }
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-        println!("   {:<12} {}ms", "Total".bold(), total_time.as_millis());
-        println!();
         println!("{}", "✅ All checks passed! 🌲".green().bold());
         Ok(())
     } else {
@@ -208,38 +222,6 @@ fn run_commit_msg_check(msg_file: &str) -> Result<()> {
         println!("   💡 Types: feat, fix, docs, style, refactor, test, chore");
         std::process::exit(1);
     }
-
-    Ok(())
-}
-
-fn show_config() -> Result<()> {
-    println!("Current configuration:");
-    println!();
-    println!("{}", "Pre-commit checks:".bold());
-    println!(
-        "  - Branch name validation: {}",
-        "enabled (non-blocking)".yellow()
-    );
-    println!("  - File size check: {}", "enabled (50MB warning)".yellow());
-    println!("  - Secret scanning: {}", "enabled (BLOCKING)".red());
-    println!("  - Conflict detection: {}", "enabled (BLOCKING)".red());
-    println!();
-    println!("{}", "Pre-push checks:".bold());
-    println!("  - Branch warnings: {}", "enabled".green());
-    println!("  - Uncommitted changes: {}", "enabled (warning)".yellow());
-    println!();
-    println!("{}", "Commit-msg checks:".bold());
-    println!(
-        "  - Conventional commits: {}",
-        "validation (non-blocking)".yellow()
-    );
-    println!("  - Length checks: {}", "enabled".green());
-    println!();
-    println!("{}", "Skip checks with:".dimmed());
-    println!(
-        "  {}",
-        "faelight-hooks check --skip secrets,filesize".dimmed()
-    );
 
     Ok(())
 }

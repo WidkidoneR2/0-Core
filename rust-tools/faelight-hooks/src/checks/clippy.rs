@@ -2,6 +2,14 @@ use anyhow::Result;
 use colored::Colorize;
 use std::process::Command;
 
+fn is_clippy_installed() -> bool {
+    Command::new("cargo")
+        .args(["clippy", "--version"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 pub fn check_clippy() -> Result<bool> {
     let output = Command::new("sh")
         .arg("-c")
@@ -9,10 +17,20 @@ pub fn check_clippy() -> Result<bool> {
         .output()?;
 
     if output.stdout.is_empty() {
+        println!("{}", "✅ Clippy: No Rust files staged".green());
         return Ok(true);
     }
 
-    // Run clippy on workspace
+    if !is_clippy_installed() {
+        println!("{}", "⚠️  clippy not found — lint check skipped".yellow());
+        println!(
+            "   Install with: {}",
+            "rustup component add clippy".dimmed()
+        );
+        println!();
+        return Ok(true);
+    }
+
     let check = Command::new("cargo")
         .args([
             "clippy",
@@ -29,7 +47,7 @@ pub fn check_clippy() -> Result<bool> {
         println!("{}", String::from_utf8_lossy(&check.stdout));
         println!("{}", String::from_utf8_lossy(&check.stderr));
         println!();
-        println!("   Fix warnings with: {}", "cargo clippy --fix".cyan());
+        println!("   Fix with: {}", "cargo clippy --fix".cyan());
         return Ok(false);
     }
 
