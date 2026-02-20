@@ -1,5 +1,45 @@
 # Changelog
 
+## v9.9.0 - 🌲 The Forest Grows — Visual Intelligence Update (2026-02-20)
+
+- Real-time status bar with profile-aware color theming
+- Profile system: DEF/GAME/WORK with live color propagation across bar
+- Zone detection: automatic directory-based zone display
+- Core lock status: direct lsattr verification, color-coded
+- System health: cached gradient display (green/amber/red)
+- Battery charging indicator with level-based color grading
+- WiFi: live SSID display, green connected red disconnected
+- Volume: actual percentage with mute detection
+- VPN: mullvad status, green on red off
+- faelight-hooks v10.2.0: status command, graceful tool detection
+- core-protect v2.3.0: verify command, audit log, speed fix
+- faelight-fm v2.3.0: persistent preview, full-width highlight
+- dot-doctor v4.1.0: core-protect integration, path resilience
+- faelight-update v3.2.0: path fixes, dead code removed
+- faelight-notify v2.1.0: border urgency fix, close notification
+- faelight-fetch v2.2.0: double-call bug eliminated
+- faelight-palette v2.2.0: command palette with app launching
+- faelight-menu v3.0: complete ratatui rewrite
+- 43 stale markdown files cleaned from repository
+
+**Tools Updated:** dot-doctor, faelight-fm, faelight-fetch, faelight-launcher, faelight-notify, faelight-bar, faelight-term, faelight-update
+
+**Statistics:**
+- 43 commits since v9.8.0
+- 8 tools improved with bug fixes
+- 1 tool completely redesigned (faelight-bar)
+- 43 stale markdown files removed
+- 38/38 tools deployed at 100% path resilience
+- 20/20 health checks passing
+- 118000+ lines of Rust across 42+ tools
+
+- System Health: 95%
+- Commits: 43
+- Files Changed: 82
+
+---
+
+
 ## v9.8.0 - 🏆 THE LEGENDARY COMPLETION - 42/42 Tools Perfected 🌲 (2026-02-16)
 
 - - ✅ Production v2.1.0: intent-guard (bulletproof safety, zero unwraps, colored refactor)
