@@ -1,10 +1,9 @@
-//! dot-doctor v0.4 - Faelight Forest Health Engine
+//! dot-doctor v4.1.0 - Faelight Forest Health Engine
 use faelight_core::paths;
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -300,6 +299,14 @@ const CHECKS: &[Check] = &[
         severity: Severity::Low,
         explanation: "Tracks migration progress to faelight-core::paths. Shows how many tools use centralized path management.",
         run: check_path_resilience,
+    },
+    Check {
+        id: "core_protect",
+        name: "Core Protection",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Checks core-protect is installed and verifies 0-core immutable flag status.",
+        run: check_core_protect,
     },
 ];
 
@@ -1132,10 +1139,45 @@ fn check_tool_installation(_ctx: &Context) -> CheckResult {
     }
 }
 
-fn check_path_resilience(_ctx: &Context) -> CheckResult {
-    let total_tools = 43;
-    let migrated_tools = 43;
-    let percentage = (migrated_tools * 100) / total_tools;
+fn check_path_resilience(ctx: &Context) -> CheckResult {
+    let rust_tools_dir = ctx.core_dir.join("rust-tools");
+    let scripts_dir = ctx.core_dir.join("scripts");
+
+    // These are libraries or WIP — not deployable binaries
+    let skip = [
+        "faelight-core",
+        "faelight-daemon",
+        "faelight-browser",
+        "bin-doctor",
+        "faelight-menu",
+        "verify-bootstrap",
+    ];
+
+    // Get rust tool names from rust-tools/
+    let rust_tools: Vec<String> = fs::read_dir(&rust_tools_dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().into_string().ok())
+                .filter(|name| !skip.contains(&name.as_str()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let total = rust_tools.len();
+
+    // Count how many rust tools have a matching binary in scripts/
+    let deployed = rust_tools
+        .iter()
+        .filter(|name| scripts_dir.join(name).exists())
+        .count();
+
+    let percentage = if total > 0 {
+        (deployed * 100) / total
+    } else {
+        0
+    };
 
     CheckResult {
         id: "path_resilience".to_string(),
@@ -1146,16 +1188,74 @@ fn check_path_resilience(_ctx: &Context) -> CheckResult {
             Status::Warn
         },
         severity: Severity::Low,
-        message: format!(
-            "{}/{} tools migrated ({}%)",
-            migrated_tools, total_tools, percentage
-        ),
-        fix: if percentage < 100 {
-            Some("Continue path migration".to_string())
+        message: format!("{}/{} tools deployed ({}%)", deployed, total, percentage),
+        fix: if percentage < 90 {
+            Some("Build and deploy missing tools with cargo install".to_string())
         } else {
             None
         },
         details: None,
+    }
+}
+
+fn check_core_protect(ctx: &Context) -> CheckResult {
+    // Check core-protect binary exists
+    let cp_installed = Command::new("which")
+        .arg("core-protect")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !cp_installed {
+        return CheckResult {
+            id: "core_protect".to_string(),
+            name: "Core Protection".to_string(),
+            status: Status::Fail,
+            severity: Severity::High,
+            message: "core-protect not installed".to_string(),
+            fix: Some("Build: cargo build --release -p core-protect".to_string()),
+            details: None,
+        };
+    }
+
+    // Check protection status via lsattr
+    let output = Command::new("lsattr").arg("-d").arg(&ctx.core_dir).output();
+
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            let flags = stdout.chars().take(20).collect::<String>();
+            if flags.contains('i') {
+                CheckResult {
+                    id: "core_protect".to_string(),
+                    name: "Core Protection".to_string(),
+                    status: Status::Pass,
+                    severity: Severity::High,
+                    message: "🔒 Core is LOCKED (immutable)".to_string(),
+                    fix: None,
+                    details: None,
+                }
+            } else {
+                CheckResult {
+                    id: "core_protect".to_string(),
+                    name: "Core Protection".to_string(),
+                    status: Status::Warn,
+                    severity: Severity::High,
+                    message: "🔓 Core is UNLOCKED — remember to lock before shutdown".to_string(),
+                    fix: Some("Run: core-protect lock".to_string()),
+                    details: None,
+                }
+            }
+        }
+        Err(_) => CheckResult {
+            id: "core_protect".to_string(),
+            name: "Core Protection".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: "Could not determine protection status".to_string(),
+            fix: Some("Check: core-protect status".to_string()),
+            details: None,
+        },
     }
 }
 
@@ -1198,7 +1298,7 @@ fn main() {
     }
 
     fn show_health_history() -> std::io::Result<()> {
-        let history_file = PathBuf::from(env::var("HOME").unwrap()).join("health-history.jsonl");
+        let history_file = paths::faelight_state_dir().join("health-history.jsonl");
 
         if !history_file.exists() {
             println!("📊 No health history yet. Run 'doctor' to start tracking!");
