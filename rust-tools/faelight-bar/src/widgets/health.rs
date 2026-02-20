@@ -1,39 +1,49 @@
-//! Health widget - Shows system health percentage from doctor
+#![allow(dead_code)]
+//! Health widget - gradient: 100%=green, 90%=accent, 80%=yellow, <80%=red
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use std::process::Command;
 
 pub struct HealthWidget {
-    health: String,
+    text: String,
+    color: u32,
 }
 
 impl HealthWidget {
     pub fn new() -> Self {
         Self {
-            health: String::from("HP:??"),
+            text: "HP:??".to_string(),
+            color: colors::FG,
         }
     }
 
-    fn get_health() -> String {
-        // Use actual binary path (doctor is an alias)
-        if let Ok(output) = Command::new("dot-doctor").output() {
-            if let Ok(result) = String::from_utf8(output.stdout) {
-                // Look for "   Health:   94%" line in Statistics section
-                for line in result.lines() {
-                    if line.trim_start().starts_with("Health:") {
-                        // Extract percentage after "Health:"
-                        let parts: Vec<&str> = line.split_whitespace().collect();
-                        if let Some(pct) = parts.last() {
-                            if pct.ends_with('%') {
-                                return format!("HP:{}", pct);
-                            }
-                        }
+    fn get_health() -> (String, u32) {
+        let output = match Command::new("dot-doctor").output() {
+            Ok(o) => o,
+            Err(_) => return ("HP:??".to_string(), colors::FG),
+        };
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            if line.trim_start().starts_with("Health:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(pct_str) = parts.last() {
+                    if let Ok(num) = pct_str.trim_end_matches('%').parse::<u8>() {
+                        let color = if num == 100 {
+                            colors::SUCCESS
+                        } else if num >= 90 {
+                            colors::ACCENT
+                        } else if num >= 80 {
+                            colors::WARNING
+                        } else {
+                            colors::ERROR
+                        };
+                        return (format!("HP:{}%", num), color);
                     }
                 }
             }
         }
-        String::from("HP:??")
+        ("HP:??".to_string(), colors::FG)
     }
 }
 
@@ -43,22 +53,16 @@ impl Widget for HealthWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.health = Self::get_health();
+        let (text, color) = Self::get_health();
+        self.text = text;
+        self.color = color;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let color = if self.health == "HP:100%" {
-            colors::SUCCESS
-        } else if self.health.contains("??") {
-            colors::FG
-        } else {
-            colors::WARNING
-        };
-
         Ok(WidgetOutput {
-            text: self.health.clone(),
-            color,
+            text: self.text.clone(),
+            color: self.color,
             width: 70,
             clickable: false,
         })

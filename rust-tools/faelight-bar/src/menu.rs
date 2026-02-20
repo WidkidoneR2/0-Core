@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Application menu data loading
 
 #[derive(Debug, Clone)]

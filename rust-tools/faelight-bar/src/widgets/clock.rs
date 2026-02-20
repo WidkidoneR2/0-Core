@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Clock widget - Shows current time
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};

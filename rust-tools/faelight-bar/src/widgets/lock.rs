@@ -1,35 +1,35 @@
-//! Lock widget - Shows 0-Core lock status (read-only)
+#![allow(dead_code)]
+//! Lock widget - 0-Core immutable status
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
+use faelight_core::paths;
 use std::process::Command;
 
 pub struct LockWidget {
-    status: String,
     locked: bool,
 }
 
 impl LockWidget {
     pub fn new() -> Self {
-        Self {
-            status: String::from("◯ UNLOCKED"),
-            locked: false,
-        }
+        Self { locked: false }
     }
 
-    fn check_lock_status() -> bool {
-        // Run the status-blocks/lock script
-        if let Some(home) = dirs::home_dir() {
-            let lock_script = home.join("0-core/status-blocks/lock");
-
-            if let Ok(output) = Command::new(&lock_script).output() {
-                if let Ok(result) = String::from_utf8(output.stdout) {
-                    // Check if output contains 🔒 (locked)
-                    return result.contains("🔒");
-                }
+    fn check_locked() -> bool {
+        let output = Command::new("lsattr")
+            .args(["-d"])
+            .arg(paths::core_dir())
+            .output();
+        match output {
+            Ok(result) if result.status.success() => {
+                let stdout = String::from_utf8_lossy(&result.stdout);
+                stdout
+                    .split_whitespace()
+                    .next()
+                    .is_some_and(|attrs| attrs.contains('i'))
             }
+            _ => false,
         }
-        false
     }
 }
 
@@ -39,34 +39,21 @@ impl Widget for LockWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.locked = Self::check_lock_status();
-
-        if self.locked {
-            self.status = String::from("● LOCKED");
-        } else {
-            self.status = String::from("◯ UNLOCKED");
-        }
-
+        self.locked = Self::check_locked();
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let color = if self.locked {
-            0xFFFF6B6B // Red when locked
+        let (text, color) = if self.locked {
+            ("\u{1F512} LOCKED".to_string(), colors::ACCENT)
         } else {
-            colors::SUCCESS // Green when unlocked
+            ("\u{1F513} UNLOCKED".to_string(), colors::WARNING)
         };
-
         Ok(WidgetOutput {
-            text: self.status.clone(),
+            text,
             color,
-            width: 140,
-            clickable: false, // READ-ONLY - no click action!
+            width: 120,
+            clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        // NO ACTION - this widget is read-only
-        Ok(())
     }
 }

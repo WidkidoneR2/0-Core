@@ -1,36 +1,41 @@
-//! Zone widget with symbols
+#![allow(dead_code)]
+//! Zone widget - current zone with icon and color
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
-use std::fs;
+use crate::render::colors;
+use std::process::Command;
 
 pub struct ZoneWidget {
-    zone: String,
+    text: String,
+    color: u32,
 }
 
 impl ZoneWidget {
     pub fn new() -> Self {
         Self {
-            zone: String::from("▶ ??"),
+            text: "\u{1F3E0} HOME".to_string(),
+            color: colors::ACCENT,
         }
     }
 
-    fn get_current_zone() -> String {
-        if let Some(home) = dirs::home_dir() {
-            let zone_file = home.join(".local/share/zone/current");
-            if let Ok(zone) = fs::read_to_string(zone_file) {
-                let zone_name = zone.trim().to_lowercase();
-                let symbol = match zone_name.as_str() {
-                    "work" => "◆",     // Diamond for work
-                    "focus" => "●",    // Filled circle for focus
-                    "creative" => "◇", // Hollow diamond for creative
-                    "rest" => "○",     // Hollow circle for rest
-                    "learn" => "▲",    // Triangle for learn
-                    _ => "▶",          // Arrow default
-                };
-                return format!("{} {}", symbol, zone.trim().to_uppercase());
-            }
+    fn get_zone() -> (String, u32) {
+        let output = Command::new("faelight-zone").arg("--label").output().ok();
+        let label = output
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default()
+            .trim()
+            .to_lowercase();
+
+        match label.as_str() {
+            "home" => ("\u{1F3E0} HOME".to_string(), colors::ACCENT),
+            "core" => ("\u{1F332} CORE".to_string(), colors::SUCCESS),
+            "work" => ("\u{1F4BC} WORK".to_string(), colors::ACCENT_BLUE),
+            "gaming" => ("\u{1F3AE} GAME".to_string(), colors::ERROR),
+            "focus" => ("\u{1F3AF} FOCUS".to_string(), colors::WARNING),
+            "learning" | "learn" => ("\u{1F4DA} LEARN".to_string(), colors::ACCENT_BLUE),
+            s if !s.is_empty() => (format!("\u{25B6} {}", s.to_uppercase()), colors::FG),
+            _ => ("\u{1F3E0} HOME".to_string(), colors::ACCENT),
         }
-        String::from("▶ ??")
     }
 }
 
@@ -40,20 +45,18 @@ impl Widget for ZoneWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.zone = Self::get_current_zone();
+        let (text, color) = Self::get_zone();
+        self.text = text;
+        self.color = color;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
         Ok(WidgetOutput {
-            text: self.zone.clone(),
-            color: 0xFFFF6B6B,
-            width: 120,
+            text: self.text.clone(),
+            color: self.color,
+            width: 130,
             clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        Ok(())
     }
 }

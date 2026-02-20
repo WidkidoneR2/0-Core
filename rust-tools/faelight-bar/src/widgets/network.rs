@@ -1,22 +1,24 @@
-//! Network widget - Shows wifi/ethernet connection status
+#![allow(dead_code)]
+//! Network widget - wifi on/off with SSID, green/red
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use std::process::Command;
 
 pub struct NetworkWidget {
-    status: String,
+    text: String,
+    connected: bool,
 }
 
 impl NetworkWidget {
     pub fn new() -> Self {
         Self {
-            status: String::from("≈ ??"),
+            text: "WIFI:??".to_string(),
+            connected: false,
         }
     }
 
-    fn check_network() -> String {
-        // Check wifi - just show ON/OFF
+    fn check_network() -> (String, bool) {
         if let Ok(output) = Command::new("nmcli")
             .args(["-t", "-f", "active,ssid", "dev", "wifi"])
             .output()
@@ -24,27 +26,19 @@ impl NetworkWidget {
             if let Ok(result) = String::from_utf8(output.stdout) {
                 for line in result.lines() {
                     if line.starts_with("yes:") {
-                        return String::from("≈ ON");
+                        let ssid = line.trim_start_matches("yes:").trim();
+                        let label = if ssid.is_empty() {
+                            "ON".to_string()
+                        } else {
+                            ssid.to_string()
+                        };
+                        return (format!("WIFI:{}", label), true);
                     }
                 }
+                return ("WIFI:OFF".to_string(), false);
             }
         }
-
-        // Check ethernet
-        if let Ok(output) = Command::new("nmcli")
-            .args(["-t", "-f", "device,state", "dev", "status"])
-            .output()
-        {
-            if let Ok(result) = String::from_utf8(output.stdout) {
-                for line in result.lines() {
-                    if line.contains("ethernet") && line.contains("connected") {
-                        return String::from("≡ ON");
-                    }
-                }
-            }
-        }
-
-        String::from("≈ OFF")
+        ("WIFI:??".to_string(), false)
     }
 }
 
@@ -54,26 +48,23 @@ impl Widget for NetworkWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        self.status = Self::check_network();
+        let (text, connected) = Self::check_network();
+        self.text = text;
+        self.connected = connected;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let color = if self.status.contains(":ON") {
+        let color = if self.connected {
             colors::SUCCESS
         } else {
-            colors::FG
+            colors::ERROR
         };
-
         Ok(WidgetOutput {
-            text: self.status.clone(),
+            text: self.text.clone(),
             color,
-            width: 80,
+            width: 100,
             clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        Ok(())
     }
 }

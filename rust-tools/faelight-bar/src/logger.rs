@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Error logging for faelight-bar v4.0.0
 
 use std::fs::OpenOptions;

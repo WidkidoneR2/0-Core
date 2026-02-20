@@ -1,219 +1,321 @@
-//! Bar mode rendering - status bar display
+//! faelight-bar render - clean rebuild v5.0.0
 
 use chrono::Local;
 use faelight_core::GlyphCache;
 use std::fs;
 use std::process::Command;
 
-// Colors
-const TEXT_COLOR: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
-const ACCENT_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
-const DIM_COLOR: [u8; 4] = [0x77, 0x7f, 0x6f, 0xFF];
-const BLUE_COLOR: [u8; 4] = [0xff, 0xc8, 0x5c, 0xFF];
-const AMBER_COLOR: [u8; 4] = [0x77, 0xc1, 0xf5, 0xFF];
-const RED_COLOR: [u8; 4] = [0x70, 0x87, 0xd0, 0xFF];
-const BG_COLOR: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
+// Color palette - matches faelight-fm/palette
+const BG: [u8; 4] = [0x11, 0x14, 0x0f, 0xFF];
+const FG: [u8; 4] = [0xda, 0xe0, 0xd7, 0xFF];
+const GREEN: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
+const BLUE: [u8; 4] = [0x6b, 0xa3, 0xe3, 0xFF];
+const AMBER: [u8; 4] = [0xff, 0xaa, 0x00, 0xFF];
+const RED: [u8; 4] = [0xff, 0x6b, 0x6b, 0xFF];
+const DIM: [u8; 4] = [0x55, 0x60, 0x50, 0xFF];
 
-const ICON_LOCKED: &str = "󰌾";
-const ICON_UNLOCKED: &str = "󰌿";
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+const FONT_SIZE: f32 = 13.5;
 
 lazy_static::lazy_static! {
+    static ref HEALTH_CACHE: std::sync::Mutex<(String, [u8; 4], std::time::Instant)> =
+        std::sync::Mutex::new((
+            "HP:??".to_string(),
+            DIM,
+            std::time::Instant::now() - std::time::Duration::from_secs(60),
+        ));
     static ref GLYPH_CACHE: std::sync::Mutex<GlyphCache> = {
-        std::sync::Mutex::new(
-            GlyphCache::new(FONT_DATA).expect("Failed to load font")
-        )
+        std::sync::Mutex::new(GlyphCache::new(FONT_DATA).expect("Failed to load font"))
     };
 }
 
-pub fn render(canvas: &mut [u8], width: u32, _height: u32) -> Vec<(i32, i32, String)> {
-    let mut cache = GLYPH_CACHE.lock().unwrap();
-    let mut click_regions = Vec::new();
+// ─── Data gathering ──────────────────────────────────────────────────────────
 
-    // Top accent line
-    let profile = get_current_profile();
-    let accent = get_profile_color(&profile);
+fn get_profile() -> String {
+    let path = faelight_core::paths::current_profile_file();
+    fs::read_to_string(&path)
+        .unwrap_or_else(|_| "default".to_string())
+        .trim()
+        .to_string()
+}
 
-    for x in 0..width as usize {
-        for y in 0..2 {
-            let idx = (y * width as usize + x) * 4;
-            if idx + 3 < canvas.len() {
-                canvas[idx] = accent[0];
-                canvas[idx + 1] = accent[1];
-                canvas[idx + 2] = accent[2];
-                canvas[idx + 3] = accent[3];
+fn profile_label_color(profile: &str) -> (&'static str, [u8; 4]) {
+    match profile {
+        "gaming" => ("GAME", RED),
+        "work" => ("WORK", BLUE),
+        _ => ("DEF", GREEN),
+    }
+}
+
+fn get_zone() -> (String, [u8; 4]) {
+    let output = Command::new("faelight-zone").arg("--label").output().ok();
+    let label = output
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default()
+        .trim()
+        .to_lowercase();
+
+    match label.as_str() {
+        "home" => ("HOME".to_string(), GREEN),
+        "core" => ("CORE".to_string(), GREEN),
+        "work" => ("WORK".to_string(), BLUE),
+        "gaming" => ("GAME".to_string(), RED),
+        "focus" => ("FOCUS".to_string(), AMBER),
+        "learning" | "learn" => ("LEARN".to_string(), BLUE),
+        s if !s.is_empty() => (s.to_uppercase(), FG),
+        _ => ("HOME".to_string(), GREEN),
+    }
+}
+
+fn get_lock() -> (&'static str, [u8; 4]) {
+    let output = Command::new("lsattr")
+        .args(["-d"])
+        .arg(faelight_core::paths::core_dir())
+        .output();
+    let locked = match output {
+        Ok(r) if r.status.success() => String::from_utf8_lossy(&r.stdout)
+            .split_whitespace()
+            .next()
+            .is_some_and(|a| a.contains('i')),
+        _ => false,
+    };
+    if locked {
+        ("\u{F033E}", GREEN) //  nerd font lock icon - green = protected
+    } else {
+        ("\u{F033F}", AMBER) //  nerd font unlock icon - amber = working
+    }
+}
+
+fn get_health() -> (String, [u8; 4]) {
+    // Cache health for 30 seconds - dot-doctor is expensive
+    {
+        let cache = HEALTH_CACHE.lock().unwrap();
+        if cache.2.elapsed() < std::time::Duration::from_secs(30) {
+            return (cache.0.clone(), cache.1);
+        }
+    }
+
+    let output = match Command::new("dot-doctor").output() {
+        Ok(o) => o,
+        Err(_) => return ("HP:??".to_string(), DIM),
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        if line.trim_start().starts_with("Health:") {
+            if let Some(pct_str) = line.split_whitespace().last() {
+                if let Ok(num) = pct_str.trim_end_matches('%').parse::<u8>() {
+                    let color = if num >= 90 {
+                        GREEN
+                    } else if num >= 80 {
+                        AMBER
+                    } else {
+                        RED
+                    };
+                    let result = (format!("HP:{}%", num), color);
+                    let mut cache = HEALTH_CACHE.lock().unwrap();
+                    *cache = (result.0.clone(), result.1, std::time::Instant::now());
+                    return result;
+                }
+            }
+        }
+    }
+    ("HP:??".to_string(), DIM)
+}
+
+fn get_workspaces() -> (Vec<i32>, i32) {
+    let mut workspaces = vec![];
+    let mut active = 1i32;
+
+    if let Ok(out) = Command::new("swaymsg")
+        .args(["-t", "get_workspaces", "-r"])
+        .output()
+    {
+        let resp = String::from_utf8_lossy(&out.stdout);
+        for num in 1..=10 {
+            if resp.contains(&format!("\"num\":{}", num))
+                || resp.contains(&format!("\"num\": {}", num))
+            {
+                workspaces.push(num);
+            }
+        }
+        if let Some(pos) = resp
+            .find("\"focused\":true")
+            .or_else(|| resp.find("\"focused\": true"))
+        {
+            let before = &resp[..pos];
+            if let Some(npos) = before
+                .rfind("\"num\":")
+                .or_else(|| before.rfind("\"num\": "))
+            {
+                let after = &before[npos + 6..];
+                let num_str: String = after
+                    .chars()
+                    .skip_while(|c| !c.is_ascii_digit())
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect();
+                if let Ok(n) = num_str.parse() {
+                    active = n;
+                }
             }
         }
     }
 
-    // Left side
-    let mut x_pos = 10;
-
-    // Profile (CLICKABLE)
-    let profile_start = x_pos;
-    let profile_icon = get_profile_icon(&profile);
-    draw_text(&mut cache, canvas, width, profile_icon, x_pos, 8, accent);
-    x_pos += 40;
-    click_regions.push((profile_start, x_pos, "profile".to_string()));
-
-    draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
-    x_pos += 15;
-
-    // Workspaces
-    let (workspaces, active) = get_workspaces();
-    for ws in &workspaces {
-        let color = if *ws == active {
-            ACCENT_COLOR
-        } else {
-            DIM_COLOR
-        };
-        let ws_str = format!("{}", ws);
-        draw_text(&mut cache, canvas, width, &ws_str, x_pos, 8, color);
-        x_pos += 18;
+    workspaces.sort();
+    if workspaces.is_empty() {
+        workspaces = vec![1];
     }
-
-    x_pos += 10;
-    draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
-    x_pos += 15;
-
-    // Health
-    // Intent tracking
-    let intents = get_intent_count();
-    let intent_text = if intents != "0" {
-        format!("WIP {}", intents)
-    } else {
-        String::new()
-    };
-    draw_text(
-        &mut cache,
-        canvas,
-        width,
-        &intent_text,
-        x_pos,
-        8,
-        ACCENT_COLOR,
-    );
-    x_pos += 35;
-
-    draw_gradient_separator(canvas, width, x_pos, DIM_COLOR);
-    x_pos += 15;
-
-    // Update counter with package icon
-    let updates = get_update_count();
-    let (update_text, update_color) = if updates == "0" {
-        ("".to_string(), DIM_COLOR) // Dim when no updates
-    } else {
-        (format!("{} ", updates), RED_COLOR) // Red with count when updates available
-    };
-    draw_text(
-        &mut cache,
-        canvas,
-        width,
-        &update_text,
-        x_pos,
-        8,
-        update_color,
-    );
-    x_pos += if updates == "0" { 25 } else { 50 };
-
-    // Lock status
-    let locked = is_core_locked();
-    let lock_color = if locked { ACCENT_COLOR } else { AMBER_COLOR };
-    let lock_icon = if locked { ICON_LOCKED } else { ICON_UNLOCKED };
-    draw_text(&mut cache, canvas, width, lock_icon, x_pos, 8, lock_color);
-    x_pos += 25;
-
-    // Search icon (CLICKABLE)
-    let search_start = x_pos;
-    draw_text(&mut cache, canvas, width, "S", x_pos, 8, ACCENT_COLOR);
-    x_pos += 30;
-    click_regions.push((search_start, x_pos, "search".to_string()));
-
-    // Center - active window
-    let window_title = get_active_window();
-    if !window_title.is_empty() {
-        let title_width = window_title.len() as i32 * 8;
-        let center_x = (width as i32 / 2) - (title_width / 2);
-        draw_text(
-            &mut cache,
-            canvas,
-            width,
-            &window_title,
-            center_x,
-            8,
-            TEXT_COLOR,
-        );
-    }
-
-    // Right side
-    let mut rx = width as i32 - 110;
-
-    // Time
-    let time_str = Local::now().format("%b %d %H:%M").to_string();
-    draw_text(&mut cache, canvas, width, &time_str, rx, 8, AMBER_COLOR);
-
-    rx -= 15;
-    draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-
-    // Volume (CLICKABLE) - wider region includes separator gap
-    rx -= 40;
-    let vol_start = rx - 50; // Start earlier to catch clicks before text
-    let (vol, muted) = get_volume();
-    let vol_color = if muted { DIM_COLOR } else { ACCENT_COLOR };
-    let vol_text = if muted {
-        "MUT".to_string()
-    } else {
-        format!("{}%", vol)
-    };
-    draw_text(&mut cache, canvas, width, &vol_text, rx, 8, vol_color);
-    click_regions.push((vol_start, rx + 35, "volume".to_string()));
-
-    rx -= 15;
-    draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-
-    // WiFi
-    rx -= 45;
-    let (wifi_on, wifi_status) = get_wifi();
-    let wifi_color = if wifi_on { ACCENT_COLOR } else { RED_COLOR };
-    let wifi_text = format!("W:{}", wifi_status);
-    draw_text(&mut cache, canvas, width, &wifi_text, rx, 8, wifi_color);
-
-    rx -= 15;
-    draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-
-    // Battery
-    rx -= 45;
-    let (bat_pct, charging) = get_battery();
-    let bat_color = if bat_pct < 20 {
-        RED_COLOR
-    } else if bat_pct < 50 {
-        AMBER_COLOR
-    } else if charging {
-        BLUE_COLOR
-    } else {
-        ACCENT_COLOR
-    };
-    let bat_text = format!("{}%{}", bat_pct, if charging { "+" } else { "" });
-    draw_text(&mut cache, canvas, width, &bat_text, rx, 8, bat_color);
-
-    rx -= 15;
-    draw_gradient_separator(canvas, width, rx, DIM_COLOR);
-
-    // VPN (CLICKABLE)
-    rx -= 60;
-    let vpn_start = rx;
-    let (vpn_connected, vpn_status) = get_vpn_status();
-    let vpn_color = if vpn_connected {
-        ACCENT_COLOR
-    } else {
-        RED_COLOR
-    };
-    let vpn_text = format!("VPN:{}", vpn_status);
-    draw_text(&mut cache, canvas, width, &vpn_text, rx, 8, vpn_color);
-    click_regions.push((vpn_start, vpn_start + 55, "vpn".to_string()));
-
-    click_regions
+    (workspaces, active)
 }
+
+fn get_active_window() -> String {
+    if let Ok(out) = Command::new("swaymsg")
+        .args(["-t", "get_tree", "-r"])
+        .output()
+    {
+        let resp = String::from_utf8_lossy(&out.stdout);
+        if let Some(pos) = resp
+            .find("\"focused\": true")
+            .or_else(|| resp.find("\"focused\":true"))
+        {
+            let after = &resp[pos..];
+            // Try app_id first
+            if let Some(p) = after
+                .find("\"app_id\": \"")
+                .or_else(|| after.find("\"app_id\":\""))
+            {
+                let start = p + after[p..].find('"').unwrap_or(0) + 1;
+                let s = &after[start..];
+                let start2 = s.find('"').map(|i| i + 1).unwrap_or(0);
+                if let Some(end) = s[start2..].find('"') {
+                    let id = &s[start2..start2 + end];
+                    if !id.is_empty() && id != "null" {
+                        return id.to_string();
+                    }
+                }
+            }
+            // Fall back to name
+            if let Some(p) = after
+                .find("\"name\": \"")
+                .or_else(|| after.find("\"name\":\""))
+            {
+                let start = p + after[p..].find('"').unwrap_or(0) + 1;
+                let s = &after[start..];
+                let start2 = s.find('"').map(|i| i + 1).unwrap_or(0);
+                if let Some(end) = s[start2..].find('"') {
+                    let name = &s[start2..start2 + end];
+                    if !name.is_empty() && name != "null" {
+                        if name.len() > 40 {
+                            return format!("{}...", &name[..37]);
+                        }
+                        return name.to_string();
+                    }
+                }
+            }
+        }
+    }
+    String::new()
+}
+
+fn get_vpn() -> (&'static str, [u8; 4]) {
+    let connected = Command::new("mullvad")
+        .arg("status")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.to_lowercase().contains("connected"))
+        .unwrap_or(false);
+    if connected {
+        ("VPN ON", GREEN)
+    } else {
+        ("VPN OFF", RED)
+    }
+}
+
+fn get_battery() -> (String, [u8; 4]) {
+    let cap = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
+        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
+        .unwrap_or_default();
+    let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
+        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
+        .unwrap_or_default();
+
+    let level: u8 = cap.trim().parse().unwrap_or(0);
+    let charging = status.trim() == "Charging";
+
+    let text = if charging {
+        format!("+{}%", level)
+    } else {
+        format!("BAT:{}%", level)
+    };
+    let color = if charging {
+        BLUE
+    } else if level > 50 {
+        GREEN
+    } else if level > 20 {
+        AMBER
+    } else {
+        RED
+    };
+    (text, color)
+}
+
+fn get_wifi() -> (String, [u8; 4]) {
+    if let Ok(out) = Command::new("nmcli")
+        .args(["-t", "-f", "active,ssid", "dev", "wifi"])
+        .output()
+    {
+        if let Ok(result) = String::from_utf8(out.stdout) {
+            for line in result.lines() {
+                if line.starts_with("yes:") {
+                    let ssid = line.trim_start_matches("yes:").trim();
+                    let label = if ssid.is_empty() {
+                        "ON".to_string()
+                    } else {
+                        // truncate long SSIDs
+                        if ssid.len() > 10 {
+                            format!("{}…", &ssid[..9])
+                        } else {
+                            ssid.to_string()
+                        }
+                    };
+                    return (format!("W:{}", label), GREEN);
+                }
+            }
+        }
+    }
+    ("W:OFF".to_string(), RED)
+}
+
+fn get_volume() -> (String, [u8; 4]) {
+    if let Ok(out) = Command::new("wpctl")
+        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
+        .output()
+    {
+        if let Ok(result) = String::from_utf8(out.stdout) {
+            if result.contains("MUTED") {
+                return ("MUTE".to_string(), RED);
+            }
+            if let Some(val) = result
+                .split_whitespace()
+                .nth(1)
+                .and_then(|s| s.parse::<f32>().ok())
+            {
+                let pct = (val * 100.0) as u8;
+                let color = if pct > 80 {
+                    RED
+                } else if pct > 60 {
+                    AMBER
+                } else {
+                    GREEN
+                };
+                return (format!("VOL:{}%", pct), color);
+            }
+        }
+    }
+    ("VOL:??".to_string(), DIM)
+}
+
+// ─── Drawing ─────────────────────────────────────────────────────────────────
 
 fn draw_text(
     cache: &mut GlyphCache,
@@ -221,15 +323,13 @@ fn draw_text(
     width: u32,
     text: &str,
     x: i32,
-    y: i32,
     color: [u8; 4],
-) {
-    let mut cursor_x = x;
-    let font_size = 14.0;
-    let baseline = y + 12;
+) -> i32 {
+    let mut cx = x;
+    let baseline = 22i32; // vertical center for 32px bar
 
     for ch in text.chars() {
-        let glyph = cache.rasterize(ch, font_size);
+        let glyph = cache.rasterize(ch, FONT_SIZE);
         let metrics = &glyph.metrics;
         let bitmap = &glyph.bitmap;
 
@@ -240,292 +340,178 @@ fn draw_text(
                     continue;
                 }
 
-                let px = cursor_x + metrics.xmin + col as i32;
+                let px = cx + metrics.xmin + col as i32;
                 let py = baseline - metrics.height as i32 - metrics.ymin + row as i32;
 
                 if px >= 0 && px < width as i32 && (0..32).contains(&py) {
                     let idx = (py as usize * width as usize + px as usize) * 4;
                     if idx + 3 < canvas.len() {
                         let a = alpha as f32 / 255.0;
-                        canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
+                        canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[2] as f32) as u8;
                         canvas[idx + 1] =
                             ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
                         canvas[idx + 2] =
-                            ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
+                            ((1.0 - a) * canvas[idx + 2] as f32 + a * color[0] as f32) as u8;
                         canvas[idx + 3] = 255;
                     }
                 }
             }
         }
-        cursor_x += metrics.advance_width as i32;
+        cx += metrics.advance_width as i32;
     }
+    cx // return new x position
 }
 
-fn draw_gradient_separator(canvas: &mut [u8], width: u32, x: i32, color: [u8; 4]) {
-    let height = 32;
-    let start_y = 6;
-    let end_y = height - 6;
+fn text_width(cache: &mut GlyphCache, text: &str) -> i32 {
+    text.chars()
+        .map(|ch| cache.rasterize(ch, FONT_SIZE).metrics.advance_width as i32)
+        .sum()
+}
 
-    for y in start_y..end_y {
-        let progress = (y - start_y) as f32 / (end_y - start_y) as f32;
-        let alpha = if progress < 0.2 {
-            progress / 0.2
-        } else if progress > 0.8 {
-            (1.0 - progress) / 0.2
+fn draw_separator(canvas: &mut [u8], width: u32, x: i32) {
+    let stride = width as usize * 4;
+    for y in 6..26usize {
+        let fade = if y < 10 {
+            (y - 6) as f32 / 4.0
+        } else if y > 22 {
+            (26 - y) as f32 / 4.0
         } else {
             1.0
         };
-
         if x >= 0 && x < width as i32 {
-            let idx = (y as usize * width as usize + x as usize) * 4;
+            let idx = y * stride + x as usize * 4;
             if idx + 3 < canvas.len() {
-                canvas[idx] = ((1.0 - alpha) * BG_COLOR[0] as f32 + alpha * color[0] as f32) as u8;
-                canvas[idx + 1] =
-                    ((1.0 - alpha) * BG_COLOR[1] as f32 + alpha * color[1] as f32) as u8;
-                canvas[idx + 2] =
-                    ((1.0 - alpha) * BG_COLOR[2] as f32 + alpha * color[2] as f32) as u8;
+                canvas[idx] = ((1.0 - fade) * BG[2] as f32 + fade * DIM[2] as f32) as u8;
+                canvas[idx + 1] = ((1.0 - fade) * BG[1] as f32 + fade * DIM[1] as f32) as u8;
+                canvas[idx + 2] = ((1.0 - fade) * BG[0] as f32 + fade * DIM[0] as f32) as u8;
                 canvas[idx + 3] = 255;
             }
         }
     }
 }
 
-fn get_profile_icon(profile: &str) -> &'static str {
-    match profile {
-        "gaming" => "GAM",
-        "work" => "WRK",
-        "low-power" => "LOW",
-        _ => "DEF",
-    }
-}
-
-fn get_profile_color(profile: &str) -> [u8; 4] {
-    match profile {
-        "gaming" => RED_COLOR,
-        "work" => BLUE_COLOR,
-        "low-power" => AMBER_COLOR,
-        _ => ACCENT_COLOR,
-    }
-}
-
-fn get_current_profile() -> String {
-    let path = crate::paths::current_profile_path();
-    fs::read_to_string(&path)
-        .unwrap_or_else(|_| "default".to_string())
-        .trim()
-        .to_string()
-}
-
-fn get_vpn_status() -> (bool, String) {
-    let cache_file = format!("{}/.cache/faelight-bar/vpn", std::env::var("HOME").unwrap());
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => {
-            let connected = content.trim().contains("🔒");
-            (
-                connected,
-                if connected {
-                    "ON".to_string()
-                } else {
-                    "OFF".to_string()
-                },
-            )
-        }
-        Err(_) => (false, "N/A".to_string()),
-    }
-}
-
-fn get_battery() -> (u8, bool) {
-    let capacity = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
-        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
-        .unwrap_or_else(|_| "0".to_string());
-
-    let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
-        .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
-        .unwrap_or_else(|_| "Unknown".to_string());
-
-    let percent: u8 = capacity.trim().parse().unwrap_or(0);
-    let charging = status.trim() == "Charging";
-    (percent, charging)
-}
-
-fn get_wifi() -> (bool, String) {
-    let cache_file = format!(
-        "{}/.cache/faelight-bar/network",
-        std::env::var("HOME").unwrap()
-    );
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => {
-            let connected = content.trim().contains("📶");
-            (
-                connected,
-                if connected {
-                    "ON".to_string()
-                } else {
-                    "OFF".to_string()
-                },
-            )
-        }
-        Err(_) => (false, "N/A".to_string()),
-    }
-}
-
-fn get_volume() -> (u8, bool) {
-    let cache_file = format!(
-        "{}/.cache/faelight-bar/volume",
-        std::env::var("HOME").unwrap()
-    );
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => {
-            let text = content.trim();
-            let muted = text.contains("🔇");
-            if muted {
-                (0, true)
-            } else {
-                let vol = text
-                    .split_whitespace()
-                    .nth(1)
-                    .and_then(|s| s.trim_end_matches('%').parse().ok())
-                    .unwrap_or(50);
-                (vol, false)
-            }
-        }
-        Err(_) => (50, false),
-    }
-}
-
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
-
-lazy_static::lazy_static! {
-    static ref HEALTH_CACHE: Arc<Mutex<(u8, Instant)>> = Arc::new(Mutex::new((50, Instant::now())));
-}
-
-fn is_core_locked() -> bool {
-    let cache_file = format!(
-        "{}/.cache/faelight-bar/lock",
-        std::env::var("HOME").unwrap()
-    );
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => content.trim().contains("🔒"),
-        Err(_) => false,
-    }
-}
-
-fn sway_query(cmd: &str) -> Option<String> {
-    Command::new("swaymsg")
-        .args(["-t", cmd, "-r"])
-        .output()
-        .ok()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-}
-
-fn get_workspaces() -> (Vec<i32>, i32) {
-    let mut workspaces: Vec<i32> = vec![];
-    let mut active: i32 = 1;
-
-    if let Some(resp) = sway_query("get_workspaces") {
-        for num in 1..=10 {
-            let pattern = format!("\"num\":{}", num);
-            let pattern2 = format!("\"num\": {}", num);
-            if resp.contains(&pattern) || resp.contains(&pattern2) {
-                workspaces.push(num);
-            }
-        }
-
-        let focused_pattern = "\"focused\":true";
-        let focused_pattern2 = "\"focused\": true";
-        if let Some(focused_pos) = resp
-            .find(focused_pattern)
-            .or_else(|| resp.find(focused_pattern2))
-        {
-            let before = &resp[..focused_pos];
-            let num_pattern = "\"num\":";
-            let num_pattern2 = "\"num\": ";
-            if let Some(num_pos) = before
-                .rfind(num_pattern)
-                .or_else(|| before.rfind(num_pattern2))
-            {
-                let after_num = &before[num_pos + 6..];
-                let num_str: String = after_num
-                    .chars()
-                    .skip_while(|c| !c.is_numeric())
-                    .take_while(|c| c.is_numeric())
-                    .collect();
-                if let Ok(num) = num_str.parse() {
-                    active = num;
-                }
+fn draw_top_accent(canvas: &mut [u8], width: u32, color: [u8; 4]) {
+    let stride = width as usize * 4;
+    for x in 0..width as usize {
+        for y in 0..2usize {
+            let idx = y * stride + x * 4;
+            if idx + 3 < canvas.len() {
+                canvas[idx] = color[2];
+                canvas[idx + 1] = color[1];
+                canvas[idx + 2] = color[0];
+                canvas[idx + 3] = 255;
             }
         }
     }
-
-    workspaces.sort();
-    if workspaces.is_empty() {
-        workspaces = vec![1];
-    }
-
-    (workspaces, active)
 }
 
-fn get_active_window() -> String {
-    if let Some(resp) = sway_query("get_tree") {
-        let focused_pattern = "\"focused\": true";
-        if let Some(focused_pos) = resp.find(focused_pattern) {
-            let after = &resp[focused_pos..];
+// ─── Main render entry ────────────────────────────────────────────────────────
 
-            let app_pattern = "\"app_id\": \"";
-            if let Some(app_pos) = after.find(app_pattern) {
-                let start = app_pos + 11;
-                if let Some(end) = after[start..].find('"') {
-                    let app_id = &after[start..start + end];
-                    if !app_id.is_empty() && app_id != "null" {
-                        return app_id.to_string();
-                    }
-                }
-            }
+pub fn render(canvas: &mut [u8], width: u32, _height: u32) {
+    let mut cache = GLYPH_CACHE.lock().unwrap();
 
-            let name_pattern = "\"name\": \"";
-            if let Some(name_pos) = after.find(name_pattern) {
-                let start = name_pos + 9;
-                if let Some(end) = after[start..].find('"') {
-                    let title = &after[start..start + end];
-                    if !title.is_empty() && title != "null" {
-                        if title.len() > 40 {
-                            return format!("{}...", &title[..37]);
-                        }
-                        return title.to_string();
-                    }
-                }
-            }
+    // Gather all data upfront
+    let profile = get_profile();
+    let (prof_label, prof_color) = profile_label_color(&profile);
+    let (zone_text, zone_color) = get_zone();
+    let (lock_icon, lock_color) = get_lock();
+    let (health_text, health_color) = get_health();
+    let (workspaces, active_ws) = get_workspaces();
+    let window = get_active_window();
+    let (vpn_text, vpn_color) = get_vpn();
+    let (bat_text, bat_color) = get_battery();
+    let (wifi_text, wifi_color) = get_wifi();
+    let (vol_text, vol_color) = get_volume();
+    let time_str = Local::now().format("%b %d  %H:%M").to_string();
+
+    // Top accent line — profile color
+    draw_top_accent(canvas, width, prof_color);
+
+    // ── LEFT SIDE ─────────────────────────────────────────────────
+    let mut x = 10i32;
+
+    // Profile
+    x = draw_text(&mut cache, canvas, width, prof_label, x, prof_color);
+    x += 8;
+    draw_separator(canvas, width, x);
+    x += 12;
+
+    // Workspaces
+    for ws in &workspaces {
+        let color = if *ws == active_ws { prof_color } else { DIM };
+        let ws_str = ws.to_string();
+        x = draw_text(&mut cache, canvas, width, &ws_str, x, color);
+        x += 4;
+    }
+    x += 4;
+    draw_separator(canvas, width, x);
+    x += 12;
+
+    // Zone (real-time)
+    x = draw_text(&mut cache, canvas, width, &zone_text, x, zone_color);
+    x += 8;
+    draw_separator(canvas, width, x);
+    x += 12;
+
+    // Lock
+    x = draw_text(&mut cache, canvas, width, lock_icon, x, lock_color);
+    x += 8;
+    draw_separator(canvas, width, x);
+    x += 12;
+
+    // Health
+    draw_text(&mut cache, canvas, width, &health_text, x, health_color);
+
+    // ── CENTER: active window ──────────────────────────────────────
+    if !window.is_empty() {
+        let w = text_width(&mut cache, &window);
+        let cx = (width as i32 / 2) - (w / 2);
+        if cx > 0 {
+            draw_text(&mut cache, canvas, width, &window, cx, FG);
         }
     }
-    String::new()
-}
 
-fn get_intent_count() -> String {
-    let cache_file = format!(
-        "{}/.cache/faelight-bar/intents",
-        std::env::var("HOME").unwrap()
-    );
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => {
-            let text = content.trim();
-            if text.is_empty() {
-                "0".to_string()
-            } else {
-                text.split_whitespace().nth(1).unwrap_or("0").to_string()
-            }
-        }
-        Err(_) => "0".to_string(),
-    }
-}
+    // ── RIGHT SIDE (position right-to-left) ───────────────────────
+    let padding = 12i32;
 
-fn get_update_count() -> String {
-    let cache_file = format!(
-        "{}/.cache/faelight-bar/updates",
-        std::env::var("HOME").unwrap()
-    );
-    match fs::read_to_string(&cache_file) {
-        Ok(content) => content.trim().to_string(),
-        Err(_) => "✓".to_string(),
-    }
+    // Time
+    let time_w = text_width(&mut cache, &time_str);
+    let mut rx = width as i32 - time_w - padding;
+    draw_text(&mut cache, canvas, width, &time_str, rx, AMBER);
+
+    rx -= padding;
+    draw_separator(canvas, width, rx);
+    rx -= padding;
+
+    // Volume
+    let vol_w = text_width(&mut cache, &vol_text);
+    rx -= vol_w;
+    draw_text(&mut cache, canvas, width, &vol_text, rx, vol_color);
+
+    rx -= padding;
+    draw_separator(canvas, width, rx);
+    rx -= padding;
+
+    // WiFi
+    let wifi_w = text_width(&mut cache, &wifi_text);
+    rx -= wifi_w;
+    draw_text(&mut cache, canvas, width, &wifi_text, rx, wifi_color);
+
+    rx -= padding;
+    draw_separator(canvas, width, rx);
+    rx -= padding;
+
+    // Battery
+    let bat_w = text_width(&mut cache, &bat_text);
+    rx -= bat_w;
+    draw_text(&mut cache, canvas, width, &bat_text, rx, bat_color);
+
+    rx -= padding;
+    draw_separator(canvas, width, rx);
+    rx -= padding;
+
+    // VPN
+    let vpn_w = text_width(&mut cache, vpn_text);
+    rx -= vpn_w;
+    draw_text(&mut cache, canvas, width, vpn_text, rx, vpn_color);
 }
