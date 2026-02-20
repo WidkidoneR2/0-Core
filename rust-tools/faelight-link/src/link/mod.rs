@@ -193,68 +193,16 @@ pub fn status() -> Result<()> {
     Ok(())
 }
 
-/// Count symlinks for a package
+/// Count symlinks for a package (recursive)
 fn count_package_links(home: &PathBuf, package: &str) -> Result<usize> {
-    let home_path = PathBuf::from(home);
-    let mut count = 0;
-
-    let search_paths = vec![home_path.clone(), home_path.join(".config")];
-
-    for search_path in search_paths {
-        if !search_path.exists() {
-            continue;
-        }
-
-        if let Ok(entries) = fs::read_dir(&search_path) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-
-                if path.is_symlink() {
-                    if let Ok(target) = fs::read_link(&path) {
-                        let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package)) {
-                            count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(count)
+    let links = find_all_package_links(home, package)?;
+    Ok(links.len())
 }
 
-/// Count broken symlinks for a package
+/// Count broken symlinks for a package (recursive)
 fn count_broken_links(home: &PathBuf, package: &str) -> Result<usize> {
-    let home_path = PathBuf::from(home);
-    let mut count = 0;
-
-    let search_paths = vec![home_path.clone(), home_path.join(".config")];
-
-    for search_path in search_paths {
-        if !search_path.exists() {
-            continue;
-        }
-
-        if let Ok(entries) = fs::read_dir(&search_path) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-
-                if path.is_symlink() {
-                    if let Ok(target) = fs::read_link(&path) {
-                        let target_str = target.to_string_lossy();
-                        if target_str.contains(&format!("0-core/03-interfaces/stow/{}", package))
-                            && !path.exists()
-                        {
-                            count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(count)
+    let links = find_all_package_links(home, package)?;
+    Ok(links.iter().filter(|l| !l.exists()).count())
 }
 
 /// Audit all links - comprehensive health check
