@@ -8,7 +8,6 @@ mod neovim_checker;
 mod npm_checker;
 mod pip_checker;
 mod rustup_checker;
-mod tui;
 mod tui_v2;
 mod yazi_checker;
 
@@ -824,7 +823,7 @@ fn update_workspace() -> Result<()> {
 
     let status = Command::new("cargo")
         .args(["build", "--release"])
-        .current_dir("/home/christian/0-core")
+        .current_dir(faelight_core::paths::core_dir())
         .status()
         .context("Failed to build workspace")?;
 
@@ -972,7 +971,7 @@ fn run_doctor_final() -> Result<u32> {
 fn check_git_status() -> Result<()> {
     let output = Command::new("git")
         .args(["status", "--porcelain", "-b"])
-        .current_dir("/home/christian/0-core")
+        .current_dir(faelight_core::paths::core_dir())
         .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);

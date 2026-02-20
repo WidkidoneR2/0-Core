@@ -132,12 +132,20 @@ impl NotificationServer {
         current_id
     }
 
-    fn close_notification(&self, _id: u32) {}
+    fn close_notification(&self, id: u32) {
+        let mut notifs = self
+            .notifications
+            .lock()
+            .expect("Failed to lock notifications mutex");
+        if let Some(pos) = notifs.iter().position(|_| id > 0) {
+            notifs.remove(pos);
+        }
+    }
     fn get_server_information(&self) -> (String, String, String, String) {
         (
             "faelight-notify".into(),
             "faelight".into(),
-            "0.9.0".into(),
+            "2.0.0".into(),
             "1.2".into(),
         )
     }
@@ -218,12 +226,14 @@ fn draw_text(
 fn draw_border(canvas: &mut [u8], width: u32, height: u32, color: [u8; 4]) {
     let stride = width as usize * 4;
     for t in 0..2usize {
+        // Top and bottom use urgency color (was hardcoded to BORDER_COLOR - bug)
         for x in 0..width as usize {
-            canvas[t * stride + x * 4..t * stride + x * 4 + 4].copy_from_slice(&BORDER_COLOR);
+            canvas[t * stride + x * 4..t * stride + x * 4 + 4].copy_from_slice(&color);
             canvas[(height as usize - 1 - t) * stride + x * 4
                 ..(height as usize - 1 - t) * stride + x * 4 + 4]
-                .copy_from_slice(&BORDER_COLOR);
+                .copy_from_slice(&color);
         }
+        // Left and right sides
         for y in 0..height as usize {
             canvas[y * stride + t * 4..y * stride + t * 4 + 4].copy_from_slice(&color);
             canvas[y * stride + (width as usize - 1 - t) * 4

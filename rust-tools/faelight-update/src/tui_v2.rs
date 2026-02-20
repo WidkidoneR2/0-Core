@@ -279,12 +279,6 @@ fn render_categories(f: &mut Frame, app: &UpdateTUI, area: Rect) {
                 Style::default().fg(TEXT_BRIGHT)
             };
 
-            let _count_style = if cat.count > 0 {
-                Style::default().fg(ACCENT_GREEN)
-            } else {
-                Style::default().fg(TEXT_DIM)
-            };
-
             let text = if cat.count > 0 {
                 format!("  {} {} ({})", cat.emoji, cat.name, cat.count)
             } else {
