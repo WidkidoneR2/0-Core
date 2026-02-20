@@ -1,4 +1,5 @@
-//! Profile widget - Shows current profile
+#![allow(dead_code)]
+//! Profile widget - icon per profile, cycle on click (default/gaming/work)
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
@@ -20,7 +21,6 @@ impl ProfileWidget {
         let path = dirs::home_dir()
             .map(|h| h.join(".local/share/profile/current"))
             .unwrap_or_default();
-
         fs::read_to_string(&path)
             .unwrap_or_else(|_| "default".to_string())
             .trim()
@@ -39,25 +39,25 @@ impl Widget for ProfileWidget {
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let text = format!("PROF:{}", self.current.to_uppercase());
-
+        let (text, color) = match self.current.as_str() {
+            "gaming" => ("\u{1F3AE} GAME".to_string(), colors::ERROR),
+            "work" => ("\u{1F4BC} WORK".to_string(), colors::ACCENT_BLUE),
+            _ => ("\u{1F3E0} DEF".to_string(), colors::ACCENT),
+        };
         Ok(WidgetOutput {
             text,
-            color: colors::ACCENT,
+            color,
             width: 100,
             clickable: true,
         })
     }
 
     fn on_click(&mut self) -> Result<(), WidgetError> {
-        // Cycle profiles
         let next = match self.current.as_str() {
             "default" => "gaming",
             "gaming" => "work",
-            "work" => "low-power",
             _ => "default",
         };
-
         let _ = Command::new("profile").arg(next).spawn();
         Ok(())
     }

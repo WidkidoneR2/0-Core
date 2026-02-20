@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Date widget - Shows current date
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};

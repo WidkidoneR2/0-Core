@@ -1,31 +1,40 @@
-//! Volume widget - Shows mute status
+#![allow(dead_code)]
+//! Volume widget - actual percentage, no double-call
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
+use crate::render::colors;
 use std::process::Command;
 
 pub struct VolumeWidget {
-    status: String,
+    muted: bool,
+    percent: u8,
 }
 
 impl VolumeWidget {
     pub fn new() -> Self {
         Self {
-            status: String::from("♪ ??"),
+            muted: false,
+            percent: 50,
         }
     }
 
-    fn check_volume() -> (bool, String) {
+    fn check_volume() -> (bool, u8) {
         if let Ok(output) = Command::new("wpctl")
             .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
             .output()
         {
             if let Ok(result) = String::from_utf8(output.stdout) {
                 let muted = result.contains("MUTED");
-                let status = if muted { "× MUTE" } else { "♪ ON" };
-                return (muted, status.to_string());
+                let percent = result
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse::<f32>().ok())
+                    .map(|v| (v * 100.0) as u8)
+                    .unwrap_or(0);
+                return (muted, percent);
             }
         }
-        (false, String::from("♪ ??"))
+        (false, 0)
     }
 }
 
@@ -35,21 +44,25 @@ impl Widget for VolumeWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        let (_, status) = Self::check_volume();
-        self.status = status;
+        let (muted, percent) = Self::check_volume();
+        self.muted = muted;
+        self.percent = percent;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let (muted, _) = Self::check_volume();
-        let color = if muted {
-            0xFFFF6B6B // Red when muted
+        let (text, color) = if self.muted {
+            ("\u{D7} MUTE".to_string(), colors::ERROR)
         } else {
-            0xFFFFA500 // Orange when on
+            let color = if self.percent > 70 {
+                colors::WARNING
+            } else {
+                colors::SUCCESS
+            };
+            (format!("\u{266A} {}%", self.percent), color)
         };
-
         Ok(WidgetOutput {
-            text: self.status.clone(),
+            text,
             color,
             width: 80,
             clickable: true,

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Ultra-smooth text rendering
 
 use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};

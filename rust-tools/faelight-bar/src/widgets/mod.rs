@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 //! Widget system for faelight-bar v4.0.0
 
 use thiserror::Error;

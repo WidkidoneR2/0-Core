@@ -1,18 +1,17 @@
-//! VPN widget
+#![allow(dead_code)]
+//! VPN widget - green=connected, red=disconnected, no double-call
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use std::process::Command;
 
 pub struct VpnWidget {
-    status: String,
+    connected: bool,
 }
 
 impl VpnWidget {
     pub fn new() -> Self {
-        Self {
-            status: String::from("VPN:??"),
-        }
+        Self { connected: false }
     }
 
     fn check_vpn() -> bool {
@@ -31,33 +30,21 @@ impl Widget for VpnWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        let connected = Self::check_vpn();
-        self.status = if connected {
-            String::from("VPN ON")
-        } else {
-            String::from("VPN OFF")
-        };
+        self.connected = Self::check_vpn();
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let connected = Self::check_vpn();
-        let color = if connected {
-            colors::SUCCESS
+        let (text, color) = if self.connected {
+            ("VPN ON".to_string(), colors::SUCCESS)
         } else {
-            colors::FG
+            ("VPN OFF".to_string(), colors::ERROR)
         };
-
         Ok(WidgetOutput {
-            text: self.status.clone(),
+            text,
             color,
             width: 80,
-            clickable: false, // Disable for now
+            clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        // Do nothing for now
-        Ok(())
     }
 }

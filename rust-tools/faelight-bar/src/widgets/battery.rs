@@ -1,37 +1,51 @@
-//! Battery widget - Shows battery charge percentage
+#![allow(dead_code)]
+//! Battery widget - % with gradient color and charging indicator
 
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
+use crate::render::colors;
 use std::fs;
 
 pub struct BatteryWidget {
-    charge: String,
+    text: String,
+    color: u32,
 }
 
 impl BatteryWidget {
     pub fn new() -> Self {
         Self {
-            charge: String::from("▮ ??"),
+            text: "BAT:??".to_string(),
+            color: colors::FG,
         }
     }
 
-    fn get_battery_level() -> Option<u8> {
-        if let Ok(capacity) = fs::read_to_string("/sys/class/power_supply/BAT0/capacity") {
-            return capacity.trim().parse().ok();
-        }
-        if let Ok(capacity) = fs::read_to_string("/sys/class/power_supply/BAT1/capacity") {
-            return capacity.trim().parse().ok();
-        }
-        None
-    }
+    fn get_battery() -> (String, u32) {
+        let capacity = fs::read_to_string("/sys/class/power_supply/BAT0/capacity")
+            .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/capacity"))
+            .unwrap_or_default();
+        let status = fs::read_to_string("/sys/class/power_supply/BAT0/status")
+            .or_else(|_| fs::read_to_string("/sys/class/power_supply/BAT1/status"))
+            .unwrap_or_default();
 
-    fn get_charging_status() -> bool {
-        if let Ok(status) = fs::read_to_string("/sys/class/power_supply/BAT0/status") {
-            return status.trim() == "Charging";
-        }
-        if let Ok(status) = fs::read_to_string("/sys/class/power_supply/BAT1/status") {
-            return status.trim() == "Charging";
-        }
-        false
+        let level: u8 = capacity.trim().parse().unwrap_or(0);
+        let charging = status.trim() == "Charging";
+
+        let text = if charging {
+            format!("\u{26A1}{}%", level)
+        } else {
+            format!("\u{1F50B}{}%", level)
+        };
+
+        let color = if charging {
+            colors::ACCENT_BLUE
+        } else if level > 50 {
+            colors::SUCCESS
+        } else if level > 20 {
+            colors::WARNING
+        } else {
+            colors::ERROR
+        };
+
+        (text, color)
     }
 }
 
@@ -41,47 +55,18 @@ impl Widget for BatteryWidget {
     }
 
     fn update(&mut self) -> Result<(), WidgetError> {
-        if let Some(level) = Self::get_battery_level() {
-            let charging = Self::get_charging_status();
-            self.charge = if charging {
-                format!("▮ {}%+", level)
-            } else {
-                format!("▮ {}%", level)
-            };
-        } else {
-            self.charge = String::from("▮ ??");
-        }
+        let (text, color) = Self::get_battery();
+        self.text = text;
+        self.color = color;
         Ok(())
     }
 
     fn render(&self, _ctx: &RenderContext) -> Result<WidgetOutput, WidgetError> {
-        let color = if self.charge.contains("??") {
-            0xFFAAAAAA // Gray for unknown
-        } else if self.charge.contains("+") {
-            0xFF00FF9F // Green when charging
-        } else {
-            let level: u8 = self
-                .charge
-                .trim_start_matches("BAT:")
-                .parse()
-                .unwrap_or(100);
-
-            if level < 20 {
-                0xFFFF6B6B // Red when low
-            } else {
-                0xFFFFD700 // Gold/Yellow normal
-            }
-        };
-
         Ok(WidgetOutput {
-            text: self.charge.clone(),
-            color,
-            width: 60,
+            text: self.text.clone(),
+            color: self.color,
+            width: 70,
             clickable: false,
         })
-    }
-
-    fn on_click(&mut self) -> Result<(), WidgetError> {
-        Ok(())
     }
 }

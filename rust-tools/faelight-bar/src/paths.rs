@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Path functions for faelight-bar - now using faelight-core
 use faelight_core::paths;
 
