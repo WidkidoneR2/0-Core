@@ -23,21 +23,24 @@ pub struct SystemState {
 
 impl SystemState {
     pub fn gather() -> Self {
+        let (core_state, core_icon) = get_core_state();
+        let (health, health_icon) = get_health();
+        let (zone, zone_icon) = get_zone();
         SystemState {
             version: get_version(),
             profile: get_profile(),
-            core_state: get_core_state().0,
-            core_icon: get_core_state().1,
-            health: get_health().0,
-            health_icon: get_health().1,
+            core_state,
+            core_icon,
+            health,
+            health_icon,
             wm: get_wm(),
             term: get_term(),
             shell: get_shell(),
             kernel: get_kernel(),
             uptime: get_uptime(),
             hostname: get_hostname(),
-            zone: get_zone().0,
-            zone_icon: get_zone().1,
+            zone,
+            zone_icon,
         }
     }
 }
