@@ -1162,6 +1162,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-cleanup"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "colored",
+ "dirs",
+ "faelight-core",
+ "walkdir",
+]
+
+[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [
