@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 Connecting to faelight-daemon...");
 
     let socket_path = std::env::var("HOME")
-        .map(|h| format!("{}/.local/state/faelight/daemon.sock", h))
+        .map(|h| format!("{}/.local/state/0-core/daemon.sock", h))
         .unwrap_or_else(|_| "/tmp/faelight-daemon.sock".to_string());
 
     let stream = UnixStream::connect(&socket_path).await?;

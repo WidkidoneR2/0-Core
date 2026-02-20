@@ -62,7 +62,7 @@ pub struct Message {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum MessagePayload {
     Command(Command),
     Response(Response),
