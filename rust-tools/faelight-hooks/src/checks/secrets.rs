@@ -3,13 +3,33 @@ use colored::Colorize;
 use faelight_core::paths;
 use std::process::Command;
 
+fn is_gitleaks_installed() -> bool {
+    Command::new("which")
+        .arg("gitleaks")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 pub fn check_secrets() -> Result<bool> {
-    println!("{}", "🔍 Scanning for secrets with gitleaks...".cyan());
+    println!("{}", "🔍 Scanning for secrets...".cyan());
+
+    if !is_gitleaks_installed() {
+        println!(
+            "{}",
+            "⚠️  gitleaks not found — secret scanning skipped".yellow()
+        );
+        println!(
+            "   Install with: {}",
+            "pacman -S gitleaks  OR  cargo install gitleaks".dimmed()
+        );
+        println!();
+        return Ok(true); // Warning, not a hard failure
+    }
 
     let core_dir = paths::core_dir();
     let gitleaks_config = paths::gitleaks_config();
 
-    // Run gitleaks
     let output = Command::new("gitleaks")
         .args([
             "protect",
@@ -21,9 +41,8 @@ pub fn check_secrets() -> Result<bool> {
         ])
         .current_dir(&core_dir)
         .output()
-        .context("Failed to run gitleaks - is it installed?")?;
+        .context("Failed to run gitleaks")?;
 
-    // Check exit code
     if !output.status.success() {
         println!();
         println!("{}", "❌ GITLEAKS DETECTED SECRETS!".red().bold());
