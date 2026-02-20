@@ -1,6 +1,6 @@
 [package]
 name = "core-protect"
-version = "2.1.0"
+version = "2.3.0"
 edition = "2021"
 description = "System guardian - immutable protection for 0-core"
 
@@ -13,6 +13,7 @@ clap = { version = "4", features = ["derive"] }
 
 # Beautiful output
 colored = "2.1"
+anyhow.workspace = true
 
 [[bin]]
 name = "core-protect"
