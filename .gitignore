@@ -1,6 +1,5 @@
 # ═══════════════════════════════════════════════════════════
 # 🛡️ Faelight Forest - Security-First .gitignore
-# NEVER commit sensitive data to GitHub!
 # ═══════════════════════════════════════════════════════════
 
 # CRITICAL: SSH Keys & Certificates
@@ -41,121 +40,31 @@
 **/.config/mullvad-vpn/settings.json
 
 # Browser Data (may contain saved passwords)
-**/.mozilla/
+**/.mozilla/firefox/*/logins.json
 **/.config/google-chrome/
-**/.config/chromium/
-**/.config/BraveSoftware/
-
-# NetworkManager (WiFi passwords!)
-**/system-connections/
-
-# Fish shell history (may contain typed passwords)
-**/fish_history
-
-# Git credentials
-**/.git-credentials
-**/.gitconfig.local
-
-# Cloud storage tokens
-**/.config/rclone/rclone.conf
-
-# Package manager credentials
-**/.config/gh/hosts.yml
-
-# Backup files
-*.backup
-*~
-*.swp
-*.swo
-
-# LazyVim plugin cache
-nvim/.lazy/
-nvim/lazy-lock.json
-
-# Logs (may contain sensitive data)
-**/*.log
-**/logs/
-
-# Temporary files
-*.tmp
-*.temp
-**/temp/
-**/tmp/
-
-# Any file explicitly marked
-**/*SECRET*
-**/*PRIVATE*
-**/*CONFIDENTIAL*
-**/*-secret*
-**/*-SECRET*
-
-# ═══════════════════════════════════════════════════════════
-# 🔒 Additional Security (v2.7.1)
-# ═══════════════════════════════════════════════════════════
-
-# VPN Credentials (Mullvad)
-**/mullvad-account.txt
-**/.config/mullvad-vpn/account-history.json
-**/.config/mullvad-vpn/settings.json
-
-# Fish Shell History (can contain typed passwords!)
-**/fish_history
-fish/.config/fish/fish_history
+**/.config/chromium/*/Login Data
+**/.config/BraveSoftware/Brave-Browser/*/Login Data
 
 # NetworkManager (WiFi passwords!)
 **/system-connections/
 **/NetworkManager/system-connections/
 
-# Cloud Storage Tokens
-**/.config/rclone/rclone.conf
+# Shell history (may contain typed passwords)
+**/fish_history
+fish/.config/fish/fish_history
+**/nushell/history.sqlite3*
+**/nushell/history.txt
 
-# Git Credentials
+# Git credentials
 **/.git-credentials
 **/.gitconfig.local
+**/.gitconfig
+
+# Cloud storage tokens
+**/.config/rclone/rclone.conf
 
 # GitHub CLI
 **/.config/gh/hosts.yml
-
-# Browser Data (contains saved passwords)
-**/.mozilla/firefox/*/logins.json
-**/.config/BraveSoftware/Brave-Browser/*/Login Data
-**/.config/chromium/*/Login Data
-
-# Editor Temp Files
-*.swp
-*.swo
-*.tmp
-*~
-*.backup
-shell-zsh/.config/zsh/.zcompdump*
-rust-tools/*/target/
-
-# Rust build artifacts
-target/
-
-# Temporary installation files
-
-# Temporary installation files
-.install-files/
-.dotmeta
-.gitconfig
-
-# Session state files (local only)
-**/SESSION_STATE.md
-logs/
-CHANGELOG-v8.0.0-DRAFT.md
-
-# Research source code (local only)
-docs/planning/faelight-term/alacritty/
-docs/planning/faelight-term/foot-source/
-
-# Research source code (local only)
-docs/planning/faelight-term/alacritty/
-docs/planning/faelight-term/foot-source/
-
-# Nushell history files (local only)
-**/nushell/history.sqlite3*
-**/nushell/history.txt
 
 # ═══════════════════════════════════════════════════════════
 # 🦀 Build Artifacts (Source-First Strategy)
@@ -164,11 +73,55 @@ docs/planning/faelight-term/foot-source/
 # Compiled binaries (build fresh from rust-tools/)
 scripts/
 
-# Build debris and working backups
-backups/
+# Rust build artifacts
+target/
+rust-tools/*/target/
 
-# Stow-created symlinks (should be in stow/ subdirectory)
+# ═══════════════════════════════════════════════════════════
+# 🗂️ Local-Only Files
+# ═══════════════════════════════════════════════════════════
+
+# Backup and working dirs
+backups/
+BACKUPS/
+
+# Stow artifacts
 03-interfaces/.zshrc
 03-interfaces/.config/
-03-interfaces/.config/
-BACKUPS/
+
+# Session state and drafts
+**/SESSION_STATE.md
+CHANGELOG-v8.0.0-DRAFT.md
+
+# Research source (local only)
+docs/planning/faelight-term/alacritty/
+docs/planning/faelight-term/foot-source/
+
+# Editor temp files
+*.swp
+*.swo
+*.tmp
+*.temp
+*~
+*.backup
+shell-zsh/.config/zsh/.zcompdump*
+
+# Logs
+**/*.log
+**/logs/
+logs/
+
+# Temp dirs
+**/temp/
+**/tmp/
+
+# Stow metadata
+.dotmeta
+.install-files/
+
+# Explicitly marked sensitive files
+**/*SECRET*
+**/*PRIVATE*
+**/*CONFIDENTIAL*
+**/*-secret*
+**/*-SECRET*
