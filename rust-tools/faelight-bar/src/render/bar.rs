@@ -168,52 +168,35 @@ fn get_workspaces() -> (Vec<i32>, i32) {
 }
 
 fn get_active_window() -> String {
-    if let Ok(out) = Command::new("swaymsg")
-        .args(["-t", "get_tree", "-r"])
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(
+            r#"swaymsg -t get_tree -r 2>/dev/null | python3 -c "
+import json,sys
+tree=json.load(sys.stdin)
+def find(n):
+    if n.get('focused'): return n
+    for c in n.get('nodes',[])+n.get('floating_nodes',[]):
+        r=find(c)
+        if r: return r
+def show(n):
+    if not n: return
+    app=(n.get('app_id') or '').strip()
+    name=(n.get('name') or '').strip()
+    t=app if app and app!='null' else name
+    if len(t)>40: t=t[:37]+'...'
+    print(t,end='')
+show(find(tree))
+""#,
+        )
         .output()
-    {
-        let resp = String::from_utf8_lossy(&out.stdout);
-        if let Some(pos) = resp
-            .find("\"focused\": true")
-            .or_else(|| resp.find("\"focused\":true"))
-        {
-            let after = &resp[pos..];
-            // Try app_id first
-            if let Some(p) = after
-                .find("\"app_id\": \"")
-                .or_else(|| after.find("\"app_id\":\""))
-            {
-                let start = p + after[p..].find('"').unwrap_or(0) + 1;
-                let s = &after[start..];
-                let start2 = s.find('"').map(|i| i + 1).unwrap_or(0);
-                if let Some(end) = s[start2..].find('"') {
-                    let id = &s[start2..start2 + end];
-                    if !id.is_empty() && id != "null" {
-                        return id.to_string();
-                    }
-                }
-            }
-            // Fall back to name
-            if let Some(p) = after
-                .find("\"name\": \"")
-                .or_else(|| after.find("\"name\":\""))
-            {
-                let start = p + after[p..].find('"').unwrap_or(0) + 1;
-                let s = &after[start..];
-                let start2 = s.find('"').map(|i| i + 1).unwrap_or(0);
-                if let Some(end) = s[start2..].find('"') {
-                    let name = &s[start2..start2 + end];
-                    if !name.is_empty() && name != "null" {
-                        if name.len() > 40 {
-                            return format!("{}...", &name[..37]);
-                        }
-                        return name.to_string();
-                    }
-                }
-            }
-        }
-    }
-    String::new()
+        .ok();
+
+    output
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| s.len() > 1)
+        .unwrap_or_default()
 }
 
 fn get_vpn() -> (&'static str, [u8; 4]) {
