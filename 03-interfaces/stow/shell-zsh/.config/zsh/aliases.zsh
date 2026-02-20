@@ -84,8 +84,8 @@ alias guard='intent-guard'
 
 # ─── File & Link Management ───
 alias fl='faelight-link'
-alias stow-check='faelight-stow'
-alias stow-fix='faelight-stow --fix'
+alias stow-check='faelight-link status'
+alias stow-fix='faelight-link clean'
 
 # ─── Snapshots & Backups ───
 alias snap='faelight-snapshot'
