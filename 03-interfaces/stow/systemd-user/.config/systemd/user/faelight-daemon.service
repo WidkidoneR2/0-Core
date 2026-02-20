@@ -1,20 +1,16 @@
 [Unit]
 Description=Faelight Forest Daemon
 Documentation=https://github.com/WidkidoneR2/0-Core
-After=network.target
+After=default.target
 
 [Service]
 Type=simple
-ExecStart=%h/0-core/target/release/faelight-daemon
+ExecStart=%h/0-core/scripts/faelight-daemon
 Restart=on-failure
 RestartSec=5s
-
-# Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=faelight-daemon
-
-# Security
 PrivateTmp=true
 NoNewPrivileges=true
 
