@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
     Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand,
-    SecurityCommand,
+    SecurityCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -71,6 +71,19 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GitCommand::Log { n } => crate::domains::git::log_cmd(ctx, n),
             GitCommand::Verify => crate::domains::git::verify(ctx),
             GitCommand::Delegate { subcmd, args } => crate::domains::git::delegate(&subcmd, &args),
+        },
+        Command::Workspace(c) => match c {
+            WorkspaceCommand::View {
+                active,
+                summary,
+                json,
+            } => crate::domains::workspace::view(ctx, active, summary, json),
+            WorkspaceCommand::Recent {
+                range,
+                limit,
+                full_paths,
+            } => crate::domains::workspace::recent(ctx, &range, limit, full_paths),
+            WorkspaceCommand::Fm { args } => crate::domains::workspace::fm(ctx, &args),
         },
     }
 }

@@ -4,11 +4,11 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand,
-    SecurityCommand,
+    SecurityCommand, WorkspaceCommand,
 };
 use parser::{
     Cli, Commands, GitCommands, IntentCommands, LinkCommands, ProfileCommands, SandboxCommands,
-    SecurityCommands,
+    SecurityCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -99,6 +99,27 @@ pub fn parse() -> Command {
                 subcmd: "remove-hooks".to_string(),
                 args: vec![],
             },
+        }),
+        Commands::Workspace { command } => Command::Workspace(match command {
+            WorkspaceCommands::View {
+                active,
+                summary,
+                json,
+            } => WorkspaceCommand::View {
+                active,
+                summary,
+                json,
+            },
+            WorkspaceCommands::Recent {
+                range,
+                limit,
+                full_paths,
+            } => WorkspaceCommand::Recent {
+                range,
+                limit,
+                full_paths,
+            },
+            WorkspaceCommands::Fm { args } => WorkspaceCommand::Fm { args },
         }),
     }
 }

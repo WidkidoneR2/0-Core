@@ -19,6 +19,7 @@ pub enum Command {
         health_check: bool,
     },
     Git(GitCommand),
+    Workspace(WorkspaceCommand),
 }
 
 #[derive(Debug)]
@@ -80,4 +81,21 @@ pub enum GitCommand {
     Log { n: u32 },
     Verify,
     Delegate { subcmd: String, args: Vec<String> },
+}
+
+#[derive(Debug)]
+pub enum WorkspaceCommand {
+    View {
+        active: bool,
+        summary: bool,
+        json: bool,
+    },
+    Recent {
+        range: String,
+        limit: u32,
+        full_paths: bool,
+    },
+    Fm {
+        args: Vec<String>,
+    },
 }
