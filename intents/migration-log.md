@@ -19,7 +19,7 @@
 | Domain | Status | doctor score |
 |---|---|---|
 | link | ✅ complete | 20/21 |
-| zone | ⬜ pending | — |
+| zone | ✅ complete | 20/21 |
 | intent | ⬜ pending | — |
 | profile | ⬜ pending | — |
 | security | ⬜ pending | — |
@@ -38,3 +38,4 @@
 - 2026-02-20: Phase 0 complete, v1.0.0-stable tagged
 - 2026-02-20: Phase 1 complete, engine/ scaffold builds, core version + core doctor working
 - 2026-02-20: Phase 2 started, link domain migrated, faelight-link wrapper delegates to core link
+- 2026-02-20: zone domain migrated, faelight-zone wrapper delegates to core zone

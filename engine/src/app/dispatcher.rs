@@ -20,5 +20,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             LinkCommand::List => crate::domains::link::list(ctx),
             LinkCommand::Audit => crate::domains::link::audit(ctx),
         },
+        Command::Zone {
+            icon,
+            label,
+            json,
+            health,
+        } => crate::domains::zone::run(ctx, icon, label, json, health),
     }
 }

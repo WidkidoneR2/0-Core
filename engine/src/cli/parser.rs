@@ -23,6 +23,17 @@ pub enum Commands {
         #[command(subcommand)]
         command: LinkCommands,
     },
+    /// Detect current filesystem zone
+    Zone {
+        #[arg(long)]
+        icon: bool,
+        #[arg(long)]
+        label: bool,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        health: bool,
+    },
 }
 
 #[derive(Subcommand)]

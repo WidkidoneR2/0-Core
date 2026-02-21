@@ -15,5 +15,16 @@ pub fn parse() -> Command {
             LinkCommands::List => LinkCommand::List,
             LinkCommands::Audit => LinkCommand::Audit,
         }),
+        Commands::Zone {
+            icon,
+            label,
+            json,
+            health,
+        } => Command::Zone {
+            icon,
+            label,
+            json,
+            health,
+        },
     }
 }
