@@ -1352,6 +1352,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-sandbox"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "dialoguer",
+ "faelight-core",
+ "serde",
+ "serde_json",
+ "walkdir",
+]
+
+[[package]]
 name = "faelight-snapshot"
 version = "2.0.0"
 
