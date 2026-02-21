@@ -278,28 +278,64 @@ fn show_package(core_dir: &std::path::Path, package: &str, limit: usize, json: b
 }
 
 fn show_stats(core_dir: &std::path::Path, since: Option<&str>, json: bool) -> Result<()> {
-    let mut args = vec!["--shortstat", "--format=%H"];
-    let range;
+    let core_str = core_dir.to_str().unwrap_or(".");
+
+    // Count commits
+    let mut count_args = vec!["-C", core_str, "rev-list", "--count"];
+    let range1;
     if let Some(ver) = since {
-        range = format!("{}..HEAD", ver);
-        args.push(&range);
+        range1 = format!("{}..HEAD", ver);
+        count_args.push(&range1);
+    } else {
+        count_args.push("HEAD");
     }
+    let total_commits = Command::new("git")
+        .args(&count_args)
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .unwrap_or(0);
 
-    let commits = get_commits_with_files(core_dir, &args)?;
+    // Get file/insertion/deletion stats
+    let mut stat_args = vec!["-C", core_str, "log", "--shortstat", "--format="];
+    let range2;
+    if let Some(ver) = since {
+        range2 = format!("{}..HEAD", ver);
+        stat_args.push(&range2);
+    }
+    let stat_out = Command::new("git")
+        .args(&stat_args)
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
 
-    let total_commits = commits.len();
-    let total_files: usize = commits
-        .iter()
-        .filter_map(|c| c.stats.as_ref().map(|s| s.files))
-        .sum();
-    let total_insertions: usize = commits
-        .iter()
-        .filter_map(|c| c.stats.as_ref().map(|s| s.insertions))
-        .sum();
-    let total_deletions: usize = commits
-        .iter()
-        .filter_map(|c| c.stats.as_ref().map(|s| s.deletions))
-        .sum();
+    let mut total_files = 0usize;
+    let mut total_insertions = 0usize;
+    let mut total_deletions = 0usize;
+    for line in stat_out.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        for part in line.split(',') {
+            let part = part.trim();
+            if let Some(n) = part
+                .split_whitespace()
+                .next()
+                .and_then(|s| s.parse::<usize>().ok())
+            {
+                if part.contains("file") {
+                    total_files += n;
+                } else if part.contains("insertion") {
+                    total_insertions += n;
+                } else if part.contains("deletion") {
+                    total_deletions += n;
+                }
+            }
+        }
+    }
 
     if json {
         let stats = serde_json::json!({
@@ -310,27 +346,17 @@ fn show_stats(core_dir: &std::path::Path, since: Option<&str>, json: bool) -> Re
             "since": since,
         });
         println!("{}", serde_json::to_string_pretty(&stats)?);
-    } else {
-        println!();
-        println!("{}", "📊 System Statistics".cyan().bold());
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-        println!();
-        if let Some(ver) = since {
-            println!("  Since: {}", ver.yellow());
-        } else {
-            println!("  Scope: {}", "All time".yellow());
-        }
-        println!();
-        println!("  Commits:      {}", total_commits.to_string().green());
-        println!("  Files changed: {}", total_files.to_string().blue());
-        println!(
-            "  Insertions:   {}",
-            format!("+{}", total_insertions).green()
-        );
-        println!("  Deletions:    {}", format!("-{}", total_deletions).red());
-        println!();
+        return Ok(());
     }
 
+    let scope = since.unwrap_or("All time");
+    println!("{}", "📊 System Statistics".cyan().bold());
+    println!("{}", "━".repeat(41).dimmed());
+    println!("  Scope: {}", scope.green());
+    println!("  Commits:      {}", total_commits.to_string().green());
+    println!("  Files changed: {}", total_files.to_string().yellow());
+    println!("  Insertions:   +{}", total_insertions.to_string().green());
+    println!("  Deletions:    -{}", total_deletions.to_string().red());
     Ok(())
 }
 
