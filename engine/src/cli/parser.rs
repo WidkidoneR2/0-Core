@@ -47,6 +47,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SandboxCommands,
     },
+    /// Show system information
+    Fetch {
+        #[arg(long)]
+        health_check: bool,
+    },
 }
 
 #[derive(Subcommand)]

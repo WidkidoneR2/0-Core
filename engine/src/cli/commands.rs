@@ -15,6 +15,9 @@ pub enum Command {
     Profile(ProfileCommand),
     Security(SecurityCommand),
     Sandbox(SandboxCommand),
+    Fetch {
+        health_check: bool,
+    },
 }
 
 #[derive(Debug)]

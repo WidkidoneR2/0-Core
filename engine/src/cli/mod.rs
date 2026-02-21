@@ -67,5 +67,6 @@ pub fn parse() -> Command {
             SandboxCommands::Restore { name } => SandboxCommand::Restore { name },
             SandboxCommands::Snapshots => SandboxCommand::Snapshots,
         }),
+        Commands::Fetch { health_check } => Command::Fetch { health_check },
     }
 }

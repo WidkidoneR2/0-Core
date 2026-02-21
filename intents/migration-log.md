@@ -26,7 +26,7 @@
 | sandbox | ✅ complete | 20/21 |
 | update | ⬜ pending | — |
 | doctor | ⬜ pending | — |
-| fetch | ⬜ pending | — |
+| fetch | ✅ complete | 20/21 |
 | git | ⬜ pending | — |
 | workspace | ⬜ pending | — |
 | release | ⬜ pending | — |
@@ -43,3 +43,4 @@
 - 2026-02-20: profile domain migrated, profile wrapper delegates to core profile
 - 2026-02-20: security domain migrated, security-audit wrapper delegates to core security
 - 2026-02-20: sandbox domain migrated, faelight-sandbox wrapper delegates to core sandbox
+- 2026-02-20: fetch domain migrated, faelight-fetch wrapper delegates to core fetch
