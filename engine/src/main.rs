@@ -26,9 +26,17 @@ fn main() {
         }
     };
 
+    // Acquire runtime lock — held until end of scope
+    let _lock = match runtime::RuntimeLock::acquire(&ctx.runtime) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("{} {}", "✗".bright_red(), e);
+            std::process::exit(1);
+        }
+    };
+
     if let Err(e) = app::dispatcher::dispatch(cmd, &ctx) {
         eprintln!("{} {}", "✗".bright_red(), e);
         std::process::exit(1);
     }
 }
-// force rebuild
