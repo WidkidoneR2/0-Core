@@ -49,6 +49,26 @@ enum Commands {
 
     /// Clear sandbox session state
     Clear,
+
+    /// Create a reflink snapshot of a directory
+    Snapshot {
+        /// Directory to snapshot (default: ~/0-core)
+        #[arg(long)]
+        target: Option<String>,
+
+        /// Name for this snapshot
+        #[arg(long)]
+        name: Option<String>,
+    },
+
+    /// Restore from a snapshot
+    Restore {
+        /// Snapshot name to restore
+        name: String,
+    },
+
+    /// List available snapshots
+    Snapshots,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -395,6 +415,154 @@ fn main() -> Result<()> {
             } else {
                 println!("  {} No session to clear", "○".bright_black());
             }
+        }
+
+        Commands::Snapshot { target, name } => {
+            ensure_state_dir()?;
+            let target_dir = target.unwrap_or_else(|| format!("{}/0-core", home()));
+            let snap_name =
+                name.unwrap_or_else(|| Local::now().format("%Y%m%d-%H%M%S").to_string());
+            let snap_dir = state_dir().join("snapshots").join(&snap_name);
+
+            fs::create_dir_all(snap_dir.parent().unwrap())?;
+
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("{}", "📸 faelight-sandbox snapshot".bold().bright_cyan());
+            println!("   Source:   {}", target_dir.dimmed());
+            println!("   Snapshot: {}", snap_name.bright_white());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+
+            print!(
+                "
+  {} Creating reflink snapshot...",
+                "📸".cyan()
+            );
+
+            let status = Command::new("cp")
+                .args([
+                    "--reflink=always",
+                    "-r",
+                    &target_dir,
+                    snap_dir.to_str().unwrap(),
+                ])
+                .status()?;
+
+            if status.success() {
+                println!(" {}", "done".bright_green());
+                println!(
+                    "  {} Snapshot '{}' created",
+                    "✅".green(),
+                    snap_name.bright_white()
+                );
+                println!(
+                    "  {} Location: {}",
+                    "💾".dimmed(),
+                    snap_dir.display().to_string().dimmed()
+                );
+            } else {
+                println!(" {}", "failed".bright_red());
+                println!(
+                    "  {} Reflink failed — ensure source and destination are on same btrfs volume",
+                    "✗".bright_red()
+                );
+            }
+        }
+
+        Commands::Restore { name } => {
+            let snap_dir = state_dir().join("snapshots").join(&name);
+            if !snap_dir.exists() {
+                println!("  {} Snapshot '{}' not found", "⚠️".yellow(), name);
+                println!("  {} Run: faelight-sandbox snapshots", "💡".dimmed());
+                return Ok(());
+            }
+
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!(
+                "  {} Restore from snapshot '{}'",
+                "⚠️".bright_yellow(),
+                name.bright_white()
+            );
+            println!("  This will overwrite the current target directory.");
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+
+            use dialoguer::Confirm;
+            if !Confirm::new()
+                .with_prompt("Proceed with restore?")
+                .default(false)
+                .interact()?
+            {
+                println!("  {} Cancelled", "○".bright_black());
+                return Ok(());
+            }
+
+            // Find what was snapshotted (single dir inside snap_dir)
+            let entries: Vec<_> = fs::read_dir(&snap_dir)?.flatten().collect();
+            if entries.len() != 1 {
+                println!("  {} Unexpected snapshot structure", "✗".bright_red());
+                return Ok(());
+            }
+
+            let snap_content = &entries[0].path();
+            let target = PathBuf::from(&home()).join(entries[0].file_name());
+
+            print!("  {} Restoring...", "🔄".cyan());
+            let status = Command::new("cp")
+                .args([
+                    "--reflink=always",
+                    "-r",
+                    "--backup=numbered",
+                    snap_content.to_str().unwrap(),
+                    target.parent().unwrap().to_str().unwrap(),
+                ])
+                .status()?;
+
+            if status.success() {
+                println!(" {}", "done".bright_green());
+                println!("  {} Restored from '{}'", "✅".green(), name.bright_white());
+            } else {
+                println!(" {}", "failed".bright_red());
+            }
+        }
+
+        Commands::Snapshots => {
+            let snap_root = state_dir().join("snapshots");
+            if !snap_root.exists() || fs::read_dir(&snap_root)?.count() == 0 {
+                println!("  {} No snapshots found", "○".bright_black());
+                println!("  {} Run: faelight-sandbox snapshot", "💡".dimmed());
+                return Ok(());
+            }
+
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("{}", "📸 Available Snapshots".bold());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+
+            let mut snaps: Vec<_> = fs::read_dir(&snap_root)?.flatten().collect();
+            snaps.sort_by_key(|e| e.file_name());
+
+            for snap in snaps {
+                let name = snap.file_name().to_string_lossy().to_string();
+                // Get size
+                let size = Command::new("du")
+                    .args(["-sh", snap.path().to_str().unwrap()])
+                    .output()
+                    .map(|o| {
+                        String::from_utf8_lossy(&o.stdout)
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or("?")
+                            .to_string()
+                    })
+                    .unwrap_or_else(|_| "?".to_string());
+
+                println!(
+                    "  {} {}  {}",
+                    "▶".dimmed(),
+                    name.bright_white(),
+                    size.dimmed()
+                );
+            }
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("  Restore with: faelight-sandbox restore <name>");
         }
     }
 
