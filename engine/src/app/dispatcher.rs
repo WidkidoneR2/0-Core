@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
-    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand,
-    SecurityCommand, WorkspaceCommand,
+    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, ReleaseCommand,
+    SandboxCommand, SecurityCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -84,6 +84,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 full_paths,
             } => crate::domains::workspace::recent(ctx, &range, limit, full_paths),
             WorkspaceCommand::Fm { args } => crate::domains::workspace::fm(ctx, &args),
+        },
+        Command::Release(c) => match c {
+            ReleaseCommand::Get { package } => {
+                crate::domains::release::get_version(ctx, package.as_deref())
+            }
+            ReleaseCommand::BumpTool { args } => crate::domains::release::bump_tool(ctx, &args),
+            ReleaseCommand::BumpSystem { dry_run } => {
+                crate::domains::release::bump_system(ctx, dry_run)
+            }
         },
     }
 }

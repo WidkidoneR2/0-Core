@@ -20,6 +20,7 @@ pub enum Command {
     },
     Git(GitCommand),
     Workspace(WorkspaceCommand),
+    Release(ReleaseCommand),
 }
 
 #[derive(Debug)]
@@ -98,4 +99,11 @@ pub enum WorkspaceCommand {
     Fm {
         args: Vec<String>,
     },
+}
+
+#[derive(Debug)]
+pub enum ReleaseCommand {
+    Get { package: Option<String> },
+    BumpTool { args: Vec<String> },
+    BumpSystem { dry_run: bool },
 }

@@ -58,6 +58,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: WorkspaceCommands,
     },
+    Release {
+        #[command(subcommand)]
+        command: ReleaseCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -163,7 +167,6 @@ pub enum GitCommands {
 
 #[derive(Subcommand)]
 pub enum WorkspaceCommands {
-    /// Show Sway workspace info
     View {
         #[arg(long)]
         active: bool,
@@ -172,7 +175,6 @@ pub enum WorkspaceCommands {
         #[arg(long)]
         json: bool,
     },
-    /// Show recently modified files
     Recent {
         #[arg(default_value = "today")]
         range: String,
@@ -181,9 +183,24 @@ pub enum WorkspaceCommands {
         #[arg(long)]
         full_paths: bool,
     },
-    /// Open file manager
     Fm {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ReleaseCommands {
+    /// Get version for a package
+    Get { package: Option<String> },
+    /// Bump a tool version
+    BumpTool {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Bump system version
+    BumpSystem {
+        #[arg(long)]
+        dry_run: bool,
     },
 }
