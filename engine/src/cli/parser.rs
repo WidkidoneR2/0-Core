@@ -11,19 +11,15 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Show version information
     Version,
-    /// Run health checks
     Doctor {
         #[arg(long)]
         preflight: bool,
     },
-    /// Manage stow symlinks
     Link {
         #[command(subcommand)]
         command: LinkCommands,
     },
-    /// Detect current filesystem zone
     Zone {
         #[arg(long)]
         icon: bool,
@@ -34,20 +30,22 @@ pub enum Commands {
         #[arg(long)]
         health: bool,
     },
-    /// Manage the intent ledger
     Intent {
         #[command(subcommand)]
         command: IntentCommands,
     },
-    /// Manage system profiles
     Profile {
         #[command(subcommand)]
         command: ProfileCommands,
     },
-    /// Security vulnerability scanning
     Security {
         #[command(subcommand)]
         command: SecurityCommands,
+    },
+    /// Controlled experimentation environment
+    Sandbox {
+        #[command(subcommand)]
+        command: SandboxCommands,
     },
 }
 
@@ -92,15 +90,36 @@ pub enum ProfileCommands {
 
 #[derive(Subcommand)]
 pub enum SecurityCommands {
-    /// Run a full security scan
     Scan,
-    /// Show findings from last scan
     Report {
         #[arg(long)]
         all: bool,
     },
-    /// Show details for a specific finding
-    Show { id: String },
-    /// List scan history
+    Show {
+        id: String,
+    },
     History,
+}
+
+#[derive(Subcommand)]
+pub enum SandboxCommands {
+    /// Run a command in the sandbox
+    Run { args: Vec<String> },
+    /// Show what changed in last session
+    Diff,
+    /// Show current sandbox status
+    Status,
+    /// Clear sandbox session state
+    Clear,
+    /// Create a reflink snapshot
+    Snapshot {
+        #[arg(long)]
+        target: String,
+        #[arg(long)]
+        name: String,
+    },
+    /// Restore from a snapshot
+    Restore { name: String },
+    /// List available snapshots
+    Snapshots,
 }

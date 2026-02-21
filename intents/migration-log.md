@@ -23,7 +23,7 @@
 | intent | ✅ complete | 20/21 |
 | profile | ✅ complete | 20/21 |
 | security | ✅ complete | 20/21 |
-| sandbox | ⬜ pending | — |
+| sandbox | ✅ complete | 20/21 |
 | update | ⬜ pending | — |
 | doctor | ⬜ pending | — |
 | fetch | ⬜ pending | — |
@@ -42,3 +42,4 @@
 - 2026-02-20: intent domain migrated, intent wrapper delegates to core intent
 - 2026-02-20: profile domain migrated, profile wrapper delegates to core profile
 - 2026-02-20: security domain migrated, security-audit wrapper delegates to core security
+- 2026-02-20: sandbox domain migrated, faelight-sandbox wrapper delegates to core sandbox
