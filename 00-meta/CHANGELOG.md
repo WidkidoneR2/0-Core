@@ -1,5 +1,34 @@
 # Changelog
 
+## v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
+
+- END- core v2.0.0 single orchestrator binary replaces all v1 tool delegation
+- - All 15 domains implemented natively in Rust (no shell scripts with logic)
+- - Phase 1-6 migration complete: scaffold, wiring, native, runtime, cleanup, capabilities
+- - Runtime locking prevents concurrent core processes
+- - Capability model enforces domain permissions at dispatch time
+- - JSONL audit log at runtime/logs/capabilities.jsonl
+- - 36/36 tools deployed at 100% path resilience
+- - Removed deprecated rust-tools: dot-doctor, security-audit, recent-files
+- - Consolidated runtime to runtime/ (removed legacy 04-runtime/)
+- - 0c alias for cd ~/0-core, core alias now correctly points to binary
+
+**Tools Updated:** recent-files, security-audit, dot-doctor
+
+**Statistics:**
+- Tools: 36/36 deployed (100%)
+- Aliases: 318 total
+- Intents: 92 total (55 complete, 8 planned)
+- Domains: 15/15 native
+- Health: 95% locked / 90% unlocked
+
+- System Health: 100%
+- Commits: 29
+- Files Changed: 24
+
+---
+
+
 ## v9.9.0 - 🌲 The Forest Grows — Visual Intelligence Update (2026-02-20)
 
 - Real-time status bar with profile-aware color theming
