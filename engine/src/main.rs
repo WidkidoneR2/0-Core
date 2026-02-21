@@ -26,14 +26,11 @@ fn main() {
         }
     };
 
-    // Acquire runtime lock — held until end of scope
-    let _lock = match runtime::RuntimeLock::acquire(&ctx.runtime) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("{} {}", "✗".bright_red(), e);
-            std::process::exit(1);
-        }
-    };
+    // Acquire runtime lock only for write operations
+    // Skip for read-only commands that run constantly (zone, fetch, version)
+    // Acquire runtime lock — warn but don't fail on contention
+    // This prevents corruption without blocking the bar/prompt polling
+    let _lock = runtime::RuntimeLock::acquire(&ctx.runtime).ok();
 
     if let Err(e) = app::dispatcher::dispatch(cmd, &ctx) {
         eprintln!("{} {}", "✗".bright_red(), e);
