@@ -13,6 +13,7 @@ pub enum Command {
     },
     Intent(IntentCommand),
     Profile(ProfileCommand),
+    Security(SecurityCommand),
 }
 
 #[derive(Debug)]
@@ -46,4 +47,12 @@ pub enum ProfileCommand {
     Switch { name: String },
     History,
     Health,
+}
+
+#[derive(Debug)]
+pub enum SecurityCommand {
+    Scan,
+    Report { all: bool },
+    Show { id: String },
+    History,
 }
