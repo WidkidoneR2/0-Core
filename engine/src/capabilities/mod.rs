@@ -1,4 +1,7 @@
+use chrono::Local;
 use std::collections::HashSet;
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
@@ -38,17 +41,42 @@ impl std::fmt::Display for Capability {
 
 pub struct CapabilityContext {
     granted: HashSet<Capability>,
+    log_path: PathBuf,
 }
 
 impl CapabilityContext {
     pub fn unprivileged() -> Self {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let log_path = PathBuf::from(&home).join("0-core/runtime/logs/capabilities.jsonl");
         let mut granted = HashSet::new();
         granted.insert(Capability::FilesystemReadConfig);
         granted.insert(Capability::FilesystemReadHome);
         granted.insert(Capability::FilesystemWriteRuntime);
         granted.insert(Capability::SpawnProcess);
         granted.insert(Capability::NetworkQuery);
-        Self { granted }
+        granted.insert(Capability::ControlSystemdUser);
+        granted.insert(Capability::ControlSway);
+        granted.insert(Capability::OrchestratorAccess);
+        granted.insert(Capability::FilesystemWriteHome);
+        Self { granted, log_path }
+    }
+
+    pub fn require(
+        &self,
+        domain: &str,
+        caps: &[Capability],
+    ) -> Result<(), crate::errors::CoreError> {
+        for cap in caps {
+            let granted = self.granted.contains(cap);
+            self.log_usage(domain, cap, granted);
+            if !granted {
+                return Err(crate::errors::CoreError::CapabilityDenied(format!(
+                    "{} requires {}",
+                    domain, cap
+                )));
+            }
+        }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -64,5 +92,28 @@ impl CapabilityContext {
     #[allow(dead_code)]
     pub fn has(&self, cap: &Capability) -> bool {
         self.granted.contains(cap)
+    }
+
+    fn log_usage(&self, domain: &str, cap: &Capability, granted: bool) {
+        if let Some(parent) = self.log_path.parent() {
+            fs::create_dir_all(parent).ok();
+        }
+        let entry = format!(
+            "{{\"ts\":\"{}\",\"domain\":\"{}\",\"capability\":\"{}\",\"granted\":{}}}
+",
+            Local::now().format("%Y-%m-%dT%H:%M:%S"),
+            domain,
+            cap,
+            granted
+        );
+        // Append to JSONL log
+        use std::io::Write;
+        if let Ok(mut f) = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_path)
+        {
+            f.write_all(entry.as_bytes()).ok();
+        }
     }
 }
