@@ -44,6 +44,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: ProfileCommands,
     },
+    /// Security vulnerability scanning
+    Security {
+        #[command(subcommand)]
+        command: SecurityCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -78,14 +83,24 @@ pub enum IntentCommands {
 
 #[derive(Subcommand)]
 pub enum ProfileCommands {
-    /// List available profiles
     List,
-    /// Show current profile status
     Status,
-    /// Switch to a profile
     Switch { name: String },
-    /// Show profile switch history
     History,
-    /// Run profile health check
     Health,
+}
+
+#[derive(Subcommand)]
+pub enum SecurityCommands {
+    /// Run a full security scan
+    Scan,
+    /// Show findings from last scan
+    Report {
+        #[arg(long)]
+        all: bool,
+    },
+    /// Show details for a specific finding
+    Show { id: String },
+    /// List scan history
+    History,
 }

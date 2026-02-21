@@ -1,5 +1,5 @@
 use crate::app::context::AppContext;
-use crate::cli::commands::{Command, IntentCommand, LinkCommand, ProfileCommand};
+use crate::cli::commands::{Command, IntentCommand, LinkCommand, ProfileCommand, SecurityCommand};
 use crate::errors::CoreResult;
 use colored::*;
 
@@ -43,6 +43,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ProfileCommand::Switch { name } => crate::domains::profile::switch(ctx, &name),
             ProfileCommand::History => crate::domains::profile::history(),
             ProfileCommand::Health => crate::domains::profile::health(ctx),
+        },
+        Command::Security(security_cmd) => match security_cmd {
+            SecurityCommand::Scan => crate::domains::security::scan(ctx),
+            SecurityCommand::Report { all } => crate::domains::security::report(ctx, all),
+            SecurityCommand::Show { id } => crate::domains::security::show(ctx, &id),
+            SecurityCommand::History => crate::domains::security::history(ctx),
         },
     }
 }
