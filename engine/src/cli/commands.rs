@@ -14,6 +14,7 @@ pub enum Command {
     Intent(IntentCommand),
     Profile(ProfileCommand),
     Security(SecurityCommand),
+    Sandbox(SandboxCommand),
 }
 
 #[derive(Debug)]
@@ -55,4 +56,15 @@ pub enum SecurityCommand {
     Report { all: bool },
     Show { id: String },
     History,
+}
+
+#[derive(Debug)]
+pub enum SandboxCommand {
+    Run { args: Vec<String> },
+    Diff,
+    Status,
+    Clear,
+    Snapshot { target: String, name: String },
+    Restore { name: String },
+    Snapshots,
 }

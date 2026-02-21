@@ -2,8 +2,12 @@ pub mod commands;
 pub mod parser;
 
 use clap::Parser;
-use commands::{Command, IntentCommand, LinkCommand, ProfileCommand, SecurityCommand};
-use parser::{Cli, Commands, IntentCommands, LinkCommands, ProfileCommands, SecurityCommands};
+use commands::{
+    Command, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand, SecurityCommand,
+};
+use parser::{
+    Cli, Commands, IntentCommands, LinkCommands, ProfileCommands, SandboxCommands, SecurityCommands,
+};
 
 pub fn parse() -> Command {
     let cli = Cli::parse();
@@ -53,6 +57,15 @@ pub fn parse() -> Command {
             SecurityCommands::Report { all } => SecurityCommand::Report { all },
             SecurityCommands::Show { id } => SecurityCommand::Show { id },
             SecurityCommands::History => SecurityCommand::History,
+        }),
+        Commands::Sandbox { command } => Command::Sandbox(match command {
+            SandboxCommands::Run { args } => SandboxCommand::Run { args },
+            SandboxCommands::Diff => SandboxCommand::Diff,
+            SandboxCommands::Status => SandboxCommand::Status,
+            SandboxCommands::Clear => SandboxCommand::Clear,
+            SandboxCommands::Snapshot { target, name } => SandboxCommand::Snapshot { target, name },
+            SandboxCommands::Restore { name } => SandboxCommand::Restore { name },
+            SandboxCommands::Snapshots => SandboxCommand::Snapshots,
         }),
     }
 }

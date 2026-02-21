@@ -1,5 +1,7 @@
 use crate::app::context::AppContext;
-use crate::cli::commands::{Command, IntentCommand, LinkCommand, ProfileCommand, SecurityCommand};
+use crate::cli::commands::{
+    Command, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand, SecurityCommand,
+};
 use crate::errors::CoreResult;
 use colored::*;
 
@@ -15,7 +17,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             Ok(())
         }
         Command::Doctor { preflight } => crate::domains::doctor::run(ctx, preflight),
-        Command::Link(link_cmd) => match link_cmd {
+        Command::Link(c) => match c {
             LinkCommand::Status { json } => crate::domains::link::status(ctx, json),
             LinkCommand::List => crate::domains::link::list(ctx),
             LinkCommand::Audit => crate::domains::link::audit(ctx),
@@ -26,7 +28,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             json,
             health,
         } => crate::domains::zone::run(ctx, icon, label, json, health),
-        Command::Intent(intent_cmd) => match intent_cmd {
+        Command::Intent(c) => match c {
             IntentCommand::List {
                 planned,
                 active,
@@ -37,18 +39,29 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             IntentCommand::Stats => crate::domains::intent::stats(ctx),
             IntentCommand::Validate => crate::domains::intent::validate(ctx),
         },
-        Command::Profile(profile_cmd) => match profile_cmd {
+        Command::Profile(c) => match c {
             ProfileCommand::List => crate::domains::profile::list(ctx),
             ProfileCommand::Status => crate::domains::profile::status(ctx),
             ProfileCommand::Switch { name } => crate::domains::profile::switch(ctx, &name),
             ProfileCommand::History => crate::domains::profile::history(),
             ProfileCommand::Health => crate::domains::profile::health(ctx),
         },
-        Command::Security(security_cmd) => match security_cmd {
+        Command::Security(c) => match c {
             SecurityCommand::Scan => crate::domains::security::scan(ctx),
             SecurityCommand::Report { all } => crate::domains::security::report(ctx, all),
             SecurityCommand::Show { id } => crate::domains::security::show(ctx, &id),
             SecurityCommand::History => crate::domains::security::history(ctx),
+        },
+        Command::Sandbox(c) => match c {
+            SandboxCommand::Run { args } => crate::domains::sandbox::run(ctx, &args),
+            SandboxCommand::Diff => crate::domains::sandbox::diff(ctx),
+            SandboxCommand::Status => crate::domains::sandbox::status(ctx),
+            SandboxCommand::Clear => crate::domains::sandbox::clear(ctx),
+            SandboxCommand::Snapshot { target, name } => {
+                crate::domains::sandbox::snapshot(ctx, &target, &name)
+            }
+            SandboxCommand::Restore { name } => crate::domains::sandbox::restore(ctx, &name),
+            SandboxCommand::Snapshots => crate::domains::sandbox::snapshots(ctx),
         },
     }
 }
