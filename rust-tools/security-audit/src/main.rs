@@ -261,7 +261,9 @@ fn scan_arch() -> Vec<Finding> {
                 category: "System Package".to_string(),
                 package: pkg.clone(),
                 description: format!("{} ({})", vuln_type, cves.join(", ")),
-                fix: Some("Run: sudo pacman -Syu".to_string()),
+                fix: Some(
+                    "Run: sudo pacman -Syu (if patch available — check: arch-audit -u)".to_string(),
+                ),
                 url: Some(format!("https://security.archlinux.org/{}", avg_id)),
             });
         }
