@@ -3,21 +3,34 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    Command, DoctorCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, NotifyCommands,
-    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, UpdateCommands,
-    WorkspaceCommands,
+    Cli, Commands, DoctorCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands,
+    NotifyCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
+    UpdateCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
     let cli = Cli::parse();
     match cli.command {
         Commands::Version => Command::Version,
-        Commands::Doctor { preflight } => Command::Doctor { preflight },
+        Commands::Doctor { command } => Command::Doctor(match command {
+            DoctorCommands::Run { preflight } => DoctorCommand::Run { preflight },
+            DoctorCommands::Aliases { subcmd } => DoctorCommand::Aliases { subcmd },
+            DoctorCommands::Entropy {
+                baseline,
+                trends,
+                json,
+            } => DoctorCommand::Entropy {
+                baseline,
+                trends,
+                json,
+            },
+            DoctorCommands::Bins { subcmd } => DoctorCommand::Bins { subcmd },
+        }),
         Commands::Link { command } => Command::Link(match command {
             LinkCommands::Status { json } => LinkCommand::Status { json },
             LinkCommands::List => LinkCommand::List,

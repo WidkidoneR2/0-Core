@@ -1,29 +1,47 @@
+#![allow(dead_code)]
 use crate::app::context::AppContext;
-use crate::capabilities::Capability;
 use crate::errors::CoreResult;
-use colored::*;
+use std::process::Command;
 
-pub fn run(ctx: &AppContext, preflight: bool) -> CoreResult<()> {
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("{}", "🏥 core doctor — 0-Core v2".bold());
+pub fn run(_ctx: &AppContext, preflight: bool) -> CoreResult<()> {
+    // Phase 2: delegate to dot-doctor v1
+    let mut cmd = Command::new("dot-doctor");
     if preflight {
-        println!("{}", "   Mode: preflight (no execution)".dimmed());
+        cmd.arg("--preflight");
     }
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("  {} Engine initialized", "✅".green());
-    println!(
-        "  {} Runtime: {}",
-        "✅".green(),
-        ctx.runtime.root.display().to_string().dimmed()
-    );
-    println!("  {} State database: ready", "✅".green());
-    println!("  {} Capabilities: core set granted", "✅".green());
-    let _ = ctx.capabilities.has(&Capability::FilesystemReadConfig);
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("  {} Phase 1 scaffold healthy", "🌲".green());
-    println!(
-        "  {}",
-        "Full domain checks added as migration progresses".dimmed()
-    );
+    cmd.status()?;
+    Ok(())
+}
+
+pub fn aliases(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    let mut cmd = Command::new("alias-audit");
+    if let Some(sub) = subcmd {
+        cmd.arg(sub);
+    }
+    cmd.status()?;
+    Ok(())
+}
+
+pub fn entropy(_ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
+    let mut cmd = Command::new("entropy-check");
+    if baseline {
+        cmd.arg("--baseline");
+    }
+    if trends {
+        cmd.arg("--trends");
+    }
+    if json {
+        cmd.arg("--json");
+    }
+    cmd.status()?;
+    Ok(())
+}
+
+pub fn bins(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    let mut cmd = Command::new("bin-doctor");
+    if let Some(sub) = subcmd {
+        cmd.arg(sub);
+    }
+    cmd.status()?;
     Ok(())
 }

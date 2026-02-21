@@ -25,7 +25,7 @@
 | security | ✅ complete | 20/21 |
 | sandbox | ✅ complete | 20/21 |
 | update | ✅ complete | 20/21 |
-| doctor | ⬜ pending | — |
+| doctor | ✅ complete | 20/21 |
 | fetch | ✅ complete | 20/21 |
 | git | ✅ complete | 20/21 |
 | workspace | ✅ complete | 20/21 |
@@ -52,3 +52,4 @@
 - 2026-02-20: lock domain migrated, faelight-lock wrapper delegates to core lock
 - 2026-02-20: launcher domain migrated, palette/dmenu/launcher wrappers delegate to core launcher
 - 2026-02-20: update domain migrated, faelight-update and safe-update delegate to core update
+- 2026-02-20: doctor domain migrated — ALL 15/15 DOMAINS COMPLETE
