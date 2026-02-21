@@ -102,5 +102,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             } => crate::domains::notify::send(ctx, &summary, body.as_deref(), &urgency),
             NotifyCommand::Status => crate::domains::notify::status(ctx),
         },
+        Command::Lock { health_check } => {
+            if health_check {
+                crate::domains::lock::health(ctx)
+            } else {
+                crate::domains::lock::lock(ctx)
+            }
+        }
     }
 }
