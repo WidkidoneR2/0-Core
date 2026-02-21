@@ -439,3 +439,117 @@ adapter availability, policy conflicts. No execution side-effects.
 | faelight-fetch | core fetch |
 | faelight-git | core git risk |
 
+
+---
+
+## Architecture Decisions (Locked)
+
+These are settled. Do not revisit without a new intent.
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Source directory | `engine/` | Avoids 0-core/core/ confusion. Clear separation: forest / engine / command |
+| Binary name | `core` | Short, intentional, matches philosophy |
+| Repo location | Inside 0-core/ | One repo, one system |
+| Old tool names | Symlinks during transition, removed at cutover | Zero user disruption |
+| State storage | SQLite (`runtime/state.db`) | Queryable, typed, single file |
+| Doctor access | `OrchestratorAccess` — special capability | Only domain allowed to query all others |
+
+## Final Layout
+```
+0-core/
+  engine/           ← Rust source → binary: core
+    src/
+      domains/      ← 15 domains, strict boundaries
+      cli/
+      app/
+      registry/
+      policy/
+      runtime/
+      adapters/
+      capabilities/
+      errors/
+      logging/
+      utils/
+      main.rs
+    Cargo.toml
+  registry/         ← 4 TOML files, zero logic
+  policy/           ← constraints only, no execution
+  adapters/         ← thin I/O translation
+  runtime/          ← gitignored, all mutable state
+    state.db
+    logs/
+    cache/
+    snapshots/
+    locks/
+  docs/
+  intents/
+  Cargo.toml
+  README.md
+  VERSION
+```
+
+## 15 Domains
+
+| Domain | Owns | Replaces |
+|---|---|---|
+| intent | ledger, files, status | intent, intent-guard |
+| profile | switching, env vars | profile, dotctl |
+| security | CVE scanning, permissions, SSH | security-audit |
+| sandbox | isolation, snapshots, diffs | faelight-sandbox |
+| link | stow verification, symlinks | faelight-link |
+| zone | boundaries, write policy | faelight-zone |
+| update | safe updates, cargo | faelight-update, safe-update |
+| doctor | health checks (OrchestratorAccess) | dot-doctor, alias-audit, entropy-check, bin-doctor |
+| fetch | system info display | faelight-fetch |
+| git | workflow, risk scoring | faelight-git |
+| workspace | file nav, recent files | faelight-fm, recent-files, workspace-view |
+| release | versioning, changelog | bump-system-version, bump-tool-version, get-version |
+| notify | notifications | faelight-notify |
+| lock | screen locking | faelight-lock |
+| launcher | app launching, palette | faelight-launcher, faelight-palette, faelight-dmenu |
+
+## SQLite Schema
+```sql
+CREATE TABLE domain_state (
+    domain      TEXT NOT NULL,
+    key         TEXT NOT NULL,
+    value       TEXT NOT NULL,  -- JSON
+    updated_at  INTEGER NOT NULL,
+    PRIMARY KEY (domain, key)
+);
+
+CREATE TABLE events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain      TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    payload     TEXT,
+    timestamp   INTEGER NOT NULL
+);
+
+CREATE TABLE capabilities_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain      TEXT NOT NULL,
+    capability  TEXT NOT NULL,
+    granted     INTEGER NOT NULL,
+    timestamp   INTEGER NOT NULL
+);
+```
+
+## Capability Taxonomy
+
+| Capability | Allows | Notes |
+|---|---|---|
+| FilesystemReadConfig | Read registry/, policy/ | All domains |
+| FilesystemReadHome | Read anywhere in ~/ | Declared per domain |
+| FilesystemWriteRuntime | Write to runtime/ only | Normal operations |
+| FilesystemWriteHome | Write outside runtime/ | High — requires justification |
+| QueryPacman | Read package database | update, security, doctor |
+| ExecutePacman | Install/remove packages | core-admin only |
+| ControlSystemdUser | Manage user services | update, doctor |
+| ControlSway | Send swaymsg commands | launcher, lock |
+| NetworkQuery | Outbound network | security, update |
+| SpawnProcess | Execute subprocesses | sandbox |
+| ElevatedPrivilege | Anything needing sudo | core-admin only |
+| OrchestratorAccess | Query all domains | doctor only |
+
