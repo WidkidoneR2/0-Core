@@ -70,25 +70,37 @@ pub struct RuntimeLock {
 impl RuntimeLock {
     pub fn acquire(runtime: &Runtime) -> CoreResult<Self> {
         let path = runtime.locks.join("core.lock");
-        if path.exists() {
-            // Check if the pid in the lock file is still running
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(pid) = content.trim().parse::<u32>() {
-                    let proc_path = PathBuf::from(format!("/proc/{}", pid));
-                    if proc_path.exists() {
-                        return Err(crate::errors::CoreError::Runtime(format!(
-                            "Another core process is running (pid {})",
-                            pid
-                        )));
+        // Try up to 3 times with short delays (handles bar polling collisions)
+        for attempt in 0..3 {
+            if path.exists() {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(pid) = content.trim().parse::<u32>() {
+                        let comm_path = PathBuf::from(format!("/proc/{}/comm", pid));
+                        let is_core = fs::read_to_string(&comm_path)
+                            .map(|c| c.trim() == "core")
+                            .unwrap_or(false);
+                        if is_core {
+                            if attempt < 2 {
+                                std::thread::sleep(std::time::Duration::from_millis(50));
+                                continue;
+                            }
+                            return Err(crate::errors::CoreError::Runtime(format!(
+                                "Another core process is running (pid {})",
+                                pid
+                            )));
+                        }
                     }
                 }
+                // Stale lock — remove it
+                fs::remove_file(&path).ok();
             }
-            // Stale lock — remove it
-            fs::remove_file(&path).ok();
+            let pid = std::process::id();
+            fs::write(&path, pid.to_string())?;
+            return Ok(Self { path });
         }
-        let pid = std::process::id();
-        fs::write(&path, pid.to_string())?;
-        Ok(Self { path })
+        Err(crate::errors::CoreError::Runtime(
+            "Could not acquire runtime lock".into(),
+        ))
     }
 }
 
