@@ -1,9 +1,9 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v9.9.0
+# 🌲 Faelight Forest v10.0.0
 
-![Version](https://img.shields.io/badge/version-9.9.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-156%25-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-10.0.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
@@ -11,35 +11,24 @@
 
 ## 🎊 Latest Release
 
-### v9.9.0 - 🌲 The Forest Grows — Visual Intelligence Update (2026-02-20)
+### v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
 
-- Real-time status bar with profile-aware color theming
-- Profile system: DEF/GAME/WORK with live color propagation across bar
-- Zone detection: automatic directory-based zone display
-- Core lock status: direct lsattr verification, color-coded
-- System health: cached gradient display (green/amber/red)
-- Battery charging indicator with level-based color grading
-- WiFi: live SSID display, green connected red disconnected
-- Volume: actual percentage with mute detection
-- VPN: mullvad status, green on red off
-- faelight-hooks v10.2.0: status command, graceful tool detection
-- core-protect v2.3.0: verify command, audit log, speed fix
-- faelight-fm v2.3.0: persistent preview, full-width highlight
-- dot-doctor v4.1.0: core-protect integration, path resilience
-- faelight-update v3.2.0: path fixes, dead code removed
-- faelight-notify v2.1.0: border urgency fix, close notification
-- faelight-fetch v2.2.0: double-call bug eliminated
-- faelight-palette v2.2.0: command palette with app launching
-- faelight-menu v3.0: complete ratatui rewrite
-- 43 stale markdown files cleaned from repository
+- END- core v2.0.0 single orchestrator binary replaces all v1 tool delegation
+- - All 15 domains implemented natively in Rust (no shell scripts with logic)
+- - Phase 1-6 migration complete: scaffold, wiring, native, runtime, cleanup, capabilities
+- - Runtime locking prevents concurrent core processes
+- - Capability model enforces domain permissions at dispatch time
+- - JSONL audit log at runtime/logs/capabilities.jsonl
+- - 36/36 tools deployed at 100% path resilience
+- - Removed deprecated rust-tools: dot-doctor, security-audit, recent-files
+- - Consolidated runtime to runtime/ (removed legacy 04-runtime/)
+- - 0c alias for cd ~/0-core, core alias now correctly points to binary
 
-- 43 commits since v9.8.0
-- 8 tools improved with bug fixes
-- 1 tool completely redesigned (faelight-bar)
-- 43 stale markdown files removed
-- 38/38 tools deployed at 100% path resilience
-- 20/20 health checks passing
-- 118000+ lines of Rust across 42+ tools
+- Tools: 36/36 deployed (100%)
+- Aliases: 318 total
+- Intents: 92 total (55 complete, 8 planned)
+- Domains: 15/15 native
+- Health: 95% locked / 90% unlocked
 
 [Full Changelog →](CHANGELOG.md)
 
@@ -334,7 +323,7 @@ Feel free to learn from it, but **build your own**. That's the whole point.
 
 ---
 
-**System Version**: v9.9.09.8.09.7.09.6.0  
-**Last Updated**: 2026-02-20161410080706  
+**System Version**: v10.0.09.9.09.8.09.7.09.6.0  
+**Last Updated**: 2026-02-2120161410080706  
 **Health**: 100% ✅  
 **Path Resilience**: 100% 💎
