@@ -25,7 +25,7 @@
 | security | ✅ native | 20/21 |
 | sandbox | ✅ complete | 20/21 |
 | update | ✅ complete | 20/21 |
-| doctor | ✅ complete | 20/21 |
+| doctor | ✅ native | 21/21 |
 | fetch | ✅ complete | 20/21 |
 | git | ✅ complete | 20/21 |
 | workspace | ✅ complete | 20/21 |
