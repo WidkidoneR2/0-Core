@@ -66,6 +66,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: NotifyCommands,
     },
+    /// Lock the screen
+    Lock {
+        #[arg(long)]
+        health_check: bool,
+    },
 }
 
 #[derive(Subcommand)]

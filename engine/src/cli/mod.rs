@@ -138,5 +138,6 @@ pub fn parse() -> Command {
             },
             NotifyCommands::Status => NotifyCommand::Status,
         }),
+        Commands::Lock { health_check } => Command::Lock { health_check },
     }
 }

@@ -22,6 +22,9 @@ pub enum Command {
     Workspace(WorkspaceCommand),
     Release(ReleaseCommand),
     Notify(NotifyCommand),
+    Lock {
+        health_check: bool,
+    },
 }
 
 #[derive(Debug)]
