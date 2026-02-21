@@ -797,6 +797,7 @@ fn check_path_resilience(core_root: &str) -> CheckResult {
         "bin-doctor",
         "faelight-menu",
         "verify-bootstrap",
+        "archaeology-0-core",
     ];
     let rust_tools: Vec<String> = fs::read_dir(&rust_tools_dir)
         .map(|entries| {
