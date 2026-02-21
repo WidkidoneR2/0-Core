@@ -206,48 +206,63 @@ fn scan_cargo() -> Vec<Finding> {
 fn scan_arch() -> Vec<Finding> {
     let mut findings = Vec::new();
 
-    let output = Command::new("arch-audit")
-        .args(["--upgradable", "--json"])
-        .output();
-
+    let output = Command::new("arch-audit").args(["--json"]).output();
     let Ok(output) = output else { return findings };
+
+    // arch-audit writes JSON to stdout
     let text = String::from_utf8_lossy(&output.stdout);
 
-    // arch-audit --json outputs array of objects
-    if let Ok(packages) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
-        for pkg in packages {
-            let name = pkg["pkgname"].as_str().unwrap_or("unknown").to_string();
-            let severity_str = pkg["severity"].as_str().unwrap_or("unknown");
-            let issues = pkg["issues"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|i| i["cve"].as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default();
+    let Ok(advisories) = serde_json::from_str::<Vec<serde_json::Value>>(&text) else {
+        return findings;
+    };
 
-            let severity = match severity_str.to_lowercase().as_str() {
-                "critical" => Severity::Critical,
-                "high" => Severity::High,
-                "medium" => Severity::Medium,
-                "low" => Severity::Low,
-                _ => Severity::Medium,
-            };
+    for advisory in advisories {
+        let status = advisory["status"].as_str().unwrap_or("Unknown");
+        if status == "Unknown" {
+            continue;
+        }
 
+        let avg_id = advisory["name"].as_str().unwrap_or("UNKNOWN").to_string();
+        let severity_str = advisory["severity"].as_str().unwrap_or("Unknown");
+        let vuln_type = advisory["type"].as_str().unwrap_or("unknown issue");
+
+        let packages: Vec<String> = advisory["packages"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|p| p.as_str())
+                    .map(|s| s.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let cves: Vec<String> = advisory["issues"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|i| i.as_str())
+                    .map(|s| s.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let severity = match severity_str.to_lowercase().as_str() {
+            "critical" => Severity::Critical,
+            "high" => Severity::High,
+            "medium" => Severity::Medium,
+            "low" => Severity::Low,
+            _ => Severity::Low,
+        };
+
+        for pkg in &packages {
             findings.push(Finding {
-                id: if issues.is_empty() {
-                    format!("arch-{}", name)
-                } else {
-                    issues.clone()
-                },
-                severity,
+                id: avg_id.clone(),
+                severity: severity.clone(),
                 category: "System Package".to_string(),
-                package: name,
-                description: format!("Vulnerable package: {}", issues),
+                package: pkg.clone(),
+                description: format!("{} ({})", vuln_type, cves.join(", ")),
                 fix: Some("Run: sudo pacman -Syu".to_string()),
-                url: None,
+                url: Some(format!("https://security.archlinux.org/{}", avg_id)),
             });
         }
     }
