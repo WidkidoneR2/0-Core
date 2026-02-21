@@ -18,4 +18,22 @@ pub enum Commands {
         #[arg(long)]
         preflight: bool,
     },
+    /// Manage stow symlinks
+    Link {
+        #[command(subcommand)]
+        command: LinkCommands,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum LinkCommands {
+    /// Show status of all stow packages
+    Status {
+        #[arg(long)]
+        json: bool,
+    },
+    /// List all stow packages
+    List,
+    /// Audit link health
+    Audit,
 }

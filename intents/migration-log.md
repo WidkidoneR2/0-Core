@@ -9,7 +9,7 @@
 |---|---|---|
 | 0 — Freeze & Tag | ✅ complete | v1.0.0-stable tagged |
 | 1 — engine/ scaffold | ✅ complete | core version, core doctor working |
-| 2 — Wrappers | ⬜ pending | |
+| 2 — Wrappers | 🔄 in-progress | link domain complete |
 | 3 — Domain migration | ⬜ pending | |
 | 4 — Runtime isolation | ⬜ pending | |
 | 5 — Remove script layer | ⬜ pending | |
@@ -18,7 +18,7 @@
 ## Domain Migration Status
 | Domain | Status | doctor score |
 |---|---|---|
-| link | ⬜ pending | — |
+| link | ✅ complete | 20/21 |
 | zone | ⬜ pending | — |
 | intent | ⬜ pending | — |
 | profile | ⬜ pending | — |
@@ -37,3 +37,4 @@
 ## Session Log
 - 2026-02-20: Phase 0 complete, v1.0.0-stable tagged
 - 2026-02-20: Phase 1 complete, engine/ scaffold builds, core version + core doctor working
+- 2026-02-20: Phase 2 started, link domain migrated, faelight-link wrapper delegates to core link
