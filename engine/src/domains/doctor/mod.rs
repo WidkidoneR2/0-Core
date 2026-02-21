@@ -589,48 +589,56 @@ fn check_security_audit(home: &str) -> CheckResult {
         };
     };
     let timestamp = json["timestamp"].as_str().unwrap_or("unknown");
-    let findings = json["findings"].as_array().map(|a| a.len()).unwrap_or(0);
-    let critical = json["findings"]
-        .as_array()
-        .map(|a| {
-            a.iter()
-                .filter(|f| f["severity"].as_str() == Some("Critical"))
-                .count()
-        })
-        .unwrap_or(0);
-    let high = json["findings"]
-        .as_array()
-        .map(|a| {
-            a.iter()
-                .filter(|f| f["severity"].as_str() == Some("High"))
-                .count()
-        })
-        .unwrap_or(0);
-    let medium = json["findings"]
-        .as_array()
-        .map(|a| {
-            a.iter()
-                .filter(|f| f["severity"].as_str() == Some("Medium"))
-                .count()
-        })
-        .unwrap_or(0);
+    let all_findings = json["findings"].as_array().cloned().unwrap_or_default();
+    let findings = all_findings.len();
+
+    // Only count findings that have patches available
+    let patchable: Vec<_> = all_findings
+        .iter()
+        .filter(|f| f["fix"].as_str().unwrap_or("").contains("Patch available"))
+        .collect();
+
+    let critical = patchable
+        .iter()
+        .filter(|f| f["severity"].as_str() == Some("Critical"))
+        .count();
+    let high = patchable
+        .iter()
+        .filter(|f| f["severity"].as_str() == Some("High"))
+        .count();
+    let medium = patchable
+        .iter()
+        .filter(|f| f["severity"].as_str() == Some("Medium"))
+        .count();
+    let patchable_count = patchable.len();
+
     let status = if critical > 0 {
         Status::Fail
-    } else if high > 0 {
+    } else if high > 0 || medium > 0 {
         Status::Warn
     } else {
         Status::Pass
     };
+
+    let message = if patchable_count == 0 {
+        format!(
+            "{} findings — all upstream pending, none patchable (scan: {})",
+            findings, timestamp
+        )
+    } else {
+        format!(
+            "{} findings ({} patchable): {} critical, {} high, {} medium (scan: {})",
+            findings, patchable_count, critical, high, medium, timestamp
+        )
+    };
+
     CheckResult {
         id: "security_audit".into(),
         name: "Security Audit".into(),
         status,
-        message: format!(
-            "{} findings: {} critical, {} high, {} medium (scan: {})",
-            findings, critical, high, medium, timestamp
-        ),
-        fix: if critical > 0 || high > 0 {
-            Some("Run: core security report".into())
+        message,
+        fix: if patchable_count > 0 {
+            Some("Run: sudo pacman -Syu".into())
         } else {
             None
         },

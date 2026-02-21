@@ -94,8 +94,28 @@ fn scan_cargo(ctx: &AppContext) -> Vec<Finding> {
     findings
 }
 
+fn get_patchable_packages() -> std::collections::HashSet<String> {
+    let mut patchable = std::collections::HashSet::new();
+    if let Ok(output) = Command::new("arch-audit").args(["-u", "--json"]).output() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        if let Ok(advisories) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
+            for advisory in advisories {
+                if let Some(pkgs) = advisory["packages"].as_array() {
+                    for p in pkgs {
+                        if let Some(s) = p.as_str() {
+                            patchable.insert(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    patchable
+}
+
 fn scan_arch() -> Vec<Finding> {
     let mut findings = Vec::new();
+    let patchable = get_patchable_packages();
     let output = Command::new("arch-audit").args(["--json"]).output();
     let Ok(output) = output else { return findings };
     let text = String::from_utf8_lossy(&output.stdout);
@@ -136,15 +156,18 @@ fn scan_arch() -> Vec<Finding> {
             _ => Severity::Low,
         };
         for pkg in &packages {
+            let fix_msg = if patchable.contains(pkg.as_str()) {
+                "Patch available — run: sudo pacman -Syu".to_string()
+            } else {
+                "No patch yet — upstream pending (arch-audit -u)".to_string()
+            };
             findings.push(Finding {
                 id: avg_id.clone(),
                 severity: severity.clone(),
                 category: "System Package".to_string(),
                 package: pkg.clone(),
                 description: format!("{} ({})", vuln_type, cves.join(", ")),
-                fix: Some(
-                    "Run: sudo pacman -Syu (if patch available — check: arch-audit -u)".to_string(),
-                ),
+                fix: Some(fix_msg),
                 url: Some(format!("https://security.archlinux.org/{}", avg_id)),
             });
         }
