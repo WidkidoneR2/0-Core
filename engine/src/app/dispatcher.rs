@@ -1,6 +1,6 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
-    Command, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    Command, DoctorCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
@@ -18,7 +18,18 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             println!("{}", "0-Core v2 — single orchestrator".dimmed());
             Ok(())
         }
-        Command::Doctor { preflight } => crate::domains::doctor::run(ctx, preflight),
+        Command::Doctor(c) => match c {
+            DoctorCommand::Run { preflight } => crate::domains::doctor::run(ctx, preflight),
+            DoctorCommand::Aliases { subcmd } => {
+                crate::domains::doctor::aliases(ctx, subcmd.as_deref())
+            }
+            DoctorCommand::Entropy {
+                baseline,
+                trends,
+                json,
+            } => crate::domains::doctor::entropy(ctx, baseline, trends, json),
+            DoctorCommand::Bins { subcmd } => crate::domains::doctor::bins(ctx, subcmd.as_deref()),
+        },
         Command::Link(c) => match c {
             LinkCommand::Status { json } => crate::domains::link::status(ctx, json),
             LinkCommand::List => crate::domains::link::list(ctx),

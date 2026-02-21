@@ -61,6 +61,7 @@ impl CapabilityContext {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn has(&self, cap: &Capability) -> bool {
         self.granted.contains(cap)
     }

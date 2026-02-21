@@ -13,8 +13,8 @@ pub struct Cli {
 pub enum Commands {
     Version,
     Doctor {
-        #[arg(long)]
-        preflight: bool,
+        #[command(subcommand)]
+        command: DoctorCommands,
     },
     Link {
         #[command(subcommand)]
@@ -78,6 +78,28 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+}
+
+#[derive(Subcommand)]
+pub enum DoctorCommands {
+    /// Run full health check
+    Run {
+        #[arg(long)]
+        preflight: bool,
+    },
+    /// Audit aliases
+    Aliases { subcmd: Option<String> },
+    /// Check configuration entropy/drift
+    Entropy {
+        #[arg(long)]
+        baseline: bool,
+        #[arg(long)]
+        trends: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Check binary manifest drift
+    Bins { subcmd: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -254,12 +276,10 @@ pub enum LauncherCommands {
 
 #[derive(Subcommand)]
 pub enum UpdateCommands {
-    /// Run faelight-update
     Run {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Run safe-update
     Safe {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,

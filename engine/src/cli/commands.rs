@@ -1,9 +1,7 @@
 #[derive(Debug)]
 pub enum Command {
     Version,
-    Doctor {
-        preflight: bool,
-    },
+    Doctor(DoctorCommand),
     Link(LinkCommand),
     Zone {
         icon: bool,
@@ -27,6 +25,24 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+}
+
+#[derive(Debug)]
+pub enum DoctorCommand {
+    Run {
+        preflight: bool,
+    },
+    Aliases {
+        subcmd: Option<String>,
+    },
+    Entropy {
+        baseline: bool,
+        trends: bool,
+        json: bool,
+    },
+    Bins {
+        subcmd: Option<String>,
+    },
 }
 
 #[derive(Debug)]
