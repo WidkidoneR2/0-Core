@@ -1,6 +1,7 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
-    Command, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand, SecurityCommand,
+    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand,
+    SecurityCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -64,5 +65,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             SandboxCommand::Snapshots => crate::domains::sandbox::snapshots(ctx),
         },
         Command::Fetch { health_check } => crate::domains::fetch::run(ctx, health_check),
+        Command::Git(c) => match c {
+            GitCommand::Status => crate::domains::git::status(ctx),
+            GitCommand::Risk => crate::domains::git::risk(ctx),
+            GitCommand::Log { n } => crate::domains::git::log_cmd(ctx, n),
+            GitCommand::Verify => crate::domains::git::verify(ctx),
+            GitCommand::Delegate { subcmd, args } => crate::domains::git::delegate(&subcmd, &args),
+        },
     }
 }

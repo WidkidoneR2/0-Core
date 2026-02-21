@@ -18,6 +18,7 @@ pub enum Command {
     Fetch {
         health_check: bool,
     },
+    Git(GitCommand),
 }
 
 #[derive(Debug)]
@@ -70,4 +71,13 @@ pub enum SandboxCommand {
     Snapshot { target: String, name: String },
     Restore { name: String },
     Snapshots,
+}
+
+#[derive(Debug)]
+pub enum GitCommand {
+    Status,
+    Risk,
+    Log { n: u32 },
+    Verify,
+    Delegate { subcmd: String, args: Vec<String> },
 }

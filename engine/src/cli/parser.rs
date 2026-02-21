@@ -42,15 +42,17 @@ pub enum Commands {
         #[command(subcommand)]
         command: SecurityCommands,
     },
-    /// Controlled experimentation environment
     Sandbox {
         #[command(subcommand)]
         command: SandboxCommands,
     },
-    /// Show system information
     Fetch {
         #[arg(long)]
         health_check: bool,
+    },
+    Git {
+        #[command(subcommand)]
+        command: GitCommands,
     },
 }
 
@@ -108,23 +110,49 @@ pub enum SecurityCommands {
 
 #[derive(Subcommand)]
 pub enum SandboxCommands {
-    /// Run a command in the sandbox
-    Run { args: Vec<String> },
-    /// Show what changed in last session
+    Run {
+        args: Vec<String>,
+    },
     Diff,
-    /// Show current sandbox status
     Status,
-    /// Clear sandbox session state
     Clear,
-    /// Create a reflink snapshot
     Snapshot {
         #[arg(long)]
         target: String,
         #[arg(long)]
         name: String,
     },
-    /// Restore from a snapshot
-    Restore { name: String },
-    /// List available snapshots
+    Restore {
+        name: String,
+    },
     Snapshots,
+}
+
+#[derive(Subcommand)]
+pub enum GitCommands {
+    Status,
+    Risk,
+    Log {
+        #[arg(short, long, default_value = "10")]
+        n: u32,
+    },
+    Verify,
+    Commit {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    Sync {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    Quick {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    Branch {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    InstallHooks,
+    RemoveHooks,
 }

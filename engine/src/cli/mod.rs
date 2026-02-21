@@ -3,10 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand, SecurityCommand,
+    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, SandboxCommand,
+    SecurityCommand,
 };
 use parser::{
-    Cli, Commands, IntentCommands, LinkCommands, ProfileCommands, SandboxCommands, SecurityCommands,
+    Cli, Commands, GitCommands, IntentCommands, LinkCommands, ProfileCommands, SandboxCommands,
+    SecurityCommands,
 };
 
 pub fn parse() -> Command {
@@ -68,5 +70,35 @@ pub fn parse() -> Command {
             SandboxCommands::Snapshots => SandboxCommand::Snapshots,
         }),
         Commands::Fetch { health_check } => Command::Fetch { health_check },
+        Commands::Git { command } => Command::Git(match command {
+            GitCommands::Status => GitCommand::Status,
+            GitCommands::Risk => GitCommand::Risk,
+            GitCommands::Log { n } => GitCommand::Log { n },
+            GitCommands::Verify => GitCommand::Verify,
+            GitCommands::Commit { args } => GitCommand::Delegate {
+                subcmd: "commit".to_string(),
+                args,
+            },
+            GitCommands::Sync { args } => GitCommand::Delegate {
+                subcmd: "sync".to_string(),
+                args,
+            },
+            GitCommands::Quick { args } => GitCommand::Delegate {
+                subcmd: "quick".to_string(),
+                args,
+            },
+            GitCommands::Branch { args } => GitCommand::Delegate {
+                subcmd: "branch".to_string(),
+                args,
+            },
+            GitCommands::InstallHooks => GitCommand::Delegate {
+                subcmd: "install-hooks".to_string(),
+                args: vec![],
+            },
+            GitCommands::RemoveHooks => GitCommand::Delegate {
+                subcmd: "remove-hooks".to_string(),
+                args: vec![],
+            },
+        }),
     }
 }
