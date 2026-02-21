@@ -1,6 +1,6 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
-    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, ReleaseCommand,
+    Command, GitCommand, IntentCommand, LinkCommand, NotifyCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
@@ -93,6 +93,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ReleaseCommand::BumpSystem { dry_run } => {
                 crate::domains::release::bump_system(ctx, dry_run)
             }
+        },
+        Command::Notify(c) => match c {
+            NotifyCommand::Send {
+                summary,
+                body,
+                urgency,
+            } => crate::domains::notify::send(ctx, &summary, body.as_deref(), &urgency),
+            NotifyCommand::Status => crate::domains::notify::status(ctx),
         },
     }
 }

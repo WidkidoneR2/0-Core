@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, GitCommand, IntentCommand, LinkCommand, ProfileCommand, ReleaseCommand,
+    Command, GitCommand, IntentCommand, LinkCommand, NotifyCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, GitCommands, IntentCommands, LinkCommands, ProfileCommands, ReleaseCommands,
-    SandboxCommands, SecurityCommands, WorkspaceCommands,
+    Cli, Commands, GitCommands, IntentCommands, LinkCommands, NotifyCommands, ProfileCommands,
+    ReleaseCommands, SandboxCommands, SecurityCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -125,6 +125,18 @@ pub fn parse() -> Command {
             ReleaseCommands::Get { package } => ReleaseCommand::Get { package },
             ReleaseCommands::BumpTool { args } => ReleaseCommand::BumpTool { args },
             ReleaseCommands::BumpSystem { dry_run } => ReleaseCommand::BumpSystem { dry_run },
+        }),
+        Commands::Notify { command } => Command::Notify(match command {
+            NotifyCommands::Send {
+                summary,
+                body,
+                urgency,
+            } => NotifyCommand::Send {
+                summary,
+                body,
+                urgency,
+            },
+            NotifyCommands::Status => NotifyCommand::Status,
         }),
     }
 }

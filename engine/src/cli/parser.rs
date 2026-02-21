@@ -62,6 +62,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: ReleaseCommands,
     },
+    Notify {
+        #[command(subcommand)]
+        command: NotifyCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -191,16 +195,26 @@ pub enum WorkspaceCommands {
 
 #[derive(Subcommand)]
 pub enum ReleaseCommands {
-    /// Get version for a package
-    Get { package: Option<String> },
-    /// Bump a tool version
+    Get {
+        package: Option<String>,
+    },
     BumpTool {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Bump system version
     BumpSystem {
         #[arg(long)]
         dry_run: bool,
     },
+}
+
+#[derive(Subcommand)]
+pub enum NotifyCommands {
+    Send {
+        summary: String,
+        body: Option<String>,
+        #[arg(long, default_value = "normal")]
+        urgency: String,
+    },
+    Status,
 }
