@@ -22,7 +22,7 @@
 | zone | ✅ complete | 20/21 |
 | intent | ✅ complete | 20/21 |
 | profile | ✅ complete | 20/21 |
-| security | ✅ complete | 20/21 |
+| security | ✅ native | 20/21 |
 | sandbox | ✅ complete | 20/21 |
 | update | ✅ complete | 20/21 |
 | doctor | ✅ complete | 20/21 |
