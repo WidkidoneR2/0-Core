@@ -12,6 +12,7 @@ pub enum Command {
         health: bool,
     },
     Intent(IntentCommand),
+    Profile(ProfileCommand),
 }
 
 #[derive(Debug)]
@@ -36,4 +37,13 @@ pub enum IntentCommand {
     },
     Stats,
     Validate,
+}
+
+#[derive(Debug)]
+pub enum ProfileCommand {
+    List,
+    Status,
+    Switch { name: String },
+    History,
+    Health,
 }

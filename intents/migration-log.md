@@ -21,7 +21,7 @@
 | link | ✅ complete | 20/21 |
 | zone | ✅ complete | 20/21 |
 | intent | ✅ complete | 20/21 |
-| profile | ⬜ pending | — |
+| profile | ✅ complete | 20/21 |
 | security | ⬜ pending | — |
 | sandbox | ⬜ pending | — |
 | update | ⬜ pending | — |
@@ -40,3 +40,4 @@
 - 2026-02-20: Phase 2 started, link domain migrated, faelight-link wrapper delegates to core link
 - 2026-02-20: zone domain migrated, faelight-zone wrapper delegates to core zone
 - 2026-02-20: intent domain migrated, intent wrapper delegates to core intent
+- 2026-02-20: profile domain migrated, profile wrapper delegates to core profile

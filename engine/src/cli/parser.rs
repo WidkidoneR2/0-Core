@@ -39,24 +39,25 @@ pub enum Commands {
         #[command(subcommand)]
         command: IntentCommands,
     },
+    /// Manage system profiles
+    Profile {
+        #[command(subcommand)]
+        command: ProfileCommands,
+    },
 }
 
 #[derive(Subcommand)]
 pub enum LinkCommands {
-    /// Show status of all stow packages
     Status {
         #[arg(long)]
         json: bool,
     },
-    /// List all stow packages
     List,
-    /// Audit link health
     Audit,
 }
 
 #[derive(Subcommand)]
 pub enum IntentCommands {
-    /// List intents
     List {
         #[arg(long)]
         planned: bool,
@@ -65,12 +66,26 @@ pub enum IntentCommands {
         #[arg(long)]
         complete: bool,
     },
-    /// Show a specific intent
-    Show { id: String },
-    /// Search intents
-    Search { term: String },
-    /// Show intent statistics
+    Show {
+        id: String,
+    },
+    Search {
+        term: String,
+    },
     Stats,
-    /// Validate intent ledger integrity
     Validate,
+}
+
+#[derive(Subcommand)]
+pub enum ProfileCommands {
+    /// List available profiles
+    List,
+    /// Show current profile status
+    Status,
+    /// Switch to a profile
+    Switch { name: String },
+    /// Show profile switch history
+    History,
+    /// Run profile health check
+    Health,
 }

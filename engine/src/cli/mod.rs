@@ -2,8 +2,8 @@ pub mod commands;
 pub mod parser;
 
 use clap::Parser;
-use commands::{Command, IntentCommand, LinkCommand};
-use parser::{Cli, Commands, IntentCommands, LinkCommands};
+use commands::{Command, IntentCommand, LinkCommand, ProfileCommand};
+use parser::{Cli, Commands, IntentCommands, LinkCommands, ProfileCommands};
 
 pub fn parse() -> Command {
     let cli = Cli::parse();
@@ -40,6 +40,13 @@ pub fn parse() -> Command {
             IntentCommands::Search { term } => IntentCommand::Search { term },
             IntentCommands::Stats => IntentCommand::Stats,
             IntentCommands::Validate => IntentCommand::Validate,
+        }),
+        Commands::Profile { command } => Command::Profile(match command {
+            ProfileCommands::List => ProfileCommand::List,
+            ProfileCommands::Status => ProfileCommand::Status,
+            ProfileCommands::Switch { name } => ProfileCommand::Switch { name },
+            ProfileCommands::History => ProfileCommand::History,
+            ProfileCommands::Health => ProfileCommand::Health,
         }),
     }
 }
