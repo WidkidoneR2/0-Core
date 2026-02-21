@@ -51,7 +51,7 @@ $env.config = {
 # ═══════════════════════════════════════════════════════════
 
 # Navigation
-alias core = cd ~/0-core
+alias 0c = cd ~/0-core
 alias src = cd ~/1-src
 alias projects = cd ~/2-projects
 alias archive = cd ~/3-archive

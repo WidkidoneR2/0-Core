@@ -73,7 +73,7 @@ alias check-updates='update-check'
 # ═══════════════════════════════════════════════════════════
 
 # Numbered structure (0-core philosophy)
-alias core='cd ~/0-core'
+alias 0c='cd ~/0-core'
 alias src='cd ~/1-src'
 alias work='cd ~/2-work'
 alias keep='cd ~/3-keep'
