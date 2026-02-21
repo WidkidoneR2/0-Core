@@ -63,5 +63,6 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             SandboxCommand::Restore { name } => crate::domains::sandbox::restore(ctx, &name),
             SandboxCommand::Snapshots => crate::domains::sandbox::snapshots(ctx),
         },
+        Command::Fetch { health_check } => crate::domains::fetch::run(ctx, health_check),
     }
 }
