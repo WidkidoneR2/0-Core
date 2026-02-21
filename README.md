@@ -1,16 +1,47 @@
+<!-- DYNAMIC SECTION - Updated by bump-system-version -->
 # 🌲 Faelight Forest v10.0.0
 
-> *One binary. Five layers. Zero ambiguity.*
+![Version](https://img.shields.io/badge/version-10.0.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
+![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch**.
+> **A self-aware, path-resilient personal computing environment built from first principles.**
+
+## 🎊 Latest Release
+
+### v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
+
+- END- core v2.0.0 single orchestrator binary replaces all v1 tool delegation
+- - All 15 domains implemented natively in Rust (no shell scripts with logic)
+- - Phase 1-6 migration complete: scaffold, wiring, native, runtime, cleanup, capabilities
+- - Runtime locking prevents concurrent core processes
+- - Capability model enforces domain permissions at dispatch time
+- - JSONL audit log at runtime/logs/capabilities.jsonl
+- - 36/36 tools deployed at 100% path resilience
+- - Removed deprecated rust-tools: dot-doctor, security-audit, recent-files
+- - Consolidated runtime to runtime/ (removed legacy 04-runtime/)
+- - 0c alias for cd ~/0-core, core alias now correctly points to binary
+
+- Tools: 36/36 deployed (100%)
+- Aliases: 318 total
+- Intents: 92 total (55 complete, 8 planned)
+- Domains: 15/15 native
+- Health: 95% locked / 90% unlocked
+
+[Full Changelog →](CHANGELOG.md)
 
 ---
+<!-- END DYNAMIC SECTION -->
+
+<!-- STATIC SECTION - Comprehensive Documentation -->
 
 ## 🤔 What is 0-Core?
 
-### For Everyday Users
+**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch**.
 
-Instead of accepting whatever your OS gives you, 0-Core is building your entire computing environment from the ground up — every tool, every color, every keyboard shortcut, every security decision.
+### For Everyday Users
 
 Like **building a custom motorcycle** instead of buying one from a dealer. You know every bolt, every wire, every piece.
 
@@ -23,14 +54,12 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 ### For Technical People
 
-A comprehensive computing environment featuring:
-- **`core` v2.0.0** — single orchestrator binary replacing 40+ individual tools
-- **15 native Rust domains** with capability-gated dispatch
-- **36 custom Rust tools** at 100% path resilience
+- **`core` v2.0.0** — single orchestrator binary with 15 native Rust domains
+- **Capability-gated dispatch** — every command checks permissions before executing
+- **Runtime locking** and JSONL capability audit logging
 - **21-check health monitoring** system
 - **Intent Ledger** for all architectural decisions
 - **Wayland-native** (Sway, custom compositor tools)
-- **Runtime locking** and JSONL capability audit logging
 
 ---
 
@@ -51,7 +80,6 @@ A comprehensive computing environment featuring:
 
 ### The Numbered Gravity System
 
-Each directory has a gravity number defining its role:
 - **00** — Identity: what the system **IS**
 - **01** — Registry: what the system **KNOWS**
 - **02** — Rules: what the system **DOES**
@@ -59,8 +87,6 @@ Each directory has a gravity number defining its role:
 - `runtime/` — State: what the system **REMEMBERS**
 
 ### The `core` Orchestrator
-
-The heart of v10.0.0 is a single binary that replaced all individual v1 tool delegation:
 ```
 core <domain> <command>
 
@@ -69,10 +95,7 @@ Domains: doctor, security, git, workspace, intent, profile,
          release, update
 ```
 
-Every domain call is:
-1. **Capability-gated** — checked against granted permissions
-2. **Logged** — recorded in `runtime/logs/capabilities.jsonl`
-3. **Lock-protected** — runtime mutex prevents concurrent writes
+Every domain call is capability-gated, logged, and lock-protected.
 
 ---
 
@@ -82,11 +105,10 @@ Every domain call is:
 ```bash
 doctor        # Run all 21 health checks
 ```
-Checks: stow symlinks, services, broken symlinks, yazi plugins,
-binary deps, git status, themes, scripts, intents, profiles,
-config files, keybinds, security hardening, security audit,
-alias coverage, rust toolchain, disk space, tool installation,
-path resilience, core protection.
+Checks: stow symlinks, services, broken symlinks, yazi plugins, binary deps,
+git status, themes, scripts, intents, profiles, config files, keybinds,
+security hardening, security audit, alias coverage, rust toolchain,
+disk space, tool installation, path resilience, core protection.
 
 ### 🛡️ Core Protection
 ```bash
@@ -104,14 +126,15 @@ git       → FilesystemReadHome, SpawnProcess
 lock      → ControlSway
 update    → SpawnProcess, ElevatedPrivilege
 ```
+All capability usage logged to `runtime/logs/capabilities.jsonl`.
 
 ### 🎣 Git Governance
+Pre-commit hooks: rustfmt, clippy, secret scanning, merge conflict detection.
 ```bash
 faelight-git commit    # Intent-aware commits
 faelight-git risk      # Risk score before pushing
 faelight-git sync      # Pull + push workflow
 ```
-Pre-commit hooks: rustfmt, clippy, secret scanning, merge conflict detection.
 
 ### 📝 Intent Ledger
 ```bash
@@ -134,7 +157,9 @@ intent stats           # Ledger overview
 | **Dev** | `bump-system-version`, `bump-tool-version`, `get-version`, `core-diff` |
 | **Shell** | `dotctl`, `profile`, `intent`, `faelight-zone`, `faelight-link`, `faelight-lock`, `faelight-notify`, `faelight-fetch` |
 | **Audit** | `alias-audit`, `bin-doctor`, `entropy-check`, `archaeology-0-core` |
-| **Bootstrap** | `faelight-bootstrap`, `faelight-daemon`, `faelight-cleanup`, `keyscan`, `teach` |
+| **Bootstrap** | `faelight-bootstrap`, `faelight-daemon`, `faelight-cleanup`, `keyscan`, `teach`, `intent-guard`, `workspace-view`, `verify-bootstrap` |
+
+[See full tool list →](TOOLS.md)
 
 ---
 
@@ -163,28 +188,13 @@ core-protect lock               # Lock before shutdown
 
 ---
 
-## 📊 System Statistics
-
-| Metric | Value |
-|---|---|
-| System Version | v10.0.0 |
-| Orchestrator | core v2.0.0 (15 domains) |
-| Rust Tools | 36 |
-| Path Resilience | 100% (36/36) |
-| Health Checks | 21 automated |
-| Aliases | 318 |
-| Intents | 92 (55 complete, 8 planned) |
-| Architecture | Phases 1–6 complete |
-
----
-
 ## 🔧 For Developers
 
 ### Building
 ```bash
-cargo build --release -p core     # Build orchestrator
-cargo build --release --workspace # Build all tools
-doctor                            # Verify health
+cargo build --release -p core       # Build orchestrator
+cargo build --release --workspace   # Build all tools
+doctor                              # Verify health
 ```
 
 ### Adding a Domain
@@ -225,7 +235,16 @@ From "new to Linux" to presenting to legends.
 
 ---
 
-**System Version**: v10.0.0
-**Last Updated**: 2026-02-21
-**Health**: 95% locked / 90% unlocked
-**Path Resilience**: 100% 💎
+## 📝 License
+
+**Intentional Stewardship** — This is a personal computing environment, not a product.
+Feel free to learn from it, but **build your own**. That's the whole point.
+
+---
+
+## 🙏 Acknowledgments
+
+- **The Arch Linux community**: For vanilla excellence
+- **You**: For reading this far. Now go build your own! 💎
+
+---
