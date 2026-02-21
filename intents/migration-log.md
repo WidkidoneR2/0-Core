@@ -24,7 +24,7 @@
 | profile | ✅ complete | 20/21 |
 | security | ✅ complete | 20/21 |
 | sandbox | ✅ complete | 20/21 |
-| update | ⬜ pending | — |
+| update | ✅ complete | 20/21 |
 | doctor | ⬜ pending | — |
 | fetch | ✅ complete | 20/21 |
 | git | ✅ complete | 20/21 |
@@ -51,3 +51,4 @@
 - 2026-02-20: notify domain migrated, faelight-notify wrapper delegates to core notify
 - 2026-02-20: lock domain migrated, faelight-lock wrapper delegates to core lock
 - 2026-02-20: launcher domain migrated, palette/dmenu/launcher wrappers delegate to core launcher
+- 2026-02-20: update domain migrated, faelight-update and safe-update delegate to core update

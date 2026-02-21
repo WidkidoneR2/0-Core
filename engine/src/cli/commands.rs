@@ -26,6 +26,7 @@ pub enum Command {
         health_check: bool,
     },
     Launcher(LauncherCommand),
+    Update(UpdateCommand),
 }
 
 #[derive(Debug)]
@@ -137,4 +138,10 @@ pub enum LauncherCommand {
     Launch {
         args: Vec<String>,
     },
+}
+
+#[derive(Debug)]
+pub enum UpdateCommand {
+    Run { args: Vec<String> },
+    Safe { args: Vec<String> },
 }

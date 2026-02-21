@@ -74,6 +74,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: LauncherCommands,
     },
+    Update {
+        #[command(subcommand)]
+        command: UpdateCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -229,14 +233,12 @@ pub enum NotifyCommands {
 
 #[derive(Subcommand)]
 pub enum LauncherCommands {
-    /// Open command palette
     Palette {
         #[arg(long)]
         dmenu: bool,
         #[arg(short, long)]
         prompt: Option<String>,
     },
-    /// Open intent-aware dmenu
     Dmenu {
         subcmd: Option<String>,
         #[arg(short, long)]
@@ -244,8 +246,21 @@ pub enum LauncherCommands {
         #[arg(long)]
         multi: bool,
     },
-    /// Launch application
     Launch {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum UpdateCommands {
+    /// Run faelight-update
+    Run {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Run safe-update
+    Safe {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
     },
