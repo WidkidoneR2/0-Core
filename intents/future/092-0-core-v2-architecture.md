@@ -257,3 +257,185 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 ---
 
 _"One orchestrator. Five layers. Zero ambiguity."_ 🌲
+
+---
+
+## Internal Rust Module Layout
+
+### High-Level Structure
+```
+core/
+├── main.rs              ← thin: parse args, init logging, dispatch to app::run()
+├── cli/
+│   ├── mod.rs
+│   ├── commands.rs      ← command grammar definitions
+│   └── parser.rs        ← clap setup
+├── app/
+│   ├── mod.rs
+│   ├── dispatcher.rs    ← routes CLI commands to domains
+│   └── context.rs       ← AppContext: registry + policy + runtime + capabilities
+├── domains/
+│   ├── intent/
+│   │   ├── mod.rs
+│   │   ├── commands.rs
+│   │   ├── model.rs
+│   │   └── errors.rs
+│   ├── security/
+│   ├── doctor/
+│   ├── profile/
+│   ├── update/
+│   ├── sandbox/
+│   ├── link/
+│   └── zone/
+├── registry/
+│   ├── loader.rs        ← parse TOML, validate schema
+│   ├── models.rs        ← typed structs for all registry files
+│   └── validator.rs     ← schema enforcement
+├── policy/
+│   ├── engine.rs        ← policy::enforce(action, context)
+│   ├── rules.rs
+│   └── security.rs
+├── runtime/
+│   ├── state.rs         ← all writes go through here
+│   ├── paths.rs         ← path resolution
+│   ├── lock.rs          ← prevent concurrent runs
+│   ├── cache.rs
+│   └── migrations.rs    ← schema version handling
+├── adapters/
+│   ├── pacman.rs        ← I/O only, no business logic
+│   ├── systemd.rs
+│   ├── sway.rs
+│   ├── git.rs
+│   └── filesystem.rs
+├── capabilities/
+│   ├── model.rs         ← capability enum definitions
+│   └── check.rs         ← enforcement before adapter use
+├── errors/
+├── logging/             ← structured JSONL only, no println in domains
+└── utils/
+```
+
+### Layer Rules (Enforced by Rust Module System)
+- `cli/` imports only `app/` — never adapters or domains directly
+- `domains/` never call each other — only through `app/dispatcher`
+- `domains/` never execute shell commands — request capabilities instead
+- `adapters/` contain zero business logic — I/O translation only
+- `registry/` is immutable after load — no mutation allowed
+- All writes go through `runtime/state.rs`
+
+### Capability Model
+```rust
+// Each domain subcommand declares what it needs
+#[capabilities(Capability::FilesystemWriteRuntime, Capability::QueryPacman)]
+fn cmd_security_audit(ctx: &AppContext) -> Result<()> { ... }
+
+// Enforced before execution
+capabilities::check(&required, &ctx.capabilities)?;
+```
+
+Capabilities taxonomy:
+- `FilesystemReadConfig` — read registry/policy
+- `FilesystemWriteRuntime` — write to runtime/
+- `QueryPacman` — read package database
+- `ExecutePacman` — install/remove packages
+- `ControlSystemdUser` — manage user services
+- `ControlSway` — send swaymsg commands
+- `NetworkQuery` — outbound network access
+- `ElevatedPrivilege` — core-admin only
+
+### Privilege Separation
+- `core` — unprivileged, all normal operations
+- `core-admin` — separate binary, explicit sudo scope only
+
+---
+
+## Safe Migration Plan (v1 → v2)
+
+### Phase 0 — Freeze and Tag v1
+- [ ] `git tag v1.0.0-stable` — guaranteed rollback point
+- [ ] Stop adding new faelight-* tools
+- [ ] Document all v1 tool → v2 domain mappings
+
+### Phase 1 — Scaffold core Skeleton
+- [ ] Create `core/` crate with CLI skeleton
+- [ ] Stub commands: `core version`, `core doctor`
+- [ ] Install alongside v1 — no removal yet
+- [ ] Both systems run side by side
+
+### Phase 2 — Wrap Existing Tools
+Each v1 script becomes a thin wrapper:
+```sh
+#!/bin/sh
+exec core <domain> <action> "$@"
+```
+Zero user-facing change. v1 tools delegate to v2 internally.
+
+### Phase 3 — Migrate Domains Incrementally
+Order (lowest risk first):
+1. `intent` — pure file operations, no system calls
+2. `link` — replaces faelight-link
+3. `zone` — replaces faelight-zone
+4. `profile` — replaces profile tool
+5. `security` — replaces security-audit
+6. `sandbox` — replaces faelight-sandbox
+7. `update` — replaces faelight-update (highest risk, last)
+8. `doctor` — replaces dot-doctor (validates everything else)
+
+Each domain: migrate → test parity → remove old binary → keep wrapper.
+
+### Phase 4 — Isolate Runtime
+- [ ] Move logs/ → runtime/logs/
+- [ ] Move cache/ → runtime/cache/
+- [ ] Add runtime path manager
+- [ ] Add locking (prevent concurrent core runs)
+- [ ] Add runtime/VERSION migration file
+
+### Phase 5 — Remove Script Layer
+- [ ] Delete all shell logic
+- [ ] Replace scripts with symlinks or remove entirely
+- [ ] Only `core` and `core-admin` remain
+
+### Phase 6 — Enforce Capability Model
+- [ ] Capability declarations in each domain
+- [ ] Policy checks before every adapter call
+- [ ] Capability usage logged to runtime/logs/capabilities.jsonl
+
+### Runtime Migration
+```rust
+// runtime/migrations.rs
+pub fn migrate(current_version: u32) -> Result<()> {
+    if current_version < 2 {
+        migrate_v1_to_v2()?;
+    }
+    Ok(())
+}
+```
+Runs automatically on first v2 invocation. Zero manual steps.
+
+### Pre-flight Check
+```
+core doctor --preflight
+```
+Before enabling v2 fully — validates registry integrity, runtime paths,
+adapter availability, policy conflicts. No execution side-effects.
+
+---
+
+## v1 → v2 Tool Mapping
+
+| v1 Binary | v2 Command |
+|---|---|
+| dot-doctor | core doctor run |
+| faelight-update | core update safe |
+| security-audit | core security audit |
+| faelight-sandbox | core sandbox run |
+| faelight-link | core link status |
+| faelight-zone | core zone check |
+| profile | core profile switch |
+| intent | core intent new |
+| alias-audit | core doctor aliases |
+| entropy-check | core doctor drift |
+| core-protect | core lock / core unlock |
+| faelight-fetch | core fetch |
+| faelight-git | core git risk |
+

@@ -3,7 +3,7 @@ id: 091
 date: 2026-02-20
 type: future
 title: "faelight-sandbox - Controlled Experimentation Environment"
-status: planned
+status: in-progress
 tags: [rust, sandbox, btrfs, namespaces, zones, experimentation]
 version: 10.0.0
 ---
@@ -22,7 +22,17 @@ experimentation with visibility and instant rollback.
 ## Philosophy
 "Experiment freely. Understand completely. Revert instantly."
 
-## MVP (v1.0.0) Scope
+## v1.0.0 — Shipped (2026-02-20)
+- ✅ Network isolation via unshare (--net-off verified working)
+- ✅ File change tracking (before/after snapshot)
+- ✅ Post-execution diff report
+- ✅ Session state and clear
+- ✅ Aliases: sb, sb-diff, sb-status, sb-clear
+
+## v1.1.0 — In Progress
+- 🔄 btrfs snapshot support
+
+## Original MVP (v1.0.0) Scope
 - Btrfs snapshot wrapper (`run --snapshot`)
 - Network quarantine (`--net=off` via unshare)
 - Zone-aware write restrictions
