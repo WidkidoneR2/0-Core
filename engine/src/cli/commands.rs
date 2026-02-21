@@ -21,6 +21,7 @@ pub enum Command {
     Git(GitCommand),
     Workspace(WorkspaceCommand),
     Release(ReleaseCommand),
+    Notify(NotifyCommand),
 }
 
 #[derive(Debug)]
@@ -106,4 +107,14 @@ pub enum ReleaseCommand {
     Get { package: Option<String> },
     BumpTool { args: Vec<String> },
     BumpSystem { dry_run: bool },
+}
+
+#[derive(Debug)]
+pub enum NotifyCommand {
+    Send {
+        summary: String,
+        body: Option<String>,
+        urgency: String,
+    },
+    Status,
 }
