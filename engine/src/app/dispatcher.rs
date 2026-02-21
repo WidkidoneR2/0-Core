@@ -1,5 +1,5 @@
 use crate::app::context::AppContext;
-use crate::cli::commands::{Command, LinkCommand};
+use crate::cli::commands::{Command, IntentCommand, LinkCommand};
 use crate::errors::CoreResult;
 use colored::*;
 
@@ -26,5 +26,16 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             json,
             health,
         } => crate::domains::zone::run(ctx, icon, label, json, health),
+        Command::Intent(intent_cmd) => match intent_cmd {
+            IntentCommand::List {
+                planned,
+                active,
+                complete,
+            } => crate::domains::intent::list(ctx, planned, active, complete),
+            IntentCommand::Show { id } => crate::domains::intent::show(ctx, &id),
+            IntentCommand::Search { term } => crate::domains::intent::search(ctx, &term),
+            IntentCommand::Stats => crate::domains::intent::stats(ctx),
+            IntentCommand::Validate => crate::domains::intent::validate(ctx),
+        },
     }
 }

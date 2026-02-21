@@ -34,6 +34,11 @@ pub enum Commands {
         #[arg(long)]
         health: bool,
     },
+    /// Manage the intent ledger
+    Intent {
+        #[command(subcommand)]
+        command: IntentCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -47,4 +52,25 @@ pub enum LinkCommands {
     List,
     /// Audit link health
     Audit,
+}
+
+#[derive(Subcommand)]
+pub enum IntentCommands {
+    /// List intents
+    List {
+        #[arg(long)]
+        planned: bool,
+        #[arg(long)]
+        active: bool,
+        #[arg(long)]
+        complete: bool,
+    },
+    /// Show a specific intent
+    Show { id: String },
+    /// Search intents
+    Search { term: String },
+    /// Show intent statistics
+    Stats,
+    /// Validate intent ledger integrity
+    Validate,
 }

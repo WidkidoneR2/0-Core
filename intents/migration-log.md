@@ -20,7 +20,7 @@
 |---|---|---|
 | link | ✅ complete | 20/21 |
 | zone | ✅ complete | 20/21 |
-| intent | ⬜ pending | — |
+| intent | ✅ complete | 20/21 |
 | profile | ⬜ pending | — |
 | security | ⬜ pending | — |
 | sandbox | ⬜ pending | — |
@@ -39,3 +39,4 @@
 - 2026-02-20: Phase 1 complete, engine/ scaffold builds, core version + core doctor working
 - 2026-02-20: Phase 2 started, link domain migrated, faelight-link wrapper delegates to core link
 - 2026-02-20: zone domain migrated, faelight-zone wrapper delegates to core zone
+- 2026-02-20: intent domain migrated, intent wrapper delegates to core intent
