@@ -1,5 +1,5 @@
 use crate::app::context::AppContext;
-use crate::cli::commands::Command;
+use crate::cli::commands::{Command, LinkCommand};
 use crate::errors::CoreResult;
 use colored::*;
 
@@ -15,5 +15,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             Ok(())
         }
         Command::Doctor { preflight } => crate::domains::doctor::run(ctx, preflight),
+        Command::Link(link_cmd) => match link_cmd {
+            LinkCommand::Status { json } => crate::domains::link::status(ctx, json),
+            LinkCommand::List => crate::domains::link::list(ctx),
+            LinkCommand::Audit => crate::domains::link::audit(ctx),
+        },
     }
 }
