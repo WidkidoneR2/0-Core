@@ -148,7 +148,8 @@ alias f-zone='faelight-zone'
 # Fast access to common directories in the numbered system
 # ═══════════════════════════════════════════════════════════
 
-alias core='cd ~/0-core'
+alias core='~/0-core/scripts/core'  # v2 orchestrator binary
+alias 0core='cd ~/0-core'            # navigate to 0-core root
 alias cdcore='cd ~/0-core'
 alias src='cd ~/1-src'
 alias work='cd ~/2-work'

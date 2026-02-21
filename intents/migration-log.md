@@ -29,7 +29,7 @@
 | fetch | ✅ complete | 20/21 |
 | git | ✅ complete | 20/21 |
 | workspace | ✅ complete | 20/21 |
-| release | ⬜ pending | — |
+| release | ✅ complete | 20/21 |
 | notify | ⬜ pending | — |
 | lock | ⬜ pending | — |
 | launcher | ⬜ pending | — |
@@ -46,3 +46,5 @@
 - 2026-02-20: fetch domain migrated, faelight-fetch wrapper delegates to core fetch
 - 2026-02-20: git domain migrated, faelight-git wrapper delegates to core git
 - 2026-02-20: workspace domain migrated, wrappers for workspace-view, recent-files, faelight-fm
+- 2026-02-20: release domain migrated, get-version reads natively, bump tools delegate to v1
+- 2026-02-20: core alias updated — core now invokes v2 binary, 0core navigates to root
