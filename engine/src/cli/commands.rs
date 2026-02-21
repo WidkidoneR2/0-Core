@@ -1,8 +1,16 @@
 #[derive(Debug)]
 pub enum Command {
     Version,
-    Doctor { preflight: bool },
+    Doctor {
+        preflight: bool,
+    },
     Link(LinkCommand),
+    Zone {
+        icon: bool,
+        label: bool,
+        json: bool,
+        health: bool,
+    },
 }
 
 #[derive(Debug)]
