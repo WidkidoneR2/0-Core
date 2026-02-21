@@ -47,13 +47,56 @@ fn profile_label_color(profile: &str) -> (&'static str, [u8; 4]) {
     }
 }
 
+fn get_focused_cwd() -> Option<String> {
+    // Get the cwd of the focused terminal via swaymsg
+    let out = Command::new("swaymsg")
+        .args(["-t", "get_tree", "-r"])
+        .output()
+        .ok()?;
+    let tree = String::from_utf8(out.stdout).ok()?;
+    // Find focused node pid then read /proc/<pid>/cwd
+    let focused_key = "\"focused\":true";
+    let focused_key2 = "\"focused\": true";
+    let pid_key = "\"pid\":";
+    let focused_pos = tree.find(focused_key).or_else(|| tree.find(focused_key2))?;
+    let before = &tree[..focused_pos];
+    let pid_pos = before.rfind(pid_key)?;
+    let after = &before[pid_pos + 6..];
+    let pid_str: String = after
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    let pid: u32 = pid_str.parse().ok()?;
+    // Read cwd from /proc
+    fs::read_link(format!("/proc/{}/cwd", pid))
+        .ok()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+}
+
 fn get_zone() -> (String, [u8; 4]) {
-    let output = Command::new("faelight-zone").arg("--label").output().ok();
-    let label = output
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .unwrap_or_default()
-        .trim()
-        .to_lowercase();
+    // Get zone from focused window cwd, fall back to faelight-zone
+    let cwd = get_focused_cwd().unwrap_or_default();
+    let label = if !cwd.is_empty() {
+        let out = Command::new("faelight-zone")
+            .arg("--label")
+            .env("PWD", &cwd)
+            .output()
+            .ok();
+        out.and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default()
+            .trim()
+            .to_lowercase()
+    } else {
+        Command::new("faelight-zone")
+            .arg("--label")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default()
+            .trim()
+            .to_lowercase()
+    };
 
     match label.as_str() {
         "home" => ("HOME".to_string(), GREEN),
@@ -62,6 +105,7 @@ fn get_zone() -> (String, [u8; 4]) {
         "gaming" => ("GAME".to_string(), RED),
         "focus" => ("FOCUS".to_string(), AMBER),
         "learning" | "learn" => ("LEARN".to_string(), BLUE),
+        "src" => ("SRC".to_string(), BLUE),
         s if !s.is_empty() => (s.to_uppercase(), FG),
         _ => ("HOME".to_string(), GREEN),
     }
@@ -87,39 +131,24 @@ fn get_lock() -> (&'static str, [u8; 4]) {
 }
 
 fn get_health() -> (String, [u8; 4]) {
-    // Cache health for 30 seconds - dot-doctor is expensive
-    {
-        let cache = HEALTH_CACHE.lock().unwrap();
-        if cache.2.elapsed() < std::time::Duration::from_secs(30) {
-            return (cache.0.clone(), cache.1);
-        }
+    // Read from cache file written by doctor — fast, no subprocess
+    let home = std::env::var("HOME").unwrap_or_default();
+    let cache_file = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
+    let num = fs::read_to_string(&cache_file)
+        .ok()
+        .and_then(|s| s.trim().parse::<u8>().ok())
+        .unwrap_or(0);
+    if num == 0 {
+        return ("HP:??".to_string(), DIM);
     }
-
-    let output = match Command::new("dot-doctor").output() {
-        Ok(o) => o,
-        Err(_) => return ("HP:??".to_string(), DIM),
+    let color = if num >= 95 {
+        GREEN
+    } else if num >= 80 {
+        AMBER
+    } else {
+        RED
     };
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    for line in stdout.lines() {
-        if line.trim_start().starts_with("Health:") {
-            if let Some(pct_str) = line.split_whitespace().last() {
-                if let Ok(num) = pct_str.trim_end_matches('%').parse::<u8>() {
-                    let color = if num >= 90 {
-                        GREEN
-                    } else if num >= 80 {
-                        AMBER
-                    } else {
-                        RED
-                    };
-                    let result = (format!("HP:{}%", num), color);
-                    let mut cache = HEALTH_CACHE.lock().unwrap();
-                    *cache = (result.0.clone(), result.1, std::time::Instant::now());
-                    return result;
-                }
-            }
-        }
-    }
-    ("HP:??".to_string(), DIM)
+    (format!("HP:{}%", num), color)
 }
 
 fn get_workspaces() -> (Vec<i32>, i32) {
