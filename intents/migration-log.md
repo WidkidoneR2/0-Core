@@ -27,7 +27,7 @@
 | update | ⬜ pending | — |
 | doctor | ⬜ pending | — |
 | fetch | ✅ complete | 20/21 |
-| git | ⬜ pending | — |
+| git | ✅ complete | 20/21 |
 | workspace | ⬜ pending | — |
 | release | ⬜ pending | — |
 | notify | ⬜ pending | — |
@@ -44,3 +44,4 @@
 - 2026-02-20: security domain migrated, security-audit wrapper delegates to core security
 - 2026-02-20: sandbox domain migrated, faelight-sandbox wrapper delegates to core sandbox
 - 2026-02-20: fetch domain migrated, faelight-fetch wrapper delegates to core fetch
+- 2026-02-20: git domain migrated, faelight-git wrapper delegates to core git
