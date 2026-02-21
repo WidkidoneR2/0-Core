@@ -260,6 +260,14 @@ const CHECKS: &[Check] = &[
         run: check_security,
     },
     Check {
+        id: "security_audit",
+        name: "Security Audit",
+        depends_on: &[],
+        severity: Severity::High,
+        explanation: "Checks last security-audit scan for vulnerabilities in Rust crates and system packages.",
+        run: check_security_audit,
+    },
+    Check {
         id: "alias_coverage",
         name: "Alias Coverage",
         depends_on: &[],
@@ -1757,6 +1765,108 @@ fn check_security(_ctx: &Context) -> CheckResult {
         } else {
             None
         },
+    }
+}
+
+fn check_security_audit(_ctx: &Context) -> CheckResult {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let scan_path = PathBuf::from(&home).join(".local/state/0-core/security/last-scan.json");
+
+    if !scan_path.exists() {
+        return CheckResult {
+            id: "security_audit".to_string(),
+            name: "Security Audit".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: "No scan found — run: security-audit scan".to_string(),
+            fix: Some("Run: security-audit scan".to_string()),
+            details: None,
+        };
+    }
+
+    let data = match fs::read_to_string(&scan_path) {
+        Ok(d) => d,
+        Err(_) => {
+            return CheckResult {
+                id: "security_audit".to_string(),
+                name: "Security Audit".to_string(),
+                status: Status::Warn,
+                severity: Severity::High,
+                message: "Could not read scan results".to_string(),
+                fix: Some("Run: security-audit scan".to_string()),
+                details: None,
+            }
+        }
+    };
+
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) else {
+        return CheckResult {
+            id: "security_audit".to_string(),
+            name: "Security Audit".to_string(),
+            status: Status::Warn,
+            severity: Severity::High,
+            message: "Could not parse scan results".to_string(),
+            fix: Some("Run: security-audit scan".to_string()),
+            details: None,
+        };
+    };
+
+    let timestamp = json["timestamp"].as_str().unwrap_or("unknown").to_string();
+    let findings = json["findings"].as_array().map(|a| a.len()).unwrap_or(0);
+    let critical = json["findings"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter(|f| f["severity"].as_str() == Some("Critical"))
+                .count()
+        })
+        .unwrap_or(0);
+    let high = json["findings"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter(|f| f["severity"].as_str() == Some("High"))
+                .count()
+        })
+        .unwrap_or(0);
+    let medium = json["findings"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter(|f| f["severity"].as_str() == Some("Medium"))
+                .count()
+        })
+        .unwrap_or(0);
+
+    let status = if critical > 0 {
+        Status::Fail
+    } else if high > 0 {
+        Status::Warn
+    } else {
+        Status::Pass
+    };
+
+    let message = if findings == 0 {
+        format!("No vulnerabilities found (scan: {})", timestamp)
+    } else {
+        format!(
+            "{} findings: {} critical, {} high, {} medium (scan: {})",
+            findings, critical, high, medium, timestamp
+        )
+    };
+
+    CheckResult {
+        id: "security_audit".to_string(),
+        name: "Security Audit".to_string(),
+        status,
+        severity: Severity::High,
+        message,
+        fix: if critical > 0 || high > 0 {
+            Some("Run: security-audit report".to_string())
+        } else {
+            None
+        },
+        details: None,
     }
 }
 
