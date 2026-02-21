@@ -2,8 +2,8 @@ pub mod commands;
 pub mod parser;
 
 use clap::Parser;
-use commands::{Command, LinkCommand};
-use parser::{Cli, Commands, LinkCommands};
+use commands::{Command, IntentCommand, LinkCommand};
+use parser::{Cli, Commands, IntentCommands, LinkCommands};
 
 pub fn parse() -> Command {
     let cli = Cli::parse();
@@ -26,5 +26,20 @@ pub fn parse() -> Command {
             json,
             health,
         },
+        Commands::Intent { command } => Command::Intent(match command {
+            IntentCommands::List {
+                planned,
+                active,
+                complete,
+            } => IntentCommand::List {
+                planned,
+                active,
+                complete,
+            },
+            IntentCommands::Show { id } => IntentCommand::Show { id },
+            IntentCommands::Search { term } => IntentCommand::Search { term },
+            IntentCommands::Stats => IntentCommand::Stats,
+            IntentCommands::Validate => IntentCommand::Validate,
+        }),
     }
 }
