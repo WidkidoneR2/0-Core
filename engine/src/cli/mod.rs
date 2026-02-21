@@ -4,11 +4,13 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     Command, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
-    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, WorkspaceCommand,
+    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
+    WorkspaceCommand,
 };
 use parser::{
     Cli, Commands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, NotifyCommands,
-    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, WorkspaceCommands,
+    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, UpdateCommands,
+    WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -153,6 +155,10 @@ pub fn parse() -> Command {
                 multi,
             },
             LauncherCommands::Launch { args } => LauncherCommand::Launch { args },
+        }),
+        Commands::Update { command } => Command::Update(match command {
+            UpdateCommands::Run { args } => UpdateCommand::Run { args },
+            UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
         }),
     }
 }
