@@ -66,10 +66,13 @@ pub enum Commands {
         #[command(subcommand)]
         command: NotifyCommands,
     },
-    /// Lock the screen
     Lock {
         #[arg(long)]
         health_check: bool,
+    },
+    Launcher {
+        #[command(subcommand)]
+        command: LauncherCommands,
     },
 }
 
@@ -222,4 +225,28 @@ pub enum NotifyCommands {
         urgency: String,
     },
     Status,
+}
+
+#[derive(Subcommand)]
+pub enum LauncherCommands {
+    /// Open command palette
+    Palette {
+        #[arg(long)]
+        dmenu: bool,
+        #[arg(short, long)]
+        prompt: Option<String>,
+    },
+    /// Open intent-aware dmenu
+    Dmenu {
+        subcmd: Option<String>,
+        #[arg(short, long)]
+        prompt: Option<String>,
+        #[arg(long)]
+        multi: bool,
+    },
+    /// Launch application
+    Launch {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
 }

@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, GitCommand, IntentCommand, LinkCommand, NotifyCommand, ProfileCommand, ReleaseCommand,
-    SandboxCommand, SecurityCommand, WorkspaceCommand,
+    Command, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, GitCommands, IntentCommands, LinkCommands, NotifyCommands, ProfileCommands,
-    ReleaseCommands, SandboxCommands, SecurityCommands, WorkspaceCommands,
+    Cli, Commands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, NotifyCommands,
+    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -139,5 +139,20 @@ pub fn parse() -> Command {
             NotifyCommands::Status => NotifyCommand::Status,
         }),
         Commands::Lock { health_check } => Command::Lock { health_check },
+        Commands::Launcher { command } => Command::Launcher(match command {
+            LauncherCommands::Palette { dmenu, prompt } => {
+                LauncherCommand::Palette { dmenu, prompt }
+            }
+            LauncherCommands::Dmenu {
+                subcmd,
+                prompt,
+                multi,
+            } => LauncherCommand::Dmenu {
+                subcmd,
+                prompt,
+                multi,
+            },
+            LauncherCommands::Launch { args } => LauncherCommand::Launch { args },
+        }),
     }
 }

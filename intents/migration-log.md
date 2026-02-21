@@ -32,7 +32,7 @@
 | release | ✅ complete | 20/21 |
 | notify | ✅ complete | 20/21 |
 | lock | ✅ complete | 20/21 |
-| launcher | ⬜ pending | — |
+| launcher | ✅ complete | 20/21 |
 
 ## Session Log
 - 2026-02-20: Phase 0 complete, v1.0.0-stable tagged
@@ -50,3 +50,4 @@
 - 2026-02-20: core alias updated — core now invokes v2 binary, 0core navigates to root
 - 2026-02-20: notify domain migrated, faelight-notify wrapper delegates to core notify
 - 2026-02-20: lock domain migrated, faelight-lock wrapper delegates to core lock
+- 2026-02-20: launcher domain migrated, palette/dmenu/launcher wrappers delegate to core launcher

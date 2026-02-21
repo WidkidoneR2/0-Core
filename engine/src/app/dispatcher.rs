@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::cli::commands::{
-    Command, GitCommand, IntentCommand, LinkCommand, NotifyCommand, ProfileCommand, ReleaseCommand,
-    SandboxCommand, SecurityCommand, WorkspaceCommand,
+    Command, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -109,5 +109,16 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::domains::lock::lock(ctx)
             }
         }
+        Command::Launcher(c) => match c {
+            LauncherCommand::Palette { dmenu, prompt } => {
+                crate::domains::launcher::palette(ctx, dmenu, prompt.as_deref())
+            }
+            LauncherCommand::Dmenu {
+                subcmd,
+                prompt,
+                multi,
+            } => crate::domains::launcher::dmenu(ctx, subcmd.as_deref(), prompt.as_deref(), multi),
+            LauncherCommand::Launch { args } => crate::domains::launcher::launcher(ctx, &args),
+        },
     }
 }
