@@ -28,7 +28,7 @@
 | doctor | ⬜ pending | — |
 | fetch | ✅ complete | 20/21 |
 | git | ✅ complete | 20/21 |
-| workspace | ⬜ pending | — |
+| workspace | ✅ complete | 20/21 |
 | release | ⬜ pending | — |
 | notify | ⬜ pending | — |
 | lock | ⬜ pending | — |
@@ -45,3 +45,4 @@
 - 2026-02-20: sandbox domain migrated, faelight-sandbox wrapper delegates to core sandbox
 - 2026-02-20: fetch domain migrated, faelight-fetch wrapper delegates to core fetch
 - 2026-02-20: git domain migrated, faelight-git wrapper delegates to core git
+- 2026-02-20: workspace domain migrated, wrappers for workspace-view, recent-files, faelight-fm

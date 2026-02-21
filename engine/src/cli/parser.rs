@@ -54,6 +54,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: GitCommands,
     },
+    Workspace {
+        #[command(subcommand)]
+        command: WorkspaceCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -155,4 +159,31 @@ pub enum GitCommands {
     },
     InstallHooks,
     RemoveHooks,
+}
+
+#[derive(Subcommand)]
+pub enum WorkspaceCommands {
+    /// Show Sway workspace info
+    View {
+        #[arg(long)]
+        active: bool,
+        #[arg(long)]
+        summary: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show recently modified files
+    Recent {
+        #[arg(default_value = "today")]
+        range: String,
+        #[arg(short, long, default_value = "10")]
+        limit: u32,
+        #[arg(long)]
+        full_paths: bool,
+    },
+    /// Open file manager
+    Fm {
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
 }
