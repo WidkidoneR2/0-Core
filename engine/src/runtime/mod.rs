@@ -62,3 +62,38 @@ impl Runtime {
         })
     }
 }
+
+pub struct RuntimeLock {
+    path: PathBuf,
+}
+
+impl RuntimeLock {
+    pub fn acquire(runtime: &Runtime) -> CoreResult<Self> {
+        let path = runtime.locks.join("core.lock");
+        if path.exists() {
+            // Check if the pid in the lock file is still running
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(pid) = content.trim().parse::<u32>() {
+                    let proc_path = PathBuf::from(format!("/proc/{}", pid));
+                    if proc_path.exists() {
+                        return Err(crate::errors::CoreError::Runtime(format!(
+                            "Another core process is running (pid {})",
+                            pid
+                        )));
+                    }
+                }
+            }
+            // Stale lock — remove it
+            fs::remove_file(&path).ok();
+        }
+        let pid = std::process::id();
+        fs::write(&path, pid.to_string())?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for RuntimeLock {
+    fn drop(&mut self) {
+        fs::remove_file(&self.path).ok();
+    }
+}
