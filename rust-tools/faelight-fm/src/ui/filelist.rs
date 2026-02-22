@@ -2,9 +2,11 @@ use super::colors::FaelightColors;
 use crate::app::AppState;
 use faelight_fm::git::GitStatus;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListItem};
+use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
+
 pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, usize)> {
     let mut file_regions = Vec::new();
+
     let items: Vec<ListItem> = app
         .filtered_entries
         .iter()
@@ -12,8 +14,17 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
         .map(|(i, entry)| {
             let is_selected = i == app.selected;
 
-            // Symlinks get special color treatment
-            let base_style = if entry.is_symlink {
+            // Git marker — compact single char
+            let (git_marker, git_color) = match entry.git_status {
+                GitStatus::Modified => ("M", Color::Yellow),
+                GitStatus::Added => ("A", Color::Green),
+                GitStatus::Deleted => ("D", Color::Red),
+                GitStatus::Untracked => ("?", FaelightColors::TEXT_DIM),
+                GitStatus::Clean => (" ", FaelightColors::TEXT_DIM),
+            };
+
+            // Name style
+            let name_style = if entry.is_symlink {
                 if is_selected {
                     Style::default()
                         .fg(FaelightColors::SYMLINK)
@@ -28,61 +39,56 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                 FaelightColors::file_style(is_selected)
             };
 
-            // === PHASE 1: Multi-select checkbox ===
-            let is_multiselected = app.selected_files.contains(&entry.path);
-            let checkbox = if is_multiselected {
-                Span::styled("[✓] ", Style::default().fg(Color::Green).bold())
+            // File size (files only, dirs show item count if available)
+            let size_str = if entry.is_dir {
+                "       ".to_string()
             } else {
-                Span::raw("[ ] ")
+                match std::fs::metadata(&entry.path) {
+                    Ok(m) => format_size(m.len()),
+                    Err(_) => "       ".to_string(),
+                }
             };
 
-            let mut spans = vec![
-                checkbox,
-                Span::raw(format!("{} ", entry.icon())),
-                // Git status marker
-                Span::styled(
-                    entry.git_status.marker(),
-                    Style::default().fg(match entry.git_status {
-                        GitStatus::Modified => Color::Yellow,
-                        GitStatus::Added => Color::Green,
-                        GitStatus::Deleted => Color::Red,
-                        GitStatus::Untracked => FaelightColors::TEXT_DIM,
-                        GitStatus::Clean => FaelightColors::TEXT_DIM,
-                    }),
-                ),
-                Span::styled(format!("{:<30} ", entry.name), base_style),
-            ];
+            // Symlink indicator
+            let suffix = if entry.is_symlink { " →" } else { "" };
 
-            if let Some(ref intent_info) = entry.intent_info {
-                let intent_color = match intent_info.status {
-                    faelight_fm::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
-                    faelight_fm::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
-                    faelight_fm::intent::IntentStatus::Cancelled => {
-                        FaelightColors::INTENT_CANCELLED
-                    }
-                    faelight_fm::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
-                };
-
-                spans.push(Span::styled(
-                    format!("[INT:{}] ", intent_info.id),
-                    Style::default().fg(intent_color).bold(),
-                ));
+            let bg = if is_selected {
+                FaelightColors::BG_SELECTED
             } else {
-                spans.push(Span::raw(format!("{:<12} ", "")));
-            }
+                FaelightColors::BG_DARK
+            };
 
-            spans.push(Span::raw(entry.health.badge()));
+            let spans = vec![
+                Span::styled(
+                    format!(" {} ", git_marker),
+                    Style::default().fg(git_color).bg(bg),
+                ),
+                Span::styled(format!("{} ", entry.icon()), name_style),
+                Span::styled(format!("{}{}", entry.name, suffix), name_style),
+                Span::styled(
+                    format!("  {}", size_str),
+                    Style::default().fg(FaelightColors::TEXT_DIM).bg(bg),
+                ),
+            ];
 
             ListItem::new(Line::from(spans))
         })
         .collect();
 
-    use ratatui::widgets::ListState;
+    let title = if app.search_mode {
+        format!(
+            " 🔍 {} ({} matches) ",
+            app.search_query,
+            app.filtered_entries.len()
+        )
+    } else {
+        format!(" {} items ", app.filtered_entries.len())
+    };
 
     let list = List::new(items)
         .block(
             Block::default()
-                .title("FILE LIST")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(FaelightColors::TEXT_DIM)),
         )
@@ -97,17 +103,26 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
     state.select(Some(app.selected));
     ratatui::widgets::StatefulWidget::render(list, area, buf, &mut state);
 
-    // Calculate click regions based on rendered area
-    // Files start at area.y + 1 (after border), one per row
-    let start_y = area.y + 1; // After top border
-    let visible_count = (area.height - 2).min(app.filtered_entries.len() as u16); // -2 for borders
-
-    for i in 0..visible_count as usize {
+    // Click regions
+    let start_y = area.y + 1;
+    let visible_count = (area.height.saturating_sub(2)) as usize;
+    for i in 0..visible_count {
         if i < app.filtered_entries.len() {
             file_regions.push((start_y + i as u16, area.width, i));
         }
     }
 
-    // Return click regions (row, width, file_index)
     file_regions
+}
+
+fn format_size(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{:>5}B ", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:>4}KB ", bytes / 1024)
+    } else if bytes < 1024 * 1024 * 1024 {
+        format!("{:>4}MB ", bytes / (1024 * 1024))
+    } else {
+        format!("{:>4}GB ", bytes / (1024 * 1024 * 1024))
+    }
 }
