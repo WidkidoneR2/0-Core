@@ -844,6 +844,61 @@ fn check_path_resilience(core_root: &str) -> CheckResult {
     }
 }
 
+fn check_archaeology(core_root: &str) -> CheckResult {
+    let script = std::path::PathBuf::from(core_root).join("scripts/archaeology-0-core");
+
+    if !script.exists() {
+        return CheckResult {
+            id: "archaeology".into(),
+            name: "Archaeology".into(),
+            status: Status::Warn,
+            message: "archaeology-0-core not deployed — run: cargo build -p archaeology-0-core"
+                .into(),
+            fix: Some("cargo build --release -p archaeology-0-core".into()),
+        };
+    }
+
+    // Run stats to verify it can read git history
+    let output = std::process::Command::new(&script).arg("stats").output();
+
+    match output {
+        Ok(o) if o.status.success() => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            // Extract commit count
+            let commits = stdout
+                .lines()
+                .find(|l| l.contains("Commits:"))
+                .and_then(|l| l.split_whitespace().last())
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
+            if commits > 0 {
+                CheckResult {
+                    id: "archaeology".into(),
+                    name: "Archaeology".into(),
+                    status: Status::Pass,
+                    message: format!("History accessible: {} commits indexed", commits),
+                    fix: None,
+                }
+            } else {
+                CheckResult {
+                    id: "archaeology".into(),
+                    name: "Archaeology".into(),
+                    status: Status::Warn,
+                    message: "archaeology-0-core running but no commits found".into(),
+                    fix: Some("Check git repository integrity".into()),
+                }
+            }
+        }
+        _ => CheckResult {
+            id: "archaeology".into(),
+            name: "Archaeology".into(),
+            status: Status::Warn,
+            message: "archaeology-0-core failed to run".into(),
+            fix: Some("Check binary: archaeology-0-core stats".into()),
+        },
+    }
+}
+
 fn check_core_protect(core_root: &str) -> CheckResult {
     let installed = Command::new("which")
         .arg("core-protect")
@@ -939,6 +994,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_disk_space(),
         check_tool_installation(),
         check_path_resilience(&core_root),
+        check_archaeology(&core_root),
         check_core_protect(&core_root),
     ];
 
