@@ -143,8 +143,13 @@ pub fn render_pane(area: Rect, buf: &mut Buffer, app: &AppState) {
             let line_num = format!("{:3} │ ", i + 1);
             // Truncate long lines to fit panel
             let max_width = area.width.saturating_sub(8) as usize;
-            let truncated = if line.len() > max_width {
-                format!("{}…", &line[..max_width.saturating_sub(1)])
+            let truncated = if line.chars().count() > max_width {
+                let end = line
+                    .char_indices()
+                    .nth(max_width.saturating_sub(1))
+                    .map(|(i, _)| i)
+                    .unwrap_or(line.len());
+                format!("{}…", &line[..end])
             } else {
                 line.clone()
             };

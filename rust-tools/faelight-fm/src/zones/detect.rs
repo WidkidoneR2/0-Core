@@ -21,6 +21,6 @@ pub fn zone_root(zone: Zone) -> Option<String> {
         Zone::Src => Some(paths::src_dir().display().to_string()),
         Zone::Project => Some(paths::projects_dir().display().to_string()),
         Zone::Archive => Some(paths::archive_dir().display().to_string()),
-        Zone::Scratch => None,
+        Zone::Scratch => Some(paths::scratch_dir().display().to_string()),
     }
 }

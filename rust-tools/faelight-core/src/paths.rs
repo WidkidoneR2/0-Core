@@ -177,6 +177,9 @@ pub fn applications_dir() -> PathBuf {
 pub fn archive_dir() -> PathBuf {
     home().join("3-archive")
 }
+pub fn scratch_dir() -> PathBuf {
+    home().join("scratch")
+}
 
 // SYSTEM FONTS (Common font locations)
 // ═══════════════════════════════════════════════════════════
