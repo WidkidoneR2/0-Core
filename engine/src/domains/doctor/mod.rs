@@ -125,7 +125,7 @@ fn check_services() -> CheckResult {
     }
 }
 
-fn check_broken_symlinks(core_root: &str, home: &str) -> CheckResult {
+fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
     let mut broken = 0;
     let config = PathBuf::from(home).join(".config");
     for entry in WalkDir::new(&config)
@@ -138,17 +138,7 @@ fn check_broken_symlinks(core_root: &str, home: &str) -> CheckResult {
             broken += 1;
         }
     }
-    let stow_dir = PathBuf::from(core_root).join("03-interfaces/stow");
-    for entry in WalkDir::new(&stow_dir)
-        .max_depth(6)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let p = entry.path();
-        if p.is_symlink() && !p.exists() && !p.to_string_lossy().contains("BraveSoftware") {
-            broken += 1;
-        }
-    }
+
     if broken == 0 {
         CheckResult {
             id: "broken_symlinks".into(),

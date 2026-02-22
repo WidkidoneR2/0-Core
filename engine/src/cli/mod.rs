@@ -39,9 +39,11 @@ pub fn parse() -> Command {
             LinkCommands::Deploy {
                 package,
                 no_snapshot,
+                adopt,
             } => LinkCommand::Deploy {
                 package,
                 no_snapshot,
+                adopt,
             },
             LinkCommands::Undeploy { package } => LinkCommand::Undeploy { package },
             LinkCommands::Redeploy { package } => LinkCommand::Redeploy { package },

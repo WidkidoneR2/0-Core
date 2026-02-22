@@ -62,6 +62,7 @@ pub enum LinkCommand {
     Deploy {
         package: Option<String>,
         no_snapshot: bool,
+        adopt: bool,
     },
     Undeploy {
         package: String,

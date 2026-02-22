@@ -131,6 +131,9 @@ pub enum LinkCommands {
         /// Skip snapshot before deploy
         #[arg(long)]
         no_snapshot: bool,
+        /// Replace real files with symlinks
+        #[arg(long)]
+        adopt: bool,
     },
     /// Remove a package's symlinks
     Undeploy {
