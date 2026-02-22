@@ -731,7 +731,7 @@ alias stow-fix='faelight-stow --fix'
 alias stow='cd ~/0-core && command stow'
 
 # Launcher
-alias launcher='faelight-launcher'
+alias launcher='faelight-palette'
 
 # Menu
 alias powermenu='faelight-menu'
