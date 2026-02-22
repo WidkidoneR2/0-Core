@@ -246,10 +246,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         }
 
         Command::Update(c) => {
-            ctx.capabilities.require(
-                "update",
-                &[Capability::SpawnProcess, Capability::ElevatedPrivilege],
-            )?;
+            ctx.capabilities
+                .require("update", &[Capability::SpawnProcess])?;
             match c {
                 UpdateCommand::Run { args } => crate::domains::update::update(ctx, &args),
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
