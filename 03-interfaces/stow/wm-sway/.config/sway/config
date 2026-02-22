@@ -302,7 +302,7 @@ for_window [app_id="faelight-palette-float"] {
 }
 
 # Global Faelight Palette - Ctrl+Space
-bindsym Control+Space exec foot --app-id=faelight-palette-float -e /home/christian/0-core/target/release/faelight-palette
+bindsym Control+Space exec foot --app-id=faelight-palette-float -e /home/christian/0-core/scripts/faelight-palette
 
 # Faelight Bar - Auto-start detached
 exec ~/0-core/scripts/launch-bar
