@@ -1,3 +1,4 @@
+pub mod capabilities;
 pub mod doctor;
 pub mod fetch;
 pub mod git;

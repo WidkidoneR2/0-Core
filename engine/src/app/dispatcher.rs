@@ -255,5 +255,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Capabilities { json, domain } => {
+            crate::domains::capabilities::list(ctx, json, domain.as_deref())
+        }
     }
 }

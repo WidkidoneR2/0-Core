@@ -78,6 +78,15 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Show capability requirements for all domains
+    Capabilities {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Show only a specific domain
+        #[arg(long)]
+        domain: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
