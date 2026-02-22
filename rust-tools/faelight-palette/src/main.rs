@@ -124,18 +124,13 @@ impl Stats {
         let home = std::env::var("HOME").unwrap_or_default();
         let core = format!("{}/0-core", home);
 
-        // health %
-        let health_out = Command::new("sh")
-            .arg("-c")
-            .arg(format!(
-                "{}/scripts/core doctor run 2>/dev/null | grep 'Health:' | grep -oE '[0-9]+'",
-                core
-            ))
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .unwrap_or_default();
-        let health_pct = health_out.trim().parse::<u8>().unwrap_or(0);
+        // health % — read from shared cache (same source as bar)
+        let health_pct = std::fs::read_to_string(
+            std::path::PathBuf::from(&home).join(".cache/faelight/health-status"),
+        )
+        .ok()
+        .and_then(|s| s.trim().parse::<u8>().ok())
+        .unwrap_or(0);
 
         // LOC
         let loc = Command::new("sh")
