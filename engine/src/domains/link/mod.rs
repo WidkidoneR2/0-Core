@@ -141,7 +141,12 @@ pub fn plan(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn deploy(ctx: &AppContext, package: Option<&str>, no_snapshot: bool) -> CoreResult<()> {
+pub fn deploy(
+    ctx: &AppContext,
+    package: Option<&str>,
+    no_snapshot: bool,
+    adopt: bool,
+) -> CoreResult<()> {
     let stow_dir = stow_dir(ctx);
     let home = PathBuf::from(&ctx.home);
     let packages = resolve_packages(&stow_dir, package);
@@ -177,7 +182,7 @@ pub fn deploy(ctx: &AppContext, package: Option<&str>, no_snapshot: bool) -> Cor
         }
         all_ops.push((pkg.clone(), ops));
     }
-    if has_conflicts {
+    if has_conflicts && !adopt {
         println!(
             "  {} Conflicts detected — run {} to see details",
             "✗".bright_red(),
@@ -192,20 +197,43 @@ pub fn deploy(ctx: &AppContext, package: Option<&str>, no_snapshot: bool) -> Cor
     for (pkg, ops) in &all_ops {
         println!("  {} {}", "📦".dimmed(), pkg.bright_white());
         for op in ops {
-            if let Op::Create { link, target } = op {
-                if let Some(parent) = link.parent() {
-                    let _ = fs::create_dir_all(parent);
-                }
-                match std::os::unix::fs::symlink(target, link) {
-                    Ok(_) => {
-                        println!("    {} {}", "✓".bright_green(), link.display());
-                        created += 1;
+            match op {
+                Op::Create { link, target } => {
+                    if let Some(parent) = link.parent() {
+                        let _ = fs::create_dir_all(parent);
                     }
-                    Err(e) => {
-                        println!("    {} {} — {}", "✗".bright_red(), link.display(), e);
-                        failed += 1;
+                    match std::os::unix::fs::symlink(target, link) {
+                        Ok(_) => {
+                            println!("    {} {}", "✓".bright_green(), link.display());
+                            created += 1;
+                        }
+                        Err(e) => {
+                            println!("    {} {} — {}", "✗".bright_red(), link.display(), e);
+                            failed += 1;
+                        }
                     }
                 }
+                Op::Conflict { link, .. } if adopt => {
+                    let rel = link.strip_prefix(&home).unwrap_or(link.as_path());
+                    let target = stow_dir.join(pkg).join(rel);
+                    if link.exists() && !link.is_symlink() {
+                        let _ = fs::remove_file(link);
+                    }
+                    if let Some(parent) = link.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    match std::os::unix::fs::symlink(&target, link) {
+                        Ok(_) => {
+                            println!("    {} {}", "✓".bright_green(), link.display());
+                            created += 1;
+                        }
+                        Err(e) => {
+                            println!("    {} {} — {}", "✗".bright_red(), link.display(), e);
+                            failed += 1;
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -272,7 +300,7 @@ pub fn redeploy(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     println!("{}", "━".repeat(41).dimmed());
     for pkg in &packages {
         undeploy(ctx, pkg)?;
-        deploy(ctx, Some(pkg), true)?;
+        deploy(ctx, Some(pkg), true, false)?;
     }
     Ok(())
 }
