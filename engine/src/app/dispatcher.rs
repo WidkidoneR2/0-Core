@@ -45,12 +45,28 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         }
 
         Command::Link(c) => {
-            ctx.capabilities
-                .require("link", &[Capability::FilesystemReadHome])?;
+            ctx.capabilities.require(
+                "link",
+                &[
+                    Capability::FilesystemReadHome,
+                    Capability::FilesystemWriteHome,
+                ],
+            )?;
             match c {
                 LinkCommand::Status { json } => crate::domains::link::status(ctx, json),
                 LinkCommand::List => crate::domains::link::list(ctx),
                 LinkCommand::Audit => crate::domains::link::audit(ctx),
+                LinkCommand::Plan { package } => {
+                    crate::domains::link::plan(ctx, package.as_deref())
+                }
+                LinkCommand::Deploy {
+                    package,
+                    no_snapshot,
+                } => crate::domains::link::deploy(ctx, package.as_deref(), no_snapshot),
+                LinkCommand::Undeploy { package } => crate::domains::link::undeploy(ctx, &package),
+                LinkCommand::Redeploy { package } => {
+                    crate::domains::link::redeploy(ctx, package.as_deref())
+                }
             }
         }
 

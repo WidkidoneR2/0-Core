@@ -51,9 +51,24 @@ pub enum DoctorCommand {
 
 #[derive(Debug)]
 pub enum LinkCommand {
-    Status { json: bool },
+    Status {
+        json: bool,
+    },
     List,
     Audit,
+    Plan {
+        package: Option<String>,
+    },
+    Deploy {
+        package: Option<String>,
+        no_snapshot: bool,
+    },
+    Undeploy {
+        package: String,
+    },
+    Redeploy {
+        package: Option<String>,
+    },
 }
 
 #[derive(Debug)]
