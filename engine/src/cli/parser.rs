@@ -119,6 +119,29 @@ pub enum LinkCommands {
     },
     List,
     Audit,
+    /// Show what deploy would do without doing it
+    Plan {
+        /// Package name (or 'all')
+        package: Option<String>,
+    },
+    /// Deploy a package (create symlinks)
+    Deploy {
+        /// Package name (or 'all')
+        package: Option<String>,
+        /// Skip snapshot before deploy
+        #[arg(long)]
+        no_snapshot: bool,
+    },
+    /// Remove a package's symlinks
+    Undeploy {
+        /// Package name
+        package: String,
+    },
+    /// Undeploy then redeploy atomically
+    Redeploy {
+        /// Package name (or 'all')
+        package: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

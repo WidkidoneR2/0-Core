@@ -35,6 +35,16 @@ pub fn parse() -> Command {
             LinkCommands::Status { json } => LinkCommand::Status { json },
             LinkCommands::List => LinkCommand::List,
             LinkCommands::Audit => LinkCommand::Audit,
+            LinkCommands::Plan { package } => LinkCommand::Plan { package },
+            LinkCommands::Deploy {
+                package,
+                no_snapshot,
+            } => LinkCommand::Deploy {
+                package,
+                no_snapshot,
+            },
+            LinkCommands::Undeploy { package } => LinkCommand::Undeploy { package },
+            LinkCommands::Redeploy { package } => LinkCommand::Redeploy { package },
         }),
         Commands::Zone {
             icon,

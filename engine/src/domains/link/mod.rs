@@ -4,9 +4,10 @@ use colored::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub fn status(ctx: &AppContext, json: bool) -> CoreResult<()> {
-    let stow_dir = PathBuf::from(&ctx.core_root).join("03-interfaces/stow");
+// ── public domain functions ──────────────────────────────────────────────────
 
+pub fn status(ctx: &AppContext, json: bool) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
     if !stow_dir.exists() {
         eprintln!(
             "{} Stow directory not found: {}",
@@ -15,28 +16,24 @@ pub fn status(ctx: &AppContext, json: bool) -> CoreResult<()> {
         );
         return Ok(());
     }
-
     let packages = discover_packages(&stow_dir);
     let home = PathBuf::from(&ctx.home);
     let mut total_links = 0;
     let mut results: Vec<(String, usize)> = vec![];
-
     for pkg in &packages {
-        let pkg_path = stow_dir.join(pkg);
-        let links = count_links_recursive(&pkg_path, &home, pkg);
+        let links = count_links_recursive(&stow_dir.join(pkg), &home, pkg);
         total_links += links;
         results.push((pkg.clone(), links));
     }
-
     if json {
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({
             "packages": results.iter().map(|(p, l)| serde_json::json!({"package": p, "links": l})).collect::<Vec<_>>(),
             "total": total_links
         })).unwrap_or_default());
     } else {
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-        println!("{} {}", "🔗 core link status".bold(), "v2.0.0".dimmed());
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "━".repeat(41).dimmed());
+        println!("{} {}", "🔗 core link status".bold(), "v3.0.0".dimmed());
+        println!("{}", "━".repeat(41).dimmed());
         for (pkg, links) in &results {
             if *links > 0 {
                 println!(
@@ -46,20 +43,19 @@ pub fn status(ctx: &AppContext, json: bool) -> CoreResult<()> {
                     links
                 );
             } else {
-                println!("  {} {} (not stowed)", "✗".bright_red(), pkg);
+                println!("  {} {} (not deployed)", "✗".bright_red(), pkg);
             }
         }
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "━".repeat(41).dimmed());
         println!("  Total links: {}", total_links.to_string().bright_white());
     }
-
     Ok(())
 }
 
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
-    let stow_dir = PathBuf::from(&ctx.core_root).join("03-interfaces/stow");
+    let stow_dir = stow_dir(ctx);
     let packages = discover_packages(&stow_dir);
-    println!("{}", "📦 Stow packages:".bold());
+    println!("{}", "📦 Packages:".bold());
     for pkg in &packages {
         println!("  {} {}", "▶".dimmed(), pkg);
     }
@@ -68,26 +64,22 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn audit(ctx: &AppContext) -> CoreResult<()> {
-    let stow_dir = PathBuf::from(&ctx.core_root).join("03-interfaces/stow");
+    let stow_dir = stow_dir(ctx);
     let home = PathBuf::from(&ctx.home);
     let packages = discover_packages(&stow_dir);
     let mut broken: Vec<(String, String)> = vec![];
     let mut total = 0;
-
     for pkg in &packages {
-        let pkg_path = stow_dir.join(pkg);
-        let links = find_links_recursive(&pkg_path, &home, pkg);
-        for link in links {
+        for link in find_links_recursive(&stow_dir.join(pkg), &home) {
             total += 1;
             if !link.target.exists() {
                 broken.push((pkg.clone(), link.path.display().to_string()));
             }
         }
     }
-
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("{}", "━".repeat(41).dimmed());
     println!("{}", "🔍 core link audit".bold());
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("{}", "━".repeat(41).dimmed());
     println!("  Scanned: {} links", total);
     if broken.is_empty() {
         println!("  {} No broken links", "✅".green());
@@ -100,7 +92,261 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-// --- Internal helpers ---
+pub fn plan(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
+    let home = PathBuf::from(&ctx.home);
+    let packages = resolve_packages(&stow_dir, package);
+    println!("{}", "━".repeat(41).dimmed());
+    println!("{}", "📋 Deploy Plan (dry-run)".bold());
+    println!("{}", "━".repeat(41).dimmed());
+    let mut total_create = 0;
+    let mut total_conflict = 0;
+    for pkg in &packages {
+        let ops = build_plan(&stow_dir.join(pkg), &home);
+        println!("  {} {}", "📦".dimmed(), pkg.bright_white());
+        for op in &ops {
+            match op {
+                Op::Create { link, .. } => {
+                    println!("    {} {}", "create".bright_green(), link.display());
+                    total_create += 1;
+                }
+                Op::Conflict { link, reason } => {
+                    println!(
+                        "    {} {} — {}",
+                        "conflict".bright_red(),
+                        link.display(),
+                        reason
+                    );
+                    total_conflict += 1;
+                }
+                Op::Skip { link, reason } => {
+                    println!("    {} {} — {}", "skip".yellow(), link.display(), reason);
+                }
+            }
+        }
+    }
+    println!("{}", "━".repeat(41).dimmed());
+    println!(
+        "  {} to create, {} conflicts",
+        total_create.to_string().green(),
+        if total_conflict > 0 {
+            total_conflict.to_string().bright_red()
+        } else {
+            "0".normal()
+        }
+    );
+    if total_conflict > 0 {
+        println!("  {} Resolve conflicts before deploying", "⚠️".yellow());
+    }
+    Ok(())
+}
+
+pub fn deploy(ctx: &AppContext, package: Option<&str>, no_snapshot: bool) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
+    let home = PathBuf::from(&ctx.home);
+    let packages = resolve_packages(&stow_dir, package);
+    println!("{}", "━".repeat(41).dimmed());
+    println!("{}", "🚀 Deploying".bold());
+    println!("{}", "━".repeat(41).dimmed());
+
+    // Snapshot before deploy
+    if !no_snapshot {
+        print!("  📸 Creating snapshot... ");
+        let snap = std::process::Command::new("faelight-snapshot")
+            .args([
+                "create",
+                &format!(
+                    "pre-deploy-{}",
+                    chrono::Local::now().format("%Y%m%d_%H%M%S")
+                ),
+            ])
+            .output();
+        match snap {
+            Ok(s) if s.status.success() => println!("{}", "✅".green()),
+            _ => println!("{}", "⚠️  snapshot failed, continuing".yellow()),
+        }
+    }
+
+    // Validate — abort if any conflicts
+    let mut all_ops: Vec<(String, Vec<Op>)> = vec![];
+    let mut has_conflicts = false;
+    for pkg in &packages {
+        let ops = build_plan(&stow_dir.join(pkg), &home);
+        if ops.iter().any(|o| matches!(o, Op::Conflict { .. })) {
+            has_conflicts = true;
+        }
+        all_ops.push((pkg.clone(), ops));
+    }
+    if has_conflicts {
+        println!(
+            "  {} Conflicts detected — run {} to see details",
+            "✗".bright_red(),
+            "core link plan".cyan()
+        );
+        return Ok(());
+    }
+
+    // Execute atomically
+    let mut created = 0;
+    let mut failed = 0;
+    for (pkg, ops) in &all_ops {
+        println!("  {} {}", "📦".dimmed(), pkg.bright_white());
+        for op in ops {
+            if let Op::Create { link, target } = op {
+                if let Some(parent) = link.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                match std::os::unix::fs::symlink(target, link) {
+                    Ok(_) => {
+                        println!("    {} {}", "✓".bright_green(), link.display());
+                        created += 1;
+                    }
+                    Err(e) => {
+                        println!("    {} {} — {}", "✗".bright_red(), link.display(), e);
+                        failed += 1;
+                    }
+                }
+            }
+        }
+    }
+    println!("{}", "━".repeat(41).dimmed());
+    println!(
+        "  {} created, {} failed",
+        created.to_string().green(),
+        if failed > 0 {
+            failed.to_string().bright_red()
+        } else {
+            "0".normal()
+        }
+    );
+    Ok(())
+}
+
+pub fn undeploy(ctx: &AppContext, package: &str) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
+    let home = PathBuf::from(&ctx.home);
+    let pkg_path = stow_dir.join(package);
+    if !pkg_path.exists() {
+        println!("  {} Package not found: {}", "✗".bright_red(), package);
+        return Ok(());
+    }
+    println!("{}", "━".repeat(41).dimmed());
+    println!("  {} Undeploying {}", "🗑️".dimmed(), package.bright_white());
+    println!("{}", "━".repeat(41).dimmed());
+    let mut removed = 0;
+    let mut skipped = 0;
+    for entry in walkdir::WalkDir::new(&pkg_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let rel = entry.path().strip_prefix(&pkg_path).unwrap_or(entry.path());
+        let link = home.join(rel);
+        if link.symlink_metadata().is_ok() {
+            if let Ok(target) = fs::read_link(&link) {
+                if target == entry.path() {
+                    let _ = fs::remove_file(&link);
+                    println!("    {} {}", "✓".bright_green(), link.display());
+                    removed += 1;
+                    continue;
+                }
+            }
+        }
+        println!("    {} {} (not our link)", "skip".yellow(), link.display());
+        skipped += 1;
+    }
+    println!("{}", "━".repeat(41).dimmed());
+    println!(
+        "  {} removed, {} skipped",
+        removed.to_string().green(),
+        skipped
+    );
+    Ok(())
+}
+
+pub fn redeploy(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
+    let packages = resolve_packages(&stow_dir, package);
+    println!("{}", "━".repeat(41).dimmed());
+    println!("{}", "🔄 Redeploying".bold());
+    println!("{}", "━".repeat(41).dimmed());
+    for pkg in &packages {
+        undeploy(ctx, pkg)?;
+        deploy(ctx, Some(pkg), true)?;
+    }
+    Ok(())
+}
+
+// ── internal types ───────────────────────────────────────────────────────────
+
+enum Op {
+    Create { link: PathBuf, target: PathBuf },
+    Conflict { link: PathBuf, reason: String },
+    Skip { link: PathBuf, reason: String },
+}
+
+struct LinkInfo {
+    path: PathBuf,
+    target: PathBuf,
+}
+
+// ── internal helpers ─────────────────────────────────────────────────────────
+
+fn stow_dir(ctx: &AppContext) -> PathBuf {
+    PathBuf::from(&ctx.core_root).join("03-interfaces/stow")
+}
+
+fn resolve_packages(stow_dir: &Path, package: Option<&str>) -> Vec<String> {
+    match package {
+        Some("all") | None => discover_packages(stow_dir),
+        Some(pkg) => vec![pkg.to_string()],
+    }
+}
+
+fn build_plan(pkg_path: &Path, home: &Path) -> Vec<Op> {
+    let mut ops = vec![];
+    for entry in walkdir::WalkDir::new(pkg_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let rel = entry.path().strip_prefix(pkg_path).unwrap_or(entry.path());
+        let link = home.join(rel);
+        let target = entry.path().to_path_buf();
+        if link.symlink_metadata().is_ok() {
+            if let Ok(existing) = fs::read_link(&link) {
+                // Resolve relative symlinks to absolute for comparison
+                let resolved = if existing.is_absolute() {
+                    existing.clone()
+                } else if let Some(parent) = link.parent() {
+                    std::fs::canonicalize(parent.join(&existing))
+                        .unwrap_or_else(|_| parent.join(&existing))
+                } else {
+                    existing.clone()
+                };
+                if resolved == target {
+                    ops.push(Op::Skip {
+                        link,
+                        reason: "already linked".to_string(),
+                    });
+                } else {
+                    ops.push(Op::Conflict {
+                        link,
+                        reason: format!("points to {}", existing.display()),
+                    });
+                }
+            } else {
+                ops.push(Op::Conflict {
+                    link,
+                    reason: "real file exists".to_string(),
+                });
+            }
+        } else {
+            ops.push(Op::Create { link, target });
+        }
+    }
+    ops
+}
 
 fn discover_packages(stow_dir: &Path) -> Vec<String> {
     let Ok(entries) = fs::read_dir(stow_dir) else {
@@ -112,32 +358,23 @@ fn discover_packages(stow_dir: &Path) -> Vec<String> {
         .filter_map(|e| e.file_name().into_string().ok())
         .filter(|name| !name.starts_with('.'))
         .collect();
-
-    // Skip empty packages
     packages.retain(|pkg| {
         walkdir::WalkDir::new(stow_dir.join(pkg))
             .into_iter()
             .filter_map(|e| e.ok())
             .any(|e| e.file_type().is_file())
     });
-
     packages.sort();
     packages
 }
 
-struct LinkInfo {
-    path: PathBuf,
-    target: PathBuf,
-}
-
-fn find_links_recursive(pkg_path: &Path, home: &Path, _pkg: &str) -> Vec<LinkInfo> {
+fn find_links_recursive(pkg_path: &Path, home: &Path) -> Vec<LinkInfo> {
     let mut links = vec![];
-    let walker = walkdir::WalkDir::new(pkg_path)
+    for entry in walkdir::WalkDir::new(pkg_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file());
-
-    for entry in walker {
+        .filter(|e| e.file_type().is_file())
+    {
         let rel = entry.path().strip_prefix(pkg_path).unwrap_or(entry.path());
         let link_path = home.join(rel);
         if link_path.exists() || link_path.symlink_metadata().is_ok() {
@@ -150,6 +387,6 @@ fn find_links_recursive(pkg_path: &Path, home: &Path, _pkg: &str) -> Vec<LinkInf
     links
 }
 
-fn count_links_recursive(pkg_path: &Path, home: &Path, pkg: &str) -> usize {
-    find_links_recursive(pkg_path, home, pkg).len()
+fn count_links_recursive(pkg_path: &Path, home: &Path, _pkg: &str) -> usize {
+    find_links_recursive(pkg_path, home).len()
 }
