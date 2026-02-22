@@ -205,9 +205,16 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 - [x] Each domain passes v1 parity tests before ship
 - [x] v1 and v2 run side by side during transition
 
-### Phase 3 — Cutover ⬜ NEXT
+### Phase 3 — Cutover 🔄 IN PROGRESS (started 2026-02-22)
 - [ ] All domains passing (✅ 15/15 wired, delegation complete)
+  - ✅ link — fully native (adopt, deploy, plan, undeploy, redeploy)
+  - ✅ update — path fixed, flag passthrough working
+  - ⬜ doctor — 1065 lines native, delegation removal pending
+  - ⬜ remaining domains — delegation → native
 - [ ] v1 tools removed (native implementations replace delegation)
+  - 🗑 faelight-launcher — DEPRECATED, superseded by faelight-palette
+  - 🗑 faelight-dmenu — DEPRECATED, superseded by faelight-palette
+  - ⬜ remaining v1 binaries — pending Phase 3 completion
 - [ ] Adapters regenerated from registry
 - [ ] `runtime/` fully isolated
 
@@ -238,7 +245,7 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 ## Success Criteria
 
 - [x] Single `core` binary — 15/15 domains wired (Phase 2 complete)
-- [x] `core doctor run` passes health checks — 20/21 (90%, 2 upstream CVEs)
+- [x] `core doctor run` passes health checks — 21/22 (95%, core unlocked warning only)
 - [ ] Cold start < 50ms — not yet measured (Phase 3)
 - [ ] Zero shell scripts with logic — wrappers exist but are thin delegation only
 - [ ] All mutable state in runtime/ — Phase 3
@@ -286,8 +293,16 @@ _"One orchestrator. Five layers. Zero ambiguity."_ 🌲
 - `engine/` chosen over `core/` to avoid path confusion
 - `core` alias updated: was `cd ~/0-core`, now v2 binary; `0core` for navigation
 - `alias-audit --doctor` flag routed to workspace target binary (not 04-runtime)
-- Interactive TUI tools (fm, palette, dmenu, workspace-view) delegate fully — not wrappable
+- Interactive TUI tools (fm, palette, workspace-view) delegate fully — not wrappable
+- faelight-palette v3 shipped 2026-02-22 — split layout, real stats, replaces launcher+dmenu
 - dot-doctor rebuilt to fix path resilience 158% → 100%
+
+**Phase 3 progress (started 2026-02-22):**
+- faelight-link fully native — adopt command, dir-folding fix, 0 false conflicts
+- faelight-palette v3 — split layout, real 0-Core stats, core lock status, replaces launcher+dmenu
+- faelight-fm — clean filelist, rich preview panel, SCR scratch zone, UTF-8 panic fix
+- core update — path fix, allow_hyphen_values flag passthrough
+- faelight-link adopt — standalone command, GNU Stow dir-folding awareness
 
 **Phase 3 entry criteria:**
 - All 15 domains have native Rust implementations (not delegation)
@@ -544,7 +559,7 @@ These are settled. Do not revisit without a new intent.
 | release | versioning, changelog | bump-system-version, bump-tool-version, get-version |
 | notify | notifications | faelight-notify |
 | lock | screen locking | faelight-lock |
-| launcher | app launching, palette | faelight-launcher, faelight-palette, faelight-dmenu |
+| launcher | app launching, palette | faelight-launcher (deprecated), faelight-palette (active), faelight-dmenu (deprecated) |
 
 ## SQLite Schema
 ```sql
