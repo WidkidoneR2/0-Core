@@ -216,7 +216,16 @@ pub fn deploy(
                 Op::Conflict { link, .. } if adopt => {
                     let rel = link.strip_prefix(&home).unwrap_or(link.as_path());
                     let target = stow_dir.join(pkg).join(rel);
-                    if link.exists() && !link.is_symlink() {
+                    // Safety: never adopt if stow target is itself a symlink
+                    if target.is_symlink() {
+                        println!(
+                            "    {} {} — stow target is symlink, skipping",
+                            "⚠️".yellow(),
+                            link.display()
+                        );
+                        continue;
+                    }
+                    if link.exists() || link.is_symlink() {
                         let _ = fs::remove_file(link);
                     }
                     if let Some(parent) = link.parent() {
@@ -266,7 +275,7 @@ pub fn undeploy(ctx: &AppContext, package: &str) -> CoreResult<()> {
     for entry in walkdir::WalkDir::new(&pkg_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().is_file() && !e.path_is_symlink())
     {
         let rel = entry.path().strip_prefix(&pkg_path).unwrap_or(entry.path());
         let link = home.join(rel);
@@ -336,7 +345,7 @@ fn build_plan(pkg_path: &Path, home: &Path) -> Vec<Op> {
     for entry in walkdir::WalkDir::new(pkg_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().is_file() && !e.path_is_symlink())
     {
         let rel = entry.path().strip_prefix(pkg_path).unwrap_or(entry.path());
         let link = home.join(rel);
@@ -401,7 +410,7 @@ fn find_links_recursive(pkg_path: &Path, home: &Path) -> Vec<LinkInfo> {
     for entry in walkdir::WalkDir::new(pkg_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().is_file() && !e.path_is_symlink())
     {
         let rel = entry.path().strip_prefix(pkg_path).unwrap_or(entry.path());
         let link_path = home.join(rel);
