@@ -1,41 +1,30 @@
-#![allow(dead_code)]
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use std::process::Command;
 
-pub fn palette(_ctx: &AppContext, dmenu: bool, prompt: Option<&str>) -> CoreResult<()> {
-    let mut cmd = Command::new("faelight-palette");
+pub fn palette(ctx: &AppContext, dmenu: bool, _prompt: Option<&str>) -> CoreResult<()> {
+    let bin = format!("{}/scripts/faelight-palette", ctx.core_root);
+    let mut cmd = Command::new(&bin);
     if dmenu {
         cmd.arg("--dmenu");
-    }
-    if let Some(p) = prompt {
-        cmd.args(["--prompt", p]);
     }
     cmd.status()?;
     Ok(())
 }
 
 pub fn dmenu(
-    _ctx: &AppContext,
-    subcmd: Option<&str>,
-    prompt: Option<&str>,
-    multi: bool,
+    ctx: &AppContext,
+    _subcmd: Option<&str>,
+    _prompt: Option<&str>,
+    _multi: bool,
 ) -> CoreResult<()> {
-    let mut cmd = Command::new("faelight-dmenu");
-    if let Some(sub) = subcmd {
-        cmd.arg(sub);
-    }
-    if let Some(p) = prompt {
-        cmd.args(["--prompt", p]);
-    }
-    if multi {
-        cmd.arg("--multi");
-    }
-    cmd.status()?;
+    let bin = format!("{}/scripts/faelight-palette", ctx.core_root);
+    Command::new(&bin).arg("--dmenu").status()?;
     Ok(())
 }
 
-pub fn launcher(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
-    Command::new("faelight-launcher").args(args).status()?;
+pub fn launcher(ctx: &AppContext, args: &[String]) -> CoreResult<()> {
+    let bin = format!("{}/scripts/faelight-palette", ctx.core_root);
+    Command::new(&bin).args(args).status()?;
     Ok(())
 }
