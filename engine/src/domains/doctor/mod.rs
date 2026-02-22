@@ -1028,6 +1028,12 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     println!("   Total:    {}", total);
     println!("   Health:   {}%", health);
 
+    // Write health score to cache for bar/prompt/palette
+    let cache_dir =
+        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight");
+    let _ = std::fs::create_dir_all(&cache_dir);
+    let _ = std::fs::write(cache_dir.join("health-status"), format!("{}", health));
+
     Ok(())
 }
 
