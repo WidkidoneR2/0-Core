@@ -305,7 +305,7 @@ fn handle_launch(app: LaunchApp) {
             run_tool_bg(&term, &[]);
         }
         LaunchApp::Launcher => {
-            let launcher = find_tool("faelight-launcher");
+            let launcher = find_tool("faelight-palette");
             run_tool_bg(&launcher, &[]);
         }
         LaunchApp::Menu => {
