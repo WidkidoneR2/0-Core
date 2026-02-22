@@ -67,6 +67,9 @@ pub enum LinkCommand {
     Undeploy {
         package: String,
     },
+    Adopt {
+        package: Option<String>,
+    },
     Redeploy {
         package: Option<String>,
     },
