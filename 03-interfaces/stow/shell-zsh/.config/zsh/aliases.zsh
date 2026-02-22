@@ -226,9 +226,9 @@ alias dotgit='cd ~/0-core && git'
 alias dotsave='cd ~/0-core && git add -A && git commit -m "Update configs" && git push'
 alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push'
 alias dotstatus='cd ~/0-core && git status'
-alias dotadd='dotctl add'
-alias dotlist='dotctl list'
-alias dotrem='dotctl remove'
+alias dotadd='dotctl bump'
+alias dotlist='dotctl status'
+alias dotrem='dotctl history'
 
 # ─── Core Diff Tools ───
 alias cdiff='core-diff'
