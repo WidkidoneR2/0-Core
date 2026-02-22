@@ -317,11 +317,11 @@ pub enum LauncherCommands {
 #[derive(Subcommand)]
 pub enum UpdateCommands {
     Run {
-        #[arg(trailing_var_arg = true)]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     Safe {
-        #[arg(trailing_var_arg = true)]
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
 }
