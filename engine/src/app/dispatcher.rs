@@ -65,6 +65,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                     adopt,
                 } => crate::domains::link::deploy(ctx, package.as_deref(), no_snapshot, adopt),
                 LinkCommand::Undeploy { package } => crate::domains::link::undeploy(ctx, &package),
+                LinkCommand::Adopt { package } => {
+                    crate::domains::link::adopt(ctx, package.as_deref())
+                }
                 LinkCommand::Redeploy { package } => {
                     crate::domains::link::redeploy(ctx, package.as_deref())
                 }

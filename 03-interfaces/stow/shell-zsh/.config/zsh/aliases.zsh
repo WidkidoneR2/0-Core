@@ -226,9 +226,9 @@ alias dotgit='cd ~/0-core && git'
 alias dotsave='cd ~/0-core && git add -A && git commit -m "Update configs" && git push'
 alias dotpush='cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push'
 alias dotstatus='cd ~/0-core && git status'
-alias dotadd='dotctl bump'
-alias dotlist='dotctl status'
-alias dotrem='dotctl history'
+alias dotadd='dotctl add'
+alias dotlist='dotctl list'
+alias dotrem='dotctl remove'
 
 # ─── Core Diff Tools ───
 alias cdiff='core-diff'
@@ -256,10 +256,10 @@ alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 # ─── Archaeology (Git History) ───
 alias arch='archaeology-0-core'
 alias arch0='archaeology-0-core'
-alias archint='archaeology-0-core intent'
-alias archsince='archaeology-0-core since'
-alias archtime='archaeology-0-core timeline'
-alias archwk='archaeology-0-core recent --days 7'
+alias archint='archaeology-0-core --by-intent'
+alias archsince='archaeology-0-core --since'
+alias archtime='archaeology-0-core --timeline'
+alias archwk='archaeology-0-core --this-week'
 
 # ═══════════════════════════════════════════════════════════
 # 📦 PACKAGE MANAGEMENT (Paru/Pacman)

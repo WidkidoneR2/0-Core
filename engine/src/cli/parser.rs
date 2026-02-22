@@ -141,6 +141,11 @@ pub enum LinkCommands {
         package: String,
     },
     /// Undeploy then redeploy atomically
+    /// Adopt existing files (convert real files to managed symlinks)
+    Adopt {
+        /// Package name (or all packages if omitted)
+        package: Option<String>,
+    },
     Redeploy {
         /// Package name (or 'all')
         package: Option<String>,

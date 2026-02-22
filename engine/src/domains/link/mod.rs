@@ -141,6 +141,94 @@ pub fn plan(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     Ok(())
 }
 
+pub fn adopt(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
+    let stow_dir = stow_dir(ctx);
+    let home = PathBuf::from(&ctx.home);
+    let packages = resolve_packages(&stow_dir, package);
+    println!("{}", "━".repeat(41).dimmed());
+    println!(
+        "{}",
+        "📎 Adopting (converting real files to symlinks)".bold()
+    );
+    println!("{}", "━".repeat(41).dimmed());
+    let mut created = 0;
+    let mut skipped = 0;
+    let mut failed = 0;
+    for pkg in &packages {
+        let pkg_path = stow_dir.join(pkg);
+        println!("  {} {}", "📦".dimmed(), pkg.bright_white());
+        for entry in walkdir::WalkDir::new(&pkg_path)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file() && !e.path_is_symlink())
+        {
+            let stow_file = entry.path().to_path_buf();
+            let rel = stow_file.strip_prefix(&pkg_path).unwrap_or(&stow_file);
+            let real = home.join(rel);
+            // Skip if real path resolves into the stow directory (directory folding)
+            let real_canonical = std::fs::canonicalize(&real).unwrap_or(real.clone());
+            if real_canonical.starts_with(&stow_dir) {
+                skipped += 1;
+                continue;
+            }
+            if real.is_symlink() {
+                if let Ok(target) = fs::read_link(&real) {
+                    let resolved = if target.is_absolute() {
+                        target.clone()
+                    } else if let Some(parent) = real.parent() {
+                        std::fs::canonicalize(parent.join(&target))
+                            .unwrap_or_else(|_| parent.join(&target))
+                    } else {
+                        target.clone()
+                    };
+                    eprintln!(
+                        "DBG real={} resolved={} stow={} match={}",
+                        real.display(),
+                        resolved.display(),
+                        stow_file.display(),
+                        resolved == stow_file
+                    );
+                    if resolved == stow_file {
+                        skipped += 1;
+                        continue;
+                    }
+                }
+                let _ = fs::remove_file(&real);
+            } else if real.is_file() {
+                let _ = fs::remove_file(&real);
+            } else {
+                continue;
+            }
+            if let Some(parent) = real.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            match std::os::unix::fs::symlink(&stow_file, &real) {
+                Ok(_) => {
+                    println!("    {} {}", "✓".bright_green(), real.display());
+                    created += 1;
+                }
+                Err(e) => {
+                    println!("    {} {} — {}", "✗".bright_red(), real.display(), e);
+                    failed += 1;
+                }
+            }
+        }
+    }
+    println!("{}", "━".repeat(41).dimmed());
+    println!(
+        "  {} adopted, {} skipped, {} failed",
+        created.to_string().green(),
+        skipped,
+        if failed > 0 {
+            failed.to_string().bright_red()
+        } else {
+            "0".normal()
+        }
+    );
+    Ok(())
+}
+
 pub fn deploy(
     ctx: &AppContext,
     package: Option<&str>,
@@ -214,23 +302,36 @@ pub fn deploy(
                     }
                 }
                 Op::Conflict { link, .. } if adopt => {
+                    // Adopt: only replace real files in ~/.config with symlinks.
+                    // Never touch stow package files.
+                    // The target is the stow package file for this pkg/rel.
                     let rel = link.strip_prefix(&home).unwrap_or(link.as_path());
                     let target = stow_dir.join(pkg).join(rel);
-                    // Safety: never adopt if stow target is itself a symlink
-                    if target.is_symlink() {
+                    // Only proceed if stow target is a real file (not symlink)
+                    if !target.exists() || target.is_symlink() {
                         println!(
-                            "    {} {} — stow target is symlink, skipping",
+                            "    {} {} — stow target not a real file, skipping",
                             "⚠️".yellow(),
                             link.display()
                         );
                         continue;
                     }
-                    if link.exists() || link.is_symlink() {
+                    // Only replace real files — skip if already a symlink
+                    if link.is_symlink() {
+                        continue;
+                    }
+                    if link.is_file() {
                         let _ = fs::remove_file(link);
                     }
                     if let Some(parent) = link.parent() {
                         let _ = fs::create_dir_all(parent);
                     }
+                    eprintln!(
+                        "DEBUG adopt: link={} target={} target_is_symlink={}",
+                        link.display(),
+                        target.display(),
+                        target.is_symlink()
+                    );
                     match std::os::unix::fs::symlink(&target, link) {
                         Ok(_) => {
                             println!("    {} {}", "✓".bright_green(), link.display());
@@ -351,6 +452,16 @@ fn build_plan(pkg_path: &Path, home: &Path) -> Vec<Op> {
         let link = home.join(rel);
         let target = entry.path().to_path_buf();
         if link.symlink_metadata().is_ok() {
+            // Check if the file is already reachable via a directory-level symlink
+            if let Ok(canonical) = std::fs::canonicalize(&link) {
+                if canonical == target {
+                    ops.push(Op::Skip {
+                        link,
+                        reason: "already linked (dir)".to_string(),
+                    });
+                    continue;
+                }
+            }
             if let Ok(existing) = fs::read_link(&link) {
                 // Resolve relative symlinks to absolute for comparison
                 let resolved = if existing.is_absolute() {
