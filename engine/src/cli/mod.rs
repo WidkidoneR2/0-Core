@@ -173,5 +173,6 @@ pub fn parse() -> Command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
         }),
+        Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }
 }

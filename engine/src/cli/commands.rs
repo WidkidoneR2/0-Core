@@ -25,6 +25,10 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Capabilities {
+        json: bool,
+        domain: Option<String>,
+    },
 }
 
 #[derive(Debug)]
