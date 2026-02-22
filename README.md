@@ -11,7 +11,7 @@
 
 ## 🎊 Latest Release
 
-### v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
+### 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
 
 - END- core v2.0.0 single orchestrator binary replaces all v1 tool delegation
 - - All 15 domains implemented natively in Rust (no shell scripts with logic)
@@ -226,7 +226,7 @@ doctor                              # Verify health
 | v9.0.0 | 60% path resilience |
 | v9.2.0 | 100% path resilience — 40 tools |
 | v9.6.0 | Legendary tool audit — production-ready |
-| v9.9.0 | Presented to Linus Torvalds |
+| v9.9.0 | The Forest Grows — Visual Intelligence Update |
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
 
 From hardcoded paths to centralized elegance.
