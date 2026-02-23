@@ -1,4 +1,35 @@
 # Changelog
+
+## v10.1.0 - 🌲 The Forest Matures — 0-Core v2 Complete (2026-02-22)
+
+- END0-Core v2 architecture migration complete — all 6 phases done
+- Phase 5: alias-audit, bin-doctor, entropy-check absorbed into doctor domain
+- Phase 6: capability model enforced across all 15 domains — every operation logged
+- faelight-menu v4.0.0 — forest palette aesthetic matching faelight-palette
+- faelight-palette v3 — split layout, real 0-Core stats, health cache integration
+- faelight-fm — rich preview panel with zone/git/intent metadata
+- faelight-link v3 — adopt command, GNU Stow dir-folding awareness
+- Health cache — single source of truth across bar, palette, prompt, doctor
+- All hardcoded paths removed from engine — fully portable
+- Cold start: 3ms
+
+**Tools Updated:** faelight-menu
+
+**Statistics:**
+- Tools: 34/34 deployed (100%)
+- Aliases: 318 total
+- Commits: 1240
+- Health: 95%
+- Domains: 15 native Rust domains
+- Sub-tools absorbed: 3 (alias-audit, bin-doctor, entropy-check)
+- Cold start: 3ms
+
+- System Health: 90%
+- Commits: 37
+- Files Changed: 27
+
+---
+
 ## v10.1.0 - 🔧 Phase 3 Complete — Engine Hardened (2026-02-22)
 
 ### 0-Core v2 Phase 3 — Cutover Complete
