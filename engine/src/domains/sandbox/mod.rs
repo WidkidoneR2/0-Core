@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use serde::Deserialize;
@@ -28,6 +29,14 @@ struct SessionState {
 }
 
 pub fn status(_ctx: &AppContext) -> CoreResult<()> {
+    _ctx.capabilities.require(
+        "sandbox",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+            Capability::SpawnProcess,
+        ],
+    )?;
     let state_file = state_dir().join("session.json");
 
     if !state_file.exists() {

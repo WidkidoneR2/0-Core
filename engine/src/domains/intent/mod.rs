@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::collections::HashMap;
@@ -130,6 +131,13 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
 }
 
 pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
     let intents = load_all(ctx);
 
     let filtered: Vec<&Intent> = intents

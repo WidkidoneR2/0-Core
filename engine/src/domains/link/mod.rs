@@ -1,4 +1,5 @@
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
@@ -7,6 +8,13 @@ use std::path::{Path, PathBuf};
 // ── public domain functions ──────────────────────────────────────────────────
 
 pub fn status(ctx: &AppContext, json: bool) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "link",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
     let stow_dir = stow_dir(ctx);
     if !stow_dir.exists() {
         eprintln!(

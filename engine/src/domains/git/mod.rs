@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::process::Command;
@@ -29,6 +30,14 @@ fn in_git_repo() -> bool {
 }
 
 pub fn status(_ctx: &AppContext) -> CoreResult<()> {
+    _ctx.capabilities.require(
+        "git",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+            Capability::SpawnProcess,
+        ],
+    )?;
     if !in_git_repo() {
         println!("  {} Not in a git repository", "✗".bright_red());
         return Ok(());

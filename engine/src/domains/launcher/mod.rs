@@ -1,8 +1,13 @@
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use std::process::Command;
 
 pub fn palette(ctx: &AppContext, dmenu: bool, _prompt: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "launcher",
+        &[Capability::SpawnProcess, Capability::ControlSway],
+    )?;
     let bin = format!("{}/scripts/faelight-palette", ctx.core_root);
     let mut cmd = Command::new(&bin);
     if dmenu {

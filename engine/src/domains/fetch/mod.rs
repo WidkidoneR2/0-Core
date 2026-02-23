@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
@@ -105,6 +106,10 @@ fn get_core_status() -> String {
 }
 
 pub fn run(ctx: &AppContext, health_check: bool) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "fetch",
+        &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+    )?;
     if health_check {
         println!("{}", "🏥 core fetch health".bold());
         println!("  {} System info readable", "✅".green());

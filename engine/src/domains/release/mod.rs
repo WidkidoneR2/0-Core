@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
@@ -7,6 +8,13 @@ use std::path::PathBuf;
 use std::process::Command;
 
 pub fn get_version(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "release",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
     let tools_dir = PathBuf::from(&ctx.core_root).join("rust-tools");
 
     match package {

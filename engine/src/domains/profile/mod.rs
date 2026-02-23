@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use serde::Deserialize;
@@ -51,6 +52,13 @@ fn current_profile() -> String {
 }
 
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "profile",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
     let profiles = load_profiles(ctx);
     let current = current_profile();
 

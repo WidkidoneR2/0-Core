@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use chrono::{DateTime, Duration, Local};
 use colored::*;
@@ -11,6 +12,10 @@ use walkdir::WalkDir;
 
 // ── view: delegates to workspace-view (swaymsg TUI) ──────────────────────────
 pub fn view(_ctx: &AppContext, active: bool, summary: bool, json: bool) -> CoreResult<()> {
+    _ctx.capabilities.require(
+        "workspace",
+        &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+    )?;
     let mut args = vec![];
     if active {
         args.push("--active");
