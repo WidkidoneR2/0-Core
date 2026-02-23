@@ -3,7 +3,7 @@ id: 091
 date: 2026-02-20
 type: future
 title: "faelight-sandbox - Controlled Experimentation Environment"
-status: in-progress
+status: complete
 tags: [rust, sandbox, btrfs, namespaces, zones, experimentation]
 version: 10.0.0
 ---

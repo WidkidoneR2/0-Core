@@ -3,7 +3,7 @@ id: 072
 date: 2026-01-23
 type: future
 title: "v8.2.0 Planning - Next Evolution of The Garden"
-status: planned
+status: cancelled
 tags: [v8.2.0]
 ---
 

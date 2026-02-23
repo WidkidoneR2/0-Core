@@ -3,7 +3,7 @@ id: 067
 date: 2026-01-21
 type: future
 title: "Post-Linus Evolution - Next-Gen Causality & Planning Tools"
-status: planned
+status: in-progress
 tags: [rust, architecture, causality, simulation, post-v8.0.0]
 related: [001, 061, 063]
 ---

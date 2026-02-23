@@ -1,7 +1,7 @@
 ---
 id: 078
 title: "Implement i3bar-style Modular Status Bar Architecture"
-status: planned
+status: cancelled
 category: future
 created: 2026-02-07
 tags:
