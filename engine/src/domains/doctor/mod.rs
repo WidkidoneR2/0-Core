@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 pub mod aliases;
+pub mod bins;
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -1062,12 +1063,6 @@ pub fn entropy(ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> Co
     Ok(())
 }
 
-pub fn bins(ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
-    let bin = format!("{}/scripts/bin-doctor", ctx.core_root);
-    let mut cmd = Command::new(&bin);
-    if let Some(sub) = subcmd {
-        cmd.arg(sub);
-    }
-    cmd.status()?;
-    Ok(())
+pub fn bins(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    bins::run(subcmd, false)
 }
