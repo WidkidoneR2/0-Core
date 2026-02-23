@@ -3,7 +3,7 @@ id: 092
 date: 2026-02-20
 type: active
 title: "0-Core v2 — Intentional Architecture Redesign"
-status: active
+status: complete
 tags: [architecture, v2, rust, security, philosophy, long-term]
 version: 2.0.0
 priority: high

@@ -3,7 +3,7 @@ id: 066
 date: 2026-01-14
 type: future
 title: "faelight-bar v2.0 - The Sentient Branch"
-status: planned
+status: complete
 tags: [v7.7.0, architecture, rust, wayland]
 ---
 
