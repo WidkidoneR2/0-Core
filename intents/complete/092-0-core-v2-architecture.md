@@ -224,15 +224,15 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 - [x] VERSION file created — 0-Core v2 engine = 2.0.0
 - [x] Intent 092 kept current throughout
 
-### Phase 5 — Doctor Sub-tool Absorption ⬜ FUTURE
-- [ ] Absorb alias-audit into doctor domain
-- [ ] Absorb entropy-check into doctor domain
-- [ ] Absorb bin-doctor into doctor domain
+### Phase 5 — Doctor Sub-tool Absorption ✅ COMPLETE 2026-02-22
+- [x] Absorb alias-audit into doctor domain — core doctor aliases native
+- [x] Absorb entropy-check into doctor domain — core doctor entropy native
+- [x] Absorb bin-doctor into doctor domain — core doctor bins native
 
-### Phase 6 — Capability Model Enforcement ⬜ FUTURE
-- [ ] Capability declarations in each domain (#[capabilities(...)])
-- [ ] Policy checks before every adapter call
-- [ ] Capability usage logged to runtime/logs/capabilities.jsonl
+### Phase 6 — Capability Model Enforcement ✅ COMPLETE 2026-02-22
+- [x] Capability declarations in all 15 domains
+- [x] ctx.capabilities.require() called on every domain entry point
+- [x] Capability usage logged to runtime/logs/capabilities.jsonl
 
 ## What Gets Deleted in v2
 
