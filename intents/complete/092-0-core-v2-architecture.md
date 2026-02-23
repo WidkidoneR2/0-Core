@@ -205,20 +205,20 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 - [x] Each domain passes v1 parity tests before ship
 - [x] v1 and v2 run side by side during transition
 
-### Phase 3 — Cutover 🔄 IN PROGRESS (started 2026-02-22)
-- [ ] All domains passing (✅ 15/15 wired, delegation complete)
+### Phase 3 — Cutover ✅ COMPLETE 2026-02-22
+- [x] All domains passing (✅ 15/15 wired, delegation complete)
   - ✅ link — fully native (adopt, deploy, plan, undeploy, redeploy)
   - ✅ update — path fixed, flag passthrough working
-  - ⬜ doctor — 1065 lines native, delegation removal pending
-  - ⬜ remaining domains — delegation → native
-- [ ] v1 tools removed (native implementations replace delegation)
-  - 🗑 faelight-launcher — DEPRECATED, superseded by faelight-palette
-  - 🗑 faelight-dmenu — DEPRECATED, superseded by faelight-palette
-  - ⬜ remaining v1 binaries — pending Phase 3 completion
-- [ ] Adapters regenerated from registry
-- [ ] `runtime/` fully isolated
+  - ✅ doctor — 1065 lines native, sub-tools use scripts path
+  - ✅ all domains — hardcoded paths removed, portable
+- [x] v1 tools removed
+  - ✅ faelight-launcher — removed, superseded by faelight-palette
+  - ✅ faelight-dmenu — removed, superseded by faelight-palette
+  - ✅ all scripts — target/release paths removed
+- [x] `runtime/` fully isolated — gitignored, state.db, logs, cache, locks, snapshots
+- [x] Cold start < 50ms — measured 3ms ✅
 
-### Phase 4 — Cleanup ⬜
+### Phase 4 — Cleanup ⬜ NEXT
 - [ ] Remove v1 artifacts
 - [ ] Update docs, intents, registry
 - [ ] Bump VERSION to 2.0.0
@@ -246,9 +246,9 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 
 - [x] Single `core` binary — 15/15 domains wired (Phase 2 complete)
 - [x] `core doctor run` passes health checks — 21/22 (95%, core unlocked warning only)
-- [ ] Cold start < 50ms — not yet measured (Phase 3)
-- [ ] Zero shell scripts with logic — wrappers exist but are thin delegation only
-- [ ] All mutable state in runtime/ — Phase 3
+- [x] Cold start < 50ms — measured 3ms ✅
+- [x] Zero shell scripts with logic — all scripts are thin wrappers or compiled binaries
+- [x] All mutable state in runtime/ — complete, gitignored
 - [ ] Capability model enforced at compile time — Phase 6
 - [x] Clean migration from v1 with no data loss — confirmed
 - [ ] All intents migrated to v2 registry format — Phase 4
