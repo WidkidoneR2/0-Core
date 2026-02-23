@@ -1,5 +1,5 @@
-//! faelight-menu v3.2.0 - Power Menu (Fixed with systemctl)
-//! 🌲 Faelight Forest
+//! faelight-menu v4.0.0 - Power Menu
+//! 🌲 Faelight Forest — Palette aesthetic
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -8,19 +8,22 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    text::{Line, Span},
+    widgets::{Block, BorderType, Borders, List, ListItem, Paragraph},
     Terminal,
 };
 use std::{io, process::Command};
 
-#[derive(Debug, Clone, PartialEq)]
-enum Mode {
-    Power,
-    Apps,
-    Health,
-}
+// ── Faelight Forest palette ──────────────────────────────────────────────────
+const BG: Color = Color::Rgb(17, 20, 15);
+const FG: Color = Color::Rgb(218, 224, 215);
+const GREEN: Color = Color::Rgb(163, 227, 107);
+const DIM: Color = Color::Rgb(90, 100, 80);
+const ACCENT: Color = Color::Rgb(120, 190, 80);
+const WARNING: Color = Color::Rgb(230, 180, 60);
+const RED: Color = Color::Rgb(220, 80, 80);
 
 #[derive(Debug, Clone, PartialEq)]
 enum MenuItem {
@@ -29,20 +32,36 @@ enum MenuItem {
     Suspend,
     Reboot,
     Shutdown,
-    App(String, String),
-    HealthInfo(String),
 }
 
 impl MenuItem {
-    fn display(&self) -> String {
+    fn icon(&self) -> &str {
         match self {
-            MenuItem::Lock => "🔒 Lock Screen".to_string(),
-            MenuItem::Logout => "🚪 Logout".to_string(),
-            MenuItem::Suspend => "💤 Suspend".to_string(),
-            MenuItem::Reboot => "🔄 Reboot".to_string(),
-            MenuItem::Shutdown => "⚠️  Shutdown".to_string(),
-            MenuItem::App(name, _) => format!("🚀 {}", name),
-            MenuItem::HealthInfo(info) => info.clone(),
+            MenuItem::Lock => "󰍁",
+            MenuItem::Logout => "󰍃",
+            MenuItem::Suspend => "󰒲",
+            MenuItem::Reboot => "󰑓",
+            MenuItem::Shutdown => "󰐥",
+        }
+    }
+
+    fn label(&self) -> &str {
+        match self {
+            MenuItem::Lock => "Lock Screen",
+            MenuItem::Logout => "Logout",
+            MenuItem::Suspend => "Suspend",
+            MenuItem::Reboot => "Reboot",
+            MenuItem::Shutdown => "Shutdown",
+        }
+    }
+
+    fn hint(&self) -> &str {
+        match self {
+            MenuItem::Lock => "swaylock",
+            MenuItem::Logout => "swaymsg exit",
+            MenuItem::Suspend => "systemctl suspend",
+            MenuItem::Reboot => "systemctl reboot",
+            MenuItem::Shutdown => "systemctl poweroff",
         }
     }
 
@@ -50,160 +69,85 @@ impl MenuItem {
         matches!(self, MenuItem::Reboot | MenuItem::Shutdown)
     }
 
-    fn execute(&self) -> bool {
+    fn color(&self) -> Color {
+        match self {
+            MenuItem::Reboot | MenuItem::Shutdown => RED,
+            MenuItem::Logout => WARNING,
+            _ => FG,
+        }
+    }
+
+    fn execute(&self) {
         match self {
             MenuItem::Lock => {
                 let _ = Command::new("swaylock").spawn();
-                true
             }
             MenuItem::Logout => {
                 let _ = Command::new("swaymsg").arg("exit").spawn();
-                true
             }
             MenuItem::Suspend => {
                 let _ = Command::new("systemctl").arg("suspend").status();
-                true
             }
             MenuItem::Reboot => {
-                // Use systemctl with .status() to run blocking in current session
                 let _ = Command::new("systemctl").arg("reboot").status();
-                false
             }
             MenuItem::Shutdown => {
-                // Use systemctl with .status() to run blocking in current session
                 let _ = Command::new("systemctl").arg("poweroff").status();
-                false
             }
-            MenuItem::App(_, exec) => {
-                let parts: Vec<&str> = exec.split_whitespace().collect();
-                if let Some((cmd, args)) = parts.split_first() {
-                    let _ = Command::new("setsid").arg("-f").arg(cmd).args(args).spawn();
-                }
-                true
-            }
-            MenuItem::HealthInfo(_) => true,
         }
     }
 }
 
+const ITEMS: &[MenuItem] = &[
+    MenuItem::Lock,
+    MenuItem::Logout,
+    MenuItem::Suspend,
+    MenuItem::Reboot,
+    MenuItem::Shutdown,
+];
+
 struct App {
-    mode: Mode,
-    items: Vec<MenuItem>,
     selected: usize,
+    confirm: Option<usize>, // index awaiting confirmation
     should_quit: bool,
 }
 
 impl App {
     fn new() -> Self {
-        let mut app = Self {
-            mode: Mode::Power,
-            items: Vec::new(),
+        Self {
             selected: 0,
+            confirm: None,
             should_quit: false,
-        };
-        app.load_items();
-        app
-    }
-
-    fn load_items(&mut self) {
-        self.items.clear();
-        self.selected = 0;
-
-        match self.mode {
-            Mode::Power => {
-                self.items = vec![
-                    MenuItem::Lock,
-                    MenuItem::Logout,
-                    MenuItem::Suspend,
-                    MenuItem::Reboot,
-                    MenuItem::Shutdown,
-                ];
-            }
-            Mode::Apps => {
-                if let Ok(entries) = std::fs::read_dir("/usr/share/applications") {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.extension().and_then(|s| s.to_str()) == Some("desktop") {
-                            if let Ok(content) = std::fs::read_to_string(&path) {
-                                let mut in_main_section = false;
-                                let mut name = String::new();
-                                let mut exec = String::new();
-
-                                for line in content.lines() {
-                                    let trimmed = line.trim();
-                                    if trimmed == "[Desktop Entry]" {
-                                        in_main_section = true;
-                                    } else if trimmed.starts_with('[') {
-                                        in_main_section = false;
-                                    } else if in_main_section {
-                                        if trimmed.starts_with("Name=") && name.is_empty() {
-                                            name = trimmed[5..].to_string();
-                                        } else if trimmed.starts_with("Exec=") && exec.is_empty() {
-                                            exec = trimmed[5..]
-                                                .split_whitespace()
-                                                .next()
-                                                .unwrap_or("")
-                                                .to_string();
-                                        }
-                                    }
-                                    if !name.is_empty() && !exec.is_empty() {
-                                        break;
-                                    }
-                                }
-
-                                if !name.is_empty() && !exec.is_empty() {
-                                    self.items.push(MenuItem::App(name, exec));
-                                }
-                            }
-                        }
-                    }
-                }
-                self.items.sort_by_key(|a| a.display().to_lowercase());
-            }
-            Mode::Health => {
-                if let Ok(output) = Command::new("/home/christian/.local/bin/doctor").output() {
-                    if let Ok(result) = String::from_utf8(output.stdout) {
-                        for line in result.lines() {
-                            if line.contains("Health:")
-                                || line.starts_with('✅')
-                                || line.starts_with('❌')
-                                || line.starts_with('⚠')
-                            {
-                                self.items
-                                    .push(MenuItem::HealthInfo(line.trim().to_string()));
-                            }
-                        }
-                    }
-                }
-                if self.items.is_empty() {
-                    self.items
-                        .push(MenuItem::HealthInfo("Running health check...".to_string()));
-                }
-            }
         }
     }
 
     fn next(&mut self) {
-        if self.selected < self.items.len().saturating_sub(1) {
+        self.confirm = None;
+        if self.selected < ITEMS.len() - 1 {
             self.selected += 1;
         }
     }
 
     fn previous(&mut self) {
+        self.confirm = None;
         if self.selected > 0 {
             self.selected -= 1;
         }
     }
 
-    fn execute_selected(&mut self) {
-        if let Some(item) = self.items.get(self.selected).cloned() {
-            self.should_quit = item.execute();
+    fn select(&mut self) {
+        let item = &ITEMS[self.selected];
+        if item.is_dangerous() {
+            if self.confirm == Some(self.selected) {
+                item.execute();
+                self.should_quit = true;
+            } else {
+                self.confirm = Some(self.selected);
+            }
+        } else {
+            item.execute();
+            self.should_quit = true;
         }
-    }
-
-    fn switch_mode(&mut self, mode: Mode) {
-        self.mode = mode;
-        self.load_items();
     }
 }
 
@@ -215,7 +159,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    let res = run_app(&mut terminal, &mut app);
+
+    loop {
+        terminal.draw(|f| ui(f, &app))?;
+
+        if let Event::Key(key) = event::read()? {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => app.should_quit = true,
+                KeyCode::Down | KeyCode::Char('j') => app.next(),
+                KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                KeyCode::Enter | KeyCode::Char(' ') => app.select(),
+                KeyCode::Char('l') => {
+                    MenuItem::Lock.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('e') => {
+                    MenuItem::Logout.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('s') => {
+                    MenuItem::Suspend.execute();
+                    app.should_quit = true;
+                }
+                KeyCode::Char('r') => {
+                    if app.confirm == Some(3) {
+                        MenuItem::Reboot.execute();
+                        app.should_quit = true;
+                    } else {
+                        app.confirm = Some(3);
+                        app.selected = 3;
+                    }
+                }
+                KeyCode::Char('p') => {
+                    if app.confirm == Some(4) {
+                        MenuItem::Shutdown.execute();
+                        app.should_quit = true;
+                    } else {
+                        app.confirm = Some(4);
+                        app.selected = 4;
+                    }
+                }
+                _ => {
+                    app.confirm = None;
+                }
+            }
+        }
+
+        if app.should_quit {
+            break;
+        }
+    }
 
     disable_raw_mode()?;
     execute!(
@@ -224,146 +217,113 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
-
-    Ok(())
-}
-
-fn run_app<B: ratatui::backend::Backend>(
-    terminal: &mut Terminal<B>,
-    app: &mut App,
-) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| ui(f, app))?;
-
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => {
-                    app.should_quit = true;
-                }
-                KeyCode::Down | KeyCode::Char('j') => app.next(),
-                KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                KeyCode::Enter => app.execute_selected(),
-                KeyCode::Char('>') => app.switch_mode(Mode::Apps),
-                KeyCode::Char('!') => app.switch_mode(Mode::Health),
-                KeyCode::Backspace => app.switch_mode(Mode::Power),
-                KeyCode::Char('l') if app.mode == Mode::Power => {
-                    MenuItem::Lock.execute();
-                    app.should_quit = true;
-                }
-                KeyCode::Char('e') if app.mode == Mode::Power => {
-                    MenuItem::Logout.execute();
-                    app.should_quit = true;
-                }
-                KeyCode::Char('s') if app.mode == Mode::Power => {
-                    MenuItem::Suspend.execute();
-                    app.should_quit = true;
-                }
-                KeyCode::Char('r') if app.mode == Mode::Power => {
-                    if MenuItem::Reboot.execute() {
-                        app.should_quit = true;
-                    }
-                }
-                KeyCode::Char('p') if app.mode == Mode::Power => {
-                    if MenuItem::Shutdown.execute() {
-                        app.should_quit = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if app.should_quit {
-            break;
-        }
-    }
     Ok(())
 }
 
 fn ui(f: &mut ratatui::Frame, app: &App) {
-    let (width, height) = match app.mode {
-        Mode::Power => (98, 95),
-        Mode::Apps => (40, 60),
-        Mode::Health => (60, 40),
-    };
+    // Full background
+    f.render_widget(Block::default().style(Style::default().bg(BG)), f.area());
 
-    let area = centered_rect(width, height, f.area());
+    let area = f.area();
 
-    let title = match app.mode {
-        Mode::Power => "⚡ POWER MENU",
-        Mode::Apps => "🚀 LAUNCH APPS",
-        Mode::Health => "🏥 SYSTEM HEALTH",
-    };
+    // Menu box
+    let outer = Block::default()
+        .title(Line::from(vec![
+            Span::styled(" 🌲 ", Style::default().fg(GREEN)),
+            Span::styled(
+                "POWER MENU",
+                Style::default().fg(FG).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" ", Style::default()),
+        ]))
+        .title_alignment(Alignment::Center)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT))
+        .style(Style::default().bg(BG));
 
-    let items: Vec<ListItem> = app
-        .items
+    let inner = outer.inner(area);
+    f.render_widget(outer, area);
+
+    // Layout: items + footer
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)])
+        .split(inner);
+
+    // Items
+    let items: Vec<ListItem> = ITEMS
         .iter()
         .enumerate()
         .map(|(i, item)| {
-            let style = if i == app.selected {
-                Style::default()
-                    .bg(Color::Blue)
-                    .add_modifier(Modifier::BOLD)
-            } else if item.is_dangerous() {
-                Style::default().fg(Color::Red)
+            let is_selected = i == app.selected;
+            let is_confirm = app.confirm == Some(i);
+
+            let (icon_style, label_style, hint_style) = if is_confirm {
+                (
+                    Style::default()
+                        .fg(BG)
+                        .bg(WARNING)
+                        .add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(BG)
+                        .bg(WARNING)
+                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(BG).bg(WARNING),
+                )
+            } else if is_selected {
+                (
+                    Style::default()
+                        .fg(BG)
+                        .bg(GREEN)
+                        .add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(BG)
+                        .bg(GREEN)
+                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(BG).bg(GREEN),
+                )
             } else {
-                Style::default()
+                (
+                    Style::default().fg(item.color()),
+                    Style::default().fg(item.color()),
+                    Style::default().fg(DIM),
+                )
             };
-            ListItem::new(item.display()).style(style)
+
+            let confirm_tag = if is_confirm { " ⚠ confirm?" } else { "" };
+
+            let line = Line::from(vec![
+                Span::styled(format!("  {} ", item.icon()), icon_style),
+                Span::styled(format!(" {:<14}", item.label()), label_style),
+                Span::styled(format!("  {}{}", item.hint(), confirm_tag), hint_style),
+            ]);
+
+            ListItem::new(line)
         })
         .collect();
 
-    let menu = List::new(items).block(
-        Block::default()
-            .title(title)
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Green)),
-    );
+    let list = List::new(items).style(Style::default().bg(BG));
 
-    f.render_widget(menu, area);
+    f.render_widget(list, chunks[0]);
 
-    let help_lines = match app.mode {
-        Mode::Power => vec![
-            "L:Lock  S:Suspend  R:Reboot  P:Power-off",
-            ">:Apps  !:Health  Esc:Quit",
-        ],
-        Mode::Apps => vec!["Enter:Launch  Backspace:Back", ">:Apps  !:Health"],
-        Mode::Health => vec!["Backspace:Back", ">:Apps  !:Health"],
-    };
+    // Footer
+    let footer = Paragraph::new(Line::from(vec![
+        Span::styled("l", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+        Span::styled("ock  ", Style::default().fg(DIM)),
+        Span::styled("s", Style::default().fg(GREEN).add_modifier(Modifier::BOLD)),
+        Span::styled("uspend  ", Style::default().fg(DIM)),
+        Span::styled(
+            "r",
+            Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("eboot  ", Style::default().fg(DIM)),
+        Span::styled("p", Style::default().fg(RED).add_modifier(Modifier::BOLD)),
+        Span::styled("ower  ", Style::default().fg(DIM)),
+        Span::styled("q", Style::default().fg(DIM).add_modifier(Modifier::BOLD)),
+        Span::styled("uit", Style::default().fg(DIM)),
+    ]))
+    .alignment(Alignment::Center);
 
-    let help_area = Rect {
-        x: area.x + 1,
-        y: area.y + area.height - 3,
-        width: area.width - 2,
-        height: 2,
-    };
-
-    let help_widget = Paragraph::new(help_lines.join("\n"))
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(Alignment::Left);
-
-    f.render_widget(help_widget, help_area);
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
+    f.render_widget(footer, chunks[1]);
 }
