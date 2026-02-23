@@ -1,8 +1,8 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.0.0
+# 🌲 Faelight Forest v10.1.0
 
-![Version](https://img.shields.io/badge/version-10.0.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-10.1.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-90%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
@@ -11,24 +11,26 @@
 
 ## 🎊 Latest Release
 
-### v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
+### v10.1.0 - 🌲 The Forest Matures — 0-Core v2 Complete (2026-02-22)
 
-- END- core v2.0.0 single orchestrator binary replaces all v1 tool delegation
-- - All 15 domains implemented natively in Rust (no shell scripts with logic)
-- - Phase 1-6 migration complete: scaffold, wiring, native, runtime, cleanup, capabilities
-- - Runtime locking prevents concurrent core processes
-- - Capability model enforces domain permissions at dispatch time
-- - JSONL audit log at runtime/logs/capabilities.jsonl
-- - 36/36 tools deployed at 100% path resilience
-- - Removed deprecated rust-tools: dot-doctor, security-audit, recent-files
-- - Consolidated runtime to runtime/ (removed legacy 04-runtime/)
-- - 0c alias for cd ~/0-core, core alias now correctly points to binary
+- END0-Core v2 architecture migration complete — all 6 phases done
+- Phase 5: alias-audit, bin-doctor, entropy-check absorbed into doctor domain
+- Phase 6: capability model enforced across all 15 domains — every operation logged
+- faelight-menu v4.0.0 — forest palette aesthetic matching faelight-palette
+- faelight-palette v3 — split layout, real 0-Core stats, health cache integration
+- faelight-fm — rich preview panel with zone/git/intent metadata
+- faelight-link v3 — adopt command, GNU Stow dir-folding awareness
+- Health cache — single source of truth across bar, palette, prompt, doctor
+- All hardcoded paths removed from engine — fully portable
+- Cold start: 3ms
 
-- Tools: 36/36 deployed (100%)
+- Tools: 34/34 deployed (100%)
 - Aliases: 318 total
-- Intents: 92 total (55 complete, 8 planned)
-- Domains: 15/15 native
-- Health: 95% locked / 90% unlocked
+- Commits: 1240
+- Health: 95%
+- Domains: 15 native Rust domains
+- Sub-tools absorbed: 3 (alias-audit, bin-doctor, entropy-check)
+- Cold start: 3ms
 
 [Full Changelog →](CHANGELOG.md)
 
@@ -226,7 +228,7 @@ doctor                              # Verify health
 | v9.0.0 | 60% path resilience |
 | v9.2.0 | 100% path resilience — 40 tools |
 | v9.6.0 | Legendary tool audit — production-ready |
-| v9.9.0 | Presented to Linus Torvalds |
+| v9.9.0 | The Forest Grows — Visual Intelligence Update |
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
 
 From hardcoded paths to centralized elegance.
