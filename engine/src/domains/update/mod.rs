@@ -12,7 +12,7 @@ pub fn update(ctx: &AppContext, args: &[String]) -> CoreResult<()> {
             Capability::SpawnProcess,
         ],
     )?;
-    let bin = format!("{}/scripts/faelight-update", ctx.core_root);
+    let bin = format!("{}/target/release/faelight-update", ctx.core_root);
     Command::new(&bin).args(args).status()?;
     Ok(())
 }

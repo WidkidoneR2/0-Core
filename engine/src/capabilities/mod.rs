@@ -58,6 +58,7 @@ impl CapabilityContext {
         granted.insert(Capability::ControlSway);
         granted.insert(Capability::OrchestratorAccess);
         granted.insert(Capability::FilesystemWriteHome);
+        granted.insert(Capability::ExecutePacman);
         Self { granted, log_path }
     }
 
