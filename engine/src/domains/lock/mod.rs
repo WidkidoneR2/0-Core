@@ -1,10 +1,13 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::process::Command;
 
 pub fn lock(_ctx: &AppContext) -> CoreResult<()> {
+    _ctx.capabilities
+        .require("lock", &[Capability::ControlSway])?;
     let status = Command::new("swaylock").status()?;
     if !status.success() {
         println!("  {} swaylock failed", "✗".bright_red());

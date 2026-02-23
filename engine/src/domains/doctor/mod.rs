@@ -3,6 +3,7 @@ pub mod aliases;
 pub mod bins;
 pub mod entropy;
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
@@ -954,6 +955,13 @@ fn print_result(r: &CheckResult) {
 }
 
 pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "doctor",
+        &[
+            Capability::OrchestratorAccess,
+            Capability::FilesystemReadHome,
+        ],
+    )?;
     let home = std::env::var("HOME").unwrap_or_default();
     let core_root = ctx.core_root.clone();
 

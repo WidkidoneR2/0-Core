@@ -1,4 +1,5 @@
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use serde::Serialize;
@@ -15,6 +16,9 @@ pub struct ZoneInfo {
 }
 
 pub fn detect(ctx: &AppContext) -> ZoneInfo {
+    ctx.capabilities
+        .require("zone", &[Capability::FilesystemReadHome])
+        .ok();
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from(&ctx.home));
     let cwd_str = cwd.to_string_lossy().to_string();
     let home = &ctx.home;

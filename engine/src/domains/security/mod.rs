@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use chrono::Local;
 use colored::*;
@@ -298,6 +299,14 @@ fn scan_ssh() -> Vec<Finding> {
 }
 
 pub fn scan(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "security",
+        &[
+            Capability::OrchestratorAccess,
+            Capability::FilesystemReadHome,
+            Capability::NetworkQuery,
+        ],
+    )?;
     let start = std::time::Instant::now();
     let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 

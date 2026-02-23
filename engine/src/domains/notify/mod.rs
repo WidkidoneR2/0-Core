@@ -1,10 +1,13 @@
 #![allow(dead_code)]
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::process::Command;
 
 pub fn send(_ctx: &AppContext, summary: &str, body: Option<&str>, urgency: &str) -> CoreResult<()> {
+    _ctx.capabilities
+        .require("notify", &[Capability::SpawnProcess])?;
     let mut cmd = Command::new("notify-send");
     cmd.arg(format!("--urgency={}", urgency));
     cmd.arg(summary);
