@@ -637,7 +637,11 @@ fn check_security_audit(home: &str) -> CheckResult {
 
 fn check_alias_coverage() -> CheckResult {
     // alias-audit --doctor is complex enough to keep delegating
-    let output = Command::new("alias-audit").arg("--doctor").output();
+    let scripts = format!(
+        "{}/scripts/alias-audit",
+        std::env::var("HOME").unwrap_or_default() + "/0-core"
+    );
+    let output = Command::new(&scripts).arg("--doctor").output();
     if let Ok(output) = output {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.contains("✅") && stdout.contains("Alias Coverage") {
@@ -1037,8 +1041,9 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn aliases(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
-    let mut cmd = Command::new("alias-audit");
+pub fn aliases(ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    let bin = format!("{}/scripts/alias-audit", ctx.core_root);
+    let mut cmd = Command::new(&bin);
     if let Some(sub) = subcmd {
         cmd.arg(sub);
     }
@@ -1046,8 +1051,9 @@ pub fn aliases(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn entropy(_ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
-    let mut cmd = Command::new("entropy-check");
+pub fn entropy(ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
+    let bin = format!("{}/scripts/entropy-check", ctx.core_root);
+    let mut cmd = Command::new(&bin);
     if baseline {
         cmd.arg("--baseline");
     }
@@ -1061,8 +1067,9 @@ pub fn entropy(_ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> C
     Ok(())
 }
 
-pub fn bins(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
-    let mut cmd = Command::new("bin-doctor");
+pub fn bins(ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    let bin = format!("{}/scripts/bin-doctor", ctx.core_root);
+    let mut cmd = Command::new(&bin);
     if let Some(sub) = subcmd {
         cmd.arg(sub);
     }
