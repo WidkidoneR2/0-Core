@@ -49,9 +49,9 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, file manager)
-- 🦀 36 Rust tools you fully understand
+- 🦀 34 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
-- ⚡ Lightning fast (no bloat)
+- ⚡ Lightning fast (3ms cold start, no bloat)
 - 💎 Complete ownership and control
 
 ### For Technical People
@@ -59,7 +59,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 - **`core` v2.0.0** — single orchestrator binary with 15 native Rust domains
 - **Capability-gated dispatch** — every command checks permissions before executing
 - **Runtime locking** and JSONL capability audit logging
-- **21-check health monitoring** system
+- **22-check health monitoring** system
 - **Intent Ledger** for all architectural decisions
 - **Wayland-native** (Sway, custom compositor tools)
 
@@ -69,24 +69,15 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ```
 0-core/
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
-├── 01-registry/      # Package manifests, alias registry, zone definitions
-├── 02-rules/         # Git hooks, security policies, doctor rules
-├── 03-interfaces/    # Dotfiles (Sway, zsh, foot, yazi) via GNU Stow
 ├── engine/           # core v2.0.0 — single orchestrator binary (Rust)
-├── rust-tools/       # 36 custom Rust tools
-├── scripts/          # Thin wrappers → core v2 + system scripts
+│   └── src/domains/  # 15 native Rust domains
+├── rust-tools/       # 34 custom Rust tools
+├── 03-interfaces/    # Dotfiles (Sway, zsh, foot, yazi) via GNU Stow
+├── scripts/          # Thin wrappers → core v2 + compiled binaries
 ├── intents/          # Architectural decision records
 ├── runtime/          # SQLite state, capability logs, process locks
-└── status-blocks/    # Faelight bar status block scripts
+└── registry/         # Zero-logic TOML declarations
 ```
-
-### The Numbered Gravity System
-
-- **00** — Identity: what the system **IS**
-- **01** — Registry: what the system **KNOWS**
-- **02** — Rules: what the system **DOES**
-- **03** — Interfaces: what the system **SHOWS**
-- `runtime/` — State: what the system **REMEMBERS**
 
 ### The `core` Orchestrator
 ```
@@ -99,18 +90,29 @@ Domains: doctor, security, git, workspace, intent, profile,
 
 Every domain call is capability-gated, logged, and lock-protected.
 
+### Layer Model
+
+| Layer | Name | Purpose |
+|---|---|---|
+| 0 | Substrate | Kernel, Wayland, Sway — untouched |
+| 1 | Core Engine | `core` binary — single surface |
+| 2 | Registry | Zero-logic TOML declarations |
+| 3 | Policy | Constraints, no execution |
+| 4 | Runtime | All mutable state — gitignored |
+| 5 | Adapters | Thin translation only |
+
 ---
 
 ## ✨ Key Features
 
-### 🏥 Self-Aware Health Monitoring (21 Checks)
+### 🏥 Self-Aware Health Monitoring (22 Checks)
 ```bash
-doctor        # Run all 21 health checks
+doctor        # Run all 22 health checks
 ```
 Checks: stow symlinks, services, broken symlinks, yazi plugins, binary deps,
 git status, themes, scripts, intents, profiles, config files, keybinds,
 security hardening, security audit, alias coverage, rust toolchain,
-disk space, tool installation, path resilience, core protection.
+disk space, tool installation, path resilience, archaeology, core protection.
 
 ### 🛡️ Core Protection
 ```bash
@@ -124,9 +126,9 @@ Every domain declares required capabilities at dispatch time:
 ```
 doctor    → OrchestratorAccess, FilesystemReadHome
 security  → OrchestratorAccess, FilesystemReadHome, NetworkQuery
-git       → FilesystemReadHome, SpawnProcess
+git       → FilesystemReadHome, FilesystemWriteHome, SpawnProcess
 lock      → ControlSway
-update    → SpawnProcess, ElevatedPrivilege
+update    → FilesystemReadHome, ExecutePacman, SpawnProcess
 ```
 All capability usage logged to `runtime/logs/capabilities.jsonl`.
 
@@ -135,7 +137,7 @@ Pre-commit hooks: rustfmt, clippy, secret scanning, merge conflict detection.
 ```bash
 faelight-git commit    # Intent-aware commits
 faelight-git risk      # Risk score before pushing
-faelight-git sync      # Pull + push workflow
+fg sync                # Pull + push workflow
 ```
 
 ### 📝 Intent Ledger
@@ -146,20 +148,29 @@ intent show 092        # Specific intent
 intent stats           # Ledger overview
 ```
 
+### 🌡️ Configuration Drift Detection
+```bash
+core doctor entropy --baseline   # Snapshot current state
+core doctor entropy              # Check for drift
+core doctor entropy --trends     # 30-day history
+```
+
 ---
 
-## 🦀 The Rust Ecosystem (36 Tools)
+## 🦀 The Rust Ecosystem (34 Tools)
 
 | Category | Tools |
 |---|---|
 | **Orchestrator** | `core` (v2.0.0 — 15 domains) |
-| **UI** | `faelight-bar`, `faelight-fm`, `faelight-term`, `faelight-launcher`, `faelight-dmenu`, `faelight-palette`, `faelight-menu` |
+| **UI** | `faelight-bar`, `faelight-fm`, `faelight-term`, `faelight-palette`, `faelight-menu` |
 | **Git** | `faelight-git`, `faelight-hooks` |
 | **System** | `core-protect`, `faelight-update`, `safe-update`, `faelight-sandbox`, `faelight-snapshot` |
 | **Dev** | `bump-system-version`, `bump-tool-version`, `get-version`, `core-diff` |
 | **Shell** | `dotctl`, `profile`, `intent`, `faelight-zone`, `faelight-link`, `faelight-lock`, `faelight-notify`, `faelight-fetch` |
 | **Audit** | `alias-audit`, `bin-doctor`, `entropy-check`, `archaeology-0-core` |
 | **Bootstrap** | `faelight-bootstrap`, `faelight-daemon`, `faelight-cleanup`, `keyscan`, `teach`, `intent-guard`, `workspace-view`, `verify-bootstrap` |
+
+> `alias-audit`, `bin-doctor`, `entropy-check` are also natively absorbed into `core doctor` — standalone binaries kept for direct use.
 
 [See full tool list →](TOOLS.md)
 
@@ -175,15 +186,18 @@ intent stats           # Ledger overview
 
 **"Understanding Over Convenience"** — If you can't explain it, you don't own it.
 
+**"Design for Recovery"** — `rm -rf runtime/` is always safe. Full reset, no data loss.
+
 ---
 
 ## 🚀 Quick Reference
 ```bash
-doctor                          # System health (21 checks)
+doctor                          # System health (22 checks)
 core security scan              # Security audit
 core git status                 # Git + risk score
 core workspace recent today     # Recent files
 core intent list --active       # Active intents
+core doctor entropy             # Config drift check
 0c                              # cd ~/0-core
 core-protect lock               # Lock before shutdown
 ```
@@ -230,6 +244,7 @@ doctor                              # Verify health
 | v9.6.0 | Legendary tool audit — production-ready |
 | v9.9.0 | The Forest Grows — Visual Intelligence Update |
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
+| v10.1.0 | **The Forest Matures — all 6 phases done** 🌲 |
 
 From hardcoded paths to centralized elegance.
 From 40 separate binaries to one orchestrator.
