@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod aliases;
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -1041,14 +1042,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn aliases(ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
-    let bin = format!("{}/scripts/alias-audit", ctx.core_root);
-    let mut cmd = Command::new(&bin);
-    if let Some(sub) = subcmd {
-        cmd.arg(sub);
-    }
-    cmd.status()?;
-    Ok(())
+pub fn aliases(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
+    aliases::run_full_audit(subcmd)
 }
 
 pub fn entropy(ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
