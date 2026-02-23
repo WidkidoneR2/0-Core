@@ -19,13 +19,13 @@ fn profiles_toml(ctx: &AppContext) -> PathBuf {
 
 fn state_file() -> PathBuf {
     dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/home/christian"))
+        .unwrap_or_else(|| PathBuf::from("/root"))
         .join(".local/state/0-core/current-profile")
 }
 
 fn log_file() -> PathBuf {
     dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/home/christian"))
+        .unwrap_or_else(|| PathBuf::from("/root"))
         .join(".local/state/0-core/profile.log")
 }
 

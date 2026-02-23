@@ -15,7 +15,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn init() -> CoreResult<Self> {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
         let root = PathBuf::from(&home).join("0-core/runtime");
         let logs = root.join("logs");
         let cache = root.join("cache");
