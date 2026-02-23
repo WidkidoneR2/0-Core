@@ -218,10 +218,21 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 - [x] `runtime/` fully isolated — gitignored, state.db, logs, cache, locks, snapshots
 - [x] Cold start < 50ms — measured 3ms ✅
 
-### Phase 4 — Cleanup ⬜ NEXT
-- [ ] Remove v1 artifacts
-- [ ] Update docs, intents, registry
-- [ ] Bump VERSION to 2.0.0
+### Phase 4 — Cleanup ✅ COMPLETE 2026-02-22
+- [x] Remove v1 artifacts — faelight-launcher, faelight-dmenu removed
+- [x] Update docs — ARCHITECTURE.md rewritten, CHANGELOG updated
+- [x] VERSION file created — 0-Core v2 engine = 2.0.0
+- [x] Intent 092 kept current throughout
+
+### Phase 5 — Doctor Sub-tool Absorption ⬜ FUTURE
+- [ ] Absorb alias-audit into doctor domain
+- [ ] Absorb entropy-check into doctor domain
+- [ ] Absorb bin-doctor into doctor domain
+
+### Phase 6 — Capability Model Enforcement ⬜ FUTURE
+- [ ] Capability declarations in each domain (#[capabilities(...)])
+- [ ] Policy checks before every adapter call
+- [ ] Capability usage logged to runtime/logs/capabilities.jsonl
 
 ## What Gets Deleted in v2
 
@@ -251,7 +262,7 @@ v2 is a rewrite, not a refactor. Migration must be intentional:
 - [x] All mutable state in runtime/ — complete, gitignored
 - [ ] Capability model enforced at compile time — Phase 6
 - [x] Clean migration from v1 with no data loss — confirmed
-- [ ] All intents migrated to v2 registry format — Phase 4
+- [x] All intents migrated to v2 registry format — intent ledger current
 
 ## Open Questions — RESOLVED
 
