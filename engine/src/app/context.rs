@@ -12,7 +12,7 @@ pub struct AppContext {
 
 impl AppContext {
     pub fn init() -> CoreResult<Self> {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
         let core_root = format!("{}/0-core", home);
         let runtime = Runtime::init()?;
         let capabilities = CapabilityContext::unprivileged();

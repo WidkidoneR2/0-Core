@@ -8,13 +8,13 @@ use std::path::PathBuf;
 
 fn state_dir() -> PathBuf {
     dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/home/christian"))
+        .unwrap_or_else(|| PathBuf::from("/root"))
         .join(".local/state/0-core/sandbox")
 }
 
 fn snapshots_dir() -> PathBuf {
     dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/home/christian"))
+        .unwrap_or_else(|| PathBuf::from("/root"))
         .join(".local/state/0-core/sandbox/snapshots")
 }
 

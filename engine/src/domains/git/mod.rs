@@ -236,11 +236,13 @@ pub fn verify(_ctx: &AppContext) -> CoreResult<()> {
 
 // Delegate complex operations to v1
 pub fn delegate(subcmd: &str, args: &[String]) -> CoreResult<()> {
-    let status =
-        Command::new("/home/christian/0-core/rust-tools/faelight-git/target/release/faelight-git")
-            .arg(subcmd)
-            .args(args)
-            .status()?;
+    let status = Command::new(format!(
+        "{}/scripts/faelight-git",
+        std::env::var("HOME").unwrap_or_default() + "/0-core"
+    ))
+    .arg(subcmd)
+    .args(args)
+    .status()?;
     if !status.success() {
         println!("  {} faelight-git {} failed", "✗".bright_red(), subcmd);
     }
