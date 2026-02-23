@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 pub mod aliases;
 pub mod bins;
+pub mod entropy;
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -1047,20 +1048,8 @@ pub fn aliases(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
     aliases::run_full_audit(subcmd)
 }
 
-pub fn entropy(ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
-    let bin = format!("{}/scripts/entropy-check", ctx.core_root);
-    let mut cmd = Command::new(&bin);
-    if baseline {
-        cmd.arg("--baseline");
-    }
-    if trends {
-        cmd.arg("--trends");
-    }
-    if json {
-        cmd.arg("--json");
-    }
-    cmd.status()?;
-    Ok(())
+pub fn entropy(_ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> CoreResult<()> {
+    entropy::run(baseline, trends, json)
 }
 
 pub fn bins(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
