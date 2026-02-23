@@ -1,4 +1,31 @@
 # Changelog
+## v10.1.0 - 🔧 Phase 3 Complete — Engine Hardened (2026-02-22)
+
+### 0-Core v2 Phase 3 — Cutover Complete
+- faelight-link fully native: adopt command, GNU Stow dir-folding awareness
+- faelight-palette v3: split layout, real 0-Core stats, health cache integration
+- faelight-fm: clean filelist, rich preview panel with zone/git/intent metadata
+- faelight-fm: SCR scratch zone configured (~~/scratch), UTF-8 panic fixed
+- faelight-launcher + faelight-dmenu: fully removed, superseded by palette
+- core update: scripts path fix, allow_hyphen_values flag passthrough
+- doctor: writes health cache after every run — bar/prompt/palette now in sync
+- All hardcoded /home/christian paths removed from engine — fully portable
+- All target/release paths removed from scripts — thin wrappers only
+- Cold start measured: 3ms (target was <50ms) ✅
+- runtime/ isolation complete: gitignored, state.db, logs, cache, locks, snapshots
+- Root VERSION file created: 0-Core v2 engine = 2.0.0
+- ARCHITECTURE.md rewritten to reflect v2 reality
+
+### Phase 4 — Cleanup
+- docs/ARCHITECTURE.md fully updated for v2 layer model
+- Intent 092 updated: Phase 3 marked complete, Phase 4 NEXT
+
+**Statistics:**
+- Tools: 34/34 deployed (100%)
+- Aliases: 318 total
+- Commits: 1232
+- Health: 95% (core unlocked warning only)
+
 
 ## v10.0.0 - 🏛️ v10.0.0 — The Migration Complete (2026-02-21)
 

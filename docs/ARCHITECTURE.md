@@ -1,227 +1,188 @@
 # 0-Core Architecture
-
 > **Philosophy:** Understanding over convenience. Manual control over automation.
+> **Version:** 0-Core v2 — single orchestrator, five layers, zero ambiguity.
 
-This document explains the complete directory structure of 0-Core and how each component interacts.
-
----
-
-## 📁 Directory Structure
-
-### User Configuration Layer
-```
-stow/                    # 🎯 ALL dotfile packages (GNU Stow managed)
-├── wm-sway/            # Sway window manager config
-├── shell-zsh/          # Zsh + 188+ aliases
-├── shell-nushell/      # Nushell configuration
-├── editor-nvim/        # Neovim + Faelight theme + LazyVim
-├── term-foot/          # Foot terminal emulator
-├── fm-yazi/            # Yazi file manager
-├── config-faelight/    # Typed TOML configs for Rust tools
-├── browser-brave/      # Brave browser theming
-├── browser-qutebrowser/# Qutebrowser config
-├── prompt-starship/    # Starship prompt with lock status
-├── tools-topgrade/     # Topgrade updater config
-└── vcs-git/            # Git configuration + aliases
-```
-
-**Deployment:** `cd ~/0-core/03-interfaces/stow && stow package-name`  
-**Purpose:** All user-level dotfiles, deployed as symlinks to `~/`
+This document explains the complete structure of 0-Core v2 and how each component interacts.
 
 ---
 
-### Development Layer
+## Layer Model
 ```
-rust-tools/             # 🦀 Rust workspace (ALL source code)
-├── faelight/           # Unified CLI binary
-├── dot-doctor/         # 14-check health monitor
-├── bump-system-version/# Release automation
-├── faelight-bar/       # Custom Wayland status bar
-├── faelight-update/    # Interactive update manager
-├── faelight-git/       # Git workflow governance
-├── faelight-term/      # Terminal emulator (WIP)
-├── faelight-core/      # Shared library (config, health, IPC)
-└── [25 more tools]     # All production-ready
-```
+LAYER 0 — Substrate (Untouched)
+  Kernel, systemd, Wayland, Sway, Network, Filesystem
+  Treated as external environment. Never owned. Never modified directly.
 
-**Build:** `cd rust-tools && cargo build --release --workspace`  
-**Output:** Binaries land in `rust-tools/target/release/`
+LAYER 1 — Core Engine (Single Binary)
+  engine/               ← Rust source
+  Binary: core
+  Interface: core <domain> <command> [flags]
+  15 domains: intent, profile, security, doctor, update, sandbox,
+              link, zone, fetch, git, workspace, release, notify, lock, launcher
 
----
+LAYER 2 — Declarative Registry (Zero Logic)
+  registry/
+    packages.toml       ← system packages under management
+    profiles.toml       ← profile definitions
+    zones.toml          ← zone boundaries and permissions
+    aliases.toml        ← shell alias declarations
+  Rule: If it contains an if statement, it does not belong here.
 
-### Deployment Layer
-```
-scripts/                # 📜 Compiled Rust binaries (GITIGNORED)
-target/                 # 🚫 Cargo build artifacts (GITIGNORED)
-backups/                # 🚫 Build debris (GITIGNORED)
-```
+LAYER 3 — Policy (What Is Allowed)
+  policy/               ← constraints only, no execution
+  docs/                 ← human-readable documentation
+  Rule: Policy defines constraints. It never executes.
 
-**Purpose:** `scripts/` is added to `$PATH` for system-wide tool access  
-**Build Flow:** `rust-tools/` → `cargo build` → `target/release/` → `cp` → `scripts/`
+LAYER 4 — Runtime (All Mutable State)
+  runtime/              ← gitignored entirely
+    logs/               ← structured JSONL logs by domain
+    cache/              ← precomputed indices
+    snapshots/          ← sandbox and rollback state
+    state.db            ← single SQLite state database
+    locks/              ← operation locks
+  Rule: rm -rf runtime/ is always safe. Full reset, no data loss.
 
-**Why gitignored?**
-- Single-machine use = no need to commit binaries
-- Rebuilding from source ensures freshness
-- Keeps git repo small (~10MB instead of ~60MB)
-
----
-
-### System Configuration Layer
-```
-system/                 # ⚙️ System-level configs (requires sudo)
-├── security/           # Security hardening
-│   ├── 99-hardening.conf   # sysctl kernel hardening
-│   ├── jail.local          # fail2ban configuration
-│   └── README.md           # Security documentation
-└── systemd-user/       # User systemd services
-    └── faelight-stow.service  # Auto-deploy on login
-```
-
-**Deployment:** `sudo cp system/security/* /etc/sysctl.d/`  
-**Purpose:** Root-owned files that configure system behavior
-
----
-
-### Automation & Deployment Layer
-```
-automation/             # ⏰ Scheduled maintenance
-├── weekly-maintenance.sh   # System health checks
-
-hooks/                  # 🎣 Git workflow automation
-└── pre-commit          # Gitleaks secret scanning
-
-installation/           # 🚀 Bootstrap & setup scripts
-├── 01-backup.sh        # Backup existing configs
-└── 02-bootstrap.sh     # One-command system setup
-
-logs/                   # 📊 Runtime logs (GITIGNORED)
-└── power.log           # Tool execution logs
+LAYER 5 — Adapters (Thin Translation Only)
+  03-interfaces/stow/   ← dotfile packages (GNU Stow managed)
+  adapters/             ← systemd, sway config generation
+  Rule: No business logic. Only translation between core and external systems.
 ```
 
 ---
 
-### Documentation & History Layer
+## Directory Structure
 ```
-INTENT/                 # 🎯 Intent Ledger (78+ decisions)
-├── decisions/          # Why we made architectural choices
-├── experiments/        # What we tried and learned
-├── philosophy/         # Core principles
-├── future/             # Planned improvements
-└── incidents/          # Problems and how we solved them
-
-docs/                   # 📚 Documentation
-├── ARCHITECTURE.md     # THIS FILE - system structure
-├── BUILD.md            # Build & deploy workflow
-├── THEORY_OF_OPERATION.md  # Philosophy manifesto
-└── [more guides]       # Tools, workflows, keybindings
-
-profiles/               # 👤 System state switching
-packages/               # 📦 Package lists (official/AUR)
+0-core/
+  engine/               ← Core v2 Rust source → binary: core
+    src/
+      domains/          ← 15 domains, strict layer boundaries
+      cli/              ← command grammar + clap parser
+      app/              ← dispatcher + AppContext
+      registry/         ← TOML loader + schema validation
+      policy/           ← constraint enforcement
+      runtime/          ← state, locks, migrations
+      adapters/         ← I/O translation only
+      capabilities/     ← capability model
+      errors/
+      logging/
+      utils/
+    Cargo.toml
+  rust-tools/           ← Specialist TUI tools (not replaceable by CLI)
+    faelight-bar/       ← Custom Wayland status bar
+    faelight-fm/        ← File manager with zone awareness
+    faelight-palette/   ← App launcher (replaces launcher + dmenu)
+    faelight-git/       ← Git workflow governance TUI
+    faelight-update/    ← Interactive update manager TUI
+    faelight-term/      ← Terminal emulator (WIP)
+    faelight-browser/   ← TUI browser (WIP)
+    faelight-core/      ← Shared library (config, paths, health)
+    [30+ more tools]
+  03-interfaces/
+    stow/               ← ALL dotfile packages (GNU Stow managed)
+      wm-sway/          ← Sway window manager config
+      shell-zsh/        ← Zsh + 318+ aliases
+      editor-nvim/      ← Neovim + Faelight theme
+      term-foot/        ← Foot terminal emulator
+      config-faelight/  ← Typed TOML configs for Rust tools
+      [6 more packages]
+  registry/             ← Zero-logic TOML declarations
+  policy/               ← Security rules, health check definitions
+  runtime/              ← Gitignored. All mutable state lives here.
+  scripts/              ← Compiled binaries + thin shell wrappers
+  intents/              ← Intent ledger (markdown files)
+  docs/                 ← Human documentation
+  00-meta/              ← Version, changelog, philosophy
+  VERSION               ← 0-Core v2 engine version
+  Cargo.toml            ← Workspace root
+  README.md             ← GitHub readme
 ```
 
 ---
 
-## 🔄 Build & Deploy Workflow
+## Core Engine Domains
 
-### Initial Setup
+| Domain    | Owns                              | Replaces                          |
+|-----------|-----------------------------------|-----------------------------------|
+| intent    | ledger, files, status             | intent, intent-guard (partially)  |
+| profile   | switching, env vars               | profile                           |
+| security  | CVE scanning, permissions, SSH    | security-audit                    |
+| sandbox   | isolation, snapshots, diffs       | faelight-sandbox                  |
+| link      | stow verification, symlinks       | faelight-link                     |
+| zone      | boundaries, write policy          | faelight-zone                     |
+| update    | safe updates, cargo               | faelight-update (delegates TUI)   |
+| doctor    | health checks (OrchestratorAccess)| dot-doctor, alias-audit           |
+| fetch     | system info display               | faelight-fetch                    |
+| git       | workflow, risk scoring            | faelight-git (delegates TUI)      |
+| workspace | file nav, recent files            | faelight-fm (delegates TUI)       |
+| release   | versioning, changelog             | bump-system-version, get-version  |
+| notify    | notifications                     | faelight-notify                   |
+| lock      | screen locking                    | faelight-lock                     |
+| launcher  | app launching                     | faelight-palette                  |
+
+---
+
+## Key Design Principles
+
+**Single binary surface** — one `core` binary, subcommands for domains.
+All user-facing operations: `core <domain> <command> [flags]`
+
+**Strict layer boundaries** — domains never call each other directly.
+All cross-domain communication goes through `app/dispatcher`.
+
+**All mutable state isolated** — nothing outside `runtime/` changes at runtime.
+`rm -rf runtime/` is always a safe full reset.
+
+**Declarative over imperative** — registry contains zero logic, only truth.
+
+**TUI tools stay separate** — faelight-fm, faelight-palette, faelight-bar, etc.
+are specialist tools too rich to wrap in a CLI. They delegate through `core` where possible.
+
+---
+
+## Health System
+
+Health is a single source of truth across all tools:
+```
+core doctor run → writes ~/.cache/faelight/health-status
+                ↓
+    faelight-bar reads cache (fast, no subprocess)
+    faelight-palette reads cache (consistent with bar)
+    prompt-health-dot reads cache (shell prompt dot)
+```
+
+Run `d` (alias for `doctor`) to update health across all tools.
+
+---
+
+## Stow Package Deployment
+
+All dotfiles are managed as GNU Stow packages:
 ```bash
-# 1. Clone repository
-git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core
-
-# 2. Build Rust tools
-cd ~/0-core/rust-tools
-cargo build --release --workspace
-
-# 3. Deploy binaries
-mkdir -p ~/0-core/scripts
-cp target/release/* ~/0-core/scripts/
-
-# 4. Add to PATH (in .zshrc)
-export PATH="$HOME/0-core/scripts:$PATH"
-
-# 5. Deploy dotfiles
 cd ~/0-core/03-interfaces/stow
-stow wm-sway shell-zsh editor-nvim
+stow package-name          # deploy
+stow -D package-name       # undeploy
 ```
 
-### Updating Tools
+Or use the native implementation:
 ```bash
-# 1. Edit source
-cd ~/0-core/rust-tools/dot-doctor
-nvim src/main.rs
-
-# 2. Build
-cargo build --release
-
-# 3. Deploy
-cp target/release/dot-doctor ../../scripts/
-
-# 4. Test
-dot-doctor
-
-# 5. Commit (only source)
-cd ~/0-core
-git add rust-tools/dot-doctor/src/main.rs
-git commit -m "fix(dot-doctor): ..."
+core link deploy           # deploy all packages
+core link adopt            # convert existing files to symlinks
+core link plan             # preview deployment
+core link status           # check symlink health
 ```
 
-### Version Releases
+---
+
+## Build System
 ```bash
-bump-system-version 8.4.0
-# Handles: VERSION, CHANGELOG, git commit, tags
+# Build entire workspace
+cd ~/0-core && cargo build --release --workspace
+
+# Build specific tool
+cargo build --release -p faelight-fm
+
+# Binaries land in
+~/0-core/target/release/<binary>
+~/0-core/scripts/<binary>   ← deployed copies
 ```
 
----
-
-## 🏗️ Design Principles
-
-### 1. Source-First Strategy
-- **Git tracks:** Source code only (`rust-tools/`)
-- **Local builds:** Binaries in `scripts/` (gitignored)
-- **Rationale:** Single-machine use = no need for binary distribution
-
-### 2. Separation of Concerns
-- **User configs** → `stow/` (reversible symlinks)
-- **System configs** → `system/` (requires sudo)
-- **Source code** → `rust-tools/` (development)
-- **Binaries** → `scripts/` (deployment)
-
-### 3. Stow-Based Deployment
-- Each package is self-contained
-- Deploy/undeploy with single command
-- Easy to test individual components
-- Symlinks make changes instant
-
-### 4. Documented Decisions
-- Every architectural choice lives in `INTENT/`
-- Future you (and others) understand WHY
-- Experiments documented even if they failed
-
----
-
-## 🎯 Philosophy Alignment
-
-This structure enforces 0-Core's core principles:
-
-✅ **Manual control over automation**
-- No automatic builds or deployments
-- Every step requires explicit invocation
-
-✅ **Intent over convention**
-- INTENT/ as first-class directory
-- Every design choice documented
-
-✅ **Understanding over convenience**
-- Build from source (no mystery binaries)
-- Stow makes symlinks inspectable
-- Clear separation reveals architecture
-
-✅ **Recovery over perfection**
-- `backups/` for safety during updates
-- `installation/` for clean reinstalls
-- `profiles/` for state switching
-
----
-
-**Made with 🌲🦀 by Christian**  
-*"The forest grows from source."*
+Cold start: **3ms** (core binary, measured 2026-02-22)
