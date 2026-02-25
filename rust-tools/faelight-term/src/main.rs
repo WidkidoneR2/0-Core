@@ -31,6 +31,7 @@ use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
     FontRef,
 };
+use vte::{Params, Parser, Perform};
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
@@ -121,7 +122,9 @@ struct Terminal {
     current_bg: [u8; 3],
     current_attrs: TextAttrs,
     scroll_offset: usize,
-    utf8_buffer: Vec<u8>, // FIX 2: UTF-8 carry-over buffer
+    parser: Parser,
+    alt_screen: Option<Vec<Vec<Cell>>>,
+    alt_cursor: (usize, usize),
 }
 
 impl Terminal {
@@ -140,8 +143,24 @@ impl Terminal {
             current_bg: COLORS[0],
             current_attrs: TextAttrs::default(),
             scroll_offset: 0,
-            utf8_buffer: Vec::new(), // FIX 2: Initialize buffer
+            parser: Parser::new(),
+            alt_screen: None,
+            alt_cursor: (0, 0),
         }
+    }
+
+    fn resize(&mut self, new_rows: usize, new_cols: usize) {
+        // Adjust grid rows
+        self.grid.resize(new_rows, vec![Cell::default(); new_cols]);
+        // Adjust grid cols
+        for row in &mut self.grid {
+            row.resize(new_cols, Cell::default());
+        }
+        self.rows = new_rows;
+        self.cols = new_cols;
+        // Clamp cursor
+        self.cursor_row = self.cursor_row.min(new_rows.saturating_sub(1));
+        self.cursor_col = self.cursor_col.min(new_cols.saturating_sub(1));
     }
 
     fn scroll_up(&mut self, lines: usize) {
@@ -224,186 +243,13 @@ impl Terminal {
         }
     }
 
-    // FIX 2: Process bytes with UTF-8 carry-over handling
     fn process_bytes(&mut self, bytes: &[u8]) {
-        self.utf8_buffer.extend_from_slice(bytes);
-
-        let mut valid_end = 0;
-        let mut chars_str = String::new();
-
-        for i in 0..self.utf8_buffer.len() {
-            if let Ok(s) = std::str::from_utf8(&self.utf8_buffer[..=i]) {
-                valid_end = i + 1;
-                chars_str = s.to_string();
-            }
-        }
-
-        if valid_end > 0 {
-            self.process_text(&chars_str);
-            self.utf8_buffer.drain(..valid_end);
-        }
-
-        if self.utf8_buffer.len() > 4 {
-            self.utf8_buffer.clear();
-        }
-    }
-
-    fn process_text(&mut self, text: &str) {
         self.scroll_offset = 0;
-
-        let mut chars = text.chars().peekable();
-        while let Some(ch) = chars.next() {
-            if ch == '\x1b' {
-                if chars.peek() == Some(&'[') {
-                    chars.next();
-                    let mut seq = String::new();
-                    while let Some(&c) = chars.peek() {
-                        if c.is_ascii_alphabetic() {
-                            // SAFETY: peek() guarantees next() exists
-                            let cmd = chars.next().unwrap();
-                            self.handle_csi_sequence(&seq, cmd);
-                            break;
-                        } else {
-                            // SAFETY: peek() guarantees next() exists
-                            seq.push(chars.next().unwrap());
-                        }
-                    }
-                }
-            } else if ch == '\r' {
-                self.cursor_col = 0;
-            } else if ch == '\n' {
-                self.new_line();
-            } else if ch == '\x08' {
-                // FIX 1: Backspace only moves cursor, does NOT erase
-                if self.cursor_col > 0 {
-                    self.cursor_col -= 1;
-                }
-            } else if ch == '\x7f' {
-                // FIX 1: DEL is ignored (shell handles it)
-            } else if ch == '\t' {
-                let spaces = 8 - (self.cursor_col % 8);
-                for _ in 0..spaces {
-                    self.write_char(' ');
-                }
-            } else if !ch.is_control() {
-                self.write_char(ch);
-            }
+        let mut parser = std::mem::replace(&mut self.parser, Parser::new());
+        for &byte in bytes {
+            parser.advance(self, byte);
         }
-    }
-
-    fn handle_csi_sequence(&mut self, params: &str, cmd: char) {
-        match cmd {
-            'H' | 'f' => {
-                let parts: Vec<&str> = params.split(';').collect();
-                let row = parts
-                    .first()
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .unwrap_or(1)
-                    .saturating_sub(1);
-                let col = parts
-                    .get(1)
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .unwrap_or(1)
-                    .saturating_sub(1);
-                self.cursor_row = row.min(self.rows - 1);
-                self.cursor_col = col.min(self.cols - 1);
-            }
-            'A' => self.cursor_row = self.cursor_row.saturating_sub(params.parse().unwrap_or(1)),
-            'B' => {
-                self.cursor_row =
-                    (self.cursor_row + params.parse::<usize>().unwrap_or(1)).min(self.rows - 1)
-            }
-            'C' => {
-                self.cursor_col =
-                    (self.cursor_col + params.parse::<usize>().unwrap_or(1)).min(self.cols - 1)
-            }
-            'D' => self.cursor_col = self.cursor_col.saturating_sub(params.parse().unwrap_or(1)),
-            'J' => {
-                if params.is_empty() || params == "0" {
-                    for col in self.cursor_col..self.cols {
-                        self.grid[self.cursor_row][col] = Cell::default();
-                    }
-                    for row in (self.cursor_row + 1)..self.rows {
-                        for col in 0..self.cols {
-                            self.grid[row][col] = Cell::default();
-                        }
-                    }
-                } else if params == "2" {
-                    self.grid = vec![vec![Cell::default(); self.cols]; self.rows];
-                    self.cursor_row = 0;
-                    self.cursor_col = 0;
-                }
-            }
-            'K' => {
-                if params.is_empty() || params == "0" {
-                    for col in self.cursor_col..self.cols {
-                        self.grid[self.cursor_row][col] = Cell::default();
-                    }
-                } else if params == "2" {
-                    for col in 0..self.cols {
-                        self.grid[self.cursor_row][col] = Cell::default();
-                    }
-                }
-            }
-            'm' => {
-                if params.is_empty() {
-                    self.current_fg = COLORS[7];
-                    self.current_bg = COLORS[0];
-                    self.current_attrs = TextAttrs::default();
-                } else {
-                    let codes: Vec<&str> = params.split(';').collect();
-                    let mut i = 0;
-                    while i < codes.len() {
-                        if let Ok(n) = codes[i].parse::<u8>() {
-                            match n {
-                                0 => {
-                                    self.current_fg = COLORS[7];
-                                    self.current_bg = COLORS[0];
-                                    self.current_attrs = TextAttrs::default();
-                                }
-                                1 => self.current_attrs.bold = true,
-                                3 => self.current_attrs.italic = true,
-                                4 => self.current_attrs.underline = true,
-                                22 => self.current_attrs.bold = false,
-                                23 => self.current_attrs.italic = false,
-                                24 => self.current_attrs.underline = false,
-                                30..=37 => self.current_fg = COLORS[(n - 30) as usize],
-                                38 => {
-                                    if i + 4 < codes.len() && codes[i + 1] == "2" {
-                                        if let (Ok(r), Ok(g), Ok(b)) = (
-                                            codes[i + 2].parse::<u8>(),
-                                            codes[i + 3].parse::<u8>(),
-                                            codes[i + 4].parse::<u8>(),
-                                        ) {
-                                            self.current_fg = [r, g, b];
-                                            i += 4;
-                                        }
-                                    }
-                                }
-                                40..=47 => self.current_bg = COLORS[(n - 40) as usize],
-                                48 => {
-                                    if i + 4 < codes.len() && codes[i + 1] == "2" {
-                                        if let (Ok(r), Ok(g), Ok(b)) = (
-                                            codes[i + 2].parse::<u8>(),
-                                            codes[i + 3].parse::<u8>(),
-                                            codes[i + 4].parse::<u8>(),
-                                        ) {
-                                            self.current_bg = [r, g, b];
-                                            i += 4;
-                                        }
-                                    }
-                                }
-                                90..=97 => self.current_fg = COLORS[(n - 90 + 8) as usize],
-                                100..=107 => self.current_bg = COLORS[(n - 100 + 8) as usize],
-                                _ => {}
-                            }
-                        }
-                        i += 1;
-                    }
-                }
-            }
-            _ => {}
-        }
+        self.parser = parser;
     }
 
     fn write_char(&mut self, ch: char) {
@@ -437,6 +283,272 @@ impl Terminal {
     }
 }
 
+impl Perform for Terminal {
+    fn print(&mut self, ch: char) {
+        if ch == '\t' {
+            let spaces = 8 - (self.cursor_col % 8);
+            for _ in 0..spaces {
+                self.write_char(' ');
+            }
+        } else {
+            self.write_char(ch);
+        }
+    }
+
+    fn execute(&mut self, byte: u8) {
+        match byte {
+            b'\r' => self.cursor_col = 0,
+            b'\n' | b'\x0c' | b'\x0b' => self.new_line(),
+            b'\x08' => {
+                if self.cursor_col > 0 {
+                    self.cursor_col -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn csi_dispatch(&mut self, params: &Params, _intermediates: &[u8], _ignore: bool, cmd: char) {
+        let p: Vec<u16> = params
+            .iter()
+            .map(|s| s.first().copied().unwrap_or(0))
+            .collect();
+        let p1 = p.first().copied().unwrap_or(0) as usize;
+
+        match cmd {
+            'H' | 'f' => {
+                let row = p.first().copied().unwrap_or(1) as usize;
+                let col = p.get(1).copied().unwrap_or(1) as usize;
+                self.cursor_row = row.saturating_sub(1).min(self.rows - 1);
+                self.cursor_col = col.saturating_sub(1).min(self.cols - 1);
+            }
+            'A' => self.cursor_row = self.cursor_row.saturating_sub(p1.max(1)),
+            'B' => self.cursor_row = (self.cursor_row + p1.max(1)).min(self.rows - 1),
+            'C' => self.cursor_col = (self.cursor_col + p1.max(1)).min(self.cols - 1),
+            'D' => self.cursor_col = self.cursor_col.saturating_sub(p1.max(1)),
+            'E' => {
+                self.cursor_row = (self.cursor_row + p1.max(1)).min(self.rows - 1);
+                self.cursor_col = 0;
+            }
+            'F' => {
+                self.cursor_row = self.cursor_row.saturating_sub(p1.max(1));
+                self.cursor_col = 0;
+            }
+            'G' => self.cursor_col = p1.saturating_sub(1).min(self.cols - 1),
+            'J' => match p1 {
+                0 => {
+                    for col in self.cursor_col..self.cols {
+                        self.grid[self.cursor_row][col] = Cell::default();
+                    }
+                    for row in (self.cursor_row + 1)..self.rows {
+                        self.grid[row] = vec![Cell::default(); self.cols];
+                    }
+                }
+                1 => {
+                    for row in 0..self.cursor_row {
+                        self.grid[row] = vec![Cell::default(); self.cols];
+                    }
+                    for col in 0..=self.cursor_col {
+                        self.grid[self.cursor_row][col] = Cell::default();
+                    }
+                }
+                2 | 3 => {
+                    self.grid = vec![vec![Cell::default(); self.cols]; self.rows];
+                    self.cursor_row = 0;
+                    self.cursor_col = 0;
+                }
+                _ => {}
+            },
+            'K' => match p1 {
+                0 => {
+                    for col in self.cursor_col..self.cols {
+                        self.grid[self.cursor_row][col] = Cell::default();
+                    }
+                }
+                1 => {
+                    for col in 0..=self.cursor_col {
+                        self.grid[self.cursor_row][col] = Cell::default();
+                    }
+                }
+                2 => self.grid[self.cursor_row] = vec![Cell::default(); self.cols],
+                _ => {}
+            },
+            'L' => {
+                let n = p1.max(1);
+                for _ in 0..n {
+                    if self.cursor_row < self.rows {
+                        self.grid
+                            .insert(self.cursor_row, vec![Cell::default(); self.cols]);
+                        self.grid.truncate(self.rows);
+                    }
+                }
+            }
+            'M' => {
+                let n = p1.max(1);
+                for _ in 0..n {
+                    if self.cursor_row < self.rows {
+                        self.grid.remove(self.cursor_row);
+                        self.grid.push(vec![Cell::default(); self.cols]);
+                    }
+                }
+            }
+            'P' => {
+                let n = p1.max(1);
+                let row = self.cursor_row;
+                let col = self.cursor_col;
+                for _ in 0..n {
+                    if col < self.cols {
+                        self.grid[row].remove(col);
+                        self.grid[row].push(Cell::default());
+                    }
+                }
+            }
+            'X' => {
+                let n = p1.max(1);
+                for i in 0..n {
+                    let col = self.cursor_col + i;
+                    if col < self.cols {
+                        self.grid[self.cursor_row][col] = Cell::default();
+                    }
+                }
+            }
+            'm' => {
+                let codes: Vec<usize> = p.iter().map(|&x| x as usize).collect();
+                let mut i = 0;
+                while i < codes.len() {
+                    match codes[i] {
+                        0 => {
+                            self.current_fg = COLORS[7];
+                            self.current_bg = COLORS[0];
+                            self.current_attrs = TextAttrs::default();
+                        }
+                        1 => self.current_attrs.bold = true,
+                        3 => self.current_attrs.italic = true,
+                        4 => self.current_attrs.underline = true,
+                        22 => self.current_attrs.bold = false,
+                        23 => self.current_attrs.italic = false,
+                        24 => self.current_attrs.underline = false,
+                        30..=37 => self.current_fg = COLORS[codes[i] - 30],
+                        38 => {
+                            if i + 2 < codes.len() && codes[i + 1] == 5 {
+                                let idx = codes[i + 2];
+                                if idx < 16 {
+                                    self.current_fg = COLORS[idx];
+                                }
+                                i += 2;
+                            } else if i + 4 < codes.len() && codes[i + 1] == 2 {
+                                self.current_fg =
+                                    [codes[i + 2] as u8, codes[i + 3] as u8, codes[i + 4] as u8];
+                                i += 4;
+                            }
+                        }
+                        39 => self.current_fg = COLORS[7],
+                        40..=47 => self.current_bg = COLORS[codes[i] - 40],
+                        48 => {
+                            if i + 2 < codes.len() && codes[i + 1] == 5 {
+                                let idx = codes[i + 2];
+                                if idx < 16 {
+                                    self.current_bg = COLORS[idx];
+                                }
+                                i += 2;
+                            } else if i + 4 < codes.len() && codes[i + 1] == 2 {
+                                self.current_bg =
+                                    [codes[i + 2] as u8, codes[i + 3] as u8, codes[i + 4] as u8];
+                                i += 4;
+                            }
+                        }
+                        49 => self.current_bg = COLORS[0],
+                        90..=97 => self.current_fg = COLORS[codes[i] - 90 + 8],
+                        100..=107 => self.current_bg = COLORS[codes[i] - 100 + 8],
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            'h' | 'l' => {
+                let is_set = cmd == 'h';
+                let p_val = p.first().copied().unwrap_or(0);
+                // Check for private mode (intermediate '?')
+                if _intermediates.contains(&b'?') {
+                    match p_val {
+                        1049 => {
+                            if is_set {
+                                // Enter alternate screen — save current grid and cursor
+                                self.alt_screen = Some(self.grid.clone());
+                                self.alt_cursor = (self.cursor_row, self.cursor_col);
+                                self.grid = vec![vec![Cell::default(); self.cols]; self.rows];
+                                self.cursor_row = 0;
+                                self.cursor_col = 0;
+                            } else {
+                                // Leave alternate screen — restore saved grid and cursor
+                                if let Some(saved) = self.alt_screen.take() {
+                                    self.grid = saved;
+                                    self.cursor_row = self.alt_cursor.0;
+                                    self.cursor_col = self.alt_cursor.1;
+                                }
+                            }
+                        }
+                        // Cursor visibility — ignore, we draw our own
+                        25 => {}
+                        // Mouse tracking — ignore
+                        1000 | 1002 | 1006 | 1015 => {}
+                        // Application cursor keys — ignore
+                        1 => {}
+                        _ => {}
+                    }
+                }
+            }
+            'd' => self.cursor_row = p1.saturating_sub(1).min(self.rows - 1),
+            'S' => {
+                let n = p1.max(1);
+                for _ in 0..n {
+                    let old = self.grid.remove(0);
+                    self.scrollback.push(old);
+                    if self.scrollback.len() > self.max_scrollback {
+                        self.scrollback.remove(0);
+                    }
+                    self.grid.push(vec![Cell::default(); self.cols]);
+                }
+            }
+            'T' => {
+                let n = p1.max(1);
+                for _ in 0..n {
+                    self.grid.pop();
+                    self.grid.insert(0, vec![Cell::default(); self.cols]);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn esc_dispatch(&mut self, _intermediates: &[u8], _ignore: bool, byte: u8) {
+        match byte {
+            b'M' => {
+                if self.cursor_row == 0 {
+                    self.grid.pop();
+                    self.grid.insert(0, vec![Cell::default(); self.cols]);
+                } else {
+                    self.cursor_row -= 1;
+                }
+            }
+            b'c' => {
+                self.grid = vec![vec![Cell::default(); self.cols]; self.rows];
+                self.cursor_row = 0;
+                self.cursor_col = 0;
+                self.current_fg = COLORS[7];
+                self.current_bg = COLORS[0];
+                self.current_attrs = TextAttrs::default();
+                self.scrollback.clear();
+            }
+            _ => {}
+        }
+    }
+
+    fn hook(&mut self, _params: &Params, _intermediates: &[u8], _ignore: bool, _action: char) {}
+    fn put(&mut self, _byte: u8) {}
+    fn unhook(&mut self) {}
+    fn osc_dispatch(&mut self, _params: &[&[u8]], _bell_terminated: bool) {}
+}
 // FIX 4: Glyph cache for massive performance improvement
 #[derive(Hash, Eq, PartialEq, Clone)]
 struct GlyphCacheKey {
@@ -1530,6 +1642,32 @@ impl WindowHandler for App {
         self.buffer = None;
         self.width = configure.new_size.0.map(|v| v.get()).unwrap_or(800);
         self.height = configure.new_size.1.map(|v| v.get()).unwrap_or(600);
+
+        // Recalculate rows/cols from pixel dimensions
+        let new_cols =
+            ((self.width as f32 - self.padding_f32 * 2.0) / self.char_width).max(1.0) as usize;
+        let new_rows =
+            ((self.height as f32 - self.padding_f32 * 2.0) / self.line_height).max(1.0) as usize;
+
+        if new_cols != self.terminal.cols || new_rows != self.terminal.rows {
+            self.terminal.resize(new_rows, new_cols);
+
+            // Tell PTY the new size
+            let winsize = nix::pty::Winsize {
+                ws_row: new_rows as u16,
+                ws_col: new_cols as u16,
+                ws_xpixel: self.width as u16,
+                ws_ypixel: self.height as u16,
+            };
+            let _ = unsafe {
+                nix::libc::ioctl(
+                    std::os::fd::AsRawFd::as_raw_fd(&self.pty.master),
+                    nix::libc::TIOCSWINSZ,
+                    &winsize,
+                )
+            };
+        }
+
         if self.first_configure {
             self.first_configure = false;
             self.draw(qh);
