@@ -1,8 +1,8 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.1.0
+# 🌲 Faelight Forest v10.2.0
 
-![Version](https://img.shields.io/badge/version-10.1.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-10.2.0-green?style=flat-square)
+![Health](https://img.shields.io/badge/health-85%25-green?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
@@ -11,26 +11,36 @@
 
 ## 🎊 Latest Release
 
-### v10.1.0 - 🌲 The Forest Matures — 0-Core v2 Complete (2026-02-22)
+### v10.2.0 - 🌲 Two Tools Out of WIP — faelight-term & faelight-browser production ready (2026-02-26)
 
-- END0-Core v2 architecture migration complete — all 6 phases done
-- Phase 5: alias-audit, bin-doctor, entropy-check absorbed into doctor domain
-- Phase 6: capability model enforced across all 15 domains — every operation logged
-- faelight-menu v4.0.0 — forest palette aesthetic matching faelight-palette
-- faelight-palette v3 — split layout, real 0-Core stats, health cache integration
-- faelight-fm — rich preview panel with zone/git/intent metadata
-- faelight-link v3 — adopt command, GNU Stow dir-folding awareness
-- Health cache — single source of truth across bar, palette, prompt, doctor
-- All hardcoded paths removed from engine — fully portable
-- Cold start: 3ms
+- ENDfaelight-term v10.3.0 — OUT OF WIP
+- - vte crate parser (same as Alacritty/Zellij)
+- - Alternate screen buffer (nvim/fm full size)
+- - Dynamic resize via TIOCSWINSZ
+- - Backspace, delete, escape, return key handling
+- - DSR cursor position response (atuin inline history)
+- - Production ready — actively replacing foot
+- faelight-browser v0.4.0 — OUT OF WIP
+- - w3m-style inline link navigation
+- - Forward/back navigation (Shift+F/B)
+- - Reader mode strips nav/ads (Shift+R)
+- - In-page search Ctrl+F with match count
+- - Unicode panic fixes
+- - Brave web search integration
+- System
+- - 9 new tools: atuin, tokei, hyperfine, tealdeer, ouch, difftastic, cargo-flamegraph, bottom, onefetch
+- - Removed: qutebrowser, fuzzel, mako (replaced by faelight tools)
+- - Added helix to packages
+- - Fixed infinite loop in update domain
+- - Intents 094/095 marked complete
+- - 19 commits since v10.1.0
 
-- Tools: 34/34 deployed (100%)
-- Aliases: 318 total
-- Commits: 1240
+- Tools: 43 active (2 out of WIP this release)
+- Commits: 1260 total (19 since v10.1.0)
+- Intents: 62 complete
+- Packages: 97 system packages
 - Health: 95%
-- Domains: 15 native Rust domains
-- Sub-tools absorbed: 3 (alias-audit, bin-doctor, entropy-check)
-- Cold start: 3ms
+- Lines of Rust: 30,976+ across 205 files
 
 [Full Changelog →](CHANGELOG.md)
 

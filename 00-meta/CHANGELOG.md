@@ -1,5 +1,46 @@
 # Changelog
 
+## v10.2.0 - 🌲 Two Tools Out of WIP — faelight-term & faelight-browser production ready (2026-02-26)
+
+- ENDfaelight-term v10.3.0 — OUT OF WIP
+- - vte crate parser (same as Alacritty/Zellij)
+- - Alternate screen buffer (nvim/fm full size)
+- - Dynamic resize via TIOCSWINSZ
+- - Backspace, delete, escape, return key handling
+- - DSR cursor position response (atuin inline history)
+- - Production ready — actively replacing foot
+- faelight-browser v0.4.0 — OUT OF WIP
+- - w3m-style inline link navigation
+- - Forward/back navigation (Shift+F/B)
+- - Reader mode strips nav/ads (Shift+R)
+- - In-page search Ctrl+F with match count
+- - Unicode panic fixes
+- - Brave web search integration
+- System
+- - 9 new tools: atuin, tokei, hyperfine, tealdeer, ouch, difftastic, cargo-flamegraph, bottom, onefetch
+- - Removed: qutebrowser, fuzzel, mako (replaced by faelight tools)
+- - Added helix to packages
+- - Fixed infinite loop in update domain
+- - Intents 094/095 marked complete
+- - 19 commits since v10.1.0
+
+**Tools Updated:** faelight-browser, faelight-term
+
+**Statistics:**
+- Tools: 43 active (2 out of WIP this release)
+- Commits: 1260 total (19 since v10.1.0)
+- Intents: 62 complete
+- Packages: 97 system packages
+- Health: 95%
+- Lines of Rust: 30,976+ across 205 files
+
+- System Health: 85%
+- Commits: 19
+- Files Changed: 10
+
+---
+
+
 ## v10.1.0 - 🌲 The Forest Matures — 0-Core v2 Complete (2026-02-22)
 
 - END0-Core v2 architecture migration complete — all 6 phases done
