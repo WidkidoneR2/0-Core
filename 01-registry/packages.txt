@@ -1,4 +1,5 @@
 amd-ucode
+atuin
 bandwhich
 base
 base-devel
@@ -9,9 +10,11 @@ bottom
 brave-bin
 brightnessctl
 btrfs-progs
+cargo-flamegraph
 clang
 cliphist
 cmake
+difftastic
 direnv
 discord
 dust
@@ -21,7 +24,6 @@ fail2ban
 fd
 filen-desktop-bin
 foot
-fuzzel
 fzf
 git
 git-delta
@@ -33,6 +35,8 @@ grim
 grub
 grub-btrfs
 gum
+helix
+hyperfine
 inotify-tools
 iwd
 jq
@@ -42,7 +46,6 @@ libreoffice-fresh
 linux
 linux-firmware
 localsend-bin
-mako
 mullvad-vpn-bin
 neovim
 networkmanager
@@ -50,8 +53,10 @@ notesnook-bin
 noto-fonts
 noto-fonts-emoji
 nushell
+onefetch
 onlyoffice-bin
 otf-font-awesome
+ouch
 pamixer
 paru
 pavucontrol
@@ -61,7 +66,6 @@ playerctl
 polkit-gnome
 qt5-wayland
 qt6-wayland
-qutebrowser
 ripgrep
 rust
 slurp
@@ -73,7 +77,8 @@ sway
 swaybg
 swayidle
 swaylock
-topgrade
+tealdeer
+tokei
 ttf-hack-nerd
 ttf-ibm-plex
 ttf-jetbrains-mono
