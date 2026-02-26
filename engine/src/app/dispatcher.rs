@@ -71,6 +71,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 LinkCommand::Redeploy { package } => {
                     crate::domains::link::redeploy(ctx, package.as_deref())
                 }
+                LinkCommand::Sync { package } => {
+                    crate::domains::link::sync(ctx, package.as_deref())
+                }
             }
         }
 
