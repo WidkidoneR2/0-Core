@@ -197,7 +197,7 @@ fn check_binaries() -> CheckResult {
     let bins = [
         "sway",
         "foot",
-        "fuzzel",
+        "faelight-palette",
         "yazi",
         "nvim",
         "git",
