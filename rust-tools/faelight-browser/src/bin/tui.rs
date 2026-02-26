@@ -54,6 +54,7 @@ struct Tab {
     scroll: usize,
     link_cursor: usize,         // index into link positions
     link_positions: Vec<usize>, // line indices that have links
+    raw_html: Option<String>,   // stored for reader mode
 }
 
 impl Tab {
@@ -104,7 +105,15 @@ impl Tab {
                 link: None,
             },
             ContentLine {
-                text: "  B            Go back".to_string(),
+                text: "  Shift+B      Go back".to_string(),
+                link: None,
+            },
+            ContentLine {
+                text: "  Shift+F      Go forward".to_string(),
+                link: None,
+            },
+            ContentLine {
+                text: "  Shift+R      Toggle reader mode".to_string(),
                 link: None,
             },
             ContentLine {
@@ -144,6 +153,7 @@ impl Tab {
             scroll: 0,
             link_cursor: 0,
             link_positions: vec![],
+            raw_html: None,
         }
     }
 
@@ -210,6 +220,7 @@ struct App {
     focus: Focus,
     mode: Mode,
     search_input: String,
+    reader_mode: bool,
     address_bar: String,
     status_message: String,
     status_color: Color,
@@ -230,6 +241,7 @@ impl App {
             focus: Focus::Content,
             mode: Mode::Normal,
             search_input: String::new(),
+            reader_mode: false,
             address_bar: "about:home".to_string(),
             status_message: "🌲 Welcome — g to enter URL, Tab to navigate links".to_string(),
             status_color: GREEN,
@@ -276,8 +288,8 @@ impl App {
 
         self.set_status(&format!("⏳ Loading {}...", url), WARNING);
 
-        let (lines, meta) = if url.starts_with("about:") {
-            (Tab::home().lines, vec![])
+        let (lines, meta, raw_html) = if url.starts_with("about:") {
+            (Tab::home().lines, vec![], String::new())
         } else {
             match fetch_web_content(&url) {
                 Ok(result) => result,
@@ -287,6 +299,7 @@ impl App {
                         link: None,
                     }],
                     vec![],
+                    String::new(),
                 ),
             }
         };
@@ -313,6 +326,11 @@ impl App {
             scroll: 0,
             link_cursor: 0,
             link_positions,
+            raw_html: if raw_html.is_empty() {
+                None
+            } else {
+                Some(raw_html)
+            },
         };
         self.address_bar = url;
         self.focus = Focus::Content;
@@ -324,7 +342,7 @@ impl App {
             // Save current URL to forward stack
             self.forward_stack.push(self.address_bar.clone());
             let security = SecurityStatus::check(&url);
-            let (lines, meta) = match fetch_web_content(&url) {
+            let (lines, meta, _raw_html) = match fetch_web_content(&url) {
                 Ok(r) => r,
                 Err(e) => (
                     vec![ContentLine {
@@ -332,6 +350,7 @@ impl App {
                         link: None,
                     }],
                     vec![],
+                    String::new(),
                 ),
             };
             let link_positions: Vec<usize> = lines
@@ -352,6 +371,7 @@ impl App {
                 scroll: 0,
                 link_cursor: 0,
                 link_positions,
+                raw_html: None,
             };
             self.address_bar = url;
             self.set_status("◀ Back", GREEN);
@@ -364,7 +384,7 @@ impl App {
         if let Some(url) = self.forward_stack.pop() {
             let current_url = self.address_bar.clone();
             let security = SecurityStatus::check(&url);
-            let (lines, meta) = match fetch_web_content(&url) {
+            let (lines, meta, _raw_html) = match fetch_web_content(&url) {
                 Ok(r) => r,
                 Err(e) => (
                     vec![ContentLine {
@@ -372,6 +392,7 @@ impl App {
                         link: None,
                     }],
                     vec![],
+                    String::new(),
                 ),
             };
             let link_positions: Vec<usize> = lines
@@ -393,6 +414,7 @@ impl App {
                 scroll: 0,
                 link_cursor: 0,
                 link_positions,
+                raw_html: None,
             };
             self.address_bar = url;
             self.set_status("▶ Forward", GREEN);
@@ -542,6 +564,80 @@ impl App {
         }
     }
 
+    fn toggle_reader_mode(&mut self) {
+        self.reader_mode = !self.reader_mode;
+        let tab = &self.tabs[self.active_tab];
+        let html = match &tab.raw_html {
+            Some(h) => h.clone(),
+            None => {
+                self.set_status("No content to render in reader mode", DIM);
+                return;
+            }
+        };
+        let url = tab.url.clone();
+
+        let text = if self.reader_mode {
+            // Strip noisy elements
+            let mut cleaned = html.clone();
+            for tag in &[
+                "nav", "header", "footer", "aside", "script", "style", "iframe", "form",
+            ] {
+                let open = format!("<{}", tag);
+                let close = format!("</{}>", tag);
+                while let Some(start) = cleaned.to_lowercase().find(&open) {
+                    if let Some(end) = cleaned[start..].to_lowercase().find(&close) {
+                        let end_full = start + end + close.len();
+                        cleaned.replace_range(start..end_full, "");
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // Try to find <article> or <main> content
+            let lower = cleaned.to_lowercase();
+            let extracted = if let Some(start) = lower.find("<article") {
+                if let Some(end) = lower.find("</article>") {
+                    cleaned[start..end + 10].to_string()
+                } else {
+                    cleaned.clone()
+                }
+            } else if let Some(start) = lower.find("<main") {
+                if let Some(end) = lower.find("</main>") {
+                    cleaned[start..end + 7].to_string()
+                } else {
+                    cleaned.clone()
+                }
+            } else {
+                cleaned
+            };
+            html2text::from_read(extracted.as_bytes(), 100)
+        } else {
+            html2text::from_read(html.as_bytes(), 100)
+        };
+
+        let lines: Vec<ContentLine> = text
+            .lines()
+            .map(|l| ContentLine {
+                text: l.to_string(),
+                link: None,
+            })
+            .collect();
+        let link_positions = vec![];
+
+        let tab_mut = &mut self.tabs[self.active_tab];
+        tab_mut.lines = lines;
+        tab_mut.link_positions = link_positions;
+        tab_mut.scroll = 0;
+        tab_mut.link_cursor = 0;
+
+        if self.reader_mode {
+            self.set_status("📖 Reader mode — R to exit", GREEN);
+        } else {
+            self.set_status("✅ Normal mode", GREEN);
+        }
+        let _ = url;
+    }
+
     fn reload(&mut self) {
         let url = self.tabs[self.active_tab].url.clone();
         if !url.starts_with("about:") {
@@ -570,7 +666,7 @@ impl App {
     }
 }
 
-fn fetch_web_content(url: &str) -> Result<(Vec<ContentLine>, Vec<String>), String> {
+fn fetch_web_content(url: &str) -> Result<(Vec<ContentLine>, Vec<String>, String), String> {
     let client = reqwest::blocking::Client::builder()
         .user_agent("faelight-browser/0.4.0 (TUI; Linux)")
         .timeout(std::time::Duration::from_secs(15))
@@ -714,7 +810,7 @@ fn fetch_web_content(url: &str) -> Result<(Vec<ContentLine>, Vec<String>), Strin
 
     let links: Vec<String> = link_map.iter().map(|(_, u)| u.clone()).collect();
     let _ = links;
-    Ok((lines, vec![page_title]))
+    Ok((lines, vec![page_title], html))
 }
 
 fn main() -> io::Result<()> {
@@ -782,6 +878,8 @@ fn main() -> io::Result<()> {
                         KeyCode::Char('t') => app.new_tab(),
                         KeyCode::Char('x') => app.close_tab(),
                         KeyCode::Char('r') => app.reload(),
+                        KeyCode::Char('R') => app.toggle_reader_mode(),
+
                         KeyCode::Char('y') => app.yank_content(),
                         KeyCode::Char('f') if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                             app.cycle_focus()
@@ -1056,7 +1154,9 @@ fn ui(f: &mut Frame, app: &App) {
 
     // ── Status bar (full width) ───────────────────────────────────────────────
     let focus_label = match app.focus {
-        Focus::Content => "Content — Tab:next link  Enter:open  j/k:scroll  B:back",
+        Focus::Content => {
+            "Content — Tab:next link  Enter:open  j/k:scroll  B:back  F:fwd  R:reader"
+        }
         Focus::History => "History — j/k:navigate  Enter:open  f:switch panel",
         Focus::Bookmarks => "Bookmarks — j/k:navigate  Enter:open  f:switch panel",
     };
