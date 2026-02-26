@@ -1,69 +1,58 @@
 ---
 id: 094
-date: 2026-02-23
-type: future
+date: 2026-02-25
+type: complete
 title: "faelight-term — VTE Refactor & Stability"
-status: planned
-tags: [rust, terminal, vte, wayland, v11]
-version: 11.0.0
+status: complete
+tags: [rust, terminal, vte, wayland, v10.3]
+version: 10.3.0
 ---
 
 ## Vision
 
 faelight-term has solid foundations — real PTY, swash font rendering,
-Wayland via Smithay, emoji support better than foot. The gaps are in the
-VT parsing layer which is handrolled and incomplete.
+Wayland via Smithay, emoji support better than foot. The gaps were in the
+VT parsing layer which was handrolled and incomplete.
 
-Replace the handrolled parser with the `vte` crate (same as Alacritty,
+Replaced the handrolled parser with the `vte` crate (same as Alacritty,
 Zellij, WezTerm) to close the remaining issues.
 
 ---
 
-## Known Issues
+## Completed 2026-02-25
 
-- Ghost cursor — old cursor position not cleared before drawing new one
-- Commands not always executing — newline/enter handling gaps
-- VT parsing incomplete — only 12 CSI patterns handled, need hundreds
-- Needs testing across common programs (vim, htop, faelight-fm inside term)
+### Phase 1 — VTE Integration ✅
+- Added `vte` crate dependency
+- Implemented `vte::Perform` trait routing to existing terminal grid
+- Replaced `process_bytes` + `handle_csi_sequence` with `vte::Parser`
+- Preserved emoji rendering pipeline unchanged
 
-## Working Well
+### Phase 2 — Cursor & Alternate Screen ✅
+- Ghost cursor eliminated
+- Alternate screen buffer (?1049h/?1049l) implemented
+- nvim opens full size, prompt returns correctly on exit
 
-- ✅ Emoji rendering — better than foot terminal
-- ✅ Copy/paste — underline selection working
-- ✅ Scrollback — 10,000 line buffer
-- ✅ PTY — proper fork, setsid, TIOCSCTTY
-- ✅ Font rendering — swash pipeline solid
+### Phase 3 — Dynamic Resize ✅
+- TIOCSWINSZ implemented — PTY notified of actual window dimensions
+- Rows/cols calculated from pixel dimensions dynamically
+- faelight-fm renders at full terminal size
 
----
+### Phase 4 — Key Handling ✅
+- Backspace, Delete, Escape, Return all explicit
+- DSR cursor position response (atuin inline history working)
+- Sway IPC (swaymsg) works inside faelight-term
 
-## Refactor Plan
-
-### Phase 1 — VTE Integration
-- Add `vte` crate dependency
-- Implement `vte::Perform` trait routing to existing terminal grid
-- Replace `process_bytes` + `handle_csi_sequence` with `vte::Parser`
-- Preserve emoji rendering pipeline unchanged
-
-### Phase 2 — Cursor Fix
-- Clear old cursor position before drawing new one
-- Implement proper cursor state tracking
-
-### Phase 3 — Testing
-- vim inside faelight-term
-- htop inside faelight-term
-- faelight-fm inside faelight-term
-- neovim inside faelight-term
-
-### Phase 4 — Polish
-- TERM environment variable tuning
-- Color scheme matching Faelight Forest palette
-- Title bar showing current command
+### Phase 5 — Testing ✅
+- btm — graphs, braille characters, temperatures all render
+- faelight-fm — full size, forest palette correct
+- faelight-git — colors, Unicode, layout correct
+- nvim — full size, clean exit
+- Copy/paste (Ctrl+Shift+C/V) working
+- Zoom in/out working
+- Sway keybind ($mod+Mod1+Return)
 
 ---
 
-## Key Insight
+## Status: OUT OF WIP — Production Ready v10.3.0
 
-Architecture stays the same: PTY → vte parser → grid state → renderer
-Only the middle layer (VT parsing) gets replaced.
-The hard parts (PTY, font rendering, Wayland) are already solid.
-
+Actively replacing foot as primary terminal.
