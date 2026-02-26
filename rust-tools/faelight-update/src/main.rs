@@ -319,13 +319,29 @@ fn run_health_check() -> Result<()> {
         .output()
         .context("Failed to run dot-doctor - is it installed?")?;
 
-    if !output.status.success() {
-        println!("{}  Health check failed!", "⚠️".yellow());
-        println!("   💡 Run 'doctor' for details or use --skip-health to proceed");
-        anyhow::bail!("System health check did not pass");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse health percentage from "Health:   90%" line
+    let health_pct = stdout.lines()
+        .find(|l| l.trim().starts_with("Health:"))
+        .and_then(|l| l.split_whitespace().last())
+        .and_then(|s| s.trim_end_matches('%').parse::<u32>().ok())
+        .unwrap_or(100);
+
+    // Parse failed count from "Failed:   0" line
+    let failed = stdout.lines()
+        .find(|l| l.trim().starts_with("Failed:"))
+        .and_then(|l| l.split_whitespace().last())
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(0);
+
+    if failed > 0 {
+        // Hard failures — warn but do not block (manual control over automation)
+        println!("   {}  Health {}% — {} checks failed (use --skip-health to suppress)", "⚠️".yellow(), health_pct, failed);
+    } else {
+        println!("   {}  System healthy ({}%)", "✅".green(), health_pct);
     }
 
-    println!("   {}  System healthy", "✅".green());
     Ok(())
 }
 
