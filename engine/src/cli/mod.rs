@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, TraceCommand, WhyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands,
+    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, TraceCommands, WhyCommands,
     NotifyCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
     UpdateCommands, WorkspaceCommands,
 };
@@ -191,6 +191,15 @@ pub fn parse() -> Command {
             EventsCommands::List => EventsCommand::List,
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
+        }),
+        Commands::Why { command } => Command::Why(match command {
+            WhyCommands::Summary => WhyCommand::Summary,
+            WhyCommands::Health => WhyCommand::Health,
+            WhyCommands::Domain { domain } => WhyCommand::Domain { domain },
+        }),
+        Commands::Trace { command } => Command::Trace(match command {
+            TraceCommands::Last => TraceCommand::Last,
+            TraceCommands::Domain { domain } => TraceCommand::Domain { domain },
         }),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }

@@ -158,8 +158,11 @@ alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor
 
 # ── Core v3 — Causality Engine (Phase 2) ─────────────────
-alias cw='core why'                  # cw / cw health / cw health 90
-alias ctr='core trace'               # ctr last / ctr doctor
+alias cw='core why summary'          # today's activity summary
+alias cwh='core why health'          # health trajectory
+alias cwd='core why domain'          # cwd git / cwd doctor / cwd security
+alias ctr='core trace last'          # last 10 events with detail
+alias ctrd='core trace domain'       # ctrd git / ctrd doctor
 alias 0core='cd ~/0-core'            # navigate to 0-core root
 
 # ── New Tools (installed 2026-02-26) ─────────────────────

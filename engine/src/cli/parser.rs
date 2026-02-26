@@ -83,6 +83,16 @@ pub enum Commands {
         #[command(subcommand)]
         command: EventsCommands,
     },
+    /// Causality engine — why is the system in this state?
+    Why {
+        #[command(subcommand)]
+        command: WhyCommands,
+    },
+    /// Trace event history with full detail
+    Trace {
+        #[command(subcommand)]
+        command: TraceCommands,
+    },
     /// Show capability requirements for all domains
     Capabilities {
         /// Output as JSON
@@ -346,6 +356,28 @@ pub enum EventsCommands {
     },
     /// Filter events by domain
     Filter {
+        domain: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum WhyCommands {
+    /// Why did the system do what it did today?
+    Summary,
+    /// Why is health at its current level?
+    Health,
+    /// What has a specific domain been doing?
+    Domain {
+        domain: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TraceCommands {
+    /// Show last 10 events with full detail
+    Last,
+    /// Show full trace for a specific domain
+    Domain {
         domain: String,
     },
 }
