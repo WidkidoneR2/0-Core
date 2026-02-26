@@ -206,6 +206,7 @@ enum Mode {
     Normal,
     Search,
     EditAddress,
+    FindInPage,
 }
 
 struct App {
@@ -220,6 +221,9 @@ struct App {
     focus: Focus,
     mode: Mode,
     search_input: String,
+    find_input: String,
+    find_matches: Vec<usize>, // line indices matching search
+    find_cursor: usize,
     reader_mode: bool,
     address_bar: String,
     status_message: String,
@@ -241,6 +245,9 @@ impl App {
             focus: Focus::Content,
             mode: Mode::Normal,
             search_input: String::new(),
+            find_input: String::new(),
+            find_matches: vec![],
+            find_cursor: 0,
             reader_mode: false,
             address_bar: "about:home".to_string(),
             status_message: "🌲 Welcome — g to enter URL, Tab to navigate links".to_string(),
@@ -564,6 +571,68 @@ impl App {
         }
     }
 
+    fn start_find(&mut self) {
+        self.mode = Mode::FindInPage;
+        self.find_input.clear();
+        self.find_matches.clear();
+        self.find_cursor = 0;
+    }
+
+    fn update_find(&mut self) {
+        let query = self.find_input.to_lowercase();
+        if query.is_empty() {
+            self.find_matches.clear();
+            return;
+        }
+        let tab = &self.tabs[self.active_tab];
+        self.find_matches = tab
+            .lines
+            .iter()
+            .enumerate()
+            .filter_map(|(i, l)| {
+                if l.text.to_lowercase().contains(&query) {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.find_cursor = 0;
+        if !self.find_matches.is_empty() {
+            self.tabs[self.active_tab].scroll = self.find_matches[0];
+            self.set_status(&format!("🔍 {} matches", self.find_matches.len()), GREEN);
+        } else {
+            self.set_status("🔍 No matches", RED);
+        }
+    }
+
+    fn find_next(&mut self) {
+        if self.find_matches.is_empty() {
+            return;
+        }
+        self.find_cursor = (self.find_cursor + 1) % self.find_matches.len();
+        self.tabs[self.active_tab].scroll = self.find_matches[self.find_cursor];
+        self.set_status(
+            &format!("🔍 {}/{}", self.find_cursor + 1, self.find_matches.len()),
+            GREEN,
+        );
+    }
+
+    fn find_prev(&mut self) {
+        if self.find_matches.is_empty() {
+            return;
+        }
+        self.find_cursor = self.find_cursor.saturating_sub(1);
+        if self.find_cursor == 0 && !self.find_matches.is_empty() {
+            self.find_cursor = self.find_matches.len() - 1;
+        }
+        self.tabs[self.active_tab].scroll = self.find_matches[self.find_cursor];
+        self.set_status(
+            &format!("🔍 {}/{}", self.find_cursor + 1, self.find_matches.len()),
+            GREEN,
+        );
+    }
+
     fn toggle_reader_mode(&mut self) {
         self.reader_mode = !self.reader_mode;
         let tab = &self.tabs[self.active_tab];
@@ -881,7 +950,10 @@ fn main() -> io::Result<()> {
                         KeyCode::Char('R') => app.toggle_reader_mode(),
 
                         KeyCode::Char('y') => app.yank_content(),
-                        KeyCode::Char('f') if !key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        KeyCode::Char('f')
+                            if !key.modifiers.contains(KeyModifiers::SHIFT)
+                                && !key.modifiers.contains(KeyModifiers::CONTROL) =>
+                        {
                             app.cycle_focus()
                         }
                         KeyCode::Char('g') => app.mode = Mode::EditAddress,
@@ -890,6 +962,9 @@ fn main() -> io::Result<()> {
                         }
                         KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                             app.mode = Mode::EditAddress;
+                        }
+                        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            app.start_find();
                         }
                         KeyCode::Char('/') => {
                             app.mode = Mode::Search;
@@ -913,6 +988,24 @@ fn main() -> io::Result<()> {
                         KeyCode::Char(c) => app.search_input.push(c),
                         KeyCode::Backspace => {
                             app.search_input.pop();
+                        }
+                        _ => {}
+                    },
+                    Mode::FindInPage => match key.code {
+                        KeyCode::Esc => {
+                            app.mode = Mode::Normal;
+                            app.find_matches.clear();
+                            app.set_status("✅ Find closed", GREEN);
+                        }
+                        KeyCode::Enter => app.find_next(),
+                        KeyCode::BackTab => app.find_prev(),
+                        KeyCode::Char(c) => {
+                            app.find_input.push(c);
+                            app.update_find();
+                        }
+                        KeyCode::Backspace => {
+                            app.find_input.pop();
+                            app.update_find();
                         }
                         _ => {}
                     },
@@ -997,6 +1090,7 @@ fn ui(f: &mut Frame, app: &App) {
     let (addr_title, addr_text, addr_color) = match app.mode {
         Mode::EditAddress => ("󰏫 URL", format!("{}█", app.address_bar), WARNING),
         Mode::Search => ("󰍉 Search", format!("{}█", app.search_input), BLUE),
+        Mode::FindInPage => ("󰍉 Find", format!("{}█", app.find_input), ACCENT),
         Mode::Normal => ("󰖟 Address", app.address_bar.clone(), FG),
     };
     let addr = Paragraph::new(Span::styled(&addr_text, Style::default().fg(addr_color)))
@@ -1164,6 +1258,7 @@ fn ui(f: &mut Frame, app: &App) {
         Mode::Normal => focus_label,
         Mode::EditAddress => "Enter:load  Esc:cancel",
         Mode::Search => "Enter:brave search  Esc:cancel",
+        Mode::FindInPage => "Enter:next  Shift+Tab:prev  Esc:close",
     };
 
     let status = Paragraph::new(Line::from(vec![
