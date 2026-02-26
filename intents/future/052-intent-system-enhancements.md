@@ -3,10 +3,16 @@ id: 052
 date: 2026-01-14
 type: future
 title: "Intent System Enhancements - Workflow & Dependencies"
-status: in-progress
-tags: [v8.0, infrastructure, intent, workflow]
-version: 8.0.0
+status: deferred
+tags: [v11, infrastructure, intent, workflow]
+version: 11.0.0
 ---
+
+## Status Note (updated 2026-02-27)
+
+Written for v8.0.0, now at v10.2.0. Workflow states (`intent start`, `intent complete`)
+and analytics belong in Core v3 Phase 6 (INT-093). Dependencies and templates remain
+valid future work. Deferring until after v3 Phase 1-3 are complete.
 
 ## Vision
 Make the Intent system production-grade with dependencies, workflows, and analytics.

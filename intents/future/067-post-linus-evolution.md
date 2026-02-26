@@ -3,9 +3,17 @@ id: 067
 date: 2026-01-21
 type: future
 title: "Post-Linus Evolution - Next-Gen Causality & Planning Tools"
-status: in-progress
+status: superseded
 tags: [rust, architecture, causality, simulation, post-v8.0.0]
 related: [001, 061, 063]
+---
+
+## ⚠️ Superseded by Intent 093
+
+This intent described causality (core-why), simulation (core-plan), and constraints
+as standalone tools. These are now Pillars 1, 2, and 3 of Core v3 (INT-093).
+All implementation planning moved to INT-093.
+
 ---
 
 ## The Vision
