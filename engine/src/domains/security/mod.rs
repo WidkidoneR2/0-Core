@@ -395,6 +395,18 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
         low.to_string().dimmed(),
     );
     println!("  {} Scan completed in {}ms", "✅".green(), duration);
+
+    // Event Ledger
+    let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
+    writer.write(
+        "security",
+        "scan",
+        "core security scan",
+        "ok",
+        Some(&format!(r#"{{"critical":{},"high":{},"medium":{},"low":{}}}"#,
+            critical, high, medium, low)),
+    );
+
     Ok(())
 }
 

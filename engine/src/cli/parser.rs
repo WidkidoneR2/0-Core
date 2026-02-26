@@ -78,6 +78,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Query the event ledger
+    Events {
+        #[command(subcommand)]
+        command: EventsCommands,
+    },
     /// Show capability requirements for all domains
     Capabilities {
         /// Output as JSON
@@ -323,5 +328,19 @@ pub enum UpdateCommands {
     Safe {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum EventsCommands {
+    /// List events from today
+    List,
+    /// Events since a duration (e.g. 1h, 30m, 2d)
+    Since {
+        duration: String,
+    },
+    /// Filter events by domain
+    Filter {
+        domain: String,
     },
 }

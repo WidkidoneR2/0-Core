@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DoctorCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DoctorCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands,
+    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands,
     NotifyCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
     UpdateCommands, WorkspaceCommands,
 };
@@ -185,6 +185,11 @@ pub fn parse() -> Command {
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
+        }),
+        Commands::Events { command } => Command::Events(match command {
+            EventsCommands::List => EventsCommand::List,
+            EventsCommands::Since { duration } => EventsCommand::Since { duration },
+            EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
         }),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }

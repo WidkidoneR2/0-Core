@@ -1,6 +1,7 @@
 ---
 id: 093
 date: 2026-02-22
+updated: 2026-02-27
 type: future
 title: "Core v3 — The Living System"
 status: planned
@@ -128,35 +129,151 @@ v3 makes you more informed, not less in control.
 
 ---
 
-## Migration Path from v2
+## Build Order (revised 2026-02-27)
+
+The original phase order was logically correct but wrong for safe incremental
+delivery. Reordered from least risk to most — each phase fully usable before
+the next begins.
+
+### Phase 1 — Event Ledger ← START HERE
+**Additive only. Zero risk. No daemon.**
+
+Every domain operation appends a structured JSONL event to runtime/events/.
+No watchers, no async, no daemon. Pure write path.
+```
+runtime/events/
+  2026-02-27.jsonl
+  2026-02-28.jsonl
+  ...
+```
+
+Event schema:
+```json
+{
+  "ts": 1740614400,
+  "domain": "doctor",
+  "action": "run",
+  "actor": "dot-doctor",
+  "result": "ok",
+  "before": { "health": 95 },
+  "after":  { "health": 100 }
+}
+```
+
+Commands unlocked:
+```
+core events list              # all events today
+core events since 1h          # last hour
+core events filter domain=git # by domain
+```
+
+Session scope: 1 session. Implement EventWriter in runtime/,
+wire into 3-4 domains (doctor, git, update, lock). Ship.
+
+---
+
+### Phase 2 — Causality Engine
+**Reads the ledger. No new writes.**
+
+Pure read — traverses events backward from current state.
+`core why` is the Linus wow-factor command.
+```
+core why                    # current state explained
+core why health 95          # why is health 95%?
+core trace last-change      # full causal chain
+```
+
+Session scope: 1 session. EventGraph struct, backward traversal,
+formatted output. No new infrastructure.
+
+---
+
+### Phase 3 — Simulation Engine
+**Per-domain dry-run with diff output.**
+
+Add `Simulatable` trait. Implement for doctor + update first —
+safest domains, no destructive ops.
+```
+core simulate doctor        # predicted health after pending changes
+core simulate update        # what packages would change
+```
+
+Session scope: 1-2 sessions. Trait definition + 2 domain impls.
+--dry-run becomes --simulate with structured diff.
+
+---
+
+### Phase 4 — Event Bus (daemon)
+**⚠️ Requires dedicated planning session before coding.**
+
+inotify watchers, push-based events, bar + prompt subscribe.
+By Phase 4 the event schema is proven — safe to build the bus on top.
+```
+core events watch           # live stream
+```
+
+Session scope: Plan first. Then 2-3 sessions minimum.
+
+---
+
+### Phase 5 — Plugin Boundary
+faelight-git, faelight-update, faelight-fm register with core.
+Participate in event bus. Ecosystem grows without modifying core.
+```
+core plugin list
+core plugin add faelight-git
+```
+
+---
+
+### Phase 6 — Health Forecasting + Intent Integration
+Trend analysis, drift prediction, auto-context linking.
+```
+core doctor forecast
+core doctor trend
+core intent context
+```
+
+---
+
+## Session Rules
+```
+1. One phase per session. Stop when it compiles and doctor passes.
+2. Every session ends with a commit and doctor at 95%+.
+3. No phase starts until the previous has run for at least one day.
+4. Phase 4 (daemon) gets its own planning session before any code.
+5. No v3 work on days with other system work pending.
+```
+
+---
+
+## Gate Check
+```
+✅ v10.1.0 released
+✅ Intent 092 closed
+✅ faelight-term — scoped (intent 094, WIP acceptable)
+✅ faelight-browser — scoped (intent 095, WIP acceptable)
+⬜ Individual repos branched — not blocking Phase 1-3
+```
+
+Phase 1 is unblocked. Can start today.
+
+---
+
+## Migration Path
 
 v3 is fully backward compatible. Every v2 command works unchanged.
-New capabilities are additive:
-```
-Phase 1 — Event Bus foundation (runtime/events/, inotify watchers)
-Phase 2 — Causality Engine (event graph, core why)
-Phase 3 — Simulation Engine (simulate() trait, per-domain)
-Phase 4 — Plugin Boundary (core plugin, external tool registration)
-Phase 5 — Health Forecasting (trend analysis, drift prediction)
-Phase 6 — Intent Integration (auto-context, operation linking)
-```
+All new capabilities are additive.
 
 ---
 
 ## Timing
 
-⚠️ DO NOT START BEFORE:
-1. ✅ v10.1.0 released (complete)
-2. ✅ Intent 092 fully closed (complete)
-3. ⬜ Individual repos branched (faelight-fm, faelight-git, etc.)
-4. ⬜ faelight-browser WIP resolved
-5. ⬜ faelight-term WIP resolved or scoped
-
-Start condition: individual repos complete + v11 planning session.
+Start condition for Phase 1: gates above satisfied. ✅ Met.
+Start condition for Phase 4: dedicated planning session completed.
 
 ---
 
 ## The Phrase
 
 **"v2 gave you control. v3 gives the forest memory and foresight."**
-

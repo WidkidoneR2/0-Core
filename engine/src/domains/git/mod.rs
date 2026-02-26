@@ -29,8 +29,8 @@ fn in_git_repo() -> bool {
         .unwrap_or(false)
 }
 
-pub fn status(_ctx: &AppContext) -> CoreResult<()> {
-    _ctx.capabilities.require(
+pub fn status(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
         "git",
         &[
             Capability::FilesystemReadHome,
@@ -90,6 +90,18 @@ pub fn status(_ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
+
+    // Event Ledger
+    let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
+    writer.write(
+        "git",
+        "status",
+        "core git status",
+        "ok",
+        Some(&format!(r#"{{"branch":"{}","modified":{},"staged":{},"risk":{}}}"#,
+            branch, modified, staged, risk)),
+    );
+
     Ok(())
 }
 

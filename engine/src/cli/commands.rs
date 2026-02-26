@@ -25,6 +25,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Events(EventsCommand),
     Capabilities {
         json: bool,
         domain: Option<String>,
@@ -183,4 +184,11 @@ pub enum LauncherCommand {
 pub enum UpdateCommand {
     Run { args: Vec<String> },
     Safe { args: Vec<String> },
+}
+
+#[derive(Debug)]
+pub enum EventsCommand {
+    List,
+    Since { duration: String },
+    Filter { domain: String },
 }

@@ -13,7 +13,18 @@ pub fn update(ctx: &AppContext, args: &[String]) -> CoreResult<()> {
         ],
     )?;
     let bin = format!("{}/target/release/faelight-update", ctx.core_root);
-    Command::new(&bin).args(args).status()?;
+    let status = Command::new(&bin).args(args).status()?;
+
+    // Event Ledger
+    let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
+    writer.write(
+        "update",
+        "run",
+        "core update",
+        if status.success() { "ok" } else { "warn" },
+        None,
+    );
+
     Ok(())
 }
 
