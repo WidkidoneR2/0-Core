@@ -1,104 +1,172 @@
-//! Commit history viewer
+//! Commit history — native git2, visual graph
+
+use crate::git::GitRepo;
 use anyhow::Result;
 use colored::*;
 use std::io::{self, Write};
-use std::process::Command;
 
 pub fn run(count: Option<usize>) -> Result<()> {
-    let n = count.unwrap_or(10);
+    let repo = GitRepo::open()?;
+    let n = count.unwrap_or(20);
+    let branch = repo.current_branch()?;
+    let (ahead, behind) = repo.ahead_behind()?;
+    let entries = repo.log(n)?;
 
-    println!("{}", "🌲 Faelight Git Commit History".cyan().bold());
-    println!("{}", "━".repeat(50));
-    println!();
-
-    // Get commit history with pretty format
-    let output = Command::new("git")
-        .args([
-            "log",
-            &format!("-{}", n),
-            "--pretty=format:%h|%an|%ar|%s",
-            "--color=never",
-        ])
-        .output()?;
-
-    if !output.status.success() {
-        anyhow::bail!("Failed to get git log\n💡 Check: git log works manually?\n💡 Are you in a git repository?");
-    }
-
-    let log = String::from_utf8_lossy(&output.stdout);
-
-    if log.is_empty() {
+    if entries.is_empty() {
         println!("{}", "  ℹ️  No commits found".yellow());
         return Ok(());
     }
 
-    // Parse and display commits
-    for (i, line) in log.lines().enumerate() {
-        let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() < 4 {
-            continue;
-        }
+    // ── Header ────────────────────────────────────────────────
+    println!("{}", "🌲 faelight-git log".cyan().bold());
+    println!("{}", "━".repeat(60).dimmed());
 
-        let hash = parts[0];
-        let author = parts[1];
-        let time = parts[2];
-        let message = parts[3];
+    // Branch status line
+    let sync = match (ahead, behind) {
+        (0, 0) => "synced".green().to_string(),
+        (a, 0) => format!("↑{} ahead", a).yellow().to_string(),
+        (0, b) => format!("↓{} behind", b).red().to_string(),
+        (a, b) => format!("↑{} ↓{}", a, b).red().to_string(),
+    };
+    println!(
+        "  {} {}  {}",
+        " ".dimmed(),
+        branch.green().bold(),
+        sync
+    );
+    println!();
 
-        // Display with beautiful colors
+    // ── Commit graph ──────────────────────────────────────────
+    let total = entries.len();
+    for (i, entry) in entries.iter().enumerate() {
+        let is_last = i == total - 1;
+
+        // Graph line character
+        let glyph = if i == 0 {
+            "◉".cyan().bold()  // HEAD
+        } else {
+            "○".dimmed()
+        };
+
+        let connector = if is_last {
+            " ".to_string()
+        } else {
+            "│".dimmed().to_string()
+        };
+
+        // Detect intent reference in message
+        let has_intent = entry.message.contains("Intent:");
+        let intent_mark = if has_intent {
+            " 󰍉".cyan().to_string()
+        } else {
+            String::new()
+        };
+
+        // Detect conventional commit type for color
+        let message = colorize_message(&entry.message);
+
         println!(
-            "{} {} {} {}",
-            hash.yellow().bold(),
-            time.dimmed(),
-            author.cyan(),
-            message.white()
+            "  {} {} {}  {}  {}{}",
+            glyph,
+            entry.hash.yellow().bold(),
+            entry.time_ago.dimmed(),
+            entry.author.cyan().dimmed(),
+            message,
+            intent_mark,
         );
 
-        if i < log.lines().count() - 1 {
-            println!("{}", "│".dimmed());
+        if !is_last {
+            println!("  {}", connector);
         }
     }
 
+    // ── Footer ────────────────────────────────────────────────
     println!();
-    println!("{}", "━".repeat(50));
-
-    // Show stats
-    let stats = Command::new("git")
-        .args(["log", &format!("-{}", n), "--oneline"])
-        .output()?;
-
-    let commit_count = String::from_utf8_lossy(&stats.stdout).lines().count();
-    println!("Showing {} commits", commit_count.to_string().cyan());
-
+    println!("{}", "━".repeat(60).dimmed());
+    println!(
+        "  {} {}  {} to show more",
+        "showing".dimmed(),
+        format!("{} commits", total).white(),
+        format!("faelight-git log -n <count>").dimmed()
+    );
     println!();
-    print!("Show detailed diff for a commit? (enter hash or 'n'): ");
+
+    // ── Interactive diff ──────────────────────────────────────
+    print!("  Inspect a commit? (hash or Enter to skip): ");
     io::stdout().flush()?;
-
     let mut response = String::new();
     io::stdin().read_line(&mut response)?;
     let response = response.trim();
 
-    if response != "n" && !response.is_empty() {
-        show_commit_diff(response)?;
+    if !response.is_empty() {
+        show_commit(response)?;
     }
 
     Ok(())
 }
 
-fn show_commit_diff(hash: &str) -> Result<()> {
+/// Color commit message by conventional commit type
+fn colorize_message(msg: &str) -> String {
+    let prefixes = [
+        ("feat:",     "cyan"),
+        ("fix:",      "green"),
+        ("chore:",    "yellow"),
+        ("refactor:", "blue"),
+        ("docs:",     "white"),
+        ("test:",     "magenta"),
+        ("perf:",     "cyan"),
+        ("style:",    "white"),
+        ("build:",    "yellow"),
+        ("ci:",       "yellow"),
+        ("revert:",   "red"),
+        ("BREAKING:", "red"),
+    ];
+
+    for (prefix, color) in prefixes {
+        if msg.starts_with(prefix) {
+            let typed = match color {
+                "cyan"    => prefix.cyan().bold().to_string(),
+                "green"   => prefix.green().bold().to_string(),
+                "yellow"  => prefix.yellow().bold().to_string(),
+                "blue"    => prefix.blue().bold().to_string(),
+                "magenta" => prefix.magenta().bold().to_string(),
+                "red"     => prefix.red().bold().to_string(),
+                _         => prefix.white().bold().to_string(),
+            };
+            let rest = &msg[prefix.len()..];
+            return format!("{}{}", typed, rest.white());
+        }
+    }
+
+    msg.white().to_string()
+}
+
+fn show_commit(hash: &str) -> Result<()> {
+    let repo = GitRepo::open()?;
+
     println!();
-    println!("{}", format!("📄 Commit {} Details:", hash).cyan().bold());
-    println!("{}", "━".repeat(50));
+    println!(
+        "{}",
+        format!("  ── commit {} ──", hash).cyan().bold()
+    );
+
+    // Try to get diff stat from our native impl
+    match repo.diff_stat(hash) {
+        Ok(stat) => println!("  {}", stat.dimmed()),
+        Err(_)   => {}
+    }
+
     println!();
 
-    // Show commit details
-    let show = Command::new("git")
-        .args(["show", "--stat", "--color=always", hash])
+    // Shell out only for the colored diff display — no native alternative needed
+    let show = std::process::Command::new("git")
+        .args(["show", "--color=always", "--stat", hash])
         .output()?;
 
     if show.status.success() {
         print!("{}", String::from_utf8_lossy(&show.stdout));
     } else {
-        println!("{}", format!("❌ Commit '{}' not found", hash).red());
+        println!("{}", format!("  ❌ Commit '{}' not found", hash).red());
     }
 
     Ok(())
