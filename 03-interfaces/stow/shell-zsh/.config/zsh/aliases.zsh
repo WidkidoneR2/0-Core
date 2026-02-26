@@ -159,6 +159,16 @@ alias cef='core events filter'       # cef git / cef doctor
 alias cw='core why'                  # cw / cw health / cw health 90
 alias ctr='core trace'               # ctr last / ctr doctor
 alias 0core='cd ~/0-core'            # navigate to 0-core root
+
+# ── New Tools (installed 2026-02-26) ─────────────────────
+alias top='btm'                      # bottom — better htop
+alias repo='onefetch'                # git repo summary
+alias bench='hyperfine'              # benchmarking
+alias extract='ouch decompress'      # smart archive extraction
+alias compress='ouch compress'       # smart archive creation
+alias diff='difft'                   # difftastic — semantic diff
+alias loc='tokei'                    # lines of code stats
+alias loch='tokei ~/0-core/rust-tools --sort lines'  # 0-core LOC
 alias cdcore='cd ~/0-core'
 alias src='cd ~/1-src'
 alias work='cd ~/2-work'

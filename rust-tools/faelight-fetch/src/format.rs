@@ -1,62 +1,61 @@
 use crate::state::SystemState;
+use colored::*;
 
 pub fn print_output(state: &SystemState) {
-    // Header with box
-    println!("╭─────────────────────────────────╮");
-    println!("│ 🌲 Faelight Forest v{:<11} │", state.version);
-    println!("╰─────────────────────────────────╯");
-    println!();
-
-    // Right-aligned labels, left-aligned values
-    let label_width = 10;
-
+    // Header
     println!(
-        "{:>width$}  {} {}",
-        "zone",
-        state.zone_icon,
-        state.zone,
-        width = label_width
-    );
-    println!(
-        "{:>width$}  {}",
-        "profile",
-        state.profile,
-        width = label_width
-    );
-    println!(
-        "{:>width$}  {} {}",
-        "core",
-        state.core_icon,
-        state.core_state,
-        width = label_width
-    );
-    println!(
-        "{:>width$}  {} {}",
-        "health",
-        state.health_icon,
-        state.health,
-        width = label_width
+        "{}",
+        format!("╭─ 🌲 Faelight Forest v{} ─╮", state.version).cyan().bold()
     );
     println!();
-    println!("{:>width$}  {}", "wm", state.wm, width = label_width);
-    println!("{:>width$}  {}", "term", state.term, width = label_width);
-    println!("{:>width$}  {}", "shell", state.shell, width = label_width);
+
+    let lw = 10usize;
+
+    // 0-Core identity
+    section("system", lw);
+    row("zone",    &format!("{} {}", state.zone_icon, state.zone),    lw);
+    row("host",    &state.hostname,                                    lw);
+    row("profile", &state.profile,                                     lw);
+    row("core",    &format!("{} {}", state.core_icon, state.core_state), lw);
+    row("health",  &format!("{} {}", state.health_icon, state.health), lw);
+    println!();
+
+    // Environment
+    section("env", lw);
+    row("wm",     &state.wm,      lw);
+    row("term",   &state.term,    lw);
+    row("shell",  &state.shell,   lw);
+    row("kernel", &state.kernel,  lw);
+    row("rust",   &state.rust_ver, lw);
+    row("uptime", &state.uptime,  lw);
+    println!();
+
+    // Resources
+    section("resources", lw);
+    row("cpu",    &state.cpu_usage, lw);
+    row("memory", &state.memory,    lw);
+    row("disk",   &state.disk,      lw);
+    println!();
+
+    // 0-Core stats
+    section("0-core", lw);
+    row("commits", &state.commits, lw);
+    row("tools",   &state.tools,   lw);
+}
+
+fn section(name: &str, width: usize) {
     println!(
-        "{:>width$}  {}",
-        "kernel",
-        state.kernel,
-        width = label_width
+        "{:>w$}",
+        name.dimmed().bold(),
+        w = width
     );
+}
+
+fn row(label: &str, value: &str, width: usize) {
     println!(
-        "{:>width$}  {}",
-        "uptime",
-        state.uptime,
-        width = label_width
-    );
-    println!(
-        "{:>width$}  {}",
-        "host",
-        state.hostname,
-        width = label_width
+        "{:>w$}  {}",
+        label.dimmed(),
+        value.white(),
+        w = width
     );
 }
