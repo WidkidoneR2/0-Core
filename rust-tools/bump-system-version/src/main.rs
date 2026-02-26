@@ -1,4 +1,4 @@
-//! bump-system-version v9.3.0
+//! bump-system-version — The BULLETPROOF Release Master
 //! The BULLETPROOF Release Master
 //!
 //! FIXES FROM v9.0.0:
@@ -73,7 +73,7 @@ fn main() {
 }
 
 fn print_help() {
-    println!("{}", "bump-system-version v9.3.0".cyan().bold());
+    println!("{}", format!("bump-system-version v{}", env!("CARGO_PKG_VERSION")).cyan().bold());
     println!("The BULLETPROOF Release Master\n");
     println!("USAGE:");
     println!("  bump-system-version           Run normal release");
@@ -218,7 +218,10 @@ fn run(dry_run: bool) -> Result<()> {
 
     git_commit_tag_push(&new_version, &content)?;
 
-    // PHASE 8: Success summary
+    // PHASE 8: Write release event to ledger
+    write_release_event(&old_version, &new_version);
+
+    // PHASE 9: Success summary
     print_success_summary(&new_version, &auto_stats)?;
 
     Ok(())
@@ -273,12 +276,20 @@ fn run_preflight_checks() -> Result<PreflightResults> {
 }
 
 fn get_system_health() -> Result<u32> {
+    // Read from cache — instant, no dot-doctor invocation
+    let home = std::env::var("HOME").unwrap_or_default();
+    let cache_path = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
+    if let Ok(raw) = fs::read_to_string(&cache_path) {
+        let cleaned = raw.trim().trim_end_matches('%');
+        if let Ok(h) = cleaned.parse::<u32>() {
+            return Ok(h);
+        }
+    }
+    // Fallback: run dot-doctor once
     let output = Command::new("dot-doctor")
         .output()
         .context("Failed to run dot-doctor")?;
-
     let stdout = String::from_utf8_lossy(&output.stdout);
-
     for line in stdout.lines() {
         if line.contains("Health:") {
             if let Some(after_health) = line.split("Health:").nth(1) {
@@ -289,8 +300,7 @@ fn get_system_health() -> Result<u32> {
             }
         }
     }
-
-    Ok(100) // Default if can't parse
+    Ok(95) // Default if can't parse
 }
 
 fn get_last_git_tag() -> Result<Option<String>> {
@@ -308,49 +318,28 @@ fn get_last_git_tag() -> Result<Option<String>> {
 }
 
 fn count_commits_since_tag() -> Result<usize> {
-    // Fixed: Use proper git command
-    let output = Command::new("git")
-        .args([
-            "rev-list",
-            "--count",
-            "HEAD",
-            "^$(git describe --tags --abbrev=0 2>/dev/null)",
-        ])
+    // Get last tag first, then count commits since it
+    let tag_output = Command::new("git")
+        .args(["describe", "--tags", "--abbrev=0"])
         .output();
 
-    match output {
-        Ok(out) if out.status.success() => {
-            let count_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            Ok(count_str.parse().unwrap_or(0))
-        }
-        _ => {
-            // Fallback: count commits since last tag manually
-            let tag_output = Command::new("git")
-                .args(["describe", "--tags", "--abbrev=0"])
+    if let Ok(tag_out) = tag_output {
+        if tag_out.status.success() {
+            let tag = String::from_utf8_lossy(&tag_out.stdout).trim().to_string();
+            let count_output = Command::new("git")
+                .args(["rev-list", "--count", &format!("{}..HEAD", tag)])
                 .output();
-
-            if let Ok(tag_out) = tag_output {
-                if tag_out.status.success() {
-                    let tag = String::from_utf8_lossy(&tag_out.stdout).trim().to_string();
-                    let count_output = Command::new("git")
-                        .args(["rev-list", "--count", &format!("{}..HEAD", tag)])
-                        .output();
-
-                    if let Ok(count_out) = count_output {
-                        if count_out.status.success() {
-                            let count = String::from_utf8_lossy(&count_out.stdout)
-                                .trim()
-                                .parse()
-                                .unwrap_or(0);
-                            return Ok(count);
-                        }
-                    }
+            if let Ok(count_out) = count_output {
+                if count_out.status.success() {
+                    return Ok(String::from_utf8_lossy(&count_out.stdout)
+                        .trim()
+                        .parse()
+                        .unwrap_or(0));
                 }
             }
-
-            Ok(0)
         }
     }
+    Ok(0)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -637,13 +626,30 @@ fn execute_updates_safe(
 }
 
 fn rollback_changes(old_version: &str) -> Result<()> {
-    println!("{}", "Attempting rollback...".yellow());
+    println!("{}", "🔄 Rolling back changes...".yellow());
 
-    // This is basic - in real scenario we'd restore from backup
-    // For now, just inform user
-    println!("{}", "⚠️  Some files may have been updated.".yellow());
-    println!("{}", "Run 'git restore .' to undo changes".yellow());
-    println!("Or manually fix VERSION to: {}", old_version);
+    // Attempt git restore to undo all staged/unstaged changes
+    let status = Command::new("git")
+        .args(["restore", "."])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => {
+            println!("  ✅ Git restore succeeded — working tree restored");
+        }
+        _ => {
+            // git restore failed — try to at least restore VERSION manually
+            println!("  ⚠️  Git restore failed — attempting manual VERSION restore");
+            let version_path = paths::version_file();
+            if let Err(e) = fs::write(&version_path, format!("{}
+", old_version)) {
+                println!("  ❌ Could not restore VERSION: {}", e);
+            } else {
+                println!("  ✅ VERSION restored to {}", old_version);
+            }
+            println!("  ⚠️  Other files may need manual review — check: git diff");
+        }
+    }
 
     Ok(())
 }
@@ -925,6 +931,35 @@ fn print_success_summary(version: &str, stats: &AutoStats) -> Result<()> {
 }
 
 // ═══════════════════════════════════════════════════════════
+// 📡 EVENT LEDGER
+// ═══════════════════════════════════════════════════════════
+
+fn write_release_event(old_version: &str, new_version: &str) {
+    // Write to the core event ledger so `cw` shows version bumps
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/.local/state/0-core/events.db", home);
+
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return; // Silently skip — event ledger is optional
+    };
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let payload = format!(
+        r#"{{"result":"ok","old_version":"{}","new_version":"{}","actor":"bump-system-version"}}"#,
+        old_version, new_version
+    );
+
+    let _ = conn.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params!["release", "bump", payload, ts],
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
 // 🎨 HELPERS
 // ═══════════════════════════════════════════════════════════
 
@@ -936,10 +971,10 @@ fn print_banner(dry_run: bool) {
     if dry_run {
         println!(
             "{}",
-            "🔍 bump-system-version v9.3.0 [DRY RUN]".cyan().bold()
+            format!("🔍 bump-system-version v{} [DRY RUN]", env!("CARGO_PKG_VERSION")).cyan().bold()
         );
     } else {
-        println!("{}", "🌲 bump-system-version v9.3.0".cyan().bold());
+        println!("{}", format!("🌲 bump-system-version v{}", env!("CARGO_PKG_VERSION")).cyan().bold());
     }
     println!("{}", "   The BULLETPROOF Release Master".cyan());
     println!(
