@@ -32,7 +32,7 @@ default_border pixel 2
 # 🚀 APPLICATION LAUNCHERS
 # ═══════════════════════════════════════════════════════════
 # Core apps
-bindsym $mod+Mod1+Return exec /home/christian/0-core/target/release/faelight-term  # Faelight Terminal
+bindsym $mod+Mod1+Return exec /home/christian/0-core/scripts/faelight-term  # Faelight Terminal
 bindsym $mod+Return exec $term  # Foot (default)
 bindsym $mod+b exec $browser
 bindsym $mod+d exec $menu
