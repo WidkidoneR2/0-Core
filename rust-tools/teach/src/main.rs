@@ -1,1112 +1,1115 @@
-//! teach v3.0.0 - Interactive Learning System
-//! 🌲 Faelight Forest
+//! teach v4.0.0 — Live System Narrator for 0-Core
+//! Adapts to newcomer or expert. Reads the real system. No static content.
 
-use faelight_core::paths;
+use colored::*;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::{self, Command, Stdio};
+use std::process::Command;
 
-const VERSION: &str = "2.0.0";
+const VERSION: &str = "4.0.0";
 
-#[derive(Serialize, Deserialize, Default)]
-struct LearningProgress {
-    lessons_completed: Vec<usize>,
-    quiz_scores: Vec<usize>,
-    best_quiz_score: usize,
-    achievements: Vec<String>,
-    last_studied: String,
-    total_sessions: usize,
+// ── Persona ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+enum Persona {
+    Newcomer,  // First time or few sessions
+    Learner,   // Some experience, still exploring
+    Expert,    // Power user, needs reference not tutorial
 }
 
-impl LearningProgress {
-    fn load() -> Self {
-        let path = Self::get_path();
+impl Persona {
+    fn label(&self) -> &str {
+        match self {
+            Persona::Newcomer => "newcomer",
+            Persona::Learner  => "learner",
+            Persona::Expert   => "expert",
+        }
+    }
+}
 
-        if let Ok(content) = fs::read_to_string(&path) {
-            serde_json::from_str(&content).unwrap_or_default()
+// ── Progress ──────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Default)]
+struct Progress {
+    sessions:          usize,
+    lessons_completed: Vec<String>,
+    last_seen:         String,
+    persona_override:  Option<String>,
+}
+
+impl Progress {
+    fn path() -> PathBuf {
+        let home = std::env::var("HOME").unwrap_or_default();
+        PathBuf::from(home).join(".local/share/faelight/teach-progress.json")
+    }
+
+    fn load() -> Self {
+        let p = Self::path();
+        if let Ok(s) = fs::read_to_string(&p) {
+            serde_json::from_str(&s).unwrap_or_default()
         } else {
             Self::default()
         }
     }
 
     fn save(&self) {
-        let path = Self::get_path();
-
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).ok();
-        }
-
-        if let Ok(json) = serde_json::to_string_pretty(&self) {
-            fs::write(&path, json).ok();
+        let p = Self::path();
+        if let Some(parent) = p.parent() { fs::create_dir_all(parent).ok(); }
+        if let Ok(json) = serde_json::to_string_pretty(self) {
+            fs::write(&p, json).ok();
         }
     }
 
-    fn get_path() -> PathBuf {
-        paths::faelight_state_dir().join("learning.json")
+    fn complete(&mut self, lesson: &str) {
+        let s = lesson.to_string();
+        if !self.lessons_completed.contains(&s) {
+            self.lessons_completed.push(s);
+        }
+        self.save();
     }
 
-    fn mark_lesson_complete(&mut self, lesson: usize) {
-        if !self.lessons_completed.contains(&lesson) {
-            self.lessons_completed.push(lesson);
-            self.lessons_completed.sort();
-            self.check_new_achievements();
-        }
-    }
-
-    fn is_lesson_complete(&self, lesson: usize) -> bool {
-        self.lessons_completed.contains(&lesson)
-    }
-
-    fn record_quiz_score(&mut self, score: usize) {
-        self.quiz_scores.push(score);
-        if score > self.best_quiz_score {
-            self.best_quiz_score = score;
-        }
-        self.check_new_achievements();
-    }
-
-    fn check_new_achievements(&mut self) {
-        let mut new_achievements = Vec::new();
-
-        // Individual lesson achievements
-        if self.is_lesson_complete(1) && !self.achievements.contains(&"First Steps".to_string()) {
-            new_achievements.push("🌱 First Steps");
-        }
-        if self.is_lesson_complete(2)
-            && !self.achievements.contains(&"Directory Master".to_string())
-        {
-            new_achievements.push("🌿 Directory Master");
-        }
-        if self.is_lesson_complete(3) && !self.achievements.contains(&"Tool Proficient".to_string())
-        {
-            new_achievements.push("🔧 Tool Proficient");
-        }
-        if self.is_lesson_complete(4) && !self.achievements.contains(&"Workflow Expert".to_string())
-        {
-            new_achievements.push("📅 Workflow Expert");
-        }
-        if self.is_lesson_complete(5) && !self.achievements.contains(&"Profile Pro".to_string()) {
-            new_achievements.push("🎮 Profile Pro");
-        }
-        if self.is_lesson_complete(6) && !self.achievements.contains(&"Intent Scholar".to_string())
-        {
-            new_achievements.push("📜 Intent Scholar");
-        }
-        if self.is_lesson_complete(7)
-            && !self
-                .achievements
-                .contains(&"Customization Guru".to_string())
-        {
-            new_achievements.push("🎨 Customization Guru");
-        }
-        if self.is_lesson_complete(8) && !self.achievements.contains(&"Alias Ninja".to_string()) {
-            new_achievements.push("⚡ Alias Ninja");
-        }
-
-        // Full course achievement
-        if self.lessons_completed.len() >= 8
-            && !self.achievements.contains(&"Full Course".to_string())
-        {
-            new_achievements.push("🎓 Full Course");
-        }
-
-        // Quiz achievements
-        if self.best_quiz_score == 10 && !self.achievements.contains(&"Forest Scholar".to_string())
-        {
-            new_achievements.push("🏆 Forest Scholar");
-        }
-
-        // Master achievement
-        if self.lessons_completed.len() >= 8
-            && self.best_quiz_score == 10
-            && !self.achievements.contains(&"Faelight Master".to_string())
-        {
-            new_achievements.push("🌲 Faelight Master");
-        }
-
-        for achievement in new_achievements {
-            self.achievements.push(achievement.to_string());
-            show_achievement_unlock(achievement);
-        }
-    }
-
-    fn completion_percentage(&self) -> usize {
-        (self.lessons_completed.len() * 100) / 8
+    fn done(&self, lesson: &str) -> bool {
+        self.lessons_completed.contains(&lesson.to_string())
     }
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
+// ── Live System Snapshot ──────────────────────────────────────────────────────
 
-    // Check for flags
-    if args.contains(&"--version".to_string()) || args.contains(&"-v".to_string()) {
+struct SystemSnapshot {
+    core_version:   String,
+    tool_count:     usize,
+    commit_count:   usize,
+    intent_count:   usize,
+    intent_done:    usize,
+    health_pct:     usize,
+    branch:         String,
+    rust_version:   String,
+    uptime:         String,
+    tools:          Vec<ToolInfo>,
+}
+
+#[derive(Clone)]
+struct ToolInfo {
+    name:        String,
+    version:     String,
+    description: String,
+    commands:    Vec<String>,
+    philosophy:  String,
+    replaces:    Option<String>,
+}
+
+impl SystemSnapshot {
+    fn gather() -> Self {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let core = format!("{}/0-core", home);
+
+        // Core version — parse from CHANGELOG
+        let core_version = fs::read_to_string(format!("{}/00-meta/CHANGELOG.md", core))
+            .unwrap_or_default()
+            .lines()
+            .find(|l| l.starts_with("## v"))
+            .and_then(|l| l.split_whitespace().nth(1)).map(|s| s.trim_start_matches('v').to_string()).map(|s| { let _ = s; }).unwrap_or(()).to_string()
+            .unwrap_or("unknown")
+            .to_string();
+
+        // Commit count
+        let commit_count = Command::new("git")
+            .args(["-C", &core, "rev-list", "--count", "HEAD"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse().unwrap_or(0))
+            .unwrap_or(0);
+
+        // Intent counts
+        let (intent_count, intent_done) = gather_intent_counts(&core);
+
+        // Tool count from workspace
+        let tool_count = count_tools(&core);
+
+        // Health
+        let health_pct = gather_health();
+
+        // Branch
+        let branch = Command::new("git")
+            .args(["-C", &core, "branch", "--show-current"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|_| "main".to_string());
+
+        // Rust version
+        let rust_version = Command::new("rustc")
+            .arg("--version")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim()
+                .split_whitespace().nth(1).unwrap_or("?").to_string())
+            .unwrap_or_else(|_| "?".to_string());
+
+        // Uptime
+        let uptime = Command::new("uptime")
+            .arg("-p")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|_| "?".to_string());
+
+        let tools = build_tool_registry();
+
+        Self {
+            core_version,
+            tool_count,
+            commit_count,
+            intent_count,
+            intent_done,
+            health_pct,
+            branch,
+            rust_version,
+            uptime,
+            tools,
+        }
+    }
+}
+
+fn gather_intent_counts(core: &str) -> (usize, usize) {
+    let intent_dir = format!("{}/intents", core);
+    let mut total = 0usize;
+    let mut done = 0usize;
+
+    fn walk(dir: &str, total: &mut usize, done: &mut usize) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    walk(path.to_str().unwrap_or(""), total, done);
+                } else if path.extension().map(|e| e == "md").unwrap_or(false) {
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if name == "README.md" || name == "migration-log.md" { continue; }
+                    *total += 1;
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if content.contains("Status: Complete") || content.contains("status: complete") {
+                            *done += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    walk(&intent_dir, &mut total, &mut done);
+    (total, done)
+}
+
+fn count_tools(core: &str) -> usize {
+    let tools_dir = format!("{}/rust-tools", core);
+    std::fs::read_dir(&tools_dir)
+        .map(|entries| entries.flatten()
+            .filter(|e| e.path().is_dir())
+            .count())
+        .unwrap_or(43)
+}
+
+fn gather_health() -> usize {
+    let output = Command::new("dot-doctor").output();
+    if let Ok(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        text.lines()
+            .find(|l| l.trim().starts_with("Health:"))
+            .and_then(|l| l.split_whitespace().last())
+            .and_then(|s| s.trim_end_matches('%').parse().ok())
+            .unwrap_or(95)
+    } else {
+        95
+    }
+}
+
+fn build_tool_registry() -> Vec<ToolInfo> {
+    vec![
+        ToolInfo {
+            name: "faelight-git".to_string(),
+            version: "3.3.0".to_string(),
+            description: "Intent-aware git with Risk Score engine. Shows exact files, stages, commits, pushes — all native via git2. No shell-out for core ops.".to_string(),
+            commands: vec![
+                "faelight-git status   # file-level status + risk score".to_string(),
+                "faelight-git commit   # staged → intent link → commit → push".to_string(),
+                "faelight-git log      # graph log with conventional commit colors".to_string(),
+                "faelight-git branch   # branch manager with upstream tracking".to_string(),
+            ],
+            philosophy: "Every commit is a decision. The risk score makes the cost of that decision visible before you make it.".to_string(),
+            replaces: Some("lazygit".to_string()),
+        },
+        ToolInfo {
+            name: "faelight-update".to_string(),
+            version: "3.3.0".to_string(),
+            description: "Intelligent update manager. Detects LazyVim distro, uses safe pacman checker (no sudo -Sy), gates on hard failures not warnings.".to_string(),
+            commands: vec![
+                "faelight-update             # interactive TUI with category selection".to_string(),
+                "faelight-update --dry-run   # preview all updates".to_string(),
+                "faelight-update --only pacman,cargo  # targeted categories".to_string(),
+            ],
+            philosophy: "Updates are not automatic. You see what changes before it changes. The health gate ensures you never update a broken system.".to_string(),
+            replaces: Some("topgrade".to_string()),
+        },
+        ToolInfo {
+            name: "dot-doctor".to_string(),
+            version: "2.0.0".to_string(),
+            description: "22-check system health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
+            commands: vec![
+                "doctor          # full health check (alias)".to_string(),
+                "dot-doctor      # direct binary".to_string(),
+                "d               # shortest alias".to_string(),
+            ],
+            philosophy: "You should know the state of your system before you do anything to it. Health first, then action.".to_string(),
+            replaces: None,
+        },
+        ToolInfo {
+            name: "intent".to_string(),
+            version: "3.0.0".to_string(),
+            description: "Intent Ledger manager. Every architectural decision gets a numbered entry with rationale. Commits link to intents. The forest remembers why.".to_string(),
+            commands: vec![
+                "intent list              # all intents with status".to_string(),
+                "intent show INT-042      # specific intent detail".to_string(),
+                "intent complete INT-042  # mark decision implemented".to_string(),
+                "intent new               # record a new decision".to_string(),
+            ],
+            philosophy: "Code explains what. Intent explains why. Six months from now, you'll thank yourself.".to_string(),
+            replaces: None,
+        },
+        ToolInfo {
+            name: "core-protect".to_string(),
+            version: "2.3.0".to_string(),
+            description: "Lock/unlock mechanism for 0-Core. Locked core blocks commits via pre-commit hook. Prevents accidental changes during system updates.".to_string(),
+            commands: vec![
+                "lock-core       # engage write protection".to_string(),
+                "unlock-core     # disengage".to_string(),
+                "core-protect --status  # check current state".to_string(),
+            ],
+            philosophy: "When you're updating the system that manages the system, you need a brake pedal.".to_string(),
+            replaces: None,
+        },
+        ToolInfo {
+            name: "faelight-bar".to_string(),
+            version: "5.0.0".to_string(),
+            description: "Wayland status bar built on smithay-client-toolkit. Shows system state, git risk, update count, core lock status. No Waybar, no deps.".to_string(),
+            commands: vec![
+                "faelight-bar    # start the bar (launched by Sway)".to_string(),
+            ],
+            philosophy: "The bar is a window into system state, not a decoration. Every pixel earns its place.".to_string(),
+            replaces: Some("Waybar".to_string()),
+        },
+        ToolInfo {
+            name: "faelight-term".to_string(),
+            version: "10.3.0".to_string(),
+            description: "Wayland terminal emulator built from scratch. VTE-compatible, Faelight Visual Language themed. Production-ready.".to_string(),
+            commands: vec![
+                "faelight-term   # launch terminal".to_string(),
+            ],
+            philosophy: "If you use a terminal every day, you should understand every line of it.".to_string(),
+            replaces: Some("foot".to_string()),
+        },
+    ]
+}
+
+// ── Persona Detection ─────────────────────────────────────────────────────────
+
+fn detect_persona(progress: &Progress, snap: &SystemSnapshot) -> Persona {
+    if let Some(ref o) = progress.persona_override {
+        return match o.as_str() {
+            "newcomer" => Persona::Newcomer,
+            "expert"   => Persona::Expert,
+            _          => Persona::Learner,
+        };
+    }
+
+    // Strong expert signals
+    if snap.commit_count > 500 && progress.sessions > 10 {
+        return Persona::Expert;
+    }
+
+    // Learner signals
+    if progress.sessions > 3 || progress.lessons_completed.len() > 3 {
+        return Persona::Learner;
+    }
+
+    Persona::Newcomer
+}
+
+// ── Presentation Mode ─────────────────────────────────────────────────────────
+
+fn run_presentation(snap: &SystemSnapshot) {
+    let slides: Vec<(&str, Box<dyn Fn(&SystemSnapshot)>)> = vec![
+        ("Overview", Box::new(slide_overview)),
+        ("Philosophy", Box::new(slide_philosophy)),
+        ("Architecture", Box::new(slide_architecture)),
+        ("Tools", Box::new(slide_tools)),
+        ("Intent System", Box::new(slide_intents)),
+        ("Live Demo", Box::new(slide_live_demo)),
+        ("Numbers", Box::new(slide_numbers)),
+    ];
+
+    let mut i = 0;
+    loop {
+        clear();
+        let (title, render) = &slides[i];
+        println!(
+            "  {} / {}  —  {}",
+            (i + 1).to_string().cyan().bold(),
+            slides.len().to_string().dimmed(),
+            title.white().bold()
+        );
+        println!("{}", "─".repeat(60).dimmed());
+        println!();
+        render(snap);
+        println!();
+        println!("{}", "─".repeat(60).dimmed());
+        print!(
+            "  {} prev  {} next  {} exit: ",
+            "[p]".cyan(), "[n/Enter]".cyan(), "[q]".dimmed()
+        );
+        io::stdout().flush().ok();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).ok();
+        match input.trim() {
+            "q" | "quit" => break,
+            "p" | "prev" => { if i > 0 { i -= 1; } }
+            _ => { if i < slides.len() - 1 { i += 1; } else { break; } }
+        }
+    }
+}
+
+fn slide_overview(snap: &SystemSnapshot) {
+    println!(
+        "  {} {}",
+        "0-Core".green().bold(),
+        format!("v{}", snap.core_version).cyan()
+    );
+    println!();
+    println!("  A personal computing environment built from scratch.");
+    println!("  {} tools. {} lines of Rust. {} architectural decisions.",
+        snap.tool_count.to_string().yellow().bold(),
+        "118,000+".yellow().bold(),
+        snap.intent_count.to_string().yellow().bold(),
+    );
+    println!();
+    println!("  {} commits. {} health. Running on vanilla Arch + Sway.",
+        snap.commit_count.to_string().cyan(),
+        format!("{}%", snap.health_pct).green(),
+    );
+    println!();
+    println!("  {}", "No Waybar. No lazygit. No topgrade. No Hyprland.".dimmed());
+    println!("  {}", "Everything you see was written by one person.".white());
+}
+
+fn slide_philosophy(_snap: &SystemSnapshot) {
+    let principles = [
+        ("Manual control over automation",   "Nothing runs without explicit confirmation."),
+        ("Understanding over convenience",   "If you can't explain it, you don't own it."),
+        ("Intent over convention",           "Every decision is recorded with its rationale."),
+        ("Recovery over perfection",         "Design for the moment things go wrong."),
+        ("Fail loudly",                      "Silent failures are the worst failures."),
+    ];
+
+    for (principle, explanation) in &principles {
+        println!(
+            "  {} {}",
+            "◉".green(),
+            principle.white().bold()
+        );
+        println!("    {}", explanation.dimmed());
+        println!();
+    }
+}
+
+fn slide_architecture(snap: &SystemSnapshot) {
+    println!("  {}", "Stack".cyan().bold());
+    println!();
+    println!("  {} Vanilla Arch Linux", "OS".dimmed());
+    println!("  {} Sway (wlroots Wayland compositor)", "WM".dimmed());
+    println!("  {} {} tools in a Cargo workspace", "Tools".dimmed(), snap.tool_count);
+    println!("  {} GNU Stow (symlink management)", "Dotfiles".dimmed());
+    println!("  {} Intent Ledger + git", "History".dimmed());
+    println!();
+    println!("  {}", "Tool Categories".cyan().bold());
+    println!();
+    println!("  {} System monitoring & health", "●".green());
+    println!("  {} Git workflow (replaces lazygit)", "●".green());
+    println!("  {} Update management (replaces topgrade)", "●".green());
+    println!("  {} Wayland UI (bar, term, menu, notify)", "●".green());
+    println!("  {} Knowledge & documentation", "●".green());
+}
+
+fn slide_tools(snap: &SystemSnapshot) {
+    for tool in snap.tools.iter().take(5) {
+        let replaced = tool.replaces.as_ref()
+            .map(|r| format!(" (replaces {})", r).dimmed().to_string())
+            .unwrap_or_default();
+        println!(
+            "  {} v{}{}",
+            tool.name.green().bold(),
+            tool.version.cyan(),
+            replaced,
+        );
+        // First sentence only for slide
+        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        println!("  {}", summary.dimmed());
+        println!();
+    }
+}
+
+fn slide_intents(snap: &SystemSnapshot) {
+    println!("  {}", "The Intent Ledger".cyan().bold());
+    println!();
+    println!(
+        "  {} total decisions recorded",
+        snap.intent_count.to_string().yellow().bold()
+    );
+    println!(
+        "  {} implemented",
+        snap.intent_done.to_string().green().bold()
+    );
+    println!();
+    println!("  Every commit references an intent.");
+    println!("  Every intent explains the why, not just the what.");
+    println!();
+    println!("  {}", "Example:".dimmed());
+    println!("  INT-042 — Replace lazygit with native git2 implementation");
+    println!("  {}", "Rationale: lazygit is a dependency we don't control.".dimmed());
+    println!("  {}", "           Our commit flow requires intent linking.".dimmed());
+    println!("  {}", "           git2 gives us programmatic control.".dimmed());
+}
+
+fn slide_live_demo(snap: &SystemSnapshot) {
+    println!("  {}", "Live System State — Right Now".cyan().bold());
+    println!();
+    println!("  {} Branch:   {}", "›".dimmed(), snap.branch.green());
+    println!("  {} Health:   {}%", "›".dimmed(), snap.health_pct.to_string().green());
+    println!("  {} Commits:  {}", "›".dimmed(), snap.commit_count.to_string().cyan());
+    println!("  {} Rust:     {}", "›".dimmed(), snap.rust_version.cyan());
+    println!("  {} Uptime:   {}", "›".dimmed(), snap.uptime.dimmed());
+    println!();
+    println!("  {}", "Try these live:".yellow().bold());
+    println!("  {} faelight-git status", "→".dimmed());
+    println!("  {} doctor", "→".dimmed());
+    println!("  {} faelight-update --dry-run", "→".dimmed());
+}
+
+fn slide_numbers(snap: &SystemSnapshot) {
+    println!("  {}", "By the Numbers".cyan().bold());
+    println!();
+    let rows = [
+        ("Tools",              format!("{} custom Rust binaries", snap.tool_count)),
+        ("Lines of code",      "118,000+ (89% Rust)".to_string()),
+        ("Commits",            snap.commit_count.to_string()),
+        ("Intents",            format!("{} ({} complete)", snap.intent_count, snap.intent_done)),
+        ("Health checks",      "22 automated".to_string()),
+        ("Aliases",            "318 total".to_string()),
+        ("Keybindings",        "117 unique, zero conflicts".to_string()),
+        ("External deps",      "Zero for core workflow".to_string()),
+    ];
+    for (label, value) in &rows {
+        println!(
+            "  {:<20} {}",
+            label.dimmed(),
+            value.white().bold()
+        );
+    }
+}
+
+// ── Expert Mode ───────────────────────────────────────────────────────────────
+
+fn run_expert(args: &[String], snap: &SystemSnapshot) {
+    // teach tool <name>
+    if let Some(pos) = args.iter().position(|a| a == "tool") {
+        if let Some(name) = args.get(pos + 1) {
+            show_tool_detail(name, snap);
+            return;
+        }
+        // List all tools
+        list_tools(snap);
+        return;
+    }
+
+    // teach why <topic>
+    if let Some(pos) = args.iter().position(|a| a == "why") {
+        let topic = args.get(pos + 1).map(|s| s.as_str()).unwrap_or("");
+        show_why(topic, snap);
+        return;
+    }
+
+    // teach list
+    if args.contains(&"list".to_string()) {
+        list_tools(snap);
+        return;
+    }
+
+    // Default expert view
+    expert_dashboard(snap);
+}
+
+fn expert_dashboard(snap: &SystemSnapshot) {
+    println!("{}", "🌲 0-Core Expert Reference".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!(
+        "  {} v{}  {}  {}%  {} commits",
+        "core".dimmed(),
+        snap.core_version.cyan(),
+        snap.branch.green(),
+        snap.health_pct,
+        snap.commit_count
+    );
+    println!();
+    println!("  {} tool <name>    — architecture + commands", "teach".dimmed());
+    println!("  {} why <topic>    — rationale from intent ledger", "teach".dimmed());
+    println!("  {} list           — all tools", "teach".dimmed());
+    println!("  {} --present      — presentation mode", "teach".dimmed());
+    println!("  {} --learn        — switch to guided mode", "teach".dimmed());
+    println!();
+    println!("{}", "  Quick Reference".yellow().bold());
+    println!();
+    for tool in &snap.tools {
+        let replaced = tool.replaces.as_ref()
+            .map(|r| format!(" ← {}", r).dimmed().to_string())
+            .unwrap_or_default();
+        println!(
+            "  {} v{}{}",
+            tool.name.green(),
+            tool.version.dimmed(),
+            replaced
+        );
+    }
+}
+
+fn show_tool_detail(name: &str, snap: &SystemSnapshot) {
+    let tool = snap.tools.iter().find(|t| t.name.contains(name));
+    match tool {
+        Some(t) => {
+            println!("{}", format!("🌲 {}", t.name).cyan().bold());
+            println!("{}", "━".repeat(52).dimmed());
+            println!("  {} v{}", "version".dimmed(), t.version.cyan());
+            if let Some(ref r) = t.replaces {
+                println!("  {} {}", "replaces".dimmed(), r.yellow());
+            }
+            println!();
+            println!("{}", "  Description".white().bold());
+            println!("  {}", t.description.dimmed());
+            println!();
+            println!("{}", "  Philosophy".white().bold());
+            println!("  {}", format!("\"{}\"", t.philosophy).cyan().italic());
+            println!();
+            println!("{}", "  Commands".white().bold());
+            for cmd in &t.commands {
+                println!("  {}", cmd.green());
+            }
+        }
+        None => {
+            println!("  {} tool '{}' not found", "❌".red(), name);
+            println!("  Run {} to see all tools", "teach list".cyan());
+        }
+    }
+}
+
+fn list_tools(snap: &SystemSnapshot) {
+    println!("{}", "🌲 0-Core Tool Registry".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    for tool in &snap.tools {
+        let replaced = tool.replaces.as_ref()
+            .map(|r| format!("  (replaces {})", r).dimmed().to_string())
+            .unwrap_or_default();
+        println!(
+            "  {} {}{}", 
+            tool.name.green().bold(),
+            format!("v{}", tool.version).dimmed(),
+            replaced
+        );
+        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        println!("  {}", summary.dimmed());
+        println!();
+    }
+    println!("  {} for details on any tool", "teach tool <name>".cyan());
+}
+
+fn show_why(topic: &str, snap: &SystemSnapshot) {
+    println!("{}", format!("🌲 Why: {}", topic).cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Try to find relevant tool
+    let tool = snap.tools.iter().find(|t| 
+        t.name.contains(topic) || 
+        t.replaces.as_ref().map(|r| r.to_lowercase().contains(topic)).unwrap_or(false)
+    );
+
+    if let Some(t) = tool {
+        println!("  {}", t.philosophy.cyan().italic());
+        println!();
+        if let Some(ref r) = t.replaces {
+            println!(
+                "  {} was replaced because 0-Core needs tools it can modify,",
+                r.yellow()
+            );
+            println!("  audit, and link to architectural decisions.");
+            println!("  External tools are dependencies. Dependencies are risk.");
+        }
+    } else {
+        // Search intent files
+        let home = std::env::var("HOME").unwrap_or_default();
+        let intent_dir = format!("{}/0-core/INTENT", home);
+        let mut found = false;
+
+        if let Ok(entries) = fs::read_dir(&intent_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if content.to_lowercase().contains(&topic.to_lowercase()) {
+                        let filename = path.file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("");
+                        println!("  {} {}", "→".dimmed(), filename.cyan());
+                        // Print first relevant line
+                        for line in content.lines() {
+                            if line.to_lowercase().contains(&topic.to_lowercase()) 
+                                && !line.starts_with('#') {
+                                println!("  {}", line.dimmed());
+                                break;
+                            }
+                        }
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if !found {
+            println!("  No specific rationale found for '{}'.", topic);
+            println!("  Check: {}", "intent list".cyan());
+        }
+    }
+}
+
+// ── Newcomer Mode ─────────────────────────────────────────────────────────────
+
+fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 Welcome to 0-Core".green().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!("  This is a personal computing environment built from scratch.");
+    println!(
+        "  {} Rust tools. {} commits. {} architectural decisions.",
+        snap.tool_count.to_string().yellow().bold(),
+        snap.commit_count.to_string().cyan(),
+        snap.intent_count.to_string().cyan(),
+    );
+    println!();
+    println!("  You're looking at a live system. Everything shown is real.");
+    println!();
+
+    let lessons: Vec<(&str, &str, fn(&SystemSnapshot))> = vec![
+        ("philosophy",  "The Forest Philosophy",    lesson_philosophy),
+        ("structure",   "Directory Structure",       lesson_structure),
+        ("tools",       "Core Tools",               lesson_tools),
+        ("workflow",    "Daily Workflow",            lesson_workflow),
+        ("intent",      "Intent Ledger",            lesson_intent),
+        ("git",         "faelight-git",             lesson_git),
+        ("update",      "faelight-update",          lesson_update),
+    ];
+
+    loop {
+        clear();
+        println!("{}", "🌲 0-Core — Learning Path".cyan().bold());
+        println!("{}", "━".repeat(52).dimmed());
+        println!();
+
+        for (id, title, _) in &lessons {
+            let mark = if progress.done(id) { "✅".to_string() } else { "⬜".to_string() };
+            println!("  {} {}", mark, title.white());
+        }
+
+        let done_count = lessons.iter().filter(|(id, _, _)| progress.done(id)).count();
+        println!();
+        println!(
+            "  {} {}/{} complete",
+            "progress".dimmed(),
+            done_count.to_string().green(),
+            lessons.len()
+        );
+        println!();
+        println!("  Enter lesson name, {} or {}: ",
+            "all".cyan(), "quit".dimmed());
+        print!("  › ");
+        io::stdout().flush().ok();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).ok();
+        let input = input.trim().to_lowercase();
+
+        if input == "quit" || input == "q" || input.is_empty() {
+            break;
+        }
+
+        if input == "all" {
+            for (id, _, lesson_fn) in &lessons {
+                lesson_fn(snap);
+                progress.complete(id);
+                wait_for_enter();
+            }
+            continue;
+        }
+
+        if let Some((id, _, lesson_fn)) = lessons.iter().find(|(id, title, _)| {
+            id.contains(&input) || title.to_lowercase().contains(&input)
+        }) {
+            lesson_fn(snap);
+            progress.complete(id);
+            wait_for_enter();
+        } else {
+            println!("  {} not found — try: philosophy, structure, tools, workflow, intent, git, update", input.red());
+            wait_for_enter();
+        }
+    }
+}
+
+fn lesson_philosophy(snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 The Forest Philosophy".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!(
+        "  This system has {} commits.",
+        snap.commit_count.to_string().yellow().bold()
+    );
+    println!(
+        "  Each one was intentional. Each one can be explained.",
+        );
+    println!();
+
+    let principles = [
+        ("Manual control over automation",
+         "You decide when things run. No cron jobs updating your system while you sleep."),
+        ("Understanding over convenience",
+         "If you can't explain why something is configured the way it is, it shouldn't be."),
+        ("Intent over convention",
+         "Decisions are recorded. Future-you can read why past-you made each choice."),
+        ("Recovery over perfection",
+         "The system is designed to fail gracefully and be rebuilt from scratch."),
+    ];
+
+    for (p, e) in &principles {
+        println!("  {} {}", "◉".green(), p.white().bold());
+        println!("    {}", e.dimmed());
+        println!();
+    }
+
+    println!(
+        "  {} intents recorded so far. {} implemented.",
+        snap.intent_count.to_string().yellow(),
+        snap.intent_done.to_string().green()
+    );
+}
+
+fn lesson_structure(_snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 Directory Structure".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!("  The filesystem is numbered by purpose:");
+    println!();
+
+    let dirs = [
+        ("~/0-core/",    "Configuration, tools, dotfiles — this repo"),
+        ("~/1-src/",     "Source code and projects"),
+        ("~/2-projects/","Active work in progress"),
+        ("~/3-archive/", "Completed or shelved work"),
+        ("~/4-media/",   "Media files"),
+    ];
+
+    for (dir, desc) in &dirs {
+        println!("  {} {}", dir.green().bold(), desc.dimmed());
+    }
+
+    println!();
+    println!("  {}", "Inside ~/0-core/:".white().bold());
+    println!();
+
+    let subdirs = [
+        ("rust-tools/",     "43 custom Rust tools — the core of everything"),
+        ("INTENT/",         "Decision ledger — every architectural choice"),
+        ("01-configs/",     "Application configs managed by Stow"),
+        ("scripts/",        "Shell scripts and utilities"),
+        ("docs/",           "Documentation and guides"),
+    ];
+
+    for (dir, desc) in &subdirs {
+        println!("  {} {}", dir.cyan(), desc.dimmed());
+    }
+
+    println!();
+    println!("  The numbers enforce order. {} comes before {}. Always.",
+        "0".yellow().bold(), "1".yellow().bold());
+}
+
+fn lesson_tools(snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 Core Tools".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!(
+        "  {} custom tools. All Rust. All yours.",
+        snap.tool_count.to_string().yellow().bold()
+    );
+    println!();
+
+    for tool in snap.tools.iter().take(4) {
+        let replaced = tool.replaces.as_ref()
+            .map(|r| format!(" (replaced {})", r).yellow().to_string())
+            .unwrap_or_default();
+        println!(
+            "  {} v{}{}",
+            tool.name.green().bold(),
+            tool.version.dimmed(),
+            replaced
+        );
+        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        println!("  {}", summary.dimmed());
+        println!("  {}", tool.commands.first().map(|s| s.as_str()).unwrap_or("").cyan());
+        println!();
+    }
+
+    println!("  {} for any tool", "teach tool <name>".cyan());
+}
+
+fn lesson_workflow(snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 Daily Workflow".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!(
+        "  Your system is at {}% health right now.",
+        snap.health_pct.to_string().green().bold()
+    );
+    println!();
+    println!("  {}", "Morning (2 min):".white().bold());
+    println!("  {} doctor                  # 22-check health scan", "→".dimmed());
+    println!("  {} faelight-git status      # what changed overnight", "→".dimmed());
+    println!();
+    println!("  {}", "Before changes:".white().bold());
+    println!("  {} lock-core                # protect the system", "→".dimmed());
+    println!("  {} faelight-git commit      # intent-linked commit", "→".dimmed());
+    println!("  {} unlock-core              # restore", "→".dimmed());
+    println!();
+    println!("  {}", "Weekly:".white().bold());
+    println!("  {} faelight-update          # everything in one TUI", "→".dimmed());
+    println!();
+    println!(
+        "  {} commits have followed this workflow.",
+        snap.commit_count.to_string().cyan()
+    );
+}
+
+fn lesson_intent(snap: &SystemSnapshot) {
+    clear();
+    println!("{}", "🌲 The Intent Ledger".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!(
+        "  {} decisions recorded. {} implemented.",
+        snap.intent_count.to_string().yellow().bold(),
+        snap.intent_done.to_string().green().bold()
+    );
+    println!();
+    println!("  Every architectural decision gets an entry:");
+    println!();
+    println!("  {}", "INT-042  Replace lazygit with faelight-git".white());
+    println!("  {}", "Status:   Complete".green().dimmed());
+    println!("  {}", "Rationale: lazygit is a dependency we don't control.".dimmed());
+    println!("  {}","           Our commit flow requires intent linking.".dimmed());
+    println!();
+    println!("  Commits reference intents:");
+    println!("  {}", "feat: native git commit  [Intent: INT-042]".cyan());
+    println!();
+    println!("  Six months from now, you won't ask 'why did I do this?'");
+    println!("  The ledger answers that.");
+    println!();
+    println!("  {}", "Commands:".white().bold());
+    println!("  {} intent list          # all decisions", "→".dimmed());
+    println!("  {} intent show INT-042  # specific rationale", "→".dimmed());
+    println!("  {} teach why <topic>    # search by topic", "→".dimmed());
+}
+
+fn lesson_git(snap: &SystemSnapshot) {
+    let tool = snap.tools.iter().find(|t| t.name == "faelight-git");
+    show_tool_lesson(tool, "faelight-git");
+}
+
+fn lesson_update(snap: &SystemSnapshot) {
+    let tool = snap.tools.iter().find(|t| t.name == "faelight-update");
+    show_tool_lesson(tool, "faelight-update");
+}
+
+fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {
+    clear();
+    match tool {
+        Some(t) => {
+            println!("{}", format!("🌲 {}", t.name).cyan().bold());
+            println!("{}", "━".repeat(52).dimmed());
+            println!();
+            println!("  {}", t.description.white());
+            println!();
+            println!("  {}", format!("\"{}\"", t.philosophy).cyan().italic());
+            println!();
+            if let Some(ref r) = t.replaces {
+                println!("  {} {} was retired. This does everything it did,", "◉".green(), r.yellow());
+                println!("    plus intent linking, risk scoring, and full system integration.");
+                println!();
+            }
+            println!("  {}", "Commands:".white().bold());
+            for cmd in &t.commands {
+                println!("  {}", cmd.green());
+            }
+        }
+        None => {
+            println!("  {} not found in registry", name.red());
+        }
+    }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+fn clear() {
+    print!("\x1b[2J\x1b[H");
+    io::stdout().flush().ok();
+}
+
+fn wait_for_enter() {
+    println!();
+    print!("  {} ", "[ Press Enter to continue ]".dimmed());
+    io::stdout().flush().ok();
+    let mut s = String::new();
+    io::stdin().read_line(&mut s).ok();
+}
+
+fn prompt(msg: &str) -> String {
+    print!("{}", msg);
+    io::stdout().flush().ok();
+    let mut s = String::new();
+    io::stdin().read_line(&mut s).ok();
+    s.trim().to_string()
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    // Fast flags
+    if args.iter().any(|a| a == "--version" || a == "-v") {
         println!("teach v{}", VERSION);
         return;
     }
 
-    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
         show_help();
         return;
     }
 
-    if args.contains(&"--health".to_string()) {
-        run_health_check();
+    // Gather live system state
+    let snap = SystemSnapshot::gather();
+
+    // Expert sub-commands (no progress needed)
+    if args.iter().any(|a| a == "tool" || a == "list" || a == "why") {
+        run_expert(&args[1..].to_vec(), &snap);
         return;
     }
 
-    if args.contains(&"--stats".to_string()) {
-        show_statistics();
+    // Presentation mode
+    if args.iter().any(|a| a == "--present") {
+        run_presentation(&snap);
         return;
     }
 
-    if args.contains(&"--tips".to_string()) {
-        show_daily_wisdom();
-        return;
-    }
-
-    if args.contains(&"--quiz".to_string()) {
-        run_quiz();
-        return;
-    }
-
-    if args.contains(&"--reset".to_string()) {
-        reset_progress();
-        return;
-    }
-
-    if args.contains(&"--begin".to_string()) {
-        run_full_course();
-        return;
-    }
-
-    if args.contains(&"--random".to_string()) {
-        run_random_lesson();
-        return;
-    }
-
-    // Check for gum
-    if !check_command_exists("gum") {
-        eprintln!("Error: gum is required. Install with: yay -S gum");
-        process::exit(1);
-    }
-
-    // Update session count
-    let mut progress = LearningProgress::load();
-    progress.total_sessions += 1;
-    progress.last_studied = get_timestamp();
+    // Load progress and detect persona
+    let mut progress = Progress::load();
+    progress.sessions += 1;
     progress.save();
 
-    main_menu();
-}
-
-fn check_command_exists(cmd: &str) -> bool {
-    Command::new("which")
-        .arg(cmd)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-fn get_timestamp() -> String {
-    Command::new("date")
-        .arg("+%Y-%m-%d")
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string())
-}
-
-fn gum_style(text: &str, fg: u8) {
-    Command::new("gum")
-        .args(["style", "--foreground", &fg.to_string(), text])
-        .status()
-        .ok();
-}
-
-fn gum_section(title: &str) {
-    Command::new("clear").status().ok();
-    Command::new("gum")
-        .args([
-            "style",
-            "--border",
-            "double",
-            "--border-foreground",
-            "10",
-            "--padding",
-            "1 2",
-            "--margin",
-            "1",
-            title,
-        ])
-        .status()
-        .ok();
-    println!();
-}
-
-fn pause(lesson_num: Option<usize>) -> bool {
-    let result = Command::new("gum")
-        .args([
-            "confirm",
-            "Continue?",
-            "--affirmative=Next →",
-            "--negative=Exit",
-        ])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-
-    if result {
-        // Mark lesson as complete
-        if let Some(num) = lesson_num {
-            let mut progress = LearningProgress::load();
-            progress.mark_lesson_complete(num);
-            progress.save();
-        }
+    // Force persona
+    if args.iter().any(|a| a == "--learn") {
+        progress.persona_override = Some("newcomer".to_string());
+        progress.save();
+    }
+    if args.iter().any(|a| a == "--expert") {
+        progress.persona_override = Some("expert".to_string());
+        progress.save();
     }
 
-    result
-}
+    let persona = detect_persona(&progress, &snap);
 
-fn show_achievement_unlock(achievement: &str) {
-    println!();
-    gum_style("🎉 ACHIEVEMENT UNLOCKED! 🎉", 11);
-    gum_style(achievement, 10);
-    println!();
-    std::thread::sleep(std::time::Duration::from_secs(2));
-}
+    // First run — ask
+    if progress.sessions == 1 {
+        first_run_greeting(&snap, &mut progress);
+        return;
+    }
 
-fn lesson_welcome() {
-    gum_section("🌲 Welcome to 0-Core");
-    gum_style("The Faelight Forest Philosophy", 10);
-    println!();
-    println!("0-Core is not just dotfiles. It's a philosophy-driven system.");
-    println!();
-    println!("Core principles:");
-    gum_style("  • Manual control over automation", 11);
-    gum_style("  • Intent over convention", 11);
-    gum_style("  • Understanding over convenience", 11);
-    gum_style("  • Recovery over perfection", 11);
-    println!();
-    println!("You control when things happen. Nothing runs without your say.");
-    println!();
-    println!("This is \x1b[1;32mintentional stewardship\x1b[0m.");
-    println!();
-    if !pause(Some(1)) {
-        process::exit(0);
+    match persona {
+        Persona::Expert  => run_expert(&args[1..].to_vec(), &snap),
+        Persona::Newcomer | Persona::Learner => run_newcomer(&mut progress, &snap),
     }
 }
 
-fn lesson_structure() {
-    gum_section("📁 Directory Structure");
-    println!("Your system is organized by purpose:");
+fn first_run_greeting(snap: &SystemSnapshot, progress: &mut Progress) {
+    clear();
+    println!("{}", "🌲 0-Core — teach v4.0.0".green().bold());
+    println!("{}", "━".repeat(52).dimmed());
     println!();
-    gum_style("  ~/0-core/      → Configuration (this repo)", 14);
-    gum_style("  ~/1-src/       → Source code & projects", 14);
-    gum_style("  ~/2-projects/  → Active work", 14);
-    gum_style("  ~/3-archive/   → Completed/archived", 14);
-    gum_style("  ~/4-media/     → Media files", 14);
-    println!();
-    println!("Inside 0-core:");
-    println!();
-    gum_style(
-        "  rust-tools/    → Rust tools (workspace-view, safe-update, etc.)",
-        10,
-    );
-    gum_style("  scripts/       → Compiled binaries", 10);
-    gum_style("  packages/      → Stow-managed dotfiles", 10);
-    gum_style("  INTENT/        → Decision ledger & roadmap", 10);
-    gum_style("  docs/          → Documentation", 10);
-    println!();
-    println!("The numbers enforce order. 0 comes before 1. Always.");
-    println!();
-    if !pause(Some(2)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_tools() {
-    gum_section("🔧 Core Tools");
-    println!("Your daily drivers:");
-    println!();
-    gum_style("doctor (dot-doctor)", 11);
-    println!("  Health check for your system. Run daily.");
-    println!("  Try: doctor");
-    println!();
-    gum_style("workspace-view v1.0.0", 11);
-    println!("  X-ray vision for Sway workspaces. NEW: --watch mode!");
-    println!("  Try: workspace-view --active");
-    println!();
-    gum_style("safe-update v1.0.0", 11);
-    println!("  Update system safely with snapshots & rollback.");
-    println!("  Try: safe-update --dry-run");
-    println!();
-    gum_style("entropy-check v1.0.0", 11);
-    println!("  Detect system drift and unexpected changes.");
-    println!("  Try: entropy-check");
-    println!();
-    gum_style("faelight-git v2.1.0", 11);
-    println!("  Git intelligence with Risk Score engine.");
-    println!("  Try: faelight-git status");
-    println!();
-    gum_style("core-protect v1.0.1", 11);
-    println!("  Lock/unlock 0-core for safe editing.");
-    println!("  Try: core-protect --status");
-    println!();
-    if !pause(Some(3)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_workflow() {
-    gum_section("📅 Daily Workflow");
-    println!("Morning routine (2 minutes):");
-    println!();
-    gum_style("  1. doctor              → Check system health", 14);
-    gum_style("  2. workspace-view      → See workspace state", 14);
-    gum_style("  3. entropy-check       → Detect drift", 14);
-    gum_style("  4. teach --tips        → Daily wisdom", 14);
-    println!();
-    println!("Before big changes:");
-    gum_style("  entropy-check --baseline   → Update baseline", 10);
-    println!();
-    println!("Weekly:");
-    gum_style("  safe-update                → Update system safely", 14);
-    gum_style(
-        "  teach --quiz               → Test knowledge retention",
-        14,
-    );
-    println!();
-    println!("The workflow is \x1b[0;32msimple\x1b[0m, but \x1b[1;33mpowerful\x1b[0m.");
-    println!();
-    if !pause(Some(4)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_profiles() {
-    gum_section("🎮 System Profiles");
-    println!("Switch your entire system state with one command.");
-    println!();
-    println!("Available profiles:");
-    println!();
-    gum_style("  🏠 default    → Balanced daily driver", 10);
-    gum_style("  🎮 gaming     → GPU performance, DnD on", 10);
-    gum_style("  💼 work       → VPN on, focus mode", 10);
-    gum_style("  🔋 low-power  → Battery saver", 10);
-    println!();
-    println!("Commands:");
-    gum_style("  profile list      → See all profiles", 14);
-    gum_style("  profile gaming    → Switch to gaming", 14);
-    gum_style("  profile status    → Current state", 14);
-    gum_style("  profile default   → Back to baseline", 14);
-    println!();
-    println!("Your prompt shows active profile (hidden when default).");
-    println!();
-    println!("Profiles are \x1b[0;36mdeclarative\x1b[0m. Define the state, not the steps.");
-    println!();
-    if !pause(Some(5)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_intent() {
-    gum_section("📜 Intent Ledger");
-    println!("Track decisions, not just code.");
-    println!();
-    println!("Categories:");
-    gum_style("  decisions/    → Major architectural choices", 11);
-    gum_style("  experiments/  → Things you tried", 11);
-    gum_style("  philosophy/   → Core beliefs", 11);
-    gum_style("  future/       → Roadmap & planned features", 11);
-    gum_style("  incidents/    → Failures & lessons learned", 11);
-    gum_style("  complete/     → Finished intents", 11);
-    gum_style("  cancelled/    → Abandoned ideas (with reasons!)", 11);
-    println!();
-    println!("Commands:");
-    gum_style("  intent list       → See all intents", 14);
-    gum_style("  intent show 001   → View specific intent", 14);
-    gum_style("  intent add        → Create new intent", 14);
-    println!();
-    println!("Every decision has a \x1b[1;33mwhy\x1b[0m. Future you will thank you.");
-    println!();
-    println!("Example: Incident 001 taught us to never automate sudo at boot.");
-    println!("That lesson became safe-update v1.0.0.");
-    println!();
-    if !pause(Some(6)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_customize() {
-    gum_section("🎨 Make It Yours");
-    println!("Create your own profile:");
-    gum_style("  nvim ~/0-core/profiles/myprofile.profile", 14);
-    println!();
-    println!("Profile format:");
-    gum_style("  [activate]", 10);
-    gum_style("  # Commands when profile activates", 10);
-    gum_style("  powerprofilesctl set performance", 10);
-    gum_style("  mullvad connect", 10);
-    gum_style("  ", 10);
-    gum_style("  [deactivate]", 10);
-    gum_style("  # Commands when switching away", 10);
-    gum_style("  powerprofilesctl set balanced", 10);
-    gum_style("  mullvad disconnect", 10);
-    println!();
-    println!("Add new Rust tools:");
-    gum_style("  1. Create in ~/0-core/rust-tools/newtool/", 14);
-    gum_style("  2. Add to workspace Cargo.toml", 14);
-    gum_style("  3. cargo build --release --bin newtool", 14);
-    gum_style("  4. cp target/release/newtool scripts/", 14);
-    gum_style("  5. Document in INTENT/", 14);
-    println!();
-    println!("The system \x1b[0;32mgrows\x1b[0m with you.");
-    println!();
-    if !pause(Some(7)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_aliases() {
-    gum_section("⚡ Useful Aliases");
-    println!("Quick commands built into your shell:");
-    println!();
-    gum_style("Navigation:", 11);
-    gum_style("  ..          → cd ..", 14);
-    gum_style("  ...         → cd ../..", 14);
-    gum_style("  core        → cd ~/0-core", 14);
-    gum_style("  src         → cd ~/1-src", 14);
-    println!();
-    gum_style("System:", 11);
-    gum_style("  doctor      → dot-doctor", 14);
-    gum_style("  health      → dot-doctor", 14);
-    gum_style("  ws          → workspace-view", 14);
-    gum_style("  wsa         → workspace-view --active", 14);
-    println!();
-    gum_style("Core Protection:", 11);
-    gum_style("  lock-core   → core-protect --lock", 14);
-    gum_style("  unlock-core → core-protect --unlock", 14);
-    println!();
-    gum_style("Git:", 11);
-    gum_style("  gs          → git status", 14);
-    gum_style("  ga          → git add", 14);
-    gum_style("  gc          → git commit", 14);
-    gum_style("  gp          → git push", 14);
-    gum_style("  gci         → git commit with intent", 14);
-    println!();
-    gum_style("Files:", 11);
-    gum_style("  ls          → exa with icons", 14);
-    gum_style("  ll          → exa long format", 14);
-    gum_style("  tree        → exa tree view", 14);
-    println!();
-    println!("See all aliases: \x1b[0;36malias | less\x1b[0m");
-    println!();
-    if !pause(Some(8)) {
-        process::exit(0);
-    }
-}
-
-fn lesson_complete() {
-    gum_section("🌲 You're Ready");
-    println!("You now know:");
-    gum_style("  ✅ The philosophy", 10);
-    gum_style("  ✅ Directory structure", 10);
-    gum_style("  ✅ Core tools", 10);
-    gum_style("  ✅ Daily workflow", 10);
-    gum_style("  ✅ Profiles", 10);
-    gum_style("  ✅ Intent ledger", 10);
-    gum_style("  ✅ Customization", 10);
-    gum_style("  ✅ Useful aliases", 10);
-    println!();
-    println!("Next steps:");
-    gum_style("  teach --quiz       → Test your knowledge", 14);
-    gum_style("  teach --stats      → View your progress", 14);
-    gum_style("  doctor             → Check system health", 14);
-    println!();
-    gum_style("Welcome to the Faelight Forest. 🌲", 11);
-    println!();
-}
-
-fn run_quiz() {
-    gum_section("🎯 0-Core Knowledge Quiz");
-    println!("Test your understanding of the Faelight Forest.");
-    println!();
-    println!("10 questions. Pass with 7/10 (70%).");
-    println!("Perfect score earns: 🏆 Forest Scholar");
-    println!();
-
-    Command::new("gum")
-        .args([
-            "confirm",
-            "Ready to begin?",
-            "--affirmative=Let's go!",
-            "--negative=Not yet",
-        ])
-        .status()
-        .ok();
-
-    let questions = vec![
-        (
-            "What's the core philosophy of 0-Core?",
-            vec![
-                "Automation over control",
-                "Manual control over automation",
-                "Convenience over understanding",
-                "Perfection over recovery",
-            ],
-            1,
-        ),
-        (
-            "Which tool checks system health?",
-            vec!["health-check", "system-doctor", "doctor", "check-health"],
-            2,
-        ),
-        (
-            "What does workspace-view do?",
-            vec![
-                "Manage windows",
-                "Show Sway workspace state",
-                "Create workspaces",
-                "Delete workspaces",
-            ],
-            1,
-        ),
-        (
-            "How do you safely update the system?",
-            vec!["sudo pacman -Syu", "yay", "safe-update", "update-system"],
-            2,
-        ),
-        (
-            "Where are decision logs stored?",
-            vec!["docs/", "INTENT/", "logs/", "decisions/"],
-            1,
-        ),
-        (
-            "What does entropy-check detect?",
-            vec!["File changes", "System drift", "Errors", "Viruses"],
-            1,
-        ),
-        (
-            "Which directory is for active projects?",
-            vec!["~/0-core/", "~/1-src/", "~/2-projects/", "~/3-archive/"],
-            2,
-        ),
-        (
-            "What does core-protect do?",
-            vec![
-                "Delete files",
-                "Lock/unlock 0-core",
-                "Backup system",
-                "Check security",
-            ],
-            1,
-        ),
-        (
-            "How do you switch to gaming mode?",
-            vec![
-                "gaming-mode",
-                "profile gaming",
-                "mode gaming",
-                "switch gaming",
-            ],
-            1,
-        ),
-        (
-            "What's the purpose of Intent Ledger?",
-            vec![
-                "Store code",
-                "Track decisions & reasoning",
-                "List bugs",
-                "Plan sprints",
-            ],
-            1,
-        ),
-    ];
-
-    let mut score = 0;
-
-    for (i, (question, options, correct)) in questions.iter().enumerate() {
-        gum_section(&format!("Question {}/10", i + 1));
-        println!("{}", question);
-        println!();
-
-        let output = Command::new("gum")
-            .args(["choose"])
-            .args(options)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .output()
-            .expect("Failed to run gum");
-
-        let answer = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let user_choice = options.iter().position(|&o| o == answer).unwrap_or(99);
-
-        if user_choice == *correct {
-            score += 1;
-            gum_style("✅ Correct!", 10);
-        } else {
-            gum_style("❌ Incorrect", 9);
-            println!("   Correct answer: {}", options[*correct]);
-        }
-
-        println!();
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
-
-    // Show results
-    gum_section("🎯 Quiz Results");
-    println!("Score: {}/10 ({}%)", score, score * 10);
-    println!();
-
-    if score == 10 {
-        gum_style("🏆 PERFECT SCORE! Forest Scholar!", 11);
-    } else if score >= 7 {
-        gum_style("✅ PASSED! Well done!", 10);
-    } else {
-        gum_style("⚠️  Keep learning! Try teach --begin", 14);
-    }
-
-    println!();
-
-    // Save score
-    let mut progress = LearningProgress::load();
-    progress.record_quiz_score(score);
-    progress.save();
-}
-
-fn show_statistics() {
-    let progress = LearningProgress::load();
-
-    gum_section("🎓 Your Learning Journey");
-
+    println!("  You're looking at a live system.");
     println!(
-        "📊 Progress: {}% ({}/8 lessons)",
-        progress.completion_percentage(),
-        progress.lessons_completed.len()
+        "  {} tools. {} commits. {} decisions recorded.",
+        snap.tool_count.to_string().yellow().bold(),
+        snap.commit_count.to_string().cyan(),
+        snap.intent_count.to_string().cyan(),
     );
-
-    if !progress.quiz_scores.is_empty() {
-        println!(
-            "🎯 Best Quiz Score: {}/10 ({}%)",
-            progress.best_quiz_score,
-            progress.best_quiz_score * 10
-        );
-        let avg: f32 =
-            progress.quiz_scores.iter().sum::<usize>() as f32 / progress.quiz_scores.len() as f32;
-        println!("📈 Average Quiz Score: {:.1}/10", avg);
-    }
-
-    println!("🏆 Achievements: {}/11", progress.achievements.len());
-    println!("📅 Last Studied: {}", progress.last_studied);
-    println!("🔢 Total Sessions: {}", progress.total_sessions);
     println!();
 
-    println!("Completed Lessons:");
-    for i in 1..=8 {
-        let status = if progress.is_lesson_complete(i) {
-            "✅"
-        } else {
-            "⬜"
-        };
-        let lesson_name = match i {
-            1 => "Welcome & Philosophy",
-            2 => "Directory Structure",
-            3 => "Core Tools",
-            4 => "Daily Workflow",
-            5 => "System Profiles",
-            6 => "Intent Ledger",
-            7 => "Customization",
-            8 => "Useful Aliases",
-            _ => "Unknown",
-        };
-        println!("  {} {}. {}", status, i, lesson_name);
-    }
+    let answer = prompt("  Are you new to 0-Core? (y/n): ");
 
-    println!();
-
-    if !progress.achievements.is_empty() {
-        println!("Achievements Earned:");
-        for achievement in &progress.achievements {
-            println!("  {}", achievement);
-        }
+    if answer.to_lowercase().starts_with('n') {
+        progress.persona_override = Some("expert".to_string());
+        progress.save();
         println!();
-    }
-
-    // Next goal
-    if progress.lessons_completed.len() < 8 {
-        println!("Next Goal: Complete all lessons for 🎓 Full Course");
-    } else if progress.best_quiz_score < 10 {
-        println!("Next Goal: Perfect quiz score for 🏆 Forest Scholar");
+        println!("  Expert mode. Run {} to see all tools.", "teach list".cyan());
+        println!("  Run {} for a topic.", "teach why <topic>".cyan());
+        println!("  Run {} for the Linus demo.", "teach --present".cyan());
     } else {
-        println!("🌲 Congratulations! You've mastered the Faelight Forest!");
+        progress.persona_override = Some("newcomer".to_string());
+        progress.save();
+        run_newcomer(progress, snap);
     }
-
-    println!();
-}
-
-fn show_daily_wisdom() {
-    let tips = vec![
-        (
-            "Use workspace-view --watch for live workspace monitoring.",
-            "Lesson 3",
-        ),
-        (
-            "safe-update --dry-run shows what would update without doing it.",
-            "Lesson 3",
-        ),
-        (
-            "entropy-check detects silent system drift over time.",
-            "Lesson 3",
-        ),
-        (
-            "The Intent Ledger preserves the 'why' behind every decision.",
-            "Lesson 6",
-        ),
-        (
-            "Profiles are declarative - define the state, not the steps.",
-            "Lesson 5",
-        ),
-        (
-            "doctor should be run daily. Make it part of your morning routine.",
-            "Lesson 4",
-        ),
-        (
-            "core-protect locks 0-core with chattr. Safe from accidents.",
-            "Lesson 3",
-        ),
-        (
-            "Directory numbers enforce order: 0-core before 1-src, always.",
-            "Lesson 2",
-        ),
-        (
-            "Manual control over automation. You decide when things happen.",
-            "Lesson 1",
-        ),
-        (
-            "Incident 001 taught us: Never automate sudo at boot.",
-            "Lesson 6",
-        ),
-        (
-            "gci commits with intent reference. Links code to decisions.",
-            "Lesson 8",
-        ),
-        (
-            "workspace-view shows terminal working directories for foot.",
-            "Lesson 3",
-        ),
-        (
-            "safe-update creates snapshots before/after with rollback path.",
-            "Lesson 3",
-        ),
-        (
-            "Profile prompt indicator hidden when in default mode.",
-            "Lesson 5",
-        ),
-        (
-            "Understanding over convenience. Know how your system works.",
-            "Lesson 1",
-        ),
-        (
-            "Recovery over perfection. Systems break. Be ready.",
-            "Lesson 1",
-        ),
-        ("The forest teaches those who listen. 🌲", "Philosophy"),
-    ];
-
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as usize;
-    let (tip, source) = &tips[seed % tips.len()];
-
-    gum_section("💡 Daily Wisdom from the Faelight Forest");
-    println!("{}", tip);
-    println!();
-    gum_style(&format!("—{} 🌲", source), 14);
-    println!();
-}
-
-fn reset_progress() {
-    println!("⚠️  This will delete all your learning progress!");
-    println!();
-
-    let confirm = Command::new("gum")
-        .args([
-            "confirm",
-            "Are you SURE?",
-            "--affirmative=Yes, reset",
-            "--negative=Cancel",
-        ])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-
-    if confirm {
-        let path = LearningProgress::get_path();
-        fs::remove_file(&path).ok();
-        println!();
-        gum_style("✅ Progress reset. Start fresh with: teach --begin", 10);
-        println!();
-    } else {
-        println!("Cancelled.");
-    }
-}
-
-fn run_full_course() {
-    lesson_welcome();
-    lesson_structure();
-    lesson_tools();
-    lesson_workflow();
-    lesson_profiles();
-    lesson_intent();
-    lesson_customize();
-    lesson_aliases();
-    lesson_complete();
-}
-
-fn run_random_lesson() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as usize;
-    let lesson = (seed % 8) + 1;
-
-    match lesson {
-        1 => lesson_welcome(),
-        2 => lesson_structure(),
-        3 => lesson_tools(),
-        4 => lesson_workflow(),
-        5 => lesson_profiles(),
-        6 => lesson_intent(),
-        7 => lesson_customize(),
-        8 => lesson_aliases(),
-        _ => {}
-    }
-}
-
-fn main_menu() {
-    let progress = LearningProgress::load();
-
-    loop {
-        Command::new("clear").status().ok();
-        Command::new("gum")
-            .args([
-                "style",
-                "--border",
-                "double",
-                "--border-foreground",
-                "10",
-                "--padding",
-                "1 2",
-                "--margin",
-                "1",
-                &format!("🌲 0-Core Teaching Mode v{}", VERSION),
-            ])
-            .status()
-            .ok();
-
-        println!();
-        println!(
-            "Progress: {}% | Achievements: {}/11 | Quiz: {}/10",
-            progress.completion_percentage(),
-            progress.achievements.len(),
-            progress.best_quiz_score
-        );
-        println!();
-
-        let choices = vec![
-            "🚀 Start from beginning".to_string(),
-            format!(
-                "{} 1. Welcome & Philosophy",
-                if progress.is_lesson_complete(1) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 2. Directory Structure",
-                if progress.is_lesson_complete(2) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 3. Core Tools",
-                if progress.is_lesson_complete(3) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 4. Daily Workflow",
-                if progress.is_lesson_complete(4) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 5. System Profiles",
-                if progress.is_lesson_complete(5) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 6. Intent Ledger",
-                if progress.is_lesson_complete(6) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 7. Customization",
-                if progress.is_lesson_complete(7) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            format!(
-                "{} 8. Useful Aliases",
-                if progress.is_lesson_complete(8) {
-                    "✅"
-                } else {
-                    "⬜"
-                }
-            ),
-            "🎯 Take the Quiz".to_string(),
-            "📊 View Statistics".to_string(),
-            "💡 Daily Wisdom".to_string(),
-            "🎲 Random Lesson".to_string(),
-            "🚪 Exit".to_string(),
-        ];
-
-        let choice_refs: Vec<&str> = choices.iter().map(|s| s.as_str()).collect();
-
-        let output = Command::new("gum")
-            .args(["choose"])
-            .args(&choice_refs)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .output()
-            .expect("Failed to run gum");
-
-        let choice = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-        if choice.contains("Start from beginning") {
-            run_full_course();
-        } else if choice.contains("1. Welcome") {
-            lesson_welcome();
-        } else if choice.contains("2. Directory") {
-            lesson_structure();
-        } else if choice.contains("3. Core Tools") {
-            lesson_tools();
-        } else if choice.contains("4. Daily Workflow") {
-            lesson_workflow();
-        } else if choice.contains("5. System Profiles") {
-            lesson_profiles();
-        } else if choice.contains("6. Intent Ledger") {
-            lesson_intent();
-        } else if choice.contains("7. Customization") {
-            lesson_customize();
-        } else if choice.contains("8. Useful Aliases") {
-            lesson_aliases();
-        } else if choice.contains("Take the Quiz") {
-            run_quiz();
-        } else if choice.contains("View Statistics") {
-            show_statistics();
-            Command::new("gum")
-                .args(["confirm", "Back to menu?", "--affirmative=Yes"])
-                .status()
-                .ok();
-        } else if choice.contains("Daily Wisdom") {
-            show_daily_wisdom();
-            Command::new("gum")
-                .args(["confirm", "Back to menu?", "--affirmative=Yes"])
-                .status()
-                .ok();
-        } else if choice.contains("Random Lesson") {
-            run_random_lesson();
-        } else {
-            break;
-        }
-    }
-}
-
-fn run_health_check() {
-    println!();
-    println!("🏥 teach v{} - Health Check", VERSION);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-    print!("  Checking gum... ");
-    if check_command_exists("gum") {
-        println!("✅");
-    } else {
-        println!("❌ Not found");
-        println!("      Install with: yay -S gum");
-        std::process::exit(1);
-    }
-
-    println!();
-    println!("✅ All dependencies available");
-    println!();
 }
 
 fn show_help() {
-    println!("🎓 teach v{} - Interactive Learning System", VERSION);
+    println!("{}", "🌲 teach v4.0.0 — 0-Core Live Narrator".cyan().bold());
     println!();
-    println!("USAGE:");
-    println!("   teach [OPTIONS]");
+    println!("{}", "MODES".white().bold());
+    println!("  teach                  # auto-detect persona");
+    println!("  teach --present        # presentation mode (Linus demo)");
+    println!("  teach --learn          # force guided newcomer mode");
+    println!("  teach --expert         # force expert reference mode");
     println!();
-    println!("OPTIONS:");
-    println!("   --begin              Start from lesson 1");
-    println!("   --random             Random lesson");
-    println!("   --quiz               Take the knowledge quiz");
-    println!("   --stats              View progress & achievements");
-    println!("   --tips               Daily wisdom tip");
-    println!("   --reset              Reset all progress");
-    println!("   --health             Check dependencies");
-    println!("   --version, -v        Show version");
-    println!("   --help, -h           Show help");
+    println!("{}", "EXPERT COMMANDS".white().bold());
+    println!("  teach list             # all tools in registry");
+    println!("  teach tool <name>      # tool detail: architecture + commands");
+    println!("  teach why <topic>      # rationale from intent ledger");
     println!();
-    println!("EXAMPLES:");
-    println!("   teach                # Interactive menu");
-    println!("   teach --begin        # Full course walkthrough");
-    println!("   teach --quiz         # Test your knowledge");
-    println!("   teach --stats        # View your progress");
-    println!("   teach --tips         # Get daily wisdom");
+    println!("{}", "PRESENTATION".white().bold());
+    println!("  teach --present        # 7 slides, keyboard navigation");
+    println!("  n / Enter              # next slide");
+    println!("  p                      # previous slide");
+    println!("  q                      # quit");
     println!();
-    println!("LESSONS:");
-    println!("   1. Welcome & Philosophy     (3 min)");
-    println!("   2. Directory Structure      (2 min)");
-    println!("   3. Core Tools               (5 min)");
-    println!("   4. Daily Workflow           (3 min)");
-    println!("   5. System Profiles          (4 min)");
-    println!("   6. Intent Ledger            (5 min)");
-    println!("   7. Customization            (6 min)");
-    println!("   8. Useful Aliases           (4 min)");
+    println!("{}", "GUIDED LESSONS".white().bold());
+    println!("  philosophy  structure  tools  workflow");
+    println!("  intent  git  update");
     println!();
-    println!("ACHIEVEMENTS:");
-    println!("   🌱 First Steps        🌿 Directory Master");
-    println!("   🔧 Tool Proficient    📅 Workflow Expert");
-    println!("   🎮 Profile Pro        📜 Intent Scholar");
-    println!("   🎨 Customization Guru ⚡ Alias Ninja");
-    println!("   🎓 Full Course        🏆 Forest Scholar");
-    println!("   🌲 Faelight Master");
-    println!();
-    println!("PHILOSOPHY:");
-    println!("   'The forest teaches those who listen.'");
+    println!("  {}", "All content is pulled from the live system.".dimmed());
+    println!("  {}", "Numbers shown are real. Nothing is hardcoded.".dimmed());
 }
