@@ -1,52 +1,56 @@
-//! Quick commit and push workflow
-use anyhow::Result;
+//! Quick commit and push — native git2, no shell-out for git ops
+
+use crate::git::GitRepo;
+use crate::is_locked;
+use anyhow::{bail, Result};
 use colored::*;
-use std::process::Command;
 
 pub fn run(message: &str) -> Result<()> {
-    println!("{}", "🌲 Faelight Git Quick Commit".cyan().bold());
-    println!("{}", "━".repeat(50));
-    println!();
+    let repo = GitRepo::open()?;
 
-    // Check if there are changes
-    let status = Command::new("git")
-        .args(["status", "--porcelain"])
-        .output()?;
+    if is_locked() {
+        bail!("Core is locked. Run 'unlock-core' first.");
+    }
 
-    if status.stdout.is_empty() {
-        println!("{}", "  ℹ️  No changes to commit".yellow());
+    let status = repo.status()?;
+    if status.is_empty() {
+        println!("{}", "  ✅ Nothing to commit".green());
         return Ok(());
     }
 
-    // Stage all changes
-    let stage = Command::new("git").args(["add", "-A"]).status()?;
+    println!("{}", "🌲 faelight-git quick".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
 
-    if !stage.success() {
-        anyhow::bail!("Failed to stage changes\n💡 Check: git status shows files?\n💡 Try: git add . manually");
+    // Show what's being committed
+    for f in &status.files {
+        println!("  {} {}", f.state.symbol().yellow(), f.path.yellow());
     }
-    println!("{}", "  ✅ Changes staged".green());
+    println!();
+
+    // Stage all
+    repo.stage_all()?;
+    println!("{}", "  ✅ Staged".green());
 
     // Commit
-    let commit = Command::new("git")
-        .args(["commit", "-m", message])
-        .status()?;
-
-    if !commit.success() {
-        anyhow::bail!("Failed to commit\n💡 Check: Commit message format correct?\n💡 Try: git commit manually");
-    }
-    println!("{}", format!("  ✅ Commit: {}", message).green());
+    let hash = repo.commit(message)?;
+    println!(
+        "  {} {} {}",
+        "✅".green(),
+        hash.yellow().bold(),
+        message.white()
+    );
 
     // Push
-    let push = Command::new("git").args(["push"]).status()?;
+    println!("  {} Pushing...", "→".cyan());
+    let push = std::process::Command::new("git").arg("push").status()?;
 
-    if !push.success() {
-        anyhow::bail!("Failed to push\n💡 Check: Upstream branch exists?\n💡 Try: git push -u origin <branch>");
+    if push.success() {
+        println!("{}", "  🚀 Pushed".green().bold());
+    } else {
+        println!("{}", "  ❌ Push failed — run 'git push' manually".red());
     }
-    println!("{}", "  🚀 Pushed to origin".green());
 
-    println!();
-    println!("{}", "━".repeat(50));
-    println!("{}", "🎉 Quick commit complete!".green().bold());
+    println!("{}", "━".repeat(52).dimmed());
 
     Ok(())
 }

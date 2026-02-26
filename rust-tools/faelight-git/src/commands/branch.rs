@@ -1,96 +1,176 @@
-//! Branch management
+//! Branch management — native git2
+
+use crate::git::GitRepo;
 use anyhow::Result;
 use colored::*;
 use std::io::{self, Write};
 use std::process::Command;
 
 pub fn run() -> Result<()> {
-    println!("{}", "🌲 Faelight Git Branch Manager".cyan().bold());
-    println!("{}", "━".repeat(50));
-    println!();
-
-    // Get current branch
-    let current = Command::new("git")
-        .args(["branch", "--show-current"])
-        .output()?;
-    let current_branch = String::from_utf8_lossy(&current.stdout).trim().to_string();
-
-    // List all branches
-    let branches = Command::new("git").args(["branch", "-a"]).output()?;
-
-    println!("{}", "📋 Branches:".yellow().bold());
-    println!();
-
-    for line in String::from_utf8_lossy(&branches.stdout).lines() {
-        let branch = line.trim();
-        if branch.starts_with("*") {
-            // Current branch
-            let name = branch.trim_start_matches("* ");
-            println!("  {} {}", "→".green().bold(), name.green().bold());
-        } else if branch.starts_with("remotes/") {
-            // Remote branch
-            let name = branch.trim_start_matches("remotes/");
-            println!("  {} {}", " ".dimmed(), name.dimmed());
-        } else {
-            // Local branch
-            println!("    {}", branch);
-        }
-    }
+    let repo = GitRepo::open()?;
+    show_branches(&repo)?;
 
     println!();
-    println!("{}", "━".repeat(50));
+    println!("  {} switch      {} create      {} delete      {} cancel",
+        "[s]".cyan().bold(),
+        "[c]".cyan().bold(),
+        "[d]".red().bold(),
+        "[q]".dimmed(),
+    );
     println!();
-
-    // Operations menu
-    println!("What would you like to do?");
-    println!("  {} Switch to a branch", "1)".cyan());
-    println!("  {} Create new branch", "2)".cyan());
-    println!("  {} Delete a branch", "3)".cyan());
-    println!("  {} Exit", "4)".cyan());
-    println!();
-
-    print!("Choice (1-4): ");
+    print!("  Action: ");
     io::stdout().flush()?;
 
     let mut choice = String::new();
     io::stdin().read_line(&mut choice)?;
 
     match choice.trim() {
-        "1" => switch_branch(&current_branch)?,
-        "2" => create_branch()?,
-        "3" => delete_branch(&current_branch)?,
-        "4" => println!("{}", "👋 Exiting...".cyan()),
-        _ => println!("{}", "❌ Invalid choice".red()),
+        "s" | "switch" => switch_branch()?,
+        "c" | "create" => create_branch()?,
+        "d" | "delete" => delete_branch(&repo)?,
+        "q" | "" => {}
+        _ => println!("{}", "  ❌ Unknown action".red()),
     }
 
     Ok(())
 }
 
-fn switch_branch(current: &str) -> Result<()> {
+fn show_branches(repo: &GitRepo) -> Result<()> {
+    println!("{}", "🌲 faelight-git branch".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
     println!();
-    print!("Enter branch name to switch to: ");
+
+    let current = repo.current_branch()?;
+    let (ahead, behind) = repo.ahead_behind()?;
+
+    // Get all branches via git2 by shelling — git2 branch listing is verbose,
+    // this gives us remote tracking info cleanly
+    let output = Command::new("git")
+        .args(["branch", "-a", "--format=%(refname:short)|%(upstream:short)|%(upstream:track)"])
+        .output()?;
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let mut locals: Vec<String> = Vec::new();
+    let mut remotes: Vec<String> = Vec::new();
+
+    for line in raw.lines() {
+        let parts: Vec<&str> = line.splitn(3, '|').collect();
+        let name = parts[0].trim();
+
+        if name.starts_with("origin/") || name.starts_with("remotes/") {
+            // Skip remote entries that mirror a local branch
+            let short = name.trim_start_matches("origin/").trim_start_matches("remotes/origin/");
+            if !locals.contains(&short.to_string()) {
+                remotes.push(name.to_string());
+            }
+            continue;
+        }
+
+        let upstream = parts.get(1).map(|s| s.trim()).unwrap_or("");
+        let track    = parts.get(2).map(|s| s.trim()).unwrap_or("");
+
+        let is_current = name == current;
+
+        let track_info = if track.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", track.yellow())
+        };
+
+        let upstream_info = if upstream.is_empty() {
+            format!(" {}", "no upstream".dimmed())
+        } else {
+            format!(" → {}", upstream.dimmed())
+        };
+
+        if is_current {
+            // Current branch — show sync status
+            let sync = match (ahead, behind) {
+                (0, 0) => "✓ synced".green().to_string(),
+                (a, 0) => format!("↑{} ahead", a).yellow().to_string(),
+                (0, b) => format!("↓{} behind", b).red().to_string(),
+                (a, b) => format!("↑{} ↓{}", a, b).red().to_string(),
+            };
+            println!(
+                "  {} {} {}{}",
+                "►".green().bold(),
+                name.green().bold(),
+                sync,
+                upstream_info,
+            );
+        } else {
+            println!(
+                "  {} {}{}{}",
+                " ".dimmed(),
+                name.white(),
+                upstream_info,
+                track_info,
+            );
+        }
+
+        locals.push(name.to_string());
+    }
+
+    // Show remotes that have no local counterpart
+    if !remotes.is_empty() {
+        println!();
+        println!("{}", "  Remote only".dimmed());
+        for r in &remotes {
+            println!("  {} {}", " ".dimmed(), r.dimmed());
+        }
+    }
+
+    Ok(())
+}
+
+fn switch_branch() -> Result<()> {
+    println!();
+    print!("  Switch to branch: ");
     io::stdout().flush()?;
 
-    let mut branch = String::new();
-    io::stdin().read_line(&mut branch)?;
-    let branch = branch.trim();
+    let mut name = String::new();
+    io::stdin().read_line(&mut name)?;
+    let name = name.trim();
 
-    if branch.is_empty() {
-        println!("{}", "⚠️  No branch specified".yellow());
+    if name.is_empty() {
+        println!("{}", "  ⚠️  Cancelled".yellow());
         return Ok(());
     }
 
-    if branch == current {
-        println!("{}", format!("ℹ️  Already on branch '{}'", branch).cyan());
-        return Ok(());
+    // Check for uncommitted changes first
+    let status = Command::new("git")
+        .args(["status", "--porcelain"])
+        .output()?;
+
+    if !status.stdout.is_empty() {
+        println!("{}", "  ⚠️  You have uncommitted changes".yellow());
+        print!("  Stash them before switching? (y/n): ");
+        io::stdout().flush()?;
+        let mut ans = String::new();
+        io::stdin().read_line(&mut ans)?;
+        if ans.trim().to_lowercase() == "y" {
+            Command::new("git").args(["stash"]).status()?;
+            println!("{}", "  ✅ Changes stashed".green());
+        }
     }
 
-    let result = Command::new("git").args(["checkout", branch]).status()?;
+    let result = Command::new("git")
+        .args(["checkout", name])
+        .status()?;
 
     if result.success() {
-        println!("{}", format!("✅ Switched to branch '{}'", branch).green());
+        println!("{}", format!("  ✅ Switched to '{}'", name).green().bold());
     } else {
-        println!("{}", format!("❌ Failed to switch to '{}'", branch).red());
+        // Try creating from remote
+        let remote = format!("origin/{}", name);
+        let result2 = Command::new("git")
+            .args(["checkout", "-b", name, "--track", &remote])
+            .status()?;
+        if result2.success() {
+            println!("{}", format!("  ✅ Checked out '{}' from remote", name).green().bold());
+        } else {
+            println!("{}", format!("  ❌ Branch '{}' not found", name).red());
+        }
     }
 
     Ok(())
@@ -98,82 +178,96 @@ fn switch_branch(current: &str) -> Result<()> {
 
 fn create_branch() -> Result<()> {
     println!();
-    print!("Enter new branch name: ");
+    print!("  New branch name: ");
     io::stdout().flush()?;
 
-    let mut branch = String::new();
-    io::stdin().read_line(&mut branch)?;
-    let branch = branch.trim();
+    let mut name = String::new();
+    io::stdin().read_line(&mut name)?;
+    let name = name.trim();
 
-    if branch.is_empty() {
-        println!("{}", "⚠️  No branch name specified".yellow());
+    if name.is_empty() {
+        println!("{}", "  ⚠️  Cancelled".yellow());
         return Ok(());
     }
 
-    print!("Switch to new branch after creating? (y/n): ");
+    print!("  Switch to it immediately? (y/n): ");
     io::stdout().flush()?;
+    let mut ans = String::new();
+    io::stdin().read_line(&mut ans)?;
 
-    let mut switch = String::new();
-    io::stdin().read_line(&mut switch)?;
-
-    let args = if switch.trim().to_lowercase() == "y" {
-        vec!["checkout", "-b", branch]
+    let args = if ans.trim().to_lowercase() == "y" {
+        vec!["checkout", "-b", name]
     } else {
-        vec!["branch", branch]
+        vec!["branch", name]
     };
 
     let result = Command::new("git").args(&args).status()?;
 
     if result.success() {
-        println!("{}", format!("✅ Created branch '{}'", branch).green());
+        if ans.trim().to_lowercase() == "y" {
+            println!("{}", format!("  ✅ Created and switched to '{}'", name).green().bold());
+        } else {
+            println!("{}", format!("  ✅ Created branch '{}'", name).green().bold());
+        }
     } else {
-        println!("{}", format!("❌ Failed to create '{}'", branch).red());
+        println!("{}", format!("  ❌ Failed to create '{}'", name).red());
     }
 
     Ok(())
 }
 
-fn delete_branch(current: &str) -> Result<()> {
+fn delete_branch(repo: &GitRepo) -> Result<()> {
+    let current = repo.current_branch()?;
+
     println!();
-    print!("Enter branch name to delete: ");
+    print!("  Branch to delete: ");
     io::stdout().flush()?;
 
-    let mut branch = String::new();
-    io::stdin().read_line(&mut branch)?;
-    let branch = branch.trim();
+    let mut name = String::new();
+    io::stdin().read_line(&mut name)?;
+    let name = name.trim();
 
-    if branch.is_empty() {
-        println!("{}", "⚠️  No branch specified".yellow());
+    if name.is_empty() {
+        println!("{}", "  ⚠️  Cancelled".yellow());
         return Ok(());
     }
 
-    if branch == current {
-        println!("{}", "❌ Cannot delete current branch!".red());
+    if name == current {
+        println!("{}", "  ❌ Cannot delete current branch".red());
         return Ok(());
     }
 
-    print!("Are you sure you want to delete '{}'? (y/n): ", branch);
-    io::stdout().flush()?;
+    if name == "main" || name == "master" {
+        println!("{}", "  ❌ Refusing to delete main/master".red().bold());
+        return Ok(());
+    }
 
+    print!("  {} Delete '{}'? (y/n): ", "⚠️ ".yellow(), name);
+    io::stdout().flush()?;
     let mut confirm = String::new();
     io::stdin().read_line(&mut confirm)?;
 
     if confirm.trim().to_lowercase() != "y" {
-        println!("{}", "⚠️  Delete cancelled".yellow());
+        println!("{}", "  ⚠️  Delete cancelled".yellow());
         return Ok(());
     }
 
     let result = Command::new("git")
-        .args(["branch", "-d", branch])
+        .args(["branch", "-d", name])
         .status()?;
 
     if result.success() {
-        println!("{}", format!("✅ Deleted branch '{}'", branch).green());
+        println!("{}", format!("  ✅ Deleted '{}'", name).green());
     } else {
-        println!(
-            "{}",
-            "⚠️  Branch has unmerged changes. Use -D to force delete.".yellow()
-        );
+        println!("{}", "  ⚠️  Branch has unmerged changes".yellow());
+        print!("  Force delete? (y/n): ");
+        io::stdout().flush()?;
+        let mut force = String::new();
+        io::stdin().read_line(&mut force)?;
+        if force.trim().to_lowercase() == "y" {
+            Command::new("git").args(["branch", "-D", name]).status()?;
+            println!("{}", format!("  ✅ Force deleted '{}'", name).green());
+        }
     }
 
     Ok(())
