@@ -2,4 +2,4 @@
 
 pub mod repo;
 
-pub use repo::{GitRepo, WorkingTreeStatus};
+pub use repo::{CommitEntry, FileEntry, FileState, GitRepo, WorkingTreeStatus};

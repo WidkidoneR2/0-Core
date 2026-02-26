@@ -1,6 +1,6 @@
-//! Risk-aware git status
+//! Risk-aware git status — shows actual files, not just counts
 
-use crate::git::GitRepo;
+use crate::git::{FileState, GitRepo};
 use crate::is_locked;
 use crate::risk::RiskScore;
 use anyhow::Result;
@@ -14,93 +14,150 @@ pub fn run() -> Result<()> {
     let upstream = repo.upstream()?;
     let (ahead, behind) = repo.ahead_behind()?;
 
-    // Header
-    println!("{}", "🌲 Git Status — Faelight Forest".cyan().bold());
-    println!("{}", "━".repeat(50).dimmed());
+    // ── Header ────────────────────────────────────────────────
+    println!("{}", "🌲 faelight-git status".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
 
-    // Branch info
-    println!("{}: {}", "Branch".dimmed(), branch.green());
+    // Branch line
+    let branch_line = match (ahead, behind) {
+        (0, 0) => format!(" {} {}", "branch".dimmed(), branch.green().bold()),
+        (a, 0) => format!(
+            " {} {}  {} ahead",
+            "branch".dimmed(),
+            branch.green().bold(),
+            format!("↑{}", a).yellow()
+        ),
+        (0, b) => format!(
+            " {} {}  {} behind",
+            "branch".dimmed(),
+            branch.green().bold(),
+            format!("↓{}", b).red()
+        ),
+        (a, b) => format!(
+            " {} {}  {} ahead  {} behind",
+            "branch".dimmed(),
+            branch.green().bold(),
+            format!("↑{}", a).yellow(),
+            format!("↓{}", b).red()
+        ),
+    };
+    println!("{}", branch_line);
+
+    // Upstream line
     if let Some(up) = upstream {
-        println!("{}: {}", "Upstream".dimmed(), up.blue());
-    } else {
-        println!("{}: {}", "Upstream".dimmed(), "none".yellow());
+        println!(" {} {}", "upstream".dimmed(), up.dimmed());
     }
 
-    // Lock status
-    let lock_status = if is_locked() {
-        "🔒 LOCKED".red()
-    } else {
-        "🔓 UNLOCKED".green()
-    };
-    println!("{}: {}", "Core Lock".dimmed(), lock_status);
+    // Lock line
+    if is_locked() {
+        println!(" {} {}", "core".dimmed(), "🔒 LOCKED — commits blocked".red());
+    }
 
-    println!();
-
-    // Working tree
-    println!("{}", "Working Tree:".bold());
-    println!(
-        "  • Modified files: {}",
-        if status.modified > 0 {
-            status.modified.to_string().yellow()
-        } else {
-            status.modified.to_string().green()
-        }
-    );
-    println!(
-        "  • Untracked files: {}",
-        if status.untracked > 0 {
-            status.untracked.to_string().yellow()
-        } else {
-            status.untracked.to_string().green()
-        }
-    );
-
-    println!();
-
-    // Commits
-    println!("{}", "Commits:".bold());
-    println!(
-        "  • Ahead: {}",
-        if ahead > 0 {
-            ahead.to_string().yellow()
-        } else {
-            ahead.to_string().green()
-        }
-    );
-    println!(
-        "  • Behind: {}",
-        if behind > 0 {
-            behind.to_string().yellow()
-        } else {
-            behind.to_string().green()
-        }
-    );
-
-    println!();
-
-    // Risk score
-    println!("{}", "━".repeat(50).dimmed());
-    print!("{}: {} ", "Risk Score".bold(), risk.emoji());
-    println!(
-        "{}",
-        format!("{} / 100", risk.total).color(risk.color()).bold()
-    );
-
-    if !risk.breakdown.is_empty() {
+    if status.is_empty() {
         println!();
-        for factor in &risk.breakdown {
-            let sign = if factor.delta > 0 { "↑" } else { "↓" };
+        println!("{}", "  ✅ Working tree clean".green());
+        println!("{}", "━".repeat(52).dimmed());
+        print_risk(&risk);
+        return Ok(());
+    }
+
+    // ── Staged ────────────────────────────────────────────────
+    let staged = status.staged_files();
+    if !staged.is_empty() {
+        println!();
+        println!("{}", "  Staged".green().bold());
+        for f in &staged {
+            let label = match &f.state {
+                FileState::StagedRenamed(new) => {
+                    format!("  {} {} → {}", "●".green(), f.path.dimmed(), new.green())
+                }
+                _ => format!(
+                    "  {} {} {}",
+                    "●".green(),
+                    f.state.label().dimmed(),
+                    f.path.green()
+                ),
+            };
+            println!("{}", label);
+        }
+    }
+
+    // ── Unstaged ──────────────────────────────────────────────
+    let unstaged = status.unstaged_files();
+    if !unstaged.is_empty() {
+        println!();
+        println!("{}", "  Unstaged".yellow().bold());
+        for f in &unstaged {
             println!(
-                "  {} {} {} ({})",
-                sign,
-                factor.name.dimmed(),
-                format!("{:+}", factor.delta).color(risk.color()),
-                factor.reason.dimmed()
+                "  {} {} {}",
+                "○".yellow(),
+                f.state.label().dimmed(),
+                f.path.yellow()
             );
         }
     }
 
-    println!("{}", "━".repeat(50).dimmed());
+    // ── Untracked ─────────────────────────────────────────────
+    let untracked = status.untracked_files();
+    if !untracked.is_empty() {
+        println!();
+        println!("{}", "  Untracked".dimmed().bold());
+        for f in &untracked {
+            println!("  {} {}", "?".dimmed(), f.path.dimmed());
+        }
+    }
+
+    // ── Summary ───────────────────────────────────────────────
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+
+    let mut parts = Vec::new();
+    if status.staged > 0 {
+        parts.push(format!("{} staged", status.staged).green().to_string());
+    }
+    if status.modified > 0 {
+        parts.push(format!("{} unstaged", status.modified).yellow().to_string());
+    }
+    if status.untracked > 0 {
+        parts.push(format!("{} untracked", status.untracked).dimmed().to_string());
+    }
+    println!("  {}", parts.join("  "));
+
+    // ── Hints ─────────────────────────────────────────────────
+    if status.staged == 0 && status.modified > 0 {
+        println!(
+            "  {} {}",
+            "hint:".dimmed(),
+            "fg sync to stage and commit".dimmed()
+        );
+    } else if status.staged > 0 {
+        println!(
+            "  {} {}",
+            "hint:".dimmed(),
+            "faelight-git commit to commit staged files".dimmed()
+        );
+    }
+
+    print_risk(&risk);
 
     Ok(())
+}
+
+fn print_risk(risk: &crate::risk::RiskScore) {
+    println!(
+        "  {} {} {}",
+        "risk".dimmed(),
+        risk.emoji(),
+        format!("{}/100", risk.total).color(risk.color()).bold()
+    );
+
+    for factor in &risk.breakdown {
+        let sign = if factor.delta > 0 { "↑" } else { "↓" };
+        println!(
+            "    {} {} {}",
+            sign.dimmed(),
+            factor.name.dimmed(),
+            format!("{:+}", factor.delta).color(risk.color()).dimmed()
+        );
+    }
 }
