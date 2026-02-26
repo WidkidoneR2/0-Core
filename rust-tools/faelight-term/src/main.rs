@@ -1560,6 +1560,26 @@ impl KeyboardHandler for App {
                 let _ = self.pty.master.write_all(b"\x1b[F");
                 return;
             }
+            Keysym::BackSpace => {
+                let _ = self.pty.master.write_all(b"\x7f");
+                return;
+            }
+            Keysym::Delete => {
+                let _ = self.pty.master.write_all(b"\x1b[3~");
+                return;
+            }
+            Keysym::Tab => {
+                let _ = self.pty.master.write_all(b"\t");
+                return;
+            }
+            Keysym::Return => {
+                let _ = self.pty.master.write_all(b"\r");
+                return;
+            }
+            Keysym::Escape => {
+                let _ = self.pty.master.write_all(b"\x1b");
+                return;
+            }
             _ => {}
         }
 
