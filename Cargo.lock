@@ -335,13 +335,14 @@ dependencies = [
 
 [[package]]
 name = "bump-system-version"
-version = "9.3.0"
+version = "9.4.0"
 dependencies = [
  "anyhow",
  "chrono",
  "colored",
  "dirs 5.0.1",
  "faelight-core",
+ "rusqlite",
 ]
 
 [[package]]
