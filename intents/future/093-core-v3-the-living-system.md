@@ -258,6 +258,13 @@ core intent context
 
 Phase 1 is unblocked. Can start today.
 
+## Progress (updated 2026-02-27)
+- Phase 1 — Event Ledger        ✅ complete
+- Phase 2 — Causality Engine    ✅ complete  
+- Phase 3 — Simulation Engine   ✅ complete
+- Phase 4 — Planning session    ✅ complete — ready to implement
+- Phase 4 — Implementation      ⬜ next dedicated session
+
 ---
 
 ## Migration Path
