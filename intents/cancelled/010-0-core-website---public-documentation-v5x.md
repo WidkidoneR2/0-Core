@@ -3,7 +3,7 @@ id: 010
 date: 2026-01-05
 type: future
 title: "0-Core Website - Public Documentation (v5.x)"
-status: deferred
+status: cancelled
 tags: [website, documentation, community, v5.x]
 ---
 
@@ -52,3 +52,9 @@ The people who understand 0-Core will find it on GitHub.
 The people who need a marketing site won't understand 0-Core anyway.
 
 This is cancelled with clarity, not regret.
+
+
+## Cancellation Note (2026-02-27)
+
+Dependency "after Rust rewrite (v5.x)" was met at v5.0. Now at v10.2.0.
+Website never prioritized. Cancelled — not a current goal.
