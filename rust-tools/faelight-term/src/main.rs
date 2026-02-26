@@ -125,6 +125,7 @@ struct Terminal {
     parser: Parser,
     alt_screen: Option<Vec<Vec<Cell>>>,
     alt_cursor: (usize, usize),
+    pending_responses: Vec<Vec<u8>>,
 }
 
 impl Terminal {
@@ -146,6 +147,7 @@ impl Terminal {
             parser: Parser::new(),
             alt_screen: None,
             alt_cursor: (0, 0),
+            pending_responses: Vec::new(),
         }
     }
 
@@ -865,6 +867,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(n) if n > 0 => {
                 // FIX 2: Use process_bytes for proper UTF-8 handling
                 app.terminal.process_bytes(&buf[..n]);
+                // Drain pending responses (e.g. DSR cursor position reply)
+                let responses: Vec<Vec<u8>> = app.terminal.pending_responses.drain(..).collect();
+                for resp in responses {
+                    let _ = app.pty.master.write_all(&resp);
+                }
+                // Drain pending responses (e.g. DSR cursor position reply)
+                let responses: Vec<Vec<u8>> = app.terminal.pending_responses.drain(..).collect();
+                for resp in responses {
+                    let _ = app.pty.master.write_all(&resp);
+                }
                 // Debounce URL scanning to 100ms (performance)
                 if app.last_url_scan.elapsed() > Duration::from_millis(100) {
                     app.terminal.scan_urls();
