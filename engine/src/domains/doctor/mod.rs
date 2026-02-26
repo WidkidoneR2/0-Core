@@ -1049,6 +1049,17 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let _ = std::fs::create_dir_all(&cache_dir);
     let _ = std::fs::write(cache_dir.join("health-status"), format!("{}", health));
 
+    // Event Ledger
+    let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
+    writer.write(
+        "doctor",
+        "run",
+        "core doctor run",
+        if failed == 0 { "ok" } else { "warn" },
+        Some(&format!(r#"{{"health":{},"passed":{},"warnings":{},"failed":{}}}"#,
+            health, passed, warnings, failed)),
+    );
+
     Ok(())
 }
 

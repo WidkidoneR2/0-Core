@@ -109,3 +109,44 @@ impl Drop for RuntimeLock {
         fs::remove_file(&self.path).ok();
     }
 }
+
+// ── Event Writer ─────────────────────────────────────────────────────────────
+
+pub struct EventWriter<'a> {
+    db: &'a Connection,
+}
+
+impl<'a> EventWriter<'a> {
+    pub fn new(db: &'a Connection) -> Self {
+        Self { db }
+    }
+
+    pub fn write(
+        &self,
+        domain: &str,
+        action: &str,
+        actor: &str,
+        result: &str,
+        payload: Option<&str>,
+    ) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        let full_payload = match payload {
+            Some(p) => format!(
+                r#"{{"actor":"{}","result":"{}","detail":{}}}"#,
+                actor, result, p
+            ),
+            None => format!(r#"{{"actor":"{}","result":"{}"}}"#, actor, result),
+        };
+
+        self.db
+            .execute(
+                "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![domain, action, full_payload, ts],
+            )
+            .ok();
+    }
+}
