@@ -201,6 +201,7 @@ enum Mode {
 struct App {
     tabs: Vec<Tab>,
     back_stack: Vec<String>,
+    forward_stack: Vec<String>,
     history: Vec<HistoryEntry>,
     history_selected: usize,
     bookmark_store: BookmarkStore,
@@ -220,6 +221,7 @@ impl App {
         Self {
             tabs: vec![Tab::home()],
             back_stack: vec![],
+            forward_stack: vec![],
             history: vec![],
             history_selected: 0,
             bookmark_store,
@@ -319,6 +321,8 @@ impl App {
 
     fn go_back(&mut self) {
         if let Some(url) = self.back_stack.pop() {
+            // Save current URL to forward stack
+            self.forward_stack.push(self.address_bar.clone());
             let security = SecurityStatus::check(&url);
             let (lines, meta) = match fetch_web_content(&url) {
                 Ok(r) => r,
@@ -353,6 +357,47 @@ impl App {
             self.set_status("◀ Back", GREEN);
         } else {
             self.set_status("No history to go back to", DIM);
+        }
+    }
+
+    fn go_forward(&mut self) {
+        if let Some(url) = self.forward_stack.pop() {
+            let current_url = self.address_bar.clone();
+            let security = SecurityStatus::check(&url);
+            let (lines, meta) = match fetch_web_content(&url) {
+                Ok(r) => r,
+                Err(e) => (
+                    vec![ContentLine {
+                        text: format!("❌ {}", e),
+                        link: None,
+                    }],
+                    vec![],
+                ),
+            };
+            let link_positions: Vec<usize> = lines
+                .iter()
+                .enumerate()
+                .filter_map(|(i, l)| if l.link.is_some() { Some(i) } else { None })
+                .collect();
+            let title = meta
+                .first()
+                .filter(|t| !t.is_empty())
+                .cloned()
+                .unwrap_or_else(|| url.split('/').nth(2).unwrap_or(&url).to_string());
+            self.back_stack.push(current_url);
+            self.tabs[self.active_tab] = Tab {
+                title,
+                url: url.clone(),
+                lines,
+                security,
+                scroll: 0,
+                link_cursor: 0,
+                link_positions,
+            };
+            self.address_bar = url;
+            self.set_status("▶ Forward", GREEN);
+        } else {
+            self.set_status("No forward history", DIM);
         }
     }
 
@@ -552,7 +597,12 @@ fn fetch_web_content(url: &str) -> Result<(Vec<ContentLine>, Vec<String>), Strin
         let href = if let Some(h) = rest.find("href=\"") {
             let after = &rest[h + 6..];
             if let Some(end) = after.find('"') {
-                let url_str = &after[..end];
+                let end_safe = after
+                    .char_indices()
+                    .nth(end)
+                    .map(|(i, _)| i)
+                    .unwrap_or(after.len().min(end));
+                let url_str = &after[..end_safe];
                 if url_str.starts_with("https://") || url_str.starts_with("http://") {
                     Some(url_str.to_string())
                 } else {
@@ -569,7 +619,12 @@ fn fetch_web_content(url: &str) -> Result<(Vec<ContentLine>, Vec<String>), Strin
         let anchor_text = if let Some(gt) = rest.find('>') {
             let after = &rest[gt + 1..];
             if let Some(end) = after.find("</a>") {
-                let raw = &after[..end];
+                let end_safe2 = after
+                    .char_indices()
+                    .nth(end)
+                    .map(|(i, _)| i)
+                    .unwrap_or(after.len().min(end));
+                let raw = &after[..end_safe2];
                 // Strip inner tags
                 let mut clean = String::new();
                 let mut in_tag = false;
@@ -712,14 +767,25 @@ fn main() -> io::Result<()> {
                         KeyCode::Char('d') => app.page_down(),
                         KeyCode::Char('u') => app.page_up(),
                         KeyCode::Enter => app.enter_selected(),
-                        KeyCode::Char('B') => app.go_back(),
+                        KeyCode::Char('B') | KeyCode::Char('b')
+                            if key.modifiers.contains(KeyModifiers::SHIFT) =>
+                        {
+                            app.go_back()
+                        }
+                        KeyCode::Char('F') | KeyCode::Char('f')
+                            if key.modifiers.contains(KeyModifiers::SHIFT) =>
+                        {
+                            app.go_forward()
+                        }
                         KeyCode::Char(']') => app.next_tab(),
                         KeyCode::Char('[') => app.prev_tab(),
                         KeyCode::Char('t') => app.new_tab(),
                         KeyCode::Char('x') => app.close_tab(),
                         KeyCode::Char('r') => app.reload(),
                         KeyCode::Char('y') => app.yank_content(),
-                        KeyCode::Char('f') => app.cycle_focus(),
+                        KeyCode::Char('f') if !key.modifiers.contains(KeyModifiers::SHIFT) => {
+                            app.cycle_focus()
+                        }
                         KeyCode::Char('g') => app.mode = Mode::EditAddress,
                         KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                             app.add_bookmark();
@@ -858,7 +924,7 @@ fn ui(f: &mut Frame, app: &App) {
                 Style::default().fg(DIM)
             };
             let label = if entry.title.len() > 20 {
-                format!("{}..", &entry.title[..18])
+                format!("{}..", entry.title.chars().take(18).collect::<String>())
             } else {
                 entry.title.clone()
             };
@@ -893,7 +959,7 @@ fn ui(f: &mut Frame, app: &App) {
                 Style::default().fg(DIM)
             };
             let label = if bm.name.len() > 20 {
-                format!("{}..", &bm.name[..18])
+                format!("{}..", bm.name.chars().take(18).collect::<String>())
             } else {
                 bm.name.clone()
             };
@@ -925,8 +991,9 @@ fn ui(f: &mut Frame, app: &App) {
         .iter()
         .enumerate()
         .map(|(i, t)| {
-            let label = if t.title.len() > 10 {
-                format!("{}..", &t.title[..8])
+            let label = if t.title.chars().count() > 10 {
+                let truncated: String = t.title.chars().take(8).collect();
+                format!("{}..", truncated)
             } else {
                 t.title.clone()
             };
