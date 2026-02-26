@@ -1,62 +1,42 @@
 ---
 id: 095
-date: 2026-02-23
-type: future
+date: 2026-02-25
+type: complete
 title: "faelight-browser — Stability & Feature Improvements"
-status: planned
-tags: [rust, browser, tui, w3m, v11]
-version: 11.0.0
+status: complete
+tags: [rust, browser, tui, w3m, v0.4]
+version: 0.4.0
 ---
 
 ## Vision
 
 faelight-browser v0.4.0 is functional on pure HTML sites. Core loop works:
 load page → inline link highlighting → Tab to navigate → Enter to follow.
-Next phase focuses on stability, forward navigation, and better HTML parsing.
 
 ---
 
-## Working Well (v0.4.0)
+## Completed 2026-02-25
 
-- ✅ Forest palette aesthetic — full terminal fill
-- ✅ w3m-style inline link highlighting
-- ✅ Tab/Shift+Tab to navigate links
-- ✅ Enter to follow links
-- ✅ Back navigation stack
-- ✅ History panel
-- ✅ Bookmarks with persistence
-- ✅ Brave search integration (/ to search)
-- ✅ Works on pure HTML sites (HN, Wikipedia, etc.)
+### Navigation ✅
+- Forward navigation stack (Shift+F)
+- Back navigation (Shift+B)
+- Page title extraction from `<title>` tag
 
-## Known Limitations
+### Content ✅
+- Reader mode (Shift+R) — strips nav/header/footer/aside/script/style
+- Extracts `<article>` or `<main>` content when available
+- Raw HTML stored in Tab for mode toggling without re-fetch
 
-- JS-heavy sites (GitHub, Reddit) render empty — fundamental TUI limitation
-- Link anchor text matching is fragile on complex layouts
-- No forward navigation (F key)
-- Page titles sometimes show domain instead of real title
+### Search ✅
+- In-page search (Ctrl+F) — FindInPage mode
+- Find next (Enter) / find prev (Shift+Tab)
+- Match count shown in status bar
+- Brave web search (/) still available
 
----
-
-## Improvement Plan
-
-### Phase 1 — Navigation
-- Forward navigation stack (F key)
-- Page title extraction from `<title>` tag — polish
-- Anchor text matching improvements
-
-### Phase 2 — Content
-- Reader mode toggle — strip navigation/ads, show just article
-- Better HTML-to-text rendering for tables and lists
-- Image alt-text display
-
-### Phase 3 — UX
-- Download link to file (d key)
-- In-page text search (Ctrl+F in content focus)
-- Session restore — reopen last URLs on launch
-
-### Phase 4 — Version Bump
-- Cargo.toml version bump to 0.4.0
-- README with keybindings and usage
+### Stability ✅
+- Unicode panic fixes — all byte slices replaced with char-safe slicing
+- No crashes on emoji or Unicode page titles
+- Duplicate keybind conflicts resolved
 
 ---
 
@@ -65,7 +45,13 @@ Next phase focuses on stability, forward navigation, and better HTML parsing.
 Pure HTML sites where faelight-browser shines:
 - news.ycombinator.com
 - en.wikipedia.org
-- lite.cnn.com
 - lobste.rs
 - most documentation sites
 
+## Status: OUT OF WIP — Production Ready v0.4.0
+
+## Future (v0.5.0)
+- Replace regex HTML parser with `scraper` crate
+- Better link matching on complex layouts
+- Session restore
+- Download to file (d key)
