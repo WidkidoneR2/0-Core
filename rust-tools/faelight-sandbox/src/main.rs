@@ -69,6 +69,8 @@ enum Commands {
 
     /// List available snapshots
     Snapshots,
+    /// Show session history (last 10 runs)
+    History,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,6 +101,37 @@ fn state_dir() -> PathBuf {
 
 fn session_path() -> PathBuf {
     state_dir().join("session.json")
+}
+
+fn history_dir() -> PathBuf {
+    state_dir().join("history")
+}
+
+fn save_session_with_history(session: &SandboxSession) -> Result<()> {
+    let json = serde_json::to_string_pretty(session)?;
+
+    // Write current session
+    fs::write(session_path(), &json)?;
+
+    // Archive to history ring buffer (keep last 10)
+    let hist = history_dir();
+    fs::create_dir_all(&hist)?;
+    let archive_name = format!("{}.json", session.id);
+    fs::write(hist.join(&archive_name), &json)?;
+
+    // Prune to 10 most recent
+    let mut entries: Vec<_> = fs::read_dir(&hist)?
+        .flatten()
+        .filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false))
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    if entries.len() > 10 {
+        for old_entry in &entries[..entries.len() - 10] {
+            let _ = fs::remove_file(old_entry.path());
+        }
+    }
+
+    Ok(())
 }
 
 fn home() -> String {
@@ -361,8 +394,8 @@ fn main() -> Result<()> {
             session.exit_code = Some(exit_code);
             session.finished = Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
 
-            // Save session
-            fs::write(session_path(), serde_json::to_string_pretty(&session)?)?;
+            // Save session + archive to history ring buffer
+            save_session_with_history(&session)?;
 
             // Print diff
             println!();
@@ -405,7 +438,25 @@ fn main() -> Result<()> {
                     "normal".bright_green()
                 }
             );
-            println!("  Changes: {} files", session.after.len());
+            // Compute actual changed file count, not total watched files
+            let changed = {
+                let mut n = 0usize;
+                for (path, after_snap) in &session.after {
+                    match session.before.get(path) {
+                        None => n += 1,
+                        Some(before_snap) => if before_snap.hash != after_snap.hash { n += 1; }
+                    }
+                }
+                for path in session.before.keys() {
+                    if !session.after.contains_key(path) { n += 1; }
+                }
+                n
+            };
+            if changed == 0 {
+                println!("  Changes: none");
+            } else {
+                println!("  Changes: {} files", changed);
+            }
         }
 
         Commands::Clear => {
@@ -440,7 +491,7 @@ fn main() -> Result<()> {
 
             let status = Command::new("cp")
                 .args([
-                    "--reflink=always",
+                    "--reflink=auto",
                     "-r",
                     &target_dir,
                     snap_dir.to_str().unwrap(),
@@ -508,7 +559,7 @@ fn main() -> Result<()> {
             print!("  {} Restoring...", "🔄".cyan());
             let status = Command::new("cp")
                 .args([
-                    "--reflink=always",
+                    "--reflink=auto",
                     "-r",
                     "--backup=numbered",
                     snap_content.to_str().unwrap(),
@@ -524,6 +575,50 @@ fn main() -> Result<()> {
             }
         }
 
+        Commands::History => {
+            let hist = history_dir();
+            if !hist.exists() || fs::read_dir(&hist)?.count() == 0 {
+                println!("  {} No session history found", "○".bright_black());
+                println!("  {} Run: faelight-sandbox run <cmd>", "💡".dimmed());
+                return Ok(());
+            }
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("{}", "🧪 Session History (last 10)".bold());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            let mut entries: Vec<_> = fs::read_dir(&hist)?
+                .flatten()
+                .filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false))
+                .collect();
+            entries.sort_by_key(|e| e.file_name());
+            entries.reverse();
+            for entry in &entries {
+                let data = fs::read_to_string(entry.path()).unwrap_or_default();
+                if let Ok(s) = serde_json::from_str::<SandboxSession>(&data) {
+                    // Compute changed count
+                    let mut changed = 0usize;
+                    for (p, after_snap) in &s.after {
+                        match s.before.get(p) {
+                            None => changed += 1,
+                            Some(b) => if b.hash != after_snap.hash { changed += 1; }
+                        }
+                    }
+                    for p in s.before.keys() {
+                        if !s.after.contains_key(p) { changed += 1; }
+                    }
+                    let exit = s.exit_code.map(|c| if c == 0 { "✓".to_string() } else { format!("exit {}", c) }).unwrap_or_default();
+                    println!(
+                        "  {} {}  {}  {} changed  {}",
+                        "▶".dimmed(),
+                        s.id.bright_white(),
+                        s.command.dimmed(),
+                        changed.to_string().cyan(),
+                        exit.green(),
+                    );
+                }
+            }
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("  View session: faelight-sandbox diff (loads most recent)");
+        }
         Commands::Snapshots => {
             let snap_root = state_dir().join("snapshots");
             if !snap_root.exists() || fs::read_dir(&snap_root)?.count() == 0 {
