@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, TraceCommand, WhyCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, TraceCommands, WhyCommands,
+    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, SimulateCommands, TraceCommands, WhyCommands,
     NotifyCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
     UpdateCommands, WorkspaceCommands,
 };
@@ -200,6 +200,10 @@ pub fn parse() -> Command {
         Commands::Trace { command } => Command::Trace(match command {
             TraceCommands::Last => TraceCommand::Last,
             TraceCommands::Domain { domain } => TraceCommand::Domain { domain },
+        }),
+        Commands::Simulate { command } => Command::Simulate(match command {
+            SimulateCommands::Doctor => SimulateCommand::Doctor,
+            SimulateCommands::Update => SimulateCommand::Update,
         }),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }

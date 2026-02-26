@@ -28,6 +28,7 @@ pub enum Command {
     Events(EventsCommand),
     Why(WhyCommand),
     Trace(TraceCommand),
+    Simulate(SimulateCommand),
     Capabilities {
         json: bool,
         domain: Option<String>,
@@ -203,6 +204,12 @@ pub enum WhyCommand {
     Summary,
     Health,
     Domain { domain: String },
+}
+
+#[derive(Debug)]
+pub enum SimulateCommand {
+    Doctor,
+    Update,
 }
 
 #[derive(Debug)]

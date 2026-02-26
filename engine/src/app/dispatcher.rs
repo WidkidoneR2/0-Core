@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, TraceCommand, WhyCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
@@ -294,6 +294,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             match c {
                 TraceCommand::Last => crate::domains::events::trace_last(ctx),
                 TraceCommand::Domain { domain } => crate::domains::events::trace_domain(ctx, &domain),
+            }
+        }
+        Command::Simulate(c) => {
+            match c {
+                SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
+                SimulateCommand::Update => crate::domains::simulate::update(ctx),
             }
         }
         Command::Capabilities { json, domain } => {

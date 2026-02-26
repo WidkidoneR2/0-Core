@@ -1074,3 +1074,116 @@ pub fn entropy(_ctx: &AppContext, baseline: bool, trends: bool, json: bool) -> C
 pub fn bins(_ctx: &AppContext, subcmd: Option<&str>) -> CoreResult<()> {
     bins::run(subcmd, false)
 }
+
+pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "doctor",
+        &[
+            Capability::OrchestratorAccess,
+            Capability::FilesystemReadHome,
+        ],
+    )?;
+
+    let home = std::env::var("HOME").unwrap_or_default();
+    let core_root = ctx.core_root.clone();
+
+    // Read current cached health
+    let cached: u32 = fs::read_to_string(
+        PathBuf::from(&home).join(".cache/faelight/health-status")
+    ).unwrap_or_default().trim().parse().unwrap_or(0);
+
+    // Run all checks silently
+    let checks: Vec<CheckResult> = vec![
+        check_stow(&core_root, &home),
+        check_services(),
+        check_broken_symlinks(&core_root, &home),
+        check_yazi_plugins(&home),
+        check_binaries(),
+        check_git(&core_root),
+        check_themes(&core_root),
+        check_scripts(&core_root),
+        check_dotmeta(),
+        check_intents(&core_root),
+        check_profiles(&core_root, &home),
+        check_faelight_config(&home),
+        check_keybinds(&core_root, &home),
+        check_security_hardening(),
+        check_security_audit(&home),
+        check_alias_coverage(),
+        check_rust_toolchain(),
+        check_disk_space(),
+        check_tool_installation(),
+        check_path_resilience(&core_root),
+        check_archaeology(&core_root),
+        check_core_protect(&core_root),
+    ];
+
+    let total   = checks.len() as u32;
+    let passed  = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
+    let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
+    let failed  = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    let predicted = if total > 0 { (passed * 100) / total } else { 0 };
+
+    println!("{}", "🔮 core simulate doctor".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Show only changed or failing checks
+    let mut changes = 0;
+    for r in &checks {
+        match r.status {
+            Status::Fail => {
+                println!("  {} {}", "✗".bright_red(), r.name.bright_white());
+                println!("    {} {}", "→".dimmed(), r.message.bright_red());
+                if let Some(ref fix) = r.fix {
+                    println!("    {} {}", "fix:".yellow(), fix.dimmed());
+                }
+                changes += 1;
+            }
+            Status::Warn => {
+                println!("  {} {}", "⚠".yellow(), r.name.bright_white());
+                println!("    {} {}", "→".dimmed(), r.message.yellow());
+                changes += 1;
+            }
+            _ => {}
+        }
+    }
+
+    if changes == 0 {
+        println!("  {}", "All checks passing — no issues found.".green());
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Health diff
+    let delta = predicted as i32 - cached as i32;
+    let delta_str = if delta > 0 {
+        format!("+{}%", delta).green().to_string()
+    } else if delta < 0 {
+        format!("{}%", delta).bright_red().to_string()
+    } else {
+        "no change".dimmed().to_string()
+    };
+
+    let predicted_colored = if predicted >= 95 {
+        format!("{}%", predicted).green().to_string()
+    } else if predicted >= 80 {
+        format!("{}%", predicted).yellow().to_string()
+    } else {
+        format!("{}%", predicted).bright_red().to_string()
+    };
+
+    println!();
+    println!("  current health   {}%", cached.to_string().dimmed());
+    println!("  predicted health {}  ({})", predicted_colored, delta_str);
+    println!("  checks           {}  passed  {}  warnings  {}  failed",
+        passed.to_string().green(),
+        warnings.to_string().yellow(),
+        if failed > 0 { failed.to_string().bright_red() } else { failed.to_string().dimmed() }
+    );
+    println!();
+    println!("  {} No changes made to system.", "ℹ".cyan());
+
+    Ok(())
+}

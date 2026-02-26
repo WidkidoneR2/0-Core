@@ -15,3 +15,4 @@ pub mod update;
 pub mod workspace;
 pub mod zone;
 pub mod events;
+pub mod simulate;

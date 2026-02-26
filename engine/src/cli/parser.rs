@@ -93,6 +93,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: TraceCommands,
     },
+    /// Dry-run simulation — predict outcomes without changing anything
+    Simulate {
+        #[command(subcommand)]
+        command: SimulateCommands,
+    },
     /// Show capability requirements for all domains
     Capabilities {
         /// Output as JSON
@@ -370,6 +375,14 @@ pub enum WhyCommands {
     Domain {
         domain: String,
     },
+}
+
+#[derive(Subcommand)]
+pub enum SimulateCommands {
+    /// Predict health after pending changes — no writes
+    Doctor,
+    /// Show what packages would be updated — no writes
+    Update,
 }
 
 #[derive(Subcommand)]
