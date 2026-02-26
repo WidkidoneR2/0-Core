@@ -155,6 +155,11 @@ pub enum LinkCommands {
         /// Package name (or 'all')
         package: Option<String>,
     },
+    /// Sync all packages — deploy clean, surface conflicts with fix commands
+    Sync {
+        /// Package name (or 'all')
+        package: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

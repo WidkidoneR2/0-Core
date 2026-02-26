@@ -334,12 +334,6 @@ pub fn deploy(
                     if let Some(parent) = link.parent() {
                         let _ = fs::create_dir_all(parent);
                     }
-                    eprintln!(
-                        "DEBUG adopt: link={} target={} target_is_symlink={}",
-                        link.display(),
-                        target.display(),
-                        target.is_symlink()
-                    );
                     match std::os::unix::fs::symlink(&target, link) {
                         Ok(_) => {
                             println!("    {} {}", "✓".bright_green(), link.display());
@@ -418,8 +412,130 @@ pub fn redeploy(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     println!("{}", "━".repeat(41).dimmed());
     for pkg in &packages {
         undeploy(ctx, pkg)?;
-        deploy(ctx, Some(pkg), true, false)?;
+        deploy(ctx, Some(pkg), false, false)?;
     }
+    Ok(())
+}
+
+
+pub fn sync(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "link",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
+
+    let stow_dir = stow_dir(ctx);
+    let home     = PathBuf::from(&ctx.home);
+    let packages = resolve_packages(&stow_dir, package);
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!("{}", "🔗 core link sync".bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    let mut total_created  = 0usize;
+    let mut total_skipped  = 0usize;
+    let mut total_conflicts: Vec<(String, PathBuf, String)> = vec![];
+
+    for pkg in &packages {
+        let ops = build_plan(&stow_dir.join(pkg), &home);
+
+        let creates:   Vec<_> = ops.iter().filter(|o| matches!(o, Op::Create  { .. })).count().to_string().into_bytes();
+        let conflicts: Vec<_> = ops.iter().filter(|o| matches!(o, Op::Conflict{ .. })).collect();
+        let skips                = ops.iter().filter(|o| matches!(o, Op::Skip   { .. })).count();
+        let creates_count        = ops.iter().filter(|o| matches!(o, Op::Create { .. })).count();
+        let _ = creates;
+
+        if creates_count == 0 && conflicts.is_empty() {
+            // Nothing to do for this package
+            println!(
+                "  {} {} — already in sync ({} links)",
+                "✓".bright_green(),
+                pkg.bright_white(),
+                skips
+            );
+            total_skipped += skips;
+            continue;
+        }
+
+        println!("  {} {}", "📦".dimmed(), pkg.bright_white());
+
+        // Deploy clean ops
+        for op in &ops {
+            match op {
+                Op::Create { link, target } => {
+                    if let Some(parent) = link.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    match std::os::unix::fs::symlink(target, link) {
+                        Ok(_) => {
+                            println!(
+                                "    {} {}",
+                                "linked".bright_green(),
+                                link.strip_prefix(&home)
+                                    .unwrap_or(link.as_path())
+                                    .display()
+                            );
+                            total_created += 1;
+                        }
+                        Err(e) => {
+                            println!("    {} {} — {}", "✗".bright_red(), link.display(), e);
+                        }
+                    }
+                }
+                Op::Skip { .. } => {
+                    total_skipped += 1;
+                }
+                Op::Conflict { link, reason } => {
+                    let rel = link.strip_prefix(&home).unwrap_or(link.as_path());
+                    println!(
+                        "    {} {} — {}",
+                        "conflict".bright_red(),
+                        rel.display(),
+                        reason.dimmed()
+                    );
+                    total_conflicts.push((pkg.clone(), link.clone(), reason.clone()));
+                }
+            }
+        }
+        println!();
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!(
+        "  {} linked   {} already in sync   {} conflicts",
+        total_created.to_string().bright_green(),
+        total_skipped.to_string().dimmed(),
+        if total_conflicts.is_empty() {
+            "0".normal()
+        } else {
+            total_conflicts.len().to_string().bright_red()
+        }
+    );
+
+    if !total_conflicts.is_empty() {
+        println!();
+        println!("  {}", "Resolve conflicts:".yellow().bold());
+        for (pkg, link, _) in &total_conflicts {
+            let rel = link.strip_prefix(&home).unwrap_or(link.as_path());
+            println!(
+                "  {} backup original:  mv {} {}.bak",
+                "→".dimmed(),
+                link.display(),
+                link.display()
+            );
+            println!(
+                "  {} then re-run:      core link sync {}",
+                "→".dimmed(),
+                pkg
+            );
+            let _ = rel;
+        }
+    }
+
     Ok(())
 }
 

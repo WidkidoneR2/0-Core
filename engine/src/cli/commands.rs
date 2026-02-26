@@ -74,6 +74,9 @@ pub enum LinkCommand {
     Redeploy {
         package: Option<String>,
     },
+    Sync {
+        package: Option<String>,
+    },
 }
 
 #[derive(Debug)]

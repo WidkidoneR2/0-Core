@@ -151,6 +151,8 @@ alias f-zone='faelight-zone'
 alias core='~/0-core/scripts/core'  # v2 orchestrator binary
 
 # ── Core v3 — Event Ledger (Phase 1) ─────────────────────
+alias cls='core link sync'           # sync all dotfiles — one command
+alias clp='core link plan'           # preview before syncing
 alias ce='core events list'          # today's events
 alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor

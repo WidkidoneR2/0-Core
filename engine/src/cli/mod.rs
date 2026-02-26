@@ -48,6 +48,7 @@ pub fn parse() -> Command {
             LinkCommands::Undeploy { package } => LinkCommand::Undeploy { package },
             LinkCommands::Adopt { package } => LinkCommand::Adopt { package },
             LinkCommands::Redeploy { package } => LinkCommand::Redeploy { package },
+            LinkCommands::Sync { package } => LinkCommand::Sync { package },
         }),
         Commands::Zone {
             icon,
