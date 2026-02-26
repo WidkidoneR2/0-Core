@@ -26,6 +26,8 @@ pub enum Command {
     Launcher(LauncherCommand),
     Update(UpdateCommand),
     Events(EventsCommand),
+    Why(WhyCommand),
+    Trace(TraceCommand),
     Capabilities {
         json: bool,
         domain: Option<String>,
@@ -194,4 +196,17 @@ pub enum EventsCommand {
     List,
     Since { duration: String },
     Filter { domain: String },
+}
+
+#[derive(Debug)]
+pub enum WhyCommand {
+    Summary,
+    Health,
+    Domain { domain: String },
+}
+
+#[derive(Debug)]
+pub enum TraceCommand {
+    Last,
+    Domain { domain: String },
 }
