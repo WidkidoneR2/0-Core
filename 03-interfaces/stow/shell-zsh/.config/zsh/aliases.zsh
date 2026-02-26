@@ -158,6 +158,8 @@ alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor
 
 # ── Core v3 — Causality Engine (Phase 2) ─────────────────
+alias csd='core simulate doctor'      # predict health — no writes
+alias csu='core simulate update'      # preview updates — no writes
 alias cw='core why summary'          # today's activity summary
 alias cwh='core why health'          # health trajectory
 alias cwd='core why domain'          # cwd git / cwd doctor / cwd security
