@@ -1,4 +1,13 @@
-name = "rust-tools"
-description = "Rust implementations of 0-core tools"
-version = "0.2.0"
-stow = false
+name: rust-tools
+type: tools
+version: 10.3.0
+description: "42 custom Rust tools — the complete Faelight Forest ecosystem"
+last_updated: 2026-02-27
+stow: false
+blast_radius: high
+tool_count: 42
+tags: [rust, tools, ecosystem, core]
+notes: |
+  All production tools compiled to ~/0-core/scripts/.
+  Managed as a Cargo workspace monorepo.
+  Versions tracked in 01-registry/tools.toml.
