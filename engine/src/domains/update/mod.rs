@@ -47,14 +47,18 @@ pub fn simulate(_ctx: &AppContext) -> CoreResult<()> {
     match output {
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let packages: Vec<&str> = stdout.lines()
-                .filter(|l| !l.trim().is_empty())
-                .collect();
+            let packages: Vec<&str> = stdout.lines().filter(|l| !l.trim().is_empty()).collect();
 
             if packages.is_empty() {
-                println!("  {} System is up to date — no packages to update.", "✓".bright_green());
+                println!(
+                    "  {} System is up to date — no packages to update.",
+                    "✓".bright_green()
+                );
             } else {
-                println!("  {} packages would be updated:", packages.len().to_string().bright_white());
+                println!(
+                    "  {} packages would be updated:",
+                    packages.len().to_string().bright_white()
+                );
                 println!();
                 for pkg in &packages {
                     // Format: "pkgname oldver -> newver"
@@ -79,10 +83,16 @@ pub fn simulate(_ctx: &AppContext) -> CoreResult<()> {
                 Ok(o) if !o.stdout.is_empty() => {
                     let stdout = String::from_utf8_lossy(&o.stdout);
                     let count = stdout.lines().count();
-                    println!("  {} packages available (run faelight-update to apply)", count.to_string().bright_white());
+                    println!(
+                        "  {} packages available (run faelight-update to apply)",
+                        count.to_string().bright_white()
+                    );
                 }
                 _ => {
-                    println!("  {}", "checkupdates not available — install pacman-contrib".yellow());
+                    println!(
+                        "  {}",
+                        "checkupdates not available — install pacman-contrib".yellow()
+                    );
                     println!("  {}", "paci pacman-contrib".dimmed());
                 }
             }

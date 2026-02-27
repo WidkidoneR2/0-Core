@@ -98,8 +98,10 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         "status",
         "core git status",
         "ok",
-        Some(&format!(r#"{{"branch":"{}","modified":{},"staged":{},"risk":{}}}"#,
-            branch, modified, staged, risk)),
+        Some(&format!(
+            r#"{{"branch":"{}","modified":{},"staged":{},"risk":{}}}"#,
+            branch, modified, staged, risk
+        )),
     );
 
     Ok(())

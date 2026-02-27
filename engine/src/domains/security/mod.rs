@@ -403,8 +403,10 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
         "scan",
         "core security scan",
         "ok",
-        Some(&format!(r#"{{"critical":{},"high":{},"medium":{},"low":{}}}"#,
-            critical, high, medium, low)),
+        Some(&format!(
+            r#"{{"critical":{},"high":{},"medium":{},"low":{}}}"#,
+            critical, high, medium, low
+        )),
     );
 
     Ok(())

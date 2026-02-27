@@ -365,13 +365,9 @@ pub enum EventsCommands {
     /// List events from today
     List,
     /// Events since a duration (e.g. 1h, 30m, 2d)
-    Since {
-        duration: String,
-    },
+    Since { duration: String },
     /// Filter events by domain
-    Filter {
-        domain: String,
-    },
+    Filter { domain: String },
     /// Live event stream — watch events as they happen
     Watch,
 }
@@ -383,9 +379,7 @@ pub enum WhyCommands {
     /// Why is health at its current level?
     Health,
     /// What has a specific domain been doing?
-    Domain {
-        domain: String,
-    },
+    Domain { domain: String },
 }
 
 #[derive(Subcommand)]
@@ -401,9 +395,7 @@ pub enum TraceCommands {
     /// Show last 10 events with full detail
     Last,
     /// Show full trace for a specific domain
-    Domain {
-        domain: String,
-    },
+    Domain { domain: String },
 }
 
 #[derive(Subcommand)]

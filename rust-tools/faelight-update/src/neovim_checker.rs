@@ -55,11 +55,11 @@ pub fn check_neovim_updates() -> Vec<String> {
 
     let distro = detect_distro();
     let distro_name = match distro {
-        NvimDistro::LazyVim  => "LazyVim",
+        NvimDistro::LazyVim => "LazyVim",
         NvimDistro::AstroNvim => "AstroNvim",
-        NvimDistro::NvChad   => "NvChad",
+        NvimDistro::NvChad => "NvChad",
         NvimDistro::PlainLazy => "lazy.nvim",
-        NvimDistro::Unknown  => "neovim",
+        NvimDistro::Unknown => "neovim",
     };
     println!("      Detected: {}", distro_name);
 
@@ -69,9 +69,12 @@ pub fn check_neovim_updates() -> Vec<String> {
         .args([
             "--headless",
             "--noplugin",
-            "-c", "lua require('lazy').check()",
-            "-c", "sleep 3",
-            "-c", "qa!",
+            "-c",
+            "lua require('lazy').check()",
+            "-c",
+            "sleep 3",
+            "-c",
+            "qa!",
         ])
         .output();
 
@@ -137,9 +140,7 @@ fn check_via_lockfile() -> Vec<String> {
                     .output();
 
                 if let Ok(out) = head {
-                    let head_commit = String::from_utf8_lossy(&out.stdout)
-                        .trim()
-                        .to_string();
+                    let head_commit = String::from_utf8_lossy(&out.stdout).trim().to_string();
                     // Check if remote has newer commits
                     let fetch = Command::new("git")
                         .args(["-C", &plugin_path, "fetch", "--dry-run"])

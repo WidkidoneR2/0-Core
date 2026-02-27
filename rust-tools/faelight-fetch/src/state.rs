@@ -5,57 +5,57 @@ use std::time::Duration;
 use sysinfo::{Disks, System};
 
 pub struct SystemState {
-    pub version:     String,
-    pub profile:     String,
-    pub core_state:  String,
-    pub core_icon:   String,
-    pub health:      String,
+    pub version: String,
+    pub profile: String,
+    pub core_state: String,
+    pub core_icon: String,
+    pub health: String,
     pub health_icon: String,
-    pub wm:          String,
-    pub term:        String,
-    pub shell:       String,
-    pub kernel:      String,
-    pub uptime:      String,
-    pub hostname:    String,
-    pub zone:        String,
-    pub zone_icon:   String,
+    pub wm: String,
+    pub term: String,
+    pub shell: String,
+    pub kernel: String,
+    pub uptime: String,
+    pub hostname: String,
+    pub zone: String,
+    pub zone_icon: String,
     // New fields
-    pub cpu_usage:   String,
-    pub memory:      String,
-    pub disk:        String,
-    pub commits:     String,
-    pub tools:       String,
-    pub rust_ver:    String,
+    pub cpu_usage: String,
+    pub memory: String,
+    pub disk: String,
+    pub commits: String,
+    pub tools: String,
+    pub rust_ver: String,
 }
 
 impl SystemState {
     pub fn gather() -> Self {
         let (core_state, core_icon) = get_core_state();
-        let (health, health_icon)   = get_health();
-        let (zone, zone_icon)       = get_zone();
+        let (health, health_icon) = get_health();
+        let (zone, zone_icon) = get_zone();
         let (cpu_usage, memory, disk) = get_resources();
 
         SystemState {
-            version:    get_version(),
-            profile:    get_profile(),
+            version: get_version(),
+            profile: get_profile(),
             core_state,
             core_icon,
             health,
             health_icon,
-            wm:         get_wm(),
-            term:       get_term(),
-            shell:      get_shell(),
-            kernel:     get_kernel(),
-            uptime:     get_uptime(),
-            hostname:   get_hostname(),
+            wm: get_wm(),
+            term: get_term(),
+            shell: get_shell(),
+            kernel: get_kernel(),
+            uptime: get_uptime(),
+            hostname: get_hostname(),
             zone,
             zone_icon,
             cpu_usage,
             memory,
             disk,
-            commits:    get_commits(),
-            tools:      get_tool_count(),
-            rust_ver:   get_rust_version(),
+            commits: get_commits(),
+            tools: get_tool_count(),
+            rust_ver: get_rust_version(),
         }
     }
 }
@@ -98,8 +98,7 @@ fn get_core_state() -> (String, String) {
 fn get_health() -> (String, String) {
     // Read from cache — instant, no doctor invocation
     let home = std::env::var("HOME").unwrap_or_default();
-    let cache = std::path::PathBuf::from(&home)
-        .join(".cache/faelight/health-status");
+    let cache = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
 
     let pct: u8 = fs::read_to_string(&cache)
         .unwrap_or_default()
@@ -113,9 +112,7 @@ fn get_health() -> (String, String) {
         format!("{}%", pct)
     };
 
-    let icon = if pct == 100 {
-        crate::icons::HEALTHY
-    } else if pct >= 90 {
+    let icon = if pct >= 90 {
         crate::icons::HEALTHY
     } else if pct >= 70 {
         crate::icons::WARNING
@@ -206,7 +203,8 @@ fn get_resources() -> (String, String, String) {
 
     // Disk — root filesystem
     let disks = Disks::new_with_refreshed_list();
-    let disk_str = disks.iter()
+    let disk_str = disks
+        .iter()
         .find(|d| d.mount_point().to_str() == Some("/"))
         .map(|d| {
             let used = d.total_space() - d.available_space();
@@ -232,7 +230,12 @@ fn get_tool_count() -> String {
     let home = std::env::var("HOME").unwrap_or_default();
     let tools_dir = format!("{}/0-core/rust-tools", home);
     std::fs::read_dir(&tools_dir)
-        .map(|e| e.flatten().filter(|e| e.path().is_dir()).count().to_string())
+        .map(|e| {
+            e.flatten()
+                .filter(|e| e.path().is_dir())
+                .count()
+                .to_string()
+        })
         .unwrap_or_else(|_| "?".to_string())
 }
 
@@ -242,7 +245,6 @@ fn get_rust_version() -> String {
         .output()
         .map(|o| {
             String::from_utf8_lossy(&o.stdout)
-                .trim()
                 .split_whitespace()
                 .nth(1)
                 .unwrap_or("?")
@@ -263,9 +265,9 @@ fn format_bytes(bytes: u64) -> String {
 
 fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.as_secs();
-    let days  = total_seconds / 86400;
+    let days = total_seconds / 86400;
     let hours = (total_seconds % 86400) / 3600;
-    let mins  = (total_seconds % 3600) / 60;
+    let mins = (total_seconds % 3600) / 60;
 
     if days > 0 {
         format!("{}d {}h {}m", days, hours, mins)
@@ -280,9 +282,12 @@ fn get_zone() -> (String, String) {
     use std::env;
     use std::path::PathBuf;
 
-    let cwd  = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let home = PathBuf::from(env::var("HOME").unwrap_or_else(|_| "/home".to_string()));
 
     let (zone_enum, _reason) = faelight_zone::current_zone(&cwd, &home);
-    (zone_enum.short_label().to_string(), zone_enum.icon().to_string())
+    (
+        zone_enum.short_label().to_string(),
+        zone_enum.icon().to_string(),
+    )
 }

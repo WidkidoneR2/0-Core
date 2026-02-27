@@ -11,7 +11,8 @@ pub fn run() -> Result<()> {
     show_branches(&repo)?;
 
     println!();
-    println!("  {} switch      {} create      {} delete      {} cancel",
+    println!(
+        "  {} switch      {} create      {} delete      {} cancel",
         "[s]".cyan().bold(),
         "[c]".cyan().bold(),
         "[d]".red().bold(),
@@ -46,7 +47,11 @@ fn show_branches(repo: &GitRepo) -> Result<()> {
     // Get all branches via git2 by shelling — git2 branch listing is verbose,
     // this gives us remote tracking info cleanly
     let output = Command::new("git")
-        .args(["branch", "-a", "--format=%(refname:short)|%(upstream:short)|%(upstream:track)"])
+        .args([
+            "branch",
+            "-a",
+            "--format=%(refname:short)|%(upstream:short)|%(upstream:track)",
+        ])
         .output()?;
 
     let raw = String::from_utf8_lossy(&output.stdout);
@@ -59,7 +64,9 @@ fn show_branches(repo: &GitRepo) -> Result<()> {
 
         if name.starts_with("origin/") || name.starts_with("remotes/") {
             // Skip remote entries that mirror a local branch
-            let short = name.trim_start_matches("origin/").trim_start_matches("remotes/origin/");
+            let short = name
+                .trim_start_matches("origin/")
+                .trim_start_matches("remotes/origin/");
             if !locals.contains(&short.to_string()) {
                 remotes.push(name.to_string());
             }
@@ -67,7 +74,7 @@ fn show_branches(repo: &GitRepo) -> Result<()> {
         }
 
         let upstream = parts.get(1).map(|s| s.trim()).unwrap_or("");
-        let track    = parts.get(2).map(|s| s.trim()).unwrap_or("");
+        let track = parts.get(2).map(|s| s.trim()).unwrap_or("");
 
         let is_current = name == current;
 
@@ -154,9 +161,7 @@ fn switch_branch() -> Result<()> {
         }
     }
 
-    let result = Command::new("git")
-        .args(["checkout", name])
-        .status()?;
+    let result = Command::new("git").args(["checkout", name]).status()?;
 
     if result.success() {
         println!("{}", format!("  ✅ Switched to '{}'", name).green().bold());
@@ -167,7 +172,12 @@ fn switch_branch() -> Result<()> {
             .args(["checkout", "-b", name, "--track", &remote])
             .status()?;
         if result2.success() {
-            println!("{}", format!("  ✅ Checked out '{}' from remote", name).green().bold());
+            println!(
+                "{}",
+                format!("  ✅ Checked out '{}' from remote", name)
+                    .green()
+                    .bold()
+            );
         } else {
             println!("{}", format!("  ❌ Branch '{}' not found", name).red());
         }
@@ -205,9 +215,17 @@ fn create_branch() -> Result<()> {
 
     if result.success() {
         if ans.trim().to_lowercase() == "y" {
-            println!("{}", format!("  ✅ Created and switched to '{}'", name).green().bold());
+            println!(
+                "{}",
+                format!("  ✅ Created and switched to '{}'", name)
+                    .green()
+                    .bold()
+            );
         } else {
-            println!("{}", format!("  ✅ Created branch '{}'", name).green().bold());
+            println!(
+                "{}",
+                format!("  ✅ Created branch '{}'", name).green().bold()
+            );
         }
     } else {
         println!("{}", format!("  ❌ Failed to create '{}'", name).red());
@@ -252,9 +270,7 @@ fn delete_branch(repo: &GitRepo) -> Result<()> {
         return Ok(());
     }
 
-    let result = Command::new("git")
-        .args(["branch", "-d", name])
-        .status()?;
+    let result = Command::new("git").args(["branch", "-d", name]).status()?;
 
     if result.success() {
         println!("{}", format!("  ✅ Deleted '{}'", name).green());

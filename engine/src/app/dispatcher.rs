@@ -1,10 +1,9 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
-    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
-    WorkspaceCommand,
-    PluginCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
+    SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -21,14 +20,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             Ok(())
         }
 
-        Command::Plugin(cmd) => {
-            match cmd {
-                PluginCommand::List => crate::domains::plugins::list(ctx),
-                PluginCommand::Add { name } => crate::domains::plugins::add(ctx, &name),
-                PluginCommand::Remove { name } => crate::domains::plugins::remove(ctx, &name),
-                PluginCommand::Status { name } => crate::domains::plugins::status(ctx, &name),
-            }
-        }
+        Command::Plugin(cmd) => match cmd {
+            PluginCommand::List => crate::domains::plugins::list(ctx),
+            PluginCommand::Add { name } => crate::domains::plugins::add(ctx, &name),
+            PluginCommand::Remove { name } => crate::domains::plugins::remove(ctx, &name),
+            PluginCommand::Status { name } => crate::domains::plugins::status(ctx, &name),
+        },
         Command::Doctor(c) => {
             ctx.capabilities.require(
                 "doctor",
@@ -287,33 +284,25 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
-        Command::Events(c) => {
-            match c {
-                EventsCommand::List => crate::domains::events::list(ctx),
-                EventsCommand::Since { duration } => crate::domains::events::since(ctx, &duration),
-                EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),
-                EventsCommand::Watch => crate::domains::events::watch(ctx),
-            }
-        }
-        Command::Why(c) => {
-            match c {
-                WhyCommand::Summary => crate::domains::events::why_summary(ctx),
-                WhyCommand::Health => crate::domains::events::why_health(ctx),
-                WhyCommand::Domain { domain } => crate::domains::events::why_domain(ctx, &domain),
-            }
-        }
-        Command::Trace(c) => {
-            match c {
-                TraceCommand::Last => crate::domains::events::trace_last(ctx),
-                TraceCommand::Domain { domain } => crate::domains::events::trace_domain(ctx, &domain),
-            }
-        }
-        Command::Simulate(c) => {
-            match c {
-                SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
-                SimulateCommand::Update => crate::domains::simulate::update(ctx),
-            }
-        }
+        Command::Events(c) => match c {
+            EventsCommand::List => crate::domains::events::list(ctx),
+            EventsCommand::Since { duration } => crate::domains::events::since(ctx, &duration),
+            EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),
+            EventsCommand::Watch => crate::domains::events::watch(ctx),
+        },
+        Command::Why(c) => match c {
+            WhyCommand::Summary => crate::domains::events::why_summary(ctx),
+            WhyCommand::Health => crate::domains::events::why_health(ctx),
+            WhyCommand::Domain { domain } => crate::domains::events::why_domain(ctx, &domain),
+        },
+        Command::Trace(c) => match c {
+            TraceCommand::Last => crate::domains::events::trace_last(ctx),
+            TraceCommand::Domain { domain } => crate::domains::events::trace_domain(ctx, &domain),
+        },
+        Command::Simulate(c) => match c {
+            SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
+            SimulateCommand::Update => crate::domains::simulate::update(ctx),
+        },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())
         }

@@ -3,14 +3,15 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
-    ProfileCommand, PluginCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
-    WorkspaceCommand,
+    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
+    SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, SimulateCommands, TraceCommands, WhyCommands,
-    NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
-    UpdateCommands, WorkspaceCommands,
+    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
+    LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
+    SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
+    WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
