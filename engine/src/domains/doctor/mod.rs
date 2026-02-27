@@ -1187,3 +1187,219 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+// ── Phase 6: Health Forecasting ───────────────────────────────────────────────
+
+pub fn trend(ctx: &AppContext) -> CoreResult<()> {
+    let conn = &ctx.runtime.db;
+
+    let mut stmt = conn.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp ASC"
+    ).map_err(|e| crate::errors::CoreError::Database(e))?;
+
+    struct HealthPoint {
+        health: i64,
+        ts: i64,
+    }
+
+    let points: Vec<HealthPoint> = stmt
+        .query_map([], |row| {
+            let payload: String = row.get(0)?;
+            let ts: i64 = row.get(1)?;
+            Ok((payload, ts))
+        })
+        .map_err(|e| crate::errors::CoreError::Database(e))?
+        .filter_map(|r| r.ok())
+        .filter_map(|(p, ts)| {
+            let v: serde_json::Value = serde_json::from_str(&p).ok()?;
+            let health = v["detail"]["health"].as_i64()?;
+            Some(HealthPoint { health, ts })
+        })
+        .collect();
+
+    if points.is_empty() {
+        println!("  {} No health history found", "○".dimmed());
+        return Ok(());
+    }
+
+    println!("{}", "🔬 Health Trend Analysis".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Summary stats
+    let avg = points.iter().map(|p| p.health).sum::<i64>() / points.len() as i64;
+    let min = points.iter().map(|p| p.health).min().unwrap_or(0);
+    let max = points.iter().map(|p| p.health).max().unwrap_or(0);
+    let current = points.last().map(|p| p.health).unwrap_or(0);
+    let first = points.first().map(|p| p.health).unwrap_or(0);
+    let drift = current - first;
+
+    println!("  {} {} readings over {} sessions",
+        "📊".cyan(),
+        points.len().to_string().bright_white(),
+        points.len().to_string().dimmed(),
+    );
+    println!("  {} Current:  {}%", "▶".dimmed(), current.to_string().bright_white());
+    println!("  {} Average:  {}%", "▶".dimmed(), avg.to_string().bright_white());
+    println!("  {} Range:    {}% – {}%", "▶".dimmed(), min, max);
+
+    let drift_str = if drift > 0 {
+        format!("+{}% since first run", drift).green().to_string()
+    } else if drift < 0 {
+        format!("{}% since first run", drift).yellow().to_string()
+    } else {
+        "stable since first run".dimmed().to_string()
+    };
+    println!("  {} Drift:    {}", "▶".dimmed(), drift_str);
+
+    // Sparkline — last 20 readings
+    println!();
+    println!("  {} Recent history (oldest → newest):", "📈".cyan());
+    print!("    ");
+    let recent: Vec<_> = points.iter().rev().take(20).rev().collect();
+    for p in &recent {
+        let ch = match p.health {
+            h if h >= 95 => "█".bright_green(),
+            h if h >= 85 => "▇".green(),
+            h if h >= 75 => "▅".yellow(),
+            _ => "▂".red(),
+        };
+        print!("{}", ch);
+    }
+    println!();
+    println!("    {}  {}  {}  {}",
+        "█ 95%+".bright_green(),
+        "▇ 85%+".green(),
+        "▅ 75%+".yellow(),
+        "▂ <75%".red(),
+    );
+
+    // Pattern detection
+    println!();
+    println!("  {} Pattern:", "🔍".cyan());
+    let dips: usize = points.windows(2)
+        .filter(|w| w[1].health < w[0].health)
+        .count();
+    let recoveries: usize = points.windows(2)
+        .filter(|w| w[1].health > w[0].health)
+        .count();
+
+    if dips == 0 {
+        println!("    ✅ No health dips detected — stable system");
+    } else {
+        println!("    ⚠️  {} dip(s) detected, {} recovery(s)", dips, recoveries);
+    }
+
+    let at_95 = points.iter().filter(|p| p.health >= 95).count();
+    let pct_healthy = (at_95 * 100) / points.len();
+    println!("    📊 {}% of readings at 95%+ health", pct_healthy);
+
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
+    let conn = &ctx.runtime.db;
+
+    let mut stmt = conn.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10"
+    ).map_err(|e| crate::errors::CoreError::Database(e))?;
+
+    struct HealthPoint {
+        health: i64,
+        warnings: i64,
+    }
+
+    let points: Vec<HealthPoint> = stmt
+        .query_map([], |row| {
+            let payload: String = row.get(0)?;
+            Ok(payload)
+        })
+        .map_err(|e| crate::errors::CoreError::Database(e))?
+        .filter_map(|r| r.ok())
+        .filter_map(|p| {
+            let v: serde_json::Value = serde_json::from_str(&p).ok()?;
+            let health = v["detail"]["health"].as_i64()?;
+            let warnings = v["detail"]["warnings"].as_i64().unwrap_or(0);
+            Some(HealthPoint { health, warnings })
+        })
+        .collect();
+
+    if points.is_empty() {
+        println!("  {} No health history to forecast from", "○".dimmed());
+        return Ok(());
+    }
+
+    println!("{}", "🔮 Health Forecast".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    let current = points.first().map(|p| p.health).unwrap_or(0);
+    let avg_warnings = points.iter().map(|p| p.warnings).sum::<i64>() / points.len() as i64;
+
+    // Simple linear trend from last 5 readings
+    let recent: Vec<i64> = points.iter().take(5).map(|p| p.health).rev().collect();
+    let trend_delta: i64 = if recent.len() >= 2 {
+        let first = recent[0];
+        let last = *recent.last().unwrap();
+        (last - first) / (recent.len() as i64 - 1)
+    } else {
+        0
+    };
+
+    let predicted = (current + trend_delta).clamp(0, 100);
+
+    println!("  {} Current health:   {}%", "▶".dimmed(), current.to_string().bright_white());
+    println!("  {} Recent trend:     {} per run",
+        "▶".dimmed(),
+        if trend_delta >= 0 {
+            format!("+{}", trend_delta).green().to_string()
+        } else {
+            format!("{}", trend_delta).yellow().to_string()
+        }
+    );
+    println!("  {} Avg warnings:     {} per run", "▶".dimmed(), avg_warnings);
+    println!();
+
+    // Prediction
+    let pred_str = match predicted {
+        p if p >= 95 => format!("{}% ✅ Excellent", p).bright_green().to_string(),
+        p if p >= 85 => format!("{}% ✓ Good", p).green().to_string(),
+        p if p >= 75 => format!("{}% ⚠️  Watch", p).yellow().to_string(),
+        p => format!("{}% ❌ Needs attention", p).red().to_string(),
+    };
+    println!("  {} Next run forecast: {}", "🔮".cyan(), pred_str);
+
+    // Risk factors
+    println!();
+    println!("  {} Risk factors:", "⚠️".yellow());
+    let mut risks = 0;
+
+    if avg_warnings >= 2 {
+        println!("    • Persistent warnings — {} avg per run", avg_warnings);
+        risks += 1;
+    }
+    if trend_delta < 0 {
+        println!("    • Declining trend — health dropping {} per run", trend_delta);
+        risks += 1;
+    }
+    if current < 95 {
+        println!("    • Below optimal — currently {}% (target 95%+)", current);
+        risks += 1;
+    }
+
+    if risks == 0 {
+        println!("    ✅ No risk factors detected");
+    }
+
+    // Recommendations
+    println!();
+    println!("  {} Recommendations:", "💡".cyan());
+    if current < 95 {
+        println!("    • Run 'csd' to simulate what's causing the warning");
+        println!("    • Run 'cwh' to see health trajectory");
+    } else {
+        println!("    • System on track — maintain current practices");
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}

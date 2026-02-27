@@ -1,0 +1,34 @@
+[[plugins]]
+name = "faelight-git"
+description = "Git operations with Risk Score engine"
+binary = "faelight-git"
+event_domains = ["git"]
+enabled = true
+
+[[plugins]]
+name = "faelight-update"
+description = "System update manager with rollback"
+binary = "faelight-update"
+event_domains = ["update"]
+enabled = true
+
+[[plugins]]
+name = "faelight-fm"
+description = "Terminal file manager with daemon integration"
+binary = "faelight-fm"
+event_domains = []
+enabled = true
+
+[[plugins]]
+name = "faelight-bar"
+description = "Wayland status bar — health subscriber"
+binary = "faelight-bar"
+event_domains = ["doctor"]
+enabled = true
+
+[[plugins]]
+name = "faelight-fetch"
+description = "System information display"
+binary = "faelight-fetch"
+event_domains = []
+enabled = true

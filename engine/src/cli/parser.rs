@@ -16,6 +16,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: DoctorCommands,
     },
+    /// Manage ecosystem plugins
+    Plugin {
+        #[command(subcommand)]
+        command: PluginCommands,
+    },
     Link {
         #[command(subcommand)]
         command: LinkCommands,
@@ -129,6 +134,10 @@ pub enum DoctorCommands {
     },
     /// Check binary manifest drift
     Bins { subcmd: Option<String> },
+    /// Health trend analysis — pattern over time
+    Trend,
+    /// Health forecast — predicted trajectory
+    Forecast,
 }
 
 #[derive(Subcommand)]
@@ -394,5 +403,26 @@ pub enum TraceCommands {
     /// Show full trace for a specific domain
     Domain {
         domain: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PluginCommands {
+    /// List all registered plugins
+    List,
+    /// Register a plugin
+    Add {
+        /// Plugin name (e.g. faelight-git)
+        name: String,
+    },
+    /// Remove a plugin from registry
+    Remove {
+        /// Plugin name
+        name: String,
+    },
+    /// Show plugin status
+    Status {
+        /// Plugin name
+        name: String,
     },
 }

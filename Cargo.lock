@@ -622,6 +622,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "which",
 ]
 
 [[package]]
