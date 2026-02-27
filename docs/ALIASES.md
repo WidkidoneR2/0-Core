@@ -1,520 +1,402 @@
-# Alias Reference - Faelight Forest v6.0.0
-
-**Total Aliases:** 188+  
-**Philosophy:** Intentional, organized, documented
-
----
-
-## 📂 Navigation & Directory Management
-
-### Numbered Structure (0-Core Philosophy)
-```bash
-core         # cd ~/0-core
-src          # cd ~/1-src
-work         # cd ~/2-work
-keep         # cd ~/3-keep
-tmp          # cd ~/9-temp
-```
-
-### Quick Navigation
-```bash
-..           # cd ..
-...          # cd ../..
-....         # cd ../../..
-.....        # cd ../../../..
-cdp          # cd - (previous directory)
-```
-
-### Directory Stack (Fish-like)
-```bash
-cd ~1        # Jump to directory 1 in stack
-cd ~2        # Jump to directory 2 in stack
-dirs -v      # View directory stack
-```
-
-### Common Directories
-```bash
-desk         # ~/Desktop
-docs         # ~/Documents
-down         # ~/Downloads
-pics         # ~/Pictures
-vids         # ~/Videos
-```
-
-### Config Directories
-```bash
-conf         # ~/.config
-swayconf     # ~/.config/sway
-nvimconf     # ~/.config/nvim
-zshconf      # ~/.config/zsh
-```
+# Alias Reference — Faelight Forest v10.3.0
+**Total Aliases:** 356  
+**Philosophy:** Intentional, organized, documented  
+**Updated:** 2026-02-27
 
 ---
 
-## 📁 File Management (Modern Tools)
-
-### Eza (Modern ls)
+## Quick access to most-used commands for maximum speed
 ```bash
-ls           # eza with icons
-ll           # Long format with git status
-la           # Show hidden files
-l            # Long format
-lt           # Sort by modification time
-lsize        # Sort by size
-tree         # Tree view
+c                    # Clean terminal
+d                    # System health check
+f                    # Main CLI
+g                    # Git shortcut
+h                    # Command history
+l                    # List files
+t                    # Teaching tool
+v                    # Neovim
+y                    # File manager
+b                    # Bat viewer
 ```
 
-### Bat (Better cat)
+## Custom Rust tools for intentional system management
 ```bash
-b            # bat --paging=never (colorized view)
-catp         # bat --paging=always (paged view)
-catt         # bat --style=plain (plain style)
-ccat         # /usr/bin/cat (explicit plain cat)
+bar                  # faelight-bar
+bootstrap            # faelight-bootstrap
+bump                 # bump-system-version
+dash                 # faelight-dashboard
+dashboard            # faelight-dashboard
+dmenu                # faelight-palette
+dot                  # dotctl
+fm                   # faelight-fm
+launcher             # faelight-palette
+link                 # faelight-link
+lock                 # faelight-lock
+menu                 # faelight-menu
+notify               # faelight-notify
+term                 # faelight-term
+zone                 # faelight-zone
+doctor               # dot-doctor
+check-health         # dot-doctor
+health               # dot-doctor
+drift                # entropy-check
+entropy              # entropy-check
+audit                # echo "🏥 Running full audit..." && dot-doctor && entropy-check && security-score
+fu                   # faelight-update
+sec                  # security-audit
+sb                   # faelight-sandbox
+sb-diff              # faelight-sandbox diff
+sb-status            # faelight-sandbox status
+sb-clear             # faelight-sandbox clear
+sb-snap              # faelight-sandbox snapshot
+sb-snaps             # faelight-sandbox snapshots
+sb-restore           # faelight-sandbox restore
+sec-scan             # security-audit scan
+sec-report           # security-audit report
+sec-history          # security-audit history
+sec                  # security-audit
+sb                   # faelight-sandbox
+sb-diff              # faelight-sandbox diff
+sb-status            # faelight-sandbox status
+sb-clear             # faelight-sandbox clear
+sb-snap              # faelight-sandbox snapshot
+sb-snaps             # faelight-sandbox snapshots
+sb-restore           # faelight-sandbox restore
+sec-scan             # security-audit scan
+sec-report           # security-audit report
+sec-history          # System update
+topgrade             # Topgrade replaced by faelight-update
+fudr                 # Check updates without applying
+fui                  # Interactive update
+fuup                 # Quick update
+update               # safe-update
+safe-update          # ~/0-core/scripts/safe-update
+safe-up              # snap-now && safe-update && dot-doctor
+fg                   # faelight-git
+fga                  # faelight-git add
+fgc                  # faelight-git commit
+fgp                  # faelight-git push
+fgs                  # faelight-git status
+hooks                # faelight-hooks
+lock-core            # ~/0-core/scripts/core-protect lock
+unlock-core          # ~/0-core/scripts/core-protect unlock
+edit-core            # ~/0-core/scripts/core-protect edit
+core-status          # ~/0-core/scripts/core-protect status
+int                  # intent
+inta                 # intent add
+intc                 # intent complete
+intl                 # intent list
+ints                 # intent show
+guard                # intent-guard
+fl                   # faelight-link
+stow-check           # faelight-link status
+stow-fix             # faelight-link clean
+snap                 # faelight-snapshot
+snapshot             # faelight-snapshot
+snapcreate           # faelight-snapshot create
+snaplist             # faelight-snapshot list
+snap-now             # faelight-snapshot create "Manual snapshot at $(date +%Y%m%d_%H%M%S)"
+snap-before          # echo "📸 Creating safety snapshot..." && snap-now && echo "✅ Snapshot created!"
+ff                   # faelight-fetch
+getver               # get-version
+ver                  # get-version
+recent               # recent-files
+f-bar                # faelight-bar
+f-daemon             # faelight-daemon
+daemon-status        # systemctl --user status faelight-daemon
+daemon-log           # journalctl --user -u faelight-daemon -n 20 --no-pager
+f-bootstrap          # faelight-bootstrap
+f-dmenu              # faelight-palette
+f-fm                 # faelight-fm
+f-guard              # intent-guard
+f-hooks              # faelight-hooks
+f-launch             # faelight-palette
+f-link               # faelight-link
+f-lock               # faelight-lock
+f-menu               # faelight-menu
+f-notify             # faelight-notify
+f-recent             # recent-files
+f-term               # faelight-term
+f-ver                # get-version
+f-zone               # faelight-zone
 ```
 
-### Fd (Better find)
+## Fast access to common directories in the numbered system
 ```bash
-search       # fd
-findf        # fd --type f (files only)
-findd        # fd --type d (directories only)
+core                 # v2 orchestrator binary
+cls                  # sync all dotfiles — one command
+clp                  # preview before syncing
+ce                   # core events list
+cew                  # live event stream
+cpl                  # plugin registry
+cpa                  # register plugin
+cps                  # plugin status         # live event stream          # today's events
+ces                  # ces 1h / ces 30m / ces 2d
+cef                  # cef git / cef doctor
+csd                  # core simulate doctor
+cdt                  # health trend analysis
+cdf                  # health forecast      # predict health — no writes
+csu                  # preview updates — no writes
+cw                   # today's activity summary
+cwh                  # health trajectory
+cwd                  # cwd git / cwd doctor / cwd security
+ctr                  # last 10 events with detail
+ctrd                 # ctrd git / ctrd doctor
+0core                # navigate to 0-core root
+top                  # bottom — better htop
+repo                 # git repo summary
+bench                # benchmarking
+extract              # smart archive extraction
+compress             # smart archive creation
+diff                 # difftastic — semantic diff
+loc                  # lines of code stats
+loch                 # 0-core LOC
+cdcore               # cd ~/0-core
+src                  # cd ~/1-src
+work                 # cd ~/2-work
+ws                   # workspace-view
+keep                 # cd ~/3-keep
+conf                 # cd ~/.config
+docs                 # cd ~/Documents
+down                 # cd ~/Downloads
+pics                 # cd ~/Pictures
+vids                 # cd ~/Videos
+desk                 # cd ~/Desktop
+tmp                  # cd ~/9-temp
+secrets              # cd ~/secrets
+..                   # cd ..
+...                  # cd ../..
+....                 # cd ../../..
+.....                # cd ../../../..
+cdp                  # cd -
+nvimconf             # cd ~/.config/nvim
+swayconf             # cd ~/.config/sway
+zshconf              # cd ~/.config/zsh
 ```
 
-### Fzf (Fuzzy Finder)
+## Version control and development workflows
 ```bash
-fcd          # Fuzzy cd to directory
-vf           # Fuzzy open file in nvim
-preview      # Fuzzy find with bat preview
+g                    # git
+ga                   # git add
+gaa                  # git add -A
+gc                   # git commit -m
+gca                  # git commit --amend
+gcam                 # git commit -am
+gp                   # git push
+gl                   # git pull
+gst                  # git status
+gss                  # git status -s
+gd                   # git diff
+gds                  # git diff --staged
+gdp                  # git diff --color=always | less -R
+glog                 # git log --oneline -10
+gla                  # git log --oneline --graph --all
+gb                   # git branch
+gba                  # git branch -a
+gbd                  # git branch -d
+gbD                  # git branch -D
+gco                  # git checkout
+gcb                  # git checkout -b
+gf                   # git fetch
+gsh                  # git show
+gstash               # git stash
+gstl                 # git stash list
+gstp                 # git stash pop
+gclean               # git clean -fd
+greset               # git reset --hard
+gundo                # git reset HEAD~1
+gunstage             # git reset HEAD
+gcl                  # git clone
+lg                   # lazygit
+qc                   # git commit -m "Quick update: $(date +%Y-%m-%d)"
+qcp                  # git commit -m "Quick update: $(date +%Y-%m-%d)" && git push
+dotgit               # cd ~/0-core && git
+dotsave              # cd ~/0-core && git add -A && git commit -m "Update configs" && git push
+dotpush              # cd ~/0-core && git add -A && git commit -m "Update configs $(date +%Y-%m-%d)" && git push
+dotstatus            # cd ~/0-core && git status
+dotadd               # dotctl add
+dotlist              # dotctl list
+dotrem               # dotctl remove
+cdiff                # core-diff
+cds                  # core-diff summary
+cdv                  # core-diff --verbose
+cdd                  # core-diff --open delta
+cdm                  # core-diff --open meld
+cdh                  # core-diff --high-risk
+cdlast               # core-diff since HEAD~1
+cdrel                # core-diff since $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD)
+cdcheck              # cdiff && dot-doctor
+cdreview             # cdv && cdh
+cdbar                # core-diff faelight-bar
+cdsway               # core-diff wm-sway
+cdzsh                # core-diff shell-zsh
+cdnvim               # core-diff editor-nvim
+scan-secrets         # gitleaks detect --no-git -v
+scan-staged          # gitleaks protect --staged -v
+pre-commit           # echo "🔍 Pre-commit checks..." && gitleaks protect --staged -v && dot-doctor && echo "✅ Safe to commit!"
+secrets-mount        # gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted"
+secrets-unmount      # fusermount -u ~/secrets && echo "🔒 Secrets locked"
+arch                 # archaeology-0-core
+arch0                # archaeology-0-core
+archint              # archaeology-0-core --by-intent
+archsince            # archaeology-0-core --since
+archtime             # archaeology-0-core --timeline
+archwk               # archaeology-0-core --this-week
 ```
 
-### Yazi (File Manager)
+## System package installation and maintenance
 ```bash
-y            # yazi
-yy           # yazi
-fm           # yazi
-ya           # yazi with cd-on-quit
+yay                  # Compatibility alias
+yayi                 # paru -S
+yayr                 # paru -R
+yays                 # paru -Ss
+yayu                 # paru -Syu
+yup                  # paru -Syu
+paci                 # Install package
+pacr                 # Remove package
+pacu                 # Update system
+pacs                 # Search packages
+pacinfo              # Package info
+paclist              # List installed
+ins                  # Install package
+uns                  # Uninstall + remove deps
+orphan-clean         # paru -Rns $(paru -Qtdq) 2>/dev/null || true
+cleanup              # faelight-cleanup
+f-cleanup            # faelight-cleanup
+clean-all            # paru -Sc && paru -Yc
+orphans              # pacman -Qtdq
+unlock               # sudo rm /var/lib/pacman/db.lck
+mirror               # sudo reflector --verbose --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+fix-keys             # sudo pacman-key --init && sudo pacman-key --populate && sudo pacman-key --refresh-keys
 ```
 
----
-
-## 🔒 Core Protection (0-Core Immutability)
+## System management, monitoring, and control
 ```bash
-lock-core    # Make 0-core immutable
-unlock-core  # Unlock for editing
-edit-core    # Edit package with safety
-core-status  # Check lock status
+sysinfo              # fastfetch
+neofetch             # fastfetch
+sysver               # uname -r
+card                 # echo "╔════════════════════════════════════════╗" && echo "║  🌲 FAELIGHT FOREST v9.3.0            ║" && echo "║  🏥 Health: $(dot-doctor | grep "Health:" | awk "{print \$2}")                        ║" && echo "║  📦 Tools: 40 Production Ready         ║" && echo "║  🔒 Security: Hardened                 ║" && echo "╚════════════════════════════════════════╝"
+sr                   # reboot
+ssn                  # shutdown now
+suspend              # systemctl suspend
+hibernate            # systemctl hibernate
+logout               # swaymsg exit
+psa                  # ps auxf
+psg                  # ps aux | grep -v grep | grep -i -e VSZ -e
+cpu                  # ps auxf | sort -nr -k 3 | head -10
+mem                  # ps auxf | sort -nr -k 4 | head -10
+ports                # sudo ss -tulanp
+listening            # sudo lsof -i -P -n | grep LISTEN
+myip                 # curl -s ifconfig.me
+localip              # ip -4 addr | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1
+pingg                # ping -c 5 google.com
+security-check       # sudo pacman -Syu && echo "---" && arch-audit && echo "---" && audit-quick
+security-score       # test -f ~/.lynis-score && echo "🛡️  Hardening Index: $(cat ~/.lynis-score)/100" || echo "Run audit-full or audit-quick first"
+audit-full           # sudo lynis audit system | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score
+audit-quick          # sudo lynis audit system --quick | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score
+full-audit           # dot-doctor && entropy-check && security-check
+system-health        # dot-doctor && lynis audit system --quick
+jail-status          # sudo fail2ban-client status
+ban-list             # sudo fail2ban-client status sshd
+sway-reload          # swaymsg reload
+sway-info            # swaymsg -t get_tree
+bar-restart          # ~/0-core/scripts/launch-bar
+df                   # df -h
+du                   # du -h
+duh                  # du -sh * | sort -hr
+free                 # free -h
+snapshots            # sudo snapper -c root list
+snapper-create       # sudo snapper -c root create --description
 ```
 
----
-
-## 🔄 Smart Update System
+## Listing, viewing, and display utilities
 ```bash
-safe-update      # Safe system update with snapshots
-weekly           # Weekly maintenance check
-check-updates    # Check for available updates
-update-check     # Same as check-updates
+ls                   # eza --icons --group-directories-first
+la                   # eza -a --icons --group-directories-first
+ll                   # eza -lah --icons --group-directories-first --git
+lt                   # eza -lah --icons --sort=modified --reverse
+lsize                # eza -lah --icons --sort=size --reverse
+tree                 # eza --tree --icons --group-directories-first
+ccat                 # Original cat
+cat                  # Replaced with bat
+catp                 # Paged bat
+catt                 # Plain bat
+search               # fd
+findf                # fd --type f
+findd                # fd --type d
+fcd                  # cd $(fd --type d | fzf)
+vf                   # nvim $(fd --type f | fzf)
+preview              # fzf --preview "bat --color=always {}"
+keys                 # bat ~/0-core/docs/KEYBINDINGS.md
+keybinds             # keyscan
+conflicts            # keyscan
 ```
 
----
-
-## 📦 Package Management
-
-### Pacman
+## Editor shortcuts and configurations
 ```bash
-pacu         # sudo pacman -Syu (update)
-paci         # sudo pacman -S (install)
-pacs         # pacman -Ss (search)
-pacr         # sudo pacman -R (remove)
-pacrem       # sudo pacman -Rns (remove with deps)
-pacinfo      # pacman -Qi (package info)
-paclist      # pacman -Qqe (list installed)
+nv                   # nvim
+vi                   # nvim
+vim                  # nvim
+svi                  # sudo nvim
+lazy                 # nvim
+astro                # NVIM_APPNAME=astronvim nvim
+chad                 # NVIM_APPNAME=nvchad nvim
+lazyvim-update       # nvim --headless "+Lazy! sync" +qa
+lazyvim-clean        # nvim --headless "+Lazy! clean" +qa
+nzsh                 # nvim ~/.config/zsh/.zshrc
+nsway                # nvim ~/.config/sway/config
+nbar                 # nvim ~/0-core/rust-tools/faelight-bar/src/main.rs
 ```
 
-### Yay (AUR)
+## Miscellaneous useful commands
 ```bash
-yayu         # yay -Syu (update)
-yays         # yay -Ss (search)
-yayi         # yay -S (install)
-yayr         # yay -R (remove)
-ins          # yay -S (install shortcut)
-uns          # yay -Rns (uninstall)
-yup          # yay -Syu (update)
+now                  # date +"%T"
+nowdate              # date +"%Y-%m-%d"
+timestamp            # date +"%Y%m%d_%H%M%S"
+extract              # tar -xzvf
+targz                # tar -czf
+untar                # tar -xvf
+chx                  # chmod +x
+yp                   # Yank path
+yf                   # Yank filename
+gmail                # xdg-open "https://gmail.com"
+youtube              # xdg-open "https://youtube.com"
+chatgpt              # xdg-open "https://chat.openai.com"
+claude               # xdg-open "https://claude.ai"
+weather              # curl wttr.in
+prof                 # profile
+prof-list            # profile list
+prof-switch          # profile switch
+wsa                  # workspace-view --active
+wss                  # workspace-view --summary
+guide                # bat ~/0-core/COMPLETE_GUIDE.md
+changelog            # bat ~/0-core/CHANGELOG.md
+roadmap              # nvim ~/0-core/docs/planning/ROADMAP.md
+planning             # cd ~/0-core/docs/planning && ls
+please               # sudo !!
+fucking              # sudo !!
+reload               # source ~/.config/zsh/.zshrc
+s                    # source ~/.zshrc
+path                 # echo $PATH | tr ":" "\n"
+status               # dot-doctor && echo "" && git status
+overview             # fastfetch && echo "" && dot-doctor && echo "" && git -C ~/0-core status -s
+check-updates        # update-check
+weekly               # weekly-check
+lastup               # latest-update
+latest               # latest-update
+forest-ver           # echo "🌲 Faelight Forest v9.3.0"
+release-prep         # echo "📦 Preparing release..." && bump-system-version && compile-changelog.sh && git status
+compile-log          # ~/0-core/scripts/compile-changelog.sh
+mklog                # ~/0-core/scripts/compile-changelog.sh
+envrc-allow          # direnv allow
+envrc-deny           # direnv deny
+envrc-status         # direnv status
+envrc-check          # bat .envrc
+envrc-inspect        # bat .envrc && echo "" && echo "⚠️  INSPECT CAREFULLY BEFORE ALLOWING!" && echo "Run: direnv allow"
 ```
 
-### Maintenance
+## Auth health monitoring (added 2026-02-11)
 ```bash
-cleanup      # Remove orphaned packages
-unlock       # Remove pacman lock
-orphans      # List orphaned packages
-mirror       # Update mirror list
-clean-all    # Deep clean (cache + orphans)
-fix-keys     # Fix pacman keys
+auth-health          # ~/0-core/scripts/check-auth-health
+reset-auth           # ~/0-core/scripts/reset-auth
 ```
-
----
-
-## 🔧 Git & Version Control
-
-### LazyGit
-```bash
-lg           # lazygit (best!)
-```
-
-### Basic
-```bash
-g            # git
-gst          # git status
-gss          # git status -s
-```
-
-### Add & Commit
-```bash
-ga           # git add
-gaa          # git add -A
-gcm          # git commit -m
-gca          # git commit --amend
-gcam         # git commit -am
-```
-
-### Push & Pull
-```bash
-gp           # git push
-gl           # git pull
-gf           # git fetch
-```
-
-### Logs
-```bash
-glog         # git log --oneline -10
-gla          # git log --oneline --graph --all
-```
-
-### Branches
-```bash
-gb           # git branch
-gba          # git branch -a
-gbd          # git branch -d
-gbD          # git branch -D
-gco          # git checkout
-gcb          # git checkout -b
-```
-
-### Diff
-```bash
-gd           # git diff
-gds          # git diff --staged
-gdp          # git diff (paged with color)
-gsh          # git show
-```
-
-### Stash
-```bash
-gstash       # git stash
-gstp         # git stash pop
-gstl         # git stash list
-```
-
-### Undo/Reset
-```bash
-gundo        # git reset HEAD~1
-gunstage     # git reset HEAD
-greset       # git reset --hard
-gclean       # git clean -fd
-```
-
-### 0-Core Management
-```bash
-dotsave      # Quick commit & push
-dotpush      # Commit with date & push
-dotstatus    # Check 0-core status
-```
-
----
-
-## 🔍 Core-Diff Aliases
-
-### Quick Checks
-```bash
-cdiff        # core-diff (short form)
-cds          # core-diff summary
-cdh          # core-diff --high-risk
-cdv          # core-diff --verbose
-```
-
-### Visual Inspection
-```bash
-cdm          # core-diff --open meld
-cdd          # core-diff --open delta
-```
-
-### Historical Comparisons
-```bash
-cdlast       # Since last commit
-cdrel        # Since last release
-```
-
-### Package-Specific
-```bash
-cdsway       # core-diff wm-sway
-cdbar        # core-diff faelight-bar
-cdzsh        # core-diff shell-zsh
-cdnvim       # core-diff editor-nvim
-```
-
-### Combined Workflows
-```bash
-cdcheck      # cdiff && dot-doctor (morning check)
-cdreview     # cdv && cdh (pre-commit review)
-```
-
----
-
-## 💻 System Monitoring & Health
-
-### System Info
-```bash
-ff           # fastfetch
-neofetch     # fastfetch
-sysinfo      # fastfetch
-```
-
-### Health Checks
-```bash
-doctor       # dot-doctor
-health       # dot-doctor
-check-health # dot-doctor
-system-health # Full audit
-```
-
-### Disk & Memory
-```bash
-df           # Disk free (human-readable)
-du           # Disk usage
-duh          # Disk usage sorted
-free         # Memory usage
-```
-
-### Processes
-```bash
-psa          # ps auxf
-psg          # ps aux | grep
-mem          # Top 10 by memory
-cpu          # Top 10 by CPU
-```
-
-### Network
-```bash
-myip         # Public IP
-localip      # Local IP
-pingg        # Ping Google
-ports        # Open ports
-listening    # Listening services
-weather      # wttr.in weather
-```
-
-### Snapshots
-```bash
-snapshots    # List snapshots
-snapshot     # Create snapshot
-```
-
----
-
-## 📝 Editor Shortcuts
-
-### Neovim
-```bash
-v            # nvim
-vi           # nvim
-vim          # nvim
-nv           # nvim
-svi          # sudo nvim
-```
-
-### Quick Config Editing
-```bash
-nzsh         # Edit zshrc
-nsway        # Edit sway config
-nfoot        # Edit foot config
-nstarship    # Edit starship config
-```
-
-### LazyVim
-```bash
-lazyvim-update  # Update plugins
-lazyvim-clean   # Clean plugins
-```
-
----
-
-## 🖥️ Sway & Desktop
-
-### Sway
-```bash
-sway-reload  # Reload Sway config
-sway-info    # List windows
-sway-tree    # Show window tree
-```
-
-### faelight-bar
-```bash
-bar-restart  # Restart faelight-bar
-bar-status   # Check bar status
-```
-
-### Power
-```bash
-ssn          # Shutdown
-sr           # Reboot
-logout       # Exit Sway
-suspend      # Suspend
-hibernate    # Hibernate
-```
-
----
-
-## 🛠️ Utilities & Quick Actions
-
-### Shell
-```bash
-c            # clear
-h            # history
-reload       # Source zshrc
-path         # Show PATH
-```
-
-### Date & Time
-```bash
-now          # Current time
-nowdate      # Current date
-timestamp    # Timestamp format
-```
-
-### Sudo
-```bash
-please       # sudo !!
-fucking      # sudo !!
-```
-
-### File Operations
-```bash
-chx          # chmod +x
-extract      # tar -xzvf
-targz        # tar -czf
-untar        # tar -xvf
-```
-
-### Clipboard
-```bash
-yp           # Copy pwd to clipboard
-yf           # Copy filename to clipboard
-```
-
----
-
-## 🔐 Security & Auditing
-
-### Lynis Audits
-```bash
-audit-full   # Full system audit
-audit-quick  # Quick audit
-security-score # Show hardening score
-security-check # Complete security check
-```
-
-### Secret Scanning
-```bash
-scan-secrets  # Gitleaks detect
-scan-staged   # Gitleaks on staged
-```
-
-### Fail2ban
-```bash
-jail-status  # Fail2ban status
-ban-list     # SSH ban list
-```
-
----
-
-## 📚 Faelight Forest Documentation
-
-### Quick Reference
-```bash
-keys         # View keybindings
-guide        # Complete guide
-faelight     # Complete guide
-```
-
-### Planning
-```bash
-roadmap      # View roadmap
-ideas        # Edit roadmap
-planning     # Planning directory
-```
-
----
-
-## 💼 Productivity Apps
-```bash
-notes        # Notesnook
-notesnook    # Notesnook
-kp           # KeePassXC
-keepass      # KeePassXC
-pass         # KeePassXC
-```
-
----
-
-## 🌐 Web & Browsers
-
-### AI Assistants
-```bash
-chatgpt      # ChatGPT
-claude       # Claude.ai
-```
-
-### Common Sites
-```bash
-youtube      # YouTube
-gmail        # Gmail
-```
-
-### Browser
-```bash
-brave        # Brave browser
-```
-
----
-
-## 🔐 Direnv Security
-```bash
-envrc-check    # View .envrc
-envrc-inspect  # Inspect before allowing
-envrc-allow    # Allow .envrc
-envrc-deny     # Deny .envrc
-envrc-status   # Direnv status
-```
-
----
-
-## 💡 Tips
-
-**Finding Aliases:**
-```bash
-alias | grep keyword   # Search for specific alias
-alias | less           # Browse all aliases
-```
-
-**Custom Aliases:**
-- Add to `~/.config/zsh/.zshrc`
-- Group by category
-- Document purpose
-
-**Philosophy:**
-- Quality over quantity
-- Muscle memory > memorization
-- Document everything
-
----
-
-_Last Updated: January 9, 2026 (v6.0.0)_  
-_Part of Faelight Forest 0-Core - Sway Edition_

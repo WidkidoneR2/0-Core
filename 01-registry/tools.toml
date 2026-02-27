@@ -1,243 +1,256 @@
 # 0-Core Rust Tools Registry
 # Canonical source of truth for all production tools
+# Updated: 2026-02-27 — Faelight Forest v10.3.0
 # This registry defines the complete tool ecosystem
 
 [[tool]]
 name = "alias-audit"
-version = "1.0.0"
+version = "9.1.0"
 category = "development"
 description = "Audits shell aliases for coverage and conflicts"
 
 [[tool]]
 name = "archaeology-0-core"
-version = "1.0.0"
+version = "3.0.0"
 category = "development"
 description = "Analyzes 0-core history and evolution"
 
 [[tool]]
+name = "bin-doctor"
+version = "2.0.0"
+category = "health"
+description = "Binary manifest drift detection"
+
+[[tool]]
 name = "bump-system-version"
-version = "6.0.0"
+version = "9.4.0"
 category = "versioning"
-description = "Increments system version with pre-flight checks"
+description = "Bulletproof system version release master"
 
 [[tool]]
 name = "bump-tool-version"
-version = "1.0.0"
+version = "2.1.0"
 category = "versioning"
-description = "Increments individual tool versions"
+description = "Individual tool version bumping"
+
+[[tool]]
+name = "core"
+version = "2.0.0"
+category = "core"
+description = "Main engine — 15 domains, capability model"
 
 [[tool]]
 name = "core-diff"
-version = "1.0.0"
+version = "3.1.0"
 category = "development"
-description = "Shows changes in 0-core with policy awareness"
+description = "Diff system state across versions"
 
 [[tool]]
 name = "core-protect"
-version = "1.0.0"
+version = "2.3.0"
 category = "security"
-description = "Protects 0-core from accidental modifications"
-
-[[tool]]
-name = "dot-doctor"
-version = "0.5.0"
-category = "monitoring"
-description = "Health engine with 15 system checks"
+description = "Lock/unlock core protection system"
 
 [[tool]]
 name = "dotctl"
-version = "1.0.0"
-category = "management"
-description = "Unified dotfile management interface"
+version = "3.1.0"
+category = "dotfiles"
+description = "Dotfile control center — stow package management"
 
 [[tool]]
 name = "entropy-check"
-version = "1.0.0"
-category = "monitoring"
-description = "Detects configuration drift"
+version = "2.0.0"
+category = "health"
+description = "Configuration entropy and drift detection"
 
 [[tool]]
 name = "faelight"
-version = "1.0.0"
+version = "2.1.0"
 category = "core"
-description = "Unified CLI frontend for all Faelight tools"
+description = "Core launcher and entry point"
 
 [[tool]]
 name = "faelight-bar"
-version = "2.0.0"
-category = "desktop"
-description = "Custom Wayland status bar"
+version = "5.0.0"
+category = "ui"
+description = "Wayland status bar — health subscriber"
 
 [[tool]]
 name = "faelight-bootstrap"
+version = "2.1.0"
+category = "system"
+description = "System bootstrap and provisioning"
+
+[[tool]]
+name = "faelight-browser"
+version = "0.4.0"
+category = "tools"
+description = "TUI web browser with w3m-style navigation"
+
+[[tool]]
+name = "faelight-cleanup"
 version = "1.0.0"
-category = "automation"
-description = "One-command system setup"
+category = "system"
+description = "System cleanup and temp file management"
 
 [[tool]]
 name = "faelight-core"
 version = "1.0.0"
 category = "core"
-description = "Shared library for all Faelight tools"
+description = "Shared core library"
 
 [[tool]]
 name = "faelight-daemon"
-version = "1.0.0"
-category = "desktop"
-description = "Background daemon for system services"
+version = "3.0.0"
+category = "core"
+description = "Background daemon with event bus and pub/sub"
 
 [[tool]]
 name = "faelight-dashboard"
-version = "1.0.0"
-category = "desktop"
-description = "System overview dashboard"
-
-[[tool]]
-name = "faelight-dmenu"
-version = "1.0.0"
-category = "desktop"
-description = "Application launcher and menu system"
+version = "2.1.0"
+category = "ui"
+description = "System dashboard overview"
 
 [[tool]]
 name = "faelight-fetch"
-version = "1.0.0"
-category = "automation"
-description = "Intelligent file fetcher"
+version = "2.3.0"
+category = "ui"
+description = "System information display with live resources"
 
 [[tool]]
 name = "faelight-fm"
-version = "1.0.0"
-category = "desktop"
-description = "File manager (better than yazi)"
+version = "2.3.0"
+category = "tools"
+description = "Terminal file manager with daemon integration"
 
 [[tool]]
 name = "faelight-git"
-version = "2.0.0"
+version = "3.3.0"
 category = "development"
-description = "Git workflow automation with risk scoring"
+description = "Git operations with Risk Score engine"
 
 [[tool]]
 name = "faelight-hooks"
-version = "1.0.0"
+version = "10.3.0"
 category = "development"
-description = "Git hook management system"
-
-[[tool]]
-name = "faelight-launcher"
-version = "1.0.0"
-category = "desktop"
-description = "Application launcher with fuzzy search"
+description = "Git hooks management"
 
 [[tool]]
 name = "faelight-link"
-version = "1.0.0"
-category = "management"
-description = "Zone-aware symlink manager (stow replacement)"
+version = "2.0.0"
+category = "dotfiles"
+description = "Symlink management and audit"
 
 [[tool]]
 name = "faelight-lock"
-version = "1.0.0"
-category = "desktop"
-description = "Screen locker"
+version = "2.1.0"
+category = "security"
+description = "File and directory locking"
 
 [[tool]]
 name = "faelight-menu"
-version = "1.0.0"
-category = "desktop"
-description = "Power menu"
+version = "3.0.0"
+category = "ui"
+description = "Power management and system menu"
 
 [[tool]]
 name = "faelight-notify"
-version = "1.0.0"
-category = "desktop"
-description = "Notification daemon"
+version = "2.1.0"
+category = "ui"
+description = "Notification system"
+
+[[tool]]
+name = "faelight-palette"
+version = "2.0.0"
+category = "ui"
+description = "Color palette and theme management"
+
+[[tool]]
+name = "faelight-sandbox"
+version = "1.1.0"
+category = "development"
+description = "Safe execution sandbox with session history"
 
 [[tool]]
 name = "faelight-snapshot"
-version = "1.0.0"
-category = "automation"
-description = "BTRFS snapshot management"
-
-[[tool]]
-name = "faelight-stow"
-version = "1.0.0"
-category = "management"
-description = "GNU Stow integration"
+version = "2.0.0"
+category = "system"
+description = "System snapshot and restore"
 
 [[tool]]
 name = "faelight-term"
-version = "1.0.0"
-category = "desktop"
-description = "Custom terminal emulator"
+version = "10.3.0"
+category = "ui"
+description = "Terminal emulator"
 
 [[tool]]
 name = "faelight-update"
-version = "1.0.0"
-category = "automation"
-description = "Comprehensive package updater (better than topgrade)"
+version = "3.3.0"
+category = "system"
+description = "System update manager with rollback"
 
 [[tool]]
 name = "faelight-zone"
-version = "1.0.0"
-category = "management"
-description = "Zone management system"
+version = "2.1.0"
+category = "system"
+description = "Zone management and context switching"
 
 [[tool]]
 name = "get-version"
-version = "1.0.0"
+version = "4.0.0"
 category = "versioning"
-description = "Retrieves package/system versions"
+description = "Version query tool"
 
 [[tool]]
 name = "intent"
-version = "1.0.0"
-category = "development"
-description = "Intent ledger management CLI"
+version = "3.0.0"
+category = "planning"
+description = "Intent ledger management"
 
 [[tool]]
 name = "intent-guard"
-version = "1.0.0"
-category = "security"
-description = "Command safety verification"
+version = "2.1.0"
+category = "planning"
+description = "Intent discipline and focus enforcement"
 
 [[tool]]
 name = "keyscan"
-version = "1.0.0"
-category = "desktop"
-description = "Keybinding scanner"
+version = "3.0.0"
+category = "security"
+description = "SSH key scanner and audit"
 
 [[tool]]
 name = "latest-update"
-version = "1.0.0"
-category = "monitoring"
-description = "Shows most recent package updates"
+version = "4.0.0"
+category = "system"
+description = "Latest update tracker"
 
 [[tool]]
 name = "profile"
-version = "1.0.0"
-category = "management"
-description = "System profile switcher"
-
-[[tool]]
-name = "recent-files"
-version = "1.0.0"
-category = "desktop"
-description = "Recent files tracker"
+version = "2.1.0"
+category = "system"
+description = "Profile management"
 
 [[tool]]
 name = "safe-update"
-version = "1.0.0"
-category = "automation"
-description = "Safe system update wrapper"
+version = "2.1.0"
+category = "system"
+description = "Safe system update with health gates"
 
 [[tool]]
 name = "teach"
-version = "1.0.0"
-category = "education"
-description = "Interactive teaching mode"
+version = "4.0.0"
+category = "development"
+description = "Live system narrator with presentation mode"
+
+[[tool]]
+name = "verify-bootstrap"
+version = "2.0.0"
+category = "system"
+description = "Bootstrap verification"
 
 [[tool]]
 name = "workspace-view"
-version = "1.0.0"
-category = "desktop"
-description = "Workspace overview display"
+version = "2.0.0"
+category = "development"
+description = "Workspace overview and navigation"
