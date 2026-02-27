@@ -438,3 +438,89 @@ fn extract_field(payload: &str, field: &str) -> String {
         })
         .unwrap_or_default()
 }
+
+// ── Phase 4: Live Event Watch ─────────────────────────────────────────────────
+
+pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
+    use std::io::{BufRead, BufReader, Write};
+    use std::os::unix::net::UnixStream;
+
+    let home = std::env::var("HOME").unwrap_or_default();
+    let socket_path = format!("{}/.local/state/0-core/daemon.sock", home);
+
+    let stream = match UnixStream::connect(&socket_path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("  {} Cannot connect to faelight-daemon: {}", "✗".bright_red(), e);
+            eprintln!("  {} Is faelight-daemon running?", "💡".yellow());
+            eprintln!("  {} systemctl --user status faelight-daemon", "→".dimmed());
+            return Ok(());
+        }
+    };
+
+    println!("{}", "🌲 Event Watch — Live Stream".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  {} Connected to faelight-daemon", "✓".green());
+    println!("  {} Waiting for events... (Ctrl+C to stop)", "→".dimmed());
+    println!();
+
+    // Send EventStream command
+    let msg = serde_json::json!({
+        "id": 1,
+        "payload": { "EventStream": null }
+    });
+    let mut writer = stream.try_clone()?;
+    writeln!(writer, "{}", msg)?;
+
+    // Read responses
+    let reader = BufReader::new(stream);
+    for line in reader.lines() {
+        let line = line?;
+        if line.is_empty() { continue; }
+
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+
+        let payload = &parsed["payload"];
+
+        // Skip the Subscribed confirmation
+        if payload.get("Subscribed").is_some() {
+            println!("  {} Subscription confirmed", "✓".green().dimmed());
+            continue;
+        }
+
+        // Handle Event
+        if let Some(event) = payload.get("Event") {
+            let domain = event["domain"].as_str().unwrap_or("?");
+            let action = event["action"].as_str().unwrap_or("?");
+            let ts = event["timestamp"].as_i64().unwrap_or(0);
+            let time = format_ts(ts);
+
+            let result = event["payload"].as_str()
+                .and_then(|p| {
+                    p.find("\"result\":\"")
+                        .map(|i| &p[i + 10..])
+                        .and_then(|s| s.find('"').map(|e| &s[..e]))
+                })
+                .unwrap_or("ok");
+
+            let result_colored = if result == "ok" || result == "pass" {
+                result.green().to_string()
+            } else {
+                result.yellow().to_string()
+            };
+
+            println!(
+                "  {} {} {} {}  {}",
+                time.dimmed(),
+                domain.cyan(),
+                "›".dimmed(),
+                action.white(),
+                result_colored,
+            );
+        }
+    }
+
+    Ok(())
+}

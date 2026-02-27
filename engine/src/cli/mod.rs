@@ -191,6 +191,7 @@ pub fn parse() -> Command {
             EventsCommands::List => EventsCommand::List,
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
+            EventsCommands::Watch => EventsCommand::Watch,
         }),
         Commands::Why { command } => Command::Why(match command {
             WhyCommands::Summary => WhyCommand::Summary,

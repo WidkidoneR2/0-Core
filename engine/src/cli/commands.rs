@@ -197,6 +197,7 @@ pub enum EventsCommand {
     List,
     Since { duration: String },
     Filter { domain: String },
+    Watch,
 }
 
 #[derive(Debug)]

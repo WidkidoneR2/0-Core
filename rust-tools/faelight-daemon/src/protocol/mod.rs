@@ -21,6 +21,12 @@ pub enum Command {
 
     /// Shutdown daemon
     Shutdown,
+
+    /// Subscribe to event stream for specific domains (empty = all)
+    Subscribe { domains: Vec<String> },
+
+    /// Stream all events live to terminal
+    EventStream,
 }
 
 /// Responses sent from daemon to client
@@ -43,6 +49,17 @@ pub enum Response {
 
     /// Error occurred
     Error { message: String },
+
+    /// Live event pushed to subscriber
+    Event {
+        domain: String,
+        action: String,
+        payload: Option<String>,
+        timestamp: i64,
+    },
+
+    /// Subscription confirmed
+    Subscribed { domains: Vec<String> },
 }
 
 /// File entry information

@@ -363,6 +363,8 @@ pub enum EventsCommands {
     Filter {
         domain: String,
     },
+    /// Live event stream — watch events as they happen
+    Watch,
 }
 
 #[derive(Subcommand)]

@@ -281,6 +281,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 EventsCommand::List => crate::domains::events::list(ctx),
                 EventsCommand::Since { duration } => crate::domains::events::since(ctx, &duration),
                 EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),
+                EventsCommand::Watch => crate::domains::events::watch(ctx),
             }
         }
         Command::Why(c) => {
