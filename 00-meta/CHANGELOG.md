@@ -1,5 +1,39 @@
 # Changelog
 
+## v10.3.0 - 🧠 Core v3 — The Living System (2026-02-26)
+
+- Core v3 Phase 1: Event Ledger — doctor, git, security, update write structured events to SQLite
+- Core v3 Phase 2: Causality Engine — cw/cwh/cwd/ctr/ctrd trace why system is in current state
+- Core v3 Phase 3: Simulation Engine — csd/csu dry-run predictions without mutation
+- Core v3 Phase 4: Event Bus — faelight-daemon v3.0.0 SQLite polling + live broadcast (cew)
+- Core v3 Phase 5: Plugin Registry — ecosystem manifest with domain mapping (cpl/cpa/cps)
+- Core v3 Phase 6: Health Forecasting — trend analysis + trajectory prediction (cdt/cdf)
+- bump-system-version v9.4.0 — cache health, real rollback, fixed commit count, event ledger write
+- faelight-sandbox v1.1.0 — correct change count, reflink=auto, session history ring buffer
+- faelight-fetch v2.3.0 — live resources, cache health, term detection, 0-core stats
+- faelight-update v3.3.0 — LazyVim support, safe pacman checker, smart health gate
+- faelight-git v3.3.0 — lazygit retired, native commit, file-level status
+- teach v4.0.0 — live system narrator, persona detection, presentation mode
+
+**Tools Updated:** faelight-daemon, faelight-fetch, faelight-git, faelight-update, teach, faelight-sandbox, bump-system-version
+
+**Statistics:**
+- 343 aliases across 43 tools
+- 1280 commits indexed
+- 19 commits since v10.2.0
+- 6 new core commands: cew, cpl, cpa, cps, cdt, cdf
+- faelight-daemon v3.0.0 with pub/sub event broadcast
+- 5 plugins registered in ecosystem registry
+
+- System Health: 95%
+- Commits: 19
+- Files Changed: 38
+
+> "The forest doesn't just run — it thinks, remembers, and forecasts." — Intent 093
+
+---
+
+
 ## v10.2.0 - 🌲 Two Tools Out of WIP — faelight-term & faelight-browser production ready (2026-02-26)
 
 - ENDfaelight-term v10.3.0 — OUT OF WIP
