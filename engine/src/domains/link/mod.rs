@@ -417,7 +417,6 @@ pub fn redeploy(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     Ok(())
 }
 
-
 pub fn sync(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     ctx.capabilities.require(
         "link",
@@ -428,7 +427,7 @@ pub fn sync(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     )?;
 
     let stow_dir = stow_dir(ctx);
-    let home     = PathBuf::from(&ctx.home);
+    let home = PathBuf::from(&ctx.home);
     let packages = resolve_packages(&stow_dir, package);
 
     println!("{}", "━".repeat(52).dimmed());
@@ -436,17 +435,28 @@ pub fn sync(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
-    let mut total_created  = 0usize;
-    let mut total_skipped  = 0usize;
+    let mut total_created = 0usize;
+    let mut total_skipped = 0usize;
     let mut total_conflicts: Vec<(String, PathBuf, String)> = vec![];
 
     for pkg in &packages {
         let ops = build_plan(&stow_dir.join(pkg), &home);
 
-        let creates:   Vec<_> = ops.iter().filter(|o| matches!(o, Op::Create  { .. })).count().to_string().into_bytes();
-        let conflicts: Vec<_> = ops.iter().filter(|o| matches!(o, Op::Conflict{ .. })).collect();
-        let skips                = ops.iter().filter(|o| matches!(o, Op::Skip   { .. })).count();
-        let creates_count        = ops.iter().filter(|o| matches!(o, Op::Create { .. })).count();
+        let creates: Vec<_> = ops
+            .iter()
+            .filter(|o| matches!(o, Op::Create { .. }))
+            .count()
+            .to_string()
+            .into_bytes();
+        let conflicts: Vec<_> = ops
+            .iter()
+            .filter(|o| matches!(o, Op::Conflict { .. }))
+            .collect();
+        let skips = ops.iter().filter(|o| matches!(o, Op::Skip { .. })).count();
+        let creates_count = ops
+            .iter()
+            .filter(|o| matches!(o, Op::Create { .. }))
+            .count();
         let _ = creates;
 
         if creates_count == 0 && conflicts.is_empty() {
@@ -475,9 +485,7 @@ pub fn sync(ctx: &AppContext, package: Option<&str>) -> CoreResult<()> {
                             println!(
                                 "    {} {}",
                                 "linked".bright_green(),
-                                link.strip_prefix(&home)
-                                    .unwrap_or(link.as_path())
-                                    .display()
+                                link.strip_prefix(&home).unwrap_or(link.as_path()).display()
                             );
                             total_created += 1;
                         }

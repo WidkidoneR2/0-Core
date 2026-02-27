@@ -40,28 +40,28 @@ impl FileState {
     /// Single-character symbol shown in status column
     pub fn symbol(&self) -> &str {
         match self {
-            FileState::Staged          => "●",
-            FileState::StagedNew       => "●",
-            FileState::StagedDeleted   => "●",
-            FileState::StagedRenamed(_)=> "●",
-            FileState::Modified        => "○",
-            FileState::Deleted         => "○",
+            FileState::Staged => "●",
+            FileState::StagedNew => "●",
+            FileState::StagedDeleted => "●",
+            FileState::StagedRenamed(_) => "●",
+            FileState::Modified => "○",
+            FileState::Deleted => "○",
             FileState::PartiallyStaged => "◐",
-            FileState::Untracked       => "?",
+            FileState::Untracked => "?",
         }
     }
 
     /// Short label shown next to the symbol
     pub fn label(&self) -> &str {
         match self {
-            FileState::Staged           => "staged",
-            FileState::StagedNew        => "new",
-            FileState::StagedDeleted    => "deleted",
+            FileState::Staged => "staged",
+            FileState::StagedNew => "new",
+            FileState::StagedDeleted => "deleted",
             FileState::StagedRenamed(_) => "renamed",
-            FileState::Modified         => "modified",
-            FileState::Deleted          => "deleted",
-            FileState::PartiallyStaged  => "partial",
-            FileState::Untracked        => "untracked",
+            FileState::Modified => "modified",
+            FileState::Deleted => "deleted",
+            FileState::PartiallyStaged => "partial",
+            FileState::Untracked => "untracked",
         }
     }
 
@@ -119,8 +119,8 @@ impl WorkingTreeStatus {
 /// A single commit entry for the log view
 #[derive(Debug, Clone)]
 pub struct CommitEntry {
-    pub hash: String,       // short 7-char hash
-    pub hash_full: String,  // full hash
+    pub hash: String,      // short 7-char hash
+    pub hash_full: String, // full hash
     pub author: String,
     pub time_ago: String,
     pub message: String,
@@ -166,9 +166,11 @@ impl GitRepo {
             let s = entry.status();
 
             // Determine rename target if applicable
-            let head_delta = entry
-                .head_to_index()
-                .map(|d| d.new_file().path().map(|p| p.to_string_lossy().into_owned()));
+            let head_delta = entry.head_to_index().map(|d| {
+                d.new_file()
+                    .path()
+                    .map(|p| p.to_string_lossy().into_owned())
+            });
 
             let state = if s.contains(Status::INDEX_NEW) && s.contains(Status::WT_MODIFIED) {
                 FileState::PartiallyStaged
@@ -177,9 +179,7 @@ impl GitRepo {
             } else if s.contains(Status::INDEX_DELETED) {
                 FileState::StagedDeleted
             } else if s.contains(Status::INDEX_RENAMED) {
-                let new_name = head_delta
-                    .flatten()
-                    .unwrap_or_else(|| path.clone());
+                let new_name = head_delta.flatten().unwrap_or_else(|| path.clone());
                 FileState::StagedRenamed(new_name)
             } else if s.contains(Status::INDEX_MODIFIED) && s.contains(Status::WT_MODIFIED) {
                 FileState::PartiallyStaged
@@ -202,7 +202,12 @@ impl GitRepo {
         let staged = files.iter().filter(|f| f.state.is_staged()).count();
         let modified = files
             .iter()
-            .filter(|f| matches!(f.state, FileState::Modified | FileState::Deleted | FileState::PartiallyStaged))
+            .filter(|f| {
+                matches!(
+                    f.state,
+                    FileState::Modified | FileState::Deleted | FileState::PartiallyStaged
+                )
+            })
             .count();
         let untracked = files
             .iter()
@@ -275,15 +280,8 @@ impl GitRepo {
 
             let hash_full = oid.to_string();
             let hash = hash_full[..7].to_string();
-            let author = commit
-                .author()
-                .name()
-                .unwrap_or("unknown")
-                .to_string();
-            let message = commit
-                .summary()
-                .unwrap_or("(no message)")
-                .to_string();
+            let author = commit.author().name().unwrap_or("unknown").to_string();
+            let message = commit.summary().unwrap_or("(no message)").to_string();
 
             // Human-readable time
             let now = std::time::SystemTime::now()
@@ -335,7 +333,8 @@ impl GitRepo {
     /// Unstage a single file
     pub fn unstage_file(&self, path: &str) -> Result<()> {
         let head = self.repo.head()?.peel_to_commit()?;
-        self.repo.reset_default(Some(head.as_object()), [path].iter())?;
+        self.repo
+            .reset_default(Some(head.as_object()), [path].iter())?;
         Ok(())
     }
 
@@ -349,17 +348,13 @@ impl GitRepo {
         let parent_commit = self.repo.head()?.peel_to_commit();
 
         let oid = match parent_commit {
-            Ok(parent) => self.repo.commit(
-                Some("HEAD"),
-                &sig,
-                &sig,
-                message,
-                &tree,
-                &[&parent],
-            )?,
+            Ok(parent) => self
+                .repo
+                .commit(Some("HEAD"), &sig, &sig, message, &tree, &[&parent])?,
             Err(_) => {
                 // Initial commit — no parent
-                self.repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])?
+                self.repo
+                    .commit(Some("HEAD"), &sig, &sig, message, &tree, &[])?
             }
         };
 
@@ -372,16 +367,11 @@ impl GitRepo {
         let commit = self.repo.find_commit(oid)?;
         let tree = commit.tree()?;
 
-        let parent_tree = commit
-            .parent(0)
-            .ok()
-            .and_then(|p| p.tree().ok());
+        let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
 
-        let diff = self.repo.diff_tree_to_tree(
-            parent_tree.as_ref(),
-            Some(&tree),
-            None,
-        )?;
+        let diff = self
+            .repo
+            .diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
 
         let stats = diff.stats()?;
         Ok(format!(

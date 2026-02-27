@@ -59,12 +59,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── Risk check ────────────────────────────────────────────
     let risk = RiskScore::calculate(&repo)?;
-    println!(
-        "  {} {} {}/100",
-        "risk".dimmed(),
-        risk.emoji(),
-        risk.total
-    );
+    println!("  {} {} {}/100", "risk".dimmed(), risk.emoji(), risk.total);
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
@@ -95,7 +90,10 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── Intent ────────────────────────────────────────────────
     let intent_ref = if no_intent {
-        println!("{}", "  ⚠️  Proceeding without intent (--no-intent)".yellow());
+        println!(
+            "{}",
+            "  ⚠️  Proceeding without intent (--no-intent)".yellow()
+        );
         None
     } else if let Some(ref i) = intent {
         println!("  {} linked to intent {}", "✅".green(), i.cyan());

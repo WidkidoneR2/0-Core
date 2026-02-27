@@ -322,14 +322,16 @@ fn run_health_check() -> Result<()> {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Parse health percentage from "Health:   90%" line
-    let health_pct = stdout.lines()
+    let health_pct = stdout
+        .lines()
         .find(|l| l.trim().starts_with("Health:"))
         .and_then(|l| l.split_whitespace().last())
         .and_then(|s| s.trim_end_matches('%').parse::<u32>().ok())
         .unwrap_or(100);
 
     // Parse failed count from "Failed:   0" line
-    let failed = stdout.lines()
+    let failed = stdout
+        .lines()
         .find(|l| l.trim().starts_with("Failed:"))
         .and_then(|l| l.split_whitespace().last())
         .and_then(|s| s.parse::<u32>().ok())
@@ -337,7 +339,12 @@ fn run_health_check() -> Result<()> {
 
     if failed > 0 {
         // Hard failures — warn but do not block (manual control over automation)
-        println!("   {}  Health {}% — {} checks failed (use --skip-health to suppress)", "⚠️".yellow(), health_pct, failed);
+        println!(
+            "   {}  Health {}% — {} checks failed (use --skip-health to suppress)",
+            "⚠️".yellow(),
+            health_pct,
+            failed
+        );
     } else {
         println!("   {}  System healthy ({}%)", "✅".green(), health_pct);
     }

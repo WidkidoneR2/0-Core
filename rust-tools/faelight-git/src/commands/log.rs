@@ -28,12 +28,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
         (0, b) => format!("↓{} behind", b).red().to_string(),
         (a, b) => format!("↑{} ↓{}", a, b).red().to_string(),
     };
-    println!(
-        "  {} {}  {}",
-        " ".dimmed(),
-        branch.green().bold(),
-        sync
-    );
+    println!("  {} {}  {}", " ".dimmed(), branch.green().bold(), sync);
     println!();
 
     // ── Commit graph ──────────────────────────────────────────
@@ -43,7 +38,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
 
         // Graph line character
         let glyph = if i == 0 {
-            "◉".cyan().bold()  // HEAD
+            "◉".cyan().bold() // HEAD
         } else {
             "○".dimmed()
         };
@@ -87,7 +82,7 @@ pub fn run(count: Option<usize>) -> Result<()> {
         "  {} {}  {} to show more",
         "showing".dimmed(),
         format!("{} commits", total).white(),
-        format!("faelight-git log -n <count>").dimmed()
+        "faelight-git log -n <count>".to_string().dimmed()
     );
     println!();
 
@@ -108,32 +103,31 @@ pub fn run(count: Option<usize>) -> Result<()> {
 /// Color commit message by conventional commit type
 fn colorize_message(msg: &str) -> String {
     let prefixes = [
-        ("feat:",     "cyan"),
-        ("fix:",      "green"),
-        ("chore:",    "yellow"),
+        ("feat:", "cyan"),
+        ("fix:", "green"),
+        ("chore:", "yellow"),
         ("refactor:", "blue"),
-        ("docs:",     "white"),
-        ("test:",     "magenta"),
-        ("perf:",     "cyan"),
-        ("style:",    "white"),
-        ("build:",    "yellow"),
-        ("ci:",       "yellow"),
-        ("revert:",   "red"),
+        ("docs:", "white"),
+        ("test:", "magenta"),
+        ("perf:", "cyan"),
+        ("style:", "white"),
+        ("build:", "yellow"),
+        ("ci:", "yellow"),
+        ("revert:", "red"),
         ("BREAKING:", "red"),
     ];
 
     for (prefix, color) in prefixes {
-        if msg.starts_with(prefix) {
+        if let Some(rest) = msg.strip_prefix(prefix) {
             let typed = match color {
-                "cyan"    => prefix.cyan().bold().to_string(),
-                "green"   => prefix.green().bold().to_string(),
-                "yellow"  => prefix.yellow().bold().to_string(),
-                "blue"    => prefix.blue().bold().to_string(),
+                "cyan" => prefix.cyan().bold().to_string(),
+                "green" => prefix.green().bold().to_string(),
+                "yellow" => prefix.yellow().bold().to_string(),
+                "blue" => prefix.blue().bold().to_string(),
                 "magenta" => prefix.magenta().bold().to_string(),
-                "red"     => prefix.red().bold().to_string(),
-                _         => prefix.white().bold().to_string(),
+                "red" => prefix.red().bold().to_string(),
+                _ => prefix.white().bold().to_string(),
             };
-            let rest = &msg[prefix.len()..];
             return format!("{}{}", typed, rest.white());
         }
     }
@@ -145,15 +139,11 @@ fn show_commit(hash: &str) -> Result<()> {
     let repo = GitRepo::open()?;
 
     println!();
-    println!(
-        "{}",
-        format!("  ── commit {} ──", hash).cyan().bold()
-    );
+    println!("{}", format!("  ── commit {} ──", hash).cyan().bold());
 
     // Try to get diff stat from our native impl
-    match repo.diff_stat(hash) {
-        Ok(stat) => println!("  {}", stat.dimmed()),
-        Err(_)   => {}
+    if let Ok(stat) = repo.diff_stat(hash) {
+        println!("  {}", stat.dimmed())
     }
 
     println!();

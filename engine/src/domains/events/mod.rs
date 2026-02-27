@@ -16,10 +16,18 @@ pub fn since(ctx: &AppContext, duration: &str) -> CoreResult<()> {
 }
 
 pub fn filter(ctx: &AppContext, domain: &str) -> CoreResult<()> {
-    query_events(ctx, &format!("timestamp >= {}", chrono_today()), Some(domain))
+    query_events(
+        ctx,
+        &format!("timestamp >= {}", chrono_today()),
+        Some(domain),
+    )
 }
 
-fn query_events(ctx: &AppContext, where_clause: &str, domain_filter: Option<&str>) -> CoreResult<()> {
+fn query_events(
+    ctx: &AppContext,
+    where_clause: &str,
+    domain_filter: Option<&str>,
+) -> CoreResult<()> {
     let sql = if let Some(d) = domain_filter {
         format!(
             "SELECT domain, action, payload, timestamp FROM events WHERE {} AND domain = '{}' ORDER BY timestamp DESC LIMIT 100",
@@ -53,7 +61,8 @@ fn query_events(ctx: &AppContext, where_clause: &str, domain_filter: Option<&str
         let time = format_ts(ts);
 
         // Extract result from payload JSON simply
-        let result = payload.as_deref()
+        let result = payload
+            .as_deref()
             .and_then(|p| {
                 p.find("\"result\":\"")
                     .map(|i| &p[i + 10..])
@@ -104,12 +113,12 @@ fn chrono_today() -> i64 {
 
 fn parse_duration(s: &str) -> i64 {
     let s = s.trim();
-    if s.ends_with('h') {
-        s[..s.len()-1].parse::<i64>().unwrap_or(1) * 3600
-    } else if s.ends_with('d') {
-        s[..s.len()-1].parse::<i64>().unwrap_or(1) * 86400
-    } else if s.ends_with('m') {
-        s[..s.len()-1].parse::<i64>().unwrap_or(1) * 60
+    if let Some(n) = s.strip_suffix('h') {
+        n.parse::<i64>().unwrap_or(1) * 3600
+    } else if let Some(n) = s.strip_suffix('d') {
+        n.parse::<i64>().unwrap_or(1) * 86400
+    } else if let Some(n) = s.strip_suffix('m') {
+        n.parse::<i64>().unwrap_or(1) * 60
     } else {
         3600 // default 1h
     }
@@ -124,7 +133,12 @@ fn format_ts(ts: i64) -> String {
         Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
         Err(_) => {
             let secs = ts % 86400;
-            format!("{:02}:{:02}:{:02}", secs/3600, (secs%3600)/60, secs%60)
+            format!(
+                "{:02}:{:02}:{:02}",
+                secs / 3600,
+                (secs % 3600) / 60,
+                secs % 60
+            )
         }
     }
 }
@@ -137,9 +151,12 @@ pub fn why_summary(ctx: &AppContext) -> CoreResult<()> {
         "SELECT domain, action, payload, timestamp FROM events WHERE timestamp >= ? ORDER BY timestamp ASC LIMIT 200"
     )?;
 
-    let rows: Vec<(String, String, Option<String>, i64)> = stmt.query_map(params![today], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(String, String, Option<String>, i64)> = stmt
+        .query_map(params![today], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     println!("{}", "🌲 Why — System Activity Summary".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -152,14 +169,18 @@ pub fn why_summary(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Group by domain
-    let mut domains: std::collections::BTreeMap<String, Vec<(String, Option<String>, i64)>> = std::collections::BTreeMap::new();
+    let mut domains: std::collections::BTreeMap<String, Vec<(String, Option<String>, i64)>> =
+        std::collections::BTreeMap::new();
     for (domain, action, payload, ts) in &rows {
-        domains.entry(domain.clone()).or_default().push((action.clone(), payload.clone(), *ts));
+        domains
+            .entry(domain.clone())
+            .or_default()
+            .push((action.clone(), payload.clone(), *ts));
     }
 
     let total = rows.len();
     let first_ts = rows.first().map(|r| r.3).unwrap_or(0);
-    let last_ts  = rows.last().map(|r| r.3).unwrap_or(0);
+    let last_ts = rows.last().map(|r| r.3).unwrap_or(0);
 
     println!(
         "  {} events today  •  {} to {}",
@@ -172,9 +193,14 @@ pub fn why_summary(ctx: &AppContext) -> CoreResult<()> {
     for (domain, events) in &domains {
         let count = events.len();
         let last = events.last().map(|e| format_ts(e.2)).unwrap_or_default();
-        let warns = events.iter().filter(|e| {
-            e.1.as_deref().map(|p| p.contains("\"result\":\"warn\"")).unwrap_or(false)
-        }).count();
+        let warns = events
+            .iter()
+            .filter(|e| {
+                e.1.as_deref()
+                    .map(|p| p.contains("\"result\":\"warn\""))
+                    .unwrap_or(false)
+            })
+            .count();
 
         let status = if warns > 0 {
             format!("⚠️  {} warning(s)", warns).yellow().to_string()
@@ -208,7 +234,12 @@ pub fn why_summary(ctx: &AppContext) -> CoreResult<()> {
                     let critical = extract_field(p, "critical");
                     let high = extract_field(p, "high");
                     if !critical.is_empty() {
-                        println!("    {} findings: {} critical, {} high", "→".dimmed(), critical, high);
+                        println!(
+                            "    {} findings: {} critical, {} high",
+                            "→".dimmed(),
+                            critical,
+                            high
+                        );
                     }
                 }
             }
@@ -226,9 +257,10 @@ pub fn why_health(ctx: &AppContext) -> CoreResult<()> {
         "SELECT payload, timestamp FROM events WHERE timestamp >= ? AND domain = 'doctor' ORDER BY timestamp ASC LIMIT 50"
     )?;
 
-    let rows: Vec<(Option<String>, i64)> = stmt.query_map(params![today], |row| {
-        Ok((row.get(0)?, row.get(1)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(Option<String>, i64)> = stmt
+        .query_map(params![today], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
 
     println!("{}", "🌲 Why — Health Trajectory".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -243,20 +275,34 @@ pub fn why_health(ctx: &AppContext) -> CoreResult<()> {
     let mut prev_health: Option<i64> = None;
 
     for (payload, ts) in &rows {
-        let health_str = payload.as_deref()
+        let health_str = payload
+            .as_deref()
             .map(|p| extract_field(p, "health"))
             .unwrap_or_default();
         let health: i64 = health_str.parse().unwrap_or(0);
-        let passed = payload.as_deref().map(|p| extract_field(p, "passed")).unwrap_or_default();
-        let warnings = payload.as_deref().map(|p| extract_field(p, "warnings")).unwrap_or_default();
-        let failed = payload.as_deref().map(|p| extract_field(p, "failed")).unwrap_or_default();
+        let passed = payload
+            .as_deref()
+            .map(|p| extract_field(p, "passed"))
+            .unwrap_or_default();
+        let warnings = payload
+            .as_deref()
+            .map(|p| extract_field(p, "warnings"))
+            .unwrap_or_default();
+        let failed = payload
+            .as_deref()
+            .map(|p| extract_field(p, "failed"))
+            .unwrap_or_default();
 
         let delta = match prev_health {
             Some(prev) => {
                 let d = health - prev;
-                if d > 0 { format!(" (+{})", d).green().to_string() }
-                else if d < 0 { format!(" ({})", d).bright_red().to_string() }
-                else { " (no change)".dimmed().to_string() }
+                if d > 0 {
+                    format!(" (+{})", d).green().to_string()
+                } else if d < 0 {
+                    format!(" ({})", d).bright_red().to_string()
+                } else {
+                    " (no change)".dimmed().to_string()
+                }
             }
             None => " (first run today)".dimmed().to_string(),
         };
@@ -279,8 +325,16 @@ pub fn why_health(ctx: &AppContext) -> CoreResult<()> {
             println!(
                 "          passed: {}  warnings: {}  failed: {}",
                 passed.green(),
-                if warnings == "0" { warnings.dimmed().to_string() } else { warnings.yellow().to_string() },
-                if failed == "0" { failed.dimmed().to_string() } else { failed.bright_red().to_string() },
+                if warnings == "0" {
+                    warnings.dimmed().to_string()
+                } else {
+                    warnings.yellow().to_string()
+                },
+                if failed == "0" {
+                    failed.dimmed().to_string()
+                } else {
+                    failed.bright_red().to_string()
+                },
             );
         }
 
@@ -298,21 +352,31 @@ pub fn why_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         "SELECT action, payload, timestamp FROM events WHERE timestamp >= ? AND domain = ? ORDER BY timestamp ASC LIMIT 100"
     )?;
 
-    let rows: Vec<(String, Option<String>, i64)> = stmt.query_map(params![today, domain], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(String, Option<String>, i64)> = stmt
+        .query_map(params![today, domain], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
-    println!("{}", format!("🌲 Why — {} activity today", domain).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Why — {} activity today", domain).cyan().bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
     if rows.is_empty() {
-        println!("  {}", format!("No {} events recorded today.", domain).dimmed());
+        println!(
+            "  {}",
+            format!("No {} events recorded today.", domain).dimmed()
+        );
         return Ok(());
     }
 
     for (action, payload, ts) in &rows {
-        let result = payload.as_deref()
+        let result = payload
+            .as_deref()
             .map(|p| extract_field(p, "result"))
             .unwrap_or_default();
         let result_str = if result == "ok" || result.is_empty() {
@@ -347,12 +411,15 @@ pub fn why_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 
 pub fn trace_last(ctx: &AppContext) -> CoreResult<()> {
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT domain, action, payload, timestamp FROM events ORDER BY timestamp DESC LIMIT 10"
+        "SELECT domain, action, payload, timestamp FROM events ORDER BY timestamp DESC LIMIT 10",
     )?;
 
-    let rows: Vec<(String, String, Option<String>, i64)> = stmt.query_map([], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(String, String, Option<String>, i64)> = stmt
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     println!("{}", "🌲 Trace — Last 10 Events".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -380,25 +447,30 @@ pub fn trace_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         "SELECT action, payload, timestamp FROM events WHERE domain = ? ORDER BY timestamp DESC LIMIT 20"
     )?;
 
-    let rows: Vec<(String, Option<String>, i64)> = stmt.query_map(params![domain], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(String, Option<String>, i64)> = stmt
+        .query_map(params![domain], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
-    println!("{}", format!("🌲 Trace — {} (last 20)", domain).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Trace — {} (last 20)", domain).cyan().bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
     if rows.is_empty() {
-        println!("  {}", format!("No events found for domain: {}", domain).dimmed());
+        println!(
+            "  {}",
+            format!("No events found for domain: {}", domain).dimmed()
+        );
         return Ok(());
     }
 
     for (action, payload, ts) in rows.iter().rev() {
-        println!(
-            "  {}  {}",
-            format_ts(*ts).dimmed(),
-            action.bright_white(),
-        );
+        println!("  {}  {}", format_ts(*ts).dimmed(), action.bright_white(),);
         if let Some(ref p) = payload {
             print_payload_fields(p);
         }
@@ -412,27 +484,36 @@ pub fn trace_domain(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 fn print_payload_fields(payload: &str) {
     // Extract meaningful fields from JSON payload, skip actor/result/detail wrappers
     let skip = ["actor", "result", "detail"];
-    for field in &["health", "passed", "warnings", "failed", "branch", "modified",
-                   "staged", "risk", "critical", "high", "medium", "low"] {
+    for field in &[
+        "health", "passed", "warnings", "failed", "branch", "modified", "staged", "risk",
+        "critical", "high", "medium", "low",
+    ] {
         let val = extract_field(payload, field);
         if !val.is_empty() && !skip.contains(field) {
-            println!("          {}  {}", format!("{}:", field).dimmed(), val.white());
+            println!(
+                "          {}  {}",
+                format!("{}:", field).dimmed(),
+                val.white()
+            );
         }
     }
 }
 
 fn extract_field(payload: &str, field: &str) -> String {
     let needle = format!("\"{}\":", field);
-    payload.find(&needle)
+    payload
+        .find(&needle)
         .map(|i| {
             let rest = &payload[i + needle.len()..].trim_start();
-            if rest.starts_with('"') {
+            if let Some(inner) = rest.strip_prefix('"') {
                 // String value
-                let inner = &rest[1..];
+                let inner = inner;
                 inner[..inner.find('"').unwrap_or(inner.len())].to_string()
             } else {
                 // Numeric value
-                let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+                let end = rest
+                    .find(|c: char| !c.is_ascii_digit())
+                    .unwrap_or(rest.len());
                 rest[..end].to_string()
             }
         })
@@ -451,7 +532,11 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
     let stream = match UnixStream::connect(&socket_path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("  {} Cannot connect to faelight-daemon: {}", "✗".bright_red(), e);
+            eprintln!(
+                "  {} Cannot connect to faelight-daemon: {}",
+                "✗".bright_red(),
+                e
+            );
             eprintln!("  {} Is faelight-daemon running?", "💡".yellow());
             eprintln!("  {} systemctl --user status faelight-daemon", "→".dimmed());
             return Ok(());
@@ -476,7 +561,9 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
     let reader = BufReader::new(stream);
     for line in reader.lines() {
         let line = line?;
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
 
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) else {
             continue;
@@ -497,7 +584,8 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
             let ts = event["timestamp"].as_i64().unwrap_or(0);
             let time = format_ts(ts);
 
-            let result = event["payload"].as_str()
+            let result = event["payload"]
+                .as_str()
                 .and_then(|p| {
                     p.find("\"result\":\"")
                         .map(|i| &p[i + 10..])

@@ -48,9 +48,7 @@ impl Registry {
             fs::create_dir_all(parent)?;
         }
         let content = toml::to_string_pretty(self)
-            .map_err(|e| crate::errors::CoreError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other, e.to_string()
-            )))?;
+            .map_err(|e| crate::errors::CoreError::Io(std::io::Error::other(e.to_string())))?;
         fs::write(&path, content)?;
         Ok(())
     }
@@ -92,7 +90,11 @@ fn binary_version(binary: &str) -> Option<String> {
     let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if s.is_empty() {
         let s2 = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        if s2.is_empty() { None } else { Some(s2) }
+        if s2.is_empty() {
+            None
+        } else {
+            Some(s2)
+        }
     } else {
         Some(s)
     }
@@ -150,7 +152,9 @@ pub fn list(_ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "━".repeat(52).dimmed());
     let enabled = registry.plugins.iter().filter(|p| p.enabled).count();
-    let installed_count = registry.plugins.iter()
+    let installed_count = registry
+        .plugins
+        .iter()
         .filter(|p| binary_installed(&p.binary))
         .count();
     println!(
@@ -219,7 +223,12 @@ pub fn status(_ctx: &AppContext, name: &str) -> CoreResult<()> {
     let registry = Registry::load();
 
     let Some(plugin) = registry.plugins.iter().find(|p| p.name == name) else {
-        println!("  {} '{}' not registered — run: core plugin add {}", "⚠️".yellow(), name, name);
+        println!(
+            "  {} '{}' not registered — run: core plugin add {}",
+            "⚠️".yellow(),
+            name,
+            name
+        );
         return Ok(());
     };
 
@@ -233,12 +242,20 @@ pub fn status(_ctx: &AppContext, name: &str) -> CoreResult<()> {
     println!(
         "  {} {}",
         "Status: ".dimmed(),
-        if installed { "installed ✅".green().to_string() } else { "not found ❌".red().to_string() }
+        if installed {
+            "installed ✅".green().to_string()
+        } else {
+            "not found ❌".red().to_string()
+        }
     );
     println!(
         "  {} {}",
         "Enabled:".dimmed(),
-        if plugin.enabled { "yes".green().to_string() } else { "no".dimmed().to_string() }
+        if plugin.enabled {
+            "yes".green().to_string()
+        } else {
+            "no".dimmed().to_string()
+        }
     );
 
     if installed {
@@ -248,7 +265,11 @@ pub fn status(_ctx: &AppContext, name: &str) -> CoreResult<()> {
     }
 
     if !plugin.event_domains.is_empty() {
-        println!("  {} {}", "Domains:".dimmed(), plugin.event_domains.join(", ").cyan());
+        println!(
+            "  {} {}",
+            "Domains:".dimmed(),
+            plugin.event_domains.join(", ").cyan()
+        );
     }
 
     println!("{}", "━".repeat(52).dimmed());

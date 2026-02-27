@@ -1056,8 +1056,10 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         "run",
         "core doctor run",
         if failed == 0 { "ok" } else { "warn" },
-        Some(&format!(r#"{{"health":{},"passed":{},"warnings":{},"failed":{}}}"#,
-            health, passed, warnings, failed)),
+        Some(&format!(
+            r#"{{"health":{},"passed":{},"warnings":{},"failed":{}}}"#,
+            health, passed, warnings, failed
+        )),
     );
 
     Ok(())
@@ -1088,9 +1090,12 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
     let core_root = ctx.core_root.clone();
 
     // Read current cached health
-    let cached: u32 = fs::read_to_string(
-        PathBuf::from(&home).join(".cache/faelight/health-status")
-    ).unwrap_or_default().trim().parse().unwrap_or(0);
+    let cached: u32 =
+        fs::read_to_string(PathBuf::from(&home).join(".cache/faelight/health-status"))
+            .unwrap_or_default()
+            .trim()
+            .parse()
+            .unwrap_or(0);
 
     // Run all checks silently
     let checks: Vec<CheckResult> = vec![
@@ -1118,10 +1123,10 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         check_core_protect(&core_root),
     ];
 
-    let total   = checks.len() as u32;
-    let passed  = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
+    let total = checks.len() as u32;
+    let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
-    let failed  = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    let failed = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
     let predicted = if total > 0 { (passed * 100) / total } else { 0 };
 
     println!("{}", "🔮 core simulate doctor".cyan().bold());
@@ -1177,10 +1182,15 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  current health   {}%", cached.to_string().dimmed());
     println!("  predicted health {}  ({})", predicted_colored, delta_str);
-    println!("  checks           {}  passed  {}  warnings  {}  failed",
+    println!(
+        "  checks           {}  passed  {}  warnings  {}  failed",
         passed.to_string().green(),
         warnings.to_string().yellow(),
-        if failed > 0 { failed.to_string().bright_red() } else { failed.to_string().dimmed() }
+        if failed > 0 {
+            failed.to_string().bright_red()
+        } else {
+            failed.to_string().dimmed()
+        }
     );
     println!();
     println!("  {} No changes made to system.", "ℹ".cyan());
@@ -1193,9 +1203,11 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
 pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     let conn = &ctx.runtime.db;
 
-    let mut stmt = conn.prepare(
-        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp ASC"
-    ).map_err(|e| crate::errors::CoreError::Database(e))?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp ASC",
+        )
+        .map_err(crate::errors::CoreError::Database)?;
 
     struct HealthPoint {
         health: i64,
@@ -1208,7 +1220,7 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
             let ts: i64 = row.get(1)?;
             Ok((payload, ts))
         })
-        .map_err(|e| crate::errors::CoreError::Database(e))?
+        .map_err(crate::errors::CoreError::Database)?
         .filter_map(|r| r.ok())
         .filter_map(|(p, ts)| {
             let v: serde_json::Value = serde_json::from_str(&p).ok()?;
@@ -1233,13 +1245,22 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     let first = points.first().map(|p| p.health).unwrap_or(0);
     let drift = current - first;
 
-    println!("  {} {} readings over {} sessions",
+    println!(
+        "  {} {} readings over {} sessions",
         "📊".cyan(),
         points.len().to_string().bright_white(),
         points.len().to_string().dimmed(),
     );
-    println!("  {} Current:  {}%", "▶".dimmed(), current.to_string().bright_white());
-    println!("  {} Average:  {}%", "▶".dimmed(), avg.to_string().bright_white());
+    println!(
+        "  {} Current:  {}%",
+        "▶".dimmed(),
+        current.to_string().bright_white()
+    );
+    println!(
+        "  {} Average:  {}%",
+        "▶".dimmed(),
+        avg.to_string().bright_white()
+    );
     println!("  {} Range:    {}% – {}%", "▶".dimmed(), min, max);
 
     let drift_str = if drift > 0 {
@@ -1266,7 +1287,8 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
         print!("{}", ch);
     }
     println!();
-    println!("    {}  {}  {}  {}",
+    println!(
+        "    {}  {}  {}  {}",
         "█ 95%+".bright_green(),
         "▇ 85%+".green(),
         "▅ 75%+".yellow(),
@@ -1276,17 +1298,22 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     // Pattern detection
     println!();
     println!("  {} Pattern:", "🔍".cyan());
-    let dips: usize = points.windows(2)
+    let dips: usize = points
+        .windows(2)
         .filter(|w| w[1].health < w[0].health)
         .count();
-    let recoveries: usize = points.windows(2)
+    let recoveries: usize = points
+        .windows(2)
         .filter(|w| w[1].health > w[0].health)
         .count();
 
     if dips == 0 {
         println!("    ✅ No health dips detected — stable system");
     } else {
-        println!("    ⚠️  {} dip(s) detected, {} recovery(s)", dips, recoveries);
+        println!(
+            "    ⚠️  {} dip(s) detected, {} recovery(s)",
+            dips, recoveries
+        );
     }
 
     let at_95 = points.iter().filter(|p| p.health >= 95).count();
@@ -1302,7 +1329,7 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
 
     let mut stmt = conn.prepare(
         "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10"
-    ).map_err(|e| crate::errors::CoreError::Database(e))?;
+    ).map_err(crate::errors::CoreError::Database)?;
 
     struct HealthPoint {
         health: i64,
@@ -1314,7 +1341,7 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
             let payload: String = row.get(0)?;
             Ok(payload)
         })
-        .map_err(|e| crate::errors::CoreError::Database(e))?
+        .map_err(crate::errors::CoreError::Database)?
         .filter_map(|r| r.ok())
         .filter_map(|p| {
             let v: serde_json::Value = serde_json::from_str(&p).ok()?;
@@ -1347,8 +1374,13 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
 
     let predicted = (current + trend_delta).clamp(0, 100);
 
-    println!("  {} Current health:   {}%", "▶".dimmed(), current.to_string().bright_white());
-    println!("  {} Recent trend:     {} per run",
+    println!(
+        "  {} Current health:   {}%",
+        "▶".dimmed(),
+        current.to_string().bright_white()
+    );
+    println!(
+        "  {} Recent trend:     {} per run",
         "▶".dimmed(),
         if trend_delta >= 0 {
             format!("+{}", trend_delta).green().to_string()
@@ -1356,7 +1388,11 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
             format!("{}", trend_delta).yellow().to_string()
         }
     );
-    println!("  {} Avg warnings:     {} per run", "▶".dimmed(), avg_warnings);
+    println!(
+        "  {} Avg warnings:     {} per run",
+        "▶".dimmed(),
+        avg_warnings
+    );
     println!();
 
     // Prediction
@@ -1378,7 +1414,10 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
         risks += 1;
     }
     if trend_delta < 0 {
-        println!("    • Declining trend — health dropping {} per run", trend_delta);
+        println!(
+            "    • Declining trend — health dropping {} per run",
+            trend_delta
+        );
         risks += 1;
     }
     if current < 95 {

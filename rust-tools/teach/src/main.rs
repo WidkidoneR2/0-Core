@@ -14,17 +14,17 @@ const VERSION: &str = "4.0.0";
 
 #[derive(Debug, Clone, PartialEq)]
 enum Persona {
-    Newcomer,  // First time or few sessions
-    Learner,   // Some experience, still exploring
-    Expert,    // Power user, needs reference not tutorial
+    Newcomer, // First time or few sessions
+    Learner,  // Some experience, still exploring
+    Expert,   // Power user, needs reference not tutorial
 }
 
 impl Persona {
     fn label(&self) -> &str {
         match self {
             Persona::Newcomer => "newcomer",
-            Persona::Learner  => "learner",
-            Persona::Expert   => "expert",
+            Persona::Learner => "learner",
+            Persona::Expert => "expert",
         }
     }
 }
@@ -33,10 +33,10 @@ impl Persona {
 
 #[derive(Serialize, Deserialize, Default)]
 struct Progress {
-    sessions:          usize,
+    sessions: usize,
     lessons_completed: Vec<String>,
-    last_seen:         String,
-    persona_override:  Option<String>,
+    last_seen: String,
+    persona_override: Option<String>,
 }
 
 impl Progress {
@@ -56,7 +56,9 @@ impl Progress {
 
     fn save(&self) {
         let p = Self::path();
-        if let Some(parent) = p.parent() { fs::create_dir_all(parent).ok(); }
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).ok();
+        }
         if let Ok(json) = serde_json::to_string_pretty(self) {
             fs::write(&p, json).ok();
         }
@@ -78,26 +80,26 @@ impl Progress {
 // ── Live System Snapshot ──────────────────────────────────────────────────────
 
 struct SystemSnapshot {
-    core_version:   String,
-    tool_count:     usize,
-    commit_count:   usize,
-    intent_count:   usize,
-    intent_done:    usize,
-    health_pct:     usize,
-    branch:         String,
-    rust_version:   String,
-    uptime:         String,
-    tools:          Vec<ToolInfo>,
+    core_version: String,
+    tool_count: usize,
+    commit_count: usize,
+    intent_count: usize,
+    intent_done: usize,
+    health_pct: usize,
+    branch: String,
+    rust_version: String,
+    uptime: String,
+    tools: Vec<ToolInfo>,
 }
 
 #[derive(Clone)]
 struct ToolInfo {
-    name:        String,
-    version:     String,
+    name: String,
+    version: String,
     description: String,
-    commands:    Vec<String>,
-    philosophy:  String,
-    replaces:    Option<String>,
+    commands: Vec<String>,
+    philosophy: String,
+    replaces: Option<String>,
 }
 
 impl SystemSnapshot {
@@ -110,15 +112,20 @@ impl SystemSnapshot {
             .unwrap_or_default()
             .lines()
             .find(|l| l.starts_with("## v"))
-            .and_then(|l| l.split_whitespace().nth(1)).map(|s| s.trim_start_matches('v').to_string()).map(|s| { let _ = s; }).unwrap_or(()).to_string()
-            .unwrap_or("unknown")
-            .to_string();
+            .and_then(|l| l.split_whitespace().nth(1))
+            .map(|s| s.trim_start_matches('v').to_string())
+            .unwrap_or_else(|| "unknown".to_string());
 
         // Commit count
         let commit_count = Command::new("git")
             .args(["-C", &core, "rev-list", "--count", "HEAD"])
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse().unwrap_or(0))
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .parse()
+                    .unwrap_or(0)
+            })
             .unwrap_or(0);
 
         // Intent counts
@@ -141,8 +148,14 @@ impl SystemSnapshot {
         let rust_version = Command::new("rustc")
             .arg("--version")
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim()
-                .split_whitespace().nth(1).unwrap_or("?").to_string())
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .split_whitespace()
+                    .nth(1)
+                    .unwrap_or("?")
+                    .to_string()
+            })
             .unwrap_or_else(|_| "?".to_string());
 
         // Uptime
@@ -182,10 +195,14 @@ fn gather_intent_counts(core: &str) -> (usize, usize) {
                     walk(path.to_str().unwrap_or(""), total, done);
                 } else if path.extension().map(|e| e == "md").unwrap_or(false) {
                     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                    if name == "README.md" || name == "migration-log.md" { continue; }
+                    if name == "README.md" || name == "migration-log.md" {
+                        continue;
+                    }
                     *total += 1;
                     if let Ok(content) = std::fs::read_to_string(&path) {
-                        if content.contains("Status: Complete") || content.contains("status: complete") {
+                        if content.contains("Status: Complete")
+                            || content.contains("status: complete")
+                        {
                             *done += 1;
                         }
                     }
@@ -201,9 +218,7 @@ fn gather_intent_counts(core: &str) -> (usize, usize) {
 fn count_tools(core: &str) -> usize {
     let tools_dir = format!("{}/rust-tools", core);
     std::fs::read_dir(&tools_dir)
-        .map(|entries| entries.flatten()
-            .filter(|e| e.path().is_dir())
-            .count())
+        .map(|entries| entries.flatten().filter(|e| e.path().is_dir()).count())
         .unwrap_or(43)
 }
 
@@ -314,8 +329,8 @@ fn detect_persona(progress: &Progress, snap: &SystemSnapshot) -> Persona {
     if let Some(ref o) = progress.persona_override {
         return match o.as_str() {
             "newcomer" => Persona::Newcomer,
-            "expert"   => Persona::Expert,
-            _          => Persona::Learner,
+            "expert" => Persona::Expert,
+            _ => Persona::Learner,
         };
     }
 
@@ -362,7 +377,9 @@ fn run_presentation(snap: &SystemSnapshot) {
         println!("{}", "─".repeat(60).dimmed());
         print!(
             "  {} prev  {} next  {} exit: ",
-            "[p]".cyan(), "[n/Enter]".cyan(), "[q]".dimmed()
+            "[p]".cyan(),
+            "[n/Enter]".cyan(),
+            "[q]".dimmed()
         );
         io::stdout().flush().ok();
 
@@ -370,8 +387,18 @@ fn run_presentation(snap: &SystemSnapshot) {
         io::stdin().read_line(&mut input).ok();
         match input.trim() {
             "q" | "quit" => break,
-            "p" | "prev" => { if i > 0 { i -= 1; } }
-            _ => { if i < slides.len() - 1 { i += 1; } else { break; } }
+            "p" | "prev" => {
+                if i > 0 {
+                    i -= 1;
+                }
+            }
+            _ => {
+                if i < slides.len() - 1 {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
         }
     }
 }
@@ -384,36 +411,52 @@ fn slide_overview(snap: &SystemSnapshot) {
     );
     println!();
     println!("  A personal computing environment built from scratch.");
-    println!("  {} tools. {} lines of Rust. {} architectural decisions.",
+    println!(
+        "  {} tools. {} lines of Rust. {} architectural decisions.",
         snap.tool_count.to_string().yellow().bold(),
         "118,000+".yellow().bold(),
         snap.intent_count.to_string().yellow().bold(),
     );
     println!();
-    println!("  {} commits. {} health. Running on vanilla Arch + Sway.",
+    println!(
+        "  {} commits. {} health. Running on vanilla Arch + Sway.",
         snap.commit_count.to_string().cyan(),
         format!("{}%", snap.health_pct).green(),
     );
     println!();
-    println!("  {}", "No Waybar. No lazygit. No topgrade. No Hyprland.".dimmed());
-    println!("  {}", "Everything you see was written by one person.".white());
+    println!(
+        "  {}",
+        "No Waybar. No lazygit. No topgrade. No Hyprland.".dimmed()
+    );
+    println!(
+        "  {}",
+        "Everything you see was written by one person.".white()
+    );
 }
 
 fn slide_philosophy(_snap: &SystemSnapshot) {
     let principles = [
-        ("Manual control over automation",   "Nothing runs without explicit confirmation."),
-        ("Understanding over convenience",   "If you can't explain it, you don't own it."),
-        ("Intent over convention",           "Every decision is recorded with its rationale."),
-        ("Recovery over perfection",         "Design for the moment things go wrong."),
-        ("Fail loudly",                      "Silent failures are the worst failures."),
+        (
+            "Manual control over automation",
+            "Nothing runs without explicit confirmation.",
+        ),
+        (
+            "Understanding over convenience",
+            "If you can't explain it, you don't own it.",
+        ),
+        (
+            "Intent over convention",
+            "Every decision is recorded with its rationale.",
+        ),
+        (
+            "Recovery over perfection",
+            "Design for the moment things go wrong.",
+        ),
+        ("Fail loudly", "Silent failures are the worst failures."),
     ];
 
     for (principle, explanation) in &principles {
-        println!(
-            "  {} {}",
-            "◉".green(),
-            principle.white().bold()
-        );
+        println!("  {} {}", "◉".green(), principle.white().bold());
         println!("    {}", explanation.dimmed());
         println!();
     }
@@ -424,7 +467,11 @@ fn slide_architecture(snap: &SystemSnapshot) {
     println!();
     println!("  {} Vanilla Arch Linux", "OS".dimmed());
     println!("  {} Sway (wlroots Wayland compositor)", "WM".dimmed());
-    println!("  {} {} tools in a Cargo workspace", "Tools".dimmed(), snap.tool_count);
+    println!(
+        "  {} {} tools in a Cargo workspace",
+        "Tools".dimmed(),
+        snap.tool_count
+    );
     println!("  {} GNU Stow (symlink management)", "Dotfiles".dimmed());
     println!("  {} Intent Ledger + git", "History".dimmed());
     println!();
@@ -439,7 +486,9 @@ fn slide_architecture(snap: &SystemSnapshot) {
 
 fn slide_tools(snap: &SystemSnapshot) {
     for tool in snap.tools.iter().take(5) {
-        let replaced = tool.replaces.as_ref()
+        let replaced = tool
+            .replaces
+            .as_ref()
             .map(|r| format!(" (replaces {})", r).dimmed().to_string())
             .unwrap_or_default();
         println!(
@@ -449,7 +498,11 @@ fn slide_tools(snap: &SystemSnapshot) {
             replaced,
         );
         // First sentence only for slide
-        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        let summary = tool
+            .description
+            .split('.')
+            .next()
+            .unwrap_or(&tool.description);
         println!("  {}", summary.dimmed());
         println!();
     }
@@ -472,17 +525,34 @@ fn slide_intents(snap: &SystemSnapshot) {
     println!();
     println!("  {}", "Example:".dimmed());
     println!("  INT-042 — Replace lazygit with native git2 implementation");
-    println!("  {}", "Rationale: lazygit is a dependency we don't control.".dimmed());
-    println!("  {}", "           Our commit flow requires intent linking.".dimmed());
-    println!("  {}", "           git2 gives us programmatic control.".dimmed());
+    println!(
+        "  {}",
+        "Rationale: lazygit is a dependency we don't control.".dimmed()
+    );
+    println!(
+        "  {}",
+        "           Our commit flow requires intent linking.".dimmed()
+    );
+    println!(
+        "  {}",
+        "           git2 gives us programmatic control.".dimmed()
+    );
 }
 
 fn slide_live_demo(snap: &SystemSnapshot) {
     println!("  {}", "Live System State — Right Now".cyan().bold());
     println!();
     println!("  {} Branch:   {}", "›".dimmed(), snap.branch.green());
-    println!("  {} Health:   {}%", "›".dimmed(), snap.health_pct.to_string().green());
-    println!("  {} Commits:  {}", "›".dimmed(), snap.commit_count.to_string().cyan());
+    println!(
+        "  {} Health:   {}%",
+        "›".dimmed(),
+        snap.health_pct.to_string().green()
+    );
+    println!(
+        "  {} Commits:  {}",
+        "›".dimmed(),
+        snap.commit_count.to_string().cyan()
+    );
     println!("  {} Rust:     {}", "›".dimmed(), snap.rust_version.cyan());
     println!("  {} Uptime:   {}", "›".dimmed(), snap.uptime.dimmed());
     println!();
@@ -496,21 +566,20 @@ fn slide_numbers(snap: &SystemSnapshot) {
     println!("  {}", "By the Numbers".cyan().bold());
     println!();
     let rows = [
-        ("Tools",              format!("{} custom Rust binaries", snap.tool_count)),
-        ("Lines of code",      "118,000+ (89% Rust)".to_string()),
-        ("Commits",            snap.commit_count.to_string()),
-        ("Intents",            format!("{} ({} complete)", snap.intent_count, snap.intent_done)),
-        ("Health checks",      "22 automated".to_string()),
-        ("Aliases",            "318 total".to_string()),
-        ("Keybindings",        "117 unique, zero conflicts".to_string()),
-        ("External deps",      "Zero for core workflow".to_string()),
+        ("Tools", format!("{} custom Rust binaries", snap.tool_count)),
+        ("Lines of code", "118,000+ (89% Rust)".to_string()),
+        ("Commits", snap.commit_count.to_string()),
+        (
+            "Intents",
+            format!("{} ({} complete)", snap.intent_count, snap.intent_done),
+        ),
+        ("Health checks", "22 automated".to_string()),
+        ("Aliases", "318 total".to_string()),
+        ("Keybindings", "117 unique, zero conflicts".to_string()),
+        ("External deps", "Zero for core workflow".to_string()),
     ];
     for (label, value) in &rows {
-        println!(
-            "  {:<20} {}",
-            label.dimmed(),
-            value.white().bold()
-        );
+        println!("  {:<20} {}", label.dimmed(), value.white().bold());
     }
 }
 
@@ -557,16 +626,27 @@ fn expert_dashboard(snap: &SystemSnapshot) {
         snap.commit_count
     );
     println!();
-    println!("  {} tool <name>    — architecture + commands", "teach".dimmed());
-    println!("  {} why <topic>    — rationale from intent ledger", "teach".dimmed());
+    println!(
+        "  {} tool <name>    — architecture + commands",
+        "teach".dimmed()
+    );
+    println!(
+        "  {} why <topic>    — rationale from intent ledger",
+        "teach".dimmed()
+    );
     println!("  {} list           — all tools", "teach".dimmed());
     println!("  {} --present      — presentation mode", "teach".dimmed());
-    println!("  {} --learn        — switch to guided mode", "teach".dimmed());
+    println!(
+        "  {} --learn        — switch to guided mode",
+        "teach".dimmed()
+    );
     println!();
     println!("{}", "  Quick Reference".yellow().bold());
     println!();
     for tool in &snap.tools {
-        let replaced = tool.replaces.as_ref()
+        let replaced = tool
+            .replaces
+            .as_ref()
             .map(|r| format!(" ← {}", r).dimmed().to_string())
             .unwrap_or_default();
         println!(
@@ -612,16 +692,22 @@ fn list_tools(snap: &SystemSnapshot) {
     println!("{}", "━".repeat(52).dimmed());
     println!();
     for tool in &snap.tools {
-        let replaced = tool.replaces.as_ref()
+        let replaced = tool
+            .replaces
+            .as_ref()
             .map(|r| format!("  (replaces {})", r).dimmed().to_string())
             .unwrap_or_default();
         println!(
-            "  {} {}{}", 
+            "  {} {}{}",
             tool.name.green().bold(),
             format!("v{}", tool.version).dimmed(),
             replaced
         );
-        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        let summary = tool
+            .description
+            .split('.')
+            .next()
+            .unwrap_or(&tool.description);
         println!("  {}", summary.dimmed());
         println!();
     }
@@ -634,10 +720,13 @@ fn show_why(topic: &str, snap: &SystemSnapshot) {
     println!();
 
     // Try to find relevant tool
-    let tool = snap.tools.iter().find(|t| 
-        t.name.contains(topic) || 
-        t.replaces.as_ref().map(|r| r.to_lowercase().contains(topic)).unwrap_or(false)
-    );
+    let tool = snap.tools.iter().find(|t| {
+        t.name.contains(topic)
+            || t.replaces
+                .as_ref()
+                .map(|r| r.to_lowercase().contains(topic))
+                .unwrap_or(false)
+    });
 
     if let Some(t) = tool {
         println!("  {}", t.philosophy.cyan().italic());
@@ -661,14 +750,13 @@ fn show_why(topic: &str, snap: &SystemSnapshot) {
                 let path = entry.path();
                 if let Ok(content) = fs::read_to_string(&path) {
                     if content.to_lowercase().contains(&topic.to_lowercase()) {
-                        let filename = path.file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("");
+                        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                         println!("  {} {}", "→".dimmed(), filename.cyan());
                         // Print first relevant line
                         for line in content.lines() {
-                            if line.to_lowercase().contains(&topic.to_lowercase()) 
-                                && !line.starts_with('#') {
+                            if line.to_lowercase().contains(&topic.to_lowercase())
+                                && !line.starts_with('#')
+                            {
                                 println!("  {}", line.dimmed());
                                 break;
                             }
@@ -705,13 +793,13 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
     println!();
 
     let lessons: Vec<(&str, &str, fn(&SystemSnapshot))> = vec![
-        ("philosophy",  "The Forest Philosophy",    lesson_philosophy),
-        ("structure",   "Directory Structure",       lesson_structure),
-        ("tools",       "Core Tools",               lesson_tools),
-        ("workflow",    "Daily Workflow",            lesson_workflow),
-        ("intent",      "Intent Ledger",            lesson_intent),
-        ("git",         "faelight-git",             lesson_git),
-        ("update",      "faelight-update",          lesson_update),
+        ("philosophy", "The Forest Philosophy", lesson_philosophy),
+        ("structure", "Directory Structure", lesson_structure),
+        ("tools", "Core Tools", lesson_tools),
+        ("workflow", "Daily Workflow", lesson_workflow),
+        ("intent", "Intent Ledger", lesson_intent),
+        ("git", "faelight-git", lesson_git),
+        ("update", "faelight-update", lesson_update),
     ];
 
     loop {
@@ -721,11 +809,18 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
         println!();
 
         for (id, title, _) in &lessons {
-            let mark = if progress.done(id) { "✅".to_string() } else { "⬜".to_string() };
+            let mark = if progress.done(id) {
+                "✅".to_string()
+            } else {
+                "⬜".to_string()
+            };
             println!("  {} {}", mark, title.white());
         }
 
-        let done_count = lessons.iter().filter(|(id, _, _)| progress.done(id)).count();
+        let done_count = lessons
+            .iter()
+            .filter(|(id, _, _)| progress.done(id))
+            .count();
         println!();
         println!(
             "  {} {}/{} complete",
@@ -734,8 +829,11 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
             lessons.len()
         );
         println!();
-        println!("  Enter lesson name, {} or {}: ",
-            "all".cyan(), "quit".dimmed());
+        println!(
+            "  Enter lesson name, {} or {}: ",
+            "all".cyan(),
+            "quit".dimmed()
+        );
         print!("  › ");
         io::stdout().flush().ok();
 
@@ -756,14 +854,18 @@ fn run_newcomer(progress: &mut Progress, snap: &SystemSnapshot) {
             continue;
         }
 
-        if let Some((id, _, lesson_fn)) = lessons.iter().find(|(id, title, _)| {
-            id.contains(&input) || title.to_lowercase().contains(&input)
-        }) {
+        if let Some((id, _, lesson_fn)) = lessons
+            .iter()
+            .find(|(id, title, _)| id.contains(&input) || title.to_lowercase().contains(&input))
+        {
             lesson_fn(snap);
             progress.complete(id);
             wait_for_enter();
         } else {
-            println!("  {} not found — try: philosophy, structure, tools, workflow, intent, git, update", input.red());
+            println!(
+                "  {} not found — try: philosophy, structure, tools, workflow, intent, git, update",
+                input.red()
+            );
             wait_for_enter();
         }
     }
@@ -778,20 +880,26 @@ fn lesson_philosophy(snap: &SystemSnapshot) {
         "  This system has {} commits.",
         snap.commit_count.to_string().yellow().bold()
     );
-    println!(
-        "  Each one was intentional. Each one can be explained.",
-        );
+    println!("  Each one was intentional. Each one can be explained.",);
     println!();
 
     let principles = [
-        ("Manual control over automation",
-         "You decide when things run. No cron jobs updating your system while you sleep."),
-        ("Understanding over convenience",
-         "If you can't explain why something is configured the way it is, it shouldn't be."),
-        ("Intent over convention",
-         "Decisions are recorded. Future-you can read why past-you made each choice."),
-        ("Recovery over perfection",
-         "The system is designed to fail gracefully and be rebuilt from scratch."),
+        (
+            "Manual control over automation",
+            "You decide when things run. No cron jobs updating your system while you sleep.",
+        ),
+        (
+            "Understanding over convenience",
+            "If you can't explain why something is configured the way it is, it shouldn't be.",
+        ),
+        (
+            "Intent over convention",
+            "Decisions are recorded. Future-you can read why past-you made each choice.",
+        ),
+        (
+            "Recovery over perfection",
+            "The system is designed to fail gracefully and be rebuilt from scratch.",
+        ),
     ];
 
     for (p, e) in &principles {
@@ -816,11 +924,11 @@ fn lesson_structure(_snap: &SystemSnapshot) {
     println!();
 
     let dirs = [
-        ("~/0-core/",    "Configuration, tools, dotfiles — this repo"),
-        ("~/1-src/",     "Source code and projects"),
-        ("~/2-projects/","Active work in progress"),
+        ("~/0-core/", "Configuration, tools, dotfiles — this repo"),
+        ("~/1-src/", "Source code and projects"),
+        ("~/2-projects/", "Active work in progress"),
         ("~/3-archive/", "Completed or shelved work"),
-        ("~/4-media/",   "Media files"),
+        ("~/4-media/", "Media files"),
     ];
 
     for (dir, desc) in &dirs {
@@ -832,11 +940,14 @@ fn lesson_structure(_snap: &SystemSnapshot) {
     println!();
 
     let subdirs = [
-        ("rust-tools/",     "43 custom Rust tools — the core of everything"),
-        ("INTENT/",         "Decision ledger — every architectural choice"),
-        ("01-configs/",     "Application configs managed by Stow"),
-        ("scripts/",        "Shell scripts and utilities"),
-        ("docs/",           "Documentation and guides"),
+        (
+            "rust-tools/",
+            "43 custom Rust tools — the core of everything",
+        ),
+        ("INTENT/", "Decision ledger — every architectural choice"),
+        ("01-configs/", "Application configs managed by Stow"),
+        ("scripts/", "Shell scripts and utilities"),
+        ("docs/", "Documentation and guides"),
     ];
 
     for (dir, desc) in &subdirs {
@@ -844,8 +955,11 @@ fn lesson_structure(_snap: &SystemSnapshot) {
     }
 
     println!();
-    println!("  The numbers enforce order. {} comes before {}. Always.",
-        "0".yellow().bold(), "1".yellow().bold());
+    println!(
+        "  The numbers enforce order. {} comes before {}. Always.",
+        "0".yellow().bold(),
+        "1".yellow().bold()
+    );
 }
 
 fn lesson_tools(snap: &SystemSnapshot) {
@@ -860,7 +974,9 @@ fn lesson_tools(snap: &SystemSnapshot) {
     println!();
 
     for tool in snap.tools.iter().take(4) {
-        let replaced = tool.replaces.as_ref()
+        let replaced = tool
+            .replaces
+            .as_ref()
             .map(|r| format!(" (replaced {})", r).yellow().to_string())
             .unwrap_or_default();
         println!(
@@ -869,9 +985,20 @@ fn lesson_tools(snap: &SystemSnapshot) {
             tool.version.dimmed(),
             replaced
         );
-        let summary = tool.description.split('.').next().unwrap_or(&tool.description);
+        let summary = tool
+            .description
+            .split('.')
+            .next()
+            .unwrap_or(&tool.description);
         println!("  {}", summary.dimmed());
-        println!("  {}", tool.commands.first().map(|s| s.as_str()).unwrap_or("").cyan());
+        println!(
+            "  {}",
+            tool.commands
+                .first()
+                .map(|s| s.as_str())
+                .unwrap_or("")
+                .cyan()
+        );
         println!();
     }
 
@@ -889,16 +1016,31 @@ fn lesson_workflow(snap: &SystemSnapshot) {
     );
     println!();
     println!("  {}", "Morning (2 min):".white().bold());
-    println!("  {} doctor                  # 22-check health scan", "→".dimmed());
-    println!("  {} faelight-git status      # what changed overnight", "→".dimmed());
+    println!(
+        "  {} doctor                  # 22-check health scan",
+        "→".dimmed()
+    );
+    println!(
+        "  {} faelight-git status      # what changed overnight",
+        "→".dimmed()
+    );
     println!();
     println!("  {}", "Before changes:".white().bold());
-    println!("  {} lock-core                # protect the system", "→".dimmed());
-    println!("  {} faelight-git commit      # intent-linked commit", "→".dimmed());
+    println!(
+        "  {} lock-core                # protect the system",
+        "→".dimmed()
+    );
+    println!(
+        "  {} faelight-git commit      # intent-linked commit",
+        "→".dimmed()
+    );
     println!("  {} unlock-core              # restore", "→".dimmed());
     println!();
     println!("  {}", "Weekly:".white().bold());
-    println!("  {} faelight-update          # everything in one TUI", "→".dimmed());
+    println!(
+        "  {} faelight-update          # everything in one TUI",
+        "→".dimmed()
+    );
     println!();
     println!(
         "  {} commits have followed this workflow.",
@@ -921,8 +1063,14 @@ fn lesson_intent(snap: &SystemSnapshot) {
     println!();
     println!("  {}", "INT-042  Replace lazygit with faelight-git".white());
     println!("  {}", "Status:   Complete".green().dimmed());
-    println!("  {}", "Rationale: lazygit is a dependency we don't control.".dimmed());
-    println!("  {}","           Our commit flow requires intent linking.".dimmed());
+    println!(
+        "  {}",
+        "Rationale: lazygit is a dependency we don't control.".dimmed()
+    );
+    println!(
+        "  {}",
+        "           Our commit flow requires intent linking.".dimmed()
+    );
     println!();
     println!("  Commits reference intents:");
     println!("  {}", "feat: native git commit  [Intent: INT-042]".cyan());
@@ -932,7 +1080,10 @@ fn lesson_intent(snap: &SystemSnapshot) {
     println!();
     println!("  {}", "Commands:".white().bold());
     println!("  {} intent list          # all decisions", "→".dimmed());
-    println!("  {} intent show INT-042  # specific rationale", "→".dimmed());
+    println!(
+        "  {} intent show INT-042  # specific rationale",
+        "→".dimmed()
+    );
     println!("  {} teach why <topic>    # search by topic", "→".dimmed());
 }
 
@@ -958,7 +1109,11 @@ fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {
             println!("  {}", format!("\"{}\"", t.philosophy).cyan().italic());
             println!();
             if let Some(ref r) = t.replaces {
-                println!("  {} {} was retired. This does everything it did,", "◉".green(), r.yellow());
+                println!(
+                    "  {} {} was retired. This does everything it did,",
+                    "◉".green(),
+                    r.yellow()
+                );
                 println!("    plus intent linking, risk scoring, and full system integration.");
                 println!();
             }
@@ -1016,7 +1171,10 @@ fn main() {
     let snap = SystemSnapshot::gather();
 
     // Expert sub-commands (no progress needed)
-    if args.iter().any(|a| a == "tool" || a == "list" || a == "why") {
+    if args
+        .iter()
+        .any(|a| a == "tool" || a == "list" || a == "why")
+    {
         run_expert(&args[1..].to_vec(), &snap);
         return;
     }
@@ -1051,7 +1209,7 @@ fn main() {
     }
 
     match persona {
-        Persona::Expert  => run_expert(&args[1..].to_vec(), &snap),
+        Persona::Expert => run_expert(&args[1..].to_vec(), &snap),
         Persona::Newcomer | Persona::Learner => run_newcomer(&mut progress, &snap),
     }
 }
@@ -1076,7 +1234,10 @@ fn first_run_greeting(snap: &SystemSnapshot, progress: &mut Progress) {
         progress.persona_override = Some("expert".to_string());
         progress.save();
         println!();
-        println!("  Expert mode. Run {} to see all tools.", "teach list".cyan());
+        println!(
+            "  Expert mode. Run {} to see all tools.",
+            "teach list".cyan()
+        );
         println!("  Run {} for a topic.", "teach why <topic>".cyan());
         println!("  Run {} for the Linus demo.", "teach --present".cyan());
     } else {
@@ -1110,6 +1271,12 @@ fn show_help() {
     println!("  philosophy  structure  tools  workflow");
     println!("  intent  git  update");
     println!();
-    println!("  {}", "All content is pulled from the live system.".dimmed());
-    println!("  {}", "Numbers shown are real. Nothing is hardcoded.".dimmed());
+    println!(
+        "  {}",
+        "All content is pulled from the live system.".dimmed()
+    );
+    println!(
+        "  {}",
+        "Numbers shown are real. Nothing is hardcoded.".dimmed()
+    );
 }

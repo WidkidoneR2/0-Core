@@ -50,7 +50,11 @@ pub fn run() -> Result<()> {
 
     // Lock line
     if is_locked() {
-        println!(" {} {}", "core".dimmed(), "🔒 LOCKED — commits blocked".red());
+        println!(
+            " {} {}",
+            "core".dimmed(),
+            "🔒 LOCKED — commits blocked".red()
+        );
     }
 
     if status.is_empty() {
@@ -119,7 +123,11 @@ pub fn run() -> Result<()> {
         parts.push(format!("{} unstaged", status.modified).yellow().to_string());
     }
     if status.untracked > 0 {
-        parts.push(format!("{} untracked", status.untracked).dimmed().to_string());
+        parts.push(
+            format!("{} untracked", status.untracked)
+                .dimmed()
+                .to_string(),
+        );
     }
     println!("  {}", parts.join("  "));
 

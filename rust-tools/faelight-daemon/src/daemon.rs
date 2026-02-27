@@ -85,7 +85,8 @@ async fn poll_events(tx: Arc<broadcast::Sender<EventBroadcast>>, db_path: String
     let mut last_ts: i64 = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
-        .unwrap_or(0) - 5; // small buffer to catch events written same second
+        .unwrap_or(0)
+        - 5; // small buffer to catch events written same second
 
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -142,7 +143,12 @@ async fn handle_client(
         let message: Message = match serde_json::from_str(&line) {
             Ok(msg) => msg,
             Err(e) => {
-                eprintln!("{} [#{}] Failed to parse message: {}", "⚠️".yellow(), conn_id, e);
+                eprintln!(
+                    "{} [#{}] Failed to parse message: {}",
+                    "⚠️".yellow(),
+                    conn_id,
+                    e
+                );
                 continue;
             }
         };
@@ -160,7 +166,9 @@ async fn handle_client(
                         message: "Expected command".to_string(),
                     }),
                 };
-                writer.write_all(serde_json::to_string(&err)?.as_bytes()).await?;
+                writer
+                    .write_all(serde_json::to_string(&err)?.as_bytes())
+                    .await?;
                 writer.write_all(b"\n").await?;
                 writer.flush().await?;
                 continue;
@@ -177,7 +185,9 @@ async fn handle_client(
                         domains: filter.clone(),
                     }),
                 };
-                writer.write_all(serde_json::to_string(&confirm)?.as_bytes()).await?;
+                writer
+                    .write_all(serde_json::to_string(&confirm)?.as_bytes())
+                    .await?;
                 writer.write_all(b"\n").await?;
                 writer.flush().await?;
 
@@ -194,11 +204,19 @@ async fn handle_client(
                                         timestamp: event.timestamp,
                                     }),
                                 };
-                                if writer.write_all(serde_json::to_string(&msg)?.as_bytes()).await.is_err() {
+                                if writer
+                                    .write_all(serde_json::to_string(&msg)?.as_bytes())
+                                    .await
+                                    .is_err()
+                                {
                                     break;
                                 }
-                                if writer.write_all(b"\n").await.is_err() { break; }
-                                if writer.flush().await.is_err() { break; }
+                                if writer.write_all(b"\n").await.is_err() {
+                                    break;
+                                }
+                                if writer.flush().await.is_err() {
+                                    break;
+                                }
                             }
                         }
                         Err(broadcast::error::RecvError::Lagged(n)) => {
@@ -214,7 +232,9 @@ async fn handle_client(
                     id: message.id,
                     payload: MessagePayload::Response(Response::Subscribed { domains: vec![] }),
                 };
-                writer.write_all(serde_json::to_string(&confirm)?.as_bytes()).await?;
+                writer
+                    .write_all(serde_json::to_string(&confirm)?.as_bytes())
+                    .await?;
                 writer.write_all(b"\n").await?;
                 writer.flush().await?;
 
@@ -230,11 +250,19 @@ async fn handle_client(
                                     timestamp: event.timestamp,
                                 }),
                             };
-                            if writer.write_all(serde_json::to_string(&msg)?.as_bytes()).await.is_err() {
+                            if writer
+                                .write_all(serde_json::to_string(&msg)?.as_bytes())
+                                .await
+                                .is_err()
+                            {
                                 break;
                             }
-                            if writer.write_all(b"\n").await.is_err() { break; }
-                            if writer.flush().await.is_err() { break; }
+                            if writer.write_all(b"\n").await.is_err() {
+                                break;
+                            }
+                            if writer.flush().await.is_err() {
+                                break;
+                            }
                         }
                         Err(broadcast::error::RecvError::Lagged(n)) => {
                             eprintln!("{} Stream lagged, dropped {} events", "⚠️".yellow(), n);

@@ -444,11 +444,17 @@ fn main() -> Result<()> {
                 for (path, after_snap) in &session.after {
                     match session.before.get(path) {
                         None => n += 1,
-                        Some(before_snap) => if before_snap.hash != after_snap.hash { n += 1; }
+                        Some(before_snap) => {
+                            if before_snap.hash != after_snap.hash {
+                                n += 1;
+                            }
+                        }
                     }
                 }
                 for path in session.before.keys() {
-                    if !session.after.contains_key(path) { n += 1; }
+                    if !session.after.contains_key(path) {
+                        n += 1;
+                    }
                 }
                 n
             };
@@ -599,13 +605,28 @@ fn main() -> Result<()> {
                     for (p, after_snap) in &s.after {
                         match s.before.get(p) {
                             None => changed += 1,
-                            Some(b) => if b.hash != after_snap.hash { changed += 1; }
+                            Some(b) => {
+                                if b.hash != after_snap.hash {
+                                    changed += 1;
+                                }
+                            }
                         }
                     }
                     for p in s.before.keys() {
-                        if !s.after.contains_key(p) { changed += 1; }
+                        if !s.after.contains_key(p) {
+                            changed += 1;
+                        }
                     }
-                    let exit = s.exit_code.map(|c| if c == 0 { "✓".to_string() } else { format!("exit {}", c) }).unwrap_or_default();
+                    let exit = s
+                        .exit_code
+                        .map(|c| {
+                            if c == 0 {
+                                "✓".to_string()
+                            } else {
+                                format!("exit {}", c)
+                            }
+                        })
+                        .unwrap_or_default();
                     println!(
                         "  {} {}  {}  {} changed  {}",
                         "▶".dimmed(),

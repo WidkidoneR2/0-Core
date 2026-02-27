@@ -73,7 +73,12 @@ fn main() {
 }
 
 fn print_help() {
-    println!("{}", format!("bump-system-version v{}", env!("CARGO_PKG_VERSION")).cyan().bold());
+    println!(
+        "{}",
+        format!("bump-system-version v{}", env!("CARGO_PKG_VERSION"))
+            .cyan()
+            .bold()
+    );
     println!("The BULLETPROOF Release Master\n");
     println!("USAGE:");
     println!("  bump-system-version           Run normal release");
@@ -183,7 +188,8 @@ fn run(dry_run: bool) -> Result<()> {
     let mut confirm = String::new();
     io::stdin().read_line(&mut confirm)?;
 
-    if !confirm.trim().eq_ignore_ascii_case("y") {
+    let c = confirm.trim().to_lowercase();
+    if c != "y" && c != "yes" {
         println!("{}", "Release cancelled.".yellow());
         return Ok(());
     }
@@ -629,9 +635,7 @@ fn rollback_changes(old_version: &str) -> Result<()> {
     println!("{}", "🔄 Rolling back changes...".yellow());
 
     // Attempt git restore to undo all staged/unstaged changes
-    let status = Command::new("git")
-        .args(["restore", "."])
-        .status();
+    let status = Command::new("git").args(["restore", "."]).status();
 
     match status {
         Ok(s) if s.success() => {
@@ -641,8 +645,14 @@ fn rollback_changes(old_version: &str) -> Result<()> {
             // git restore failed — try to at least restore VERSION manually
             println!("  ⚠️  Git restore failed — attempting manual VERSION restore");
             let version_path = paths::version_file();
-            if let Err(e) = fs::write(&version_path, format!("{}
-", old_version)) {
+            if let Err(e) = fs::write(
+                &version_path,
+                format!(
+                    "{}
+",
+                    old_version
+                ),
+            ) {
                 println!("  ❌ Could not restore VERSION: {}", e);
             } else {
                 println!("  ✅ VERSION restored to {}", old_version);
@@ -971,10 +981,20 @@ fn print_banner(dry_run: bool) {
     if dry_run {
         println!(
             "{}",
-            format!("🔍 bump-system-version v{} [DRY RUN]", env!("CARGO_PKG_VERSION")).cyan().bold()
+            format!(
+                "🔍 bump-system-version v{} [DRY RUN]",
+                env!("CARGO_PKG_VERSION")
+            )
+            .cyan()
+            .bold()
         );
     } else {
-        println!("{}", format!("🌲 bump-system-version v{}", env!("CARGO_PKG_VERSION")).cyan().bold());
+        println!(
+            "{}",
+            format!("🌲 bump-system-version v{}", env!("CARGO_PKG_VERSION"))
+                .cyan()
+                .bold()
+        );
     }
     println!("{}", "   The BULLETPROOF Release Master".cyan());
     println!(
