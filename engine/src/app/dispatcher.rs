@@ -4,6 +4,7 @@ use crate::cli::commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
     ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
+    PluginCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -20,6 +21,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             Ok(())
         }
 
+        Command::Plugin(cmd) => {
+            match cmd {
+                PluginCommand::List => crate::domains::plugins::list(ctx),
+                PluginCommand::Add { name } => crate::domains::plugins::add(ctx, &name),
+                PluginCommand::Remove { name } => crate::domains::plugins::remove(ctx, &name),
+                PluginCommand::Status { name } => crate::domains::plugins::status(ctx, &name),
+            }
+        }
         Command::Doctor(c) => {
             ctx.capabilities.require(
                 "doctor",
@@ -41,6 +50,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DoctorCommand::Bins { subcmd } => {
                     crate::domains::doctor::bins(ctx, subcmd.as_deref())
                 }
+                DoctorCommand::Trend => crate::domains::doctor::trend(ctx),
+                DoctorCommand::Forecast => crate::domains::doctor::forecast(ctx),
             }
         }
 

@@ -2,6 +2,7 @@
 pub enum Command {
     Version,
     Doctor(DoctorCommand),
+    Plugin(PluginCommand),
     Link(LinkCommand),
     Zone {
         icon: bool,
@@ -51,6 +52,8 @@ pub enum DoctorCommand {
     Bins {
         subcmd: Option<String>,
     },
+    Trend,
+    Forecast,
 }
 
 #[derive(Debug)]
@@ -217,4 +220,12 @@ pub enum SimulateCommand {
 pub enum TraceCommand {
     Last,
     Domain { domain: String },
+}
+
+#[derive(Debug)]
+pub enum PluginCommand {
+    List,
+    Add { name: String },
+    Remove { name: String },
+    Status { name: String },
 }

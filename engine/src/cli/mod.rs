@@ -4,12 +4,12 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, NotifyCommand, SimulateCommand, TraceCommand, WhyCommand,
-    ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
+    ProfileCommand, PluginCommand, ReleaseCommand, SandboxCommand, SecurityCommand, UpdateCommand,
     WorkspaceCommand,
 };
 use parser::{
     Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands, LinkCommands, SimulateCommands, TraceCommands, WhyCommands,
-    NotifyCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
+    NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands,
     UpdateCommands, WorkspaceCommands,
 };
 
@@ -17,6 +17,12 @@ pub fn parse() -> Command {
     let cli = Cli::parse();
     match cli.command {
         Commands::Version => Command::Version,
+        Commands::Plugin { command } => Command::Plugin(match command {
+            PluginCommands::List => PluginCommand::List,
+            PluginCommands::Add { name } => PluginCommand::Add { name },
+            PluginCommands::Remove { name } => PluginCommand::Remove { name },
+            PluginCommands::Status { name } => PluginCommand::Status { name },
+        }),
         Commands::Doctor { command } => Command::Doctor(match command {
             DoctorCommands::Run { preflight } => DoctorCommand::Run { preflight },
             DoctorCommands::Aliases { subcmd } => DoctorCommand::Aliases { subcmd },
@@ -30,6 +36,8 @@ pub fn parse() -> Command {
                 json,
             },
             DoctorCommands::Bins { subcmd } => DoctorCommand::Bins { subcmd },
+            DoctorCommands::Trend => DoctorCommand::Trend,
+            DoctorCommands::Forecast => DoctorCommand::Forecast,
         }),
         Commands::Link { command } => Command::Link(match command {
             LinkCommands::Status { json } => LinkCommand::Status { json },

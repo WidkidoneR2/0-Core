@@ -16,3 +16,4 @@ pub mod workspace;
 pub mod zone;
 pub mod events;
 pub mod simulate;
+pub mod plugins;

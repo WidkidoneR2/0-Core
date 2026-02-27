@@ -154,12 +154,17 @@ alias core='~/0-core/scripts/core'  # v2 orchestrator binary
 alias cls='core link sync'           # sync all dotfiles — one command
 alias clp='core link plan'           # preview before syncing
 alias ce='core events list'
-alias cew='core events watch'         # live event stream          # today's events
+alias cew='core events watch'          # live event stream
+alias cpl='core plugin list'            # plugin registry
+alias cpa='core plugin add'             # register plugin
+alias cps='core plugin status'          # plugin status         # live event stream          # today's events
 alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor
 
 # ── Core v3 — Causality Engine (Phase 2) ─────────────────
-alias csd='core simulate doctor'      # predict health — no writes
+alias csd='core simulate doctor'
+alias cdt='core doctor trend'            # health trend analysis
+alias cdf='core doctor forecast'         # health forecast      # predict health — no writes
 alias csu='core simulate update'      # preview updates — no writes
 alias cw='core why summary'          # today's activity summary
 alias cwh='core why health'          # health trajectory
