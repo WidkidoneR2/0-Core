@@ -387,3 +387,251 @@ pub fn auto(ctx: &AppContext, reason: &str) -> CoreResult<()> {
 
     Ok(())
 }
+
+pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "checkpoint",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
+    )?;
+
+    let dir = checkpoints_dir();
+    let mut entries: Vec<_> = fs::read_dir(&dir)
+        .map_err(|e| CoreError::Io(e))?
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().contains(name))
+        .collect();
+
+    entries.sort_by_key(|e| e.file_name());
+    entries.reverse();
+
+    let entry = entries.first().ok_or_else(|| {
+        CoreError::Runtime(format!("Checkpoint '{}' not found", name))
+    })?;
+
+    let content = fs::read_to_string(entry.path()).map_err(|e| CoreError::Io(e))?;
+    let manifest = toml::from_str::<CheckpointManifest>(&content)
+        .map_err(|e| CoreError::Runtime(e.to_string()))?;
+
+    println!("{}", "♻️  Recovery Engine".bold());
+    println!("  {} {}", "Checkpoint:".dimmed(), manifest.name.bright_white());
+    println!("  {} {}", "Created:   ".dimmed(), manifest.created.dimmed());
+    println!("  {} {}%", "Health:    ".dimmed(), manifest.health.to_string().bright_green());
+    println!("{}", "━".repeat(50).dimmed());
+
+    // Git advisory
+    let current_head = read_git_head();
+    if current_head != manifest.git_head {
+        println!("  {} Git HEAD has changed:", "⚠️ ".bright_yellow());
+        println!("    {} {}", "checkpoint:".dimmed(), manifest.git_head.bright_red());
+        println!("    {} {}", "current:   ".dimmed(), current_head.bright_white());
+        println!("    {} To restore git state:", "→".dimmed());
+        println!("      {}", format!("git -C ~/0-core reset --hard {}", manifest.git_head).bright_cyan());
+    } else {
+        println!("  {} Git HEAD unchanged", "✓".bright_green());
+    }
+
+    // Config file restore
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/root"));
+    let config_map = vec![
+        ("aliases", home.join(".config/zsh/aliases.zsh")),
+        ("zshrc",   home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc")),
+        ("sway",    home.join(".config/sway/config")),
+        ("foot",    home.join(".config/foot/foot.ini")),
+    ];
+
+    let current_hashes = read_config_hashes();
+    let mut restorable: Vec<(&str, PathBuf)> = vec![];
+
+    for (name_key, path) in &config_map {
+        if let Some(checkpoint_hash) = manifest.config_hashes.get(*name_key) {
+            if let Some(current_hash) = current_hashes.get(*name_key) {
+                if current_hash != checkpoint_hash {
+                    restorable.push((name_key, path.clone()));
+                }
+            }
+        }
+    }
+
+    if restorable.is_empty() {
+        println!("  {} Config files unchanged — nothing to restore", "✓".bright_green());
+    } else {
+        println!("  {} Config files changed since checkpoint:", "~".bright_yellow());
+        for (key, _) in &restorable {
+            println!("    {} {} (can restore)", "↳".dimmed(), key.bright_white());
+        }
+        println!();
+        println!("  {} Git restore is advisory only — run the command above manually", "ℹ".bright_cyan());
+        println!("  {} Config restore requires explicit: {}", "ℹ".bright_cyan(), "core checkpoint restore-configs <name>".bright_cyan());
+    }
+
+    // Tool version advisory
+    let current_tools = read_tool_versions();
+    let mut tool_changes = vec![];
+    for (tool, old_ver) in &manifest.tool_versions {
+        if let Some(new_ver) = current_tools.get(tool) {
+            if new_ver != old_ver {
+                tool_changes.push((tool.clone(), old_ver.clone(), new_ver.clone()));
+            }
+        }
+    }
+
+    if !tool_changes.is_empty() {
+        println!("  {} Tool versions changed since checkpoint:", "~".bright_yellow());
+        for (tool, old, new) in &tool_changes {
+            println!("    {} {} {} → {}", "↳".dimmed(), tool.bright_white(), old.bright_red(), new.bright_green());
+        }
+    } else {
+        println!("  {} Tool versions unchanged", "✓".bright_green());
+    }
+
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} Recovery report complete", "✅".green());
+    println!("  {} No changes were made — review above and act explicitly", "→".dimmed());
+
+    Ok(())
+}
+
+pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "checkpoint",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let dir = checkpoints_dir();
+    if !dir.exists() {
+        println!("  {} No checkpoints found", "○".dimmed());
+        return Ok(());
+    }
+
+    let mut entries: Vec<_> = fs::read_dir(&dir)
+        .map_err(|e| CoreError::Io(e))?
+        .flatten()
+        .filter(|e| e.path().extension().map(|x| x == "toml").unwrap_or(false))
+        .collect();
+
+    entries.sort_by_key(|e| e.file_name());
+    entries.reverse();
+
+    println!("{}", "🔍 Searching for last good checkpoint...".bold());
+    println!("{}", "━".repeat(50).dimmed());
+
+    let mut found = false;
+    for entry in &entries {
+        let content = fs::read_to_string(entry.path()).unwrap_or_default();
+        if let Ok(manifest) = toml::from_str::<CheckpointManifest>(&content) {
+            if manifest.health >= 95 {
+                println!("  {} Last good checkpoint found:", "✅".green());
+                println!("  {} {}", "Name:    ".dimmed(), manifest.name.bright_white());
+                println!("  {} {}", "Created: ".dimmed(), manifest.created.dimmed());
+                println!("  {} {}%", "Health:  ".dimmed(), manifest.health.to_string().bright_green());
+                println!("  {} {}", "Commit:  ".dimmed(), manifest.git_head.bright_white());
+                if let Some(n) = &manifest.notes {
+                    println!("  {} {}", "Notes:   ".dimmed(), n.dimmed());
+                }
+                println!("{}", "━".repeat(50).dimmed());
+                println!("  {} To restore: {}", "→".dimmed(),
+                    format!("core checkpoint restore {}", manifest.name).bright_cyan());
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if !found {
+        println!("  {} No checkpoint with 95%+ health found", "⚠️ ".bright_yellow());
+        println!("  {} Run {} to create one now", "→".dimmed(), "cpc <name>".bright_cyan());
+    }
+
+    println!("{}", "━".repeat(50).dimmed());
+    Ok(())
+}
+
+pub fn btrfs_snapshot(ctx: &AppContext, label: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "checkpoint",
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+            Capability::SpawnProcess,
+        ],
+    )?;
+
+    let timestamp = timestamp();
+    let snapshot_name = format!("faelight-{}-{}", label, timestamp.replace(':', "-"));
+    let snapshot_path = format!("/.snapshots/{}", snapshot_name);
+
+    println!("{}", "📸 Btrfs Snapshot".bold());
+    println!("  {} {}", "Label:  ".dimmed(), label.bright_white());
+    println!("  {} {}", "Target: ".dimmed(), snapshot_path.bright_white());
+    println!("{}", "━".repeat(50).dimmed());
+
+    // Check if /.snapshots exists
+    if !std::path::Path::new("/.snapshots").exists() {
+        println!("  {} /.snapshots directory not found", "⚠️ ".bright_yellow());
+        println!("  {} Create it with: {}", "→".dimmed(), "sudo mkdir /.snapshots".bright_cyan());
+        println!("  {} Btrfs snapshot requires sudo", "ℹ".bright_cyan());
+        return Ok(());
+    }
+
+    let output = std::process::Command::new("sudo")
+        .args([
+            "btrfs", "subvolume", "snapshot",
+            "/home",
+            &snapshot_path,
+        ])
+        .output()
+        .map_err(|e| CoreError::Io(e))?;
+
+    if output.status.success() {
+        println!("  {} Snapshot created: {}", "✅".green(), snapshot_name.bright_white());
+        println!("  {} {}", "Path:".dimmed(), snapshot_path.dimmed());
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr);
+        println!("  {} Snapshot failed: {}", "✗".bright_red(), err.trim());
+        println!("  {} Ensure sudo btrfs access is available", "→".dimmed());
+    }
+
+    println!("{}", "━".repeat(50).dimmed());
+    Ok(())
+}
+
+pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "checkpoint",
+        &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+    )?;
+
+    println!("{}", "📸 Btrfs Snapshots".bold());
+    println!("{}", "━".repeat(50).dimmed());
+
+    let output = std::process::Command::new("sudo")
+        .args(["btrfs", "subvolume", "list", "-s", "/"])
+        .output()
+        .map_err(|e| CoreError::Io(e))?;
+
+    if output.status.success() {
+        let s = String::from_utf8_lossy(&output.stdout);
+        let lines: Vec<&str> = s.lines()
+            .filter(|l| l.contains("faelight"))
+            .collect();
+
+        if lines.is_empty() {
+            println!("  {} No Faelight snapshots found", "○".dimmed());
+        } else {
+            for line in lines {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(path) = parts.last() {
+                    println!("  {} {}", "●".bright_cyan(), path.bright_white());
+                }
+            }
+        }
+    } else {
+        println!("  {} Could not list snapshots — ensure sudo btrfs access", "⚠️ ".bright_yellow());
+    }
+
+    println!("{}", "━".repeat(50).dimmed());
+    Ok(())
+}

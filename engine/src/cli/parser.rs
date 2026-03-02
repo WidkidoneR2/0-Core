@@ -445,6 +445,20 @@ pub enum PluginCommands {
 
 #[derive(Subcommand)]
 pub enum CheckpointCommands {
+    /// Restore config files from a named checkpoint
+    Restore {
+        /// Checkpoint name
+        name: String,
+    },
+    /// Find and restore last checkpoint with 95%+ health
+    LastGood,
+    /// Create a btrfs snapshot of @home
+    Snapshot {
+        /// Snapshot label
+        label: String,
+    },
+    /// List btrfs snapshots
+    Snapshots,
     /// Create a named checkpoint of current system state
     Create {
         /// Checkpoint name (e.g. pre-update, pre-release)
