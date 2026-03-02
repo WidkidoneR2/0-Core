@@ -172,6 +172,10 @@ alias cin="core intent new"             # new intent from template
 
 alias cpc="core checkpoint create"       # create checkpoint
 alias cpl="core checkpoint list"         # list checkpoints
+alias cpr="core checkpoint restore"      # recovery report for checkpoint
+alias cplg="core checkpoint last-good"   # find last 95%+ checkpoint
+alias cpss="core checkpoint snapshot"    # btrfs snapshot of @home
+alias cpsl="core checkpoint snapshots"   # list btrfs snapshots
 alias cpd="core checkpoint diff"         # diff since checkpoint
 
 # ── Core v3 — Causality Engine (Phase 2) ─────────────────
