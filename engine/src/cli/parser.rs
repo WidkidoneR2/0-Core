@@ -193,6 +193,25 @@ pub enum LinkCommands {
 
 #[derive(Subcommand)]
 pub enum IntentCommands {
+    /// Set focused intent
+    Focus { id: String },
+    /// Clear focused intent
+    Unfocus,
+    /// Show current focus and workflow state
+    Status,
+    /// Detect if work has drifted from focused intent
+    Drift,
+    /// Transition intent to in-progress and set focus
+    Start { id: String },
+    /// Mark intent as complete and move to complete/
+    Complete { id: String },
+    /// Create a new intent from template
+    New {
+        /// Template type: feature, fix, arch, study
+        template: String,
+        /// Intent title
+        title: String,
+    },
     List {
         #[arg(long)]
         planned: bool,

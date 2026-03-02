@@ -332,3 +332,450 @@ pub fn validate(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     Ok(())
 }
+
+// ── Phase 2 — Focus + Workflow States ─────────────────────────────────────
+
+fn intent_state_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("/root"))
+        .join(".local/state/0-core/intent")
+}
+
+fn focus_file() -> PathBuf {
+    intent_state_dir().join("focus.toml")
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct FocusState {
+    id: String,
+    title: String,
+    started: String,
+    workflow: String,
+}
+
+fn read_focus() -> Option<FocusState> {
+    let content = fs::read_to_string(focus_file()).ok()?;
+    toml::from_str(&content).ok()
+}
+
+fn write_focus(state: &FocusState) -> crate::errors::CoreResult<()> {
+    fs::create_dir_all(intent_state_dir())
+        .map_err(crate::errors::CoreError::Io)?;
+    let content = toml::to_string_pretty(state)
+        .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
+    fs::write(focus_file(), content)
+        .map_err(crate::errors::CoreError::Io)?;
+    Ok(())
+}
+
+fn timestamp_now() -> String {
+    let output = std::process::Command::new("date")
+        .args(["+%Y-%m-%dT%H:%M:%S"])
+        .output()
+        .unwrap_or_else(|_| std::process::Output {
+            stdout: b"unknown".to_vec(),
+            stderr: vec![],
+            status: std::process::ExitStatus::default(),
+        });
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+pub fn focus(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+
+    let intents = load_all(ctx);
+    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
+        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
+    })?;
+
+    if intent.status == "complete" || intent.status == "cancelled" {
+        println!("  {} Cannot focus a {} intent", "✗".bright_red(), intent.status);
+        return Ok(());
+    }
+
+    let state = FocusState {
+        id: intent.id.clone(),
+        title: intent.title.clone(),
+        started: timestamp_now(),
+        workflow: intent.status.clone(),
+    };
+
+    write_focus(&state)?;
+
+    println!("{}", "🎯 Intent Focused".bold());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
+    println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
+    println!("  {} {}", "State: ".dimmed(), intent.status_colored());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} Use {} to check drift", "→".dimmed(), "core intent drift".bright_cyan());
+
+    Ok(())
+}
+
+pub fn unfocus(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+
+    let f = focus_file();
+    if !f.exists() {
+        println!("  {} No intent currently focused", "○".dimmed());
+        return Ok(());
+    }
+
+    let current = read_focus();
+    fs::remove_file(&f).map_err(crate::errors::CoreError::Io)?;
+
+    if let Some(s) = current {
+        println!("  {} Unfocused: {}", "○".dimmed(), s.title.bright_white());
+    } else {
+        println!("  {} Focus cleared", "○".dimmed());
+    }
+
+    Ok(())
+}
+
+pub fn focus_status(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    match read_focus() {
+        None => {
+            println!("  {} No intent focused", "○".dimmed());
+            println!("  {} Use {} to set focus", "→".dimmed(), "core intent focus <id>".bright_cyan());
+        }
+        Some(state) => {
+            println!("{}", "🎯 Current Focus".bold());
+            println!("{}", "━".repeat(50).dimmed());
+            println!("  {} {}", "ID:      ".dimmed(), state.id.bright_white());
+            println!("  {} {}", "Title:   ".dimmed(), state.title.bright_white());
+            println!("  {} {}", "State:   ".dimmed(), state.workflow.bright_yellow());
+            println!("  {} {}", "Since:   ".dimmed(), state.started.dimmed());
+            println!("{}", "━".repeat(50).dimmed());
+        }
+    }
+
+    Ok(())
+}
+
+pub fn drift(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let focus = match read_focus() {
+        None => {
+            println!("  {} No intent focused — nothing to drift from", "○".dimmed());
+            println!("  {} Set a focus with {}", "→".dimmed(), "core intent focus <id>".bright_cyan());
+            return Ok(());
+        }
+        Some(f) => f,
+    };
+
+    // Read recent git commits to check drift
+    let output = std::process::Command::new("git")
+        .args([
+            "-C",
+            &dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("/root"))
+                .join("0-core")
+                .to_string_lossy()
+                .to_string(),
+            "log",
+            "--oneline",
+            "-10",
+            "--format=%s",
+        ])
+        .output()
+        .map_err(crate::errors::CoreError::Io)?;
+
+    let commits = String::from_utf8_lossy(&output.stdout);
+    let commit_lines: Vec<&str> = commits.lines().collect();
+
+    // Simple drift detection: check if recent commits mention the focused intent
+    let id_mentions = commit_lines.iter()
+        .filter(|c| c.contains(&focus.id) || c.to_lowercase().contains("intent"))
+        .count();
+
+    let total = commit_lines.len();
+
+    println!("{}", "🧭 Intent Drift Analysis".bold());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} {}", "Focus:   ".dimmed(), focus.title.bright_white());
+    println!("  {} {}", "ID:      ".dimmed(), focus.id.bright_white());
+    println!("{}", "━".repeat(50).dimmed());
+
+    if total == 0 {
+        println!("  {} No recent commits to analyze", "○".dimmed());
+        return Ok(());
+    }
+
+    println!("  {} Last {} commits analyzed", "→".dimmed(), total);
+
+    if id_mentions > 0 {
+        println!("  {} {} commit(s) relate to focused intent", "✅".green(), id_mentions);
+        println!("  {} Forest is on course", "✓".bright_green());
+    } else {
+        println!("  {} No recent commits reference focused intent", "⚠️ ".bright_yellow());
+        println!("  {} Possible drift detected — recent work:", "→".dimmed());
+        for commit in commit_lines.iter().take(5) {
+            println!("    {} {}", "·".dimmed(), commit.dimmed());
+        }
+    }
+
+    println!("{}", "━".repeat(50).dimmed());
+
+    Ok(())
+}
+
+pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+
+    let intents = load_all(ctx);
+    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
+        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
+    })?;
+
+    if intent.status != "planned" && intent.status != "future" {
+        println!(
+            "  {} Intent is already {} — use complete to finish it",
+            "⚠️ ".bright_yellow(),
+            intent.status
+        );
+        return Ok(());
+    }
+
+    // Auto-checkpoint before transition
+    println!("  {} Auto-checkpointing before transition...", "→".dimmed());
+    crate::domains::checkpoint::auto(ctx, &format!("intent-{}-start", id))?;
+
+    // Update frontmatter status in file
+    let base = PathBuf::from(&ctx.core_root).join("intents");
+    let folders = ["future", "planned", "deferred"];
+    let mut found_path: Option<PathBuf> = None;
+
+    for folder in &folders {
+        let dir = base.join(folder);
+        if !dir.exists() { continue; }
+        if let Ok(entries) = fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+                    .unwrap_or(false)
+                {
+                    found_path = Some(path);
+                    break;
+                }
+            }
+        }
+        if found_path.is_some() { break; }
+    }
+
+    if let Some(path) = found_path {
+        let content = fs::read_to_string(&path).map_err(crate::errors::CoreError::Io)?;
+        let updated = content.replace("status: planned", "status: in-progress")
+                             .replace("status: future", "status: in-progress")
+                             .replace("status: deferred", "status: in-progress");
+        fs::write(&path, updated).map_err(crate::errors::CoreError::Io)?;
+    }
+
+    // Set as focused intent
+    let state = FocusState {
+        id: intent.id.clone(),
+        title: intent.title.clone(),
+        started: timestamp_now(),
+        workflow: "in-progress".to_string(),
+    };
+    write_focus(&state)?;
+
+    println!("{}", "🚀 Intent Started".bold());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
+    println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
+    println!("  {} planned → {}", "State: ".dimmed(), "in-progress".bright_yellow());
+    println!("  {} Intent is now focused", "🎯".green());
+    println!("{}", "━".repeat(50).dimmed());
+
+    Ok(())
+}
+
+pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+
+    let intents = load_all(ctx);
+    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
+        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
+    })?;
+
+    if intent.status == "complete" {
+        println!("  {} Intent {} is already complete", "✅".green(), id);
+        return Ok(());
+    }
+
+    // Auto-checkpoint before completion
+    println!("  {} Auto-checkpointing before completion...", "→".dimmed());
+    crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
+
+    // Find and move the file to complete/
+    let base = PathBuf::from(&ctx.core_root).join("intents");
+    let folders = ["future", "planned", "deferred", "in-progress"];
+    let mut found_path: Option<PathBuf> = None;
+
+    for folder in &folders {
+        let dir = base.join(folder);
+        if !dir.exists() { continue; }
+        if let Ok(entries) = fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+                    .unwrap_or(false)
+                {
+                    found_path = Some(path);
+                    break;
+                }
+            }
+        }
+        if found_path.is_some() { break; }
+    }
+
+    if let Some(src_path) = found_path {
+        // Update status in frontmatter
+        let content = fs::read_to_string(&src_path).map_err(crate::errors::CoreError::Io)?;
+        let updated = content
+            .replace("status: planned", "status: complete")
+            .replace("status: future", "status: complete")
+            .replace("status: in-progress", "status: complete")
+            .replace("status: deferred", "status: complete");
+
+        // Move to complete/
+        let complete_dir = base.join("complete");
+        fs::create_dir_all(&complete_dir).map_err(crate::errors::CoreError::Io)?;
+        let filename = src_path.file_name().unwrap();
+        let dest_path = complete_dir.join(filename);
+        fs::write(&dest_path, updated).map_err(crate::errors::CoreError::Io)?;
+        fs::remove_file(&src_path).map_err(crate::errors::CoreError::Io)?;
+    }
+
+    // Clear focus if this was the focused intent
+    if let Some(f) = read_focus() {
+        if f.id == id {
+            let _ = fs::remove_file(focus_file());
+        }
+    }
+
+    println!("{}", "✅ Intent Complete".bold());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
+    println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
+    println!("  {} → {}", "State: ".dimmed(), "complete".bright_green());
+    println!("  {} Moved to intents/complete/", "📁".dimmed());
+    println!("{}", "━".repeat(50).dimmed());
+
+    Ok(())
+}
+
+pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+
+    // Find next ID
+    let intents = load_all(ctx);
+    let max_id = intents.iter()
+        .filter_map(|i| i.id.parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
+    let next_id = max_id + 1;
+
+    let today = std::process::Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "2026-01-01".to_string());
+
+    let (type_tag, tags) = match template {
+        "feature" => ("feature", "feature, rust, faelight"),
+        "fix"     => ("fix",     "fix, bugfix"),
+        "arch"    => ("arch",    "architecture, rust, design"),
+        "study"   => ("study",   "study, research, learning"),
+        _         => ("future",  "faelight"),
+    };
+
+    let slug = title.to_lowercase().replace(' ', "-");
+    let filename = format!("{:0>3}-{}.md", next_id, slug);
+    let filepath = PathBuf::from(&ctx.core_root)
+        .join("intents/future")
+        .join(&filename);
+
+    let content = format!(
+r#"---
+id: {:03}
+date: {}
+type: {}
+title: "{}"
+status: planned
+tags: [{}]
+version: TBD
+---
+
+## Vision
+
+<!-- What is this intent trying to achieve? -->
+
+## Why Now
+
+<!-- Why is this the right time for this intent? -->
+
+## Approach
+
+<!-- How will this be implemented? -->
+
+## Success Criteria
+
+- [ ] <!-- First criterion -->
+- [ ] <!-- Second criterion -->
+
+## Gate Check
+```
+⬜ Not started
+```
+
+---
+
+*"The forest grows with intention."* 🌲
+"#,
+        next_id, today, type_tag, title, tags
+    );
+
+    fs::write(&filepath, content).map_err(crate::errors::CoreError::Io)?;
+
+    println!("{}", "📝 Intent Created".bold());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} {:03}", "ID:       ".dimmed(), next_id);
+    println!("  {} {}", "Title:    ".dimmed(), title.bright_white());
+    println!("  {} {}", "Template: ".dimmed(), template.bright_cyan());
+    println!("  {} {}", "File:     ".dimmed(), filename.dimmed());
+    println!("{}", "━".repeat(50).dimmed());
+    println!("  {} Edit: {}", "→".dimmed(), filepath.display().to_string().bright_cyan());
+
+    Ok(())
+}
