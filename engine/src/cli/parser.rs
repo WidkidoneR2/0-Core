@@ -242,6 +242,10 @@ pub enum ProfileCommands {
 #[derive(Subcommand)]
 pub enum SecurityCommands {
     Scan,
+    /// Show debt score — how long each finding has been present
+    Debt,
+    /// Show finding count trend over time
+    Trend,
     Report {
         #[arg(long)]
         all: bool,

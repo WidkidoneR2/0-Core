@@ -122,6 +122,8 @@ pub enum ProfileCommand {
 #[derive(Debug)]
 pub enum SecurityCommand {
     Scan,
+    Debt,
+    Trend,
     Report { all: bool },
     Show { id: String },
     History,

@@ -355,6 +355,8 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
     if let Ok(json) = serde_json::to_string_pretty(&result) {
         fs::write(&path, json).ok();
     }
+    append_to_history(&result);
+    update_first_seen(&result.findings);
 
     let critical = result
         .findings
@@ -520,5 +522,235 @@ pub fn history(_ctx: &AppContext) -> CoreResult<()> {
         let count = entry["findings"].as_u64().unwrap_or(0);
         println!("  {} — {} findings", ts.dimmed(), count);
     }
+    Ok(())
+}
+
+fn history_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_default();
+    PathBuf::from(home).join(".local/state/0-core/security/scan-history.jsonl")
+}
+
+fn first_seen_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_default();
+    PathBuf::from(home).join(".local/state/0-core/security/first-seen.json")
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct HistoryEntry {
+    timestamp: String,
+    total: usize,
+    critical: usize,
+    high: usize,
+    medium: usize,
+    low: usize,
+}
+
+fn append_to_history(result: &ScanResult) {
+    let entry = HistoryEntry {
+        timestamp: result.timestamp.clone(),
+        total: result.findings.len(),
+        critical: result.findings.iter().filter(|f| f.severity == Severity::Critical).count(),
+        high: result.findings.iter().filter(|f| f.severity == Severity::High).count(),
+        medium: result.findings.iter().filter(|f| f.severity == Severity::Medium).count(),
+        low: result.findings.iter().filter(|f| f.severity == Severity::Low).count(),
+    };
+
+    let path = history_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+
+    if let Ok(line) = serde_json::to_string(&entry) {
+        use std::io::Write;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+        {
+            writeln!(file, "{}", line).ok();
+        }
+    }
+}
+
+fn update_first_seen(findings: &[Finding]) {
+    let path = first_seen_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+
+    let mut map: std::collections::HashMap<String, String> = path
+        .exists()
+        .then(|| fs::read_to_string(&path).ok())
+        .flatten()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_default();
+
+    let now = Local::now().format("%Y-%m-%d").to_string();
+    for finding in findings {
+        map.entry(finding.id.clone()).or_insert_with(|| now.clone());
+    }
+
+    if let Ok(json) = serde_json::to_string_pretty(&map) {
+        fs::write(&path, json).ok();
+    }
+}
+
+fn days_since(date_str: &str) -> Option<i64> {
+    use chrono::NaiveDate;
+    let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()?;
+    let today = Local::now().date_naive();
+    Some((today - date).num_days())
+}
+
+pub fn debt(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "security",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let last_scan = fs::read_to_string(last_scan_path())
+        .map_err(|_| crate::errors::CoreError::Runtime(
+            "No scan data found — run 'core security scan' first".to_string()
+        ))?;
+
+    let result: ScanResult = serde_json::from_str(&last_scan)
+        .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
+
+    let first_seen_content = fs::read_to_string(first_seen_path()).unwrap_or_default();
+    let first_seen: std::collections::HashMap<String, String> =
+        serde_json::from_str(&first_seen_content).unwrap_or_default();
+
+    println!("{}", "🔒 Security Debt Report".bold());
+    println!("  {} {}", "Scan date:".dimmed(), result.timestamp.dimmed());
+    println!("  {} {}", "Findings: ".dimmed(), result.findings.len().to_string().bright_white());
+    println!("{}", "━".repeat(55).dimmed());
+
+    let mut findings_with_age: Vec<(&Finding, i64)> = result.findings.iter()
+        .map(|f| {
+            let age = first_seen.get(&f.id)
+                .and_then(|d| days_since(d))
+                .unwrap_or(0);
+            (f, age)
+        })
+        .collect();
+
+    findings_with_age.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let total_debt: i64 = findings_with_age.iter().map(|(_, age)| age).sum();
+
+    for (finding, age) in &findings_with_age {
+        let sev_colored = match finding.severity {
+            Severity::Critical => "CRIT  ".bright_red().bold(),
+            Severity::High     => "HIGH  ".bright_red(),
+            Severity::Medium   => "MED   ".bright_yellow(),
+            Severity::Low      => "LOW   ".bright_blue(),
+            Severity::Info     => "INFO  ".dimmed(),
+        };
+        let age_colored = if *age >= 30 {
+            format!("{}d", age).bright_red()
+        } else if *age >= 7 {
+            format!("{}d", age).bright_yellow()
+        } else {
+            format!("{}d", age).dimmed()
+        };
+        println!("  {} {} {} — {}",
+            sev_colored,
+            age_colored,
+            finding.package.bright_white(),
+            finding.description.dimmed()
+        );
+    }
+
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} {} finding-days", "Total debt:".dimmed(), total_debt.to_string().bright_white());
+
+    let avg = if !findings_with_age.is_empty() {
+        total_debt / findings_with_age.len() as i64
+    } else { 0 };
+    println!("  {} {} days per finding", "Average age:".dimmed(), avg.to_string().bright_white());
+
+    let aging = findings_with_age.iter().filter(|(_, age)| *age >= 30).count();
+    if aging > 0 {
+        println!("  {} {} finding(s) older than 30 days", "⚠️ ".bright_yellow(), aging);
+    } else {
+        println!("  {} All findings under 30 days", "✓".bright_green());
+    }
+
+    Ok(())
+}
+
+pub fn trend(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "security",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let path = history_path();
+    let content = fs::read_to_string(&path).unwrap_or_default();
+
+    println!("{}", "📈 Security Trend".bold());
+    println!("{}", "━".repeat(55).dimmed());
+
+    if content.is_empty() {
+        println!("  {} No history yet — run 'core security scan' to begin tracking", "ℹ".dimmed());
+        return Ok(());
+    }
+
+    let entries: Vec<HistoryEntry> = content.lines()
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+
+    if entries.is_empty() {
+        println!("  {} No parseable history entries", "ℹ".dimmed());
+        return Ok(());
+    }
+
+    let recent: Vec<&HistoryEntry> = entries.iter().rev().take(10).collect();
+
+    println!("  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
+        "Date".dimmed(),
+        "Total".dimmed(),
+        "Crit".dimmed(),
+        "High".dimmed(),
+        "Med".dimmed(),
+        "Low".dimmed(),
+    );
+    println!("  {}", "─".repeat(48).dimmed());
+
+    for entry in recent.iter().rev() {
+        let total_colored = if entry.total > 20 {
+            entry.total.to_string().bright_red()
+        } else if entry.total > 10 {
+            entry.total.to_string().bright_yellow()
+        } else {
+            entry.total.to_string().bright_green()
+        };
+
+        println!("  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
+            entry.timestamp.dimmed(),
+            total_colored,
+            if entry.critical > 0 { entry.critical.to_string().bright_red() } else { entry.critical.to_string().dimmed() },
+            if entry.high > 0 { entry.high.to_string().bright_yellow() } else { entry.high.to_string().dimmed() },
+            entry.medium.to_string().dimmed(),
+            entry.low.to_string().dimmed(),
+        );
+    }
+
+    println!("{}", "━".repeat(55).dimmed());
+
+    if entries.len() >= 2 {
+        let first = &entries[0];
+        let last = entries.last().unwrap();
+        let delta = last.total as i64 - first.total as i64;
+        if delta < 0 {
+            println!("  {} {} finding(s) resolved since first scan", "✅".green(), delta.abs());
+        } else if delta > 0 {
+            println!("  {} {} new finding(s) since first scan", "⚠️ ".bright_yellow(), delta);
+        } else {
+            println!("  {} Finding count unchanged since first scan", "→".dimmed());
+        }
+    }
+
+    println!("  {} {} scan(s) in history", "📊".dimmed(), entries.len());
     Ok(())
 }

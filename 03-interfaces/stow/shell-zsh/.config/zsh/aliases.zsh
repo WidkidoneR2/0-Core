@@ -174,6 +174,10 @@ alias cpc="core checkpoint create"       # create checkpoint
 alias cpl="core checkpoint list"         # list checkpoints
 alias cpr="core checkpoint restore"      # recovery report for checkpoint
 alias cplg="core checkpoint last-good"   # find last 95%+ checkpoint
+
+alias ssd="core security debt"          # security debt report
+alias sst="core security trend"         # security trend over time
+alias ssh2="core security history"      # scan history
 alias cpss="core checkpoint snapshot"    # btrfs snapshot of @home
 alias cpsl="core checkpoint snapshots"   # list btrfs snapshots
 alias cpd="core checkpoint diff"         # diff since checkpoint

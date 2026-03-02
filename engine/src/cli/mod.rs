@@ -104,6 +104,8 @@ pub fn parse() -> Command {
             SecurityCommands::Report { all } => SecurityCommand::Report { all },
             SecurityCommands::Show { id } => SecurityCommand::Show { id },
             SecurityCommands::History => SecurityCommand::History,
+            SecurityCommands::Debt => SecurityCommand::Debt,
+            SecurityCommands::Trend => SecurityCommand::Trend,
         }),
         Commands::Sandbox { command } => Command::Sandbox(match command {
             SandboxCommands::Run { args } => SandboxCommand::Run { args },
