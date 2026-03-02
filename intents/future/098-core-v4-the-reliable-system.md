@@ -240,7 +240,7 @@ Integrates with event ledger for historical analysis.
 ```
 1. One phase per session.
 2. Every session ends at 95%+ health with a clean commit.
-3. No phase starts until previous has run for at least one day.
+3. No phase starts until previous is tested, committed, and stable — each phase gets its own session to breathe.
 4. v4 work requires INT-098 focused — practice what we preach.
 5. Each phase must have a working demo before the next begins.
 ```
