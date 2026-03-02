@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -298,6 +298,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Trace(c) => match c {
             TraceCommand::Last => crate::domains::events::trace_last(ctx),
             TraceCommand::Domain { domain } => crate::domains::events::trace_domain(ctx, &domain),
+        },
+        Command::Checkpoint(c) => match c {
+            CheckpointCommand::Create { name, notes } => crate::domains::checkpoint::create(ctx, &name, notes.as_deref()),
+            CheckpointCommand::List => crate::domains::checkpoint::list(ctx),
+            CheckpointCommand::Diff { name } => crate::domains::checkpoint::diff(ctx, &name),
         },
         Command::Simulate(c) => match c {
             SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),

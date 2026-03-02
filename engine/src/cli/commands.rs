@@ -30,6 +30,7 @@ pub enum Command {
     Why(WhyCommand),
     Trace(TraceCommand),
     Simulate(SimulateCommand),
+    Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
         domain: Option<String>,
@@ -228,4 +229,11 @@ pub enum PluginCommand {
     Add { name: String },
     Remove { name: String },
     Status { name: String },
+}
+
+#[derive(Debug)]
+pub enum CheckpointCommand {
+    Create { name: String, notes: Option<String> },
+    List,
+    Diff { name: String },
 }

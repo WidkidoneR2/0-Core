@@ -161,6 +161,11 @@ alias cps='core plugin status'          # plugin status         # live event str
 alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor
 
+# ── Core v4 — Checkpoint System (Phase 1) ────────────────
+alias cpc="core checkpoint create"       # create checkpoint
+alias cpl="core checkpoint list"         # list checkpoints
+alias cpd="core checkpoint diff"         # diff since checkpoint
+
 # ── Core v3 — Causality Engine (Phase 2) ─────────────────
 alias csd='core simulate doctor'
 alias cdt='core doctor trend'            # health trend analysis
