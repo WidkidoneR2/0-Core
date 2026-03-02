@@ -88,6 +88,13 @@ pub enum LinkCommand {
 
 #[derive(Debug)]
 pub enum IntentCommand {
+    Focus { id: String },
+    Unfocus,
+    FocusStatus,
+    Drift,
+    Start { id: String },
+    Complete { id: String },
+    New { template: String, title: String },
     List {
         planned: bool,
         active: bool,

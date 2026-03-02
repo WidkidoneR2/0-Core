@@ -84,6 +84,13 @@ pub fn parse() -> Command {
             IntentCommands::Search { term } => IntentCommand::Search { term },
             IntentCommands::Stats => IntentCommand::Stats,
             IntentCommands::Validate => IntentCommand::Validate,
+            IntentCommands::Focus { id } => IntentCommand::Focus { id },
+            IntentCommands::Unfocus => IntentCommand::Unfocus,
+            IntentCommands::Status => IntentCommand::FocusStatus,
+            IntentCommands::Drift => IntentCommand::Drift,
+            IntentCommands::Start { id } => IntentCommand::Start { id },
+            IntentCommands::Complete { id } => IntentCommand::Complete { id },
+            IntentCommands::New { template, title } => IntentCommand::New { template, title },
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,

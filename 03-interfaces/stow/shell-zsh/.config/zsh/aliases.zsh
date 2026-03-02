@@ -162,6 +162,14 @@ alias ces='core events since'        # ces 1h / ces 30m / ces 2d
 alias cef='core events filter'       # cef git / cef doctor
 
 # ── Core v4 — Checkpoint System (Phase 1) ────────────────
+alias cif="core intent focus"           # focus an intent
+alias ciu="core intent unfocus"         # clear focus
+alias cis="core intent status"          # show focused intent
+alias cid="core intent drift"           # detect drift
+alias cistart="core intent start"       # start intent (planned→in-progress)
+alias cicomplete="core intent complete" # complete intent
+alias cin="core intent new"             # new intent from template
+
 alias cpc="core checkpoint create"       # create checkpoint
 alias cpl="core checkpoint list"         # list checkpoints
 alias cpd="core checkpoint diff"         # diff since checkpoint

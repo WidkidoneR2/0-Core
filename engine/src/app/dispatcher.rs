@@ -109,6 +109,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Search { term } => crate::domains::intent::search(ctx, &term),
                 IntentCommand::Stats => crate::domains::intent::stats(ctx),
                 IntentCommand::Validate => crate::domains::intent::validate(ctx),
+                IntentCommand::Focus { id } => crate::domains::intent::focus(ctx, &id),
+                IntentCommand::Unfocus => crate::domains::intent::unfocus(ctx),
+                IntentCommand::FocusStatus => crate::domains::intent::focus_status(ctx),
+                IntentCommand::Drift => crate::domains::intent::drift(ctx),
+                IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
+                IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
+                IntentCommand::New { template, title } => crate::domains::intent::new_intent(ctx, &template, &title),
             }
         }
 
