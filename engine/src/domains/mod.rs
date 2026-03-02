@@ -13,6 +13,7 @@ pub mod profile;
 pub mod release;
 pub mod sandbox;
 pub mod security;
+pub mod checkpoint;
 pub mod simulate;
 pub mod update;
 pub mod workspace;

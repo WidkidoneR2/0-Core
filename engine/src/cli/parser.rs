@@ -103,6 +103,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SimulateCommands,
     },
+    /// Checkpoint system state for recovery
+    Checkpoint {
+        #[command(subcommand)]
+        command: CheckpointCommands,
+    },
     /// Show capability requirements for all domains
     Capabilities {
         /// Output as JSON
@@ -415,6 +420,25 @@ pub enum PluginCommands {
     /// Show plugin status
     Status {
         /// Plugin name
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum CheckpointCommands {
+    /// Create a named checkpoint of current system state
+    Create {
+        /// Checkpoint name (e.g. pre-update, pre-release)
+        name: String,
+        /// Optional notes about this checkpoint
+        #[arg(short, long)]
+        notes: Option<String>,
+    },
+    /// List all checkpoints
+    List,
+    /// Show what changed since a checkpoint
+    Diff {
+        /// Checkpoint name
         name: String,
     },
 }

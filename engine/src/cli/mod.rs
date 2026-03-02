@@ -5,12 +5,12 @@ use clap::Parser;
 use commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
     Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
-    SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
+    CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
     WhyCommands, WorkspaceCommands,
 };
 
@@ -214,6 +214,11 @@ pub fn parse() -> Command {
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,
             SimulateCommands::Update => SimulateCommand::Update,
+        }),
+        Commands::Checkpoint { command } => Command::Checkpoint(match command {
+            CheckpointCommands::Create { name, notes } => CheckpointCommand::Create { name, notes },
+            CheckpointCommands::List => CheckpointCommand::List,
+            CheckpointCommands::Diff { name } => CheckpointCommand::Diff { name },
         }),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }
