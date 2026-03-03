@@ -82,11 +82,13 @@ window-rule {
 window-rule {
     match app-id="faelight-palette-float"
     open-floating true
+    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
     match app-id="faelight-menu-float"
     open-floating true
+    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
@@ -110,8 +112,8 @@ binds {
     Mod+Shift+f     { spawn "/home/christian/0-core/scripts/faelight-fm"; }
 
     // ── Faelight Tools ────────────────────────────────────
-    Mod+Space       { spawn "foot" "--app-id=faelight-palette-float" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
-    Mod+Escape      { spawn "foot" "--app-id=faelight-menu-float" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
+    Mod+Space       { spawn "foot" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Escape      { spawn "foot" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
     Mod+Alt+n       { spawn "notesnook"; }
