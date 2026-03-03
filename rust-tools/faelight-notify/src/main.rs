@@ -23,6 +23,8 @@ use smithay_client_toolkit::{
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use std::sync::{Arc, Mutex};
+use std::io::{BufRead, BufReader};
+use std::os::unix::net::UnixListener;
 use std::time::{Duration, Instant};
 use wayland_client::{
     globals::registry_queue_init,
@@ -259,6 +261,7 @@ struct NotifyState {
     configured: bool,
     glyph_cache: GlyphCache,
     notifications: Arc<Mutex<Vec<Notification>>>,
+    dnd: Arc<Mutex<bool>>,
     running: bool,
 }
 
@@ -553,7 +556,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let notifications: Arc<Mutex<Vec<Notification>>> = Arc::new(Mutex::new(Vec::new()));
+    let dnd_flag: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
     let notifs_for_dbus = notifications.clone();
+
+    // ─── IPC Socket Thread ────────────────────────────────
+    let notifs_for_ipc = notifications.clone();
+    let dnd_for_ipc = dnd_flag.clone();
+    std::thread::spawn(move || {
+        let uid = std::env::var("XDG_RUNTIME_DIR")
+            .unwrap_or_else(|_| format!("/run/user/{}", 1000));
+        let socket_path = format!("{}/faelight-notify.sock", uid);
+        let _ = std::fs::remove_file(&socket_path);
+        let listener = match UnixListener::bind(&socket_path) {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("⚠️  IPC socket error: {}", e);
+                return;
+            }
+        };
+        eprintln!("🔌 IPC socket ready: {}", socket_path);
+        for stream in listener.incoming() {
+            match stream {
+                Ok(s) => {
+                    let reader = BufReader::new(s);
+                    for line in reader.lines().flatten() {
+                        match line.trim() {
+                            "dnd-on" => {
+                                *dnd_for_ipc.lock().unwrap() = true;
+                                eprintln!("🔕 DND enabled");
+                            }
+                            "dnd-off" => {
+                                *dnd_for_ipc.lock().unwrap() = false;
+                                eprintln!("🔔 DND disabled");
+                            }
+                            "dismiss" => {
+                                let mut n = notifs_for_ipc.lock().unwrap();
+                                if !n.is_empty() { n.remove(0); }
+                                eprintln!("✕ Dismissed");
+                            }
+                            "dismiss-all" => {
+                                notifs_for_ipc.lock().unwrap().clear();
+                                eprintln!("✕ All dismissed");
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
@@ -618,6 +670,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         configured: false,
         glyph_cache,
         notifications,
+        dnd: dnd_flag.clone(),
         running: true,
     };
 
