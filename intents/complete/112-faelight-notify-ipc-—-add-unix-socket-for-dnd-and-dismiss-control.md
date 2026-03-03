@@ -3,7 +3,7 @@ id: 112
 date: 2026-03-03
 type: feature
 title: "faelight-notify IPC — add Unix socket for DND and dismiss control"
-status: planned
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
