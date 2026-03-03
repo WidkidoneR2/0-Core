@@ -103,7 +103,6 @@ binds {
     Mod+Return      { spawn "foot"; }
     Mod+b           { spawn "brave"; }
     Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
-    Mod+d           { spawn "foot" "--app-id=faelight-launcher-float" "-e" "/home/christian/0-core/scripts/faelight-launcher"; }
     Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; }
     Mod+n           { spawn "foot" "-e" "nvim"; }
     Mod+Shift+y     { spawn "foot" "-e" "yazi"; }
@@ -138,7 +137,7 @@ binds {
     Mod+Ctrl+g      { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
     // ── Clipboard ─────────────────────────────────────────
-    Mod+p           { spawn "sh" "-c" "cliphist list | /home/christian/0-core/scripts/faelight-launcher --dmenu | cliphist decode | wl-copy"; }
+    Mod+p           { spawn "sh" "-c" "cliphist list | foot --app-id=faelight-palette-float -W 80x24 -e fzf | cliphist decode | wl-copy"; }
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
 
     // ── Notifications ─────────────────────────────────────
