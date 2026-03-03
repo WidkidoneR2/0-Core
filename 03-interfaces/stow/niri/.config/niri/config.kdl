@@ -63,6 +63,10 @@ spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
 
 prefer-no-csd
 
+hotkey-overlay {
+    skip-at-startup
+}
+
 // ─── Window Rules ─────────────────────────────────────────
 window-rule {
     match app-id="pavucontrol"
