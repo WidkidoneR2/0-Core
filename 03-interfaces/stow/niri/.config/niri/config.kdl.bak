@@ -60,8 +60,6 @@ spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-notify"
 spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
 
-prefer-no-csd
-
 // ─── Window Rules ─────────────────────────────────────────
 window-rule {
     match app-id="pavucontrol"
@@ -98,8 +96,7 @@ binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Alt+Return  { spawn "/home/christian/0-core/scripts/faelight-term"; }
     Mod+Return      { spawn "foot"; }
-    Mod+b           { spawn "brave"; }
-    Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
+    Mod+b           { spawn "/home/christian/0-core/scripts/faelight-browser"; }
     Mod+d           { spawn "foot" "--app-id=faelight-launcher-float" "-e" "/home/christian/0-core/scripts/faelight-launcher"; }
     Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; }
     Mod+n           { spawn "foot" "-e" "nvim"; }
@@ -126,6 +123,7 @@ binds {
     Mod+Alt+p       { spawn "foot" "-e" "/home/christian/0-core/scripts/core-protect"; }
     Mod+Alt+f       { spawn "foot" "-e" "/home/christian/0-core/scripts/profile"; }
     Mod+Alt+a       { spawn "foot" "-e" "/home/christian/0-core/scripts/keyscan"; }
+    Mod+Alt+b       { spawn "foot" "-e" "/home/christian/0-core/scripts/bump-system-version"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
     Mod+Alt+l       { spawn "foot" "-e" "/home/christian/0-core/scripts/latest-update"; }
     Mod+Alt+w       { spawn "foot" "-e" "/home/christian/0-core/scripts/dotctl"; }
