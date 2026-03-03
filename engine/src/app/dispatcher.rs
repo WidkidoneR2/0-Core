@@ -116,6 +116,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
                 IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
                 IntentCommand::New { template, title } => crate::domains::intent::new_intent(ctx, &template, &title),
+                IntentCommand::Deps { id } => crate::domains::intent::deps(ctx, &id),
+                IntentCommand::Burndown => crate::domains::intent::burndown(ctx),
+                IntentCommand::Velocity => crate::domains::intent::velocity(ctx),
+                IntentCommand::Branch { id } => crate::domains::intent::branch(ctx, &id),
             }
         }
 

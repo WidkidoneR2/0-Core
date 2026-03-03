@@ -91,6 +91,10 @@ pub fn parse() -> Command {
             IntentCommands::Start { id } => IntentCommand::Start { id },
             IntentCommands::Complete { id } => IntentCommand::Complete { id },
             IntentCommands::New { template, title } => IntentCommand::New { template, title },
+            IntentCommands::Deps { id } => IntentCommand::Deps { id },
+            IntentCommands::Burndown => IntentCommand::Burndown,
+            IntentCommands::Velocity => IntentCommand::Velocity,
+            IntentCommands::Branch { id } => IntentCommand::Branch { id },
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,
