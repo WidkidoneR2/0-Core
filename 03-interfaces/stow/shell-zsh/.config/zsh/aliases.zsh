@@ -169,6 +169,10 @@ alias cid="core intent drift"           # detect drift
 alias cistart="core intent start"       # start intent (planned→in-progress)
 alias cicomplete="core intent complete" # complete intent
 alias cin="core intent new"             # new intent from template
+alias cibd="core intent burndown"       # completion burndown chart
+alias civ="core intent velocity"        # velocity metrics
+alias cibr="core intent branch"         # git branch name for intent
+alias cideps="core intent deps"         # dependency graph
 
 alias cpc="core checkpoint create"       # create checkpoint
 alias cpl="core checkpoint list"         # list checkpoints

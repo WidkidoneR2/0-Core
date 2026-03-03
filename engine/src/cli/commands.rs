@@ -95,6 +95,10 @@ pub enum IntentCommand {
     Start { id: String },
     Complete { id: String },
     New { template: String, title: String },
+    Deps { id: String },
+    Burndown,
+    Velocity,
+    Branch { id: String },
     List {
         planned: bool,
         active: bool,

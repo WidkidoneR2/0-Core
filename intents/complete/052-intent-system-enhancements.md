@@ -3,7 +3,7 @@ id: 052
 date: 2026-01-14
 type: future
 title: "Intent System Enhancements - Workflow & Dependencies"
-status: deferred
+status: complete
 tags: [v11, infrastructure, intent, workflow]
 version: 11.0.0
 ---

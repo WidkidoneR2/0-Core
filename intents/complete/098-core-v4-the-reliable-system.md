@@ -4,7 +4,7 @@ date: 2026-02-27
 updated: 2026-02-27
 type: future
 title: "Core v4 — The Reliable System"
-status: in-progress
+status: complete
 tags: [v11, architecture, recovery, intent-discipline, security, reliability]
 version: 11.0.0
 absorbs: [052]

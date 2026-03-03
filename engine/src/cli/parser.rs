@@ -212,6 +212,14 @@ pub enum IntentCommands {
         /// Intent title
         title: String,
     },
+    /// Show dependency graph for an intent
+    Deps { id: String },
+    /// Show completion burndown chart
+    Burndown,
+    /// Show velocity metrics
+    Velocity,
+    /// Generate git branch name for intent
+    Branch { id: String },
     List {
         #[arg(long)]
         planned: bool,

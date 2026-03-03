@@ -17,6 +17,9 @@ pub struct Intent {
     pub intent_type: String,
     pub folder: String,
     pub filename: String,
+    pub depends_on: Vec<String>,
+    pub blocks: Vec<String>,
+    pub relates: Vec<String>,
 }
 
 impl Intent {
@@ -93,6 +96,9 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     let mut date = String::new();
     let mut tags: Vec<String> = vec![];
     let mut intent_type = folder.to_string();
+    let mut depends_on: Vec<String> = vec![];
+    let mut blocks_field: Vec<String> = vec![];
+    let mut relates: Vec<String> = vec![];
 
     for line in frontmatter.lines() {
         if let Some(v) = line.strip_prefix("id:") {
@@ -108,6 +114,15 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
         } else if let Some(v) = line.strip_prefix("tags:") {
             let tag_str = v.trim().trim_matches('[').trim_matches(']');
             tags = tag_str.split(',').map(|t| t.trim().to_string()).collect();
+        } else if let Some(v) = line.strip_prefix("depends_on:") {
+            let s = v.trim().trim_matches('[').trim_matches(']');
+            depends_on = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+        } else if let Some(v) = line.strip_prefix("blocks:") {
+            let s = v.trim().trim_matches('[').trim_matches(']');
+            blocks_field = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+        } else if let Some(v) = line.strip_prefix("relates:") {
+            let s = v.trim().trim_matches('[').trim_matches(']');
+            relates = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
         }
     }
 
@@ -127,6 +142,9 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
         intent_type,
         folder: folder.to_string(),
         filename,
+        depends_on,
+        blocks: blocks_field,
+        relates,
     })
 }
 
@@ -776,6 +794,237 @@ version: TBD
     println!("  {} {}", "File:     ".dimmed(), filename.dimmed());
     println!("{}", "━".repeat(50).dimmed());
     println!("  {} Edit: {}", "→".dimmed(), filepath.display().to_string().bright_cyan());
+
+    Ok(())
+}
+
+pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let intents = load_all(ctx);
+    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
+        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
+    })?;
+
+    println!("{}", "🔗 Intent Dependencies".bold());
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} {} — {}", intent.id.bright_white(), intent.status_colored(), intent.title.bright_white());
+    println!("{}", "━".repeat(55).dimmed());
+
+    if intent.depends_on.is_empty() && intent.blocks.is_empty() && intent.relates.is_empty() {
+        println!("  {} No dependencies declared", "○".dimmed());
+        println!("  {} Add to frontmatter: depends_on: [052], blocks: [110], relates: [099]", "→".dimmed());
+        return Ok(());
+    }
+
+    if !intent.depends_on.is_empty() {
+        println!("  {} Depends on:", "⬆".bright_yellow());
+        for dep_id in &intent.depends_on {
+            if let Some(dep) = intents.iter().find(|i| &i.id == dep_id) {
+                let ready = dep.status == "complete";
+                let icon = if ready { "✅".to_string() } else { "⬜".to_string() };
+                println!("    {} {} {} — {}", icon, dep.id.bright_white(), dep.status_colored(), dep.title.dimmed());
+            } else {
+                println!("    {} {} — not found", "?".dimmed(), dep_id.bright_red());
+            }
+        }
+    }
+
+    if !intent.blocks.is_empty() {
+        println!("  {} Blocks:", "⬇".bright_red());
+        for bid in &intent.blocks {
+            if let Some(b) = intents.iter().find(|i| &i.id == bid) {
+                println!("    {} {} {} — {}", "🔒".dimmed(), b.id.bright_white(), b.status_colored(), b.title.dimmed());
+            } else {
+                println!("    {} {} — not found", "?".dimmed(), bid.bright_red());
+            }
+        }
+    }
+
+    if !intent.relates.is_empty() {
+        println!("  {} Relates to:", "↔".bright_cyan());
+        for rid in &intent.relates {
+            if let Some(r) = intents.iter().find(|i| &i.id == rid) {
+                println!("    {} {} {} — {}", "◦".dimmed(), r.id.bright_white(), r.status_colored(), r.title.dimmed());
+            } else {
+                println!("    {} {} — not found", "?".dimmed(), rid.bright_red());
+            }
+        }
+    }
+
+    println!("{}", "━".repeat(55).dimmed());
+    Ok(())
+}
+
+pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let intents = load_all(ctx);
+
+    // Group completions by month
+    let mut monthly: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for intent in intents.iter().filter(|i| i.status == "complete") {
+        if intent.date.len() >= 7 {
+            let month = intent.date[..7].to_string();
+            *monthly.entry(month).or_insert(0) += 1;
+        }
+    }
+
+    let total = intents.len();
+    let complete = intents.iter().filter(|i| i.status == "complete").count();
+    let remaining = total - complete;
+
+    println!("{}", "📉 Intent Burndown".bold());
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} {}  {} {}  {} {}",
+        "Total:".dimmed(), total.to_string().bright_white(),
+        "Complete:".dimmed(), complete.to_string().bright_green(),
+        "Remaining:".dimmed(), remaining.to_string().bright_yellow(),
+    );
+    println!("{}", "━".repeat(55).dimmed());
+
+    if monthly.is_empty() {
+        println!("  {} No dated completions found", "○".dimmed());
+        return Ok(());
+    }
+
+    let max_count = *monthly.values().max().unwrap_or(&1);
+    let bar_width = 30usize;
+
+    for (month, count) in monthly.iter().rev().take(12).collect::<Vec<_>>().iter().rev() {
+        let filled = (*count * bar_width) / max_count.max(1);
+        let bar = format!("{}{}", "█".repeat(filled).bright_green(), "░".repeat(bar_width - filled).dimmed());
+        println!("  {} {} {}",
+            month.bright_white(),
+            bar,
+            count.to_string().bright_green(),
+        );
+    }
+
+    println!("{}", "━".repeat(55).dimmed());
+
+    // Running total
+    let mut running = 0usize;
+    println!("  {} Completion milestones:", "→".dimmed());
+    for (month, count) in &monthly {
+        running += count;
+        if running % 10 == 0 || running == complete {
+            println!("    {} {} — {} total", "●".bright_cyan(), month.dimmed(), running.to_string().bright_white());
+        }
+    }
+
+    Ok(())
+}
+
+pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let intents = load_all(ctx);
+
+    let mut monthly: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for intent in intents.iter().filter(|i| i.status == "complete") {
+        if intent.date.len() >= 7 {
+            let month = intent.date[..7].to_string();
+            *monthly.entry(month).or_insert(0) += 1;
+        }
+    }
+
+    let counts: Vec<usize> = monthly.values().cloned().collect();
+    let total_months = counts.len();
+
+    println!("{}", "⚡ Intent Velocity".bold());
+    println!("{}", "━".repeat(55).dimmed());
+
+    if total_months == 0 {
+        println!("  {} No completion data available", "○".dimmed());
+        return Ok(());
+    }
+
+    let avg = counts.iter().sum::<usize>() as f64 / total_months as f64;
+    let max = *counts.iter().max().unwrap_or(&0);
+    let min = *counts.iter().min().unwrap_or(&0);
+
+    // Last 3 months trend
+    let recent: Vec<usize> = monthly.values().rev().take(3).cloned().collect();
+    let recent_avg = if !recent.is_empty() {
+        recent.iter().sum::<usize>() as f64 / recent.len() as f64
+    } else { 0.0 };
+
+    println!("  {} {:.1} intents/month", "Average velocity:    ".dimmed(), avg);
+    println!("  {} {:.1} intents/month (last 3)", "Recent velocity:     ".dimmed(), recent_avg);
+    println!("  {} {}", "Peak month:          ".dimmed(), max.to_string().bright_green());
+    println!("  {} {}", "Slowest month:       ".dimmed(), min.to_string().dimmed());
+    println!("  {} {}", "Months tracked:      ".dimmed(), total_months.to_string().bright_white());
+    println!("{}", "━".repeat(55).dimmed());
+
+    // Trend direction
+    if recent.len() >= 2 {
+        let trend = recent[0] as f64 - recent[recent.len()-1] as f64;
+        if trend > 0.5 {
+            println!("  {} Velocity accelerating", "📈".green());
+        } else if trend < -0.5 {
+            println!("  {} Velocity slowing — check for blockers", "📉".bright_yellow());
+        } else {
+            println!("  {} Velocity stable", "→".dimmed());
+        }
+    }
+
+    // By type
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} Completions by type:", "→".dimmed());
+    let mut by_type: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for intent in intents.iter().filter(|i| i.status == "complete") {
+        *by_type.entry(intent.intent_type.clone()).or_insert(0) += 1;
+    }
+    let mut by_type_vec: Vec<(String, usize)> = by_type.into_iter().collect();
+    by_type_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    for (t, count) in &by_type_vec {
+        println!("    {} {:<15} {}", "◦".dimmed(), t.bright_white(), count.to_string().bright_green());
+    }
+
+    Ok(())
+}
+
+pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome],
+    )?;
+
+    let intents = load_all(ctx);
+    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
+        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
+    })?;
+
+    let slug = intent.title
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>();
+
+    // Collapse multiple dashes
+    let slug = slug.split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+
+    let branch_name = format!("intent-{}-{}", id, &slug[..slug.len().min(40)]);
+
+    println!("{}", "🌿 Intent Branch".bold());
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} {}", "Intent: ".dimmed(), intent.title.bright_white());
+    println!("  {} {}", "Branch: ".dimmed(), branch_name.bright_cyan());
+    println!("{}", "━".repeat(55).dimmed());
+    println!("  {} git checkout -b {}", "→".dimmed(), branch_name.bright_cyan());
 
     Ok(())
 }
