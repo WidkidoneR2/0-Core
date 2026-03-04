@@ -257,6 +257,6 @@ description = "Workspace overview and navigation"
 
 [[tool]]
 name = "faelight-clipboard"
-version = "0.1.0"
+version = "0.2.0"
 category = "desktop"
 description = "Rust clipboard manager — wlr-data-control, history, fzf picker"

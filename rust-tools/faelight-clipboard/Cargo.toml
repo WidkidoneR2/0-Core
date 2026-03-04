@@ -1,10 +1,10 @@
 [package]
 name = "faelight-clipboard"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Rust clipboard manager for Faelight Forest — wlr-data-control"
+description = "Rust clipboard manager — native wlr-data-control, zero C dependencies"
 
 [[bin]]
 name = "faelight-clipboard"
@@ -19,3 +19,4 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }
+libc = { workspace = true }

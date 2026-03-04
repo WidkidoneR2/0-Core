@@ -36,8 +36,8 @@ of what you're working on. That signal belongs in the forest.
 - [x] wl-copy / wl-paste compatible interface
 - [x] Clipboard history (last 50 entries)
 - [x] Searchable via faelight-launcher integration
-- [ ] Wayland security model respected
-- [ ] No C clipboard dependencies remain
+- [x] Wayland security model respected
+- [x] No C clipboard dependencies remain
 
 ---
 
