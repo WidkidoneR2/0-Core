@@ -33,9 +33,9 @@ of what you're working on. That signal belongs in the forest.
 
 ## Success Criteria
 
-- [ ] wl-copy / wl-paste compatible interface
-- [ ] Clipboard history (last 50 entries)
-- [ ] Searchable via faelight-launcher integration
+- [x] wl-copy / wl-paste compatible interface
+- [x] Clipboard history (last 50 entries)
+- [x] Searchable via faelight-launcher integration
 - [ ] Wayland security model respected
 - [ ] No C clipboard dependencies remain
 
