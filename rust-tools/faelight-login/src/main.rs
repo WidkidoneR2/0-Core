@@ -161,7 +161,7 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(26),
+                Constraint::Length(18),
                 Constraint::Fill(1),
             ])
             .split(area);
