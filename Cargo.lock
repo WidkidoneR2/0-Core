@@ -1031,6 +1031,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-clipboard"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "dirs 5.0.1",
+ "serde",
+ "serde_json",
+ "wayland-client",
+ "wayland-protocols-wlr 0.2.0",
+]
+
+[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [

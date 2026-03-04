@@ -240,3 +240,18 @@ category = "desktop"
 # Total: 50+ primary aliases documented
 # Full 301 aliases are active in shell but documented incrementally
 # Run 'alias-audit' to see complete list
+
+[[alias]]
+command = "faelight-clipboard"
+aliases = ["clip", "cb"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-clipboard history"
+aliases = ["cbh"]
+category = "desktop"
+
+[[alias]]
+command = "faelight-clipboard pick"
+aliases = ["cbp"]
+category = "desktop"
