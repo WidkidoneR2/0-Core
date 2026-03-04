@@ -44,11 +44,11 @@ It makes the invisible visible. The forest becomes self-illuminating.
 
 ## Success Criteria
 
-- [ ] Live event stream with <100ms latency
-- [ ] Color-coded by domain
-- [ ] Shows current focus intent inline
-- [ ] Filterable by domain
-- [ ] Graceful exit on Ctrl+C
+- [x] Live event stream with <100ms latency
+- [x] Color-coded by domain
+- [x] Shows current focus intent inline
+- [x] Filterable by domain
+- [x] Graceful exit on Ctrl+C
 
 ---
 
