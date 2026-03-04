@@ -255,3 +255,23 @@ category = "desktop"
 command = "faelight-clipboard pick"
 aliases = ["cbp"]
 category = "desktop"
+
+[[alias]]
+command = "faelight-pulse"
+aliases = ["pulse", "fp"]
+category = "monitoring"
+
+[[alias]]
+command = "faelight-pulse --domain doctor"
+aliases = ["pulse-doc"]
+category = "monitoring"
+
+[[alias]]
+command = "faelight-pulse --domain git"
+aliases = ["pulse-git"]
+category = "monitoring"
+
+[[alias]]
+command = "faelight-pulse --json"
+aliases = ["pulse-json"]
+category = "monitoring"
