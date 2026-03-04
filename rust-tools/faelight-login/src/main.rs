@@ -4,7 +4,7 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{self, ClearType},
+    terminal,
 };
 use greetd_ipc::{codec::SyncCodec, AuthMessageType, Request, Response};
 use ratatui::{
@@ -12,19 +12,17 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     Terminal,
 };
-use std::io::{self, Read, Write};
+use std::io;
 use std::os::unix::net::UnixStream;
 use std::time::{Duration, Instant};
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ACCENT: Color = Color::Rgb(100, 220, 100);   // true green
 const DIM: Color = Color::Rgb(119, 143, 127);       // #778f7f
 const BG: Color = Color::Rgb(15, 20, 17);           // #0f1411
 const FG: Color = Color::Rgb(215, 224, 218);        // #d7e0da
-const WARN: Color = Color::Rgb(227, 199, 107);      // #e3c76b
 const ERR: Color = Color::Rgb(227, 107, 107);       // #e36b6b
 
 #[derive(Clone, PartialEq)]
@@ -57,6 +55,7 @@ struct LoginState {
     status: String,
     health: String,
     commits: String,
+    #[allow(dead_code)]
     authenticating: bool,
     boot_time: Instant,
 }
@@ -104,9 +103,9 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
     req.write_to(&mut stream).map_err(|e| e.to_string())?;
 
     loop {
-        let resp = Response::read_from(&mut stream).map_err(|e| e.to_string())?;
-        match resp {
-            Response::AuthMessage { auth_message_type, auth_message } => {
+        let response = Response::read_from(&mut stream).map_err(|e| e.to_string())?;
+        match response {
+            Response::AuthMessage { auth_message_type, auth_message: _ } => {
                 match auth_message_type {
                     AuthMessageType::Secret => {
                         let resp = Request::PostAuthMessageResponse {
@@ -121,8 +120,8 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
                         resp.write_to(&mut stream).map_err(|e| e.to_string())?;
                     }
                     AuthMessageType::Info | AuthMessageType::Error => {
-                        let resp = Request::PostAuthMessageResponse { response: None };
-                        resp.write_to(&mut stream).map_err(|e| e.to_string())?;
+                        Request::PostAuthMessageResponse { response: None }
+                            .write_to(&mut stream).map_err(|e| e.to_string())?;
                     }
                 }
             }
@@ -138,7 +137,7 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
                 let _ = Response::read_from(&mut stream);
                 return Ok(true);
             }
-            Response::Error { error_type, description } => {
+            Response::Error { error_type: _, description } => {
                 let _ = Request::CancelSession.write_to(&mut stream);
                 return Err(description);
             }
@@ -300,7 +299,6 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
 
 
 fn read_system_version() -> String {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     std::fs::read_to_string("/etc/faelight/VERSION")
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|_| "??".to_string())
