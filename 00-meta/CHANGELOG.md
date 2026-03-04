@@ -1,5 +1,35 @@
 # Changelog
 
+## v10.4.0 - 🌲 Niri Version — The Forest Finds Its Roots (2026-03-03)
+
+- Core v4 complete — checkpoint, recovery, intent discipline, security debt, analytics
+- Niri 25.11 as primary compositor — INT-099 Phase 1
+- faelight-login v1.0.0 — Rust greeter replaces tuigreet
+- faelight-notify v3.0.0 — Unix IPC socket, DND control, dismiss
+- faelight-notifyctl — new IPC controller tool
+- Full keybind migration Sway → Niri
+- eDP-2 output, 2560x1600 @ 165Hz, 1.5x scale
+- Brave browser native Wayland
+- Fn media keys working
+- Niri Version greeting in shell
+
+**Tools Updated:** faelight-login, faelight-notify
+
+**Statistics:**
+- Commits: 1305
+- Tools: 35 deployed, 43 with aliases
+- Health: 95%
+- Intents: 112 total, 69 complete
+- Rust tools: 42 custom binaries
+- Lines of code: 118000+
+
+- System Health: 95%
+- Commits: 24
+- Files Changed: 13
+
+---
+
+
 ## v10.3.0 - 🧠 Core v3 — The Living System (2026-02-26)
 
 - Core v3 Phase 1: Event Ledger — doctor, git, security, update write structured events to SQLite
