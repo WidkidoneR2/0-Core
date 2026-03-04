@@ -257,12 +257,6 @@ doctor                              # Verify health
 
 | Version | Milestone |
 |---|---|
-| v1.0.0 | "Extremely new to Linux" — first Arch install |
-| v8.0.0 | Stow symlink fix, system hardening |
-| v9.0.0 | 60% path resilience |
-| v9.2.0 | 100% path resilience — 40 tools |
-| v9.6.0 | Legendary tool audit — production-ready |
-| v9.9.0 | The Forest Grows — Visual Intelligence Update |
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
 | v10.1.0 | **The Forest Matures — all 6 phases done** 🌲 |
 | v10.3.0 | **Core v3 — Event Bus, Plugin Registry, Health Forecasting** 🧠 |
