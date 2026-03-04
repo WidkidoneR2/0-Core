@@ -254,4 +254,4 @@ Complete keyboard shortcuts for Sway. All bindings use `SUPER` (Windows/Command 
 ---
 
 _Last Updated: January 9, 2026 (v6.0.0)_  
-_Part of Faelight Forest 0-Core - Sway Edition_
+_Part of Faelight Forest 0-Core - Niri Version_
