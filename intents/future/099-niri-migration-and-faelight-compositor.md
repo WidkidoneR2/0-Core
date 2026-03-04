@@ -269,13 +269,13 @@ important Rust compositors. By building on Smithay:
 
 ## Stats Context (at time of writing)
 ```
-System:      v10.3.0
-Compositor:  Sway (C) — inherited from Omarchy migration
-Rust %:      ~90%
+System:      v10.4.0 — Niri Version
+Compositor:  Niri 25.11 (Rust) — Phase 1 active, daily driver
+Rust %:      ~95%
 Goal:        100% Rust
-Tools:       43 custom Rust tools
+Tools:       43 aliases, 36 deployed, 42 custom binaries
 Health:      95%
-Commits:     1286
+Commits:     1314
 ```
 
 ---
