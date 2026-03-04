@@ -15,7 +15,7 @@ license = "MIT"
 # Wayland ecosystem
 wayland-client = "0.31"
 wayland-protocols = "0.31"
-wayland-protocols-wlr = "0.2"
+wayland-protocols-wlr = { version = "0.2", features = ["client"] }
 smithay-client-toolkit = "0.18"
 # Serde ecosystem
 serde = { version = "1.0", features = ["derive"] }
@@ -26,6 +26,7 @@ tokio = { version = "1.35", features = ["full"] }
 # Error handling
 anyhow = "1.0"
 thiserror = "1.0"
+libc = "0.2"
 # CLI
 clap = { version = "4.4", features = ["derive"] }
 # Utilities
