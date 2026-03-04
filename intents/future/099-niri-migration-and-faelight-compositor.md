@@ -257,8 +257,8 @@ important Rust compositors. By building on Smithay:
 ✅ Intent 098 written — Core v4 planned
 ✅ Sway config fully understood and documented
 ✅ Philosophy alignment confirmed
-⬜ Niri installed and configured — Phase 1 start
-⬜ Core v4 Phase 1 complete — checkpoint foundation
+✅ Niri installed and configured — Phase 1 start
+✅ Core v4 Phase 1 complete — checkpoint foundation
 ⬜ WM abstraction layer implemented
 ⬜ 30 days daily driving Niri
 ⬜ Smithay anvil studied
