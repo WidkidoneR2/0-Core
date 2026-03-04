@@ -48,11 +48,11 @@ The boot sequence becomes the first event in the daily ledger.
 
 ## Success Criteria
 
-- [ ] PAM authentication via greetd
-- [ ] Session selection (Niri, Sway)
-- [ ] Health display at login screen
-- [ ] Forest theming consistent with faelight-bar
-- [ ] Login event in event ledger
+- [x] PAM authentication via greetd
+- [x] Session selection (Niri, Sway)
+- [x] Health display at login screen
+- [x] Forest theming consistent with faelight-bar
+- [x] Login event in event ledger
 
 ---
 
