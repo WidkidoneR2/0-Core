@@ -47,20 +47,20 @@
 Like **building a custom motorcycle** instead of buying one from a dealer. You know every bolt, every wire, every piece.
 
 **You get:**
-- 🎨 Custom everything (terminal, bar, launcher, file manager)
-- 🦀 34 Rust tools you fully understand
+- 🎨 Custom everything (terminal, bar, launcher, login screen, notifications)
+- 🦀 42 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
-- ⚡ Lightning fast (3ms cold start, no bloat)
+- ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
 
 ### For Technical People
 
-- **`core` v2.0.0** — single orchestrator binary with 15 native Rust domains
+- **`core` v3.0.0** — single orchestrator binary with 15+ native Rust domains
 - **Capability-gated dispatch** — every command checks permissions before executing
-- **Runtime locking** and JSONL capability audit logging
+- **Core v4** — checkpoint/restore, intent discipline, security debt tracking, analytics
 - **22-check health monitoring** system
-- **Intent Ledger** for all architectural decisions
-- **Wayland-native** (Sway, custom compositor tools)
+- **Intent Ledger** — 112 architectural decisions, fully documented
+- **Wayland-native** — Niri compositor, custom Rust toolchain all the way down
 
 ---
 
@@ -68,13 +68,13 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ```
 0-core/
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
-├── engine/           # core v2.0.0 — single orchestrator binary (Rust)
-│   └── src/domains/  # 15 native Rust domains
-├── rust-tools/       # 34 custom Rust tools
-├── 03-interfaces/    # Dotfiles (Sway, zsh, foot, yazi) via GNU Stow
-├── scripts/          # Thin wrappers → core v2 + compiled binaries
-├── intents/          # Architectural decision records
-├── runtime/          # SQLite state, capability logs, process locks
+├── engine/           # core v3.0.0 — single orchestrator binary (Rust)
+│   └── src/domains/  # 15+ native Rust domains
+├── rust-tools/       # 42 custom Rust tools
+├── 03-interfaces/    # Dotfiles (Niri, Sway, zsh, foot, yazi) via GNU Stow
+├── scripts/          # Thin wrappers → core + compiled binaries
+├── intents/          # Architectural decision records (112 intents)
+├── runtime/          # SQLite state, capability logs, checkpoints
 └── registry/         # Zero-logic TOML declarations
 ```
 
@@ -84,7 +84,7 @@ core <domain> <command>
 
 Domains: doctor, security, git, workspace, intent, profile,
          zone, link, fetch, lock, notify, launcher, sandbox,
-         release, update
+         release, update, checkpoint, simulate, plugins
 ```
 
 Every domain call is capability-gated, logged, and lock-protected.
@@ -93,7 +93,7 @@ Every domain call is capability-gated, logged, and lock-protected.
 
 | Layer | Name | Purpose |
 |---|---|---|
-| 0 | Substrate | Kernel, Wayland, Sway — untouched |
+| 0 | Substrate | Kernel, Wayland, Niri — understood, not opaque |
 | 1 | Core Engine | `core` binary — single surface |
 | 2 | Registry | Zero-logic TOML declarations |
 | 3 | Policy | Constraints, no execution |
@@ -113,6 +113,22 @@ git status, themes, scripts, intents, profiles, config files, keybinds,
 security hardening, security audit, alias coverage, rust toolchain,
 disk space, tool installation, path resilience, archaeology, core protection.
 
+### 📸 Core v4 — Checkpoint & Recovery
+```bash
+cpc <name>                    # Create checkpoint with health snapshot
+core checkpoint list          # List all checkpoints
+core checkpoint diff <name>   # Compare checkpoint to current state
+core checkpoint restore       # Advisory restore guidance
+```
+
+### 🎯 Intent Discipline
+```bash
+cistart 101                   # Start intent — auto-checkpoint
+cicomplete 101                # Mark complete — log outcome
+cis                           # Current intent status
+cilist                        # Full intent ledger
+```
+
 ### 🛡️ Core Protection
 ```bash
 core-protect lock      # Immutable flag on ~/0-core
@@ -126,7 +142,7 @@ Every domain declares required capabilities at dispatch time:
 doctor    → OrchestratorAccess, FilesystemReadHome
 security  → OrchestratorAccess, FilesystemReadHome, NetworkQuery
 git       → FilesystemReadHome, FilesystemWriteHome, SpawnProcess
-lock      → ControlSway
+lock      → ControlWM
 update    → FilesystemReadHome, ExecutePacman, SpawnProcess
 ```
 All capability usage logged to `runtime/logs/capabilities.jsonl`.
@@ -134,17 +150,17 @@ All capability usage logged to `runtime/logs/capabilities.jsonl`.
 ### 🎣 Git Governance
 Pre-commit hooks: rustfmt, clippy, secret scanning, merge conflict detection.
 ```bash
-faelight-git commit    # Intent-aware commits
+faelight-git commit    # Intent-aware commits with risk scoring
 faelight-git risk      # Risk score before pushing
 fg sync                # Pull + push workflow
 ```
 
 ### 📝 Intent Ledger
 ```bash
-intent list            # All intents
-intent list --active   # In-progress
-intent show 092        # Specific intent
-intent stats           # Ledger overview
+cilist                           # All intents
+intent show 099                  # Specific intent
+intent stats                     # Ledger overview + velocity
+core intent burndown             # Visual progress chart
 ```
 
 ### 🌡️ Configuration Drift Detection
@@ -156,19 +172,21 @@ core doctor entropy --trends     # 30-day history
 
 ---
 
-## 🦀 The Rust Ecosystem (34 Tools)
+## 🦀 The Rust Ecosystem (42 Tools)
 
 | Category | Tools |
 |---|---|
-| **Orchestrator** | `core` (v2.0.0 — 15 domains) |
-| **UI** | `faelight-bar`, `faelight-fm`, `faelight-term`, `faelight-palette`, `faelight-menu` |
+| **Orchestrator** | `core` (v3.0.0 — 15+ domains) |
+| **UI** | `faelight-bar`, `faelight-term`, `faelight-palette`, `faelight-menu`, `faelight-notify`, `faelight-login` |
+| **Browser** | `faelight-browser` |
 | **Git** | `faelight-git`, `faelight-hooks` |
 | **System** | `core-protect`, `faelight-update`, `safe-update`, `faelight-sandbox`, `faelight-snapshot` |
 | **Dev** | `bump-system-version`, `bump-tool-version`, `get-version`, `core-diff` |
-| **Shell** | `dotctl`, `profile`, `intent`, `faelight-zone`, `faelight-link`, `faelight-lock`, `faelight-notify`, `faelight-fetch` |
+| **Shell** | `dotctl`, `profile`, `intent`, `faelight-zone`, `faelight-link`, `faelight-lock`, `faelight-fetch` |
 | **Audit** | `alias-audit`, `bin-doctor`, `entropy-check`, `archaeology-0-core` |
 | **Bootstrap** | `faelight-bootstrap`, `faelight-daemon`, `faelight-cleanup`, `keyscan`, `teach`, `intent-guard`, `workspace-view`, `verify-bootstrap` |
 
+> `faelight-login` replaces tuigreet — the forest now greets you in Rust.
 > `alias-audit`, `bin-doctor`, `entropy-check` are also natively absorbed into `core doctor` — standalone binaries kept for direct use.
 
 [See full tool list →](TOOLS.md)
@@ -187,6 +205,8 @@ core doctor entropy --trends     # 30-day history
 
 **"Design for Recovery"** — `rm -rf runtime/` is always safe. Full reset, no data loss.
 
+**"The Forest Knows Itself"** — Health, history, and intent are first-class citizens.
+
 ---
 
 ## 🚀 Quick Reference
@@ -195,8 +215,9 @@ doctor                          # System health (22 checks)
 core security scan              # Security audit
 core git status                 # Git + risk score
 core workspace recent today     # Recent files
-core intent list --active       # Active intents
+cilist                          # Intent ledger
 core doctor entropy             # Config drift check
+cpc <name>                      # Create checkpoint
 0c                              # cd ~/0-core
 core-protect lock               # Lock before shutdown
 ```
@@ -208,7 +229,7 @@ core-protect lock               # Lock before shutdown
 ### Building
 ```bash
 cargo build --release -p core       # Build orchestrator
-cargo build --release --workspace   # Build all tools
+cargo build --release --workspace   # Build all 42 tools
 doctor                              # Verify health
 ```
 
@@ -244,10 +265,13 @@ doctor                              # Verify health
 | v9.9.0 | The Forest Grows — Visual Intelligence Update |
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
 | v10.1.0 | **The Forest Matures — all 6 phases done** 🌲 |
+| v10.3.0 | **Core v3 — Event Bus, Plugin Registry, Health Forecasting** 🧠 |
+| v10.4.0 | **Niri Version — Rust greeter, IPC notify, compositor migration** 🌲 |
 
 From hardcoded paths to centralized elegance.
 From 40 separate binaries to one orchestrator.
-From "new to Linux" to presenting to legends.
+From "new to Linux" to a self-aware system that thinks, remembers, and forecasts.
+From tuigreet to faelight-login — the forest greets you first.
 
 ---
 
@@ -261,6 +285,8 @@ Feel free to learn from it, but **build your own**. That's the whole point.
 ## 🙏 Acknowledgments
 
 - **The Arch Linux community**: For vanilla excellence
+- **The Niri project**: For proving a single developer can build a production Rust compositor
+- **The Smithay project**: The foundation faelight-compositor will be built on
 - **You**: For reading this far. Now go build your own! 💎
 
 ---
