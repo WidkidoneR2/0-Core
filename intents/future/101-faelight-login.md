@@ -3,7 +3,7 @@ id: 101
 date: 2026-03-02
 type: future
 title: "faelight-login — Rust Display Manager"
-status: planned
+status: in-progress
 tags: [login, display-manager, rust, greetd, wayland, rusty]
 version: TBD
 priority: high
