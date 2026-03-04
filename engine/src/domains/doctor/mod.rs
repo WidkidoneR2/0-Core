@@ -463,19 +463,27 @@ fn check_faelight_config(home: &str) -> CheckResult {
 }
 
 fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
+    // Niri is primary compositor — check Niri config first, fall back to Sway
+    let niri_config = PathBuf::from(home).join(".config/niri/config.kdl");
     let sway_config = PathBuf::from(home).join(".config/sway/config");
-    if !sway_config.exists() {
+
+    let (wm_name, wm_config) = if niri_config.exists() {
+        ("Niri", niri_config)
+    } else if sway_config.exists() {
+        ("Sway", sway_config)
+    } else {
         return CheckResult {
             id: "keybinds".into(),
-            name: "Sway Keybinds".into(),
+            name: "WM Keybinds".into(),
             status: Status::Warn,
-            message: "Sway config not found".into(),
-            fix: Some("Ensure wm-sway is stowed".into()),
+            message: "No compositor config found (niri or sway)".into(),
+            fix: Some("Ensure wm-niri or wm-sway is stowed".into()),
         };
-    }
+    };
+
     let keyscan = PathBuf::from(core_root).join("scripts/keyscan");
     let output = Command::new(&keyscan)
-        .arg(sway_config.to_string_lossy().to_string())
+        .arg(wm_config.to_string_lossy().to_string())
         .output();
     match output {
         Ok(result) if result.status.success() => {
@@ -488,7 +496,7 @@ fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
                     .unwrap_or("0");
                 CheckResult {
                     id: "keybinds".into(),
-                    name: "Sway Keybinds".into(),
+                    name: format!("{} Keybinds", wm_name),
                     status: Status::Pass,
                     message: format!("{} unique keybindings, no conflicts", count),
                     fix: None,
@@ -496,16 +504,16 @@ fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
             } else {
                 CheckResult {
                     id: "keybinds".into(),
-                    name: "Sway Keybinds".into(),
+                    name: format!("{} Keybinds", wm_name),
                     status: Status::Fail,
                     message: "Keybind conflicts detected".into(),
-                    fix: Some("Run: keyscan ~/.config/sway/config".into()),
+                    fix: Some(format!("Run: keyscan ~/.config/{}/config", wm_name.to_lowercase())),
                 }
             }
         }
         _ => CheckResult {
             id: "keybinds".into(),
-            name: "Sway Keybinds".into(),
+            name: format!("{} Keybinds", wm_name),
             status: Status::Warn,
             message: "keyscan not available".into(),
             fix: Some("Ensure keyscan is in ~/0-core/scripts/".into()),
