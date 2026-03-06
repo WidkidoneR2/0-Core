@@ -4,7 +4,7 @@ date: 2026-03-03
 updated: 2026-03-03
 type: future
 title: "Niri Migration & faelight-compositor — The Forest Grows Its Own Roots"
-status: planned
+status: in-progress
 tags: [compositor, wayland, rust, niri, smithay, faelight-comp, v12, architecture]
 version: 12.0.0
 depends_on: [098]

@@ -3,7 +3,7 @@ id: 102
 date: 2026-03-02
 type: future
 title: "faelight-clipboard — Rust Clipboard Manager"
-status: planned
+status: complete
 tags: [clipboard, wayland, rust, wlr-data-control, rusty]
 version: TBD
 priority: medium

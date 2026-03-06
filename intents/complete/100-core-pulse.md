@@ -3,7 +3,7 @@ id: 100
 date: 2026-03-02
 type: future
 title: "core pulse — Live Event Stream Terminal View"
-status: planned
+status: complete
 tags: [core, events, tui, rust, observability, glow]
 version: TBD
 priority: high
