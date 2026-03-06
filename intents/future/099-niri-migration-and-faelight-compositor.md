@@ -259,8 +259,8 @@ important Rust compositors. By building on Smithay:
 ✅ Philosophy alignment confirmed
 ✅ Niri installed and configured — Phase 1 start
 ✅ Core v4 Phase 1 complete — checkpoint foundation
-⬜ WM abstraction layer implemented
-⬜ 30 days daily driving Niri
+✅ WM abstraction layer implemented
+✅ 30 days daily driving Niri
 ⬜ Smithay anvil studied
 ⬜ First Niri contribution
 ```
