@@ -3,7 +3,7 @@ id: 113
 date: 2026-03-06
 type: future
 title: "Core v5 — The Intelligent System"
-status: [planned]
+status: planned
 tags: [core, v5, intelligence, forecasting, causality, learning, rust, architecture]
 ---
 
