@@ -7,10 +7,16 @@ use std::process::Command;
 
 pub fn lock(_ctx: &AppContext) -> CoreResult<()> {
     _ctx.capabilities
-        .require("lock", &[Capability::ControlSway])?;
-    let status = Command::new("swaylock").status()?;
+        .require("lock", &[Capability::ControlWM])?;
+    // Detect compositor and use appropriate locker
+    let locker = if std::env::var("NIRI_SOCKET").is_ok() {
+        "swaylock" // swaylock works on Niri via ext-session-lock
+    } else {
+        "swaylock" // fallback for Sway
+    };
+    let status = Command::new(locker).status()?;
     if !status.success() {
-        println!("  {} swaylock failed", "✗".bright_red());
+        println!("  {} {} failed", "✗".bright_red(), locker);
     }
     Ok(())
 }

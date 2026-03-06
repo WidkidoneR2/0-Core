@@ -54,7 +54,9 @@ fn get_shell() -> String {
 }
 
 fn get_wm() -> String {
-    if std::env::var("SWAYSOCK").is_ok() {
+    if std::env::var("NIRI_SOCKET").is_ok() {
+        "niri".to_string()
+    } else if std::env::var("SWAYSOCK").is_ok() {
         "sway".to_string()
     } else if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
         "hyprland".to_string()

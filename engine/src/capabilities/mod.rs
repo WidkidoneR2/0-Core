@@ -13,7 +13,7 @@ pub enum Capability {
     QueryPacman,
     ExecutePacman,
     ControlSystemdUser,
-    ControlSway,
+    ControlWM,
     NetworkQuery,
     SpawnProcess,
     ElevatedPrivilege,
@@ -30,7 +30,7 @@ impl std::fmt::Display for Capability {
             Capability::QueryPacman => write!(f, "pacman.query"),
             Capability::ExecutePacman => write!(f, "pacman.execute"),
             Capability::ControlSystemdUser => write!(f, "systemd.user.control"),
-            Capability::ControlSway => write!(f, "sway.control"),
+            Capability::ControlWM => write!(f, "wm.control"),
             Capability::NetworkQuery => write!(f, "network.query"),
             Capability::SpawnProcess => write!(f, "process.spawn"),
             Capability::ElevatedPrivilege => write!(f, "privilege.elevated"),
@@ -55,7 +55,7 @@ impl CapabilityContext {
         granted.insert(Capability::SpawnProcess);
         granted.insert(Capability::NetworkQuery);
         granted.insert(Capability::ControlSystemdUser);
-        granted.insert(Capability::ControlSway);
+        granted.insert(Capability::ControlWM);
         granted.insert(Capability::OrchestratorAccess);
         granted.insert(Capability::FilesystemWriteHome);
         granted.insert(Capability::ExecutePacman);

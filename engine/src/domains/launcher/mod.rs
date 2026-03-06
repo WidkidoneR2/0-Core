@@ -6,7 +6,7 @@ use std::process::Command;
 pub fn palette(ctx: &AppContext, dmenu: bool, _prompt: Option<&str>) -> CoreResult<()> {
     ctx.capabilities.require(
         "launcher",
-        &[Capability::SpawnProcess, Capability::ControlSway],
+        &[Capability::SpawnProcess, Capability::ControlWM],
     )?;
     let bin = format!("{}/scripts/faelight-palette", ctx.core_root);
     let mut cmd = Command::new(&bin);

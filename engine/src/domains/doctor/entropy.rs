@@ -148,7 +148,7 @@ fn create_baseline() -> CoreResult<EntropyBaseline> {
         }
     }
     println!("   📦 Recording package versions...");
-    for pkg in ["sway", "waybar", "neovim", "zsh", "kitty"] {
+    for pkg in ["niri", "neovim", "zsh", "foot", "greetd"] {
         if let Ok(output) = Command::new("pacman").args(["-Q", pkg]).output() {
             if output.status.success() {
                 baseline.package_versions.insert(
