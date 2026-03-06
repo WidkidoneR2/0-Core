@@ -1178,6 +1178,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-niri-bridge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs 5.0.1",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "faelight-notify"
 version = "3.0.0"
 dependencies = [

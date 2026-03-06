@@ -275,3 +275,8 @@ category = "monitoring"
 command = "faelight-pulse --json"
 aliases = ["pulse-json"]
 category = "monitoring"
+
+[[alias]]
+command = "faelight-niri-bridge"
+aliases = ["niri-bridge", "nb"]
+category = "compositor"

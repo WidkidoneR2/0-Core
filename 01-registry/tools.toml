@@ -266,3 +266,9 @@ name = "faelight-pulse"
 version = "1.0.0"
 category = "monitoring"
 description = "Live event stream TUI — the forest watching itself breathe"
+
+[[tool]]
+name = "faelight-niri-bridge"
+version = "0.1.0"
+category = "compositor"
+description = "Niri IPC → event ledger bridge — compositor events as forest memory"
