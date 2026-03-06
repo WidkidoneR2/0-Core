@@ -258,7 +258,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
 
         Command::Lock { health_check } => {
             ctx.capabilities
-                .require("lock", &[Capability::ControlSway])?;
+                .require("lock", &[Capability::ControlWM])?;
             if health_check {
                 crate::domains::lock::health(ctx)
             } else {
@@ -269,7 +269,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Launcher(c) => {
             ctx.capabilities.require(
                 "launcher",
-                &[Capability::ControlSway, Capability::SpawnProcess],
+                &[Capability::ControlWM, Capability::SpawnProcess],
             )?;
             match c {
                 LauncherCommand::Palette { dmenu, prompt } => {
