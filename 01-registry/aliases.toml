@@ -280,3 +280,13 @@ category = "monitoring"
 command = "faelight-niri-bridge"
 aliases = ["niri-bridge", "nb"]
 category = "compositor"
+
+[[alias]]
+command = "faelight-forecast"
+aliases = ["forecast", "ff"]
+category = "intelligence"
+
+[[alias]]
+command = "faelight-forecast --plain"
+aliases = ["forecast-plain", "ffp"]
+category = "intelligence"

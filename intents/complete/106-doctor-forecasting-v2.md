@@ -3,7 +3,7 @@ id: 106
 date: 2026-03-02
 type: future
 title: "doctor forecasting v2 — Predictive Health Intelligence"
-status: planned
+status: complete
 tags: [doctor, forecasting, health, rust, intelligence, glow]
 version: TBD
 priority: medium
@@ -38,11 +38,11 @@ core doctor forecast
 
 ## Success Criteria
 
-- [ ] 7-day health projection
-- [ ] CVE age correlation
-- [ ] Package staleness prediction
-- [ ] Intent drift correlation
-- [ ] Confidence intervals shown
+- [x] 7-day health projection
+- [x] CVE age correlation
+- [x] Package staleness prediction
+- [x] Intent drift correlation
+- [x] Confidence intervals shown
 
 ---
 

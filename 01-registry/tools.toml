@@ -272,3 +272,9 @@ name = "faelight-niri-bridge"
 version = "0.1.0"
 category = "compositor"
 description = "Niri IPC → event ledger bridge — compositor events as forest memory"
+
+[[tool]]
+name = "faelight-forecast"
+version = "1.0.0"
+category = "intelligence"
+description = "Predictive health intelligence — the forest sees what is coming"
