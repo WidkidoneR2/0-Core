@@ -1,0 +1,9 @@
+version = "10.5.0"
+date = "2026-03-07"
+theme = "The Intelligent Forest"
+health_at_release = 95
+commits_since_last = 36
+
+[stats]
+tools_total = 47
+intents_complete = 63

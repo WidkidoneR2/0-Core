@@ -1,5 +1,51 @@
 # Changelog
 
+## [10.5.0] — The Intelligent Forest (2026-03-07)
+
+### 🎯 Completed Intents
+- **INT-93** — Core v3 — The Living System
+- **INT-94** — faelight-term — VTE Refactor & Stability
+- **INT-95** — faelight-browser — Stability & Feature Improvements
+- **INT-100** — core pulse — Live Event Stream Terminal View
+- **INT-101** — faelight-login — Rust Display Manager
+- **INT-102** — faelight-clipboard — Rust Clipboard Manager
+- **INT-106** — doctor forecasting v2 — Predictive Health Intelligence
+
+### ✨ Features
+- (release) INT-114 Phase 6 — learning layer, theme suggestions, anomaly detection, pattern analysis
+- (release) INT-114 Phase 5 — rollback with generation diff, health check, event ledger
+- (release) INT-114 Phase 4 — smart README writer, dynamic section auto-updated from manifest
+- (release) INT-114 Phase 3 — faelight-release TUI, inline theme editing, publish flow
+- (release) INT-114 Phase 2 — faelight-release v0.1.0, smart changelog engine, history, diff, preview
+- (releases) INT-114 Phase 1 — generation structure, 10.3.0 + 10.4.0 manifests, generation pointer
+- (forecast) INT-106 complete — faelight-forecast v1.0.0, predictive health intelligence
+- (niri) add faelight-niri-bridge to Niri autostart — compositor events on every session
+- (niri-bridge) INT-099 — faelight-niri-bridge v0.1.0, compositor events in event ledger
+- (core) INT-099 WM abstraction — ControlSway→ControlWM, Niri detection in fetch/lock/entropy
+- (pulse) INT-100 — faelight-pulse v1.0.0, live event stream TUI, health sparkline, domain filtering
+
+### 🔧 Fixes
+- (aliases) remove duplicate clipboard/pulse/niri-bridge block
+- (aliases) resolve ff conflict — faelight-fetch→fae, remove duplicate forecast block
+- (aliases) add forecast, pulse, clipboard, niri-bridge aliases to aliases.zsh
+- (foot) rename [colors] → [colors-dark] — remove deprecation warning on boot
+- (login) panel height 18 — no excess padding, pixel perfect
+- (login) remove all warnings — unused imports, variables, constants cleaned up
+- (doctor) keybind check now Niri-aware — detects niri/sway automatically
+
+### 🔩 Internal (7 commits)
+- replace cliphist with faelight-clipboard watch — zero C clipboard deps
+- fix all status frontmatter — correct format, 099 in-progress, 100/101/102 complete
+- INT-067 archived, 093/094/095 complete, 111 niri-keybind → incidents/112
+- INT-102 complete — faelight-clipboard v0.2.0, native wlr-data-control, zero C dependencies
+- INT-102 in-progress — v0.1.0 shipped, 3/5 criteria met
+- ...and 2 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1344  ·  Tools: 47 deployed  ·  Intents: 63 complete
+
+---
+
 ## v10.4.0 - 🌲 Niri Version — The Forest Finds Its Roots (2026-03-03)
 
 - Core v4 complete — checkpoint, recovery, intent discipline, security debt, analytics
