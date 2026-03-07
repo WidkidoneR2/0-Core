@@ -118,7 +118,8 @@ alias snap-now='faelight-snapshot create "Manual snapshot at $(date +%Y%m%d_%H%M
 alias snap-before='echo "📸 Creating safety snapshot..." && snap-now && echo "✅ Snapshot created!"'
 
 # ─── Utilities ───
-alias ff='faelight-fetch'
+alias fae='faelight-fetch'
+alias faelight='faelight-fetch'
 alias getver='get-version'
 alias ver='get-version'
 alias recent='recent-files'
@@ -587,7 +588,3 @@ alias pulse-json='faelight-pulse --json'
 alias niri-bridge='faelight-niri-bridge'
 alias nb='faelight-niri-bridge'
 
-# ─── faelight-forecast ───
-alias forecast='faelight-forecast'
-alias ff='faelight-forecast'
-alias ffp='faelight-forecast --plain'
