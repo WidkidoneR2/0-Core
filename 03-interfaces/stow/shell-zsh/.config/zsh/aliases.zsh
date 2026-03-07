@@ -571,3 +571,10 @@ alias forecast='faelight-forecast'
 alias ff='faelight-forecast'
 alias ffp='faelight-forecast --plain'
 
+
+# ─── faelight-release ───
+alias release='faelight-release'
+alias fr='faelight-release'
+alias fr-status='faelight-release status'
+alias fr-history='faelight-release history'
+alias fr-preview='faelight-release preview'

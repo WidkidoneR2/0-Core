@@ -1,0 +1,412 @@
+//! Smart changelog engine — reads git log + intent ledger, generates structured output.
+
+use anyhow::{Context, Result};
+use std::path::PathBuf;
+use std::process::Command;
+
+// ─── COMMIT ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct Commit {
+    pub hash: String,
+    pub prefix: String,   // feat, fix, chore, docs, perf, refactor
+    pub scope: String,    // (core), (notify), etc — empty if none
+    pub message: String,  // the actual message after prefix(scope):
+    #[allow(dead_code)]
+    pub intent_id: Option<u32>, // extracted INT-XXX reference
+    pub raw: String,
+}
+
+impl Commit {
+    pub fn parse(hash: &str, subject: &str) -> Self {
+        let raw = subject.to_string();
+        let hash = hash.to_string();
+
+        // Extract intent reference INT-NNN
+        let intent_id = extract_intent_id(subject);
+
+        // Parse conventional commit: prefix(scope): message
+        if let Some((prefix, rest)) = parse_conventional(subject) {
+            let (scope, message) = parse_scope(rest);
+            return Self { hash, prefix, scope, message, intent_id, raw };
+        }
+
+        // Non-conventional commit
+        Self {
+            hash,
+            prefix: "other".to_string(),
+            scope: String::new(),
+            message: subject.to_string(),
+            intent_id,
+            raw,
+        }
+    }
+
+    pub fn is_noise(&self) -> bool {
+        // Skip pure noise commits
+        matches!(self.prefix.as_str(), "wip" | "merge")
+            || self.raw.starts_with("Merge ")
+            || self.raw.contains("update lazyvim")
+    }
+}
+
+fn parse_conventional(s: &str) -> Option<(String, &str)> {
+    let prefixes = ["feat", "fix", "perf", "refactor", "docs", "chore", "bump", "style", "test", "build"];
+    for p in &prefixes {
+        if let Some(rest) = s.strip_prefix(p) {
+            if rest.starts_with('(') || rest.starts_with(':') {
+                return Some((p.to_string(), rest));
+            }
+        }
+    }
+    None
+}
+
+fn parse_scope(s: &str) -> (String, String) {
+    if s.starts_with('(') {
+        if let Some(end) = s.find(')') {
+            let scope = s[1..end].to_string();
+            let rest = s[end+1..].trim_start_matches(':').trim().to_string();
+            return (scope, rest);
+        }
+    }
+    let message = s.trim_start_matches(':').trim().to_string();
+    (String::new(), message)
+}
+
+fn extract_intent_id(s: &str) -> Option<u32> {
+    // Match INT-NNN or INT-NN patterns
+    let s_upper = s.to_uppercase();
+    if let Some(pos) = s_upper.find("INT-") {
+        let rest = &s_upper[pos+4..];
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !digits.is_empty() {
+            return digits.parse().ok();
+        }
+    }
+    None
+}
+
+// ─── INTENT ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct ShippedIntent {
+    pub id: u32,
+    pub title: String,
+    #[allow(dead_code)]
+    pub description: String,
+}
+
+pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<ShippedIntent> {
+    // Read complete/ directory and find intents modified since the last tag
+    let complete_dir = core_root.join("intents/complete");
+    if !complete_dir.exists() {
+        return vec![];
+    }
+
+    // Get files modified since last tag using git
+    let output = Command::new("git")
+        .args(["-C", core_root.to_str().unwrap_or("."),
+               "diff", "--name-only", since_tag, "HEAD", "--",
+               "intents/complete/"])
+        .output()
+        .unwrap_or_else(|_| std::process::Output {
+            status: std::process::ExitStatus::default(),
+            stdout: vec![],
+            stderr: vec![],
+        });
+
+    let changed = String::from_utf8_lossy(&output.stdout);
+    let mut intents = vec![];
+
+    for line in changed.lines() {
+        if !line.ends_with(".md") { continue; }
+        let path = core_root.join(line);
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Some(intent) = parse_intent_frontmatter(&content) {
+                intents.push(intent);
+            }
+        }
+    }
+
+    intents.sort_by_key(|i| i.id);
+    intents
+}
+
+fn parse_intent_frontmatter(content: &str) -> Option<ShippedIntent> {
+    let mut id = None;
+    let mut title = None;
+    let mut in_frontmatter = false;
+
+    for line in content.lines() {
+        if line == "---" {
+            if !in_frontmatter { in_frontmatter = true; continue; }
+            else { break; }
+        }
+        if !in_frontmatter { continue; }
+
+        if line.starts_with("id:") {
+            id = line.split(':').nth(1)
+                .and_then(|s| s.trim().parse::<u32>().ok());
+        }
+        if line.starts_with("title:") {
+            title = line.splitn(2, ':').nth(1)
+                .map(|s| s.trim().trim_matches('"').to_string());
+        }
+    }
+
+    match (id, title) {
+        (Some(id), Some(title)) => {
+            let description = extract_vision_first_line(content);
+            Some(ShippedIntent { id, title, description })
+        }
+        _ => None,
+    }
+}
+
+fn extract_vision_first_line(content: &str) -> String {
+    let mut in_vision = false;
+    for line in content.lines() {
+        if line.contains("## Vision") { in_vision = true; continue; }
+        if in_vision && !line.trim().is_empty() && !line.starts_with('#') {
+            return line.trim()
+                .trim_matches('*')
+                .chars().take(80)
+                .collect();
+        }
+        if in_vision && line.starts_with('#') { break; }
+    }
+    String::new()
+}
+
+// ─── GIT LOG ─────────────────────────────────────────────────────────────────
+
+pub fn get_commits_since(core_root: &PathBuf, since_tag: &str) -> Result<Vec<Commit>> {
+    let output = Command::new("git")
+        .args(["-C", core_root.to_str().unwrap_or("."),
+               "log", &format!("{}..HEAD", since_tag),
+               "--pretty=format:%h|%s"])
+        .output()
+        .context("failed to run git log")?;
+
+    let log = String::from_utf8_lossy(&output.stdout);
+    let commits: Vec<Commit> = log.lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, '|');
+            let hash = parts.next()?.trim().to_string();
+            let subject = parts.next()?.trim().to_string();
+            Some(Commit::parse(&hash, &subject))
+        })
+        .filter(|c| !c.is_noise())
+        .collect();
+
+    Ok(commits)
+}
+
+pub fn get_last_tag(core_root: &PathBuf) -> String {
+    Command::new("git")
+        .args(["-C", core_root.to_str().unwrap_or("."),
+               "describe", "--tags", "--abbrev=0"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "HEAD~50".to_string())
+}
+
+// ─── GROUPED CHANGELOG ───────────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub struct ChangelogData {
+    pub version: String,
+    pub date: String,
+    pub theme: String,
+    pub intents: Vec<ShippedIntent>,
+    pub features: Vec<Commit>,
+    pub fixes: Vec<Commit>,
+    pub performance: Vec<Commit>,
+    #[allow(dead_code)]
+    pub refactors: Vec<Commit>,
+    #[allow(dead_code)]
+    pub docs: Vec<Commit>,
+    pub internal: Vec<Commit>,  // chore, bump, other — condensed
+    pub total_commits: usize,
+    pub last_tag: String,
+}
+
+impl ChangelogData {
+    pub fn build(
+        core_root: &PathBuf,
+        version: &str,
+        theme: &str,
+    ) -> Result<Self> {
+        let last_tag = get_last_tag(core_root);
+        let commits = get_commits_since(core_root, &last_tag)?;
+        let intents = find_shipped_intents(core_root, &last_tag);
+        let total_commits = commits.len();
+
+        let mut features = vec![];
+        let mut fixes = vec![];
+        let mut performance = vec![];
+        let mut refactors = vec![];
+        let mut docs = vec![];
+        let mut internal = vec![];
+
+        for commit in commits {
+            match commit.prefix.as_str() {
+                "feat" => features.push(commit),
+                "fix" => fixes.push(commit),
+                "perf" => performance.push(commit),
+                "refactor" => refactors.push(commit),
+                "docs" => docs.push(commit),
+                _ => internal.push(commit),
+            }
+        }
+
+        let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+        Ok(Self {
+            version: version.to_string(),
+            date,
+            theme: theme.to_string(),
+            intents,
+            features,
+            fixes,
+            performance,
+            refactors,
+            docs,
+            internal,
+            total_commits,
+            last_tag,
+        })
+    }
+
+    pub fn render_markdown(&self, stats: &ReleaseStats) -> String {
+        let mut out = String::new();
+
+        out.push_str(&format!(
+            "## [{}] — {} ({})\n\n",
+            self.version, self.theme, self.date
+        ));
+
+        // Completed intents — the most important section
+        if !self.intents.is_empty() {
+            out.push_str("### 🎯 Completed Intents\n");
+            for intent in &self.intents {
+                out.push_str(&format!("- **INT-{}** — {}\n", intent.id, intent.title));
+            }
+            out.push('\n');
+        }
+
+        // Features
+        if !self.features.is_empty() {
+            out.push_str("### ✨ Features\n");
+            for c in &self.features {
+                let scope = if c.scope.is_empty() {
+                    String::new()
+                } else {
+                    format!("({}) ", c.scope)
+                };
+                out.push_str(&format!("- {}{}\n", scope, c.message));
+            }
+            out.push('\n');
+        }
+
+        // Fixes
+        if !self.fixes.is_empty() {
+            out.push_str("### 🔧 Fixes\n");
+            for c in &self.fixes {
+                let scope = if c.scope.is_empty() {
+                    String::new()
+                } else {
+                    format!("({}) ", c.scope)
+                };
+                out.push_str(&format!("- {}{}\n", scope, c.message));
+            }
+            out.push('\n');
+        }
+
+        // Performance
+        if !self.performance.is_empty() {
+            out.push_str("### ⚡ Performance\n");
+            for c in &self.performance {
+                out.push_str(&format!("- {}\n", c.message));
+            }
+            out.push('\n');
+        }
+
+        // Internal — condensed
+        if !self.internal.is_empty() {
+            out.push_str(&format!(
+                "### 🔩 Internal ({} commits)\n",
+                self.internal.len()
+            ));
+            for c in self.internal.iter().take(5) {
+                out.push_str(&format!("- {}\n", c.message));
+            }
+            if self.internal.len() > 5 {
+                out.push_str(&format!(
+                    "- ...and {} more internal changes\n",
+                    self.internal.len() - 5
+                ));
+            }
+            out.push('\n');
+        }
+
+        // Stats
+        out.push_str(&format!(
+            "### 📊 Stats\n- Health: {}%  ·  Commits: {}  ·  Tools: {} deployed  ·  Intents: {} complete\n\n",
+            stats.health, stats.total_commits, stats.tools_deployed, stats.intents_complete
+        ));
+
+        out.push_str("---\n");
+        out
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReleaseStats {
+    pub health: u32,
+    pub total_commits: u32,
+    pub tools_deployed: u32,
+    pub intents_complete: u32,
+}
+
+impl ReleaseStats {
+    pub fn gather(core_root: &PathBuf) -> Self {
+        let commits = Command::new("git")
+            .args(["-C", core_root.to_str().unwrap_or("."),
+                   "rev-list", "--count", "HEAD"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse().unwrap_or(0))
+            .unwrap_or(0);
+
+        let tools = count_tools(core_root);
+        let intents = count_complete_intents(core_root);
+
+        Self {
+            health: 95, // read from state.db in future phase
+            total_commits: commits,
+            tools_deployed: tools,
+            intents_complete: intents,
+        }
+    }
+}
+
+fn count_tools(core_root: &PathBuf) -> u32 {
+    let tools_toml = core_root.join("01-registry/tools.toml");
+    std::fs::read_to_string(&tools_toml)
+        .map(|c| c.lines().filter(|l| l.trim().starts_with("name =")).count() as u32)
+        .unwrap_or(0)
+}
+
+fn count_complete_intents(core_root: &PathBuf) -> u32 {
+    let complete = core_root.join("intents/complete");
+    std::fs::read_dir(&complete)
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter(|e| e.path().extension()
+                .and_then(|x| x.to_str())
+                .map(|x| x == "md")
+                .unwrap_or(false))
+            .count() as u32)
+        .unwrap_or(0)
+}
