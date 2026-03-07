@@ -3,6 +3,7 @@
 
 mod changelog;
 mod readme;
+mod rollback;
 mod tui;
 
 use anyhow::Result;
@@ -39,6 +40,11 @@ enum Command {
     Status,
     /// List all release generations
     History,
+    /// Rollback to a previous generation
+    Rollback {
+        /// Specific version to rollback to (optional — defaults to previous)
+        version: Option<String>,
+    },
     /// Show changelog diff since a version
     Diff {
         /// Version to diff from
@@ -158,6 +164,9 @@ fn main() -> Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
 
+        Command::Rollback { version } => {
+            rollback::rollback(&root, version.as_deref())?;
+        }
         Command::Diff { version } => {
             let tag = format!("v{}", version);
             println!("🌲 Changes since {}", tag);
