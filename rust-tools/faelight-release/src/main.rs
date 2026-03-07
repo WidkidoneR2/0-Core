@@ -1,8 +1,8 @@
 //! faelight-release v0.1.0
 //! 🌲 Intelligent release and generation manager
-//! Phase 2 — Smart changelog engine
 
 mod changelog;
+mod tui;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -17,6 +17,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Publish a new release (TUI)
+    #[command(name = "publish")]
+    Publish {
+        /// New version number (e.g. 10.5.0)
+        version: String,
+        /// Release theme
+        #[arg(short, long, default_value = "")]
+        theme: String,
+    },
     /// Preview the auto-generated changelog for a new version
     Preview {
         /// New version number (e.g. 10.5.0)
@@ -47,6 +56,17 @@ fn main() -> Result<()> {
     let root = core_root();
 
     match cli.command {
+        Command::Publish { version, theme } => {
+            let theme = if theme.is_empty() { "Unnamed Release".to_string() } else { theme };
+            let data = changelog::ChangelogData::build(&root, &version, &theme)?;
+            let stats = changelog::ReleaseStats::gather(&root);
+            let published = tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
+            if published {
+                println!("🌲 Release complete! Push with: fg sync");
+            } else {
+                println!("Release aborted.");
+            }
+        }
         Command::Preview { version, theme } => {
             let theme = if theme.is_empty() {
                 "Unnamed Release".to_string()
