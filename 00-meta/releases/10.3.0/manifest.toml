@@ -1,0 +1,25 @@
+version = "10.3.0"
+date = "2026-02-27"
+theme = "Core v3 — The Living System"
+git_sha = "6ddd269"
+health_at_release = 95
+commits_since_last = 0
+
+[tools_added]
+faelight-hooks = "10.3.0"
+
+[intents_shipped]
+ids = [93, 94, 95, 96, 97, 98]
+titles = [
+  "Core v3 — The Living System",
+  "faelight-term VTE refactor",
+  "faelight-browser improvements",
+  "event ledger fetch/link improvements",
+  "new tools daily integration",
+  "Core v4 — The Reliable System",
+]
+
+[stats]
+tools_total = 40
+intents_complete = 65
+rust_percent = 90

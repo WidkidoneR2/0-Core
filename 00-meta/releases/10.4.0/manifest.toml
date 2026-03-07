@@ -1,0 +1,26 @@
+version = "10.4.0"
+date = "2026-03-03"
+theme = "Niri Version — The Forest Finds Its Roots"
+git_sha = "6f7c3ee"
+health_at_release = 100
+commits_since_last = 25
+
+[tools_added]
+faelight-login = "1.0.0"
+faelight-notifyctl = "1.0.0"
+
+[tools_version_bumped]
+faelight-notify = { from = "2.1.0", to = "3.0.0" }
+
+[intents_shipped]
+ids = [101, 112]
+titles = [
+  "faelight-login — Rust Display Manager",
+  "faelight-notify IPC — Unix socket for DND and dismiss control",
+]
+
+[stats]
+tools_total = 42
+intents_complete = 69
+aliases_total = 363
+rust_percent = 95
