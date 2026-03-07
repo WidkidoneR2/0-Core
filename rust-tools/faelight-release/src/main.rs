@@ -2,6 +2,7 @@
 //! 🌲 Intelligent release and generation manager
 
 mod changelog;
+mod learning;
 mod readme;
 mod rollback;
 mod tui;
@@ -97,6 +98,22 @@ fn main() -> Result<()> {
             println!("📝 Generated Changelog Entry:");
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("{}", data.render_markdown(&stats));
+
+            // Phase 6 — Learning insights
+            let insights = learning::analyze(&root, &data, &version);
+            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            println!("🧠 Learning Insights (confidence: {}%)", insights.confidence);
+            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            println!("💡 Theme suggestion: {}", insights.theme_suggestion);
+            println!("📅 Cadence: {}", insights.release_cadence);
+            if !insights.anomalies.is_empty() {
+                println!("🔍 Anomalies:");
+                for a in &insights.anomalies { println!("   {}", a); }
+            }
+            if !insights.pattern_notes.is_empty() {
+                println!("📊 Patterns:");
+                for n in &insights.pattern_notes { println!("   {}", n); }
+            }
         }
 
         Command::Status => {
