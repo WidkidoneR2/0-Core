@@ -273,7 +273,7 @@ Confidence grows with each release.
 
 ## Success Criteria
 
-- [ ] Generation structure created and backfilled to 10.3.0
+- [x] Generation structure created and backfilled to 10.3.0
 - [ ] Smart changelog from git log + intent ledger
 - [ ] TUI shows all gathered data, inline theme editing
 - [ ] faelight-release publish — zero manual input
