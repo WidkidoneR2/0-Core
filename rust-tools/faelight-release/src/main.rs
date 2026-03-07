@@ -2,6 +2,7 @@
 //! 🌲 Intelligent release and generation manager
 
 mod changelog;
+mod readme;
 mod tui;
 
 use anyhow::Result;
