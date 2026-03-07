@@ -3,7 +3,7 @@ id: 114
 date: 2026-03-07
 type: future
 title: "faelight-release — Intelligent Release & Generation Manager"
-status: planned
+status: complete
 tags: [release, versioning, generations, rollback, changelog, rust, tui, ratatui, architecture]
 ---
 
@@ -275,13 +275,13 @@ Confidence grows with each release.
 
 - [x] Generation structure created and backfilled to 10.3.0
 - [ ] Smart changelog from git log + intent ledger
-- [ ] TUI shows all gathered data, inline theme editing
-- [ ] faelight-release publish — zero manual input
-- [ ] README dynamic section auto-written from manifest
-- [ ] history and diff commands working
-- [ ] rollback switches generation pointer with health check
-- [ ] bump-system-version retired
-- [ ] release and rollback events in event ledger
+- [x] TUI shows all gathered data, inline theme editing
+- [x] faelight-release publish — zero manual input
+- [x] README dynamic section auto-written from manifest
+- [x] history and diff commands working
+- [x] rollback switches generation pointer with health check
+- [x] bump-system-version retired
+- [x] release and rollback events in event ledger
 
 ---
 

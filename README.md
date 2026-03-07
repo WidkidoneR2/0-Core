@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.4.0
+# 🌲 Faelight Forest v10.5.0
 
-![Version](https://img.shields.io/badge/version-10.4.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-10.5.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,29 +11,30 @@
 
 ## 🎊 Latest Release
 
-### v10.4.0 - 🌲 Niri Version — The Forest Finds Its Roots (2026-03-03)
+### v10.5.0 - 🌲 The Intelligent Forest (2026-03-07)
 
-- Core v4 complete — checkpoint, recovery, intent discipline, security debt, analytics
-- Niri 25.11 as primary compositor — INT-099 Phase 1
-- faelight-login v1.0.0 — Rust greeter replaces tuigreet
-- faelight-notify v3.0.0 — Unix IPC socket, DND control, dismiss
-- faelight-notifyctl — new IPC controller tool
-- Full keybind migration Sway → Niri
-- eDP-2 output, 2560x1600 @ 165Hz, 1.5x scale
-- Brave browser native Wayland
-- Fn media keys working
-- Niri Version greeting in shell
+- 93 — Core v3 — The Living System
+- 94 — faelight-term — VTE Refactor & Stability
+- 95 — faelight-browser — Stability & Feature Improvements
+- 100 — core pulse — Live Event Stream Terminal View
+- 101 — faelight-login — Rust Display Manager
+- 102 — faelight-clipboard — Rust Clipboard Manager
+- 106 — doctor forecasting v2 — Predictive Health Intelligence
+- release: INT-114 Phase 6 — learning layer, theme suggestions, anomaly detection, pattern analysis
+- release: INT-114 Phase 5 — rollback with generation diff, health check, event ledger
+- release: INT-114 Phase 4 — smart README writer, dynamic section auto-updated from manifest
+- release: INT-114 Phase 3 — faelight-release TUI, inline theme editing, publish flow
+- release: INT-114 Phase 2 — faelight-release v0.1.0, smart changelog engine, history, diff, preview
 
-- Commits: 1305
-- Tools: 35 deployed, 43 with aliases
+- Commits: 1344
+- Tools: 47 deployed
 - Health: 95%
-- Intents: 112 total, 69 complete
-- Rust tools: 42 custom binaries
-- Lines of code: 118000+
+- Intents: 63 complete
 
 [Full Changelog →](CHANGELOG.md)
 
 ---
+
 <!-- END DYNAMIC SECTION -->
 
 <!-- STATIC SECTION - Comprehensive Documentation -->
