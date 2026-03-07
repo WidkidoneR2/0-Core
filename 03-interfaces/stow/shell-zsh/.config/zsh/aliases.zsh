@@ -571,20 +571,3 @@ alias forecast='faelight-forecast'
 alias ff='faelight-forecast'
 alias ffp='faelight-forecast --plain'
 
-# ─── faelight-clipboard ───
-alias clip='faelight-clipboard'
-alias cb='faelight-clipboard'
-alias cbh='faelight-clipboard history'
-alias cbp='faelight-clipboard pick'
-
-# ─── faelight-pulse ───
-alias pulse='faelight-pulse'
-alias fp='faelight-pulse'
-alias pulse-doc='faelight-pulse --domain doctor'
-alias pulse-git='faelight-pulse --domain git'
-alias pulse-json='faelight-pulse --json'
-
-# ─── faelight-niri-bridge ───
-alias niri-bridge='faelight-niri-bridge'
-alias nb='faelight-niri-bridge'
-
