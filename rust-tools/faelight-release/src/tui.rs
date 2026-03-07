@@ -431,6 +431,24 @@ intents_complete = {}
         fs::write(release_dir.join("manifest.toml"), &manifest)?;
         self.log.push("✅ Release manifest written".to_string());
 
+        // 3. Update README dynamic section
+        let readme_path = core_root.join("README.md");
+        let readme_meta_path = core_root.join("00-meta/README.md");
+        let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+        if let Err(e) = crate::readme::update_readme(
+            &readme_path, &self.version, &self.theme, &date, &self.data, &self.stats
+        ) {
+            self.log.push(format!("⚠️  README: {}", e));
+        } else {
+            self.log.push("✅ README.md dynamic section updated".to_string());
+        }
+        if readme_meta_path.exists() {
+            let _ = crate::readme::update_readme(
+                &readme_meta_path, &self.version, &self.theme, &date, &self.data, &self.stats
+            );
+            self.log.push("✅ 00-meta/README.md updated".to_string());
+        }
+
         // 3. Update CHANGELOG
         let changelog_path = core_root.join("00-meta/CHANGELOG.md");
         let existing = fs::read_to_string(&changelog_path).unwrap_or_default();
