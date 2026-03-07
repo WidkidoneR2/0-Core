@@ -4,104 +4,151 @@ date: 2026-03-07
 type: future
 title: "faelight-release — Intelligent Release & Generation Manager"
 status: planned
-tags: [release, versioning, generations, rollback, changelog, rust, architecture]
+tags: [release, versioning, generations, rollback, changelog, rust, tui, ratatui, architecture]
 ---
 
 ## Vision
 
 **The forest already knows everything needed for a release. faelight-release just reads it.**
 
-`bump-system-version` today is a ceremony — paste features, paste stats, paste
-quotes, confirm five prompts. Every release requires manual gathering of
+`bump-system-version` today is a ceremony — paste features, paste stats,
+paste quotes, confirm five prompts. Every release requires manually gathering
 information the system already has: git log, intent ledger, health score,
 tool versions, commit count.
 
-`faelight-release` replaces that ceremony with intelligence. One command.
-The forest publishes itself.
+`faelight-release` replaces that ceremony with intelligence and presence.
+Like `faelight-pulse` shows the forest breathing in real time, `faelight-release`
+shows the release being built — a living TUI where you see everything the
+system gathered, edit the theme inline, and confirm when ready.
+
+One command. The forest publishes itself.
 
 Beyond publishing, `faelight-release` introduces the generation model —
 each release is an immutable snapshot. Rollback becomes switching a pointer.
 No reinstalling. No rebuilding. Instant revert.
 
+**The learning principle:** each release manifest records what was written.
+Over time, `faelight-release` learns your patterns — how you name themes,
+which intents matter most, what commit patterns define a release. Version 1.0.0
+is smart. Version 3.0.0 knows the forest.
+
+---
+
+## The TUI Experience
+
+Running `faelight-release 10.5.0` opens a ratatui TUI:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌲 faelight-release v1.0.0 — building 10.5.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 Intents Shipped (4)           🔀 Commits since 10.4.0 (42)
+  ✅ INT-100  core pulse            feat     12
+  ✅ INT-101  faelight-login        fix       8
+  ✅ INT-102  faelight-clipboard    chore     6
+  ✅ INT-106  faelight-forecast     docs      4
+                                    perf      2
+
+🛠️  Tools                         🏥 Pre-flight
+  new:     faelight-forecast        Health:   95% ✅
+  new:     faelight-pulse           Git:      clean ✅
+  new:     faelight-niri-bridge     Tag:      v10.4.0 ✅
+  bumped:  faelight-notify 3.0.0    Commits:  1334
+
+📝 Release Theme
+  [ The Intelligent Forest                              ]
+    ↑ editable — type your theme, press Enter to confirm
+
+─────────────────────────────────────────────────────────────
+  Enter  confirm & publish    e  edit theme    q  abort
+```
+
+You see everything. Edit the theme inline. Press Enter — it executes.
+Commits, tags, pushes, writes manifest. All visible as it happens.
+
+---
+
+## Smart Changelog
+
+The changelog engine understands context, not just commits.
+
+**Intent-first grouping:**
+Commits that reference an intent ID are grouped under that intent's story.
+`feat(niri): add faelight-niri-bridge` and `fix(niri): correct output eDP-2`
+both belong to INT-099's narrative — they appear together, not scattered.
+
+**Conventional commit sections:**
+Commits without intent references are grouped by prefix:
+`feat / fix / perf / refactor / docs / chore`
+
+**Signal over noise:**
+Chore commits about dependencies are condensed to a single line.
+Breaking architectural changes are surfaced prominently.
+Internal housekeeping is summarized, not listed exhaustively.
+
+**Generated output:**
+```
+## v10.5.0 — The Intelligent Forest (2026-03-07)
+
+### Completed Intents
+- INT-100 — core pulse — live event stream TUI
+- INT-101 — faelight-login — Rust greeter, pixel perfect
+- INT-102 — faelight-clipboard — native wlr-data-control, zero C
+- INT-106 — faelight-forecast — predictive health intelligence
+
+### Features
+- faelight-niri-bridge — compositor events in event ledger (INT-099)
+- WM abstraction — ControlSway→ControlWM, Niri-aware across all domains
+
+### Fixes
+- doctor: Niri-aware keybind check detects niri/sway automatically
+- aliases: resolve ff conflict, remove duplicate forecast block
+
+### Stats
+Health: 95%  ·  Commits: 1334  ·  Tools: 39 deployed  ·  Intents: 73 complete
+```
+
+**Learning over time:**
+Each release manifest stores the theme, intent count, commit distribution.
+Future releases use this history to suggest themes and flag unusual patterns.
+"Last 3 releases averaged 8 intents — this release has 4, confirm?"
+
+---
+
+## Smart README
+
+The README has two sections — dynamic (lines 1-37, owned by the release tool)
+and static (line 38+, human-maintained).
+
+`faelight-release` writes the dynamic section from the manifest:
+- version badge from new version
+- health badge from `runtime/state.db`
+- latest release section from auto-generated changelog
+- path resilience badge from doctor output
+
+The static section is never touched unless explicitly requested.
+No hardcoded strings. No manual badge updates. The README reflects
+reality because it reads from the same source of truth as everything else.
+
 ---
 
 ## The Generation Model
 
-A generation is an immutable record of a released system state.
+Each release creates an immutable generation record:
 ```
 00-meta/releases/
   10.4.0/
     manifest.toml          # machine-readable release record
     installed-tools.toml   # tool versions at release time
-    health-at-release.json # health snapshot
+    health-at-release.json # health snapshot from state.db
     intents-shipped.md     # intents closed in this release
   10.5.0/
     ...
 
-runtime/generation         # single file — current active generation
+runtime/generation         # single file — active generation pointer
 ```
 
-**Immutable rule:** generations are never modified after creation.
-A new release always creates a new generation directory.
-Rollback switches `runtime/generation` — nothing else changes.
-
----
-
-## Command Surface
-```
-faelight-release <version>       # publish new release
-faelight-release history         # list all releases with summaries
-faelight-release diff <version>  # what changed since a version
-faelight-release rollback        # revert to previous generation
-faelight-release rollback <ver>  # revert to specific version
-faelight-release manifest        # show current generation manifest
-faelight-release status          # current generation + health
-```
-
----
-
-## Intelligent Release Publishing
-
-When you run `faelight-release 10.5.0`:
-
-### 1. Pre-flight
-- Run `d` — verify 95%+ health
-- Verify git working tree clean
-- Verify current version in `00-meta/VERSION`
-- Check last git tag exists
-
-### 2. Automatic Data Gathering
-All of this is read, not typed:
-
-**From git log (LAST_TAG..HEAD):**
-- Group commits by conventional prefix: `feat/fix/perf/refactor/docs/chore`
-- Count total commits since last release
-- Extract breaking changes
-
-**From `intents/complete/`:**
-- Find intents with completion date after last release tag
-- List as "Completed Intents" section
-
-**From `01-registry/tools.toml`:**
-- Diff tool versions against last release manifest
-- Identify tools added, removed, version-bumped
-
-**From `runtime/state.db`:**
-- Current health score
-- Total commits
-- Security findings count
-- Doctor run trend
-
-### 3. Generation Creation
-```
-00-meta/releases/10.5.0/
-  manifest.toml
-  installed-tools.toml
-  health-at-release.json
-  intents-shipped.md
-```
-
-**manifest.toml example:**
+**manifest.toml:**
 ```toml
 version = "10.5.0"
 date = "2026-03-07"
@@ -119,40 +166,28 @@ faelight-notify = { from = "2.0.0", to = "3.0.0" }
 
 [intents_shipped]
 ids = [100, 101, 102, 106]
+titles = [
+  "core pulse",
+  "faelight-login",
+  "faelight-clipboard",
+  "faelight-forecast",
+]
 ```
 
-### 4. Changelog Generation
-Auto-generated `CHANGELOG.md` entry:
+**Immutable rule:** generations are never modified after creation.
+Rollback switches `runtime/generation` — nothing else changes.
+
+---
+
+## Command Surface
 ```
-## v10.5.0 — The Intelligent Forest (2026-03-07)
-
-### Completed Intents
-- INT-100 — core pulse, live event stream
-- INT-106 — faelight-forecast, predictive health intelligence
-
-### Features
-- feat(release): faelight-release v1.0.0
-- feat(forecast): predictive health intelligence
-
-### Fixes
-- fix(aliases): resolve ff conflict
-- fix(doctor): Niri-aware keybind check
-
-### Stats
-- Health: 95% | Commits: 1334 | Tools: 39 deployed
-```
-
-### 5. Git Operations
-- Update `00-meta/VERSION`
-- Update `README.md` dynamic section
-- Commit all changes
-- Create annotated git tag `v10.5.0`
-- Push commits and tag
-
-### 6. Generation Pointer
-Write `runtime/generation`:
-```
-10.5.0
+faelight-release 10.5.0          # publish new release (TUI)
+faelight-release history         # list all releases with summaries
+faelight-release diff 10.4.0     # what changed since a version
+faelight-release rollback        # revert to previous generation
+faelight-release rollback 10.3.0 # revert to specific version
+faelight-release manifest        # show current generation manifest
+faelight-release status          # current generation + health
 ```
 
 ---
@@ -162,13 +197,15 @@ Write `runtime/generation`:
 faelight-release rollback
 ```
 
-Reads `runtime/generation`, finds previous generation in `00-meta/releases/`,
-switches the pointer. Emits rollback event to event ledger.
+Reads `runtime/generation`, finds previous generation manifest,
+shows a diff of what will change, confirms, switches pointer.
 ```
 faelight-release rollback 10.3.0
 ```
 
-Walks back to specific version. Shows manifest diff before confirming.
+Shows manifest diff between current and 10.3.0 before confirming.
+Checks out git tag. Runs `d` to verify health post-rollback.
+Emits `release.rollback` event to event ledger.
 
 **What rollback does:**
 - Switches `runtime/generation` pointer
@@ -177,51 +214,17 @@ Walks back to specific version. Shows manifest diff before confirming.
 - Emits `release.rollback` event to ledger
 
 **What rollback does NOT do:**
-- Does not touch packages (that's `faelight-update`)
+- Does not touch packages (that is `faelight-update`)
 - Does not modify `intents/`
 - Does not rewrite history
 
 ---
 
-## History & Diff
-```
-faelight-release history
-```
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 Release History
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  10.4.0  2026-03-03  Niri Version           95%  1308 commits  ← current
-  10.3.0  2026-02-27  Core v3 Complete       95%  1282 commits
-  10.2.0  2026-02-20  VTE Refactor           95%  1201 commits
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-```
-faelight-release diff 10.3.0
-```
-
-Shows commits, intents, and tool changes between 10.3.0 and current.
-
----
-
 ## Replaces
 
-- `bump-system-version` — retired after `faelight-release` ships
-- Manual changelog editing
-- Manual stats gathering
-- Manual git tag creation
-
-`bump-system-version` is kept as a read-only archive. Its logic is absorbed
-and improved by `faelight-release`.
-
----
-
-## What Stays The Same
-
-- `faelight-update` — untouched, still handles package/tool updates
-- `00-meta/VERSION` — still the source of truth for current version
-- `CHANGELOG.md` — still exists, now auto-generated
-- Git tags — still created, now automated
+`bump-system-version` is retired after `faelight-release` ships.
+Its logic is absorbed, understood, and improved.
+The binary is kept as a read-only archive — the forest remembers.
 
 ---
 
@@ -231,42 +234,54 @@ and improved by `faelight-release`.
 Create `00-meta/releases/` structure.
 Backfill manifests for 10.3.0 and 10.4.0 from git history.
 Write `runtime/generation` for current version.
-No new tool yet — just the data structure.
+No new tool yet — just the data structure in place.
 
-### Phase 2 — Intelligent Changelog
-Build the auto-changelog engine:
-- `git log` parser grouped by conventional commit prefix
-- Intent ledger diff (complete since last tag)
+### Phase 2 — Smart Changelog Engine
+Build the auto-changelog core in Rust:
+- `git log` parser with conventional commit grouping
+- Intent ledger diff — find completed intents since last tag
 - Tool version diff against last manifest
-Output: `CHANGELOG.md` entry + `intents-shipped.md`
+- Context grouping — commits under their intent stories
+Output: structured release data ready for rendering.
 
-### Phase 3 — faelight-release publish
-The full release command:
-`faelight-release <version>`
-Pre-flight → gather → generate → git ops → generation pointer.
+### Phase 3 — faelight-release TUI
+The full ratatui TUI experience:
+- Live display of gathered data
+- Inline theme editing
+- Pre-flight checks visible
+- Confirm → execute: commits, tag, push, manifest write
 Retires `bump-system-version`.
 
-### Phase 4 — History & Diff
-`faelight-release history`
-`faelight-release diff <version>`
-Reads from `00-meta/releases/` manifests.
+### Phase 4 — Smart README Writer
+Write the dynamic README section from manifest.
+Badge updates, latest release section, stats line.
+Never touches static section.
 
-### Phase 5 — Rollback
-`faelight-release rollback`
-Generation switching with health verification.
-Event ledger integration.
+### Phase 5 — History, Diff & Rollback
+`faelight-release history` — reads all manifests
+`faelight-release diff <version>` — cross-manifest comparison
+`faelight-release rollback` — generation switching with health check
+Event ledger integration for release and rollback events.
+
+### Phase 6 — Learning Layer
+Store release patterns in manifest history.
+Theme suggestions based on previous release naming.
+Anomaly detection — flag unusual commit distributions.
+Confidence grows with each release.
 
 ---
 
 ## Success Criteria
 
-- [ ] Generation structure created and backfilled
-- [ ] Auto-changelog from git log + intent ledger
+- [ ] Generation structure created and backfilled to 10.3.0
+- [ ] Smart changelog from git log + intent ledger
+- [ ] TUI shows all gathered data, inline theme editing
 - [ ] faelight-release publish — zero manual input
+- [ ] README dynamic section auto-written from manifest
 - [ ] history and diff commands working
-- [ ] rollback switches generation pointer
+- [ ] rollback switches generation pointer with health check
 - [ ] bump-system-version retired
-- [ ] release events in event ledger
+- [ ] release and rollback events in event ledger
 
 ---
 
