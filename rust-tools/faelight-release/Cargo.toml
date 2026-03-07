@@ -1,0 +1,20 @@
+[package]
+name = "faelight-release"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "🌲 Intelligent release and generation manager — the forest publishes itself"
+
+[[bin]]
+name = "faelight-release"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
