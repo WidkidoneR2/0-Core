@@ -15,7 +15,21 @@ const RED: [u8; 4] = [0xff, 0x6b, 0x6b, 0xFF];
 const DIM: [u8; 4] = [0x55, 0x60, 0x50, 0xFF];
 
 const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
-const FONT_SIZE: f32 = 13.5;
+const FONT_SIZE_BASE: f32 = 13.5;
+
+use std::cell::Cell;
+thread_local! {
+    static RENDER_SCALE: Cell<f32> = Cell::new(1.0);
+}
+
+fn set_render_scale(scale: f32) {
+    RENDER_SCALE.with(|s| s.set(scale));
+}
+
+fn current_font_size() -> f32 {
+    RENDER_SCALE.with(|s| FONT_SIZE_BASE * s.get())
+}
+
 
 lazy_static::lazy_static! {
     static ref HEALTH_CACHE: std::sync::Mutex<(String, [u8; 4], std::time::Instant)> =
@@ -338,10 +352,11 @@ fn draw_text(
     color: [u8; 4],
 ) -> i32 {
     let mut cx = x;
-    let baseline = 22i32; // vertical center for 32px bar
+    let bar_h = (32.0 * current_font_size() / FONT_SIZE_BASE) as i32;
+    let baseline = (bar_h as f32 * 0.68) as i32; // vertical center scaled
 
     for ch in text.chars() {
-        let glyph = cache.rasterize(ch, FONT_SIZE);
+        let glyph = cache.rasterize(ch, current_font_size());
         let metrics = &glyph.metrics;
         let bitmap = &glyph.bitmap;
 
@@ -355,7 +370,7 @@ fn draw_text(
                 let px = cx + metrics.xmin + col as i32;
                 let py = baseline - metrics.height as i32 - metrics.ymin + row as i32;
 
-                if px >= 0 && px < width as i32 && (0..32).contains(&py) {
+                if px >= 0 && px < width as i32 && py >= 0 && py < bar_h {
                     let idx = (py as usize * width as usize + px as usize) * 4;
                     if idx + 3 < canvas.len() {
                         let a = alpha as f32 / 255.0;
@@ -376,7 +391,7 @@ fn draw_text(
 
 fn text_width(cache: &mut GlyphCache, text: &str) -> i32 {
     text.chars()
-        .map(|ch| cache.rasterize(ch, FONT_SIZE).metrics.advance_width as i32)
+        .map(|ch| cache.rasterize(ch, current_font_size()).metrics.advance_width as i32)
         .sum()
 }
 
@@ -419,8 +434,9 @@ fn draw_top_accent(canvas: &mut [u8], width: u32, color: [u8; 4]) {
 
 // ─── Main render entry ────────────────────────────────────────────────────────
 
-pub fn render(canvas: &mut [u8], width: u32, _height: u32) {
+pub fn render(canvas: &mut [u8], width: u32, _height: u32, scale: f32) {
     let mut cache = GLYPH_CACHE.lock().unwrap();
+    set_render_scale(scale);
 
     // Gather all data upfront
     let profile = get_profile();
