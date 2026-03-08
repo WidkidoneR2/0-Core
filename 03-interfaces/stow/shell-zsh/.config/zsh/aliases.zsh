@@ -607,3 +607,7 @@ alias cwch='core why chain'
 # ─── core why patterns (Core v5 Phase 4) ───
 alias suggest='core why suggest'
 alias correlate='core why correlate'
+
+# ─── compositor intelligence (Core v5 Phase 5) ───
+alias cww='core why workspace'
+alias cwf='core why focus'

@@ -237,6 +237,8 @@ pub enum WhyCommand {
     Chain,
     Correlate { domain_a: String, domain_b: String },
     Suggest,
+    Workspace,
+    Focus,
 }
 
 #[derive(Debug)]

@@ -446,6 +446,10 @@ pub enum WhyCommands {
     Correlate { domain_a: String, domain_b: String },
     /// Proactive suggestions based on current state and learned patterns
     Suggest,
+    /// Visual workspace activity — what drove workspace switches?
+    Workspace,
+    /// Focus quality — deep focus vs fragmentation over time
+    Focus,
 }
 
 #[derive(Subcommand)]

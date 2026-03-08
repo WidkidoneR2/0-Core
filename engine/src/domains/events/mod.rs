@@ -1453,3 +1453,208 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     println!("\n{}", "━".repeat(52).dimmed());
     Ok(())
 }
+
+// ─── COMPOSITOR INTELLIGENCE (Core v5 Phase 5) ───────────────────────────────
+
+pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
+    let week_ago = chrono::Local::now().timestamp() - 7 * 86400;
+
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT action, payload, timestamp FROM events WHERE domain='compositor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let events: Vec<(String, Option<String>, i64)> = stmt
+        .query_map(rusqlite::params![week_ago], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", "🌲 Why — Workspace Activity (7 days)".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if events.is_empty() {
+        println!("  No compositor events — ensure faelight-niri-bridge is in autostart");
+        return Ok(());
+    }
+
+    // Count by action
+    let mut focus_count = 0u32;
+    let mut switch_count = 0u32;
+    let mut open_count = 0u32;
+    let mut app_focus: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+
+    for (action, payload, _) in &events {
+        match action.as_str() {
+            "window.focus" => {
+                focus_count += 1;
+                let app = payload.as_deref()
+                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                    .and_then(|v| v["detail"]["app_id"].as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "unknown".to_string());
+                if app != "unknown" {
+                    *app_focus.entry(app).or_insert(0) += 1;
+                }
+            }
+            "workspace.switch" => switch_count += 1,
+            "window.open" => open_count += 1,
+            _ => {}
+        }
+    }
+
+    println!();
+    println!("  {} total compositor events", events.len().to_string().bright_white());
+    println!("  {} window focuses  •  {} workspace switches  •  {} windows opened",
+        focus_count.to_string().cyan(),
+        switch_count.to_string().yellow(),
+        open_count.to_string().green(),
+    );
+    println!();
+
+    // Top apps by focus count
+    if !app_focus.is_empty() {
+        println!("  {}", "Most focused apps (7 days):".dimmed());
+        let mut apps: Vec<(String, u32)> = app_focus.into_iter().collect();
+        apps.sort_by(|a, b| b.1.cmp(&a.1));
+        let max = apps.first().map(|a| a.1).unwrap_or(1);
+        for (app, count) in apps.iter().take(6) {
+            let bar_len = (count * 20 / max) as usize;
+            let bar = "█".repeat(bar_len);
+            println!("  {:25}  {}  {}x",
+                app.bright_white(),
+                bar.cyan(),
+                count.to_string().dimmed(),
+            );
+        }
+        println!();
+    }
+
+    // Workspace switch rate — fragmentation indicator
+    let days = events.len() as f64 / 24.0; // rough session estimate
+    let switch_rate = switch_count as f64 / days.max(1.0);
+
+    let focus_quality = if switch_rate < 2.0 { "🟢 Deep focus sessions" }
+        else if switch_rate < 5.0 { "🟡 Moderate switching" }
+        else { "🔴 High fragmentation" };
+
+    println!("  Focus quality: {}", focus_quality.bright_white());
+    println!("  Workspace switch rate: {:.1}/session", switch_rate);
+
+    // Correlation with health drops
+    let mut hstmt = ctx.runtime.db.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let health_events: Vec<(i64, i64)> = hstmt
+        .query_map(rusqlite::params![week_ago], |r| {
+            let p: Option<String> = r.get(0)?;
+            let h = p.as_deref()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                .and_then(|v| v["detail"]["health"].as_i64())
+                .unwrap_or(95);
+            Ok((h, r.get::<_, i64>(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let drops: Vec<i64> = health_events.windows(2)
+        .filter(|w| w[0].0 < w[1].0)
+        .map(|w| w[1].1)
+        .collect();
+
+    if !drops.is_empty() {
+        let mut drop_switch_count = 0u32;
+        for drop_ts in &drops {
+            let switches_near_drop = events.iter()
+                .filter(|(a, _, ts)| a == "workspace.switch" && (ts - drop_ts).abs() < 1800)
+                .count();
+            if switches_near_drop > 0 { drop_switch_count += 1; }
+        }
+        let drop_pct = drop_switch_count * 100 / drops.len().max(1) as u32;
+        println!();
+        println!("  {}% of health drops had workspace switching within 30m",
+            drop_pct.to_string().bright_white());
+        if drop_pct > 50 {
+            println!("  💡 Attention fragmentation may precede health drift");
+        }
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
+    let week_ago = chrono::Local::now().timestamp() - 7 * 86400;
+
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT action, timestamp FROM events WHERE domain='compositor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let events: Vec<(String, i64)> = stmt
+        .query_map(rusqlite::params![week_ago], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", "🌲 Why — Focus Analysis (7 days)".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if events.is_empty() {
+        println!("  No compositor events found");
+        return Ok(());
+    }
+
+    // Group by day
+    let mut daily_switches: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    let mut daily_focuses: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+
+    for (action, ts) in &events {
+        let day = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|d| d.with_timezone(&chrono::Local).format("%m-%d").to_string())
+            .unwrap_or_default();
+        match action.as_str() {
+            "workspace.switch" => *daily_switches.entry(day).or_insert(0) += 1,
+            "window.focus" => *daily_focuses.entry(day).or_insert(0) += 1,
+            _ => {}
+        }
+    }
+
+    println!();
+    println!("  {}", "Daily focus quality:".dimmed());
+    println!("  {:8}  {:6}  {:7}  {}", "Date", "Focus", "Switch", "Quality");
+    println!("  {}", "─".repeat(35).dimmed());
+
+    for day in daily_focuses.keys() {
+        let focuses = daily_focuses.get(day).copied().unwrap_or(0);
+        let switches = daily_switches.get(day).copied().unwrap_or(0);
+        let ratio = if switches > 0 { focuses as f64 / switches as f64 } else { focuses as f64 };
+        let quality = if ratio > 10.0 { "🟢 Deep" }
+            else if ratio > 5.0 { "🟡 Moderate" }
+            else { "🔴 Fragmented" };
+        println!("  {:8}  {:6}  {:7}  {}",
+            day.bright_white(),
+            focuses.to_string().cyan(),
+            switches.to_string().yellow(),
+            quality,
+        );
+    }
+
+    // Fragmentation detection — 3+ switches in 60 seconds
+    let switches: Vec<i64> = events.iter()
+        .filter(|(a, _)| a == "workspace.switch")
+        .map(|(_, ts)| *ts)
+        .collect();
+
+    let fragments = switches.windows(3)
+        .filter(|w| w[2] - w[0] < 60)
+        .count();
+
+    println!();
+    println!("  Attention fragments detected: {}", fragments.to_string().bright_white());
+    if fragments > 5 {
+        println!("  ⚠️  High fragmentation — consider single-workspace focus sessions");
+    } else if fragments == 0 {
+        println!("  ✅ No attention fragmentation — excellent focus discipline");
+    } else {
+        println!("  ·  Normal attention pattern");
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
