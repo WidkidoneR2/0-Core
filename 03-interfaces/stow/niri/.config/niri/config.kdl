@@ -56,7 +56,7 @@ layout {
 }
 
 // ─── Autostart ────────────────────────────────────────────
-spawn-at-startup "swaybg" "-c" "#0f1411"
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-notify"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-clipboard watch"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"

@@ -3,7 +3,7 @@ id: 104
 date: 2026-03-02
 type: future
 title: "faelight-wallpaper — Rust Wallpaper Daemon"
-status: planned
+status: complete
 tags: [wallpaper, wayland, rust, wlr-layer-shell, rusty]
 version: TBD
 priority: low
@@ -26,11 +26,11 @@ Not just a static image. A living backdrop that responds to the forest.
 
 ## Success Criteria
 
-- [ ] Replaces swaybg
-- [ ] Multi-monitor support
-- [ ] Static wallpaper rendering
-- [ ] Health-reactive visual state
-- [ ] No C wallpaper dependencies remain
+- [x] Replaces swaybg
+- [x] Multi-monitor support
+- [x] Static wallpaper rendering
+- [x] Health-reactive visual state
+- [x] No C wallpaper dependencies remain
 
 ---
 
