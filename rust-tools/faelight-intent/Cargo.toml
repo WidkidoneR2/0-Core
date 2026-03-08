@@ -1,0 +1,21 @@
+[package]
+name = "faelight-intent"
+version = "1.0.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "🌲 Intent dashboard — the forest knows where it is going"
+
+[[bin]]
+name = "faelight-intent"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+anyhow = { workspace = true }
+clap = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
