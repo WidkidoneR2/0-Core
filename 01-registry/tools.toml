@@ -284,3 +284,9 @@ name = "faelight-release"
 version = "0.1.0"
 category = "release"
 description = "Intelligent release and generation manager — the forest publishes itself"
+
+[[tool]]
+name = "faelight-wallpaper"
+version = "0.1.0"
+category = "desktop"
+description = "Rust wallpaper daemon — health-reactive, replaces swaybg"

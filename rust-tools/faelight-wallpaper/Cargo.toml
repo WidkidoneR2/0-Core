@@ -1,0 +1,21 @@
+[package]
+name = "faelight-wallpaper"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "🌲 Rust wallpaper daemon — the backdrop knows the forest's mood"
+
+[[bin]]
+name = "faelight-wallpaper"
+path = "src/main.rs"
+
+[dependencies]
+smithay-client-toolkit = "0.19"
+wayland-client = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+dirs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }

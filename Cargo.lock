@@ -1320,6 +1320,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-wallpaper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs 5.0.1",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "smithay-client-toolkit 0.19.2",
+ "wayland-client",
+]
+
+[[package]]
 name = "faelight-zone"
 version = "2.1.0"
 dependencies = [
