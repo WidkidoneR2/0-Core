@@ -1051,6 +1051,57 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     println!("   Total:    {}", total);
     println!("   Health:   {}%", health);
 
+    // Core v5 Phase 2 — inline forecast after doctor run
+    {
+        let db = &ctx.runtime.db;
+        let mut stmt = db.prepare(
+            "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 10"
+        );
+        if let Ok(mut stmt) = stmt {
+            let points_result = stmt.query_map([], |r| {
+                let payload: Option<String> = r.get(0)?;
+                let ts: i64 = r.get(1)?;
+                let h = payload.as_deref()
+                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                    .and_then(|v| v["detail"]["health"].as_i64())
+                    .unwrap_or(health as i64);
+                Ok((h, ts))
+            });
+            let points: Vec<(i64, i64)> = match points_result {
+                Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+                Err(_) => vec![],
+            };
+            let points = points;
+
+            if points.len() >= 3 {
+                // Compute trend slope
+                let n = points.len() as f64;
+                let sum_h: f64 = points.iter().map(|(h,_)| *h as f64).sum();
+                let avg_h = sum_h / n;
+                let recent_avg: f64 = points.iter().take(3).map(|(h,_)| *h as f64).sum::<f64>() / 3.0;
+                let older_avg: f64 = points.iter().skip(3).map(|(h,_)| *h as f64).sum::<f64>() / (n - 3.0).max(1.0);
+                let trend = recent_avg - older_avg;
+
+                let forecast_24h = (health as f64 + trend * 0.5).round() as i64;
+                let forecast_7d = (health as f64 + trend * 2.0).round() as i64;
+                let forecast_24h = forecast_24h.max(0).min(100);
+                let forecast_7d = forecast_7d.max(0).min(100);
+
+                let trend_icon = if trend > 1.0 { "📈" } else if trend < -1.0 { "📉" } else { "➡️ " };
+                let trend_str = if trend > 0.5 { format!("+{:.1}", trend) }
+                    else if trend < -0.5 { format!("{:.1}", trend) }
+                    else { "stable".to_string() };
+
+                println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                println!("{}  Forecast  24h: {}%  7d: {}%  trend: {}",
+                    trend_icon,
+                    forecast_24h,
+                    forecast_7d,
+                    trend_str,
+                );
+            }
+        }
+    }
     // Write health score to cache for bar/prompt/palette
     let cache_dir =
         std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight");
