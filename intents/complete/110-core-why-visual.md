@@ -3,7 +3,7 @@ id: 110
 date: 2026-03-02
 type: future
 title: "core why visual — Workspace Topology in Event Ledger"
-status: planned
+status: complete
 tags: [core, why, visual, workspace, topology, events, glow]
 version: TBD
 priority: medium
@@ -47,11 +47,11 @@ core why topology         — current workspace map
 
 ## Success Criteria
 
-- [ ] Visual events flowing from compositor
-- [ ] Workspace topology queryable
-- [ ] Attention fragmentation detection
-- [ ] Correlation with health events
-- [ ] `core why visual` summary
+- [x] Visual events flowing from compositor
+- [x] Workspace topology queryable
+- [x] Attention fragmentation detection
+- [x] Correlation with health events
+- [x] `core why visual` summary
 
 ---
 
