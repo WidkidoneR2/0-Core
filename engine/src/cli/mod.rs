@@ -219,6 +219,8 @@ pub fn parse() -> Command {
             WhyCommands::Summary => WhyCommand::Summary,
             WhyCommands::Health => WhyCommand::Health,
             WhyCommands::Domain { domain } => WhyCommand::Domain { domain },
+            WhyCommands::Visual => WhyCommand::Visual,
+            WhyCommands::Attention => WhyCommand::Attention,
         }),
         Commands::Trace { command } => Command::Trace(match command {
             TraceCommands::Last => TraceCommand::Last,
