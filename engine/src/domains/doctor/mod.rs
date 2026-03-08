@@ -545,6 +545,12 @@ fn check_security_hardening() -> CheckResult {
     if ssh_ok {
         details += 1;
     }
+    let mut active = vec![];
+    if ufw_active { active.push("UFW ✅"); }
+    if f2b_active { active.push("fail2ban ✅"); }
+    if ssh_ok { active.push("SSH hardened ✅"); }
+    if !ufw_active { active.push("UFW ❌"); }
+
     CheckResult {
         id: "security".into(),
         name: "Security Hardening".into(),
@@ -553,8 +559,8 @@ fn check_security_hardening() -> CheckResult {
         } else {
             Status::Fail
         },
-        message: format!("Security: {} protections active", details),
-        fix: None,
+        message: format!("Security: {}", active.join("  ")),
+        fix: if !ufw_active { Some("Enable UFW: sudo ufw enable".into()) } else { None },
     }
 }
 
