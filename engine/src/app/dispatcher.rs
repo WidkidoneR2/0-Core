@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -303,6 +303,18 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),
             EventsCommand::Watch => crate::domains::events::watch(ctx),
         },
+        Command::Ledger(c) => {
+            ctx.capabilities.require("ledger", &[
+                Capability::OrchestratorAccess,
+                Capability::FilesystemReadHome,
+            ])?;
+            match c {
+                LedgerCommand::Stats => crate::domains::events::ledger_stats(ctx),
+                LedgerCommand::Query { domain } => crate::domains::events::ledger_query(ctx, &domain),
+                LedgerCommand::Export => crate::domains::events::ledger_export(ctx),
+                LedgerCommand::Indexes => crate::domains::events::ledger_indexes(ctx),
+            }
+        }
         Command::Why(c) => match c {
             WhyCommand::Summary => crate::domains::events::why_summary(ctx),
             WhyCommand::Health => crate::domains::events::why_health(ctx),

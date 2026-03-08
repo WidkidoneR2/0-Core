@@ -27,6 +27,7 @@ pub enum Command {
     Launcher(LauncherCommand),
     Update(UpdateCommand),
     Events(EventsCommand),
+    Ledger(LedgerCommand),
     Why(WhyCommand),
     Trace(TraceCommand),
     Simulate(SimulateCommand),
@@ -209,6 +210,13 @@ pub enum UpdateCommand {
     Safe { args: Vec<String> },
 }
 
+#[derive(Debug)]
+pub enum LedgerCommand {
+    Stats,
+    Query { domain: String },
+    Export,
+    Indexes,
+}
 #[derive(Debug)]
 pub enum EventsCommand {
     List,
