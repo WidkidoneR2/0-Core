@@ -416,6 +416,10 @@ pub enum WhyCommands {
     Health,
     /// What has a specific domain been doing?
     Domain { domain: String },
+    /// Visual topology — what apps and workspaces were active today?
+    Visual,
+    /// Attention analysis — focus quality and fragmentation?
+    Attention,
 }
 
 #[derive(Subcommand)]

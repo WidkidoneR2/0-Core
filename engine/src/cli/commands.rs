@@ -222,6 +222,8 @@ pub enum WhyCommand {
     Summary,
     Health,
     Domain { domain: String },
+    Visual,
+    Attention,
 }
 
 #[derive(Debug)]

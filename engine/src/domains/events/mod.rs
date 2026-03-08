@@ -612,3 +612,171 @@ pub fn watch(_ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
+    let today = chrono_today();
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT action, payload, timestamp FROM events WHERE domain='compositor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let rows: Vec<(String, Option<String>, i64)> = stmt
+        .query_map(params![today], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", "🌲 Why — Visual Topology Today".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if rows.is_empty() {
+        println!("  {}", "No compositor events today.".dimmed());
+        println!("  Ensure faelight-niri-bridge is running in Niri autostart.");
+        return Ok(());
+    }
+
+    // Count by action type
+    let mut focus_count = 0u32;
+    let mut open_count = 0u32;
+    let mut switch_count = 0u32;
+    let mut app_time: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut last_app = String::new();
+    let mut last_ts = 0i64;
+
+    for (action, payload, ts) in &rows {
+        match action.as_str() {
+            "window.focus" => {
+                focus_count += 1;
+                // Track time spent per app
+                let app = payload.as_deref()
+                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                    .and_then(|v| v["detail"]["app_id"].as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "unknown".to_string());
+                if !last_app.is_empty() && last_ts > 0 {
+                    let duration = (ts - last_ts) as u32;
+                    *app_time.entry(last_app.clone()).or_insert(0) += duration.min(300);
+                }
+                last_app = app;
+                last_ts = *ts;
+            }
+            "window.open" => open_count += 1,
+            "workspace.switch" => switch_count += 1,
+            _ => {}
+        }
+    }
+
+    println!();
+    println!("  {} compositor events today", rows.len().to_string().bright_white());
+    println!("  {} window focuses  •  {} windows opened  •  {} workspace switches",
+        focus_count.to_string().cyan(),
+        open_count.to_string().green(),
+        switch_count.to_string().yellow(),
+    );
+    println!();
+
+    // App time breakdown
+    if !app_time.is_empty() {
+        println!("  {}", "Time by app (estimated):".dimmed());
+        let mut apps: Vec<(String, u32)> = app_time.into_iter().collect();
+        apps.sort_by(|a, b| b.1.cmp(&a.1));
+        for (app, secs) in apps.iter().take(5) {
+            let mins = secs / 60;
+            let bar_len = (mins.min(30)) as usize;
+            let bar = "█".repeat(bar_len);
+            println!("  {:20}  {}  {}m",
+                app.bright_white(),
+                bar.green(),
+                mins,
+            );
+        }
+        println!();
+    }
+
+    // Recent activity timeline
+    println!("  {}", "Recent activity:".dimmed());
+    for (action, payload, ts) in rows.iter().rev().take(8) {
+        let app = payload.as_deref()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+            .and_then(|v| {
+                v["detail"]["app_id"].as_str().map(|s| s.to_string())
+                    .or_else(|| v["detail"]["workspace_idx"].as_u64().map(|n| format!("workspace {}", n)))
+            })
+            .unwrap_or_default();
+        println!("  {}  {}  {}",
+            format_ts(*ts).dimmed(),
+            action.cyan(),
+            app.white(),
+        );
+    }
+
+    Ok(())
+}
+
+pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
+    let today = chrono_today();
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT action, payload, timestamp FROM events WHERE domain='compositor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let rows: Vec<(String, i64)> = stmt
+        .query_map(params![today], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", "🌲 Why — Attention Analysis".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if rows.is_empty() {
+        println!("  {}", "No compositor events today.".dimmed());
+        return Ok(());
+    }
+
+    // Detect attention fragmentation: 3+ workspace switches within 60 seconds
+    let switches: Vec<i64> = rows.iter()
+        .filter(|(a, _)| a == "workspace.switch")
+        .map(|(_, ts)| *ts)
+        .collect();
+
+    let mut fragments = 0u32;
+    for window in switches.windows(3) {
+        if window[2] - window[0] < 60 {
+            fragments += 1;
+        }
+    }
+
+    let focus_events: Vec<i64> = rows.iter()
+        .filter(|(a, _)| a == "window.focus")
+        .map(|(_, ts)| *ts)
+        .collect();
+
+    // Average focus duration
+    let avg_focus = if focus_events.len() > 1 {
+        let diffs: Vec<i64> = focus_events.windows(2)
+            .map(|w| w[1] - w[0])
+            .filter(|&d| d < 300)
+            .collect();
+        if diffs.is_empty() { 0 }
+        else { diffs.iter().sum::<i64>() / diffs.len() as i64 }
+    } else { 0 };
+
+    println!();
+    let focus_quality = if avg_focus > 120 { "🟢 Deep focus" }
+        else if avg_focus > 30 { "🟡 Moderate focus" }
+        else { "🔴 Fragmented" };
+
+    println!("  Focus quality:     {}", focus_quality.bright_white());
+    println!("  Avg focus duration: {}s", avg_focus.to_string().cyan());
+    println!("  Workspace switches: {}", switches.len().to_string().yellow());
+    println!("  Attention fragments: {} (rapid switch bursts)", fragments.to_string().bright_white());
+    println!();
+
+    if fragments > 3 {
+        println!("  {} Attention highly fragmented today — consider single-task focus", "⚠️ ".yellow());
+    } else if fragments == 0 && avg_focus > 60 {
+        println!("  {} Excellent focus discipline today", "✅".green());
+    } else {
+        println!("  {} Normal attention pattern", "·".dimmed());
+    }
+
+    Ok(())
+}
