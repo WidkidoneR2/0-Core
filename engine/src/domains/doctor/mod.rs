@@ -138,7 +138,7 @@ fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
         .filter_map(|e| e.ok())
     {
         let p = entry.path();
-        if p.is_symlink() && !p.exists() && !p.to_string_lossy().contains("BraveSoftware") {
+        if p.is_symlink() && !p.exists() && !p.to_string_lossy().contains("BraveSoftware") && !p.to_string_lossy().contains("Notesnook") && !p.to_string_lossy().contains("Singleton") {
             broken += 1;
         }
     }
