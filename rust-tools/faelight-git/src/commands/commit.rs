@@ -7,6 +7,26 @@ use anyhow::{bail, Result};
 use colored::*;
 use std::io::{self, Write};
 
+fn emit_git_event(action: &str, detail: &str) {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+    if !db_path.exists() { return; }
+    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        let payload = format!(
+            r#"{{"actor":"faelight-git","result":"ok","detail":{{{}}}}}"#,
+            detail
+        );
+        let _ = conn.execute(
+            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('git', ?, ?, ?)",
+            rusqlite::params![action, payload, ts],
+        );
+    }
+}
+
 pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     let repo = GitRepo::open()?;
 
@@ -152,6 +172,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── Commit ────────────────────────────────────────────────
     let hash = repo.commit(&full_message)?;
+    emit_git_event("commit", &format!(r#""hash":"{}","message":"{}""#, hash, message.replace('"', "'")));
     println!();
     println!(
         "  {} commit {} {}",
@@ -171,6 +192,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         println!("  {} Pushing...", "→".cyan());
         let push = std::process::Command::new("git").arg("push").status()?;
         if push.success() {
+            emit_git_event("push", &format!(r#""hash":"{}","branch":"main""#, hash));
             println!("{}", "  🚀 Pushed to origin".green().bold());
         } else {
             println!("{}", "  ❌ Push failed — run 'git push' manually".red());

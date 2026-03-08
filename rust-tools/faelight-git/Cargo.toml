@@ -5,6 +5,7 @@ edition = "2021"
 description = "Git governance for Faelight Forest"
 
 [dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
 faelight-core = { path = "../faelight-core" }
 # Existing
 clap = { version = "4", features = ["derive"] }

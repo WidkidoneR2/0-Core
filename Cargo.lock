@@ -1131,6 +1131,7 @@ dependencies = [
  "colored",
  "faelight-core",
  "git2",
+ "rusqlite",
  "serde_json",
  "thiserror 1.0.69",
 ]
