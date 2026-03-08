@@ -16,6 +16,7 @@ chrono = "0.4"
 dirs = "5.0"
 
 faelight-core = { path = "../faelight-core" }
+wayland-protocols = { workspace = true }
 
 # Font rendering
 fontdue = "0.9"

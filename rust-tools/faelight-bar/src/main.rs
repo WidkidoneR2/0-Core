@@ -19,7 +19,15 @@ use std::time::{Duration, Instant};
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_shm, wl_surface},
-    Connection, QueueHandle,
+    Connection, Dispatch, QueueHandle,
+};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+};
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewporter::WpViewporter,
+    wp_viewport::WpViewport,
 };
 
 mod logger;
@@ -40,16 +48,22 @@ struct FaelightBar {
     width: u32,
     first_configure: bool,
     last_update: Instant,
+    scale_120: u32,        // fractional scale × 120 (e.g. 180 = 1.5x)
+    viewport: Option<WpViewport>,
 }
 
 impl FaelightBar {
     fn draw(&mut self) {
         let width = self.width;
-        let stride = (width * 4) as i32;
+        // Fractional scaling: render at physical pixels, viewport to logical
+        let scale = self.scale_120 as f64 / 120.0;
+        let phys_w = ((width as f64 * scale).ceil() as u32).max(1);
+        let phys_h = ((BAR_HEIGHT as f64 * scale).ceil() as u32).max(1);
+        let stride = (phys_w * 4) as i32;
 
         let (buffer, canvas) = match self.pool.create_buffer(
-            width as i32,
-            BAR_HEIGHT as i32,
+            phys_w as i32,
+            phys_h as i32,
             stride,
             wl_shm::Format::Argb8888,
         ) {
@@ -67,14 +81,14 @@ impl FaelightBar {
         }
 
         // Delegate all drawing to render/bar.rs
-        render::bar::render(canvas, width, BAR_HEIGHT);
+        render::bar::render(canvas, phys_w, phys_h, self.scale_120 as f32 / 120.0);
 
-        self.layer
-            .wl_surface()
-            .attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer
-            .wl_surface()
-            .damage_buffer(0, 0, width as i32, BAR_HEIGHT as i32);
+        self.layer.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer.wl_surface().damage_buffer(0, 0, phys_w as i32, phys_h as i32);
+        // Set viewport destination to logical size — compositor handles the scale
+        if let Some(ref vp) = self.viewport {
+            vp.set_destination(width as i32, BAR_HEIGHT as i32);
+        }
         self.layer.wl_surface().commit();
     }
 }
@@ -166,6 +180,37 @@ impl ProvidesRegistryState for FaelightBar {
     registry_handlers![OutputState];
 }
 
+impl Dispatch<WpFractionalScaleManagerV1, ()> for FaelightBar {
+    fn event(_: &mut Self, _: &WpFractionalScaleManagerV1,
+             _: wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+
+impl Dispatch<WpFractionalScaleV1, ()> for FaelightBar {
+    fn event(state: &mut Self, _: &WpFractionalScaleV1,
+             event: wp_fractional_scale_v1::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            if scale != state.scale_120 {
+                state.scale_120 = scale;
+                eprintln!("🔭 Fractional scale: {}/120 = {:.3}x", scale, scale as f64 / 120.0);
+            }
+        }
+    }
+}
+
+impl Dispatch<WpViewporter, ()> for FaelightBar {
+    fn event(_: &mut Self, _: &WpViewporter,
+             _: wayland_protocols::wp::viewporter::client::wp_viewporter::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+
+impl Dispatch<WpViewport, ()> for FaelightBar {
+    fn event(_: &mut Self, _: &WpViewport,
+             _: wayland_protocols::wp::viewporter::client::wp_viewport::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+
 fn main() {
     eprintln!("🌲 faelight-bar v5.0.0 starting...");
 
@@ -177,7 +222,16 @@ fn main() {
     let layer_shell = LayerShell::bind(&globals, &qh).expect("Layer shell not available");
     let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
 
+    // Bind fractional scale and viewport protocols
+    let frac_manager = globals.bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ()).ok();
+    let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
+
     let surface = compositor.create_surface(&qh);
+
+    // Set up fractional scale for this surface
+    let frac_scale = frac_manager.as_ref().map(|m| m.get_fractional_scale(&surface, &qh, ()));
+    let viewport = viewporter.as_ref().map(|vp| vp.get_viewport(&surface, &qh, ()));
+
     let layer =
         layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-bar"), None);
 
@@ -188,19 +242,22 @@ fn main() {
     layer.commit();
 
     let pool =
-        SlotPool::new(1920 * BAR_HEIGHT as usize * 4 * 4, &shm).expect("Failed to create pool");
+        SlotPool::new(3840 * (BAR_HEIGHT as usize * 2) * 4 * 4, &shm).expect("Failed to create pool");
 
     let mut app = FaelightBar {
         registry_state: RegistryState::new(&globals),
         output_state: OutputState::new(&globals, &qh),
         shm,
         layer,
+        scale_120: 120,
+        viewport,
         pool,
         width: 1920,
         first_configure: false,
         last_update: Instant::now(),
     };
 
+    let _frac_scale = frac_scale; // keep alive
     // Block until we get the initial configure from the compositor
     event_queue
         .roundtrip(&mut app)

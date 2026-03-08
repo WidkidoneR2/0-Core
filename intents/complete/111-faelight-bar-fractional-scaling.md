@@ -3,7 +3,7 @@ id: 111
 date: 2026-03-03
 type: future
 title: "faelight-bar — Fractional Scaling Support (wp_fractional_scale_v1)"
-status: planned
+status: complete
 tags: [bar, wayland, niri, scaling, hidpi, rust]
 ---
 
