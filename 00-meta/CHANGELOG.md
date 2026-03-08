@@ -1,5 +1,42 @@
 # Changelog
 
+## [10.6.0] — The Judgment Layer (2026-03-08)
+
+### 🎯 Completed Intents
+- **INT-104** — faelight-wallpaper — Rust Wallpaper Daemon
+- **INT-105** — core intent dashboard — Terminal Intent Overview
+- **INT-107** — faelight-search — Unified Rust Search
+- **INT-110** — core why visual — Workspace Topology in Event Ledger
+- **INT-111** — faelight-bar — Fractional Scaling Support (wp_fractional_scale_v1)
+- **INT-113** — Core v5 — The Intelligent System
+
+### ✨ Features
+- (core) Core v5 complete — all 5 phases, ledger foundation, forecasting, causality, patterns, compositor intelligence
+- (core) Core v5 Phase 4 — pattern recognition, correlate domains, suggest based on learned history
+- (core) Core v5 Phase 3 — causality engine, why health-since, causal domain analysis, causal chain
+- (core) Core v5 Phase 2 — forecast line integrated into core doctor output
+- (core) Core v5 Phase 1 — ledger foundation, indexed queries, stats/query/export commands
+- (bar) INT-111 complete — fractional scaling via wp_fractional_scale_v1 + wp_viewport, sharp at 1.5x
+- (intent) INT-105 complete — faelight-intent v1.0.0, intent dashboard with focus/checkpoints/planned
+- (core) INT-110 — core why visual + attention, workspace topology in event ledger
+- (search) INT-107 complete — faelight-search v1.0.0, unified search across files/intents/commits/events/aliases
+- (wallpaper) INT-104 complete — faelight-wallpaper v0.1.0, health-reactive, replaces swaybg
+
+### 🔧 Fixes
+- (doctor) exclude Notesnook Singleton symlinks from broken symlink check
+- (faelight-git) hardcoded version 3.2.0 → 3.3.0 in clap command
+- (dashboard) ufw check reads /etc/ufw/ufw.conf — no sudo needed, accurate status
+- (zshrc) update welcome message to v10.5.0 The Intelligent Forest
+
+### 🔩 Internal (2 commits)
+- add cwv/cwa aliases for core why visual/attention
+- retire bump-system-version — faelight-release is the forest's release system. README updated to v10.5.0, 47 tools
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1363  ·  Tools: 50 deployed  ·  Intents: 69 complete
+
+---
+
 ## [10.5.0] — The Intelligent Forest (2026-03-07)
 
 ### 🎯 Completed Intents

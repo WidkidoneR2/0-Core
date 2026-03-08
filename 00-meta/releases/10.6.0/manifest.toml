@@ -1,0 +1,9 @@
+version = "10.6.0"
+date = "2026-03-08"
+theme = "The Judgment Layer"
+health_at_release = 95
+commits_since_last = 18
+
+[stats]
+tools_total = 50
+intents_complete = 69

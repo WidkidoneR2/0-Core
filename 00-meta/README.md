@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.5.0
+# 🌲 Faelight Forest v10.6.0
 
-![Version](https://img.shields.io/badge/version-10.5.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-10.6.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,25 +11,24 @@
 
 ## 🎊 Latest Release
 
-### v10.5.0 - 🌲 The Intelligent Forest (2026-03-07)
+### v10.6.0 - 🌲 The Judgment Layer (2026-03-08)
 
-- 93 — Core v3 — The Living System
-- 94 — faelight-term — VTE Refactor & Stability
-- 95 — faelight-browser — Stability & Feature Improvements
-- 100 — core pulse — Live Event Stream Terminal View
-- 101 — faelight-login — Rust Display Manager
-- 102 — faelight-clipboard — Rust Clipboard Manager
-- 106 — doctor forecasting v2 — Predictive Health Intelligence
-- release: INT-114 Phase 6 — learning layer, theme suggestions, anomaly detection, pattern analysis
-- release: INT-114 Phase 5 — rollback with generation diff, health check, event ledger
-- release: INT-114 Phase 4 — smart README writer, dynamic section auto-updated from manifest
-- release: INT-114 Phase 3 — faelight-release TUI, inline theme editing, publish flow
-- release: INT-114 Phase 2 — faelight-release v0.1.0, smart changelog engine, history, diff, preview
+- 104 — faelight-wallpaper — Rust Wallpaper Daemon
+- 105 — core intent dashboard — Terminal Intent Overview
+- 107 — faelight-search — Unified Rust Search
+- 110 — core why visual — Workspace Topology in Event Ledger
+- 111 — faelight-bar — Fractional Scaling Support (wp_fractional_scale_v1)
+- 113 — Core v5 — The Intelligent System
+- core: Core v5 complete — all 5 phases, ledger foundation, forecasting, causality, patterns, compositor intelligence
+- core: Core v5 Phase 4 — pattern recognition, correlate domains, suggest based on learned history
+- core: Core v5 Phase 3 — causality engine, why health-since, causal domain analysis, causal chain
+- core: Core v5 Phase 2 — forecast line integrated into core doctor output
+- core: Core v5 Phase 1 — ledger foundation, indexed queries, stats/query/export commands
 
-- Commits: 1344
-- Tools: 47 deployed
+- Commits: 1363
+- Tools: 50 deployed
 - Health: 95%
-- Intents: 63 complete
+- Intents: 69 complete
 
 [Full Changelog →](CHANGELOG.md)
 
