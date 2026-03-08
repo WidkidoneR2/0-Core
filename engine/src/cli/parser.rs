@@ -436,6 +436,12 @@ pub enum WhyCommands {
     Visual,
     /// Attention analysis — focus quality and fragmentation?
     Attention,
+    /// Health trajectory since a specific date (YYYY-MM-DD)
+    HealthSince { since: String },
+    /// What events in a domain preceded health changes?
+    Causal { domain: String },
+    /// Full causal chain for last health drop
+    Chain,
 }
 
 #[derive(Subcommand)]

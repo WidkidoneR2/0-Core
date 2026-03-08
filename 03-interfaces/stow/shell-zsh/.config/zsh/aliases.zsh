@@ -598,3 +598,8 @@ alias cls='core ledger stats'
 alias clq='core ledger query'
 alias cle='core ledger export'
 alias cli='core ledger indexes'
+
+# ─── core why deep (Core v5 Phase 3) ───
+alias cwhs='core why health-since'
+alias cwc='core why causal'
+alias cwch='core why chain'
