@@ -592,3 +592,9 @@ alias search='faelight-search'
 # ─── faelight-intent ───
 alias fid='faelight-intent'
 alias idash='faelight-intent'
+
+# ─── core ledger (Core v5 Phase 1) ───
+alias cls='core ledger stats'
+alias clq='core ledger query'
+alias cle='core ledger export'
+alias cli='core ledger indexes'

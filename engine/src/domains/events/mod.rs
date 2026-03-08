@@ -780,3 +780,172 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+// ─── LEDGER COMMANDS (Core v5 Phase 1) ───────────────────────────────────────
+
+pub fn ledger_indexes(ctx: &AppContext) -> CoreResult<()> {
+    println!("{}", "🌲 Ledger — Creating indexes...".cyan().bold());
+    ctx.runtime.db.execute_batch("
+        CREATE INDEX IF NOT EXISTS idx_events_domain ON events(domain);
+        CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_events_domain_ts ON events(domain, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_events_action ON events(action);
+        CREATE INDEX IF NOT EXISTS idx_capabilities_ts ON capabilities_log(timestamp);
+    ")?;
+    println!("  ✅ idx_events_domain");
+    println!("  ✅ idx_events_timestamp");
+    println!("  ✅ idx_events_domain_ts");
+    println!("  ✅ idx_events_action");
+    println!("  ✅ idx_capabilities_ts");
+    println!();
+    println!("  {} Ledger queries now use indexed scans", "⚡".yellow());
+    Ok(())
+}
+
+pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
+    // Total events
+    let total: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events", [], |r| r.get(0))?;
+    let first_ts: i64 = ctx.runtime.db.query_row(
+        "SELECT MIN(timestamp) FROM events", [], |r| r.get(0)).unwrap_or(0);
+    let last_ts: i64 = ctx.runtime.db.query_row(
+        "SELECT MAX(timestamp) FROM events", [], |r| r.get(0)).unwrap_or(0);
+
+    // Events per domain
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT domain, COUNT(*) as cnt FROM events GROUP BY domain ORDER BY cnt DESC")?;
+    let domains: Vec<(String, i64)> = stmt.query_map([], |r| {
+        Ok((r.get(0)?, r.get(1)?))
+    })?.filter_map(|r| r.ok()).collect();
+
+    // Events today
+    let today = chrono_today();
+    let today_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events WHERE timestamp >= ?", [today], |r| r.get(0))?;
+
+    // Database size
+    let db_size = std::fs::metadata(
+        std::path::PathBuf::from(&ctx.core_root).join("runtime").join("state.db")
+    ).map(|m| m.len()).unwrap_or(0);
+
+    println!("{}", "🌲 Ledger Stats".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!("  {} total events", total.to_string().bright_white().bold());
+    println!("  {} events today", today_count.to_string().cyan());
+    println!("  {} database size", format_bytes(db_size).green());
+    println!();
+
+    let first = format_ts(first_ts);
+    let last = format_ts(last_ts);
+    let span_days = (last_ts - first_ts) / 86400;
+    println!("  {} first event  •  {} last event  •  {} days of history",
+        first.dimmed(), last.dimmed(), span_days.to_string().yellow());
+    println!();
+
+    println!("  {}", "Events by domain:".dimmed());
+    let max_count = domains.first().map(|d| d.1).unwrap_or(1);
+    for (domain, count) in &domains {
+        let bar_len = (count * 20 / max_count) as usize;
+        let bar = "█".repeat(bar_len);
+        println!("  {:15}  {}  {}",
+            domain.bright_white(),
+            bar.cyan(),
+            count.to_string().dimmed(),
+        );
+    }
+    println!();
+
+    // Capabilities log
+    let cap_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM capabilities_log", [], |r| r.get(0)).unwrap_or(0);
+    println!("  {} capability log entries", cap_count.to_string().dimmed());
+
+    Ok(())
+}
+
+fn format_bytes(bytes: u64) -> String {
+    if bytes < 1024 { format!("{}B", bytes) }
+    else if bytes < 1024 * 1024 { format!("{:.1}KB", bytes as f64 / 1024.0) }
+    else { format!("{:.1}MB", bytes as f64 / 1024.0 / 1024.0) }
+}
+
+pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT id, action, payload, timestamp FROM events WHERE domain = ? ORDER BY timestamp DESC LIMIT 50"
+    )?;
+    let rows: Vec<(i64, String, Option<String>, i64)> = stmt.query_map([domain], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+    })?.filter_map(|r| r.ok()).collect();
+
+    println!("{}", format!("🌲 Ledger — domain: {}", domain).cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if rows.is_empty() {
+        println!("  {} No events found for domain '{}'", "·".dimmed(), domain);
+        return Ok(());
+    }
+
+    println!("  {} events (showing last {})", rows.len().to_string().bright_white(), rows.len().min(50));
+    println!();
+
+    for (id, action, payload, ts) in &rows {
+        let time = format_ts(*ts);
+        // Extract result from payload
+        let result = payload.as_deref()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+            .and_then(|v| v["result"].as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| "ok".to_string());
+
+        // Extract health if doctor domain
+        let extra = payload.as_deref()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+            .and_then(|v| v["detail"]["health"].as_u64())
+            .map(|h| format!("  health:{}%", h))
+            .unwrap_or_default();
+
+        let result_colored = if result == "ok" || result == "pass" {
+            result.green().to_string()
+        } else {
+            result.yellow().to_string()
+        };
+
+        println!("  {} {:6}  {}  {}{}",
+            id.to_string().dimmed(),
+            time.dimmed(),
+            action.bright_white(),
+            result_colored,
+            extra.dimmed(),
+        );
+    }
+    Ok(())
+}
+
+pub fn ledger_export(ctx: &AppContext) -> CoreResult<()> {
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT id, domain, action, payload, timestamp FROM events ORDER BY timestamp ASC"
+    )?;
+    let rows: Vec<serde_json::Value> = stmt.query_map([], |r| {
+        let payload: Option<String> = r.get(3)?;
+        Ok(serde_json::json!({
+            "id": r.get::<_, i64>(0)?,
+            "domain": r.get::<_, String>(1)?,
+            "action": r.get::<_, String>(2)?,
+            "payload": payload.as_deref()
+                .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                .unwrap_or(serde_json::Value::Null),
+            "timestamp": r.get::<_, i64>(4)?,
+        }))
+    })?.filter_map(|r| r.ok()).collect();
+
+    let export = serde_json::json!({
+        "exported_at": chrono::Local::now().to_rfc3339(),
+        "total": rows.len(),
+        "events": rows,
+    });
+
+    let json = serde_json::to_string_pretty(&export)
+        .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
+    println!("{}", json);
+    Ok(())
+}

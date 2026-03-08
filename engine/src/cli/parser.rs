@@ -88,6 +88,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: EventsCommands,
     },
+    /// Ledger analytics — query and export the event ledger
+    Ledger {
+        #[command(subcommand)]
+        command: LedgerCommands,
+    },
     /// Causality engine — why is the system in this state?
     Why {
         #[command(subcommand)]
@@ -408,6 +413,17 @@ pub enum EventsCommands {
     Watch,
 }
 
+#[derive(Subcommand)]
+pub enum LedgerCommands {
+    /// Event counts, domains, date range, and database stats
+    Stats,
+    /// Query events for a specific domain
+    Query { domain: String },
+    /// Export all events to JSON
+    Export,
+    /// Create database indexes for fast time-window queries
+    Indexes,
+}
 #[derive(Subcommand)]
 pub enum WhyCommands {
     /// Why did the system do what it did today?

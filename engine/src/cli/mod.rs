@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
     Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    WhyCommands, WorkspaceCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -214,6 +214,12 @@ pub fn parse() -> Command {
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
             EventsCommands::Watch => EventsCommand::Watch,
+        }),
+        Commands::Ledger { command } => Command::Ledger(match command {
+            LedgerCommands::Stats => LedgerCommand::Stats,
+            LedgerCommands::Query { domain } => LedgerCommand::Query { domain },
+            LedgerCommands::Export => LedgerCommand::Export,
+            LedgerCommands::Indexes => LedgerCommand::Indexes,
         }),
         Commands::Why { command } => Command::Why(match command {
             WhyCommands::Summary => WhyCommand::Summary,
