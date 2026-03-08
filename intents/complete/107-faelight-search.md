@@ -3,7 +3,7 @@ id: 107
 date: 2026-03-02
 type: future
 title: "faelight-search — Unified Rust Search"
-status: planned
+status: complete
 tags: [search, rust, files, intents, commits, events, rusty, glow]
 version: TBD
 priority: high
@@ -55,13 +55,13 @@ faelight-search is the only tool that can search all of them together.
 
 ## Success Criteria
 
-- [ ] File search (ripgrep speed)
-- [ ] Intent search (title + content)
-- [ ] Commit search
-- [ ] Event search
-- [ ] Alias search
-- [ ] Unified ranked output
-- [ ] `fs` alias for instant access
+- [x] File search (ripgrep speed)
+- [x] Intent search (title + content)
+- [x] Commit search
+- [x] Event search
+- [x] Alias search
+- [x] Unified ranked output
+- [x] `fs` alias for instant access
 
 ---
 
