@@ -326,6 +326,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             WhyCommand::Chain => crate::domains::events::why_chain(ctx),
             WhyCommand::Correlate { domain_a, domain_b } => crate::domains::events::why_correlate(ctx, &domain_a, &domain_b),
             WhyCommand::Suggest => crate::domains::events::why_suggest(ctx),
+            WhyCommand::Workspace => crate::domains::events::why_workspace(ctx),
+            WhyCommand::Focus => crate::domains::events::why_focus(ctx),
         },
         Command::Trace(c) => match c {
             TraceCommand::Last => crate::domains::events::trace_last(ctx),
