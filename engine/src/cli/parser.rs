@@ -442,6 +442,10 @@ pub enum WhyCommands {
     Causal { domain: String },
     /// Full causal chain for last health drop
     Chain,
+    /// Correlate two domains — find patterns between them
+    Correlate { domain_a: String, domain_b: String },
+    /// Proactive suggestions based on current state and learned patterns
+    Suggest,
 }
 
 #[derive(Subcommand)]
