@@ -232,6 +232,9 @@ pub enum WhyCommand {
     Domain { domain: String },
     Visual,
     Attention,
+    HealthSince { since: String },
+    Causal { domain: String },
+    Chain,
 }
 
 #[derive(Debug)]

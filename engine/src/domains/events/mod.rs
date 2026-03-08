@@ -949,3 +949,278 @@ pub fn ledger_export(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", json);
     Ok(())
 }
+
+// ─── CAUSALITY ENGINE (Core v5 Phase 3) ──────────────────────────────────────
+
+pub fn why_health_since(ctx: &AppContext, since: &str) -> CoreResult<()> {
+    // Parse since date — accept YYYY-MM-DD or "7d", "30d"
+    let since_ts = if since.ends_with('d') {
+        let days: i64 = since.trim_end_matches('d').parse().unwrap_or(7);
+        chrono::Local::now().timestamp() - days * 86400
+    } else {
+        chrono::NaiveDate::parse_from_str(since, "%Y-%m-%d")
+            .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp())
+            .unwrap_or_else(|_| chrono::Local::now().timestamp() - 7 * 86400)
+    };
+
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' AND timestamp >= ? ORDER BY timestamp ASC"
+    )?;
+    let rows: Vec<(Option<String>, i64)> = stmt
+        .query_map(params![since_ts], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", format!("🌲 Why — Health since {}", since).cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if rows.is_empty() {
+        println!("  No doctor runs found since {}", since);
+        return Ok(());
+    }
+
+    println!("  {} doctor runs over {} period\n", rows.len(), since);
+
+    let mut prev: Option<i64> = None;
+    let mut drops = vec![];
+
+    for (payload, ts) in &rows {
+        let health: i64 = payload.as_deref()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+            .and_then(|v| v["detail"]["health"].as_i64())
+            .unwrap_or(95);
+
+        let date = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|d| d.with_timezone(&chrono::Local).format("%m-%d %H:%M").to_string())
+            .unwrap_or_default();
+
+        let delta_str = match prev {
+            Some(p) => {
+                let d = health - p;
+                if d > 0 { format!(" ▲{}", d).green().to_string() }
+                else if d < 0 {
+                    drops.push((*ts, health, p));
+                    format!(" ▼{}", d.abs()).bright_red().to_string()
+                }
+                else { "  ·".dimmed().to_string() }
+            }
+            None => String::new(),
+        };
+
+        let bar = "█".repeat((health / 5) as usize);
+        let health_colored = if health >= 95 { format!("{}%", health).green() }
+            else if health >= 80 { format!("{}%", health).yellow() }
+            else { format!("{}%", health).bright_red() };
+
+        println!("  {}  {} {}{}",
+            date.dimmed(),
+            bar.cyan(),
+            health_colored,
+            delta_str,
+        );
+        prev = Some(health);
+    }
+
+    if !drops.is_empty() {
+        println!();
+        println!("  {} Health drops detected:", "⚠️".yellow());
+        for (ts, health, prev) in &drops {
+            let date = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_default();
+            println!("  {}  {}% → {}%  — run 'core why chain' for context",
+                date.dimmed(), prev.to_string().green(), health.to_string().yellow());
+        }
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
+    // Find health drops and show what happened in the given domain around that time
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 20"
+    )?;
+    let health_events: Vec<(i64, i64)> = stmt
+        .query_map([], |r| {
+            let payload: Option<String> = r.get(0)?;
+            let ts: i64 = r.get(1)?;
+            let h = payload.as_deref()
+                .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                .and_then(|v| v["detail"]["health"].as_i64())
+                .unwrap_or(95);
+            Ok((h, ts))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Find drops
+    let drops: Vec<(i64, i64, i64)> = health_events.windows(2)
+        .filter(|w| w[0].0 < w[1].0) // current < previous = drop
+        .map(|w| (w[1].1, w[1].0, w[0].0)) // (ts, prev_health, new_health)
+        .collect();
+
+    println!("{}", format!("🌲 Why — Causal analysis: {}", domain).cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if drops.is_empty() {
+        println!("  No health drops found in recent history");
+        println!("  {} events in domain '{}' — system stable", domain, domain);
+        return Ok(());
+    }
+
+    for (drop_ts, prev_h, new_h) in drops.iter().take(3) {
+        let date = chrono::DateTime::from_timestamp(*drop_ts, 0)
+            .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+            .unwrap_or_default();
+
+        println!();
+        println!("  📉 Health drop at {}  {}% → {}%",
+            date.dimmed(), prev_h.to_string().green(), new_h.to_string().yellow());
+
+        // Find events in this domain within ±1 hour of the drop
+        let window_start = drop_ts - 3600;
+        let window_end = drop_ts + 3600;
+
+        let mut dstmt = ctx.runtime.db.prepare(
+            "SELECT action, payload, timestamp FROM events WHERE domain=? AND timestamp BETWEEN ? AND ? ORDER BY timestamp ASC"
+        )?;
+        let domain_events: Vec<(String, i64)> = dstmt
+            .query_map(rusqlite::params![domain, window_start, window_end], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(2)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if domain_events.is_empty() {
+            println!("  {} No {} events in ±1h window", "·".dimmed(), domain);
+        } else {
+            println!("  {} events in '{}' domain ±1h:", domain_events.len(), domain);
+            for (action, ts) in &domain_events {
+                let rel = ts - drop_ts;
+                let rel_str = if rel < 0 { format!("{}m before", (-rel)/60) }
+                    else { format!("{}m after", rel/60) };
+                println!("    {}  {}  {}", format_ts(*ts).dimmed(), action.cyan(), rel_str.dimmed());
+            }
+        }
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
+    // Find the most recent health drop and build a full causal chain
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10"
+    )?;
+    let health_events: Vec<(i64, i64)> = stmt
+        .query_map([], |r| {
+            let payload: Option<String> = r.get(0)?;
+            let ts: i64 = r.get(1)?;
+            let h = payload.as_deref()
+                .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                .and_then(|v| v["detail"]["health"].as_i64())
+                .unwrap_or(95);
+            Ok((h, ts))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Find most recent drop
+    let drop = health_events.windows(2)
+        .find(|w| w[0].0 < w[1].0)
+        .map(|w| (w[1].1, w[1].0, w[0].0));
+
+    println!("{}", "🌲 Why — Causal Chain".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    let (drop_ts, prev_h, new_h) = match drop {
+        Some(d) => d,
+        None => {
+            println!("  ✅ No health drops found in recent history");
+            println!("  The forest is stable.");
+            return Ok(());
+        }
+    };
+
+    let date = chrono::DateTime::from_timestamp(drop_ts, 0)
+        .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_default();
+
+    println!();
+    println!("  Last health drop: {}",  date.bright_white());
+    println!("  {}% → {}%  (delta: {})",
+        prev_h.to_string().green(),
+        new_h.to_string().yellow(),
+        format!("-{}", prev_h - new_h).bright_red(),
+    );
+    println!();
+    println!("  {}", "Events in 2h window before drop:".dimmed());
+
+    let window_start = drop_ts - 7200;
+
+    let mut estmt = ctx.runtime.db.prepare(
+        "SELECT domain, action, payload, timestamp FROM events WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp ASC"
+    )?;
+    let all_events: Vec<(String, String, Option<String>, i64)> = estmt
+        .query_map(rusqlite::params![window_start, drop_ts], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if all_events.is_empty() {
+        println!("  No events found in the 2h window before the drop");
+    } else {
+        for (domain, action, payload, ts) in &all_events {
+            let rel_secs = drop_ts - ts;
+            let rel_str = format!("-{}m{}s", rel_secs/60, rel_secs%60);
+
+            // Extract result
+            let result = payload.as_deref()
+                .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                .and_then(|v| v["result"].as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| "ok".to_string());
+
+            let result_colored = if result == "ok" { result.green().to_string() }
+                else { result.yellow().to_string() };
+
+            println!("  {}  {:12}  {:20}  {}  {}",
+                format_ts(*ts).dimmed(),
+                rel_str.dimmed(),
+                domain.cyan(),
+                action.white(),
+                result_colored,
+            );
+        }
+    }
+
+    println!();
+    println!("  {}", "After drop:".dimmed());
+
+    let mut astmt = ctx.runtime.db.prepare(
+        "SELECT domain, action, timestamp FROM events WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 5"
+    )?;
+    let after: Vec<(String, String, i64)> = astmt
+        .query_map(rusqlite::params![drop_ts], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    for (domain, action, ts) in &after {
+        let rel_secs = ts - drop_ts;
+        let rel_str = format!("+{}m{}s", rel_secs/60, rel_secs%60);
+        println!("  {}  {:12}  {:20}  {}",
+            format_ts(*ts).dimmed(),
+            rel_str.green().dimmed(),
+            domain.cyan(),
+            action.white(),
+        );
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
