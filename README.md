@@ -49,7 +49,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, login screen, notifications)
-- 🦀 42 Rust tools you fully understand
+- 🦀 47 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
 - ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
@@ -60,7 +60,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 - **Capability-gated dispatch** — every command checks permissions before executing
 - **Core v4** — checkpoint/restore, intent discipline, security debt tracking, analytics
 - **22-check health monitoring** system
-- **Intent Ledger** — 112 architectural decisions, fully documented
+- **Intent Ledger** — 114 architectural decisions, fully documented
 - **Wayland-native** — Niri compositor, custom Rust toolchain all the way down
 
 ---
@@ -71,10 +71,10 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
 ├── engine/           # core v3.0.0 — single orchestrator binary (Rust)
 │   └── src/domains/  # 15+ native Rust domains
-├── rust-tools/       # 42 custom Rust tools
+├── rust-tools/       # 47 custom Rust tools
 ├── 03-interfaces/    # Dotfiles (Niri, Sway, zsh, foot, yazi) via GNU Stow
 ├── scripts/          # Thin wrappers → core + compiled binaries
-├── intents/          # Architectural decision records (112 intents)
+├── intents/          # Architectural decision records (114 intents)
 ├── runtime/          # SQLite state, capability logs, checkpoints
 └── registry/         # Zero-logic TOML declarations
 ```
@@ -173,21 +173,24 @@ core doctor entropy --trends     # 30-day history
 
 ---
 
-## 🦀 The Rust Ecosystem (42 Tools)
+## 🦀 The Rust Ecosystem (47 Tools)
 
 | Category | Tools |
 |---|---|
 | **Orchestrator** | `core` (v3.0.0 — 15+ domains) |
 | **UI** | `faelight-bar`, `faelight-term`, `faelight-palette`, `faelight-menu`, `faelight-notify`, `faelight-login` |
+| **Clipboard** | `faelight-clipboard` |
+| **Intelligence** | `faelight-forecast`, `faelight-pulse`, `faelight-niri-bridge` |
 | **Browser** | `faelight-browser` |
 | **Git** | `faelight-git`, `faelight-hooks` |
 | **System** | `core-protect`, `faelight-update`, `safe-update`, `faelight-sandbox`, `faelight-snapshot` |
-| **Dev** | `bump-system-version`, `bump-tool-version`, `get-version`, `core-diff` |
+| **Dev** | `faelight-release`, `bump-tool-version`, `get-version`, `core-diff` |
 | **Shell** | `dotctl`, `profile`, `intent`, `faelight-zone`, `faelight-link`, `faelight-lock`, `faelight-fetch` |
 | **Audit** | `alias-audit`, `bin-doctor`, `entropy-check`, `archaeology-0-core` |
 | **Bootstrap** | `faelight-bootstrap`, `faelight-daemon`, `faelight-cleanup`, `keyscan`, `teach`, `intent-guard`, `workspace-view`, `verify-bootstrap` |
 
 > `faelight-login` replaces tuigreet — the forest now greets you in Rust.
+> `faelight-release` replaces `bump-system-version` — the forest now publishes itself.
 > `alias-audit`, `bin-doctor`, `entropy-check` are also natively absorbed into `core doctor` — standalone binaries kept for direct use.
 
 [See full tool list →](TOOLS.md)
@@ -219,6 +222,9 @@ core workspace recent today     # Recent files
 cilist                          # Intent ledger
 core doctor entropy             # Config drift check
 cpc <name>                      # Create checkpoint
+forecast                        # 7-day health projection
+pulse                           # Live event stream
+faelight-release history        # Release generation history
 0c                              # cd ~/0-core
 core-protect lock               # Lock before shutdown
 ```
@@ -230,7 +236,7 @@ core-protect lock               # Lock before shutdown
 ### Building
 ```bash
 cargo build --release -p core       # Build orchestrator
-cargo build --release --workspace   # Build all 42 tools
+cargo build --release --workspace   # Build all 47 tools
 doctor                              # Verify health
 ```
 
@@ -262,11 +268,13 @@ doctor                              # Verify health
 | v10.1.0 | **The Forest Matures — all 6 phases done** 🌲 |
 | v10.3.0 | **Core v3 — Event Bus, Plugin Registry, Health Forecasting** 🧠 |
 | v10.4.0 | **Niri Version — Rust greeter, IPC notify, compositor migration** 🌲 |
+| v10.5.0 | **The Intelligent Forest — faelight-release, forecast, pulse, niri-bridge** 🧠 |
 
 From hardcoded paths to centralized elegance.
 From 40 separate binaries to one orchestrator.
 From "new to Linux" to a self-aware system that thinks, remembers, and forecasts.
 From tuigreet to faelight-login — the forest greets you first.
+From manual releases to faelight-release — the forest now publishes itself.
 
 ---
 
