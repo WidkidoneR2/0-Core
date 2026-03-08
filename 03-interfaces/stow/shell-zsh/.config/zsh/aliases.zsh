@@ -29,8 +29,6 @@ alias b='bat --paging=never'              # Bat viewer
 alias bar='faelight-bar'
 alias bootstrap='faelight-bootstrap'
 alias bump='faelight-release publish'  # faelight-release replaces bump-system-version
-alias dash='faelight-dashboard'
-alias dashboard='faelight-dashboard'
 alias dmenu='faelight-palette'
 alias dot='dotctl'
 alias fm='faelight-fm'
