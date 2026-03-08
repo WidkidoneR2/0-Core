@@ -603,3 +603,7 @@ alias cli='core ledger indexes'
 alias cwhs='core why health-since'
 alias cwc='core why causal'
 alias cwch='core why chain'
+
+# ─── core why patterns (Core v5 Phase 4) ───
+alias suggest='core why suggest'
+alias correlate='core why correlate'

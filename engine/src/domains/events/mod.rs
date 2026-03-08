@@ -1224,3 +1224,232 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
     println!("\n{}", "━".repeat(52).dimmed());
     Ok(())
 }
+
+// ─── PATTERN RECOGNITION + SUGGESTIONS (Core v5 Phase 4) ────────────────────
+
+pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreResult<()> {
+    println!("{}", format!("🌲 Why — Correlate: {} ↔ {}", domain_a, domain_b).cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Get all events for both domains
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT domain, action, timestamp FROM events WHERE domain IN (?, ?) ORDER BY timestamp ASC"
+    )?;
+    let events: Vec<(String, String, i64)> = stmt
+        .query_map(rusqlite::params![domain_a, domain_b], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let a_events: Vec<i64> = events.iter().filter(|(d,_,_)| d == domain_a).map(|(_,_,ts)| *ts).collect();
+    let b_events: Vec<i64> = events.iter().filter(|(d,_,_)| d == domain_b).map(|(_,_,ts)| *ts).collect();
+
+    println!();
+    println!("  {} events in '{}'", a_events.len().to_string().cyan(), domain_a);
+    println!("  {} events in '{}'", b_events.len().to_string().cyan(), domain_b);
+    println!();
+
+    if a_events.is_empty() || b_events.is_empty() {
+        println!("  Not enough data for correlation analysis");
+        return Ok(());
+    }
+
+    // Find proximity patterns — how often does a B event follow an A event within 1h?
+    let mut close_count = 0u32;
+    let mut total_a = 0u32;
+    for a_ts in &a_events {
+        total_a += 1;
+        let close = b_events.iter().any(|b_ts| {
+            let diff = (b_ts - a_ts).abs();
+            diff < 3600 && diff > 0
+        });
+        if close { close_count += 1; }
+    }
+
+    let proximity_pct = if total_a > 0 { close_count * 100 / total_a } else { 0 };
+
+    // Average time between A and nearest B
+    let avg_lag: i64 = a_events.iter().filter_map(|a_ts| {
+        b_events.iter()
+            .filter(|b_ts| **b_ts > *a_ts)
+            .map(|b_ts| b_ts - a_ts)
+            .min()
+    }).take(20).sum::<i64>() / a_events.len().max(1) as i64;
+
+    println!("  {}% of '{}' events have '{}' activity within 1h",
+        proximity_pct.to_string().bright_white(), domain_a, domain_b);
+
+    if avg_lag > 0 && avg_lag < 86400 {
+        println!("  Avg time from '{}' to next '{}': {}m",
+            domain_a, domain_b, (avg_lag / 60).to_string().cyan());
+    }
+
+    println!();
+
+    // Specific correlation insights
+    if domain_a == "git" && domain_b == "doctor" {
+        println!("  📊 Pattern: git activity → doctor runs");
+        if proximity_pct > 70 {
+            println!("  ✅ Strong correlation — you run doctor after git commits");
+        } else {
+            println!("  💡 Consider running doctor after major git changes");
+        }
+    } else if domain_a == "security" && domain_b == "doctor" {
+        println!("  📊 Pattern: security scans → health impact");
+        if proximity_pct > 50 {
+            println!("  ✅ Security scans are regularly followed by health checks");
+        }
+    } else if domain_a == "update" && domain_b == "security" {
+        println!("  📊 Pattern: updates → security scan follow-up");
+        if proximity_pct > 50 {
+            println!("  ✅ Good practice: security scanned after updates");
+        } else {
+            println!("  💡 Consider scanning security after system updates");
+        }
+    } else {
+        if proximity_pct > 60 {
+            println!("  ✅ Strong temporal correlation between domains");
+        } else if proximity_pct > 30 {
+            println!("  ·  Moderate correlation — some relationship detected");
+        } else {
+            println!("  ·  Weak correlation — domains appear independent");
+        }
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
+    println!("{}", "🌲 Why — Suggestions".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    let now = chrono::Local::now().timestamp();
+    let mut suggestions: Vec<(u8, String, String)> = vec![]; // (priority, icon, message)
+
+    // ── 1. Doctor run frequency ─────────────────────────────────────────────
+    let last_doctor: Option<i64> = ctx.runtime.db.query_row(
+        "SELECT MAX(timestamp) FROM events WHERE domain='doctor'",
+        [], |r| r.get(0)
+    ).ok().flatten();
+
+    if let Some(ts) = last_doctor {
+        let hours_since = (now - ts) / 3600;
+        if hours_since > 24 {
+            suggestions.push((1, "⚠️".to_string(),
+                format!("No doctor run in {}h — health drift risk elevated. Run: d", hours_since)));
+        } else if hours_since > 8 {
+            suggestions.push((3, "💡".to_string(),
+                format!("Last doctor run {}h ago — consider a check", hours_since)));
+        }
+    }
+
+    // ── 2. Security findings aging ───────────────────────────────────────────
+    let last_security: Option<i64> = ctx.runtime.db.query_row(
+        "SELECT MAX(timestamp) FROM events WHERE domain='security'",
+        [], |r| r.get(0)
+    ).ok().flatten();
+
+    if let Some(ts) = last_security {
+        let days_since = (now - ts) / 86400;
+        if days_since > 7 {
+            suggestions.push((2, "🛡️".to_string(),
+                format!("Security scan {}d ago — run: core security scan", days_since)));
+        }
+    }
+
+    // ── 3. Checkpoint age ────────────────────────────────────────────────────
+    let core_root = std::path::PathBuf::from(&ctx.core_root);
+    let cp_dir = core_root.join("runtime/checkpoints");
+    let latest_cp = std::fs::read_dir(&cp_dir).ok()
+        .and_then(|d| d.filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
+            .map(|e| e.metadata().and_then(|m| m.modified()).ok())
+            .flatten()
+            .max());
+
+    if let Some(modified) = latest_cp {
+        let age_secs = std::time::SystemTime::now()
+            .duration_since(modified).unwrap_or_default().as_secs();
+        let age_days = age_secs / 86400;
+        if age_days > 7 {
+            suggestions.push((3, "📸".to_string(),
+                format!("Last checkpoint {}d ago — consider: cpc <name>", age_days)));
+        }
+    }
+
+    // ── 4. Health trend ──────────────────────────────────────────────────────
+    let mut hstmt = ctx.runtime.db.prepare(
+        "SELECT payload FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 5"
+    )?;
+    let recent_health: Vec<i64> = hstmt.query_map([], |r| {
+        let p: Option<String> = r.get(0)?;
+        Ok(p.as_deref()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            .and_then(|v| v["detail"]["health"].as_i64())
+            .unwrap_or(95))
+    })?.filter_map(|r| r.ok()).collect();
+
+    if recent_health.len() >= 3 {
+        let avg: f64 = recent_health.iter().map(|h| *h as f64).sum::<f64>() / recent_health.len() as f64;
+        let below_95 = recent_health.iter().filter(|&&h| h < 95).count();
+        if below_95 >= 2 {
+            suggestions.push((1, "📉".to_string(),
+                format!("Health below 95% in {}/{} recent runs (avg: {:.0}%) — investigate warnings",
+                    below_95, recent_health.len(), avg)));
+        }
+    }
+
+    // ── 5. In-progress intents ───────────────────────────────────────────────
+    let intents_dir = core_root.join("intents/future");
+    let in_progress: Vec<String> = std::fs::read_dir(&intents_dir).ok()
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter(|e| {
+                let content = std::fs::read_to_string(e.path()).unwrap_or_default();
+                content.contains("status: in-progress")
+            })
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect())
+        .unwrap_or_default();
+
+    if in_progress.len() > 2 {
+        suggestions.push((2, "🎯".to_string(),
+            format!("{} intents in-progress — focus on one: cistart <id>", in_progress.len())));
+    }
+
+    // ── 6. Event ledger growth ───────────────────────────────────────────────
+    let total_events: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events", [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let today_events: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events WHERE timestamp >= ?", [chrono_today()], |r| r.get(0)
+    ).unwrap_or(0);
+
+    // ── Output ───────────────────────────────────────────────────────────────
+    println!();
+    println!("  {} Based on {} events across {} days of history",
+        "📊".cyan(),
+        total_events.to_string().bright_white(),
+        ((now - ctx.runtime.db.query_row(
+            "SELECT MIN(timestamp) FROM events", [], |r: &rusqlite::Row| r.get::<_, i64>(0)
+        ).unwrap_or(now)) / 86400).to_string().dimmed(),
+    );
+    println!("  {} events today", today_events.to_string().cyan());
+    println!();
+
+    if suggestions.is_empty() {
+        println!("  ✅ No suggestions — forest is in excellent shape");
+        println!("  {} Keep running d regularly to maintain health data", "💡".cyan());
+    } else {
+        // Sort by priority
+        suggestions.sort_by_key(|(p, _, _)| *p);
+        for (_, icon, msg) in &suggestions {
+            println!("  {}  {}", icon, msg.bright_white());
+        }
+    }
+
+    println!("\n{}", "━".repeat(52).dimmed());
+    Ok(())
+}

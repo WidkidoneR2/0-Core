@@ -235,6 +235,8 @@ pub enum WhyCommand {
     HealthSince { since: String },
     Causal { domain: String },
     Chain,
+    Correlate { domain_a: String, domain_b: String },
+    Suggest,
 }
 
 #[derive(Debug)]

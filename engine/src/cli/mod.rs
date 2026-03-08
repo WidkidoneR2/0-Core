@@ -230,6 +230,8 @@ pub fn parse() -> Command {
             WhyCommands::HealthSince { since } => WhyCommand::HealthSince { since },
             WhyCommands::Causal { domain } => WhyCommand::Causal { domain },
             WhyCommands::Chain => WhyCommand::Chain,
+            WhyCommands::Correlate { domain_a, domain_b } => WhyCommand::Correlate { domain_a, domain_b },
+            WhyCommands::Suggest => WhyCommand::Suggest,
         }),
         Commands::Trace { command } => Command::Trace(match command {
             TraceCommands::Last => TraceCommand::Last,
