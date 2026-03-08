@@ -611,3 +611,7 @@ alias correlate='core why correlate'
 # ─── compositor intelligence (Core v5 Phase 5) ───
 alias cww='core why workspace'
 alias cwf='core why focus'
+
+# ─── faelight-idle ───
+alias idle='faelight-idle'
+alias fi='faelight-idle'

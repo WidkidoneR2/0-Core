@@ -1150,6 +1150,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-idle"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs 5.0.1",
+ "rusqlite",
+ "wayland-client",
+ "wayland-protocols 0.32.10",
+]
+
+[[package]]
 name = "faelight-intent"
 version = "1.0.0"
 dependencies = [

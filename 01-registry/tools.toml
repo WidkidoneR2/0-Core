@@ -302,3 +302,9 @@ name = "faelight-intent"
 version = "1.0.0"
 category = "intent"
 description = "Intent dashboard — the forest knows where it is going"
+
+[[tool]]
+name = "faelight-idle"
+version = "1.0.0"
+category = "system"
+description = "Rust idle daemon — ext-idle-notify-v1, replaces swayidle, event ledger integration"

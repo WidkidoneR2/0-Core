@@ -3,7 +3,7 @@ id: 103
 date: 2026-03-02
 type: future
 title: "faelight-idle — Rust Idle Daemon"
-status: planned
+status: complete
 tags: [idle, lock, wayland, rust, ext-idle-notify, rusty]
 version: TBD
 priority: medium
@@ -26,11 +26,11 @@ Idle is a security boundary. It should be owned by the forest.
 
 ## Success Criteria
 
-- [ ] Replaces swayidle completely
-- [ ] Integrates with core-protect lock
-- [ ] Idle/wake events in event ledger
-- [ ] Configurable timeouts
-- [ ] No C idle dependencies remain
+- [x] Replaces swayidle completely
+- [x] Integrates with core-protect lock
+- [x] Idle/wake events in event ledger
+- [x] Configurable timeouts
+- [x] No C idle dependencies remain
 
 ---
 

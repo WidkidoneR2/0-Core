@@ -1,0 +1,19 @@
+[package]
+name = "faelight-idle"
+version = "1.0.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "🌲 Rust idle daemon — replaces swayidle, integrates with event ledger"
+
+[[bin]]
+name = "faelight-idle"
+path = "src/main.rs"
+
+[dependencies]
+wayland-client = { workspace = true }
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+dirs = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
