@@ -531,7 +531,6 @@ alias latest='latest-update'
 alias forest-ver='echo "🌲 Faelight Forest v9.3.0"'
 
 # ─── Release Management ───
-alias release-prep='echo "📦 Preparing release..." && bump-system-version && compile-changelog.sh && git status'
 alias compile-log='~/0-core/scripts/compile-changelog.sh'
 alias mklog='~/0-core/scripts/compile-changelog.sh'
 
