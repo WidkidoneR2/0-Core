@@ -582,3 +582,7 @@ alias fr-preview='faelight-release preview'
 # ─── faelight-wallpaper ───
 alias wallpaper='faelight-wallpaper'
 alias wp='faelight-wallpaper'
+
+# ─── faelight-search ───
+alias fs='faelight-search'
+alias search='faelight-search'

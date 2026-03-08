@@ -290,3 +290,9 @@ name = "faelight-wallpaper"
 version = "0.1.0"
 category = "desktop"
 description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
+
+[[tool]]
+name = "faelight-search"
+version = "1.0.0"
+category = "search"
+description = "Unified search — files, intents, commits, events, aliases"
