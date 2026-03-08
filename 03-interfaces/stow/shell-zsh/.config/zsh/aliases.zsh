@@ -588,3 +588,7 @@ alias wp='faelight-wallpaper'
 # ─── faelight-search ───
 alias fs='faelight-search'
 alias search='faelight-search'
+
+# ─── faelight-intent ───
+alias fid='faelight-intent'
+alias idash='faelight-intent'

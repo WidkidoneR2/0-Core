@@ -3,7 +3,7 @@ id: 105
 date: 2026-03-02
 type: future
 title: "core intent dashboard — Terminal Intent Overview"
-status: planned
+status: complete
 tags: [core, intent, tui, rust, dashboard, glow]
 version: TBD
 priority: medium
@@ -33,11 +33,11 @@ core intent dashboard
 
 ## Success Criteria
 
-- [ ] Single command: `core intent dashboard`
-- [ ] Focus + drift inline
-- [ ] Recent checkpoints
-- [ ] Active intent list
-- [ ] Refreshes on keypress
+- [x] Single command: `faelight-intent`
+- [x] Focus + drift inline
+- [x] Recent checkpoints
+- [x] Active intent list
+- [x] Refreshes on keypress
 
 ---
 

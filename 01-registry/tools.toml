@@ -296,3 +296,9 @@ name = "faelight-search"
 version = "1.0.0"
 category = "search"
 description = "Unified search — files, intents, commits, events, aliases"
+
+[[tool]]
+name = "faelight-intent"
+version = "1.0.0"
+category = "intent"
+description = "Intent dashboard — the forest knows where it is going"

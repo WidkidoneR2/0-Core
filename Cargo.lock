@@ -1149,6 +1149,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-intent"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "crossterm",
+ "dirs 5.0.1",
+ "ratatui 0.29.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "faelight-link"
 version = "2.0.0"
 dependencies = [
