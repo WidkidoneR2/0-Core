@@ -221,13 +221,10 @@ fn gather_data() -> DashboardData {
         })
         .unwrap_or("❓ VPN");
 
-    // Security - Firewall (check systemctl instead of sudo ufw)
-    let ufw = Command::new("sh")
-        .args(["-c", "systemctl is-active ufw 2>/dev/null"])
-        .output()
-        .map(|o| {
-            let out = String::from_utf8_lossy(&o.stdout).to_string();
-            if out.trim() == "active" {
+    // Security - Firewall (read /etc/ufw/ufw.conf — no sudo needed)
+    let ufw = std::fs::read_to_string("/etc/ufw/ufw.conf")
+        .map(|content| {
+            if content.lines().any(|l| l.trim() == "ENABLED=yes") {
                 "🟢 UFW"
             } else {
                 "🔴 UFW"
