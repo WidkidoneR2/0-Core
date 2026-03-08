@@ -812,6 +812,7 @@ fn check_path_resilience(core_root: &str) -> CheckResult {
         "faelight-menu",
         "verify-bootstrap",
         "archaeology-0-core",
+        "bump-system-version.archived",
     ];
     let rust_tools: Vec<String> = fs::read_dir(&rust_tools_dir)
         .map(|entries| {

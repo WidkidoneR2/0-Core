@@ -22,12 +22,6 @@ category = "health"
 description = "Binary manifest drift detection"
 
 [[tool]]
-name = "bump-system-version"
-version = "9.4.0"
-category = "versioning"
-description = "Bulletproof system version release master"
-
-[[tool]]
 name = "bump-tool-version"
 version = "2.1.0"
 category = "versioning"
