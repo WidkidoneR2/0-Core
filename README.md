@@ -59,6 +59,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 - **`core` v3.0.0** — single orchestrator binary with 15+ native Rust domains
 - **Capability-gated dispatch** — every command checks permissions before executing
 - **Core v4** — checkpoint/restore, intent discipline, security debt tracking, analytics
+- **faelight-release** — intelligent release system with generation model, rollback, learning layer
 - **22-check health monitoring** system
 - **Intent Ledger** — 114 architectural decisions, fully documented
 - **Wayland-native** — Niri compositor, custom Rust toolchain all the way down
@@ -267,7 +268,7 @@ doctor                              # Verify health
 | v10.0.0 | **core v2.0.0 — migration complete** 🏛️ |
 | v10.1.0 | **The Forest Matures — all 6 phases done** 🌲 |
 | v10.3.0 | **Core v3 — Event Bus, Plugin Registry, Health Forecasting** 🧠 |
-| v10.4.0 | **Niri Version — Rust greeter, IPC notify, compositor migration** 🌲 |
+| v10.4.0 | **Core v4 + Niri Version — checkpoint system, Rust greeter, compositor migration** 🔒🌲 |
 | v10.5.0 | **The Intelligent Forest — faelight-release, forecast, pulse, niri-bridge** 🧠 |
 
 From hardcoded paths to centralized elegance.
