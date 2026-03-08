@@ -100,12 +100,6 @@ category = "core"
 description = "Background daemon with event bus and pub/sub"
 
 [[tool]]
-name = "faelight-dashboard"
-version = "2.1.0"
-category = "ui"
-description = "System dashboard overview"
-
-[[tool]]
 name = "faelight-fetch"
 version = "2.3.0"
 category = "ui"
