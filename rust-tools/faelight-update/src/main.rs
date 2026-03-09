@@ -315,9 +315,10 @@ fn create_snapshot() -> Result<()> {
 
 /// Run health check
 fn run_health_check() -> Result<()> {
-    let output = Command::new("dot-doctor")
+    let output = Command::new("core")
+        .args(["doctor", "run"])
         .output()
-        .context("Failed to run dot-doctor - is it installed?")?;
+        .context("Failed to run core doctor run")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -968,7 +969,8 @@ fn is_in_core() -> bool {
 /// Run doctor check and return health percentage
 fn run_doctor_final() -> Result<u32> {
     println!("\n{}  Running final health check...", "🏥".green());
-    let output = Command::new("dot-doctor")
+    let output = Command::new("core")
+        .args(["doctor", "run"])
         .output()
         .context("Failed to run doctor")?;
 
