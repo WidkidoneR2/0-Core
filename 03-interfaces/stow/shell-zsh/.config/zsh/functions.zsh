@@ -26,7 +26,7 @@ ya() {
 }
 
 # Alias help function
-alias_help() {
+alias-help() {
   echo "📋 Alias Categories (260+ total):"
   echo ""
   echo "🔒 Core Protection: lock-core, unlock-core, edit-core"
