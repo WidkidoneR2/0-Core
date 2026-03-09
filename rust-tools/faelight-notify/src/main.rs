@@ -29,13 +29,21 @@ use std::time::{Duration, Instant};
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
-    Connection, QueueHandle,
+    Connection, Dispatch, QueueHandle,
+};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+};
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewporter::WpViewporter,
+    wp_viewport::WpViewport,
 };
 use zbus::{connection, interface};
 
-const NOTIFY_WIDTH: u32 = 400;
-const NOTIFY_HEIGHT: u32 = 80;
-const MARGIN: u32 = 15;
+const NOTIFY_WIDTH: u32 = 420;
+const NOTIFY_HEIGHT: u32 = 100;
+const MARGIN: u32 = 16;
 
 const BG_COLOR: [u8; 4] = [0x1a, 0x1d, 0x18, 0xF5];
 const BORDER_COLOR: [u8; 4] = [0xa3, 0xe3, 0x6b, 0xFF];
@@ -49,14 +57,14 @@ const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
 // Font path documented in faelight_core::paths::hack_nerd_font()
 // Using include_bytes! to embed font at compile time (zero runtime overhead)
-const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/HackNerdFont-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf");
 
 // ═══════════════════════════════════════════════════════════
 // 📐 TYPOGRAPHY
 // ═══════════════════════════════════════════════════════════
-const FONT_APP: f32 = 16.0;
-const FONT_TITLE: f32 = 20.0;
-const FONT_BODY: f32 = 17.0;
+const FONT_APP: f32 = 14.0;
+const FONT_TITLE: f32 = 18.0;
+const FONT_BODY: f32 = 15.0;
 const FONT_BADGE: f32 = 14.0;
 
 #[derive(Clone, Debug)]
@@ -196,8 +204,10 @@ fn draw_text(
     color: [u8; 4],
     size: f32,
 ) {
+    // Same approach as faelight-bar — proven correct baseline alignment
     let stride = width as usize * 4;
-    let mut cursor_x = x as usize;
+    let baseline = y as i32 + (size * 0.78) as i32;
+    let mut cx = x as i32;
     for ch in text.chars() {
         let glyph = cache.rasterize(ch, size);
         let metrics = &glyph.metrics;
@@ -205,23 +215,22 @@ fn draw_text(
         for row in 0..metrics.height {
             for col in 0..metrics.width {
                 let alpha = bitmap[row * metrics.width + col];
-                if alpha > 0 {
-                    let px = cursor_x + col;
-                    let py = y as usize + row;
-                    if px < width as usize && py < height as usize {
-                        let idx = py * stride + px * 4;
+                if alpha == 0 { continue; }
+                let px = cx + metrics.xmin + col as i32;
+                let py = baseline - metrics.height as i32 - metrics.ymin + row as i32;
+                if px >= 0 && px < width as i32 && py >= 0 && py < height as i32 {
+                    let idx = py as usize * stride + px as usize * 4;
+                    if idx + 3 < canvas.len() {
                         let a = alpha as f32 / 255.0;
-                        canvas[idx] = ((1.0 - a) * canvas[idx] as f32 + a * color[0] as f32) as u8;
-                        canvas[idx + 1] =
-                            ((1.0 - a) * canvas[idx + 1] as f32 + a * color[1] as f32) as u8;
-                        canvas[idx + 2] =
-                            ((1.0 - a) * canvas[idx + 2] as f32 + a * color[2] as f32) as u8;
-                        canvas[idx + 3] = 255;
+                        canvas[idx]   = ((1.0-a)*canvas[idx]   as f32 + a*color[0] as f32) as u8;
+                        canvas[idx+1] = ((1.0-a)*canvas[idx+1] as f32 + a*color[1] as f32) as u8;
+                        canvas[idx+2] = ((1.0-a)*canvas[idx+2] as f32 + a*color[2] as f32) as u8;
+                        canvas[idx+3] = 255;
                     }
                 }
             }
         }
-        cursor_x += metrics.advance_width as usize;
+        cx += metrics.advance_width as i32;
     }
 }
 
@@ -263,6 +272,8 @@ struct NotifyState {
     notifications: Arc<Mutex<Vec<Notification>>>,
     dnd: Arc<Mutex<bool>>,
     running: bool,
+    scale_120: u32,
+    viewport: Option<WpViewport>,
 }
 
 impl NotifyState {
@@ -288,7 +299,10 @@ impl NotifyState {
 
         let width = self.width;
         let height = self.height;
-        let stride = width as i32 * 4;
+        let scale = self.scale_120 as f32 / 120.0;
+        let phys_w = ((width as f32 * scale).ceil() as u32).max(1);
+        let phys_h = ((height as f32 * scale).ceil() as u32).max(1);
+        let stride = phys_w as i32 * 4;
 
         let pool = match &mut self.pool {
             Some(p) => p,
@@ -296,8 +310,8 @@ impl NotifyState {
         };
 
         let (buffer, canvas) = match pool.create_buffer(
-            width as i32,
-            height as i32,
+            phys_w as i32,
+            phys_h as i32,
             stride,
             wl_shm::Format::Argb8888,
         ) {
@@ -316,41 +330,41 @@ impl NotifyState {
         }
 
         if let Some(n) = notif {
-            draw_border(canvas, width, height, n.border_color());
+            draw_border(canvas, phys_w, phys_h, n.border_color());
             draw_text(
                 &mut self.glyph_cache,
                 canvas,
-                width,
-                height,
+                phys_w,
+                phys_h,
                 &n.app_name,
-                12,
-                12,
+                (14.0 * scale) as u32,
+                (20.0 * scale) as u32,
                 DIM_COLOR,
-                FONT_APP,
+                FONT_APP * scale,
             );
             let summary = truncate_text(&mut self.glyph_cache, &n.summary, width - 24, FONT_TITLE);
             draw_text(
                 &mut self.glyph_cache,
                 canvas,
-                width,
-                height,
+                phys_w,
+                phys_h,
                 &summary,
-                12,
-                28,
+                (14.0 * scale) as u32,
+                (46.0 * scale) as u32,
                 TITLE_COLOR,
-                FONT_TITLE,
+                FONT_TITLE * scale,
             );
             let body = truncate_text(&mut self.glyph_cache, &n.body, width - 24, FONT_BODY);
             draw_text(
                 &mut self.glyph_cache,
                 canvas,
-                width,
-                height,
+                phys_w,
+                phys_h,
                 &body,
-                12,
-                50,
+                (14.0 * scale) as u32,
+                (72.0 * scale) as u32,
                 TEXT_COLOR,
-                FONT_BODY,
+                FONT_BODY * scale,
             );
             if count > 1 {
                 draw_text(
@@ -359,8 +373,8 @@ impl NotifyState {
                     width,
                     height,
                     &format!("+{}", count - 1),
-                    width - 35,
-                    12,
+                    phys_w.saturating_sub((38.0 * scale) as u32),
+                    (14.0 * scale) as u32,
                     BORDER_COLOR,
                     FONT_BADGE,
                 );
@@ -368,6 +382,9 @@ impl NotifyState {
         }
 
         surface.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
+        if let Some(ref vp) = self.viewport {
+            vp.set_destination(width as i32, height as i32);
+        }
         surface
             .wl_surface()
             .damage_buffer(0, 0, width as i32, height as i32);
@@ -513,6 +530,33 @@ delegate_pointer!(NotifyState);
 delegate_layer!(NotifyState);
 delegate_registry!(NotifyState);
 
+
+impl Dispatch<WpFractionalScaleManagerV1, ()> for NotifyState {
+    fn event(_: &mut Self, _: &WpFractionalScaleManagerV1,
+             _: wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+impl Dispatch<WpFractionalScaleV1, ()> for NotifyState {
+    fn event(state: &mut Self, _: &WpFractionalScaleV1,
+             event: wp_fractional_scale_v1::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            eprintln!("🔭 Notify scale: {}/120 = {:.2}x", scale, scale as f64 / 120.0);
+            state.scale_120 = scale;
+        }
+    }
+}
+impl Dispatch<WpViewporter, ()> for NotifyState {
+    fn event(_: &mut Self, _: &WpViewporter,
+             _: wayland_protocols::wp::viewporter::client::wp_viewporter::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+impl Dispatch<WpViewport, ()> for NotifyState {
+    fn event(_: &mut Self, _: &WpViewport,
+             _: wayland_protocols::wp::viewporter::client::wp_viewport::Event,
+             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+}
+
 fn health_check() {
     println!("🏥 faelight-notify health check");
 
@@ -638,7 +682,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let layer_shell = LayerShell::bind(&globals, &qh)?;
     let shm = Shm::bind(&globals, &qh)?;
 
+    // Fractional scaling
+    let frac_manager = globals.bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ()).ok();
+    let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
     let surface = compositor.create_surface(&qh);
+    let frac_scale = frac_manager.as_ref().map(|m| m.get_fractional_scale(&surface, &qh, ()));
+    let viewport = viewporter.as_ref().map(|vp| vp.get_viewport(&surface, &qh, ()));
     let layer_surface = layer_shell.create_layer_surface(
         &qh,
         surface,
@@ -653,7 +702,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer_surface.commit();
 
-    let pool = SlotPool::new(NOTIFY_WIDTH as usize * NOTIFY_HEIGHT as usize * 4, &shm)?;
+    let pool = SlotPool::new(NOTIFY_WIDTH as usize * NOTIFY_HEIGHT as usize * 4 * 4, &shm)?;
     let glyph_cache = GlyphCache::new(FONT_DATA)?;
 
     let mut state = NotifyState {
@@ -672,7 +721,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         notifications,
         dnd: dnd_flag.clone(),
         running: true,
-    };
+        scale_120: 120,
+        viewport,
+    }
+    let _frac_scale = frac_scale;;
 
     eprintln!("✅ faelight-notify running!");
 
