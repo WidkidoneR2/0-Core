@@ -62,6 +62,7 @@ defer source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 # 🎨 PROMPT (Starship)
 # ═══════════════════════════════════════════════════════════
 
+source ~/.config/zsh/functions.zsh    # Shell functions
 eval "$(starship init zsh)"
 
 # ═══════════════════════════════════════════════════════════
@@ -70,7 +71,6 @@ eval "$(starship init zsh)"
 
 # Load instantly (aliases are fast)
 source ~/.config/zsh/aliases.zsh      # All aliases
-source ~/.config/zsh/functions.zsh    # Shell functions
 
 # Defer completions (not critical at startup)
 defer source ~/.config/zsh/completions.zsh
