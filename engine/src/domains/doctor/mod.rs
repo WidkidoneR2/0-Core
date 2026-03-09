@@ -124,7 +124,7 @@ fn check_services() -> CheckResult {
             name: "System Services".into(),
             status: Status::Warn,
             message: format!("Only {}/2 services running", running),
-            fix: Some("Restart Sway or run services manually".into()),
+            fix: Some("Run: faelight-bar & faelight-notify &".into()),
         }
     }
 }
