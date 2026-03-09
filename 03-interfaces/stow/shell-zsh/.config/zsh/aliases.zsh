@@ -41,7 +41,7 @@ alias term='faelight-term'
 alias zone='faelight-zone'
 
 # ─── Health & Monitoring ───
-alias doctor='dot-doctor'
+alias doctor='core doctor run'
 alias check-health='dot-doctor'
 alias health='dot-doctor'
 alias drift='entropy-check'
