@@ -371,7 +371,7 @@ alias yp='pwd | wl-copy'
 alias yf='basename $PWD | wl-copy'
 
 # Alias help function
-alias-help() {
+alias_help() {
   echo "📋 Alias Categories (188+ total):"
   echo ""
   echo "🔒 Core Protection: lock-core, unlock-core, edit-core"
