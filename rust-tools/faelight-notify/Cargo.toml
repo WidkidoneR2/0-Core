@@ -5,6 +5,7 @@ edition = "2021"
 description = "Notification daemon - path-resilient!"
 
 [dependencies]
+wayland-protocols = { workspace = true }
 # Core infrastructure
 faelight-core = { path = "../faelight-core" }
 
