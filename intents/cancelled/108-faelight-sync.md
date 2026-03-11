@@ -1,9 +1,11 @@
 ---
 id: 108
 date: 2026-03-02
+cancelled_date: 2026-03-11
+cancellation_reason: "Single machine system by design. Multi-machine sync contradicts 0-Core philosophy. GNU Stow + git serves the forest."
 type: future
 title: "faelight-sync — Rust Dotfile Sync"
-status: planned
+status: cancelled
 tags: [sync, dotfiles, rust, multi-machine, rusty]
 version: TBD
 priority: low
