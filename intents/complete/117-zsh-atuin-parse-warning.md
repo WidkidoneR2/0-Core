@@ -1,9 +1,11 @@
 ---
 id: 117
 date: 2026-03-09
+resolved_date: 2026-03-11
+outcome: "Resolved. Fix confirmed in git log. Terminal opens in silence."
 type: future
 title: "Fix atuin zsh interactive parse warning on terminal open"
-status: planned
+status: complete
 tags: [zsh, atuin, shell, parse, bug, quality-of-life]
 ---
 ## Problem

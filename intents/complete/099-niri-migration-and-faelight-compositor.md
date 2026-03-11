@@ -1,10 +1,12 @@
 ---
 id: 099
 date: 2026-03-03
+completed_date: 2026-03-11
+outcome: "Phase 1 complete. Niri is daily driver. WM abstraction implemented. 30+ days validated. faelight-compositor continues in INT-109."
 updated: 2026-03-03
 type: future
 title: "Niri Migration & faelight-compositor — The Forest Grows Its Own Roots"
-status: in-progress
+status: complete
 tags: [compositor, wayland, rust, niri, smithay, faelight-comp, v12, architecture]
 version: 12.0.0
 depends_on: [098]
@@ -261,8 +263,8 @@ important Rust compositors. By building on Smithay:
 ✅ Core v4 Phase 1 complete — checkpoint foundation
 ✅ WM abstraction layer implemented
 ✅ 30 days daily driving Niri
-⬜ Smithay anvil studied
-⬜ First Niri contribution
+⬜ Smithay anvil studied        → see INT-109
+⬜ First Niri contribution      → see INT-109
 ```
 
 ---
