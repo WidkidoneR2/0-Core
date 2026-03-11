@@ -1,4 +1,3 @@
-unsetopt promptsubst
 # ═══════════════════════════════════════════════════════════
 # 🌲 FAELIGHT FOREST - ZSH SHELL CONFIGURATION
 # Version 9.3.0 - Optimized Edition ⚡

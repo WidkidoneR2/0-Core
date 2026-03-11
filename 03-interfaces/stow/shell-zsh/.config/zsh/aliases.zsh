@@ -17,7 +17,7 @@ alias h='history'                         # Command history
 alias l='eza -lh --icons --group-directories-first'  # List files
 alias t='teach'                           # Teaching tool
 alias v='nvim'                            # Neovim
-#alias y='yazi'                            # File manager
+alias y='yazi'                            # File manager
 alias b='bat --paging=never'              # Bat viewer
 
 # ═══════════════════════════════════════════════════════════
@@ -29,6 +29,8 @@ alias b='bat --paging=never'              # Bat viewer
 alias bar='faelight-bar'
 alias bootstrap='faelight-bootstrap'
 alias bump='faelight-release publish'  # faelight-release replaces bump-system-version
+alias dash='faelight-dashboard'
+alias dashboard='faelight-dashboard'
 alias dmenu='faelight-palette'
 alias dot='dotctl'
 alias fm='faelight-fm'
@@ -41,7 +43,7 @@ alias term='faelight-term'
 alias zone='faelight-zone'
 
 # ─── Health & Monitoring ───
-alias doctor='core doctor run'
+alias doctor='dot-doctor'
 alias check-health='dot-doctor'
 alias health='dot-doctor'
 alias drift='entropy-check'
@@ -529,6 +531,7 @@ alias latest='latest-update'
 alias forest-ver='echo "🌲 Faelight Forest v9.3.0"'
 
 # ─── Release Management ───
+alias release-prep='echo "📦 Preparing release..." && bump-system-version && compile-changelog.sh && git status'
 alias compile-log='~/0-core/scripts/compile-changelog.sh'
 alias mklog='~/0-core/scripts/compile-changelog.sh'
 
@@ -608,7 +611,3 @@ alias correlate='core why correlate'
 # ─── compositor intelligence (Core v5 Phase 5) ───
 alias cww='core why workspace'
 alias cwf='core why focus'
-
-# ─── faelight-idle ───
-alias idle='faelight-idle'
-alias fi='faelight-idle'

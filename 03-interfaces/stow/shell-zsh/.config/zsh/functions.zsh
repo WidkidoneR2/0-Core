@@ -16,18 +16,34 @@ command_not_found_handler() {
 }
 
 # Yazi with cd-on-quit
-y() {
-    local tmp
-    tmp=$(mktemp -t yazi-cwd.XXXXXX)
+ya() {
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
     yazi "$@" --cwd-file="$tmp"
-    local cwd
-    cwd=$(cat -- "$tmp")
-    if [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+    if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
         cd -- "$cwd"
     fi
     rm -f -- "$tmp"
 }
 
+# Alias help function
+alias-help() {
+  echo "📋 Alias Categories (260+ total):"
+  echo ""
+  echo "🔒 Core Protection: lock-core, unlock-core, edit-core"
+  echo "📂 Navigation: core, src, work, .., cd ~1"
+  echo "📁 File Mgmt: ls, ll, tree, b (bat), search (fd)"
+  echo "📦 Packages: pacu, paci, ins, yup, cleanup"
+  echo "🔧 Git: lg, gst, gaa, gcm, gp, gl"
+  echo "🔍 Core-Diff: cdiff, cds, cdh, cdm, cdsway"
+  echo "💻 System: doctor, ff, df, mem, cpu"
+  echo "📝 Editor: v, nzsh, nsway, nbar"
+  echo "🖥️  Desktop: sway-reload, bar-restart"
+  echo "🔐 Security: audit-quick, scan-secrets"
+  echo "📚 Docs: keys, guide, roadmap"
+  echo ""
+  echo "📖 Full reference: bat ~/0-core/docs/ALIASES.md"
+  echo "🔍 Search: alias | grep <keyword>"
+}
 
 # Productivity Apps
 notes() {
