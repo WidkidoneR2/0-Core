@@ -17,7 +17,7 @@ alias h='history'                         # Command history
 alias l='eza -lh --icons --group-directories-first'  # List files
 alias t='teach'                           # Teaching tool
 alias v='nvim'                            # Neovim
-alias y='yazi'                            # File manager
+#alias y='yazi'                            # File manager
 alias b='bat --paging=never'              # Bat viewer
 
 # ═══════════════════════════════════════════════════════════

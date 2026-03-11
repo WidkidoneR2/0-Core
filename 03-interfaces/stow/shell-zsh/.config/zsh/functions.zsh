@@ -16,7 +16,7 @@ command_not_found_handler() {
 }
 
 # Yazi with cd-on-quit
-ya() {
+y() {
     local tmp
     tmp=$(mktemp -t yazi-cwd.XXXXXX)
     yazi "$@" --cwd-file="$tmp"
