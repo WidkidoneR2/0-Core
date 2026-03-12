@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::UNIX_EPOCH;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Parser)]
 #[command(name = "faelight-sandbox")]
@@ -71,6 +71,15 @@ enum Commands {
     Snapshots,
     /// Show session history (last 10 runs)
     History,
+    /// Query audit trail from state.db
+    Audit {
+        /// Filter by tool name
+        #[arg(long)]
+        tool: Option<String>,
+        /// Show last N runs (default: 10)
+        #[arg(long, default_value = "10")]
+        limit: usize,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -284,6 +293,32 @@ fn print_diff(session: &SandboxSession) {
     );
 }
 
+
+fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
+    let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
+    if !db_path.exists() { return; }
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else { return; };
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let exit_code = session.exit_code.unwrap_or(-1);
+    let result = if exit_code == 0 { "ok" } else { "fail" };
+    let payload = format!(
+        r#"{{"actor":"faelight-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{}}}}}"#,
+        result,
+        session.command.replace('"', "'"),
+        exit_code,
+        duration_secs,
+        files_changed,
+        session.net_off,
+    );
+    conn.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params!["sandbox", "run", payload, ts],
+    ).ok();
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -338,6 +373,7 @@ fn main() -> Result<()> {
                 after: HashMap::new(),
             };
 
+            let run_start = std::time::Instant::now();
             println!("\n  {} Running command...\n", "▶".bright_green());
             println!("{}", "─".repeat(42).dimmed());
 
@@ -396,6 +432,22 @@ fn main() -> Result<()> {
 
             // Save session + archive to history ring buffer
             save_session_with_history(&session)?;
+            // Calculate duration and files changed
+            let duration_secs = run_start.elapsed().as_secs();
+            let files_changed = {
+                let mut n = 0usize;
+                for (p, af) in &session.after {
+                    match session.before.get(p) {
+                        None => n += 1,
+                        Some(bf) => if bf.hash != af.hash { n += 1; }
+                    }
+                }
+                for p in session.before.keys() {
+                    if !session.after.contains_key(p) { n += 1; }
+                }
+                n
+            };
+            emit_to_ledger(&session, duration_secs, files_changed);
 
             // Print diff
             println!();
@@ -639,6 +691,57 @@ fn main() -> Result<()> {
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
             println!("  View session: faelight-sandbox diff (loads most recent)");
+        }
+        Commands::Audit { tool, limit } => {
+            let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
+            if !db_path.exists() {
+                println!("  {} state.db not found — no audit data yet", "○".dimmed());
+                return Ok(());
+            }
+            let conn = rusqlite::Connection::open(&db_path)?;
+            let query = if tool.is_some() {
+                format!(
+                    "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' AND payload LIKE '%{}%' ORDER BY timestamp DESC LIMIT {}",
+                    tool.as_ref().unwrap(), limit
+                )
+            } else {
+                format!(
+                    "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' ORDER BY timestamp DESC LIMIT {}",
+                    limit
+                )
+            };
+            let mut stmt = conn.prepare(&query)?;
+            let rows: Vec<(String, i64)> = stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .filter_map(|r| r.ok())
+                .collect();
+            println!();
+            println!("{}", "  ╭─ 🧪 Sandbox Audit Trail ──────────────────────────────".bright_cyan());
+            if rows.is_empty() {
+                println!("  │  {} No sandbox runs recorded yet", "○".dimmed());
+                println!("  │  Use {} to run commands", "faelight-sandbox run".bright_cyan());
+            } else {
+                for (payload, ts) in &rows {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload) {
+                        let cmd = v["detail"]["command"].as_str().unwrap_or("unknown");
+                        let exit = v["detail"]["exit_code"].as_i64().unwrap_or(-1);
+                        let dur = v["detail"]["duration_secs"].as_u64().unwrap_or(0);
+                        let changed = v["detail"]["files_changed"].as_u64().unwrap_or(0);
+                        let result = v["result"].as_str().unwrap_or("?");
+                        let result_icon = if result == "ok" { "✅".to_string() } else { "❌".to_string() };
+                        let short_cmd = if cmd.len() > 40 { format!("{}...", &cmd[..40]) } else { cmd.to_string() };
+                        println!("  │  {} {}  {}s  {} files  exit:{}",
+                            result_icon,
+                            short_cmd.bright_white(),
+                            dur.to_string().dimmed(),
+                            changed.to_string().cyan(),
+                            exit.to_string().dimmed(),
+                        );
+                    }
+                }
+            }
+            println!("{}", "  ╰─────────────────────────────────────────────────────".dimmed());
+            println!();
         }
         Commands::Snapshots => {
             let snap_root = state_dir().join("snapshots");
