@@ -36,7 +36,17 @@ pub enum Command {
         json: bool,
         domain: Option<String>,
     },
+    Decision(DecisionCommand),
 }
+
+#[derive(Debug)]
+pub enum DecisionCommand {
+    Record { description: String, intent: Option<String> },
+    Outcome { id: String, result: String, notes: Option<String> },
+    List { open: bool },
+    Hindsight,
+}
+
 
 #[derive(Debug)]
 pub enum DoctorCommand {

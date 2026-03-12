@@ -114,6 +114,21 @@ pub enum Commands {
         command: CheckpointCommands,
     },
     /// Show capability requirements for all domains
+    /// Record and track decisions with context snapshots
+    Decision {
+        #[command(subcommand)]
+        command: DecisionCommands,
+    },
+    /// Record a decision directly (shorthand for decision record)
+    Decide {
+        /// Description of the decision
+        description: String,
+        /// Related intent ID (e.g. INT-109)
+        #[arg(short, long)]
+        intent: Option<String>,
+    },
+    /// View decision hindsight summary
+    Hindsight,
     Capabilities {
         /// Output as JSON
         #[arg(long)]
@@ -520,4 +535,34 @@ pub enum CheckpointCommands {
         /// Checkpoint name
         name: String,
     },
+}
+
+#[derive(Subcommand)]
+pub enum DecisionCommands {
+    /// Record a new decision with context snapshot
+    Record {
+        /// Description of the decision being made
+        description: String,
+        /// Related intent ID (e.g. INT-109)
+        #[arg(short, long)]
+        intent: Option<String>,
+    },
+    /// Record the outcome of a decision
+    Outcome {
+        /// Decision ID (e.g. DEC-001)
+        id: String,
+        /// Outcome: success, partial, failure, unknown
+        result: String,
+        /// Optional notes about the outcome
+        #[arg(short, long)]
+        notes: Option<String>,
+    },
+    /// List recorded decisions
+    List {
+        /// Show only decisions without outcomes
+        #[arg(long)]
+        open: bool,
+    },
+    /// View hindsight summary of all decisions
+    Hindsight,
 }
