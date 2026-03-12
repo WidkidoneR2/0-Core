@@ -66,6 +66,16 @@ The causality engine can query its topology.
 - Binary deployed to `/usr/local/bin/faelight-compositor`
 - Commits: 2732c69, proof of life achieved
 
+### 2026-03-12 — DRM backend initialized
+- seatd installed, user added to seat/video/render/input groups
+- LibSeatSession opens seat0 successfully
+- UdevBackend enumerates all DRM devices
+- LibinputInputBackend enumerates 15+ input devices
+- Events flow to state.db: compositor.drm backend.init
+- `fc --drm` runs on real hardware
+- 43/43 path resilience achieved
+- Commit: dae6f93
+
 ## Gate Check
 - ✅ Smithay added to workspace dependencies
 - ✅ FaelightCompositor state struct complete
@@ -73,10 +83,12 @@ The causality engine can query its topology.
 - ✅ Event emission wired (window.focus, window.open)
 - ✅ Winit backend — first frame rendered
 - ✅ Binary deployed
-- ⬜ Events writing to state.db
-- ⬜ DRM/udev backend (real hardware)
+- ✅ Events writing to state.db (compositor.drm, window.open, window.focus)
+- ✅ DRM/udev backend — libseat session, libinput, real hardware initialized
+- ✅ Input handling wired
+- ✅ 43/43 path resilience — compositor fully deployed
+- ⬜ DRM rendering (GPU/KMS, DrmOutputManager, pixels on screen)
 - ⬜ Column tiling layout
-- ⬜ Input handling
 - ⬜ doctor health check integration
 - ⬜ faelight-bar compatible
 - ⬜ Replaces Niri as primary compositor
