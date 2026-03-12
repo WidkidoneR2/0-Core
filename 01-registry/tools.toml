@@ -87,11 +87,6 @@ version = "1.0.0"
 category = "system"
 description = "System cleanup and temp file management"
 
-[[tool]]
-name = "faelight-core"
-version = "1.0.0"
-category = "core"
-description = "Shared core library"
 
 [[tool]]
 name = "faelight-daemon"
