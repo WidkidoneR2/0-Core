@@ -2,85 +2,101 @@
 id: 120
 date: 2026-03-12
 type: future
-title: "faelight-shell — Forest-Native Structured Shell Environment"
+title: "faelight-shell — Forest-Native Shell Environment"
 status: planned
-tags: [shell, repl, structured-data, security, plugins, scripting, rust, v11]
+tags: [shell, repl, structured-data, security, plugins, scripting, rust, v11, v12]
 version: 11.0.0
 priority: high
 ---
 
 ## Vision
 
-Not a POSIX shell rebuilt in Rust.
-Not bash. Not zsh. Not a query wrapper.
+Not a POSIX shell. Not bash. Not Nu. Not NixOS.
 
-A forest-native structured shell environment inspired by Nu shell —
-where everything is structured data, every command is forest-aware,
-and security is built into the foundation, not bolted on top.
+**Beyond NixOS.**
 
-**The core philosophy:**
+NixOS knows WHAT a system is.
+faelight-shell knows WHY it became that way,
+HOW it is being used, WHAT worked,
+and WHERE it is going.
+
+This is not configuration management.
+This is a living, self-aware computing environment
+expressed through its own native language.
+
+## The Core Philosophy
 ```
-POSIX thinks in:        text | text | text
-Nu thinks in:           table | filter | transform  
-faelight-shell thinks:  forest_data | filter | render
+POSIX:          text | text | text
+Nu:             table | filter | transform
+faelight-shell: forest_data | judgment | wisdom
 ```
 
-## What Makes It Different
+Everything is structured data.
+Every command is forest-aware.
+The prompt is a live system instrument, not a string.
+Security is the foundation, not an afterthought.
+The shell and the forest are one thing.
 
-### Structured Data — Everything is a Value
+## The Interactive Prompt
+
+The prompt is not separate from the shell.
+The prompt IS the shell's voice.
+```
+🌲 forest ~/0-core [main ✓] 100% HEALTHY INT-120 ❯ _
+         ↑            ↑        ↑       ↑       ↑
+    location      git branch  health  status  active intent
+```
+
+### Prompt Interactions
+- Tab          — fuzzy completion: commands + filesystem + history
+- Ctrl+F       — search past commands with forest context
+- Ctrl+I       — show active intents inline
+- Ctrl+A       — open advise panel without leaving prompt
+- Ctrl+H       — quick health summary inline
+- Ctrl+D       — show recent decisions
+
+The prompt reflects live system state on every render.
+Not cached. Not static. Live.
+
+### Prompt Configuration (prompt.toml)
+```toml
+[prompt]
+show_health = true
+show_intent = true
+show_git = true
+show_zone = true
+show_risk = false       # show Core v6 risk score
+color_theme = "faelight"
+compact_mode = false
+```
+
+## Beyond NixOS — What This Achieves
+
+| Capability | NixOS | faelight-shell |
+|-----------|-------|----------------|
+| Reproducible state | ✅ declarative config | ✅ intent ledger |
+| WHY it became this way | ❌ | ✅ decision ledger |
+| HOW it's being used | ❌ | ✅ event history |
+| WHAT worked | ❌ | ✅ Core v6 judgment |
+| System language | Nix (hostile) | .fsh (forest-native) |
+| Usage patterns | ❌ | ✅ audit scores |
+| Anticipates needs | ❌ | ✅ predictive layer |
+| Speaks to you | ❌ | ✅ (long-term) |
+
+NixOS describes a system state.
+Faelight Forest understands a system's life.
+
+## Structured Data — Everything is a Value
 ```
 forest> events today | where domain == "git" | sort by timestamp
 forest> tools | where score < 70 | select name score issues
 forest> decisions | where outcome == "pending" | count
 forest> intents | where status == "active" | first 5
+forest> health | get checks | where status == "warn"
 ```
 
 No text parsing. No grep. No awk.
 Forest data is structured from the source.
-
-### Security Built In — Not Bolted On
-Every command execution:
-- Checked against security policy before running
-- Logged to state.db as shell.command event
-- External commands run through faelight-sandbox
-- Environment variables read-only by default
-- Filesystem writes require explicit permission
-- sudo blocked entirely at shell level
-
-### Forest-Native Commands
-```
-health          events          decisions
-intents         tools           audit
-story           advise          simulate
-version         commits         checkpoint
-```
-
-All return structured Values, pipeable, filterable.
-
-### Context-Aware Prompt
-```
-🌲 forest ~/0-core [main] 100% ❯
-```
-Location, git branch, health %, forest zone.
-Configurable via prompt.toml.
-
-## Architecture
-```
-faelight-shell/src/
-├── main.rs
-├── repl/          — REPL loop, prompt, history in state.db
-├── parser/        — lexer, AST, pipeline operator
-├── engine/        — evaluation, Value types, scope
-├── commands/
-│   ├── forest/    — events, health, decisions, intents...
-│   ├── data/      — where, select, sort, count, first, last
-│   └── system/    — run (sandboxed), cd, env (read-only)
-├── security/      — policy engine, audit log, sandbox bridge
-├── plugins/       — .fsh plugin loader and API
-├── completion/    — fuzzy tab completion
-├── scripting/     — .fsh language: variables, conditions, loops
-└── output/        — ratatui tables, Faelight color palette
-```
 
 ## The Value System
 ```rust
@@ -89,24 +105,40 @@ enum Value {
     Int(i64),
     Float(f64),
     Bool(bool),
-    Row(HashMap<String, Value>),    // single record
-    Table(Vec<Row>),                // list of records
+    Date(DateTime),
+    Row(HashMap<String, Value>),
+    Table(Vec<Row>),
     Nothing,
 }
 ```
 
 Every command returns a Value.
 Pipes pass Values between commands.
-Output renderer displays any Value as table, list, or summary.
+Output renders any Value as table, list, or summary.
 
-## The Scripting Language (.fsh)
-```
-# deploy-tool.fsh
+## The .fsh Scripting Language
+
+Not for automating tasks.
+For expressing forest behavior and intent.
+```fsh
+# When health degrades — forest responds
+when health < 90 {
+    advise "system degraded — review doctor output"
+    checkpoint "auto-pre-recovery"
+}
+
+# When intent completes — forest grows
+when intent.complete {
+    audit affected_tools
+    emit "forest.grew"
+}
+
+# Deploy with safety
 let tool = $args.0
 let score = (audit show $tool | get score)
 
 if $score < 70 {
-    warn $"Tool ($tool) score is low: ($score)"
+    warn $"($tool) has low audit score: ($score)"
     confirm "Proceed anyway?"
 }
 
@@ -114,83 +146,127 @@ run cargo build --release -p $tool
 emit "tool.deployed" { name: $tool, score: $score }
 ```
 
-Forest-aware. Variables, conditions, event emission.
-Not bash. Not Python. Forest language.
+## Security — Built In, Not Bolted On
+
+Every command execution:
+- Policy check before execution
+- Logged to state.db as shell.command event
+- External commands sandboxed via faelight-sandbox
+- Environment variables read-only by default
+- Filesystem writes require explicit permission
+- sudo blocked at shell level
+- All security events flow to core security advise
+
+## Architecture
+```
+faelight-shell/src/
+├── main.rs
+├── repl/
+│   ├── mod.rs          — REPL loop
+│   ├── prompt.rs       — live context-aware prompt engine
+│   ├── history.rs      — history persisted to state.db
+│   └── keybinds.rs     — Ctrl+F, Ctrl+I, Ctrl+A, Ctrl+H
+├── parser/
+│   ├── lexer.rs        — token stream
+│   ├── ast.rs          — expression tree
+│   └── pipeline.rs     — pipe operator
+├── engine/
+│   ├── value.rs        — Value type system
+│   ├── pipeline.rs     — execute pipeline stages
+│   └── scope.rs        — variables and environment
+├── commands/
+│   ├── forest/         — health, events, decisions, intents...
+│   ├── data/           — where, select, sort, count, first, last
+│   └── system/         — run (sandboxed), cd, env (read-only)
+├── security/
+│   ├── policy.rs       — command security policies
+│   ├── audit.rs        — execution audit log
+│   └── sandbox.rs      — faelight-sandbox bridge
+├── plugins/
+│   ├── loader.rs       — .fsh plugin files
+│   └── api.rs          — plugin API surface
+├── completion/
+│   ├── fuzzy.rs        — fuzzy matching
+│   └── context.rs      — context-aware suggestions
+├── scripting/
+│   ├── variables.rs    — let x = ...
+│   ├── control.rs      — if, for, when
+│   └── events.rs       — forest event hooks
+└── output/
+    ├── table.rs        — ratatui table rendering
+    ├── color.rs        — Faelight Forest palette
+    └── format.rs       — Value display formatting
+```
 
 ## Dependencies
-
-- rustyline    — readline input, history, Ctrl+C
-- ratatui      — table rendering, TUI output
-- crossterm    — terminal control
-- rusqlite     — state.db direct access
-- colored      — Faelight Forest palette
-- serde_json   — structured output
+```toml
+rustyline   — readline input, history, keybinds
+ratatui     — table rendering, TUI panels
+crossterm   — terminal control, raw mode
+rusqlite    — state.db direct access
+colored     — Faelight Forest color palette
+serde_json  — structured output
+chrono      — date/time in Values
+```
 
 ## Build Phases
 
 ### Phase 1 — REPL Skeleton (1-2 sessions)
-- rustyline input loop
-- Context-aware prompt
-- 10 forest commands (health, events, decisions...)
+- rustyline input with live prompt
+- Ctrl+I, Ctrl+A, Ctrl+H keybinds
+- 10 forest commands working
 - state.db connected directly
-- help, exit, version
-- Deployed as fs alias
 - History persisted to state.db
+- Deployed as fs alias
 
 ### Phase 2 — Data Pipeline (2-3 sessions)
 - Value type system
 - where, select, sort, count, first, last
-- Pipe operator between commands
+- Pipe operator
 - events today | where domain == "git"
 
 ### Phase 3 — Security Layer (1 session)
 - Every command logged to state.db
 - External command sandbox integration
 - Policy declarations
-- Blocked commands list
+- Blocked commands enforcement
 
 ### Phase 4 — Completion & Fuzzy (1-2 sessions)
 - Tab completion for forest commands
-- Fuzzy search across history
+- Fuzzy history search
 - Context-aware suggestions
 
 ### Phase 5 — Plugin System (2-3 sessions)
-- .fsh plugin file loader
+- .fsh plugin loader
 - Plugin API surface
 - First forest plugin
 
 ### Phase 6 — Scripting Language (3+ sessions)
-- Variables (let x = ...)
-- Conditions (if/else)
-- Loops (for item in list)
+- Variables, conditions, loops
+- when/on event hooks
 - .fsh script execution
-- Forest event hooks
 
-### Phase 7 — Full Shell (long-term, v12+)
+### Phase 7 — Full Shell & Beyond NixOS (v12+)
 - Replace zsh for forest workflows
 - Complete external command support
 - Built-in package helpers
-- Voice/natural language layer foundation
+- Prompt fully interactive
+- Predictive command suggestions from history
+- Voice/natural language foundation
+- The system that knows itself completely
 
-## Success Criteria
+## Gate Check
 
-- [ ] Phase 1: REPL running with 10+ forest commands
-- [ ] Phase 1: state.db connected, history persisted
-- [ ] Phase 2: Value pipeline — filter, sort, select
-- [ ] Phase 3: Security audit log for every command
-- [ ] Phase 4: Fuzzy tab completion
-- [ ] Phase 5: Plugin system with .fsh files
-- [ ] Phase 6: Basic scripting language
-- [ ] Phase 7: Full shell replacement (long-term)
-
-## The Prompt Vision
-```
-🌲 forest ~/0-core [main ✓] 100% HEALTHY ❯
-🌲 forest ~/0-core [main !3] 95% ADVISORY ❯
-```
-
-The shell knows the forest state at all times.
+- ⬜ Phase 1: REPL with live prompt and 10+ commands
+- ⬜ Phase 1: state.db connected, history persisted
+- ⬜ Phase 2: Value pipeline — filter, sort, select
+- ⬜ Phase 3: Security audit log
+- ⬜ Phase 4: Fuzzy tab completion
+- ⬜ Phase 5: Plugin system
+- ⬜ Phase 6: .fsh scripting language
+- ⬜ Phase 7: Full shell — beyond NixOS
 
 ---
 *"A forest deserves a shell that knows it is a forest."* 🌲
-*"Not text streams. Structured wisdom."* 🌲
+*"Not text streams. Not configuration. Structured wisdom."* 🌲
+*"NixOS knows what. faelight-shell knows why."* 🌲
