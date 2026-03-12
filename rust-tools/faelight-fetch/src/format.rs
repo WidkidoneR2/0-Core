@@ -5,7 +5,7 @@ pub fn print_output(state: &SystemState) {
     // Header
     println!(
         "{}",
-        format!("╭─ 🌲 Faelight Forest v{} ─╮", state.version)
+        format!("╭─ 🌲 Faelight Forest {} ─╮", state.version)
             .cyan()
             .bold()
     );
