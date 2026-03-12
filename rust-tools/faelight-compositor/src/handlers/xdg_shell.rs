@@ -20,6 +20,19 @@ impl XdgShellHandler for FaelightCompositor {
         self.space.map_element(window, (0, 0), false);
         self.health.windows_open = self.space.elements().count();
 
+        // Give keyboard focus to the new window automatically
+        let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+        if let Some(window) = self.space.elements().last().cloned() {
+            let wl_surface = window.toplevel().unwrap().wl_surface().clone();
+            self.seat.get_keyboard().unwrap().set_focus(
+                self,
+                Some(wl_surface),
+                serial,
+            );
+            window.set_activated(true);
+            window.toplevel().unwrap().send_pending_configure();
+        }
+
         // Emit window.open into the forest ledger
         let payload = serde_json::json!({
             "workspace": self.health.active_workspace,
