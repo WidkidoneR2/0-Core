@@ -425,3 +425,245 @@ fn churn_label(level: u8) -> colored::ColoredString {
         _ => "high".red(),
     }
 }
+
+// ── Phase 2: Outcome Correlation ──────────────────────────────────────────────
+
+pub fn show(ctx: &AppContext, dec_id: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    let result = ctx.runtime.db.query_row(
+        "SELECT dec_id, timestamp, context_hash, domain, description,
+                intent_id, risk_score, confidence, outcome, outcome_notes, outcome_ts
+         FROM decisions WHERE dec_id = ?1",
+        params![dec_id],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, f64>(6).unwrap_or(0.0),
+                row.get::<_, String>(7).unwrap_or_else(|_| "medium".into()),
+                row.get::<_, String>(8).unwrap_or_else(|_| "pending".into()),
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, Option<i64>>(10)?,
+            ))
+        },
+    );
+
+    match result {
+        Err(_) => {
+            println!("  {} Decision {} not found", "✗".red(), dec_id);
+            return Ok(());
+        }
+        Ok((id, ts, ctx_hash, domain, desc, intent, risk, confidence, outcome, notes, outcome_ts)) => {
+            let outcome_color = match outcome.as_str() {
+                "success" => outcome.bright_green().to_string(),
+                "partial" => outcome.yellow().to_string(),
+                "failure" => outcome.bright_red().to_string(),
+                _ => outcome.dimmed().to_string(),
+            };
+
+            println!();
+            println!("{}", "📋 Decision Detail".bright_cyan().bold());
+            println!("{}", "━".repeat(52).dimmed());
+            println!("  {}  {}", "ID:".dimmed(), id.bright_cyan().bold());
+            println!("  {}  {}", "Description:".dimmed(), desc.bright_white());
+            println!("  {}  {}", "Domain:".dimmed(), domain.yellow());
+            println!("  {}  {}", "Context:".dimmed(), ctx_hash.bright_yellow());
+            println!("  {}  {:.2}", "Risk score:".dimmed(), risk);
+            println!("  {}  {}", "Confidence:".dimmed(), confidence.dimmed());
+            if let Some(intent_id) = intent {
+                println!("  {}  {}", "Intent:".dimmed(), intent_id.bright_blue());
+            }
+            println!();
+            println!("  {}  {}", "Outcome:".dimmed(), outcome_color);
+            if let Some(n) = notes {
+                println!("  {}  {}", "Notes:".dimmed(), n.dimmed());
+            }
+            if let Some(ots) = outcome_ts {
+                let decision_age = ts;
+                let outcome_age = ots;
+                let delta_secs = outcome_age - decision_age;
+                let delta_mins = delta_secs / 60;
+                println!("  {}  {} mins after decision", "Resolved in:".dimmed(), delta_mins);
+            }
+
+            // Find similar context decisions
+            let prefix = &ctx_hash[..6]; // CTX-64 — first 6 chars
+            let mut stmt = ctx.runtime.db.prepare(
+                "SELECT dec_id, description, outcome FROM decisions
+                 WHERE context_hash LIKE ?1 AND dec_id != ?2
+                 ORDER BY timestamp DESC LIMIT 5"
+            )?;
+            let similar: Vec<(String, String, String)> = stmt
+                .query_map(params![format!("{}%", prefix), &id], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                })?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            if !similar.is_empty() {
+                println!();
+                println!("  {} Similar context decisions:", "◈".bright_yellow());
+                for (sid, sdesc, sout) in &similar {
+                    println!("    {} {} — {}", sid.bright_cyan(), sout.dimmed(), sdesc.dimmed());
+                }
+            }
+
+            println!("{}", "━".repeat(52).dimmed());
+            println!();
+        }
+    }
+    Ok(())
+}
+
+pub fn stats(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    let total: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    if total == 0 {
+        println!("\n  {} No decisions to correlate yet.\n", "○".dimmed());
+        return Ok(());
+    }
+
+    let success: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='success'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let partial: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='partial'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let failure: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='failure'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let pending: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='pending'", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    // Risk correlation — do high risk decisions fail more?
+    let high_risk_failure: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5 AND outcome='failure'",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+    let high_risk_total: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+
+    let low_risk_success: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3 AND outcome='success'",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+    let low_risk_total: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+
+    // Most common context hash
+    let top_context: Option<(String, i64)> = ctx.runtime.db
+        .query_row(
+            "SELECT context_hash, COUNT(*) as cnt FROM decisions
+             GROUP BY context_hash ORDER BY cnt DESC LIMIT 1",
+            [], |r| Ok((r.get(0)?, r.get(1)?))
+        ).ok();
+
+    println!();
+    println!("{}", "📊 Decision Correlation Stats".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  Total decisions:  {}", total.to_string().bright_white());
+    println!("  Resolved:         {}", (success + partial + failure).to_string().bright_white());
+    println!("  Pending:          {}", pending.to_string().dimmed());
+    println!();
+    println!("  {} Success:  {}", "✅".green(), success.to_string().bright_green());
+    println!("  {} Partial:  {}", "⚡".yellow(), partial.to_string().yellow());
+    println!("  {} Failure:  {}", "✖".red(), failure.to_string().bright_red());
+
+    let resolved = success + partial + failure;
+    if resolved > 0 {
+        let rate = (success as f64 / resolved as f64) * 100.0;
+        println!();
+        println!("  Success rate:  {}", format!("{:.0}%", rate).bright_green().bold());
+    }
+
+    // Risk correlation insight
+    if high_risk_total > 0 {
+        println!();
+        println!("  {} Risk correlation:", "◈".bright_yellow());
+        println!(
+            "    High risk decisions → failure: {}/{}",
+            high_risk_failure.to_string().yellow(),
+            high_risk_total.to_string().dimmed()
+        );
+    }
+    if low_risk_total > 0 {
+        println!(
+            "    Low risk decisions → success:  {}/{}",
+            low_risk_success.to_string().green(),
+            low_risk_total.to_string().dimmed()
+        );
+    }
+
+    if let Some((hash, count)) = top_context {
+        println!();
+        println!("  {} Most frequent context: {} ({} decisions)",
+            "◈".bright_yellow(),
+            hash.bright_yellow(),
+            count.to_string().dimmed()
+        );
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    Ok(())
+}
+
+/// Find decisions made in similar context — used by Phase 3 advise
+pub fn find_similar_context(ctx: &AppContext, context_hash: &str, limit: usize) -> Vec<(String, String, String, f64)> {
+    let prefix = if context_hash.len() >= 6 {
+        &context_hash[..6]
+    } else {
+        context_hash
+    };
+
+    let query = format!(
+        "SELECT dec_id, description, outcome, risk_score
+         FROM decisions
+         WHERE context_hash LIKE '{}%' AND outcome != 'pending'
+         ORDER BY timestamp DESC LIMIT {}",
+        prefix, limit
+    );
+
+    ctx.runtime.db.prepare(&query)
+        .ok()
+        .map(|mut stmt| {
+            stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, f64>(3).unwrap_or(0.0),
+                ))
+            })
+            .ok()
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+        })
+        .unwrap_or_default()
+}

@@ -361,6 +361,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DecisionCommand::Hindsight => {
                     crate::domains::decisions::hindsight(ctx)
                 }
+                DecisionCommand::Show { id } => {
+                    crate::domains::decisions::show(ctx, &id)
+                }
+                DecisionCommand::Stats => {
+                    crate::domains::decisions::stats(ctx)
+                }
             }
         }
 
