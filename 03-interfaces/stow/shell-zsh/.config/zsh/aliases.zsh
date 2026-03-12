@@ -568,6 +568,10 @@ alias pulse-json='faelight-pulse --json'
 alias niri-bridge='faelight-niri-bridge'
 alias nb='faelight-niri-bridge'
 
+# ─── faelight-compositor ───
+alias fcomp='faelight-compositor'
+alias fc='faelight-compositor'
+
 # ─── faelight-forecast ───
 alias forecast='faelight-forecast'
 alias ff='faelight-forecast'

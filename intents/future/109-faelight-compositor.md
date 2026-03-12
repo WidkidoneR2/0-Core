@@ -52,3 +52,31 @@ The causality engine can query its topology.
 ---
 
 *"The compositor is the last one to come home."* 🌲
+
+## Progress Log
+
+### 2026-03-11 — v0.1.0 shipped
+- Crate created in workspace: `rust-tools/faelight-compositor/`
+- Smithay 0.7.0 (git) added to workspace dependencies
+- `FaelightCompositor` state struct modeled on smallvil
+- All required protocol handlers implemented
+- `self.emit()` wired into `focus_changed()` and `new_toplevel()`
+- Winit backend added — runs nested inside Niri
+- **First frame rendered** — forest green `#11140f` background
+- Binary deployed to `/usr/local/bin/faelight-compositor`
+- Commits: 2732c69, proof of life achieved
+
+## Gate Check
+- ✅ Smithay added to workspace dependencies
+- ✅ FaelightCompositor state struct complete
+- ✅ Protocol handlers implemented
+- ✅ Event emission wired (window.focus, window.open)
+- ✅ Winit backend — first frame rendered
+- ✅ Binary deployed
+- ⬜ Events writing to state.db
+- ⬜ DRM/udev backend (real hardware)
+- ⬜ Column tiling layout
+- ⬜ Input handling
+- ⬜ doctor health check integration
+- ⬜ faelight-bar compatible
+- ⬜ Replaces Niri as primary compositor

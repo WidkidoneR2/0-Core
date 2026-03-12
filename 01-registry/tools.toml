@@ -296,3 +296,9 @@ name = "faelight-idle"
 version = "1.0.0"
 category = "system"
 description = "Rust idle daemon — ext-idle-notify-v1, replaces swayidle, event ledger integration"
+
+[[tool]]
+name = "faelight-compositor"
+version = "0.1.0"
+category = "compositor"
+description = "Rust Wayland compositor on Smithay — the last sibling comes home (INT-109)"
