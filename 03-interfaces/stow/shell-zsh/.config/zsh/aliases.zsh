@@ -192,6 +192,21 @@ alias csd='core simulate doctor'
 alias cdt='core doctor trend'            # health trend analysis
 alias cdf='core doctor forecast'         # health forecast      # predict health — no writes
 alias csu='core simulate update'      # preview updates — no writes
+# ─── Core v6 — The Judgment Layer ───
+alias decide='core decide'                        # record a decision with risk assessment
+alias outcome='core decision outcome'             # record outcome of a decision
+alias decisions='core decision list'              # list all decisions
+alias dec='core decision list'                    # shorthand
+alias deco='core decision list --open'            # pending decisions only
+alias decshow='core decision show'                # show decision detail
+alias decstats='core decision stats'              # correlation stats
+alias hindsight='core hindsight'                  # decision success summary
+alias advise='core advise'                        # judgment advisory
+alias heuristics='core heuristics'               # auto-derived heuristics
+alias lessons='core lessons'                      # human-readable wisdom
+alias story='core story'                          # 30-day forest narrative
+alias css='core simulate scenario'               # simulate a planned scenario
+
 alias cw='core why summary'          # today's activity summary
 alias cwh='core why health'          # health trajectory
 alias cwv='core why visual'         # visual topology today
