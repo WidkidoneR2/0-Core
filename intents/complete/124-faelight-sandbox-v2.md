@@ -3,7 +3,7 @@ id: 124
 date: 2026-03-12
 type: future
 title: "faelight-sandbox v2 — Forest-Aware Isolation Environment"
-status: planned
+status: complete
 tags: [sandbox, isolation, security, rust, v10.8]
 version: 10.8.0
 priority: medium
