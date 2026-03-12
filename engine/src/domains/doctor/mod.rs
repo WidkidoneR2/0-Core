@@ -672,6 +672,8 @@ fn check_alias_coverage() -> CheckResult {
                     .next()
                     .unwrap_or("All tools have aliases")
                     .trim()
+                    .trim_start_matches("✅ Alias Coverage: ")
+                    .trim_start_matches("✅ ")
                     .to_string(),
                 fix: None,
             }
@@ -1011,7 +1013,7 @@ fn render_cockpit(checks: &[CheckResult], version: &str, health: u32,
     let status_str = if failed > 0 {
         "DEGRADED".bright_red().bold().to_string()
     } else if warnings > 0 {
-        "WARNING".yellow().bold().to_string()
+        "ADVISORY".yellow().bold().to_string()
     } else {
         "HEALTHY".bright_green().bold().to_string()
     };
@@ -1149,7 +1151,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     else if trend < -0.5 { format!("{:.1}", trend) }
                     else { "stable".to_string() };
 
-                println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 println!("{}  Forecast  24h: {}%  7d: {}%  trend: {}",
                     trend_icon,
                     forecast_24h,
