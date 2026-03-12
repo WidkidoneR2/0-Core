@@ -266,7 +266,21 @@ chrono      — date/time in Values
 - ⬜ Phase 6: .fsh scripting language
 - ⬜ Phase 7: Full shell — beyond NixOS
 
+## Development Philosophy
+
+This is a multi-year craft project — 16,000 to 45,000 lines of Rust.
+It is built alongside INT-109 and the rest of the forest, not instead of them.
+```
+When DRM gets hard     — write some shell code
+When shell gets complex — work on a compositor session
+When both need a break — build something small and fun
+```
+
+No deadlines. No rushing. Each phase complete before the next.
+The forest grows at its own pace.
+
 ---
 *"A forest deserves a shell that knows it is a forest."* 🌲
 *"Not text streams. Not configuration. Structured wisdom."* 🌲
 *"NixOS knows what. faelight-shell knows why."* 🌲
+*"When DRM gets hard — write some shell code."* 🌲
