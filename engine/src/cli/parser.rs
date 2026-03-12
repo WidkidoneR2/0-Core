@@ -119,6 +119,16 @@ pub enum Commands {
         #[command(subcommand)]
         command: DecisionCommands,
     },
+    /// Auto-derived heuristics from decision corpus
+    Heuristics {
+        /// Filter by domain
+        #[arg(short, long)]
+        domain: Option<String>,
+    },
+    /// What the forest has learned — heuristics summary
+    Lessons,
+    /// The forest narrative — 30 day story
+    Story,
     /// Judgment advisory for current system state
     Advise {
         /// Optional planned decision to evaluate
@@ -582,4 +592,14 @@ pub enum DecisionCommands {
         /// Optional planned decision to evaluate
         decision: Option<String>,
     },
+    /// Auto-derived heuristics from decision corpus
+    Heuristics {
+        /// Filter by domain
+        #[arg(short, long)]
+        domain: Option<String>,
+    },
+    /// Human-readable lessons summary
+    Lessons,
+    /// 30-day narrative of computing life
+    Story,
 }
