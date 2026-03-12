@@ -119,6 +119,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: DecisionCommands,
     },
+    /// Judgment advisory for current system state
+    Advise {
+        /// Optional planned decision to evaluate
+        decision: Option<String>,
+    },
     /// Record a decision directly (shorthand for decision record)
     Decide {
         /// Description of the decision
@@ -572,4 +577,9 @@ pub enum DecisionCommands {
     },
     /// Correlation stats across all decisions
     Stats,
+    /// Judgment advisory for current state
+    Advise {
+        /// Optional planned decision to evaluate
+        decision: Option<String>,
+    },
 }

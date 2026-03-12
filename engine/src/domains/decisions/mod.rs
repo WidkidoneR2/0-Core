@@ -667,3 +667,142 @@ pub fn find_similar_context(ctx: &AppContext, context_hash: &str, limit: usize) 
         })
         .unwrap_or_default()
 }
+
+// ── Phase 3: Judgment Assist ──────────────────────────────────────────────────
+
+pub fn advise(ctx: &AppContext, planned_decision: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    // Capture current context
+    let context = DecisionContext::capture(ctx);
+    let fingerprint = context.fingerprint();
+    let risk = context.risk_score();
+    let risk_label = context.risk_label();
+
+    println!();
+    println!("{}", "🧭 Judgment Advisory".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Show current context
+    println!("  {}", "Current State:".bright_white().bold());
+    println!("    Health:          {}", format!("{}%", context.health_score).bright_green());
+    println!("    Active intents:  {}", context.active_intent_count.to_string().yellow());
+    println!("    Git churn:       {}", churn_label(context.git_churn_level));
+    println!("    Context hash:    {}", fingerprint.bright_yellow());
+
+    if let Some(decision) = planned_decision {
+        println!();
+        println!("  {}  {}", "Evaluating:".dimmed(), decision.bright_white().bold());
+    }
+
+    // Risk signals
+    println!();
+    let mut signals: Vec<(&str, &str)> = vec![];
+    if context.health_score < 95 { signals.push(("⚠", "health below 95% — consider running doctor first")); }
+    if context.health_score < 90 { signals.push(("⚠", "health significantly degraded — high regression risk")); }
+    if context.active_intent_count > 2 { signals.push(("⚠", "multiple active intents — context switching risk")); }
+    if context.active_intent_count > 4 { signals.push(("⚠", "too many concurrent intents — consider completing one first")); }
+    if context.git_churn_level > 1 { signals.push(("⚠", "elevated git churn — instability window")); }
+    if context.git_churn_level > 2 { signals.push(("⚠", "high git churn — risky time for large changes")); }
+    if context.security_scan_age_days > 7 { signals.push(("⚠", "security scan outdated — run core security scan")); }
+
+    if signals.is_empty() {
+        println!("  {} No risk signals — conditions are favorable", "✅".green());
+    } else {
+        println!("  {}", "Risk Signals:".bright_white().bold());
+        for (icon, msg) in &signals {
+            println!("    {} {}", icon.yellow(), msg.yellow());
+        }
+    }
+
+    // Historical pattern matching
+    let similar = find_similar_context(ctx, &fingerprint, 10);
+
+    println!();
+    if similar.is_empty() {
+        println!("  {} No historical decisions in similar context yet.", "◈".dimmed());
+        println!("    {} decisions recorded so far.", count_total_decisions(ctx));
+    } else {
+        let total_similar = similar.len();
+        let successes = similar.iter().filter(|(_, _, o, _)| o == "success").count();
+        let partials = similar.iter().filter(|(_, _, o, _)| o == "partial").count();
+        let failures = similar.iter().filter(|(_, _, o, _)| o == "failure").count();
+        let success_rate = (successes as f64 / total_similar as f64) * 100.0;
+
+        println!("  {}", "Historical Pattern (similar context):".bright_white().bold());
+        println!("    Found {} decisions in context {}xx",
+            total_similar.to_string().bright_white(),
+            &fingerprint[..6].bright_yellow()
+        );
+        println!("    {} success  {} partial  {} failure",
+            successes.to_string().bright_green(),
+            partials.to_string().yellow(),
+            failures.to_string().bright_red()
+        );
+        println!("    Success rate: {}", format!("{:.0}%", success_rate).bright_green().bold());
+
+        // Show recent similar decisions
+        println!();
+        println!("  {}", "Recent similar decisions:".dimmed());
+        for (dec_id, desc, outcome, _risk) in similar.iter().take(3) {
+            let outcome_str = match outcome.as_str() {
+                "success" => outcome.bright_green().to_string(),
+                "partial" => outcome.yellow().to_string(),
+                "failure" => outcome.bright_red().to_string(),
+                _ => outcome.dimmed().to_string(),
+            };
+            let short_desc = if desc.len() > 40 {
+                format!("{}...", &desc[..40])
+            } else {
+                desc.clone()
+            };
+            println!("    {} {} — {}",
+                dec_id.bright_cyan(),
+                outcome_str,
+                short_desc.dimmed()
+            );
+        }
+    }
+
+    // Overall advisory
+    println!();
+    println!("  {}", "Advisory:".bright_white().bold());
+
+    let risk_color = match risk_label {
+        "low"      => format!("Risk: {:.2} ({})", risk, risk_label).green().to_string(),
+        "moderate" => format!("Risk: {:.2} ({})", risk, risk_label).yellow().to_string(),
+        _          => format!("Risk: {:.2} ({})", risk, risk_label).red().to_string(),
+    };
+    println!("    {}", risk_color);
+
+    // Specific suggestions based on signals
+    if context.health_score < 95 {
+        println!("    {} Run {} before proceeding", "→".dimmed(), "d".bright_cyan());
+    }
+    if context.git_churn_level > 1 {
+        println!("    {} Consider {} before large changes", "→".dimmed(), "cpc".bright_cyan());
+    }
+    if signals.is_empty() && similar.is_empty() {
+        println!("    {} Conditions favorable — proceed with confidence", "→".dimmed().to_string().green());
+    }
+    if !signals.is_empty() && context.git_churn_level > 1 {
+        println!("    {} Create a checkpoint first: {}", "→".dimmed(), "cpc pre-decision".bright_cyan());
+    }
+
+    println!();
+    println!("  {}", "The forest advises. You decide.".dimmed().italic());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    Ok(())
+}
+
+fn count_total_decisions(ctx: &AppContext) -> i64 {
+    ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions", [], |r| r.get(0))
+        .unwrap_or(0)
+}
