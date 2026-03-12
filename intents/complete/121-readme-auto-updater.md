@@ -3,7 +3,7 @@ id: 121
 date: 2026-03-12
 type: future
 title: "faelight-readme — auto-update README dynamic sections on release"
-status: planned
+status: complete
 tags: [readme, release, automation, github, docs, v10.8]
 version: 10.8.0
 priority: medium
