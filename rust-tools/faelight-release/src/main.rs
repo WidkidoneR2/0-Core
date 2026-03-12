@@ -68,8 +68,20 @@ fn main() -> Result<()> {
             let theme = if theme.is_empty() { "Unnamed Release".to_string() } else { theme };
             let data = changelog::ChangelogData::build(&root, &version, &theme)?;
             let stats = changelog::ReleaseStats::gather(&root);
+            let version_str = version.clone();
             let published = tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
             if published {
+                // Sync /etc/faelight/ so faelight-login shows correct version
+                let version_file = std::path::Path::new("/etc/faelight/VERSION");
+                if version_file.parent().map(|p| p.exists()).unwrap_or(false) {
+                    let v = format!("v{}", version_str);
+                    if let Err(e) = std::fs::write(version_file, &v) {
+                        eprintln!("⚠️  Could not update /etc/faelight/VERSION: {}", e);
+                        eprintln!("   Run manually: sudo sh -c echo {} > /etc/faelight/VERSION", v);
+                    } else {
+                        println!("✅ /etc/faelight/VERSION updated to {}", v);
+                    }
+                }
                 println!("🌲 Release complete! Push with: fg sync");
             } else {
                 println!("Release aborted.");
