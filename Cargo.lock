@@ -1506,7 +1506,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-sandbox"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1514,6 +1514,7 @@ dependencies = [
  "colored",
  "dialoguer",
  "faelight-core",
+ "rusqlite",
  "serde",
  "serde_json",
  "walkdir",
