@@ -3,7 +3,7 @@ id: 118
 date: 2026-03-12
 type: future
 title: "doctor facelift — cockpit-style health dashboard"
-status: planned
+status: complete
 tags: [doctor, ui, ratatui, health, dashboard, v10.8]
 version: 10.8.0
 priority: high
