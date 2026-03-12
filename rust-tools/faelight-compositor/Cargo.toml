@@ -1,0 +1,18 @@
+[package]
+name = "faelight-compositor"
+version = "0.1.0"
+edition = "2021"
+description = "faelight-compositor — The compositor that joins the family"
+
+[dependencies]
+smithay = { workspace = true }
+faelight-core = { path = "../faelight-core" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[[bin]]
+name = "faelight-compositor"
+path = "src/main.rs"
