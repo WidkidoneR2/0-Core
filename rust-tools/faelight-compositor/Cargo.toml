@@ -13,6 +13,9 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rusqlite = { version = "0.31", features = ["bundled"] }
+gbm = "0.18"
+drm = "0.14"
+input = "0.9"
 
 [[bin]]
 name = "faelight-compositor"
