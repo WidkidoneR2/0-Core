@@ -565,4 +565,11 @@ pub enum DecisionCommands {
     },
     /// View hindsight summary of all decisions
     Hindsight,
+    /// Show full detail for a specific decision
+    Show {
+        /// Decision ID (e.g. DEC-001)
+        id: String,
+    },
+    /// Correlation stats across all decisions
+    Stats,
 }

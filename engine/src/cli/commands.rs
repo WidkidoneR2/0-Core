@@ -45,6 +45,8 @@ pub enum DecisionCommand {
     Outcome { id: String, result: String, notes: Option<String> },
     List { open: bool },
     Hindsight,
+    Show { id: String },
+    Stats,
 }
 
 

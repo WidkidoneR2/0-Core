@@ -257,6 +257,8 @@ pub fn parse() -> Command {
             DecisionCommands::Outcome { id, result, notes } => DecisionCommand::Outcome { id, result, notes },
             DecisionCommands::List { open } => DecisionCommand::List { open },
             DecisionCommands::Hindsight => DecisionCommand::Hindsight,
+            DecisionCommands::Show { id } => DecisionCommand::Show { id },
+            DecisionCommands::Stats => DecisionCommand::Stats,
         }),
         Commands::Decide { description, intent } => Command::Decision(DecisionCommand::Record { description, intent }),
         Commands::Hindsight => Command::Decision(DecisionCommand::Hindsight),
