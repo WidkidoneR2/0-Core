@@ -110,6 +110,7 @@ pub fn parse() -> Command {
             SecurityCommands::History => SecurityCommand::History,
             SecurityCommands::Debt => SecurityCommand::Debt,
             SecurityCommands::Trend => SecurityCommand::Trend,
+            SecurityCommands::Advise => SecurityCommand::Advise,
         }),
         Commands::Sandbox { command } => Command::Sandbox(match command {
             SandboxCommands::Run { args } => SandboxCommand::Run { args },

@@ -297,6 +297,8 @@ pub enum SecurityCommands {
         id: String,
     },
     History,
+    /// Security judgment advisory
+    Advise,
 }
 
 #[derive(Subcommand)]

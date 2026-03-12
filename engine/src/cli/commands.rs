@@ -143,6 +143,7 @@ pub enum ProfileCommand {
 #[derive(Debug)]
 pub enum SecurityCommand {
     Scan,
+    Advise,
     Debt,
     Trend,
     Report { all: bool },

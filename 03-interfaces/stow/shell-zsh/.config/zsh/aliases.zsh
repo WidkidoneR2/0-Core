@@ -206,6 +206,7 @@ alias heuristics='core heuristics'               # auto-derived heuristics
 alias lessons='core lessons'                      # human-readable wisdom
 alias story='core story'                          # 30-day forest narrative
 alias css='core simulate scenario'               # simulate a planned scenario
+alias secadvise='core security advise'            # security judgment advisory
 
 alias cw='core why summary'          # today's activity summary
 alias cwh='core why health'          # health trajectory

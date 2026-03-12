@@ -156,6 +156,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 SecurityCommand::History => crate::domains::security::history(ctx),
                 SecurityCommand::Debt => crate::domains::security::debt(ctx),
                 SecurityCommand::Trend => crate::domains::security::trend(ctx),
+            SecurityCommand::Advise => crate::domains::security::advise(ctx),
             }
         }
 
