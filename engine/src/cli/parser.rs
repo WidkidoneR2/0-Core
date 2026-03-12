@@ -488,6 +488,11 @@ pub enum SimulateCommands {
     Doctor,
     /// Show what packages would be updated — no writes
     Update,
+    /// Simulate risk for a planned scenario using decision history
+    Scenario {
+        /// Description of the planned scenario
+        description: String,
+    },
 }
 
 #[derive(Subcommand)]
