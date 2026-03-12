@@ -1,94 +1,151 @@
 ---
 id: 109
-date: 2026-03-02
+date: 2026-02-15
 type: future
 title: "faelight-compositor — Rust Wayland Compositor on Smithay"
 status: in-progress
-tags: [compositor, wayland, smithay, rust, v12, architecture]
-version: 12.0.0
+tags: [compositor, wayland, smithay, drm, rust, architecture, v11]
+version: 11.0.0
 priority: high
-depends_on: [099]
 ---
 
 ## Vision
 
 The last sibling comes home.
 
-A Wayland compositor written entirely in Rust on Smithay,
-purpose-built for Faelight Forest. Not a fork. Not a config.
-A compositor that knows what it is part of.
+Every other tool in Faelight Forest was built from scratch in Rust.
+The compositor was borrowed — first Sway, then Niri.
+faelight-compositor ends that. A Wayland compositor built on Smithay,
+native to the forest, aware of its own ecosystem.
 
-See INT-099 for full architectural specification.
-
-## What Makes This Different
+## Philosophy
 
 Every other compositor is substrate.
 faelight-compositor is a participant.
 
-It emits events to faelight-daemon.
-It writes to the event ledger.
-It integrates with core's capability model.
-doctor monitors its health.
-The causality engine can query its topology.
+It doesn't just manage windows — it knows it's part of a forest.
+Every window open, every focus change, every workspace switch
+flows into state.db. The compositor is a ledger participant.
 
-## Day One Feature Set
+## Current Status (v0.1.0)
 
-- Column-based tiling (informed by Niri study)
-- 5 workspaces, keyboard navigation
-- Single monitor (AMD laptop)
-- Input handling (keyboard + touchpad)
-- Lock integration with core-protect
-- Event emission: workspace.switch, window.focus, window.open
-- doctor health check: compositor state
+- ✅ Smithay workspace dependency
+- ✅ FaelightCompositor state struct
+- ✅ Protocol handlers: Compositor, XdgShell, Seat, DataDevice, Output
+- ✅ Event emission wired (window.focus, window.open)
+- ✅ Winit backend — first frame rendered (forest green #11140f)
+- ✅ Events writing to state.db
+- ✅ DRM/udev backend — libseat session, libinput, real hardware
+- ✅ Input handling wired
+- ✅ 43/43 path resilience — compositor fully deployed
+- ✅ fc alias (winit) and fc --drm alias (real hardware)
 
-## Success Criteria
+## DRM Rendering — 8 Session Plan
 
-- [ ] Replaces Niri as primary compositor
-- [ ] 100% Rust stack achieved
-- [ ] Events flowing into ledger
-- [ ] doctor monitors compositor health
-- [ ] faelight-bar compatible
+The path to pixels on real hardware. Each session has a clear
+goal and a "fun" side piece so no session ends empty-handed.
 
----
+### Session 1 — Read & Understand (no coding)
+Goal: Full comprehension of device_added in anvil/src/udev.rs
+- Read device_added (lines 763-865) completely
+- Read connector_connected completely  
+- Read render function completely
+- Document every dependency and its purpose
+- Write notes in this intent
+Fun: Add a forest quote system to faelight-fetch
 
-*"The compositor is the last one to come home."* 🌲
+### Session 2 — Open DRM Device
+Goal: Open GPU device file, create DrmDeviceFd
+- session.open() with correct OFlags
+- DrmDevice::new() from fd
+- GbmDevice::new() from fd clone
+- Wire DrmEvent::VBlank handler
+- Test: device opens without error
+Fun: faelight-login visual polish
 
-## Progress Log
+### Session 3 — GPU Renderer
+Goal: EGL context and GpuManager initialized
+- EGLDisplay::new() from GBM device
+- EGLDevice::device_for_display()
+- GlesRenderer::new() with EGL context
+- GpuManager::add_node() for render node
+- Test: renderer created, no EGL errors
+Fun: core audit Phase 2 — expected_usage in tools.toml
 
-### 2026-03-11 — v0.1.0 shipped
-- Crate created in workspace: `rust-tools/faelight-compositor/`
-- Smithay 0.7.0 (git) added to workspace dependencies
-- `FaelightCompositor` state struct modeled on smallvil
-- All required protocol handlers implemented
-- `self.emit()` wired into `focus_changed()` and `new_toplevel()`
-- Winit backend added — runs nested inside Niri
-- **First frame rendered** — forest green `#11140f` background
-- Binary deployed to `/usr/local/bin/faelight-compositor`
-- Commits: 2732c69, proof of life achieved
+### Session 4 — Connector Scanning
+Goal: Detect monitors and read their modes
+- DrmScanner::new() and scan_connectors()
+- connector_connected() implementation
+- Read connector name (HDMI-1, eDP-1, etc.)
+- Read preferred mode (resolution + refresh)
+- Test: prints monitor name and resolution to log
+Fun: doctor gains optional audit score summary line
 
-### 2026-03-12 — DRM backend initialized
-- seatd installed, user added to seat/video/render/input groups
-- LibSeatSession opens seat0 successfully
-- UdevBackend enumerates all DRM devices
-- LibinputInputBackend enumerates 15+ input devices
-- Events flow to state.db: compositor.drm backend.init
-- `fc --drm` runs on real hardware
-- 43/43 path resilience achieved
-- Commit: dae6f93
+### Session 5 — Output Creation
+Goal: Wayland output object registered
+- DrmOutputManager construction
+- Output::new() with physical properties
+- Mode registration and output global
+- Test: output registered, wlr-randr sees it
+Fun: faelight-fetch shows audit health score
+
+### Session 6 — First Frame ⭐ THE MILESTONE
+Goal: Forest green pixels on real hardware
+- Render loop wired to VBlank
+- GlesRenderer clears to #11140f
+- DrmOutput::queue_frame()
+- Switch to TTY, run fc --drm
+- See forest green fill the screen
+Fun: core story captures the milestone
+
+### Session 7 — Surface Rendering
+Goal: Wayland clients connect and display windows
+- WaylandSurfaceRenderElement integration
+- Damage tracking with OutputDamageTracker
+- weston-simple-shm renders inside compositor
+- Test: a window appears on screen
+Fun: core audit Phase 3 — core advise integration
+
+### Session 8 — Polish & Stability
+Goal: Production-ready DRM backend
+- VT switching (pause/resume session)
+- Proper cleanup on exit
+- doctor health check integration
+- faelight-bar compatibility
+- Test: switch VTs and back, compositor recovers
+Fun: v10.8.0 release — "The Compositor Wakes"
 
 ## Gate Check
+
 - ✅ Smithay added to workspace dependencies
 - ✅ FaelightCompositor state struct complete
 - ✅ Protocol handlers implemented
 - ✅ Event emission wired (window.focus, window.open)
 - ✅ Winit backend — first frame rendered
-- ✅ Binary deployed
-- ✅ Events writing to state.db (compositor.drm, window.open, window.focus)
-- ✅ DRM/udev backend — libseat session, libinput, real hardware initialized
-- ✅ Input handling wired
-- ✅ 43/43 path resilience — compositor fully deployed
-- ⬜ DRM rendering (GPU/KMS, DrmOutputManager, pixels on screen)
-- ⬜ Column tiling layout
-- ⬜ doctor health check integration
-- ⬜ faelight-bar compatible
+- ✅ Binary deployed — 43/43 path resilience
+- ✅ Events writing to state.db
+- ✅ DRM/udev backend — libseat + libinput on real hardware
+- ⬜ Session 2 — DRM device opened
+- ⬜ Session 3 — GPU renderer initialized
+- ⬜ Session 4 — Connector scanning
+- ⬜ Session 5 — Output creation
+- ⬜ Session 6 — First frame on real hardware ⭐
+- ⬜ Session 7 — Surface rendering
+- ⬜ Session 8 — Polish and stability
 - ⬜ Replaces Niri as primary compositor
+
+## Stats Context
+```
+System:    v10.7.0 — The Forest Remembers
+Health:    100% (22 checks)
+Commits:   1417
+Tools:     52 custom Rust binaries
+Backend:   DRM initialized, input enumerated, events flowing
+```
+
+## The Phrase
+
+**"Every other compositor is substrate.
+faelight-compositor is a participant."**
+
+*"The last sibling comes home — and the forest becomes complete."* 🌲
