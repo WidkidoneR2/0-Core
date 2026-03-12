@@ -1,5 +1,51 @@
 # Changelog
 
+## [v10.7.0] — Unnamed Release (2026-03-12)
+
+### 🎯 Completed Intents
+- **INT-99** — Niri Migration & faelight-compositor — The Forest Grows Its Own Roots
+- **INT-103** — faelight-idle — Rust Idle Daemon
+- **INT-117** — Fix atuin zsh interactive parse warning on terminal open
+
+### ✨ Features
+- Core v6 complete — all 5 phases, INT-116 closed, aliases added (INT-116)
+- Core v6 aliases — decide, advise, story, lessons, heuristics, simulate scenario
+- Core v6 Phase 5 — extended simulation, core simulate scenario (INT-116)
+- Core v6 Phase 4 — heuristics engine, core lessons, core story (INT-116)
+- Core v6 Phase 3 — core advise judgment assist, context-aware advisory (INT-116)
+- Core v6 Phase 2 — outcome correlation, decision show/stats, context hash matching (INT-116)
+- Core v6 Phase 1 — decision ledger foundation, core decide/outcome/hindsight (INT-116)
+- faelight-fm visual overhaul — rounded borders, accent highlights, rich status bar (v2.3.0)
+- input handling wired, auto-focus on new_toplevel (INT-109)
+- faelight-compositor now writes events to state.db — forest participant (INT-109)
+- register faelight-compositor in registry, add fc/fcomp aliases (INT-109)
+- faelight-compositor v0.1.0 — winit backend, proof of life achieved (INT-109)
+- add faelight-compositor v0.1.0 — the last sibling comes home (INT-109)
+- (idle) INT-103 complete — faelight-idle v1.0.0, ext-idle-notify-v1, replaces swayidle, event ledger
+
+### 🔧 Fixes
+- remove faelight-core from tools registry (library not binary), deploy verify-bootstrap
+- (zsh) disable promptsubst during load, remove y alias conflict with ya() function
+- (zsh) move functions.zsh before starship init — eliminates functions parse warning on terminal open
+- (zsh) rename alias-help to alias_help — hyphenated function names cause parse errors
+- (update) use core doctor run instead of dot-doctor, fix alias-help function definition
+- (notify) improved layout, fractional scale support, JetBrainsMono font, baseline fix
+- (aliases) doctor alias points to core doctor run instead of old dot-doctor binary
+- (doctor) security hardening shows explicit UFW/fail2ban status instead of count
+
+### 🔩 Internal (8 commits)
+- config: fix nu home-dir variable in nushell config
+- ledger: close INT-117, cancel INT-108, complete INT-099 Phase 1
+- restore to 497e9ff
+- revert(zsh): restore original functions.zsh — parse warning was pre-existing, not our bug
+- retire faelight-dashboard — archived source, removed binary, aliases, audit fix
+- ...and 3 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1396  ·  Tools: 49 deployed  ·  Intents: 72 complete
+
+---
+
 ## [10.6.0] — The Judgment Layer (2026-03-08)
 
 ### 🎯 Completed Intents
