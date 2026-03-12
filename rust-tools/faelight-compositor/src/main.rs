@@ -6,6 +6,7 @@
 
 mod handlers;
 mod state;
+mod winit;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 use state::FaelightCompositor;
@@ -16,14 +17,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut event_loop: EventLoop<FaelightCompositor> = EventLoop::try_new()?;
     let display: Display<FaelightCompositor> = Display::new()?;
-    let state = FaelightCompositor::new(&mut event_loop, display);
+    let mut state = FaelightCompositor::new(&mut event_loop, display);
 
+    // Initialize winit backend (nested inside Niri for testing)
+    winit::init_winit(&mut event_loop, &mut state)?;
+
+    std::env::set_var("WAYLAND_DISPLAY", &state.socket_name);
     tracing::info!(
         socket = ?state.socket_name,
-        "Wayland socket ready"
+        "faelight-compositor ready — forest socket open"
     );
 
-    event_loop.run(None, &mut state.into(), move |_| {})?;
+    event_loop.run(None, &mut state, move |_| {})?;
 
     Ok(())
 }

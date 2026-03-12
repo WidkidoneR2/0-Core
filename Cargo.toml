@@ -36,4 +36,4 @@ fontdue = "0.9"
 regex = "1.10"
 
 # Compositor
-smithay = { git = "https://github.com/Smithay/smithay.git", default-features = false, features = ["desktop", "wayland_frontend", "backend_drm", "backend_udev", "backend_libinput", "backend_egl", "renderer_gl", "use_system_lib"] }
+smithay = { git = "https://github.com/Smithay/smithay.git", default-features = false, features = ["desktop", "wayland_frontend", "backend_drm", "backend_udev", "backend_libinput", "backend_egl", "renderer_gl", "use_system_lib", "backend_winit"] }
