@@ -367,6 +367,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DecisionCommand::Stats => {
                     crate::domains::decisions::stats(ctx)
                 }
+                DecisionCommand::Advise { decision } => {
+                    crate::domains::decisions::advise(ctx, decision.as_deref())
+                }
             }
         }
 

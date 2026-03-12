@@ -47,6 +47,7 @@ pub enum DecisionCommand {
     Hindsight,
     Show { id: String },
     Stats,
+    Advise { decision: Option<String> },
 }
 
 
