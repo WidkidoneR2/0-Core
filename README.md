@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.6.0
+# 🌲 Faelight Forest vv10.7.0
 
-![Version](https://img.shields.io/badge/version-10.6.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-v10.7.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,24 +11,21 @@
 
 ## 🎊 Latest Release
 
-### v10.6.0 - 🌲 The Judgment Layer (2026-03-08)
+### vv10.7.0 - 🌲 The Forest Remembers (2026-03-12)
 
-- 104 — faelight-wallpaper — Rust Wallpaper Daemon
-- 105 — core intent dashboard — Terminal Intent Overview
-- 107 — faelight-search — Unified Rust Search
-- 110 — core why visual — Workspace Topology in Event Ledger
-- 111 — faelight-bar — Fractional Scaling Support (wp_fractional_scale_v1)
-- 113 — Core v5 — The Intelligent System
-- core: Core v5 complete — all 5 phases, ledger foundation, forecasting, causality, patterns, compositor intelligence
-- core: Core v5 Phase 4 — pattern recognition, correlate domains, suggest based on learned history
-- core: Core v5 Phase 3 — causality engine, why health-since, causal domain analysis, causal chain
-- core: Core v5 Phase 2 — forecast line integrated into core doctor output
-- core: Core v5 Phase 1 — ledger foundation, indexed queries, stats/query/export commands
+- 99 — Niri Migration & faelight-compositor — The Forest Grows Its Own Roots
+- 103 — faelight-idle — Rust Idle Daemon
+- 117 — Fix atuin zsh interactive parse warning on terminal open
+- Core v6 complete — all 5 phases, INT-116 closed, aliases added (INT-116)
+- Core v6 aliases — decide, advise, story, lessons, heuristics, simulate scenario
+- Core v6 Phase 5 — extended simulation, core simulate scenario (INT-116)
+- Core v6 Phase 4 — heuristics engine, core lessons, core story (INT-116)
+- Core v6 Phase 3 — core advise judgment assist, context-aware advisory (INT-116)
 
-- Commits: 1363
-- Tools: 50 deployed
+- Commits: 1396
+- Tools: 49 deployed
 - Health: 95%
-- Intents: 69 complete
+- Intents: 72 complete
 
 [Full Changelog →](CHANGELOG.md)
 
