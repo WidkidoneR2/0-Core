@@ -970,6 +970,95 @@ fn print_result(r: &CheckResult) {
     }
 }
 
+fn status_icon(s: &Status) -> &'static str {
+    match s {
+        Status::Pass => "✅",
+        Status::Warn => "⚠️ ",
+        Status::Fail => "❌",
+        Status::Blocked => "⏭ ",
+    }
+}
+
+fn render_section(title: &str, checks: &[&CheckResult]) {
+    if checks.is_empty() { return; }
+    println!();
+    println!("{}", format!("  ╭─ {} ", title).bright_cyan());
+    for r in checks {
+        let icon = status_icon(&r.status);
+        let name_col = format!("{:<22}", r.name);
+        let msg = match r.status {
+            Status::Pass    => r.message.dimmed().to_string(),
+            Status::Warn    => r.message.yellow().to_string(),
+            Status::Fail    => r.message.bright_red().to_string(),
+            Status::Blocked => "blocked".dimmed().to_string(),
+        };
+        println!("  │  {} {}  {}", icon, name_col.normal(), msg);
+    }
+    println!("{}", "  ╰─────────────────────────────────────────────────".dimmed());
+}
+
+fn render_cockpit(checks: &[CheckResult], version: &str, health: u32,
+                  passed: u32, warnings: u32, failed: u32) {
+    // ── Summary header ────────────────────────────────────────────────
+    let health_color = if health >= 95 {
+        format!("{}%", health).bright_green().bold().to_string()
+    } else if health >= 80 {
+        format!("{}%", health).yellow().bold().to_string()
+    } else {
+        format!("{}%", health).bright_red().bold().to_string()
+    };
+
+    let status_str = if failed > 0 {
+        "DEGRADED".bright_red().bold().to_string()
+    } else if warnings > 0 {
+        "WARNING".yellow().bold().to_string()
+    } else {
+        "HEALTHY".bright_green().bold().to_string()
+    };
+
+    println!();
+    println!("{}", "  ╭──────────────────────────────────────────────────────╮".bright_cyan());
+    println!("  │  🏥 {}  {}  {}  │  {}/{} checks  │",
+        format!("Faelight Forest {}", version).bright_white().bold(),
+        health_color,
+        status_str,
+        passed,
+        checks.len(),
+    );
+    println!("{}", "  ╰──────────────────────────────────────────────────────╯".bright_cyan());
+
+    // ── Group checks ─────────────────────────────────────────────────
+    let system_names = ["Stow Symlinks","System Services","Broken Symlinks","Binary Dependencies","Disk Space"];
+    let git_names    = ["Git Repository","Scripts","Rust Toolchain"];
+    let tools_names  = ["Yazi Plugins","Tool Installation","Path Resilience","Alias Coverage"];
+    let forest_names = ["Intent Ledger","Profile System","Faelight Config","Niri Keybinds","Theme Packages","Package Metadata","Archaeology"];
+    let security_names = ["Security Hardening","Security Audit","Core Protection"];
+
+    let group = |names: &[&str]| -> Vec<&CheckResult> {
+        names.iter().filter_map(|n| checks.iter().find(|c| c.name == *n)).collect()
+    };
+
+    render_section("🖥  System", &group(&system_names));
+    render_section("🌿 Git & Code", &group(&git_names));
+    render_section("🛠  Tools", &group(&tools_names));
+    render_section("📋 Forest", &group(&forest_names));
+    render_section("🔒 Security", &group(&security_names));
+
+    // ── Stats strip ───────────────────────────────────────────────────
+    println!();
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("  {} {}   {} {}   {} {}   {} {}",
+        "✅".green(),
+        format!("Passed:  {}", passed).bright_white(),
+        "⚠️ ",
+        format!("Warnings: {}", warnings).yellow(),
+        "❌",
+        format!("Failed: {}", failed).bright_red(),
+        "📊",
+        format!("Health: {}%", health).bright_white().bold(),
+    );
+}
+
 pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "doctor",
@@ -985,14 +1074,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         .unwrap_or_else(|_| "unknown".into())
         .trim()
         .to_string();
-
-    println!(
-        "{}",
-        "🏥 0-Core Health Check - Faelight Forest {}"
-            .replace("{}", &version)
-            .bold()
-    );
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
     let checks: Vec<CheckResult> = vec![
         check_stow(&core_root, &home),
@@ -1019,45 +1100,13 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_core_protect(&core_root),
     ];
 
-    for r in &checks {
-        print_result(r);
-    }
-
     let total = checks.len() as u32;
     let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
     let health = if total > 0 { (passed * 100) / total } else { 0 };
 
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    if health >= 95 {
-        println!(
-            "{}",
-            format!("✅ System healthy ({}%)", health)
-                .bright_green()
-                .bold()
-        );
-    } else if health >= 80 {
-        println!(
-            "{}",
-            format!("⚠️  System mostly healthy ({}%)", health)
-                .yellow()
-                .bold()
-        );
-    } else {
-        println!(
-            "{}",
-            format!("❌ System unhealthy ({}%)", health)
-                .bright_red()
-                .bold()
-        );
-    }
-    println!("Statistics:");
-    println!("   Passed:   {}", passed);
-    println!("   Warnings: {}", warnings);
-    println!("   Failed:   {}", failed);
-    println!("   Total:    {}", total);
-    println!("   Health:   {}%", health);
+    render_cockpit(&checks, &version, health, passed, warnings, failed);
 
     // Core v5 Phase 2 — inline forecast after doctor run
     {
