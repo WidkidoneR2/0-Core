@@ -3,7 +3,7 @@ id: 116
 date: 2026-03-08
 type: future
 title: "Core v6 — The Judgment Layer"
-status: planned
+status: in-progress
 tags: [core, v6, judgment, decisions, outcomes, heuristics, advise, simulate, rust, architecture]
 ---
 ## Vision

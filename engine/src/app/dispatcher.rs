@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    Command, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
@@ -346,6 +346,24 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
             SimulateCommand::Update => crate::domains::simulate::update(ctx),
         },
+
+        Command::Decision(cmd) => {
+            match cmd {
+                DecisionCommand::Record { description, intent } => {
+                    crate::domains::decisions::decide(ctx, &description, intent.as_deref())
+                }
+                DecisionCommand::Outcome { id, result, notes } => {
+                    crate::domains::decisions::outcome(ctx, &id, &result, notes.as_deref())
+                }
+                DecisionCommand::List { open } => {
+                    crate::domains::decisions::list(ctx, open)
+                }
+                DecisionCommand::Hindsight => {
+                    crate::domains::decisions::hindsight(ctx)
+                }
+            }
+        }
+
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())
         }

@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    Command, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
+    Cli, Commands, DecisionCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
     LedgerCommands, WhyCommands, WorkspaceCommands,
@@ -252,6 +252,14 @@ pub fn parse() -> Command {
             CheckpointCommands::Snapshot { label } => CheckpointCommand::Snapshot { label },
             CheckpointCommands::Snapshots => CheckpointCommand::Snapshots,
         }),
+        Commands::Decision { command } => Command::Decision(match command {
+            DecisionCommands::Record { description, intent } => DecisionCommand::Record { description, intent },
+            DecisionCommands::Outcome { id, result, notes } => DecisionCommand::Outcome { id, result, notes },
+            DecisionCommands::List { open } => DecisionCommand::List { open },
+            DecisionCommands::Hindsight => DecisionCommand::Hindsight,
+        }),
+        Commands::Decide { description, intent } => Command::Decision(DecisionCommand::Record { description, intent }),
+        Commands::Hindsight => Command::Decision(DecisionCommand::Hindsight),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }
 }

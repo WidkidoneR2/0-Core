@@ -1,4 +1,5 @@
 pub mod capabilities;
+pub mod decisions;
 pub mod doctor;
 pub mod events;
 pub mod fetch;
