@@ -3,7 +3,7 @@ id: 109
 date: 2026-03-02
 type: future
 title: "faelight-compositor — Rust Wayland Compositor on Smithay"
-status: planned
+status: in-progress
 tags: [compositor, wayland, smithay, rust, v12, architecture]
 version: 12.0.0
 priority: high
