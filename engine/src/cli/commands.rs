@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Command {
+    Audit(AuditCommand),
     Version,
     Doctor(DoctorCommand),
     Plugin(PluginCommand),
@@ -288,4 +289,12 @@ pub enum CheckpointCommand {
     Create { name: String, notes: Option<String> },
     List,
     Diff { name: String },
+}
+
+#[derive(Debug)]
+pub enum AuditCommand {
+    Scan,
+    Show { tool: String },
+    Stale,
+    Coverage,
 }

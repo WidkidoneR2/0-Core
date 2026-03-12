@@ -20,6 +20,16 @@
       "binary_drifts": 0,
       "symlink_drifts": 0,
       "untracked_files": 3
+    },
+    {
+      "timestamp": "2026-03-12T21:52:42.737796230+00:00",
+      "system_version": "v10.7.0",
+      "total_drifts": 12,
+      "config_drifts": 3,
+      "service_drifts": 0,
+      "binary_drifts": 0,
+      "symlink_drifts": 3,
+      "untracked_files": 6
     }
   ]
 }

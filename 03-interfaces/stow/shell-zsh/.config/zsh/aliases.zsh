@@ -208,6 +208,12 @@ alias story='core story'                          # 30-day forest narrative
 alias css='core simulate scenario'               # simulate a planned scenario
 alias secadvise='core security advise'            # security judgment advisory
 
+# ─── Core Audit — Tool Intelligence Layer ───
+alias audit='core audit scan'                     # score all tools
+alias auditshow='core audit show'                 # deep audit of a tool
+alias auditstale='core audit stale'               # tools needing attention
+alias auditcov='core audit coverage'              # documentation coverage
+
 alias cw='core why summary'          # today's activity summary
 alias cwh='core why health'          # health trajectory
 alias cwv='core why visual'         # visual topology today
