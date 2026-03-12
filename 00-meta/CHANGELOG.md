@@ -1,6 +1,6 @@
 # Changelog
 
-## [v10.7.0] — Unnamed Release (2026-03-12)
+## [v10.7.0] — The Forest Remembers (2026-03-12)
 
 ### 🎯 Completed Intents
 - **INT-99** — Niri Migration & faelight-compositor — The Forest Grows Its Own Roots

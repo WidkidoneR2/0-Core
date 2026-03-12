@@ -1,5 +1,5 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest vv10.7.0
+# 🌲 Faelight Forest v10.7.0
 
 ![Version](https://img.shields.io/badge/version-v10.7.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
@@ -11,7 +11,7 @@
 
 ## 🎊 Latest Release
 
-### vv10.7.0 - 🌲 The Forest Remembers (2026-03-12)
+### v10.7.0 - 🌲 The Forest Remembers (2026-03-12)
 
 - 99 — Niri Migration & faelight-compositor — The Forest Grows Its Own Roots
 - 103 — faelight-idle — Rust Idle Daemon
