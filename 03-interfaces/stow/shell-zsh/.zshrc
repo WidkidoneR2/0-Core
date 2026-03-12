@@ -100,7 +100,7 @@ if [[ -o interactive ]]; then
     faelight-fetch
     
     # Welcome message
-    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v10.6.0 - The Judgment Layer\033[0m"
+    echo -e "\033[1;32m🌲 Welcome to Faelight Forest v10.7.0 - The Forest Remembers\033[0m"
     
     # Quick system check (async to not slow terminal)
     

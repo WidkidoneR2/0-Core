@@ -988,7 +988,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
     println!(
         "{}",
-        "🏥 0-Core Health Check - Faelight Forest v{}"
+        "🏥 0-Core Health Check - Faelight Forest {}"
             .replace("{}", &version)
             .bold()
     );
