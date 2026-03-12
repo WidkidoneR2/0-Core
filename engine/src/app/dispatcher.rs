@@ -370,6 +370,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DecisionCommand::Advise { decision } => {
                     crate::domains::decisions::advise(ctx, decision.as_deref())
                 }
+                DecisionCommand::Heuristics { domain } => {
+                    crate::domains::decisions::heuristics(ctx, domain.as_deref())
+                }
+                DecisionCommand::Lessons => {
+                    crate::domains::decisions::lessons(ctx)
+                }
+                DecisionCommand::Story => {
+                    crate::domains::decisions::story(ctx)
+                }
             }
         }
 

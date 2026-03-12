@@ -806,3 +806,319 @@ fn count_total_decisions(ctx: &AppContext) -> i64 {
         .query_row("SELECT COUNT(*) FROM decisions", [], |r| r.get(0))
         .unwrap_or(0)
 }
+
+// ── Phase 4: Heuristics Engine ────────────────────────────────────────────────
+
+pub fn heuristics(ctx: &AppContext, domain_filter: Option<&str>) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    // Auto-derive heuristics from decision corpus
+    let derived = derive_heuristics(ctx);
+
+    let filtered: Vec<&DerivedHeuristic> = if let Some(domain) = domain_filter {
+        derived.iter().filter(|h| h.domain == domain).collect()
+    } else {
+        derived.iter().collect()
+    };
+
+    println!();
+    println!("{}", "🌿 Heuristics Engine".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    if filtered.is_empty() {
+        println!("  {} Not enough observations yet.", "○".dimmed());
+        println!("  Heuristics require {} decisions with outcomes.", "3+".bright_cyan());
+        println!("  Currently: {} decisions recorded.", count_total_decisions(ctx));
+    } else {
+        for h in &filtered {
+            let confidence_color = if h.confidence >= 0.8 {
+                format!("{:.0}%", h.confidence * 100.0).bright_green()
+            } else if h.confidence >= 0.6 {
+                format!("{:.0}%", h.confidence * 100.0).yellow()
+            } else {
+                format!("{:.0}%", h.confidence * 100.0).dimmed()
+            };
+
+            println!("  {} [{}] {}",
+                "◆".bright_yellow(),
+                h.domain.bright_cyan(),
+                h.description.bright_white()
+            );
+            println!("    Confidence: {}  Observations: {}",
+                confidence_color,
+                h.observations.to_string().dimmed()
+            );
+            println!();
+        }
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    Ok(())
+}
+
+pub fn lessons(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    let derived = derive_heuristics(ctx);
+    let total: i64 = count_total_decisions(ctx);
+    let resolved = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome != 'pending'", [], |r| r.get::<_, i64>(0))
+        .unwrap_or(0);
+
+    println!();
+    println!("{}", "📖 What the Forest Has Learned".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  Based on {} decisions ({} resolved)", total, resolved);
+    println!();
+
+    if derived.is_empty() {
+        println!("  {} The forest is still learning.", "○".dimmed());
+        println!("  Keep recording decisions and outcomes.");
+        println!("  Lessons emerge after 3+ observations per pattern.");
+    } else {
+        println!("  {}", "Learned Lessons:".bright_white().bold());
+        for h in &derived {
+            println!("  {} {}", "→".bright_green(), h.description.bright_white());
+        }
+    }
+
+    // Always-available structural lessons
+    println!();
+    println!("  {}", "Structural Observations:".bright_white().bold());
+
+    let low_risk_success_rate = {
+        let s: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3 AND outcome='success'", [], |r| r.get(0))
+            .unwrap_or(0);
+        let t: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3 AND outcome != 'pending'", [], |r| r.get(0))
+            .unwrap_or(0);
+        if t > 0 { (s as f64 / t as f64) * 100.0 } else { 0.0 }
+    };
+
+    let high_risk_failure_rate = {
+        let f: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5 AND outcome='failure'", [], |r| r.get(0))
+            .unwrap_or(0);
+        let t: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5 AND outcome != 'pending'", [], |r| r.get(0))
+            .unwrap_or(0);
+        if t > 0 { (f as f64 / t as f64) * 100.0 } else { 0.0 }
+    };
+
+    if low_risk_success_rate > 0.0 {
+        println!("  → Low risk decisions succeed {:.0}% of the time",
+            low_risk_success_rate);
+    }
+    if high_risk_failure_rate > 0.0 {
+        println!("  → High risk decisions fail {:.0}% of the time",
+            high_risk_failure_rate);
+    }
+    if total > 0 {
+        println!("  → {} decisions recorded since Core v6 Phase 1", total);
+    }
+
+    println!();
+    println!("  {}", "The forest remembers. You decide.".dimmed().italic());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    Ok(())
+}
+
+pub fn story(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "decisions",
+        &[Capability::FilesystemReadHome],
+    )?;
+    ensure_schema(ctx)?;
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let thirty_days_ago = now - (30 * 24 * 3600);
+
+    // Events in last 30 days
+    let event_count: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE timestamp > ?1",
+            params![thirty_days_ago],
+            |r| r.get(0)
+        ).unwrap_or(0);
+
+    // Decisions in last 30 days
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT dec_id, description, outcome, timestamp, risk_score
+         FROM decisions WHERE timestamp > ?1
+         ORDER BY timestamp ASC"
+    )?;
+    let decisions: Vec<(String, String, String, i64, f64)> = stmt
+        .query_map(params![thirty_days_ago], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get::<_, f64>(4).unwrap_or(0.0)))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let decision_count = decisions.len();
+    let success_count = decisions.iter().filter(|(_, _, o, _, _)| o == "success").count();
+    let failure_count = decisions.iter().filter(|(_, _, o, _, _)| o == "failure").count();
+    let pending_count = decisions.iter().filter(|(_, _, o, _, _)| o == "pending").count();
+
+    // Doctor runs
+    let doctor_runs: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='doctor' AND action='run' AND timestamp > ?1",
+            params![thirty_days_ago],
+            |r| r.get(0)
+        ).unwrap_or(0);
+
+    // Git commits
+    let git_commits: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
+            params![thirty_days_ago],
+            |r| r.get(0)
+        ).unwrap_or(0);
+
+    // Window events
+    let window_opens: i64 = ctx.runtime.db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='compositor' AND action='window.open' AND timestamp > ?1",
+            params![thirty_days_ago],
+            |r| r.get(0)
+        ).unwrap_or(0);
+
+    println!();
+    println!("{}", "📜 The Forest's Story — Last 30 Days".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Narrative
+    println!("  In the last 30 days, the forest was active.");
+    println!();
+    println!("  {} events flowed through the ledger.", event_count.to_string().bright_white().bold());
+    println!("  {} health checks run.", doctor_runs.to_string().bright_green());
+    println!("  {} commits made to the forest.", git_commits.to_string().bright_cyan());
+    if window_opens > 0 {
+        println!("  {} windows opened in the compositor.", window_opens.to_string().yellow());
+    }
+    println!();
+
+    if decision_count > 0 {
+        println!("  {} decisions were recorded:", decision_count.to_string().bright_white().bold());
+        println!("    {} succeeded", success_count.to_string().bright_green());
+        if failure_count > 0 {
+            println!("    {} failed", failure_count.to_string().bright_red());
+        }
+        if pending_count > 0 {
+            println!("    {} still pending", pending_count.to_string().dimmed());
+        }
+        println!();
+
+        // Show the decision arc
+        println!("  {}", "Decision arc:".dimmed());
+        for (dec_id, desc, outcome, _ts, _risk) in &decisions {
+            let outcome_icon = match outcome.as_str() {
+                "success" => "✅",
+                "partial" => "⚡",
+                "failure" => "✖",
+                _ => "○",
+            };
+            let short = if desc.len() > 45 {
+                format!("{}...", &desc[..45])
+            } else {
+                desc.clone()
+            };
+            println!("    {} {} — {}", outcome_icon, dec_id.bright_cyan(), short.dimmed());
+        }
+    } else {
+        println!("  No decisions recorded in this period.");
+        println!("  Use {} to start building the forest's memory.",
+            "core decide".bright_cyan());
+    }
+
+    println!();
+    println!("  {}", "The forest remembers the path that led here.".dimmed().italic());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    Ok(())
+}
+
+// ── Heuristic Derivation ─────────────────────────────────────────────────────
+
+#[derive(Debug)]
+struct DerivedHeuristic {
+    domain: String,
+    description: String,
+    confidence: f64,
+    observations: usize,
+}
+
+fn derive_heuristics(ctx: &AppContext) -> Vec<DerivedHeuristic> {
+    let mut heuristics = Vec::new();
+    let min_observations = 3;
+
+    // Heuristic: Low risk → success correlation
+    let low_risk_success: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3 AND outcome='success'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let low_risk_total: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score <= 0.3 AND outcome != 'pending'", [], |r| r.get(0))
+        .unwrap_or(0);
+    if low_risk_total >= min_observations {
+        let confidence = low_risk_success as f64 / low_risk_total as f64;
+        heuristics.push(DerivedHeuristic {
+            domain: "general".into(),
+            description: format!("Low risk decisions succeed {:.0}% of the time ({} observations)",
+                confidence * 100.0, low_risk_total),
+            confidence,
+            observations: low_risk_total as usize,
+        });
+    }
+
+    // Heuristic: High risk → failure correlation
+    let high_risk_failure: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5 AND outcome='failure'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let high_risk_total: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE risk_score > 0.5 AND outcome != 'pending'", [], |r| r.get(0))
+        .unwrap_or(0);
+    if high_risk_total >= min_observations {
+        let confidence = high_risk_failure as f64 / high_risk_total as f64;
+        heuristics.push(DerivedHeuristic {
+            domain: "general".into(),
+            description: format!("High risk decisions fail {:.0}% of the time ({} observations)",
+                confidence * 100.0, high_risk_total),
+            confidence,
+            observations: high_risk_total as usize,
+        });
+    }
+
+    // Heuristic: Git domain decisions
+    let git_success: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE domain='git' AND outcome='success'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let git_total: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE domain='git' AND outcome != 'pending'", [], |r| r.get(0))
+        .unwrap_or(0);
+    if git_total >= min_observations {
+        let confidence = git_success as f64 / git_total as f64;
+        heuristics.push(DerivedHeuristic {
+            domain: "git".into(),
+            description: format!("Git decisions succeed {:.0}% of the time", confidence * 100.0),
+            confidence,
+            observations: git_total as usize,
+        });
+    }
+
+    heuristics
+}

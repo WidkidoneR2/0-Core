@@ -48,6 +48,9 @@ pub enum DecisionCommand {
     Show { id: String },
     Stats,
     Advise { decision: Option<String> },
+    Heuristics { domain: Option<String> },
+    Lessons,
+    Story,
 }
 
 
