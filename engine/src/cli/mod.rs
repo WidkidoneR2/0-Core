@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    Command, AuditCommand, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, DecisionCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
+    Cli, Commands, AuditCommands, DecisionCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
     LedgerCommands, WhyCommands, WorkspaceCommands,
@@ -267,6 +267,12 @@ pub fn parse() -> Command {
             DecisionCommands::Story => DecisionCommand::Story,
         }),
         Commands::Heuristics { domain } => Command::Decision(DecisionCommand::Heuristics { domain }),
+        Commands::Audit { command } => Command::Audit(match command {
+            AuditCommands::Scan => AuditCommand::Scan,
+            AuditCommands::Show { tool } => AuditCommand::Show { tool },
+            AuditCommands::Stale => AuditCommand::Stale,
+            AuditCommands::Coverage => AuditCommand::Coverage,
+        }),
         Commands::Lessons => Command::Decision(DecisionCommand::Lessons),
         Commands::Story => Command::Decision(DecisionCommand::Story),
         Commands::Advise { decision } => Command::Decision(DecisionCommand::Advise { decision }),

@@ -125,6 +125,11 @@ pub enum Commands {
         #[arg(short, long)]
         domain: Option<String>,
     },
+    /// Audit tool health and intelligence
+    Audit {
+        #[command(subcommand)]
+        command: AuditCommands,
+    },
     /// What the forest has learned — heuristics summary
     Lessons,
     /// The forest narrative — 30 day story
@@ -609,4 +614,16 @@ pub enum DecisionCommands {
     Lessons,
     /// 30-day narrative of computing life
     Story,
+}
+
+#[derive(Subcommand)]
+pub enum AuditCommands {
+    /// Score all tools — full intelligence report
+    Scan,
+    /// Deep audit of a specific tool
+    Show { tool: String },
+    /// Tools below health threshold
+    Stale,
+    /// Tools missing documentation
+    Coverage,
 }

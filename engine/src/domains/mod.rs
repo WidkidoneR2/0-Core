@@ -1,3 +1,4 @@
+pub mod audit;
 pub mod capabilities;
 pub mod decisions;
 pub mod doctor;
