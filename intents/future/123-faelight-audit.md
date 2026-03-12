@@ -3,7 +3,7 @@ id: 123
 date: 2026-03-12
 type: future
 title: "faelight-audit — Tool Intelligence Layer (core audit domain)"
-status: planned
+status: in-progress
 tags: [audit, tools, intelligence, core, registry, state-db, rust, v10.8]
 version: 10.8.0
 priority: high

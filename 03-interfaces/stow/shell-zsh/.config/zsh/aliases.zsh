@@ -48,7 +48,6 @@ alias check-health='dot-doctor'
 alias health='dot-doctor'
 alias drift='entropy-check'
 alias entropy='entropy-check'
-alias audit='echo "🏥 Running full audit..." && dot-doctor && entropy-check && security-score'
 
 # ─── Updates & Maintenance ───
 alias fu='faelight-update'
