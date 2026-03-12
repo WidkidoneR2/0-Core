@@ -3,7 +3,7 @@ id: 119
 date: 2026-03-12
 type: future
 title: "core security advise — judgment layer for security decisions"
-status: planned
+status: complete
 tags: [security, core-v6, advise, judgment, decisions, v10.8]
 version: 10.8.0
 priority: high

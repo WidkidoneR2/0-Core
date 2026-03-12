@@ -754,3 +754,169 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} {} scan(s) in history", "📊".dimmed(), entries.len());
     Ok(())
 }
+
+// ── INT-119: Security Advise ─────────────────────────────────────────────────
+
+pub fn advise(ctx: &AppContext) -> CoreResult<()> {
+    use crate::domains::decisions::{DecisionContext, find_similar_context};
+    use colored::*;
+
+    println!();
+    println!("{}", "🛡️  Security Advisory".bright_cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Read last scan result
+    let scan_path = last_scan_path();
+    let scan_age_days: u64;
+    let finding_count: usize;
+    let patchable_count: usize;
+    let scan_timestamp: String;
+
+    if scan_path.exists() {
+        let content = fs::read_to_string(&scan_path).unwrap_or_default();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap_or_default();
+
+        scan_timestamp = json["timestamp"].as_str().unwrap_or("unknown").to_string();
+        let findings = json["findings"].as_array().map(|a| a.len()).unwrap_or(0);
+        finding_count = findings;
+        patchable_count = json["findings"].as_array()
+            .map(|a| a.iter().filter(|f| f["patchable"].as_bool().unwrap_or(false)).count())
+            .unwrap_or(0);
+
+        // Calculate scan age
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let scan_ts = json["scan_timestamp"].as_u64().unwrap_or(0);
+        // Parse timestamp string "YYYY-MM-DD HH:MM:SS" to estimate age
+        scan_age_days = if scan_timestamp != "unknown" && scan_timestamp != "never" {
+            // Use file modification time as fallback
+            scan_path.metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| {
+                    let file_ts = d.as_secs();
+                    if now > file_ts { (now - file_ts) / 86400 } else { 0 }
+                })
+                .unwrap_or(0)
+        } else { 999 };
+    } else {
+        scan_timestamp = "never".to_string();
+        finding_count = 0;
+        patchable_count = 0;
+        scan_age_days = 999;
+    }
+
+    // Display current security state
+    println!("  {}", "Current Security State:".bright_white().bold());
+
+    let age_str = if scan_age_days == 999 {
+        "never scanned".bright_red().to_string()
+    } else if scan_age_days == 0 {
+        "today".bright_green().to_string()
+    } else if scan_age_days == 1 {
+        "1 day ago".bright_green().to_string()
+    } else if scan_age_days < 7 {
+        format!("{} days ago", scan_age_days).yellow().to_string()
+    } else {
+        format!("{} days ago", scan_age_days).bright_red().to_string()
+    };
+
+    println!("    Last scan:      {} ({})", scan_timestamp.dimmed(), age_str);
+    println!("    Findings:       {}", finding_count.to_string().yellow());
+    println!("    Patchable:      {}", if patchable_count == 0 {
+        "0 — none actionable".bright_green().to_string()
+    } else {
+        format!("{} — action needed", patchable_count).bright_red().to_string()
+    });
+
+    println!();
+
+    // Risk signals
+    let mut signals: Vec<&str> = vec![];
+    if scan_age_days > 7 { signals.push("security scan outdated (>7 days)"); }
+    if scan_age_days > 14 { signals.push("security scan critically stale (>14 days)"); }
+    if patchable_count > 0 { signals.push("patchable vulnerabilities present"); }
+    if patchable_count > 3 { signals.push("multiple patchable vulnerabilities — high risk"); }
+
+    println!("  {}", "Risk Signals:".bright_white().bold());
+    if signals.is_empty() {
+        println!("    {} Security posture is healthy", "✅".green());
+    } else {
+        for s in &signals {
+            println!("    {} {}", "⚠".yellow(), s.yellow());
+        }
+    }
+
+    println!();
+
+    // Historical pattern — security decisions from ledger
+    let context = DecisionContext::capture(ctx);
+    let fingerprint = context.fingerprint();
+    let similar = find_similar_context(ctx, &fingerprint, 10);
+
+    let security_decisions: Vec<_> = similar.iter()
+        .filter(|(_, desc, _, _)| {
+            let d = desc.to_lowercase();
+            d.contains("security") || d.contains("audit") || d.contains("scan") ||
+            d.contains("patch") || d.contains("vulnerab")
+        })
+        .collect();
+
+    println!("  {}", "Historical Pattern:".bright_white().bold());
+    if security_decisions.is_empty() {
+        println!("    {} No security decisions recorded yet", "○".dimmed());
+        println!("    Use {} to track security decisions", "core decide".bright_cyan());
+    } else {
+        let successes = security_decisions.iter().filter(|(_, _, o, _)| o == "success").count();
+        let total = security_decisions.len();
+        println!("    {} security decisions in similar context", total);
+        println!("    {} succeeded ({:.0}% success rate)",
+            successes,
+            (successes as f64 / total as f64) * 100.0
+        );
+    }
+
+    println!();
+
+    // Advisory
+    println!("  {}", "Advisory:".bright_white().bold());
+
+    if scan_age_days > 14 {
+        println!("    {} Run security scan immediately: {}",
+            "→".bright_red(), "core security scan".bright_cyan());
+    } else if scan_age_days > 7 {
+        println!("    {} Security scan recommended: {}",
+            "→".yellow(), "core security scan".bright_cyan());
+    } else if scan_age_days < 3 {
+        println!("    {} Recent scan — security posture monitored",
+            "→".green().to_string().dimmed());
+    }
+
+    if patchable_count > 0 {
+        println!("    {} {} patchable vulnerabilities — run: {}",
+            "→".bright_red(),
+            patchable_count,
+            "core security report".bright_cyan());
+    }
+
+    let next_scan_days = 7_i64 - scan_age_days as i64;
+    if next_scan_days > 0 && scan_age_days < 7 {
+        println!("    {} Next recommended scan in {} days",
+            "→".dimmed(), next_scan_days.to_string().bright_white());
+    }
+
+    if signals.is_empty() {
+        println!("    {} No action required — forest is secure",
+            "→".green().to_string().dimmed());
+    }
+
+    println!();
+    println!("  {}", "The forest advises. You decide.".dimmed().italic());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    Ok(())
+}
