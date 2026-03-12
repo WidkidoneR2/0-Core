@@ -261,6 +261,7 @@ pub enum WhyCommand {
 pub enum SimulateCommand {
     Doctor,
     Update,
+    Scenario { description: String },
 }
 
 #[derive(Debug)]

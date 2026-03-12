@@ -345,6 +345,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Simulate(c) => match c {
             SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
             SimulateCommand::Update => crate::domains::simulate::update(ctx),
+            SimulateCommand::Scenario { description } => crate::domains::simulate::scenario(ctx, &description),
         },
 
         Command::Decision(cmd) => {

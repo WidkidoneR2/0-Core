@@ -242,6 +242,7 @@ pub fn parse() -> Command {
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,
             SimulateCommands::Update => SimulateCommand::Update,
+            SimulateCommands::Scenario { description } => SimulateCommand::Scenario { description },
         }),
         Commands::Checkpoint { command } => Command::Checkpoint(match command {
             CheckpointCommands::Create { name, notes } => CheckpointCommand::Create { name, notes },
