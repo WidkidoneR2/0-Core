@@ -398,14 +398,17 @@ fn main() -> Result<()> {
 
             println!("   Session: {}", session_id.dimmed());
             println!("   Command: {}", command_str.bright_white());
-            println!(
-                "   Network: {}",
-                if net_off {
-                    "OFF (isolated)".bright_red()
-                } else {
-                    "ON".bright_green()
-                }
-            );
+            let policy_controls_net = active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false);
+            if !policy_controls_net {
+                println!(
+                    "   Network: {}",
+                    if net_off {
+                        "OFF (isolated)".bright_red()
+                    } else {
+                        "ON".bright_green()
+                    }
+                );
+            }
             println!("   Watch:   {}", watch_dir.dimmed());
             if let Some(ref p) = active_policy {
                 println!("   Policy:  {}", p.name.bright_yellow());
