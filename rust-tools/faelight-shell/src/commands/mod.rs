@@ -39,6 +39,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "tools-table" | "tt" => tools_table(db, core_root),
         "events-table" | "et" => events_table(db, args),
         "audit-table" | "at" => audit_table(db, core_root),
+        "decisions-table" | "dt" => decisions_table(db),
+        "count" => CommandResult::Output(format!("  use with pipe: tt | count", )),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
         _ => CommandResult::Error(format!(
@@ -370,6 +372,44 @@ fn audit_table(db: &ForestDb, core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+fn decisions_table(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let rows: Vec<HashMap<String, Value>> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT dec_id, description, outcome, risk_score, domain, timestamp FROM decisions ORDER BY timestamp DESC LIMIT 50"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Output(format!("  {} No decisions yet — use {}", "○".dimmed(), "core decide".bright_cyan())),
+        };
+        stmt.query_map([], |r| Ok((
+            r.get::<_,String>(0)?,
+            r.get::<_,String>(1)?,
+            r.get::<_,String>(2)?,
+            r.get::<_,f64>(3)?,
+            r.get::<_,String>(4)?,
+            r.get::<_,i64>(5)?,
+        )))
+        .map(|rows| rows.filter_map(|r| r.ok()).map(|(id, desc, outcome, risk, domain, ts)| {
+            let date = chrono::DateTime::from_timestamp(ts, 0)
+                .map(|t| t.format("%m-%d").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let mut row = HashMap::new();
+            row.insert("id".to_string(), Value::Text(id));
+            row.insert("date".to_string(), Value::Text(date));
+            row.insert("domain".to_string(), Value::Text(domain));
+            row.insert("outcome".to_string(), Value::Text(outcome));
+            row.insert("risk".to_string(), Value::Float(risk));
+            row.insert("description".to_string(), Value::Text(desc));
+            row
+        }).collect())
+        .unwrap_or_default()
+    };
+
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -473,6 +513,7 @@ fn help() -> CommandResult {
         ("tt",         "tools as table — pipeable"),
         ("et",         "events as table — pipeable"),
         ("at",         "audit scores as table — pipeable"),
+        ("dt",         "decisions as table — pipeable"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
