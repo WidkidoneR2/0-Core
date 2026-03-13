@@ -234,7 +234,10 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
             value: val.trim_matches('"').to_string(),
         }),
         ["select", rest @ ..] => Some(PipeOp::Select {
-            fields: rest.join(" ").split(',').map(|f| f.trim().to_string()).collect(),
+            fields: rest.join(" ").split(|c| c == ',' || c == ' ')
+                .map(|f| f.trim().to_string())
+                .filter(|f| !f.is_empty())
+                .collect(),
         }),
         ["sort", field] => Some(PipeOp::Sort { field: field.to_string(), desc: false }),
         ["sort", field, "desc"] => Some(PipeOp::Sort { field: field.to_string(), desc: true }),
