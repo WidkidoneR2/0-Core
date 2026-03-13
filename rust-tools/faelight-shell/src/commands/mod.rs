@@ -29,6 +29,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "story" => story(db),
         "advise" => advise(db),
         "audit" => audit(db, core_root),
+        "forecast" => forecast(db),
+        "sandbox" => sandbox(db),
+        "where" => CommandResult::Error("pipe not yet supported — coming in Phase 2".to_string()),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
         _ => CommandResult::Error(format!(
@@ -36,6 +39,100 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             cmd.bright_white(), "help".bright_cyan()
         )),
     }
+}
+
+fn forecast(db: &ForestDb) -> CommandResult {
+    // Read last 10 doctor events and compute trend
+    let points: Vec<i64> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Error("No forecast data".to_string()),
+        };
+        stmt.query_map([], |r| r.get::<_,String>(0))
+            .map(|rows| rows.filter_map(|r| r.ok())
+                .filter_map(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+                .filter_map(|v| v["detail"]["health"].as_i64())
+                .collect())
+            .unwrap_or_default()
+    };
+
+    if points.len() < 3 {
+        return CommandResult::Output(format!(
+            "  {} Not enough data for forecast yet — run {} a few times",
+            "○".dimmed(), "d".bright_cyan()
+        ));
+    }
+
+    let current = points[0];
+    let recent_avg: f64 = points.iter().take(3).map(|h| *h as f64).sum::<f64>() / 3.0;
+    let older_avg: f64 = points.iter().skip(3).map(|h| *h as f64).sum::<f64>() / (points.len() - 3) as f64;
+    let trend = recent_avg - older_avg;
+    let forecast_24h = (current as f64 + trend * 0.5).round() as i64;
+    let forecast_7d = (current as f64 + trend * 2.0).round() as i64;
+    let forecast_24h = forecast_24h.max(0).min(100);
+    let forecast_7d = forecast_7d.max(0).min(100);
+
+    let trend_icon = if trend > 1.0 { "📈" } else if trend < -1.0 { "📉" } else { "➡️ " };
+    let trend_str = if trend > 0.5 { format!("+{:.1}", trend).bright_green().to_string() }
+        else if trend < -0.5 { format!("{:.1}", trend).yellow().to_string() }
+        else { "stable".dimmed().to_string() };
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n", "  ╭─ 📈 Health Forecast ──────────────────────────────".bright_cyan()));
+    out.push_str(&format!("  │  Current:  {}%\n", current.to_string().bright_white().bold()));
+    out.push_str(&format!("  │  24h:      {}%\n", forecast_24h.to_string().bright_green()));
+    out.push_str(&format!("  │  7d:       {}%\n", forecast_7d.to_string().bright_green()));
+    out.push_str(&format!("  │  Trend:    {} {}\n", trend_icon, trend_str));
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
+fn sandbox(db: &ForestDb) -> CommandResult {
+    let rows: Vec<(String, String, i64)> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT payload, action, timestamp FROM events WHERE domain='sandbox' ORDER BY timestamp DESC LIMIT 10"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Output(format!("  {} No sandbox runs yet", "○".dimmed())),
+        };
+        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!(
+            "  {} No sandbox runs recorded — use {}",
+            "○".dimmed(), "faelight-sandbox run".bright_cyan()
+        ));
+    }
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n", "  ╭─ 🧪 Sandbox Runs ───────────────────────────────────".bright_cyan()));
+    for (payload, _, ts) in &rows {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload) {
+            let cmd = v["detail"]["command"].as_str().unwrap_or("unknown");
+            let result = v["result"].as_str().unwrap_or("?");
+            let dur = v["detail"]["duration_secs"].as_u64().unwrap_or(0);
+            let changed = v["detail"]["files_changed"].as_u64().unwrap_or(0);
+            let icon = if result == "ok" { "✅" } else { "❌" };
+            let time = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|t| t.format("%H:%M").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let short_cmd = if cmd.len() > 35 { format!("{}...", &cmd[..35]) } else { cmd.to_string() };
+            out.push_str(&format!("  │  {} {}  {}  {}s  {} files\n",
+                icon,
+                time.dimmed(),
+                short_cmd.bright_white(),
+                dur.to_string().dimmed(),
+                changed.to_string().cyan(),
+            ));
+        }
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
 }
 
 fn cd(args: &[&str]) -> CommandResult {
@@ -65,6 +162,8 @@ fn help() -> CommandResult {
         ("intents",   "active intents"),
         ("tools",     "tool deployment status"),
         ("audit",     "tool intelligence scores"),
+        ("forecast",  "health trend and forecast"),
+        ("sandbox",   "recent sandbox runs"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
