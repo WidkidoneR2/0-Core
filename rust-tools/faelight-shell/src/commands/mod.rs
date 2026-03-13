@@ -31,6 +31,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "audit" => audit(db, core_root),
         "forecast" => forecast(db),
         "sandbox" => sandbox(db),
+        "checkpoint" | "cpc" => checkpoint(db),
+        "git" => git_status(core_root),
         "where" => CommandResult::Error("pipe not yet supported — coming in Phase 2".to_string()),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
@@ -135,6 +137,117 @@ fn sandbox(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
+fn checkpoint(db: &ForestDb) -> CommandResult {
+    let rows: Vec<(String, String, i64)> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT name, payload, timestamp FROM checkpoints ORDER BY timestamp DESC LIMIT 8"
+        ) {
+            Ok(s) => s,
+            Err(_) => {
+                // Try events table for checkpoint events
+                let mut stmt2 = match db.conn.prepare(
+                    "SELECT action, payload, timestamp FROM events WHERE domain='checkpoint' ORDER BY timestamp DESC LIMIT 8"
+                ) {
+                    Ok(s) => s,
+                    Err(_) => return CommandResult::Output(format!("  {} No checkpoints found", "○".dimmed())),
+                };
+                return CommandResult::Output({
+                    let rows: Vec<(String, String, i64)> = stmt2
+                        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
+                        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                        .unwrap_or_default();
+                    if rows.is_empty() {
+                        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+                    }
+                    let mut out = String::new();
+                    out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
+                    for (action, payload, ts) in &rows {
+                        let time = chrono::DateTime::from_timestamp(*ts, 0)
+                            .map(|t| t.format("%m-%d %H:%M").to_string())
+                            .unwrap_or_else(|| "?".to_string());
+                        let name = serde_json::from_str::<serde_json::Value>(payload).ok()
+                            .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
+                            .unwrap_or_else(|| action.clone());
+                        out.push_str(&format!("  │  {} {}\n", time.dimmed(), name.bright_white()));
+                    }
+                    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+                    out
+                });
+            }
+        };
+        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+    }
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
+    for (name, _, ts) in &rows {
+        let time = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|t| t.format("%m-%d %H:%M").to_string())
+            .unwrap_or_else(|| "?".to_string());
+        out.push_str(&format!("  │  {} {}\n", time.dimmed(), name.bright_white()));
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
+fn git_status(core_root: &str) -> CommandResult {
+    let status = std::process::Command::new("git")
+        .args(["-C", core_root, "status", "--short"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let branch = std::process::Command::new("git")
+        .args(["-C", core_root, "branch", "--show-current"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let recent = std::process::Command::new("git")
+        .args(["-C", core_root, "log", "--oneline", "-5"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n", "  ╭─ 🌿 Git Status ─────────────────────────────────────".bright_cyan()));
+    out.push_str(&format!("  │  Branch:  {}\n", branch.bright_green()));
+
+    if status.trim().is_empty() {
+        out.push_str(&format!("  │  Status:  {}\n", "clean".bright_green()));
+    } else {
+        out.push_str(&format!("  │  Status:  {}\n", "uncommitted changes".yellow()));
+        for line in status.lines().take(5) {
+            out.push_str(&format!("  │    {}\n", line.dimmed()));
+        }
+    }
+
+    out.push_str(&"  ├─────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str("\n");
+    out.push_str(&format!("  │  {}\n", "Recent commits:".dimmed()));
+    for line in recent.lines().take(5) {
+        let parts: Vec<&str> = line.splitn(2, ' ').collect();
+        if parts.len() == 2 {
+            out.push_str(&format!("  │    {} {}\n",
+                parts[0].bright_yellow(),
+                parts[1].dimmed()
+            ));
+        }
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
 fn cd(args: &[&str]) -> CommandResult {
     let target = args.first().copied().unwrap_or("~");
     let home = std::env::var("HOME").unwrap_or_default();
@@ -164,6 +277,8 @@ fn help() -> CommandResult {
         ("audit",     "tool intelligence scores"),
         ("forecast",  "health trend and forecast"),
         ("sandbox",   "recent sandbox runs"),
+        ("checkpoint", "recent checkpoints"),
+        ("git",        "git status and recent commits"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
