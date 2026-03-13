@@ -181,7 +181,7 @@ expected_usage = "medium"
 
 [[tool]]
 name = "faelight-shell"
-version = "0.1.0"
+version = "0.2.0"
 category = "shell"
 description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
