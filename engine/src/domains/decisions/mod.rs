@@ -710,6 +710,16 @@ pub fn advise(ctx: &AppContext, planned_decision: Option<&str>) -> CoreResult<()
     if context.git_churn_level > 2 { signals.push(("⚠", "high git churn — risky time for large changes")); }
     if context.security_scan_age_days > 7 { signals.push(("⚠", "security scan outdated — run core security scan")); }
 
+    // Audit signal — check stale tools from audit_scores
+    let stale_tool_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(DISTINCT tool_name) FROM audit_scores WHERE score < 70 AND timestamp = (SELECT MAX(timestamp) FROM audit_scores)",
+        [],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    if stale_tool_count >= 3 {
+        signals.push(("⚠", "3+ tools below health threshold — run: core audit stale"));
+    }
+
     if signals.is_empty() {
         println!("  {} No risk signals — conditions are favorable", "✅".green());
     } else {
@@ -791,6 +801,9 @@ pub fn advise(ctx: &AppContext, planned_decision: Option<&str>) -> CoreResult<()
     }
     if !signals.is_empty() && context.git_churn_level > 1 {
         println!("    {} Create a checkpoint first: {}", "→".dimmed(), "cpc pre-decision".bright_cyan());
+    }
+    if stale_tool_count >= 3 {
+        println!("    {} {} tools need attention: {}", "→".dimmed(), stale_tool_count.to_string().yellow(), "core audit stale".bright_cyan());
     }
 
     println!();
