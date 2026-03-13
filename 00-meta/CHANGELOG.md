@@ -1,6 +1,6 @@
 # Changelog
 
-## [v10.8.0] — Unnamed Release (2026-03-12)
+## [v10.8.0] — The Forest Between Worlds (2026-03-12)
 
 ### 🎯 Completed Intents
 - **INT-118** — doctor facelift — cockpit-style health dashboard

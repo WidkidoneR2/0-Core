@@ -58,7 +58,7 @@ fn build_dynamic_section(
     s.push('\n');
 
     // Title
-    s.push_str(&format!("# 🌲 Faelight Forest v{}\n\n", version));
+    s.push_str(&format!("# 🌲 Faelight Forest {}\n\n", version));
 
     // Badges — read from real data
     s.push_str(&format!(
@@ -79,7 +79,7 @@ fn build_dynamic_section(
     // Latest release section
     s.push_str("## 🎊 Latest Release\n\n");
     s.push_str(&format!(
-        "### v{} - 🌲 {} ({})\n\n",
+        "### {} - 🌲 {} ({})\n\n",
         version, theme, date
     ));
 

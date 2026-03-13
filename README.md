@@ -1,5 +1,5 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest vv10.8.0
+# 🌲 Faelight Forest v10.8.0
 
 ![Version](https://img.shields.io/badge/version-v10.8.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
@@ -11,7 +11,7 @@
 
 ## 🎊 Latest Release
 
-### vv10.8.0 - 🌲 The Forest Between Worlds (2026-03-12)
+### v10.8.0 - 🌲 The Forest Between Worlds (2026-03-12)
 
 - 118 — doctor facelift — cockpit-style health dashboard
 - 119 — core security advise — judgment layer for security decisions

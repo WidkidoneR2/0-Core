@@ -49,7 +49,7 @@ impl ReleaseTui {
         Self { version, theme, data, stats, state: State::Preview, cursor_pos, log: vec![] }
     }
 
-    pub fn run(mut self, core_root: &PathBuf) -> Result<bool> {
+    pub fn run(mut self, core_root: &PathBuf) -> Result<(bool, String)> {
         let mut stdout = io::stdout();
         terminal::enable_raw_mode()?;
         execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
@@ -122,7 +122,7 @@ impl ReleaseTui {
         terminal::disable_raw_mode()?;
         execute!(terminal.backend_mut(), terminal::LeaveAlternateScreen, cursor::Show)?;
 
-        Ok(self.state == State::Done)
+        Ok((self.state == State::Done, self.theme.clone()))
     }
 
     fn draw(&self, f: &mut ratatui::Frame) {
@@ -163,7 +163,7 @@ impl ReleaseTui {
         let left = Paragraph::new(Line::from(vec![
             Span::styled(" 🌲 ", Style::default().fg(ACCENT)),
             Span::styled("faelight-release", Style::default().fg(FG).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("  v{}", self.version), Style::default().fg(DIM)),
+            Span::styled(format!("  {}", self.version), Style::default().fg(DIM)),
         ]))
         .block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(title_color)));
         f.render_widget(left, header_chunks[0]);
