@@ -262,6 +262,14 @@ chrono      — date/time in Values
 - ⬜ Phase 2: Value pipeline — filter, sort, select
 - ⬜ Phase 3: Security audit log
 - ⬜ Phase 4: Fuzzy tab completion
+- ⬜ Phase 4: Alias system — persistent named commands
+  - alias h=health
+  - alias eg="events today | where domain == git"
+  - alias mycommits="gc | where author == christian"
+  - Stored in shell_aliases table in state.db
+  - Loaded on startup, applied before dispatch
+  - alias / unalias commands
+  - Tab completion suggests aliases too
 - ⬜ Phase 5: Plugin system
 - ⬜ Phase 6: .fsh scripting language
 - ⬜ Phase 7: Full shell — beyond NixOS
