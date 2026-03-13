@@ -6,6 +6,7 @@ use colored::*;
 
 pub enum CommandResult {
     Output(String),
+    Value(crate::value::Value),
     Empty,
     Error(String),
     Exit,
@@ -34,7 +35,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "checkpoint" | "cpc" => checkpoint(db),
         "git" => git_status(core_root),
         "search" | "?" => search(db, args),
-        "where" => CommandResult::Error("pipe not yet supported — coming in Phase 2".to_string()),
+        "where" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
+        "tools-table" | "tt" => tools_table(db, core_root),
+        "events-table" | "et" => events_table(db, args),
+        "audit-table" | "at" => audit_table(db, core_root),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
         _ => CommandResult::Error(format!(
@@ -249,6 +253,123 @@ fn git_status(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
+fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
+    let mut rows = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(&tools_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !entry.path().join("Cargo.toml").exists() { continue; }
+
+            // Get version from Cargo.toml
+            let version = std::fs::read_to_string(entry.path().join("Cargo.toml"))
+                .ok()
+                .and_then(|t| {
+                    t.lines().find(|l| l.starts_with("version = "))
+                        .map(|l| l.split('"').nth(1).unwrap_or("?").to_string())
+                })
+                .unwrap_or_else(|| "?".to_string());
+
+            // Get score from audit_scores
+            let score: i64 = db.conn.query_row(
+                "SELECT score FROM audit_scores WHERE tool_name = ?1 ORDER BY timestamp DESC LIMIT 1",
+                rusqlite::params![name],
+                |r| r.get(0),
+            ).unwrap_or(0);
+
+            // Check if deployed
+            let deployed = std::path::PathBuf::from(core_root)
+                .join("scripts").join(&name).exists();
+
+            let mut row = HashMap::new();
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("version".to_string(), Value::Text(version));
+            row.insert("score".to_string(), Value::Int(score));
+            row.insert("deployed".to_string(), Value::Bool(deployed));
+            rows.push(row);
+        }
+    }
+
+    rows.sort_by(|a, b| {
+        a.get("name").map(|v| v.as_text()).unwrap_or_default()
+            .cmp(&b.get("name").map(|v| v.as_text()).unwrap_or_default())
+    });
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let today_only = args.contains(&"today");
+    let domain = args.first().and_then(|a| {
+        if *a == "today" { None } else { Some(*a) }
+    });
+
+    let events = db.query_events(domain, today_only, 50);
+    let rows = events.into_iter().map(|(domain, action, ts)| {
+        let time = chrono::DateTime::from_timestamp(ts, 0)
+            .map(|t| t.format("%H:%M:%S").to_string())
+            .unwrap_or_else(|| "?".to_string());
+        let mut row = HashMap::new();
+        row.insert("time".to_string(), Value::Text(time));
+        row.insert("domain".to_string(), Value::Text(domain));
+        row.insert("action".to_string(), Value::Text(action));
+        row.insert("timestamp".to_string(), Value::Int(ts));
+        row
+    }).collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn audit_table(db: &ForestDb, core_root: &str) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let rows: Vec<HashMap<String, Value>> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT tool_name, score, usage_score, recency_score, doc_score, version_score, last_commit_days, timestamp
+             FROM audit_scores
+             WHERE timestamp = (SELECT MAX(timestamp) FROM audit_scores)
+             ORDER BY score ASC"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Output(format!("  {} No audit data — run: core audit scan", "○".dimmed())),
+        };
+
+        stmt.query_map([], |r| {
+            Ok((
+                r.get::<_,String>(0)?,
+                r.get::<_,i64>(1)?,
+                r.get::<_,i64>(2)?,
+                r.get::<_,i64>(3)?,
+                r.get::<_,i64>(4)?,
+                r.get::<_,i64>(5)?,
+                r.get::<_,Option<i64>>(6)?,
+            ))
+        })
+        .map(|rows| rows.filter_map(|r| r.ok()).map(|(name, score, usage, recency, doc, version, days)| {
+            let mut row = HashMap::new();
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("score".to_string(), Value::Int(score));
+            row.insert("usage".to_string(), Value::Int(usage));
+            row.insert("recency".to_string(), Value::Int(recency));
+            row.insert("doc".to_string(), Value::Int(doc));
+            row.insert("version".to_string(), Value::Int(version));
+            row.insert("days_ago".to_string(), Value::Int(days.unwrap_or(-1)));
+            row
+        }).collect())
+        .unwrap_or_default()
+    };
+
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -349,6 +470,9 @@ fn help() -> CommandResult {
         ("checkpoint", "recent checkpoints"),
         ("git",        "git status and recent commits"),
         ("search",     "search command history  [query]"),
+        ("tt",         "tools as table — pipeable"),
+        ("et",         "events as table — pipeable"),
+        ("at",         "audit scores as table — pipeable"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
