@@ -9,6 +9,7 @@ mod commands;
 mod db;
 mod output;
 mod prompt;
+mod value;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -41,8 +42,26 @@ fn main() -> Result<()> {
                 db.save_history_entry(&line);
 
                 // Execute
-                match commands::execute(&line, &db, &core_root) {
+                // Parse pipeline if | present
+                let has_pipe = line.contains(" | ");
+                let pipeline_ops = if has_pipe {
+                    value::parse_pipeline(&line)
+                } else {
+                    vec![]
+                };
+                let base_cmd = if has_pipe {
+                    line.splitn(2, " | ").next().unwrap_or(&line).to_string()
+                } else {
+                    line.clone()
+                };
+
+                match commands::execute(&base_cmd, &db, &core_root) {
                     commands::CommandResult::Exit => break,
+                    commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
+                        let result = value::apply_pipeline(v, &pipeline_ops);
+                        println!("{}", result.render());
+                    }
+                    commands::CommandResult::Value(v) => println!("{}", v.render()),
                     commands::CommandResult::Output(out) => println!("{}", out),
                     commands::CommandResult::Empty => {}
                     commands::CommandResult::Error(e) => {
