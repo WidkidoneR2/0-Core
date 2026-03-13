@@ -305,6 +305,33 @@ fn print_diff(session: &SandboxSession) {
 }
 
 
+fn emit_to_ledger_with_policy(session: &SandboxSession, duration_secs: u64, files_changed: usize, policy_name: Option<&str>) {
+    let db_path = std::path::PathBuf::from(home()).join("0-core/runtime/state.db");
+    if !db_path.exists() { return; }
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else { return; };
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let exit_code = session.exit_code.unwrap_or(-1);
+    let result = if exit_code == 0 { "ok" } else { "fail" };
+    let policy_str = policy_name.unwrap_or("none");
+    let payload = format!(
+        r#"{{"actor":"faelight-sandbox","result":"{}","detail":{{"command":"{}","exit_code":{},"duration_secs":{},"files_changed":{},"net_off":{},"policy":"{}"}}}}"#,
+        result,
+        session.command.replace('"', "'"),
+        exit_code,
+        duration_secs,
+        files_changed,
+        session.net_off,
+        policy_str,
+    );
+    conn.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params!["sandbox", "run", payload, ts],
+    ).ok();
+}
+
 fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
     let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
     if !db_path.exists() { return; }
@@ -414,8 +441,25 @@ fn main() -> Result<()> {
             println!("\n  {} Running command...\n", "▶".bright_green());
             println!("{}", "─".repeat(42).dimmed());
 
-            // Execute
-            let exit_code = if net_off {
+            // Execute — respect policy enforcement
+            let network_isolated = net_off
+                || active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false);
+
+            let max_cpu = active_policy.as_ref().map(|p| p.max_cpu_seconds).unwrap_or(0);
+
+            // Warn about fs write restriction (full enforcement in v3 Phase 3)
+            if let Some(ref p) = active_policy {
+                if !p.allow_fs_write {
+                    println!("  {} Policy: filesystem writes will be detected and flagged",
+                        "🛡".yellow());
+                }
+                if max_cpu > 0 && max_cpu < 300 {
+                    println!("  {} Policy: CPU limit {}s (enforcement in Phase 3)",
+                        "🛡".yellow(), max_cpu);
+                }
+            }
+
+            let exit_code = if network_isolated {
                 // Use unshare to create network namespace
                 let mut unshare_cmd = Command::new("unshare");
                 unshare_cmd.args(["--net", "--map-root-user", "--"]);
@@ -484,7 +528,8 @@ fn main() -> Result<()> {
                 }
                 n
             };
-            emit_to_ledger(&session, duration_secs, files_changed);
+            let policy_name = active_policy.as_ref().map(|p| p.name.as_str());
+            emit_to_ledger_with_policy(&session, duration_secs, files_changed, policy_name);
 
             // Print diff
             println!();
