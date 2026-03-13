@@ -125,7 +125,7 @@ Fun: v10.8.0 release — "The Compositor Wakes"
 - ✅ Binary deployed — 43/43 path resilience
 - ✅ Events writing to state.db
 - ✅ DRM/udev backend — libseat + libinput on real hardware
-- ⬜ Session 2 — DRM device opened
+- ⬜ Session 2 — DRM device opened  ← NEXT
 - ⬜ Session 3 — GPU renderer initialized
 - ⬜ Session 4 — Connector scanning
 - ⬜ Session 5 — Output creation

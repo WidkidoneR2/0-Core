@@ -97,15 +97,19 @@ With enough data, `core advise` surfaces anomalies:
 
 ## Success Criteria
 
-- [ ] TOML policy engine with per-tool policies
-- [ ] Mount namespace isolation (overlay tmpfs)
-- [ ] PID namespace isolation
-- [ ] Seccomp syscall filtering
-- [ ] Peak memory tracking via /proc
-- [ ] CPU time tracking via getrusage
-- [ ] Disk I/O tracking
-- [ ] `core advise` surfaces policy violations
-- [ ] doctor monitors sandbox health
+- ✅ TOML policy engine — 5 policies (default, untrusted, network-tool, build, strict)
+- ✅ --policy flag on run command
+- ✅ Real network isolation via unshare (tested — curl blocked under strict policy)
+- ✅ Policy restrictions logged to state.db with every run
+- ✅ Policy info displayed in session header
+- ⬜ Mount namespace isolation (overlay tmpfs)
+- ⬜ PID namespace isolation
+- ⬜ Seccomp syscall filtering
+- ⬜ Peak memory tracking via /proc
+- ⬜ CPU time tracking via getrusage
+- ⬜ Disk I/O tracking
+- ⬜ `core advise` surfaces policy violations
+- ⬜ doctor monitors sandbox health
 
 ---
 *"Control is not restriction. It is understanding."* 🌲
