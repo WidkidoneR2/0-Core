@@ -45,11 +45,12 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 52 Rust tools you fully understand
+- 🦀 53 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
 - ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
 - 🧭 A system that remembers its own decisions and advises you
+- 🐚 A shell that speaks forest natively — faelight-shell
 
 ### For Technical People
 - **`core` v3.0.0** — single orchestrator binary with 15+ native Rust domains
@@ -67,10 +68,10 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
 ├── engine/           # core v3.0.0 — single orchestrator binary (Rust)
 │   └── src/domains/  # 15+ native Rust domains
-├── rust-tools/       # 52 custom Rust tools
+├── rust-tools/       # 53 custom Rust tools
 ├── 03-interfaces/    # Dotfiles (Niri, zsh, foot, yazi) via GNU Stow
 ├── scripts/          # Thin wrappers → core + compiled binaries
-├── intents/          # Architectural decision records (115+ intents)
+├── intents/          # Architectural decision records (123+ intents)
 ├── runtime/          # SQLite state, capability logs, checkpoints, decisions
 └── registry/         # Zero-logic TOML declarations
 ```
@@ -133,6 +134,31 @@ A Rust Wayland compositor on Smithay — the only compositor that knows it's par
 - `doctor` monitors compositor health
 - Built from scratch on Smithay — same foundation as COSMIC and Niri
 
+### 🐚 faelight-shell — The Forest Speaks Its Own Language
+```bash
+fs                    # launch faelight-shell
+```
+A forest-native structured shell inspired by Nu — everything is structured data.
+```
+forest> tt | where score < 75 | sort score
+forest> et today | where domain == git
+forest> domains | sort events desc
+forest> dt | where outcome == success | count
+```
+- 26 native commands — health, events, decisions, intents, audit, forecast...
+- Full data pipeline — where, select, sort, first, last, count, get
+- History persisted to state.db
+- Live context-aware prompt showing health and zone
+
+### 🔍 Core Audit — Tool Intelligence
+```bash
+core audit scan          # score all 53 tools
+core audit show <tool>   # deep audit
+core audit stale         # tools below threshold
+core audit coverage      # documentation gaps
+```
+Stale tools surface automatically in `core advise`.
+
 ### 📸 Core v4 — Checkpoint & Recovery
 ```bash
 cpc <name>                    # Create checkpoint with health snapshot
@@ -191,12 +217,13 @@ core doctor entropy --trends     # 30-day history
 ```
 
 ---
-## 🦀 The Rust Ecosystem (52 Tools)
+## 🦀 The Rust Ecosystem (53 Tools)
 
 | Category | Tools |
 |---|---|
 | **Orchestrator** | `core` (v3.0.0 — 15+ domains + Core v6 judgment layer) |
-| **Compositor** | `faelight-compositor` (Smithay, Wayland-native, ledger participant) |
+| **Compositor** | `faelight-compositor` (Smithay, Wayland-native, DRM backend on real hardware) |
+| **Shell** | `faelight-shell` (forest-native, Nu-inspired, 26 commands, full data pipeline) |
 | **UI** | `faelight-bar`, `faelight-term`, `faelight-palette`, `faelight-menu`, `faelight-notify`, `faelight-login` |
 | **Clipboard** | `faelight-clipboard` |
 | **Intelligence** | `faelight-forecast`, `faelight-pulse`, `faelight-niri-bridge`, `faelight-idle` |
@@ -257,7 +284,7 @@ lock-core                       # Lock before shutdown
 ```bash
 cargo build --release -p core                    # Build orchestrator
 cargo build --release -p faelight-compositor     # Build compositor
-cargo build --release --workspace                # Build all 52 tools
+cargo build --release --workspace                # Build all 53 tools
 doctor                                           # Verify health
 ```
 
@@ -288,6 +315,7 @@ doctor                                           # Verify health
 | v10.5.0 | **The Intelligent Forest — faelight-release, forecast, pulse, niri-bridge** 🧠 |
 | v10.6.0 | **The Judgment Layer — Core v5 complete, 5 phases, ledger foundation** ⚖️ |
 | v10.7.0 | **The Forest Remembers — faelight-compositor + Core v6 complete** 🌲 |
+| v10.8.0 | **The Forest Between Worlds — faelight-shell born, core audit, sandbox v3** 🐚 |
 
 From hardcoded paths to centralized elegance.
 From 40 separate binaries to one orchestrator.
