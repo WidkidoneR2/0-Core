@@ -3,7 +3,7 @@ id: 120
 date: 2026-03-12
 type: future
 title: "faelight-shell — Forest-Native Shell Environment"
-status: planned
+status: in-progress
 tags: [shell, repl, structured-data, security, plugins, scripting, rust, v11, v12]
 version: 11.0.0
 priority: high
