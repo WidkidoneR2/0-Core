@@ -29,11 +29,29 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "story" => story(db),
         "advise" => advise(db),
         "audit" => audit(db, core_root),
+        "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
         _ => CommandResult::Error(format!(
             "Unknown command: {}  — type {} for help",
             cmd.bright_white(), "help".bright_cyan()
         )),
+    }
+}
+
+fn cd(args: &[&str]) -> CommandResult {
+    let target = args.first().copied().unwrap_or("~");
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = if target == "~" || target.is_empty() {
+        std::path::PathBuf::from(&home)
+    } else if target.starts_with("~/") {
+        std::path::PathBuf::from(format!("{}/{}", home, &target[2..]))
+    } else {
+        std::path::PathBuf::from(target)
+    };
+
+    match std::env::set_current_dir(&path) {
+        Ok(_) => CommandResult::Empty,
+        Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e)),
     }
 }
 
@@ -51,6 +69,7 @@ fn help() -> CommandResult {
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
         ("commits",   "commit count and last commit"),
+        ("cd",        "change directory"),
         ("clear",     "clear the screen"),
         ("exit",      "leave faelight-shell"),
     ];
@@ -70,13 +89,9 @@ fn health(db: &ForestDb) -> CommandResult {
         else if health >= 80 { "ADVISORY".yellow() }
         else { "DEGRADED".bright_red() };
 
-    let version = db.conn.query_row(
-        "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-        [], |r| r.get::<_,String>(0)
-    ).ok()
-    .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-    .and_then(|v| v["detail"]["version"].as_str().map(|s| s.to_string()))
-    .unwrap_or_else(|| "unknown".to_string());
+    let version = std::fs::read_to_string(
+        std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION")
+    ).unwrap_or_else(|_| "unknown".into()).trim().to_string();
 
     let mut out = String::new();
     out.push_str(&format!("\n{}\n", "  ╭─ 🏥 Forest Health ─────────────────────────────────".bright_cyan()));
@@ -87,17 +102,19 @@ fn health(db: &ForestDb) -> CommandResult {
 }
 
 fn events(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let today_only = args.contains(&"today");
     let domain = args.first().and_then(|a| {
         if *a == "today" { None } else { Some(*a) }
     });
 
-    let events = db.query_events(domain, 15);
+    let label = if today_only { "Today's Events" } else { "Recent Events" };
+    let events = db.query_events(domain, today_only, 20);
     if events.is_empty() {
         return CommandResult::Output(format!("  {} No events found", "○".dimmed()));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 📊 Recent Events ─────────────────────────────────".bright_cyan()));
+    out.push_str(&format!("\n{}\n", format!("  ╭─ 📊 {} ─────────────────────────────────", label).bright_cyan()));
     for (domain, action, ts) in &events {
         let time = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|t| t.format("%H:%M:%S").to_string())

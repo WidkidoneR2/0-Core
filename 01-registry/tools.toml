@@ -150,9 +150,15 @@ description = "Color palette and theme management"
 
 [[tool]]
 name = "faelight-sandbox"
-version = "1.1.0"
+version = "2.0.0"
 category = "development"
 description = "Safe execution sandbox with session history"
+
+[[tool]]
+name = "faelight-shell"
+version = "0.1.0"
+category = "shell"
+description = "Forest-native structured shell environment — beyond NixOS"
 
 [[tool]]
 name = "faelight-snapshot"
