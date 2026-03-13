@@ -1,0 +1,53 @@
+# faelight-sandbox v3 — Policy Declarations
+# INT-125: Declarative sandbox policies
+# "Control is not restriction. It is understanding."
+
+[[policy]]
+name = "default"
+description = "Standard sandbox — filesystem watched, network allowed"
+allow_net = true
+allow_fs_write = true
+allow_env = []
+max_cpu_seconds = 300
+max_memory_mb = 1024
+emit_events = true
+
+[[policy]]
+name = "untrusted"
+description = "Untrusted command — network isolated, filesystem read-only"
+allow_net = false
+allow_fs_write = false
+allow_env = ["PATH", "HOME", "TERM"]
+max_cpu_seconds = 60
+max_memory_mb = 256
+emit_events = true
+
+[[policy]]
+name = "network-tool"
+description = "Network access allowed, no filesystem writes"
+allow_net = true
+allow_fs_write = false
+allow_env = ["PATH", "HOME", "TERM", "WAYLAND_DISPLAY"]
+max_cpu_seconds = 120
+max_memory_mb = 512
+emit_events = true
+
+[[policy]]
+name = "build"
+description = "Build environment — full access, resource tracked"
+allow_net = true
+allow_fs_write = true
+allow_env = []
+max_cpu_seconds = 600
+max_memory_mb = 4096
+emit_events = true
+
+[[policy]]
+name = "strict"
+description = "Maximum isolation — no network, no writes, minimal env"
+allow_net = false
+allow_fs_write = false
+allow_env = ["PATH"]
+max_cpu_seconds = 30
+max_memory_mb = 128
+emit_events = true
