@@ -40,7 +40,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "events-table" | "et" => events_table(db, args),
         "audit-table" | "at" => audit_table(db, core_root),
         "decisions-table" | "dt" => decisions_table(db),
-        "count" => CommandResult::Output(format!("  use with pipe: tt | count", )),
+        "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
+        "history-table" | "ht" => history_table(db),
+        "checkpoints-table" | "ct" => checkpoints_table(db),
+        "domains" => domains(db),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
         _ => CommandResult::Error(format!(
@@ -372,6 +375,100 @@ fn audit_table(db: &ForestDb, core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+fn history_table(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 100"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+    };
+
+    let rows: Vec<HashMap<String, Value>> = stmt
+        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+        .map(|rows| rows.filter_map(|r| r.ok()).map(|(cmd, ts)| {
+            let time = chrono::DateTime::from_timestamp(ts, 0)
+                .map(|t| t.format("%H:%M:%S").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let mut row = HashMap::new();
+            row.insert("time".to_string(), Value::Text(time));
+            row.insert("command".to_string(), Value::Text(cmd));
+            row.insert("timestamp".to_string(), Value::Int(ts));
+            row
+        }).collect())
+        .unwrap_or_default();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn checkpoints_table(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT action, payload, timestamp FROM events WHERE domain='checkpoint' ORDER BY timestamp DESC LIMIT 20"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No checkpoints yet", "○".dimmed())),
+    };
+
+    let rows: Vec<HashMap<String, Value>> = stmt
+        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
+        .map(|rows| rows.filter_map(|r| r.ok()).map(|(action, payload, ts)| {
+            let date = chrono::DateTime::from_timestamp(ts, 0)
+                .map(|t| t.format("%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let name = serde_json::from_str::<serde_json::Value>(&payload).ok()
+                .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| action.clone());
+            let health = serde_json::from_str::<serde_json::Value>(&payload).ok()
+                .and_then(|v| v["detail"]["health"].as_i64())
+                .unwrap_or(0);
+            let mut row = HashMap::new();
+            row.insert("date".to_string(), Value::Text(date));
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("health".to_string(), Value::Int(health));
+            row
+        }).collect())
+        .unwrap_or_default();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+    }
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn domains(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT domain, COUNT(*) as count, MAX(timestamp) as last FROM events GROUP BY domain ORDER BY count DESC"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No events yet", "○".dimmed())),
+    };
+
+    let rows: Vec<HashMap<String, Value>> = stmt
+        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?)))
+        .map(|rows| rows.filter_map(|r| r.ok()).map(|(domain, count, last)| {
+            let last_str = chrono::DateTime::from_timestamp(last, 0)
+                .map(|t| t.format("%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let mut row = HashMap::new();
+            row.insert("domain".to_string(), Value::Text(domain));
+            row.insert("events".to_string(), Value::Int(count));
+            row.insert("last_seen".to_string(), Value::Text(last_str));
+            row
+        }).collect())
+        .unwrap_or_default();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn decisions_table(db: &ForestDb) -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
@@ -514,6 +611,9 @@ fn help() -> CommandResult {
         ("et",         "events as table — pipeable"),
         ("at",         "audit scores as table — pipeable"),
         ("dt",         "decisions as table — pipeable"),
+        ("ht",         "shell history as table — pipeable"),
+        ("ct",         "checkpoints as table — pipeable"),
+        ("domains",    "event domain summary"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
