@@ -41,11 +41,36 @@ impl ToolScore {
 
 // ── Scoring Logic ─────────────────────────────────────────────────────────────
 
+
+fn expected_usage(core_root: &str, tool_name: &str) -> &'static str {
+    let registry = std::fs::read_to_string(
+        std::path::PathBuf::from(core_root).join("01-registry/tools.toml")
+    ).unwrap_or_default();
+
+    // Find the tool section and read expected_usage
+    let mut in_tool = false;
+    for line in registry.lines() {
+        if line.contains(tool_name) && line.starts_with("name") {
+            in_tool = true;
+        }
+        if in_tool && line.starts_with("expected_usage") {
+            if line.contains("high")   { return "high"; }
+            if line.contains("medium") { return "medium"; }
+            if line.contains("rare")   { return "rare"; }
+            return "low";
+        }
+        // Stop at next tool
+        if in_tool && line.starts_with("[[tool]]") { break; }
+    }
+    "low"
+}
+
 fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
     let tool_path = PathBuf::from(core_root).join("rust-tools").join(name);
     let mut issues = Vec::new();
 
-    // ── Usage score (25%) — events in last 30 days ────────────────────────
+    // ── Usage score (25%) — calibrated by expected_usage ─────────────────
+    let usage = expected_usage(core_root, name);
     let usage_score = {
         let db = &ctx.runtime.db;
         let thirty_days_ago = std::time::SystemTime::now()
@@ -59,11 +84,32 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
             |r| r.get(0),
         ).unwrap_or(0);
 
-        match count {
-            0 => { issues.push("no events in 30 days"); 0 }
-            1..=5 => 15,
-            6..=20 => 20,
-            _ => 25,
+        match usage {
+            "rare" => {
+                // Rare tools not penalized for low event count
+                if count == 0 { 20 } else { 25 }
+            }
+            "low" => {
+                match count {
+                    0 => { issues.push("no events in 30 days"); 10 }
+                    _ => 25,
+                }
+            }
+            "medium" => {
+                match count {
+                    0 => { issues.push("no events in 30 days"); 5 }
+                    1..=3 => 15,
+                    _ => 25,
+                }
+            }
+            _ => { // high
+                match count {
+                    0 => { issues.push("no events in 30 days"); 0 }
+                    1..=5 => 15,
+                    6..=20 => 20,
+                    _ => 25,
+                }
+            }
         }
     };
 
