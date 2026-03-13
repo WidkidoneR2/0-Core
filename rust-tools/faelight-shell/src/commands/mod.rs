@@ -4,6 +4,14 @@
 use crate::db::ForestDb;
 use colored::*;
 
+
+// ── Time formatting helper ───────────────────────────────────────────────────
+fn fmt_time(ts: i64, fmt: &str) -> String {
+    chrono::DateTime::from_timestamp(ts, 0)
+        .map(|t| t.format(fmt).to_string())
+        .unwrap_or_else(|| "?".to_string())
+}
+
 pub enum CommandResult {
     Output(String),
     Value(crate::value::Value),
@@ -12,13 +20,35 @@ pub enum CommandResult {
     Exit,
 }
 
+
+fn levenshtein(a: &str, b: &str) -> usize {
+    let la = a.len();
+    let lb = b.len();
+    let mut dp = vec![vec![0usize; lb + 1]; la + 1];
+    for i in 0..=la { dp[i][0] = i; }
+    for j in 0..=lb { dp[0][j] = j; }
+    for i in 1..=la {
+        for j in 1..=lb {
+            let cost = if a.as_bytes()[i-1] == b.as_bytes()[j-1] { 0 } else { 1 };
+            dp[i][j] = (dp[i-1][j] + 1)
+                .min(dp[i][j-1] + 1)
+                .min(dp[i-1][j-1] + cost);
+        }
+    }
+    dp[la][lb]
+}
+
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    let parts: Vec<&str> = line.splitn(3, ' ').collect();
-    let cmd = parts[0].to_lowercase();
-    let args = &parts[1..];
+    let mut parts = line.trim().splitn(3, ' ');
+    let cmd = match parts.next() {
+        Some(c) if !c.is_empty() => c.to_lowercase(),
+        _ => return CommandResult::Empty,
+    };
+    let args_vec: Vec<&str> = parts.collect();
+    let args = args_vec.as_slice();
 
     match cmd.as_str() {
-        "help" | "?" => help(),
+        "help" | "h" | "?" => help(),
         "exit" | "quit" | "q" => CommandResult::Exit,
         "health" => health(db),
         "events" => events(db, args),
@@ -34,7 +64,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
         "git" => git_status(core_root),
-        "search" | "?" => search(db, args),
+        "search" | "s" => search(db, args),
         "where" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
         "tools-table" | "tt" => tools_table(db, core_root),
         "events-table" | "et" => events_table(db, args),
@@ -46,10 +76,35 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "domains" => domains(db),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
-        _ => CommandResult::Error(format!(
-            "Unknown command: {}  — type {} for help",
-            cmd.bright_white(), "help".bright_cyan()
-        )),
+        _ => {
+            // Suggest closest command
+            let known = ["health","events","decisions","intents","tools","audit",
+                "forecast","sandbox","story","advise","version","commits","cd",
+                "clear","exit","search","checkpoint","git","tt","et","at","dt",
+                "ht","ct","domains","help"];
+            let suggestion = known.iter()
+                .filter(|k| {
+                    let k = k.to_string();
+                    let c = cmd.as_str();
+                    // Simple similarity: shared prefix or edit distance <= 2
+                    k.starts_with(&c[..c.len().min(3)]) ||
+                    c.starts_with(&k[..k.len().min(3)]) ||
+                    levenshtein(&k, c) <= 2
+                })
+                .min_by_key(|k| levenshtein(k, &cmd));
+
+            if let Some(s) = suggestion {
+                CommandResult::Error(format!(
+                    "Unknown command: {}  — did you mean {}?",
+                    cmd.bright_white(), s.bright_cyan()
+                ))
+            } else {
+                CommandResult::Error(format!(
+                    "Unknown command: {}  — type {} for help",
+                    cmd.bright_white(), "help".bright_cyan()
+                ))
+            }
+        }
     }
 }
 
@@ -130,9 +185,7 @@ fn sandbox(db: &ForestDb) -> CommandResult {
             let dur = v["detail"]["duration_secs"].as_u64().unwrap_or(0);
             let changed = v["detail"]["files_changed"].as_u64().unwrap_or(0);
             let icon = if result == "ok" { "✅" } else { "❌" };
-            let time = chrono::DateTime::from_timestamp(*ts, 0)
-                .map(|t| t.format("%H:%M").to_string())
-                .unwrap_or_else(|| "?".to_string());
+            let time = fmt_time(*ts, "%H:%M");
             let short_cmd = if cmd.len() > 35 { format!("{}...", &cmd[..35]) } else { cmd.to_string() };
             out.push_str(&format!("  │  {} {}  {}  {}s  {} files\n",
                 icon,
@@ -172,9 +225,7 @@ fn checkpoint(db: &ForestDb) -> CommandResult {
                     let mut out = String::new();
                     out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
                     for (action, payload, ts) in &rows {
-                        let time = chrono::DateTime::from_timestamp(*ts, 0)
-                            .map(|t| t.format("%m-%d %H:%M").to_string())
-                            .unwrap_or_else(|| "?".to_string());
+                        let time = fmt_time(*ts, "%m-%d %H:%M");
                         let name = serde_json::from_str::<serde_json::Value>(payload).ok()
                             .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
                             .unwrap_or_else(|| action.clone());
@@ -197,9 +248,7 @@ fn checkpoint(db: &ForestDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
     for (name, _, ts) in &rows {
-        let time = chrono::DateTime::from_timestamp(*ts, 0)
-            .map(|t| t.format("%m-%d %H:%M").to_string())
-            .unwrap_or_else(|| "?".to_string());
+        let time = fmt_time(*ts, "%m-%d %H:%M");
         out.push_str(&format!("  │  {} {}\n", time.dimmed(), name.bright_white()));
     }
     out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
@@ -318,9 +367,7 @@ fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     let events = db.query_events(domain, today_only, 50);
     let rows = events.into_iter().map(|(domain, action, ts)| {
-        let time = chrono::DateTime::from_timestamp(ts, 0)
-            .map(|t| t.format("%H:%M:%S").to_string())
-            .unwrap_or_else(|| "?".to_string());
+        let time = fmt_time(ts, "%H:%M:%S");
         let mut row = HashMap::new();
         row.insert("time".to_string(), Value::Text(time));
         row.insert("domain".to_string(), Value::Text(domain));
@@ -389,9 +436,7 @@ fn history_table(db: &ForestDb) -> CommandResult {
     let rows: Vec<HashMap<String, Value>> = stmt
         .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
         .map(|rows| rows.filter_map(|r| r.ok()).map(|(cmd, ts)| {
-            let time = chrono::DateTime::from_timestamp(ts, 0)
-                .map(|t| t.format("%H:%M:%S").to_string())
-                .unwrap_or_else(|| "?".to_string());
+            let time = fmt_time(ts, "%H:%M:%S");
             let mut row = HashMap::new();
             row.insert("time".to_string(), Value::Text(time));
             row.insert("command".to_string(), Value::Text(cmd));
@@ -417,9 +462,7 @@ fn checkpoints_table(db: &ForestDb) -> CommandResult {
     let rows: Vec<HashMap<String, Value>> = stmt
         .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
         .map(|rows| rows.filter_map(|r| r.ok()).map(|(action, payload, ts)| {
-            let date = chrono::DateTime::from_timestamp(ts, 0)
-                .map(|t| t.format("%m-%d %H:%M").to_string())
-                .unwrap_or_else(|| "?".to_string());
+            let date = fmt_time(ts, "%m-%d %H:%M");
             let name = serde_json::from_str::<serde_json::Value>(&payload).ok()
                 .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
                 .unwrap_or_else(|| action.clone());
@@ -489,9 +532,7 @@ fn decisions_table(db: &ForestDb) -> CommandResult {
             r.get::<_,i64>(5)?,
         )))
         .map(|rows| rows.filter_map(|r| r.ok()).map(|(id, desc, outcome, risk, domain, ts)| {
-            let date = chrono::DateTime::from_timestamp(ts, 0)
-                .map(|t| t.format("%m-%d").to_string())
-                .unwrap_or_else(|| "?".to_string());
+            let date = fmt_time(ts, "%m-%d");
             let mut row = HashMap::new();
             row.insert("id".to_string(), Value::Text(id));
             row.insert("date".to_string(), Value::Text(date));
@@ -527,9 +568,7 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
         let mut out = String::new();
         out.push_str(&format!("\n{}\n", "  ╭─ 📜 Command History ──────────────────────────────".bright_cyan()));
         for (cmd, ts) in rows.iter().take(15) {
-            let time = chrono::DateTime::from_timestamp(*ts, 0)
-                .map(|t| t.format("%H:%M").to_string())
-                .unwrap_or_else(|| "?".to_string());
+            let time = fmt_time(*ts, "%H:%M");
             out.push_str(&format!("  │  {} {}\n", time.dimmed(), cmd.bright_white()));
         }
         out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
@@ -564,9 +603,7 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
         format!("  ╭─ 🔍 Search: {} ({} results) ──────────────────────", query, matches.len()).bright_cyan()
     ));
     for (cmd, ts, _) in matches.iter().take(10) {
-        let time = chrono::DateTime::from_timestamp(*ts, 0)
-            .map(|t| t.format("%H:%M").to_string())
-            .unwrap_or_else(|| "?".to_string());
+        let time = fmt_time(*ts, "%H:%M");
         // Highlight the match
         let highlighted = cmd.replacen(&query, &query.bright_yellow().to_string(), 1);
         out.push_str(&format!("  │  {} {}\n", time.dimmed(), highlighted));
@@ -665,14 +702,26 @@ fn events(db: &ForestDb, args: &[&str]) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("\n{}\n", format!("  ╭─ 📊 {} ─────────────────────────────────", label).bright_cyan()));
     for (domain, action, ts) in &events {
-        let time = chrono::DateTime::from_timestamp(*ts, 0)
-            .map(|t| t.format("%H:%M:%S").to_string())
-            .unwrap_or_else(|| "?".to_string());
-        out.push_str(&format!("  │  {}  {}.{}  {}\n",
+        let time = fmt_time(*ts, "%H:%M:%S");
+        let icon = match domain.as_str() {
+            "doctor"     => "🩺",
+            "git"        => "🌿",
+            "security"   => "🔒",
+            "sandbox"    => "🧪",
+            "audit"      => "🔍",
+            "checkpoint" => "📸",
+            "compositor" => "🖥",
+            "idle"       => "💤",
+            "decisions"  => "⚖️ ",
+            "shell"      => "🐚",
+            "update"     => "📦",
+            _            => "○ ",
+        };
+        out.push_str(&format!("  │  {} {}  {}.{}\n",
+            icon,
             time.dimmed(),
             domain.bright_cyan(),
             action.bright_white(),
-            "".to_string()
         ));
     }
     out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
