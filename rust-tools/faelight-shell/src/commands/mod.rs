@@ -21,6 +21,24 @@ pub enum CommandResult {
 }
 
 
+
+// ── Security Layer — log every command ───────────────────────────────────────
+fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let payload = format!(
+        r#"{{"actor":"faelight-shell","result":"{}","detail":{{"command":"{}"}}}}"#,
+        result,
+        cmd.replace('"', "'")
+    );
+    db.conn.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'command', ?1, ?2)",
+        rusqlite::params![payload, ts],
+    ).ok();
+}
+
 fn levenshtein(a: &str, b: &str) -> usize {
     let la = a.len();
     let lb = b.len();
@@ -47,7 +65,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     let args_vec: Vec<&str> = parts.collect();
     let args = args_vec.as_slice();
 
-    match cmd.as_str() {
+    let result = match cmd.as_str() {
         "help" | "h" | "?" => help(),
         "exit" | "quit" | "q" => CommandResult::Exit,
         "health" => health(db),
@@ -74,10 +92,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "history-table" | "ht" => history_table(db),
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
+        "histogram" | "hist" => histogram(db, args),
+        "git-commits" | "gc" => git_commits(core_root, args),
+        "git-files" | "gf" => git_files(core_root),
+        "watch" => watch_cmd(db, args),
         "cd" => cd(args),
-        "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
+        "clear" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
         _ => {
-            // Suggest closest command
             let known = ["health","events","decisions","intents","tools","audit",
                 "forecast","sandbox","story","advise","version","commits","cd",
                 "clear","exit","search","checkpoint","git","tt","et","at","dt",
@@ -86,7 +107,6 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 .filter(|k| {
                     let k = k.to_string();
                     let c = cmd.as_str();
-                    // Simple similarity: shared prefix or edit distance <= 2
                     k.starts_with(&c[..c.len().min(3)]) ||
                     c.starts_with(&k[..k.len().min(3)]) ||
                     levenshtein(&k, c) <= 2
@@ -105,7 +125,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 ))
             }
         }
-    }
+    };
+
+    // Security layer — log every command
+    let result_str = match &result {
+        CommandResult::Error(_) => "error",
+        CommandResult::Exit    => "exit",
+        CommandResult::Empty   => "empty",
+        _                      => "ok",
+    };
+    emit_command(db, &cmd, result_str);
+    result
 }
 
 fn forecast(db: &ForestDb) -> CommandResult {
@@ -512,6 +542,226 @@ fn domains(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+
+fn histogram(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    // histogram domain  OR  et | histogram domain (pipe handles it)
+    // Direct: show event count per domain as bar chart
+    let field = args.first().copied().unwrap_or("domain");
+
+    let mut stmt = match db.conn.prepare(
+        &format!("SELECT {}, COUNT(*) FROM events GROUP BY {} ORDER BY COUNT(*) DESC LIMIT 20", field, field)
+    ) {
+        Ok(s) => s,
+        Err(e) => return CommandResult::Error(format!("histogram error: {}", e)),
+    };
+
+    let rows: Vec<(String, i64)> = stmt
+        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No data for histogram", "○".dimmed()));
+    }
+
+    let max = rows.iter().map(|(_, c)| *c).max().unwrap_or(1);
+    let bar_width = 30;
+
+    let mut out = String::new();
+    out.push_str(&format!("
+{}
+", "  ╭─ 📊 Histogram ─────────────────────────────────────".bright_cyan()));
+
+    for (label, count) in &rows {
+        let filled = ((count * bar_width) / max) as usize;
+        let empty = bar_width as usize - filled;
+        let bar = format!("{}{}",
+            "█".repeat(filled).bright_green(),
+            "░".repeat(empty).dimmed()
+        );
+        out.push_str(&format!("  │  {:<18} {} {}
+",
+            label.bright_white(),
+            bar,
+            count.to_string().dimmed()
+        ));
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
+fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(20);
+
+    let output = std::process::Command::new("git")
+        .args(["-C", core_root, "log",
+            &format!("-{}", limit),
+            "--format=%H|%an|%ae|%ai|%s"
+        ])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(5, '|').collect();
+            if parts.len() < 5 { return None; }
+            let mut row = HashMap::new();
+            row.insert("hash".to_string(), Value::Text(parts[0][..7].to_string()));
+            row.insert("author".to_string(), Value::Text(parts[1].to_string()));
+            row.insert("date".to_string(), Value::Text(parts[3][..10].to_string()));
+            row.insert("message".to_string(), Value::Text(parts[4].to_string()));
+            Some(row)
+        })
+        .collect();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No commits found", "○".dimmed()));
+    }
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn git_files(core_root: &str) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("git")
+        .args(["-C", core_root, "status", "--porcelain"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    if output.trim().is_empty() {
+        return CommandResult::Output(format!("  {} Working tree clean", "✅".green()));
+    }
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter_map(|line| {
+            if line.len() < 3 { return None; }
+            let status = line[..2].trim().to_string();
+            let file = line[3..].to_string();
+            let kind = match status.as_str() {
+                "M" | " M" => "modified",
+                "A" | " A" => "added",
+                "D" | " D" => "deleted",
+                "??" => "untracked",
+                "R" => "renamed",
+                _ => "changed",
+            };
+            let mut row = HashMap::new();
+            row.insert("status".to_string(), Value::Text(status));
+            row.insert("kind".to_string(), Value::Text(kind.to_string()));
+            row.insert("file".to_string(), Value::Text(file));
+            Some(row)
+        })
+        .collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use colored::*;
+
+    let target = args.first().copied().unwrap_or("health");
+    let interval = args.get(1).and_then(|a| a.parse::<u64>().ok()).unwrap_or(2);
+
+    println!("{}", format!("  Watching: {} (every {}s) — press Ctrl+C to stop",
+        target.bright_cyan(), interval).dimmed());
+
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    let _ = ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+    });
+    while running.load(Ordering::SeqCst) {
+        // Clear screen and move to top
+        print!("[2J[1;1H");
+
+        let now = chrono::Local::now().format("%H:%M:%S").to_string();
+        println!("{}", format!("  🌲 watch {} — {} ({}s interval)",
+            target.bright_cyan(),
+            now.dimmed(),
+            interval
+        ));
+        println!("{}", "━".repeat(52).dimmed());
+
+        match target {
+            "health" => {
+                let health = db.health_score().unwrap_or(0);
+                let version = std::fs::read_to_string(
+                    std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION")
+                ).unwrap_or_default().trim().to_string();
+
+                let status = if health >= 95 { "HEALTHY".bright_green().bold() }
+                    else if health >= 80 { "ADVISORY".yellow().bold() }
+                    else { "DEGRADED".bright_red().bold() };
+
+                println!("  Health:   {} {}",
+                    format!("{}%", health).bright_white().bold(), status);
+                println!("  Version:  {}", version.dimmed());
+
+                // Show last 5 events
+                let events = db.query_events(None, false, 5);
+                println!();
+                println!("  {}", "Recent events:".dimmed());
+                for (domain, action, ts) in &events {
+                    let icon = match domain.as_str() {
+                        "doctor" => "🩺", "git" => "🌿", "security" => "🔒",
+                        "sandbox" => "🧪", "audit" => "🔍", _ => "○",
+                    };
+                    println!("    {} {} {}.{}",
+                        icon,
+                        fmt_time(*ts, "%H:%M:%S").dimmed(),
+                        domain.bright_cyan(),
+                        action.dimmed()
+                    );
+                }
+            }
+            "events" => {
+                let events = db.query_events(None, false, 15);
+                for (domain, action, ts) in &events {
+                    let icon = match domain.as_str() {
+                        "doctor" => "🩺", "git" => "🌿", "security" => "🔒",
+                        "sandbox" => "🧪", "audit" => "🔍", _ => "○ ",
+                    };
+                    println!("  {} {} {}.{}",
+                        icon,
+                        fmt_time(*ts, "%H:%M:%S").dimmed(),
+                        domain.bright_cyan(),
+                        action.dimmed()
+                    );
+                }
+            }
+            _ => {
+                println!("  {} Unknown watch target: {}", "✗".bright_red(), target);
+                println!("  Available: health, events");
+                running.store(false, Ordering::SeqCst);
+            }
+        }
+
+        // Sleep in small increments to check running flag
+        for _ in 0..(interval * 10) {
+            if !running.load(Ordering::SeqCst) { break; }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
+    println!();
+    println!("{}", "  watch stopped".dimmed());
+    CommandResult::Empty
+}
+
 fn decisions_table(db: &ForestDb) -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
@@ -651,6 +901,10 @@ fn help() -> CommandResult {
         ("ht",         "shell history as table — pipeable"),
         ("ct",         "checkpoints as table — pipeable"),
         ("domains",    "event domain summary"),
+        ("histogram",  "histogram of a domain  [field]"),
+        ("gc",         "git commits as table — pipeable"),
+        ("gf",         "git files as table — pipeable"),
+        ("watch",      "watch a command live  [health|events]"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
