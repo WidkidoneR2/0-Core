@@ -60,17 +60,37 @@ impl ForestDb {
         ).ok();
     }
 
-    pub fn query_events(&self, domain: Option<&str>, limit: usize) -> Vec<(String, String, i64)> {
-        let sql = if let Some(d) = domain {
-            format!(
+    pub fn query_events(&self, domain: Option<&str>, today_only: bool, limit: usize) -> Vec<(String, String, i64)> {
+        let today_ts = if today_only {
+            // Start of today in unix time
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            // Subtract seconds since midnight
+            let secs_since_midnight = now % 86400;
+            now - secs_since_midnight
+        } else {
+            0
+        };
+
+        let sql = match (domain, today_only) {
+            (Some(d), true) => format!(
+                "SELECT domain, action, timestamp FROM events WHERE domain='{}' AND timestamp >= {} ORDER BY timestamp DESC LIMIT {}",
+                d, today_ts, limit
+            ),
+            (Some(d), false) => format!(
                 "SELECT domain, action, timestamp FROM events WHERE domain='{}' ORDER BY timestamp DESC LIMIT {}",
                 d, limit
-            )
-        } else {
-            format!(
+            ),
+            (None, true) => format!(
+                "SELECT domain, action, timestamp FROM events WHERE timestamp >= {} ORDER BY timestamp DESC LIMIT {}",
+                today_ts, limit
+            ),
+            (None, false) => format!(
                 "SELECT domain, action, timestamp FROM events ORDER BY timestamp DESC LIMIT {}",
                 limit
-            )
+            ),
         };
         let mut stmt = match self.conn.prepare(&sql) {
             Ok(s) => s,
