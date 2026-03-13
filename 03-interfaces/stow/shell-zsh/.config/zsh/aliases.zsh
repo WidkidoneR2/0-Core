@@ -207,6 +207,9 @@ alias story='core story'                          # 30-day forest narrative
 alias css='core simulate scenario'               # simulate a planned scenario
 alias secadvise='core security advise'            # security judgment advisory
 
+# ─── faelight-shell ───
+alias fs='faelight-shell'                          # forest-native shell
+
 # ─── Core Audit — Tool Intelligence Layer ───
 alias audit='core audit scan'                     # score all tools
 alias auditshow='core audit show'                 # deep audit of a tool
