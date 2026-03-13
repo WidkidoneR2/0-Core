@@ -1,5 +1,56 @@
 # Changelog
 
+## [v10.8.0] — Unnamed Release (2026-03-12)
+
+### 🎯 Completed Intents
+- **INT-118** — doctor facelift — cockpit-style health dashboard
+- **INT-119** — core security advise — judgment layer for security decisions
+- **INT-121** — faelight-readme — auto-update README dynamic sections on release
+- **INT-123** — faelight-audit — Tool Intelligence Layer (core audit domain)
+- **INT-124** — faelight-sandbox v2 — Forest-Aware Isolation Environment
+
+### ✨ Features
+- faelight-shell v0.2.0 — Phase 2 complete, full data pipeline, 26 commands (INT-120)
+- faelight-shell — ht, ct, domains, select fix, 26 commands (INT-120)
+- faelight-shell — fix select pipe, multi-stage pipeline working (INT-120)
+- faelight-shell — decisions-table, count pipe, 22 commands total (INT-120)
+- faelight-sandbox v3 Phase 2 — policy enforcement wired, network isolation active, policy logged to ledger (INT-125)
+- faelight-shell Phase 2 — Value type system, data pipeline, where/select/sort/first/last, tt/et/at commands (INT-120)
+- faelight-sandbox v3 Phase 1 — policy engine, 5 policies, --policy flag (INT-125)
+- faelight-shell — search command, history search, 18 native commands (INT-120)
+- core audit Phase 3 — stale tools surface in core advise (INT-123)
+- faelight-shell — checkpoint and git commands, 17 native commands (INT-120)
+- core audit Phase 2 — expected_usage calibration in tools.toml, 51 tools scored (INT-123)
+- faelight-shell — forecast, sandbox commands, 15 total native commands (INT-120)
+- faelight-shell polish — health version, events today filter, cd navigation, registry updated
+- INT-120 Phase 1 — faelight-shell v0.1.0, forest REPL with 12 native commands (INT-120)
+- INT-123 Phase 1 — core audit domain, scan/show/stale/coverage, audit_scores table (INT-123)
+- faelight-sandbox v2 — ledger integration, audit trail, duration tracking (INT-124)
+- faelight-compositor DRM/udev backend — running on real hardware, libseat+libinput initialized (INT-109)
+- add DRM backend dependencies, seatd enabled, groups configured (INT-109)
+- INT-119 complete — core security advise, judgment layer for security decisions
+- INT-118 — doctor cockpit facelift, grouped sections, summary header (INT-118)
+
+### 🔧 Fixes
+- sandbox v3 — clean network display, no duplicate Network line when policy controls it
+- remove duplicate audit alias, commit INT-123 intent update from cistart
+- faelight-release syncs /etc/faelight/VERSION on publish — faelight-login stays current
+- INT-118 complete — alias coverage clean message, ADVISORY status, single separator
+- faelight-fetch double v prefix in forest header, deploy updated binary
+
+### 🔩 Internal (13 commits)
+- ledger: INT-122 — add structural considerations, organized growth principle before Core v7
+- ledger: cistart INT-120 — faelight-shell in-progress
+- ledger: add development philosophy to INT-120 — parallel track, no rushing, craft over speed
+- ledger: INT-120 expanded — beyond NixOS vision, interactive prompt, .fsh language, full architecture
+- ledger: expand INT-120 to full faelight-shell vision — Nu-inspired, security-native, structured data
+- ...and 8 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1438  ·  Tools: 50 deployed  ·  Intents: 77 complete
+
+---
+
 ## [v10.7.0] — The Forest Remembers (2026-03-12)
 
 ### 🎯 Completed Intents

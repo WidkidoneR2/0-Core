@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest vv10.7.0
+# 🌲 Faelight Forest vv10.8.0
 
-![Version](https://img.shields.io/badge/version-v10.7.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-v10.8.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,21 +11,23 @@
 
 ## 🎊 Latest Release
 
-### vv10.7.0 - 🌲 The Forest Remembers (2026-03-12)
+### vv10.8.0 - 🌲 The Forest Between Worlds (2026-03-12)
 
-- 99 — Niri Migration & faelight-compositor — The Forest Grows Its Own Roots
-- 103 — faelight-idle — Rust Idle Daemon
-- 117 — Fix atuin zsh interactive parse warning on terminal open
-- Core v6 complete — all 5 phases, INT-116 closed, aliases added (INT-116)
-- Core v6 aliases — decide, advise, story, lessons, heuristics, simulate scenario
-- Core v6 Phase 5 — extended simulation, core simulate scenario (INT-116)
-- Core v6 Phase 4 — heuristics engine, core lessons, core story (INT-116)
-- Core v6 Phase 3 — core advise judgment assist, context-aware advisory (INT-116)
+- 118 — doctor facelift — cockpit-style health dashboard
+- 119 — core security advise — judgment layer for security decisions
+- 121 — faelight-readme — auto-update README dynamic sections on release
+- 123 — faelight-audit — Tool Intelligence Layer (core audit domain)
+- 124 — faelight-sandbox v2 — Forest-Aware Isolation Environment
+- faelight-shell v0.2.0 — Phase 2 complete, full data pipeline, 26 commands (INT-120)
+- faelight-shell — ht, ct, domains, select fix, 26 commands (INT-120)
+- faelight-shell — fix select pipe, multi-stage pipeline working (INT-120)
+- faelight-shell — decisions-table, count pipe, 22 commands total (INT-120)
+- faelight-sandbox v3 Phase 2 — policy enforcement wired, network isolation active, policy logged to ledger (INT-125)
 
-- Commits: 1396
-- Tools: 49 deployed
+- Commits: 1438
+- Tools: 50 deployed
 - Health: 95%
-- Intents: 72 complete
+- Intents: 77 complete
 
 [Full Changelog →](CHANGELOG.md)
 

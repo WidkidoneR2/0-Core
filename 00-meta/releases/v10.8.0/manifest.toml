@@ -1,0 +1,9 @@
+version = "v10.8.0"
+date = "2026-03-12"
+theme = "The Forest Between Worlds"
+health_at_release = 95
+commits_since_last = 39
+
+[stats]
+tools_total = 50
+intents_complete = 77
