@@ -1,7 +1,8 @@
-//! faelight-sandbox v1.0.0
+//! faelight-sandbox v3.0.0
 //! Controlled experimentation environment for Faelight Forest
 //! Philosophy: Experiment freely. Understand completely. Revert instantly.
 
+mod policy;
 use anyhow::{bail, Result};
 use chrono::Local;
 use clap::{Parser, Subcommand};
@@ -31,6 +32,9 @@ enum Commands {
         /// Disable network access
         #[arg(long)]
         net_off: bool,
+        /// Apply a named security policy
+        #[arg(long)]
+        policy: Option<String>,
 
         /// Watch a directory for changes (default: ~/0-core)
         #[arg(long)]
@@ -71,6 +75,13 @@ enum Commands {
     Snapshots,
     /// Show session history (last 10 runs)
     History,
+    /// List available security policies
+    PolicyList,
+    /// Show details of a specific policy
+    PolicyShow {
+        /// Policy name
+        name: String,
+    },
     /// Query audit trail from state.db
     Audit {
         /// Filter by tool name
@@ -325,6 +336,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Run {
             net_off,
+            policy,
             watch,
             cmd,
         } => {
@@ -342,6 +354,21 @@ fn main() -> Result<()> {
 
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
             println!("{}", "🧪 faelight-sandbox".bold().bright_cyan());
+            // Load policy if specified
+            let active_policy = if let Some(policy_name) = &policy {
+                match policy::SandboxPolicy::load(policy_name) {
+                    Ok(p) => {
+                        Some(p)
+                    }
+                    Err(e) => {
+                        eprintln!("  ✗ Policy error: {}", e);
+                        return Ok(());
+                    }
+                }
+            } else {
+                None
+            };
+
             println!("   Session: {}", session_id.dimmed());
             println!("   Command: {}", command_str.bright_white());
             println!(
@@ -353,6 +380,16 @@ fn main() -> Result<()> {
                 }
             );
             println!("   Watch:   {}", watch_dir.dimmed());
+            if let Some(ref p) = active_policy {
+                println!("   Policy:  {}", p.name.bright_yellow());
+                for restriction in p.restrictions() {
+                    println!("             {}", restriction.dimmed());
+                }
+                // Policy overrides net_off
+                if !p.allow_net {
+                    println!("   Network: {}", "OFF (policy)".bright_red());
+                }
+            }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
             // Snapshot before
@@ -691,6 +728,34 @@ fn main() -> Result<()> {
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
             println!("  View session: faelight-sandbox diff (loads most recent)");
+        }
+        Commands::PolicyList => {
+            let policies = policy::SandboxPolicy::list_all()?;
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("{}", "🛡️  Sandbox Policies".bold());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            if policies.is_empty() {
+                println!("  No policies found");
+            } else {
+                for p in &policies {
+                    println!("  {} {:<16} {}", "▶".dimmed(), p.name.bright_cyan(), p.description.dimmed());
+                }
+            }
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("  Use with: faelight-sandbox run --policy <name> -- <cmd>");
+        }
+        Commands::PolicyShow { name } => {
+            let p = policy::SandboxPolicy::load(&name)?;
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("  Policy: {}", p.name.bright_cyan().bold());
+            println!("  {}", p.description.dimmed());
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            println!("  Network:    {}", if p.allow_net { "allowed".bright_green() } else { "isolated".bright_red() });
+            println!("  FS writes:  {}", if p.allow_fs_write { "allowed".bright_green() } else { "blocked".bright_red() });
+            println!("  CPU limit:  {}s", p.max_cpu_seconds);
+            println!("  Memory:     {}MB", p.max_memory_mb);
+            println!("  Events:     {}", if p.emit_events { "yes".green() } else { "no".dimmed() });
+            println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         }
         Commands::Audit { tool, limit } => {
             let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
