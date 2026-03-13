@@ -1,0 +1,13 @@
+[package]
+name = "faelight-shell"
+version = "0.1.0"
+edition = "2021"
+description = "Forest-native structured shell environment — beyond NixOS"
+
+[dependencies]
+rustyline = "17.0.2"
+colored = "2"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
