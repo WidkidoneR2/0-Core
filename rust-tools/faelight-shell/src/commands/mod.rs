@@ -33,6 +33,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
         "git" => git_status(core_root),
+        "search" | "?" => search(db, args),
         "where" => CommandResult::Error("pipe not yet supported — coming in Phase 2".to_string()),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); CommandResult::Empty }
@@ -248,6 +249,74 @@ fn git_status(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
+fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let query = args.join(" ").to_lowercase();
+
+    let rows: Vec<(String, i64)> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 200"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+        };
+        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
+    };
+
+    if query.is_empty() {
+        // Show recent history
+        let mut out = String::new();
+        out.push_str(&format!("\n{}\n", "  ╭─ 📜 Command History ──────────────────────────────".bright_cyan()));
+        for (cmd, ts) in rows.iter().take(15) {
+            let time = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|t| t.format("%H:%M").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            out.push_str(&format!("  │  {} {}\n", time.dimmed(), cmd.bright_white()));
+        }
+        out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+        return CommandResult::Output(out);
+    }
+
+    // Fuzzy search — score by match position and frequency
+    let mut matches: Vec<(String, i64, usize)> = rows.iter()
+        .filter(|(cmd, _)| cmd.to_lowercase().contains(&query))
+        .map(|(cmd, ts)| {
+            let score = if cmd.to_lowercase().starts_with(&query) { 0 }
+                else if cmd.to_lowercase().contains(&format!(" {}", query)) { 1 }
+                else { 2 };
+            (cmd.clone(), *ts, score)
+        })
+        .collect();
+
+    // Deduplicate keeping most recent
+    matches.sort_by_key(|(cmd, _, score)| (*score, cmd.clone()));
+    matches.dedup_by(|a, b| a.0 == b.0);
+    matches.sort_by_key(|(_, ts, score)| (*score, -ts));
+
+    if matches.is_empty() {
+        return CommandResult::Output(format!(
+            "  {} No matches for {}",
+            "○".dimmed(), query.bright_white()
+        ));
+    }
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n",
+        format!("  ╭─ 🔍 Search: {} ({} results) ──────────────────────", query, matches.len()).bright_cyan()
+    ));
+    for (cmd, ts, _) in matches.iter().take(10) {
+        let time = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|t| t.format("%H:%M").to_string())
+            .unwrap_or_else(|| "?".to_string());
+        // Highlight the match
+        let highlighted = cmd.replacen(&query, &query.bright_yellow().to_string(), 1);
+        out.push_str(&format!("  │  {} {}\n", time.dimmed(), highlighted));
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
 fn cd(args: &[&str]) -> CommandResult {
     let target = args.first().copied().unwrap_or("~");
     let home = std::env::var("HOME").unwrap_or_default();
@@ -279,6 +348,7 @@ fn help() -> CommandResult {
         ("sandbox",   "recent sandbox runs"),
         ("checkpoint", "recent checkpoints"),
         ("git",        "git status and recent commits"),
+        ("search",     "search command history  [query]"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
