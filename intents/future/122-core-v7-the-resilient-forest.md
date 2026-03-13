@@ -91,6 +91,69 @@ core deps risk           → "this dependency is your biggest risk"
 core narrative           → "here's the story of how I became what I am"
 ```
 
+
+## Structural Considerations Before v7
+
+Organization is a top priority. As the forest grows, structure must
+mature alongside it. These decisions should be made deliberately,
+not reactively.
+
+### Current Structure — Holding Strong
+The Numbered Gravity architecture (00-meta through 04-runtime) is
+sound and v7 fits naturally into the existing pattern.
+```
+00-meta/          identity, VERSION, CHANGELOG, PHILOSOPHY
+01-registry/      declarations — tools.toml, sandbox-policies.toml
+02-rules/         constraints, no execution
+03-interfaces/    dotfiles via GNU Stow
+engine/           core orchestrator binary
+rust-tools/       53+ custom Rust tools
+runtime/          all mutable state — state.db, checkpoints
+intents/          architectural decision records
+scripts/          deployed binaries (PATH priority)
+```
+
+### What v7 Adds — No Structural Change Required
+```
+engine/src/domains/anomaly/     — Phase 1 anomaly detection
+engine/src/domains/bootstrap/   — Phase 2 bootstrap intelligence
+runtime/anomalies/              — anomaly records (new subdir)
+runtime/dependency-graph/       — dependency snapshots (new subdir)
+```
+Same domain pattern as v6. No restructuring needed.
+
+### Domain Grouping — Consider Before v7 Grows Large
+engine/src/domains/ currently has 20+ domains. As v7 adds more,
+consider logical grouping to maintain clarity:
+```
+engine/src/domains/
+├── intelligence/   # audit, anomaly, bootstrap, narrative
+├── judgment/       # decisions, simulate, advise
+├── system/         # doctor, security, update, checkpoint
+├── compositor/     # compositor events (future)
+└── ...             # other existing domains
+```
+
+This is cosmetic but important — the codebase should be as readable
+as the forest it manages.
+
+### faelight-shell Scripts — Future Home
+When .fsh scripting language matures (Phase 6), scripts need a home:
+```
+04-scripts/       # NEW — .fsh forest scripts (v12+ territory)
+```
+Not urgent now — but the numbered directory slot should be reserved.
+Document this decision when it becomes relevant.
+
+### The Organizing Principle Going Forward
+Every new file, directory, domain, or tool must answer:
+- Where does this live in the numbered gravity structure?
+- Does it have a clear, single responsibility?
+- Is it documented in the intent ledger?
+- Does it follow the existing naming pattern?
+
+**Nothing grows without intention. Nothing is added without a home.**
+
 ## Build Order (Tentative)
 ```
 Phase 1 — Anomaly Detection (most immediately useful)
