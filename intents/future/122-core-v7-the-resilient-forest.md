@@ -192,3 +192,60 @@ It knows how to grow back."**
 
 *"The forest that remembers its past
 can reconstruct its future."* 🌲
+
+## Additional Pillars (Added 2026-03-15)
+
+### Pillar 6 — Snapshot Narrative
+The forest writes its own autobiography at a point in time.
+```bash
+core snapshot narrative          # human-readable markdown
+core snapshot narrative --json   # machine-readable reconstruction seed
+core snapshot narrative --save   # writes both to runtime/snapshots/
+```
+
+The snapshot captures:
+- version and identity
+- tool inventory with versions and scores
+- active policies
+- recent decisions and outcomes
+- dependency graph
+- system health and forecast
+- condensed story of key milestones
+
+**Two voices, same data:**
+- Human version — markdown, readable without tooling
+- Machine version — JSON, feeds `core bootstrap plan`
+
+The narrative becomes the seed of reconstruction.
+The bootstrap reads the JSON and guides rebuilding.
+The human reads the markdown and understands why.
+
+### Pillar 7 — Deterministic Rebuild
+```bash
+core doctor rebuild   # reconstruct environment from first principles
+```
+
+Reads:
+- 01-registry/tools.toml     → what should exist
+- intents/complete/          → why decisions were made
+- 03-interfaces/stow/        → what the environment looks like
+- schema/                    → what is valid
+- runtime/events/            → what happened
+
+Produces a step-by-step reconstruction plan.
+Not automated — guided. Every step traceable to an intent or decision.
+
+This is what makes Faelight Forest different from NixOS:
+NixOS can reproduce state.
+Faelight can reproduce state AND reasoning.
+
+## Updated Gate Check
+
+- ✅ Core v6 complete and stable
+- ⬜ Phase 1 — Anomaly Detection
+- ⬜ Phase 2 — Bootstrap Intelligence
+- ⬜ Phase 3 — Security Intelligence Extended
+- ⬜ Phase 4 — Dependency Intelligence
+- ⬜ Phase 5 — Forest Narrative Extended
+- ⬜ Phase 6 — Snapshot Narrative (core snapshot narrative)
+- ⬜ Phase 7 — Deterministic Rebuild (core doctor rebuild)
