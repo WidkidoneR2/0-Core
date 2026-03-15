@@ -65,6 +65,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     let args_vec: Vec<&str> = parts.collect();
     let args = args_vec.as_slice();
 
+    // Alias resolution — check before dispatch
+    if let Some(aliased) = db.get_alias(&cmd) {
+        let expanded = if args.is_empty() {
+            aliased.clone()
+        } else {
+            format!("{} {}", aliased, args.join(" "))
+        };
+        // Recurse with expanded command
+        return execute(&expanded, db, core_root);
+    }
+
     let result = match cmd.as_str() {
         "help" | "h" | "?" => help(),
         "exit" | "quit" | "q" => CommandResult::Exit,
@@ -96,6 +107,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "git-commits" | "gc" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "watch" => watch_cmd(db, args),
+        "alias" => alias_cmd(db, args),
+        "unalias" => unalias_cmd(db, args),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
         _ => {
@@ -798,6 +811,82 @@ fn decisions_table(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+
+fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    // alias            — list all
+    // alias h=health   — create
+    // alias h "health" — create (space form)
+    if args.is_empty() {
+        let aliases = db.list_aliases();
+        if aliases.is_empty() {
+            return CommandResult::Output(format!(
+                "  {} No aliases defined yet\n  Create one: {}",
+                "○".dimmed(), "alias h=health".bright_cyan()
+            ));
+        }
+        let mut out = String::new();
+        out.push_str(&format!("\n{}\n",
+            "  ╭─ 🔖 Aliases ──────────────────────────────────────".bright_cyan()
+        ));
+        for (name, cmd) in &aliases {
+            out.push_str(&format!("  │  {:<15} = {}\n",
+                name.bright_cyan(), cmd.dimmed()
+            ));
+        }
+        out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+        return CommandResult::Output(out);
+    }
+
+    // Single arg without = — show existing alias
+    if args.len() == 1 && !args[0].contains('=') {
+        let name = args[0];
+        if let Some(cmd) = db.get_alias(name) {
+            return CommandResult::Output(format!("  {} = {}",
+                name.bright_cyan(), cmd.dimmed()
+            ));
+        }
+        return CommandResult::Error(format!("No alias: {}", name));
+    }
+
+    // Parse: alias name=command OR alias name command
+    let full = args.join(" ");
+    let (name, command) = if full.contains('=') {
+        let mut parts = full.splitn(2, '=');
+        let n = parts.next().unwrap_or("").trim().to_string();
+        let c = parts.next().unwrap_or("").trim().trim_matches('"').to_string();
+        (n, c)
+    } else if args.len() >= 2 {
+        (args[0].to_string(), args[1..].join(" ").trim_matches('"').to_string())
+    } else {
+        return CommandResult::Error("Usage: alias name=command".to_string());
+    };
+
+    if name.is_empty() || command.is_empty() {
+        return CommandResult::Error("Usage: alias name=command".to_string());
+    }
+
+    if db.add_alias(&name, &command) {
+        CommandResult::Output(format!("  {} alias {} = {}",
+            "✅".green(), name.bright_cyan(), command.dimmed()
+        ))
+    } else {
+        CommandResult::Error(format!("Failed to save alias: {}", name))
+    }
+}
+
+fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let name = match args.first() {
+        Some(n) => *n,
+        None => return CommandResult::Error("Usage: unalias <name>".to_string()),
+    };
+
+    if db.remove_alias(name) {
+        CommandResult::Output(format!("  {} removed alias: {}", "✅".green(), name.bright_cyan()))
+    } else {
+        CommandResult::Error(format!("Alias not found: {}", name))
+    }
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -905,6 +994,8 @@ fn help() -> CommandResult {
         ("gc",         "git commits as table — pipeable"),
         ("gf",         "git files as table — pipeable"),
         ("watch",      "watch a command live  [health|events]"),
+        ("alias",      "manage aliases  [name=command]"),
+        ("unalias",    "remove an alias"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),

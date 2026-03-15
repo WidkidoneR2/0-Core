@@ -18,12 +18,18 @@ impl ForestDb {
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Cannot open state.db at {:?}", db_path))?;
 
-        // Ensure shell history table exists
+        // Ensure shell tables exist
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_history (
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
                 command   TEXT NOT NULL,
                 timestamp INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS shell_aliases (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                name      TEXT NOT NULL UNIQUE,
+                command   TEXT NOT NULL,
+                created   INTEGER NOT NULL
             );"
         )?;
 
@@ -47,6 +53,44 @@ impl ForestDb {
                 let _ = rl.add_history_entry(cmd.as_str());
             }
         }
+    }
+
+    pub fn add_alias(&self, name: &str, command: &str) -> bool {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        self.conn.execute(
+            "INSERT OR REPLACE INTO shell_aliases (name, command, created) VALUES (?1, ?2, ?3)",
+            rusqlite::params![name, command, ts],
+        ).is_ok()
+    }
+
+    pub fn remove_alias(&self, name: &str) -> bool {
+        self.conn.execute(
+            "DELETE FROM shell_aliases WHERE name = ?1",
+            rusqlite::params![name],
+        ).map(|n| n > 0).unwrap_or(false)
+    }
+
+    pub fn get_alias(&self, name: &str) -> Option<String> {
+        self.conn.query_row(
+            "SELECT command FROM shell_aliases WHERE name = ?1",
+            rusqlite::params![name],
+            |r| r.get(0),
+        ).ok()
+    }
+
+    pub fn list_aliases(&self) -> Vec<(String, String)> {
+        let mut stmt = match self.conn.prepare(
+            "SELECT name, command FROM shell_aliases ORDER BY name"
+        ) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default()
     }
 
     pub fn save_history_entry(&self, command: &str) {

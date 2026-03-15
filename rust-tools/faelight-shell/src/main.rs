@@ -42,8 +42,27 @@ fn main() -> Result<()> {
                 db.save_history_entry(&line);
 
                 // Execute
-                // Parse pipeline if | present
-                let has_pipe = line.contains(" | ");
+                // Expand aliases before pipeline parsing
+                let first_word = line.split_whitespace().next().unwrap_or("").to_lowercase();
+                let line = if let Some(aliased) = db.get_alias(&first_word) {
+                    let rest: String = line.splitn(2, ' ').nth(1).map(|s| format!(" {}", s)).unwrap_or_default();
+                    format!("{}{}", aliased, rest)
+                } else {
+                    line.to_string()
+                };
+                let line = line.as_str();
+
+                // Parse pipeline — only split on | when NOT inside quotes
+                let in_quotes = line.contains('"') && {
+                    let mut inside = false;
+                    let mut last_pipe_in_quotes = false;
+                    for ch in line.chars() {
+                        if ch == '"' { inside = !inside; }
+                        if ch == '|' && inside { last_pipe_in_quotes = true; }
+                    }
+                    last_pipe_in_quotes
+                };
+                let has_pipe = !in_quotes && line.contains(" | ");
                 let pipeline_ops = if has_pipe {
                     value::parse_pipeline(&line)
                 } else {
@@ -52,7 +71,7 @@ fn main() -> Result<()> {
                 let base_cmd = if has_pipe {
                     line.splitn(2, " | ").next().unwrap_or(&line).to_string()
                 } else {
-                    line.clone()
+                    line.to_string()
                 };
 
                 match commands::execute(&base_cmd, &db, &core_root) {
