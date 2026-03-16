@@ -270,7 +270,7 @@ chrono      — date/time in Values
   - Loaded on startup, applied before dispatch
   - alias / unalias commands
   - Tab completion suggests aliases too
-- ⬜ Phase 5: Plugin system
+- ✅ Phase 5: Plugin system — .fsh TOML plugins, forest-utils shipped, plugins/plr commands
 - ⬜ Phase 6: .fsh scripting language
 - ⬜ Phase 7: Full shell — beyond NixOS
 
