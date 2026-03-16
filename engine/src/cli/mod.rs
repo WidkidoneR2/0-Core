@@ -3,12 +3,12 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, AnomalyCommand, AuditCommand, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, AnomalyCommands, AuditCommands, DecisionCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
+    Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
     LedgerCommands, WhyCommands, WorkspaceCommands,
@@ -267,6 +267,11 @@ pub fn parse() -> Command {
             DecisionCommands::Story => DecisionCommand::Story,
         }),
         Commands::Heuristics { domain } => Command::Decision(DecisionCommand::Heuristics { domain }),
+        Commands::Bootstrap { command } => Command::Bootstrap(match command {
+            BootstrapCommands::Plan   => BootstrapCommand::Plan,
+            BootstrapCommands::Verify => BootstrapCommand::Verify,
+            BootstrapCommands::Diff   => BootstrapCommand::Diff,
+        }),
         Commands::Anomaly { command } => Command::Anomaly(match command {
             AnomalyCommands::Scan    => AnomalyCommand::Scan,
             AnomalyCommands::History => AnomalyCommand::History,

@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Command {
     Anomaly(AnomalyCommand),
+    Bootstrap(BootstrapCommand),
     Audit(AuditCommand),
     Version,
     Doctor(DoctorCommand),
@@ -305,4 +306,11 @@ pub enum AnomalyCommand {
     Scan,
     History,
     Alert,
+}
+
+#[derive(Debug)]
+pub enum BootstrapCommand {
+    Plan,
+    Verify,
+    Diff,
 }
