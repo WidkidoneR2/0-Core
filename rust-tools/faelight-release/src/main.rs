@@ -95,7 +95,7 @@ fn main() -> Result<()> {
                 theme
             };
 
-            println!("🌲 faelight-release — changelog preview for v{}", version);
+            println!("🌲 faelight-release — changelog preview for {}", version);
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
             let data = changelog::ChangelogData::build(&root, &version, &theme)?;
