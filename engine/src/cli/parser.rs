@@ -125,6 +125,11 @@ pub enum Commands {
         #[arg(short, long)]
         domain: Option<String>,
     },
+    /// Bootstrap intelligence — rebuild guidance
+    Bootstrap {
+        #[command(subcommand)]
+        command: BootstrapCommands,
+    },
     /// Detect unexpected system changes
     Anomaly {
         #[command(subcommand)]
@@ -641,4 +646,14 @@ pub enum AnomalyCommands {
     History,
     /// Surface high-severity anomalies
     Alert,
+}
+
+#[derive(Subcommand)]
+pub enum BootstrapCommands {
+    /// Generate reconstruction plan
+    Plan,
+    /// Verify current state consistency
+    Verify,
+    /// Show what diverged from canonical state
+    Diff,
 }

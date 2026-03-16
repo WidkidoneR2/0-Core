@@ -1,4 +1,5 @@
 pub mod anomaly;
+pub mod bootstrap;
 pub mod audit;
 pub mod capabilities;
 pub mod decisions;
