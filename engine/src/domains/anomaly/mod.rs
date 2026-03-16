@@ -82,6 +82,7 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
         "INSERT INTO events (domain, action, payload, timestamp) VALUES ('anomaly', 'scan', ?1, ?2)",
         rusqlite::params![payload, ts],
     ).ok();
+    crate::runtime::write_event_log("anomaly", "scan", &payload, ts);
 
     Ok(())
 }

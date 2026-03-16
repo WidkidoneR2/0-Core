@@ -299,6 +299,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
         Command::Events(c) => match c {
+            EventsCommand::Status => crate::domains::events::status(ctx),
+            EventsCommand::Archive => crate::domains::events::archive(ctx),
             EventsCommand::List => crate::domains::events::list(ctx),
             EventsCommand::Since { duration } => crate::domains::events::since(ctx, &duration),
             EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),

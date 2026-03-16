@@ -4,6 +4,36 @@ use std::fs;
 use std::path::PathBuf;
 
 #[allow(dead_code)]
+/// Write a single event to the JSONL log file
+/// Call this alongside any direct db.execute for events
+pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+    if !events_dir.exists() {
+        if std::fs::create_dir_all(&events_dir).is_err() { return; }
+    }
+    let date = chrono::DateTime::from_timestamp(ts, 0)
+        .map(|t| t.format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let log_path = events_dir.join(format!("{}.jsonl", date));
+    let mut line = String::with_capacity(256);
+    line.push_str("{\"ts\":");
+    line.push_str(&ts.to_string());
+    line.push_str(",\"domain\":\"");
+    line.push_str(domain);
+    line.push_str("\",\"action\":\"");
+    line.push_str(action);
+    line.push_str("\",\"payload\":");
+    line.push_str(payload);
+    line.push_str("}\n");
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true).append(true).open(&log_path)
+    {
+        f.write_all(line.as_bytes()).ok();
+    }
+}
+
 pub struct Runtime {
     pub root: PathBuf,
     pub logs: PathBuf,
@@ -148,5 +178,45 @@ impl<'a> EventWriter<'a> {
                 rusqlite::params![domain, action, full_payload, ts],
             )
             .ok();
+
+        // INT-129 — write to JSONL event log alongside SQLite
+        self.append_jsonl(domain, action, &full_payload, ts);
+    }
+
+    fn append_jsonl(&self, domain: &str, action: &str, payload: &str, ts: i64) {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+        if !events_dir.exists() {
+            if std::fs::create_dir_all(&events_dir).is_err() { return; }
+        }
+
+        // Daily rotation — one file per day
+        let date = chrono::DateTime::from_timestamp(ts, 0)
+            .map(|t| t.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let log_path = events_dir.join(format!("{}.jsonl", date));
+
+        // Build JSONL line safely
+        let mut line = String::with_capacity(256);
+        line.push_str("{\"ts\":");
+        line.push_str(&ts.to_string());
+        line.push_str(",\"domain\":\"");
+        line.push_str(domain);
+        line.push_str("\",\"action\":\"");
+        line.push_str(action);
+        line.push_str("\",\"payload\":");
+        line.push_str(payload);
+        line.push_str("}\n");
+
+        // Append to file
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            f.write_all(line.as_bytes()).ok();
+        }
     }
 }

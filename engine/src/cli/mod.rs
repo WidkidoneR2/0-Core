@@ -211,6 +211,8 @@ pub fn parse() -> Command {
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
         }),
         Commands::Events { command } => Command::Events(match command {
+            EventsCommands::Status => EventsCommand::Status,
+            EventsCommands::Archive => EventsCommand::Archive,
             EventsCommands::List => EventsCommand::List,
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
