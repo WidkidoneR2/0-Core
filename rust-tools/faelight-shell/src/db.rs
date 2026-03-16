@@ -93,6 +93,39 @@ impl ForestDb {
             .unwrap_or_default()
     }
 
+    pub fn load_plugins(&self) -> Vec<(String, String, String)> {
+        // Returns Vec<(command_name, expansion, description)>
+        let plugin_dir = std::path::PathBuf::from(
+            std::env::var("HOME").unwrap_or_default()
+        ).join(".config/faelight-shell/plugins");
+
+        if !plugin_dir.exists() { return vec![]; }
+
+        let mut commands = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&plugin_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "fsh").unwrap_or(false) {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(parsed) = toml::from_str::<toml::Value>(&content) {
+                            if let Some(cmds) = parsed.get("command").and_then(|c| c.as_array()) {
+                                for cmd in cmds {
+                                    let name = cmd.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let expand = cmd.get("expand").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let desc = cmd.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    if !name.is_empty() && !expand.is_empty() {
+                                        commands.push((name, expand, desc));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        commands
+    }
+
     pub fn save_history_entry(&self, command: &str) {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
