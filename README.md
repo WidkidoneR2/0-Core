@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.8.0
+# 🌲 Faelight Forest v10.9.0
 
-![Version](https://img.shields.io/badge/version-v10.8.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-v10.9.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,23 +11,23 @@
 
 ## 🎊 Latest Release
 
-### v10.8.0 - 🌲 The Forest Between Worlds (2026-03-12)
+### v10.9.0 - 🌲 Roots and Branches (2026-03-16)
 
-- 118 — doctor facelift — cockpit-style health dashboard
-- 119 — core security advise — judgment layer for security decisions
-- 121 — faelight-readme — auto-update README dynamic sections on release
-- 123 — faelight-audit — Tool Intelligence Layer (core audit domain)
-- 124 — faelight-sandbox v2 — Forest-Aware Isolation Environment
-- faelight-shell v0.2.0 — Phase 2 complete, full data pipeline, 26 commands (INT-120)
-- faelight-shell — ht, ct, domains, select fix, 26 commands (INT-120)
-- faelight-shell — fix select pipe, multi-stage pipeline working (INT-120)
-- faelight-shell — decisions-table, count pipe, 22 commands total (INT-120)
-- faelight-sandbox v3 Phase 2 — policy enforcement wired, network isolation active, policy logged to ledger (INT-125)
+- 127 — Schema Layer — Registry and Policy Validation
+- 128 — Domain Restructuring — Subdirectory Per Domain
+- 129 — Event Log Directory — File-Based JSONL Alongside SQLite
+- 130 — faelight-gen — Forest-Native Password & Secret Generator Suite
+- 131 — faelight-teach upgrade — Interactive faelight-shell Tutorial
+- teach v5.0.0 — faelight-shell tutorial, 5 lessons, interactive prompt (INT-131)
+- faelight-gen v1.0.0 — 12 generator types, colored output, entropy display (INT-130)
+- INT-129 complete — JSONL event log, lifecycle policy, core events status/archive
+- Core v7 Phase 2 — bootstrap intelligence, plan/verify/diff commands (INT-122)
+- INT-128 — doctor domain restructured into subdirectories, checks/cockpit/schema split (INT-128)
 
-- Commits: 1438
-- Tools: 50 deployed
+- Commits: 1469
+- Tools: 51 deployed
 - Health: 95%
-- Intents: 77 complete
+- Intents: 82 complete
 
 [Full Changelog →](CHANGELOG.md)
 
