@@ -1,5 +1,44 @@
 # Changelog
 
+## [v10.9.0] — Unnamed Release (2026-03-16)
+
+### 🎯 Completed Intents
+- **INT-127** — Schema Layer — Registry and Policy Validation
+- **INT-128** — Domain Restructuring — Subdirectory Per Domain
+- **INT-129** — Event Log Directory — File-Based JSONL Alongside SQLite
+- **INT-130** — faelight-gen — Forest-Native Password & Secret Generator Suite
+- **INT-131** — faelight-teach upgrade — Interactive faelight-shell Tutorial
+
+### ✨ Features
+- teach v5.0.0 — faelight-shell tutorial, 5 lessons, interactive prompt (INT-131)
+- faelight-gen v1.0.0 — 12 generator types, colored output, entropy display (INT-130)
+- INT-129 complete — JSONL event log, lifecycle policy, core events status/archive
+- Core v7 Phase 2 — bootstrap intelligence, plan/verify/diff commands (INT-122)
+- INT-128 — doctor domain restructured into subdirectories, checks/cockpit/schema split (INT-128)
+- Core v7 Phase 1 — anomaly detection, core anomaly scan/history/alert (INT-122)
+- INT-127 complete — 04-schema/ layer, JSON schemas for all registry files, doctor schema validation check
+- faelight-shell Phase 5 — plugin system, .fsh plugin files, forest-utils plugin shipped (INT-120)
+- faelight-shell — alias system with persistence, pipeline-aware expansion, 29 commands (INT-120)
+- faelight-shell Phase 3 — security audit log, watch mode, histogram, git-commits/files, clear fix (INT-120)
+
+### 🔧 Fixes
+- faelight-release preview double v bug
+- alias-audit tool count 43→50, reads from registry (INT-120)
+- faelight-shell — ? alias conflict, panic guard, fmt_time helper, domain icons, did-you-mean suggestions (INT-120)
+
+### 🔩 Internal (11 commits)
+- ledger: INT-131 complete — teach shell tutorial
+- ledger: INT-130 complete — faelight-gen shipped
+- ledger: INT-129 complete — event log directory
+- ledger: INT-122 Phase 2 complete — bootstrap intelligence
+- ledger: INT-122 Phase 1 complete — anomaly detection
+- ...and 6 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1469  ·  Tools: 51 deployed  ·  Intents: 82 complete
+
+---
+
 ## [v10.8.0] — The Forest Between Worlds (2026-03-12)
 
 ### 🎯 Completed Intents
