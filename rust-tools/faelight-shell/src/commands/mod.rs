@@ -76,6 +76,19 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         return execute(&expanded, db, core_root);
     }
 
+    // Plugin resolution — after final cmd parse
+    {
+        let plugins = db.load_plugins();
+        if let Some((_, expand, _)) = plugins.iter().find(|(name, _, _)| name.as_str() == cmd.as_str()) {
+            let expanded = if args.is_empty() {
+                expand.clone()
+            } else {
+                format!("{} {}", expand, args.join(" "))
+            };
+            return execute(&expanded, db, core_root);
+        }
+    }
+
     let result = match cmd.as_str() {
         "help" | "h" | "?" => help(),
         "exit" | "quit" | "q" => CommandResult::Exit,
@@ -109,6 +122,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "watch" => watch_cmd(db, args),
         "alias" => alias_cmd(db, args),
         "unalias" => unalias_cmd(db, args),
+        "plugins" => list_plugins(db),
+        "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
         _ => {
@@ -887,6 +902,50 @@ fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
+
+fn list_plugins(db: &ForestDb) -> CommandResult {
+    let plugins = db.load_plugins();
+
+    // Group by plugin file
+    let plugin_dir = std::path::PathBuf::from(
+        std::env::var("HOME").unwrap_or_default()
+    ).join(".config/faelight-shell/plugins");
+
+    let mut out = String::new();
+    out.push_str(&format!("\n{}\n",
+        "  ╭─ 🔌 Loaded Plugins ─────────────────────────────".bright_cyan()
+    ));
+
+    if plugins.is_empty() {
+        out.push_str(&format!("  │  {} No plugins found\n", "○".dimmed()));
+        out.push_str(&format!("  │  Add .fsh files to {}\n",
+            plugin_dir.display().to_string().dimmed()
+        ));
+    } else {
+        out.push_str(&format!("  │  {} commands from plugins:\n",
+            plugins.len().to_string().bright_white()
+        ));
+        for (name, expand, desc) in &plugins {
+            out.push_str(&format!("  │  {:<15} {} {}\n",
+                name.bright_cyan(),
+                "→".dimmed(),
+                if desc.is_empty() { expand.dimmed().to_string() } else { desc.dimmed().to_string() }
+            ));
+        }
+    }
+    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    CommandResult::Output(out)
+}
+
+fn reload_plugins_cmd(db: &ForestDb) -> CommandResult {
+    let plugins = db.load_plugins();
+    CommandResult::Output(format!(
+        "  {} Reloaded {} plugin commands",
+        "✅".green(),
+        plugins.len().to_string().bright_white()
+    ))
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -996,6 +1055,7 @@ fn help() -> CommandResult {
         ("watch",      "watch a command live  [health|events]"),
         ("alias",      "manage aliases  [name=command]"),
         ("unalias",    "remove an alias"),
+        ("plugins",    "list loaded plugins"),
         ("story",     "30-day forest narrative"),
         ("advise",    "judgment advisory"),
         ("version",   "system version"),
