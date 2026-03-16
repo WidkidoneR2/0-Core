@@ -9,6 +9,47 @@ use std::fs;
 const DYNAMIC_START: &str = "<!-- DYNAMIC SECTION - Updated by bump-system-version -->";
 const DYNAMIC_END: &str = "<!-- END DYNAMIC SECTION -->";
 
+
+/// Update static tool count references throughout README
+pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
+    let Ok(mut content) = std::fs::read_to_string(readme_path) else { return; };
+    
+    // Count tools from registry
+    let registry_path = std::path::PathBuf::from(core_root).join("01-registry/tools.toml");
+    let tool_count = std::fs::read_to_string(&registry_path)
+        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
+        .unwrap_or(0);
+
+    if tool_count == 0 { return; }
+
+    // Replace all tool count references
+    for old in 50..60 {
+        if old == tool_count { continue; }
+        content = content.replace(
+            &format!("{} Rust tools you fully understand", old),
+            &format!("{} Rust tools you fully understand", tool_count)
+        );
+        content = content.replace(
+            &format!("# {} custom Rust tools", old),
+            &format!("# {} custom Rust tools", tool_count)
+        );
+        content = content.replace(
+            &format!("score all {} tools", old),
+            &format!("score all {} tools", tool_count)
+        );
+        content = content.replace(
+            &format!("The Rust Ecosystem ({} Tools)", old),
+            &format!("The Rust Ecosystem ({} Tools)", tool_count)
+        );
+        content = content.replace(
+            &format!("Build all {} tools", old),
+            &format!("Build all {} tools", tool_count)
+        );
+    }
+
+    std::fs::write(readme_path, content).ok();
+}
+
 pub fn update_readme(
     path: &PathBuf,
     version: &str,

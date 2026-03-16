@@ -2,7 +2,7 @@
 # 🌲 Faelight Forest v10.9.0
 
 ![Version](https://img.shields.io/badge/version-v10.9.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
@@ -45,7 +45,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 53 Rust tools you fully understand
+- 🦀 54 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
 - ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
@@ -68,7 +68,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
 ├── engine/           # core v3.0.0 — single orchestrator binary (Rust)
 │   └── src/domains/  # 15+ native Rust domains
-├── rust-tools/       # 53 custom Rust tools
+├── rust-tools/       # 54 custom Rust tools
 ├── 03-interfaces/    # Dotfiles (Niri, zsh, foot, yazi) via GNU Stow
 ├── scripts/          # Thin wrappers → core + compiled binaries
 ├── intents/          # Architectural decision records (123+ intents)
@@ -152,7 +152,7 @@ forest> dt | where outcome == success | count
 
 ### 🔍 Core Audit — Tool Intelligence
 ```bash
-core audit scan          # score all 53 tools
+core audit scan          # score all 54 tools
 core audit show <tool>   # deep audit
 core audit stale         # tools below threshold
 core audit coverage      # documentation gaps
@@ -217,13 +217,14 @@ core doctor entropy --trends     # 30-day history
 ```
 
 ---
-## 🦀 The Rust Ecosystem (53 Tools)
+## 🦀 The Rust Ecosystem (54 Tools)
 
 | Category | Tools |
 |---|---|
 | **Orchestrator** | `core` (v3.0.0 — 15+ domains + Core v6 judgment layer) |
 | **Compositor** | `faelight-compositor` (Smithay, Wayland-native, DRM backend on real hardware) |
-| **Shell** | `faelight-shell` (forest-native, Nu-inspired, 26 commands, full data pipeline) |
+| **Shell** | `faelight-shell` (forest-native, Nu-inspired, 30+ commands, full data pipeline) |
+| **Security** | `faelight-gen` (12-type secret generator, colored output, entropy display) |
 | **UI** | `faelight-bar`, `faelight-term`, `faelight-palette`, `faelight-menu`, `faelight-notify`, `faelight-login` |
 | **Clipboard** | `faelight-clipboard` |
 | **Intelligence** | `faelight-forecast`, `faelight-pulse`, `faelight-niri-bridge`, `faelight-idle` |
@@ -284,7 +285,7 @@ lock-core                       # Lock before shutdown
 ```bash
 cargo build --release -p core                    # Build orchestrator
 cargo build --release -p faelight-compositor     # Build compositor
-cargo build --release --workspace                # Build all 53 tools
+cargo build --release --workspace                # Build all 54 tools
 doctor                                           # Verify health
 ```
 
@@ -315,7 +316,7 @@ doctor                                           # Verify health
 | v10.5.0 | **The Intelligent Forest — faelight-release, forecast, pulse, niri-bridge** 🧠 |
 | v10.6.0 | **The Judgment Layer — Core v5 complete, 5 phases, ledger foundation** ⚖️ |
 | v10.7.0 | **The Forest Remembers — faelight-compositor + Core v6 complete** 🌲 |
-| v10.8.0 | **The Forest Between Worlds — faelight-shell born, core audit, sandbox v3** 🐚 |
+| v10.9.0 | **Roots and Branches — faelight-shell born, core audit, sandbox v3** 🐚 |
 
 From hardcoded paths to centralized elegance.
 From 40 separate binaries to one orchestrator.
