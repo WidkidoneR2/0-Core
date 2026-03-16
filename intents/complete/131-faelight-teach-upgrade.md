@@ -3,7 +3,7 @@ id: 131
 date: 2026-03-16
 type: future
 title: "faelight-teach upgrade — Interactive faelight-shell Tutorial"
-status: planned
+status: complete
 tags: [teach, shell, tutorial, learning, interactive, v10.9]
 version: 10.9.0
 priority: medium
