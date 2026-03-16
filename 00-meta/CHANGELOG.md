@@ -1,6 +1,6 @@
 # Changelog
 
-## [v10.9.0] — Unnamed Release (2026-03-16)
+## [v10.9.0] — Roots and Branches (2026-03-16)
 
 ### 🎯 Completed Intents
 - **INT-127** — Schema Layer — Registry and Policy Validation

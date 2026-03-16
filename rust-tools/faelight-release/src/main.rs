@@ -71,11 +71,21 @@ fn main() -> Result<()> {
             let version_str = version.clone();
             let (published, final_theme) = tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
             if published {
+                // Re-write changelog with the actual theme from TUI
+                let changelog_path = std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md");
+                if changelog_path.exists() {
+                    if let Ok(cl) = std::fs::read_to_string(&changelog_path) {
+                        let fixed = cl.replace(
+                            &format!("[{}] — Unnamed Release", version_str),
+                            &format!("[{}] — {}", version_str, final_theme)
+                        );
+                        std::fs::write(&changelog_path, fixed).ok();
+                    }
+                }
                 // Sync /etc/faelight/ so faelight-login shows correct version
                 let version_file = std::path::Path::new("/etc/faelight/VERSION");
                 if version_file.parent().map(|p| p.exists()).unwrap_or(false) {
                     let v = if version_str.starts_with("v") { version_str.clone() } else { format!("v{}", version_str) };
-                    let _ = &final_theme; // theme captured from TUI
                     if let Err(e) = std::fs::write(version_file, &v) {
                         eprintln!("⚠️  Could not update /etc/faelight/VERSION: {}", e);
                         eprintln!("   Run manually: sudo sh -c echo {} > /etc/faelight/VERSION", v);
