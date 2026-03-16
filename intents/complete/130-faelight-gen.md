@@ -3,7 +3,7 @@ id: 130
 date: 2026-03-16
 type: future
 title: "faelight-gen — Forest-Native Password & Secret Generator Suite"
-status: planned
+status: complete
 tags: [security, generator, password, tui, ratatui, rust, v10.9]
 version: 10.9.0
 priority: medium
