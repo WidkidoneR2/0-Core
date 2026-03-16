@@ -3,7 +3,7 @@ id: 128
 date: 2026-03-15
 type: future
 title: "Domain Restructuring — Subdirectory Per Domain"
-status: planned
+status: complete
 tags: [architecture, domains, structure, organization, v10.9]
 version: 10.9.0
 priority: high
