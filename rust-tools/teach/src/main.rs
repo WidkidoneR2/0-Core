@@ -1153,6 +1153,240 @@ fn prompt(msg: &str) -> String {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+
+// ── faelight-shell Tutorial Module (INT-131) ─────────────────────────────────
+
+fn run_shell_tutorial(args: &[String]) {
+    let lessons = build_shell_lessons();
+
+    // teach shell list
+    if args.iter().any(|a| a == "list") {
+        println!();
+        println!("{}", "  ╭─ 📚 faelight-shell Lessons ─────────────────────────".bright_cyan());
+        for (i, lesson) in lessons.iter().enumerate() {
+            println!("  │  {}  {}", format!("{:02}", i+1).bright_white().bold(), lesson.title.dimmed());
+        }
+        println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+        println!("  Run: {} to start", "teach shell".bright_cyan());
+        println!();
+        return;
+    }
+
+    // teach shell progress
+    if args.iter().any(|a| a == "progress") {
+        show_shell_progress(&lessons);
+        return;
+    }
+
+    // teach shell <number>
+    let lesson_num = args.first()
+        .and_then(|a| a.parse::<usize>().ok())
+        .map(|n| n.saturating_sub(1))
+        .unwrap_or(0);
+
+    let lesson = &lessons[lesson_num.min(lessons.len() - 1)];
+    run_lesson(lesson);
+}
+
+#[derive(Debug)]
+struct Lesson {
+    title: String,
+    intro: String,
+    steps: Vec<Step>,
+}
+
+#[derive(Debug)]
+struct Step {
+    instruction: String,
+    expected: String,
+    hint: String,
+    success: String,
+}
+
+fn build_shell_lessons() -> Vec<Lesson> {
+    vec![
+        Lesson {
+            title: "The Basics — Your First Commands".to_string(),
+            intro: "faelight-shell is a forest-native shell. Everything here knows about your system.".to_string(),
+            steps: vec![
+                Step {
+                    instruction: "Check the forest health".to_string(),
+                    expected: "health".to_string(),
+                    hint: "Type: health".to_string(),
+                    success: "The health command shows version, status and recent events.".to_string(),
+                },
+                Step {
+                    instruction: "See what version the forest is on".to_string(),
+                    expected: "version".to_string(),
+                    hint: "Type: version".to_string(),
+                    success: "Version shows the current Faelight Forest release.".to_string(),
+                },
+                Step {
+                    instruction: "List all available commands".to_string(),
+                    expected: "help".to_string(),
+                    hint: "Type: help  (or just ?)".to_string(),
+                    success: "There are 30+ commands. You can also use h or ? as shortcuts.".to_string(),
+                },
+            ],
+        },
+        Lesson {
+            title: "Tables — Structured Data".to_string(),
+            intro: "In faelight-shell, commands return structured tables — not text.".to_string(),
+            steps: vec![
+                Step {
+                    instruction: "Show all tools as a table".to_string(),
+                    expected: "tt".to_string(),
+                    hint: "Type: tt  (tools-table)".to_string(),
+                    success: "tt shows name, version, score, and deployed status for all 54 tools.".to_string(),
+                },
+                Step {
+                    instruction: "Show today's events as a table".to_string(),
+                    expected: "et today".to_string(),
+                    hint: "Type: et today".to_string(),
+                    success: "et is events-table. Adding today filters to just today.".to_string(),
+                },
+                Step {
+                    instruction: "Show event domain summary".to_string(),
+                    expected: "domains".to_string(),
+                    hint: "Type: domains".to_string(),
+                    success: "domains shows a histogram of events per domain.".to_string(),
+                },
+            ],
+        },
+        Lesson {
+            title: "Pipelines — Data Flow".to_string(),
+            intro: "The | operator passes structured data between commands. This is the most powerful feature.".to_string(),
+            steps: vec![
+                Step {
+                    instruction: "Filter tools with score below 80".to_string(),
+                    expected: "tt | where score < 80".to_string(),
+                    hint: "Type: tt | where score < 80".to_string(),
+                    success: "where filters rows. score is a column in the tools table.".to_string(),
+                },
+                Step {
+                    instruction: "Sort those tools by score".to_string(),
+                    expected: "tt | where score < 80 | sort score".to_string(),
+                    hint: "Add | sort score to the pipeline".to_string(),
+                    success: "sort orders rows. Ascending by default. Use sort score desc for descending.".to_string(),
+                },
+                Step {
+                    instruction: "Count how many tools are below 80".to_string(),
+                    expected: "tt | where score < 80 | count".to_string(),
+                    hint: "Add | count to the end".to_string(),
+                    success: "count returns a single number. Pipelines can end with count to summarize.".to_string(),
+                },
+            ],
+        },
+        Lesson {
+            title: "Aliases — Personal Shortcuts".to_string(),
+            intro: "Aliases let you save pipeline queries as named commands. They persist across sessions.".to_string(),
+            steps: vec![
+                Step {
+                    instruction: "Create an alias for stale tools".to_string(),
+                    expected: "alias stale=at | where score < 70 | sort score".to_string(),
+                    hint: "Type: alias stale=at | where score < 70 | sort score".to_string(),
+                    success: "The alias is saved to state.db and available every session.".to_string(),
+                },
+                Step {
+                    instruction: "List all your aliases".to_string(),
+                    expected: "alias".to_string(),
+                    hint: "Type: alias  with no arguments".to_string(),
+                    success: "Your stale alias is now listed. It expands to the full pipeline.".to_string(),
+                },
+            ],
+        },
+        Lesson {
+            title: "Git Intelligence — Structured History".to_string(),
+            intro: "Git data is first-class in faelight-shell. Commits are rows you can filter.".to_string(),
+            steps: vec![
+                Step {
+                    instruction: "Show recent commits as a table".to_string(),
+                    expected: "gc".to_string(),
+                    hint: "Type: gc  (git-commits)".to_string(),
+                    success: "gc shows hash, author, date and message for recent commits.".to_string(),
+                },
+                Step {
+                    instruction: "Show only your commits".to_string(),
+                    expected: "gc | where author == christian".to_string(),
+                    hint: "Type: gc | where author == christian".to_string(),
+                    success: "Every commit is a row. author is a column you can filter.".to_string(),
+                },
+                Step {
+                    instruction: "Show files with uncommitted changes".to_string(),
+                    expected: "gf".to_string(),
+                    hint: "Type: gf  (git-files)".to_string(),
+                    success: "gf shows status, kind and filename for all changed files.".to_string(),
+                },
+            ],
+        },
+    ]
+}
+
+fn run_lesson(lesson: &Lesson) {
+    use std::io::{self, BufRead, Write};
+
+    println!();
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!("  📚 {}", lesson.title.bright_white().bold());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!("  {}", lesson.intro.dimmed());
+    println!();
+
+    for (i, step) in lesson.steps.iter().enumerate() {
+        println!("  {} Step {}/{}", "→".bright_cyan(), i+1, lesson.steps.len());
+        println!("  {}", step.instruction.bright_white());
+        println!();
+
+        loop {
+            print!("  🌲 forest❯ ");
+            io::stdout().flush().ok();
+            let stdin = io::stdin();
+            let input = stdin.lock().lines().next()
+                .and_then(|l| l.ok())
+                .unwrap_or_default();
+            let input = input.trim();
+
+            if input == "hint" || input == "?" {
+                println!("  {} {}", "💡".to_string(), step.hint.yellow());
+                continue;
+            }
+            if input == "skip" {
+                println!("  {} Skipped", "→".dimmed());
+                break;
+            }
+            if input == step.expected {
+                println!("  {} {}", "✅".to_string(), step.success.green());
+                println!();
+                break;
+            } else {
+                println!("  {} Not quite — type {} for a hint",
+                    "✗".bright_red(), "hint".bright_cyan());
+            }
+        }
+    }
+
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("  {} Lesson complete!", "🎉".to_string());
+    println!("  Next: {} or {} to see all lessons",
+        "teach shell".bright_cyan(),
+        "teach shell list".bright_cyan()
+    );
+    println!();
+}
+
+fn show_shell_progress(lessons: &[Lesson]) {
+    println!();
+    println!("{}", "  ╭─ 📊 faelight-shell Progress ───────────────────────".bright_cyan());
+    println!("  │  {} lessons available", lessons.len().to_string().bright_white());
+    for (i, lesson) in lessons.iter().enumerate() {
+        println!("  │  {}  {}", format!("{:02}", i+1).dimmed(), lesson.title.bright_white());
+    }
+    println!("  │");
+    println!("  │  Run {} to start any lesson", "teach shell <number>".bright_cyan());
+    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!();
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -1170,6 +1404,11 @@ fn main() {
     // Gather live system state
     let snap = SystemSnapshot::gather();
 
+    // faelight-shell tutorial module (INT-131)
+    if args.iter().any(|a| a == "shell") {
+        run_shell_tutorial(&args[1..].to_vec());
+        return;
+    }
     // Expert sub-commands (no progress needed)
     if args
         .iter()
