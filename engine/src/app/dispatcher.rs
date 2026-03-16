@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, AuditCommand, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
+    Command, AnomalyCommand, AuditCommand, DecisionCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
 };
@@ -384,6 +384,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
+        Command::Anomaly(cmd) => match cmd {
+            AnomalyCommand::Scan    => crate::domains::anomaly::scan(ctx),
+            AnomalyCommand::History => crate::domains::anomaly::history(ctx),
+            AnomalyCommand::Alert   => crate::domains::anomaly::alert(ctx),
+        },
         Command::Audit(cmd) => match cmd {
             AuditCommand::Scan => crate::domains::audit::scan(ctx),
             AuditCommand::Show { tool } => crate::domains::audit::show(ctx, &tool),

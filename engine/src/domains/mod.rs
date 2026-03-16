@@ -1,3 +1,4 @@
+pub mod anomaly;
 pub mod audit;
 pub mod capabilities;
 pub mod decisions;
