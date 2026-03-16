@@ -450,6 +450,10 @@ pub enum UpdateCommands {
 
 #[derive(Subcommand)]
 pub enum EventsCommands {
+    /// Show event log file status and size
+    Status,
+    /// Archive and compress old log files
+    Archive,
     /// List events from today
     List,
     /// Events since a duration (e.g. 1h, 30m, 2d)

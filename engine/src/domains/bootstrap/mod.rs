@@ -318,4 +318,5 @@ fn emit_event(ctx: &AppContext, action: &str) {
         "INSERT INTO events (domain, action, payload, timestamp) VALUES ('bootstrap', ?1, ?2, ?3)",
         rusqlite::params![action, payload, ts],
     ).ok();
+    crate::runtime::write_event_log("bootstrap", action, &payload, ts);
 }

@@ -79,6 +79,23 @@ to build the most complete picture of system state and history.
 │  ✅ Event Log    Archive: 23 days, 4,847 total events
 ```
 
+## Log Lifecycle Policy
+```
+Active:   last 30 days     — full JSONL, queryable
+Archive:  last 12 months   — compressed .gz monthly
+Delete:   older than 12mo  — removed automatically
+```
+
+At typical usage (~50 events/day) this uses under 1MB total.
+Run manually or schedule with a systemd timer.
+
+## Archive Commands
+```bash
+core events archive         # compress previous months, delete old
+core events status          # show log sizes, age, total events
+core events replay --date   # replay a specific day
+```
+
 ## Success Criteria
 
 - [ ] runtime/events/ directory created

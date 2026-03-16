@@ -239,6 +239,8 @@ pub enum LedgerCommand {
 }
 #[derive(Debug)]
 pub enum EventsCommand {
+    Status,
+    Archive,
     List,
     Since { duration: String },
     Filter { domain: String },

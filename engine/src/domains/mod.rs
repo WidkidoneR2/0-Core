@@ -1,10 +1,10 @@
 pub mod anomaly;
+pub mod events;
 pub mod bootstrap;
 pub mod audit;
 pub mod capabilities;
 pub mod decisions;
 pub mod doctor;
-pub mod events;
 pub mod fetch;
 pub mod git;
 pub mod intent;

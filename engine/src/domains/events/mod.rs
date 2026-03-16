@@ -1,5 +1,7 @@
 //! events domain — query the event ledger
 use crate::app::context::AppContext;
+use crate::capabilities::Capability;
+extern crate flate2;
 use crate::errors::CoreResult;
 use colored::*;
 use rusqlite::params;
@@ -1658,3 +1660,124 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
     println!("\n{}", "━".repeat(52).dimmed());
     Ok(())
 }
+
+// ── INT-129 — Event Log File Management ──────────────────────────────────────
+
+pub fn status(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require("events", &[Capability::FilesystemReadHome])?;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+
+    println!();
+    println!("{}", "  ╭─ 📋 Event Log Status ───────────────────────────────".bright_cyan());
+
+    if !events_dir.exists() {
+        println!("  │  {} No event log directory yet", "○".dimmed());
+        println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+        return Ok(());
+    }
+
+    let mut total_lines: usize = 0;
+    let mut total_bytes: u64 = 0;
+    let mut files: Vec<(String, u64, usize)> = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(&events_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.ends_with(".jsonl") {
+                let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+                let lines = std::fs::read_to_string(&path)
+                    .map(|c| c.lines().count()).unwrap_or(0);
+                total_bytes += size;
+                total_lines += lines;
+                files.push((name, size, lines));
+            }
+        }
+    }
+
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+
+    println!("  │  {} events across {} days",
+        total_lines.to_string().bright_white(),
+        files.len().to_string().bright_white()
+    );
+    println!("  │  Size: {}", format_bytes(total_bytes).bright_white());
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    for (name, size, lines) in files.iter().take(10) {
+        println!("  │  {:<22} {:>6} events  {}",
+            name.bright_cyan(), lines.to_string().dimmed(),
+            format_bytes(*size).dimmed()
+        );
+    }
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!("  │  Lifecycle: 30 days active  |  12 months archived");
+    println!("  │  Run {} to compress old logs", "core events archive".bright_cyan());
+    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!();
+    Ok(())
+}
+
+pub fn archive(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require("events", &[Capability::FilesystemReadHome])?;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
+    let archive_dir = events_dir.join("archive");
+    if !events_dir.exists() {
+        println!("  {} No event log directory yet", "○".dimmed());
+        return Ok(());
+    }
+    std::fs::create_dir_all(&archive_dir).ok();
+    let now = chrono::Local::now();
+    let mut archived = 0usize;
+    let mut deleted = 0usize;
+    let mut kept = 0usize;
+    if let Ok(entries) = std::fs::read_dir(&events_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".jsonl") { continue; }
+            let date_str = name.trim_end_matches(".jsonl");
+            let age = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .map(|d| {
+                    let dt = chrono::DateTime::<chrono::Local>::from_naive_utc_and_offset(
+                        d.and_hms_opt(0,0,0).unwrap_or_default().and_utc().naive_utc(),
+                        *now.offset()
+                    );
+                    now.signed_duration_since(dt).num_days()
+                }).unwrap_or(0);
+            if age > 365 {
+                std::fs::remove_file(&path).ok();
+                deleted += 1;
+            } else if age > 30 {
+                let gz = archive_dir.join(format!("{}.jsonl.gz", date_str));
+                if compress_file(&path, &gz) {
+                    std::fs::remove_file(&path).ok();
+                    archived += 1;
+                }
+            } else {
+                kept += 1;
+            }
+        }
+    }
+    println!();
+    println!("{}", "  ╭─ 📦 Event Log Archive ─────────────────────────────".bright_cyan());
+    println!("  │  {} files kept (last 30 days)", kept.to_string().bright_white());
+    println!("  │  {} files archived", archived.to_string().bright_yellow());
+    println!("  │  {} files deleted (>12 months)", deleted.to_string().dimmed());
+    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!();
+    Ok(())
+}
+
+fn compress_file(src: &std::path::PathBuf, dst: &std::path::PathBuf) -> bool {
+    use std::io::{Read, Write};
+    let Ok(mut input) = std::fs::File::open(src) else { return false; };
+    let Ok(output) = std::fs::File::create(dst) else { return false; };
+    let mut enc = flate2::write::GzEncoder::new(output, flate2::Compression::default());
+    let mut buf = Vec::new();
+    if input.read_to_end(&mut buf).is_err() { return false; }
+    enc.write_all(&buf).is_ok() && enc.finish().is_ok()
+}
+
+
