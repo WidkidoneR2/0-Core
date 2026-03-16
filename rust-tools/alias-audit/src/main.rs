@@ -158,7 +158,7 @@ fn check_missing(aliases: &HashMap<String, String>) -> Result<()> {
     if missing.is_empty() {
         println!(
             "{}",
-            "✅ All 43 tools have aliases! (daemon excluded)"
+            "✅ All 50 tools have aliases! (daemon excluded)"
                 .green()
                 .bold()
         );
@@ -300,7 +300,7 @@ fn output_doctor_format(aliases: &HashMap<String, String>) -> Result<()> {
 
     if missing.is_empty() {
         println!(
-            "✅ Alias Coverage: All 43 tools have aliases ({} total)",
+            "✅ Alias Coverage: All 50 tools have aliases ({} total)",
             aliases.len()
         );
     } else {
