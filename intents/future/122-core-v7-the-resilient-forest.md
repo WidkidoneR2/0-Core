@@ -168,7 +168,7 @@ Phase 5 — Forest Narrative Extended
 ⬜ Core v6 complete and stable (✅ done)
 ⬜ faelight-compositor stable (INT-109 in progress)
 ⬜ faelight-shell Phase 1 complete (INT-120)
-⬜ Phase 1 — Anomaly Detection
+✅ Phase 1 — Anomaly Detection (core anomaly scan/history/alert)
 ⬜ Phase 2 — Bootstrap Intelligence
 ⬜ Phase 3 — Security Intelligence Extended
 ⬜ Phase 4 — Dependency Intelligence
@@ -242,7 +242,7 @@ Faelight can reproduce state AND reasoning.
 ## Updated Gate Check
 
 - ✅ Core v6 complete and stable
-- ⬜ Phase 1 — Anomaly Detection
+- ✅ Phase 1 — Anomaly Detection (core anomaly scan/history/alert)
 - ⬜ Phase 2 — Bootstrap Intelligence
 - ⬜ Phase 3 — Security Intelligence Extended
 - ⬜ Phase 4 — Dependency Intelligence
