@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Faelight Forest Sandbox Policy Registry",
+  "type": "object",
+  "properties": {
+    "policy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "allow_net", "allow_fs_write", "max_cpu_seconds",
+                     "max_memory_mb", "emit_events", "description"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "allow_net": { "type": "boolean" },
+          "allow_fs_write": { "type": "boolean" },
+          "allow_env": { "type": "array", "items": { "type": "string" } },
+          "max_cpu_seconds": { "type": "integer", "minimum": 1 },
+          "max_memory_mb": { "type": "integer", "minimum": 1 },
+          "emit_events": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

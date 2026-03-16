@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Faelight Forest Tool Registry",
+  "description": "Schema for 01-registry/tools.toml tool entries",
+  "type": "object",
+  "properties": {
+    "tool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "category", "description", "expected_usage"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]+$",
+            "description": "Tool name — lowercase, hyphens only"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "Semantic version x.y.z"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["core", "ui", "development", "security", "system", "dotfiles",
+                     "health", "versioning", "tools", "shell", "bootstrap"],
+            "description": "Tool category"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 5,
+            "description": "Human-readable description"
+          },
+          "expected_usage": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "rare"],
+            "description": "Expected usage frequency for audit scoring"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
