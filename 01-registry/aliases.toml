@@ -290,3 +290,9 @@ category = "intelligence"
 command = "faelight-forecast --plain"
 aliases = ["forecast-plain", "ffp"]
 category = "intelligence"
+
+[[alias]]
+command = "faelight-gen"
+primary = "gen"
+aliases = ["fg-gen", "passgen", "secretgen"]
+description = "Secret generator"

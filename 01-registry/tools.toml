@@ -353,3 +353,10 @@ version = "0.1.0"
 category = "compositor"
 description = "Rust Wayland compositor on Smithay — the last sibling comes home (INT-109)"
 expected_usage = "high"
+
+[[tool]]
+name = "faelight-gen"
+version = "1.0.0"
+category = "security"
+description = "Forest-native password and secret generator suite — 12 types, colored output"
+expected_usage = "medium"
