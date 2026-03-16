@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Command {
+    Anomaly(AnomalyCommand),
     Audit(AuditCommand),
     Version,
     Doctor(DoctorCommand),
@@ -297,4 +298,11 @@ pub enum AuditCommand {
     Show { tool: String },
     Stale,
     Coverage,
+}
+
+#[derive(Debug)]
+pub enum AnomalyCommand {
+    Scan,
+    History,
+    Alert,
 }

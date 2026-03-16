@@ -125,6 +125,11 @@ pub enum Commands {
         #[arg(short, long)]
         domain: Option<String>,
     },
+    /// Detect unexpected system changes
+    Anomaly {
+        #[command(subcommand)]
+        command: AnomalyCommands,
+    },
     /// Audit tool health and intelligence
     Audit {
         #[command(subcommand)]
@@ -626,4 +631,14 @@ pub enum AuditCommands {
     Stale,
     /// Tools missing documentation
     Coverage,
+}
+
+#[derive(Subcommand)]
+pub enum AnomalyCommands {
+    /// Detect unexpected system changes
+    Scan,
+    /// Show anomaly detection history
+    History,
+    /// Surface high-severity anomalies
+    Alert,
 }
