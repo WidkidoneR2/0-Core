@@ -3,7 +3,7 @@ id: 129
 date: 2026-03-15
 type: future
 title: "Event Log Directory — File-Based JSONL Alongside SQLite"
-status: planned
+status: complete
 tags: [events, logging, jsonl, replay, resilience, structure, v10.9]
 version: 10.9.0
 priority: medium
