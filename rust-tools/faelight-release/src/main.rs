@@ -71,6 +71,10 @@ fn main() -> Result<()> {
             let version_str = version.clone();
             let (published, final_theme) = tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
             if published {
+                // Auto-update tool counts in README
+                let readme_path = std::path::PathBuf::from(&root).join("README.md");
+                crate::readme::update_tool_counts(&readme_path, root.to_str().unwrap_or(""));
+
                 // Re-write changelog with the actual theme from TUI
                 let changelog_path = std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md");
                 if changelog_path.exists() {

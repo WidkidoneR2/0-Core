@@ -431,18 +431,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bump-system-version"
-version = "9.4.0"
-dependencies = [
- "anyhow",
- "chrono",
- "colored",
- "dirs 5.0.1",
- "faelight-core",
- "rusqlite",
-]
-
-[[package]]
 name = "bump-tool-version"
 version = "2.1.0"
 dependencies = [
@@ -1385,16 +1373,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "faelight-dashboard"
-version = "2.1.0"
-dependencies = [
- "colored",
- "crossterm 0.28.1",
- "faelight-core",
- "ratatui 0.29.0",
 ]
 
 [[package]]
