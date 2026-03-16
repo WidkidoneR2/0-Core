@@ -3,7 +3,7 @@ id: 127
 date: 2026-03-15
 type: future
 title: "Schema Layer — Registry and Policy Validation"
-status: planned
+status: complete
 tags: [schema, validation, registry, integrity, structure, v10.9]
 version: 10.9.0
 priority: high
