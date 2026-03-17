@@ -152,6 +152,7 @@ pub enum SecurityCommand {
     Report { all: bool },
     Show { id: String },
     History,
+    Simulate { patch: String },
 }
 
 #[derive(Debug)]

@@ -920,3 +920,87 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
+    ctx.capabilities.require("security", &[crate::capabilities::Capability::FilesystemReadHome])?;
+
+    println!();
+    println!("{}", "  ╭─ 🔬 Security Simulate ─────────────────────────────".bright_cyan());
+    println!("  │  What would happen if we applied: {}", patch.bright_yellow().bold());
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+
+    // Check if patch references a known CVE or package
+    let is_cve = patch.to_uppercase().starts_with("CVE-");
+    let is_pkg = !is_cve;
+
+    if is_cve {
+        println!("  │  {} CVE reference detected", "🔍".to_string());
+        println!("  │");
+        println!("  │  {} Impact Analysis:", "①".bright_white().bold());
+        println!("  │    Checking forest tools for affected packages...");
+
+        // Scan Cargo.lock for affected dependencies
+        let lock_path = std::path::PathBuf::from(&ctx.core_root).join("Cargo.lock");
+        if lock_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&lock_path) {
+                let pkg_name = patch.split('-').last().unwrap_or("unknown");
+                let matches: Vec<&str> = content.lines()
+                    .filter(|l| l.contains("name = ") && l.to_lowercase().contains(&pkg_name.to_lowercase()))
+                    .collect();
+                if matches.is_empty() {
+                    println!("  │    {} No direct matches in Cargo.lock", "✅".green());
+                } else {
+                    for m in &matches {
+                        println!("  │    {} {}", "⚠".yellow(), m.trim().dimmed());
+                    }
+                }
+            }
+        }
+    } else {
+        println!("  │  {} Package/patch: {}", "📦".to_string(), patch.bright_white());
+        println!("  │");
+        println!("  │  {} Risk Assessment:", "①".bright_white().bold());
+
+        // Check if package is in our dependencies
+        let lock_path = std::path::PathBuf::from(&ctx.core_root).join("Cargo.lock");
+        let mut found_count = 0;
+        if lock_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&lock_path) {
+                found_count = content.lines()
+                    .filter(|l| l.contains("name = ") && l.to_lowercase().contains(&patch.to_lowercase()))
+                    .count();
+            }
+        }
+
+        if found_count > 0 {
+            println!("  │    {} Found in {} dependency location(s)", "⚠".yellow(), found_count);
+            println!("  │    Applying this patch affects {} tool(s)", found_count.to_string().bright_yellow());
+        } else {
+            println!("  │    {} Package not found in current dependencies", "✅".green());
+        }
+    }
+
+    println!("  │");
+    println!("  │  {} Recommended Actions:", "②".bright_white().bold());
+    println!("  │    1. Run {} to see current findings", "core security scan".bright_cyan());
+    println!("  │    2. Test in sandbox: {}", "faelight-sandbox run --policy build -- cargo update".bright_cyan());
+    println!("  │    3. Review with: {}", "core security advise".bright_cyan());
+    println!("  │");
+    println!("  │  {} This is a simulation — no changes made", "💡".to_string().dimmed());
+    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!();
+
+    // Emit event
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let payload = format!(r#"{{"actor":"core","result":"ok","detail":{{"patch":"{}","command":"security.simulate"}}}}"#, patch);
+    ctx.runtime.db.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('security', 'simulate', ?1, ?2)",
+        rusqlite::params![payload, ts],
+    ).ok();
+    crate::runtime::write_event_log("security", "simulate", &payload, ts);
+
+    Ok(())
+}
+

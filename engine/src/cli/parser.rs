@@ -314,6 +314,11 @@ pub enum SecurityCommands {
     History,
     /// Security judgment advisory
     Advise,
+    /// Simulate applying a security patch or CVE fix
+    Simulate {
+        /// Patch name or CVE ID to simulate
+        patch: String,
+    },
 }
 
 #[derive(Subcommand)]
