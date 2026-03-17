@@ -255,6 +255,139 @@ chrono      — date/time in Values
 - Voice/natural language foundation
 - The system that knows itself completely
 
+
+## Extended Vision — Phases 8-32
+
+These phases represent the long-term evolution of faelight-shell
+toward a full structured shell operating system interface.
+
+### Phase 8 — System Tables (HIGH PRIORITY)
+Expose OS state as structured tables — the most impactful next step.
+```
+processes | where cpu > 20 | sort cpu
+ports | where port == 8080
+services | where status == failed
+files | where size > 1gb | sort size
+network | where rx > 1mb
+packages | where outdated == true
+```
+This makes faelight-shell immediately useful as a daily driver.
+Real OS data flowing through the existing pipeline engine.
+
+### Phase 9 — Streaming Pipelines
+Live pipelines for observability.
+```
+logs --follow | where level == error
+network | watch | histogram traffic
+processes | watch
+```
+
+### Phase 10 — Terminal Visualization (partial ✅)
+histogram already exists. Expand with:
+```
+processes | chart cpu
+dashboard system
+```
+
+### Phase 11 — Schema-Aware Autocomplete
+Tab completion understands column names.
+```
+files | where <TAB>  →  name, size, modified, owner
+processes | where <TAB>  →  pid, name, cpu, memory
+```
+
+### Phase 12 — Package Manager
+```
+fsh install docker
+fsh install aws
+```
+
+### Phase 14 — File System Index
+Persistent index for fast file queries.
+```
+files | where size > 1gb
+files | group extension
+```
+Much faster than find.
+
+### Phase 15 — Git Data Engine (partial ✅)
+gc/gf already exist. Expand to:
+```
+git.commits | where author == christian
+git.files | top churn
+git.branches | where merged == false
+```
+
+### Phase 16 — History Analytics (partial ✅)
+ht exists. Expand to:
+```
+history | histogram command
+history | where duration > 5s
+```
+
+### Phase 17 — Event System (Reactive Shell)
+```
+on file_change run build
+on log_error notify
+```
+
+### Phase 18 — Time Travel
+```
+snapshot
+timeline processes
+diff snapshot1 snapshot2
+```
+
+### Phase 21 — Query Language
+SQL-like syntax:
+```
+select name, size from files where size > 1gb
+```
+
+### Phase 22 — Observability Dashboard
+```
+dashboard        # full system overview
+metrics          # live metrics
+dashboard system # CPU, memory, network, top processes, errors
+```
+
+### Phase 25 — AI Command Assistant
+Natural language to shell commands:
+```
+find biggest files       → files | sort size desc | first 10
+show memory hogs         → processes | sort memory desc | first 5
+why is my computer slow  → auto-diagnose CPU/memory/disk/network
+```
+
+### Phase 32 — Shell as OS Layer
+At this point faelight-shell becomes a meta-OS interface.
+Everything accessible through pipelines:
+processes, files, containers, network, cloud, metrics
+
+The "Secret Sauce" pipeline:
+```
+processes
+| where cpu > 50
+| join ports on pid
+| table
+```
+
+## Strategic Priority Order
+```
+1. Phase 8  — System tables (processes/ports/files/network)
+2. Phase 11 — Schema-aware autocomplete
+3. Phase 17 — Event triggers
+4. Phase 22 — Observability dashboard
+5. Phase 25 — AI command assistant
+```
+
+## The Three Pillars (from architectural review)
+```
+Structured data pipelines      ✅ built
+Real-time system observability  ⬜ Phase 9/22
+Queryable OS state              ⬜ Phase 8 — NEXT
+```
+
 ## Gate Check
 
 - ⬜ Phase 1: REPL with live prompt and 10+ commands
