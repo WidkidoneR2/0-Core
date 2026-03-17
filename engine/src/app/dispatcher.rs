@@ -392,6 +392,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DepsCommand::Risk  => crate::domains::deps::risk(ctx),
             DepsCommand::Audit => crate::domains::deps::audit(ctx),
         },
+        Command::Snapshot { json, save } => crate::domains::snapshot::narrative(ctx, json, save),
         Command::Narrative { since, intent } => crate::domains::narrative::run(
             ctx,
             since.as_deref(),

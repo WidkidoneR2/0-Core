@@ -720,10 +720,6 @@ alias dashboard='faelight-dashboard'
 alias dash='faelight-dashboard'
 
 # Snapshots
-alias snap='faelight-snapshot'
-alias snapshot='faelight-snapshot'
-alias snaplist='faelight-snapshot list'
-alias snapcreate='faelight-snapshot create'
 
 # Stow verification
 alias stow-check='faelight-stow'

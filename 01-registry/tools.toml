@@ -180,13 +180,6 @@ description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
 
 [[tool]]
-name = "faelight-snapshot"
-version = "2.0.0"
-category = "system"
-description = "System snapshot and restore"
-expected_usage = "rare"
-
-[[tool]]
 name = "faelight-term"
 version = "10.3.0"
 category = "ui"

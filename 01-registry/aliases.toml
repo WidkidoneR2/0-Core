@@ -87,11 +87,6 @@ aliases = ["menu"]
 category = "desktop"
 
 [[alias]]
-command = "faelight-snapshot"
-aliases = ["snap"]
-category = "automation"
-
-[[alias]]
 command = "faelight-update"
 aliases = ["fu", "update"]
 category = "automation"

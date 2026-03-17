@@ -2,6 +2,7 @@
 pub enum Command {
     Anomaly(AnomalyCommand),
     Bootstrap(BootstrapCommand),
+    Snapshot { json: bool, save: bool },
     Narrative { since: Option<String>, intent: Option<String> },
     Deps(DepsCommand),
     Audit(AuditCommand),
