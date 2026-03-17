@@ -1338,6 +1338,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "drm",
+ "drm-fourcc",
  "faelight-core",
  "gbm",
  "input",
