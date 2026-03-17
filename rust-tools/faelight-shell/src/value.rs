@@ -147,6 +147,7 @@ pub enum PipeOp {
     Last(usize),
     Count,
     Get(String),
+    Watch { interval: u64 },
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
@@ -245,6 +246,8 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         ["last", n] => n.parse().ok().map(PipeOp::Last),
         ["count"] => Some(PipeOp::Count),
         ["get", field] => Some(PipeOp::Get(field.to_string())),
+        ["watch"] => Some(PipeOp::Watch { interval: 2 }),
+        ["watch", n] => n.parse().ok().map(|i| PipeOp::Watch { interval: i }),
         _ => None,
     }
 }
