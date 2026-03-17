@@ -3,7 +3,8 @@
 
 use smithay::{
     backend::{
-        drm::{DrmDevice, DrmDeviceFd, DrmNode},
+        drm::{DrmDevice, DrmDeviceFd, DrmNode, DrmSurface},
+        allocator::gbm::GbmDevice,
         input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
@@ -18,6 +19,7 @@ use smithay::{
 };
 
 use crate::FaelightCompositor;
+use smithay_drm_extras::drm_scanner::{DrmScanner, DrmScanEvent, SimpleCrtcMapper};
 
 pub fn init_drm(
     event_loop: &mut EventLoop<FaelightCompositor>,
@@ -100,6 +102,45 @@ pub fn init_drm(
                             path.display(), connector_count, crtc_count
                         );
                         state.emit("compositor.drm", payload);
+
+                        // ── Session 4: GBM device + DrmScanner ──────────
+                        match GbmDevice::new(drm.device_fd().clone()) {
+                            Ok(_gbm) => {
+                                tracing::info!("✅ GBM device created successfully");
+
+                                // Use DrmScanner to find connector/CRTC pairs
+                                let mut scanner: DrmScanner<SimpleCrtcMapper> = DrmScanner::new();
+                                let scan_events = scanner.scan_connectors(&drm).unwrap_or_default();
+                                for event in scan_events.iter() {
+                                    match event {
+                                        DrmScanEvent::Connected { connector, crtc: Some(crtc) } => {
+                                            let mode = connector.modes().first().cloned();
+                                            tracing::info!(
+                                                connector = connector.interface().as_str(),
+                                                crtc = ?crtc,
+                                                width = mode.as_ref().map(|m| m.size().0).unwrap_or(0),
+                                                height = mode.as_ref().map(|m| m.size().1).unwrap_or(0),
+                                                refresh = mode.as_ref().map(|m| m.vrefresh()).unwrap_or(0),
+                                                "🎨 Session 4 — connector+CRTC pair found, ready for first render"
+                                            );
+                                            let payload = format!(
+                                                r#"{{"event":"render.ready","connector":"{}","mode":"{}x{}@{}"}}"#,
+                                                connector.interface().as_str(),
+                                                mode.as_ref().map(|m| m.size().0).unwrap_or(0),
+                                                mode.as_ref().map(|m| m.size().1).unwrap_or(0),
+                                                mode.as_ref().map(|m| m.vrefresh()).unwrap_or(0),
+                                            );
+                                            state.emit("compositor.drm", payload);
+                                        }
+                                        DrmScanEvent::Connected { crtc: None, .. } => {
+                                            tracing::warn!("Connector found but no CRTC available");
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            Err(e) => tracing::error!(?e, "Failed to create GBM device"),
+                        }
                     }
                     Err(e) => tracing::error!(?e, "Failed to create DrmDevice"),
                 }
