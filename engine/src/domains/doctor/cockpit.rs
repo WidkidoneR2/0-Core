@@ -1,8 +1,6 @@
 // doctor/cockpit.rs
-use std::fs;
 use colored::*;
 use super::{CheckResult, Status};
-use super::checks::*;
 
 pub fn print_result(r: &CheckResult) {
     match r.status {

@@ -131,7 +131,7 @@ fn git_churn_score() -> u8 {
     }
 }
 
-fn count_active_intents(ctx: &AppContext) -> u8 {
+fn count_active_intents(_ctx: &AppContext) -> u8 {
     let intents_dir = dirs::home_dir()
         .unwrap_or_default()
         .join("0-core/intents/future");
@@ -202,7 +202,7 @@ pub fn decide(ctx: &AppContext, description: &str, intent_id: Option<&str>) -> C
     println!();
 
     // Store in state.db
-    let context_json = serde_json::to_string(&context).unwrap_or_default();
+    let _context_json = serde_json::to_string(&context).unwrap_or_default();
     ctx.runtime.db.execute(
         "INSERT INTO decisions (dec_id, timestamp, context_hash, description, intent_id, risk_score, confidence)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",

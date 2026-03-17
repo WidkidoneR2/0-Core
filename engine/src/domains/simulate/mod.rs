@@ -21,7 +21,7 @@ pub fn scenario(ctx: &AppContext, description: &str) -> CoreResult<()> {
     let context = DecisionContext::capture(ctx);
     let fingerprint = context.fingerprint();
     let risk = context.risk_score();
-    let risk_label = context.risk_label();
+    let _risk_label = context.risk_label();
 
     println!();
     println!("{}", "🔮 Scenario Simulation".bright_cyan().bold());

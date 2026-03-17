@@ -16,7 +16,7 @@ use std::process::Command;
 pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities.require("bootstrap", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
-    let home = std::env::var("HOME").unwrap_or_default();
+    let _home = std::env::var("HOME").unwrap_or_default();
 
     println!();
     println!("{}", "  ╭─ 🌱 Bootstrap Plan ────────────────────────────────".bright_cyan());
@@ -114,7 +114,7 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
 
     // Check 2 — stow packages linked
     let stow_pkgs = read_stow_packages(core_root);
-    let home = std::env::var("HOME").unwrap_or_default();
+    let _home = std::env::var("HOME").unwrap_or_default();
     let stow_src = PathBuf::from(core_root).join("03-interfaces/stow");
     let mut unstowed = Vec::new();
     for pkg in &stow_pkgs {

@@ -1,6 +1,5 @@
 // doctor/schema.rs — registry schema validation check
 use std::fs;
-use std::path::PathBuf;
 use super::{CheckResult, Status};
 
 pub fn check_schema_validation(core_root: &str) -> CheckResult {
