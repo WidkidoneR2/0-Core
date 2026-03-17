@@ -78,6 +78,7 @@ pub enum DoctorCommand {
     },
     Trend,
     Forecast,
+    Rebuild,
 }
 
 #[derive(Debug)]

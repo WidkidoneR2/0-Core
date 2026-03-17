@@ -216,6 +216,8 @@ pub enum DoctorCommands {
     Trend,
     /// Health forecast — predicted trajectory
     Forecast,
+    /// Generate deterministic rebuild plan
+    Rebuild,
 }
 
 #[derive(Subcommand)]

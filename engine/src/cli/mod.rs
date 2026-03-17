@@ -39,6 +39,7 @@ pub fn parse() -> Command {
             DoctorCommands::Bins { subcmd } => DoctorCommand::Bins { subcmd },
             DoctorCommands::Trend => DoctorCommand::Trend,
             DoctorCommands::Forecast => DoctorCommand::Forecast,
+            DoctorCommands::Rebuild => DoctorCommand::Rebuild,
         }),
         Commands::Link { command } => Command::Link(match command {
             LinkCommands::Status { json } => LinkCommand::Status { json },
