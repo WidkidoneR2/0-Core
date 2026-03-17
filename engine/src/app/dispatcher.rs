@@ -49,6 +49,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 }
                 DoctorCommand::Trend => crate::domains::doctor::trend(ctx),
                 DoctorCommand::Forecast => crate::domains::doctor::forecast(ctx),
+                DoctorCommand::Rebuild => crate::domains::doctor::rebuild(ctx),
             }
         }
 

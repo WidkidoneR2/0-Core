@@ -35,6 +35,142 @@ use checks::*;
 pub(crate) use cockpit::render_cockpit;
 use schema::check_schema_validation;
 
+
+pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities.require("doctor", &[crate::capabilities::Capability::FilesystemReadHome])?;
+    let core_root = &ctx.core_root;
+
+    println!();
+    println!("{}", "  ╭─ 🔧 Deterministic Rebuild Plan ────────────────────".bright_cyan());
+    println!("  │  How to reconstruct this forest from first principles");
+    println!("  │  Every step is traceable to an intent or decision.");
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+
+    // ── Source 1: Registry ────────────────────────────────────────────────
+    println!("  │");
+    println!("  │  {} {} → what should exist",
+        "①".bright_white().bold(), "01-registry/tools.toml".bright_cyan());
+
+    let registry = std::fs::read_to_string(
+        std::path::PathBuf::from(core_root).join("01-registry/tools.toml")
+    ).unwrap_or_default();
+    let tools: Vec<&str> = registry.lines()
+        .filter(|l| l.starts_with("name = "))
+        .collect();
+    println!("  │    {} tools registered", tools.len().to_string().bright_white());
+    println!("  │    → git clone <remote>");
+    println!("  │    → cargo build --release --workspace");
+    println!("  │    → deploy all {} binaries to ~/0-core/scripts/", tools.len());
+
+    // ── Source 2: Intents ─────────────────────────────────────────────────
+    println!("  │");
+    println!("  │  {} {} → why decisions were made",
+        "②".bright_white().bold(), "intents/complete/".bright_cyan());
+
+    let complete_dir = std::path::PathBuf::from(core_root).join("intents/complete");
+    let intent_count = std::fs::read_dir(&complete_dir).map(|d| d.count()).unwrap_or(0);
+    println!("  │    {} completed intents document every architectural decision",
+        intent_count.to_string().bright_white());
+    println!("  │    → read intents/complete/ to understand WHY each tool exists");
+    println!("  │    → cross-reference with CHANGELOG.md for version context");
+
+    // ── Source 3: Interfaces ──────────────────────────────────────────────
+    println!("  │");
+    println!("  │  {} {} → what the environment looks like",
+        "③".bright_white().bold(), "03-interfaces/stow/".bright_cyan());
+
+    let stow_dir = std::path::PathBuf::from(core_root).join("03-interfaces/stow");
+    let stow_pkgs: Vec<String> = std::fs::read_dir(&stow_dir)
+        .map(|d| d.flatten()
+            .filter(|e| e.path().is_dir())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect())
+        .unwrap_or_default();
+    println!("  │    {} stow packages to deploy", stow_pkgs.len().to_string().bright_white());
+    for pkg in &stow_pkgs {
+        println!("  │      stow {}", pkg.dimmed());
+    }
+
+    // ── Source 4: Schema ──────────────────────────────────────────────────
+    println!("  │");
+    println!("  │  {} {} → what is valid",
+        "④".bright_white().bold(), "04-schema/".bright_cyan());
+
+    let schema_dir = std::path::PathBuf::from(core_root).join("04-schema");
+    let schema_count = std::fs::read_dir(&schema_dir)
+        .map(|d| d.flatten().filter(|e| {
+            e.file_name().to_string_lossy().ends_with(".json")
+        }).count())
+        .unwrap_or(0);
+    println!("  │    {} JSON schemas validate all registry files", schema_count.to_string().bright_white());
+    println!("  │    → run: core doctor run (validates schemas automatically)");
+
+    // ── Source 5: Event Log ───────────────────────────────────────────────
+    println!("  │");
+    println!("  │  {} {} → what happened",
+        "⑤".bright_white().bold(), "runtime/events/".bright_cyan());
+
+    let events_dir = std::path::PathBuf::from(core_root).join("runtime/events");
+    let event_files = std::fs::read_dir(&events_dir)
+        .map(|d| d.flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".jsonl"))
+            .count())
+        .unwrap_or(0);
+    println!("  │    {} JSONL event log files", event_files.to_string().bright_white());
+    println!("  │    → replay with: core events replay --date <date>");
+    println!("  │    → shows exactly what the forest was doing before any failure");
+
+    // ── Reconstruction Steps ──────────────────────────────────────────────
+    println!("  │");
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!("  │  {}", "Reconstruction Steps".bright_white().bold());
+    println!("  │");
+    println!("  │  {}  Install Arch Linux (vanilla)", "①".bright_white());
+    println!("  │     pacman -S niri greetd rustup git stow");
+    println!("  │");
+    println!("  │  {}  Clone the forest", "②".bright_white());
+    println!("  │     git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core");
+    println!("  │");
+    println!("  │  {}  Build all tools", "③".bright_white());
+    println!("  │     cd ~/0-core && cargo build --release --workspace");
+    println!("  │     cp target/release/* scripts/");
+    println!("  │");
+    println!("  │  {}  Deploy interfaces", "④".bright_white());
+    println!("  │     cd ~/0-core/03-interfaces/stow");
+    for pkg in stow_pkgs.iter().take(4) {
+        println!("  │     stow {}", pkg.dimmed());
+    }
+    println!("  │     stow ... ({} packages total)", stow_pkgs.len());
+    println!("  │");
+    println!("  │  {}  Validate", "⑤".bright_white());
+    println!("  │     core doctor run  → should show 23/23 ✅");
+    println!("  │     core bootstrap verify → confirms state consistency");
+    println!("  │");
+    println!("  │  {}  Review history", "⑥".bright_white());
+    println!("  │     core narrative → understand the full story");
+    println!("  │     core snapshot  → see the last known good state");
+    println!("  │     intents/complete/ → understand every decision");
+    println!("  │");
+    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!("  │  {} NixOS reproduces state.", "💡".to_string());
+    println!("  │    Faelight Forest reproduces state {} reasoning.", "AND".bright_green().bold());
+    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!();
+
+    // Emit event
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let payload = r#"{"actor":"core","result":"ok","detail":{"command":"doctor.rebuild"}}"#;
+    ctx.runtime.db.execute(
+        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('doctor', 'rebuild', ?1, ?2)",
+        rusqlite::params![payload, ts],
+    ).ok();
+    crate::runtime::write_event_log("doctor", "rebuild", payload, ts);
+
+    Ok(())
+}
+
 pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "doctor",
