@@ -3,7 +3,7 @@ id: 122
 date: 2026-03-12
 type: future
 title: "Core v7 — The Resilient Forest"
-status: planned
+status: complete
 tags: [core, v7, resilience, bootstrap, reproducibility, security, architecture]
 version: 11.0.0
 priority: medium
@@ -248,4 +248,4 @@ Faelight can reproduce state AND reasoning.
 - ✅ Phase 4 — Dependency Intelligence (core deps graph/risk/audit)
 - ✅ Phase 5 — Forest Narrative Extended (core narrative, core narrative --intent)
 - ✅ Phase 6 — Snapshot Narrative (core snapshot, --json, --save, faelight-snapshot retired)
-- ⬜ Phase 7 — Deterministic Rebuild (core doctor rebuild)
+- ✅ Phase 7 — Deterministic Rebuild (core doctor rebuild)
