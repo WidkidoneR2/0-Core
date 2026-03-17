@@ -130,6 +130,15 @@ pub enum Commands {
         #[command(subcommand)]
         command: DepsCommands,
     },
+    /// Forest narrative — the story of how the forest became what it is
+    Narrative {
+        /// Show narrative since a version (e.g. v10.0.0)
+        #[arg(long)]
+        since: Option<String>,
+        /// Show narrative for a specific intent ID
+        #[arg(long)]
+        intent: Option<String>,
+    },
     /// Bootstrap intelligence — rebuild guidance
     Bootstrap {
         #[command(subcommand)]
