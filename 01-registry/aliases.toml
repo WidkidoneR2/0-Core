@@ -22,11 +22,6 @@ aliases = ["bsv", "bump"]
 category = "versioning"
 
 [[alias]]
-command = "bump-tool-version"
-aliases = ["btv"]
-category = "versioning"
-
-[[alias]]
 command = "core-diff"
 aliases = ["cdiff"]
 category = "development"
