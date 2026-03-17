@@ -175,7 +175,7 @@ Phase 6 — future simulation
 
 ## Gate Check
 ```
-⬜ Core v7 complete
+✅ Core v7 complete — all 7 phases done (2026-03-17)
 ⬜ Phase 1 — architecture map
 ⬜ Phase 2 — tools usage analysis
 ⬜ Phase 3 — decision pattern detection
