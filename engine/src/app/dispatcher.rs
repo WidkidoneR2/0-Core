@@ -392,6 +392,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DepsCommand::Risk  => crate::domains::deps::risk(ctx),
             DepsCommand::Audit => crate::domains::deps::audit(ctx),
         },
+        Command::Narrative { since, intent } => crate::domains::narrative::run(
+            ctx,
+            since.as_deref(),
+            intent.as_deref(),
+        ),
         Command::Bootstrap(cmd) => match cmd {
             BootstrapCommand::Plan   => crate::domains::bootstrap::plan(ctx),
             BootstrapCommand::Verify => crate::domains::bootstrap::verify(ctx),
