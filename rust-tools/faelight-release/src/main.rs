@@ -87,6 +87,20 @@ fn main() -> Result<()> {
                     }
                 }
                 // Sync /etc/faelight/ so faelight-login shows correct version
+                // Update commit count
+                let commits_file = std::path::Path::new("/etc/faelight/COMMITS");
+                if let Ok(output) = std::process::Command::new("git")
+                    .args(["-C", root.to_str().unwrap_or("."), "rev-list", "--count", "HEAD"])
+                    .output()
+                {
+                    let count = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if let Err(e) = std::fs::write(commits_file, &count) {
+                        eprintln!("⚠️  Could not update /etc/faelight/COMMITS: {}", e);
+                        eprintln!("   Run manually: git rev-list --count HEAD | sudo tee /etc/faelight/COMMITS");
+                    } else {
+                        println!("✅ /etc/faelight/COMMITS updated to {}", count);
+                    }
+                }
                 let version_file = std::path::Path::new("/etc/faelight/VERSION");
                 if version_file.parent().map(|p| p.exists()).unwrap_or(false) {
                     let v = if version_str.starts_with("v") { version_str.clone() } else { format!("v{}", version_str) };
