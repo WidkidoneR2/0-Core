@@ -4,10 +4,7 @@ use crate::capabilities::Capability;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::process::Command;
-use walkdir::WalkDir;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Status {
@@ -91,7 +88,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // Core v5 Phase 2 — inline forecast after doctor run
     {
         let db = &ctx.runtime.db;
-        let mut stmt = db.prepare(
+        let stmt = db.prepare(
             "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 10"
         );
         if let Ok(mut stmt) = stmt {
@@ -114,7 +111,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 // Compute trend slope
                 let n = points.len() as f64;
                 let sum_h: f64 = points.iter().map(|(h,_)| *h as f64).sum();
-                let avg_h = sum_h / n;
+                let _avg_h = sum_h / n;
                 let recent_avg: f64 = points.iter().take(3).map(|(h,_)| *h as f64).sum::<f64>() / 3.0;
                 let older_avg: f64 = points.iter().skip(3).map(|(h,_)| *h as f64).sum::<f64>() / (n - 3.0).max(1.0);
                 let trend = recent_avg - older_avg;

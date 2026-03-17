@@ -34,6 +34,7 @@ pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
     }
 }
 
+#[allow(dead_code)]
 pub struct Runtime {
     pub root: PathBuf,
     pub logs: PathBuf,

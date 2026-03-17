@@ -125,6 +125,11 @@ pub enum Commands {
         #[arg(short, long)]
         domain: Option<String>,
     },
+    /// Dependency intelligence
+    Deps {
+        #[command(subcommand)]
+        command: DepsCommands,
+    },
     /// Bootstrap intelligence — rebuild guidance
     Bootstrap {
         #[command(subcommand)]
@@ -665,4 +670,14 @@ pub enum BootstrapCommands {
     Verify,
     /// Show what diverged from canonical state
     Diff,
+}
+
+#[derive(Subcommand)]
+pub enum DepsCommands {
+    /// Visual dependency map of all forest tools
+    Graph,
+    /// Which dependencies carry the most risk?
+    Risk,
+    /// Cross-reference deps with decision history
+    Audit,
 }

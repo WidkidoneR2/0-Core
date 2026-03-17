@@ -788,7 +788,7 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let scan_ts = json["scan_timestamp"].as_u64().unwrap_or(0);
+        let _scan_ts = json["scan_timestamp"].as_u64().unwrap_or(0);
         // Parse timestamp string "YYYY-MM-DD HH:MM:SS" to estimate age
         scan_age_days = if scan_timestamp != "unknown" && scan_timestamp != "never" {
             // Use file modification time as fallback
@@ -931,7 +931,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
 
     // Check if patch references a known CVE or package
     let is_cve = patch.to_uppercase().starts_with("CVE-");
-    let is_pkg = !is_cve;
+    let _is_pkg = !is_cve;
 
     if is_cve {
         println!("  │  {} CVE reference detected", "🔍".to_string());
