@@ -1,4 +1,5 @@
 pub mod anomaly;
+pub mod snapshot;
 pub mod narrative;
 pub mod deps;
 pub mod events;

@@ -139,6 +139,15 @@ pub enum Commands {
         #[arg(long)]
         intent: Option<String>,
     },
+    /// Snapshot narrative — the forest writes its own autobiography
+    Snapshot {
+        /// Output as machine-readable JSON reconstruction seed
+        #[arg(long)]
+        json: bool,
+        /// Save both markdown and JSON to runtime/snapshots/
+        #[arg(long)]
+        save: bool,
+    },
     /// Bootstrap intelligence — rebuild guidance
     Bootstrap {
         #[command(subcommand)]

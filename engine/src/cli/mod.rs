@@ -276,6 +276,7 @@ pub fn parse() -> Command {
             DepsCommands::Audit => DepsCommand::Audit,
         }),
         Commands::Narrative { since, intent } => Command::Narrative { since, intent },
+        Commands::Snapshot { json, save } => Command::Snapshot { json, save },
         Commands::Bootstrap { command } => Command::Bootstrap(match command {
             BootstrapCommands::Plan   => BootstrapCommand::Plan,
             BootstrapCommands::Verify => BootstrapCommand::Verify,

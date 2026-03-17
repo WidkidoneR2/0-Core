@@ -271,7 +271,6 @@ bindsym $mod+Alt+x exec $term -e ~/0-core/scripts/entropy-check
 # Development & Git
 bindsym $mod+Alt+g exec $term -e ~/0-core/scripts/faelight-git
 bindsym $mod+Alt+i exec $term -e ~/0-core/scripts/intent
-bindsym $mod+Alt+z exec ~/0-core/scripts/faelight-snapshot
 
 # System Management
 bindsym $mod+Alt+u exec $term -e ~/0-core/scripts/safe-update

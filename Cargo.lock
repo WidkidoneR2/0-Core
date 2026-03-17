@@ -1634,10 +1634,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-snapshot"
-version = "2.0.0"
-
-[[package]]
 name = "faelight-term"
 version = "10.3.0"
 dependencies = [
