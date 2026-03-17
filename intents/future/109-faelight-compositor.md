@@ -125,7 +125,15 @@ Fun: v10.8.0 release — "The Compositor Wakes"
 - ✅ Binary deployed — 43/43 path resilience
 - ✅ Events writing to state.db
 - ✅ DRM/udev backend — libseat + libinput on real hardware
-- ⬜ Session 2 — DRM device opened  ← NEXT
+- ✅ Session 2 — DRM device enumeration, AMD Radeon 780M identified
+  - GPU: AMD Radeon 780M (radeonsi, phoenix, ACO)
+  - DRM: 3.64, Mesa: 26.0.2
+  - Devices: /dev/dri/card1, card2, renderD128, renderD129
+  - DrmDevice code written and compiles correctly
+  - CRITICAL: must run from TTY2, not inside Niri
+    (Niri owns libseat — running --drm from within Niri causes session conflict)
+  - Session 3: Switch to TTY2, run --drm, get DRM device opened log
+- ⬜ Session 3 — Run from TTY2, open DRM device, enumerate connectors ← NEXT
 - ⬜ Session 3 — GPU renderer initialized
 - ⬜ Session 4 — Connector scanning
 - ⬜ Session 5 — Output creation
