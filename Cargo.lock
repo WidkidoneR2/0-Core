@@ -431,20 +431,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bump-tool-version"
-version = "2.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "faelight-core",
- "regex",
- "serde",
- "serde_json",
- "toml",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

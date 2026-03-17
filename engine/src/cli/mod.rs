@@ -108,6 +108,7 @@ pub fn parse() -> Command {
             SecurityCommands::Report { all } => SecurityCommand::Report { all },
             SecurityCommands::Show { id } => SecurityCommand::Show { id },
             SecurityCommands::History => SecurityCommand::History,
+            SecurityCommands::Simulate { patch } => SecurityCommand::Simulate { patch },
             SecurityCommands::Debt => SecurityCommand::Debt,
             SecurityCommands::Trend => SecurityCommand::Trend,
             SecurityCommands::Advise => SecurityCommand::Advise,
