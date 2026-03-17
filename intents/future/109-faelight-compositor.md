@@ -139,7 +139,13 @@ Fun: v10.8.0 release — "The Compositor Wakes"
   - Error: "Failed to restore previous state" — expected, Niri owns atomic state
   - Compositor reached ready state successfully
   - Session 4: Select correct CRTC/connector, create GBM device, attempt first render
-- ⬜ Session 4 — GBM device, connector selection, first render attempt ← NEXT
+- ✅ Session 4 — GBM device created, connector+CRTC found
+  - GBM device: created successfully
+  - Connector: eDP (Embedded DisplayPort — built-in screen)
+  - CRTC: Handle(363)
+  - Mode: 2560x1600 @ 165Hz
+  - render.ready event written to state.db
+- ⬜ Session 5 — First render: forest green #11140f on real hardware ← NEXT
 - ⬜ Session 3 — GPU renderer initialized
 - ⬜ Session 4 — Connector scanning
 - ⬜ Session 5 — Output creation
