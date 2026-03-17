@@ -133,7 +133,13 @@ Fun: v10.8.0 release — "The Compositor Wakes"
   - CRITICAL: must run from TTY2, not inside Niri
     (Niri owns libseat — running --drm from within Niri causes session conflict)
   - Session 3: Switch to TTY2, run --drm, get DRM device opened log
-- ⬜ Session 3 — Run from TTY2, open DRM device, enumerate connectors ← NEXT
+- ✅ Session 3 — DRM device opened from TTY2
+  - card2: 9 connectors, 4 CRTCs (main GPU — AMD Radeon 780M)
+  - card1: 2 connectors, 4 CRTCs
+  - Error: "Failed to restore previous state" — expected, Niri owns atomic state
+  - Compositor reached ready state successfully
+  - Session 4: Select correct CRTC/connector, create GBM device, attempt first render
+- ⬜ Session 4 — GBM device, connector selection, first render attempt ← NEXT
 - ⬜ Session 3 — GPU renderer initialized
 - ⬜ Session 4 — Connector scanning
 - ⬜ Session 5 — Output creation
