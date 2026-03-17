@@ -274,6 +274,10 @@ packages | where outdated == true
 This makes faelight-shell immediately useful as a daily driver.
 Real OS data flowing through the existing pipeline engine.
 
+### Daily Driver Target — Phase 18
+By Phase 18 faelight-shell should be the primary forest interface.
+Not replacing zsh entirely — but first tool opened for forest work.
+
 ### Phase 9 — Streaming Pipelines
 Live pipelines for observability.
 ```
@@ -425,3 +429,17 @@ The forest grows at its own pace.
 *"Not text streams. Not configuration. Structured wisdom."* 🌲
 *"NixOS knows what. faelight-shell knows why."* 🌲
 *"When DRM gets hard — write some shell code."* 🌲
+
+## Dependencies and Next Steps
+
+### Before faelight-vault (INT-132)
+- INT-109 faelight-compositor DRM must be completed first
+- faelight-vault builds on faelight-gen (INT-130 complete)
+- faelight-vault is the credential layer for a self-contained forest
+
+### Phase 9+ Priority Order
+- Phase 9  — Streaming Pipelines
+- Phase 10 — Terminal Visualization
+- Phase 11 — Schema-aware autocomplete
+- Phase 17 — Event triggers
+- Phase 18 — Daily driver milestone then evaluate faelight-vault
