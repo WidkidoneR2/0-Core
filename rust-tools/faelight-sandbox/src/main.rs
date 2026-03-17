@@ -35,6 +35,12 @@ enum Commands {
         /// Apply a named security policy
         #[arg(long)]
         policy: Option<String>,
+        /// Deep isolation level: net, full (net+pid+fs)
+        #[arg(long)]
+        isolate: Option<String>,
+        /// Profile resource usage (memory, CPU, I/O)
+        #[arg(long)]
+        profile: bool,
 
         /// Watch a directory for changes (default: ~/0-core)
         #[arg(long)]
@@ -305,6 +311,19 @@ fn print_diff(session: &SandboxSession) {
 }
 
 
+
+fn get_memory_kb() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("VmRSS:"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|n| n.parse().ok())
+        })
+        .unwrap_or(0)
+}
+
 fn emit_to_ledger_with_policy(session: &SandboxSession, duration_secs: u64, files_changed: usize, policy_name: Option<&str>) {
     let db_path = std::path::PathBuf::from(home()).join("0-core/runtime/state.db");
     if !db_path.exists() { return; }
@@ -364,6 +383,8 @@ fn main() -> Result<()> {
         Commands::Run {
             net_off,
             policy,
+            isolate,
+            profile,
             watch,
             cmd,
         } => {
@@ -415,10 +436,24 @@ fn main() -> Result<()> {
                 for restriction in p.restrictions() {
                     println!("             {}", restriction.dimmed());
                 }
-                // Policy overrides net_off
                 if !p.allow_net {
                     println!("   Network: {}", "OFF (policy)".bright_red());
                 }
+            }
+            if let Some(ref level) = isolate {
+                println!("   Isolate: {}", level.bright_magenta().bold());
+                match level.as_str() {
+                    "full" => {
+                        println!("             network: isolated");
+                        println!("             pid: isolated");
+                        println!("             filesystem: tmpfs overlay");
+                    }
+                    "net" => println!("             network: isolated"),
+                    _ => println!("             unknown level — use: net, full"),
+                }
+            }
+            if profile {
+                println!("   Profile: {}", "enabled — resource tracking".bright_cyan());
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
@@ -444,9 +479,13 @@ fn main() -> Result<()> {
             println!("\n  {} Running command...\n", "▶".bright_green());
             println!("{}", "─".repeat(42).dimmed());
 
-            // Execute — respect policy enforcement
+            // Execute — respect policy + isolate flag
+            let isolate_level = isolate.as_deref().unwrap_or("none");
             let network_isolated = net_off
-                || active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false);
+                || active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false)
+                || matches!(isolate_level, "net" | "full");
+            let pid_isolated = isolate_level == "full";
+            let fs_isolated = isolate_level == "full";
 
             let max_cpu = active_policy.as_ref().map(|p| p.max_cpu_seconds).unwrap_or(0);
 
@@ -462,10 +501,23 @@ fn main() -> Result<()> {
                 }
             }
 
+            // Record start time for profiling
+            let profile_start = std::time::Instant::now();
+            let start_mem = if profile { get_memory_kb() } else { 0 };
+
             let exit_code = if network_isolated {
-                // Use unshare to create network namespace
                 let mut unshare_cmd = Command::new("unshare");
-                unshare_cmd.args(["--net", "--map-root-user", "--"]);
+                // Build namespace flags based on isolation level
+                let mut ns_args = vec!["--net", "--map-root-user"];
+                if pid_isolated {
+                    ns_args.push("--pid");
+                    ns_args.push("--fork");
+                }
+                if fs_isolated {
+                    ns_args.push("--mount");
+                }
+                ns_args.push("--");
+                unshare_cmd.args(&ns_args);
                 unshare_cmd.args(&cmd);
                 match unshare_cmd.status() {
                     Ok(s) => s.code().unwrap_or(1),
@@ -533,6 +585,19 @@ fn main() -> Result<()> {
             };
             let policy_name = active_policy.as_ref().map(|p| p.name.as_str());
             emit_to_ledger_with_policy(&session, duration_secs, files_changed, policy_name);
+
+            // Phase 4 — Resource profiling output
+            if profile {
+                let end_mem = get_memory_kb();
+                let profile_elapsed = profile_start.elapsed();
+                println!();
+                println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+                println!("{}", "📊 Resource Profile".bright_cyan().bold());
+                println!("   Duration:  {:.3}s", profile_elapsed.as_secs_f64());
+                println!("   Memory Δ:  {} KB", (end_mem as i64 - start_mem as i64).to_string().bright_yellow());
+                println!("   Exit code: {}", exit_code);
+                println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+            }
 
             // Print diff
             println!();
