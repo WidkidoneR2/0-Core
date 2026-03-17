@@ -172,7 +172,7 @@ Phase 5 — Forest Narrative Extended
 ✅ Phase 2 — Bootstrap Intelligence (core bootstrap plan/verify/diff)
 ✅ Phase 3 — Security Intelligence Extended (core security trend/simulate)
 ✅ Phase 4 — Dependency Intelligence (core deps graph/risk/audit)
-⬜ Phase 5 — Forest Narrative Extended
+✅ Phase 5 — Forest Narrative Extended (core narrative, core narrative --intent)
 ```
 
 ## Stats Context (at time of writing)
@@ -246,6 +246,6 @@ Faelight can reproduce state AND reasoning.
 - ✅ Phase 2 — Bootstrap Intelligence (core bootstrap plan/verify/diff)
 - ✅ Phase 3 — Security Intelligence Extended (core security trend/simulate)
 - ✅ Phase 4 — Dependency Intelligence (core deps graph/risk/audit)
-- ⬜ Phase 5 — Forest Narrative Extended
+- ✅ Phase 5 — Forest Narrative Extended (core narrative, core narrative --intent)
 - ⬜ Phase 6 — Snapshot Narrative (core snapshot narrative)
 - ⬜ Phase 7 — Deterministic Rebuild (core doctor rebuild)
