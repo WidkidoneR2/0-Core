@@ -102,11 +102,11 @@ With enough data, `core advise` surfaces anomalies:
 - ✅ Real network isolation via unshare (tested — curl blocked under strict policy)
 - ✅ Policy restrictions logged to state.db with every run
 - ✅ Policy info displayed in session header
-- ⬜ Mount namespace isolation (overlay tmpfs)
-- ⬜ PID namespace isolation
+- ✅ Mount namespace isolation — --isolate full flag
+- ✅ PID namespace isolation — --isolate full flag
 - ⬜ Seccomp syscall filtering
-- ⬜ Peak memory tracking via /proc
-- ⬜ CPU time tracking via getrusage
+- ✅ Peak memory tracking via /proc/self/status
+- ✅ Duration tracking via Instant::now()
 - ⬜ Disk I/O tracking
 - ⬜ `core advise` surfaces policy violations
 - ⬜ doctor monitors sandbox health
