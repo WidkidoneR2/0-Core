@@ -8,6 +8,7 @@
 mod commands;
 mod db;
 mod output;
+use colored::Colorize;
 mod prompt;
 mod value;
 
@@ -73,6 +74,67 @@ fn main() -> Result<()> {
                 } else {
                     line.to_string()
                 };
+
+                // Phase 9 — Streaming: detect | watch at end of pipeline
+                let is_streaming = pipeline_ops.last()
+                    .map(|op| matches!(op, value::PipeOp::Watch { .. }))
+                    .unwrap_or(false);
+
+                if is_streaming {
+                    // Strip watch from pipeline ops
+                    let stream_ops: Vec<value::PipeOp> = pipeline_ops.iter()
+                        .take(pipeline_ops.len() - 1)
+                        .cloned()
+                        .collect();
+                    let interval = pipeline_ops.last()
+                        .and_then(|op| if let value::PipeOp::Watch { interval } = op {
+                            Some(*interval)
+                        } else { None })
+                        .unwrap_or(2);
+
+                    let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+                    // Use a background thread to watch for Enter key to stop
+                    let r = running.clone();
+                    std::thread::spawn(move || {
+                        let mut input = String::new();
+                        let _ = std::io::stdin().read_line(&mut input);
+                        r.store(false, std::sync::atomic::Ordering::SeqCst);
+                    });
+
+                    println!("  {} {} {}",
+                        "streaming".bright_cyan(),
+                        base_cmd.dimmed(),
+                        format!("({}s interval — Ctrl+C to stop)", interval).dimmed()
+                    );
+
+                    while running.load(std::sync::atomic::Ordering::SeqCst) {
+                        print!("[2J[H"); // clear screen
+                        let now = chrono::Local::now().format("%H:%M:%S").to_string();
+                        println!("  {} {} {}",
+                            "🌲 live".bright_cyan(),
+                            base_cmd.dimmed(),
+                            now.dimmed()
+                        );
+                        println!("{}", "━".repeat(52).dimmed());
+                        match commands::execute(&base_cmd, &db, &core_root) {
+                            commands::CommandResult::Value(v) => {
+                                let result = if !stream_ops.is_empty() {
+                                    value::apply_pipeline(v, &stream_ops)
+                                } else { v };
+                                println!("{}", result.render());
+                            }
+                            commands::CommandResult::Output(out) => println!("{}", out),
+                            _ => {}
+                        }
+                        for _ in 0..(interval * 10) {
+                            if !running.load(std::sync::atomic::Ordering::SeqCst) { break; }
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                    }
+                    println!("
+  {} stream stopped", "○".dimmed());
+                    continue;
+                }
 
                 match commands::execute(&base_cmd, &db, &core_root) {
                     commands::CommandResult::Exit => break,

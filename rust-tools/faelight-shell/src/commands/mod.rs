@@ -1276,7 +1276,7 @@ fn help() -> CommandResult {
         ("pkgs",       "installed packages as table"),
         ("gc",         "git commits as table — pipeable"),
         ("gf",         "git files as table — pipeable"),
-        ("watch",      "watch a command live  [health|events]"),
+        ("watch",      "watch a command live  [health|events] — or pipe: ps | watch [interval]"),
         ("alias",      "manage aliases  [name=command]"),
         ("unalias",    "remove an alias"),
         ("plugins",    "list loaded plugins"),
