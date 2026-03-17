@@ -117,6 +117,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
         "histogram" | "hist" => histogram(db, args),
+        "ps" | "processes" => sys_processes(),
+        "ports" => sys_ports(),
+        "services" | "svc" => sys_services(),
+        "files" | "ls" => sys_files(core_root, args),
+        "net" | "network" => sys_network(),
+        "pkgs" | "packages" => sys_packages(),
         "git-commits" | "gc" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
         "watch" => watch_cmd(db, args),
@@ -127,7 +133,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "cd" => cd(args),
         "clear" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
         _ => {
-            let known = ["health","events","decisions","intents","tools","audit",
+            let known = ["health","events","decisions","intents","tools","audit","ps","ports","services","files","net","pkgs",
                 "forecast","sandbox","story","advise","version","commits","cd",
                 "clear","exit","search","checkpoint","git","tt","et","at","dt",
                 "ht","ct","domains","help"];
@@ -946,6 +952,218 @@ fn reload_plugins_cmd(db: &ForestDb) -> CommandResult {
     ))
 }
 
+
+// ── Phase 8 — System Tables ───────────────────────────────────────────────────
+
+fn sys_processes() -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("ps")
+        .args(["aux", "--no-headers"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 11 { return None; }
+            let mut row = HashMap::new();
+            row.insert("pid".to_string(), Value::Text(parts[1].to_string()));
+            row.insert("name".to_string(), Value::Text(
+                parts[10..].join(" ").split('/').last()
+                    .unwrap_or(parts[10]).chars().take(30).collect()
+            ));
+            row.insert("cpu".to_string(), Value::Text(parts[2].to_string()));
+            row.insert("memory".to_string(), Value::Text(parts[3].to_string()));
+            row.insert("user".to_string(), Value::Text(parts[0].to_string()));
+            row.insert("status".to_string(), Value::Text(parts[7].to_string()));
+            Some(row)
+        })
+        .collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn sys_ports() -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("ss")
+        .args(["-tlnp"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .skip(1)
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 4 { return None; }
+            let addr = parts[3];
+            let port = addr.rsplit(':').next().unwrap_or("?").to_string();
+            let process = if parts.len() > 5 {
+                parts[5..].join(" ")
+                    .split('"').nth(1)
+                    .unwrap_or("?").to_string()
+            } else { "?".to_string() };
+            let mut row = HashMap::new();
+            row.insert("port".to_string(), Value::Text(port));
+            row.insert("state".to_string(), Value::Text(parts[0].to_string()));
+            row.insert("address".to_string(), Value::Text(addr.to_string()));
+            row.insert("process".to_string(), Value::Text(process));
+            Some(row)
+        })
+        .collect();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No listening ports found", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn sys_services() -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("systemctl")
+        .args(["list-units", "--type=service", "--no-pager",
+               "--no-legend", "--all"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter(|l| !l.trim().is_empty())
+        .take(50)
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 4 { return None; }
+            let name = parts[0].trim_end_matches(".service").to_string();
+            let load = parts[1].to_string();
+            let active = parts[2].to_string();
+            let sub = parts[3].to_string();
+            let mut row = HashMap::new();
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("load".to_string(), Value::Text(load));
+            row.insert("active".to_string(), Value::Text(active));
+            row.insert("status".to_string(), Value::Text(sub));
+            Some(row)
+        })
+        .collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let dir = args.first().copied().unwrap_or(".");
+    let path = if dir == "." {
+        std::path::PathBuf::from(core_root)
+    } else {
+        std::path::PathBuf::from(dir)
+    };
+
+    let rows: Vec<HashMap<String, Value>> = std::fs::read_dir(&path)
+        .ok()
+        .map(|entries| {
+            entries.flatten()
+                .filter_map(|e| {
+                    let meta = e.metadata().ok()?;
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let size = meta.len();
+                    let kind = if meta.is_dir() { "dir" } else { "file" }.to_string();
+                    let modified = meta.modified().ok()
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| {
+                            chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                                .map(|t| t.format("%m-%d %H:%M").to_string())
+                                .unwrap_or_else(|| "?".to_string())
+                        })
+                        .unwrap_or_else(|| "?".to_string());
+                    let mut row = HashMap::new();
+                    row.insert("name".to_string(), Value::Text(name));
+                    row.insert("kind".to_string(), Value::Text(kind));
+                    row.insert("size".to_string(), Value::Int(size as i64));
+                    row.insert("modified".to_string(), Value::Text(modified));
+                    Some(row)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn sys_network() -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("ip")
+        .args(["-s", "link"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let mut rows = Vec::new();
+    let mut current: HashMap<String, Value> = HashMap::new();
+    let mut lines = output.lines().peekable();
+
+    while let Some(line) = lines.next() {
+        if line.starts_with(|c: char| c.is_ascii_digit()) {
+            if !current.is_empty() { rows.push(current.clone()); current.clear(); }
+            let name = line.split(':').nth(1).unwrap_or("?").trim().to_string();
+            current.insert("interface".to_string(), Value::Text(name));
+        } else if line.trim().starts_with("link/") {
+            let mac = line.split_whitespace().nth(1).unwrap_or("?").to_string();
+            current.insert("mac".to_string(), Value::Text(mac));
+        } else if line.trim().starts_with("inet ") {
+            let ip = line.split_whitespace().nth(1).unwrap_or("?").to_string();
+            current.insert("ip".to_string(), Value::Text(ip));
+        }
+    }
+    if !current.is_empty() { rows.push(current); }
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No network interfaces found", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn sys_packages() -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("pacman")
+        .args(["-Q"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .take(100)
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, ' ');
+            let name = parts.next()?.to_string();
+            let version = parts.next().unwrap_or("?").trim().to_string();
+            let mut row = HashMap::new();
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("version".to_string(), Value::Text(version));
+            Some(row)
+        })
+        .collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -1050,6 +1268,12 @@ fn help() -> CommandResult {
         ("ct",         "checkpoints as table — pipeable"),
         ("domains",    "event domain summary"),
         ("histogram",  "histogram of a domain  [field]"),
+        ("ps",         "processes as table — pipeable"),
+        ("ports",      "open ports as table — pipeable"),
+        ("services",   "systemd services as table — pipeable"),
+        ("files",      "files as table  [path]"),
+        ("net",        "network interfaces as table"),
+        ("pkgs",       "installed packages as table"),
         ("gc",         "git commits as table — pipeable"),
         ("gf",         "git files as table — pipeable"),
         ("watch",      "watch a command live  [health|events]"),
