@@ -3,6 +3,7 @@
 
 use smithay::{
     backend::{
+        drm::{DrmDevice, DrmDeviceFd, DrmNode},
         input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
@@ -10,7 +11,9 @@ use smithay::{
     },
     reexports::{
         calloop::EventLoop,
+        drm::control::Device as DrmControlDevice,
         input::Libinput,
+        rustix::fs::OFlags,
     },
 };
 
@@ -23,7 +26,7 @@ pub fn init_drm(
     tracing::info!("Initializing DRM/udev backend");
 
     // ── 1. LibSeat session ────────────────────────────────────────────
-    let (session, notifier) = LibSeatSession::new()
+    let (mut session, notifier) = LibSeatSession::new()
         .map_err(|e| format!("Failed to create libseat session: {}", e))?;
 
     tracing::info!(seat = %session.seat(), "LibSeat session created");
@@ -60,18 +63,110 @@ pub fn init_drm(
             }
         })?;
 
+    // ── 5a. Enumerate existing DRM devices ───────────────────────────
+    // udev only fires Added for NEW devices — must enumerate existing ones
+    for (_device_id, path) in udev_backend.device_list() {
+        let path = path.to_path_buf();
+        tracing::info!(path = ?path, "device_list entry — checking if DRM card");
+        // Only process card devices, not render nodes
+        let filename = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        if !filename.starts_with("card") {
+            tracing::debug!(path = ?path, "Skipping non-card device");
+            continue;
+        }
+        tracing::info!(path = ?path, "Processing DRM card device");
+        tracing::info!(path = ?path, "Existing DRM device found — opening");
+        let open_flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOCTTY | OFlags::NONBLOCK;
+        match session.open(&path, open_flags) {
+            Ok(fd) => {
+                tracing::info!("DRM device fd opened successfully");
+                let drm_fd = DrmDeviceFd::new(fd.into());
+                match DrmDevice::new(drm_fd, true) {
+                    Ok((drm, _drm_notifier)) => {
+                        let resources = drm.resource_handles().ok();
+                        let connector_count = resources.as_ref()
+                            .map(|r| r.connectors().len()).unwrap_or(0);
+                        let crtc_count = resources.as_ref()
+                            .map(|r| r.crtcs().len()).unwrap_or(0);
+                        tracing::info!(
+                            connectors = connector_count,
+                            crtcs = crtc_count,
+                            "🎉 DRM device opened — hardware enumerated"
+                        );
+                        let payload = format!(
+                            r#"{{"event":"device.opened","path":"{}","connectors":{},"crtcs":{}}}"#,
+                            path.display(), connector_count, crtc_count
+                        );
+                        state.emit("compositor.drm", payload);
+                    }
+                    Err(e) => tracing::error!(?e, "Failed to create DrmDevice"),
+                }
+            }
+            Err(e) => tracing::error!(?e, path = ?path, "Failed to open DRM device"),
+        }
+    }
+
     // ── 5. Udev events ────────────────────────────────────────────────
+    let mut udev_session = session.clone();
     event_loop
         .handle()
         .insert_source(udev_backend, move |event, _, state| {
             match event {
                 UdevEvent::Added { device_id, path } => {
-                    tracing::info!(path = ?path, "DRM device added");
-                    let payload = format!(
-                        r#"{{"event":"device.added","path":"{}"}}"#,
-                        path.to_string_lossy()
-                    );
-                    state.emit("compositor.drm", payload);
+                    tracing::info!(path = ?path, "DRM device added — opening");
+
+                    // ── Session 2: Open DRM Device ────────────────────
+                    let open_flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOCTTY | OFlags::NONBLOCK;
+                    match udev_session.open(&path, open_flags) {
+                        Ok(fd) => {
+                            tracing::info!("DRM device fd opened successfully");
+                            let drm_fd = DrmDeviceFd::new(fd.into());
+                            match DrmDevice::new(drm_fd, true) {
+                                Ok((drm, _drm_notifier)) => {
+                                    // Log what we found
+                                    let resources = drm.resource_handles().ok();
+                                    let connector_count = resources.as_ref()
+                                        .map(|r| r.connectors().len())
+                                        .unwrap_or(0);
+                                    let crtc_count = resources.as_ref()
+                                        .map(|r| r.crtcs().len())
+                                        .unwrap_or(0);
+
+                                    tracing::info!(
+                                        connectors = connector_count,
+                                        crtcs = crtc_count,
+                                        "DRM device opened — hardware enumerated"
+                                    );
+
+                                    let payload = format!(
+                                        r#"{{"event":"device.opened","path":"{}","connectors":{},"crtcs":{}}}"#,
+                                        path.to_string_lossy(),
+                                        connector_count,
+                                        crtc_count
+                                    );
+                                    state.emit("compositor.drm", payload);
+                                }
+                                Err(e) => {
+                                    tracing::error!(?e, "Failed to create DrmDevice");
+                                    let payload = format!(
+                                        r#"{{"event":"device.error","path":"{}","error":"{}"}}"#,
+                                        path.to_string_lossy(), e
+                                    );
+                                    state.emit("compositor.drm", payload);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(?e, path = ?path, "Failed to open DRM device");
+                            let payload = format!(
+                                r#"{{"event":"device.open_failed","path":"{}","error":"{}"}}"#,
+                                path.to_string_lossy(), e
+                            );
+                            state.emit("compositor.drm", payload);
+                        }
+                    }
                 }
                 UdevEvent::Changed { device_id } => {
                     tracing::debug!(?device_id, "DRM device changed");
