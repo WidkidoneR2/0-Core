@@ -157,7 +157,21 @@ fn main() -> Result<()> {
             }
             Err(ReadlineError::Interrupted) => {
                 // Ctrl+C — interrupt current input, return to prompt
-                println!();
+                // Double Ctrl+C exits
+                static CTRL_C_COUNT: std::sync::atomic::AtomicUsize =
+                    std::sync::atomic::AtomicUsize::new(0);
+                let count = CTRL_C_COUNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if count >= 1 {
+                    println!();
+                    println!("  {} (Ctrl+C twice — exiting)", "○".dimmed());
+                    break;
+                }
+                println!("  {} (press Ctrl+C again to exit, or Ctrl+D)", "^C".dimmed());
+                // Reset after 2 seconds in background
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                    CTRL_C_COUNT.store(0, std::sync::atomic::Ordering::SeqCst);
+                });
                 continue;
             }
             Err(ReadlineError::Eof) => {

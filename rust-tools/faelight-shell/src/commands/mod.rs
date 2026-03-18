@@ -117,6 +117,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
         "histogram" | "hist" => histogram(db, args),
+        "logs" => sys_logs(args),
         "ps" | "processes" => sys_processes(),
         "ports" => sys_ports(),
         "services" | "svc" => sys_services(),
@@ -1164,6 +1165,98 @@ fn sys_packages() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+
+fn sys_logs(args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let follow = args.contains(&"--follow") || args.contains(&"-f");
+    let errors_only = args.contains(&"--errors") || args.contains(&"-e");
+    let lines = args.iter()
+        .find(|a| a.starts_with("-n"))
+        .and_then(|a| a.trim_start_matches("-n").parse::<usize>().ok())
+        .unwrap_or(50);
+
+    if follow {
+        // Streaming mode — follow journalctl
+        let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let r = running.clone();
+        std::thread::spawn(move || {
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
+            r.store(false, std::sync::atomic::Ordering::SeqCst);
+        });
+
+        println!("  {} {} {}",
+            "streaming logs".bright_cyan(),
+            if errors_only { "(errors only)" } else { "" }.dimmed(),
+            "— press Enter to stop".dimmed()
+        );
+        println!("{}", "━".repeat(52).dimmed());
+
+        let mut cmd = std::process::Command::new("journalctl");
+        cmd.args(["-f", "-n", "0", "--no-pager", "--output=short-iso"]);
+        if errors_only {
+            cmd.args(["-p", "err"]);
+        }
+
+        if let Ok(mut child) = cmd.stdout(std::process::Stdio::piped()).spawn() {
+            use std::io::{BufRead, BufReader};
+            if let Some(stdout) = child.stdout.take() {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    if !running.load(std::sync::atomic::Ordering::SeqCst) { break; }
+                    if let Ok(l) = line {
+                        let level = if l.contains("err") || l.contains("ERROR") {
+                            "ERR ".bright_red().to_string()
+                        } else if l.contains("warn") || l.contains("WARN") {
+                            "WARN".yellow().to_string()
+                        } else {
+                            "INFO".dimmed().to_string()
+                        };
+                        println!("  {} {}", level, l.dimmed());
+                    }
+                }
+            }
+            let _ = child.kill();
+        }
+        println!("
+  {} log stream stopped", "○".dimmed());
+        return CommandResult::Empty;
+    }
+
+    // Static mode — return as table
+    let output = std::process::Command::new("journalctl")
+        .args(["-n", &lines.to_string(), "--no-pager", "--output=short-iso"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter(|l| !l.starts_with("--"))
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(4, ' ').collect();
+            if parts.len() < 3 { return None; }
+            let level = if line.contains("err") || line.contains("ERROR") { "error" }
+                else if line.contains("warn") { "warn" }
+                else { "info" }.to_string();
+            if errors_only && level != "error" { return None; }
+            let mut row = HashMap::new();
+            row.insert("time".to_string(), Value::Text(parts[0].to_string()));
+            row.insert("host".to_string(), Value::Text(parts[1].to_string()));
+            row.insert("service".to_string(), Value::Text(parts[2].to_string()));
+            row.insert("level".to_string(), Value::Text(level));
+            row.insert("message".to_string(), Value::Text(
+                parts.get(3).unwrap_or(&"").to_string()
+            ));
+            Some(row)
+        })
+        .collect();
+
+    CommandResult::Value(Value::Table(rows))
+}
+
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     let query = args.join(" ").to_lowercase();
 
@@ -1268,6 +1361,7 @@ fn help() -> CommandResult {
         ("ct",         "checkpoints as table — pipeable"),
         ("domains",    "event domain summary"),
         ("histogram",  "histogram of a domain  [field]"),
+        ("logs",       "system logs — pipeable  [--follow] [--errors]"),
         ("ps",         "processes as table — pipeable"),
         ("ports",      "open ports as table — pipeable"),
         ("services",   "systemd services as table — pipeable"),
