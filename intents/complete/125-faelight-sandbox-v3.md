@@ -3,7 +3,7 @@ id: 125
 date: 2026-03-12
 type: future
 title: "faelight-sandbox v3 — Full Policy Engine & Deep Isolation"
-status: in-progress
+status: complete
 tags: [sandbox, isolation, security, policy, rust, v11, architecture]
 version: 11.0.0
 priority: medium
