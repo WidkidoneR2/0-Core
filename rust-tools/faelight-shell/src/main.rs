@@ -156,22 +156,8 @@ fn main() -> Result<()> {
                 }
             }
             Err(ReadlineError::Interrupted) => {
-                // Ctrl+C — interrupt current input, return to prompt
-                // Double Ctrl+C exits
-                static CTRL_C_COUNT: std::sync::atomic::AtomicUsize =
-                    std::sync::atomic::AtomicUsize::new(0);
-                let count = CTRL_C_COUNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                if count >= 1 {
-                    println!();
-                    println!("  {} (Ctrl+C twice — exiting)", "○".dimmed());
-                    break;
-                }
-                println!("  {} (press Ctrl+C again to exit, or Ctrl+D)", "^C".dimmed());
-                // Reset after 2 seconds in background
-                std::thread::spawn(|| {
-                    std::thread::sleep(std::time::Duration::from_secs(2));
-                    CTRL_C_COUNT.store(0, std::sync::atomic::Ordering::SeqCst);
-                });
+                // Ctrl+C — clear line, return to prompt
+                println!();
                 continue;
             }
             Err(ReadlineError::Eof) => {
@@ -225,8 +211,8 @@ fn print_welcome(core_root: &str) {
         .map(|d| d.count()).unwrap_or(0);
     let planned_count = std::fs::read_dir(root.join("intents/future"))
         .map(|d| d.count()).unwrap_or(0);
-    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
-        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
+    let tool_count = std::fs::read_dir(root.join("scripts"))
+        .map(|d| d.flatten().filter(|e| e.path().is_file()).count())
         .unwrap_or(0);
 
     let quotes = [
@@ -262,6 +248,34 @@ fn print_welcome(core_root: &str) {
     );
     println!();
     println!("  {}", format!("\"{}\"", quote).dimmed());
+    println!();
+    // Today's Focus — lowest audit score tool
+    let focus = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+        .map(|t| {
+            // Find tool with lowest score hint from name patterns
+            let stale: Vec<&str> = t.lines()
+                .filter(|l| l.starts_with("name = "))
+                .filter_map(|l| l.split('"').nth(1))
+                .collect();
+            stale.first().map(|s| s.to_string()).unwrap_or_default()
+        })
+        .unwrap_or_default();
+
+    // Show today's focus from most recent in-progress intent
+    let focus_intent = std::fs::read_dir(root.join("intents/future"))
+        .ok()
+        .and_then(|mut d| d.next())
+        .and_then(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy()
+            .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
+            .trim_end_matches(".md")
+            .replace('-', " ")
+            .to_string()
+        );
+
+    if let Some(ref focus) = focus_intent {
+        println!("  {} {}", "Today:".dimmed(), focus.bright_white());
+    }
     println!();
     println!("  {} for commands  ·  {} to exit",
         "help".bright_cyan(), "q".dimmed()
