@@ -44,7 +44,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 54 Rust tools you fully understand
+- 🦀 49 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
 - ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
@@ -67,7 +67,7 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
 ├── engine/           # core v3.0.0 — single orchestrator binary (Rust)
 │   └── src/domains/  # 15+ native Rust domains
-├── rust-tools/       # 54 custom Rust tools
+├── rust-tools/       # 49 custom Rust tools
 ├── 03-interfaces/    # Dotfiles (Niri, zsh, foot, yazi) via GNU Stow
 ├── scripts/          # Thin wrappers → core + compiled binaries
 ├── intents/          # Architectural decision records (123+ intents)
@@ -151,7 +151,7 @@ forest> dt | where outcome == success | count
 
 ### 🔍 Core Audit — Tool Intelligence
 ```bash
-core audit scan          # score all 54 tools
+core audit scan          # score all 49 tools
 core audit show <tool>   # deep audit
 core audit stale         # tools below threshold
 core audit coverage      # documentation gaps
@@ -216,7 +216,7 @@ core doctor entropy --trends     # 30-day history
 ```
 
 ---
-## 🦀 The Rust Ecosystem (54 Tools)
+## 🦀 The Rust Ecosystem (49 Tools)
 
 | Category | Tools |
 |---|---|
@@ -284,7 +284,7 @@ lock-core                       # Lock before shutdown
 ```bash
 cargo build --release -p core                    # Build orchestrator
 cargo build --release -p faelight-compositor     # Build compositor
-cargo build --release --workspace                # Build all 54 tools
+cargo build --release --workspace                # Build all 49 tools
 doctor                                           # Verify health
 ```
 
