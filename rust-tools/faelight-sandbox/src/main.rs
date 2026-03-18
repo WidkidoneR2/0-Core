@@ -3,6 +3,7 @@
 //! Philosophy: Experiment freely. Understand completely. Revert instantly.
 
 mod policy;
+mod seccomp_filter;
 use anyhow::{bail, Result};
 use chrono::Local;
 use clap::{Parser, Subcommand};
@@ -459,6 +460,9 @@ fn main() -> Result<()> {
             if let Some(ref level) = isolate {
                 println!("   Isolate: {}", level.bright_magenta().bold());
                 match level.as_str() {
+                    "seccomp" => {
+                        println!("             syscalls: filtered (dangerous blocked)");
+                    }
                     "full" => {
                         println!("             network: isolated");
                         println!("             pid: isolated");
@@ -502,6 +506,17 @@ fn main() -> Result<()> {
                 || matches!(isolate_level, "net" | "full");
             let pid_isolated = isolate_level == "full";
             let fs_isolated = isolate_level == "full";
+            let seccomp_enabled = matches!(isolate_level, "seccomp" | "full");
+
+            // Seccomp applied only in non-network-isolated path
+            // (unshare needs syscalls blocked by strict seccomp)
+            let apply_seccomp = seccomp_enabled && !network_isolated;
+            if apply_seccomp {
+                match seccomp_filter::apply_filter(false) {
+                    Ok(()) => eprintln!("  ✅ Seccomp filter applied"),
+                    Err(e) => eprintln!("  ⚠ Seccomp filter failed: {} — continuing without", e),
+                }
+            }
 
             let max_cpu = active_policy.as_ref().map(|p| p.max_cpu_seconds).unwrap_or(0);
 

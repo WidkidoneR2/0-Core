@@ -16,3 +16,5 @@ dialoguer = "0.11"
 walkdir = "2.5"
 rusqlite = { version = "0.31", features = ["bundled"] }
 toml = "0.8"
+seccompiler = "0.5"
+libc = "0.2"
