@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v10.9.0
+# 🌲 Faelight Forest v11.0.0
 
-![Version](https://img.shields.io/badge/version-v10.9.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-v11.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,23 +11,22 @@
 
 ## 🎊 Latest Release
 
-### v10.9.0 - 🌲 Roots and Branches (2026-03-16)
+### v11.0.0 - 🌲 Where the Forest Becomes Whole (2026-03-17)
 
-- 127 — Schema Layer — Registry and Policy Validation
-- 128 — Domain Restructuring — Subdirectory Per Domain
-- 129 — Event Log Directory — File-Based JSONL Alongside SQLite
-- 130 — faelight-gen — Forest-Native Password & Secret Generator Suite
-- 131 — faelight-teach upgrade — Interactive faelight-shell Tutorial
-- teach v5.0.0 — faelight-shell tutorial, 5 lessons, interactive prompt (INT-131)
-- faelight-gen v1.0.0 — 12 generator types, colored output, entropy display (INT-130)
-- INT-129 complete — JSONL event log, lifecycle policy, core events status/archive
-- Core v7 Phase 2 — bootstrap intelligence, plan/verify/diff commands (INT-122)
-- INT-128 — doctor domain restructured into subdirectories, checks/cockpit/schema split (INT-128)
+- 109 — faelight-compositor — Rust Wayland Compositor on Smithay
+- 122 — Core v7 — The Resilient Forest
+- 125 — faelight-sandbox v3 — Full Policy Engine & Deep Isolation
+- 134 — faelight-shell Phase 10 — Shell Personality & Living Welcome
+- faelight-shell v0.5.0 — all INT-134 criteria complete, quote DB tracking, today's focus, exit fixed
+- faelight-shell v0.5.0 — Ctrl+C, exit fixed, logs --follow, autocomplete, today's focus (INT-134)
+- faelight-shell v0.5.0 — Ctrl+C proper, logs --follow streaming, schema autocomplete, double Ctrl+C exit (INT-134)
+- INT-125 complete — seccomp syscall filtering, all isolation levels working
+- INT-125 — disk I/O tracking, doctor sandbox check (24th), advise integration
 
-- Commits: 1469
-- Tools: 51 deployed
+- Commits: 1513
+- Tools: 49 deployed
 - Health: 95%
-- Intents: 82 complete
+- Intents: 86 complete
 
 [Full Changelog →](CHANGELOG.md)
 
