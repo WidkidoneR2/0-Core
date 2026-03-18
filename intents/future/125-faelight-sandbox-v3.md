@@ -107,9 +107,9 @@ With enough data, `core advise` surfaces anomalies:
 - ⬜ Seccomp syscall filtering
 - ✅ Peak memory tracking via /proc/self/status
 - ✅ Duration tracking via Instant::now()
-- ⬜ Disk I/O tracking
-- ⬜ `core advise` surfaces policy violations
-- ⬜ doctor monitors sandbox health
+- ✅ Disk I/O tracking — /proc/self/io read/write bytes
+- ✅ `core advise` surfaces sandbox activity and policy violations
+- ✅ doctor monitors sandbox health — 24th check added
 
 ---
 *"Control is not restriction. It is understanding."* 🌲
