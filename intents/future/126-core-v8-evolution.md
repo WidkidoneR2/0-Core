@@ -42,6 +42,62 @@ v8 transforms the forest from historian → strategist.
 **Critically: improvement proposals require human approval.**
 The forest suggests evolution. The human authorizes it.
 
+
+## The Foundational Rule
+
+**"No suggestion without strong evidence."**
+
+This is the non-negotiable law of Core v8.
+Every suggestion the forest makes must cite:
+```
+Source      — which data (events, audit scores, git log, decisions, dep graph)
+Threshold   — what specific value crossed what specific line
+Evidence    — the actual numbers, not interpretations
+Confidence  — how many data points support the signal
+```
+
+### What this looks like in practice
+
+❌ WRONG — noise:
+```
+"dependency risk seems elevated"
+"tool X may be redundant"  
+"architecture could be drifting"
+```
+
+✅ RIGHT — evidence:
+```
+"openssl used by 6 tools (core deps risk), 0 decisions recorded
+ for openssl in last 90 days, 2 findings in security audit — HIGH RISK
+ Source: deps domain + security domain + decisions table
+ Confidence: 3 independent signals"
+
+"faelight-update and safe-update: 68% function overlap measured
+ across codebase, safe-update has 0 events in last 30 days,
+ audit score delta < 5 — REDUNDANT
+ Source: audit scores + event log + static analysis
+ Confidence: 2 signals, 1 corroborating"
+
+"security domain: 4 new functions added outside declared scope
+ in v10.7→v11.0, coupling index increased 0.3, cross-domain
+ imports: 3 new in last 2 versions — DRIFT DETECTED
+ Source: git log + static analysis + coupling metric
+ Confidence: 3 signals over 2 versions"
+```
+
+### Evidence Thresholds (must be calibrated in Phase 1)
+
+| Signal Type | Minimum Evidence | Confidence Levels |
+|-------------|-----------------|-------------------|
+| Tool redundancy | 2 independent signals | Low/Med/High |
+| Dependency risk | CVE data + usage count + decision age | Low/Med/High |
+| Architecture drift | 2 versions of increasing coupling | Low/Med/High |
+| Tool lifecycle | 30 days inactivity + audit score trend | Low/Med/High |
+| Decision pattern | 3+ similar decisions with same outcome | Low/Med/High |
+
+A LOW confidence suggestion is still shown — but labeled clearly.
+The human decides what to act on. The forest never decides alone.
+
 ## The Five Pillars
 
 ### Pillar 1 — Architectural Reflection
