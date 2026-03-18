@@ -3,7 +3,7 @@ id: 134
 date: 2026-03-17
 type: future
 title: "faelight-shell Phase 10 — Shell Personality & Living Welcome"
-status: in-progress
+status: complete
 tags: [shell, personality, welcome, creative, v11]
 version: 11.0.0
 priority: medium
