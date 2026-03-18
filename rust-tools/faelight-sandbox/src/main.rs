@@ -312,6 +312,22 @@ fn print_diff(session: &SandboxSession) {
 
 
 
+fn get_io_bytes() -> (u64, u64) {
+    // Returns (read_bytes, write_bytes) from /proc/self/io
+    let content = std::fs::read_to_string("/proc/self/io").unwrap_or_default();
+    let mut read = 0u64;
+    let mut write = 0u64;
+    for line in content.lines() {
+        if line.starts_with("read_bytes:") {
+            read = line.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+        }
+        if line.starts_with("write_bytes:") {
+            write = line.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+        }
+    }
+    (read, write)
+}
+
 fn get_memory_kb() -> u64 {
     std::fs::read_to_string("/proc/self/status")
         .ok()
@@ -504,6 +520,7 @@ fn main() -> Result<()> {
             // Record start time for profiling
             let profile_start = std::time::Instant::now();
             let start_mem = if profile { get_memory_kb() } else { 0 };
+            let start_io = if profile { get_io_bytes() } else { (0, 0) };
 
             let exit_code = if network_isolated {
                 let mut unshare_cmd = Command::new("unshare");
@@ -595,6 +612,13 @@ fn main() -> Result<()> {
                 println!("{}", "📊 Resource Profile".bright_cyan().bold());
                 println!("   Duration:  {:.3}s", profile_elapsed.as_secs_f64());
                 println!("   Memory Δ:  {} KB", (end_mem as i64 - start_mem as i64).to_string().bright_yellow());
+                let end_io = get_io_bytes();
+                let read_mb = (end_io.0.saturating_sub(start_io.0)) / 1024 / 1024;
+                let write_mb = (end_io.1.saturating_sub(start_io.1)) / 1024 / 1024;
+                println!("   Disk read: {} MB  write: {} MB",
+                    read_mb.to_string().bright_yellow(),
+                    write_mb.to_string().bright_yellow()
+                );
                 println!("   Exit code: {}", exit_code);
                 println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
             }
