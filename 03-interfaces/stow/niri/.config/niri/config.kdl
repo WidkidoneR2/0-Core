@@ -63,6 +63,30 @@ spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-niri-bridge"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-idle"
 
+// ── Forest Animations ────────────────────────────────────
+animations {
+    window-open {
+        duration-ms 180
+        curve "ease-out-expo"
+    }
+    window-close {
+        duration-ms 140
+        curve "ease-out-quad"
+    }
+    workspace-switch {
+        duration-ms 220
+        curve "ease-out-cubic"
+    }
+    window-movement {
+        duration-ms 180
+        curve "ease-out-cubic"
+    }
+    window-resize {
+        duration-ms 180
+        curve "ease-out-cubic"
+    }
+}
+
 prefer-no-csd
 
 hotkey-overlay {
