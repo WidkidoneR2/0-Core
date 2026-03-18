@@ -233,6 +233,7 @@ core deps risk           # high-coupling dependency analysis
 | v10.7.0 | The Forest Remembers | faelight-bar rewrite, sandbox v2 |
 | v10.8.0 | The Forest Between Worlds | faelight-shell born, core audit |
 | v10.9.0 | Roots and Branches | Core v7 complete, faelight-gen, faelight-compositor first render |
+| v11.0.0 | **Where the Forest Becomes Whole** | Compositor renders pixels, shell speaks, sandbox v3 seccomp, shell Phase 10 |
 
 ---
 
