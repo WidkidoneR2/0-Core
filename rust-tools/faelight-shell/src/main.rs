@@ -229,8 +229,34 @@ fn print_welcome(core_root: &str) {
         "The last sibling came home.",
         "Not text streams. Not configuration. Structured wisdom.",
     ];
-    let commit_num: usize = commits.trim().parse().unwrap_or(0);
-    let quote = quotes[commit_num % quotes.len()];
+    // Rotate quotes via state.db — never repeat consecutively
+    let db_path = root.join("runtime/state.db");
+    let quote = if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        // Get last shown index
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS shell_state (key TEXT PRIMARY KEY, value TEXT)",
+            []
+        );
+        let last_idx: usize = conn.query_row(
+            "SELECT value FROM shell_state WHERE key='last_quote_idx'",
+            [], |r| r.get::<_,String>(0)
+        ).ok().and_then(|v| v.parse().ok()).unwrap_or(999);
+
+        // Pick next quote (skip last shown)
+        let next_idx = {
+            let mut idx = (last_idx + 1) % quotes.len();
+            if idx == last_idx { idx = (idx + 1) % quotes.len(); }
+            idx
+        };
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_quote_idx', ?1)",
+            rusqlite::params![next_idx.to_string()]
+        );
+        quotes[next_idx]
+    } else {
+        let commit_num: usize = commits.trim().parse().unwrap_or(0);
+        quotes[commit_num % quotes.len()]
+    };
 
     println!();
     println!("  {}", "🌲 The forest stirs...".bright_green().dimmed());
