@@ -81,5 +81,65 @@ vault list | where age > 90
 - [ ] faelight-shell pipeline support
 - [ ] vault list | where score < 50
 
+
+## Expanded Architecture — Built on faelight-gen
+
+faelight-vault is not a standalone tool.
+It is faelight-gen with a memory.
+```
+faelight-gen     → generates the secret
+faelight-vault   → stores, tracks, rotates, and audits it
+```
+
+Every credential type maps to a faelight-gen generator:
+```
+password    → faelight-gen random --length 32
+passphrase  → faelight-gen passphrase --words 5
+api-key     → faelight-gen apikey --prefix <service>
+token       → faelight-gen token --prefix <service>
+pin         → faelight-gen pin --digits 6
+```
+
+## Master Password Flow
+```
+First run:
+  faelight-vault init
+  → prompts for master password
+  → derives encryption key with Argon2id
+  → stores encrypted vault at ~/.local/share/faelight/vault.age
+
+Subsequent access:
+  faelight-vault get github
+  → prompts for master password (or reads from session cache)
+  → decrypts in memory, returns secret, wipes memory
+  → logs access to state.db (no secret in log)
+```
+
+Session cache — optional:
+```
+faelight-vault unlock --ttl 15m
+→ holds decryption key in memory for 15 minutes
+→ subsequent gets don't require master password
+→ auto-locks after TTL or on lock-core
+```
+
+## Export / Import
+```bash
+faelight-vault export --encrypted vault-backup.age
+faelight-vault import vault-backup.age
+```
+
+Backup is re-encrypted — master password required to import.
+
+## Additional Success Criteria
+
+- [ ] Master password with Argon2id key derivation
+- [ ] Session cache with TTL (faelight-vault unlock)
+- [ ] Auto-lock on lock-core
+- [ ] Export/import with re-encryption
+- [ ] faelight-gen called directly for generation
+- [ ] Secure memory wiping with zeroize on every get
+- [ ] Access log in state.db (no secrets, timestamps only)
+
 ---
-*"Trust, but verify. Store, but protect."* 🌲
+*"Trust, but verify. Store, but protect. Generate, but remember."* 🌲
