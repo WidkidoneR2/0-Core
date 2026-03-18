@@ -1,6 +1,6 @@
 # Changelog
 
-## [v11.0.0] — Unnamed Release (2026-03-17)
+## [v11.0.0] — Where the Forest Becomes Whole (2026-03-17)
 
 ### 🎯 Completed Intents
 - **INT-109** — faelight-compositor — Rust Wayland Compositor on Smithay
