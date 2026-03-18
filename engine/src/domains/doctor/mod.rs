@@ -34,6 +34,7 @@ mod schema;
 use checks::*;
 pub(crate) use cockpit::render_cockpit;
 use schema::check_schema_validation;
+use checks::check_sandbox;
 
 
 pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
@@ -211,6 +212,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_archaeology(&core_root),
         check_core_protect(&core_root),
         check_schema_validation(&core_root),
+        check_sandbox(&core_root),
     ];
 
     let total = checks.len() as u32;
@@ -350,6 +352,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         check_archaeology(&core_root),
         check_core_protect(&core_root),
         check_schema_validation(&core_root),
+        check_sandbox(&core_root),
     ];
 
     let total = checks.len() as u32;

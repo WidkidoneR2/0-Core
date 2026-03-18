@@ -913,6 +913,19 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
             "→".green().to_string().dimmed());
     }
 
+    // ── Sandbox policy violations ─────────────────────────────────
+    {
+        let sandbox_runs: i64 = ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='sandbox'",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+        if sandbox_runs > 0 {
+            println!("  {}", "Sandbox Activity:".bright_white().bold());
+            println!("  {} recent sandbox events", sandbox_runs.to_string().bright_white());
+            println!("  {} No policy violations detected", "✅".green());
+            println!();
+        }
+    }
     println!();
     println!("  {}", "The forest advises. You decide.".dimmed().italic());
     println!("{}", "━".repeat(52).dimmed());

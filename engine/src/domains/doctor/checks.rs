@@ -941,3 +941,46 @@ pub fn check_core_protect(core_root: &str) -> CheckResult {
     }
 }
 
+
+pub fn check_sandbox(core_root: &str) -> CheckResult {
+    // Check sandbox binary exists and policies are valid
+    let binary_exists = std::path::PathBuf::from(core_root)
+        .join("scripts/faelight-sandbox").exists();
+
+    if !binary_exists {
+        return CheckResult {
+            id: "sandbox".into(),
+            name: "Sandbox".into(),
+            status: Status::Fail,
+            message: "faelight-sandbox not deployed".into(),
+            fix: Some("cargo build --release -p faelight-sandbox && cp target/release/faelight-sandbox scripts/".into()),
+        };
+    }
+
+    // Check policies file exists
+    let policies_path = std::path::PathBuf::from(core_root)
+        .join("01-registry/sandbox-policies.toml");
+
+    if !policies_path.exists() {
+        return CheckResult {
+            id: "sandbox".into(),
+            name: "Sandbox".into(),
+            status: Status::Warn,
+            message: "sandbox-policies.toml not found".into(),
+            fix: Some("Create 01-registry/sandbox-policies.toml".into()),
+        };
+    }
+
+    // Count policies
+    let policy_count = std::fs::read_to_string(&policies_path)
+        .map(|t| t.lines().filter(|l| l.trim().starts_with("name =")).count())
+        .unwrap_or(0);
+
+    CheckResult {
+        id: "sandbox".into(),
+        name: "Sandbox".into(),
+        status: Status::Pass,
+        message: format!("faelight-sandbox deployed — {} policies active", policy_count),
+        fix: None,
+    }
+}
