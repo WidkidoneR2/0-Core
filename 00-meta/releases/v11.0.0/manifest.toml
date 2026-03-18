@@ -1,0 +1,9 @@
+version = "v11.0.0"
+date = "2026-03-17"
+theme = "Where the Forest Becomes Whole"
+health_at_release = 95
+commits_since_last = 39
+
+[stats]
+tools_total = 49
+intents_complete = 86

@@ -1,5 +1,52 @@
 # Changelog
 
+## [v11.0.0] — Unnamed Release (2026-03-17)
+
+### 🎯 Completed Intents
+- **INT-109** — faelight-compositor — Rust Wayland Compositor on Smithay
+- **INT-122** — Core v7 — The Resilient Forest
+- **INT-125** — faelight-sandbox v3 — Full Policy Engine & Deep Isolation
+- **INT-134** — faelight-shell Phase 10 — Shell Personality & Living Welcome
+
+### ✨ Features
+- faelight-shell v0.5.0 — all INT-134 criteria complete, quote DB tracking, today's focus, exit fixed
+- faelight-shell v0.5.0 — Ctrl+C, exit fixed, logs --follow, autocomplete, today's focus (INT-134)
+- faelight-shell v0.5.0 — Ctrl+C proper, logs --follow streaming, schema autocomplete, double Ctrl+C exit (INT-134)
+- INT-125 complete — seccomp syscall filtering, all isolation levels working
+- INT-125 — disk I/O tracking, doctor sandbox check (24th), advise integration
+- INT-125 complete — disk I/O tracking, doctor sandbox check (24th), advise integration
+- faelight-shell Phase 10 — living welcome, graceful exit, forest quotes, v0.4.0 (INT-134)
+- INT-134 shell Phase 10 personality, INT-135 Phase 11 adaptive intelligence
+- faelight-shell Phase 9 — streaming pipelines, ps | watch, v0.3.0 (INT-120)
+- INT-133 — Core v9 Intent, goal engine, task planning, tradeoff engine
+- INT-109 Session 5 — FIRST RENDER COMPLETE, forest green #11140f on real hardware 2560x1600@165Hz
+- INT-109 Session 4 — GBM device created, eDP 2560x1600@165Hz connector+CRTC found
+- INT-109 Session 2 — DRM device enumeration, probe mode, AMD Radeon 780M identified
+- Core v7 Phase 7 — deterministic rebuild, core doctor rebuild (INT-122
+- Core v7 Phase 6 — snapshot narrative, two voices (markdown+JSON), faelight-snapshot retired (INT-122)
+- Core v7 Phase 5 — forest narrative, core narrative/--intent commands (INT-122)
+- faelight-shell Phase 8 — system tables, ps/ports/services/files/net/pkgs pipeable (INT-120)
+- faelight-sandbox v3 Phase 3+4 — deep isolation (net/full), resource profiling (INT-125)
+- Core v7 Phase 4 — dependency intelligence, graph/risk/audit, zero warnings (INT-122)
+- Core v7 Phase 3 — security simulate command, CVE and package simulation (INT-122)
+- faelight-release — auto-update tool counts on publish, remove archived tools
+
+### 🔧 Fixes
+- faelight-release auto-updates /etc/faelight/COMMITS on publish, faelight-login fix
+
+### 🔩 Internal (16 commits)
+- ledger: INT-134 complete — faelight-shell Phase 10 personality done
+- ledger: INT-125 complete — faelight-sandbox v3 all 11 criteria met
+- ledger: INT-109 complete — faelight-compositor first render, forest green on real hardware
+- ledger: INT-109 Session 4 complete — eDP 2560x1600@165Hz, ready for first render
+- ledger: INT-109 Session 3 complete — DRM device opened, hardware enumerated
+- ...and 11 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1513  ·  Tools: 49 deployed  ·  Intents: 86 complete
+
+---
+
 ## [v10.9.0] — Roots and Branches (2026-03-16)
 
 ### 🎯 Completed Intents
