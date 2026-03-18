@@ -443,7 +443,7 @@ fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn audit_table(db: &ForestDb, core_root: &str) -> CommandResult {
+fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
 
@@ -578,8 +578,8 @@ fn domains(db: &ForestDb) -> CommandResult {
 
 
 fn histogram(db: &ForestDb, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
-    use crate::value::Value;
+    
+    
 
     // histogram domain  OR  et | histogram domain (pipe handles it)
     // Direct: show event count per domain as bar chart
@@ -1432,7 +1432,7 @@ fn intents(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
-fn tools(db: &ForestDb, core_root: &str) -> CommandResult {
+fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
     let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
     let total = std::fs::read_dir(&tools_dir)
         .map(|e| e.flatten().filter(|e| e.path().join("Cargo.toml").exists()).count())
@@ -1530,7 +1530,7 @@ fn advise(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
-fn audit(db: &ForestDb, core_root: &str) -> CommandResult {
+fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
     let output = std::process::Command::new(
         format!("{}/scripts/core", core_root)
     )

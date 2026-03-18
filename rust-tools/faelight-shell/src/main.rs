@@ -22,6 +22,9 @@ fn main() -> Result<()> {
 
     // Print welcome
     print_welcome(&core_root);
+    let _session_start = std::time::Instant::now();
+    let mut session_commands: usize = 0;
+    let mut session_pipelines: usize = 0;
 
     // Build readline editor
     let mut rl = DefaultEditor::new()?;
@@ -40,6 +43,8 @@ fn main() -> Result<()> {
 
                 // Save to history
                 let _ = rl.add_history_entry(&line);
+                session_commands += 1;
+                if line.contains(" | ") { session_pipelines += 1; }
                 db.save_history_entry(&line);
 
                 // Execute
@@ -151,11 +156,11 @@ fn main() -> Result<()> {
                 }
             }
             Err(ReadlineError::Interrupted) => {
-                println!("^C");
+                // Ctrl+C — interrupt current input, return to prompt
+                println!();
                 continue;
             }
             Err(ReadlineError::Eof) => {
-                println!("exit");
                 break;
             }
             Err(e) => {
@@ -170,21 +175,82 @@ fn main() -> Result<()> {
 }
 
 fn print_welcome(core_root: &str) {
-    let version = std::fs::read_to_string(
-        std::path::PathBuf::from(core_root).join("00-meta/VERSION")
-    ).unwrap_or_else(|_| "unknown".into());
-    let version = version.trim();
+    use colored::Colorize;
+    use std::path::PathBuf;
+
+    let root = PathBuf::from(core_root);
+
+    let version = std::fs::read_to_string(root.join("00-meta/VERSION"))
+        .unwrap_or_else(|_| "unknown".into()).trim().to_string();
+
+    let changelog = std::fs::read_to_string(root.join("00-meta/CHANGELOG.md"))
+        .unwrap_or_default();
+    let theme = changelog.lines()
+        .find(|l| l.starts_with(&format!("## [{}]", version)))
+        .and_then(|l| l.split(" — ").nth(1))
+        .and_then(|s| s.split('(').next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "The Living Forest".to_string());
+
+    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
+        .unwrap_or_default().trim().to_string();
+
+    let health_num: u32 = std::fs::read_to_string(root.join("runtime/cache/health.txt"))
+        .unwrap_or_else(|_| "95".into()).trim()
+        .trim_end_matches('%').parse().unwrap_or(95);
+
+    let health_display = if health_num >= 95 {
+        format!("{}% ✅", health_num).bright_green().to_string()
+    } else if health_num >= 80 {
+        format!("{}% ⚠", health_num).yellow().to_string()
+    } else {
+        format!("{}% ❌", health_num).bright_red().to_string()
+    };
+
+    let complete_count = std::fs::read_dir(root.join("intents/complete"))
+        .map(|d| d.count()).unwrap_or(0);
+    let planned_count = std::fs::read_dir(root.join("intents/future"))
+        .map(|d| d.count()).unwrap_or(0);
+    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
+        .unwrap_or(0);
+
+    let quotes = [
+        "Nothing runs without explicit human authorization.",
+        "The forest remembers. The human decides.",
+        "Every tool is understood. Nothing is installed blindly.",
+        "Freedom without structure is not empowerment — it is entropy.",
+        "A forest that knows itself can survive anything.",
+        "The roots hold. The branches grow.",
+        "Every commit is intentional. Every tool has a purpose.",
+        "Understanding over convenience. Always.",
+        "The forest does not fear the storm. It knows how to grow back.",
+        "A wise forest studies its own rings.",
+        "The last sibling came home.",
+        "Not text streams. Not configuration. Structured wisdom.",
+    ];
+    let commit_num: usize = commits.trim().parse().unwrap_or(0);
+    let quote = quotes[commit_num % quotes.len()];
 
     println!();
-    println!("{}", colored::Colorize::bright_cyan(
-        "  ╭─ 🌲 faelight-shell ─────────────────────────────────╮"
-    ));
-    println!("  │  Forest-native shell  {}                    │",
-        colored::Colorize::bright_white(version));
-    println!("  │  Type {} for commands                            │",
-        colored::Colorize::bright_cyan("help"));
-    println!("{}", colored::Colorize::bright_cyan(
-        "  ╰─────────────────────────────────────────────────────╯"
-    ));
+    println!("  {}", "🌲 The forest stirs...".bright_green().dimmed());
+    println!();
+    println!("  {} — {}", version.bright_green().bold(), theme.dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!("  {} intents complete  ·  {} commits",
+        complete_count.to_string().bright_white(),
+        commits.bright_white()
+    );
+    println!("  {}  ·  {} tools  ·  {} planned",
+        health_display,
+        tool_count.to_string().bright_white(),
+        planned_count.to_string().dimmed()
+    );
+    println!();
+    println!("  {}", format!("\"{}\"", quote).dimmed());
+    println!();
+    println!("  {} for commands  ·  {} to exit",
+        "help".bright_cyan(), "q".dimmed()
+    );
     println!();
 }
