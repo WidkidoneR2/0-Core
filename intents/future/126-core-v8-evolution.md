@@ -112,14 +112,14 @@ core architecture suggest    # propose improvements
 Example — architecture map:
 ```
 core
- ├── domains (22)
+ ├── domains (20+)
  │   ├── intelligence
  │   ├── system
  │   ├── judgment
  │   └── security
  ├── registry
  ├── runtime
- └── rust-tools (53)
+ └── rust-tools (43)
 ```
 
 Example — architecture drift:
@@ -192,6 +192,16 @@ core future simulate "remove dependency graph module"
 Affected domains: security, bootstrap, narrative
 Risk: high
 ```
+
+## Relationship to Architectural Horizons (INT-137)
+
+Core v8 Phase 1 actively monitors for the three known horizons:
+- Horizon 1: coupling index, domain file count, cross-domain imports
+- Horizon 2: query complexity, decision lookup time
+- Horizon 3: capability duplication count, new domain setup time
+
+When a threshold is crossed, Core v8 surfaces it with full evidence.
+The human decides when to act.
 
 ## The Three Guardrails
 
