@@ -376,14 +376,92 @@ processes
 | table
 ```
 
-## Strategic Priority Order
-```
-1. Phase 8  — System tables (processes/ports/files/network)
-2. Phase 11 — Schema-aware autocomplete
-3. Phase 17 — Event triggers
-4. Phase 22 — Observability dashboard
-5. Phase 25 — AI command assistant
-```
+## The Four-Layer Architecture
+
+This is the organizing principle for all remaining phases.
+Each layer must be solid before the next is built.
+
+### Layer 1 - REALITY (Ground Truth)
+What the shell knows about the world.
+- Phase 8  DONE: System tables (ps, ports, services, files, net, pkgs)
+- Phase 14: File system index (speed = trust)
+- Phase 15: Git data engine (first killer vertical)
+
+### Layer 2 - UNDERSTANDING (Query + Schema)
+How users think with the system.
+- Phase 11a: Formal schema system (FOUNDATIONAL - before everything else)
+- Phase 11:  Schema-aware autocomplete (needs 11a first)
+- Phase 2   DONE: Data pipelines
+- Phase 21: Query language (adoption bridge, not core)
+
+### Layer 3 - REACTION (Events + Time)
+Where the shell becomes alive.
+Only build after Layer 2 is solid.
+- Phase 16: History analytics
+- Phase 17: Event system (on solid schema foundation)
+- Phase 18: Time travel
+- Phase 9  DONE: Streaming pipelines
+
+### Layer 4 - INTELLIGENCE (Judgment + AI)
+Where the shell becomes opinionated.
+- Phase 22: Observability dashboard
+- Phase 25: Natural language assistant (INT-139)
+- Phase 32: Shell as OS layer
+
+THE RULE: Do not build Reaction before Understanding is solid.
+Event triggers on brittle schema = debugging nightmare.
+AI on unreliable data = a crutch, not wisdom.
+
+## Phase 11a - Formal Schema System (NEXT PRIORITY)
+
+The most important unbuilt foundation. Without it:
+- Autocomplete is hardcoded strings, not real schema
+- Joins are fragile and break silently
+- Query language has no type safety
+- AI assistant has no ground truth to reason from
+
+Every system table needs a registered schema in the shell:
+- ps/processes: pid(Int), name(Text), cpu(Float), memory(Float), user(Text), status(Text)
+- files:        name(Text), kind(Text), size(Int), modified(Timestamp)
+- services:     name(Text), active(Text), load(Text), status(Text)
+- ports:        port(Int), state(Text), address(Text), process(Text)
+- tt:           name(Text), version(Text), score(Int), deployed(Bool)
+- et:           domain(Text), action(Text), timestamp(Int), time(Text)
+- gc:           hash(Text), author(Text), date(Text), message(Text)
+
+This schema registry makes joins reliable and type-checked at parse time.
+
+## The Join System - The Most Powerful Thing Being Built
+
+    processes | where cpu > 50 | join ports on pid | join logs on pid | table
+
+This is not a shell feature.
+This is ad-hoc relational joins over live system state.
+That is an observability platform, not a shell.
+
+## Corrected Strategic Priority Order
+
+DONE:
+- Phase 8  - System tables
+- Phase 9  - Streaming pipelines
+- Phase 10 - Shell personality and living welcome
+
+NEXT (in order):
+- Phase 11a - Formal schema system (FOUNDATIONAL - unlocks everything)
+- Phase 11  - Schema-aware autocomplete
+- Phase 14  - File system index (speed = trust)
+- Phase 15  - Git data engine (killer vertical)
+- Phase 16  - History analytics
+- Phase 17  - Event system (now on solid foundation)
+- Phase 18  - Time travel
+- Phase 21  - Query language (adoption bridge)
+- Phase 22  - Observability dashboard
+- Phase 25  - Natural language assistant (INT-139, amplifier not crutch)
+- Phase 32  - Shell as OS layer
+
+The single highest-leverage move:
+Build the schema system first. It unlocks everything.
+
 
 ## The Three Pillars (from architectural review)
 ```
