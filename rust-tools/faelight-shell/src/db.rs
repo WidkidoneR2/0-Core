@@ -2,7 +2,7 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use std::path::PathBuf;
-use rustyline::DefaultEditor;
+use rustyline::{Editor, Helper, history::FileHistory};
 
 pub struct ForestDb {
     pub conn: Connection,
@@ -40,7 +40,7 @@ impl ForestDb {
         self.core_root.clone()
     }
 
-    pub fn load_history(&self, rl: &mut DefaultEditor) {
+    pub fn load_history<H: Helper>(&self, rl: &mut Editor<H, FileHistory>) {
         if let Ok(mut stmt) = self.conn.prepare(
             "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 100"
         ) {

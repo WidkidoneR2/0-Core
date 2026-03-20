@@ -11,10 +11,11 @@ mod output;
 use colored::Colorize;
 mod prompt;
 mod value;
+mod completion;
 mod schema;
 
 use anyhow::Result;
-use rustyline::{error::ReadlineError, DefaultEditor};
+use rustyline::{error::ReadlineError, Editor};
 
 fn main() -> Result<()> {
     // Connect to state.db
@@ -28,14 +29,16 @@ fn main() -> Result<()> {
     let mut _session_pipelines: usize = 0;
 
     // Build readline editor
-    let mut rl = DefaultEditor::new()?;
+    let helper = completion::ForestHelper::new();
+    let mut rl: Editor<completion::ForestHelper, _> = Editor::new()?;
+    rl.set_helper(Some(helper));
 
     // Load history from state.db
     db.load_history(&mut rl);
 
     // REPL loop
     loop {
-        let prompt_str = prompt::render(&db);
+        let prompt_str = prompt::render_line(&db);
 
         match rl.readline(&prompt_str) {
             Ok(line) => {
