@@ -98,6 +98,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "intents" => intents(core_root),
         "tools" => tools(db, core_root),
         "version" => version(core_root),
+        "schema" => schema(args),
         "commits" => commits(core_root),
         "story" => story(db),
         "advise" => advise(db),
@@ -1635,4 +1636,29 @@ fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
     .unwrap_or_else(|| "core audit not available".to_string());
 
     CommandResult::Output(output)
+}
+
+// ── Schema — Phase 11a ────────────────────────────────────────────────────────
+
+fn schema(args: &[&str]) -> CommandResult {
+    let registry = crate::schema::SchemaRegistry::build();
+    match args.first() {
+        None | Some(&"") => {
+            CommandResult::Output(crate::schema::render_registry(&registry))
+        }
+        Some(table_name) => {
+            match registry.get(table_name) {
+                Some(schema) => CommandResult::Output(
+                    crate::schema::render_table_schema(schema)
+                ),
+                None => {
+                    let known = registry.names().join(", ");
+                    CommandResult::Error(format!(
+                        "unknown table '{}' — known: {}",
+                        table_name, known
+                    ))
+                }
+            }
+        }
+    }
 }
