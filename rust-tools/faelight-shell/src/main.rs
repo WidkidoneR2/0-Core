@@ -13,6 +13,7 @@ mod prompt;
 mod value;
 mod completion;
 mod schema;
+mod nl;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
@@ -50,6 +51,38 @@ fn main() -> Result<()> {
                 _session_commands += 1;
                 if line.contains(" | ") { _session_pipelines += 1; }
                 db.save_history_entry(&line);
+
+                // Natural language ?prefix
+                if line.starts_with('?') && line.len() > 1 {
+                    let query = line[1..].trim();
+                    match nl::translate(query) {
+                        Some(t) => {
+                            print!("{}", nl::render_translation(&t));
+                            use std::io::BufRead;
+                            let stdin = std::io::stdin();
+                            let answer = stdin.lock().lines().next()
+                                .and_then(|l| l.ok())
+                                .unwrap_or_default()
+                                .trim()
+                                .to_lowercase();
+                            if answer == "y" || answer.is_empty() {
+                                println!();
+                                match commands::execute(&t.pipeline, &db, &core_root) {
+                                    commands::CommandResult::Value(v) => println!("{}", v.render()),
+                                    commands::CommandResult::Output(o) => println!("{}", o),
+                                    commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
+                                    _ => {}
+                                }
+                            } else {
+                                println!("  ○ cancelled");
+                            }
+                        }
+                        None => {
+                            eprintln!("  ✗ no pattern matched — try: ?memory hogs, ?biggest files");
+                        }
+                    }
+                    continue;
+                }
 
                 // Execute
                 // Expand aliases before pipeline parsing

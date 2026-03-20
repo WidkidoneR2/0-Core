@@ -3,7 +3,7 @@ id: 139
 date: 2026-03-18
 type: future
 title: "faelight-shell — Natural Language Pipeline Translation"
-status: planned
+status: in-progress
 tags: [shell, natural-language, ai, pipelines, v12]
 version: 12.0.0
 priority: medium
