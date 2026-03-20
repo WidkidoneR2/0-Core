@@ -133,7 +133,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "plugins" => list_plugins(db),
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "cd" => cd(args),
-        "clear" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
+        "clear" | "c" | "cls" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Empty }
         _ => {
             let known = ["health","events","decisions","intents","tools","audit","ps","ports","services","files","net","pkgs",
                 "forecast","sandbox","story","advise","version","commits","cd",
