@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use colored::*;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum Value {
     Text(String),
     Int(i64),
@@ -29,6 +30,7 @@ impl Value {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_int(&self) -> Option<i64> {
         match self {
             Value::Int(i)   => Some(*i),
@@ -38,6 +40,7 @@ impl Value {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Bool(b)  => *b,

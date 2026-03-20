@@ -11,6 +11,7 @@ mod output;
 use colored::Colorize;
 mod prompt;
 mod value;
+mod schema;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -23,8 +24,8 @@ fn main() -> Result<()> {
     // Print welcome
     print_welcome(&core_root);
     let _session_start = std::time::Instant::now();
-    let mut session_commands: usize = 0;
-    let mut session_pipelines: usize = 0;
+    let mut _session_commands: usize = 0;
+    let mut _session_pipelines: usize = 0;
 
     // Build readline editor
     let mut rl = DefaultEditor::new()?;
@@ -43,8 +44,8 @@ fn main() -> Result<()> {
 
                 // Save to history
                 let _ = rl.add_history_entry(&line);
-                session_commands += 1;
-                if line.contains(" | ") { session_pipelines += 1; }
+                _session_commands += 1;
+                if line.contains(" | ") { _session_pipelines += 1; }
                 db.save_history_entry(&line);
 
                 // Execute
@@ -276,7 +277,7 @@ fn print_welcome(core_root: &str) {
     println!("  {}", format!("\"{}\"", quote).dimmed());
     println!();
     // Today's Focus — lowest audit score tool
-    let focus = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+    let _focus = std::fs::read_to_string(root.join("01-registry/tools.toml"))
         .map(|t| {
             // Find tool with lowest score hint from name patterns
             let stale: Vec<&str> = t.lines()

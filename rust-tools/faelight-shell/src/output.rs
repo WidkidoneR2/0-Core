@@ -1,6 +1,8 @@
+#[allow(dead_code)]
 // faelight-shell — output formatting
 use colored::*;
 
+#[allow(dead_code)]
 pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
     if rows.is_empty() {
         return format!("  {}", "No results.".dimmed());
@@ -46,6 +48,7 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
     out
 }
 
+#[allow(dead_code)]
 pub fn section(title: &str) -> String {
     format!("\n{}\n{}",
         format!("  ╭─ {} ", title).bright_cyan(),
