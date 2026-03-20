@@ -37,6 +37,7 @@ pub enum Command {
     Why(WhyCommand),
     Trace(TraceCommand),
     Simulate(SimulateCommand),
+    Evolution(EvolutionCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -327,4 +328,10 @@ pub enum DepsCommand {
     Graph,
     Risk,
     Audit,
+}
+
+#[derive(Debug)]
+pub enum EvolutionCommand {
+    Map,
+    Tools,
 }

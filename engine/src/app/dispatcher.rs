@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -414,6 +414,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AuditCommand::Show { tool } => crate::domains::audit::show(ctx, &tool),
             AuditCommand::Stale => crate::domains::audit::stale(ctx),
             AuditCommand::Coverage => crate::domains::audit::coverage(ctx),
+        },
+        Command::Evolution(c) => match c {
+            EvolutionCommand::Map   => crate::domains::evolution::map(ctx),
+            EvolutionCommand::Tools => crate::domains::evolution::tools(ctx),
         },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())
