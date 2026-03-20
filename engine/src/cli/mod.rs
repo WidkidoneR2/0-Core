@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands,
 };
 
 pub fn parse() -> Command {
@@ -243,6 +243,10 @@ pub fn parse() -> Command {
         Commands::Trace { command } => Command::Trace(match command {
             TraceCommands::Last => TraceCommand::Last,
             TraceCommands::Domain { domain } => TraceCommand::Domain { domain },
+        }),
+        Commands::Evolution { command } => Command::Evolution(match command {
+            EvolutionCommands::Map   => EvolutionCommand::Map,
+            EvolutionCommands::Tools => EvolutionCommand::Tools,
         }),
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,

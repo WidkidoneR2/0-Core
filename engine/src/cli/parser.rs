@@ -104,6 +104,10 @@ pub enum Commands {
         command: TraceCommands,
     },
     /// Dry-run simulation — predict outcomes without changing anything
+    Evolution {
+        #[command(subcommand)]
+        command: EvolutionCommands,
+    },
     Simulate {
         #[command(subcommand)]
         command: SimulateCommands,
@@ -700,4 +704,12 @@ pub enum DepsCommands {
     Risk,
     /// Cross-reference deps with decision history
     Audit,
+}
+
+#[derive(Subcommand)]
+pub enum EvolutionCommands {
+    /// Architecture map — domain structure, file counts, coupling index
+    Map,
+    /// Tools usage analysis — roster, age, lifecycle stage
+    Tools,
 }
