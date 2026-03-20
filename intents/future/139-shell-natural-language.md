@@ -176,12 +176,12 @@ context = "personal"
 
 ## Success Criteria
 
-- ⬜ Pattern library — 30+ patterns covering common queries
-- ⬜ ?prefix activates natural language mode
-- ⬜ Generated pipeline shown before execution
-- ⬜ Confidence score displayed
-- ⬜ User can confirm, reject, or edit generated pipeline
-- ⬜ Forest-specific patterns (health, intents, decisions, audit)
+- ✅ Pattern library — 35+ patterns covering common queries (2026-03-20)
+- ✅ ?prefix activates natural language mode (2026-03-20)
+- ✅ Generated pipeline shown before execution (2026-03-20)
+- ✅ Confidence score displayed (2026-03-20)
+- ✅ User can confirm or reject generated pipeline (2026-03-20)
+- ✅ Forest-specific patterns (health, intents, decisions, audit) (2026-03-20)
 - ⬜ History-aware pattern weighting
 - ⬜ Custom pattern support via TOML
 - ⬜ Core v9 goal → shell command translation
