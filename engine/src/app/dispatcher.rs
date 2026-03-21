@@ -428,6 +428,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             EvolutionCommand::Map   => crate::domains::evolution::map(ctx),
             EvolutionCommand::Tools => crate::domains::evolution::tools(ctx),
             EvolutionCommand::Suggest => crate::domains::evolution::suggest(ctx),
+            EvolutionCommand::EvolvePropose => crate::domains::evolution::evolve_propose(ctx),
+            EvolutionCommand::EvolveList => crate::domains::evolution::evolve_list(ctx),
+            EvolutionCommand::EvolveAccept { id } => crate::domains::evolution::evolve_accept(ctx, &id),
+            EvolutionCommand::EvolveReject { id } => crate::domains::evolution::evolve_reject(ctx, &id),
         },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())

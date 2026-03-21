@@ -338,4 +338,8 @@ pub enum EvolutionCommand {
     Map,
     Tools,
     Suggest,
+    EvolvePropose,
+    EvolveList,
+    EvolveAccept { id: String },
+    EvolveReject { id: String },
 }
