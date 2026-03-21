@@ -90,6 +90,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     }
 
     let result = match cmd.as_str() {
+        "on" => on_cmd(db, args),
         "help" | "h" => help(),
         "?" => CommandResult::Output(crate::nl::render_pattern_list()),
         "exit" | "quit" | "q" => CommandResult::Exit,
@@ -2018,4 +2019,76 @@ fn history_pattern(db: &ForestDb) -> CommandResult {
     });
 
     CommandResult::Value(Value::Table(rows))
+}
+
+// ── Phase 17 — Event System ───────────────────────────────────────────────────
+
+fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    crate::triggers::ensure_schema(db);
+    // Rejoin and re-split — execute() uses splitn(3) which embeds args
+    let rejoined = args.join(" ");
+    let reargs: Vec<&str> = rejoined.split_whitespace().collect();
+    let args = reargs.as_slice();
+    match args {
+        // on list
+        [] | ["list"] => {
+            crate::triggers::render_list(db);
+            CommandResult::Empty
+        }
+        // on remove <id>
+        ["remove", id] => {
+            if let Ok(n) = id.parse::<i64>() {
+                if crate::triggers::remove(db, n) {
+                    CommandResult::Output(format!("  {} Trigger #{} removed.", "✅".green(), n))
+                } else {
+                    CommandResult::Output(format!("  {} Trigger #{} not found.", "✗".bright_red(), n))
+                }
+            } else {
+                CommandResult::Error("Usage: on remove <id>".to_string())
+            }
+        }
+        // on enable/disable <id>
+        ["enable", id] => {
+            if let Ok(n) = id.parse::<i64>() {
+                crate::triggers::enable(db, n, true);
+                CommandResult::Output(format!("  {} Trigger #{} enabled.", "✅".green(), n))
+            } else {
+                CommandResult::Error("Usage: on enable <id>".to_string())
+            }
+        }
+        ["disable", id] => {
+            if let Ok(n) = id.parse::<i64>() {
+                crate::triggers::enable(db, n, false);
+                CommandResult::Output(format!("  {} Trigger #{} disabled.", "○".dimmed(), n))
+            } else {
+                CommandResult::Error("Usage: on disable <id>".to_string())
+            }
+        }
+        // on <trigger...> => <action...>
+        args => {
+            // Find => separator
+            if let Some(sep) = args.iter().position(|a| *a == "=>") {
+                let trigger = args[..sep].join(" ");
+                let action = args[sep+1..].join(" ");
+                if trigger.is_empty() || action.is_empty() {
+                    return CommandResult::Error(
+                        "Usage: on <trigger> => <action>  e.g. on health_drop 90 => notify \"health low\"".to_string()
+                    );
+                }
+                match crate::triggers::add(db, &trigger, &action) {
+                    Ok(_) => CommandResult::Output(format!(
+                        "  {} Trigger added: {} → {}",
+                        "✅".green(),
+                        trigger.bright_cyan(),
+                        action.bright_white()
+                    )),
+                    Err(e) => CommandResult::Error(e),
+                }
+            } else {
+                CommandResult::Error(
+                    "Usage: on <trigger> => <action>\nTriggers: health_drop <n>, git_commit, event <domain>, run <cmd>".to_string()
+                )
+            }
+        }
+    }
 }
