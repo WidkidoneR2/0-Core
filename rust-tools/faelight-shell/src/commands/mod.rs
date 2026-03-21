@@ -116,6 +116,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
         "history-table" | "ht" => history_table(db),
+        "hstats" => history_stats(db),
+        "hpattern" => history_pattern(db),
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
         "histogram" | "hist" => histogram(db, args),
@@ -1906,5 +1908,114 @@ fn git_branches(core_root: &str) -> CommandResult {
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No branches found", "○".dimmed()));
     }
+    CommandResult::Value(Value::Table(rows))
+}
+
+// ── Phase 16 — History Analytics ─────────────────────────────────────────────
+
+/// hstats — most used commands ranked by frequency
+fn history_stats(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 1000"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+    };
+
+    let commands: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    // Count first word of each command
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for cmd in &commands {
+        let first = cmd.split_whitespace().next().unwrap_or("").to_string();
+        if !first.is_empty() {
+            *counts.entry(first).or_insert(0) += 1;
+        }
+    }
+
+    let total = commands.len();
+    let mut rows: Vec<HashMap<String, Value>> = counts.into_iter()
+        .map(|(cmd, count)| {
+            let pct = format!("{:.0}%", (count as f64 / total as f64) * 100.0);
+            let mut row = HashMap::new();
+            row.insert("command".to_string(), Value::Text(cmd));
+            row.insert("count".to_string(),   Value::Int(count as i64));
+            row.insert("pct".to_string(),     Value::Text(pct));
+            row
+        })
+        .collect();
+
+    rows.sort_by(|a, b| {
+        let ac = a.get("count").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        let bc = b.get("count").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        bc.cmp(&ac)
+    });
+    rows.truncate(20);
+
+    CommandResult::Value(Value::Table(rows))
+}
+
+/// hpattern — command frequency by hour of day
+fn history_pattern(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 2000"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+    };
+
+    let timestamps: Vec<i64> = stmt
+        .query_map([], |r| r.get::<_, i64>(0))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    // Count by hour
+    let mut by_hour: HashMap<u32, usize> = HashMap::new();
+    use chrono::Timelike;
+    for ts in &timestamps {
+        if let Some(dt) = chrono::DateTime::from_timestamp(*ts, 0) {
+            let hour = dt.hour();
+            *by_hour.entry(hour).or_insert(0) += 1;
+        }
+    }
+
+    let max_count = by_hour.values().copied().max().unwrap_or(1);
+
+    let mut rows: Vec<HashMap<String, Value>> = (0u32..24).map(|hour| {
+        let count = by_hour.get(&hour).copied().unwrap_or(0);
+        let bar_len = (count * 20) / max_count.max(1);
+        let bar = "█".repeat(bar_len);
+        let label = format!("{:02}:00", hour);
+        let period = match hour {
+            5..=8   => "morning",
+            9..=11  => "late morning",
+            12..=13 => "midday",
+            14..=17 => "afternoon",
+            18..=21 => "evening",
+            22..=23 => "night",
+            _       => "late night",
+        };
+        let mut row = HashMap::new();
+        row.insert("hour".to_string(),   Value::Text(label));
+        row.insert("period".to_string(), Value::Text(period.to_string()));
+        row.insert("count".to_string(),  Value::Int(count as i64));
+        row.insert("bar".to_string(),    Value::Text(bar));
+        row
+    }).collect();
+
+    // Only show hours with activity
+    rows.retain(|r| {
+        if let Some(Value::Int(c)) = r.get("count") { *c > 0 } else { false }
+    });
+
     CommandResult::Value(Value::Table(rows))
 }

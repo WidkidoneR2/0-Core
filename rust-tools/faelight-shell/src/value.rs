@@ -107,8 +107,8 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
         for (i, h) in headers.iter().enumerate() {
             if i < widths.len() {
                 let val = row.get(h).map(|v| v.as_text()).unwrap_or_default();
-                let truncated = if val.len() > 40 {
-                    format!("{}...", &val[..37])
+                let truncated = if val.chars().count() > 40 {
+                    format!("{}...", val.chars().take(37).collect::<String>())
                 } else {
                     val
                 };
