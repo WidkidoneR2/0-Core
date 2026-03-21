@@ -432,6 +432,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             EvolutionCommand::EvolveList => crate::domains::evolution::evolve_list(ctx),
             EvolutionCommand::EvolveAccept { id } => crate::domains::evolution::evolve_accept(ctx, &id),
             EvolutionCommand::EvolveReject { id } => crate::domains::evolution::evolve_reject(ctx, &id),
+            EvolutionCommand::FutureSim { change } => crate::domains::evolution::future_sim(ctx, &change),
+            EvolutionCommand::FutureRisk { change } => crate::domains::evolution::future_risk(ctx, &change),
+            EvolutionCommand::FutureImpact { change } => crate::domains::evolution::future_impact(ctx, &change),
         },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())
