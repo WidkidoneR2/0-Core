@@ -127,13 +127,9 @@ fn active_intents(core_root: &str) -> Vec<String> {
             if !name.ends_with(".md") { continue; }
             if let Ok(content) = std::fs::read_to_string(entry.path()) {
                 if content.contains("status: in-progress") {
-                    // Extract title
-                    let title = content.lines()
-                        .find(|l| l.starts_with("title:"))
-                        .and_then(|l| l.splitn(2, ':').nth(1))
-                        .map(|s| s.trim().trim_matches('"').to_string())
-                        .unwrap_or_else(|| name.trim_end_matches(".md").to_string());
-                    intents.push(title);
+                    // Extract INT number from filename (e.g. "120-faelight-shell.md" -> "INT-120")
+                    let int_num = name.split('-').next().unwrap_or("?");
+                    intents.push(format!("INT-{}", int_num));
                 }
             }
         }
@@ -194,7 +190,7 @@ pub fn render(mem: &SessionMemory, core_root: &str) -> String {
         let intent_str = intents.iter()
             .map(|i| i.as_str())
             .collect::<Vec<_>>()
-            .join(" + ");
+            .join(", ");
         lines.push(format!("  {} {}",
             "Working on:".dimmed(),
             intent_str.bright_cyan()
