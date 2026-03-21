@@ -248,6 +248,10 @@ pub fn parse() -> Command {
             EvolutionCommands::Map   => EvolutionCommand::Map,
             EvolutionCommands::Tools => EvolutionCommand::Tools,
             EvolutionCommands::Suggest => EvolutionCommand::Suggest,
+            EvolutionCommands::EvolvePropose => EvolutionCommand::EvolvePropose,
+            EvolutionCommands::EvolveList => EvolutionCommand::EvolveList,
+            EvolutionCommands::EvolveAccept { id } => EvolutionCommand::EvolveAccept { id },
+            EvolutionCommands::EvolveReject { id } => EvolutionCommand::EvolveReject { id },
         }),
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,

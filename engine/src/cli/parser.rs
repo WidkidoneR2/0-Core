@@ -720,4 +720,18 @@ pub enum EvolutionCommands {
     Tools,
     /// Architecture suggestions based on coupling, churn and tool data
     Suggest,
+    /// Generate a formal evolution proposal from suggestions
+    EvolvePropose,
+    /// List all evolution proposals
+    EvolveList,
+    /// Accept a proposal — creates an intent record
+    EvolveAccept {
+        /// Proposal ID (e.g. PROP-001)
+        id: String,
+    },
+    /// Reject a proposal — logged with reason
+    EvolveReject {
+        /// Proposal ID (e.g. PROP-001)
+        id: String,
+    },
 }

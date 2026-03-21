@@ -380,3 +380,229 @@ fn newest_mtime_suggest(dir: &std::path::Path) -> u64 {
     }
     latest
 }
+
+// ── Phase 5 — Evolution Proposals ────────────────────────────────────────────
+// Formal proposals generated from Phase 4 suggestions.
+// Stored in state.db. Human accepts or rejects.
+// Accepted proposals become intent records.
+
+pub fn ensure_proposals_schema(ctx: &AppContext) -> CoreResult<()> {
+    ctx.runtime.db.execute_batch(
+        "CREATE TABLE IF NOT EXISTS evolution_proposals (
+            id          TEXT PRIMARY KEY,
+            timestamp   INTEGER NOT NULL,
+            title       TEXT NOT NULL,
+            evidence    TEXT NOT NULL,
+            source      TEXT NOT NULL,
+            confidence  TEXT NOT NULL,
+            status      TEXT NOT NULL DEFAULT 'pending',
+            notes       TEXT
+        );"
+    )?;
+    Ok(())
+}
+
+pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    ensure_proposals_schema(ctx)?;
+
+    // Run suggest() logic to get current signals
+    // then store each as a proposal
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    // Count existing proposals
+    let existing: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM evolution_proposals", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    let next_id = existing + 1;
+
+    // Generate proposals from current signals
+    let mut proposals: Vec<(String, String, String, String)> = vec![];
+
+    // Signal 1: CLI layer churn
+    let cli_files = [
+        "engine/src/app/dispatcher.rs",
+        "engine/src/cli/parser.rs",
+        "engine/src/cli/mod.rs",
+        "engine/src/cli/commands.rs",
+    ];
+    let mut high_churn = 0usize;
+    let mut total_churn = 0usize;
+    for file in &cli_files {
+        let output = std::process::Command::new("git")
+            .args(["-C", &ctx.core_root, "log", "--oneline", "--follow", "--", file])
+            .output().ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default();
+        let count = output.lines().count();
+        total_churn += count;
+        if count >= 50 { high_churn += 1; }
+    }
+    if high_churn >= 2 {
+        proposals.push((
+            "Split CLI layer into smaller modules".to_string(),
+            format!("{} CLI files with 50+ changes ({} total)", high_churn, total_churn),
+            "git churn + coupling index".to_string(),
+            "HIGH".to_string(),
+        ));
+    }
+
+    // Signal 2: High coupling domains
+    let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
+    if let Ok(entries) = std::fs::read_dir(&domains_path) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+            let coupling = count_cross_domain_refs_suggest(&entry.path());
+            if coupling >= 4 {
+                proposals.push((
+                    format!("Reduce coupling in '{}' domain", name),
+                    format!("{} cross-domain references — above threshold", coupling),
+                    "evolution map coupling index".to_string(),
+                    "MEDIUM".to_string(),
+                ));
+            }
+        }
+    }
+
+    if proposals.is_empty() {
+        println!();
+        println!("  {} {}", "✅".green(),
+            "No proposals to generate — no strong signals detected.".dimmed());
+        println!();
+        return Ok(());
+    }
+
+    let mut stored = 0;
+    for (i, (title, evidence, source, confidence)) in proposals.iter().enumerate() {
+        let prop_id = format!("PROP-{:03}", next_id + i as i64);
+        // Skip if already exists with same title
+        let exists: i64 = ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM evolution_proposals WHERE title = ?1",
+            rusqlite::params![title], |r| r.get(0)
+        ).unwrap_or(0);
+        if exists > 0 { continue; }
+        ctx.runtime.db.execute(
+            "INSERT INTO evolution_proposals (id, timestamp, title, evidence, source, confidence)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![prop_id, now, title, evidence, source, confidence]
+        )?;
+        stored += 1;
+    }
+
+    println!();
+    println!("{}", "📋  Evolution Proposals Generated".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {} new proposal(s) stored.", stored.to_string().bright_green());
+    println!("  {} {}", "Review with:".dimmed(), "core evolution evolve-list".bright_cyan());
+    println!("  {} {}", "Accept with:".dimmed(), "core evolution evolve-accept <id>".bright_cyan());
+    println!();
+    Ok(())
+}
+
+pub fn evolve_list(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+
+    ensure_proposals_schema(ctx)?;
+
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT id, title, evidence, confidence, status FROM evolution_proposals ORDER BY timestamp DESC"
+    )?;
+
+    let rows: Vec<(String, String, String, String, String)> = stmt.query_map([], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+    })?.filter_map(|r| r.ok()).collect();
+
+    println!();
+    println!("{}", "📋  Evolution Proposals".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+
+    if rows.is_empty() {
+        println!("  {} No proposals yet. Run: {}", "○".dimmed(),
+            "core evolution evolve-propose".bright_cyan());
+    } else {
+        for (id, title, evidence, confidence, status) in &rows {
+            let status_colored = match status.as_str() {
+                "accepted" => status.bright_green().to_string(),
+                "rejected" => status.bright_red().to_string(),
+                _          => status.yellow().to_string(),
+            };
+            println!("  {} {} {}",
+                id.bright_white().bold(),
+                format!("[{}]", status_colored),
+                title.bright_white()
+            );
+            println!("  {}  {}", "Evidence:".dimmed(), evidence.dimmed());
+            println!("  {}  {}", "Confidence:".dimmed(), confidence.bright_cyan());
+            println!();
+        }
+    }
+
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "The forest proposes. The human decides.".dimmed().italic());
+    println!();
+    Ok(())
+}
+
+pub fn evolve_accept(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+
+    ensure_proposals_schema(ctx)?;
+
+    let result = ctx.runtime.db.execute(
+        "UPDATE evolution_proposals SET status = 'accepted' WHERE id = ?1",
+        rusqlite::params![id]
+    )?;
+
+    if result == 0 {
+        println!("  {} Proposal {} not found.", "✗".bright_red(), id);
+        return Ok(());
+    }
+
+    // Get proposal title for intent suggestion
+    let title: String = ctx.runtime.db.query_row(
+        "SELECT title FROM evolution_proposals WHERE id = ?1",
+        rusqlite::params![id], |r| r.get(0)
+    ).unwrap_or_else(|_| "Unknown proposal".to_string());
+
+    println!();
+    println!("  {} Proposal {} accepted.", "✅".green(), id.bright_white().bold());
+    println!("  {} {}", "Title:".dimmed(), title.bright_white());
+    println!();
+    println!("  {} Record as a formal intent:",
+        "Next step:".bright_cyan().bold());
+    println!("  {} {}",
+        "→".bright_cyan(),
+        format!("core decide \"Implement: {}\"", title).dimmed()
+    );
+    println!();
+    Ok(())
+}
+
+pub fn evolve_reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+
+    ensure_proposals_schema(ctx)?;
+
+    let result = ctx.runtime.db.execute(
+        "UPDATE evolution_proposals SET status = 'rejected' WHERE id = ?1",
+        rusqlite::params![id]
+    )?;
+
+    if result == 0 {
+        println!("  {} Proposal {} not found.", "✗".bright_red(), id);
+        return Ok(());
+    }
+
+    println!();
+    println!("  {} Proposal {} rejected and logged.", "○".dimmed(), id.bright_white());
+    println!("  {}", "The forest remembers the decision.".dimmed().italic());
+    println!();
+    Ok(())
+}
