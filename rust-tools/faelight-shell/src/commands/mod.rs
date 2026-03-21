@@ -111,6 +111,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "snapshot" => snapshot_cmd(db, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
+        "dashboard" | "dash" => dashboard_cmd(db, core_root, args),
         "select" => sql_query_cmd(db, core_root, line),
         "git" => git_status(core_root),
         "search" | "s" => search(db, args),
@@ -2459,4 +2460,174 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
     }
 
     Ok(SqlQuery { columns, table, where_, order_by, order_desc, limit })
+}
+
+// ── Phase 22 — Observability Dashboard ───────────────────────────────────────
+// dashboard         — full system overview
+// dashboard system  — CPU, memory, network, top processes
+
+fn dashboard_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    let mode = args.first().copied().unwrap_or("full");
+    match mode {
+        "system" => dashboard_system(),
+        "forest" => dashboard_forest(db, core_root),
+        _        => {
+            dashboard_system();
+            println!();
+            dashboard_forest(db, core_root);
+            CommandResult::Empty
+        }
+    }
+}
+
+fn dashboard_system() -> CommandResult {
+    use colored::*;
+
+    println!();
+    println!("{}", "┌─ 🖥  System".bright_cyan().bold());
+
+    // Load average
+    let load = std::fs::read_to_string("/proc/loadavg")
+        .map(|s| s.split_whitespace().take(3).collect::<Vec<_>>().join(" "))
+        .unwrap_or_else(|_| "?".to_string());
+    println!("  {}  {}", "Load avg:".dimmed(), load.bright_white());
+
+    // Memory from /proc/meminfo
+    if let Ok(mem) = std::fs::read_to_string("/proc/meminfo") {
+        let mut total = 0u64;
+        let mut available = 0u64;
+        for line in mem.lines() {
+            if line.starts_with("MemTotal:") {
+                total = line.split_whitespace().nth(1)
+                    .and_then(|v| v.parse().ok()).unwrap_or(0);
+            }
+            if line.starts_with("MemAvailable:") {
+                available = line.split_whitespace().nth(1)
+                    .and_then(|v| v.parse().ok()).unwrap_or(0);
+            }
+        }
+        if total > 0 {
+            let used = total - available;
+            let pct = (used * 100) / total;
+            let bar_len = (pct / 5) as usize;
+            let bar = format!("{}{}",
+                "█".repeat(bar_len).bright_green(),
+                "░".repeat(20 - bar_len.min(20)).dimmed()
+            );
+            println!("  {}  {} [{bar}] {}%",
+                "Memory:".dimmed(),
+                format!("{}/{}MB", used/1024, total/1024).bright_white(),
+                pct
+            );
+        }
+    }
+
+    // Top 5 CPU processes
+    let top = std::process::Command::new("ps")
+        .args(["aux", "--no-headers", "--sort=-pcpu"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    println!("  {}", "Top processes:".dimmed());
+    for line in top.lines().take(5) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() > 10 {
+            let name = parts[10..].join(" ").chars().take(28).collect::<String>();
+            let cpu = parts[2];
+            let mem = parts[3];
+            println!("    {} {} cpu:{} mem:{}",
+                "·".dimmed(),
+                name.bright_white(),
+                cpu.yellow(),
+                mem.dimmed()
+            );
+        }
+    }
+
+    // Disk usage
+    let disk = std::process::Command::new("df")
+        .args(["-h", "/"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    if let Some(line) = disk.lines().nth(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 5 {
+            println!("  {}  used:{} available:{} ({})",
+                "Disk /:".dimmed(),
+                parts[2].bright_white(),
+                parts[3].bright_green(),
+                parts[4].yellow()
+            );
+        }
+    }
+
+    println!("{}", "└────────────────────────────────────".dimmed());
+    CommandResult::Empty
+}
+
+fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
+    use colored::*;
+
+    println!("{}", "┌─ 🌲  Forest".bright_cyan().bold());
+
+    // Health
+    let health = db.health_score().unwrap_or(0);
+    let health_color = if health >= 95 {
+        health.to_string().bright_green()
+    } else if health >= 80 {
+        health.to_string().yellow()
+    } else {
+        health.to_string().bright_red()
+    };
+    println!("  {}  {}%", "Health:".dimmed(), health_color);
+
+    // Commit count
+    let commits: i64 = std::process::Command::new("git")
+        .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+    println!("  {}  {}", "Commits:".dimmed(), commits.to_string().bright_white());
+
+    // Active triggers
+    let trigger_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_triggers WHERE enabled = 1",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    println!("  {}  {}", "Active triggers:".dimmed(), trigger_count.to_string().bright_cyan());
+
+    // Recent events
+    let events = db.query_events(None, true, 5);
+    if !events.is_empty() {
+        println!("  {}", "Recent events:".dimmed());
+        for (domain, action, _ts) in events.iter().take(3) {
+            println!("    {} {}.{}",
+                "·".dimmed(),
+                domain.bright_cyan(),
+                action.dimmed()
+            );
+        }
+    }
+
+    // Latest snapshot if exists
+    let snap: Option<(String, i64, i64)> = db.conn.query_row(
+        "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
+        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    ).ok();
+    if let Some((name, sh, sc)) = snap {
+        let commit_diff = commits - sc;
+        println!("  {}  '{}' — health:{} commits:+{}",
+            "Last snapshot:".dimmed(),
+            name.bright_white(),
+            sh.to_string().dimmed(),
+            commit_diff.to_string().bright_green()
+        );
+    }
+
+    println!("{}", "└────────────────────────────────────".dimmed());
+    CommandResult::Empty
 }
