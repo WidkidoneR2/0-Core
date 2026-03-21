@@ -427,6 +427,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Evolution(c) => match c {
             EvolutionCommand::Map   => crate::domains::evolution::map(ctx),
             EvolutionCommand::Tools => crate::domains::evolution::tools(ctx),
+            EvolutionCommand::Suggest => crate::domains::evolution::suggest(ctx),
         },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())

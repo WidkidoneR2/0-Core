@@ -718,4 +718,6 @@ pub enum EvolutionCommands {
     Map,
     /// Tools usage analysis — roster, age, lifecycle stage
     Tools,
+    /// Architecture suggestions based on coupling, churn and tool data
+    Suggest,
 }

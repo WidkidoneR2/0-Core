@@ -337,4 +337,5 @@ pub enum DepsCommand {
 pub enum EvolutionCommand {
     Map,
     Tools,
+    Suggest,
 }
