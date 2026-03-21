@@ -155,7 +155,7 @@ The shell becomes the human interface to the forest's own intentions.
 - ✅ Session memory — shell knows where you left off (2026-03-20)
 - ✅ Project understanding — active intents shown on welcome (2026-03-20)
 - ✅ Adaptive messages — Recovery/Streak/Idle/Milestone/Focused modes (2026-03-20)
-- ⬜ Momentum detection — recognizes streaks and patterns
+- ✅ Momentum detection — feat commits today, weekly streak (2026-03-21)
 - ✅ Personality modes — 5 modes implemented (2026-03-20)
 - ⬜ Core v9 integration — surfaces forest goals in shell messages
 
