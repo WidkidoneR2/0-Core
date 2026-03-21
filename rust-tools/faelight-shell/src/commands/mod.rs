@@ -129,6 +129,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "pkgs" | "packages" => sys_packages(),
         "git-commits" | "gc" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
+        "git-churn" | "gchurn" => git_churn(core_root, args),
+        "git-branches" | "gbr" => git_branches(core_root),
         "watch" => watch_cmd(db, args),
         "alias" => alias_cmd(db, args),
         "unalias" => unalias_cmd(db, args),
@@ -1813,4 +1815,96 @@ fn index_directory(conn: &rusqlite::Connection, dir: &str, depth: usize) -> usiz
         }
     }
     count
+}
+
+// ── Phase 15 — Git Data Engine ────────────────────────────────────────────────
+
+/// git-churn — files changed most frequently across commit history
+/// gchurn | sort changes desc | first 10  → hottest files
+fn git_churn(core_root: &str, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(100);
+
+    let output = std::process::Command::new("git")
+        .args(["-C", core_root, "log",
+            &format!("--max-count={}", limit * 10),
+            "--name-only", "--format="])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    // Count occurrences of each file
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for line in output.lines() {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+        *counts.entry(line.to_string()).or_insert(0) += 1;
+    }
+
+    let mut rows: Vec<HashMap<String, Value>> = counts.into_iter()
+        .map(|(file, count)| {
+            let ext = std::path::Path::new(&file)
+                .extension()
+                .map(|e| e.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let mut row = HashMap::new();
+            row.insert("file".to_string(),    Value::Text(file));
+            row.insert("changes".to_string(), Value::Int(count as i64));
+            row.insert("ext".to_string(),     Value::Text(ext));
+            row
+        })
+        .collect();
+
+    // Sort by changes desc by default
+    rows.sort_by(|a, b| {
+        let ac = a.get("changes").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        let bc = b.get("changes").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        bc.cmp(&ac)
+    });
+    rows.truncate(limit);
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No git history found", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
+}
+
+/// git-branches — all branches as a structured table
+fn git_branches(core_root: &str) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    let output = std::process::Command::new("git")
+        .args(["-C", core_root, "branch", "-a", "--format=%(refname:short)|%(objectname:short)|%(committerdate:relative)|%(HEAD)"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let rows: Vec<HashMap<String, Value>> = output.lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.splitn(4, '|').collect();
+            if parts.len() < 4 { return None; }
+            let name = parts[0].trim().to_string();
+            let hash = parts[1].trim().to_string();
+            let date = parts[2].trim().to_string();
+            let current = parts[3].trim() == "*";
+            let remote = name.starts_with("remotes/");
+            let mut row = HashMap::new();
+            row.insert("name".to_string(),    Value::Text(name));
+            row.insert("hash".to_string(),    Value::Text(hash));
+            row.insert("date".to_string(),    Value::Text(date));
+            row.insert("current".to_string(), Value::Bool(current));
+            row.insert("remote".to_string(),  Value::Bool(remote));
+            Some(row)
+        })
+        .collect();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No branches found", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
 }
