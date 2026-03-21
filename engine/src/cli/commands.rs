@@ -58,6 +58,9 @@ pub enum DecisionCommand {
     Heuristics { domain: Option<String> },
     Lessons,
     Story,
+    Patterns,
+    Friction,
+    Reversal,
 }
 
 

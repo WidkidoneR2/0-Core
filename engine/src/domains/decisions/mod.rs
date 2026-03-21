@@ -1135,3 +1135,218 @@ fn derive_heuristics(ctx: &AppContext) -> Vec<DerivedHeuristic> {
 
     heuristics
 }
+
+// ── Core v8 Phase 3 — Decision Pattern Intelligence ───────────────────────────
+
+/// patterns — find repeating decision types and domains
+/// Pure observation. No suggestions. Data only.
+pub fn patterns(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "🔍  Decision Patterns".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}  {}", "Source:".dimmed(), "decisions table".bright_white());
+    println!();
+
+    // Count by domain
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT domain, COUNT(*) as cnt FROM decisions GROUP BY domain ORDER BY cnt DESC"
+    )?;
+    let domain_rows: Vec<(String, i64)> = stmt.query_map([], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+    })?.filter_map(|r| r.ok()).collect();
+
+    // Count by outcome
+    let total: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions", [], |r| r.get(0))
+        .unwrap_or(0);
+    let success: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='success'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let pending: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='pending'", [], |r| r.get(0))
+        .unwrap_or(0);
+    let failure: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM decisions WHERE outcome='failure'", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    println!("  {}  {}", "Total decisions:".bright_white().bold(), total.to_string().bright_green());
+    println!("  {}  {}  {}  {}",
+        "Outcomes:".dimmed(),
+        format!("{} success", success).bright_green(),
+        format!("{} pending", pending).yellow(),
+        format!("{} failure", failure).bright_red(),
+    );
+    println!();
+
+    if domain_rows.is_empty() {
+        println!("  {}", "No decisions recorded yet.".dimmed());
+        println!("  {} {}", "Record one with:".dimmed(), "core decide \"description\"".bright_cyan());
+    } else {
+        println!("  {}", "By Domain:".bright_white().bold());
+        println!("  {:<20} {:>8}", "Domain".dimmed(), "Count".dimmed());
+        println!("  {}", "─".repeat(30).dimmed());
+        for (domain, count) in &domain_rows {
+            println!("  {:<20} {:>8}", domain.bright_white(), count.to_string().bright_green());
+        }
+    }
+
+    println!();
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Data collected. No suggestions. The forest observes.".dimmed().italic());
+    println!();
+    Ok(())
+}
+
+/// friction — detect decisions requiring repeated corrections
+pub fn friction(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "⚡  Decision Friction".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!();
+
+    // Find decisions with failure or partial outcomes
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT dec_id, domain, description, outcome, outcome_notes
+         FROM decisions
+         WHERE outcome IN ('failure', 'partial')
+         ORDER BY timestamp DESC"
+    )?;
+    let rows: Vec<(String, String, String, String, Option<String>)> = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+            r.get::<_, Option<String>>(4)?,
+        ))
+    })?.filter_map(|r| r.ok()).collect();
+
+    if rows.is_empty() {
+        println!("  {} {}", "✅".green(), "No friction detected — no failures or partial outcomes recorded.".dimmed());
+    } else {
+        println!("  {}", "Decisions with friction:".bright_white().bold());
+        println!();
+        for (dec_id, domain, desc, outcome, notes) in &rows {
+            let outcome_colored = if outcome == "failure" {
+                outcome.bright_red().to_string()
+            } else {
+                outcome.yellow().to_string()
+            };
+            println!("  {} {} {}",
+                dec_id.bright_white().bold(),
+                format!("[{}]", outcome_colored),
+                domain.dimmed()
+            );
+            println!("    {}", desc.dimmed());
+            if let Some(n) = notes {
+                if !n.is_empty() {
+                    println!("    {} {}", "Notes:".dimmed(), n.dimmed().italic());
+                }
+            }
+            println!();
+        }
+    }
+
+    // Check for pending decisions older than 30 days
+    let old_pending: i64 = ctx.runtime.db.query_row(
+        &format!("SELECT COUNT(*) FROM decisions WHERE outcome='pending' AND timestamp < {}", 
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64 - 30*86400),
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    if old_pending > 0 {
+        println!("  {} {} {}",
+            "⚠".yellow(),
+            old_pending.to_string().yellow(),
+            "decision(s) pending for more than 30 days — consider recording outcomes.".dimmed()
+        );
+        println!();
+    }
+
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Data collected. No suggestions. The forest observes.".dimmed().italic());
+    println!();
+    Ok(())
+}
+
+/// reversal — detect architectural reversals (removed then reintroduced)
+pub fn reversal(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "🔄  Decision Reversals".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!();
+
+    // Look for decisions with similar keywords that were reversed
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT dec_id, domain, description, outcome, timestamp
+         FROM decisions
+         ORDER BY domain, timestamp ASC"
+    )?;
+    let rows: Vec<(String, String, String, String, i64)> = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+            r.get::<_, i64>(4)?,
+        ))
+    })?.filter_map(|r| r.ok()).collect();
+
+    // Simple reversal detection: look for "remove" followed by "add" or "reintroduce"
+    // for similar subjects within same domain
+    let mut reversals: Vec<(String, String, String, String)> = vec![];
+
+    for (i, (id1, dom1, desc1, out1, _)) in rows.iter().enumerate() {
+        let desc1_lower = desc1.to_lowercase();
+        let is_removal = desc1_lower.contains("remov") || desc1_lower.contains("deprecat") 
+            || desc1_lower.contains("replac") || desc1_lower.contains("drop");
+        if !is_removal { continue; }
+
+        for (id2, dom2, desc2, _, _) in rows.iter().skip(i + 1) {
+            if dom1 != dom2 { continue; }
+            let desc2_lower = desc2.to_lowercase();
+            let is_readd = desc2_lower.contains("add") || desc2_lower.contains("reintroduc")
+                || desc2_lower.contains("restor") || desc2_lower.contains("bring back");
+            if !is_readd { continue; }
+
+            // Check word overlap — simple heuristic
+            let words1: Vec<&str> = desc1.split_whitespace()
+                .filter(|w| w.len() > 4).collect();
+            let words2: Vec<&str> = desc2.split_whitespace()
+                .filter(|w| w.len() > 4).collect();
+            let overlap = words1.iter().filter(|w| words2.contains(w)).count();
+
+            if overlap >= 1 {
+                reversals.push((id1.clone(), id2.clone(), desc1.clone(), desc2.clone()));
+            }
+        }
+        let _ = out1;
+    }
+
+    if reversals.is_empty() {
+        println!("  {} {}", "✅".green(), "No reversals detected in decision history.".dimmed());
+    } else {
+        println!("  {}", "Potential reversals detected:".bright_white().bold());
+        println!();
+        for (id1, id2, desc1, desc2) in &reversals {
+            println!("  {} → {}",
+                id1.bright_white().bold(),
+                id2.bright_white().bold()
+            );
+            println!("    {} {}", "Removed:".dimmed(), desc1.bright_red().dimmed());
+            println!("    {} {}", "Added:".dimmed(),   desc2.bright_green().dimmed());
+            println!();
+        }
+    }
+
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Data collected. No suggestions. The forest observes.".dimmed().italic());
+    println!();
+    Ok(())
+}
