@@ -166,7 +166,7 @@ INT-135 Shell v11  — will expose Horizon 3 capability complexity
 
 ## Gate Check
 ```
-⬜ Core v8 configured to detect Horizon 1 signals
+✅ Core v8 Phase 1 detects Horizon 1 signals — core evolution map (2026-03-20)
 ⬜ Core v8 configured to detect Horizon 2 signals  
 ⬜ Core v8 configured to detect Horizon 3 signals
 ⬜ Dashboard: core architecture horizons
