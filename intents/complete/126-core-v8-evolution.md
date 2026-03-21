@@ -3,7 +3,7 @@ id: 126
 date: 2026-03-15
 type: future
 title: "Core v8 — Evolution: The Forest Refines Itself"
-status: in-progress
+status: complete
 tags: [core, v8, evolution, architecture, intelligence, proposals, v12]
 version: 12.0.0
 priority: medium
