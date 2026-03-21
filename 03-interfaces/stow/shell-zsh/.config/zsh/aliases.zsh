@@ -209,6 +209,7 @@ alias secadvise='core security advise'            # security judgment advisory
 
 # ─── faelight-shell ───
 alias fs='faelight-shell'                          # forest-native shell
+alias fsh-deploy='cd ~/0-core && cargo build -p faelight-shell && sudo cp ~/0-core/target/debug/faelight-shell ~/0-core/scripts/faelight-shell && cp ~/0-core/target/debug/faelight-shell ~/.cargo/bin/faelight-shell && echo "✅ faelight-shell deployed"'
 
 # ─── Core Audit — Tool Intelligence Layer ───
 alias audit='core audit scan'                     # score all tools
@@ -614,7 +615,7 @@ alias wallpaper='faelight-wallpaper'
 alias wp='faelight-wallpaper'
 
 # ─── faelight-search ───
-alias fs='faelight-search'
+# alias fs=faelight-search  # removed — faelight-shell takes priority
 alias search='faelight-search'
 
 # ─── faelight-intent ───
