@@ -455,7 +455,7 @@ NEXT (in order):
 - Phase 14  - File system index DONE (2026-03-21)
 - Phase 15  - Git data engine DONE (2026-03-21)
 - Phase 16  - History analytics
-- Phase 17  - Event system (now on solid foundation)
+- Phase 17  - Event system DONE (2026-03-21)
 - Phase 18  - Time travel
 - Phase 21  - Query language (adoption bridge)
 - Phase 22  - Observability dashboard
