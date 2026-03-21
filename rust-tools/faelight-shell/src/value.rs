@@ -151,6 +151,8 @@ pub enum PipeOp {
     Count,
     Get(String),
     Watch { interval: u64 },
+    Join { table: String, on: String },
+    JoinData { rows: Vec<std::collections::HashMap<String, Value>>, on: String },
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
@@ -216,6 +218,33 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
                 }).collect())
             }
         }
+        // JoinData — pre-resolved join (table already fetched by main.rs)
+        (Value::Table(left_rows), PipeOp::JoinData { rows: right_rows, on }) => {
+            let mut result = vec![];
+            for left in left_rows {
+                let left_key = left.get(on).map(|v| v.as_text()).unwrap_or_default();
+                // Find matching right rows
+                let matches: Vec<_> = right_rows.iter()
+                    .filter(|r| r.get(on).map(|v| v.as_text()).unwrap_or_default() == left_key)
+                    .collect();
+                if matches.is_empty() {
+                    // Left join — include left row even with no match
+                    result.push(left.clone());
+                } else {
+                    for right in matches {
+                        let mut merged = left.clone();
+                        for (k, v) in right {
+                            if k != on {
+                                // Prefix right-side columns to avoid collision
+                                merged.insert(format!("r_{}", k), v.clone());
+                            }
+                        }
+                        result.push(merged);
+                    }
+                }
+            }
+            Value::Table(result)
+        }
         (v, _) => v, // passthrough for non-table values
     }
 }
@@ -251,6 +280,11 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         ["get", field] => Some(PipeOp::Get(field.to_string())),
         ["watch"] => Some(PipeOp::Watch { interval: 2 }),
         ["watch", n] => n.parse().ok().map(|i| PipeOp::Watch { interval: i }),
+        // join <table> on <field>
+        ["join", table, "on", field] => Some(PipeOp::Join {
+            table: table.to_string(),
+            on: field.to_string(),
+        }),
         _ => None,
     }
 }

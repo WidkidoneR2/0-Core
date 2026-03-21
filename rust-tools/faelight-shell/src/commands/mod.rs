@@ -993,14 +993,12 @@ fn sys_processes() -> CommandResult {
 fn sys_ports() -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
-
     let output = std::process::Command::new("ss")
         .args(["-tlnp"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
-
     let rows: Vec<HashMap<String, Value>> = output.lines()
         .skip(1)
         .filter_map(|line| {
@@ -1008,26 +1006,27 @@ fn sys_ports() -> CommandResult {
             if parts.len() < 4 { return None; }
             let addr = parts[3];
             let port = addr.rsplit(':').next().unwrap_or("?").to_string();
-            let process = if parts.len() > 5 {
-                parts[5..].join(" ")
-                    .split('"').nth(1)
-                    .unwrap_or("?").to_string()
-            } else { "?".to_string() };
+            let users_str = if parts.len() > 4 { parts[4..].join(" ") } else { String::new() };
+            let process = users_str.split('"').nth(1).unwrap_or("?").to_string();
+            let pid = users_str.split("pid=")
+                .nth(1)
+                .and_then(|s| s.split(|c: char| !c.is_ascii_digit()).next())
+                .unwrap_or("?")
+                .to_string();
             let mut row = HashMap::new();
-            row.insert("port".to_string(), Value::Text(port));
-            row.insert("state".to_string(), Value::Text(parts[0].to_string()));
+            row.insert("port".to_string(),    Value::Text(port));
+            row.insert("state".to_string(),   Value::Text(parts[0].to_string()));
             row.insert("address".to_string(), Value::Text(addr.to_string()));
             row.insert("process".to_string(), Value::Text(process));
+            row.insert("pid".to_string(),     Value::Text(pid));
             Some(row)
         })
         .collect();
-
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No listening ports found", "○".dimmed()));
     }
     CommandResult::Value(Value::Table(rows))
 }
-
 fn sys_services() -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
