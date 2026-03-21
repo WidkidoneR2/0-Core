@@ -13,6 +13,7 @@ use colored::*;
 pub struct SessionMemory {
     pub last_commit_count: u64,
     pub current_commit_count: u64,
+    #[allow(dead_code)]
     pub last_intent: Option<String>,
     pub last_session_ts: Option<i64>,
 }
@@ -139,72 +140,123 @@ fn active_intents(core_root: &str) -> Vec<String> {
 
 // ── Render session memory message ─────────────────────────────────────────────
 
-pub fn render(mem: &SessionMemory, core_root: &str) -> String {
-    let mut lines: Vec<String> = vec![];
+// ── Shell Personality Modes — Pillar 2 ───────────────────────────────────────
 
-    // Time away message
-    if let Some(hours) = mem.hours_since() {
-        if hours == 0 {
-            lines.push(format!("  {} {}",
-                "↺".bright_cyan(),
-                "Welcome back.".dimmed()
-            ));
-        } else if hours < 2 {
-            lines.push(format!("  {} {}",
-                "↺".bright_cyan(),
-                "Welcome back — picking up where you left off.".dimmed()
-            ));
-        } else if hours < 24 {
-            lines.push(format!("  {} {} hours since last session.",
-                "↺".bright_cyan(),
-                hours.to_string().bright_white()
-            ));
-        } else if let Some(days) = mem.days_since() {
-            if days == 1 {
-                lines.push(format!("  {} {}",
-                    "↺".bright_cyan(),
-                    "The forest waited. Welcome back.".dimmed()
-                ));
-            } else {
-                lines.push(format!("  {} {} {} {}",
-                    "↺".bright_cyan(),
-                    days.to_string().bright_white(),
-                    "days since last session.".dimmed(),
-                    "The forest remembers.".dimmed().italic()
-                ));
-            }
+#[derive(Debug, PartialEq)]
+pub enum ShellMode {
+    Recovery,    // health < 95% — calm, methodical
+    Streak,      // 5+ commits since last session — encouraging
+    Idle,        // 2+ days away — gentle reorientation
+    Milestone,   // 0 in-progress intents — something just completed
+    Focused,     // normal, active work session
+}
+
+pub fn detect_mode(mem: &SessionMemory, core_root: &str, active_count: usize) -> ShellMode {
+    // Read health from events table (same as db.health_score())
+    let health: u32 = {
+        let db_path = std::path::Path::new(core_root).join("runtime/state.db");
+        rusqlite::Connection::open(&db_path).ok()
+            .and_then(|conn| conn.query_row(
+                "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+                [], |r| r.get::<_, String>(0)
+            ).ok())
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+            .and_then(|v| v["detail"]["health"].as_i64())
+            .unwrap_or(100) as u32
+    };
+
+    // Recovery — health degraded
+    if health < 95 {
+        return ShellMode::Recovery;
+    }
+
+    // Idle — long gap
+    if let Some(days) = mem.days_since() {
+        if days >= 2 {
+            return ShellMode::Idle;
         }
     }
 
-    // Last intent
-    if let Some(ref intent) = mem.last_intent {
-        lines.push(format!("  {} {}",
-            "Last:".dimmed(),
-            intent.bright_white()
-        ));
+    // Streak — lots of commits
+    if mem.new_commits() >= 5 && mem.last_commit_count > 0 {
+        return ShellMode::Streak;
     }
 
-    // Active intents from filesystem
+    // Milestone — no active intents (something just completed)
+    if active_count == 0 && mem.last_commit_count > 0 {
+        return ShellMode::Milestone;
+    }
+
+    ShellMode::Focused
+}
+
+pub fn render(mem: &SessionMemory, core_root: &str) -> String {
+    let mut lines: Vec<String> = vec![];
     let intents = active_intents(core_root);
+    let mode = detect_mode(mem, core_root, intents.len());
+
+    // Mode-aware welcome message
+    let welcome = match &mode {
+        ShellMode::Recovery => format!("  {} {}",
+            "⚕".yellow(),
+            "Health advisory — let\'s see what needs attention.".yellow()
+        ),
+        ShellMode::Streak => format!("  {} {}",
+            "↺".bright_green(),
+            "Strong streak. The forest is growing fast.".bright_green()
+        ),
+        ShellMode::Idle => {
+            if let Some(days) = mem.days_since() {
+                format!("  {} {} {}",
+                    "↺".bright_cyan(),
+                    format!("{} days away.", days).bright_white(),
+                    "The forest waited patiently.".dimmed()
+                )
+            } else {
+                format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
+            }
+        },
+        ShellMode::Milestone => format!("  {} {}",
+            "✦".bright_yellow(),
+            "All intents complete. What grows next?".bright_yellow()
+        ),
+        ShellMode::Focused => {
+            if let Some(hours) = mem.hours_since() {
+                if hours == 0 {
+                    format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
+                } else if hours < 2 {
+                    format!("  {} {}", "↺".bright_cyan(), "Welcome back — picking up where you left off.".dimmed())
+                } else if hours < 24 {
+                    format!("  {} {}",
+                        "↺".bright_cyan(),
+                        format!("{} hours since last session.", hours).dimmed()
+                    )
+                } else {
+                    format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
+                }
+            } else {
+                format!("  {} {}", "↺".bright_cyan(), "Welcome back.".dimmed())
+            }
+        },
+    };
+    lines.push(welcome);
+
+    // Active intents
     if !intents.is_empty() {
-        let intent_str = intents.iter()
-            .map(|i| i.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
+        let intent_str = intents.iter().map(|i| i.as_str()).collect::<Vec<_>>().join(", ");
         lines.push(format!("  {} {}",
             "Working on:".dimmed(),
             intent_str.bright_cyan()
         ));
     }
 
-    // New commits since last session (skip on first ever session)
+    // New commits since last session
     let new = mem.new_commits();
     if new > 0 && mem.last_commit_count > 0 {
-        lines.push(format!("  {} {} {} {}",
+        lines.push(format!("  {} {} {}",
             "Since last session:".dimmed(),
             new.to_string().bright_green(),
-            "new commit".dimmed(),
-            if new == 1 { "" } else { "s" }
+            if new == 1 { "new commit".dimmed() } else { "new commits".dimmed() }
         ));
     }
 
