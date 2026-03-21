@@ -14,6 +14,7 @@ mod value;
 mod completion;
 mod schema;
 mod nl;
+mod session;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
@@ -207,6 +208,8 @@ fn main() -> Result<()> {
         }
     }
 
+    // Save session state on exit
+    session::SessionMemory::save(&core_root, None);
     println!("{}", colored::Colorize::dimmed("  🌲 The forest remembers."));
     Ok(())
 }
@@ -340,6 +343,14 @@ fn print_welcome(core_root: &str) {
         println!("  {} {}", "Today:".dimmed(), focus.bright_white());
     }
     println!();
+    // Session memory
+    if let Some(mem) = session::SessionMemory::load(core_root) {
+        let msg = session::render(&mem, core_root);
+        if !msg.is_empty() {
+            println!("{}", msg);
+        }
+    }
+
     println!("  {} for commands  ·  {} to exit",
         "help".bright_cyan(), "q".dimmed()
     );
