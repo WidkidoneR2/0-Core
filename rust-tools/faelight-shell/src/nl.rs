@@ -45,12 +45,12 @@ pub const PATTERNS: &[Pattern] = &[
     },
     // ── Processes ─────────────────────────────────────────────────────────────
     Pattern {
-        phrases:  &["memory hogs", "using most memory", "ram usage", "memory usage", "eating memory", "using memory"],
+        phrases:  &["memory hogs", "using most memory", "ram usage", "memory usage", "eating memory", "using memory", "mem", "memory"],
         pipeline: "ps | sort memory desc | first 5",
         context:  "processes",
     },
     Pattern {
-        phrases:  &["cpu hogs", "using most cpu", "slow processes", "cpu usage", "eating cpu", "using cpu", "why slow", "computer slow", "system slow"],
+        phrases:  &["cpu hogs", "using most cpu", "slow processes", "cpu usage", "eating cpu", "using cpu", "why slow", "computer slow", "system slow", "cpu", "slow"],
         pipeline: "ps | sort cpu desc | first 5",
         context:  "processes",
     },
@@ -82,7 +82,7 @@ pub const PATTERNS: &[Pattern] = &[
     },
     // ── Network ───────────────────────────────────────────────────────────────
     Pattern {
-        phrases:  &["open ports", "listening ports", "network ports", "what ports", "which ports"],
+        phrases:  &["open ports", "listening ports", "network ports", "what ports", "which ports", "ports"],
         pipeline: "ports",
         context:  "network",
     },
@@ -114,7 +114,7 @@ pub const PATTERNS: &[Pattern] = &[
     },
     // ── Git ───────────────────────────────────────────────────────────────────
     Pattern {
-        phrases:  &["recent commits", "latest changes", "git history", "what committed", "last commits"],
+        phrases:  &["recent commits", "latest changes", "git history", "what committed", "last commits", "commits", "git"],
         pipeline: "gc | first 10",
         context:  "git",
     },
