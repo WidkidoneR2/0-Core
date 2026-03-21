@@ -1607,6 +1607,16 @@ impl KeyboardHandler for App {
                 Keysym::k => Some('\x0b'), // Ctrl+K
                 Keysym::u => Some('\x15'), // Ctrl+U
                 Keysym::w => Some('\x17'), // Ctrl+W
+                Keysym::r => Some('\x12'), // Ctrl+R (atuin history)
+                Keysym::p => Some('\x10'), // Ctrl+P
+                Keysym::n => Some('\x0e'), // Ctrl+N
+                Keysym::b => Some('\x02'), // Ctrl+B
+                Keysym::f => Some('\x06'), // Ctrl+F
+                Keysym::t => Some('\x14'), // Ctrl+T
+                Keysym::g => Some('\x07'), // Ctrl+G
+                Keysym::s => Some('\x13'), // Ctrl+S
+                Keysym::x => Some('\x18'), // Ctrl+X
+                Keysym::q => Some('\x11'), // Ctrl+Q
                 _ => None,
             };
 
