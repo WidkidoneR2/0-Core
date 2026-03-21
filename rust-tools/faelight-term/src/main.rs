@@ -978,6 +978,7 @@ impl App {
                     // Chunk large pastes to avoid buffer overflow (4KB chunks)
                     const CHUNK_SIZE: usize = 4096;
                     let bytes = buffer.as_bytes();
+                    let _ = self.pty.master.write_all(b"\x1b[200~");
 
                     for chunk in bytes.chunks(CHUNK_SIZE) {
                         match self.pty.master.write_all(chunk) {
@@ -994,6 +995,8 @@ impl App {
                             }
                         }
                     }
+                    let _ = self.pty.master.write_all(b"\x1b[201~");
+                    let _ = self.pty.master.flush();
                 }
             }
             Err(e) => eprintln!("⚠️  Paste failed: {}", e),
