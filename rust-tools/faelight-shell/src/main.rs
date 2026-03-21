@@ -15,6 +15,7 @@ mod completion;
 mod schema;
 mod nl;
 mod session;
+mod triggers;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
@@ -206,6 +207,15 @@ fn main() -> Result<()> {
                         eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
                     }
                 }
+                // Phase 17 — evaluate triggers after every command
+                triggers::ensure_schema(&db);
+                let health = db.health_score();
+                let trigger_ctx = triggers::TriggerContext {
+                    last_command: base_cmd.clone(),
+                    health_score: health,
+                    last_domain: None,
+                };
+                triggers::evaluate(&db, &trigger_ctx, &core_root);
             }
             Err(ReadlineError::Interrupted) => {
                 // Ctrl+C — clear line, return to prompt
