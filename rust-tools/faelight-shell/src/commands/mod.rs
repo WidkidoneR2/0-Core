@@ -636,6 +636,41 @@ fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
 
     let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(20);
 
+    // Phase 15 — use faelight-git Repo directly (no subprocess)
+    let repo_result = faelight_git::git::repo::GitRepo::open_at(core_root);
+
+    match repo_result {
+        Ok(repo) => {
+            let log_entries: anyhow::Result<Vec<faelight_git::git::repo::CommitEntry>> = repo.log(limit);
+                match log_entries {
+                Ok(entries) => { // entries: Vec<CommitEntry>
+                    let rows: Vec<HashMap<String, Value>> = entries.into_iter().map(|e| {
+                        let mut row = HashMap::new();
+                        row.insert("hash".to_string(),    Value::Text(e.hash));
+                        row.insert("author".to_string(),  Value::Text(e.author));
+                        row.insert("date".to_string(),    Value::Text(e.time_ago));
+                        row.insert("message".to_string(), Value::Text(e.message));
+                        row
+                    }).collect();
+                    if rows.is_empty() {
+                        CommandResult::Output(format!("  {} No commits found", "○".dimmed()))
+                    } else {
+                        CommandResult::Value(Value::Table(rows))
+                    }
+                }
+                Err(_) => {
+                    // Fallback to git subprocess
+                    git_commits_subprocess(core_root, limit)
+                }
+            }
+        }
+        Err(_) => git_commits_subprocess(core_root, limit),
+    }
+}
+
+fn git_commits_subprocess(core_root: &str, limit: usize) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
     let output = std::process::Command::new("git")
         .args(["-C", core_root, "log",
             &format!("-{}", limit),
@@ -645,27 +680,23 @@ fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
-
     let rows: Vec<HashMap<String, Value>> = output.lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(5, '|').collect();
             if parts.len() < 5 { return None; }
             let mut row = HashMap::new();
-            row.insert("hash".to_string(), Value::Text(parts[0][..7].to_string()));
-            row.insert("author".to_string(), Value::Text(parts[1].to_string()));
-            row.insert("date".to_string(), Value::Text(parts[3][..10].to_string()));
+            row.insert("hash".to_string(),    Value::Text(parts[0][..7].to_string()));
+            row.insert("author".to_string(),  Value::Text(parts[1].to_string()));
+            row.insert("date".to_string(),    Value::Text(parts[3][..10].to_string()));
             row.insert("message".to_string(), Value::Text(parts[4].to_string()));
             Some(row)
         })
         .collect();
-
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No commits found", "○".dimmed()));
     }
-
     CommandResult::Value(Value::Table(rows))
 }
-
 fn git_files(core_root: &str) -> CommandResult {
     use std::collections::HashMap;
     use crate::value::Value;
