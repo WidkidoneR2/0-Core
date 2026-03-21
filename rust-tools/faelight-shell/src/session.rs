@@ -260,6 +260,12 @@ pub fn render(mem: &SessionMemory, core_root: &str) -> String {
         ));
     }
 
+    // Pillar 3 — momentum detection
+    let momentum = detect_momentum(core_root);
+    if let Some(mom_str) = render_momentum(&momentum) {
+        lines.push(mom_str);
+    }
+
     if lines.is_empty() {
         return String::new();
     }
@@ -270,4 +276,91 @@ pub fn render(mem: &SessionMemory, core_root: &str) -> String {
         out.push('\n');
     }
     out
+}
+// ── Pillar 3 — Momentum Detection ────────────────────────────────────────────
+
+pub struct Momentum {
+    pub feat_commits_today: usize,
+    pub total_commits_today: usize,
+    pub total_commits_week: usize,
+}
+
+pub fn detect_momentum(core_root: &str) -> Momentum {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let week_ago = (chrono::Local::now() - chrono::Duration::days(7))
+        .format("%Y-%m-%d").to_string();
+
+    // Use git log to count commits
+    let today_log = std::process::Command::new("git")
+        .args(["-C", core_root, "log", "--oneline",
+            &format!("--since={} 00:00:00", today)])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let week_log = std::process::Command::new("git")
+        .args(["-C", core_root, "log", "--oneline",
+            &format!("--since={} 00:00:00", week_ago)])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+
+    let total_today = today_log.lines().count();
+    let feat_today = today_log.lines()
+        .filter(|l| l.contains("feat:") || l.contains("feat("))
+        .count();
+    let total_week = week_log.lines().count();
+
+    Momentum {
+        feat_commits_today:  feat_today,
+        total_commits_today: total_today,
+        total_commits_week:  total_week,
+    }
+}
+
+pub fn render_momentum(m: &Momentum) -> Option<String> {
+    use colored::*;
+    // Only show if meaningful activity
+    if m.total_commits_today == 0 { return None; }
+
+    let mut parts: Vec<String> = vec![];
+
+    if m.feat_commits_today >= 5 {
+        parts.push(format!("  {} {} feat commits today — {}",
+            "🔥".normal(),
+            m.feat_commits_today.to_string().bright_green().bold(),
+            "strong build session.".dimmed()
+        ));
+    } else if m.feat_commits_today >= 2 {
+        parts.push(format!("  {} {} feat commits today.",
+            "⚡".normal(),
+            m.feat_commits_today.to_string().bright_green()
+        ));
+    }
+
+    if m.total_commits_week >= 20 {
+        parts.push(format!("  {} {} commits this week — {}",
+            "↗".bright_green(),
+            m.total_commits_week.to_string().bright_green().bold(),
+            "the forest is growing fast.".dimmed()
+        ));
+    } else if m.total_commits_week >= 10 {
+        parts.push(format!("  {} {} commits this week.",
+            "↗".bright_cyan(),
+            m.total_commits_week.to_string().bright_white()
+        ));
+    }
+
+    if parts.is_empty() && m.total_commits_today > 0 {
+        parts.push(format!("  {} {} commit{} today.",
+            "○".dimmed(),
+            m.total_commits_today.to_string().bright_white(),
+            if m.total_commits_today == 1 { "" } else { "s" }
+        ));
+    }
+
+    if parts.is_empty() { return None; }
+    Some(parts.join("\n"))
 }
