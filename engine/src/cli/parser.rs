@@ -662,6 +662,12 @@ pub enum DecisionCommands {
     Lessons,
     /// 30-day narrative of computing life
     Story,
+    /// Detect repeating decision patterns
+    Patterns,
+    /// Detect decisions requiring repeated corrections
+    Friction,
+    /// Detect architectural reversals in decision history
+    Reversal,
 }
 
 #[derive(Subcommand)]

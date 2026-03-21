@@ -385,6 +385,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DecisionCommand::Story => {
                     crate::domains::decisions::story(ctx)
                 }
+                DecisionCommand::Patterns => {
+                    crate::domains::decisions::patterns(ctx)
+                }
+                DecisionCommand::Friction => {
+                    crate::domains::decisions::friction(ctx)
+                }
+                DecisionCommand::Reversal => {
+                    crate::domains::decisions::reversal(ctx)
+                }
             }
         }
 

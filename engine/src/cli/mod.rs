@@ -273,6 +273,9 @@ pub fn parse() -> Command {
             DecisionCommands::Heuristics { domain } => DecisionCommand::Heuristics { domain },
             DecisionCommands::Lessons => DecisionCommand::Lessons,
             DecisionCommands::Story => DecisionCommand::Story,
+            DecisionCommands::Patterns => DecisionCommand::Patterns,
+            DecisionCommands::Friction => DecisionCommand::Friction,
+            DecisionCommands::Reversal => DecisionCommand::Reversal,
         }),
         Commands::Heuristics { domain } => Command::Decision(DecisionCommand::Heuristics { domain }),
         Commands::Deps { command } => Command::Deps(match command {
