@@ -1,0 +1,28 @@
+# Faelight Forest — Custom NL Patterns
+# Format: [[pattern]] with phrases, pipeline, context
+# These extend the built-in pattern library
+
+[[pattern]]
+phrases = ["my commits today", "what did i commit today", "todays commits"]
+pipeline = "gc | where date contains today | first 10"
+context = "git"
+
+[[pattern]]
+phrases = ["biggest rust files", "largest rust files", "big rs files"]
+pipeline = "find | where ext == rs | sort size desc | first 10"
+context = "filesystem"
+
+[[pattern]]
+phrases = ["active triggers", "my triggers", "show triggers"]
+pipeline = "on list"
+context = "forest"
+
+[[pattern]]
+phrases = ["forest dashboard", "show dashboard", "system overview"]
+pipeline = "dashboard"
+context = "forest"
+
+[[pattern]]
+phrases = ["recent snapshots", "my snapshots", "show snapshots"]
+pipeline = "timeline"
+context = "forest"

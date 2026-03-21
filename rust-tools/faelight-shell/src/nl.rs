@@ -327,3 +327,97 @@ pub fn render_pattern_list() -> String {
     out.push('\n');
     out
 }
+
+// ── Custom TOML Patterns — INT-139 Criterion 8 ───────────────────────────────
+// Load user-defined patterns from ~/.config/faelight-shell/nl-patterns.toml
+// or ~/0-core/01-registry/shell-patterns.toml
+
+#[derive(Debug, Clone)]
+pub struct CustomPattern {
+    pub phrases:  Vec<String>,
+    pub pipeline: String,
+    pub context:  String,
+}
+
+pub fn load_toml_patterns(core_root: &str) -> Vec<CustomPattern> {
+    let mut patterns = vec![];
+
+    let paths = vec![
+        format!("{}/.config/faelight-shell/nl-patterns.toml",
+            std::env::var("HOME").unwrap_or_default()),
+        format!("{}/01-registry/shell-patterns.toml", core_root),
+    ];
+
+    for path in &paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(value) = content.parse::<toml::Value>() {
+                if let Some(arr) = value.get("pattern").and_then(|v| v.as_array()) {
+                    for item in arr {
+                        let phrases: Vec<String> = item.get("phrases")
+                            .and_then(|v| v.as_array())
+                            .map(|a| a.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect())
+                            .unwrap_or_default();
+                        let pipeline = item.get("pipeline")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let context = item.get("context")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("custom")
+                            .to_string();
+                        if !phrases.is_empty() && !pipeline.is_empty() {
+                            patterns.push(CustomPattern { phrases, pipeline, context });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    patterns
+}
+
+pub fn translate_with_custom(input: &str, custom: &[CustomPattern]) -> Option<Translation> {
+    let input_lower = input.to_lowercase();
+    let input_lower = input_lower.trim_start_matches('?').trim();
+
+    // Check built-in patterns first
+    let mut best: Option<(f32, String, String, String)> = None;
+
+    for pattern in PATTERNS {
+        for phrase in pattern.phrases {
+            let score = similarity(input_lower, phrase);
+            if score > 0.4 {
+                if best.as_ref().map(|(s, _, _, _)| score > *s).unwrap_or(true) {
+                    best = Some((score,
+                        pattern.pipeline.to_string(),
+                        pattern.context.to_string(),
+                        phrase.to_string()));
+                }
+            }
+        }
+    }
+
+    // Check custom TOML patterns — can override built-ins if higher score
+    for pattern in custom {
+        for phrase in &pattern.phrases {
+            let score = similarity(input_lower, phrase);
+            if score > 0.4 {
+                if best.as_ref().map(|(s, _, _, _)| score > *s).unwrap_or(true) {
+                    best = Some((score,
+                        pattern.pipeline.clone(),
+                        pattern.context.clone(),
+                        phrase.clone()));
+                }
+            }
+        }
+    }
+
+    best.map(|(confidence, pipeline, context, matched_phrase)| Translation {
+        pipeline,
+        confidence,
+        context,
+        matched_phrase,
+    })
+}
