@@ -384,8 +384,8 @@ Each layer must be solid before the next is built.
 ### Layer 1 - REALITY (Ground Truth)
 What the shell knows about the world.
 - Phase 8  DONE: System tables (ps, ports, services, files, net, pkgs)
-- Phase 14: File system index (speed = trust)
-- Phase 15: Git data engine (first killer vertical)
+- Phase 14: File system index DONE (2026-03-21)
+- Phase 15: Git data engine DONE (2026-03-21)
 
 ### Layer 2 - UNDERSTANDING (Query + Schema)
 How users think with the system.
@@ -452,8 +452,8 @@ DONE:
 NEXT (in order):
 - Phase 11a - Formal schema system DONE (2026-03-20)
 - Phase 11  - Schema-aware autocomplete
-- Phase 14  - File system index (speed = trust)
-- Phase 15  - Git data engine (killer vertical)
+- Phase 14  - File system index DONE (2026-03-21)
+- Phase 15  - Git data engine DONE (2026-03-21)
 - Phase 16  - History analytics
 - Phase 17  - Event system (now on solid foundation)
 - Phase 18  - Time travel
