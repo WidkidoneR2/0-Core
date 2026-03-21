@@ -1641,6 +1641,8 @@ dependencies = [
  "chrono",
  "colored",
  "ctrlc",
+ "faelight-git",
+ "git2",
  "rusqlite",
  "rustyline",
  "serde_json",
