@@ -458,7 +458,7 @@ NEXT (in order):
 - Phase 17  - Event system DONE (2026-03-21)
 - Phase 18  - Time travel DONE (2026-03-21)
 - Phase 21  - Query language DONE (2026-03-21)
-- Phase 22  - Observability dashboard
+- Phase 22  - Observability dashboard DONE (2026-03-21)
 - Phase 25  - Natural language assistant (INT-139, amplifier not crutch)
 - Phase 32  - Shell as OS layer
 
