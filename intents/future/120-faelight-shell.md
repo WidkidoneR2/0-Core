@@ -432,7 +432,9 @@ Every system table needs a registered schema in the shell:
 
 This schema registry makes joins reliable and type-checked at parse time.
 
-## The Join System - The Most Powerful Thing Being Built
+## The Join System - SHIPPED (2026-03-20)
+
+The most powerful thing built so far.
 
     processes | where cpu > 50 | join ports on pid | join logs on pid | table
 
