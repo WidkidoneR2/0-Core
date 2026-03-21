@@ -252,6 +252,9 @@ pub fn parse() -> Command {
             EvolutionCommands::EvolveList => EvolutionCommand::EvolveList,
             EvolutionCommands::EvolveAccept { id } => EvolutionCommand::EvolveAccept { id },
             EvolutionCommands::EvolveReject { id } => EvolutionCommand::EvolveReject { id },
+            EvolutionCommands::FutureSim { change } => EvolutionCommand::FutureSim { change },
+            EvolutionCommands::FutureRisk { change } => EvolutionCommand::FutureRisk { change },
+            EvolutionCommands::FutureImpact { change } => EvolutionCommand::FutureImpact { change },
         }),
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,

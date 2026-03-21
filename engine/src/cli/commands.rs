@@ -342,4 +342,7 @@ pub enum EvolutionCommand {
     EvolveList,
     EvolveAccept { id: String },
     EvolveReject { id: String },
+    FutureSim { change: String },
+    FutureRisk { change: String },
+    FutureImpact { change: String },
 }

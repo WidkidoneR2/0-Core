@@ -606,3 +606,284 @@ pub fn evolve_reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+// ── Phase 6 — Future Simulation ───────────────────────────────────────────────
+// Simulate architectural changes before making them.
+// What would break? What is the risk? What is affected?
+
+pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "🔮  Future Simulation".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}  {}", "Change:".dimmed(), change.bright_white().bold());
+    println!();
+
+    let change_lower = change.to_lowercase();
+    let mut affected: Vec<String> = vec![];
+    let mut warnings: Vec<String> = vec![];
+
+    // Scan domains for references to keywords in the change
+    let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
+    let keywords: Vec<&str> = change_lower.split_whitespace()
+        .filter(|w| w.len() > 4)
+        .collect();
+
+    if let Ok(entries) = std::fs::read_dir(&domains_path) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+            let mod_path = entry.path().join("mod.rs");
+            if let Ok(content) = std::fs::read_to_string(&mod_path) {
+                let content_lower = content.to_lowercase();
+                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                if hits > 0 {
+                    affected.push(format!("{} ({} keyword matches)", name, hits));
+                }
+            }
+        }
+    }
+
+    // Check tools directory
+    let tools_path = std::path::Path::new(&ctx.core_root).join("rust-tools");
+    let mut affected_tools: Vec<String> = vec![];
+    if let Ok(entries) = std::fs::read_dir(&tools_path) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+            let src = entry.path().join("src/main.rs");
+            if let Ok(content) = std::fs::read_to_string(&src) {
+                let content_lower = content.to_lowercase();
+                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                if hits >= 2 {
+                    affected_tools.push(name);
+                }
+            }
+        }
+    }
+
+    // Generate warnings based on change type
+    if change_lower.contains("remov") || change_lower.contains("delet") || change_lower.contains("drop") {
+        warnings.push("Removal changes are irreversible — snapshot first".to_string());
+        warnings.push("Run: core checkpoint before making this change".to_string());
+    }
+    if change_lower.contains("split") || change_lower.contains("refactor") {
+        warnings.push("Refactoring may break existing aliases and integrations".to_string());
+    }
+    if change_lower.contains("cli") || change_lower.contains("command") || change_lower.contains("dispatch") {
+        warnings.push("CLI changes affect all 43 tools that call core".to_string());
+    }
+
+    // Render
+    if affected.is_empty() {
+        println!("  {} No domain references detected for this change.", "○".dimmed());
+    } else {
+        println!("  {} Affected domains:", "→".bright_yellow());
+        for d in &affected {
+            println!("    {} {}", "·".dimmed(), d.bright_white());
+        }
+        println!();
+    }
+
+    if !affected_tools.is_empty() {
+        println!("  {} Affected tools:", "→".bright_yellow());
+        for t in &affected_tools {
+            println!("    {} {}", "·".dimmed(), t.bright_white());
+        }
+        println!();
+    }
+
+    if !warnings.is_empty() {
+        println!("  {} Warnings:", "⚠".yellow());
+        for w in &warnings {
+            println!("    {} {}", "·".yellow(), w.yellow());
+        }
+        println!();
+    }
+
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Simulation complete. The forest proposes. The human decides.".dimmed().italic());
+    println!();
+    Ok(())
+}
+
+pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "⚡  Risk Analysis".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}  {}", "Change:".dimmed(), change.bright_white().bold());
+    println!();
+
+    let change_lower = change.to_lowercase();
+    let mut risk_score: u32 = 0;
+    let mut factors: Vec<(String, u32)> = vec![];
+
+    // Risk factors
+    if change_lower.contains("remov") || change_lower.contains("delet") {
+        factors.push(("Removal/deletion — hard to reverse".to_string(), 30));
+    }
+    if change_lower.contains("cli") || change_lower.contains("dispatch") || change_lower.contains("command") {
+        factors.push(("CLI layer change — affects all consumers".to_string(), 25));
+    }
+    if change_lower.contains("database") || change_lower.contains("schema") || change_lower.contains("sqlite") {
+        factors.push(("Database/schema change — migration risk".to_string(), 25));
+    }
+    if change_lower.contains("split") || change_lower.contains("refactor") {
+        factors.push(("Refactor — integration risk".to_string(), 15));
+    }
+    if change_lower.contains("api") || change_lower.contains("interface") {
+        factors.push(("API/interface change — downstream breakage".to_string(), 20));
+    }
+    if change_lower.contains("security") || change_lower.contains("auth") {
+        factors.push(("Security domain change — elevated risk".to_string(), 20));
+    }
+
+    // Check health — low health increases risk
+    let health: u32 = ctx.runtime.db.query_row(
+        "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+        [], |r| r.get::<_, String>(0)
+    ).ok()
+    .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+    .and_then(|v| v["detail"]["health"].as_i64())
+    .unwrap_or(100) as u32;
+
+    if health < 95 {
+        factors.push((format!("Health at {}% — elevated baseline risk", health), 10));
+    }
+
+    for (_, score) in &factors { risk_score += score; }
+    risk_score = risk_score.min(100);
+
+    let risk_label = match risk_score {
+        0..=20  => ("LOW",      "bright_green"),
+        21..=50 => ("MEDIUM",   "yellow"),
+        51..=75 => ("HIGH",     "bright_red"),
+        _       => ("CRITICAL", "bright_red"),
+    };
+
+    println!("  {}  {}/100",
+        "Risk Score:".dimmed(),
+        risk_score.to_string().bright_yellow().bold()
+    );
+    println!("  {}  {}",
+        "Risk Level:".dimmed(),
+        risk_label.0.bright_yellow().bold()
+    );
+    println!();
+
+    if factors.is_empty() {
+        println!("  {} No specific risk factors detected.", "✅".green());
+    } else {
+        println!("  {} Risk factors:", "→".bright_yellow());
+        for (factor, score) in &factors {
+            println!("    {} {} (+{} pts)", "·".dimmed(), factor.yellow(), score);
+        }
+    }
+
+    println!();
+    println!("  {} {}", "Mitigation:".dimmed(),
+        "core checkpoint  — snapshot before proceeding".bright_cyan());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "The forest assesses. The human decides.".dimmed().italic());
+    println!();
+    Ok(())
+}
+
+pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
+    use colored::*;
+
+    println!();
+    println!("{}", "🌊  Impact Analysis".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}  {}", "Change:".dimmed(), change.bright_white().bold());
+    println!();
+
+    let change_lower = change.to_lowercase();
+    let keywords: Vec<&str> = change_lower.split_whitespace()
+        .filter(|w| w.len() > 4).collect();
+
+    // Count total domains affected
+    let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
+    let total_domains: usize = std::fs::read_dir(&domains_path)
+        .map(|e| e.filter_map(|x| x.ok()).filter(|x| x.path().is_dir()).count())
+        .unwrap_or(0);
+
+    let mut affected_count = 0usize;
+    let mut high_impact: Vec<String> = vec![];
+
+    if let Ok(entries) = std::fs::read_dir(&domains_path) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() { continue; }
+            let name = entry.file_name().to_string_lossy().to_string();
+            let mod_path = entry.path().join("mod.rs");
+            if let Ok(content) = std::fs::read_to_string(&mod_path) {
+                let content_lower = content.to_lowercase();
+                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                if hits > 0 {
+                    affected_count += 1;
+                    if hits >= 3 { high_impact.push(name); }
+                }
+            }
+        }
+    }
+
+    let impact_pct = if total_domains > 0 {
+        (affected_count * 100) / total_domains
+    } else { 0 };
+
+    let blast_radius = match impact_pct {
+        0..=10  => "CONTAINED — minimal blast radius",
+        11..=30 => "MODERATE — several domains affected",
+        31..=60 => "SIGNIFICANT — major subsystem affected",
+        _       => "WIDE — forest-wide impact",
+    };
+
+    println!("  {}  {}/{} domains ({}%)",
+        "Affected:".dimmed(),
+        affected_count.to_string().bright_yellow(),
+        total_domains,
+        impact_pct
+    );
+    println!("  {}  {}", "Blast radius:".dimmed(), blast_radius.bright_yellow());
+    println!();
+
+    if !high_impact.is_empty() {
+        println!("  {} High-impact domains:", "→".bright_red());
+        for d in &high_impact {
+            println!("    {} {}", "·".bright_red(), d.bright_white());
+        }
+        println!();
+    }
+
+    // Intents at risk
+    let intents_path = std::path::Path::new(&ctx.core_root).join("intents/future");
+    let mut at_risk_intents: Vec<String> = vec![];
+    if let Ok(entries) = std::fs::read_dir(&intents_path) {
+        for entry in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                let content_lower = content.to_lowercase();
+                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                if hits >= 2 {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    at_risk_intents.push(name.replace(".md", ""));
+                }
+            }
+        }
+    }
+
+    if !at_risk_intents.is_empty() {
+        println!("  {} Intents potentially affected:", "→".yellow());
+        for i in at_risk_intents.iter().take(5) {
+            println!("    {} {}", "·".dimmed(), i.dimmed());
+        }
+        println!();
+    }
+
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Impact mapped. The forest proposes. The human decides.".dimmed().italic());
+    println!();
+    Ok(())
+}

@@ -734,4 +734,19 @@ pub enum EvolutionCommands {
         /// Proposal ID (e.g. PROP-001)
         id: String,
     },
+    /// Simulate an architectural change — what would break?
+    FutureSim {
+        /// Description of the change to simulate
+        change: String,
+    },
+    /// Risk analysis for a proposed architectural change
+    FutureRisk {
+        /// Description of the change
+        change: String,
+    },
+    /// Impact analysis — which domains/tools are affected?
+    FutureImpact {
+        /// Description of the change
+        change: String,
+    },
 }
