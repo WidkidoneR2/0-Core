@@ -183,7 +183,7 @@ context = "personal"
 - ✅ User can confirm or reject generated pipeline (2026-03-20)
 - ✅ Forest-specific patterns (health, intents, decisions, audit) (2026-03-20)
 - ✅ History-aware pattern weighting — fuzzy token matching Layer 2 (2026-03-20)
-- ⬜ Custom pattern support via TOML
+- ✅ Custom pattern support via TOML (2026-03-21)
 - ⬜ Core v9 goal → shell command translation
 
 ## The Phrase
