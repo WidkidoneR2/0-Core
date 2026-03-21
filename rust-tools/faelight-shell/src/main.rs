@@ -57,7 +57,8 @@ fn main() -> Result<()> {
                 // Natural language ?prefix
                 if line.starts_with('?') && line.len() > 1 {
                     let query = line[1..].trim();
-                    match nl::translate(query) {
+                    let custom_patterns = nl::load_toml_patterns(&core_root);
+                    match nl::translate_with_custom(query, &custom_patterns) {
                         Some(t) => {
                             print!("{}", nl::render_translation(&t));
                             use std::io::BufRead;
