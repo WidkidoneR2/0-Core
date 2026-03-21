@@ -244,7 +244,7 @@ Phase 6 — future simulation
 ✅ Core v7 complete — all 7 phases done (2026-03-17)
 ✅ Phase 1 — architecture map (2026-03-20)
 ✅ Phase 2 — tools usage analysis (2026-03-20)
-⬜ Phase 3 — decision pattern detection
+✅ Phase 3 — decision pattern detection (2026-03-20)
 ⬜ Phase 4 — architecture suggestions
 ⬜ Phase 5 — evolution proposals
 ⬜ Phase 6 — future simulation
