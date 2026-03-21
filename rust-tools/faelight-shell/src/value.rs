@@ -153,6 +153,7 @@ pub enum PipeOp {
     Watch { interval: u64 },
     Join { table: String, on: String },
     JoinData { rows: Vec<std::collections::HashMap<String, Value>>, on: String },
+    Group { field: String },
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
@@ -218,6 +219,25 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
                 }).collect())
             }
         }
+        // Group — aggregate rows by field value, count each group
+        (Value::Table(rows), PipeOp::Group { field }) => {
+            use std::collections::HashMap as HM;
+            let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+            for row in &rows {
+                let key = row.get(field).map(|v| v.as_text()).unwrap_or_default();
+                *counts.entry(key).or_insert(0) += 1;
+            }
+            let total = rows.len();
+            let grouped: Vec<HM<String, Value>> = counts.into_iter().map(|(key, count)| {
+                let pct = format!("{:.1}%", (count as f64 / total as f64) * 100.0);
+                let mut row = HM::new();
+                row.insert(field.clone(), Value::Text(key));
+                row.insert("count".to_string(), Value::Int(count as i64));
+                row.insert("pct".to_string(), Value::Text(pct));
+                row
+            }).collect();
+            Value::Table(grouped)
+        }
         // JoinData — pre-resolved join (table already fetched by main.rs)
         (Value::Table(left_rows), PipeOp::JoinData { rows: right_rows, on }) => {
             let mut result = vec![];
@@ -280,6 +300,8 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         ["get", field] => Some(PipeOp::Get(field.to_string())),
         ["watch"] => Some(PipeOp::Watch { interval: 2 }),
         ["watch", n] => n.parse().ok().map(|i| PipeOp::Watch { interval: i }),
+        // group <field>
+        ["group", field] => Some(PipeOp::Group { field: field.to_string() }),
         // join <table> on <field>
         ["join", table, "on", field] => Some(PipeOp::Join {
             table: table.to_string(),
