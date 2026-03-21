@@ -1702,6 +1702,25 @@ impl WindowHandler for App {
 
         if self.first_configure {
             self.first_configure = false;
+            // Force correct PTY size on first configure — initial 24x80 is wrong
+            let correct_cols = ((self.width as f32 - self.padding_f32 * 2.0) / self.char_width).max(1.0) as usize;
+            let correct_rows = ((self.height as f32 - self.padding_f32 * 2.0) / self.line_height).max(1.0) as usize;
+            if correct_cols != self.terminal.cols || correct_rows != self.terminal.rows {
+                self.terminal.resize(correct_rows, correct_cols);
+                let winsize = nix::pty::Winsize {
+                    ws_row: correct_rows as u16,
+                    ws_col: correct_cols as u16,
+                    ws_xpixel: self.width as u16,
+                    ws_ypixel: self.height as u16,
+                };
+                let _ = unsafe {
+                    nix::libc::ioctl(
+                        std::os::fd::AsRawFd::as_raw_fd(&self.pty.master),
+                        nix::libc::TIOCSWINSZ,
+                        &winsize,
+                    )
+                };
+            }
             self.draw(qh);
         }
     }
