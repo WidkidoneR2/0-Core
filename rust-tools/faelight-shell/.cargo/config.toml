@@ -1,0 +1,3 @@
+[alias]
+# fsh-install — build debug + deploy to both locations
+fsh-install = "build"

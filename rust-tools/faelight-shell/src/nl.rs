@@ -284,3 +284,46 @@ pub fn render_translation(t: &Translation) -> String {
     ));
     out
 }
+
+// ── Pattern list — shown when user types ? alone ──────────────────────────────
+
+pub fn render_pattern_list() -> String {
+    use colored::*;
+    let mut out = String::new();
+    out.push('\n');
+    out.push_str(&format!("  {}\n", "🌿 Natural Language Patterns".bright_cyan().bold()));
+    out.push_str(&format!("  {}\n", "━".repeat(52).dimmed()));
+    out.push_str(&format!("  {} {}\n\n",
+        "Usage:".dimmed(),
+        "?<phrase>  — translate to pipeline and confirm".bright_white(),
+    ));
+
+    let categories = [
+        ("Filesystem",  &["biggest files", "recent files", "list files"][..]),
+        ("Processes",   &["memory hogs", "cpu hogs", "all processes"]),
+        ("Services",    &["failing services", "running services", "all services"]),
+        ("Network",     &["open ports", "network interfaces"]),
+        ("Forest",      &["check forest", "unhealthy tools", "all tools", "what planned", "audit scores"]),
+        ("Git",         &["recent commits", "my commits"]),
+        ("Events",      &["what happened today", "git events", "shell events"]),
+        ("History",     &["command history", "most used commands"]),
+        ("Packages",    &["installed packages"]),
+    ];
+
+    for (category, examples) in &categories {
+        out.push_str(&format!("  {}\n", category.bright_white().bold()));
+        for ex in *examples {
+            out.push_str(&format!("    {} {}\n",
+                "?".bright_cyan(),
+                ex.dimmed(),
+            ));
+        }
+        out.push('\n');
+    }
+
+    out.push_str(&format!("  {}\n",
+        "Tip: partial phrases work too — ?slow, ?memory, ?commits".dimmed().italic()
+    ));
+    out.push('\n');
+    out
+}
