@@ -108,6 +108,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "forecast" => forecast(db),
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
+        "snapshot" => snapshot_cmd(db, args),
+        "timeline" => timeline_cmd(db, args),
+        "snap-diff" => snap_diff_cmd(db, args),
         "git" => git_status(core_root),
         "search" | "s" => search(db, args),
         "where" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
@@ -2091,4 +2094,244 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             }
         }
     }
+}
+
+// ── Phase 18 — Time Travel ────────────────────────────────────────────────────
+// snapshot  — capture current system state
+// timeline  — show snapshots over time
+// snap-diff — compare two snapshots
+
+fn ensure_snapshots_schema(db: &ForestDb) {
+    db.conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS shell_snapshots (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            name      TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            health    INTEGER,
+            commits   INTEGER,
+            processes INTEGER,
+            load_avg  TEXT,
+            top_proc  TEXT,
+            note      TEXT
+        );"
+    ).ok();
+}
+
+fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    ensure_snapshots_schema(db);
+
+    let name = args.first().copied().unwrap_or("manual");
+    let note = if args.len() > 1 { args[1..].join(" ") } else { String::new() };
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+
+    // Capture health
+    let health = db.health_score().unwrap_or(0);
+
+    // Capture commit count
+    let commits: i64 = std::process::Command::new("git")
+        .args(["-C", &db.core_root(), "rev-list", "--count", "HEAD"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+
+    // Capture process count
+    let processes: i64 = std::process::Command::new("ps")
+        .args(["aux", "--no-headers"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.lines().count() as i64)
+        .unwrap_or(0);
+
+    // Load average
+    let load_avg = std::fs::read_to_string("/proc/loadavg")
+        .map(|s| s.split_whitespace().take(3).collect::<Vec<_>>().join(" "))
+        .unwrap_or_else(|_| "?".to_string());
+
+    // Top CPU process
+    let top_proc = std::process::Command::new("ps")
+        .args(["aux", "--no-headers", "--sort=-pcpu"])
+        .output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.lines().next().map(|l| {
+            let parts: Vec<&str> = l.split_whitespace().collect();
+            if parts.len() > 10 {
+                format!("{} ({}%)", parts[10..].join(" ").chars().take(20).collect::<String>(), parts[2])
+            } else { "?".to_string() }
+        }))
+        .unwrap_or_else(|| "?".to_string());
+
+    db.conn.execute(
+        "INSERT INTO shell_snapshots (name, timestamp, health, commits, processes, load_avg, top_proc, note)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![name, now, health, commits, processes, load_avg, top_proc, note]
+    ).ok();
+
+    CommandResult::Output(format!(
+        "  {} Snapshot '{}' captured — health: {}%  commits: {}  procs: {}  load: {}",
+        "📸".normal(),
+        name.bright_white().bold(),
+        health.to_string().bright_green(),
+        commits.to_string().bright_white(),
+        processes.to_string().dimmed(),
+        load_avg.dimmed()
+    ))
+}
+
+fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use crate::value::Value;
+    use std::collections::HashMap;
+
+    ensure_snapshots_schema(db);
+
+    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(10);
+
+    let mut stmt = match db.conn.prepare(
+        "SELECT id, name, timestamp, health, commits, processes, load_avg FROM shell_snapshots ORDER BY timestamp DESC LIMIT ?1"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No snapshots yet. Run: snapshot", "○".dimmed())),
+    };
+
+    let rows: Vec<HashMap<String, Value>> = stmt.query_map(
+        rusqlite::params![limit as i64], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, i64>(2)?,
+            r.get::<_, i64>(3)?,
+            r.get::<_, i64>(4)?,
+            r.get::<_, i64>(5)?,
+            r.get::<_, String>(6)?,
+        ))
+    }).ok()
+    .map(|rows| rows.filter_map(|r| r.ok()).map(|(id, name, ts, health, commits, procs, load)| {
+        let time = fmt_time(ts, "%m-%d %H:%M");
+        let mut row = HashMap::new();
+        row.insert("id".to_string(),       Value::Int(id));
+        row.insert("name".to_string(),     Value::Text(name));
+        row.insert("time".to_string(),     Value::Text(time));
+        row.insert("health".to_string(),   Value::Int(health));
+        row.insert("commits".to_string(),  Value::Int(commits));
+        row.insert("procs".to_string(),    Value::Int(procs));
+        row.insert("load".to_string(),     Value::Text(load));
+        row
+    }).collect())
+    .unwrap_or_default();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No snapshots yet. Run: snapshot", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    ensure_snapshots_schema(db);
+
+    let (id1, id2) = match args {
+        [a, b] => {
+            match (a.parse::<i64>(), b.parse::<i64>()) {
+                (Ok(x), Ok(y)) => (x, y),
+                _ => return CommandResult::Error("Usage: snap-diff <id1> <id2>".to_string()),
+            }
+        }
+        _ => {
+            // Default: diff last two snapshots
+            let ids: Vec<i64> = db.conn.prepare(
+                "SELECT id FROM shell_snapshots ORDER BY timestamp DESC LIMIT 2"
+            ).ok()
+            .and_then(|mut s| s.query_map([], |r| r.get::<_, i64>(0)).ok()
+                .map(|rows| rows.filter_map(|r| r.ok()).collect()))
+            .unwrap_or_default();
+            if ids.len() < 2 {
+                return CommandResult::Output(format!(
+                    "  {} Need at least 2 snapshots. Run: snapshot", "○".dimmed()
+                ));
+            }
+            (ids[1], ids[0]) // older first
+        }
+    };
+
+    // Fetch both snapshots
+    let fetch = |id: i64| -> Option<(String, i64, i64, i64, String)> {
+        db.conn.query_row(
+            "SELECT name, health, commits, processes, load_avg FROM shell_snapshots WHERE id = ?1",
+            rusqlite::params![id], |r| Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        ).ok()
+    };
+
+    let s1 = match fetch(id1) {
+        Some(s) => s,
+        None => return CommandResult::Error(format!("Snapshot #{} not found", id1)),
+    };
+    let s2 = match fetch(id2) {
+        Some(s) => s,
+        None => return CommandResult::Error(format!("Snapshot #{} not found", id2)),
+    };
+
+    println!();
+    println!("{}", "🔍  Snapshot Diff".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {} #{} '{}'  →  #{} '{}'",
+        "Comparing:".dimmed(),
+        id1.to_string().bright_white(), s1.0.bright_white(),
+        id2.to_string().bright_white(), s2.0.bright_white()
+    );
+    println!();
+
+    // Health diff
+    let health_diff = s2.1 - s1.1;
+    let health_str = if health_diff > 0 {
+        format!("+{}", health_diff).bright_green().to_string()
+    } else if health_diff < 0 {
+        format!("{}", health_diff).bright_red().to_string()
+    } else { "unchanged".dimmed().to_string() };
+    println!("  {}  {} → {}  ({})",
+        "Health:".dimmed(), s1.1.to_string().bright_white(),
+        s2.1.to_string().bright_white(), health_str
+    );
+
+    // Commits diff
+    let commit_diff = s2.2 - s1.2;
+    println!("  {}  {} → {}  ({} new commit{})",
+        "Commits:".dimmed(), s1.2.to_string().bright_white(),
+        s2.2.to_string().bright_white(),
+        commit_diff.to_string().bright_green(),
+        if commit_diff == 1 { "" } else { "s" }
+    );
+
+    // Process diff
+    let proc_diff = s2.3 - s1.3;
+    let proc_str = if proc_diff > 0 {
+        format!("+{}", proc_diff).yellow().to_string()
+    } else if proc_diff < 0 {
+        format!("{}", proc_diff).bright_green().to_string()
+    } else { "unchanged".dimmed().to_string() };
+    println!("  {}  {} → {}  ({})",
+        "Processes:".dimmed(), s1.3.to_string().bright_white(),
+        s2.3.to_string().bright_white(), proc_str
+    );
+
+    // Load diff
+    println!("  {}  {} → {}",
+        "Load avg:".dimmed(),
+        s1.4.dimmed(), s2.4.bright_white()
+    );
+
+    println!();
+    println!("{}", "━".repeat(56).dimmed());
+    println!("  {}", "Diff complete. The forest remembers every state.".dimmed().italic());
+    println!();
+
+    CommandResult::Empty
 }
