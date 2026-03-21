@@ -124,6 +124,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "ports" => sys_ports(),
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
+        "find" | "fd" => find_cmd(db, core_root, args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
         "git-commits" | "gc" => git_commits(core_root, args),
@@ -1692,4 +1693,124 @@ fn schema(args: &[&str]) -> CommandResult {
             }
         }
     }
+}
+
+// ── Phase 14 — File System Index ─────────────────────────────────────────────
+// Persistent index in state.db for fast recursive file queries.
+// find           — query from index (or rebuild if empty)
+// find reindex   — rebuild index from core_root
+// find <path>    — query files under a specific path
+
+fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    use std::collections::HashMap;
+    use crate::value::Value;
+
+    // Ensure schema
+    db.conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS file_index (
+            path      TEXT PRIMARY KEY,
+            name      TEXT NOT NULL,
+            kind      TEXT NOT NULL,
+            size      INTEGER NOT NULL,
+            extension TEXT,
+            modified  INTEGER NOT NULL
+        );"
+    ).ok();
+
+    // reindex — rebuild from core_root recursively
+    if args.first() == Some(&"reindex") {
+        let count = index_directory(&db.conn, core_root, 0);
+        return CommandResult::Output(format!(
+            "  {} Indexed {} files under {}",
+            "✅".green(), count.to_string().bright_green(), core_root.dimmed()
+        ));
+    }
+
+    // Check if index is empty — auto-reindex on first use
+    let count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM file_index", [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    if count == 0 {
+        println!("  {} Building file index for first time...", "⟳".bright_cyan());
+        index_directory(&db.conn, core_root, 0);
+    }
+
+    // Filter by path prefix if arg given
+    let path_filter = args.first().copied().unwrap_or("");
+    let query = if path_filter.is_empty() {
+        "SELECT path, name, kind, size, extension, modified FROM file_index ORDER BY size DESC LIMIT 500".to_string()
+    } else {
+        format!("SELECT path, name, kind, size, extension, modified FROM file_index WHERE path LIKE '{}%' ORDER BY size DESC LIMIT 500", path_filter)
+    };
+
+    let mut stmt = match db.conn.prepare(&query) {
+        Ok(s) => s,
+        Err(e) => return CommandResult::Error(e.to_string()),
+    };
+
+    let rows: Vec<HashMap<String, Value>> = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+            r.get::<_, Option<String>>(4)?,
+            r.get::<_, i64>(5)?,
+        ))
+    }).ok()
+    .map(|rows| rows.filter_map(|r| r.ok()).map(|(path, name, kind, size, ext, modified)| {
+        let time_str = chrono::DateTime::from_timestamp(modified, 0)
+            .map(|t| t.format("%m-%d %H:%M").to_string())
+            .unwrap_or_else(|| "?".to_string());
+        let mut row = HashMap::new();
+        row.insert("name".to_string(),      Value::Text(name));
+        row.insert("path".to_string(),      Value::Text(path));
+        row.insert("kind".to_string(),      Value::Text(kind));
+        row.insert("size".to_string(),      Value::Int(size));
+        row.insert("ext".to_string(),       Value::Text(ext.unwrap_or_default()));
+        row.insert("modified".to_string(),  Value::Text(time_str));
+        row
+    }).collect())
+    .unwrap_or_default();
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No files found. Run: find reindex", "○".dimmed()));
+    }
+    CommandResult::Value(Value::Table(rows))
+}
+
+fn index_directory(conn: &rusqlite::Connection, dir: &str, depth: usize) -> usize {
+    if depth > 6 { return 0; } // max depth
+    let mut count = 0;
+    let skip_dirs = [".git", "target", "node_modules", ".cargo", "proc", "sys", "dev"];
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let path_str = path.to_string_lossy().to_string();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') && depth > 0 { continue; }
+            let skip = skip_dirs.iter().any(|s| name == *s);
+            if skip { continue; }
+            if let Ok(meta) = entry.metadata() {
+                let kind = if meta.is_dir() { "dir" } else { "file" };
+                let size = if meta.is_file() { meta.len() as i64 } else { 0 };
+                let ext = path.extension().map(|e| e.to_string_lossy().to_string());
+                let modified = meta.modified().ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                conn.execute(
+                    "INSERT OR REPLACE INTO file_index (path, name, kind, size, extension, modified)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![path_str, name, kind, size, ext, modified]
+                ).ok();
+                count += 1;
+                if meta.is_dir() {
+                    count += index_directory(conn, &path_str, depth + 1);
+                }
+            }
+        }
+    }
+    count
 }
