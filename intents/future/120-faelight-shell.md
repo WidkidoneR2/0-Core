@@ -390,6 +390,7 @@ What the shell knows about the world.
 ### Layer 2 - UNDERSTANDING (Query + Schema)
 How users think with the system.
 - Phase 11a: Formal schema system DONE (2026-03-20)
+- Phase 11:  Schema-aware autocomplete DONE (2026-03-20)
 - Phase 11:  Schema-aware autocomplete (needs 11a first)
 - Phase 2   DONE: Data pipelines
 - Phase 21: Query language (adoption bridge, not core)
@@ -476,7 +477,7 @@ Queryable OS state              ✅ Phase 8 + schema (11a) DONE
 - ✅ Phase 1: state.db connected, history persisted
 - ✅ Phase 2: Value pipeline — filter, sort, select
 - ✅ Phase 3: Security audit log
-- ⬜ Phase 4: Fuzzy tab completion (next)
+- ✅ Phase 4: Fuzzy tab completion (2026-03-20)
 - ✅ Phase 4: Alias system — persistent named commands
   - alias h=health
   - alias eg="events today | where domain == git"
