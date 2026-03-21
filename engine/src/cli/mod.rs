@@ -247,6 +247,7 @@ pub fn parse() -> Command {
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,
             EvolutionCommands::Tools => EvolutionCommand::Tools,
+            EvolutionCommands::Suggest => EvolutionCommand::Suggest,
         }),
         Commands::Simulate { command } => Command::Simulate(match command {
             SimulateCommands::Doctor => SimulateCommand::Doctor,
