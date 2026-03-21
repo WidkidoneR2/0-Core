@@ -111,6 +111,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "snapshot" => snapshot_cmd(db, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
+        "select" => sql_query_cmd(db, core_root, line),
         "git" => git_status(core_root),
         "search" | "s" => search(db, args),
         "where" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
@@ -2334,4 +2335,128 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     println!();
 
     CommandResult::Empty
+}
+
+// ── Phase 21 — Query Language ─────────────────────────────────────────────────
+// SQL-like syntax → existing pipeline ops.
+// select <cols> from <table> [where <field> <op> <val>] [order by <col>] [limit <n>]
+// Adoption bridge — familiar syntax for structured queries.
+
+fn sql_query_cmd(db: &ForestDb, core_root: &str, line: &str) -> CommandResult {
+    match parse_sql_query(line) {
+        Ok(q) => {
+            // Build equivalent pipeline and execute
+            let pipeline = q.to_pipeline();
+            println!("  {} {}", "→".dimmed(), pipeline.dimmed());
+            execute(&pipeline, db, core_root)
+        }
+        Err(e) => CommandResult::Error(format!("Query error: {}", e)),
+    }
+}
+
+#[derive(Debug)]
+struct SqlQuery {
+    columns:  Vec<String>,   // * or specific columns
+    table:    String,        // from <table>
+    where_:   Option<String>, // where clause
+    order_by: Option<String>, // order by <col>
+    order_desc: bool,
+    limit:    Option<usize>,
+}
+
+impl SqlQuery {
+    fn to_pipeline(&self) -> String {
+        let mut parts = vec![self.table.clone()];
+
+        if let Some(ref w) = self.where_ {
+            parts.push(format!("where {}", w));
+        }
+        if let Some(ref col) = self.order_by {
+            if self.order_desc {
+                parts.push(format!("sort {} desc", col));
+            } else {
+                parts.push(format!("sort {}", col));
+            }
+        }
+        if let Some(n) = self.limit {
+            parts.push(format!("first {}", n));
+        }
+        if !self.columns.is_empty() && self.columns != ["*"] {
+            parts.push(format!("select {}", self.columns.join(" ")));
+        }
+        parts.join(" | ")
+    }
+}
+
+fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+    if tokens.is_empty() || tokens[0].to_lowercase() != "select" {
+        return Err("Expected SELECT".to_string());
+    }
+
+    // Find FROM position
+    let from_pos = tokens.iter().position(|t| t.to_lowercase() == "from")
+        .ok_or("Expected FROM")?;
+
+    // Columns between SELECT and FROM
+    let columns: Vec<String> = tokens[1..from_pos]
+        .iter()
+        .map(|s| s.trim_end_matches(',').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if from_pos + 1 >= tokens.len() {
+        return Err("Expected table name after FROM".to_string());
+    }
+    let table = tokens[from_pos + 1].to_lowercase();
+
+    let remaining = &tokens[from_pos + 2..];
+
+    // Parse WHERE, ORDER BY, LIMIT
+    let mut where_ = None;
+    let mut order_by = None;
+    let mut order_desc = false;
+    let mut limit = None;
+
+    let mut i = 0;
+    while i < remaining.len() {
+        match remaining[i].to_lowercase().as_str() {
+            "where" => {
+                // Collect until ORDER or LIMIT
+                let mut clause = vec![];
+                i += 1;
+                while i < remaining.len() {
+                    let t = remaining[i].to_lowercase();
+                    if t == "order" || t == "limit" { break; }
+                    clause.push(remaining[i]);
+                    i += 1;
+                }
+                where_ = Some(clause.join(" "));
+            }
+            "order" => {
+                i += 1;
+                if i < remaining.len() && remaining[i].to_lowercase() == "by" {
+                    i += 1;
+                }
+                if i < remaining.len() {
+                    order_by = Some(remaining[i].to_string());
+                    i += 1;
+                    if i < remaining.len() && remaining[i].to_lowercase() == "desc" {
+                        order_desc = true;
+                        i += 1;
+                    }
+                }
+            }
+            "limit" => {
+                i += 1;
+                if i < remaining.len() {
+                    limit = remaining[i].parse::<usize>().ok();
+                    i += 1;
+                }
+            }
+            _ => { i += 1; }
+        }
+    }
+
+    Ok(SqlQuery { columns, table, where_, order_by, order_desc, limit })
 }
