@@ -152,8 +152,8 @@ When Core v9 generates a goal, faelight-shell can say:
 The shell becomes the human interface to the forest's own intentions.
 
 ## Success Criteria
-- ⬜ Session memory — shell knows where you left off
-- ⬜ Project understanding — contextual suggestions from event/audit data
+- ✅ Session memory — shell knows where you left off (2026-03-20)
+- ✅ Project understanding — active intents shown on welcome (2026-03-20)
 - ⬜ Adaptive messages — different based on commit count, health, milestones
 - ⬜ Momentum detection — recognizes streaks and patterns
 - ⬜ Personality modes — focused/exploratory/recovery/milestone/idle
