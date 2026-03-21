@@ -40,6 +40,7 @@ alias lock='faelight-lock'
 alias menu='faelight-menu'
 alias notify='faelight-notify'
 alias term='faelight-term'
+alias ft='faelight-term'
 alias zone='faelight-zone'
 
 # ─── Health & Monitoring ───
