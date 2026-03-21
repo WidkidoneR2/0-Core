@@ -25,7 +25,7 @@ const COMMANDS: &[&str] = &[
 ];
 
 const PIPE_OPS: &[&str] = &[
-    "where", "sort", "select", "first", "last", "count", "get", "watch",
+    "where", "sort", "select", "first", "last", "count", "get", "watch", "join",
 ];
 
 pub struct ForestHelper {

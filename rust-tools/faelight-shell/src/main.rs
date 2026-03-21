@@ -179,6 +179,20 @@ fn main() -> Result<()> {
                     continue;
                 }
 
+                // Resolve join ops — execute right-side tables before pipeline runs
+                let pipeline_ops: Vec<value::PipeOp> = pipeline_ops.into_iter().map(|op| {
+                    if let value::PipeOp::Join { table, on } = op {
+                        let right_result = commands::execute(&table, &db, &core_root);
+                        if let commands::CommandResult::Value(value::Value::Table(rows)) = right_result {
+                            value::PipeOp::JoinData { rows, on }
+                        } else {
+                            value::PipeOp::JoinData { rows: vec![], on }
+                        }
+                    } else {
+                        op
+                    }
+                }).collect();
+
                 match commands::execute(&base_cmd, &db, &core_root) {
                     commands::CommandResult::Exit => break,
                     commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
