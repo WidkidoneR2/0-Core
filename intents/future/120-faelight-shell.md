@@ -286,7 +286,7 @@ network | watch | histogram traffic
 processes | watch
 ```
 
-### Phase 10 — Terminal Visualization (partial ✅)
+### Phase 10 — Terminal Visualization ✅ DONE (2026-03-22)
 histogram already exists. Expand with:
 ```
 processes | chart cpu
@@ -314,7 +314,7 @@ files | group extension
 ```
 Much faster than find.
 
-### Phase 15 — Git Data Engine (partial ✅)
+### Phase 15 — Git Data Engine ✅ DONE (2026-03-22)
 gc/gf already exist. Expand to:
 ```
 git.commits | where author == christian
@@ -322,7 +322,7 @@ git.files | top churn
 git.branches | where merged == false
 ```
 
-### Phase 16 — History Analytics (partial ✅)
+### Phase 16 — History Analytics ✅ DONE (2026-03-22)
 ht exists. Expand to:
 ```
 history | histogram command
