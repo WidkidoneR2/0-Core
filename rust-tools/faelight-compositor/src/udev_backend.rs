@@ -303,7 +303,7 @@ fn attempt_first_render(
 
     // Switch back to Niri before cleanup
     tracing::info!("Switching back to VT7");
-    let _ = std::process::Command::new("chvt").arg("7").status();
+    let _ = std::process::Command::new("chvt").arg("1").status();
     std::thread::sleep(std::time::Duration::from_millis(500));
     // Cleanup
     let _ = drm.destroy_framebuffer(fb);
