@@ -3,7 +3,7 @@ id: 139
 date: 2026-03-18
 type: future
 title: "faelight-shell — Natural Language Pipeline Translation"
-status: in-progress
+status: complete
 tags: [shell, natural-language, ai, pipelines, v12]
 version: 12.0.0
 priority: medium
@@ -184,7 +184,7 @@ context = "personal"
 - ✅ Forest-specific patterns (health, intents, decisions, audit) (2026-03-20)
 - ✅ History-aware pattern weighting — fuzzy token matching Layer 2 (2026-03-20)
 - ✅ Custom pattern support via TOML (2026-03-21)
-- ⬜ Core v9 goal → shell command translation
+- ⬜ Core v9 goal → shell command translation (deferred to INT-133 Core v9)
 
 ## The Phrase
 
