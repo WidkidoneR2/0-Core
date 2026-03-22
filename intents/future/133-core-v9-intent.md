@@ -3,7 +3,7 @@ id: 133
 date: 2026-03-17
 type: future
 title: "Core v9 — Intent: The Forest Chooses Where to Grow"
-status: planned
+status: in-progress
 tags: [core, v9, intent, goals, planning, autonomy, architecture, v13]
 version: 13.0.0
 priority: medium

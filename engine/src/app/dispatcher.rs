@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -423,6 +423,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AuditCommand::Show { tool } => crate::domains::audit::show(ctx, &tool),
             AuditCommand::Stale => crate::domains::audit::stale(ctx),
             AuditCommand::Coverage => crate::domains::audit::coverage(ctx),
+        },
+        Command::Goals(c) => match c {
+            GoalsCommand::List      => crate::domains::goals::list(ctx),
+            GoalsCommand::Generate  => crate::domains::goals::generate(ctx),
+            GoalsCommand::Priority  => crate::domains::goals::priority(ctx),
+            GoalsCommand::Accept { id } => crate::domains::goals::accept(ctx, &id),
+            GoalsCommand::Reject { id } => crate::domains::goals::reject(ctx, &id),
+            GoalsCommand::Show { id }   => crate::domains::goals::show(ctx, &id),
         },
         Command::Evolution(c) => match c {
             EvolutionCommand::Map   => crate::domains::evolution::map(ctx),

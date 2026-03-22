@@ -103,7 +103,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: TraceCommands,
     },
-    /// Dry-run simulation — predict outcomes without changing anything
+    /// Goal engine — the forest chooses where to grow (Core v9)
+    Goals {
+        #[command(subcommand)]
+        command: GoalsCommands,
+    },
     Evolution {
         #[command(subcommand)]
         command: EvolutionCommands,
@@ -712,7 +716,32 @@ pub enum DepsCommands {
     Audit,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, clap::Subcommand)]
+pub enum GoalsCommands {
+    /// List all active forest goals
+    List,
+    /// Generate new goals from current forest evidence
+    Generate,
+    /// Ranked goal list with reasoning
+    Priority,
+    /// Accept a goal — becomes an intent record
+    Accept {
+        /// Goal ID (e.g. GOAL-001)
+        id: String,
+    },
+    /// Reject a goal — logged with reason
+    Reject {
+        /// Goal ID
+        id: String,
+    },
+    /// Show detail for a specific goal
+    Show {
+        /// Goal ID
+        id: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum EvolutionCommands {
     /// Architecture map — domain structure, file counts, coupling index
     Map,
