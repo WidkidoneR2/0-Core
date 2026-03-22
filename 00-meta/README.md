@@ -35,28 +35,30 @@
 
 ## 🤔 What is 0-Core?
 
-**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch**.
+**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
 
 ### For Everyday Users
+
 Like **building a custom motorcycle** instead of buying one from a dealer. You know every bolt, every wire, every piece.
 
 **You get:**
 - 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 43 Rust tools you fully understand
+- 🦀 50 Rust tools you fully understand
 - 🛡️ Security through comprehension (no mystery packages)
 - ⚡ Lightning fast (no bloat, no hidden automation)
 - 💎 Complete ownership and control
-- 🌲 A shell that knows it is a forest
+- 🌲 A shell that knows it is a forest — and speaks to you
 
 ### For Technical People
-- **`core` v2.0.0** — single orchestrator binary with 20+ native Rust domains
-- **Capability-gated dispatch** — every command checks permissions before executing
-- **Core v7 — The Resilient Forest** — anomaly detection, bootstrap intelligence, security simulation, dependency graph, forest narrative, snapshot autobiography, deterministic rebuild
-- **faelight-compositor** — custom Wayland compositor built on Smithay, renders forest green on real DRM hardware
-- **faelight-shell** — forest-native structured shell with pipelines, streaming, living welcome
+
+- **`core` v2.0.0** — single orchestrator binary with 27+ native Rust domains
+- **Core v8 — Evolution** — architecture reflection, coupling detection, tool lifecycle, evolution proposals, future simulation, risk analysis
+- **faelight-shell v0.6.0** — forest-native structured shell with SQL queries, joins, NL translation, time travel, event system, observability dashboard
+- **faelight-notify v4.0.0** — D-Bus compliant notification daemon (org.freedesktop.Notifications), fontdue::layout renderer, urgency levels
+- **faelight-term** — custom Rust terminal emulator, daily driver ready
 - **faelight-sandbox v3** — policy engine, namespace isolation, seccomp syscall filtering
 - **24-check health monitoring** system
-- **Intent Ledger** — 133 architectural decisions, 96 complete, fully documented
+- **Intent Ledger** — 142 architectural decisions, 97 complete, fully documented
 
 ---
 
@@ -65,38 +67,38 @@ Like **building a custom motorcycle** instead of buying one from a dealer. You k
 0-core/
 ├── 00-meta/          # System identity (VERSION, CHANGELOG, PHILOSOPHY)
 ├── engine/           # core binary — single orchestrator (Rust)
-│   └── src/domains/  # 20+ native Rust domains
-├── rust-tools/       # 43 custom Rust tools
-├── 03-interfaces/    # Dotfiles (Niri, zsh, foot, yazi) via GNU Stow
+│   └── src/domains/  # 27+ native Rust domains
+├── rust-tools/       # 50 custom Rust tools
+├── 03-interfaces/    # Dotfiles (Niri, zsh, faelight-term, yazi) via GNU Stow
 ├── 04-schema/        # JSON schemas — registry validation
 ├── scripts/          # Deployed binaries → PATH
-├── intents/          # Architectural decision records (133 intents)
+├── intents/          # Architectural decision records (142 intents)
 ├── runtime/          # SQLite state, events/, snapshots/, checkpoints/
-└── 01-registry/      # Zero-logic TOML declarations
+└── 01-registry/      # Zero-logic TOML declarations + NL patterns
 ```
 
 ### The `core` Orchestrator
 ```
 core <domain> <command>
-
 Domains: doctor, security, git, workspace, intent, profile,
          zone, link, fetch, lock, notify, launcher, sandbox,
          release, update, checkpoint, simulate, plugins,
          anomaly, bootstrap, deps, narrative, snapshot,
-         events, decisions, audit, advise
+         events, decisions, audit, advise, evolution
 ```
 
 Every domain call is capability-gated, logged, and lock-protected.
 
 ### Core Intelligence Timeline
 
-| Version | Capability | Commands |
+| Version | Capability | Meaning |
 |---------|-----------|---------|
-| v5 | Intelligence | pattern detection, audit scoring |
-| v6 | Judgment | decision ledger, outcome tracking |
-| v7 | Resilience | anomaly scan, bootstrap plan, deps graph, narrative, snapshot, rebuild |
-| v8 | Evolution | architecture reflection, tool lifecycle *(planned)* |
-| v9 | Intent | goal engine, task planning, tradeoff analysis *(planned)* |
+| v5 | Intelligence | the forest detects patterns |
+| v6 | Judgment | the forest remembers outcomes |
+| v7 | Resilience | the forest can rebuild itself |
+| v8 | Evolution | the forest refines itself |
+| v9 | Intent | the forest chooses where to grow *(planned)* |
+| v10 | Reaction | the forest responds without being asked *(planned)* |
 
 ### Layer Model
 
@@ -115,7 +117,7 @@ Every domain call is capability-gated, logged, and lock-protected.
 
 ### 🏥 Self-Aware Health Monitoring (24 Checks)
 ```bash
-doctor        # Run all 24 health checks
+d             # Run all 24 health checks (alias for core doctor run)
 ```
 
 Checks: stow symlinks, services, broken symlinks, yazi plugins, binary deps,
@@ -124,52 +126,103 @@ security hardening, security audit, alias coverage, rust toolchain,
 disk space, tool installation, path resilience, archaeology, core protection,
 schema validation, sandbox health.
 
-### 🌲 Core v7 — The Resilient Forest
+### 🌲 Core v8 — The Forest Refines Itself
 ```bash
-core anomaly scan              # detect anomalies — changes without decisions
-core bootstrap plan            # step-by-step rebuild guidance
-core bootstrap verify          # verify system consistency
-core deps graph                # visual dependency map of all tools
-core deps risk                 # which dependencies carry the most risk?
-core security simulate <pkg>   # what would happen if we patched this?
-core narrative                 # the forest tells its own story
-core narrative --intent 109    # story of a specific intent
-core snapshot                  # forest autobiography — human voice
-core snapshot --json           # machine-readable reconstruction seed
-core snapshot --save           # save both to runtime/snapshots/
-core doctor rebuild            # deterministic rebuild plan from first principles
-```
-
-### 🖥️ faelight-compositor — The Forest Renders Its Own Pixels
-
-The last tool built from scratch. A Wayland compositor on Smithay that:
-- Opens real DRM hardware (AMD Radeon 780M, eDP 2560×1600@165Hz)
-- Renders forest green `#11140f` via raw GBM buffer
-- Emits window events to state.db (window.open, window.focus)
-- Runs nested in Niri (winit mode) or standalone from TTY2 (DRM mode)
-```bash
-fc              # launch nested (winit mode — for testing)
-fc --drm        # launch on real hardware from TTY2
-fc --probe      # probe DRM devices without starting compositor
+core evolution map              # architecture coupling analysis
+core evolution tools            # tool lifecycle — fresh/active/stable/dormant
+core evolution suggest          # evidence-backed architecture suggestions
+core evolution evolve-propose   # generate formal evolution proposals
+core evolution evolve-list      # list proposals with status
+core evolution evolve-accept <id>  # accept → creates intent record
+core evolution future-sim "change"  # simulate an architectural change
+core evolution future-risk "change" # risk score for a change
+core evolution future-impact "change" # blast radius analysis
 ```
 
 ### 🐚 faelight-shell — Forest-Native Structured Shell
 ```bash
-faelight-shell    # or: shell
+fs    # launch faelight-shell (alias)
 ```
 
-Not text streams. Structured data pipelines:
+Not text streams. Structured data pipelines with SQL syntax:
 ```
 ps | where cpu > 20 | sort cpu desc | first 5
-services | where status == running
-files | sort size desc | first 10
-ports | where port == 8080
-ps | watch 3                          # live streaming pipeline
-tt | where score < 70 | sort score    # audit tool health
-gc | where author == christian         # git history as table
+ps | join ports on pid                         # ad-hoc relational joins
+select name, cpu from ps where cpu > 1         # SQL query language
+gchurn | where ext == rs | first 10            # git hotspot detection
+find | group ext | sort count desc             # file system index
+gc | where message contains feat               # git history as table
+?why is my computer slow                       # natural language diagnosis
+dashboard                                      # observability dashboard
+snapshot before && snapshot after && snap-diff # time travel
+on health_drop 90 => notify "health low"       # event triggers
 ```
 
-Living welcome on every open — reads health, commits, intents, and quotes live.
+**Phase completions in v11.1.0:**
+- Phase 14 — persistent file index (`find`, `find reindex`)
+- Phase 15 — git data engine (`gc`, `gchurn`, `gbr` via faelight-git native bindings)
+- Phase 16 — history analytics (`hstats`, `hpattern`)
+- Phase 17 — event system (shell triggers — `on`, `on list`)
+- Phase 18 — time travel (`snapshot`, `timeline`, `snap-diff`)
+- Phase 21 — SQL query language
+- Phase 22 — observability dashboard (`dashboard`, `dashboard system`, `dashboard forest`)
+- Phase 25 — NL auto-diagnose (`?why is my computer slow`)
+
+### 🔔 faelight-notify v4 — Proper Notifications
+
+After 2 months of development — fixed. v4 rewrites everything:
+
+- **D-Bus compliant** — `org.freedesktop.Notifications` spec
+- **fontdue::layout renderer** — clean text, correct baseline, no jagged letters
+- **Urgency levels** — green (normal), red (critical), muted (low)
+- **Works with everything** — Brave, systemd, notify-send, any app
+```bash
+notify-send "Title" "Message"
+notify-send -u critical "Alert" "Something needs attention"
+notify-send -u low "Info" "Low priority message"
+```
+
+### 🖥️ faelight-term — Custom Rust Terminal
+
+Daily driver ready:
+```bash
+ft    # launch faelight-term
+```
+
+- Ctrl+R atuin history search ✅
+- Bracketed paste mode ✅
+- BTM and TUI apps render correctly ✅
+- Release build — performance matches foot ✅
+
+### 🌅 Forest Digest — Morning Intelligence
+
+On long gaps (4+ hours) or morning sessions, the shell greets you with:
+```
+🌲 Good morning.
+
+→ Since last session:
+  · 7 new commits
+  · Health: 95% healthy
+  · Working on: INT-120, INT-141
+```
+
+### 🧠 Natural Language Pipelines
+```bash
+?biggest files           → find | sort size desc | first 10
+?memory hogs             → ps | sort memory desc | first 5
+?why is my computer slow → auto-diagnose CPU + memory + disk
+?active triggers         → on list
+?forest dashboard        → dashboard
+```
+
+Custom patterns via TOML:
+```toml
+# ~/0-core/01-registry/shell-patterns.toml
+[[pattern]]
+phrases = ["my commits today"]
+pipeline = "gc | first 10"
+context = "git"
+```
 
 ### 🧪 faelight-sandbox v3 — Security Boundary
 ```bash
@@ -180,42 +233,36 @@ faelight-sandbox run --isolate seccomp -- ./untrusted
 faelight-sandbox run --profile -- cargo build
 ```
 
-Isolation levels:
-- `--isolate net` — network namespace
-- `--isolate full` — network + PID + mount namespace
-- `--isolate seccomp` — syscall filtering (blocks dangerous syscalls)
-- `--profile` — memory + disk I/O measurement
-
 ### 📋 Intent Ledger
 
 Every architectural decision is recorded:
 ```bash
-core intent list          # all 133 intents
-intent show 109           # story of the compositor
-core narrative --intent 109
+core intent list          # all 142 intents
+intent show 141           # story of faelight-notify v4
 ```
 
-96 complete. 6 planned. Nothing is built without intent.
+97 complete. 10 planned. Nothing is built without intent.
 
 ---
 
-## 🦀 The Rust Ecosystem (43 Tools)
+## 🦀 The Rust Ecosystem (50 Tools)
 
 | Domain | Key Tools |
 |--------|-----------|
-| **Orchestrator** | `core` (20+ domains, 24 health checks) |
+| **Orchestrator** | `core` (27+ domains, 24 health checks) |
 | **Compositor** | `faelight-compositor` (Smithay, DRM, GBM) |
-| **Shell** | `faelight-shell` (structured pipelines, streaming, living welcome) |
-| **Security** | `faelight-sandbox` v3 (policy, namespaces, seccomp), `faelight-gen` (12-type secret generator) |
+| **Shell** | `faelight-shell` (SQL, joins, NL, time travel, events, dashboard) |
+| **Terminal** | `faelight-term` (custom Wayland terminal, daily driver) |
+| **Notifications** | `faelight-notify` v4 (D-Bus, fontdue::layout, urgency levels) |
+| **Security** | `faelight-sandbox` v3 (policy, namespaces, seccomp), `faelight-gen` |
 | **UI** | `faelight-bar`, `faelight-menu`, `faelight-palette`, `faelight-wallpaper` |
 | **Git** | `faelight-git` (risk scoring, event emission), `faelight-release` |
-| **System** | `faelight-idle`, `faelight-notify`, `faelight-lock`, `faelight-login` |
-| **Tools** | `faelight-fm`, `faelight-term`, `faelight-browser`, `faelight-fetch` |
-| **Intelligence** | `faelight-forecast`, `faelight-pulse`, `faelight-clipboard` |
+| **System** | `faelight-idle`, `faelight-lock`, `faelight-login` |
+| **Tools** | `faelight-fm`, `faelight-browser`, `faelight-fetch`, `faelight-forecast` |
 ```bash
-core audit scan          # score all 43 tools
-core deps graph          # visual dependency map
-core deps risk           # high-coupling dependency analysis
+core audit scan          # score all 50 tools
+core evolution suggest   # architecture suggestions from evidence
+core decision patterns   # decision history analysis
 ```
 
 ---
@@ -229,8 +276,9 @@ core deps risk           # high-coupling dependency analysis
 | v10.6.0 | The Judgment Layer | Core v6 complete |
 | v10.7.0 | The Forest Remembers | faelight-bar rewrite, sandbox v2 |
 | v10.8.0 | The Forest Between Worlds | faelight-shell born, core audit |
-| v10.9.0 | Roots and Branches | Core v7 complete, faelight-gen, faelight-compositor first render |
-| v11.0.0 | **Where the Forest Becomes Whole** | Compositor renders pixels, shell speaks, sandbox v3 seccomp, shell Phase 10 |
+| v10.9.0 | Roots and Branches | Core v7 complete, faelight-compositor first render |
+| v11.0.0 | Where the Forest Becomes Whole | Shell speaks, sandbox v3, faelight-term |
+| v11.1.0 | **The Forest Speaks** | Core v8 complete, faelight-shell phases 14-25, faelight-notify v4 fixed |
 
 ---
 
@@ -245,7 +293,7 @@ Security layers:
 - UFW firewall + fail2ban
 - faelight-sandbox with policy engine + namespace isolation + seccomp
 - Immutable core (chattr +i) — cannot be modified without explicit unlock
-- Security audit with debt tracking (core security debt/trend/simulate)
+- Security audit with debt tracking (`core security debt/trend/simulate`)
 - 24-check health monitoring catches drift early
 
 ---
@@ -270,15 +318,18 @@ core doctor run  # should show 24/24 ✅
 
 # 6. Understand
 core narrative         # the forest tells its story
-core doctor rebuild    # step-by-step rebuild plan
+core evolution map     # see the architecture
 ```
 
 Or use the forest's own guidance:
 ```bash
 core bootstrap plan    # what needs to be done to rebuild
 core bootstrap verify  # verify current state
+core evolution suggest # what should change next
 ```
 
 ---
 
-*"The forest does not fear the storm. It knows how to grow back."* 🌲
+*"The forest that speaks is the forest that connects."* 🌲
+
+*"Not text streams. Not configuration. Structured wisdom."* 🌲
