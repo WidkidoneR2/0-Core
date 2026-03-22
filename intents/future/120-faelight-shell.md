@@ -459,7 +459,7 @@ NEXT (in order):
 - Phase 18  - Time travel DONE (2026-03-21)
 - Phase 21  - Query language DONE (2026-03-21)
 - Phase 22  - Observability dashboard DONE (2026-03-21)
-- Phase 25  - Natural language assistant (INT-139, amplifier not crutch)
+- Phase 25  - Natural language assistant DONE (2026-03-21)
 - Phase 32  - Shell as OS layer
 
 The single highest-leverage move:
@@ -469,7 +469,7 @@ Build the schema system first. It unlocks everything.
 ## The Three Pillars (from architectural review)
 ```
 Structured data pipelines      ✅ built
-Real-time system observability  ⬜ Phase 9/22
+Real-time system observability  ✅ Phase 9/22 DONE
 Queryable OS state              ✅ Phase 8 + schema (11a) DONE
 ```
 
