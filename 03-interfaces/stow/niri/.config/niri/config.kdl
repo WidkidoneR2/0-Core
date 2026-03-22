@@ -57,7 +57,6 @@ layout {
 
 // ─── Autostart ────────────────────────────────────────────
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
-spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-notify"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-clipboard watch"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-niri-bridge"
