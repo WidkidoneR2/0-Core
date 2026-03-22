@@ -3,7 +3,7 @@ id: 132
 date: 2026-03-16
 type: future
 title: "faelight-vault — Forest-Native Credential Manager"
-status: planned
+status: in-progress
 tags: [security, vault, credentials, encryption, rust, v11]
 version: 11.0.0
 priority: low

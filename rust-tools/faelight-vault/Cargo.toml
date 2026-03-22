@@ -1,0 +1,29 @@
+[package]
+name = "faelight-vault"
+version = "1.0.0"
+edition = "2021"
+description = "Forest-native credential manager — faelight-gen with memory"
+
+[dependencies]
+faelight-core = { path = "../faelight-core" }
+faelight-gen   = { path = "../faelight-gen" }
+
+# Encryption
+age            = { version = "0.10", features = ["armor"] }
+argon2         = "0.5"
+
+# Security
+zeroize        = { version = "1.7", features = ["derive"] }
+rand           = "0.8"
+
+# Storage
+rusqlite       = { version = "0.31", features = ["bundled"] }
+serde          = { version = "1.0", features = ["derive"] }
+serde_json     = "1.0"
+
+# CLI
+colored        = "2.1"
+dirs           = "5.0"
+chrono         = { version = "0.4", features = ["serde"] }
+rpassword      = "7.0"
+hex            = "0.4"
