@@ -1545,11 +1545,12 @@ dependencies = [
 
 [[package]]
 name = "faelight-notify"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "colored",
  "dirs 5.0.1",
  "faelight-core",
+ "fontdue",
  "nix 0.29.0",
  "smithay-client-toolkit 0.19.2",
  "tokio",

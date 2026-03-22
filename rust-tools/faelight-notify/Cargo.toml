@@ -1,6 +1,6 @@
 [package]
 name = "faelight-notify"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
 description = "Notification daemon - path-resilient!"
 
@@ -10,7 +10,7 @@ wayland-protocols = { workspace = true }
 faelight-core = { path = "../faelight-core" }
 
 # Wayland
-smithay-client-toolkit = "0.19"
+smithay-client-toolkit = "=0.19.2"
 wayland-client = "0.31"
 
 # DBus
@@ -23,4 +23,5 @@ dirs = "5.0"
 
 # Beautiful output
 colored = "2.1"
+fontdue = "0.9"
 
