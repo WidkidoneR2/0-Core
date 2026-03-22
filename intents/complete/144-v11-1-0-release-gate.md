@@ -3,7 +3,7 @@ id: 144
 date: 2026-03-21
 type: future
 title: "v11.1.0 Release Gate — The Forest Speaks"
-status: in-progress
+status: complete
 tags: [release, gate, v11, planning]
 version: 11.1.0
 priority: high
