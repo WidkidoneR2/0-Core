@@ -15,6 +15,7 @@ mod completion;
 mod schema;
 mod nl;
 mod session;
+mod digest;
 mod triggers;
 
 use anyhow::Result;
@@ -368,11 +369,21 @@ fn print_welcome(core_root: &str) {
         println!("  {} {}", "Today:".dimmed(), focus.bright_white());
     }
     println!();
-    // Session memory
+    // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root) {
         let msg = session::render(&mem, core_root);
         if !msg.is_empty() {
             println!("{}", msg);
+        }
+        // INT-143 Phase 1 — forest digest on long gaps
+        if digest::should_show(&mem) {
+            let _db_path = root.join("runtime/state.db");
+            if let Ok(db) = crate::db::ForestDb::open() {
+                let d = digest::render(&mem, &db, core_root);
+                if !d.is_empty() {
+                    println!("{}", d);
+                }
+            }
         }
     }
 
