@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest v11.0.0
+# 🌲 Faelight Forest 11.1.0
 
-![Version](https://img.shields.io/badge/version-v11.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.1.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,19 +11,16 @@
 
 ## 🎊 Latest Release
 
-### v11.0.0 - 🌲 Where the Forest Becomes Whole (2026-03-17)
+### 11.1.0 - 🌲 The Forest Speaks (2026-03-21)
 
-- 109 — faelight-compositor — Rust Wayland Compositor on Smithay
-- 122 — Core v7 — The Resilient Forest
-- 125 — faelight-sandbox v3 — Full Policy Engine & Deep Isolation
-- 134 — faelight-shell Phase 10 — Shell Personality & Living Welcome
-- faelight-shell v0.5.0 — all INT-134 criteria complete, quote DB tracking, today's focus, exit fixed
-- faelight-shell v0.5.0 — Ctrl+C, exit fixed, logs --follow, autocomplete, today's focus (INT-134)
-- faelight-shell v0.5.0 — Ctrl+C proper, logs --follow streaming, schema autocomplete, double Ctrl+C exit (INT-134)
-- INT-125 complete — seccomp syscall filtering, all isolation levels working
-- INT-125 — disk I/O tracking, doctor sandbox check (24th), advise integration
+- 126 — Core v8 — Evolution: The Forest Refines Itself
+- INT-141 faelight-notify v4.0.0 — fontdue::layout renderer, clean text, D-Bus compliant, urgency levels
+- Phase 25 — NL auto-diagnose, pipeline execution in diagnose, warning cleanup
+- INT-143 Phase 1 — forest digest, morning summary on long gaps
+- INT-139 custom TOML patterns — load from 01-registry/shell-patterns.toml
+- INT-144 v11.1.0 release gate — The Forest Speaks, requirements documented
 
-- Commits: 1513
+- Commits: 1586
 - Tools: 49 deployed
 - Health: 95%
 - Intents: 86 complete
