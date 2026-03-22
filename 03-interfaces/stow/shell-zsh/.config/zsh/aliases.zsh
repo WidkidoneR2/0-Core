@@ -641,3 +641,10 @@ alias correlate='core why correlate'
 # ─── compositor intelligence (Core v5 Phase 5) ───
 alias cww='core why workspace'
 alias cwf='core why focus'
+
+# faelight-vault
+alias vault="faelight-vault"
+alias fv="faelight-vault"
+alias fva="faelight-vault audit"
+alias fvl="faelight-vault list"
+alias fvg="faelight-vault generate"
