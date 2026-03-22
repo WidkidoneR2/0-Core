@@ -1,5 +1,64 @@
 # Changelog
 
+## [11.1.0] — Unnamed Release (2026-03-21)
+
+### 🎯 Completed Intents
+- **INT-126** — Core v8 — Evolution: The Forest Refines Itself
+
+### ✨ Features
+- INT-141 faelight-notify v4.0.0 — fontdue::layout renderer, clean text, D-Bus compliant, urgency levels
+- Phase 25 — NL auto-diagnose, pipeline execution in diagnose, warning cleanup
+- INT-143 Phase 1 — forest digest, morning summary on long gaps
+- INT-139 custom TOML patterns — load from 01-registry/shell-patterns.toml
+- INT-144 v11.1.0 release gate — The Forest Speaks, requirements documented
+- Phase 22 — observability dashboard, system+forest panels
+- Phase 21 — SQL query language, select/from/where/order by/limit
+- Phase 18 — time travel, snapshot/timeline/snap-diff
+- Phase 17 — event system, shell triggers, on/list/remove/enable/disable
+- Core v8 Phase 6 — future simulation, risk analysis, impact analysis
+- Core v8 Phase 5 — evolution proposals, evolve-propose/list/accept/reject
+- INT-141 faelight-notify v4, INT-142 faelight-voice, INT-143 faelight-digest
+- faelight-term — Ctrl+R atuin fix, full ctrl key map, ft alias, daily driver ready
+- group pipe op — find | group ext, gchurn | group ext, et | group domain
+- Phase 16 — history analytics, hstats command frequency, hpattern time-of-day
+- Core v8 Phase 4 — architecture suggestions, CLI hotspot, coupling detection
+- INT-140 Core v10 — Reaction, event bus, reaction rules, guided instinct
+- Phase 15 — git churn engine (gchurn), branch table (gbr), hotspot detection
+- INT-135 Pillar 3 — momentum detection, feat commits today, weekly streak
+- Phase 14 — persistent file index, find command, 1009 files indexed
+- Phase 15 — gc powered by faelight-git native git2 bindings, fully joinable
+- faelight-shell — live join system, ps | join ports on pid, ad-hoc relational queries
+- Core v8 Phase 3 — decision patterns, friction, reversal detection
+- INT-135 Pillar 2 — adaptive shell modes, Recovery/Streak/Idle/Milestone/Focused
+- session memory — show INT numbers instead of full titles on welcome
+- INT-135 Pillar 1 — session memory, active intents, welcome back message
+- INT-139 Layer 2 — fuzzy token matching, short aliases ?mem ?cpu ?commits ?ports
+- faelight-shell v0.6.0 — status line on clear, ? pattern list, fsh-deploy alias, clean prompt
+- faelight-shell — add c/cls as hardcoded clear aliases
+- INT-139 Layer 1 — natural language pipeline translation, 35+ patterns, ?prefix
+- faelight-shell Phase 11 — schema-aware Tab completion, pipe column hints
+- faelight-shell Phase 11a — schema registry, 10 system tables, typed columns
+- Core v8 Phase 1+2 — core evolution map/tools, architecture observation domain
+- INT-126 Core v8 — layered build order, evidence-first phases, horizon monitoring
+- INT-120 — four-layer architecture, Phase 11a schema system, corrected phase order
+- INT-132 vault expanded, INT-138 compositor v2 EGL, INT-139 shell natural language
+- INT-136 Phase 1 — forest green borders, rounded corners 8px, shadows, animations, 12px gaps
+- INT-137 architectural horizons, INT-126 evidence rule added
+
+### 🔧 Fixes
+- INT-109 faelight-compositor — status corrected to in-progress, Sessions 5-8 remain
+- faelight-term — bracketed paste mode, paste wraps with 200~/201~, remove premature 2004h
+- faelight-term — force correct PTY size on first configure, btm/TUI apps now render correctly
+
+### 🔩 Internal (2 commits)
+- doc: INT-126 complete
+- cistart 126 — Core v8 in-progress
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1586  ·  Tools: 49 deployed  ·  Intents: 86 complete
+
+---
+
 ## [v11.0.0] — Where the Forest Becomes Whole (2026-03-17)
 
 ### 🎯 Completed Intents

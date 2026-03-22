@@ -1,0 +1,9 @@
+version = "11.1.0"
+date = "2026-03-21"
+theme = "The Forest Speaks"
+health_at_release = 95
+commits_since_last = 67
+
+[stats]
+tools_total = 49
+intents_complete = 86
