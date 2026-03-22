@@ -114,6 +114,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
         "dashboard" | "dash" => dashboard_cmd(db, core_root, args),
+        "chart" => chart_cmd(db, args),
         "select" => sql_query_cmd(db, core_root, line),
         "git" => git_status(core_root),
         "search" | "s" => search(db, args),
@@ -123,12 +124,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "audit-table" | "at" => audit_table(db, core_root),
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
-        "history-table" | "ht" => history_table(db),
+        "history-table" | "ht" | "history" => history_table(db),
         "hstats" => history_stats(db),
+        "histogram" => histogram_cmd(db, args),
         "hpattern" => history_pattern(db),
         "checkpoints-table" | "ct" => checkpoints_table(db),
         "domains" => domains(db),
-        "histogram" | "hist" => histogram(db, args),
         "logs" => sys_logs(args),
         "ps" | "processes" => sys_processes(),
         "ports" => sys_ports(),
@@ -137,10 +138,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "find" | "fd" => find_cmd(db, core_root, args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
-        "git-commits" | "gc" => git_commits(core_root, args),
+        "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
         "git-files" | "gf" => git_files(core_root),
-        "git-churn" | "gchurn" => git_churn(core_root, args),
-        "git-branches" | "gbr" => git_branches(core_root),
+        "git-churn" | "gchurn" | "git.files" => git_churn(core_root, args),
+        "git-branches" | "gbr" | "git.branches" => git_branches(core_root),
         "watch" => watch_cmd(db, args),
         "alias" => alias_cmd(db, args),
         "unalias" => unalias_cmd(db, args),
@@ -513,17 +514,20 @@ fn history_table(db: &ForestDb) -> CommandResult {
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
 
-    let rows: Vec<HashMap<String, Value>> = stmt
+    let raw: Vec<(String, i64)> = stmt
         .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
-        .map(|rows| rows.filter_map(|r| r.ok()).map(|(cmd, ts)| {
-            let time = fmt_time(ts, "%H:%M:%S");
-            let mut row = HashMap::new();
-            row.insert("time".to_string(), Value::Text(time));
-            row.insert("command".to_string(), Value::Text(cmd));
-            row.insert("timestamp".to_string(), Value::Int(ts));
-            row
-        }).collect())
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
+    let rows: Vec<HashMap<String, Value>> = raw.iter().enumerate().map(|(i, (cmd, ts))| {
+        let duration_secs = if i + 1 < raw.len() { (ts - raw[i+1].1).max(0) } else { 0 };
+        let time = fmt_time(*ts, "%H:%M:%S");
+        let mut row = HashMap::new();
+        row.insert("time".to_string(),      Value::Text(time));
+        row.insert("command".to_string(),   Value::Text(cmd.clone()));
+        row.insert("duration".to_string(),  Value::Int(duration_secs));
+        row.insert("timestamp".to_string(), Value::Int(*ts));
+        row
+    }).collect();
 
     CommandResult::Value(Value::Table(rows))
 }
@@ -593,55 +597,6 @@ fn domains(db: &ForestDb) -> CommandResult {
 }
 
 
-fn histogram(db: &ForestDb, args: &[&str]) -> CommandResult {
-    
-    
-
-    // histogram domain  OR  et | histogram domain (pipe handles it)
-    // Direct: show event count per domain as bar chart
-    let field = args.first().copied().unwrap_or("domain");
-
-    let mut stmt = match db.conn.prepare(
-        &format!("SELECT {}, COUNT(*) FROM events GROUP BY {} ORDER BY COUNT(*) DESC LIMIT 20", field, field)
-    ) {
-        Ok(s) => s,
-        Err(e) => return CommandResult::Error(format!("histogram error: {}", e)),
-    };
-
-    let rows: Vec<(String, i64)> = stmt
-        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
-        .map(|rows| rows.filter_map(|r| r.ok()).collect())
-        .unwrap_or_default();
-
-    if rows.is_empty() {
-        return CommandResult::Output(format!("  {} No data for histogram", "○".dimmed()));
-    }
-
-    let max = rows.iter().map(|(_, c)| *c).max().unwrap_or(1);
-    let bar_width = 30;
-
-    let mut out = String::new();
-    out.push_str(&format!("
-{}
-", "  ╭─ 📊 Histogram ─────────────────────────────────────".bright_cyan()));
-
-    for (label, count) in &rows {
-        let filled = ((count * bar_width) / max) as usize;
-        let empty = bar_width as usize - filled;
-        let bar = format!("{}{}",
-            "█".repeat(filled).bright_green(),
-            "░".repeat(empty).dimmed()
-        );
-        out.push_str(&format!("  │  {:<18} {} {}
-",
-            label.bright_white(),
-            bar,
-            count.to_string().dimmed()
-        ));
-    }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
-    CommandResult::Output(out)
-}
 
 fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
     use std::collections::HashMap;
@@ -2717,4 +2672,122 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             CommandResult::Error(format!("script not found: {}", path))
         }
     }
+}
+
+// ── Phase 16 — histogram command ─────────────────────────────────────────────
+fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let field = args.first().copied().unwrap_or("command");
+    // Read history and count by field
+    let mut stmt = match db.conn.prepare(
+        "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 500"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history", "○".dimmed())),
+    };
+    let commands: Vec<String> = stmt.query_map([], |r| r.get(0))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for cmd in &commands {
+        let key = match field {
+            "command" => cmd.split_whitespace().next().unwrap_or(cmd).to_string(),
+            _ => cmd.clone(),
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    let total = commands.len().max(1);
+    let max_count = counts.values().copied().max().unwrap_or(1);
+    let bar_width = 20usize;
+
+    let mut sorted: Vec<(String, usize)> = counts.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted.truncate(10);
+
+    println!();
+    println!("  {} histogram — {}", "📊".normal(), field.bright_cyan());
+    println!("{}", "  ─────────────────────────────────────────────".dimmed());
+    for (key, count) in &sorted {
+        let bar_len = (count * bar_width / max_count).max(1);
+        let bar = "█".repeat(bar_len);
+        let pct = count * 100 / total;
+        println!("  {:20} {} {}%",
+            key.bright_white(),
+            bar.bright_green(),
+            pct
+        );
+    }
+    println!();
+    CommandResult::Empty
+}
+
+// ── Phase 10 — chart command ──────────────────────────────────────────────────
+// processes | chart cpu   — bar chart of a numeric column
+// Usage as standalone: chart <table> <field>
+fn chart_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    // chart can be called standalone: chart ps cpu
+    // or receives piped Value::Table via pipeline (handled in value.rs PipeOp)
+    let (table, field) = match args {
+        [t, f] => (*t, *f),
+        [f] => ("ps", *f),
+        _ => return CommandResult::Error("Usage: chart <field>  or  ps | chart cpu".to_string()),
+    };
+
+    // Fetch data
+    let data = match execute(table, db, "") {
+        CommandResult::Value(v) => v,
+        _ => return CommandResult::Error(format!("Cannot chart: {}", table)),
+    };
+
+    render_chart(data, field)
+}
+
+pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
+    use crate::value::Value;
+    let rows = match data {
+        Value::Table(r) => r,
+        _ => return CommandResult::Error("chart requires table input".to_string()),
+    };
+
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No data to chart", "○".dimmed()));
+    }
+
+    // Extract name + value pairs
+    let name_col = ["name", "command", "file", "domain", "cmd"]
+        .iter().find(|&&c| rows[0].contains_key(c)).copied().unwrap_or("name");
+
+    let mut pairs: Vec<(String, f64)> = rows.iter().filter_map(|row| {
+        let name = row.get(name_col).map(|v| v.as_text()).unwrap_or_default();
+        let val: f64 = row.get(field)?.as_text().parse().ok()?;
+        if val > 0.0 { Some((name, val)) } else { None }
+    }).collect();
+
+    if pairs.is_empty() {
+        return CommandResult::Output(format!("  {} No non-zero values for '{}'", "○".dimmed(), field));
+    }
+
+    pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    pairs.truncate(10);
+
+    let max = pairs.iter().map(|(_, v)| *v).fold(0.0f64, f64::max);
+    let bar_width = 24usize;
+
+    println!();
+    println!("  {} chart — {}", "📊".normal(), field.bright_cyan());
+    println!("{}", "  ──────────────────────────────────────────────".dimmed());
+    for (name, val) in &pairs {
+        let bar_len = ((val / max) * bar_width as f64) as usize;
+        let bar_len = bar_len.max(1);
+        let bar = "█".repeat(bar_len);
+        let label = if name.len() > 22 { &name[..22] } else { name };
+        println!("  {:22} {} {:.1}",
+            label.bright_white(),
+            bar.bright_green(),
+            val
+        );
+    }
+    println!();
+    CommandResult::Empty
 }
