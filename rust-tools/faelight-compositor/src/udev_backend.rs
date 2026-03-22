@@ -58,10 +58,12 @@ pub fn init_drm(
         .insert_source(notifier, move |event, _, _state| {
             match event {
                 SessionEvent::PauseSession => {
-                    tracing::info!("Session paused — VT switch");
+                    tracing::info!("Session paused — VT switch, releasing DRM master");
+                    // libseat handles DRM master release automatically
                 }
                 SessionEvent::ActivateSession => {
-                    tracing::info!("Session activated");
+                    tracing::info!("Session activated — resuming");
+                    // libseat handles DRM master reacquire automatically
                 }
             }
         })?;
