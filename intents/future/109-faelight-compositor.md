@@ -145,7 +145,11 @@ Fun: v10.8.0 release — "The Compositor Wakes"
   - CRTC: Handle(363)
   - Mode: 2560x1600 @ 165Hz
   - render.ready event written to state.db
-- ⬜ Session 5 — First render: forest green #11140f on real hardware ← NEXT
+- ✅ Session 5+6 — FIRST RENDER COMPLETE (2026-03-22)
+  - Forest green #11140f filled 2560x1600@165Hz display
+  - AMD Radeon 780M, dumb buffer, set_crtc SUCCESS
+  - Hard reboot required — VT switching not yet implemented
+  - The last sibling came home.
 - ⬜ Session 3 — GPU renderer initialized
 - ⬜ Session 4 — Connector scanning
 - ⬜ Session 5 — Output creation
