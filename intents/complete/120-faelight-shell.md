@@ -3,7 +3,7 @@ id: 120
 date: 2026-03-12
 type: future
 title: "faelight-shell — Forest-Native Shell Environment"
-status: in-progress
+status: complete
 tags: [shell, repl, structured-data, security, plugins, scripting, rust, v11, v12]
 version: 11.0.0
 priority: high
@@ -460,7 +460,8 @@ NEXT (in order):
 - Phase 21  - Query language DONE (2026-03-21)
 - Phase 22  - Observability dashboard DONE (2026-03-21)
 - Phase 25  - Natural language assistant DONE (2026-03-21)
-- Phase 32  - Shell as OS layer
+- Phase 32  - Shell as OS layer DONE (2026-03-22)
+- Phase 12  - Package manager deferred to INT-146
 
 The single highest-leverage move:
 Build the schema system first. It unlocks everything.
@@ -490,7 +491,7 @@ Queryable OS state              ✅ Phase 8 + schema (11a) DONE
   - Tab completion suggests aliases too
 - ✅ Phase 5: Plugin system — .fsh TOML plugins, forest-utils shipped, plugins/plr commands
 - ✅ Phase 6: .fsh scripting language DONE (2026-03-22)
-- ⬜ Phase 7: Full shell — beyond NixOS
+- ⬜ Phase 7: Full shell — deferred to INT-146 faelight-shell v2
 
 ## Development Philosophy
 
