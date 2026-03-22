@@ -489,7 +489,7 @@ Queryable OS state              ✅ Phase 8 + schema (11a) DONE
   - alias / unalias commands
   - Tab completion suggests aliases too
 - ✅ Phase 5: Plugin system — .fsh TOML plugins, forest-utils shipped, plugins/plr commands
-- ⬜ Phase 6: .fsh scripting language
+- ✅ Phase 6: .fsh scripting language DONE (2026-03-22)
 - ⬜ Phase 7: Full shell — beyond NixOS
 
 ## Development Philosophy
