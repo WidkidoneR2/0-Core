@@ -150,7 +150,8 @@ impl FaelightCompositor {
         display: Display<Self>,
         event_loop: &mut EventLoop<Self>,
     ) -> OsString {
-        let listening_socket = ListeningSocketSource::new_auto().unwrap();
+        let listening_socket = ListeningSocketSource::new_auto()
+            .expect("Failed to create Wayland socket — is XDG_RUNTIME_DIR set?");
         let socket_name = listening_socket.socket_name().to_os_string();
         let loop_handle = event_loop.handle();
 
