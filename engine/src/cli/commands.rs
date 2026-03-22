@@ -38,6 +38,7 @@ pub enum Command {
     Trace(TraceCommand),
     Simulate(SimulateCommand),
     Evolution(EvolutionCommand),
+    Goals(GoalsCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -333,7 +334,17 @@ pub enum DepsCommand {
     Audit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum GoalsCommand {
+    List,
+    Generate,
+    Priority,
+    Accept { id: String },
+    Reject { id: String },
+    Show { id: String },
+}
+
+#[derive(Debug, Clone)]
 pub enum EvolutionCommand {
     Map,
     Tools,

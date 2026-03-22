@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands,
 };
 
 pub fn parse() -> Command {
@@ -243,6 +243,14 @@ pub fn parse() -> Command {
         Commands::Trace { command } => Command::Trace(match command {
             TraceCommands::Last => TraceCommand::Last,
             TraceCommands::Domain { domain } => TraceCommand::Domain { domain },
+        }),
+        Commands::Goals { command } => Command::Goals(match command {
+            GoalsCommands::List         => GoalsCommand::List,
+            GoalsCommands::Generate     => GoalsCommand::Generate,
+            GoalsCommands::Priority     => GoalsCommand::Priority,
+            GoalsCommands::Accept { id } => GoalsCommand::Accept { id },
+            GoalsCommands::Reject { id } => GoalsCommand::Reject { id },
+            GoalsCommands::Show { id }   => GoalsCommand::Show { id },
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,

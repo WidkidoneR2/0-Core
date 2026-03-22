@@ -26,3 +26,4 @@ pub mod update;
 pub mod workspace;
 pub mod zone;
 pub mod evolution;
+pub mod goals;
