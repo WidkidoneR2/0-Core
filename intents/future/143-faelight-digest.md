@@ -68,14 +68,14 @@ Morning (5am-10am): full digest always.
 
 ## Gate Check
 ```
-⬜ Commits since last session
-⬜ Health + forecast trend
-⬜ Active intents summary
+✅ Commits since last session (2026-03-21)
+✅ Health + forecast trend (2026-03-21)
+✅ Active intents summary (2026-03-21)
 ⬜ Top churn files (from file_index + git)
-⬜ Pending decisions reminder
-⬜ Low audit score tools
-⬜ Time-aware greeting (morning/evening/night)
-⬜ Replaces print_welcome on long gaps
+✅ Pending decisions reminder (2026-03-21)
+✅ Low audit score tools (2026-03-21)
+✅ Time-aware greeting (2026-03-21) (morning/evening/night)
+✅ Replaces print_welcome on long gaps (2026-03-21)
 ```
 
 ## The Phrase
