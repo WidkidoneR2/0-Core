@@ -108,6 +108,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "forecast" => forecast(db),
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
+        "let" => scripting_let_cmd(db, core_root, args),
+        "run" | "fsh" => scripting_run_cmd(db, core_root, args),
         "snapshot" => snapshot_cmd(db, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
@@ -2630,4 +2632,89 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
 
     println!("{}", "└────────────────────────────────────".dimmed());
     CommandResult::Empty
+}
+
+// ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────
+
+fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    // let name = expr  (from REPL)
+    // args may be ["x", "= 42"] or ["x", "=", "42"] depending on splitn
+    let full = args.join(" ");
+    let (name, expr) = match full.split_once('=') {
+        Some((n, e)) => (n.trim(), e.trim()),
+        None => return CommandResult::Error("Usage: let <name> = <expression>".to_string()),
+    };
+    if name.is_empty() || expr.is_empty() {
+        return CommandResult::Error("Usage: let <name> = <expression>".to_string());
+    }
+    let result = execute(&expr, db, core_root);
+    let val = match result {
+        CommandResult::Value(ref v) => v.as_text(),
+        CommandResult::Output(ref s) => s.clone(),
+        _ => expr.to_string(),
+    };
+    println!("  {} {} = {}", "let".dimmed(), name.bright_cyan(), val.bright_white());
+    // Store in session state for this REPL session
+    db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+        rusqlite::params![format!("var:{}", name), val]
+    ).ok();
+    CommandResult::Empty
+}
+
+fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    match args.first() {
+        None => CommandResult::Error("Usage: run <file.fsh> or run --list".to_string()),
+        Some(&"--list") => {
+            // List .fsh scripts in core_root
+            let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
+            let home_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config/faelight-shell/scripts");
+
+            println!();
+            println!("  {} .fsh scripts", "🌿".normal());
+            println!("{}", "  ─────────────────────────────".dimmed());
+
+            let mut found = false;
+            for path in &[scripts_path, home_path] {
+                if let Ok(entries) = std::fs::read_dir(path) {
+                    for entry in entries.flatten() {
+                        if entry.path().extension().map(|e| e == "fsh").unwrap_or(false) {
+                            println!("  · {}", entry.file_name().to_string_lossy().bright_cyan());
+                            found = true;
+                        }
+                    }
+                }
+            }
+            if !found {
+                println!("  {} No .fsh scripts found", "○".dimmed());
+                println!("  {} Create: {}", "→".dimmed(),
+                    "~/0-core/scripts/fsh/example.fsh".dimmed());
+            }
+            println!();
+            CommandResult::Empty
+        }
+        Some(path) => {
+            // Resolve path
+            let resolved = if path.ends_with(".fsh") {
+                path.to_string()
+            } else {
+                format!("{}.fsh", path)
+            };
+            // Check relative, then scripts/fsh/, then home
+            let candidates = vec![
+                resolved.clone(),
+                format!("{}/scripts/fsh/{}", core_root, resolved),
+                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                    .join(format!(".config/faelight-shell/scripts/{}", resolved))
+                    .to_string_lossy()
+                    .to_string(),
+            ];
+            for candidate in &candidates {
+                if std::path::Path::new(candidate).exists() {
+                    return crate::scripting::run_file(candidate, db, core_root);
+                }
+            }
+            CommandResult::Error(format!("script not found: {}", path))
+        }
+    }
 }

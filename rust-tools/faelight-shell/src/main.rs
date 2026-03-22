@@ -17,6 +17,7 @@ mod nl;
 mod session;
 mod digest;
 mod triggers;
+mod scripting;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
