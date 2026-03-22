@@ -30,7 +30,37 @@ impl FaelightCompositor {
                     event.state(),
                     serial,
                     time,
-                    |_, _, _| FilterResult::Forward,
+                    |state, modifiers, handle| {
+                        // Ctrl+Alt+Fx — VT switching
+                        if modifiers.ctrl && modifiers.alt {
+                            let raw = handle.raw_syms();
+                            // F1-F9 = keysyms 0xffbe..0xffc6
+                            if let Some(&sym) = raw.first() {
+                                let raw_val = sym.raw();
+                                let vt = match raw_val {
+                                    0xffbe => Some(1), 0xffbf => Some(2),
+                                    0xffc0 => Some(3), 0xffc1 => Some(4),
+                                    0xffc2 => Some(5), 0xffc3 => Some(6),
+                                    0xffc4 => Some(7), 0xffc5 => Some(8),
+                                    0xffc6 => Some(9),
+                                    _ => None,
+                                };
+                                if let Some(vt_num) = vt {
+                                    tracing::info!(vt = vt_num, "VT switch requested");
+                                    let _ = std::process::Command::new("chvt")
+                                        .arg(vt_num.to_string())
+                                        .spawn();
+                                    return FilterResult::Intercept(());
+                                }
+                                // Ctrl+Alt+Q or Ctrl+Alt+Backspace — exit
+                                if raw_val == 0xff51 || raw_val == 0x0071 || raw_val == 0xff08 {
+                                    tracing::info!("Exit requested — Ctrl+Alt+Q");
+                                    std::process::exit(0);
+                                }
+                            }
+                        }
+                        FilterResult::Forward
+                    },
                 );
             }
             InputEvent::PointerMotionAbsolute { event, .. } => {

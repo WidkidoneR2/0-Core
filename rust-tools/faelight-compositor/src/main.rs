@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "faelight-compositor ready — forest socket open"
     );
 
+    tracing::info!("💡 VT switch: Ctrl+Alt+F1-F7  |  Exit: Ctrl+Alt+Q");
     event_loop.run(None, &mut state, move |_| {})?;
 
     Ok(())
