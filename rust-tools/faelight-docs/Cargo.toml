@@ -1,0 +1,11 @@
+[package]
+name = "faelight-docs"
+version = "1.0.0"
+edition = "2021"
+description = "Living documentation engine — keeps README and welcome in sync with forest state"
+
+[dependencies]
+faelight-core = { path = "../faelight-core" }
+colored       = "2.1"
+dirs          = "5.0"
+chrono        = "0.4"

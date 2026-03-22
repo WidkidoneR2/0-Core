@@ -74,6 +74,8 @@ fn main() -> Result<()> {
                 // Auto-update tool counts in README
                 let readme_path = std::path::PathBuf::from(&root).join("README.md");
                 crate::readme::update_tool_counts(&readme_path, root.to_str().unwrap_or(""));
+                // Auto-sync docs via faelight-docs
+                let _ = std::process::Command::new("faelight-docs").arg("sync").status();
 
                 // Re-write changelog with the actual theme from TUI
                 let changelog_path = std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md");
