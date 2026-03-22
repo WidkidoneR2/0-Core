@@ -301,6 +301,10 @@ fn attempt_first_render(
     // Hold for 3 seconds so we can see it
     std::thread::sleep(std::time::Duration::from_secs(3));
 
+    // Switch back to Niri before cleanup
+    tracing::info!("Switching back to VT7");
+    let _ = std::process::Command::new("chvt").arg("7").status();
+    std::thread::sleep(std::time::Duration::from_millis(500));
     // Cleanup
     let _ = drm.destroy_framebuffer(fb);
     let _ = drm.destroy_dumb_buffer(dumb);
