@@ -1,3 +1,4 @@
+use smithay::backend::session::libseat::LibSeatSession;
 use std::{ffi::OsString, sync::Arc};
 
 use rusqlite::Connection;
@@ -22,6 +23,7 @@ use smithay::{
 };
 
 pub struct FaelightCompositor {
+    pub session: Option<smithay::backend::session::libseat::LibSeatSession>,
     pub start_time: std::time::Instant,
     pub socket_name: OsString,
     pub display_handle: DisplayHandle,
@@ -92,6 +94,7 @@ impl FaelightCompositor {
             seat,
             db,
             health: CompositorHealth::default(),
+            session: None,
         }
     }
 

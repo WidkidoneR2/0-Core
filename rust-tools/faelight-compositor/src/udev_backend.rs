@@ -243,6 +243,7 @@ pub fn init_drm(
         format!(r#"{{"event":"backend.init","seat":"{}"}}"#, session.seat()),
     );
 
+    state.session = Some(session);
     tracing::info!("DRM/udev backend initialized — faelight-compositor on real hardware");
     Ok(())
 }

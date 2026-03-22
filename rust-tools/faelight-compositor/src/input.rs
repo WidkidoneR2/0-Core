@@ -47,9 +47,10 @@ impl FaelightCompositor {
                                 };
                                 if let Some(vt_num) = vt {
                                     tracing::info!(vt = vt_num, "VT switch requested");
-                                    let _ = std::process::Command::new("chvt")
-                                        .arg(vt_num.to_string())
-                                        .spawn();
+                                    if let Some(ref mut session) = state.session {
+                                        use smithay::backend::session::Session;
+                                        let _ = session.change_vt(vt_num);
+                                    }
                                     return FilterResult::Intercept(());
                                 }
                                 // Ctrl+Alt+Q or Ctrl+Alt+Backspace — exit
