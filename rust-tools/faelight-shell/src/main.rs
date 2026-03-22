@@ -58,6 +58,45 @@ fn main() -> Result<()> {
                 // Natural language ?prefix
                 if line.starts_with('?') && line.len() > 1 {
                     let query = line[1..].trim();
+                    // Phase 25 — auto-diagnose for complex queries
+                    if nl::is_diagnostic(query) {
+                        println!();
+                        println!("  {} Auto-diagnosing: {}", "🔍".normal(), query.bright_white());
+                        println!();
+                        let steps = nl::auto_diagnose(query);
+                        for step in &steps {
+                            println!("  {} {}", "→".bright_cyan(), step.dimmed());
+                            // Parse pipeline ops from step
+                            let pipe_parts: Vec<&str> = step.splitn(2, " | ").collect();
+                            let base = pipe_parts[0].trim();
+                            let pipeline_ops = if pipe_parts.len() > 1 {
+                                value::parse_pipeline(&format!("x | {}", pipe_parts[1..].join(" | ")))
+                            } else {
+                                vec![]
+                            };
+                            // Resolve joins
+                            let pipeline_ops: Vec<value::PipeOp> = pipeline_ops.into_iter().map(|op| {
+                                if let value::PipeOp::Join { table, on } = op {
+                                    let right_result = commands::execute(&table, &db, &core_root);
+                                    if let commands::CommandResult::Value(value::Value::Table(rows)) = right_result {
+                                        value::PipeOp::JoinData { rows, on }
+                                    } else {
+                                        value::PipeOp::JoinData { rows: vec![], on }
+                                    }
+                                } else { op }
+                            }).collect();
+                            match commands::execute(base, &db, &core_root) {
+                                commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
+                                    println!("{}", value::apply_pipeline(v, &pipeline_ops).render());
+                                }
+                                commands::CommandResult::Value(v) => println!("{}", v.render()),
+                                commands::CommandResult::Output(o) => println!("{}", o),
+                                _ => {}
+                            }
+                            println!();
+                        }
+                        continue;
+                    }
                     let custom_patterns = nl::load_toml_patterns(&core_root);
                     match nl::translate_with_custom(query, &custom_patterns) {
                         Some(t) => {
