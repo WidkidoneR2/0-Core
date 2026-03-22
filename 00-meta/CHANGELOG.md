@@ -1,6 +1,6 @@
 # Changelog
 
-## [11.1.0] — Unnamed Release (2026-03-21)
+## [11.1.0] — The Forest Speaks (2026-03-21)
 
 ### 🎯 Completed Intents
 - **INT-126** — Core v8 — Evolution: The Forest Refines Itself
