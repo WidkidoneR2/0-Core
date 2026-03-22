@@ -1569,6 +1569,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-docs"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "dirs 5.0.1",
+ "faelight-core",
+]
+
+[[package]]
 name = "faelight-fetch"
 version = "2.3.0"
 dependencies = [

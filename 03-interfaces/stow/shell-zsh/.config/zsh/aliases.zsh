@@ -648,3 +648,10 @@ alias fv="faelight-vault"
 alias fva="faelight-vault audit"
 alias fvl="faelight-vault list"
 alias fvg="faelight-vault generate"
+
+# faelight-docs
+alias docs="faelight-docs"
+alias fdocs="faelight-docs"
+alias docs-sync="faelight-docs sync"
+alias docs-check="faelight-docs check"
+alias docs-status="faelight-docs status"

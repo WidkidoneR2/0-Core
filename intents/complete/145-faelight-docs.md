@@ -3,7 +3,7 @@ id: 145
 date: 2026-03-21
 type: future
 title: "faelight-docs — Living Documentation Engine"
-status: planned
+status: in-progress
 tags: [docs, readme, welcome, automation, core, v11, v12]
 version: 11.2.0
 priority: medium

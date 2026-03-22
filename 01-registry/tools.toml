@@ -353,3 +353,10 @@ version = "1.0.0"
 category = "security"
 description = "Forest-native credential manager — Argon2id encryption, health scores, audit, faelight-gen integration"
 expected_usage = "medium"
+
+[[tool]]
+name = "faelight-docs"
+version = "1.0.0"
+category = "documentation"
+description = "Living documentation engine — syncs README and welcome message with forest state"
+expected_usage = "low"
