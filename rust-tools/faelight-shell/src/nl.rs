@@ -200,6 +200,7 @@ pub struct Translation {
 
 // ── Translate — find best matching pattern ────────────────────────────────────
 
+#[allow(dead_code)]
 pub fn translate(input: &str) -> Option<Translation> {
     let input_lower = input.to_lowercase();
     let input_lower = input_lower.trim_start_matches('?').trim();
@@ -288,7 +289,6 @@ pub fn render_translation(t: &Translation) -> String {
 // ── Pattern list — shown when user types ? alone ──────────────────────────────
 
 pub fn render_pattern_list() -> String {
-    use colored::*;
     let mut out = String::new();
     out.push('\n');
     out.push_str(&format!("  {}\n", "🌿 Natural Language Patterns".bright_cyan().bold()));
@@ -420,4 +420,41 @@ pub fn translate_with_custom(input: &str, custom: &[CustomPattern]) -> Option<Tr
         context,
         matched_phrase,
     })
+}
+
+// ── Phase 25 — Auto-diagnose patterns ────────────────────────────────────────
+// These patterns trigger multi-step diagnosis rather than single pipelines.
+// The shell becomes an amplifier — surfaces insights without being asked.
+
+pub fn is_diagnostic(input: &str) -> bool {
+    let lower = input.to_lowercase();
+    lower.contains("why") || lower.contains("slow") || lower.contains("diagnos")
+        || lower.contains("what's wrong") || lower.contains("whats wrong")
+}
+
+pub fn auto_diagnose(input: &str) -> Vec<String> {
+    let lower = input.to_lowercase();
+    let mut steps = vec![];
+
+    if lower.contains("slow") || lower.contains("why") || lower.contains("performance") {
+        steps.push("ps | sort cpu desc | first 5".to_string());
+        steps.push("ps | sort memory desc | first 5".to_string());
+        steps.push("find | where size > 500000000 | sort size desc | first 5".to_string());
+    }
+    if lower.contains("memory") || lower.contains("ram") {
+        steps.push("ps | sort memory desc | first 10".to_string());
+    }
+    if lower.contains("disk") || lower.contains("space") || lower.contains("storage") {
+        steps.push("find | group ext | sort count desc | first 10".to_string());
+        steps.push("find | where size > 100000000 | sort size desc | first 10".to_string());
+    }
+    if lower.contains("network") || lower.contains("ports") || lower.contains("connection") {
+        steps.push("ports".to_string());
+        steps.push("ps | join ports on pid | where r_port != ".to_string());
+    }
+    if steps.is_empty() {
+        steps.push("ps | sort cpu desc | first 5".to_string());
+        steps.push("health".to_string());
+    }
+    steps
 }

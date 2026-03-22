@@ -25,6 +25,7 @@ pub fn ensure_schema(db: &ForestDb) {
 // ── Trigger types ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum TriggerKind {
     HealthDrop(u32),       // on health_drop <threshold>
     GitCommit,             // on git_commit
@@ -89,6 +90,7 @@ pub fn enable(db: &ForestDb, id: i64, enabled: bool) -> bool {
 pub struct TriggerContext {
     pub last_command:  String,
     pub health_score:  Option<i64>,
+    #[allow(dead_code)]
     pub last_domain:   Option<String>,
 }
 
