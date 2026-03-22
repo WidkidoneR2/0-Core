@@ -18,6 +18,13 @@ use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 use state::FaelightCompositor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Ensure XDG_RUNTIME_DIR is set — needed for Wayland socket
+    if std::env::var("XDG_RUNTIME_DIR").is_err() {
+        let uid = unsafe { libc::getuid() };
+        let runtime_dir = format!("/run/user/{}", uid);
+        std::env::set_var("XDG_RUNTIME_DIR", &runtime_dir);
+        eprintln!("ℹ️  XDG_RUNTIME_DIR not set — using {}", runtime_dir);
+    }
     init_logging();
 
     let args: Vec<String> = std::env::args().collect();

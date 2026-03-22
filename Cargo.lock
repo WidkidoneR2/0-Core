@@ -1342,6 +1342,7 @@ dependencies = [
  "faelight-core",
  "gbm",
  "input",
+ "libc",
  "rusqlite",
  "serde",
  "serde_json",
