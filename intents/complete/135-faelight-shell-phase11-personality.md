@@ -3,7 +3,7 @@ id: 135
 date: 2026-03-17
 type: future
 title: "faelight-shell Phase 11 — Forest Personality & Adaptive Intelligence"
-status: in-progress
+status: complete
 tags: [shell, personality, learning, adaptive, ai, v12]
 version: 12.0.0
 priority: medium
@@ -157,7 +157,7 @@ The shell becomes the human interface to the forest's own intentions.
 - ✅ Adaptive messages — Recovery/Streak/Idle/Milestone/Focused modes (2026-03-20)
 - ✅ Momentum detection — feat commits today, weekly streak (2026-03-21)
 - ✅ Personality modes — 5 modes implemented (2026-03-20)
-- ⬜ Core v9 integration — surfaces forest goals in shell messages
+- ⬜ Core v9 integration — surfaces forest goals in shell messages (deferred to INT-133 Core v9)
 
 ## The Long-Term Vision
 
