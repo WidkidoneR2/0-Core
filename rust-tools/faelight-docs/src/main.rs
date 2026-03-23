@@ -136,7 +136,7 @@ fn cmd_welcome(dry_run: bool) {
 
 fn cmd_readme(dry_run: bool) {
     let root = core_root();
-    let readme_path = root.join("00-meta/README.md");
+    let readme_path = root.join("README.md");
 
     let content = match std::fs::read_to_string(&readme_path) {
         Ok(c) => c,
@@ -213,7 +213,7 @@ fn cmd_status() {
     );
 
     // Check README
-    let readme = std::fs::read_to_string(root.join("00-meta/README.md"))
+    let readme = std::fs::read_to_string(root.join("README.md"))
         .unwrap_or_default();
     let readme_ok = readme.contains(&format!("v{}", state.version));
     println!("  {}      {}", "README:".dimmed(),
