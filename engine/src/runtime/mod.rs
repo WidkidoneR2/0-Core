@@ -10,7 +10,9 @@ pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
     let home = std::env::var("HOME").unwrap_or_default();
     let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
     if !events_dir.exists() {
-        if std::fs::create_dir_all(&events_dir).is_err() { return; }
+        if std::fs::create_dir_all(&events_dir).is_err() {
+            return;
+        }
     }
     let date = chrono::DateTime::from_timestamp(ts, 0)
         .map(|t| t.format("%Y-%m-%d").to_string())
@@ -28,7 +30,9 @@ pub fn write_event_log(domain: &str, action: &str, payload: &str, ts: i64) {
     line.push_str("}\n");
     use std::io::Write;
     if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true).append(true).open(&log_path)
+        .create(true)
+        .append(true)
+        .open(&log_path)
     {
         f.write_all(line.as_bytes()).ok();
     }
@@ -188,7 +192,9 @@ impl<'a> EventWriter<'a> {
         let home = std::env::var("HOME").unwrap_or_default();
         let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
         if !events_dir.exists() {
-            if std::fs::create_dir_all(&events_dir).is_err() { return; }
+            if std::fs::create_dir_all(&events_dir).is_err() {
+                return;
+            }
         }
 
         // Daily rotation — one file per day

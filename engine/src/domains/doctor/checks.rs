@@ -1,11 +1,11 @@
 // doctor/checks.rs — all 23 health check functions
 #![allow(dead_code)]
+use super::{CheckResult, Status};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
-use super::{CheckResult, Status};
 
 pub fn check_stow(core_root: &str, home: &str) -> CheckResult {
     let stow_dir = PathBuf::from(core_root).join("03-interfaces/stow");
@@ -116,7 +116,12 @@ pub fn check_broken_symlinks(_core_root: &str, home: &str) -> CheckResult {
         .filter_map(|e| e.ok())
     {
         let p = entry.path();
-        if p.is_symlink() && !p.exists() && !p.to_string_lossy().contains("BraveSoftware") && !p.to_string_lossy().contains("Notesnook") && !p.to_string_lossy().contains("Singleton") {
+        if p.is_symlink()
+            && !p.exists()
+            && !p.to_string_lossy().contains("BraveSoftware")
+            && !p.to_string_lossy().contains("Notesnook")
+            && !p.to_string_lossy().contains("Singleton")
+        {
             broken += 1;
         }
     }
@@ -485,7 +490,10 @@ pub fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
                     name: format!("{} Keybinds", wm_name),
                     status: Status::Fail,
                     message: "Keybind conflicts detected".into(),
-                    fix: Some(format!("Run: keyscan ~/.config/{}/config", wm_name.to_lowercase())),
+                    fix: Some(format!(
+                        "Run: keyscan ~/.config/{}/config",
+                        wm_name.to_lowercase()
+                    )),
                 }
             }
         }
@@ -524,10 +532,18 @@ pub fn check_security_hardening() -> CheckResult {
         details += 1;
     }
     let mut active = vec![];
-    if ufw_active { active.push("UFW ✅"); }
-    if f2b_active { active.push("fail2ban ✅"); }
-    if ssh_ok { active.push("SSH hardened ✅"); }
-    if !ufw_active { active.push("UFW ❌"); }
+    if ufw_active {
+        active.push("UFW ✅");
+    }
+    if f2b_active {
+        active.push("fail2ban ✅");
+    }
+    if ssh_ok {
+        active.push("SSH hardened ✅");
+    }
+    if !ufw_active {
+        active.push("UFW ❌");
+    }
 
     CheckResult {
         id: "security".into(),
@@ -538,7 +554,11 @@ pub fn check_security_hardening() -> CheckResult {
             Status::Fail
         },
         message: format!("Security: {}", active.join("  ")),
-        fix: if !ufw_active { Some("Enable UFW: sudo ufw enable".into()) } else { None },
+        fix: if !ufw_active {
+            Some("Enable UFW: sudo ufw enable".into())
+        } else {
+            None
+        },
     }
 }
 
@@ -941,11 +961,11 @@ pub fn check_core_protect(core_root: &str) -> CheckResult {
     }
 }
 
-
 pub fn check_sandbox(core_root: &str) -> CheckResult {
     // Check sandbox binary exists and policies are valid
     let binary_exists = std::path::PathBuf::from(core_root)
-        .join("scripts/faelight-sandbox").exists();
+        .join("scripts/faelight-sandbox")
+        .exists();
 
     if !binary_exists {
         return CheckResult {
@@ -958,8 +978,8 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
     }
 
     // Check policies file exists
-    let policies_path = std::path::PathBuf::from(core_root)
-        .join("01-registry/sandbox-policies.toml");
+    let policies_path =
+        std::path::PathBuf::from(core_root).join("01-registry/sandbox-policies.toml");
 
     if !policies_path.exists() {
         return CheckResult {
@@ -980,7 +1000,10 @@ pub fn check_sandbox(core_root: &str) -> CheckResult {
         id: "sandbox".into(),
         name: "Sandbox".into(),
         status: Status::Pass,
-        message: format!("faelight-sandbox deployed — {} policies active", policy_count),
+        message: format!(
+            "faelight-sandbox deployed — {} policies active",
+            policy_count
+        ),
         fix: None,
     }
 }

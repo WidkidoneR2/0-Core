@@ -21,7 +21,11 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("{}", "🏗  Architecture Map".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}  {}", "Source:".dimmed(), "engine/src/domains/".bright_white());
+    println!(
+        "  {}  {}",
+        "Source:".dimmed(),
+        "engine/src/domains/".bright_white()
+    );
     println!();
 
     let mut domains: Vec<(String, usize, usize)> = vec![];
@@ -34,29 +38,44 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
             let path = entry.path();
             if path.is_dir() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if name == "evolution" { continue; } // skip self
+                if name == "evolution" {
+                    continue;
+                } // skip self
                 let rs_count = count_rs_files(&path);
-                let coupling  = count_cross_domain_refs(&path);
+                let coupling = count_cross_domain_refs(&path);
                 domains.push((name, rs_count, coupling));
             }
         }
     }
 
-    let total_domains  = domains.len();
-    let total_files: usize   = domains.iter().map(|(_, f, _)| f).sum();
+    let total_domains = domains.len();
+    let total_files: usize = domains.iter().map(|(_, f, _)| f).sum();
     let total_coupling: usize = domains.iter().map(|(_, _, c)| c).sum();
 
-    println!("  {}  {}", "Domains:".bright_white().bold(),
-        total_domains.to_string().bright_green());
-    println!("  {}  {}", "Total .rs files:".bright_white().bold(),
-        total_files.to_string().bright_green());
-    println!("  {}  {}", "Cross-domain refs:".bright_white().bold(),
-        total_coupling.to_string().yellow());
+    println!(
+        "  {}  {}",
+        "Domains:".bright_white().bold(),
+        total_domains.to_string().bright_green()
+    );
+    println!(
+        "  {}  {}",
+        "Total .rs files:".bright_white().bold(),
+        total_files.to_string().bright_green()
+    );
+    println!(
+        "  {}  {}",
+        "Cross-domain refs:".bright_white().bold(),
+        total_coupling.to_string().yellow()
+    );
     println!();
 
     println!("  {}", "Domain Breakdown:".bright_white().bold());
-    println!("  {:<24} {:>6}  {:>10}",
-        "Domain".dimmed(), "Files".dimmed(), "Coupling".dimmed());
+    println!(
+        "  {:<24} {:>6}  {:>10}",
+        "Domain".dimmed(),
+        "Files".dimmed(),
+        "Coupling".dimmed()
+    );
     println!("  {}", "─".repeat(44).dimmed());
 
     let mut sorted = domains.clone();
@@ -70,14 +89,28 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
         } else {
             coupling.to_string().dimmed().to_string()
         };
-        println!("  {:<24} {:>6}  {:>10}", name.bright_white(), files, coupling_str);
+        println!(
+            "  {:<24} {:>6}  {:>10}",
+            name.bright_white(),
+            files,
+            coupling_str
+        );
     }
 
     println!();
-    println!("  {}",
-        "coupling = outbound crate::domains:: references in domain source".dimmed().italic());
+    println!(
+        "  {}",
+        "coupling = outbound crate::domains:: references in domain source"
+            .dimmed()
+            .italic()
+    );
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "Data collected. No suggestions. The forest observes.".dimmed().italic());
+    println!(
+        "  {}",
+        "Data collected. No suggestions. The forest observes."
+            .dimmed()
+            .italic()
+    );
     println!();
 
     Ok(())
@@ -109,9 +142,13 @@ pub fn tools(ctx: &AppContext) -> CoreResult<()> {
 
         for entry in entries {
             let path = entry.path();
-            if !path.is_dir() { continue; }
+            if !path.is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') { continue; }
+            if name.starts_with('.') {
+                continue;
+            }
             let modified = newest_mtime(&path);
             tool_data.push((name, modified));
         }
@@ -121,43 +158,93 @@ pub fn tools(ctx: &AppContext) -> CoreResult<()> {
 
     let days_since = |m: u64| -> u64 { (now.saturating_sub(m)) / 86400 };
 
-    let fresh:   Vec<_> = tool_data.iter().filter(|(_, m)| days_since(*m) <= 14).collect();
-    let active:  Vec<_> = tool_data.iter().filter(|(_, m)| { let d = days_since(*m); d > 14 && d <= 60 }).collect();
-    let stable:  Vec<_> = tool_data.iter().filter(|(_, m)| { let d = days_since(*m); d > 60 && d <= 120 }).collect();
-    let dormant: Vec<_> = tool_data.iter().filter(|(_, m)| days_since(*m) > 120).collect();
+    let fresh: Vec<_> = tool_data
+        .iter()
+        .filter(|(_, m)| days_since(*m) <= 14)
+        .collect();
+    let active: Vec<_> = tool_data
+        .iter()
+        .filter(|(_, m)| {
+            let d = days_since(*m);
+            d > 14 && d <= 60
+        })
+        .collect();
+    let stable: Vec<_> = tool_data
+        .iter()
+        .filter(|(_, m)| {
+            let d = days_since(*m);
+            d > 60 && d <= 120
+        })
+        .collect();
+    let dormant: Vec<_> = tool_data
+        .iter()
+        .filter(|(_, m)| days_since(*m) > 120)
+        .collect();
 
-    println!("  {}  {}", "Total tools:".bright_white().bold(),
-        total.to_string().bright_green());
+    println!(
+        "  {}  {}",
+        "Total tools:".bright_white().bold(),
+        total.to_string().bright_green()
+    );
     println!();
 
     println!("  {}", "Lifecycle Distribution:".bright_white().bold());
-    println!("  {:<10} {}  (≤ 14 days)",  "Fresh:".bright_green(),  fresh.len().to_string().bright_green());
-    println!("  {:<10} {}  (15–60 days)", "Active:".bright_white(), active.len().to_string().bright_white());
-    println!("  {:<10} {}  (61–120 days)","Stable:".yellow(),       stable.len().to_string().yellow());
-    println!("  {:<10} {}  (> 120 days)", "Dormant:".dimmed(),      dormant.len().to_string().dimmed());
+    println!(
+        "  {:<10} {}  (≤ 14 days)",
+        "Fresh:".bright_green(),
+        fresh.len().to_string().bright_green()
+    );
+    println!(
+        "  {:<10} {}  (15–60 days)",
+        "Active:".bright_white(),
+        active.len().to_string().bright_white()
+    );
+    println!(
+        "  {:<10} {}  (61–120 days)",
+        "Stable:".yellow(),
+        stable.len().to_string().yellow()
+    );
+    println!(
+        "  {:<10} {}  (> 120 days)",
+        "Dormant:".dimmed(),
+        dormant.len().to_string().dimmed()
+    );
     println!();
 
     println!("  {}", "Tool Roster:".bright_white().bold());
-    println!("  {:<34} {:>6}  {}",
-        "Tool".dimmed(), "Age(d)".dimmed(), "Stage".dimmed());
+    println!(
+        "  {:<34} {:>6}  {}",
+        "Tool".dimmed(),
+        "Age(d)".dimmed(),
+        "Stage".dimmed()
+    );
     println!("  {}", "─".repeat(52).dimmed());
 
     for (name, modified) in &tool_data {
         let days = days_since(*modified);
         let stage = match days {
-            0..=14   => "fresh".bright_green().to_string(),
-            15..=60  => "active".bright_white().to_string(),
+            0..=14 => "fresh".bright_green().to_string(),
+            15..=60 => "active".bright_white().to_string(),
             61..=120 => "stable".yellow().to_string(),
-            _        => "dormant".dimmed().to_string(),
+            _ => "dormant".dimmed().to_string(),
         };
         println!("  {:<34} {:>6}  {}", name, days, stage);
     }
 
     println!();
-    println!("  {}",
-        "age = days since newest file modification inside tool directory".dimmed().italic());
+    println!(
+        "  {}",
+        "age = days since newest file modification inside tool directory"
+            .dimmed()
+            .italic()
+    );
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "Data collected. No suggestions. The forest observes.".dimmed().italic());
+    println!(
+        "  {}",
+        "Data collected. No suggestions. The forest observes."
+            .dimmed()
+            .italic()
+    );
     println!();
 
     Ok(())
@@ -198,7 +285,9 @@ fn newest_mtime(dir: &Path) -> u64 {
             if let Ok(meta) = entry.metadata() {
                 if let Ok(t) = meta.modified() {
                     if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
-                        if d.as_secs() > latest { latest = d.as_secs(); }
+                        if d.as_secs() > latest {
+                            latest = d.as_secs();
+                        }
                     }
                 }
             }
@@ -217,7 +306,11 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("{}", "💡  Architecture Suggestions".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}  {}", "Rule:".dimmed(), "No suggestion without strong evidence.".bright_white());
+    println!(
+        "  {}  {}",
+        "Rule:".dimmed(),
+        "No suggestion without strong evidence.".bright_white()
+    );
     println!();
 
     let mut suggestions: Vec<(String, String, String, String)> = vec![];
@@ -235,8 +328,15 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     let mut cli_churn: Vec<(String, usize)> = vec![];
     for file in &cli_files {
         let output = std::process::Command::new("git")
-            .args(["-C", &ctx.core_root, "log", "--oneline",
-                "--follow", "--", file])
+            .args([
+                "-C",
+                &ctx.core_root,
+                "log",
+                "--oneline",
+                "--follow",
+                "--",
+                file,
+            ])
             .output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -248,13 +348,13 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     let total_cli_churn: usize = cli_churn.iter().map(|(_, c)| c).sum();
-    let high_churn_cli: Vec<_> = cli_churn.iter()
-        .filter(|(_, c)| *c >= 50).collect();
+    let high_churn_cli: Vec<_> = cli_churn.iter().filter(|(_, c)| *c >= 50).collect();
 
     if high_churn_cli.len() >= 2 {
         let evidence = format!(
             "{} CLI files with 50+ changes each ({} total changes)",
-            high_churn_cli.len(), total_cli_churn
+            high_churn_cli.len(),
+            total_cli_churn
         );
         let source = "git log per-file churn + coupling index";
         suggestions.push((
@@ -266,14 +366,15 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── Signal 2: Domain coupling ─────────────────────────────────────────────
-    let domains_path = std::path::Path::new(&ctx.core_root)
-        .join("engine/src/domains");
+    let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
 
     let mut high_coupling: Vec<(String, usize)> = vec![];
     if let Ok(entries) = std::fs::read_dir(&domains_path) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if !path.is_dir() { continue; }
+            if !path.is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
             let coupling = count_cross_domain_refs_suggest(&path);
             if coupling >= 3 {
@@ -285,7 +386,10 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     for (domain, coupling) in &high_coupling {
         suggestions.push((
             format!("Domain '{}' has high cross-domain coupling", domain),
-            format!("{} outbound crate::domains:: references — above threshold of 3", coupling),
+            format!(
+                "{} outbound crate::domains:: references — above threshold of 3",
+                coupling
+            ),
             "evolution map coupling index".to_string(),
             "MEDIUM — single domain signal".to_string(),
         ));
@@ -295,14 +399,19 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     let tools_path = std::path::Path::new(&ctx.core_root).join("rust-tools");
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default().as_secs();
+        .unwrap_or_default()
+        .as_secs();
 
     let mut dormant: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&tools_path) {
         for entry in entries.flatten() {
-            if !entry.path().is_dir() { continue; }
+            if !entry.path().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') { continue; }
+            if name.starts_with('.') {
+                continue;
+            }
             let mtime = newest_mtime_suggest(&entry.path());
             let days = (now.saturating_sub(mtime)) / 86400;
             if days > 120 {
@@ -314,29 +423,44 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     if !dormant.is_empty() {
         suggestions.push((
             "Consider auditing dormant tools".to_string(),
-            format!("{} tools untouched for 120+ days: {}", dormant.len(), dormant.join(", ")),
+            format!(
+                "{} tools untouched for 120+ days: {}",
+                dormant.len(),
+                dormant.join(", ")
+            ),
             "evolution tools lifecycle stage".to_string(),
-            if dormant.len() >= 3 { "HIGH".to_string() } else { "MEDIUM".to_string() },
+            if dormant.len() >= 3 {
+                "HIGH".to_string()
+            } else {
+                "MEDIUM".to_string()
+            },
         ));
     }
 
     // ── Render suggestions ────────────────────────────────────────────────────
     if suggestions.is_empty() {
-        println!("  {} {}", "✅".green(),
-            "No architectural concerns detected. The forest looks healthy.".dimmed());
+        println!(
+            "  {} {}",
+            "✅".green(),
+            "No architectural concerns detected. The forest looks healthy.".dimmed()
+        );
     } else {
-        println!("  {} suggestion(s) detected:\n",
-            suggestions.len().to_string().bright_yellow().bold());
+        println!(
+            "  {} suggestion(s) detected:\n",
+            suggestions.len().to_string().bright_yellow().bold()
+        );
 
         for (i, (title, evidence, source, confidence)) in suggestions.iter().enumerate() {
-            println!("  {} {}",
+            println!(
+                "  {} {}",
                 format!("[{}]", i + 1).bright_yellow().bold(),
                 title.bright_white().bold()
             );
-            println!("  {}  {}", "Evidence:".dimmed(),   evidence.yellow());
-            println!("  {}   {}", "Source:".dimmed(),    source.dimmed());
+            println!("  {}  {}", "Evidence:".dimmed(), evidence.yellow());
+            println!("  {}   {}", "Source:".dimmed(), source.dimmed());
             println!("  {}  {}", "Confidence:".dimmed(), confidence.bright_cyan());
-            println!("  {}  {}",
+            println!(
+                "  {}  {}",
                 "Action:".dimmed(),
                 "core evolve propose  — create a formal proposal".bright_cyan()
             );
@@ -345,7 +469,10 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "The forest suggests. The human decides.".dimmed().italic());
+    println!(
+        "  {}",
+        "The forest suggests. The human decides.".dimmed().italic()
+    );
     println!();
     Ok(())
 }
@@ -372,7 +499,9 @@ fn newest_mtime_suggest(dir: &std::path::Path) -> u64 {
             if let Ok(meta) = entry.metadata() {
                 if let Ok(t) = meta.modified() {
                     if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
-                        if d.as_secs() > latest { latest = d.as_secs(); }
+                        if d.as_secs() > latest {
+                            latest = d.as_secs();
+                        }
                     }
                 }
             }
@@ -397,7 +526,7 @@ pub fn ensure_proposals_schema(ctx: &AppContext) -> CoreResult<()> {
             confidence  TEXT NOT NULL,
             status      TEXT NOT NULL DEFAULT 'pending',
             notes       TEXT
-        );"
+        );",
     )?;
     Ok(())
 }
@@ -416,7 +545,9 @@ pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
         .as_secs() as i64;
 
     // Count existing proposals
-    let existing: i64 = ctx.runtime.db
+    let existing: i64 = ctx
+        .runtime
+        .db
         .query_row("SELECT COUNT(*) FROM evolution_proposals", [], |r| r.get(0))
         .unwrap_or(0);
 
@@ -436,18 +567,32 @@ pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
     let mut total_churn = 0usize;
     for file in &cli_files {
         let output = std::process::Command::new("git")
-            .args(["-C", &ctx.core_root, "log", "--oneline", "--follow", "--", file])
-            .output().ok()
+            .args([
+                "-C",
+                &ctx.core_root,
+                "log",
+                "--oneline",
+                "--follow",
+                "--",
+                file,
+            ])
+            .output()
+            .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .unwrap_or_default();
         let count = output.lines().count();
         total_churn += count;
-        if count >= 50 { high_churn += 1; }
+        if count >= 50 {
+            high_churn += 1;
+        }
     }
     if high_churn >= 2 {
         proposals.push((
             "Split CLI layer into smaller modules".to_string(),
-            format!("{} CLI files with 50+ changes ({} total)", high_churn, total_churn),
+            format!(
+                "{} CLI files with 50+ changes ({} total)",
+                high_churn, total_churn
+            ),
             "git churn + coupling index".to_string(),
             "HIGH".to_string(),
         ));
@@ -457,7 +602,9 @@ pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
     let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
     if let Ok(entries) = std::fs::read_dir(&domains_path) {
         for entry in entries.flatten() {
-            if !entry.path().is_dir() { continue; }
+            if !entry.path().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
             let coupling = count_cross_domain_refs_suggest(&entry.path());
             if coupling >= 4 {
@@ -473,8 +620,11 @@ pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
 
     if proposals.is_empty() {
         println!();
-        println!("  {} {}", "✅".green(),
-            "No proposals to generate — no strong signals detected.".dimmed());
+        println!(
+            "  {} {}",
+            "✅".green(),
+            "No proposals to generate — no strong signals detected.".dimmed()
+        );
         println!();
         return Ok(());
     }
@@ -483,25 +633,46 @@ pub fn evolve_propose(ctx: &AppContext) -> CoreResult<()> {
     for (i, (title, evidence, source, confidence)) in proposals.iter().enumerate() {
         let prop_id = format!("PROP-{:03}", next_id + i as i64);
         // Skip if already exists with same title
-        let exists: i64 = ctx.runtime.db.query_row(
-            "SELECT COUNT(*) FROM evolution_proposals WHERE title = ?1",
-            rusqlite::params![title], |r| r.get(0)
-        ).unwrap_or(0);
-        if exists > 0 { continue; }
+        let exists: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM evolution_proposals WHERE title = ?1",
+                rusqlite::params![title],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        if exists > 0 {
+            continue;
+        }
         ctx.runtime.db.execute(
             "INSERT INTO evolution_proposals (id, timestamp, title, evidence, source, confidence)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params![prop_id, now, title, evidence, source, confidence]
+            rusqlite::params![prop_id, now, title, evidence, source, confidence],
         )?;
         stored += 1;
     }
 
     println!();
-    println!("{}", "📋  Evolution Proposals Generated".bright_cyan().bold());
+    println!(
+        "{}",
+        "📋  Evolution Proposals Generated".bright_cyan().bold()
+    );
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {} new proposal(s) stored.", stored.to_string().bright_green());
-    println!("  {} {}", "Review with:".dimmed(), "core evolution evolve-list".bright_cyan());
-    println!("  {} {}", "Accept with:".dimmed(), "core evolution evolve-accept <id>".bright_cyan());
+    println!(
+        "  {} new proposal(s) stored.",
+        stored.to_string().bright_green()
+    );
+    println!(
+        "  {} {}",
+        "Review with:".dimmed(),
+        "core evolution evolve-list".bright_cyan()
+    );
+    println!(
+        "  {} {}",
+        "Accept with:".dimmed(),
+        "core evolution evolve-accept <id>".bright_cyan()
+    );
     println!();
     Ok(())
 }
@@ -515,25 +686,32 @@ pub fn evolve_list(ctx: &AppContext) -> CoreResult<()> {
         "SELECT id, title, evidence, confidence, status FROM evolution_proposals ORDER BY timestamp DESC"
     )?;
 
-    let rows: Vec<(String, String, String, String, String)> = stmt.query_map([], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(String, String, String, String, String)> = stmt
+        .query_map([], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     println!();
     println!("{}", "📋  Evolution Proposals".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
 
     if rows.is_empty() {
-        println!("  {} No proposals yet. Run: {}", "○".dimmed(),
-            "core evolution evolve-propose".bright_cyan());
+        println!(
+            "  {} No proposals yet. Run: {}",
+            "○".dimmed(),
+            "core evolution evolve-propose".bright_cyan()
+        );
     } else {
         for (id, title, evidence, confidence, status) in &rows {
             let status_colored = match status.as_str() {
                 "accepted" => status.bright_green().to_string(),
                 "rejected" => status.bright_red().to_string(),
-                _          => status.yellow().to_string(),
+                _ => status.yellow().to_string(),
             };
-            println!("  {} {} {}",
+            println!(
+                "  {} {} {}",
                 id.bright_white().bold(),
                 format!("[{}]", status_colored),
                 title.bright_white()
@@ -545,7 +723,10 @@ pub fn evolve_list(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "The forest proposes. The human decides.".dimmed().italic());
+    println!(
+        "  {}",
+        "The forest proposes. The human decides.".dimmed().italic()
+    );
     println!();
     Ok(())
 }
@@ -557,7 +738,7 @@ pub fn evolve_accept(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     let result = ctx.runtime.db.execute(
         "UPDATE evolution_proposals SET status = 'accepted' WHERE id = ?1",
-        rusqlite::params![id]
+        rusqlite::params![id],
     )?;
 
     if result == 0 {
@@ -566,18 +747,30 @@ pub fn evolve_accept(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
 
     // Get proposal title for intent suggestion
-    let title: String = ctx.runtime.db.query_row(
-        "SELECT title FROM evolution_proposals WHERE id = ?1",
-        rusqlite::params![id], |r| r.get(0)
-    ).unwrap_or_else(|_| "Unknown proposal".to_string());
+    let title: String = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT title FROM evolution_proposals WHERE id = ?1",
+            rusqlite::params![id],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "Unknown proposal".to_string());
 
     println!();
-    println!("  {} Proposal {} accepted.", "✅".green(), id.bright_white().bold());
+    println!(
+        "  {} Proposal {} accepted.",
+        "✅".green(),
+        id.bright_white().bold()
+    );
     println!("  {} {}", "Title:".dimmed(), title.bright_white());
     println!();
-    println!("  {} Record as a formal intent:",
-        "Next step:".bright_cyan().bold());
-    println!("  {} {}",
+    println!(
+        "  {} Record as a formal intent:",
+        "Next step:".bright_cyan().bold()
+    );
+    println!(
+        "  {} {}",
         "→".bright_cyan(),
         format!("core decide \"Implement: {}\"", title).dimmed()
     );
@@ -592,7 +785,7 @@ pub fn evolve_reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     let result = ctx.runtime.db.execute(
         "UPDATE evolution_proposals SET status = 'rejected' WHERE id = ?1",
-        rusqlite::params![id]
+        rusqlite::params![id],
     )?;
 
     if result == 0 {
@@ -601,8 +794,15 @@ pub fn evolve_reject(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
 
     println!();
-    println!("  {} Proposal {} rejected and logged.", "○".dimmed(), id.bright_white());
-    println!("  {}", "The forest remembers the decision.".dimmed().italic());
+    println!(
+        "  {} Proposal {} rejected and logged.",
+        "○".dimmed(),
+        id.bright_white()
+    );
+    println!(
+        "  {}",
+        "The forest remembers the decision.".dimmed().italic()
+    );
     println!();
     Ok(())
 }
@@ -626,18 +826,24 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
 
     // Scan domains for references to keywords in the change
     let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
-    let keywords: Vec<&str> = change_lower.split_whitespace()
+    let keywords: Vec<&str> = change_lower
+        .split_whitespace()
         .filter(|w| w.len() > 4)
         .collect();
 
     if let Ok(entries) = std::fs::read_dir(&domains_path) {
         for entry in entries.flatten() {
-            if !entry.path().is_dir() { continue; }
+            if !entry.path().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
             let mod_path = entry.path().join("mod.rs");
             if let Ok(content) = std::fs::read_to_string(&mod_path) {
                 let content_lower = content.to_lowercase();
-                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                let hits = keywords
+                    .iter()
+                    .filter(|k| content_lower.contains(*k))
+                    .count();
                 if hits > 0 {
                     affected.push(format!("{} ({} keyword matches)", name, hits));
                 }
@@ -650,12 +856,17 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     let mut affected_tools: Vec<String> = vec![];
     if let Ok(entries) = std::fs::read_dir(&tools_path) {
         for entry in entries.flatten() {
-            if !entry.path().is_dir() { continue; }
+            if !entry.path().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
             let src = entry.path().join("src/main.rs");
             if let Ok(content) = std::fs::read_to_string(&src) {
                 let content_lower = content.to_lowercase();
-                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                let hits = keywords
+                    .iter()
+                    .filter(|k| content_lower.contains(*k))
+                    .count();
                 if hits >= 2 {
                     affected_tools.push(name);
                 }
@@ -664,20 +875,29 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Generate warnings based on change type
-    if change_lower.contains("remov") || change_lower.contains("delet") || change_lower.contains("drop") {
+    if change_lower.contains("remov")
+        || change_lower.contains("delet")
+        || change_lower.contains("drop")
+    {
         warnings.push("Removal changes are irreversible — snapshot first".to_string());
         warnings.push("Run: core checkpoint before making this change".to_string());
     }
     if change_lower.contains("split") || change_lower.contains("refactor") {
         warnings.push("Refactoring may break existing aliases and integrations".to_string());
     }
-    if change_lower.contains("cli") || change_lower.contains("command") || change_lower.contains("dispatch") {
+    if change_lower.contains("cli")
+        || change_lower.contains("command")
+        || change_lower.contains("dispatch")
+    {
         warnings.push("CLI changes affect all 43 tools that call core".to_string());
     }
 
     // Render
     if affected.is_empty() {
-        println!("  {} No domain references detected for this change.", "○".dimmed());
+        println!(
+            "  {} No domain references detected for this change.",
+            "○".dimmed()
+        );
     } else {
         println!("  {} Affected domains:", "→".bright_yellow());
         for d in &affected {
@@ -703,7 +923,12 @@ pub fn future_sim(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "Simulation complete. The forest proposes. The human decides.".dimmed().italic());
+    println!(
+        "  {}",
+        "Simulation complete. The forest proposes. The human decides."
+            .dimmed()
+            .italic()
+    );
     println!();
     Ok(())
 }
@@ -725,10 +950,16 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
     if change_lower.contains("remov") || change_lower.contains("delet") {
         factors.push(("Removal/deletion — hard to reverse".to_string(), 30));
     }
-    if change_lower.contains("cli") || change_lower.contains("dispatch") || change_lower.contains("command") {
+    if change_lower.contains("cli")
+        || change_lower.contains("dispatch")
+        || change_lower.contains("command")
+    {
         factors.push(("CLI layer change — affects all consumers".to_string(), 25));
     }
-    if change_lower.contains("database") || change_lower.contains("schema") || change_lower.contains("sqlite") {
+    if change_lower.contains("database")
+        || change_lower.contains("schema")
+        || change_lower.contains("sqlite")
+    {
         factors.push(("Database/schema change — migration risk".to_string(), 25));
     }
     if change_lower.contains("split") || change_lower.contains("refactor") {
@@ -742,33 +973,45 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Check health — low health increases risk
-    let health: u32 = ctx.runtime.db.query_row(
-        "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-        [], |r| r.get::<_, String>(0)
-    ).ok()
-    .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-    .and_then(|v| v["detail"]["health"].as_i64())
-    .unwrap_or(100) as u32;
+    let health: u32 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+        .and_then(|v| v["detail"]["health"].as_i64())
+        .unwrap_or(100) as u32;
 
     if health < 95 {
-        factors.push((format!("Health at {}% — elevated baseline risk", health), 10));
+        factors.push((
+            format!("Health at {}% — elevated baseline risk", health),
+            10,
+        ));
     }
 
-    for (_, score) in &factors { risk_score += score; }
+    for (_, score) in &factors {
+        risk_score += score;
+    }
     risk_score = risk_score.min(100);
 
     let risk_label = match risk_score {
-        0..=20  => ("LOW",      "bright_green"),
-        21..=50 => ("MEDIUM",   "yellow"),
-        51..=75 => ("HIGH",     "bright_red"),
-        _       => ("CRITICAL", "bright_red"),
+        0..=20 => ("LOW", "bright_green"),
+        21..=50 => ("MEDIUM", "yellow"),
+        51..=75 => ("HIGH", "bright_red"),
+        _ => ("CRITICAL", "bright_red"),
     };
 
-    println!("  {}  {}/100",
+    println!(
+        "  {}  {}/100",
         "Risk Score:".dimmed(),
         risk_score.to_string().bright_yellow().bold()
     );
-    println!("  {}  {}",
+    println!(
+        "  {}  {}",
         "Risk Level:".dimmed(),
         risk_label.0.bright_yellow().bold()
     );
@@ -784,10 +1027,16 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     println!();
-    println!("  {} {}", "Mitigation:".dimmed(),
-        "core checkpoint  — snapshot before proceeding".bright_cyan());
+    println!(
+        "  {} {}",
+        "Mitigation:".dimmed(),
+        "core checkpoint  — snapshot before proceeding".bright_cyan()
+    );
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "The forest assesses. The human decides.".dimmed().italic());
+    println!(
+        "  {}",
+        "The forest assesses. The human decides.".dimmed().italic()
+    );
     println!();
     Ok(())
 }
@@ -802,13 +1051,19 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     println!();
 
     let change_lower = change.to_lowercase();
-    let keywords: Vec<&str> = change_lower.split_whitespace()
-        .filter(|w| w.len() > 4).collect();
+    let keywords: Vec<&str> = change_lower
+        .split_whitespace()
+        .filter(|w| w.len() > 4)
+        .collect();
 
     // Count total domains affected
     let domains_path = std::path::Path::new(&ctx.core_root).join("engine/src/domains");
     let total_domains: usize = std::fs::read_dir(&domains_path)
-        .map(|e| e.filter_map(|x| x.ok()).filter(|x| x.path().is_dir()).count())
+        .map(|e| {
+            e.filter_map(|x| x.ok())
+                .filter(|x| x.path().is_dir())
+                .count()
+        })
         .unwrap_or(0);
 
     let mut affected_count = 0usize;
@@ -816,15 +1071,22 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
 
     if let Ok(entries) = std::fs::read_dir(&domains_path) {
         for entry in entries.flatten() {
-            if !entry.path().is_dir() { continue; }
+            if !entry.path().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
             let mod_path = entry.path().join("mod.rs");
             if let Ok(content) = std::fs::read_to_string(&mod_path) {
                 let content_lower = content.to_lowercase();
-                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                let hits = keywords
+                    .iter()
+                    .filter(|k| content_lower.contains(*k))
+                    .count();
                 if hits > 0 {
                     affected_count += 1;
-                    if hits >= 3 { high_impact.push(name); }
+                    if hits >= 3 {
+                        high_impact.push(name);
+                    }
                 }
             }
         }
@@ -832,22 +1094,29 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
 
     let impact_pct = if total_domains > 0 {
         (affected_count * 100) / total_domains
-    } else { 0 };
-
-    let blast_radius = match impact_pct {
-        0..=10  => "CONTAINED — minimal blast radius",
-        11..=30 => "MODERATE — several domains affected",
-        31..=60 => "SIGNIFICANT — major subsystem affected",
-        _       => "WIDE — forest-wide impact",
+    } else {
+        0
     };
 
-    println!("  {}  {}/{} domains ({}%)",
+    let blast_radius = match impact_pct {
+        0..=10 => "CONTAINED — minimal blast radius",
+        11..=30 => "MODERATE — several domains affected",
+        31..=60 => "SIGNIFICANT — major subsystem affected",
+        _ => "WIDE — forest-wide impact",
+    };
+
+    println!(
+        "  {}  {}/{} domains ({}%)",
         "Affected:".dimmed(),
         affected_count.to_string().bright_yellow(),
         total_domains,
         impact_pct
     );
-    println!("  {}  {}", "Blast radius:".dimmed(), blast_radius.bright_yellow());
+    println!(
+        "  {}  {}",
+        "Blast radius:".dimmed(),
+        blast_radius.bright_yellow()
+    );
     println!();
 
     if !high_impact.is_empty() {
@@ -865,7 +1134,10 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
         for entry in entries.flatten() {
             if let Ok(content) = std::fs::read_to_string(entry.path()) {
                 let content_lower = content.to_lowercase();
-                let hits = keywords.iter().filter(|k| content_lower.contains(*k)).count();
+                let hits = keywords
+                    .iter()
+                    .filter(|k| content_lower.contains(*k))
+                    .count();
                 if hits >= 2 {
                     let name = entry.file_name().to_string_lossy().to_string();
                     at_risk_intents.push(name.replace(".md", ""));
@@ -883,7 +1155,12 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "Impact mapped. The forest proposes. The human decides.".dimmed().italic());
+    println!(
+        "  {}",
+        "Impact mapped. The forest proposes. The human decides."
+            .dimmed()
+            .italic()
+    );
     println!();
     Ok(())
 }

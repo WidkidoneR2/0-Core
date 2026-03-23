@@ -297,7 +297,9 @@ pub enum LinkCommands {
 #[derive(Subcommand)]
 pub enum IntentCommands {
     /// Set focused intent
-    Focus { id: String },
+    Focus {
+        id: String,
+    },
     /// Clear focused intent
     Unfocus,
     /// Show current focus and workflow state
@@ -305,9 +307,13 @@ pub enum IntentCommands {
     /// Detect if work has drifted from focused intent
     Drift,
     /// Transition intent to in-progress and set focus
-    Start { id: String },
+    Start {
+        id: String,
+    },
     /// Mark intent as complete and move to complete/
-    Complete { id: String },
+    Complete {
+        id: String,
+    },
     /// Create a new intent from template
     New {
         /// Template type: feature, fix, arch, study
@@ -316,13 +322,17 @@ pub enum IntentCommands {
         title: String,
     },
     /// Show dependency graph for an intent
-    Deps { id: String },
+    Deps {
+        id: String,
+    },
     /// Show completion burndown chart
     Burndown,
     /// Show velocity metrics
     Velocity,
     /// Generate git branch name for intent
-    Branch { id: String },
+    Branch {
+        id: String,
+    },
     List {
         #[arg(long)]
         planned: bool,

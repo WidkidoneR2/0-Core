@@ -2,8 +2,8 @@
 // Phase 2: structured data pipeline
 // "Not text streams. Structured wisdom."
 
-use std::collections::HashMap;
 use colored::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -20,12 +20,12 @@ pub enum Value {
 impl Value {
     pub fn as_text(&self) -> String {
         match self {
-            Value::Text(s)  => s.clone(),
-            Value::Int(i)   => i.to_string(),
+            Value::Text(s) => s.clone(),
+            Value::Int(i) => i.to_string(),
             Value::Float(f) => format!("{:.2}", f),
-            Value::Bool(b)  => b.to_string(),
-            Value::Nothing  => "".to_string(),
-            Value::Row(_)   => "[row]".to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Nothing => "".to_string(),
+            Value::Row(_) => "[row]".to_string(),
             Value::Table(t) => format!("[table: {} rows]", t.len()),
         }
     }
@@ -33,9 +33,9 @@ impl Value {
     #[allow(dead_code)]
     pub fn as_int(&self) -> Option<i64> {
         match self {
-            Value::Int(i)   => Some(*i),
+            Value::Int(i) => Some(*i),
             Value::Float(f) => Some(*f as i64),
-            Value::Text(s)  => s.parse().ok(),
+            Value::Text(s) => s.parse().ok(),
             _ => None,
         }
     }
@@ -43,10 +43,10 @@ impl Value {
     #[allow(dead_code)]
     pub fn is_truthy(&self) -> bool {
         match self {
-            Value::Bool(b)  => *b,
-            Value::Int(i)   => *i != 0,
-            Value::Text(s)  => !s.is_empty(),
-            Value::Nothing  => false,
+            Value::Bool(b) => *b,
+            Value::Int(i) => *i != 0,
+            Value::Text(s) => !s.is_empty(),
+            Value::Nothing => false,
             _ => true,
         }
     }
@@ -55,12 +55,19 @@ impl Value {
     pub fn render(&self) -> String {
         match self {
             Value::Table(rows) => render_table(rows),
-            Value::Row(row)    => render_row(row),
-            Value::Text(s)     => format!("  {}", s),
-            Value::Int(i)      => format!("  {}", i.to_string().bright_white()),
-            Value::Float(f)    => format!("  {:.2}", f),
-            Value::Bool(b)     => format!("  {}", if *b { "true".bright_green() } else { "false".bright_red() }),
-            Value::Nothing     => String::new(),
+            Value::Row(row) => render_row(row),
+            Value::Text(s) => format!("  {}", s),
+            Value::Int(i) => format!("  {}", i.to_string().bright_white()),
+            Value::Float(f) => format!("  {:.2}", f),
+            Value::Bool(b) => format!(
+                "  {}",
+                if *b {
+                    "true".bright_green()
+                } else {
+                    "false".bright_red()
+                }
+            ),
+            Value::Nothing => String::new(),
         }
     }
 }
@@ -90,7 +97,11 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
     // Header
     out.push_str("  ");
     for (i, h) in headers.iter().enumerate() {
-        out.push_str(&format!("{:<width$}  ", h.bright_white().bold(), width = widths[i]));
+        out.push_str(&format!(
+            "{:<width$}  ",
+            h.bright_white().bold(),
+            width = widths[i]
+        ));
     }
     out.push('\n');
 
@@ -112,7 +123,11 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
                 } else {
                     val
                 };
-                out.push_str(&format!("{:<width$}  ", truncated.dimmed(), width = widths[i]));
+                out.push_str(&format!(
+                    "{:<width$}  ",
+                    truncated.dimmed(),
+                    width = widths[i]
+                ));
             }
         }
         out.push('\n');
@@ -124,7 +139,8 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
 fn render_row(row: &HashMap<String, Value>) -> String {
     let mut out = String::new();
     for (k, v) in row {
-        out.push_str(&format!("  {:<20} {}\n",
+        out.push_str(&format!(
+            "  {:<20} {}\n",
             k.bright_white(),
             v.as_text().dimmed()
         ));
@@ -143,46 +159,79 @@ pub fn apply_pipeline(value: Value, ops: &[PipeOp]) -> Value {
 
 #[derive(Debug, Clone)]
 pub enum PipeOp {
-    Where { field: String, op: String, value: String },
-    Select { fields: Vec<String> },
-    Sort { field: String, desc: bool },
+    Where {
+        field: String,
+        op: String,
+        value: String,
+    },
+    Select {
+        fields: Vec<String>,
+    },
+    Sort {
+        field: String,
+        desc: bool,
+    },
     First(usize),
     Last(usize),
     Count,
     Get(String),
-    Watch { interval: u64 },
-    Join { table: String, on: String },
-    JoinData { rows: Vec<std::collections::HashMap<String, Value>>, on: String },
+    Watch {
+        interval: u64,
+    },
+    Join {
+        table: String,
+        on: String,
+    },
+    JoinData {
+        rows: Vec<std::collections::HashMap<String, Value>>,
+        on: String,
+    },
     // pipe to external unix command
     #[allow(dead_code)]
     External(String),
-    Group { field: String },
+    Group {
+        field: String,
+    },
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
     match (value, op) {
-        (Value::Table(rows), PipeOp::Where { field, op, value: filter_val }) => {
-            let filtered: Vec<_> = rows.into_iter().filter(|row| {
-                let cell = row.get(field).map(|v| v.as_text()).unwrap_or_default();
-                match op.as_str() {
-                    "==" | "=" => cell == *filter_val,
-                    "!="       => cell != *filter_val,
-                    ">"        => cell.parse::<f64>().ok() > filter_val.parse::<f64>().ok(),
-                    "<"        => cell.parse::<f64>().ok() < filter_val.parse::<f64>().ok(),
-                    ">="       => cell.parse::<f64>().ok() >= filter_val.parse::<f64>().ok(),
-                    "<="       => cell.parse::<f64>().ok() <= filter_val.parse::<f64>().ok(),
-                    "contains" => cell.to_lowercase().contains(&filter_val.to_lowercase()),
-                    _          => false,
-                }
-            }).collect();
+        (
+            Value::Table(rows),
+            PipeOp::Where {
+                field,
+                op,
+                value: filter_val,
+            },
+        ) => {
+            let filtered: Vec<_> = rows
+                .into_iter()
+                .filter(|row| {
+                    let cell = row.get(field).map(|v| v.as_text()).unwrap_or_default();
+                    match op.as_str() {
+                        "==" | "=" => cell == *filter_val,
+                        "!=" => cell != *filter_val,
+                        ">" => cell.parse::<f64>().ok() > filter_val.parse::<f64>().ok(),
+                        "<" => cell.parse::<f64>().ok() < filter_val.parse::<f64>().ok(),
+                        ">=" => cell.parse::<f64>().ok() >= filter_val.parse::<f64>().ok(),
+                        "<=" => cell.parse::<f64>().ok() <= filter_val.parse::<f64>().ok(),
+                        "contains" => cell.to_lowercase().contains(&filter_val.to_lowercase()),
+                        _ => false,
+                    }
+                })
+                .collect();
             Value::Table(filtered)
         }
         (Value::Table(rows), PipeOp::Select { fields }) => {
-            let selected: Vec<_> = rows.into_iter().map(|row| {
-                fields.iter()
-                    .filter_map(|f| row.get(f).map(|v| (f.clone(), v.clone())))
-                    .collect()
-            }).collect();
+            let selected: Vec<_> = rows
+                .into_iter()
+                .map(|row| {
+                    fields
+                        .iter()
+                        .filter_map(|f| row.get(f).map(|v| (f.clone(), v.clone())))
+                        .collect()
+                })
+                .collect();
             Value::Table(selected)
         }
         (Value::Table(mut rows), PipeOp::Sort { field, desc }) => {
@@ -195,59 +244,74 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
                 } else {
                     av.cmp(&bv)
                 };
-                if *desc { cmp.reverse() } else { cmp }
+                if *desc {
+                    cmp.reverse()
+                } else {
+                    cmp
+                }
             });
             Value::Table(rows)
         }
-        (Value::Table(rows), PipeOp::First(n)) => {
-            Value::Table(rows.into_iter().take(*n).collect())
-        }
+        (Value::Table(rows), PipeOp::First(n)) => Value::Table(rows.into_iter().take(*n).collect()),
         (Value::Table(rows), PipeOp::Last(n)) => {
             let len = rows.len();
             Value::Table(rows.into_iter().skip(len.saturating_sub(*n)).collect())
         }
-        (Value::Table(rows), PipeOp::Count) => {
-            Value::Int(rows.len() as i64)
-        }
+        (Value::Table(rows), PipeOp::Count) => Value::Int(rows.len() as i64),
         (Value::Table(rows), PipeOp::Get(field)) => {
             if rows.len() == 1 {
                 rows[0].get(field).cloned().unwrap_or(Value::Nothing)
             } else {
-                Value::Table(rows.into_iter().filter_map(|row| {
-                    row.get(field).map(|v| {
-                        let mut m = HashMap::new();
-                        m.insert(field.clone(), v.clone());
-                        m
-                    })
-                }).collect())
+                Value::Table(
+                    rows.into_iter()
+                        .filter_map(|row| {
+                            row.get(field).map(|v| {
+                                let mut m = HashMap::new();
+                                m.insert(field.clone(), v.clone());
+                                m
+                            })
+                        })
+                        .collect(),
+                )
             }
         }
         // Group — aggregate rows by field value, count each group
         (Value::Table(rows), PipeOp::Group { field }) => {
             use std::collections::HashMap as HM;
-            let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+            let mut counts: std::collections::BTreeMap<String, usize> =
+                std::collections::BTreeMap::new();
             for row in &rows {
                 let key = row.get(field).map(|v| v.as_text()).unwrap_or_default();
                 *counts.entry(key).or_insert(0) += 1;
             }
             let total = rows.len();
-            let grouped: Vec<HM<String, Value>> = counts.into_iter().map(|(key, count)| {
-                let pct = format!("{:.1}%", (count as f64 / total as f64) * 100.0);
-                let mut row = HM::new();
-                row.insert(field.clone(), Value::Text(key));
-                row.insert("count".to_string(), Value::Int(count as i64));
-                row.insert("pct".to_string(), Value::Text(pct));
-                row
-            }).collect();
+            let grouped: Vec<HM<String, Value>> = counts
+                .into_iter()
+                .map(|(key, count)| {
+                    let pct = format!("{:.1}%", (count as f64 / total as f64) * 100.0);
+                    let mut row = HM::new();
+                    row.insert(field.clone(), Value::Text(key));
+                    row.insert("count".to_string(), Value::Int(count as i64));
+                    row.insert("pct".to_string(), Value::Text(pct));
+                    row
+                })
+                .collect();
             Value::Table(grouped)
         }
         // JoinData — pre-resolved join (table already fetched by main.rs)
-        (Value::Table(left_rows), PipeOp::JoinData { rows: right_rows, on }) => {
+        (
+            Value::Table(left_rows),
+            PipeOp::JoinData {
+                rows: right_rows,
+                on,
+            },
+        ) => {
             let mut result = vec![];
             for left in left_rows {
                 let left_key = left.get(on).map(|v| v.as_text()).unwrap_or_default();
                 // Find matching right rows
-                let matches: Vec<_> = right_rows.iter()
+                let matches: Vec<_> = right_rows
+                    .iter()
                     .filter(|r| r.get(on).map(|v| v.as_text()).unwrap_or_default() == left_key)
                     .collect();
                 if matches.is_empty() {
@@ -290,13 +354,21 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
             value: val.trim_matches('"').to_string(),
         }),
         ["select", rest @ ..] => Some(PipeOp::Select {
-            fields: rest.join(" ").split(|c| c == ',' || c == ' ')
+            fields: rest
+                .join(" ")
+                .split([',', ' '])
                 .map(|f| f.trim().to_string())
                 .filter(|f| !f.is_empty())
                 .collect(),
         }),
-        ["sort", field] => Some(PipeOp::Sort { field: field.to_string(), desc: false }),
-        ["sort", field, "desc"] => Some(PipeOp::Sort { field: field.to_string(), desc: true }),
+        ["sort", field] => Some(PipeOp::Sort {
+            field: field.to_string(),
+            desc: false,
+        }),
+        ["sort", field, "desc"] => Some(PipeOp::Sort {
+            field: field.to_string(),
+            desc: true,
+        }),
         ["first", n] => n.parse().ok().map(PipeOp::First),
         ["last", n] => n.parse().ok().map(PipeOp::Last),
         ["count"] => Some(PipeOp::Count),
@@ -304,7 +376,9 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         ["watch"] => Some(PipeOp::Watch { interval: 2 }),
         ["watch", n] => n.parse().ok().map(|i| PipeOp::Watch { interval: i }),
         // group <field>
-        ["group", field] => Some(PipeOp::Group { field: field.to_string() }),
+        ["group", field] => Some(PipeOp::Group {
+            field: field.to_string(),
+        }),
         // join <table> on <field>
         ["join", table, "on", field] => Some(PipeOp::Join {
             table: table.to_string(),
@@ -313,10 +387,15 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         _ => {
             // Unknown pipe op — try as external command
             let cmd = s.trim().to_string();
-            if cmd.is_empty() { return None; }
+            if cmd.is_empty() {
+                return None;
+            }
             // Only treat as external if it looks like a binary name
             let first = cmd.split_whitespace().next().unwrap_or("");
-            if first.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '/') {
+            if first
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '/')
+            {
                 Some(PipeOp::External(cmd))
             } else {
                 None

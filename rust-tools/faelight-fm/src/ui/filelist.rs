@@ -16,10 +16,10 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
 
             let (git_marker, git_color) = match entry.git_status {
                 GitStatus::Modified => ("▲", Color::Rgb(227, 163, 107)),
-                GitStatus::Added    => ("✚", Color::Rgb(163, 227, 107)),
-                GitStatus::Deleted  => ("✖", Color::Rgb(200, 100, 100)),
+                GitStatus::Added => ("✚", Color::Rgb(163, 227, 107)),
+                GitStatus::Deleted => ("✖", Color::Rgb(200, 100, 100)),
                 GitStatus::Untracked => ("◌", FaelightColors::TEXT_DIM),
-                GitStatus::Clean    => (" ", FaelightColors::TEXT_DIM),
+                GitStatus::Clean => (" ", FaelightColors::TEXT_DIM),
             };
 
             let name_style = if entry.is_symlink {
@@ -55,7 +55,11 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
             };
 
             // Intent indicator
-            let intent_marker = if entry.intent_info.is_some() { "◆" } else { " " };
+            let intent_marker = if entry.intent_info.is_some() {
+                "◆"
+            } else {
+                " "
+            };
 
             let spans = vec![
                 Span::styled(
@@ -64,9 +68,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                 ),
                 Span::styled(
                     format!("{} ", intent_marker),
-                    Style::default()
-                        .fg(FaelightColors::ACCENT_GREEN)
-                        .bg(bg),
+                    Style::default().fg(FaelightColors::ACCENT_GREEN).bg(bg),
                 ),
                 Span::styled(format!("{} ", entry.icon()), name_style),
                 Span::styled(format!("{}{}", entry.name, suffix), name_style),
@@ -87,10 +89,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
             app.filtered_entries.len()
         )
     } else {
-        format!(
-            " 🌲 {} items ",
-            app.filtered_entries.len()
-        )
+        format!(" 🌲 {} items ", app.filtered_entries.len())
     };
 
     let list = List::new(items)
@@ -98,9 +97,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
             Block::default()
                 .title(Span::styled(
                     title,
-                    Style::default()
-                        .fg(FaelightColors::ACCENT_GREEN)
-                        .bold(),
+                    Style::default().fg(FaelightColors::ACCENT_GREEN).bold(),
                 ))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)

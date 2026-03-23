@@ -5,7 +5,6 @@ use crate::db::ForestDb;
 extern crate libc;
 use colored::*;
 
-
 // ── Time formatting helper ───────────────────────────────────────────────────
 fn fmt_time(ts: i64, fmt: &str) -> String {
     chrono::DateTime::from_timestamp(ts, 0)
@@ -20,8 +19,6 @@ pub enum CommandResult {
     Error(String),
     Exit,
 }
-
-
 
 // ── Security Layer — log every command ───────────────────────────────────────
 fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
@@ -44,14 +41,22 @@ fn levenshtein(a: &str, b: &str) -> usize {
     let la = a.len();
     let lb = b.len();
     let mut dp = vec![vec![0usize; lb + 1]; la + 1];
-    for i in 0..=la { dp[i][0] = i; }
-    for j in 0..=lb { dp[0][j] = j; }
+    for i in 0..=la {
+        dp[i][0] = i;
+    }
+    for j in 0..=lb {
+        dp[0][j] = j;
+    }
     for i in 1..=la {
         for j in 1..=lb {
-            let cost = if a.as_bytes()[i-1] == b.as_bytes()[j-1] { 0 } else { 1 };
-            dp[i][j] = (dp[i-1][j] + 1)
-                .min(dp[i][j-1] + 1)
-                .min(dp[i-1][j-1] + cost);
+            let cost = if a.as_bytes()[i - 1] == b.as_bytes()[j - 1] {
+                0
+            } else {
+                1
+            };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + cost);
         }
     }
     dp[la][lb]
@@ -80,7 +85,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     // Plugin resolution — after final cmd parse
     {
         let plugins = db.load_plugins();
-        if let Some((_, expand, _)) = plugins.iter().find(|(name, _, _)| name.as_str() == cmd.as_str()) {
+        if let Some((_, expand, _)) = plugins
+            .iter()
+            .find(|(name, _, _)| name.as_str() == cmd.as_str())
+        {
             let expanded = if args.is_empty() {
                 expand.clone()
             } else {
@@ -163,17 +171,22 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
                 Err(_) => CommandResult::Error("core doctor run failed".to_string()),
             }
-        },
-        "clear" | "c" | "cls" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Output(crate::prompt::status_line(db)) }
+        }
+        "clear" | "c" | "cls" => {
+            print!("\x1B[2J\x1B[1;1H");
+            use std::io::Write;
+            std::io::stdout().flush().ok();
+            CommandResult::Output(crate::prompt::status_line(db))
+        }
         _ => run_external(line, db),
     };
 
     // Security layer — log every command
     let result_str = match &result {
         CommandResult::Error(_) => "error",
-        CommandResult::Exit    => "exit",
-        CommandResult::Empty   => "empty",
-        _                      => "ok",
+        CommandResult::Exit => "exit",
+        CommandResult::Empty => "empty",
+        _ => "ok",
     };
     emit_command(db, &cmd, result_str);
     result
@@ -183,47 +196,77 @@ fn forecast(db: &ForestDb) -> CommandResult {
     // Read last 10 doctor events and compute trend
     let points: Vec<i64> = {
         let mut stmt = match db.conn.prepare(
-            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10"
+            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10",
         ) {
             Ok(s) => s,
             Err(_) => return CommandResult::Error("No forecast data".to_string()),
         };
-        stmt.query_map([], |r| r.get::<_,String>(0))
-            .map(|rows| rows.filter_map(|r| r.ok())
-                .filter_map(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-                .filter_map(|v| v["detail"]["health"].as_i64())
-                .collect())
+        stmt.query_map([], |r| r.get::<_, String>(0))
+            .map(|rows| {
+                rows.filter_map(|r| r.ok())
+                    .filter_map(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+                    .filter_map(|v| v["detail"]["health"].as_i64())
+                    .collect()
+            })
             .unwrap_or_default()
     };
 
     if points.len() < 3 {
         return CommandResult::Output(format!(
             "  {} Not enough data for forecast yet — run {} a few times",
-            "○".dimmed(), "d".bright_cyan()
+            "○".dimmed(),
+            "d".bright_cyan()
         ));
     }
 
     let current = points[0];
     let recent_avg: f64 = points.iter().take(3).map(|h| *h as f64).sum::<f64>() / 3.0;
-    let older_avg: f64 = points.iter().skip(3).map(|h| *h as f64).sum::<f64>() / (points.len() - 3) as f64;
+    let older_avg: f64 =
+        points.iter().skip(3).map(|h| *h as f64).sum::<f64>() / (points.len() - 3) as f64;
     let trend = recent_avg - older_avg;
     let forecast_24h = (current as f64 + trend * 0.5).round() as i64;
     let forecast_7d = (current as f64 + trend * 2.0).round() as i64;
     let forecast_24h = forecast_24h.max(0).min(100);
     let forecast_7d = forecast_7d.max(0).min(100);
 
-    let trend_icon = if trend > 1.0 { "📈" } else if trend < -1.0 { "📉" } else { "➡️ " };
-    let trend_str = if trend > 0.5 { format!("+{:.1}", trend).bright_green().to_string() }
-        else if trend < -0.5 { format!("{:.1}", trend).yellow().to_string() }
-        else { "stable".dimmed().to_string() };
+    let trend_icon = if trend > 1.0 {
+        "📈"
+    } else if trend < -1.0 {
+        "📉"
+    } else {
+        "➡️ "
+    };
+    let trend_str = if trend > 0.5 {
+        format!("+{:.1}", trend).bright_green().to_string()
+    } else if trend < -0.5 {
+        format!("{:.1}", trend).yellow().to_string()
+    } else {
+        "stable".dimmed().to_string()
+    };
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 📈 Health Forecast ──────────────────────────────".bright_cyan()));
-    out.push_str(&format!("  │  Current:  {}%\n", current.to_string().bright_white().bold()));
-    out.push_str(&format!("  │  24h:      {}%\n", forecast_24h.to_string().bright_green()));
-    out.push_str(&format!("  │  7d:       {}%\n", forecast_7d.to_string().bright_green()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 📈 Health Forecast ──────────────────────────────".bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  Current:  {}%\n",
+        current.to_string().bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  24h:      {}%\n",
+        forecast_24h.to_string().bright_green()
+    ));
+    out.push_str(&format!(
+        "  │  7d:       {}%\n",
+        forecast_7d.to_string().bright_green()
+    ));
     out.push_str(&format!("  │  Trend:    {} {}\n", trend_icon, trend_str));
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
@@ -235,20 +278,30 @@ fn sandbox(db: &ForestDb) -> CommandResult {
             Ok(s) => s,
             Err(_) => return CommandResult::Output(format!("  {} No sandbox runs yet", "○".dimmed())),
         };
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
-            .map(|rows| rows.filter_map(|r| r.ok()).collect())
-            .unwrap_or_default()
+        stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default()
     };
 
     if rows.is_empty() {
         return CommandResult::Output(format!(
             "  {} No sandbox runs recorded — use {}",
-            "○".dimmed(), "faelight-sandbox run".bright_cyan()
+            "○".dimmed(),
+            "faelight-sandbox run".bright_cyan()
         ));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🧪 Sandbox Runs ───────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🧪 Sandbox Runs ───────────────────────────────────".bright_cyan()
+    ));
     for (payload, _, ts) in &rows {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload) {
             let cmd = v["detail"]["command"].as_str().unwrap_or("unknown");
@@ -257,8 +310,13 @@ fn sandbox(db: &ForestDb) -> CommandResult {
             let changed = v["detail"]["files_changed"].as_u64().unwrap_or(0);
             let icon = if result == "ok" { "✅" } else { "❌" };
             let time = fmt_time(*ts, "%H:%M");
-            let short_cmd = if cmd.len() > 35 { format!("{}...", &cmd[..35]) } else { cmd.to_string() };
-            out.push_str(&format!("  │  {} {}  {}  {}s  {} files\n",
+            let short_cmd = if cmd.len() > 35 {
+                format!("{}...", &cmd[..35])
+            } else {
+                cmd.to_string()
+            };
+            out.push_str(&format!(
+                "  │  {} {}  {}  {}s  {} files\n",
                 icon,
                 time.dimmed(),
                 short_cmd.bright_white(),
@@ -267,14 +325,18 @@ fn sandbox(db: &ForestDb) -> CommandResult {
             ));
         }
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn checkpoint(db: &ForestDb) -> CommandResult {
     let rows: Vec<(String, String, i64)> = {
         let mut stmt = match db.conn.prepare(
-            "SELECT name, payload, timestamp FROM checkpoints ORDER BY timestamp DESC LIMIT 8"
+            "SELECT name, payload, timestamp FROM checkpoints ORDER BY timestamp DESC LIMIT 8",
         ) {
             Ok(s) => s,
             Err(_) => {
@@ -287,42 +349,77 @@ fn checkpoint(db: &ForestDb) -> CommandResult {
                 };
                 return CommandResult::Output({
                     let rows: Vec<(String, String, i64)> = stmt2
-                        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
+                        .query_map([], |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, i64>(2)?,
+                            ))
+                        })
                         .map(|rows| rows.filter_map(|r| r.ok()).collect())
                         .unwrap_or_default();
                     if rows.is_empty() {
-                        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+                        return CommandResult::Output(format!(
+                            "  {} No checkpoints yet — use {}",
+                            "○".dimmed(),
+                            "cpc <name>".bright_cyan()
+                        ));
                     }
                     let mut out = String::new();
-                    out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
+                    out.push_str(&format!(
+                        "\n{}\n",
+                        "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()
+                    ));
                     for (action, payload, ts) in &rows {
                         let time = fmt_time(*ts, "%m-%d %H:%M");
-                        let name = serde_json::from_str::<serde_json::Value>(payload).ok()
+                        let name = serde_json::from_str::<serde_json::Value>(payload)
+                            .ok()
                             .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
                             .unwrap_or_else(|| action.clone());
                         out.push_str(&format!("  │  {} {}\n", time.dimmed(), name.bright_white()));
                     }
-                    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+                    out.push_str(
+                        &"  ╰────────────────────────────────────────────────────"
+                            .dimmed()
+                            .to_string(),
+                    );
                     out
                 });
             }
         };
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
-            .map(|rows| rows.filter_map(|r| r.ok()).collect())
-            .unwrap_or_default()
+        stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default()
     };
 
     if rows.is_empty() {
-        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+        return CommandResult::Output(format!(
+            "  {} No checkpoints yet — use {}",
+            "○".dimmed(),
+            "cpc <name>".bright_cyan()
+        ));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 📸 Checkpoints ──────────────────────────────────".bright_cyan()
+    ));
     for (name, _, ts) in &rows {
         let time = fmt_time(*ts, "%m-%d %H:%M");
         out.push_str(&format!("  │  {} {}\n", time.dimmed(), name.bright_white()));
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
@@ -350,37 +447,52 @@ fn git_status(core_root: &str) -> CommandResult {
         .unwrap_or_default();
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🌿 Git Status ─────────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🌿 Git Status ─────────────────────────────────────".bright_cyan()
+    ));
     out.push_str(&format!("  │  Branch:  {}\n", branch.bright_green()));
 
     if status.trim().is_empty() {
         out.push_str(&format!("  │  Status:  {}\n", "clean".bright_green()));
     } else {
-        out.push_str(&format!("  │  Status:  {}\n", "uncommitted changes".yellow()));
+        out.push_str(&format!(
+            "  │  Status:  {}\n",
+            "uncommitted changes".yellow()
+        ));
         for line in status.lines().take(5) {
             out.push_str(&format!("  │    {}\n", line.dimmed()));
         }
     }
 
-    out.push_str(&"  ├─────────────────────────────────────────────────────".dimmed().to_string());
-    out.push_str("\n");
+    out.push_str(
+        &"  ├─────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
+    out.push('\n');
     out.push_str(&format!("  │  {}\n", "Recent commits:".dimmed()));
     for line in recent.lines().take(5) {
         let parts: Vec<&str> = line.splitn(2, ' ').collect();
         if parts.len() == 2 {
-            out.push_str(&format!("  │    {} {}\n",
+            out.push_str(&format!(
+                "  │    {} {}\n",
                 parts[0].bright_yellow(),
                 parts[1].dimmed()
             ));
         }
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
     let mut rows = Vec::new();
@@ -388,13 +500,16 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if !entry.path().join("Cargo.toml").exists() { continue; }
+            if !entry.path().join("Cargo.toml").exists() {
+                continue;
+            }
 
             // Get version from Cargo.toml
             let version = std::fs::read_to_string(entry.path().join("Cargo.toml"))
                 .ok()
                 .and_then(|t| {
-                    t.lines().find(|l| l.starts_with("version = "))
+                    t.lines()
+                        .find(|l| l.starts_with("version = "))
                         .map(|l| l.split('"').nth(1).unwrap_or("?").to_string())
                 })
                 .unwrap_or_else(|| "?".to_string());
@@ -408,7 +523,9 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
 
             // Check if deployed
             let deployed = std::path::PathBuf::from(core_root)
-                .join("scripts").join(&name).exists();
+                .join("scripts")
+                .join(&name)
+                .exists();
 
             let mut row = HashMap::new();
             row.insert("name".to_string(), Value::Text(name));
@@ -420,7 +537,9 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     }
 
     rows.sort_by(|a, b| {
-        a.get("name").map(|v| v.as_text()).unwrap_or_default()
+        a.get("name")
+            .map(|v| v.as_text())
+            .unwrap_or_default()
             .cmp(&b.get("name").map(|v| v.as_text()).unwrap_or_default())
     });
 
@@ -428,31 +547,34 @@ fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
 }
 
 fn events_table(db: &ForestDb, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let today_only = args.contains(&"today");
-    let domain = args.first().and_then(|a| {
-        if *a == "today" { None } else { Some(*a) }
-    });
+    let domain = args
+        .first()
+        .and_then(|a| if *a == "today" { None } else { Some(*a) });
 
     let events = db.query_events(domain, today_only, 50);
-    let rows = events.into_iter().map(|(domain, action, ts)| {
-        let time = fmt_time(ts, "%H:%M:%S");
-        let mut row = HashMap::new();
-        row.insert("time".to_string(), Value::Text(time));
-        row.insert("domain".to_string(), Value::Text(domain));
-        row.insert("action".to_string(), Value::Text(action));
-        row.insert("timestamp".to_string(), Value::Int(ts));
-        row
-    }).collect();
+    let rows = events
+        .into_iter()
+        .map(|(domain, action, ts)| {
+            let time = fmt_time(ts, "%H:%M:%S");
+            let mut row = HashMap::new();
+            row.insert("time".to_string(), Value::Text(time));
+            row.insert("domain".to_string(), Value::Text(domain));
+            row.insert("action".to_string(), Value::Text(action));
+            row.insert("timestamp".to_string(), Value::Int(ts));
+            row
+        })
+        .collect();
 
     CommandResult::Value(Value::Table(rows))
 }
 
 fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let rows: Vec<HashMap<String, Value>> = {
         let mut stmt = match db.conn.prepare(
@@ -467,26 +589,30 @@ fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
 
         stmt.query_map([], |r| {
             Ok((
-                r.get::<_,String>(0)?,
-                r.get::<_,i64>(1)?,
-                r.get::<_,i64>(2)?,
-                r.get::<_,i64>(3)?,
-                r.get::<_,i64>(4)?,
-                r.get::<_,i64>(5)?,
-                r.get::<_,Option<i64>>(6)?,
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, Option<i64>>(6)?,
             ))
         })
-        .map(|rows| rows.filter_map(|r| r.ok()).map(|(name, score, usage, recency, doc, version, days)| {
-            let mut row = HashMap::new();
-            row.insert("name".to_string(), Value::Text(name));
-            row.insert("score".to_string(), Value::Int(score));
-            row.insert("usage".to_string(), Value::Int(usage));
-            row.insert("recency".to_string(), Value::Int(recency));
-            row.insert("doc".to_string(), Value::Int(doc));
-            row.insert("version".to_string(), Value::Int(version));
-            row.insert("days_ago".to_string(), Value::Int(days.unwrap_or(-1)));
-            row
-        }).collect())
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(name, score, usage, recency, doc, version, days)| {
+                    let mut row = HashMap::new();
+                    row.insert("name".to_string(), Value::Text(name));
+                    row.insert("score".to_string(), Value::Int(score));
+                    row.insert("usage".to_string(), Value::Int(usage));
+                    row.insert("recency".to_string(), Value::Int(recency));
+                    row.insert("doc".to_string(), Value::Int(doc));
+                    row.insert("version".to_string(), Value::Int(version));
+                    row.insert("days_ago".to_string(), Value::Int(days.unwrap_or(-1)));
+                    row
+                })
+                .collect()
+        })
         .unwrap_or_default()
     };
 
@@ -494,37 +620,46 @@ fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
 }
 
 fn history_table(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
-    let mut stmt = match db.conn.prepare(
-        "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 100"
-    ) {
+    let mut stmt = match db
+        .conn
+        .prepare("SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 100")
+    {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
 
     let raw: Vec<(String, i64)> = stmt
-        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
-    let rows: Vec<HashMap<String, Value>> = raw.iter().enumerate().map(|(i, (cmd, ts))| {
-        let duration_secs = if i + 1 < raw.len() { (ts - raw[i+1].1).max(0) } else { 0 };
-        let time = fmt_time(*ts, "%H:%M:%S");
-        let mut row = HashMap::new();
-        row.insert("time".to_string(),      Value::Text(time));
-        row.insert("command".to_string(),   Value::Text(cmd.clone()));
-        row.insert("duration".to_string(),  Value::Int(duration_secs));
-        row.insert("timestamp".to_string(), Value::Int(*ts));
-        row
-    }).collect();
+    let rows: Vec<HashMap<String, Value>> = raw
+        .iter()
+        .enumerate()
+        .map(|(i, (cmd, ts))| {
+            let duration_secs = if i + 1 < raw.len() {
+                (ts - raw[i + 1].1).max(0)
+            } else {
+                0
+            };
+            let time = fmt_time(*ts, "%H:%M:%S");
+            let mut row = HashMap::new();
+            row.insert("time".to_string(), Value::Text(time));
+            row.insert("command".to_string(), Value::Text(cmd.clone()));
+            row.insert("duration".to_string(), Value::Int(duration_secs));
+            row.insert("timestamp".to_string(), Value::Int(*ts));
+            row
+        })
+        .collect();
 
     CommandResult::Value(Value::Table(rows))
 }
 
 fn checkpoints_table(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let mut stmt = match db.conn.prepare(
         "SELECT action, payload, timestamp FROM events WHERE domain='checkpoint' ORDER BY timestamp DESC LIMIT 20"
@@ -534,33 +669,49 @@ fn checkpoints_table(db: &ForestDb) -> CommandResult {
     };
 
     let rows: Vec<HashMap<String, Value>> = stmt
-        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?)))
-        .map(|rows| rows.filter_map(|r| r.ok()).map(|(action, payload, ts)| {
-            let date = fmt_time(ts, "%m-%d %H:%M");
-            let name = serde_json::from_str::<serde_json::Value>(&payload).ok()
-                .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
-                .unwrap_or_else(|| action.clone());
-            let health = serde_json::from_str::<serde_json::Value>(&payload).ok()
-                .and_then(|v| v["detail"]["health"].as_i64())
-                .unwrap_or(0);
-            let mut row = HashMap::new();
-            row.insert("date".to_string(), Value::Text(date));
-            row.insert("name".to_string(), Value::Text(name));
-            row.insert("health".to_string(), Value::Int(health));
-            row
-        }).collect())
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(action, payload, ts)| {
+                    let date = fmt_time(ts, "%m-%d %H:%M");
+                    let name = serde_json::from_str::<serde_json::Value>(&payload)
+                        .ok()
+                        .and_then(|v| v["detail"]["name"].as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| action.clone());
+                    let health = serde_json::from_str::<serde_json::Value>(&payload)
+                        .ok()
+                        .and_then(|v| v["detail"]["health"].as_i64())
+                        .unwrap_or(0);
+                    let mut row = HashMap::new();
+                    row.insert("date".to_string(), Value::Text(date));
+                    row.insert("name".to_string(), Value::Text(name));
+                    row.insert("health".to_string(), Value::Int(health));
+                    row
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     if rows.is_empty() {
-        return CommandResult::Output(format!("  {} No checkpoints yet — use {}", "○".dimmed(), "cpc <name>".bright_cyan()));
+        return CommandResult::Output(format!(
+            "  {} No checkpoints yet — use {}",
+            "○".dimmed(),
+            "cpc <name>".bright_cyan()
+        ));
     }
 
     CommandResult::Value(Value::Table(rows))
 }
 
 fn domains(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let mut stmt = match db.conn.prepare(
         "SELECT domain, COUNT(*) as count, MAX(timestamp) as last FROM events GROUP BY domain ORDER BY count DESC"
@@ -570,46 +721,62 @@ fn domains(db: &ForestDb) -> CommandResult {
     };
 
     let rows: Vec<HashMap<String, Value>> = stmt
-        .query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?)))
-        .map(|rows| rows.filter_map(|r| r.ok()).map(|(domain, count, last)| {
-            let last_str = chrono::DateTime::from_timestamp(last, 0)
-                .map(|t| t.format("%m-%d %H:%M").to_string())
-                .unwrap_or_else(|| "?".to_string());
-            let mut row = HashMap::new();
-            row.insert("domain".to_string(), Value::Text(domain));
-            row.insert("events".to_string(), Value::Int(count));
-            row.insert("last_seen".to_string(), Value::Text(last_str));
-            row
-        }).collect())
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(domain, count, last)| {
+                    let last_str = chrono::DateTime::from_timestamp(last, 0)
+                        .map(|t| t.format("%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| "?".to_string());
+                    let mut row = HashMap::new();
+                    row.insert("domain".to_string(), Value::Text(domain));
+                    row.insert("events".to_string(), Value::Int(count));
+                    row.insert("last_seen".to_string(), Value::Text(last_str));
+                    row
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     CommandResult::Value(Value::Table(rows))
 }
 
-
-
 fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
-    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(20);
+    let limit = args
+        .first()
+        .and_then(|a| a.parse::<usize>().ok())
+        .unwrap_or(20);
 
     // Phase 15 — use faelight-git Repo directly (no subprocess)
     let repo_result = faelight_git::git::repo::GitRepo::open_at(core_root);
 
     match repo_result {
         Ok(repo) => {
-            let log_entries: anyhow::Result<Vec<faelight_git::git::repo::CommitEntry>> = repo.log(limit);
-                match log_entries {
-                Ok(entries) => { // entries: Vec<CommitEntry>
-                    let rows: Vec<HashMap<String, Value>> = entries.into_iter().map(|e| {
-                        let mut row = HashMap::new();
-                        row.insert("hash".to_string(),    Value::Text(e.hash));
-                        row.insert("author".to_string(),  Value::Text(e.author));
-                        row.insert("date".to_string(),    Value::Text(e.time_ago));
-                        row.insert("message".to_string(), Value::Text(e.message));
-                        row
-                    }).collect();
+            let log_entries: anyhow::Result<Vec<faelight_git::git::repo::CommitEntry>> =
+                repo.log(limit);
+            match log_entries {
+                Ok(entries) => {
+                    // entries: Vec<CommitEntry>
+                    let rows: Vec<HashMap<String, Value>> = entries
+                        .into_iter()
+                        .map(|e| {
+                            let mut row = HashMap::new();
+                            row.insert("hash".to_string(), Value::Text(e.hash));
+                            row.insert("author".to_string(), Value::Text(e.author));
+                            row.insert("date".to_string(), Value::Text(e.time_ago));
+                            row.insert("message".to_string(), Value::Text(e.message));
+                            row
+                        })
+                        .collect();
                     if rows.is_empty() {
                         CommandResult::Output(format!("  {} No commits found", "○".dimmed()))
                     } else {
@@ -627,25 +794,31 @@ fn git_commits(core_root: &str, args: &[&str]) -> CommandResult {
 }
 
 fn git_commits_subprocess(core_root: &str, limit: usize) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
     let output = std::process::Command::new("git")
-        .args(["-C", core_root, "log",
+        .args([
+            "-C",
+            core_root,
+            "log",
             &format!("-{}", limit),
-            "--format=%H|%an|%ae|%ai|%s"
+            "--format=%H|%an|%ae|%ai|%s",
         ])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(5, '|').collect();
-            if parts.len() < 5 { return None; }
+            if parts.len() < 5 {
+                return None;
+            }
             let mut row = HashMap::new();
-            row.insert("hash".to_string(),    Value::Text(parts[0][..7].to_string()));
-            row.insert("author".to_string(),  Value::Text(parts[1].to_string()));
-            row.insert("date".to_string(),    Value::Text(parts[3][..10].to_string()));
+            row.insert("hash".to_string(), Value::Text(parts[0][..7].to_string()));
+            row.insert("author".to_string(), Value::Text(parts[1].to_string()));
+            row.insert("date".to_string(), Value::Text(parts[3][..10].to_string()));
             row.insert("message".to_string(), Value::Text(parts[4].to_string()));
             Some(row)
         })
@@ -656,8 +829,8 @@ fn git_commits_subprocess(core_root: &str, limit: usize) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 fn git_files(core_root: &str) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("git")
         .args(["-C", core_root, "status", "--porcelain"])
@@ -670,9 +843,12 @@ fn git_files(core_root: &str) -> CommandResult {
         return CommandResult::Output(format!("  {} Working tree clean", "✅".green()));
     }
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter_map(|line| {
-            if line.len() < 3 { return None; }
+            if line.len() < 3 {
+                return None;
+            }
             let status = line[..2].trim().to_string();
             let file = line[3..].to_string();
             let kind = match status.as_str() {
@@ -700,8 +876,15 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let target = args.first().copied().unwrap_or("health");
     let interval = args.get(1).and_then(|a| a.parse::<u64>().ok()).unwrap_or(2);
 
-    println!("{}", format!("  Watching: {} (every {}s) — press Ctrl+C to stop",
-        target.bright_cyan(), interval).dimmed());
+    println!(
+        "{}",
+        format!(
+            "  Watching: {} (every {}s) — press Ctrl+C to stop",
+            target.bright_cyan(),
+            interval
+        )
+        .dimmed()
+    );
 
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -715,26 +898,40 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         print!("[2J[1;1H");
 
         let now = chrono::Local::now().format("%H:%M:%S").to_string();
-        println!("{}", format!("  🌲 watch {} — {} ({}s interval)",
-            target.bright_cyan(),
-            now.dimmed(),
-            interval
-        ));
+        println!(
+            "{}",
+            format!(
+                "  🌲 watch {} — {} ({}s interval)",
+                target.bright_cyan(),
+                now.dimmed(),
+                interval
+            )
+        );
         println!("{}", "━".repeat(52).dimmed());
 
         match target {
             "health" => {
                 let health = db.health_score().unwrap_or(0);
                 let version = std::fs::read_to_string(
-                    std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION")
-                ).unwrap_or_default().trim().to_string();
+                    std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION"),
+                )
+                .unwrap_or_default()
+                .trim()
+                .to_string();
 
-                let status = if health >= 95 { "HEALTHY".bright_green().bold() }
-                    else if health >= 80 { "ADVISORY".yellow().bold() }
-                    else { "DEGRADED".bright_red().bold() };
+                let status = if health >= 95 {
+                    "HEALTHY".bright_green().bold()
+                } else if health >= 80 {
+                    "ADVISORY".yellow().bold()
+                } else {
+                    "DEGRADED".bright_red().bold()
+                };
 
-                println!("  Health:   {} {}",
-                    format!("{}%", health).bright_white().bold(), status);
+                println!(
+                    "  Health:   {} {}",
+                    format!("{}%", health).bright_white().bold(),
+                    status
+                );
                 println!("  Version:  {}", version.dimmed());
 
                 // Show last 5 events
@@ -743,10 +940,15 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 println!("  {}", "Recent events:".dimmed());
                 for (domain, action, ts) in &events {
                     let icon = match domain.as_str() {
-                        "doctor" => "🩺", "git" => "🌿", "security" => "🔒",
-                        "sandbox" => "🧪", "audit" => "🔍", _ => "○",
+                        "doctor" => "🩺",
+                        "git" => "🌿",
+                        "security" => "🔒",
+                        "sandbox" => "🧪",
+                        "audit" => "🔍",
+                        _ => "○",
                     };
-                    println!("    {} {} {}.{}",
+                    println!(
+                        "    {} {} {}.{}",
                         icon,
                         fmt_time(*ts, "%H:%M:%S").dimmed(),
                         domain.bright_cyan(),
@@ -758,10 +960,15 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 let events = db.query_events(None, false, 15);
                 for (domain, action, ts) in &events {
                     let icon = match domain.as_str() {
-                        "doctor" => "🩺", "git" => "🌿", "security" => "🔒",
-                        "sandbox" => "🧪", "audit" => "🔍", _ => "○ ",
+                        "doctor" => "🩺",
+                        "git" => "🌿",
+                        "security" => "🔒",
+                        "sandbox" => "🧪",
+                        "audit" => "🔍",
+                        _ => "○ ",
                     };
-                    println!("  {} {} {}.{}",
+                    println!(
+                        "  {} {} {}.{}",
                         icon,
                         fmt_time(*ts, "%H:%M:%S").dimmed(),
                         domain.bright_cyan(),
@@ -778,7 +985,9 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
         // Sleep in small increments to check running flag
         for _ in 0..(interval * 10) {
-            if !running.load(Ordering::SeqCst) { break; }
+            if !running.load(Ordering::SeqCst) {
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
     }
@@ -789,8 +998,8 @@ fn watch_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn decisions_table(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let rows: Vec<HashMap<String, Value>> = {
         let mut stmt = match db.conn.prepare(
@@ -799,31 +1008,36 @@ fn decisions_table(db: &ForestDb) -> CommandResult {
             Ok(s) => s,
             Err(_) => return CommandResult::Output(format!("  {} No decisions yet — use {}", "○".dimmed(), "core decide".bright_cyan())),
         };
-        stmt.query_map([], |r| Ok((
-            r.get::<_,String>(0)?,
-            r.get::<_,String>(1)?,
-            r.get::<_,String>(2)?,
-            r.get::<_,f64>(3)?,
-            r.get::<_,String>(4)?,
-            r.get::<_,i64>(5)?,
-        )))
-        .map(|rows| rows.filter_map(|r| r.ok()).map(|(id, desc, outcome, risk, domain, ts)| {
-            let date = fmt_time(ts, "%m-%d");
-            let mut row = HashMap::new();
-            row.insert("id".to_string(), Value::Text(id));
-            row.insert("date".to_string(), Value::Text(date));
-            row.insert("domain".to_string(), Value::Text(domain));
-            row.insert("outcome".to_string(), Value::Text(outcome));
-            row.insert("risk".to_string(), Value::Float(risk));
-            row.insert("description".to_string(), Value::Text(desc));
-            row
-        }).collect())
+        stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, f64>(3)?,
+                r.get::<_, String>(4)?,
+                r.get::<_, i64>(5)?,
+            ))
+        })
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(id, desc, outcome, risk, domain, ts)| {
+                    let date = fmt_time(ts, "%m-%d");
+                    let mut row = HashMap::new();
+                    row.insert("id".to_string(), Value::Text(id));
+                    row.insert("date".to_string(), Value::Text(date));
+                    row.insert("domain".to_string(), Value::Text(domain));
+                    row.insert("outcome".to_string(), Value::Text(outcome));
+                    row.insert("risk".to_string(), Value::Float(risk));
+                    row.insert("description".to_string(), Value::Text(desc));
+                    row
+                })
+                .collect()
+        })
         .unwrap_or_default()
     };
 
     CommandResult::Value(Value::Table(rows))
 }
-
 
 fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // alias            — list all
@@ -834,19 +1048,27 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         if aliases.is_empty() {
             return CommandResult::Output(format!(
                 "  {} No aliases defined yet\n  Create one: {}",
-                "○".dimmed(), "alias h=health".bright_cyan()
+                "○".dimmed(),
+                "alias h=health".bright_cyan()
             ));
         }
         let mut out = String::new();
-        out.push_str(&format!("\n{}\n",
+        out.push_str(&format!(
+            "\n{}\n",
             "  ╭─ 🔖 Aliases ──────────────────────────────────────".bright_cyan()
         ));
         for (name, cmd) in &aliases {
-            out.push_str(&format!("  │  {:<15} = {}\n",
-                name.bright_cyan(), cmd.dimmed()
+            out.push_str(&format!(
+                "  │  {:<15} = {}\n",
+                name.bright_cyan(),
+                cmd.dimmed()
             ));
         }
-        out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+        out.push_str(
+            &"  ╰────────────────────────────────────────────────────"
+                .dimmed()
+                .to_string(),
+        );
         return CommandResult::Output(out);
     }
 
@@ -854,9 +1076,7 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     if args.len() == 1 && !args[0].contains('=') {
         let name = args[0];
         if let Some(cmd) = db.get_alias(name) {
-            return CommandResult::Output(format!("  {} = {}",
-                name.bright_cyan(), cmd.dimmed()
-            ));
+            return CommandResult::Output(format!("  {} = {}", name.bright_cyan(), cmd.dimmed()));
         }
         return CommandResult::Error(format!("No alias: {}", name));
     }
@@ -866,10 +1086,18 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let (name, command) = if full.contains('=') {
         let mut parts = full.splitn(2, '=');
         let n = parts.next().unwrap_or("").trim().to_string();
-        let c = parts.next().unwrap_or("").trim().trim_matches('"').to_string();
+        let c = parts
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches('"')
+            .to_string();
         (n, c)
     } else if args.len() >= 2 {
-        (args[0].to_string(), args[1..].join(" ").trim_matches('"').to_string())
+        (
+            args[0].to_string(),
+            args[1..].join(" ").trim_matches('"').to_string(),
+        )
     } else {
         return CommandResult::Error("Usage: alias name=command".to_string());
     };
@@ -879,8 +1107,11 @@ fn alias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 
     if db.add_alias(&name, &command) {
-        CommandResult::Output(format!("  {} alias {} = {}",
-            "✅".green(), name.bright_cyan(), command.dimmed()
+        CommandResult::Output(format!(
+            "  {} alias {} = {}",
+            "✅".green(),
+            name.bright_cyan(),
+            command.dimmed()
         ))
     } else {
         CommandResult::Error(format!("Failed to save alias: {}", name))
@@ -894,44 +1125,58 @@ fn unalias_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     };
 
     if db.remove_alias(name) {
-        CommandResult::Output(format!("  {} removed alias: {}", "✅".green(), name.bright_cyan()))
+        CommandResult::Output(format!(
+            "  {} removed alias: {}",
+            "✅".green(),
+            name.bright_cyan()
+        ))
     } else {
         CommandResult::Error(format!("Alias not found: {}", name))
     }
 }
 
-
 fn list_plugins(db: &ForestDb) -> CommandResult {
     let plugins = db.load_plugins();
 
     // Group by plugin file
-    let plugin_dir = std::path::PathBuf::from(
-        std::env::var("HOME").unwrap_or_default()
-    ).join(".config/faelight-shell/plugins");
+    let plugin_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join(".config/faelight-shell/plugins");
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n",
+    out.push_str(&format!(
+        "\n{}\n",
         "  ╭─ 🔌 Loaded Plugins ─────────────────────────────".bright_cyan()
     ));
 
     if plugins.is_empty() {
         out.push_str(&format!("  │  {} No plugins found\n", "○".dimmed()));
-        out.push_str(&format!("  │  Add .fsh files to {}\n",
+        out.push_str(&format!(
+            "  │  Add .fsh files to {}\n",
             plugin_dir.display().to_string().dimmed()
         ));
     } else {
-        out.push_str(&format!("  │  {} commands from plugins:\n",
+        out.push_str(&format!(
+            "  │  {} commands from plugins:\n",
             plugins.len().to_string().bright_white()
         ));
         for (name, expand, desc) in &plugins {
-            out.push_str(&format!("  │  {:<15} {} {}\n",
+            out.push_str(&format!(
+                "  │  {:<15} {} {}\n",
                 name.bright_cyan(),
                 "→".dimmed(),
-                if desc.is_empty() { expand.dimmed().to_string() } else { desc.dimmed().to_string() }
+                if desc.is_empty() {
+                    expand.dimmed().to_string()
+                } else {
+                    desc.dimmed().to_string()
+                }
             ));
         }
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
@@ -944,12 +1189,11 @@ fn reload_plugins_cmd(db: &ForestDb) -> CommandResult {
     ))
 }
 
-
 // ── Phase 8 — System Tables ───────────────────────────────────────────────────
 
 fn sys_processes() -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("ps")
         .args(["aux", "--no-headers"])
@@ -958,16 +1202,28 @@ fn sys_processes() -> CommandResult {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 11 { return None; }
+            if parts.len() < 11 {
+                return None;
+            }
             let mut row = HashMap::new();
             row.insert("pid".to_string(), Value::Text(parts[1].to_string()));
-            row.insert("name".to_string(), Value::Text(
-                parts[10..].join(" ").split('/').last()
-                    .unwrap_or(parts[10]).chars().take(30).collect()
-            ));
+            row.insert(
+                "name".to_string(),
+                Value::Text(
+                    parts[10..]
+                        .join(" ")
+                        .split('/')
+                        .next_back()
+                        .unwrap_or(parts[10])
+                        .chars()
+                        .take(30)
+                        .collect(),
+                ),
+            );
             row.insert("cpu".to_string(), Value::Text(parts[2].to_string()));
             row.insert("memory".to_string(), Value::Text(parts[3].to_string()));
             row.insert("user".to_string(), Value::Text(parts[0].to_string()));
@@ -980,34 +1236,42 @@ fn sys_processes() -> CommandResult {
 }
 
 fn sys_ports() -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
     let output = std::process::Command::new("ss")
         .args(["-tlnp"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .skip(1)
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 4 { return None; }
+            if parts.len() < 4 {
+                return None;
+            }
             let addr = parts[3];
             let port = addr.rsplit(':').next().unwrap_or("?").to_string();
-            let users_str = if parts.len() > 4 { parts[4..].join(" ") } else { String::new() };
+            let users_str = if parts.len() > 4 {
+                parts[4..].join(" ")
+            } else {
+                String::new()
+            };
             let process = users_str.split('"').nth(1).unwrap_or("?").to_string();
-            let pid = users_str.split("pid=")
+            let pid = users_str
+                .split("pid=")
                 .nth(1)
                 .and_then(|s| s.split(|c: char| !c.is_ascii_digit()).next())
                 .unwrap_or("?")
                 .to_string();
             let mut row = HashMap::new();
-            row.insert("port".to_string(),    Value::Text(port));
-            row.insert("state".to_string(),   Value::Text(parts[0].to_string()));
+            row.insert("port".to_string(), Value::Text(port));
+            row.insert("state".to_string(), Value::Text(parts[0].to_string()));
             row.insert("address".to_string(), Value::Text(addr.to_string()));
             row.insert("process".to_string(), Value::Text(process));
-            row.insert("pid".to_string(),     Value::Text(pid));
+            row.insert("pid".to_string(), Value::Text(pid));
             Some(row)
         })
         .collect();
@@ -1017,23 +1281,31 @@ fn sys_ports() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 fn sys_services() -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("systemctl")
-        .args(["list-units", "--type=service", "--no-pager",
-               "--no-legend", "--all"])
+        .args([
+            "list-units",
+            "--type=service",
+            "--no-pager",
+            "--no-legend",
+            "--all",
+        ])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter(|l| !l.trim().is_empty())
         .take(50)
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 4 { return None; }
+            if parts.len() < 4 {
+                return None;
+            }
             let name = parts[0].trim_end_matches(".service").to_string();
             let load = parts[1].to_string();
             let active = parts[2].to_string();
@@ -1051,8 +1323,8 @@ fn sys_services() -> CommandResult {
 }
 
 fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let dir = args.first().copied().unwrap_or(".");
     let path = if dir == "." {
@@ -1064,13 +1336,16 @@ fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
     let rows: Vec<HashMap<String, Value>> = std::fs::read_dir(&path)
         .ok()
         .map(|entries| {
-            entries.flatten()
+            entries
+                .flatten()
                 .filter_map(|e| {
                     let meta = e.metadata().ok()?;
                     let name = e.file_name().to_string_lossy().to_string();
                     let size = meta.len();
                     let kind = if meta.is_dir() { "dir" } else { "file" }.to_string();
-                    let modified = meta.modified().ok()
+                    let modified = meta
+                        .modified()
+                        .ok()
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| {
                             chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
@@ -1093,8 +1368,8 @@ fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
 }
 
 fn sys_network() -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("ip")
         .args(["-s", "link"])
@@ -1107,9 +1382,12 @@ fn sys_network() -> CommandResult {
     let mut current: HashMap<String, Value> = HashMap::new();
     let mut lines = output.lines().peekable();
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         if line.starts_with(|c: char| c.is_ascii_digit()) {
-            if !current.is_empty() { rows.push(current.clone()); current.clear(); }
+            if !current.is_empty() {
+                rows.push(current.clone());
+                current.clear();
+            }
             let name = line.split(':').nth(1).unwrap_or("?").trim().to_string();
             current.insert("interface".to_string(), Value::Text(name));
         } else if line.trim().starts_with("link/") {
@@ -1120,7 +1398,9 @@ fn sys_network() -> CommandResult {
             current.insert("ip".to_string(), Value::Text(ip));
         }
     }
-    if !current.is_empty() { rows.push(current); }
+    if !current.is_empty() {
+        rows.push(current);
+    }
 
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No network interfaces found", "○".dimmed()));
@@ -1129,8 +1409,8 @@ fn sys_network() -> CommandResult {
 }
 
 fn sys_packages() -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("pacman")
         .args(["-Q"])
@@ -1139,7 +1419,8 @@ fn sys_packages() -> CommandResult {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .take(100)
         .filter_map(|line| {
             let mut parts = line.splitn(2, ' ');
@@ -1155,14 +1436,14 @@ fn sys_packages() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-
 fn sys_logs(args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let follow = args.contains(&"--follow") || args.contains(&"-f");
     let errors_only = args.contains(&"--errors") || args.contains(&"-e");
-    let lines = args.iter()
+    let lines = args
+        .iter()
         .find(|a| a.starts_with("-n"))
         .and_then(|a| a.trim_start_matches("-n").parse::<usize>().ok())
         .unwrap_or(50);
@@ -1177,7 +1458,8 @@ fn sys_logs(args: &[&str]) -> CommandResult {
             r.store(false, std::sync::atomic::Ordering::SeqCst);
         });
 
-        println!("  {} {} {}",
+        println!(
+            "  {} {} {}",
             "streaming logs".bright_cyan(),
             if errors_only { "(errors only)" } else { "" }.dimmed(),
             "— press Enter to stop".dimmed()
@@ -1195,7 +1477,9 @@ fn sys_logs(args: &[&str]) -> CommandResult {
             if let Some(stdout) = child.stdout.take() {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines() {
-                    if !running.load(std::sync::atomic::Ordering::SeqCst) { break; }
+                    if !running.load(std::sync::atomic::Ordering::SeqCst) {
+                        break;
+                    }
                     if let Ok(l) = line {
                         let level = if l.contains("err") || l.contains("ERROR") {
                             "ERR ".bright_red().to_string()
@@ -1210,8 +1494,11 @@ fn sys_logs(args: &[&str]) -> CommandResult {
             }
             let _ = child.kill();
         }
-        println!("
-  {} log stream stopped", "○".dimmed());
+        println!(
+            "
+  {} log stream stopped",
+            "○".dimmed()
+        );
         return CommandResult::Empty;
     }
 
@@ -1223,23 +1510,34 @@ fn sys_logs(args: &[&str]) -> CommandResult {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter(|l| !l.starts_with("--"))
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(4, ' ').collect();
-            if parts.len() < 3 { return None; }
-            let level = if line.contains("err") || line.contains("ERROR") { "error" }
-                else if line.contains("warn") { "warn" }
-                else { "info" }.to_string();
-            if errors_only && level != "error" { return None; }
+            if parts.len() < 3 {
+                return None;
+            }
+            let level = if line.contains("err") || line.contains("ERROR") {
+                "error"
+            } else if line.contains("warn") {
+                "warn"
+            } else {
+                "info"
+            }
+            .to_string();
+            if errors_only && level != "error" {
+                return None;
+            }
             let mut row = HashMap::new();
             row.insert("time".to_string(), Value::Text(parts[0].to_string()));
             row.insert("host".to_string(), Value::Text(parts[1].to_string()));
             row.insert("service".to_string(), Value::Text(parts[2].to_string()));
             row.insert("level".to_string(), Value::Text(level));
-            row.insert("message".to_string(), Value::Text(
-                parts.get(3).unwrap_or(&"").to_string()
-            ));
+            row.insert(
+                "message".to_string(),
+                Value::Text(parts.get(3).unwrap_or(&"").to_string()),
+            );
             Some(row)
         })
         .collect();
@@ -1252,12 +1550,12 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     let rows: Vec<(String, i64)> = {
         let mut stmt = match db.conn.prepare(
-            "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 200"
+            "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 200",
         ) {
             Ok(s) => s,
             Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
         };
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
     };
@@ -1265,22 +1563,34 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     if query.is_empty() {
         // Show recent history
         let mut out = String::new();
-        out.push_str(&format!("\n{}\n", "  ╭─ 📜 Command History ──────────────────────────────".bright_cyan()));
+        out.push_str(&format!(
+            "\n{}\n",
+            "  ╭─ 📜 Command History ──────────────────────────────".bright_cyan()
+        ));
         for (cmd, ts) in rows.iter().take(15) {
             let time = fmt_time(*ts, "%H:%M");
             out.push_str(&format!("  │  {} {}\n", time.dimmed(), cmd.bright_white()));
         }
-        out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+        out.push_str(
+            &"  ╰────────────────────────────────────────────────────"
+                .dimmed()
+                .to_string(),
+        );
         return CommandResult::Output(out);
     }
 
     // Fuzzy search — score by match position and frequency
-    let mut matches: Vec<(String, i64, usize)> = rows.iter()
+    let mut matches: Vec<(String, i64, usize)> = rows
+        .iter()
         .filter(|(cmd, _)| cmd.to_lowercase().contains(&query))
         .map(|(cmd, ts)| {
-            let score = if cmd.to_lowercase().starts_with(&query) { 0 }
-                else if cmd.to_lowercase().contains(&format!(" {}", query)) { 1 }
-                else { 2 };
+            let score = if cmd.to_lowercase().starts_with(&query) {
+                0
+            } else if cmd.to_lowercase().contains(&format!(" {}", query)) {
+                1
+            } else {
+                2
+            };
             (cmd.clone(), *ts, score)
         })
         .collect();
@@ -1293,13 +1603,20 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     if matches.is_empty() {
         return CommandResult::Output(format!(
             "  {} No matches for {}",
-            "○".dimmed(), query.bright_white()
+            "○".dimmed(),
+            query.bright_white()
         ));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n",
-        format!("  ╭─ 🔍 Search: {} ({} results) ──────────────────────", query, matches.len()).bright_cyan()
+    out.push_str(&format!(
+        "\n{}\n",
+        format!(
+            "  ╭─ 🔍 Search: {} ({} results) ──────────────────────",
+            query,
+            matches.len()
+        )
+        .bright_cyan()
     ));
     for (cmd, ts, _) in matches.iter().take(10) {
         let time = fmt_time(*ts, "%H:%M");
@@ -1307,7 +1624,11 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
         let highlighted = cmd.replacen(&query, &query.bright_yellow().to_string(), 1);
         out.push_str(&format!("  │  {} {}\n", time.dimmed(), highlighted));
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
@@ -1340,14 +1661,14 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // Forest-native alternatives — suggest these before "not found"
     // The forest knows its own tools
     let forest_map: &[(&str, &str)] = &[
-        ("gchurn",     "core evolution map  — domain coupling index"),
-        ("top",        "ps | sort cpu desc  — process table"),
-        ("htop",       "ps | sort cpu desc  — process table"),
-        ("history",    "ht                  — shell history as table"),
-        ("grep",       "search <term>       — forest history search"),
-        ("netstat",    "net                 — network connections table"),
-        ("df",         "files               — filesystem view"),
-        ("du",         "files               — filesystem view"),
+        ("gchurn", "core evolution map  — domain coupling index"),
+        ("top", "ps | sort cpu desc  — process table"),
+        ("htop", "ps | sort cpu desc  — process table"),
+        ("history", "ht                  — shell history as table"),
+        ("grep", "search <term>       — forest history search"),
+        ("netstat", "net                 — network connections table"),
+        ("df", "files               — filesystem view"),
+        ("du", "files               — filesystem view"),
         ("journalctl", "et                  — events table"),
     ];
     let cmd_lower = cmd_orig.to_lowercase();
@@ -1373,23 +1694,54 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     if !found {
         // Forest-aware suggestion from known commands
         let known = [
-            "health","events","decisions","intents","tools","audit","ps","ports",
-            "services","files","net","pkgs","forecast","sandbox","story","advise",
-            "version","commits","cd","clear","exit","search","checkpoint","git",
-            "tt","et","at","dt","ht","ct","domains","help",
+            "health",
+            "events",
+            "decisions",
+            "intents",
+            "tools",
+            "audit",
+            "ps",
+            "ports",
+            "services",
+            "files",
+            "net",
+            "pkgs",
+            "forecast",
+            "sandbox",
+            "story",
+            "advise",
+            "version",
+            "commits",
+            "cd",
+            "clear",
+            "exit",
+            "search",
+            "checkpoint",
+            "git",
+            "tt",
+            "et",
+            "at",
+            "dt",
+            "ht",
+            "ct",
+            "domains",
+            "help",
         ];
-        let suggestion = known.iter()
+        let suggestion = known
+            .iter()
             .filter(|k| levenshtein(k, &cmd_lower) <= 2)
             .min_by_key(|k| levenshtein(k, &cmd_lower));
         return if let Some(s) = suggestion {
             CommandResult::Error(format!(
                 "  {} not found — did you mean {}?",
-                cmd_orig.bright_white(), s.bright_cyan()
+                cmd_orig.bright_white(),
+                s.bright_cyan()
             ))
         } else {
             CommandResult::Error(format!(
                 "  {} not found in PATH — type {} for forest commands",
-                cmd_orig.bright_white(), "help".bright_cyan()
+                cmd_orig.bright_white(),
+                "help".bright_cyan()
             ))
         };
     }
@@ -1405,8 +1757,13 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         let mut quote_char = ' ';
         for ch in rest.chars() {
             match ch {
-                '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
-                c if in_quote && c == quote_char => { in_quote = false; }
+                '"' | '\'' if !in_quote => {
+                    in_quote = true;
+                    quote_char = ch;
+                }
+                c if in_quote && c == quote_char => {
+                    in_quote = false;
+                }
                 ' ' if !in_quote => {
                     if !current.is_empty() {
                         result.push(current.clone());
@@ -1416,7 +1773,9 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 _ => current.push(ch),
             }
         }
-        if !current.is_empty() { result.push(current); }
+        if !current.is_empty() {
+            result.push(current);
+        }
         result
     };
 
@@ -1428,7 +1787,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     let start = std::time::Instant::now();
 
     let mut cmd_builder = std::process::Command::new(&cmd_orig);
-    cmd_builder.args(&args)
+    cmd_builder
+        .args(&args)
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit());
@@ -1442,13 +1802,17 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     }
 
     // Shell ignores SIGINT while child runs
-    unsafe { libc::signal(libc::SIGINT, libc::SIG_IGN); }
+    unsafe {
+        libc::signal(libc::SIGINT, libc::SIG_IGN);
+    }
 
     let status = cmd_builder.status();
     let elapsed = start.elapsed();
 
     // Restore SIGINT in shell after child exits
-    unsafe { libc::signal(libc::SIGINT, libc::SIG_DFL); }
+    unsafe {
+        libc::signal(libc::SIGINT, libc::SIG_DFL);
+    }
 
     match status {
         Ok(s) => {
@@ -1457,7 +1821,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             // Show timing for slow commands (> 2 seconds) — forest context
             // Only show if not signal-killed
             if code != -1 && elapsed.as_secs() >= 2 {
-                println!("  {} {:.1}s",
+                println!(
+                    "  {} {:.1}s",
                     format!("{} took", cmd_orig).dimmed(),
                     elapsed.as_secs_f64()
                 );
@@ -1475,10 +1840,11 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
 
             if code == -1 {
                 // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
-                return CommandResult::Empty;
+                CommandResult::Empty
             } else if code != 0 {
                 // Non-zero exit — show it, but not as a hard error
-                println!("  {} {} exited {}",
+                println!(
+                    "  {} {} exited {}",
                     "○".dimmed(),
                     cmd_orig.dimmed(),
                     code.to_string().yellow()
@@ -1489,131 +1855,180 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             }
         }
         Err(e) => CommandResult::Error(format!(
-            "  failed to run {}: {}", cmd_orig.bright_white(), e
+            "  failed to run {}: {}",
+            cmd_orig.bright_white(),
+            e
         )),
     }
 }
 
 fn help() -> CommandResult {
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🌲 faelight-shell commands ──────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🌲 faelight-shell commands ──────────────────────────".bright_cyan()
+    ));
     let cmds = [
-        ("health",    "system health and status"),
-        ("events",    "recent events  [today|domain]"),
+        ("health", "system health and status"),
+        ("events", "recent events  [today|domain]"),
         ("decisions", "open decisions from ledger"),
-        ("intents",   "active intents"),
-        ("tools",     "tool deployment status"),
-        ("audit",     "tool intelligence scores"),
-        ("forecast",  "health trend and forecast"),
-        ("sandbox",   "recent sandbox runs"),
+        ("intents", "active intents"),
+        ("tools", "tool deployment status"),
+        ("audit", "tool intelligence scores"),
+        ("forecast", "health trend and forecast"),
+        ("sandbox", "recent sandbox runs"),
         ("checkpoint", "recent checkpoints"),
-        ("git",        "git status and recent commits"),
-        ("search",     "search command history  [query]"),
-        ("tt",         "tools as table — pipeable"),
-        ("et",         "events as table — pipeable"),
-        ("at",         "audit scores as table — pipeable"),
-        ("dt",         "decisions as table — pipeable"),
-        ("ht",         "shell history as table — pipeable"),
-        ("ct",         "checkpoints as table — pipeable"),
-        ("domains",    "event domain summary"),
-        ("histogram",  "histogram of a domain  [field]"),
-        ("logs",       "system logs — pipeable  [--follow] [--errors]"),
-        ("ps",         "processes as table — pipeable"),
-        ("ports",      "open ports as table — pipeable"),
-        ("services",   "systemd services as table — pipeable"),
-        ("files",      "files as table  [path]"),
-        ("net",        "network interfaces as table"),
-        ("pkgs",       "installed packages as table"),
-        ("gc",         "git commits as table — pipeable"),
-        ("gf",         "git files as table — pipeable"),
-        ("watch",      "watch a command live  [health|events] — or pipe: ps | watch [interval]"),
-        ("alias",      "manage aliases  [name=command]"),
-        ("unalias",    "remove an alias"),
-        ("plugins",    "list loaded plugins"),
-        ("story",     "30-day forest narrative"),
-        ("advise",    "judgment advisory"),
-        ("version",   "system version"),
-        ("commits",   "commit count and last commit"),
-        ("cd",        "change directory"),
-        ("clear",     "clear the screen"),
-        ("exit",      "leave faelight-shell"),
+        ("git", "git status and recent commits"),
+        ("search", "search command history  [query]"),
+        ("tt", "tools as table — pipeable"),
+        ("et", "events as table — pipeable"),
+        ("at", "audit scores as table — pipeable"),
+        ("dt", "decisions as table — pipeable"),
+        ("ht", "shell history as table — pipeable"),
+        ("ct", "checkpoints as table — pipeable"),
+        ("domains", "event domain summary"),
+        ("histogram", "histogram of a domain  [field]"),
+        ("logs", "system logs — pipeable  [--follow] [--errors]"),
+        ("ps", "processes as table — pipeable"),
+        ("ports", "open ports as table — pipeable"),
+        ("services", "systemd services as table — pipeable"),
+        ("files", "files as table  [path]"),
+        ("net", "network interfaces as table"),
+        ("pkgs", "installed packages as table"),
+        ("gc", "git commits as table — pipeable"),
+        ("gf", "git files as table — pipeable"),
+        (
+            "watch",
+            "watch a command live  [health|events] — or pipe: ps | watch [interval]",
+        ),
+        ("alias", "manage aliases  [name=command]"),
+        ("unalias", "remove an alias"),
+        ("plugins", "list loaded plugins"),
+        ("story", "30-day forest narrative"),
+        ("advise", "judgment advisory"),
+        ("version", "system version"),
+        ("commits", "commit count and last commit"),
+        ("cd", "change directory"),
+        ("clear", "clear the screen"),
+        ("exit", "leave faelight-shell"),
     ];
     for (cmd, desc) in &cmds {
-        out.push_str(&format!("  │  {:<12}  {}\n",
+        out.push_str(&format!(
+            "  │  {:<12}  {}\n",
             cmd.bright_cyan(),
             desc.dimmed()
         ));
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn health(db: &ForestDb) -> CommandResult {
     let health = db.health_score().unwrap_or(0);
-    let status = if health >= 95 { "HEALTHY".bright_green() }
-        else if health >= 80 { "ADVISORY".yellow() }
-        else { "DEGRADED".bright_red() };
+    let status = if health >= 95 {
+        "HEALTHY".bright_green()
+    } else if health >= 80 {
+        "ADVISORY".yellow()
+    } else {
+        "DEGRADED".bright_red()
+    };
 
-    let version = std::fs::read_to_string(
-        std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION")
-    ).unwrap_or_else(|_| "unknown".into()).trim().to_string();
+    let version =
+        std::fs::read_to_string(std::path::PathBuf::from(db.core_root()).join("00-meta/VERSION"))
+            .unwrap_or_else(|_| "unknown".into())
+            .trim()
+            .to_string();
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🏥 Forest Health ─────────────────────────────────".bright_cyan()));
-    out.push_str(&format!("  │  Health:  {}  {}\n", format!("{}%", health).bright_white().bold(), status));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🏥 Forest Health ─────────────────────────────────".bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  Health:  {}  {}\n",
+        format!("{}%", health).bright_white().bold(),
+        status
+    ));
     out.push_str(&format!("  │  Version: {}\n", version.dimmed()));
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn events(db: &ForestDb, args: &[&str]) -> CommandResult {
     let today_only = args.contains(&"today");
-    let domain = args.first().and_then(|a| {
-        if *a == "today" { None } else { Some(*a) }
-    });
+    let domain = args
+        .first()
+        .and_then(|a| if *a == "today" { None } else { Some(*a) });
 
-    let label = if today_only { "Today's Events" } else { "Recent Events" };
+    let label = if today_only {
+        "Today's Events"
+    } else {
+        "Recent Events"
+    };
     let events = db.query_events(domain, today_only, 20);
     if events.is_empty() {
         return CommandResult::Output(format!("  {} No events found", "○".dimmed()));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", format!("  ╭─ 📊 {} ─────────────────────────────────", label).bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        format!("  ╭─ 📊 {} ─────────────────────────────────", label).bright_cyan()
+    ));
     for (domain, action, ts) in &events {
         let time = fmt_time(*ts, "%H:%M:%S");
         let icon = match domain.as_str() {
-            "doctor"     => "🩺",
-            "git"        => "🌿",
-            "security"   => "🔒",
-            "sandbox"    => "🧪",
-            "audit"      => "🔍",
+            "doctor" => "🩺",
+            "git" => "🌿",
+            "security" => "🔒",
+            "sandbox" => "🧪",
+            "audit" => "🔍",
             "checkpoint" => "📸",
             "compositor" => "🖥",
-            "idle"       => "💤",
-            "decisions"  => "⚖️ ",
-            "shell"      => "🐚",
-            "update"     => "📦",
-            _            => "○ ",
+            "idle" => "💤",
+            "decisions" => "⚖️ ",
+            "shell" => "🐚",
+            "update" => "📦",
+            _ => "○ ",
         };
-        out.push_str(&format!("  │  {} {}  {}.{}\n",
+        out.push_str(&format!(
+            "  │  {} {}  {}.{}\n",
             icon,
             time.dimmed(),
             domain.bright_cyan(),
             action.bright_white(),
         ));
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn decisions(db: &ForestDb) -> CommandResult {
-    let rows: Vec<(String, String, String)> = db.conn
-        .prepare("SELECT dec_id, description, outcome FROM decisions ORDER BY timestamp DESC LIMIT 10")
+    let rows: Vec<(String, String, String)> = db
+        .conn
+        .prepare(
+            "SELECT dec_id, description, outcome FROM decisions ORDER BY timestamp DESC LIMIT 10",
+        )
         .ok()
         .map(|mut s| {
             s.query_map([], |r| {
-                Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
             })
             .map(|rows| rows.filter_map(|r| r.ok()).collect::<Vec<_>>())
             .unwrap_or_default()
@@ -1623,12 +2038,16 @@ fn decisions(db: &ForestDb) -> CommandResult {
     if rows.is_empty() {
         return CommandResult::Output(format!(
             "  {} No decisions recorded yet — use {}",
-            "○".dimmed(), "core decide".bright_cyan()
+            "○".dimmed(),
+            "core decide".bright_cyan()
         ));
     }
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ ⚖️  Decisions ──────────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ ⚖️  Decisions ──────────────────────────────────────".bright_cyan()
+    ));
     for (id, desc, outcome) in &rows {
         let outcome_icon = match outcome.as_str() {
             "success" => "✅".to_string(),
@@ -1641,20 +2060,28 @@ fn decisions(db: &ForestDb) -> CommandResult {
         } else {
             desc.clone()
         };
-        out.push_str(&format!("  │  {}  {}  {}\n",
+        out.push_str(&format!(
+            "  │  {}  {}  {}\n",
             id.bright_yellow(),
             outcome_icon,
             short_desc.dimmed()
         ));
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn intents(core_root: &str) -> CommandResult {
     let future_dir = std::path::PathBuf::from(core_root).join("intents/future");
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🎯 Active Intents ────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🎯 Active Intents ────────────────────────────────".bright_cyan()
+    ));
 
     if let Ok(entries) = std::fs::read_dir(&future_dir) {
         let mut found = false;
@@ -1662,12 +2089,19 @@ fn intents(core_root: &str) -> CommandResult {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.ends_with(".md") {
                 let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                let title = content.lines()
+                let title = content
+                    .lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                    .map(|l| {
+                        l.trim_start_matches("title:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
                     .unwrap_or_else(|| name.clone());
                 let id = name.split('-').next().unwrap_or("?");
-                out.push_str(&format!("  │  {}  {}\n",
+                out.push_str(&format!(
+                    "  │  {}  {}\n",
                     format!("INT-{}", id).bright_yellow(),
                     title.dimmed()
                 ));
@@ -1678,14 +2112,22 @@ fn intents(core_root: &str) -> CommandResult {
             out.push_str("  │  No active intents\n");
         }
     }
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
     let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
     let total = std::fs::read_dir(&tools_dir)
-        .map(|e| e.flatten().filter(|e| e.path().join("Cargo.toml").exists()).count())
+        .map(|e| {
+            e.flatten()
+                .filter(|e| e.path().join("Cargo.toml").exists())
+                .count()
+        })
         .unwrap_or(0);
 
     let deployed = std::fs::read_dir(std::path::PathBuf::from(core_root).join("scripts"))
@@ -1693,36 +2135,62 @@ fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
         .unwrap_or(0);
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🛠  Tools ─────────────────────────────────────────".bright_cyan()));
-    out.push_str(&format!("  │  Total:    {} tools\n", total.to_string().bright_white().bold()));
-    out.push_str(&format!("  │  Deployed: {}/{}\n", deployed.to_string().bright_green(), total));
-    out.push_str(&format!("  │  Run {} for intelligence scores\n", "audit".bright_cyan()));
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🛠  Tools ─────────────────────────────────────────".bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  Total:    {} tools\n",
+        total.to_string().bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  Deployed: {}/{}\n",
+        deployed.to_string().bright_green(),
+        total
+    ));
+    out.push_str(&format!(
+        "  │  Run {} for intelligence scores\n",
+        "audit".bright_cyan()
+    ));
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn version(core_root: &str) -> CommandResult {
-    let version = std::fs::read_to_string(
-        std::path::PathBuf::from(core_root).join("00-meta/VERSION")
-    ).unwrap_or_else(|_| "unknown".into());
+    let version =
+        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("00-meta/VERSION"))
+            .unwrap_or_else(|_| "unknown".into());
 
-    let changelog = std::fs::read_to_string(
-        std::path::PathBuf::from(core_root).join("00-meta/CHANGELOG.md")
-    ).unwrap_or_default();
+    let changelog =
+        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("00-meta/CHANGELOG.md"))
+            .unwrap_or_default();
 
-    let release_name = changelog.lines()
+    let release_name = changelog
+        .lines()
         .find(|l| l.starts_with("## ["))
         .and_then(|l| l.split('—').nth(1))
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Forest Remembers".to_string());
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 🌲 Version ───────────────────────────────────────".bright_cyan()));
-    out.push_str(&format!("  │  {}  {}\n",
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 🌲 Version ───────────────────────────────────────".bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  {}  {}\n",
         version.trim().bright_white().bold(),
         release_name.dimmed()
     ));
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
@@ -1744,51 +2212,52 @@ fn commits(core_root: &str) -> CommandResult {
         .unwrap_or_else(|| "unknown".to_string());
 
     let mut out = String::new();
-    out.push_str(&format!("\n{}\n", "  ╭─ 📚 Commits ───────────────────────────────────────".bright_cyan()));
+    out.push_str(&format!(
+        "\n{}\n",
+        "  ╭─ 📚 Commits ───────────────────────────────────────".bright_cyan()
+    ));
     out.push_str(&format!("  │  Total:  {}\n", count.bright_white().bold()));
     out.push_str(&format!("  │  Last:   {}\n", last.dimmed()));
-    out.push_str(&"  ╰────────────────────────────────────────────────────".dimmed().to_string());
+    out.push_str(
+        &"  ╰────────────────────────────────────────────────────"
+            .dimmed()
+            .to_string(),
+    );
     CommandResult::Output(out)
 }
 
 fn story(db: &ForestDb) -> CommandResult {
     // Delegate to core story via process
     let core_root = db.core_root();
-    let output = std::process::Command::new(
-        format!("{}/scripts/core", core_root)
-    )
-    .args(["story"])
-    .output()
-    .ok()
-    .and_then(|o| String::from_utf8(o.stdout).ok())
-    .unwrap_or_else(|| "core story not available".to_string());
+    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+        .args(["story"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_else(|| "core story not available".to_string());
 
     CommandResult::Output(output)
 }
 
 fn advise(db: &ForestDb) -> CommandResult {
     let core_root = db.core_root();
-    let output = std::process::Command::new(
-        format!("{}/scripts/core", core_root)
-    )
-    .args(["advise"])
-    .output()
-    .ok()
-    .and_then(|o| String::from_utf8(o.stdout).ok())
-    .unwrap_or_else(|| "core advise not available".to_string());
+    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+        .args(["advise"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_else(|| "core advise not available".to_string());
 
     CommandResult::Output(output)
 }
 
 fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
-    let output = std::process::Command::new(
-        format!("{}/scripts/core", core_root)
-    )
-    .args(["audit", "scan"])
-    .output()
-    .ok()
-    .and_then(|o| String::from_utf8(o.stdout).ok())
-    .unwrap_or_else(|| "core audit not available".to_string());
+    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+        .args(["audit", "scan"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_else(|| "core audit not available".to_string());
 
     CommandResult::Output(output)
 }
@@ -1798,23 +2267,14 @@ fn audit(_db: &ForestDb, core_root: &str) -> CommandResult {
 fn schema(args: &[&str]) -> CommandResult {
     let registry = crate::schema::SchemaRegistry::build();
     match args.first() {
-        None | Some(&"") => {
-            CommandResult::Output(crate::schema::render_registry(&registry))
-        }
-        Some(table_name) => {
-            match registry.get(table_name) {
-                Some(schema) => CommandResult::Output(
-                    crate::schema::render_table_schema(schema)
-                ),
-                None => {
-                    let known = registry.names().join(", ");
-                    CommandResult::Error(format!(
-                        "unknown table '{}' — known: {}",
-                        table_name, known
-                    ))
-                }
+        None | Some(&"") => CommandResult::Output(crate::schema::render_registry(&registry)),
+        Some(table_name) => match registry.get(table_name) {
+            Some(schema) => CommandResult::Output(crate::schema::render_table_schema(schema)),
+            None => {
+                let known = registry.names().join(", ");
+                CommandResult::Error(format!("unknown table '{}' — known: {}", table_name, known))
             }
-        }
+        },
     }
 }
 
@@ -1825,37 +2285,45 @@ fn schema(args: &[&str]) -> CommandResult {
 // find <path>    — query files under a specific path
 
 fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     // Ensure schema
-    db.conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS file_index (
+    db.conn
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS file_index (
             path      TEXT PRIMARY KEY,
             name      TEXT NOT NULL,
             kind      TEXT NOT NULL,
             size      INTEGER NOT NULL,
             extension TEXT,
             modified  INTEGER NOT NULL
-        );"
-    ).ok();
+        );",
+        )
+        .ok();
 
     // reindex — rebuild from core_root recursively
     if args.first() == Some(&"reindex") {
         let count = index_directory(&db.conn, core_root, 0);
         return CommandResult::Output(format!(
             "  {} Indexed {} files under {}",
-            "✅".green(), count.to_string().bright_green(), core_root.dimmed()
+            "✅".green(),
+            count.to_string().bright_green(),
+            core_root.dimmed()
         ));
     }
 
     // Check if index is empty — auto-reindex on first use
-    let count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM file_index", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let count: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM file_index", [], |r| r.get(0))
+        .unwrap_or(0);
 
     if count == 0 {
-        println!("  {} Building file index for first time...", "⟳".bright_cyan());
+        println!(
+            "  {} Building file index for first time...",
+            "⟳".bright_cyan()
+        );
         index_directory(&db.conn, core_root, 0);
     }
 
@@ -1872,54 +2340,79 @@ fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         Err(e) => return CommandResult::Error(e.to_string()),
     };
 
-    let rows: Vec<HashMap<String, Value>> = stmt.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, i64>(3)?,
-            r.get::<_, Option<String>>(4)?,
-            r.get::<_, i64>(5)?,
-        ))
-    }).ok()
-    .map(|rows| rows.filter_map(|r| r.ok()).map(|(path, name, kind, size, ext, modified)| {
-        let time_str = chrono::DateTime::from_timestamp(modified, 0)
-            .map(|t| t.format("%m-%d %H:%M").to_string())
-            .unwrap_or_else(|| "?".to_string());
-        let mut row = HashMap::new();
-        row.insert("name".to_string(),      Value::Text(name));
-        row.insert("path".to_string(),      Value::Text(path));
-        row.insert("kind".to_string(),      Value::Text(kind));
-        row.insert("size".to_string(),      Value::Int(size));
-        row.insert("ext".to_string(),       Value::Text(ext.unwrap_or_default()));
-        row.insert("modified".to_string(),  Value::Text(time_str));
-        row
-    }).collect())
-    .unwrap_or_default();
+    let rows: Vec<HashMap<String, Value>> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, Option<String>>(4)?,
+                r.get::<_, i64>(5)?,
+            ))
+        })
+        .ok()
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(path, name, kind, size, ext, modified)| {
+                    let time_str = chrono::DateTime::from_timestamp(modified, 0)
+                        .map(|t| t.format("%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| "?".to_string());
+                    let mut row = HashMap::new();
+                    row.insert("name".to_string(), Value::Text(name));
+                    row.insert("path".to_string(), Value::Text(path));
+                    row.insert("kind".to_string(), Value::Text(kind));
+                    row.insert("size".to_string(), Value::Int(size));
+                    row.insert("ext".to_string(), Value::Text(ext.unwrap_or_default()));
+                    row.insert("modified".to_string(), Value::Text(time_str));
+                    row
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     if rows.is_empty() {
-        return CommandResult::Output(format!("  {} No files found. Run: find reindex", "○".dimmed()));
+        return CommandResult::Output(format!(
+            "  {} No files found. Run: find reindex",
+            "○".dimmed()
+        ));
     }
     CommandResult::Value(Value::Table(rows))
 }
 
 fn index_directory(conn: &rusqlite::Connection, dir: &str, depth: usize) -> usize {
-    if depth > 6 { return 0; } // max depth
+    if depth > 6 {
+        return 0;
+    } // max depth
     let mut count = 0;
-    let skip_dirs = [".git", "target", "node_modules", ".cargo", "proc", "sys", "dev"];
+    let skip_dirs = [
+        ".git",
+        "target",
+        "node_modules",
+        ".cargo",
+        "proc",
+        "sys",
+        "dev",
+    ];
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             let path_str = path.to_string_lossy().to_string();
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with('.') && depth > 0 { continue; }
+            if name.starts_with('.') && depth > 0 {
+                continue;
+            }
             let skip = skip_dirs.iter().any(|s| name == *s);
-            if skip { continue; }
+            if skip {
+                continue;
+            }
             if let Ok(meta) = entry.metadata() {
                 let kind = if meta.is_dir() { "dir" } else { "file" };
                 let size = if meta.is_file() { meta.len() as i64 } else { 0 };
                 let ext = path.extension().map(|e| e.to_string_lossy().to_string());
-                let modified = meta.modified().ok()
+                let modified = meta
+                    .modified()
+                    .ok()
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(0);
@@ -1943,15 +2436,23 @@ fn index_directory(conn: &rusqlite::Connection, dir: &str, depth: usize) -> usiz
 /// git-churn — files changed most frequently across commit history
 /// gchurn | sort changes desc | first 10  → hottest files
 fn git_churn(core_root: &str, args: &[&str]) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
-    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(100);
+    let limit = args
+        .first()
+        .and_then(|a| a.parse::<usize>().ok())
+        .unwrap_or(100);
 
     let output = std::process::Command::new("git")
-        .args(["-C", core_root, "log",
+        .args([
+            "-C",
+            core_root,
+            "log",
             &format!("--max-count={}", limit * 10),
-            "--name-only", "--format="])
+            "--name-only",
+            "--format=",
+        ])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -1961,28 +2462,49 @@ fn git_churn(core_root: &str, args: &[&str]) -> CommandResult {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for line in output.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
         *counts.entry(line.to_string()).or_insert(0) += 1;
     }
 
-    let mut rows: Vec<HashMap<String, Value>> = counts.into_iter()
+    let mut rows: Vec<HashMap<String, Value>> = counts
+        .into_iter()
         .map(|(file, count)| {
             let ext = std::path::Path::new(&file)
                 .extension()
                 .map(|e| e.to_string_lossy().to_string())
                 .unwrap_or_default();
             let mut row = HashMap::new();
-            row.insert("file".to_string(),    Value::Text(file));
+            row.insert("file".to_string(), Value::Text(file));
             row.insert("changes".to_string(), Value::Int(count as i64));
-            row.insert("ext".to_string(),     Value::Text(ext));
+            row.insert("ext".to_string(), Value::Text(ext));
             row
         })
         .collect();
 
     // Sort by changes desc by default
     rows.sort_by(|a, b| {
-        let ac = a.get("changes").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
-        let bc = b.get("changes").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        let ac = a
+            .get("changes")
+            .and_then(|v| {
+                if let Value::Int(i) = v {
+                    Some(*i)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
+        let bc = b
+            .get("changes")
+            .and_then(|v| {
+                if let Value::Int(i) = v {
+                    Some(*i)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
         bc.cmp(&ac)
     });
     rows.truncate(limit);
@@ -1995,31 +2517,40 @@ fn git_churn(core_root: &str, args: &[&str]) -> CommandResult {
 
 /// git-branches — all branches as a structured table
 fn git_branches(core_root: &str) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
     let output = std::process::Command::new("git")
-        .args(["-C", core_root, "branch", "-a", "--format=%(refname:short)|%(objectname:short)|%(committerdate:relative)|%(HEAD)"])
+        .args([
+            "-C",
+            core_root,
+            "branch",
+            "-a",
+            "--format=%(refname:short)|%(objectname:short)|%(committerdate:relative)|%(HEAD)",
+        ])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    let rows: Vec<HashMap<String, Value>> = output.lines()
+    let rows: Vec<HashMap<String, Value>> = output
+        .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(4, '|').collect();
-            if parts.len() < 4 { return None; }
+            if parts.len() < 4 {
+                return None;
+            }
             let name = parts[0].trim().to_string();
             let hash = parts[1].trim().to_string();
             let date = parts[2].trim().to_string();
             let current = parts[3].trim() == "*";
             let remote = name.starts_with("remotes/");
             let mut row = HashMap::new();
-            row.insert("name".to_string(),    Value::Text(name));
-            row.insert("hash".to_string(),    Value::Text(hash));
-            row.insert("date".to_string(),    Value::Text(date));
+            row.insert("name".to_string(), Value::Text(name));
+            row.insert("hash".to_string(), Value::Text(hash));
+            row.insert("date".to_string(), Value::Text(date));
             row.insert("current".to_string(), Value::Bool(current));
-            row.insert("remote".to_string(),  Value::Bool(remote));
+            row.insert("remote".to_string(), Value::Bool(remote));
             Some(row)
         })
         .collect();
@@ -2034,12 +2565,13 @@ fn git_branches(core_root: &str) -> CommandResult {
 
 /// hstats — most used commands ranked by frequency
 fn history_stats(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
-    let mut stmt = match db.conn.prepare(
-        "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 1000"
-    ) {
+    let mut stmt = match db
+        .conn
+        .prepare("SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 1000")
+    {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
@@ -2059,20 +2591,39 @@ fn history_stats(db: &ForestDb) -> CommandResult {
     }
 
     let total = commands.len();
-    let mut rows: Vec<HashMap<String, Value>> = counts.into_iter()
+    let mut rows: Vec<HashMap<String, Value>> = counts
+        .into_iter()
         .map(|(cmd, count)| {
             let pct = format!("{:.0}%", (count as f64 / total as f64) * 100.0);
             let mut row = HashMap::new();
             row.insert("command".to_string(), Value::Text(cmd));
-            row.insert("count".to_string(),   Value::Int(count as i64));
-            row.insert("pct".to_string(),     Value::Text(pct));
+            row.insert("count".to_string(), Value::Int(count as i64));
+            row.insert("pct".to_string(), Value::Text(pct));
             row
         })
         .collect();
 
     rows.sort_by(|a, b| {
-        let ac = a.get("count").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
-        let bc = b.get("count").and_then(|v| if let Value::Int(i) = v { Some(*i) } else { None }).unwrap_or(0);
+        let ac = a
+            .get("count")
+            .and_then(|v| {
+                if let Value::Int(i) = v {
+                    Some(*i)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
+        let bc = b
+            .get("count")
+            .and_then(|v| {
+                if let Value::Int(i) = v {
+                    Some(*i)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
         bc.cmp(&ac)
     });
     rows.truncate(20);
@@ -2082,12 +2633,13 @@ fn history_stats(db: &ForestDb) -> CommandResult {
 
 /// hpattern — command frequency by hour of day
 fn history_pattern(db: &ForestDb) -> CommandResult {
-    use std::collections::HashMap;
     use crate::value::Value;
+    use std::collections::HashMap;
 
-    let mut stmt = match db.conn.prepare(
-        "SELECT timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 2000"
-    ) {
+    let mut stmt = match db
+        .conn
+        .prepare("SELECT timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 2000")
+    {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
@@ -2109,31 +2661,37 @@ fn history_pattern(db: &ForestDb) -> CommandResult {
 
     let max_count = by_hour.values().copied().max().unwrap_or(1);
 
-    let mut rows: Vec<HashMap<String, Value>> = (0u32..24).map(|hour| {
-        let count = by_hour.get(&hour).copied().unwrap_or(0);
-        let bar_len = (count * 20) / max_count.max(1);
-        let bar = "█".repeat(bar_len);
-        let label = format!("{:02}:00", hour);
-        let period = match hour {
-            5..=8   => "morning",
-            9..=11  => "late morning",
-            12..=13 => "midday",
-            14..=17 => "afternoon",
-            18..=21 => "evening",
-            22..=23 => "night",
-            _       => "late night",
-        };
-        let mut row = HashMap::new();
-        row.insert("hour".to_string(),   Value::Text(label));
-        row.insert("period".to_string(), Value::Text(period.to_string()));
-        row.insert("count".to_string(),  Value::Int(count as i64));
-        row.insert("bar".to_string(),    Value::Text(bar));
-        row
-    }).collect();
+    let mut rows: Vec<HashMap<String, Value>> = (0u32..24)
+        .map(|hour| {
+            let count = by_hour.get(&hour).copied().unwrap_or(0);
+            let bar_len = (count * 20) / max_count.max(1);
+            let bar = "█".repeat(bar_len);
+            let label = format!("{:02}:00", hour);
+            let period = match hour {
+                5..=8 => "morning",
+                9..=11 => "late morning",
+                12..=13 => "midday",
+                14..=17 => "afternoon",
+                18..=21 => "evening",
+                22..=23 => "night",
+                _ => "late night",
+            };
+            let mut row = HashMap::new();
+            row.insert("hour".to_string(), Value::Text(label));
+            row.insert("period".to_string(), Value::Text(period.to_string()));
+            row.insert("count".to_string(), Value::Int(count as i64));
+            row.insert("bar".to_string(), Value::Text(bar));
+            row
+        })
+        .collect();
 
     // Only show hours with activity
     rows.retain(|r| {
-        if let Some(Value::Int(c)) = r.get("count") { *c > 0 } else { false }
+        if let Some(Value::Int(c)) = r.get("count") {
+            *c > 0
+        } else {
+            false
+        }
     });
 
     CommandResult::Value(Value::Table(rows))
@@ -2159,7 +2717,11 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 if crate::triggers::remove(db, n) {
                     CommandResult::Output(format!("  {} Trigger #{} removed.", "✅".green(), n))
                 } else {
-                    CommandResult::Output(format!("  {} Trigger #{} not found.", "✗".bright_red(), n))
+                    CommandResult::Output(format!(
+                        "  {} Trigger #{} not found.",
+                        "✗".bright_red(),
+                        n
+                    ))
                 }
             } else {
                 CommandResult::Error("Usage: on remove <id>".to_string())
@@ -2187,7 +2749,7 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             // Find => separator
             if let Some(sep) = args.iter().position(|a| *a == "=>") {
                 let trigger = args[..sep].join(" ");
-                let action = args[sep+1..].join(" ");
+                let action = args[sep + 1..].join(" ");
                 if trigger.is_empty() || action.is_empty() {
                     return CommandResult::Error(
                         "Usage: on <trigger> => <action>  e.g. on health_drop 90 => notify \"health low\"".to_string()
@@ -2217,8 +2779,9 @@ fn on_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 // snap-diff — compare two snapshots
 
 fn ensure_snapshots_schema(db: &ForestDb) {
-    db.conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS shell_snapshots (
+    db.conn
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS shell_snapshots (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
             name      TEXT NOT NULL,
             timestamp INTEGER NOT NULL,
@@ -2228,8 +2791,9 @@ fn ensure_snapshots_schema(db: &ForestDb) {
             load_avg  TEXT,
             top_proc  TEXT,
             note      TEXT
-        );"
-    ).ok();
+        );",
+        )
+        .ok();
 }
 
 fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
@@ -2238,10 +2802,16 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ensure_snapshots_schema(db);
 
     let name = args.first().copied().unwrap_or("manual");
-    let note = if args.len() > 1 { args[1..].join(" ") } else { String::new() };
+    let note = if args.len() > 1 {
+        args[1..].join(" ")
+    } else {
+        String::new()
+    };
 
     let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
 
     // Capture health
     let health = db.health_score().unwrap_or(0);
@@ -2249,7 +2819,8 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // Capture commit count
     let commits: i64 = std::process::Command::new("git")
         .args(["-C", &db.core_root(), "rev-list", "--count", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
@@ -2257,7 +2828,8 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // Capture process count
     let processes: i64 = std::process::Command::new("ps")
         .args(["aux", "--no-headers"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.lines().count() as i64)
         .unwrap_or(0);
@@ -2270,14 +2842,23 @@ fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     // Top CPU process
     let top_proc = std::process::Command::new("ps")
         .args(["aux", "--no-headers", "--sort=-pcpu"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| s.lines().next().map(|l| {
-            let parts: Vec<&str> = l.split_whitespace().collect();
-            if parts.len() > 10 {
-                format!("{} ({}%)", parts[10..].join(" ").chars().take(20).collect::<String>(), parts[2])
-            } else { "?".to_string() }
-        }))
+        .and_then(|s| {
+            s.lines().next().map(|l| {
+                let parts: Vec<&str> = l.split_whitespace().collect();
+                if parts.len() > 10 {
+                    format!(
+                        "{} ({}%)",
+                        parts[10..].join(" ").chars().take(20).collect::<String>(),
+                        parts[2]
+                    )
+                } else {
+                    "?".to_string()
+                }
+            })
+        })
         .unwrap_or_else(|| "?".to_string());
 
     db.conn.execute(
@@ -2303,7 +2884,10 @@ fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     ensure_snapshots_schema(db);
 
-    let limit = args.first().and_then(|a| a.parse::<usize>().ok()).unwrap_or(10);
+    let limit = args
+        .first()
+        .and_then(|a| a.parse::<usize>().ok())
+        .unwrap_or(10);
 
     let mut stmt = match db.conn.prepare(
         "SELECT id, name, timestamp, health, commits, processes, load_avg FROM shell_snapshots ORDER BY timestamp DESC LIMIT ?1"
@@ -2312,34 +2896,42 @@ fn timeline_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         Err(_) => return CommandResult::Output(format!("  {} No snapshots yet. Run: snapshot", "○".dimmed())),
     };
 
-    let rows: Vec<HashMap<String, Value>> = stmt.query_map(
-        rusqlite::params![limit as i64], |r| {
-        Ok((
-            r.get::<_, i64>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, i64>(2)?,
-            r.get::<_, i64>(3)?,
-            r.get::<_, i64>(4)?,
-            r.get::<_, i64>(5)?,
-            r.get::<_, String>(6)?,
-        ))
-    }).ok()
-    .map(|rows| rows.filter_map(|r| r.ok()).map(|(id, name, ts, health, commits, procs, load)| {
-        let time = fmt_time(ts, "%m-%d %H:%M");
-        let mut row = HashMap::new();
-        row.insert("id".to_string(),       Value::Int(id));
-        row.insert("name".to_string(),     Value::Text(name));
-        row.insert("time".to_string(),     Value::Text(time));
-        row.insert("health".to_string(),   Value::Int(health));
-        row.insert("commits".to_string(),  Value::Int(commits));
-        row.insert("procs".to_string(),    Value::Int(procs));
-        row.insert("load".to_string(),     Value::Text(load));
-        row
-    }).collect())
-    .unwrap_or_default();
+    let rows: Vec<HashMap<String, Value>> = stmt
+        .query_map(rusqlite::params![limit as i64], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, String>(6)?,
+            ))
+        })
+        .ok()
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .map(|(id, name, ts, health, commits, procs, load)| {
+                    let time = fmt_time(ts, "%m-%d %H:%M");
+                    let mut row = HashMap::new();
+                    row.insert("id".to_string(), Value::Int(id));
+                    row.insert("name".to_string(), Value::Text(name));
+                    row.insert("time".to_string(), Value::Text(time));
+                    row.insert("health".to_string(), Value::Int(health));
+                    row.insert("commits".to_string(), Value::Int(commits));
+                    row.insert("procs".to_string(), Value::Int(procs));
+                    row.insert("load".to_string(), Value::Text(load));
+                    row
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     if rows.is_empty() {
-        return CommandResult::Output(format!("  {} No snapshots yet. Run: snapshot", "○".dimmed()));
+        return CommandResult::Output(format!(
+            "  {} No snapshots yet. Run: snapshot",
+            "○".dimmed()
+        ));
     }
     CommandResult::Value(Value::Table(rows))
 }
@@ -2348,23 +2940,26 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ensure_snapshots_schema(db);
 
     let (id1, id2) = match args {
-        [a, b] => {
-            match (a.parse::<i64>(), b.parse::<i64>()) {
-                (Ok(x), Ok(y)) => (x, y),
-                _ => return CommandResult::Error("Usage: snap-diff <id1> <id2>".to_string()),
-            }
-        }
+        [a, b] => match (a.parse::<i64>(), b.parse::<i64>()) {
+            (Ok(x), Ok(y)) => (x, y),
+            _ => return CommandResult::Error("Usage: snap-diff <id1> <id2>".to_string()),
+        },
         _ => {
             // Default: diff last two snapshots
-            let ids: Vec<i64> = db.conn.prepare(
-                "SELECT id FROM shell_snapshots ORDER BY timestamp DESC LIMIT 2"
-            ).ok()
-            .and_then(|mut s| s.query_map([], |r| r.get::<_, i64>(0)).ok()
-                .map(|rows| rows.filter_map(|r| r.ok()).collect()))
-            .unwrap_or_default();
+            let ids: Vec<i64> = db
+                .conn
+                .prepare("SELECT id FROM shell_snapshots ORDER BY timestamp DESC LIMIT 2")
+                .ok()
+                .and_then(|mut s| {
+                    s.query_map([], |r| r.get::<_, i64>(0))
+                        .ok()
+                        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                })
+                .unwrap_or_default();
             if ids.len() < 2 {
                 return CommandResult::Output(format!(
-                    "  {} Need at least 2 snapshots. Run: snapshot", "○".dimmed()
+                    "  {} Need at least 2 snapshots. Run: snapshot",
+                    "○".dimmed()
                 ));
             }
             (ids[1], ids[0]) // older first
@@ -2397,10 +2992,13 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     println!();
     println!("{}", "🔍  Snapshot Diff".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {} #{} '{}'  →  #{} '{}'",
+    println!(
+        "  {} #{} '{}'  →  #{} '{}'",
         "Comparing:".dimmed(),
-        id1.to_string().bright_white(), s1.0.bright_white(),
-        id2.to_string().bright_white(), s2.0.bright_white()
+        id1.to_string().bright_white(),
+        s1.0.bright_white(),
+        id2.to_string().bright_white(),
+        s2.0.bright_white()
     );
     println!();
 
@@ -2410,16 +3008,23 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         format!("+{}", health_diff).bright_green().to_string()
     } else if health_diff < 0 {
         format!("{}", health_diff).bright_red().to_string()
-    } else { "unchanged".dimmed().to_string() };
-    println!("  {}  {} → {}  ({})",
-        "Health:".dimmed(), s1.1.to_string().bright_white(),
-        s2.1.to_string().bright_white(), health_str
+    } else {
+        "unchanged".dimmed().to_string()
+    };
+    println!(
+        "  {}  {} → {}  ({})",
+        "Health:".dimmed(),
+        s1.1.to_string().bright_white(),
+        s2.1.to_string().bright_white(),
+        health_str
     );
 
     // Commits diff
     let commit_diff = s2.2 - s1.2;
-    println!("  {}  {} → {}  ({} new commit{})",
-        "Commits:".dimmed(), s1.2.to_string().bright_white(),
+    println!(
+        "  {}  {} → {}  ({} new commit{})",
+        "Commits:".dimmed(),
+        s1.2.to_string().bright_white(),
         s2.2.to_string().bright_white(),
         commit_diff.to_string().bright_green(),
         if commit_diff == 1 { "" } else { "s" }
@@ -2431,21 +3036,33 @@ fn snap_diff_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         format!("+{}", proc_diff).yellow().to_string()
     } else if proc_diff < 0 {
         format!("{}", proc_diff).bright_green().to_string()
-    } else { "unchanged".dimmed().to_string() };
-    println!("  {}  {} → {}  ({})",
-        "Processes:".dimmed(), s1.3.to_string().bright_white(),
-        s2.3.to_string().bright_white(), proc_str
+    } else {
+        "unchanged".dimmed().to_string()
+    };
+    println!(
+        "  {}  {} → {}  ({})",
+        "Processes:".dimmed(),
+        s1.3.to_string().bright_white(),
+        s2.3.to_string().bright_white(),
+        proc_str
     );
 
     // Load diff
-    println!("  {}  {} → {}",
+    println!(
+        "  {}  {} → {}",
         "Load avg:".dimmed(),
-        s1.4.dimmed(), s2.4.bright_white()
+        s1.4.dimmed(),
+        s2.4.bright_white()
     );
 
     println!();
     println!("{}", "━".repeat(56).dimmed());
-    println!("  {}", "Diff complete. The forest remembers every state.".dimmed().italic());
+    println!(
+        "  {}",
+        "Diff complete. The forest remembers every state."
+            .dimmed()
+            .italic()
+    );
     println!();
 
     CommandResult::Empty
@@ -2470,12 +3087,12 @@ fn sql_query_cmd(db: &ForestDb, core_root: &str, line: &str) -> CommandResult {
 
 #[derive(Debug)]
 struct SqlQuery {
-    columns:  Vec<String>,   // * or specific columns
-    table:    String,        // from <table>
-    where_:   Option<String>, // where clause
+    columns: Vec<String>,     // * or specific columns
+    table: String,            // from <table>
+    where_: Option<String>,   // where clause
     order_by: Option<String>, // order by <col>
     order_desc: bool,
-    limit:    Option<usize>,
+    limit: Option<usize>,
 }
 
 impl SqlQuery {
@@ -2509,7 +3126,9 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
     }
 
     // Find FROM position
-    let from_pos = tokens.iter().position(|t| t.to_lowercase() == "from")
+    let from_pos = tokens
+        .iter()
+        .position(|t| t.to_lowercase() == "from")
         .ok_or("Expected FROM")?;
 
     // Columns between SELECT and FROM
@@ -2541,7 +3160,9 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
                 i += 1;
                 while i < remaining.len() {
                     let t = remaining[i].to_lowercase();
-                    if t == "order" || t == "limit" { break; }
+                    if t == "order" || t == "limit" {
+                        break;
+                    }
                     clause.push(remaining[i]);
                     i += 1;
                 }
@@ -2568,11 +3189,20 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
                     i += 1;
                 }
             }
-            _ => { i += 1; }
+            _ => {
+                i += 1;
+            }
         }
     }
 
-    Ok(SqlQuery { columns, table, where_, order_by, order_desc, limit })
+    Ok(SqlQuery {
+        columns,
+        table,
+        where_,
+        order_by,
+        order_desc,
+        limit,
+    })
 }
 
 // ── Phase 22 — Observability Dashboard ───────────────────────────────────────
@@ -2584,7 +3214,7 @@ fn dashboard_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult
     match mode {
         "system" => dashboard_system(),
         "forest" => dashboard_forest(db, core_root),
-        _        => {
+        _ => {
             dashboard_system();
             println!();
             dashboard_forest(db, core_root);
@@ -2611,25 +3241,33 @@ fn dashboard_system() -> CommandResult {
         let mut available = 0u64;
         for line in mem.lines() {
             if line.starts_with("MemTotal:") {
-                total = line.split_whitespace().nth(1)
-                    .and_then(|v| v.parse().ok()).unwrap_or(0);
+                total = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0);
             }
             if line.starts_with("MemAvailable:") {
-                available = line.split_whitespace().nth(1)
-                    .and_then(|v| v.parse().ok()).unwrap_or(0);
+                available = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0);
             }
         }
         if total > 0 {
             let used = total - available;
             let pct = (used * 100) / total;
             let bar_len = (pct / 5) as usize;
-            let bar = format!("{}{}",
+            let bar = format!(
+                "{}{}",
                 "█".repeat(bar_len).bright_green(),
                 "░".repeat(20 - bar_len.min(20)).dimmed()
             );
-            println!("  {}  {} [{bar}] {}%",
+            println!(
+                "  {}  {} [{bar}] {}%",
                 "Memory:".dimmed(),
-                format!("{}/{}MB", used/1024, total/1024).bright_white(),
+                format!("{}/{}MB", used / 1024, total / 1024).bright_white(),
                 pct
             );
         }
@@ -2638,7 +3276,8 @@ fn dashboard_system() -> CommandResult {
     // Top 5 CPU processes
     let top = std::process::Command::new("ps")
         .args(["aux", "--no-headers", "--sort=-pcpu"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
@@ -2649,7 +3288,8 @@ fn dashboard_system() -> CommandResult {
             let name = parts[10..].join(" ").chars().take(28).collect::<String>();
             let cpu = parts[2];
             let mem = parts[3];
-            println!("    {} {} cpu:{} mem:{}",
+            println!(
+                "    {} {} cpu:{} mem:{}",
                 "·".dimmed(),
                 name.bright_white(),
                 cpu.yellow(),
@@ -2661,14 +3301,16 @@ fn dashboard_system() -> CommandResult {
     // Disk usage
     let disk = std::process::Command::new("df")
         .args(["-h", "/"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
     if let Some(line) = disk.lines().nth(1) {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 5 {
-            println!("  {}  used:{} available:{} ({})",
+            println!(
+                "  {}  used:{} available:{} ({})",
                 "Disk /:".dimmed(),
                 parts[2].bright_white(),
                 parts[3].bright_green(),
@@ -2700,25 +3342,39 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
     // Commit count
     let commits: i64 = std::process::Command::new("git")
         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
-    println!("  {}  {}", "Commits:".dimmed(), commits.to_string().bright_white());
+    println!(
+        "  {}  {}",
+        "Commits:".dimmed(),
+        commits.to_string().bright_white()
+    );
 
     // Active triggers
-    let trigger_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_triggers WHERE enabled = 1",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
-    println!("  {}  {}", "Active triggers:".dimmed(), trigger_count.to_string().bright_cyan());
+    let trigger_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_triggers WHERE enabled = 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    println!(
+        "  {}  {}",
+        "Active triggers:".dimmed(),
+        trigger_count.to_string().bright_cyan()
+    );
 
     // Recent events
     let events = db.query_events(None, true, 5);
     if !events.is_empty() {
         println!("  {}", "Recent events:".dimmed());
         for (domain, action, _ts) in events.iter().take(3) {
-            println!("    {} {}.{}",
+            println!(
+                "    {} {}.{}",
                 "·".dimmed(),
                 domain.bright_cyan(),
                 action.dimmed()
@@ -2727,13 +3383,18 @@ fn dashboard_forest(db: &ForestDb, core_root: &str) -> CommandResult {
     }
 
     // Latest snapshot if exists
-    let snap: Option<(String, i64, i64)> = db.conn.query_row(
-        "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
-        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-    ).ok();
+    let snap: Option<(String, i64, i64)> = db
+        .conn
+        .query_row(
+            "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .ok();
     if let Some((name, sh, sc)) = snap {
         let commit_diff = commits - sc;
-        println!("  {}  '{}' — health:{} commits:+{}",
+        println!(
+            "  {}  '{}' — health:{} commits:+{}",
             "Last snapshot:".dimmed(),
             name.bright_white(),
             sh.to_string().dimmed(),
@@ -2758,18 +3419,25 @@ fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
     if name.is_empty() || expr.is_empty() {
         return CommandResult::Error("Usage: let <name> = <expression>".to_string());
     }
-    let result = execute(&expr, db, core_root);
+    let result = execute(expr, db, core_root);
     let val = match result {
         CommandResult::Value(ref v) => v.as_text(),
         CommandResult::Output(ref s) => s.clone(),
         _ => expr.to_string(),
     };
-    println!("  {} {} = {}", "let".dimmed(), name.bright_cyan(), val.bright_white());
+    println!(
+        "  {} {} = {}",
+        "let".dimmed(),
+        name.bright_cyan(),
+        val.bright_white()
+    );
     // Store in session state for this REPL session
-    db.conn.execute(
-        "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
-        rusqlite::params![format!("var:{}", name), val]
-    ).ok();
+    db.conn
+        .execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+            rusqlite::params![format!("var:{}", name), val],
+        )
+        .ok();
     CommandResult::Empty
 }
 
@@ -2779,7 +3447,8 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
         Some(&"--list") => {
             // List .fsh scripts in core_root
             let scripts_path = std::path::Path::new(core_root).join("scripts/fsh");
-            let home_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config/faelight-shell/scripts");
+            let home_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                .join(".config/faelight-shell/scripts");
 
             println!();
             println!("  {} .fsh scripts", "🌿".normal());
@@ -2789,7 +3458,12 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             for path in &[scripts_path, home_path] {
                 if let Ok(entries) = std::fs::read_dir(path) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "fsh").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "fsh")
+                            .unwrap_or(false)
+                        {
                             println!("  · {}", entry.file_name().to_string_lossy().bright_cyan());
                             found = true;
                         }
@@ -2798,8 +3472,11 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             }
             if !found {
                 println!("  {} No .fsh scripts found", "○".dimmed());
-                println!("  {} Create: {}", "→".dimmed(),
-                    "~/0-core/scripts/fsh/example.fsh".dimmed());
+                println!(
+                    "  {} Create: {}",
+                    "→".dimmed(),
+                    "~/0-core/scripts/fsh/example.fsh".dimmed()
+                );
             }
             println!();
             CommandResult::Empty
@@ -2834,13 +3511,15 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
 fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let field = args.first().copied().unwrap_or("command");
     // Read history and count by field
-    let mut stmt = match db.conn.prepare(
-        "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 500"
-    ) {
+    let mut stmt = match db
+        .conn
+        .prepare("SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 500")
+    {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history", "○".dimmed())),
     };
-    let commands: Vec<String> = stmt.query_map([], |r| r.get(0))
+    let commands: Vec<String> = stmt
+        .query_map([], |r| r.get(0))
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
 
@@ -2863,12 +3542,16 @@ fn histogram_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 
     println!();
     println!("  {} histogram — {}", "📊".normal(), field.bright_cyan());
-    println!("{}", "  ─────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ─────────────────────────────────────────────".dimmed()
+    );
     for (key, count) in &sorted {
         let bar_len = (count * bar_width / max_count).max(1);
         let bar = "█".repeat(bar_len);
         let pct = count * 100 / total;
-        println!("  {:20} {} {}%",
+        println!(
+            "  {:20} {} {}%",
             key.bright_white(),
             bar.bright_green(),
             pct
@@ -2912,16 +3595,30 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
 
     // Extract name + value pairs
     let name_col = ["name", "command", "file", "domain", "cmd"]
-        .iter().find(|&&c| rows[0].contains_key(c)).copied().unwrap_or("name");
+        .iter()
+        .find(|&&c| rows[0].contains_key(c))
+        .copied()
+        .unwrap_or("name");
 
-    let mut pairs: Vec<(String, f64)> = rows.iter().filter_map(|row| {
-        let name = row.get(name_col).map(|v| v.as_text()).unwrap_or_default();
-        let val: f64 = row.get(field)?.as_text().parse().ok()?;
-        if val > 0.0 { Some((name, val)) } else { None }
-    }).collect();
+    let mut pairs: Vec<(String, f64)> = rows
+        .iter()
+        .filter_map(|row| {
+            let name = row.get(name_col).map(|v| v.as_text()).unwrap_or_default();
+            let val: f64 = row.get(field)?.as_text().parse().ok()?;
+            if val > 0.0 {
+                Some((name, val))
+            } else {
+                None
+            }
+        })
+        .collect();
 
     if pairs.is_empty() {
-        return CommandResult::Output(format!("  {} No non-zero values for '{}'", "○".dimmed(), field));
+        return CommandResult::Output(format!(
+            "  {} No non-zero values for '{}'",
+            "○".dimmed(),
+            field
+        ));
     }
 
     pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -2932,13 +3629,17 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
 
     println!();
     println!("  {} chart — {}", "📊".normal(), field.bright_cyan());
-    println!("{}", "  ──────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ──────────────────────────────────────────────".dimmed()
+    );
     for (name, val) in &pairs {
         let bar_len = ((val / max) * bar_width as f64) as usize;
         let bar_len = bar_len.max(1);
         let bar = "█".repeat(bar_len);
         let label = if name.len() > 22 { &name[..22] } else { name };
-        println!("  {:22} {} {:.1}",
+        println!(
+            "  {:22} {} {:.1}",
             label.bright_white(),
             bar.bright_green(),
             val

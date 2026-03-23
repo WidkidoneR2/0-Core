@@ -23,7 +23,11 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
     // Header
     out.push_str("  ");
     for (i, h) in headers.iter().enumerate() {
-        out.push_str(&format!("{:<width$}  ", h.bright_white().bold(), width = widths[i]));
+        out.push_str(&format!(
+            "{:<width$}  ",
+            h.bright_white().bold(),
+            width = widths[i]
+        ));
     }
     out.push('\n');
 
@@ -50,8 +54,5 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) -> String {
 
 #[allow(dead_code)]
 pub fn section(title: &str) -> String {
-    format!("\n{}\n{}",
-        format!("  ╭─ {} ", title).bright_cyan(),
-        "".to_string()
-    )
+    format!("\n{}\n{}", format!("  ╭─ {} ", title).bright_cyan(), "")
 }

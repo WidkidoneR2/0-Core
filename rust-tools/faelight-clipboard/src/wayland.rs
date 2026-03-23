@@ -33,22 +33,44 @@ struct PasteState {
 
 impl PasteState {
     fn new() -> Self {
-        Self { seat: None, manager: None, selection: None, best_mime: None, done: false }
+        Self {
+            seat: None,
+            manager: None,
+            selection: None,
+            best_mime: None,
+            done: false,
+        }
     }
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for PasteState {
-    fn event(state: &mut Self, registry: &wl_registry::WlRegistry,
-             event: wl_registry::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
-        let wl_registry::Event::Global { name, interface, version } = event else { return };
+    fn event(
+        state: &mut Self,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        else {
+            return;
+        };
         match interface.as_str() {
             "wl_seat" => {
                 state.seat = Some(registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ()));
             }
             "zwlr_data_control_manager_v1" => {
-                state.manager = Some(
-                    registry.bind::<ZwlrDataControlManagerV1, _, _>(name, version.min(2), qh, ())
-                );
+                state.manager = Some(registry.bind::<ZwlrDataControlManagerV1, _, _>(
+                    name,
+                    version.min(2),
+                    qh,
+                    (),
+                ));
             }
             _ => {}
         }
@@ -56,20 +78,38 @@ impl Dispatch<wl_registry::WlRegistry, ()> for PasteState {
 }
 
 impl Dispatch<wl_seat::WlSeat, ()> for PasteState {
-    fn event(_: &mut Self, _: &wl_seat::WlSeat, _: wl_seat::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &wl_seat::WlSeat,
+        _: wl_seat::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ZwlrDataControlManagerV1, ()> for PasteState {
-    fn event(_: &mut Self, _: &ZwlrDataControlManagerV1,
-             _: zwlr_data_control_manager_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &ZwlrDataControlManagerV1,
+        _: zwlr_data_control_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ZwlrDataControlDeviceV1, ()> for PasteState {
-    fn event(state: &mut Self, _: &ZwlrDataControlDeviceV1,
-             event: zwlr_data_control_device_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ZwlrDataControlDeviceV1,
+        event: zwlr_data_control_device_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             zwlr_data_control_device_v1::Event::Selection { id } => {
                 state.selection = id;
@@ -84,10 +124,17 @@ impl Dispatch<ZwlrDataControlDeviceV1, ()> for PasteState {
 }
 
 impl Dispatch<ZwlrDataControlOfferV1, ()> for PasteState {
-    fn event(state: &mut Self, _: &ZwlrDataControlOfferV1,
-             event: zwlr_data_control_offer_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {
-        let zwlr_data_control_offer_v1::Event::Offer { mime_type } = event else { return };
+    fn event(
+        state: &mut Self,
+        _: &ZwlrDataControlOfferV1,
+        event: zwlr_data_control_offer_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let zwlr_data_control_offer_v1::Event::Offer { mime_type } = event else {
+            return;
+        };
         match mime_type.as_str() {
             MIME_UTF8 => {
                 state.best_mime = Some(MIME_UTF8.to_string());
@@ -101,8 +148,7 @@ impl Dispatch<ZwlrDataControlOfferV1, ()> for PasteState {
 }
 
 pub fn native_paste() -> Result<String> {
-    let conn = Connection::connect_to_env()
-        .context("cannot connect to Wayland display")?;
+    let conn = Connection::connect_to_env().context("cannot connect to Wayland display")?;
     let mut queue = conn.new_event_queue::<PasteState>();
     let qh = queue.handle();
     conn.display().get_registry(&qh, ());
@@ -110,12 +156,15 @@ pub fn native_paste() -> Result<String> {
     let mut state = PasteState::new();
     queue.roundtrip(&mut state)?;
 
-    let seat: wl_seat::WlSeat = state.seat.take()
+    let seat: wl_seat::WlSeat = state
+        .seat
+        .take()
         .ok_or_else(|| anyhow!("no wl_seat found"))?;
-    let manager: ZwlrDataControlManagerV1 = state.manager.take()
-        .ok_or_else(|| anyhow!(
+    let manager: ZwlrDataControlManagerV1 = state.manager.take().ok_or_else(|| {
+        anyhow!(
             "zwlr_data_control_manager_v1 not available — compositor must support wlr-data-control"
-        ))?;
+        )
+    })?;
 
     let _device = manager.get_data_device(&seat, &qh, ());
     queue.roundtrip(&mut state)?;
@@ -128,7 +177,9 @@ pub fn native_paste() -> Result<String> {
         None => return Ok(String::new()),
     };
 
-    let mime = state.best_mime.take()
+    let mime = state
+        .best_mime
+        .take()
         .ok_or_else(|| anyhow!("no text mime type in clipboard"))?;
 
     let (read_fd, write_fd) = make_pipe()?;
@@ -153,22 +204,43 @@ struct CopyState {
 
 impl CopyState {
     fn new(content: String) -> Self {
-        Self { seat: None, manager: None, content, done: false }
+        Self {
+            seat: None,
+            manager: None,
+            content,
+            done: false,
+        }
     }
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for CopyState {
-    fn event(state: &mut Self, registry: &wl_registry::WlRegistry,
-             event: wl_registry::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
-        let wl_registry::Event::Global { name, interface, version } = event else { return };
+    fn event(
+        state: &mut Self,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        else {
+            return;
+        };
         match interface.as_str() {
             "wl_seat" => {
                 state.seat = Some(registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ()));
             }
             "zwlr_data_control_manager_v1" => {
-                state.manager = Some(
-                    registry.bind::<ZwlrDataControlManagerV1, _, _>(name, version.min(2), qh, ())
-                );
+                state.manager = Some(registry.bind::<ZwlrDataControlManagerV1, _, _>(
+                    name,
+                    version.min(2),
+                    qh,
+                    (),
+                ));
             }
             _ => {}
         }
@@ -176,20 +248,38 @@ impl Dispatch<wl_registry::WlRegistry, ()> for CopyState {
 }
 
 impl Dispatch<wl_seat::WlSeat, ()> for CopyState {
-    fn event(_: &mut Self, _: &wl_seat::WlSeat, _: wl_seat::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &wl_seat::WlSeat,
+        _: wl_seat::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ZwlrDataControlManagerV1, ()> for CopyState {
-    fn event(_: &mut Self, _: &ZwlrDataControlManagerV1,
-             _: zwlr_data_control_manager_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &ZwlrDataControlManagerV1,
+        _: zwlr_data_control_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ZwlrDataControlDeviceV1, ()> for CopyState {
-    fn event(state: &mut Self, _: &ZwlrDataControlDeviceV1,
-             event: zwlr_data_control_device_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ZwlrDataControlDeviceV1,
+        event: zwlr_data_control_device_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let zwlr_data_control_device_v1::Event::Finished = event {
             state.done = true;
         }
@@ -197,9 +287,14 @@ impl Dispatch<ZwlrDataControlDeviceV1, ()> for CopyState {
 }
 
 impl Dispatch<ZwlrDataControlSourceV1, ()> for CopyState {
-    fn event(state: &mut Self, _: &ZwlrDataControlSourceV1,
-             event: zwlr_data_control_source_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ZwlrDataControlSourceV1,
+        event: zwlr_data_control_source_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             zwlr_data_control_source_v1::Event::Send { mime_type: _, fd } => {
                 let mut f = File::from(fd);
@@ -214,8 +309,7 @@ impl Dispatch<ZwlrDataControlSourceV1, ()> for CopyState {
 }
 
 pub fn native_copy_daemon(content: String) -> Result<()> {
-    let conn = Connection::connect_to_env()
-        .context("cannot connect to Wayland display")?;
+    let conn = Connection::connect_to_env().context("cannot connect to Wayland display")?;
     let mut queue = conn.new_event_queue::<CopyState>();
     let qh = queue.handle();
     conn.display().get_registry(&qh, ());
@@ -223,9 +317,13 @@ pub fn native_copy_daemon(content: String) -> Result<()> {
     let mut state = CopyState::new(content);
     queue.roundtrip(&mut state)?;
 
-    let seat: wl_seat::WlSeat = state.seat.take()
+    let seat: wl_seat::WlSeat = state
+        .seat
+        .take()
         .ok_or_else(|| anyhow!("no wl_seat found"))?;
-    let manager: ZwlrDataControlManagerV1 = state.manager.take()
+    let manager: ZwlrDataControlManagerV1 = state
+        .manager
+        .take()
         .ok_or_else(|| anyhow!("zwlr_data_control_manager_v1 not available"))?;
 
     let source: ZwlrDataControlSourceV1 = manager.create_data_source(&qh, ());

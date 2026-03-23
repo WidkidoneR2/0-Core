@@ -41,11 +41,10 @@ impl ToolScore {
 
 // ── Scoring Logic ─────────────────────────────────────────────────────────────
 
-
 fn expected_usage(core_root: &str, tool_name: &str) -> &'static str {
-    let registry = std::fs::read_to_string(
-        std::path::PathBuf::from(core_root).join("01-registry/tools.toml")
-    ).unwrap_or_default();
+    let registry =
+        std::fs::read_to_string(std::path::PathBuf::from(core_root).join("01-registry/tools.toml"))
+            .unwrap_or_default();
 
     // Find the tool section and read expected_usage
     let mut in_tool = false;
@@ -54,13 +53,21 @@ fn expected_usage(core_root: &str, tool_name: &str) -> &'static str {
             in_tool = true;
         }
         if in_tool && line.starts_with("expected_usage") {
-            if line.contains("high")   { return "high"; }
-            if line.contains("medium") { return "medium"; }
-            if line.contains("rare")   { return "rare"; }
+            if line.contains("high") {
+                return "high";
+            }
+            if line.contains("medium") {
+                return "medium";
+            }
+            if line.contains("rare") {
+                return "rare";
+            }
             return "low";
         }
         // Stop at next tool
-        if in_tool && line.starts_with("[[tool]]") { break; }
+        if in_tool && line.starts_with("[[tool]]") {
+            break;
+        }
     }
     "low"
 }
@@ -78,33 +85,45 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
             .map(|d| d.as_secs() as i64 - 30 * 86400)
             .unwrap_or(0);
 
-        let count: i64 = db.query_row(
-            "SELECT COUNT(*) FROM events WHERE payload LIKE ?1 AND timestamp > ?2",
-            rusqlite::params![format!("%{}%", name), thirty_days_ago],
-            |r| r.get(0),
-        ).unwrap_or(0);
+        let count: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE payload LIKE ?1 AND timestamp > ?2",
+                rusqlite::params![format!("%{}%", name), thirty_days_ago],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
 
         match usage {
             "rare" => {
                 // Rare tools not penalized for low event count
-                if count == 0 { 20 } else { 25 }
-            }
-            "low" => {
-                match count {
-                    0 => { issues.push("no events in 30 days"); 10 }
-                    _ => 25,
+                if count == 0 {
+                    20
+                } else {
+                    25
                 }
             }
-            "medium" => {
-                match count {
-                    0 => { issues.push("no events in 30 days"); 5 }
-                    1..=3 => 15,
-                    _ => 25,
+            "low" => match count {
+                0 => {
+                    issues.push("no events in 30 days");
+                    10
                 }
-            }
-            _ => { // high
+                _ => 25,
+            },
+            "medium" => match count {
+                0 => {
+                    issues.push("no events in 30 days");
+                    5
+                }
+                1..=3 => 15,
+                _ => 25,
+            },
+            _ => {
+                // high
                 match count {
-                    0 => { issues.push("no events in 30 days"); 0 }
+                    0 => {
+                        issues.push("no events in 30 days");
+                        0
+                    }
                     1..=5 => 15,
                     6..=20 => 20,
                     _ => 25,
@@ -117,8 +136,11 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
     let (recency_score, last_commit_days) = {
         let output = Command::new("git")
             .args([
-                "-C", core_root,
-                "log", "--oneline", "-1",
+                "-C",
+                core_root,
+                "log",
+                "--oneline",
+                "-1",
                 "--format=%ct",
                 "--",
                 &format!("rust-tools/{}/", name),
@@ -136,11 +158,14 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                     .unwrap_or(0);
                 let days = ((now - ts) / 86400) as u64;
                 let score = match days {
-                    0..=7   => 25,
-                    8..=30  => 20,
+                    0..=7 => 25,
+                    8..=30 => 20,
                     31..=60 => 15,
                     61..=90 => 10,
-                    _ => { issues.push("not touched in 90+ days"); 0 }
+                    _ => {
+                        issues.push("not touched in 90+ days");
+                        0
+                    }
                 };
                 (score, Some(days))
             } else {
@@ -160,18 +185,30 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
         .unwrap_or(false);
 
     let doc_score = match (has_readme, has_description) {
-        (true, true)   => 25,
-        (true, false)  => { issues.push("missing description in Cargo.toml"); 15 }
-        (false, true)  => { issues.push("no README.md"); 15 }
-        (false, false) => { issues.push("no README, no description"); 5 }
+        (true, true) => 25,
+        (true, false) => {
+            issues.push("missing description in Cargo.toml");
+            15
+        }
+        (false, true) => {
+            issues.push("no README.md");
+            15
+        }
+        (false, false) => {
+            issues.push("no README, no description");
+            5
+        }
     };
 
     // ── Version currency score (25%) ──────────────────────────────────────
     let version_score = {
         let output = Command::new("git")
             .args([
-                "-C", core_root,
-                "log", "--oneline", "-1",
+                "-C",
+                core_root,
+                "log",
+                "--oneline",
+                "-1",
                 "--format=%ct",
                 "--",
                 &format!("rust-tools/{}/Cargo.toml", name),
@@ -188,10 +225,18 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(0);
                 let days = (now - ts) / 86400;
-                if days > 90 { issues.push("version not bumped in 90+ days"); 10 }
-                else { 25 }
-            } else { 15 }
-        } else { 15 }
+                if days > 90 {
+                    issues.push("version not bumped in 90+ days");
+                    10
+                } else {
+                    25
+                }
+            } else {
+                15
+            }
+        } else {
+            15
+        }
     };
 
     let score = usage_score + recency_score + doc_score + version_score;
@@ -217,7 +262,9 @@ fn get_all_tools(core_root: &str) -> Vec<String> {
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.contains("archived") { continue; }
+            if name.contains("archived") {
+                continue;
+            }
             if entry.path().join("Cargo.toml").exists() {
                 tools.push(name);
             }
@@ -230,64 +277,93 @@ fn get_all_tools(core_root: &str) -> Vec<String> {
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 pub fn scan(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "audit",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("audit", &[Capability::FilesystemReadHome])?;
 
     let core_root = &ctx.core_root;
     let tools = get_all_tools(core_root);
     let total = tools.len();
 
     println!();
-    println!("{}", "  ╭─ 🔍 Tool Intelligence Report ──────────────────────────────".bright_cyan());
-    println!("  │  Analyzing {} tools...", total.to_string().bright_white());
-    println!("{}", "  ╰────────────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╭─ 🔍 Tool Intelligence Report ──────────────────────────────".bright_cyan()
+    );
+    println!(
+        "  │  Analyzing {} tools...",
+        total.to_string().bright_white()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────────────".dimmed()
+    );
 
-    let scores: Vec<ToolScore> = tools.iter()
+    let scores: Vec<ToolScore> = tools
+        .iter()
         .map(|t| score_tool(ctx, t, core_root))
         .collect();
 
-    let needs_attention: Vec<&ToolScore> = scores.iter()
-        .filter(|s| s.score < 70)
-        .collect();
+    let needs_attention: Vec<&ToolScore> = scores.iter().filter(|s| s.score < 70).collect();
 
     let healthy_count = scores.iter().filter(|s| s.score >= 70).count();
 
     // Summary header
     println!();
-    println!("{}", "  ╭──────────────────────────────────────────────────────────╮".bright_cyan());
-    println!("  │  {} tools analyzed  │  {} healthy  │  {} need attention  │",
+    println!(
+        "{}",
+        "  ╭──────────────────────────────────────────────────────────╮".bright_cyan()
+    );
+    println!(
+        "  │  {} tools analyzed  │  {} healthy  │  {} need attention  │",
         total.to_string().bright_white(),
         healthy_count.to_string().bright_green(),
         needs_attention.len().to_string().yellow(),
     );
-    println!("{}", "  ╰──────────────────────────────────────────────────────────╯".bright_cyan());
+    println!(
+        "{}",
+        "  ╰──────────────────────────────────────────────────────────╯".bright_cyan()
+    );
 
     if !needs_attention.is_empty() {
         println!();
-        println!("{}", "  ╭─ ⚠️  Needs Attention ────────────────────────────────────".yellow());
+        println!(
+            "{}",
+            "  ╭─ ⚠️  Needs Attention ────────────────────────────────────".yellow()
+        );
         for t in &needs_attention {
             let issue = t.issues.first().copied().unwrap_or("below threshold");
-            println!("  │  {:<30} {}  {}/100",
+            println!(
+                "  │  {:<30} {}  {}/100",
                 t.name.bright_white(),
                 issue.yellow(),
                 t.score.to_string().yellow(),
             );
         }
-        println!("{}", "  ╰────────────────────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ╰────────────────────────────────────────────────────────".dimmed()
+        );
     }
 
     println!();
-    println!("{}", "  ╭─ 🟢 Healthy ────────────────────────────────────────────".bright_green());
+    println!(
+        "{}",
+        "  ╭─ 🟢 Healthy ────────────────────────────────────────────".bright_green()
+    );
     let healthy: Vec<&ToolScore> = scores.iter().filter(|s| s.score >= 70).collect();
     let names: Vec<&str> = healthy.iter().map(|s| s.name.as_str()).collect();
-    println!("  │  {} tools above threshold", healthy_count.to_string().bright_green());
+    println!(
+        "  │  {} tools above threshold",
+        healthy_count.to_string().bright_green()
+    );
     // Show them in compact form
     for chunk in names.chunks(4) {
         println!("  │  {}", chunk.join("  ").dimmed());
     }
-    println!("{}", "  ╰────────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     // Write to state.db
@@ -297,26 +373,47 @@ pub fn scan(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn show(ctx: &AppContext, tool_name: &str) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "audit",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("audit", &[Capability::FilesystemReadHome])?;
 
     let core_root = &ctx.core_root;
     let score = score_tool(ctx, tool_name, core_root);
 
     println!();
-    println!("{}", "  ╭─ 🔍 Tool Audit ─────────────────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🔍 Tool Audit ─────────────────────────────────────────".bright_cyan()
+    );
     println!("  │  Tool:    {}", score.name.bright_white().bold());
-    println!("  │  Score:   {}/100  ({})", score.score, score.health_label());
-    println!("{}", "  ├─────────────────────────────────────────────────────────".dimmed());
-    println!("  │  Usage:    {}/25  {}", score.usage_score,
-        if let Some(d) = score.last_event_days { format!("(last event {}d ago)", d).dimmed().to_string() }
-        else { "".to_string() });
-    println!("  │  Recency:  {}/25  {}", score.recency_score,
-        if let Some(d) = score.last_commit_days { format!("(last commit {}d ago)", d).dimmed().to_string() }
-        else { "".to_string() });
-    println!("  │  Docs:     {}/25  README:{} Description:{}",
+    println!(
+        "  │  Score:   {}/100  ({})",
+        score.score,
+        score.health_label()
+    );
+    println!(
+        "{}",
+        "  ├─────────────────────────────────────────────────────────".dimmed()
+    );
+    println!(
+        "  │  Usage:    {}/25  {}",
+        score.usage_score,
+        if let Some(d) = score.last_event_days {
+            format!("(last event {}d ago)", d).dimmed().to_string()
+        } else {
+            "".to_string()
+        }
+    );
+    println!(
+        "  │  Recency:  {}/25  {}",
+        score.recency_score,
+        if let Some(d) = score.last_commit_days {
+            format!("(last commit {}d ago)", d).dimmed().to_string()
+        } else {
+            "".to_string()
+        }
+    );
+    println!(
+        "  │  Docs:     {}/25  README:{} Description:{}",
         score.doc_score,
         if score.has_readme { "✅" } else { "❌" },
         if score.has_description { "✅" } else { "❌" },
@@ -324,43 +421,56 @@ pub fn show(ctx: &AppContext, tool_name: &str) -> CoreResult<()> {
     println!("  │  Version:  {}/25", score.version_score);
 
     if !score.issues.is_empty() {
-        println!("{}", "  ├─────────────────────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ├─────────────────────────────────────────────────────────".dimmed()
+        );
         println!("  │  {}", "Issues:".yellow().bold());
         for issue in &score.issues {
             println!("  │    {} {}", "→".yellow(), issue.yellow());
         }
     }
-    println!("{}", "  ╰─────────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰─────────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     Ok(())
 }
 
 pub fn stale(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "audit",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("audit", &[Capability::FilesystemReadHome])?;
 
     let core_root = &ctx.core_root;
     let tools = get_all_tools(core_root);
-    let scores: Vec<ToolScore> = tools.iter()
+    let scores: Vec<ToolScore> = tools
+        .iter()
         .map(|t| score_tool(ctx, t, core_root))
         .collect();
 
-    let stale: Vec<&ToolScore> = scores.iter()
-        .filter(|s| s.score < 70)
-        .collect();
+    let stale: Vec<&ToolScore> = scores.iter().filter(|s| s.score < 70).collect();
 
     println!();
-    println!("{}", "  ╭─ ⚠️  Stale Tools ────────────────────────────────────────".yellow());
+    println!(
+        "{}",
+        "  ╭─ ⚠️  Stale Tools ────────────────────────────────────────".yellow()
+    );
     if stale.is_empty() {
         println!("  │  {} All tools are healthy", "✅".green());
     } else {
-        println!("  │  {} tools need attention:", stale.len().to_string().yellow().bold());
-        println!("{}", "  ├─────────────────────────────────────────────────────────".dimmed());
+        println!(
+            "  │  {} tools need attention:",
+            stale.len().to_string().yellow().bold()
+        );
+        println!(
+            "{}",
+            "  ├─────────────────────────────────────────────────────────".dimmed()
+        );
         for t in &stale {
-            println!("  │  {:<28} score:{}/100",
+            println!(
+                "  │  {:<28} score:{}/100",
                 t.name.bright_white(),
                 t.score.to_string().yellow(),
             );
@@ -369,17 +479,18 @@ pub fn stale(ctx: &AppContext) -> CoreResult<()> {
             }
         }
     }
-    println!("{}", "  ╰─────────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰─────────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     Ok(())
 }
 
 pub fn coverage(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "audit",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("audit", &[Capability::FilesystemReadHome])?;
 
     let core_root = &ctx.core_root;
     let tools = get_all_tools(core_root);
@@ -401,24 +512,42 @@ pub fn coverage(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!();
-    println!("{}", "  ╭─ 📋 Documentation Coverage ─────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 📋 Documentation Coverage ─────────────────────────────".bright_cyan()
+    );
     println!("  │  {} tools analyzed", tools.len());
-    println!("  │  {} missing README", no_readme.len().to_string().yellow());
-    println!("  │  {} missing description", no_description.len().to_string().yellow());
+    println!(
+        "  │  {} missing README",
+        no_readme.len().to_string().yellow()
+    );
+    println!(
+        "  │  {} missing description",
+        no_description.len().to_string().yellow()
+    );
 
     if !no_readme.is_empty() {
-        println!("{}", "  ├─ No README ─────────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ├─ No README ─────────────────────────────────────────────".dimmed()
+        );
         for t in &no_readme {
             println!("  │  {} {}", "→".yellow(), t.bright_white());
         }
     }
     if !no_description.is_empty() {
-        println!("{}", "  ├─ No Description ────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ├─ No Description ────────────────────────────────────────".dimmed()
+        );
         for t in &no_description {
             println!("  │  {} {}", "→".yellow(), t.bright_white());
         }
     }
-    println!("{}", "  ╰─────────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰─────────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     Ok(())
@@ -437,8 +566,9 @@ fn write_audit_scores(ctx: &AppContext, scores: &[ToolScore]) {
             version_score    INTEGER,
             last_commit_days INTEGER,
             timestamp        INTEGER NOT NULL
-        );"
-    ).ok();
+        );",
+    )
+    .ok();
 
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -33,16 +33,19 @@ use wayland_client::{
 // wl_shm Argb8888 little-endian: bytes in memory are [B, G, R, A]
 // So u32.to_le_bytes() = [byte0=B, byte1=G, byte2=R, byte3=A]
 // To encode: 0xFF_RR_GG_BB where to_le_bytes gives [BB, GG, RR, FF] = [B,G,R,A] ✓
-const COLOR_HEALTHY:  u32 = 0xFF0F1411; // forest #0f1411: B=0x11 G=0x14 R=0x0f → nope
 // Correct: RGB(0x0f, 0x14, 0x11) → need [B=0x11, G=0x14, R=0x0f, A=0xff]
 // as u32 le: byte0=0x11 byte1=0x14 byte2=0x0f byte3=0xff → 0xff0f1411
-const COLOR_HEALTHY:  u32 = 0xFF0F1411; // [B=0x11,G=0x14,R=0x0F,A=0xFF]
-const COLOR_WARN:     u32 = 0xFF0A1314;
+const COLOR_HEALTHY: u32 = 0xFF0F1411; // [B=0x11,G=0x14,R=0x0F,A=0xFF]
+const COLOR_WARN: u32 = 0xFF0A1314;
 const COLOR_CRITICAL: u32 = 0xFF0C0C18;
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
 #[derive(Parser)]
-#[command(name = "faelight-wallpaper", about = "🌲 Rust wallpaper daemon", version = "0.1.0")]
+#[command(
+    name = "faelight-wallpaper",
+    about = "🌲 Rust wallpaper daemon",
+    version = "0.1.0"
+)]
 struct Cli {
     /// Hex color (e.g. #0f1411) — overrides health-reactive mode
     #[arg(short, long)]
@@ -88,14 +91,22 @@ impl WallpaperState {
             pixel.copy_from_slice(&color);
         }
 
-        self.layer.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
+        self.layer
+            .wl_surface()
+            .attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer
+            .wl_surface()
+            .damage_buffer(0, 0, width as i32, height as i32);
         self.layer.wl_surface().commit();
     }
 
     fn update_health_color(&mut self) {
-        if !self.health_reactive { return; }
-        if self.last_health_check.elapsed() < std::time::Duration::from_secs(30) { return; }
+        if !self.health_reactive {
+            return;
+        }
+        if self.last_health_check.elapsed() < std::time::Duration::from_secs(30) {
+            return;
+        }
         self.last_health_check = std::time::Instant::now();
 
         let health = read_health_from_db();
@@ -112,7 +123,9 @@ fn read_health_from_db() -> u32 {
         .unwrap_or_else(|| PathBuf::from("/home/christian"))
         .join("0-core/runtime/state.db");
 
-    if !db_path.exists() { return 95; }
+    if !db_path.exists() {
+        return 95;
+    }
 
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
@@ -125,7 +138,8 @@ fn read_health_from_db() -> u32 {
         |row| row.get(0),
     );
 
-    result.ok()
+    result
+        .ok()
         .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
         .and_then(|v| v["detail"]["health"].as_u64())
         .map(|h| h as u32)
@@ -150,42 +164,81 @@ impl LayerShellHandler for WallpaperState {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         std::process::exit(0);
     }
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>,
-                 _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+    fn configure(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &LayerSurface,
+        configure: LayerSurfaceConfigure,
+        _: u32,
+    ) {
         let (w, h) = configure.new_size;
-        if w > 0 { self.width = w; }
-        if h > 0 { self.height = h; }
+        if w > 0 {
+            self.width = w;
+        }
+        if h > 0 {
+            self.height = h;
+        }
         self.configured = true;
         self.draw();
     }
 }
 
 impl CompositorHandler for WallpaperState {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>,
-                            _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>,
-                         _: &wl_surface::WlSurface, _: wl_output::Transform) {}
-    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>,
-             _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>,
-                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>,
-                     _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
+    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for WallpaperState {
-    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
+    fn output_state(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
 }
 
 impl ShmHandler for WallpaperState {
-    fn shm_state(&mut self) -> &mut Shm { &mut self.shm }
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
+    }
 }
 
 impl ProvidesRegistryState for WallpaperState {
-    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
+    fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
     registry_handlers![OutputState];
 }
 
@@ -220,7 +273,11 @@ fn main() -> Result<()> {
 
     let surface = compositor.create_surface(&qh);
     let layer = layer_shell.create_layer_surface(
-        &qh, surface, Layer::Background, Some("faelight-wallpaper"), None,
+        &qh,
+        surface,
+        Layer::Background,
+        Some("faelight-wallpaper"),
+        None,
     );
 
     // Cover entire screen

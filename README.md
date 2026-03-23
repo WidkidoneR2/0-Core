@@ -58,7 +58,7 @@ Faelight Forest:   forest_data | judgment | wisdom
 **Four principles that govern everything:**
 
 1. **Understanding over convenience** — if you don't understand it, it doesn't run
-2. **Manual control over automation** — nothing happens without explicit human authorization  
+2. **Manual control over automation** — nothing happens without explicit human authorization
 3. **Intentional design** — every tool has a purpose, every decision has a record
 4. **The forest remembers** — every commit, decision, and intent is documented
 
@@ -84,6 +84,7 @@ Faelight Forest:   forest_data | judgment | wisdom
 | `core snapshot` | Forest state narrative — what exists and why |
 
 ### faelight-shell — Forest-Native Shell
+
 Not bash. Not fish. Not Nu. **Beyond all of them.**
 ```fsh
 # Structured data pipelines
@@ -127,7 +128,7 @@ gc | first 20 > commits.txt    # redirection
 Forest-native secrets management with Argon2id encryption. No LastPass, no Bitwarden — your own vault, your own keys.
 
 ### faelight-compositor — Custom Wayland Compositor
-Built on Smithay. Renders forest green on real DRM hardware at 2560×1600@165Hz on AMD Radeon 780M. Not a config file — actual Rust code talking directly to the GPU.
+Built on Smithay. Renders forest green on real DRM hardware at 2560x1600@165Hz on AMD Radeon 780M. Not a config file — actual Rust code talking directly to the GPU.
 
 ---
 
@@ -168,7 +169,7 @@ Every change is intentional. Every tool is understood.
 ```
 
 - **UFW** firewall + **fail2ban** active
-- **faelight-vault** — Argon2id encrypted credential manager  
+- **faelight-vault** — Argon2id encrypted credential manager
 - **faelight-sandbox v3** — policy engine, namespace isolation, seccomp
 - **Immutable core** — `chattr +i` on core files, requires explicit unlock
 - **24-check health monitoring** — doctor runs verify integrity continuously

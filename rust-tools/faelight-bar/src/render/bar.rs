@@ -30,7 +30,6 @@ fn current_font_size() -> f32 {
     RENDER_SCALE.with(|s| FONT_SIZE_BASE * s.get())
 }
 
-
 lazy_static::lazy_static! {
     static ref HEALTH_CACHE: std::sync::Mutex<(String, [u8; 4], std::time::Instant)> =
         std::sync::Mutex::new((
@@ -391,7 +390,12 @@ fn draw_text(
 
 fn text_width(cache: &mut GlyphCache, text: &str) -> i32 {
     text.chars()
-        .map(|ch| cache.rasterize(ch, current_font_size()).metrics.advance_width as i32)
+        .map(|ch| {
+            cache
+                .rasterize(ch, current_font_size())
+                .metrics
+                .advance_width as i32
+        })
         .sum()
 }
 

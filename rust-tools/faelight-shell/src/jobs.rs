@@ -5,9 +5,9 @@ use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Job {
-    pub id:      usize,
-    pub cmd:     String,
-    pub child:   std::process::Child,
+    pub id: usize,
+    pub cmd: String,
+    pub child: std::process::Child,
     pub started: Instant,
 }
 
@@ -18,13 +18,16 @@ impl Job {
 }
 
 pub struct JobTable {
-    jobs:    Vec<Job>,
+    jobs: Vec<Job>,
     next_id: usize,
 }
 
 impl JobTable {
     pub fn new() -> Self {
-        Self { jobs: vec![], next_id: 1 }
+        Self {
+            jobs: vec![],
+            next_id: 1,
+        }
     }
 
     /// Spawn a background job. Returns job id.
@@ -44,7 +47,8 @@ impl JobTable {
             child,
             started: Instant::now(),
         });
-        println!("  {} [{}] {} &",
+        println!(
+            "  {} [{}] {} &",
             "○".bright_cyan(),
             id.to_string().bright_white(),
             cmd.dimmed()
@@ -62,7 +66,8 @@ impl JobTable {
                     let elapsed = job.started.elapsed().as_secs_f64();
                     let code = status.code().unwrap_or(-1);
                     if code == 0 {
-                        println!("\n  {} [{}] {} — {} ({:.1}s)",
+                        println!(
+                            "\n  {} [{}] {} — {} ({:.1}s)",
                             "✅".normal(),
                             job.id.to_string().bright_white(),
                             job.cmd.bright_green(),
@@ -70,7 +75,8 @@ impl JobTable {
                             elapsed
                         );
                     } else {
-                        println!("\n  {} [{}] {} — {} ({:.1}s) exit {}",
+                        println!(
+                            "\n  {} [{}] {} — {} ({:.1}s) exit {}",
                             "✗".bright_red(),
                             job.id.to_string().bright_white(),
                             job.cmd.bright_red(),
@@ -82,7 +88,9 @@ impl JobTable {
                     completed.push(job.id);
                 }
                 Ok(None) => {} // still running
-                Err(_)  => { completed.push(job.id); }
+                Err(_) => {
+                    completed.push(job.id);
+                }
             }
         }
         self.jobs.retain(|j| !completed.contains(&j.id));
@@ -97,7 +105,8 @@ impl JobTable {
             println!("  {}", "Background Jobs".bright_white().bold());
             println!("{}", "  ────────────────────────────────".dimmed());
             for job in &self.jobs {
-                println!("  [{}] {}  ({:.0}s elapsed)",
+                println!(
+                    "  [{}] {}  ({:.0}s elapsed)",
                     job.id.to_string().bright_cyan(),
                     job.cmd.bright_white(),
                     job.elapsed()
@@ -114,12 +123,21 @@ impl JobTable {
             None => println!("  {} No job [{}]", "✗".bright_red(), id),
             Some(i) => {
                 let cmd = self.jobs[i].cmd.clone();
-                println!("  {} [{}] {} (foreground)",
-                    "→".bright_cyan(), id, cmd.dimmed());
+                println!(
+                    "  {} [{}] {} (foreground)",
+                    "→".bright_cyan(),
+                    id,
+                    cmd.dimmed()
+                );
                 let _ = self.jobs[i].child.wait();
                 let elapsed = self.jobs[i].elapsed();
-                println!("  {} [{}] {} — done ({:.1}s)",
-                    "✅".normal(), id, cmd.bright_green(), elapsed);
+                println!(
+                    "  {} [{}] {} — done ({:.1}s)",
+                    "✅".normal(),
+                    id,
+                    cmd.bright_green(),
+                    elapsed
+                );
                 self.jobs.remove(i);
             }
         }
@@ -133,13 +151,14 @@ impl JobTable {
             Some(i) => {
                 let cmd = self.jobs[i].cmd.clone();
                 let _ = self.jobs[i].child.kill();
-                println!("  {} [{}] {} killed",
-                    "○".dimmed(), id, cmd.dimmed());
+                println!("  {} [{}] {} killed", "○".dimmed(), id, cmd.dimmed());
                 self.jobs.remove(i);
             }
         }
     }
 
     #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool { self.jobs.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.jobs.is_empty()
+    }
 }

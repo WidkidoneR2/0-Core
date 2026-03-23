@@ -15,7 +15,9 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn set(&mut self, name: &str, val: Value) {
         self.vars.insert(name.to_string(), val);
@@ -38,19 +40,38 @@ impl Scope {
 /// A parsed .fsh statement
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Let { name: String, expr: String },
-    If { condition: String, body: Vec<Statement> },
-    When { event: String, body: Vec<Statement> },
-    Run { command: String },
-    Emit { event: String, payload: Option<String> },
-    Warn { message: String },
-    Confirm { message: String },
+    Let {
+        name: String,
+        expr: String,
+    },
+    If {
+        condition: String,
+        body: Vec<Statement>,
+    },
+    When {
+        event: String,
+        body: Vec<Statement>,
+    },
+    Run {
+        command: String,
+    },
+    Emit {
+        event: String,
+        payload: Option<String>,
+    },
+    Warn {
+        message: String,
+    },
+    Confirm {
+        message: String,
+    },
 }
 
 /// Parse .fsh source into statements
 pub fn parse(source: &str) -> Vec<Statement> {
     let mut stmts = vec![];
-    let lines: Vec<&str> = source.lines()
+    let lines: Vec<&str> = source
+        .lines()
         .map(|l| l.trim())
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .collect();
@@ -79,7 +100,9 @@ pub fn parse(source: &str) -> Vec<Statement> {
             let body = collect_block(&lines, &mut i);
             stmts.push(Statement::When { event, body });
         } else if let Some(rest) = line.strip_prefix("run ") {
-            stmts.push(Statement::Run { command: rest.trim().to_string() });
+            stmts.push(Statement::Run {
+                command: rest.trim().to_string(),
+            });
             i += 1;
         } else if let Some(rest) = line.strip_prefix("emit ") {
             let parts: Vec<&str> = rest.splitn(2, ' ').collect();
@@ -90,17 +113,19 @@ pub fn parse(source: &str) -> Vec<Statement> {
             i += 1;
         } else if let Some(rest) = line.strip_prefix("warn ") {
             stmts.push(Statement::Warn {
-                message: rest.trim_matches('"').to_string()
+                message: rest.trim_matches('"').to_string(),
             });
             i += 1;
         } else if let Some(rest) = line.strip_prefix("confirm ") {
             stmts.push(Statement::Confirm {
-                message: rest.trim_matches('"').to_string()
+                message: rest.trim_matches('"').to_string(),
             });
             i += 1;
         } else {
             // Treat as raw command
-            stmts.push(Statement::Run { command: line.to_string() });
+            stmts.push(Statement::Run {
+                command: line.to_string(),
+            });
             i += 1;
         }
     }
@@ -113,10 +138,15 @@ fn collect_block(lines: &[&str], i: &mut usize) -> Vec<Statement> {
     let mut depth = 1;
     while *i < lines.len() {
         let line = lines[*i];
-        if line.ends_with('{') { depth += 1; }
+        if line.ends_with('{') {
+            depth += 1;
+        }
         if line == "}" {
             depth -= 1;
-            if depth == 0 { *i += 1; break; }
+            if depth == 0 {
+                *i += 1;
+                break;
+            }
         }
         block_lines.push(line);
         *i += 1;
@@ -125,12 +155,7 @@ fn collect_block(lines: &[&str], i: &mut usize) -> Vec<Statement> {
 }
 
 /// Execute a list of statements
-pub fn run_stmts(
-    stmts: &[Statement],
-    scope: &mut Scope,
-    db: &ForestDb,
-    core_root: &str,
-) -> bool {
+pub fn run_stmts(stmts: &[Statement], scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
     for stmt in stmts {
         if !run_stmt(stmt, scope, db, core_root) {
             return false;
@@ -139,12 +164,7 @@ pub fn run_stmts(
     true
 }
 
-fn run_stmt(
-    stmt: &Statement,
-    scope: &mut Scope,
-    db: &ForestDb,
-    core_root: &str,
-) -> bool {
+fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
     match stmt {
         Statement::Let { name, expr } => {
             let expanded = scope.interpolate(expr);
@@ -180,20 +200,27 @@ fn run_stmt(
         Statement::Run { command } => {
             let expanded = scope.interpolate(command);
             match execute(&expanded, db, core_root) {
-                CommandResult::Value(v) => { println!("{}", v.render()); true }
-                CommandResult::Output(o) => { println!("{}", o); true }
+                CommandResult::Value(v) => {
+                    println!("{}", v.render());
+                    true
+                }
+                CommandResult::Output(o) => {
+                    println!("{}", o);
+                    true
+                }
                 CommandResult::Error(e) => {
                     eprintln!("  {} {}", "✗".bright_red(), e);
                     false
                 }
-                _ => true
+                _ => true,
             }
         }
 
         Statement::Emit { event, payload } => {
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default().as_secs() as i64;
+                .unwrap_or_default()
+                .as_secs() as i64;
             let parts: Vec<&str> = event.splitn(2, '.').collect();
             let (domain, action) = if parts.len() == 2 {
                 (parts[0], parts[1])
@@ -217,10 +244,13 @@ fn run_stmt(
         Statement::Confirm { message } => {
             let expanded = scope.interpolate(message);
             print!("  {} {} [y/n]: ", "?".bright_cyan(), expanded);
-            use std::io::{Write, BufRead};
+            use std::io::{BufRead, Write};
             std::io::stdout().flush().ok();
             let stdin = std::io::stdin();
-            let answer = stdin.lock().lines().next()
+            let answer = stdin
+                .lock()
+                .lines()
+                .next()
                 .and_then(|l| l.ok())
                 .unwrap_or_default()
                 .trim()
@@ -239,8 +269,8 @@ fn eval_condition(cond: &str, scope: &mut Scope, db: &ForestDb, core_root: &str)
         let right = parts[2].parse::<f64>().unwrap_or(0.0);
         if let Ok(left_num) = left.parse::<f64>() {
             return match op {
-                "<"  => left_num < right,
-                ">"  => left_num > right,
+                "<" => left_num < right,
+                ">" => left_num > right,
                 "<=" => left_num <= right,
                 ">=" => left_num >= right,
                 "==" => (left_num - right).abs() < f64::EPSILON,
@@ -270,7 +300,8 @@ fn resolve_value(name: &str, scope: &mut Scope, db: &ForestDb, core_root: &str) 
         "health" => db.health_score().unwrap_or(0).to_string(),
         "commits" => std::process::Command::new("git")
             .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-            .output().ok()
+            .output()
+            .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())
             .unwrap_or_else(|| "0".to_string()),
@@ -283,12 +314,17 @@ fn check_event(event: &str, db: &ForestDb) -> bool {
     if parts.len() == 2 {
         let since = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default().as_secs() as i64 - 3600; // last hour
-        db.conn.query_row(
-            "SELECT COUNT(*) FROM events WHERE domain=?1 AND action=?2 AND timestamp > ?3",
-            rusqlite::params![parts[0], parts[1], since],
-            |r| r.get::<_, i64>(0)
-        ).unwrap_or(0) > 0
+            .unwrap_or_default()
+            .as_secs() as i64
+            - 3600; // last hour
+        db.conn
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE domain=?1 AND action=?2 AND timestamp > ?3",
+                rusqlite::params![parts[0], parts[1], since],
+                |r| r.get::<_, i64>(0),
+            )
+            .unwrap_or(0)
+            > 0
     } else {
         false
     }

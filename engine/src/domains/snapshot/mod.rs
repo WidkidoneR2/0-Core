@@ -11,7 +11,8 @@ use colored::*;
 use std::path::PathBuf;
 
 pub fn narrative(ctx: &AppContext, json: bool, save: bool) -> CoreResult<()> {
-    ctx.capabilities.require("snapshot", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("snapshot", &[Capability::FilesystemReadHome])?;
 
     let data = gather_snapshot_data(ctx);
 
@@ -61,24 +62,26 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     let now = chrono::Local::now();
 
     // Version
-    let version = std::fs::read_to_string(
-        PathBuf::from(core_root).join("00-meta/VERSION")
-    ).unwrap_or_else(|_| "unknown".to_string()).trim().to_string();
+    let version = std::fs::read_to_string(PathBuf::from(core_root).join("00-meta/VERSION"))
+        .unwrap_or_else(|_| "unknown".to_string())
+        .trim()
+        .to_string();
 
     // Commit count
     let commit_count = std::process::Command::new("git")
         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
 
     // Tools from registry
-    let registry = std::fs::read_to_string(
-        PathBuf::from(core_root).join("01-registry/tools.toml")
-    ).unwrap_or_default();
+    let registry = std::fs::read_to_string(PathBuf::from(core_root).join("01-registry/tools.toml"))
+        .unwrap_or_default();
 
-    let tool_names: Vec<String> = registry.lines()
+    let tool_names: Vec<String> = registry
+        .lines()
         .filter(|l| l.starts_with("name = "))
         .map(|l| l.split('"').nth(1).unwrap_or("").to_string())
         .collect();
@@ -103,16 +106,20 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         .collect();
 
     // Health — read from cache or use default
-    let health: u32 = std::fs::read_to_string(
-        PathBuf::from(core_root).join("runtime/cache/health.txt")
-    ).ok().and_then(|s| s.trim().trim_end_matches('%').parse().ok()).unwrap_or(95);
+    let health: u32 =
+        std::fs::read_to_string(PathBuf::from(core_root).join("runtime/cache/health.txt"))
+            .ok()
+            .and_then(|s| s.trim().trim_end_matches('%').parse().ok())
+            .unwrap_or(95);
 
     // Decisions
     let decisions: Vec<(String, String)> = {
-        let mut stmt = ctx.runtime.db.prepare(
-            "SELECT description, outcome FROM decisions ORDER BY timestamp DESC LIMIT 10"
-        ).unwrap();
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT description, outcome FROM decisions ORDER BY timestamp DESC LIMIT 10")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
     };
@@ -120,24 +127,31 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     // Intent counts
     let complete_dir = PathBuf::from(core_root).join("intents/complete");
     let future_dir = PathBuf::from(core_root).join("intents/future");
-    let intents_complete = std::fs::read_dir(&complete_dir).map(|d| d.count()).unwrap_or(0);
-    let intents_planned = std::fs::read_dir(&future_dir).map(|d| d.count()).unwrap_or(0);
+    let intents_complete = std::fs::read_dir(&complete_dir)
+        .map(|d| d.count())
+        .unwrap_or(0);
+    let intents_planned = std::fs::read_dir(&future_dir)
+        .map(|d| d.count())
+        .unwrap_or(0);
 
     // Active policies
-    let policies_content = std::fs::read_to_string(
-        PathBuf::from(core_root).join("01-registry/sandbox-policies.toml")
-    ).unwrap_or_default();
-    let active_policies: Vec<String> = policies_content.lines()
+    let policies_content =
+        std::fs::read_to_string(PathBuf::from(core_root).join("01-registry/sandbox-policies.toml"))
+            .unwrap_or_default();
+    let active_policies: Vec<String> = policies_content
+        .lines()
         .filter(|l| l.starts_with("name = "))
         .map(|l| l.split('"').nth(1).unwrap_or("").to_string())
         .collect();
 
     // Recent events
     let recent_events: Vec<(String, String)> = {
-        let mut stmt = ctx.runtime.db.prepare(
-            "SELECT domain, action FROM events ORDER BY timestamp DESC LIMIT 10"
-        ).unwrap();
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT domain, action FROM events ORDER BY timestamp DESC LIMIT 10")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
     };
@@ -145,7 +159,8 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     // Git remote
     let git_remote = std::process::Command::new("git")
         .args(["-C", core_root, "remote", "get-url", "origin"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
@@ -173,102 +188,185 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
 fn render_markdown(d: &SnapshotData) -> String {
     let mut out = String::new();
 
-    out.push_str(&format!("{}
-", "  ╭─ 🌲 Snapshot Narrative ────────────────────────────".bright_cyan()));
-    out.push_str(&format!("  │  {} — {}
-", d.version.bright_green().bold(), d.date.dimmed()));
-    out.push_str(&format!("{}
-", "  ├────────────────────────────────────────────────────".dimmed()));
+    out.push_str(&format!(
+        "{}
+",
+        "  ╭─ 🌲 Snapshot Narrative ────────────────────────────".bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  {} — {}
+",
+        d.version.bright_green().bold(),
+        d.date.dimmed()
+    ));
+    out.push_str(&format!(
+        "{}
+",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    ));
 
     // Identity
-    out.push_str(&format!("  │  {}
-", "Identity".bright_white().bold()));
-    out.push_str(&format!("  │  Faelight Forest {} — built entirely in Rust
-", d.version));
-    out.push_str(&format!("  │  {} commits  ·  {} tools  ·  {}% health
+    out.push_str(&format!(
+        "  │  {}
 ",
-        d.commit_count, d.tool_count, d.health));
-    out.push_str("  │
-");
+        "Identity".bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  Faelight Forest {} — built entirely in Rust
+",
+        d.version
+    ));
+    out.push_str(&format!(
+        "  │  {} commits  ·  {} tools  ·  {}% health
+",
+        d.commit_count, d.tool_count, d.health
+    ));
+    out.push_str(
+        "  │
+",
+    );
 
     // Tools — top 5 and bottom 5
-    out.push_str(&format!("  │  {}
-", "Tool Ecosystem".bright_white().bold()));
+    out.push_str(&format!(
+        "  │  {}
+",
+        "Tool Ecosystem".bright_white().bold()
+    ));
     let mut sorted = d.tools.clone();
     sorted.sort_by(|a, b| b.2.cmp(&a.2));
-    out.push_str(&format!("  │  Top performers:
-"));
+    out.push_str(&format!(
+        "  │  Top performers:
+"
+    ));
     for (name, ver, score) in sorted.iter().take(3) {
-        out.push_str(&format!("  │    {} v{}  score: {}
+        out.push_str(&format!(
+            "  │    {} v{}  score: {}
 ",
-            name.bright_cyan(), ver.dimmed(), score.to_string().bright_green()));
+            name.bright_cyan(),
+            ver.dimmed(),
+            score.to_string().bright_green()
+        ));
     }
-    out.push_str(&format!("  │  Needs attention:
-"));
+    out.push_str(&format!(
+        "  │  Needs attention:
+"
+    ));
     for (name, ver, score) in sorted.iter().rev().take(3) {
         if *score < 80 {
-            out.push_str(&format!("  │    {} v{}  score: {}
+            out.push_str(&format!(
+                "  │    {} v{}  score: {}
 ",
-                name.bright_cyan(), ver.dimmed(), score.to_string().yellow()));
+                name.bright_cyan(),
+                ver.dimmed(),
+                score.to_string().yellow()
+            ));
         }
     }
-    out.push_str("  │
-");
+    out.push_str(
+        "  │
+",
+    );
 
     // Decisions
-    out.push_str(&format!("  │  {}
-", "Key Decisions".bright_white().bold()));
+    out.push_str(&format!(
+        "  │  {}
+",
+        "Key Decisions".bright_white().bold()
+    ));
     for (desc, outcome) in d.decisions.iter().take(4) {
         let icon = match outcome.as_str() {
             "success" => "✅",
             "failed" => "✗ ",
             _ => "⬜",
         };
-        let short = if desc.len() > 50 { format!("{}...", &desc[..50]) } else { desc.clone() };
-        out.push_str(&format!("  │  {} {}
-", icon, short.dimmed()));
+        let short = if desc.len() > 50 {
+            format!("{}...", &desc[..50])
+        } else {
+            desc.clone()
+        };
+        out.push_str(&format!(
+            "  │  {} {}
+",
+            icon,
+            short.dimmed()
+        ));
     }
-    out.push_str("  │
-");
+    out.push_str(
+        "  │
+",
+    );
 
     // Intents
-    out.push_str(&format!("  │  {}
-", "Intent Ledger".bright_white().bold()));
-    out.push_str(&format!("  │  {} complete  ·  {} planned
+    out.push_str(&format!(
+        "  │  {}
+",
+        "Intent Ledger".bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  {} complete  ·  {} planned
 ",
         d.intents_complete.to_string().bright_green(),
-        d.intents_planned.to_string().bright_yellow()));
-    out.push_str("  │
-");
+        d.intents_planned.to_string().bright_yellow()
+    ));
+    out.push_str(
+        "  │
+",
+    );
 
     // Security
-    out.push_str(&format!("  │  {}
-", "Security Posture".bright_white().bold()));
-    out.push_str(&format!("  │  {} active sandbox policies
-", d.active_policies.len()));
+    out.push_str(&format!(
+        "  │  {}
+",
+        "Security Posture".bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  {} active sandbox policies
+",
+        d.active_policies.len()
+    ));
     for policy in d.active_policies.iter().take(3) {
-        out.push_str(&format!("  │    · {}
-", policy.dimmed()));
+        out.push_str(&format!(
+            "  │    · {}
+",
+            policy.dimmed()
+        ));
     }
-    out.push_str("  │
-");
+    out.push_str(
+        "  │
+",
+    );
 
     // Reconstruction hint
-    out.push_str(&format!("  │  {}
-", "Reconstruction".bright_white().bold()));
-    out.push_str(&format!("  │  git clone {}
-", d.git_remote.bright_cyan()));
-    out.push_str(&format!("  │  cargo build --release --workspace
-"));
-    out.push_str(&format!("  │  Run: core bootstrap plan
-"));
-    out.push_str("  │
-");
-
-    out.push_str(&format!("{}
+    out.push_str(&format!(
+        "  │  {}
 ",
-        "  ╰────────────────────────────────────────────────────".dimmed()));
-    out.push_str(&format!("  {} Run {} for machine-readable seed
+        "Reconstruction".bright_white().bold()
+    ));
+    out.push_str(&format!(
+        "  │  git clone {}
+",
+        d.git_remote.bright_cyan()
+    ));
+    out.push_str(&format!(
+        "  │  cargo build --release --workspace
+"
+    ));
+    out.push_str(&format!(
+        "  │  Run: core bootstrap plan
+"
+    ));
+    out.push_str(
+        "  │
+",
+    );
+
+    out.push_str(&format!(
+        "{}
+",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    ));
+    out.push_str(&format!(
+        "  {} Run {} for machine-readable seed
 ",
         "💡".to_string(),
         "core snapshot narrative --json".bright_cyan()
@@ -280,27 +378,40 @@ fn render_markdown(d: &SnapshotData) -> String {
 // ── Machine Voice — JSON ──────────────────────────────────────────────────────
 
 fn render_json(d: &SnapshotData) -> String {
-    let tools_json: String = d.tools.iter()
+    let tools_json: String = d
+        .tools
+        .iter()
         .map(|(name, ver, score)| {
-            format!(r#"{{"name":"{}","version":"{}","score":{}}}"#, name, ver, score)
+            format!(
+                r#"{{"name":"{}","version":"{}","score":{}}}"#,
+                name, ver, score
+            )
         })
         .collect::<Vec<_>>()
         .join(",");
 
-    let decisions_json: String = d.decisions.iter()
+    let decisions_json: String = d
+        .decisions
+        .iter()
         .map(|(desc, outcome)| {
-            format!(r#"{{"description":"{}","outcome":"{}"}}"#,
-                desc.replace('"', "'"), outcome)
+            format!(
+                r#"{{"description":"{}","outcome":"{}"}}"#,
+                desc.replace('"', "'"),
+                outcome
+            )
         })
         .collect::<Vec<_>>()
         .join(",");
 
-    let policies_json: String = d.active_policies.iter()
+    let policies_json: String = d
+        .active_policies
+        .iter()
         .map(|p| format!(r#""{}""#, p))
         .collect::<Vec<_>>()
         .join(",");
 
-    format!(r#"{{
+    format!(
+        r#"{{
   "version": "{}",
   "date": "{}",
   "commit_count": {},
@@ -319,16 +430,30 @@ fn render_json(d: &SnapshotData) -> String {
     "step3": "core bootstrap plan"
   }}
 }}"#,
-        d.version, d.date, d.commit_count, d.tool_count,
-        d.health, d.checks_passed, d.checks_total,
-        d.intents_complete, d.intents_planned, d.git_remote,
-        tools_json, decisions_json, policies_json, d.git_remote
+        d.version,
+        d.date,
+        d.commit_count,
+        d.tool_count,
+        d.health,
+        d.checks_passed,
+        d.checks_total,
+        d.intents_complete,
+        d.intents_planned,
+        d.git_remote,
+        tools_json,
+        decisions_json,
+        policies_json,
+        d.git_remote
     )
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 
-fn save_snapshot(ctx: &AppContext, d: &SnapshotData, json_override: Option<&str>) -> CoreResult<()> {
+fn save_snapshot(
+    ctx: &AppContext,
+    d: &SnapshotData,
+    json_override: Option<&str>,
+) -> CoreResult<()> {
     let snapshots_dir = PathBuf::from(&ctx.core_root).join("runtime/snapshots");
     std::fs::create_dir_all(&snapshots_dir).ok();
 
@@ -344,7 +469,9 @@ fn save_snapshot(ctx: &AppContext, d: &SnapshotData, json_override: Option<&str>
 
     // Save JSON
     let json_path = snapshots_dir.join(format!("{}.json", base));
-    let json = json_override.map(|j| j.to_string()).unwrap_or_else(|| render_json(d));
+    let json = json_override
+        .map(|j| j.to_string())
+        .unwrap_or_else(|| render_json(d));
     std::fs::write(&json_path, &json).ok();
 
     println!("  {} Snapshot saved:", "✅".green());
@@ -362,7 +489,9 @@ fn strip_ansi(s: &str) -> String {
         if c == '\x1b' {
             while let Some(&next) = chars.peek() {
                 chars.next();
-                if next == 'm' { break; }
+                if next == 'm' {
+                    break;
+                }
             }
         } else {
             result.push(c);
@@ -374,9 +503,11 @@ fn strip_ansi(s: &str) -> String {
 fn emit_event(ctx: &AppContext, action: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let payload = format!(
-        r#"{{"actor":"core","result":"ok","detail":{{"command":"snapshot.{}"}}}}"#, action
+        r#"{{"actor":"core","result":"ok","detail":{{"command":"snapshot.{}"}}}}"#,
+        action
     );
     ctx.runtime.db.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES ('snapshot', ?1, ?2, ?3)",

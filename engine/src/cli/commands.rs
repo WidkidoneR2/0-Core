@@ -2,8 +2,14 @@
 pub enum Command {
     Anomaly(AnomalyCommand),
     Bootstrap(BootstrapCommand),
-    Snapshot { json: bool, save: bool },
-    Narrative { since: Option<String>, intent: Option<String> },
+    Snapshot {
+        json: bool,
+        save: bool,
+    },
+    Narrative {
+        since: Option<String>,
+        intent: Option<String>,
+    },
     Deps(DepsCommand),
     Audit(AuditCommand),
     Version,
@@ -53,21 +59,35 @@ pub enum Command {
 
 #[derive(Debug)]
 pub enum DecisionCommand {
-    Record { description: String, intent: Option<String> },
-    Outcome { id: String, result: String, notes: Option<String> },
-    List { open: bool },
+    Record {
+        description: String,
+        intent: Option<String>,
+    },
+    Outcome {
+        id: String,
+        result: String,
+        notes: Option<String>,
+    },
+    List {
+        open: bool,
+    },
     Hindsight,
-    Show { id: String },
+    Show {
+        id: String,
+    },
     Stats,
-    Advise { decision: Option<String> },
-    Heuristics { domain: Option<String> },
+    Advise {
+        decision: Option<String>,
+    },
+    Heuristics {
+        domain: Option<String>,
+    },
     Lessons,
     Story,
     Patterns,
     Friction,
     Reversal,
 }
-
 
 #[derive(Debug)]
 pub enum DoctorCommand {
@@ -121,17 +141,30 @@ pub enum LinkCommand {
 
 #[derive(Debug)]
 pub enum IntentCommand {
-    Focus { id: String },
+    Focus {
+        id: String,
+    },
     Unfocus,
     FocusStatus,
     Drift,
-    Start { id: String },
-    Complete { id: String },
-    New { template: String, title: String },
-    Deps { id: String },
+    Start {
+        id: String,
+    },
+    Complete {
+        id: String,
+    },
+    New {
+        template: String,
+        title: String,
+    },
+    Deps {
+        id: String,
+    },
     Burndown,
     Velocity,
-    Branch { id: String },
+    Branch {
+        id: String,
+    },
     List {
         planned: bool,
         active: bool,
@@ -351,7 +384,7 @@ pub enum GoalsCommand {
 #[derive(Debug, Clone)]
 pub enum PlanCommand {
     Generate { goal_id: String },
-    Review   { id: String },
+    Review { id: String },
     Simulate { id: String },
     List,
 }

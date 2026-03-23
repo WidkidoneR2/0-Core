@@ -9,9 +9,9 @@ use std::process::Command;
 #[derive(Debug, Clone)]
 pub struct Commit {
     pub hash: String,
-    pub prefix: String,   // feat, fix, chore, docs, perf, refactor
-    pub scope: String,    // (core), (notify), etc — empty if none
-    pub message: String,  // the actual message after prefix(scope):
+    pub prefix: String,  // feat, fix, chore, docs, perf, refactor
+    pub scope: String,   // (core), (notify), etc — empty if none
+    pub message: String, // the actual message after prefix(scope):
     #[allow(dead_code)]
     pub intent_id: Option<u32>, // extracted INT-XXX reference
     pub raw: String,
@@ -28,7 +28,14 @@ impl Commit {
         // Parse conventional commit: prefix(scope): message
         if let Some((prefix, rest)) = parse_conventional(subject) {
             let (scope, message) = parse_scope(rest);
-            return Self { hash, prefix, scope, message, intent_id, raw };
+            return Self {
+                hash,
+                prefix,
+                scope,
+                message,
+                intent_id,
+                raw,
+            };
         }
 
         // Non-conventional commit
@@ -51,7 +58,9 @@ impl Commit {
 }
 
 fn parse_conventional(s: &str) -> Option<(String, &str)> {
-    let prefixes = ["feat", "fix", "perf", "refactor", "docs", "chore", "bump", "style", "test", "build"];
+    let prefixes = [
+        "feat", "fix", "perf", "refactor", "docs", "chore", "bump", "style", "test", "build",
+    ];
     for p in &prefixes {
         if let Some(rest) = s.strip_prefix(p) {
             if rest.starts_with('(') || rest.starts_with(':') {
@@ -66,7 +75,7 @@ fn parse_scope(s: &str) -> (String, String) {
     if s.starts_with('(') {
         if let Some(end) = s.find(')') {
             let scope = s[1..end].to_string();
-            let rest = s[end+1..].trim_start_matches(':').trim().to_string();
+            let rest = s[end + 1..].trim_start_matches(':').trim().to_string();
             return (scope, rest);
         }
     }
@@ -78,7 +87,7 @@ fn extract_intent_id(s: &str) -> Option<u32> {
     // Match INT-NNN or INT-NN patterns
     let s_upper = s.to_uppercase();
     if let Some(pos) = s_upper.find("INT-") {
-        let rest = &s_upper[pos+4..];
+        let rest = &s_upper[pos + 4..];
         let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
         if !digits.is_empty() {
             return digits.parse().ok();
@@ -106,9 +115,16 @@ pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<Shipped
 
     // Get files modified since last tag using git
     let output = Command::new("git")
-        .args(["-C", core_root.to_str().unwrap_or("."),
-               "diff", "--name-only", since_tag, "HEAD", "--",
-               "intents/complete/"])
+        .args([
+            "-C",
+            core_root.to_str().unwrap_or("."),
+            "diff",
+            "--name-only",
+            since_tag,
+            "HEAD",
+            "--",
+            "intents/complete/",
+        ])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::default(),
@@ -120,7 +136,9 @@ pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<Shipped
     let mut intents = vec![];
 
     for line in changed.lines() {
-        if !line.ends_with(".md") { continue; }
+        if !line.ends_with(".md") {
+            continue;
+        }
         let path = core_root.join(line);
         if let Ok(content) = std::fs::read_to_string(&path) {
             if let Some(intent) = parse_intent_frontmatter(&content) {
@@ -140,17 +158,27 @@ fn parse_intent_frontmatter(content: &str) -> Option<ShippedIntent> {
 
     for line in content.lines() {
         if line == "---" {
-            if !in_frontmatter { in_frontmatter = true; continue; }
-            else { break; }
+            if !in_frontmatter {
+                in_frontmatter = true;
+                continue;
+            } else {
+                break;
+            }
         }
-        if !in_frontmatter { continue; }
+        if !in_frontmatter {
+            continue;
+        }
 
         if line.starts_with("id:") {
-            id = line.split(':').nth(1)
+            id = line
+                .split(':')
+                .nth(1)
                 .and_then(|s| s.trim().parse::<u32>().ok());
         }
         if line.starts_with("title:") {
-            title = line.splitn(2, ':').nth(1)
+            title = line
+                .splitn(2, ':')
+                .nth(1)
                 .map(|s| s.trim().trim_matches('"').to_string());
         }
     }
@@ -158,7 +186,11 @@ fn parse_intent_frontmatter(content: &str) -> Option<ShippedIntent> {
     match (id, title) {
         (Some(id), Some(title)) => {
             let description = extract_vision_first_line(content);
-            Some(ShippedIntent { id, title, description })
+            Some(ShippedIntent {
+                id,
+                title,
+                description,
+            })
         }
         _ => None,
     }
@@ -167,14 +199,16 @@ fn parse_intent_frontmatter(content: &str) -> Option<ShippedIntent> {
 fn extract_vision_first_line(content: &str) -> String {
     let mut in_vision = false;
     for line in content.lines() {
-        if line.contains("## Vision") { in_vision = true; continue; }
-        if in_vision && !line.trim().is_empty() && !line.starts_with('#') {
-            return line.trim()
-                .trim_matches('*')
-                .chars().take(80)
-                .collect();
+        if line.contains("## Vision") {
+            in_vision = true;
+            continue;
         }
-        if in_vision && line.starts_with('#') { break; }
+        if in_vision && !line.trim().is_empty() && !line.starts_with('#') {
+            return line.trim().trim_matches('*').chars().take(80).collect();
+        }
+        if in_vision && line.starts_with('#') {
+            break;
+        }
     }
     String::new()
 }
@@ -183,14 +217,19 @@ fn extract_vision_first_line(content: &str) -> String {
 
 pub fn get_commits_since(core_root: &PathBuf, since_tag: &str) -> Result<Vec<Commit>> {
     let output = Command::new("git")
-        .args(["-C", core_root.to_str().unwrap_or("."),
-               "log", &format!("{}..HEAD", since_tag),
-               "--pretty=format:%h|%s"])
+        .args([
+            "-C",
+            core_root.to_str().unwrap_or("."),
+            "log",
+            &format!("{}..HEAD", since_tag),
+            "--pretty=format:%h|%s",
+        ])
         .output()
         .context("failed to run git log")?;
 
     let log = String::from_utf8_lossy(&output.stdout);
-    let commits: Vec<Commit> = log.lines()
+    let commits: Vec<Commit> = log
+        .lines()
         .filter(|l| !l.trim().is_empty())
         .filter_map(|line| {
             let mut parts = line.splitn(2, '|');
@@ -206,8 +245,13 @@ pub fn get_commits_since(core_root: &PathBuf, since_tag: &str) -> Result<Vec<Com
 
 pub fn get_last_tag(core_root: &PathBuf) -> String {
     Command::new("git")
-        .args(["-C", core_root.to_str().unwrap_or("."),
-               "describe", "--tags", "--abbrev=0"])
+        .args([
+            "-C",
+            core_root.to_str().unwrap_or("."),
+            "describe",
+            "--tags",
+            "--abbrev=0",
+        ])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "HEAD~50".to_string())
@@ -228,17 +272,13 @@ pub struct ChangelogData {
     pub refactors: Vec<Commit>,
     #[allow(dead_code)]
     pub docs: Vec<Commit>,
-    pub internal: Vec<Commit>,  // chore, bump, other — condensed
+    pub internal: Vec<Commit>, // chore, bump, other — condensed
     pub total_commits: usize,
     pub last_tag: String,
 }
 
 impl ChangelogData {
-    pub fn build(
-        core_root: &PathBuf,
-        version: &str,
-        theme: &str,
-    ) -> Result<Self> {
+    pub fn build(core_root: &PathBuf, version: &str, theme: &str) -> Result<Self> {
         let last_tag = get_last_tag(core_root);
         let commits = get_commits_since(core_root, &last_tag)?;
         let intents = find_shipped_intents(core_root, &last_tag);
@@ -374,10 +414,20 @@ pub struct ReleaseStats {
 impl ReleaseStats {
     pub fn gather(core_root: &PathBuf) -> Self {
         let commits = Command::new("git")
-            .args(["-C", core_root.to_str().unwrap_or("."),
-                   "rev-list", "--count", "HEAD"])
+            .args([
+                "-C",
+                core_root.to_str().unwrap_or("."),
+                "rev-list",
+                "--count",
+                "HEAD",
+            ])
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse().unwrap_or(0))
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .parse()
+                    .unwrap_or(0)
+            })
             .unwrap_or(0);
 
         let tools = count_tools(core_root);
@@ -402,11 +452,16 @@ fn count_tools(core_root: &PathBuf) -> u32 {
 fn count_complete_intents(core_root: &PathBuf) -> u32 {
     let complete = core_root.join("intents/complete");
     std::fs::read_dir(&complete)
-        .map(|d| d.filter_map(|e| e.ok())
-            .filter(|e| e.path().extension()
-                .and_then(|x| x.to_str())
-                .map(|x| x == "md")
-                .unwrap_or(false))
-            .count() as u32)
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .and_then(|x| x.to_str())
+                        .map(|x| x == "md")
+                        .unwrap_or(false)
+                })
+                .count() as u32
+        })
         .unwrap_or(0)
 }

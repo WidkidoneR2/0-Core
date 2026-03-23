@@ -7,8 +7,7 @@ use std::time::Duration;
 use smithay::{
     backend::{
         renderer::{
-            damage::OutputDamageTracker,
-            element::surface::WaylandSurfaceRenderElement,
+            damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
             gles::GlesRenderer,
         },
         winit::{self, WinitEvent},
@@ -60,7 +59,10 @@ pub fn init_winit(
             match event {
                 WinitEvent::Resized { size, .. } => {
                     output.change_current_state(
-                        Some(Mode { size, refresh: 60_000 }),
+                        Some(Mode {
+                            size,
+                            refresh: 60_000,
+                        }),
                         None,
                         None,
                         None,

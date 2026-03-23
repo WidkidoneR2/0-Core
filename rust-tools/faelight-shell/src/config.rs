@@ -11,20 +11,22 @@ use colored::*;
 
 #[derive(Debug)]
 pub struct ShellConfig {
-    pub aliases:  Vec<(String, String)>,
+    pub aliases: Vec<(String, String)>,
     pub settings: Vec<(String, String)>,
 }
 
 impl ShellConfig {
     pub fn empty() -> Self {
-        Self { aliases: vec![], settings: vec![] }
+        Self {
+            aliases: vec![],
+            settings: vec![],
+        }
     }
 }
 
 pub fn config_path() -> std::path::PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
-    std::path::PathBuf::from(home)
-        .join(".config/faelight-shell/config.fsh")
+    std::path::PathBuf::from(home).join(".config/faelight-shell/config.fsh")
 }
 
 /// Parse config.fsh and return structured config.
@@ -36,20 +38,22 @@ pub fn load() -> ShellConfig {
         Err(_) => return ShellConfig::empty(),
     };
 
-    let mut aliases  = vec![];
+    let mut aliases = vec![];
     let mut settings = vec![];
 
     for line in text.lines() {
         let line = line.trim();
         // Skip comments and empty lines
-        if line.is_empty() || line.starts_with('#') { continue; }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
 
-        if line.starts_with("alias ") {
+        if let Some(rest) = line.strip_prefix("alias ") {
             // alias ll = "ls -la"  or  alias ll = ls -la
-            let rest = &line[6..];
             if let Some(eq_pos) = rest.find(" = ") {
                 let name = rest[..eq_pos].trim().to_string();
-                let val  = rest[eq_pos+3..].trim()
+                let val = rest[eq_pos + 3..]
+                    .trim()
                     .trim_matches('"')
                     .trim_matches('\'')
                     .to_string();
@@ -57,12 +61,12 @@ pub fn load() -> ShellConfig {
                     aliases.push((name, val));
                 }
             }
-        } else if line.starts_with("set ") {
+        } else if let Some(rest) = line.strip_prefix("set ") {
             // set prompt_style = minimal
-            let rest = &line[4..];
             if let Some(eq_pos) = rest.find(" = ") {
                 let key = rest[..eq_pos].trim().to_string();
-                let val = rest[eq_pos+3..].trim()
+                let val = rest[eq_pos + 3..]
+                    .trim()
                     .trim_matches('"')
                     .trim_matches('\'')
                     .to_string();
@@ -79,9 +83,11 @@ pub fn load() -> ShellConfig {
 
 /// Apply config to the running shell — register aliases and settings.
 pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
-    if cfg.aliases.is_empty() && cfg.settings.is_empty() { return; }
+    if cfg.aliases.is_empty() && cfg.settings.is_empty() {
+        return;
+    }
 
-    let alias_count  = cfg.aliases.len();
+    let alias_count = cfg.aliases.len();
     let setting_count = cfg.settings.len();
 
     // Register aliases into shell_aliases table
@@ -98,7 +104,8 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
         );
     }
 
-    println!("  {} config.fsh — {} alias{}  {} setting{}",
+    println!(
+        "  {} config.fsh — {} alias{}  {} setting{}",
         "✓".bright_green(),
         alias_count,
         if alias_count == 1 { "" } else { "es" },
@@ -110,7 +117,9 @@ pub fn apply(cfg: &ShellConfig, db: &ForestDb) {
 /// Create a default config.fsh if none exists.
 pub fn ensure_default() {
     let path = config_path();
-    if path.exists() { return; }
+    if path.exists() {
+        return;
+    }
 
     // Create parent dir
     if let Some(dir) = path.parent() {

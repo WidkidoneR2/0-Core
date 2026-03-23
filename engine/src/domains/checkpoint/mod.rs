@@ -50,12 +50,17 @@ fn read_version() -> String {
 
 fn read_git_head() -> String {
     let output = std::process::Command::new("git")
-        .args(["-C", &dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("/root"))
-            .join("0-core")
-            .to_string_lossy()
-            .to_string(),
-            "rev-parse", "--short", "HEAD"])
+        .args([
+            "-C",
+            &dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("/root"))
+                .join("0-core")
+                .to_string_lossy()
+                .to_string(),
+            "rev-parse",
+            "--short",
+            "HEAD",
+        ])
         .output();
     match output {
         Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
@@ -99,9 +104,7 @@ fn read_tool_versions() -> HashMap<String, String> {
 }
 
 fn hash_file(path: &PathBuf) -> String {
-    let output = std::process::Command::new("sha256sum")
-        .arg(path)
-        .output();
+    let output = std::process::Command::new("sha256sum").arg(path).output();
     match output {
         Ok(o) => {
             let s = String::from_utf8_lossy(&o.stdout);
@@ -143,7 +146,11 @@ fn read_last_health() -> u32 {
         let s = String::from_utf8_lossy(&o.stdout);
         let s = s.trim();
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
-            if let Some(h) = v.get("detail").and_then(|d| d.get("health")).and_then(|h| h.as_u64()) {
+            if let Some(h) = v
+                .get("detail")
+                .and_then(|d| d.get("health"))
+                .and_then(|h| h.as_u64())
+            {
                 return h as u32;
             }
         }
@@ -180,18 +187,34 @@ pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<(
     let filename = format!("{}-{}.toml", manifest.created.replace(':', "-"), name);
     let filepath = dir.join(&filename);
 
-    let toml_content = toml::to_string_pretty(&manifest)
-        .map_err(|e| CoreError::Runtime(e.to_string()))?;
+    let toml_content =
+        toml::to_string_pretty(&manifest).map_err(|e| CoreError::Runtime(e.to_string()))?;
 
     fs::write(&filepath, toml_content).map_err(|e| CoreError::Io(e))?;
 
     println!("{}", "━".repeat(50).dimmed());
     println!("  {} Checkpoint created", "✅".green());
     println!("  {} {}", "Name:   ".dimmed(), name.bright_white());
-    println!("  {} {}", "Version:".dimmed(), manifest.version.bright_white());
-    println!("  {} {}%", "Health: ".dimmed(), manifest.health.to_string().bright_green());
-    println!("  {} {}", "Commit: ".dimmed(), manifest.git_head.bright_white());
-    println!("  {} {}", "Tools:  ".dimmed(), manifest.tool_versions.len().to_string().bright_white());
+    println!(
+        "  {} {}",
+        "Version:".dimmed(),
+        manifest.version.bright_white()
+    );
+    println!(
+        "  {} {}%",
+        "Health: ".dimmed(),
+        manifest.health.to_string().bright_green()
+    );
+    println!(
+        "  {} {}",
+        "Commit: ".dimmed(),
+        manifest.git_head.bright_white()
+    );
+    println!(
+        "  {} {}",
+        "Tools:  ".dimmed(),
+        manifest.tool_versions.len().to_string().bright_white()
+    );
     println!("  {} {}", "File:   ".dimmed(), filename.dimmed());
     if let Some(n) = &manifest.notes {
         println!("  {} {}", "Notes:  ".dimmed(), n.bright_white());
@@ -202,10 +225,8 @@ pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<(
 }
 
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "checkpoint",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("checkpoint", &[Capability::FilesystemReadHome])?;
 
     let dir = checkpoints_dir();
     if !dir.exists() {
@@ -216,12 +237,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     let mut entries: Vec<_> = fs::read_dir(&dir)
         .map_err(|e| CoreError::Io(e))?
         .flatten()
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map(|x| x == "toml")
-                .unwrap_or(false)
-        })
+        .filter(|e| e.path().extension().map(|x| x == "toml").unwrap_or(false))
         .collect();
 
     entries.sort_by_key(|e| e.file_name());
@@ -260,16 +276,17 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(50).dimmed());
-    println!("  {} checkpoint(s)", entries.len().to_string().bright_white());
+    println!(
+        "  {} checkpoint(s)",
+        entries.len().to_string().bright_white()
+    );
 
     Ok(())
 }
 
 pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "checkpoint",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("checkpoint", &[Capability::FilesystemReadHome])?;
 
     let dir = checkpoints_dir();
     if !dir.exists() {
@@ -281,26 +298,27 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
     let mut entries: Vec<_> = fs::read_dir(&dir)
         .map_err(|e| CoreError::Io(e))?
         .flatten()
-        .filter(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .contains(name)
-        })
+        .filter(|e| e.file_name().to_string_lossy().contains(name))
         .collect();
 
     entries.sort_by_key(|e| e.file_name());
     entries.reverse();
 
-    let entry = entries.first().ok_or_else(|| {
-        CoreError::Runtime(format!("Checkpoint '{}' not found", name))
-    })?;
+    let entry = entries
+        .first()
+        .ok_or_else(|| CoreError::Runtime(format!("Checkpoint '{}' not found", name)))?;
 
     let content = fs::read_to_string(entry.path()).map_err(|e| CoreError::Io(e))?;
     let manifest = toml::from_str::<CheckpointManifest>(&content)
         .map_err(|e| CoreError::Runtime(e.to_string()))?;
 
     println!("{}", "📸 Checkpoint Diff".bold());
-    println!("  {} {} ({})", "→".dimmed(), manifest.name.bright_white(), manifest.created.dimmed());
+    println!(
+        "  {} {} ({})",
+        "→".dimmed(),
+        manifest.name.bright_white(),
+        manifest.created.dimmed()
+    );
     println!("{}", "━".repeat(50).dimmed());
 
     // Version diff
@@ -310,7 +328,11 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
         println!("    {} {}", "was:".dimmed(), manifest.version.bright_red());
         println!("    {} {}", "now:".dimmed(), current_version.bright_green());
     } else {
-        println!("  {} Version: {} (unchanged)", "✓".bright_green(), current_version.dimmed());
+        println!(
+            "  {} Version: {} (unchanged)",
+            "✓".bright_green(),
+            current_version.dimmed()
+        );
     }
 
     // Git HEAD diff
@@ -320,16 +342,34 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
         println!("    {} {}", "was:".dimmed(), manifest.git_head.bright_red());
         println!("    {} {}", "now:".dimmed(), current_head.bright_green());
     } else {
-        println!("  {} Git HEAD: {} (unchanged)", "✓".bright_green(), current_head.dimmed());
+        println!(
+            "  {} Git HEAD: {} (unchanged)",
+            "✓".bright_green(),
+            current_head.dimmed()
+        );
     }
 
     // Health diff
     let current_health = read_last_health();
     if current_health != manifest.health {
-        let symbol = if current_health > manifest.health { "↑".bright_green() } else { "↓".bright_red() };
-        println!("  {} Health: {}% → {}% {}", "~".bright_yellow(), manifest.health, current_health, symbol);
+        let symbol = if current_health > manifest.health {
+            "↑".bright_green()
+        } else {
+            "↓".bright_red()
+        };
+        println!(
+            "  {} Health: {}% → {}% {}",
+            "~".bright_yellow(),
+            manifest.health,
+            current_health,
+            symbol
+        );
     } else {
-        println!("  {} Health: {}% (unchanged)", "✓".bright_green(), current_health);
+        println!(
+            "  {} Health: {}% (unchanged)",
+            "✓".bright_green(),
+            current_health
+        );
     }
 
     // Tool version diffs
@@ -341,7 +381,13 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
                 if tool_changes == 0 {
                     println!("  {} Tool versions changed", "~".bright_yellow());
                 }
-                println!("    {} {} {} → {}", "↳".dimmed(), tool.bright_white(), old_ver.bright_red(), new_ver.bright_green());
+                println!(
+                    "    {} {} {} → {}",
+                    "↳".dimmed(),
+                    tool.bright_white(),
+                    old_ver.bright_red(),
+                    new_ver.bright_green()
+                );
                 tool_changes += 1;
             }
         }
@@ -383,7 +429,11 @@ pub fn auto(ctx: &AppContext, reason: &str) -> CoreResult<()> {
     )?;
 
     let name = format!("auto-{}", reason.replace(' ', "-"));
-    create(ctx, &name, Some(&format!("Auto-checkpoint before {}", reason)))?;
+    create(
+        ctx,
+        &name,
+        Some(&format!("Auto-checkpoint before {}", reason)),
+    )?;
 
     Ok(())
 }
@@ -407,28 +457,47 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
     entries.sort_by_key(|e| e.file_name());
     entries.reverse();
 
-    let entry = entries.first().ok_or_else(|| {
-        CoreError::Runtime(format!("Checkpoint '{}' not found", name))
-    })?;
+    let entry = entries
+        .first()
+        .ok_or_else(|| CoreError::Runtime(format!("Checkpoint '{}' not found", name)))?;
 
     let content = fs::read_to_string(entry.path()).map_err(|e| CoreError::Io(e))?;
     let manifest = toml::from_str::<CheckpointManifest>(&content)
         .map_err(|e| CoreError::Runtime(e.to_string()))?;
 
     println!("{}", "♻️  Recovery Engine".bold());
-    println!("  {} {}", "Checkpoint:".dimmed(), manifest.name.bright_white());
+    println!(
+        "  {} {}",
+        "Checkpoint:".dimmed(),
+        manifest.name.bright_white()
+    );
     println!("  {} {}", "Created:   ".dimmed(), manifest.created.dimmed());
-    println!("  {} {}%", "Health:    ".dimmed(), manifest.health.to_string().bright_green());
+    println!(
+        "  {} {}%",
+        "Health:    ".dimmed(),
+        manifest.health.to_string().bright_green()
+    );
     println!("{}", "━".repeat(50).dimmed());
 
     // Git advisory
     let current_head = read_git_head();
     if current_head != manifest.git_head {
         println!("  {} Git HEAD has changed:", "⚠️ ".bright_yellow());
-        println!("    {} {}", "checkpoint:".dimmed(), manifest.git_head.bright_red());
-        println!("    {} {}", "current:   ".dimmed(), current_head.bright_white());
+        println!(
+            "    {} {}",
+            "checkpoint:".dimmed(),
+            manifest.git_head.bright_red()
+        );
+        println!(
+            "    {} {}",
+            "current:   ".dimmed(),
+            current_head.bright_white()
+        );
         println!("    {} To restore git state:", "→".dimmed());
-        println!("      {}", format!("git -C ~/0-core reset --hard {}", manifest.git_head).bright_cyan());
+        println!(
+            "      {}",
+            format!("git -C ~/0-core reset --hard {}", manifest.git_head).bright_cyan()
+        );
     } else {
         println!("  {} Git HEAD unchanged", "✓".bright_green());
     }
@@ -437,9 +506,12 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/root"));
     let config_map = vec![
         ("aliases", home.join(".config/zsh/aliases.zsh")),
-        ("zshrc",   home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc")),
-        ("sway",    home.join(".config/sway/config")),
-        ("foot",    home.join(".config/foot/foot.ini")),
+        (
+            "zshrc",
+            home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc"),
+        ),
+        ("sway", home.join(".config/sway/config")),
+        ("foot", home.join(".config/foot/foot.ini")),
     ];
 
     let current_hashes = read_config_hashes();
@@ -456,15 +528,28 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
     }
 
     if restorable.is_empty() {
-        println!("  {} Config files unchanged — nothing to restore", "✓".bright_green());
+        println!(
+            "  {} Config files unchanged — nothing to restore",
+            "✓".bright_green()
+        );
     } else {
-        println!("  {} Config files changed since checkpoint:", "~".bright_yellow());
+        println!(
+            "  {} Config files changed since checkpoint:",
+            "~".bright_yellow()
+        );
         for (key, _) in &restorable {
             println!("    {} {} (can restore)", "↳".dimmed(), key.bright_white());
         }
         println!();
-        println!("  {} Git restore is advisory only — run the command above manually", "ℹ".bright_cyan());
-        println!("  {} Config restore requires explicit: {}", "ℹ".bright_cyan(), "core checkpoint restore-configs <name>".bright_cyan());
+        println!(
+            "  {} Git restore is advisory only — run the command above manually",
+            "ℹ".bright_cyan()
+        );
+        println!(
+            "  {} Config restore requires explicit: {}",
+            "ℹ".bright_cyan(),
+            "core checkpoint restore-configs <name>".bright_cyan()
+        );
     }
 
     // Tool version advisory
@@ -479,9 +564,18 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
     }
 
     if !tool_changes.is_empty() {
-        println!("  {} Tool versions changed since checkpoint:", "~".bright_yellow());
+        println!(
+            "  {} Tool versions changed since checkpoint:",
+            "~".bright_yellow()
+        );
         for (tool, old, new) in &tool_changes {
-            println!("    {} {} {} → {}", "↳".dimmed(), tool.bright_white(), old.bright_red(), new.bright_green());
+            println!(
+                "    {} {} {} → {}",
+                "↳".dimmed(),
+                tool.bright_white(),
+                old.bright_red(),
+                new.bright_green()
+            );
         }
     } else {
         println!("  {} Tool versions unchanged", "✓".bright_green());
@@ -489,16 +583,17 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
 
     println!("{}", "━".repeat(50).dimmed());
     println!("  {} Recovery report complete", "✅".green());
-    println!("  {} No changes were made — review above and act explicitly", "→".dimmed());
+    println!(
+        "  {} No changes were made — review above and act explicitly",
+        "→".dimmed()
+    );
 
     Ok(())
 }
 
 pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "checkpoint",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("checkpoint", &[Capability::FilesystemReadHome])?;
 
     let dir = checkpoints_dir();
     if !dir.exists() {
@@ -524,16 +619,31 @@ pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
         if let Ok(manifest) = toml::from_str::<CheckpointManifest>(&content) {
             if manifest.health >= 95 {
                 println!("  {} Last good checkpoint found:", "✅".green());
-                println!("  {} {}", "Name:    ".dimmed(), manifest.name.bright_white());
+                println!(
+                    "  {} {}",
+                    "Name:    ".dimmed(),
+                    manifest.name.bright_white()
+                );
                 println!("  {} {}", "Created: ".dimmed(), manifest.created.dimmed());
-                println!("  {} {}%", "Health:  ".dimmed(), manifest.health.to_string().bright_green());
-                println!("  {} {}", "Commit:  ".dimmed(), manifest.git_head.bright_white());
+                println!(
+                    "  {} {}%",
+                    "Health:  ".dimmed(),
+                    manifest.health.to_string().bright_green()
+                );
+                println!(
+                    "  {} {}",
+                    "Commit:  ".dimmed(),
+                    manifest.git_head.bright_white()
+                );
                 if let Some(n) = &manifest.notes {
                     println!("  {} {}", "Notes:   ".dimmed(), n.dimmed());
                 }
                 println!("{}", "━".repeat(50).dimmed());
-                println!("  {} To restore: {}", "→".dimmed(),
-                    format!("core checkpoint restore {}", manifest.name).bright_cyan());
+                println!(
+                    "  {} To restore: {}",
+                    "→".dimmed(),
+                    format!("core checkpoint restore {}", manifest.name).bright_cyan()
+                );
                 found = true;
                 break;
             }
@@ -541,8 +651,15 @@ pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
     }
 
     if !found {
-        println!("  {} No checkpoint with 95%+ health found", "⚠️ ".bright_yellow());
-        println!("  {} Run {} to create one now", "→".dimmed(), "cpc <name>".bright_cyan());
+        println!(
+            "  {} No checkpoint with 95%+ health found",
+            "⚠️ ".bright_yellow()
+        );
+        println!(
+            "  {} Run {} to create one now",
+            "→".dimmed(),
+            "cpc <name>".bright_cyan()
+        );
     }
 
     println!("{}", "━".repeat(50).dimmed());
@@ -570,23 +687,30 @@ pub fn btrfs_snapshot(ctx: &AppContext, label: &str) -> CoreResult<()> {
 
     // Check if /.snapshots exists
     if !std::path::Path::new("/.snapshots").exists() {
-        println!("  {} /.snapshots directory not found", "⚠️ ".bright_yellow());
-        println!("  {} Create it with: {}", "→".dimmed(), "sudo mkdir /.snapshots".bright_cyan());
+        println!(
+            "  {} /.snapshots directory not found",
+            "⚠️ ".bright_yellow()
+        );
+        println!(
+            "  {} Create it with: {}",
+            "→".dimmed(),
+            "sudo mkdir /.snapshots".bright_cyan()
+        );
         println!("  {} Btrfs snapshot requires sudo", "ℹ".bright_cyan());
         return Ok(());
     }
 
     let output = std::process::Command::new("sudo")
-        .args([
-            "btrfs", "subvolume", "snapshot",
-            "/home",
-            &snapshot_path,
-        ])
+        .args(["btrfs", "subvolume", "snapshot", "/home", &snapshot_path])
         .output()
         .map_err(|e| CoreError::Io(e))?;
 
     if output.status.success() {
-        println!("  {} Snapshot created: {}", "✅".green(), snapshot_name.bright_white());
+        println!(
+            "  {} Snapshot created: {}",
+            "✅".green(),
+            snapshot_name.bright_white()
+        );
         println!("  {} {}", "Path:".dimmed(), snapshot_path.dimmed());
     } else {
         let err = String::from_utf8_lossy(&output.stderr);
@@ -614,9 +738,7 @@ pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
 
     if output.status.success() {
         let s = String::from_utf8_lossy(&output.stdout);
-        let lines: Vec<&str> = s.lines()
-            .filter(|l| l.contains("faelight"))
-            .collect();
+        let lines: Vec<&str> = s.lines().filter(|l| l.contains("faelight")).collect();
 
         if lines.is_empty() {
             println!("  {} No Faelight snapshots found", "○".dimmed());
@@ -629,7 +751,10 @@ pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
             }
         }
     } else {
-        println!("  {} Could not list snapshots — ensure sudo btrfs access", "⚠️ ".bright_yellow());
+        println!(
+            "  {} Could not list snapshots — ensure sudo btrfs access",
+            "⚠️ ".bright_yellow()
+        );
     }
 
     println!("{}", "━".repeat(50).dimmed());

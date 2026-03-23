@@ -1,9 +1,12 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, PlanCommand, TradeoffCommand, PrioritizeCommand, AutobiographyCommand,
-    NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
+    AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
+    Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
+    GitCommand, GoalsCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
+    SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
+    WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -116,7 +119,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Drift => crate::domains::intent::drift(ctx),
                 IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
                 IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
-                IntentCommand::New { template, title } => crate::domains::intent::new_intent(ctx, &template, &title),
+                IntentCommand::New { template, title } => {
+                    crate::domains::intent::new_intent(ctx, &template, &title)
+                }
                 IntentCommand::Deps { id } => crate::domains::intent::deps(ctx, &id),
                 IntentCommand::Burndown => crate::domains::intent::burndown(ctx),
                 IntentCommand::Velocity => crate::domains::intent::velocity(ctx),
@@ -157,8 +162,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 SecurityCommand::History => crate::domains::security::history(ctx),
                 SecurityCommand::Debt => crate::domains::security::debt(ctx),
                 SecurityCommand::Trend => crate::domains::security::trend(ctx),
-            SecurityCommand::Advise => crate::domains::security::advise(ctx),
-                SecurityCommand::Simulate { patch } => crate::domains::security::simulate(ctx, &patch),
+                SecurityCommand::Advise => crate::domains::security::advise(ctx),
+                SecurityCommand::Simulate { patch } => {
+                    crate::domains::security::simulate(ctx, &patch)
+                }
             }
         }
 
@@ -260,8 +267,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         }
 
         Command::Lock { health_check } => {
-            ctx.capabilities
-                .require("lock", &[Capability::ControlWM])?;
+            ctx.capabilities.require("lock", &[Capability::ControlWM])?;
             if health_check {
                 crate::domains::lock::health(ctx)
             } else {
@@ -309,13 +315,18 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             EventsCommand::Watch => crate::domains::events::watch(ctx),
         },
         Command::Ledger(c) => {
-            ctx.capabilities.require("ledger", &[
-                Capability::OrchestratorAccess,
-                Capability::FilesystemReadHome,
-            ])?;
+            ctx.capabilities.require(
+                "ledger",
+                &[
+                    Capability::OrchestratorAccess,
+                    Capability::FilesystemReadHome,
+                ],
+            )?;
             match c {
                 LedgerCommand::Stats => crate::domains::events::ledger_stats(ctx),
-                LedgerCommand::Query { domain } => crate::domains::events::ledger_query(ctx, &domain),
+                LedgerCommand::Query { domain } => {
+                    crate::domains::events::ledger_query(ctx, &domain)
+                }
                 LedgerCommand::Export => crate::domains::events::ledger_export(ctx),
                 LedgerCommand::Indexes => crate::domains::events::ledger_indexes(ctx),
             }
@@ -326,10 +337,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             WhyCommand::Domain { domain } => crate::domains::events::why_domain(ctx, &domain),
             WhyCommand::Visual => crate::domains::events::why_visual(ctx),
             WhyCommand::Attention => crate::domains::events::why_attention(ctx),
-            WhyCommand::HealthSince { since } => crate::domains::events::why_health_since(ctx, &since),
+            WhyCommand::HealthSince { since } => {
+                crate::domains::events::why_health_since(ctx, &since)
+            }
             WhyCommand::Causal { domain } => crate::domains::events::why_causal(ctx, &domain),
             WhyCommand::Chain => crate::domains::events::why_chain(ctx),
-            WhyCommand::Correlate { domain_a, domain_b } => crate::domains::events::why_correlate(ctx, &domain_a, &domain_b),
+            WhyCommand::Correlate { domain_a, domain_b } => {
+                crate::domains::events::why_correlate(ctx, &domain_a, &domain_b)
+            }
             WhyCommand::Suggest => crate::domains::events::why_suggest(ctx),
             WhyCommand::Workspace => crate::domains::events::why_workspace(ctx),
             WhyCommand::Focus => crate::domains::events::why_focus(ctx),
@@ -339,84 +354,69 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             TraceCommand::Domain { domain } => crate::domains::events::trace_domain(ctx, &domain),
         },
         Command::Checkpoint(c) => match c {
-            CheckpointCommand::Create { name, notes } => crate::domains::checkpoint::create(ctx, &name, notes.as_deref()),
+            CheckpointCommand::Create { name, notes } => {
+                crate::domains::checkpoint::create(ctx, &name, notes.as_deref())
+            }
             CheckpointCommand::List => crate::domains::checkpoint::list(ctx),
             CheckpointCommand::Diff { name } => crate::domains::checkpoint::diff(ctx, &name),
             CheckpointCommand::Restore { name } => crate::domains::checkpoint::restore(ctx, &name),
             CheckpointCommand::LastGood => crate::domains::checkpoint::last_good(ctx),
-            CheckpointCommand::Snapshot { label } => crate::domains::checkpoint::btrfs_snapshot(ctx, &label),
+            CheckpointCommand::Snapshot { label } => {
+                crate::domains::checkpoint::btrfs_snapshot(ctx, &label)
+            }
             CheckpointCommand::Snapshots => crate::domains::checkpoint::btrfs_snapshots(ctx),
         },
         Command::Simulate(c) => match c {
             SimulateCommand::Doctor => crate::domains::simulate::doctor(ctx),
             SimulateCommand::Update => crate::domains::simulate::update(ctx),
-            SimulateCommand::Scenario { description } => crate::domains::simulate::scenario(ctx, &description),
+            SimulateCommand::Scenario { description } => {
+                crate::domains::simulate::scenario(ctx, &description)
+            }
         },
 
-        Command::Decision(cmd) => {
-            match cmd {
-                DecisionCommand::Record { description, intent } => {
-                    crate::domains::decisions::decide(ctx, &description, intent.as_deref())
-                }
-                DecisionCommand::Outcome { id, result, notes } => {
-                    crate::domains::decisions::outcome(ctx, &id, &result, notes.as_deref())
-                }
-                DecisionCommand::List { open } => {
-                    crate::domains::decisions::list(ctx, open)
-                }
-                DecisionCommand::Hindsight => {
-                    crate::domains::decisions::hindsight(ctx)
-                }
-                DecisionCommand::Show { id } => {
-                    crate::domains::decisions::show(ctx, &id)
-                }
-                DecisionCommand::Stats => {
-                    crate::domains::decisions::stats(ctx)
-                }
-                DecisionCommand::Advise { decision } => {
-                    crate::domains::decisions::advise(ctx, decision.as_deref())
-                }
-                DecisionCommand::Heuristics { domain } => {
-                    crate::domains::decisions::heuristics(ctx, domain.as_deref())
-                }
-                DecisionCommand::Lessons => {
-                    crate::domains::decisions::lessons(ctx)
-                }
-                DecisionCommand::Story => {
-                    crate::domains::decisions::story(ctx)
-                }
-                DecisionCommand::Patterns => {
-                    crate::domains::decisions::patterns(ctx)
-                }
-                DecisionCommand::Friction => {
-                    crate::domains::decisions::friction(ctx)
-                }
-                DecisionCommand::Reversal => {
-                    crate::domains::decisions::reversal(ctx)
-                }
+        Command::Decision(cmd) => match cmd {
+            DecisionCommand::Record {
+                description,
+                intent,
+            } => crate::domains::decisions::decide(ctx, &description, intent.as_deref()),
+            DecisionCommand::Outcome { id, result, notes } => {
+                crate::domains::decisions::outcome(ctx, &id, &result, notes.as_deref())
             }
-        }
+            DecisionCommand::List { open } => crate::domains::decisions::list(ctx, open),
+            DecisionCommand::Hindsight => crate::domains::decisions::hindsight(ctx),
+            DecisionCommand::Show { id } => crate::domains::decisions::show(ctx, &id),
+            DecisionCommand::Stats => crate::domains::decisions::stats(ctx),
+            DecisionCommand::Advise { decision } => {
+                crate::domains::decisions::advise(ctx, decision.as_deref())
+            }
+            DecisionCommand::Heuristics { domain } => {
+                crate::domains::decisions::heuristics(ctx, domain.as_deref())
+            }
+            DecisionCommand::Lessons => crate::domains::decisions::lessons(ctx),
+            DecisionCommand::Story => crate::domains::decisions::story(ctx),
+            DecisionCommand::Patterns => crate::domains::decisions::patterns(ctx),
+            DecisionCommand::Friction => crate::domains::decisions::friction(ctx),
+            DecisionCommand::Reversal => crate::domains::decisions::reversal(ctx),
+        },
 
         Command::Deps(cmd) => match cmd {
             DepsCommand::Graph => crate::domains::deps::graph(ctx),
-            DepsCommand::Risk  => crate::domains::deps::risk(ctx),
+            DepsCommand::Risk => crate::domains::deps::risk(ctx),
             DepsCommand::Audit => crate::domains::deps::audit(ctx),
         },
         Command::Snapshot { json, save } => crate::domains::snapshot::narrative(ctx, json, save),
-        Command::Narrative { since, intent } => crate::domains::narrative::run(
-            ctx,
-            since.as_deref(),
-            intent.as_deref(),
-        ),
+        Command::Narrative { since, intent } => {
+            crate::domains::narrative::run(ctx, since.as_deref(), intent.as_deref())
+        }
         Command::Bootstrap(cmd) => match cmd {
-            BootstrapCommand::Plan   => crate::domains::bootstrap::plan(ctx),
+            BootstrapCommand::Plan => crate::domains::bootstrap::plan(ctx),
             BootstrapCommand::Verify => crate::domains::bootstrap::verify(ctx),
-            BootstrapCommand::Diff   => crate::domains::bootstrap::diff(ctx),
+            BootstrapCommand::Diff => crate::domains::bootstrap::diff(ctx),
         },
         Command::Anomaly(cmd) => match cmd {
-            AnomalyCommand::Scan    => crate::domains::anomaly::scan(ctx),
+            AnomalyCommand::Scan => crate::domains::anomaly::scan(ctx),
             AnomalyCommand::History => crate::domains::anomaly::history(ctx),
-            AnomalyCommand::Alert   => crate::domains::anomaly::alert(ctx),
+            AnomalyCommand::Alert => crate::domains::anomaly::alert(ctx),
         },
         Command::Audit(cmd) => match cmd {
             AuditCommand::Scan => crate::domains::audit::scan(ctx),
@@ -425,43 +425,56 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AuditCommand::Coverage => crate::domains::audit::coverage(ctx),
         },
         Command::Goals(c) => match c {
-            GoalsCommand::List      => crate::domains::goals::list(ctx),
-            GoalsCommand::Generate  => crate::domains::goals::generate(ctx),
-            GoalsCommand::Priority  => crate::domains::goals::priority(ctx),
+            GoalsCommand::List => crate::domains::goals::list(ctx),
+            GoalsCommand::Generate => crate::domains::goals::generate(ctx),
+            GoalsCommand::Priority => crate::domains::goals::priority(ctx),
             GoalsCommand::Accept { id } => crate::domains::goals::accept(ctx, &id),
             GoalsCommand::Reject { id } => crate::domains::goals::reject(ctx, &id),
-            GoalsCommand::Show { id }   => crate::domains::goals::show(ctx, &id),
+            GoalsCommand::Show { id } => crate::domains::goals::show(ctx, &id),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),
-            PlanCommand::Review   { id }      => crate::domains::planning::review(ctx, &id),
-            PlanCommand::Simulate { id }      => crate::domains::planning::simulate_plan(ctx, &id),
-            PlanCommand::List                 => crate::domains::planning::list(ctx),
+            PlanCommand::Review { id } => crate::domains::planning::review(ctx, &id),
+            PlanCommand::Simulate { id } => crate::domains::planning::simulate_plan(ctx, &id),
+            PlanCommand::List => crate::domains::planning::list(ctx),
         },
         Command::Tradeoff(c) => match c {
-            TradeoffCommand::Analyze { decision } => crate::domains::tradeoffs::analyze(ctx, &decision),
-            TradeoffCommand::History              => crate::domains::tradeoffs::history(ctx),
-            TradeoffCommand::Balance              => crate::domains::tradeoffs::balance(ctx),
+            TradeoffCommand::Analyze { decision } => {
+                crate::domains::tradeoffs::analyze(ctx, &decision)
+            }
+            TradeoffCommand::History => crate::domains::tradeoffs::history(ctx),
+            TradeoffCommand::Balance => crate::domains::tradeoffs::balance(ctx),
         },
         Command::Prioritize(c) => match c {
-            PrioritizeCommand::Run     => crate::domains::prioritize::prioritize(ctx),
+            PrioritizeCommand::Run => crate::domains::prioritize::prioritize(ctx),
             PrioritizeCommand::Explain => crate::domains::prioritize::explain(ctx),
         },
         Command::Autobiography(c) => match c {
-            AutobiographyCommand::Narrate { version } =>
-                crate::domains::autobiography::narrate(ctx, version.as_deref()),
+            AutobiographyCommand::Narrate { version } => {
+                crate::domains::autobiography::narrate(ctx, version.as_deref())
+            }
         },
         Command::Evolution(c) => match c {
-            EvolutionCommand::Map   => crate::domains::evolution::map(ctx),
+            EvolutionCommand::Map => crate::domains::evolution::map(ctx),
             EvolutionCommand::Tools => crate::domains::evolution::tools(ctx),
             EvolutionCommand::Suggest => crate::domains::evolution::suggest(ctx),
             EvolutionCommand::EvolvePropose => crate::domains::evolution::evolve_propose(ctx),
             EvolutionCommand::EvolveList => crate::domains::evolution::evolve_list(ctx),
-            EvolutionCommand::EvolveAccept { id } => crate::domains::evolution::evolve_accept(ctx, &id),
-            EvolutionCommand::EvolveReject { id } => crate::domains::evolution::evolve_reject(ctx, &id),
-            EvolutionCommand::FutureSim { change } => crate::domains::evolution::future_sim(ctx, &change),
-            EvolutionCommand::FutureRisk { change } => crate::domains::evolution::future_risk(ctx, &change),
-            EvolutionCommand::FutureImpact { change } => crate::domains::evolution::future_impact(ctx, &change),
+            EvolutionCommand::EvolveAccept { id } => {
+                crate::domains::evolution::evolve_accept(ctx, &id)
+            }
+            EvolutionCommand::EvolveReject { id } => {
+                crate::domains::evolution::evolve_reject(ctx, &id)
+            }
+            EvolutionCommand::FutureSim { change } => {
+                crate::domains::evolution::future_sim(ctx, &change)
+            }
+            EvolutionCommand::FutureRisk { change } => {
+                crate::domains::evolution::future_risk(ctx, &change)
+            }
+            EvolutionCommand::FutureImpact { change } => {
+                crate::domains::evolution::future_impact(ctx, &change)
+            }
         },
         Command::Capabilities { json, domain } => {
             crate::domains::capabilities::list(ctx, json, domain.as_deref())

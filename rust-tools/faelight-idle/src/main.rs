@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use wayland_client::{
     globals::{registry_queue_init, GlobalListContents},
-    protocol::{wl_seat, wl_registry},
+    protocol::{wl_registry, wl_seat},
     Connection, Dispatch, QueueHandle,
 };
 use wayland_protocols::ext::idle_notify::v1::client::{
@@ -17,7 +17,11 @@ use wayland_protocols::ext::idle_notify::v1::client::{
 };
 
 #[derive(Parser)]
-#[command(name = "faelight-idle", about = "🌲 Rust idle daemon", version = "1.0.0")]
+#[command(
+    name = "faelight-idle",
+    about = "🌲 Rust idle daemon",
+    version = "1.0.0"
+)]
 struct Cli {
     #[arg(short, long, default_value = "300")]
     timeout: u64,
@@ -55,7 +59,9 @@ impl IdleState {
 
     fn emit_event(&self, action: &str, detail: &str) {
         let db_path = self.core_root.join("runtime/state.db");
-        if !db_path.exists() { return; }
+        if !db_path.exists() {
+            return;
+        }
         let conn = match rusqlite::Connection::open(&db_path) {
             Ok(c) => c,
             Err(_) => return,
@@ -86,9 +92,7 @@ impl IdleState {
     }
 
     fn on_resume(&mut self) {
-        let duration_secs = self.idle_start
-            .map(|s| s.elapsed().as_secs())
-            .unwrap_or(0);
+        let duration_secs = self.idle_start.map(|s| s.elapsed().as_secs()).unwrap_or(0);
         eprintln!("🌿 Resumed after {}s", duration_secs);
         self.idle_start = None;
         self.emit_event("idle.end", &format!(r#""duration_secs":{}"#, duration_secs));
@@ -96,21 +100,38 @@ impl IdleState {
 }
 
 impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for IdleState {
-    fn event(_: &mut Self, _: &wl_registry::WlRegistry,
-             _: wl_registry::Event, _: &GlobalListContents,
-             _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &wl_registry::WlRegistry,
+        _: wl_registry::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ExtIdleNotifierV1, ()> for IdleState {
-    fn event(_: &mut Self, _: &ExtIdleNotifierV1,
-             _: wayland_protocols::ext::idle_notify::v1::client::ext_idle_notifier_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &ExtIdleNotifierV1,
+        _: wayland_protocols::ext::idle_notify::v1::client::ext_idle_notifier_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ExtIdleNotificationV1, ()> for IdleState {
-    fn event(state: &mut Self, _: &ExtIdleNotificationV1,
-             event: ext_idle_notification_v1::Event,
-             _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtIdleNotificationV1,
+        event: ext_idle_notification_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             ext_idle_notification_v1::Event::Idled => state.on_idle(),
             ext_idle_notification_v1::Event::Resumed => state.on_resume(),
@@ -120,8 +141,15 @@ impl Dispatch<ExtIdleNotificationV1, ()> for IdleState {
 }
 
 impl Dispatch<wl_seat::WlSeat, ()> for IdleState {
-    fn event(_: &mut Self, _: &wl_seat::WlSeat,
-             _: wl_seat::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &wl_seat::WlSeat,
+        _: wl_seat::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 fn main() -> Result<()> {
@@ -129,19 +157,16 @@ fn main() -> Result<()> {
     let timeout_ms = (cli.timeout * 1000) as u32;
     let no_lock = cli.no_lock || cli.events_only;
 
-    let conn = Connection::connect_to_env()
-        .context("Failed to connect to Wayland")?;
+    let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
 
-    let (globals, mut queue) = registry_queue_init::<IdleState>(&conn)
-        .context("Failed to init registry")?;
+    let (globals, mut queue) =
+        registry_queue_init::<IdleState>(&conn).context("Failed to init registry")?;
 
     let qh = queue.handle();
 
     // Bind globals directly from the global list
-    let notifier = globals.bind::<ExtIdleNotifierV1, _, _>(&qh, 1..=1, ())
-        .ok();
-    let seat = globals.bind::<wl_seat::WlSeat, _, _>(&qh, 1..=7, ())
-        .ok();
+    let notifier = globals.bind::<ExtIdleNotifierV1, _, _>(&qh, 1..=1, ()).ok();
+    let seat = globals.bind::<wl_seat::WlSeat, _, _>(&qh, 1..=7, ()).ok();
 
     if notifier.is_none() {
         eprintln!("❌ ext_idle_notifier_v1 not available");
@@ -158,7 +183,8 @@ fn main() -> Result<()> {
     // Create idle notification
     notifier.get_idle_notification(timeout_ms, &seat, &qh, ());
 
-    eprintln!("🌲 faelight-idle v1.0.0 — timeout: {}s  lock: {}",
+    eprintln!(
+        "🌲 faelight-idle v1.0.0 — timeout: {}s  lock: {}",
         cli.timeout,
         if no_lock { "disabled" } else { "enabled" },
     );

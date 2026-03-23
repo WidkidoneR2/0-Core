@@ -116,13 +116,25 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
             tags = tag_str.split(',').map(|t| t.trim().to_string()).collect();
         } else if let Some(v) = line.strip_prefix("depends_on:") {
             let s = v.trim().trim_matches('[').trim_matches(']');
-            depends_on = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            depends_on = s
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         } else if let Some(v) = line.strip_prefix("blocks:") {
             let s = v.trim().trim_matches('[').trim_matches(']');
-            blocks_field = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            blocks_field = s
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         } else if let Some(v) = line.strip_prefix("relates:") {
             let s = v.trim().trim_matches('[').trim_matches(']');
-            relates = s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            relates = s
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         }
     }
 
@@ -377,12 +389,10 @@ fn read_focus() -> Option<FocusState> {
 }
 
 fn write_focus(state: &FocusState) -> crate::errors::CoreResult<()> {
-    fs::create_dir_all(intent_state_dir())
-        .map_err(crate::errors::CoreError::Io)?;
+    fs::create_dir_all(intent_state_dir()).map_err(crate::errors::CoreError::Io)?;
     let content = toml::to_string_pretty(state)
         .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
-    fs::write(focus_file(), content)
-        .map_err(crate::errors::CoreError::Io)?;
+    fs::write(focus_file(), content).map_err(crate::errors::CoreError::Io)?;
     Ok(())
 }
 
@@ -401,16 +411,24 @@ fn timestamp_now() -> String {
 pub fn focus(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
 
     let intents = load_all(ctx);
-    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
-        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
-    })?;
+    let intent = intents
+        .iter()
+        .find(|i| i.id == id)
+        .ok_or_else(|| crate::errors::CoreError::Runtime(format!("Intent {} not found", id)))?;
 
     if intent.status == "complete" || intent.status == "cancelled" {
-        println!("  {} Cannot focus a {} intent", "✗".bright_red(), intent.status);
+        println!(
+            "  {} Cannot focus a {} intent",
+            "✗".bright_red(),
+            intent.status
+        );
         return Ok(());
     }
 
@@ -429,7 +447,11 @@ pub fn focus(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
     println!("  {} {}", "State: ".dimmed(), intent.status_colored());
     println!("{}", "━".repeat(50).dimmed());
-    println!("  {} Use {} to check drift", "→".dimmed(), "core intent drift".bright_cyan());
+    println!(
+        "  {} Use {} to check drift",
+        "→".dimmed(),
+        "core intent drift".bright_cyan()
+    );
 
     Ok(())
 }
@@ -437,7 +459,10 @@ pub fn focus(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn unfocus(ctx: &AppContext) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
 
     let f = focus_file();
@@ -459,22 +484,28 @@ pub fn unfocus(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn focus_status(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     match read_focus() {
         None => {
             println!("  {} No intent focused", "○".dimmed());
-            println!("  {} Use {} to set focus", "→".dimmed(), "core intent focus <id>".bright_cyan());
+            println!(
+                "  {} Use {} to set focus",
+                "→".dimmed(),
+                "core intent focus <id>".bright_cyan()
+            );
         }
         Some(state) => {
             println!("{}", "🎯 Current Focus".bold());
             println!("{}", "━".repeat(50).dimmed());
             println!("  {} {}", "ID:      ".dimmed(), state.id.bright_white());
             println!("  {} {}", "Title:   ".dimmed(), state.title.bright_white());
-            println!("  {} {}", "State:   ".dimmed(), state.workflow.bright_yellow());
+            println!(
+                "  {} {}",
+                "State:   ".dimmed(),
+                state.workflow.bright_yellow()
+            );
             println!("  {} {}", "Since:   ".dimmed(), state.started.dimmed());
             println!("{}", "━".repeat(50).dimmed());
         }
@@ -484,15 +515,20 @@ pub fn focus_status(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn drift(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     let focus = match read_focus() {
         None => {
-            println!("  {} No intent focused — nothing to drift from", "○".dimmed());
-            println!("  {} Set a focus with {}", "→".dimmed(), "core intent focus <id>".bright_cyan());
+            println!(
+                "  {} No intent focused — nothing to drift from",
+                "○".dimmed()
+            );
+            println!(
+                "  {} Set a focus with {}",
+                "→".dimmed(),
+                "core intent focus <id>".bright_cyan()
+            );
             return Ok(());
         }
         Some(f) => f,
@@ -519,7 +555,8 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
     let commit_lines: Vec<&str> = commits.lines().collect();
 
     // Simple drift detection: check if recent commits mention the focused intent
-    let id_mentions = commit_lines.iter()
+    let id_mentions = commit_lines
+        .iter()
         .filter(|c| c.contains(&focus.id) || c.to_lowercase().contains("intent"))
         .count();
 
@@ -539,10 +576,17 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} Last {} commits analyzed", "→".dimmed(), total);
 
     if id_mentions > 0 {
-        println!("  {} {} commit(s) relate to focused intent", "✅".green(), id_mentions);
+        println!(
+            "  {} {} commit(s) relate to focused intent",
+            "✅".green(),
+            id_mentions
+        );
         println!("  {} Forest is on course", "✓".bright_green());
     } else {
-        println!("  {} No recent commits reference focused intent", "⚠️ ".bright_yellow());
+        println!(
+            "  {} No recent commits reference focused intent",
+            "⚠️ ".bright_yellow()
+        );
         println!("  {} Possible drift detected — recent work:", "→".dimmed());
         for commit in commit_lines.iter().take(5) {
             println!("    {} {}", "·".dimmed(), commit.dimmed());
@@ -557,13 +601,17 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
 pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
 
     let intents = load_all(ctx);
-    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
-        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
-    })?;
+    let intent = intents
+        .iter()
+        .find(|i| i.id == id)
+        .ok_or_else(|| crate::errors::CoreError::Runtime(format!("Intent {} not found", id)))?;
 
     if intent.status != "planned" && intent.status != "future" {
         println!(
@@ -585,11 +633,14 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     for folder in &folders {
         let dir = base.join(folder);
-        if !dir.exists() { continue; }
+        if !dir.exists() {
+            continue;
+        }
         if let Ok(entries) = fs::read_dir(&dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.file_name()
+                if path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
                     .unwrap_or(false)
@@ -599,14 +650,17 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 }
             }
         }
-        if found_path.is_some() { break; }
+        if found_path.is_some() {
+            break;
+        }
     }
 
     if let Some(path) = found_path {
         let content = fs::read_to_string(&path).map_err(crate::errors::CoreError::Io)?;
-        let updated = content.replace("status: planned", "status: in-progress")
-                             .replace("status: future", "status: in-progress")
-                             .replace("status: deferred", "status: in-progress");
+        let updated = content
+            .replace("status: planned", "status: in-progress")
+            .replace("status: future", "status: in-progress")
+            .replace("status: deferred", "status: in-progress");
         fs::write(&path, updated).map_err(crate::errors::CoreError::Io)?;
     }
 
@@ -623,7 +677,11 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!("{}", "━".repeat(50).dimmed());
     println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
     println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
-    println!("  {} planned → {}", "State: ".dimmed(), "in-progress".bright_yellow());
+    println!(
+        "  {} planned → {}",
+        "State: ".dimmed(),
+        "in-progress".bright_yellow()
+    );
     println!("  {} Intent is now focused", "🎯".green());
     println!("{}", "━".repeat(50).dimmed());
 
@@ -633,13 +691,17 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
 
     let intents = load_all(ctx);
-    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
-        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
-    })?;
+    let intent = intents
+        .iter()
+        .find(|i| i.id == id)
+        .ok_or_else(|| crate::errors::CoreError::Runtime(format!("Intent {} not found", id)))?;
 
     if intent.status == "complete" {
         println!("  {} Intent {} is already complete", "✅".green(), id);
@@ -657,11 +719,14 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     for folder in &folders {
         let dir = base.join(folder);
-        if !dir.exists() { continue; }
+        if !dir.exists() {
+            continue;
+        }
         if let Ok(entries) = fs::read_dir(&dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.file_name()
+                if path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
                     .unwrap_or(false)
@@ -671,7 +736,9 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 }
             }
         }
-        if found_path.is_some() { break; }
+        if found_path.is_some() {
+            break;
+        }
     }
 
     if let Some(src_path) = found_path {
@@ -713,12 +780,16 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
 
     // Find next ID
     let intents = load_all(ctx);
-    let max_id = intents.iter()
+    let max_id = intents
+        .iter()
         .filter_map(|i| i.id.parse::<u32>().ok())
         .max()
         .unwrap_or(0);
@@ -732,10 +803,10 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
 
     let (type_tag, tags) = match template {
         "feature" => ("feature", "feature, rust, faelight"),
-        "fix"     => ("fix",     "fix, bugfix"),
-        "arch"    => ("arch",    "architecture, rust, design"),
-        "study"   => ("study",   "study, research, learning"),
-        _         => ("future",  "faelight"),
+        "fix" => ("fix", "fix, bugfix"),
+        "arch" => ("arch", "architecture, rust, design"),
+        "study" => ("study", "study, research, learning"),
+        _ => ("future", "faelight"),
     };
 
     let slug = title.to_lowercase().replace(' ', "-");
@@ -745,7 +816,7 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
         .join(&filename);
 
     let content = format!(
-r#"---
+        r#"---
 id: {:03}
 date: {}
 type: {}
@@ -793,30 +864,41 @@ version: TBD
     println!("  {} {}", "Template: ".dimmed(), template.bright_cyan());
     println!("  {} {}", "File:     ".dimmed(), filename.dimmed());
     println!("{}", "━".repeat(50).dimmed());
-    println!("  {} Edit: {}", "→".dimmed(), filepath.display().to_string().bright_cyan());
+    println!(
+        "  {} Edit: {}",
+        "→".dimmed(),
+        filepath.display().to_string().bright_cyan()
+    );
 
     Ok(())
 }
 
 pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     let intents = load_all(ctx);
-    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
-        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
-    })?;
+    let intent = intents
+        .iter()
+        .find(|i| i.id == id)
+        .ok_or_else(|| crate::errors::CoreError::Runtime(format!("Intent {} not found", id)))?;
 
     println!("{}", "🔗 Intent Dependencies".bold());
     println!("{}", "━".repeat(55).dimmed());
-    println!("  {} {} — {}", intent.id.bright_white(), intent.status_colored(), intent.title.bright_white());
+    println!(
+        "  {} {} — {}",
+        intent.id.bright_white(),
+        intent.status_colored(),
+        intent.title.bright_white()
+    );
     println!("{}", "━".repeat(55).dimmed());
 
     if intent.depends_on.is_empty() && intent.blocks.is_empty() && intent.relates.is_empty() {
         println!("  {} No dependencies declared", "○".dimmed());
-        println!("  {} Add to frontmatter: depends_on: [052], blocks: [110], relates: [099]", "→".dimmed());
+        println!(
+            "  {} Add to frontmatter: depends_on: [052], blocks: [110], relates: [099]",
+            "→".dimmed()
+        );
         return Ok(());
     }
 
@@ -825,8 +907,18 @@ pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
         for dep_id in &intent.depends_on {
             if let Some(dep) = intents.iter().find(|i| &i.id == dep_id) {
                 let ready = dep.status == "complete";
-                let icon = if ready { "✅".to_string() } else { "⬜".to_string() };
-                println!("    {} {} {} — {}", icon, dep.id.bright_white(), dep.status_colored(), dep.title.dimmed());
+                let icon = if ready {
+                    "✅".to_string()
+                } else {
+                    "⬜".to_string()
+                };
+                println!(
+                    "    {} {} {} — {}",
+                    icon,
+                    dep.id.bright_white(),
+                    dep.status_colored(),
+                    dep.title.dimmed()
+                );
             } else {
                 println!("    {} {} — not found", "?".dimmed(), dep_id.bright_red());
             }
@@ -837,7 +929,13 @@ pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
         println!("  {} Blocks:", "⬇".bright_red());
         for bid in &intent.blocks {
             if let Some(b) = intents.iter().find(|i| &i.id == bid) {
-                println!("    {} {} {} — {}", "🔒".dimmed(), b.id.bright_white(), b.status_colored(), b.title.dimmed());
+                println!(
+                    "    {} {} {} — {}",
+                    "🔒".dimmed(),
+                    b.id.bright_white(),
+                    b.status_colored(),
+                    b.title.dimmed()
+                );
             } else {
                 println!("    {} {} — not found", "?".dimmed(), bid.bright_red());
             }
@@ -848,7 +946,13 @@ pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
         println!("  {} Relates to:", "↔".bright_cyan());
         for rid in &intent.relates {
             if let Some(r) = intents.iter().find(|i| &i.id == rid) {
-                println!("    {} {} {} — {}", "◦".dimmed(), r.id.bright_white(), r.status_colored(), r.title.dimmed());
+                println!(
+                    "    {} {} {} — {}",
+                    "◦".dimmed(),
+                    r.id.bright_white(),
+                    r.status_colored(),
+                    r.title.dimmed()
+                );
             } else {
                 println!("    {} {} — not found", "?".dimmed(), rid.bright_red());
             }
@@ -860,10 +964,8 @@ pub fn deps(ctx: &AppContext, id: &str) -> CoreResult<()> {
 }
 
 pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     let intents = load_all(ctx);
 
@@ -882,10 +984,14 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "📉 Intent Burndown".bold());
     println!("{}", "━".repeat(55).dimmed());
-    println!("  {} {}  {} {}  {} {}",
-        "Total:".dimmed(), total.to_string().bright_white(),
-        "Complete:".dimmed(), complete.to_string().bright_green(),
-        "Remaining:".dimmed(), remaining.to_string().bright_yellow(),
+    println!(
+        "  {} {}  {} {}  {} {}",
+        "Total:".dimmed(),
+        total.to_string().bright_white(),
+        "Complete:".dimmed(),
+        complete.to_string().bright_green(),
+        "Remaining:".dimmed(),
+        remaining.to_string().bright_yellow(),
     );
     println!("{}", "━".repeat(55).dimmed());
 
@@ -897,10 +1003,22 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
     let max_count = *monthly.values().max().unwrap_or(&1);
     let bar_width = 30usize;
 
-    for (month, count) in monthly.iter().rev().take(12).collect::<Vec<_>>().iter().rev() {
+    for (month, count) in monthly
+        .iter()
+        .rev()
+        .take(12)
+        .collect::<Vec<_>>()
+        .iter()
+        .rev()
+    {
         let filled = (*count * bar_width) / max_count.max(1);
-        let bar = format!("{}{}", "█".repeat(filled).bright_green(), "░".repeat(bar_width - filled).dimmed());
-        println!("  {} {} {}",
+        let bar = format!(
+            "{}{}",
+            "█".repeat(filled).bright_green(),
+            "░".repeat(bar_width - filled).dimmed()
+        );
+        println!(
+            "  {} {} {}",
             month.bright_white(),
             bar,
             count.to_string().bright_green(),
@@ -915,7 +1033,12 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
     for (month, count) in &monthly {
         running += count;
         if running % 10 == 0 || running == complete {
-            println!("    {} {} — {} total", "●".bright_cyan(), month.dimmed(), running.to_string().bright_white());
+            println!(
+                "    {} {} — {} total",
+                "●".bright_cyan(),
+                month.dimmed(),
+                running.to_string().bright_white()
+            );
         }
     }
 
@@ -923,10 +1046,8 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     let intents = load_all(ctx);
 
@@ -957,22 +1078,47 @@ pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
     let recent: Vec<usize> = monthly.values().rev().take(3).cloned().collect();
     let recent_avg = if !recent.is_empty() {
         recent.iter().sum::<usize>() as f64 / recent.len() as f64
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
-    println!("  {} {:.1} intents/month", "Average velocity:    ".dimmed(), avg);
-    println!("  {} {:.1} intents/month (last 3)", "Recent velocity:     ".dimmed(), recent_avg);
-    println!("  {} {}", "Peak month:          ".dimmed(), max.to_string().bright_green());
-    println!("  {} {}", "Slowest month:       ".dimmed(), min.to_string().dimmed());
-    println!("  {} {}", "Months tracked:      ".dimmed(), total_months.to_string().bright_white());
+    println!(
+        "  {} {:.1} intents/month",
+        "Average velocity:    ".dimmed(),
+        avg
+    );
+    println!(
+        "  {} {:.1} intents/month (last 3)",
+        "Recent velocity:     ".dimmed(),
+        recent_avg
+    );
+    println!(
+        "  {} {}",
+        "Peak month:          ".dimmed(),
+        max.to_string().bright_green()
+    );
+    println!(
+        "  {} {}",
+        "Slowest month:       ".dimmed(),
+        min.to_string().dimmed()
+    );
+    println!(
+        "  {} {}",
+        "Months tracked:      ".dimmed(),
+        total_months.to_string().bright_white()
+    );
     println!("{}", "━".repeat(55).dimmed());
 
     // Trend direction
     if recent.len() >= 2 {
-        let trend = recent[0] as f64 - recent[recent.len()-1] as f64;
+        let trend = recent[0] as f64 - recent[recent.len() - 1] as f64;
         if trend > 0.5 {
             println!("  {} Velocity accelerating", "📈".green());
         } else if trend < -0.5 {
-            println!("  {} Velocity slowing — check for blockers", "📉".bright_yellow());
+            println!(
+                "  {} Velocity slowing — check for blockers",
+                "📉".bright_yellow()
+            );
         } else {
             println!("  {} Velocity stable", "→".dimmed());
         }
@@ -988,31 +1134,37 @@ pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
     let mut by_type_vec: Vec<(String, usize)> = by_type.into_iter().collect();
     by_type_vec.sort_by(|a, b| b.1.cmp(&a.1));
     for (t, count) in &by_type_vec {
-        println!("    {} {:<15} {}", "◦".dimmed(), t.bright_white(), count.to_string().bright_green());
+        println!(
+            "    {} {:<15} {}",
+            "◦".dimmed(),
+            t.bright_white(),
+            count.to_string().bright_green()
+        );
     }
 
     Ok(())
 }
 
 pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
 
     let intents = load_all(ctx);
-    let intent = intents.iter().find(|i| i.id == id).ok_or_else(|| {
-        crate::errors::CoreError::Runtime(format!("Intent {} not found", id))
-    })?;
+    let intent = intents
+        .iter()
+        .find(|i| i.id == id)
+        .ok_or_else(|| crate::errors::CoreError::Runtime(format!("Intent {} not found", id)))?;
 
-    let slug = intent.title
+    let slug = intent
+        .title
         .to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>();
 
     // Collapse multiple dashes
-    let slug = slug.split('-')
+    let slug = slug
+        .split('-')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("-");
@@ -1024,7 +1176,11 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!("  {} {}", "Intent: ".dimmed(), intent.title.bright_white());
     println!("  {} {}", "Branch: ".dimmed(), branch_name.bright_cyan());
     println!("{}", "━".repeat(55).dimmed());
-    println!("  {} git checkout -b {}", "→".dimmed(), branch_name.bright_cyan());
+    println!(
+        "  {} git checkout -b {}",
+        "→".dimmed(),
+        branch_name.bright_cyan()
+    );
 
     Ok(())
 }

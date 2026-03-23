@@ -10,7 +10,9 @@ use std::io::{self, Write};
 fn emit_git_event(action: &str, detail: &str) {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
-    if !db_path.exists() { return; }
+    if !db_path.exists() {
+        return;
+    }
     if let Ok(conn) = rusqlite::Connection::open(&db_path) {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -172,7 +174,14 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
 
     // ── Commit ────────────────────────────────────────────────
     let hash = repo.commit(&full_message)?;
-    emit_git_event("commit", &format!(r#""hash":"{}","message":"{}""#, hash, message.replace('"', "'")));
+    emit_git_event(
+        "commit",
+        &format!(
+            r#""hash":"{}","message":"{}""#,
+            hash,
+            message.replace('"', "'")
+        ),
+    );
     println!();
     println!(
         "  {} commit {} {}",

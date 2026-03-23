@@ -4,16 +4,16 @@
 
 use smithay::{
     backend::input::{
-        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend,
-        InputEvent, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
+        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
     },
+    desktop::WindowSurfaceType,
     input::{
         keyboard::FilterResult,
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
     },
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     utils::{Logical, Point, SERIAL_COUNTER},
-    desktop::WindowSurfaceType,
 };
 
 use crate::state::FaelightCompositor;
@@ -38,10 +38,14 @@ impl FaelightCompositor {
                             if let Some(&sym) = raw.first() {
                                 let raw_val = sym.raw();
                                 let vt = match raw_val {
-                                    0xffbe => Some(1), 0xffbf => Some(2),
-                                    0xffc0 => Some(3), 0xffc1 => Some(4),
-                                    0xffc2 => Some(5), 0xffc3 => Some(6),
-                                    0xffc4 => Some(7), 0xffc5 => Some(8),
+                                    0xffbe => Some(1),
+                                    0xffbf => Some(2),
+                                    0xffc0 => Some(3),
+                                    0xffc1 => Some(4),
+                                    0xffc2 => Some(5),
+                                    0xffc3 => Some(6),
+                                    0xffc4 => Some(7),
+                                    0xffc5 => Some(8),
                                     0xffc6 => Some(9),
                                     _ => None,
                                 };
@@ -67,8 +71,7 @@ impl FaelightCompositor {
             InputEvent::PointerMotionAbsolute { event, .. } => {
                 let output = self.space.outputs().next().unwrap();
                 let output_geo = self.space.output_geometry(output).unwrap();
-                let pos = event.position_transformed(output_geo.size)
-                    + output_geo.loc.to_f64();
+                let pos = event.position_transformed(output_geo.size) + output_geo.loc.to_f64();
                 let serial = SERIAL_COUNTER.next_serial();
                 let pointer = self.seat.get_pointer().unwrap();
                 let under = self.surface_under(pos);
@@ -127,12 +130,12 @@ impl FaelightCompositor {
             }
             InputEvent::PointerAxis { event, .. } => {
                 let source = event.source();
-                let horizontal_amount = event
-                    .amount(Axis::Horizontal)
-                    .unwrap_or_else(|| event.amount_v120(Axis::Horizontal).unwrap_or(0.0) * 15.0 / 120.);
-                let vertical_amount = event
-                    .amount(Axis::Vertical)
-                    .unwrap_or_else(|| event.amount_v120(Axis::Vertical).unwrap_or(0.0) * 15.0 / 120.);
+                let horizontal_amount = event.amount(Axis::Horizontal).unwrap_or_else(|| {
+                    event.amount_v120(Axis::Horizontal).unwrap_or(0.0) * 15.0 / 120.
+                });
+                let vertical_amount = event.amount(Axis::Vertical).unwrap_or_else(|| {
+                    event.amount_v120(Axis::Vertical).unwrap_or(0.0) * 15.0 / 120.
+                });
                 let horizontal_discrete = event.amount_v120(Axis::Horizontal);
                 let vertical_discrete = event.amount_v120(Axis::Vertical);
 
@@ -171,10 +174,12 @@ impl FaelightCompositor {
         &self,
         pos: Point<f64, Logical>,
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
-        self.space.element_under(pos).and_then(|(window, location)| {
-            window
-                .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                .map(|(s, p)| (s, (p + location).to_f64()))
-        })
+        self.space
+            .element_under(pos)
+            .and_then(|(window, location)| {
+                window
+                    .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
+                    .map(|(s, p)| (s, (p + location).to_f64()))
+            })
     }
 }

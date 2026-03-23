@@ -21,7 +21,9 @@ fn ensure_schema(ctx: &AppContext) {
 }
 
 fn next_id(ctx: &AppContext) -> String {
-    let count: i64 = ctx.runtime.db
+    let count: i64 = ctx
+        .runtime
+        .db
         .query_row("SELECT COUNT(*) FROM forest_tradeoffs", [], |r| r.get(0))
         .unwrap_or(0);
     format!("TRADEOFF-{:03}", count + 1)
@@ -29,24 +31,27 @@ fn next_id(ctx: &AppContext) -> String {
 
 fn read_health(ctx: &AppContext) -> u32 {
     let root = &ctx.core_root;
-    std::fs::read_to_string(
-        std::path::PathBuf::from(&root).join("runtime/cache/health.txt")
-    ).unwrap_or_else(|_| "95".to_string())
-    .trim().trim_end_matches('%').parse().unwrap_or(95)
+    std::fs::read_to_string(std::path::PathBuf::from(&root).join("runtime/cache/health.txt"))
+        .unwrap_or_else(|_| "95".to_string())
+        .trim()
+        .trim_end_matches('%')
+        .parse()
+        .unwrap_or(95)
 }
 
 fn confidence_colored(c: &str) -> colored::ColoredString {
     match c {
-        "high"   => "HIGH".bright_green(),
-        "low"    => "LOW".bright_red(),
-        _        => "MEDIUM".yellow(),
+        "high" => "HIGH".bright_green(),
+        "low" => "LOW".bright_red(),
+        _ => "MEDIUM".yellow(),
     }
 }
 
 fn score_bar(score: f64) -> String {
     let filled = (score * 10.0).round() as usize;
     let empty = 10usize.saturating_sub(filled);
-    format!("[{}{}] {:.0}%",
+    format!(
+        "[{}{}] {:.0}%",
         "█".repeat(filled).bright_green().to_string(),
         "░".repeat(empty).dimmed().to_string(),
         score * 100.0
@@ -54,13 +59,13 @@ fn score_bar(score: f64) -> String {
 }
 
 struct AxisAnalysis {
-    name:       &'static str,
-    left:       &'static str,
-    right:      &'static str,
+    name: &'static str,
+    left: &'static str,
+    right: &'static str,
     left_score: f64,
     right_score: f64,
-    tension:    String,
-    lean:       &'static str,
+    tension: String,
+    lean: &'static str,
 }
 
 fn analyze_axes(ctx: &AppContext, description: &str) -> Vec<AxisAnalysis> {
@@ -68,76 +73,109 @@ fn analyze_axes(ctx: &AppContext, description: &str) -> Vec<AxisAnalysis> {
     let health = read_health(ctx);
 
     // Read decision history for context
-    let recent_failures: i64 = ctx.runtime.db
+    let recent_failures: i64 = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT COUNT(*) FROM decisions WHERE outcome='failure' \
              AND timestamp > strftime('%s','now','-30 days')",
-            [], |r| r.get(0),
-        ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let evolution_proposals: i64 = ctx.runtime.db
+    let evolution_proposals: i64 = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT COUNT(*) FROM evolution_proposals WHERE status='pending'",
-            [], |r| r.get(0),
-        ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let active_goals: i64 = ctx.runtime.db
+    let active_goals: i64 = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT COUNT(*) FROM forest_goals WHERE status='accepted'",
-            [], |r| r.get(0),
-        ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let security_findings: i64 = ctx.runtime.db
+    let security_findings: i64 = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT COUNT(*) FROM audit_scores WHERE score < 0.7",
-            [], |r| r.get(0),
-        ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     // Axis 1: Stability <-> Evolution
     let stability_score = (health as f64 / 100.0).min(1.0);
     let evolution_score = if evolution_proposals > 0 { 0.7 } else { 0.3 };
-    let stab_tension = if desc.contains("refactor") || desc.contains("rewrite") || desc.contains("migrate") {
-        "High: structural change directly challenges stability".to_string()
-    } else if desc.contains("add") || desc.contains("new") || desc.contains("implement") {
-        "Medium: new capability adds complexity load".to_string()
+    let stab_tension =
+        if desc.contains("refactor") || desc.contains("rewrite") || desc.contains("migrate") {
+            "High: structural change directly challenges stability".to_string()
+        } else if desc.contains("add") || desc.contains("new") || desc.contains("implement") {
+            "Medium: new capability adds complexity load".to_string()
+        } else {
+            "Low: change is contained".to_string()
+        };
+    let stab_lean = if stability_score > evolution_score {
+        "stability"
     } else {
-        "Low: change is contained".to_string()
+        "evolution"
     };
-    let stab_lean = if stability_score > evolution_score { "stability" } else { "evolution" };
 
     // Axis 2: Complexity <-> Capability
-    let tool_count: i64 = ctx.runtime.db
+    let tool_count: i64 = ctx
+        .runtime
+        .db
         .query_row("SELECT COUNT(*) FROM audit_scores", [], |r| r.get(0))
         .unwrap_or(0);
     let complexity_score = ((tool_count as f64 / 60.0) + (active_goals as f64 / 10.0)) / 2.0;
     let complexity_score = complexity_score.min(1.0);
-    let capability_score = if desc.contains("feature") || desc.contains("add") || desc.contains("new") {
-        0.8
-    } else {
-        0.4
-    };
+    let capability_score =
+        if desc.contains("feature") || desc.contains("add") || desc.contains("new") {
+            0.8
+        } else {
+            0.4
+        };
     let comp_tension = if complexity_score > 0.6 {
         "High: system already complex — new capability adds load".to_string()
     } else {
         "Low: system has capacity for new capability".to_string()
     };
-    let comp_lean = if complexity_score > capability_score { "complexity concern" } else { "capability gain" };
+    let comp_lean = if complexity_score > capability_score {
+        "complexity concern"
+    } else {
+        "capability gain"
+    };
 
     // Axis 3: Privacy <-> Utility
     let privacy_score = if security_findings > 3 { 0.8 } else { 0.5 };
-    let utility_score = if desc.contains("vault") || desc.contains("secret") || desc.contains("credential") {
-        0.9
-    } else if desc.contains("network") || desc.contains("fetch") || desc.contains("remote") {
-        0.7
-    } else {
-        0.5
-    };
+    let utility_score =
+        if desc.contains("vault") || desc.contains("secret") || desc.contains("credential") {
+            0.9
+        } else if desc.contains("network") || desc.contains("fetch") || desc.contains("remote") {
+            0.7
+        } else {
+            0.5
+        };
     let priv_tension = if privacy_score > 0.6 {
         format!("Medium: {} open security findings noted", security_findings)
     } else {
         "Low: no significant privacy concerns identified".to_string()
     };
-    let priv_lean = if privacy_score > utility_score { "privacy caution" } else { "utility gain" };
+    let priv_lean = if privacy_score > utility_score {
+        "privacy caution"
+    } else {
+        "utility gain"
+    };
 
     // Axis 4: Performance <-> Power
     let perf_score = if desc.contains("poll") || desc.contains("watch") || desc.contains("daemon") {
@@ -151,7 +189,11 @@ fn analyze_axes(ctx: &AppContext, description: &str) -> Vec<AxisAnalysis> {
     } else {
         "Low: no significant performance/power tradeoff".to_string()
     };
-    let perf_lean = if perf_score > power_score { "performance concern" } else { "power efficient" };
+    let perf_lean = if perf_score > power_score {
+        "performance concern"
+    } else {
+        "power efficient"
+    };
 
     // Overall recommendation
     let _ = recent_failures;
@@ -197,19 +239,30 @@ fn analyze_axes(ctx: &AppContext, description: &str) -> Vec<AxisAnalysis> {
 }
 
 fn overall_recommendation(axes: &[AxisAnalysis]) -> (String, &'static str) {
-    let high_tension = axes.iter()
+    let high_tension = axes
+        .iter()
         .filter(|a| a.tension.starts_with("High"))
         .count();
-    let medium_tension = axes.iter()
+    let medium_tension = axes
+        .iter()
         .filter(|a| a.tension.starts_with("Medium"))
         .count();
 
     if high_tension == 0 && medium_tension <= 1 {
-        ("Conditions favorable — proceed with confidence".to_string(), "high")
+        (
+            "Conditions favorable — proceed with confidence".to_string(),
+            "high",
+        )
     } else if high_tension >= 2 {
-        ("Multiple high-tension axes — consider deferring or scoping down".to_string(), "low")
+        (
+            "Multiple high-tension axes — consider deferring or scoping down".to_string(),
+            "low",
+        )
     } else {
-        ("Proceed with care — review tension axes before committing".to_string(), "medium")
+        (
+            "Proceed with care — review tension axes before committing".to_string(),
+            "medium",
+        )
     }
 }
 
@@ -217,19 +270,26 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
     ensure_schema(ctx);
 
     // Find linked goal if any
-    let linked_goal: Option<String> = ctx.runtime.db
+    let linked_goal: Option<String> = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT id FROM forest_goals WHERE status='accepted' \
              ORDER BY created_at DESC LIMIT 1",
-            [], |r| r.get(0),
-        ).ok();
+            [],
+            |r| r.get(0),
+        )
+        .ok();
 
     let axes = analyze_axes(ctx, description);
     let (recommendation, confidence) = overall_recommendation(&axes);
 
     println!();
-    println!("  {} {}", "⚖  Tradeoff Analysis:".bright_cyan().bold(),
-        description.bright_white().bold());
+    println!(
+        "  {} {}",
+        "⚖  Tradeoff Analysis:".bright_cyan().bold(),
+        description.bright_white().bold()
+    );
     println!("{}", "━".repeat(56).dimmed());
 
     if let Some(ref goal) = linked_goal {
@@ -256,7 +316,11 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
             format!("- {}", axis.right).dimmed().to_string()
         };
 
-        println!("  {} {}", "◆".bright_cyan(), axis.name.bright_white().bold());
+        println!(
+            "  {} {}",
+            "◆".bright_cyan(),
+            axis.name.bright_white().bold()
+        );
         println!("    {}  vs  {}", left_label, right_label);
         println!("    Tension:  {}", axis.tension.dimmed());
         println!("    Lean:     {}", axis.lean.yellow());
@@ -267,8 +331,16 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
     }
 
     println!("{}", "─".repeat(56).dimmed());
-    println!("  {} {}", "Recommendation:".bright_white().bold(), recommendation.bright_white());
-    println!("  {} {}", "Confidence:".dimmed(), confidence_colored(confidence));
+    println!(
+        "  {} {}",
+        "Recommendation:".bright_white().bold(),
+        recommendation.bright_white()
+    );
+    println!(
+        "  {} {}",
+        "Confidence:".dimmed(),
+        confidence_colored(confidence)
+    );
     println!();
     println!("  {}", "The forest weighs. You decide.".dimmed().italic());
     println!("{}", "━".repeat(56).dimmed());
@@ -284,9 +356,16 @@ pub fn analyze(ctx: &AppContext, description: &str) -> CoreResult<()> {
         "INSERT INTO forest_tradeoffs \
          (id,description,axes,scores,recommendation,confidence,linked_goal,created_at) \
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
-        params![id, description, axes_json, scores_json,
-                recommendation, confidence,
-                linked_goal.unwrap_or_default(), now],
+        params![
+            id,
+            description,
+            axes_json,
+            scores_json,
+            recommendation,
+            confidence,
+            linked_goal.unwrap_or_default(),
+            now
+        ],
     );
 
     let _ = ctx.runtime.db.execute(
@@ -303,7 +382,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
 
     let mut stmt = match ctx.runtime.db.prepare(
         "SELECT id, description, confidence, linked_goal, created_at \
-         FROM forest_tradeoffs ORDER BY created_at DESC LIMIT 20"
+         FROM forest_tradeoffs ORDER BY created_at DESC LIMIT 20",
     ) {
         Ok(s) => s,
         Err(_) => {
@@ -312,12 +391,16 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
         }
     };
 
-    let rows: Vec<(String,String,String,String,i64)> = stmt
-        .query_map([], |r| Ok((
-            r.get(0)?, r.get(1)?, r.get(2)?,
-            r.get::<_,String>(3).unwrap_or_default(),
-            r.get(4)?,
-        )))
+    let rows: Vec<(String, String, String, String, i64)> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get::<_, String>(3).unwrap_or_default(),
+                r.get(4)?,
+            ))
+        })
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
 
@@ -331,8 +414,12 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
             let date = chrono::DateTime::from_timestamp(*ts, 0)
                 .map(|d| d.format("%Y-%m-%d").to_string())
                 .unwrap_or_default();
-            println!("  {}  {}  {}",
-                id.bright_cyan(), date.dimmed(), confidence_colored(confidence));
+            println!(
+                "  {}  {}  {}",
+                id.bright_cyan(),
+                date.dimmed(),
+                confidence_colored(confidence)
+            );
             println!("     {}", desc);
             if !goal.is_empty() {
                 println!("     Goal: {}", goal.yellow());
@@ -349,18 +436,38 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     ensure_schema(ctx);
 
     let health = read_health(ctx);
-    let evolution_proposals: i64 = ctx.runtime.db
-        .query_row("SELECT COUNT(*) FROM evolution_proposals WHERE status='pending'",
-            [], |r| r.get(0)).unwrap_or(0);
-    let active_goals: i64 = ctx.runtime.db
-        .query_row("SELECT COUNT(*) FROM forest_goals WHERE status='accepted'",
-            [], |r| r.get(0)).unwrap_or(0);
-    let security_findings: i64 = ctx.runtime.db
-        .query_row("SELECT COUNT(*) FROM audit_scores WHERE score < 0.7",
-            [], |r| r.get(0)).unwrap_or(0);
-    let total_tradeoffs: i64 = ctx.runtime.db
-        .query_row("SELECT COUNT(*) FROM forest_tradeoffs",
-            [], |r| r.get(0)).unwrap_or(0);
+    let evolution_proposals: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM evolution_proposals WHERE status='pending'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let active_goals: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM forest_goals WHERE status='accepted'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let security_findings: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM audit_scores WHERE score < 0.7",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let total_tradeoffs: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM forest_tradeoffs", [], |r| r.get(0))
+        .unwrap_or(0);
 
     let stability = health as f64 / 100.0;
     let evolution = if evolution_proposals > 0 { 0.65 } else { 0.35 };
@@ -372,7 +479,10 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "⚖  System Balance State".bright_cyan().bold());
     println!("{}", "━".repeat(56).dimmed());
-    println!("  Tradeoff analyses recorded: {}", total_tradeoffs.to_string().yellow());
+    println!(
+        "  Tradeoff analyses recorded: {}",
+        total_tradeoffs.to_string().yellow()
+    );
     println!();
 
     println!("  {} {}", "Stability ↔ Evolution".bright_white().bold(), "");
@@ -388,7 +498,11 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!("    State: {}", se_state);
     println!();
 
-    println!("  {} {}", "Complexity ↔ Capability".bright_white().bold(), "");
+    println!(
+        "  {} {}",
+        "Complexity ↔ Capability".bright_white().bold(),
+        ""
+    );
     println!("    Complexity {}", score_bar(complexity));
     println!("    Capability {}", score_bar(capability));
     let cc_state = if complexity > 0.7 {
@@ -411,8 +525,10 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     println!("{}", "─".repeat(56).dimmed());
-    println!("  {} Run: core tradeoff analyze <decision>  before major changes",
-        "→".dimmed());
+    println!(
+        "  {} Run: core tradeoff analyze <decision>  before major changes",
+        "→".dimmed()
+    );
     println!("{}", "━".repeat(56).dimmed());
     println!();
 

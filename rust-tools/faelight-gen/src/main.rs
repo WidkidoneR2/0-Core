@@ -78,51 +78,35 @@ fn main() {
 
 fn run_command(cmd: Commands) {
     let (label, secret, kind) = match cmd {
-        Commands::Random { length } => {
-            ("Random Character", gen_random(length), "random")
-        }
-        Commands::Passphrase { words } => {
-            ("Passphrase", gen_passphrase(words), "passphrase")
-        }
-        Commands::Uuid => {
-            ("UUID v4", gen_uuid(), "uuid")
-        }
-        Commands::Username => {
-            ("Username", gen_username(), "username")
-        }
-        Commands::Pin { digits } => {
-            ("PIN", gen_pin(digits), "pin")
-        }
-        Commands::Apikey { prefix } => {
-            ("API Key", gen_apikey(&prefix), "apikey")
-        }
-        Commands::Base64 { bytes } => {
-            ("Base64 Secret", gen_base64(bytes), "base64")
-        }
-        Commands::Base32 { bytes } => {
-            ("Base32 Secret", gen_base32(bytes), "base32")
-        }
-        Commands::Cryptokey { bits } => {
-            ("Cryptographic Key", gen_cryptokey(bits), "cryptokey")
-        }
-        Commands::Seed => {
-            ("Seed Phrase", gen_seed(), "seed")
-        }
+        Commands::Random { length } => ("Random Character", gen_random(length), "random"),
+        Commands::Passphrase { words } => ("Passphrase", gen_passphrase(words), "passphrase"),
+        Commands::Uuid => ("UUID v4", gen_uuid(), "uuid"),
+        Commands::Username => ("Username", gen_username(), "username"),
+        Commands::Pin { digits } => ("PIN", gen_pin(digits), "pin"),
+        Commands::Apikey { prefix } => ("API Key", gen_apikey(&prefix), "apikey"),
+        Commands::Base64 { bytes } => ("Base64 Secret", gen_base64(bytes), "base64"),
+        Commands::Base32 { bytes } => ("Base32 Secret", gen_base32(bytes), "base32"),
+        Commands::Cryptokey { bits } => ("Cryptographic Key", gen_cryptokey(bits), "cryptokey"),
+        Commands::Seed => ("Seed Phrase", gen_seed(), "seed"),
         Commands::Pronounceable { length } => {
             ("Pronounceable", gen_pronounceable(length), "pronounceable")
         }
-        Commands::Token { prefix } => {
-            ("Token", gen_token(&prefix), "token")
-        }
+        Commands::Token { prefix } => ("Token", gen_token(&prefix), "token"),
     };
     display_result(label, &secret, kind);
 }
 
 fn display_result(label: &str, secret: &str, kind: &str) {
     println!();
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan()
+    );
     println!("  🔐 {}", label.bright_white().bold());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan()
+    );
     println!();
 
     // Colored output per character type
@@ -142,9 +126,7 @@ fn display_result(label: &str, secret: &str, kind: &str) {
             }
             println!();
             println!();
-            println!("  {} letters  {} numbers  {} symbols",
-                "🟢".to_string(), "🔴".to_string(), "🟡".to_string()
-            );
+            println!("  {} letters  {} numbers  {} symbols", "🟢", "🔴", "🟡");
         }
         "pin" => {
             print!("  ");
@@ -180,7 +162,8 @@ fn display_result(label: &str, secret: &str, kind: &str) {
     let strength = entropy_to_strength(entropy);
     let bar_filled = ((entropy / 128.0) * 20.0).min(20.0) as usize;
     let bar_empty = 20usize.saturating_sub(bar_filled);
-    let bar = format!("{}{}",
+    let bar = format!(
+        "{}{}",
         "█".repeat(bar_filled).bright_green(),
         "░".repeat(bar_empty).dimmed()
     );
@@ -188,47 +171,87 @@ fn display_result(label: &str, secret: &str, kind: &str) {
     println!("  Strength:  {} {}", bar, strength.bold());
     println!("  Entropy:   {:.1} bits", entropy);
     println!("  Type:      {}", label.dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 }
 
 fn run_tui() {
     println!();
-    println!("{}", "  ╭─ 🔐 faelight-gen ──────────────────────────────────╮".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🔐 faelight-gen ──────────────────────────────────╮".bright_cyan()
+    );
     println!("  │  Choose your generator:                              │");
     println!("  │                                                      │");
-    println!("  │   {}  Random Character    {}  Passphrase", "1".bright_white().bold(), "2".bright_white().bold());
-    println!("  │   {}  UUID               {}  Username", "3".bright_white().bold(), "4".bright_white().bold());
-    println!("  │   {}  PIN                {}  API Key", "5".bright_white().bold(), "6".bright_white().bold());
-    println!("  │   {}  Base64             {}  Base32", "7".bright_white().bold(), "8".bright_white().bold());
-    println!("  │   {}  Crypto Key         {}  Seed Phrase", "9".bright_white().bold(), "10".bright_white().bold());
-    println!("  │   {}  Pronounceable      {}  Token", "11".bright_white().bold(), "12".bright_white().bold());
+    println!(
+        "  │   {}  Random Character    {}  Passphrase",
+        "1".bright_white().bold(),
+        "2".bright_white().bold()
+    );
+    println!(
+        "  │   {}  UUID               {}  Username",
+        "3".bright_white().bold(),
+        "4".bright_white().bold()
+    );
+    println!(
+        "  │   {}  PIN                {}  API Key",
+        "5".bright_white().bold(),
+        "6".bright_white().bold()
+    );
+    println!(
+        "  │   {}  Base64             {}  Base32",
+        "7".bright_white().bold(),
+        "8".bright_white().bold()
+    );
+    println!(
+        "  │   {}  Crypto Key         {}  Seed Phrase",
+        "9".bright_white().bold(),
+        "10".bright_white().bold()
+    );
+    println!(
+        "  │   {}  Pronounceable      {}  Token",
+        "11".bright_white().bold(),
+        "12".bright_white().bold()
+    );
     println!("  │                                                      │");
-    println!("{}", "  ╰──────────────────────────────────────────────────────╯".bright_cyan());
+    println!(
+        "{}",
+        "  ╰──────────────────────────────────────────────────────╯".bright_cyan()
+    );
     println!();
     print!("  Select [1-12]: ");
 
     use std::io::{self, BufRead, Write};
     io::stdout().flush().ok();
     let stdin = io::stdin();
-    let line = stdin.lock().lines().next()
+    let line = stdin
+        .lock()
+        .lines()
+        .next()
         .and_then(|l| l.ok())
         .unwrap_or_default();
 
     let cmd = match line.trim() {
-        "1"  => Commands::Random { length: 32 },
-        "2"  => Commands::Passphrase { words: 4 },
-        "3"  => Commands::Uuid,
-        "4"  => Commands::Username,
-        "5"  => Commands::Pin { digits: 6 },
-        "6"  => Commands::Apikey { prefix: "sk".to_string() },
-        "7"  => Commands::Base64 { bytes: 32 },
-        "8"  => Commands::Base32 { bytes: 20 },
-        "9"  => Commands::Cryptokey { bits: 256 },
+        "1" => Commands::Random { length: 32 },
+        "2" => Commands::Passphrase { words: 4 },
+        "3" => Commands::Uuid,
+        "4" => Commands::Username,
+        "5" => Commands::Pin { digits: 6 },
+        "6" => Commands::Apikey {
+            prefix: "sk".to_string(),
+        },
+        "7" => Commands::Base64 { bytes: 32 },
+        "8" => Commands::Base32 { bytes: 20 },
+        "9" => Commands::Cryptokey { bits: 256 },
         "10" => Commands::Seed,
         "11" => Commands::Pronounceable { length: 12 },
-        "12" => Commands::Token { prefix: "sess".to_string() },
-        _    => {
+        "12" => Commands::Token {
+            prefix: "sess".to_string(),
+        },
+        _ => {
             println!("  {} Invalid choice", "✗".bright_red());
             return;
         }
@@ -241,19 +264,21 @@ fn run_tui() {
 fn gen_random(length: usize) -> String {
     let charset: Vec<char> =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-        .chars().collect();
+            .chars()
+            .collect();
     let mut rng = rand::thread_rng();
-    (0..length).map(|_| charset[rng.gen_range(0..charset.len())]).collect()
+    (0..length)
+        .map(|_| charset[rng.gen_range(0..charset.len())])
+        .collect()
 }
 
 fn gen_passphrase(words: usize) -> String {
     let wordlist = [
-        "forest","river","stone","flame","cloud","earth","wind","dawn",
-        "dusk","tide","frost","bloom","glade","creek","ridge","vale",
-        "moss","fern","bark","leaf","root","stem","vine","seed",
-        "hawk","wolf","bear","deer","fox","owl","crow","swan",
-        "iron","silver","gold","copper","amber","jade","onyx","ruby",
-        "swift","quiet","brave","wise","bold","calm","keen","true",
+        "forest", "river", "stone", "flame", "cloud", "earth", "wind", "dawn", "dusk", "tide",
+        "frost", "bloom", "glade", "creek", "ridge", "vale", "moss", "fern", "bark", "leaf",
+        "root", "stem", "vine", "seed", "hawk", "wolf", "bear", "deer", "fox", "owl", "crow",
+        "swan", "iron", "silver", "gold", "copper", "amber", "jade", "onyx", "ruby", "swift",
+        "quiet", "brave", "wise", "bold", "calm", "keen", "true",
     ];
     let mut rng = rand::thread_rng();
     (0..words)
@@ -277,23 +302,37 @@ fn gen_uuid() -> String {
 }
 
 fn gen_username() -> String {
-    let adjectives = ["swift","quiet","brave","wise","bold","calm","keen","dark","bright","silver"];
-    let nouns = ["falcon","wolf","cedar","river","stone","frost","ember","vale","hawk","pine"];
+    let adjectives = [
+        "swift", "quiet", "brave", "wise", "bold", "calm", "keen", "dark", "bright", "silver",
+    ];
+    let nouns = [
+        "falcon", "wolf", "cedar", "river", "stone", "frost", "ember", "vale", "hawk", "pine",
+    ];
     let mut rng = rand::thread_rng();
     let num: u32 = rng.gen_range(10..99);
-    format!("{}_{}_{}", adjectives[rng.gen_range(0..adjectives.len())],
-        nouns[rng.gen_range(0..nouns.len())], num)
+    format!(
+        "{}_{}_{}",
+        adjectives[rng.gen_range(0..adjectives.len())],
+        nouns[rng.gen_range(0..nouns.len())],
+        num
+    )
 }
 
 fn gen_pin(digits: usize) -> String {
     let mut rng = rand::thread_rng();
-    (0..digits).map(|_| rng.gen_range(0..10).to_string()).collect()
+    (0..digits)
+        .map(|_| rng.gen_range(0..10).to_string())
+        .collect()
 }
 
 fn gen_apikey(prefix: &str) -> String {
-    let charset: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".chars().collect();
+    let charset: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        .chars()
+        .collect();
     let mut rng = rand::thread_rng();
-    let key: String = (0..32).map(|_| charset[rng.gen_range(0..charset.len())]).collect();
+    let key: String = (0..32)
+        .map(|_| charset[rng.gen_range(0..charset.len())])
+        .collect();
     format!("{}_{}", prefix, key)
 }
 
@@ -314,20 +353,26 @@ fn gen_cryptokey(bits: usize) -> String {
     let bytes = bits / 8;
     let mut rng = rand::thread_rng();
     let raw: Vec<u8> = (0..bytes).map(|_| rng.gen::<u8>()).collect();
-    raw.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join("")
+    raw.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn gen_seed() -> String {
     let words = [
-        "abandon","ability","able","about","above","absent","absorb","abstract",
-        "absurd","abuse","access","accident","account","accuse","achieve","acid",
-        "acoustic","acquire","across","act","action","actor","actual","adapt",
-        "forest","river","stone","flame","cloud","earth","wind","dawn",
-        "wisdom","courage","vision","beacon","anchor","bridge","harbor","shield",
-        "crystal","ember","frost","glade","haven","journey","legend","mystic",
+        "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd",
+        "abuse", "access", "accident", "account", "accuse", "achieve", "acid", "acoustic",
+        "acquire", "across", "act", "action", "actor", "actual", "adapt", "forest", "river",
+        "stone", "flame", "cloud", "earth", "wind", "dawn", "wisdom", "courage", "vision",
+        "beacon", "anchor", "bridge", "harbor", "shield", "crystal", "ember", "frost", "glade",
+        "haven", "journey", "legend", "mystic",
     ];
     let mut rng = rand::thread_rng();
-    (0..12).map(|_| words[rng.gen_range(0..words.len())]).collect::<Vec<_>>().join("-")
+    (0..12)
+        .map(|_| words[rng.gen_range(0..words.len())])
+        .collect::<Vec<_>>()
+        .join("-")
 }
 
 fn gen_pronounceable(length: usize) -> String {
@@ -350,9 +395,13 @@ fn gen_pronounceable(length: usize) -> String {
 }
 
 fn gen_token(prefix: &str) -> String {
-    let charset: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".chars().collect();
+    let charset: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        .chars()
+        .collect();
     let mut rng = rand::thread_rng();
-    let token: String = (0..24).map(|_| charset[rng.gen_range(0..charset.len())]).collect();
+    let token: String = (0..24)
+        .map(|_| charset[rng.gen_range(0..charset.len())])
+        .collect();
     format!("{}_{}", prefix, token)
 }
 
@@ -360,23 +409,29 @@ fn gen_token(prefix: &str) -> String {
 
 fn calc_entropy(secret: &str, kind: &str) -> f64 {
     match kind {
-        "random"       => secret.len() as f64 * 6.0,
-        "passphrase"   => secret.split('-').count() as f64 * 11.0,
-        "pin"          => secret.len() as f64 * 3.32,
-        "uuid"         => 122.0,
-        "base64"       => (secret.len() as f64 * 6.0).min(256.0),
-        "base32"       => (secret.len() as f64 * 5.0).min(256.0),
-        "cryptokey"    => (secret.len() as f64 * 4.0).min(256.0),
-        "seed"         => secret.split('-').count() as f64 * 11.0,
-        "pronounceable"=> secret.len() as f64 * 4.0,
-        _              => secret.len() as f64 * 5.0,
+        "random" => secret.len() as f64 * 6.0,
+        "passphrase" => secret.split('-').count() as f64 * 11.0,
+        "pin" => secret.len() as f64 * 3.32,
+        "uuid" => 122.0,
+        "base64" => (secret.len() as f64 * 6.0).min(256.0),
+        "base32" => (secret.len() as f64 * 5.0).min(256.0),
+        "cryptokey" => (secret.len() as f64 * 4.0).min(256.0),
+        "seed" => secret.split('-').count() as f64 * 11.0,
+        "pronounceable" => secret.len() as f64 * 4.0,
+        _ => secret.len() as f64 * 5.0,
     }
 }
 
 fn entropy_to_strength(entropy: f64) -> ColoredString {
-    if entropy >= 128.0      { "VERY STRONG".bright_green().bold() }
-    else if entropy >= 96.0  { "STRONG".green().bold() }
-    else if entropy >= 64.0  { "GOOD".yellow().bold() }
-    else if entropy >= 40.0  { "FAIR".bright_yellow().bold() }
-    else                     { "WEAK".bright_red().bold() }
+    if entropy >= 128.0 {
+        "VERY STRONG".bright_green().bold()
+    } else if entropy >= 96.0 {
+        "STRONG".green().bold()
+    } else if entropy >= 64.0 {
+        "GOOD".yellow().bold()
+    } else if entropy >= 40.0 {
+        "FAIR".bright_yellow().bold()
+    } else {
+        "WEAK".bright_red().bold()
+    }
 }

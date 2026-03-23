@@ -27,9 +27,15 @@ pub struct SandboxPolicy {
     pub description: String,
 }
 
-fn default_true() -> bool { true }
-fn default_cpu() -> u64 { 300 }
-fn default_memory() -> u64 { 1024 }
+fn default_true() -> bool {
+    true
+}
+fn default_cpu() -> u64 {
+    300
+}
+fn default_memory() -> u64 {
+    1024
+}
 
 #[derive(Debug, Deserialize)]
 struct PolicyFile {
@@ -40,8 +46,7 @@ struct PolicyFile {
 impl SandboxPolicy {
     pub fn load(name: &str) -> Result<Self> {
         let home = std::env::var("HOME").unwrap_or_default();
-        let policy_path = PathBuf::from(&home)
-            .join("0-core/01-registry/sandbox-policies.toml");
+        let policy_path = PathBuf::from(&home).join("0-core/01-registry/sandbox-policies.toml");
 
         if !policy_path.exists() {
             anyhow::bail!(
@@ -53,21 +58,23 @@ impl SandboxPolicy {
         let content = std::fs::read_to_string(&policy_path)
             .with_context(|| format!("Cannot read policy file: {}", policy_path.display()))?;
 
-        let file: PolicyFile = toml::from_str(&content)
-            .with_context(|| "Failed to parse sandbox-policies.toml")?;
+        let file: PolicyFile =
+            toml::from_str(&content).with_context(|| "Failed to parse sandbox-policies.toml")?;
 
         file.policies
             .into_iter()
             .find(|p| p.name == name)
-            .ok_or_else(|| anyhow::anyhow!(
-                "Policy '{}' not found — run: faelight-sandbox policy list", name
-            ))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Policy '{}' not found — run: faelight-sandbox policy list",
+                    name
+                )
+            })
     }
 
     pub fn list_all() -> Result<Vec<Self>> {
         let home = std::env::var("HOME").unwrap_or_default();
-        let policy_path = PathBuf::from(&home)
-            .join("0-core/01-registry/sandbox-policies.toml");
+        let policy_path = PathBuf::from(&home).join("0-core/01-registry/sandbox-policies.toml");
 
         if !policy_path.exists() {
             return Ok(vec![]);
@@ -81,8 +88,12 @@ impl SandboxPolicy {
     /// Describe what this policy restricts
     pub fn restrictions(&self) -> Vec<String> {
         let mut r = vec![];
-        if !self.allow_net { r.push("network: isolated".to_string()); }
-        if !self.allow_fs_write { r.push("filesystem: read-only".to_string()); }
+        if !self.allow_net {
+            r.push("network: isolated".to_string());
+        }
+        if !self.allow_fs_write {
+            r.push("filesystem: read-only".to_string());
+        }
         if self.max_cpu_seconds < 300 {
             r.push(format!("cpu: {}s limit", self.max_cpu_seconds));
         }

@@ -100,8 +100,7 @@ impl FaelightCompositor {
 
     fn open_db() -> Option<Connection> {
         let home = std::env::var("HOME").ok()?;
-        let db_path = std::path::PathBuf::from(home)
-            .join("0-core/runtime/state.db");
+        let db_path = std::path::PathBuf::from(home).join("0-core/runtime/state.db");
 
         match Connection::open(&db_path) {
             Ok(conn) => {
@@ -146,10 +145,7 @@ impl FaelightCompositor {
         }
     }
 
-    fn init_wayland_listener(
-        display: Display<Self>,
-        event_loop: &mut EventLoop<Self>,
-    ) -> OsString {
+    fn init_wayland_listener(display: Display<Self>, event_loop: &mut EventLoop<Self>) -> OsString {
         let listening_socket = ListeningSocketSource::new_auto()
             .expect("Failed to create Wayland socket — is XDG_RUNTIME_DIR set?");
         let socket_name = listening_socket.socket_name().to_os_string();
