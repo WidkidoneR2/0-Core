@@ -93,20 +93,26 @@ on intent.complete:
 ```
 
 ### Pillar 2 — Event Bus
-All forest events flow through a unified bus.
+The events domain already exists (`core events list/since/filter/watch`).
+Phase 1 extends and unifies it — not rebuilds it.
 ```bash
-core events stream           # live event stream
-core events subscribe <type> # watch specific event types
-core events replay <time>    # replay events from a point in time
+core events stream           # live event stream (extend existing)
+core events subscribe <type> # watch specific event types (new)
+core events replay <time>    # replay events from a point in time (new)
 ```
 
-Event sources:
+Event sources already emitting to state.db:
 - health checks (doctor domain)
-- git commits (faelight-git events)
+- git commits (faelight-git → git.commit, git.push)
 - intent transitions (intent domain)
 - security findings (security domain)
 - forecast changes (doctor domain)
-- shell commands (faelight-shell events)
+- idle events (faelight-idle → idle.start, idle.lock, idle.end)
+- goals events (goals domain → goals.accepted, goals.rejected)
+
+New sources to add for v10:
+- shell commands (faelight-shell Phase 17 events)
+- plan transitions (planning domain → plan.approved, plan.complete)
 
 ### Pillar 3 — Conditional Intelligence
 Reactions are not simple if/then — they use v9 goal context.
@@ -169,9 +175,8 @@ Health ≥ 95%: full reaction engine active.
 ## Relationship to Other Intents
 ```
 INT-133 Core v9    — goal engine that scopes reactions
-INT-120 Phase 17   — shell event system (sister layer)
+INT-120 Phase 17   — shell event system and personality that voices reactions
 INT-126 Core v8    — evolution proposals that reactions can surface
-INT-135 Shell v11  — shell personality that voices reactions
 ```
 
 ## Structural Changes Required
