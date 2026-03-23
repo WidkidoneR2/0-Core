@@ -21,7 +21,7 @@ mod scripting;
 mod config;
 
 use anyhow::Result;
-use rustyline::{error::ReadlineError, Editor};
+use rustyline::{error::ReadlineError, Editor, Config, EditMode, CompletionType};
 
 
 /// Split a line on `;` separators, respecting quoted strings.
@@ -82,10 +82,18 @@ fn main() -> Result<()> {
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
 
-    // Build readline editor
+    // Phase 16 — configured interactive editor
+    let rl_config = Config::builder()
+        .max_history_size(10000)?
+        .history_ignore_dups(true)?
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
     let helper = completion::ForestHelper::new();
-    let mut rl: Editor<completion::ForestHelper, _> = Editor::new()?;
+    let mut rl: Editor<completion::ForestHelper, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
+    // Ctrl+L handled in REPL loop via clear command
 
     // Apply config aliases and settings
     config::apply(&cfg, &db);
