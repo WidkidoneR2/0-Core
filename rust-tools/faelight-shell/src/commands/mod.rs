@@ -148,6 +148,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "plugins" => list_plugins(db),
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "cd" => cd(args),
+        "d" => {
+            // forest built-in: d → core doctor run
+            let output = std::process::Command::new("core")
+                .args(["doctor", "run"])
+                .output();
+            match output {
+                Ok(o) => {
+                    let out = String::from_utf8_lossy(&o.stdout).to_string();
+                    let err = String::from_utf8_lossy(&o.stderr).to_string();
+                    let combined = format!("{}{}", out, err);
+                    CommandResult::Output(combined.trim_end().to_string())
+                }
+                Err(_) => CommandResult::Error("core doctor run failed".to_string()),
+            }
+        },
         "clear" | "c" | "cls" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Output(crate::prompt::status_line(db)) }
         _ => run_external(line, db),
     };

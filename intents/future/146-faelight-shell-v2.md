@@ -212,7 +212,7 @@ These phases complete the migration:
 - ⬜ Phase 11 — pipes to external
 - ⬜ Phase 12 — package helpers
 - ⬜ Phase 13 — redirection
-- ⬜ Phase 14 — multi-command input
+- ✅ Phase 14 — multi-command input DONE (2026-03-23)
 - ⬜ Phase 15 — config file
 - ⬜ Phase 16 — interactive improvements
 - ⬜ Phase 17 — prompt v2
