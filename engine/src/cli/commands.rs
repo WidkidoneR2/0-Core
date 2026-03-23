@@ -40,6 +40,7 @@ pub enum Command {
     Evolution(EvolutionCommand),
     Goals(GoalsCommand),
     Plan(PlanCommand),
+    Tradeoff(TradeoffCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -351,6 +352,13 @@ pub enum PlanCommand {
     Review   { id: String },
     Simulate { id: String },
     List,
+}
+
+#[derive(Debug, Clone)]
+pub enum TradeoffCommand {
+    Analyze { decision: String },
+    History,
+    Balance,
 }
 
 #[derive(Debug, Clone)]

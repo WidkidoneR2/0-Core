@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands,
 };
 
 pub fn parse() -> Command {
@@ -257,6 +257,11 @@ pub fn parse() -> Command {
             PlanCommands::Review   { id }      => PlanCommand::Review   { id },
             PlanCommands::Simulate { id }      => PlanCommand::Simulate { id },
             PlanCommands::List                 => PlanCommand::List,
+        }),
+        Commands::Tradeoff { command } => Command::Tradeoff(match command {
+            TradeoffCommands::Analyze { decision } => TradeoffCommand::Analyze { decision },
+            TradeoffCommands::History              => TradeoffCommand::History,
+            TradeoffCommands::Balance              => TradeoffCommand::Balance,
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,

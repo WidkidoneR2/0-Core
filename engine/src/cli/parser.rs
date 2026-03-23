@@ -113,6 +113,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: PlanCommands,
     },
+    /// Tradeoff engine — surface competing values in decisions (Core v9)
+    Tradeoff {
+        #[command(subcommand)]
+        command: TradeoffCommands,
+    },
     Evolution {
         #[command(subcommand)]
         command: EvolutionCommands,
@@ -765,6 +770,19 @@ pub enum PlanCommands {
     },
     /// List all plans
     List,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum TradeoffCommands {
+    /// Analyze competing values for a decision
+    Analyze {
+        /// Decision or change to analyze (e.g. "add faelight-vault")
+        decision: String,
+    },
+    /// Show past tradeoff analyses
+    History,
+    /// Current system balance across all four axes
+    Balance,
 }
 
 #[derive(Debug, Subcommand)]
