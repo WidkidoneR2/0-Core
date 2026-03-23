@@ -18,6 +18,7 @@ mod session;
 mod digest;
 mod triggers;
 mod scripting;
+mod config;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
@@ -71,6 +72,10 @@ fn main() -> Result<()> {
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();
 
+    // Phase 15 — load config.fsh
+    config::ensure_default();
+    let cfg = config::load();
+
     // Print welcome
     print_welcome(&core_root);
     let _session_start = std::time::Instant::now();
@@ -81,6 +86,9 @@ fn main() -> Result<()> {
     let helper = completion::ForestHelper::new();
     let mut rl: Editor<completion::ForestHelper, _> = Editor::new()?;
     rl.set_helper(Some(helper));
+
+    // Apply config aliases and settings
+    config::apply(&cfg, &db);
 
     // Load history from state.db
     db.load_history(&mut rl);
