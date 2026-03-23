@@ -19,6 +19,7 @@ mod digest;
 mod triggers;
 mod scripting;
 mod config;
+mod jobs;
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor, Config, EditMode, CompletionType};
@@ -101,8 +102,14 @@ fn main() -> Result<()> {
     // Load history from state.db
     db.load_history(&mut rl);
 
+    // Phase 8 — job table
+    let mut job_table = jobs::JobTable::new();
+
     // REPL loop
     'repl: loop {
+        // Phase 8 — announce completed background jobs before prompt
+        job_table.check_completed();
+
         let prompt_str = prompt::render_line(&db);
 
         match rl.readline(&prompt_str) {
@@ -291,6 +298,43 @@ fn main() -> Result<()> {
                     println!("
   {} stream stopped", "○".dimmed());
                     continue 'repl;
+                }
+
+                // Phase 8 — Job control commands
+                let first_tok = line.split_whitespace().next().unwrap_or("");
+                if first_tok == "jobs" {
+                    job_table.list();
+                    continue;
+                }
+                if first_tok == "fg" {
+                    let id = line.split_whitespace().nth(1)
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .unwrap_or(1);
+                    job_table.fg(id);
+                    continue;
+                }
+                if first_tok == "kill" {
+                    let arg = line.split_whitespace().nth(1).unwrap_or("");
+                    let id = arg.trim_start_matches('%')
+                        .parse::<usize>().unwrap_or(0);
+                    if id > 0 { job_table.kill_job(id); }
+                    else { println!("  usage: kill %<job_id>"); }
+                    continue;
+                }
+
+                // Phase 8 — Background job: detect trailing &
+                let segment_trimmed = line.trim_end();
+                if segment_trimmed.ends_with(" &") || segment_trimmed == "&" {
+                    let cmd_part = segment_trimmed.trim_end_matches(" &").trim();
+                    if !cmd_part.is_empty() {
+                        let mut parts = cmd_part.splitn(2, ' ');
+                        let cmd = parts.next().unwrap_or("").to_string();
+                        let args: Vec<String> = parts.next()
+                            .map(|a| a.split_whitespace().map(|s| s.to_string()).collect())
+                            .unwrap_or_default();
+                        let _ = job_table.spawn(&cmd, &args);
+                    }
+                    continue;
                 }
 
                 // Phase 13 — Redirection: detect > and >> before execution
