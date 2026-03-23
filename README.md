@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.1.0
+# 🌲 Faelight Forest 11.2.0
 
-![Version](https://img.shields.io/badge/version-11.1.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.2.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,19 +11,25 @@
 
 ## 🎊 Latest Release
 
-### 11.1.0 - 🌲 The Forest Speaks (2026-03-21)
+### 11.2.0 - 🌲 Will and Motion (2026-03-22)
 
-- 126 — Core v8 — Evolution: The Forest Refines Itself
-- INT-141 faelight-notify v4.0.0 — fontdue::layout renderer, clean text, D-Bus compliant, urgency levels
-- Phase 25 — NL auto-diagnose, pipeline execution in diagnose, warning cleanup
-- INT-143 Phase 1 — forest digest, morning summary on long gaps
-- INT-139 custom TOML patterns — load from 01-registry/shell-patterns.toml
-- INT-144 v11.1.0 release gate — The Forest Speaks, requirements documented
+- 109 — faelight-compositor — Rust Wayland Compositor on Smithay
+- 120 — faelight-shell — Forest-Native Shell Environment
+- 132 — faelight-vault — Forest-Native Credential Manager
+- 135 — faelight-shell Phase 11 — Forest Personality & Adaptive Intelligence
+- 139 — faelight-shell — Natural Language Pipeline Translation
+- 144 — v11.1.0 Release Gate — The Forest Speaks
+- 145 — faelight-docs — Living Documentation Engine
+- INT-146 Phase 11 — pipes to external commands, forest data flows into less/grep/wc
+- INT-146 Phase 10 — shell variables, let/export, dollar sign expansion
+- INT-146 Phase 9 — signal handling, Ctrl+C kills foreground process cleanly, shell survives
+- INT-146 Phase 8 — job control, background jobs, jobs/fg/kill, forest announces completion
+- INT-146 Phase 16 — interactive improvements, editor config, history dedup, emacs mode
 
-- Commits: 1586
-- Tools: 49 deployed
+- Commits: 1630
+- Tools: 51 deployed
 - Health: 95%
-- Intents: 86 complete
+- Intents: 93 complete
 
 [Full Changelog →](CHANGELOG.md)
 

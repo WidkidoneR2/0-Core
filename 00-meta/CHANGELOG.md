@@ -1,5 +1,61 @@
 # Changelog
 
+## [11.2.0] — Unnamed Release (2026-03-22)
+
+### 🎯 Completed Intents
+- **INT-109** — faelight-compositor — Rust Wayland Compositor on Smithay
+- **INT-120** — faelight-shell — Forest-Native Shell Environment
+- **INT-132** — faelight-vault — Forest-Native Credential Manager
+- **INT-135** — faelight-shell Phase 11 — Forest Personality & Adaptive Intelligence
+- **INT-139** — faelight-shell — Natural Language Pipeline Translation
+- **INT-144** — v11.1.0 Release Gate — The Forest Speaks
+- **INT-145** — faelight-docs — Living Documentation Engine
+
+### ✨ Features
+- INT-146 Phase 11 — pipes to external commands, forest data flows into less/grep/wc
+- INT-146 Phase 10 — shell variables, let/export, dollar sign expansion
+- INT-146 Phase 9 — signal handling, Ctrl+C kills foreground process cleanly, shell survives
+- INT-146 Phase 8 — job control, background jobs, jobs/fg/kill, forest announces completion
+- INT-146 Phase 16 — interactive improvements, editor config, history dedup, emacs mode
+- INT-146 Phase 15 — config file, aliases and settings load from config.fsh on startup
+- INT-133 Core v9 Phase 5 COMPLETE — intent autobiography, core autobiography narrate
+- INT-133 Core v9 Phase 4 — dynamic prioritization, core prioritize run/explain
+- INT-146 Phase 13 — redirection (> and >>), file output from any command or pipeline
+- INT-146 Phase 14 — multi-command input (cmd1; cmd2; cmd3), d built-in alias
+- INT-146 Phase 7 — external command execution, PATH passthrough, forest-aware suggestions
+- INT-133 Core v9 Phase 3 — tradeoff engine, core tradeoff analyze/history/balance
+- INT-133 Core v9 Phase 2 — task planning engine, core plan generate/review/simulate/list
+- INT-133 Core v9 Phase 1 — goal engine, core goals generate/list/accept/reject/show
+- INT-145 faelight-docs v1.0.0 — living docs engine, auto-sync on release, boundary rule enforced
+- INT-132 complete — faelight-vault registered, aliases added (vault/fv/fva/fvl/fvg)
+- INT-132 faelight-vault v1.0.0 — forest-native credential manager, Argon2id encryption, health scores, audit
+- INT-146 faelight-shell v2 — Phase 7-32 defined, 10% to 100% daily driver path
+- INT-109 Session 8 — auto chvt 7 after render, clean return to Niri
+- INT-109 Session 8 — auto-set XDG_RUNTIME_DIR, no more RuntimeDirNotSet panic
+- INT-109 Session 7 — VT switching via libseat session.change_vt(), session stored in state
+- INT-109 Session 7 — VT switching Ctrl+Alt+F1-F7, clean exit Ctrl+Alt+Q
+- Phase 10/15/16 complete — chart command, git.commits/files/branches aliases, history duration, histogram
+- Phase 6 — .fsh scripting language, let bindings, if/when/emit/warn/confirm, run <file.fsh>
+- INT-145 faelight-docs, ARCHITECTURE-FUTURE — tool retirement, core continuity, shell independence, self-building vision
+
+### 🔧 Fixes
+- INT-145 faelight-docs — fix README path to root, deploy correct binary, 68 tools/33 domains live
+- INT-109 — chvt 1 (Niri on TTY1 not TTY7), clean return after render
+- faelight-notify v4 systemd user service — auto-restart, remove Niri autostart
+
+### 🔩 Internal (8 commits)
+- ledger: INT-120 complete — faelight-shell Phase 1-32, remaining phases deferred to INT-146
+- ledger: INT-109 COMPLETE — compositor renders forest green, returns to Niri cleanly
+- ledger: INT-109 Sessions 5+6 complete — forest green on real hardware 2560x1600@165Hz AMD Radeon 780M
+- remove faelight-notify v3 backup — v4 stable and running
+- ledger: INT-135 complete — shell personality 5/6 criteria, Core v9 integration deferred to INT-133
+- ...and 3 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1630  ·  Tools: 51 deployed  ·  Intents: 93 complete
+
+---
+
 ## [11.1.0] — The Forest Speaks (2026-03-21)
 
 ### 🎯 Completed Intents
