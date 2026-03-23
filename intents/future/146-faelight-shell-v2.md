@@ -209,7 +209,7 @@ These phases complete the migration:
 - ✅ Phase 8  — job control DONE (2026-03-23)
 - ✅ Phase 9  — signals DONE (2026-03-23)
 - ✅ Phase 10 — shell variables DONE (2026-03-23)
-- ⬜ Phase 11 — pipes to external
+- ✅ Phase 11 — pipes to external DONE (2026-03-23)
 - ⬜ Phase 12 — package helpers
 - ✅ Phase 13 — redirection DONE (2026-03-23)
 - ✅ Phase 14 — multi-command input DONE (2026-03-23)
