@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands,
 };
 
 pub fn parse() -> Command {
@@ -251,6 +251,12 @@ pub fn parse() -> Command {
             GoalsCommands::Accept { id } => GoalsCommand::Accept { id },
             GoalsCommands::Reject { id } => GoalsCommand::Reject { id },
             GoalsCommands::Show { id }   => GoalsCommand::Show { id },
+        }),
+        Commands::Plan { command } => Command::Plan(match command {
+            PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
+            PlanCommands::Review   { id }      => PlanCommand::Review   { id },
+            PlanCommands::Simulate { id }      => PlanCommand::Simulate { id },
+            PlanCommands::List                 => PlanCommand::List,
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,

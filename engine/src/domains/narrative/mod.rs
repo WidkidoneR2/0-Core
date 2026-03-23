@@ -141,7 +141,7 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter VI — Present Moment".bright_white().bold());
     println!("  │");
 
-    let health = ctx.runtime.db.query_row(
+    let _health = ctx.runtime.db.query_row(
         "SELECT value FROM domain_state WHERE domain='doctor' AND key='health' ORDER BY timestamp DESC LIMIT 1",
         [],
         |r| r.get::<_,String>(0)

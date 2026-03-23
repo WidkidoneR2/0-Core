@@ -1,6 +1,5 @@
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
-use colored::*;
 use rusqlite::params;
 
 const SCHEMA: &str = "
@@ -115,8 +114,17 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
         println!("  Plan:   {}", plan);
         println!("  Accept: core goals accept {}", id);
         println!();
+        // Dedup by title — prevent repeated generate runs inserting duplicates
+        let already: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM forest_goals WHERE title=?1",
+                params![title], |r| r.get(0))
+            .unwrap_or(0);
+        if already > 0 {
+            println!("  [skip] already exists: {}", title);
+            continue;
+        }
         let _ = ctx.runtime.db.execute(
-            "INSERT OR IGNORE INTO forest_goals \
+            "INSERT INTO forest_goals \
              (id,title,reason,plan,priority,status,created_at,updated_at) \
              VALUES (?1,?2,?3,?4,?5,'pending',?6,?6)",
             params![id, title, reason, plan, priority, now]

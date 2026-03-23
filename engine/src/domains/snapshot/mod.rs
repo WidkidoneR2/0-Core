@@ -52,7 +52,7 @@ struct SnapshotData {
     intents_complete: usize,
     intents_planned: usize,
     active_policies: Vec<String>,
-    recent_events: Vec<(String, String)>, // domain, action
+    _recent_events: Vec<(String, String)>, // domain, action
     git_remote: String,
 }
 
@@ -163,7 +163,7 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
         intents_complete,
         intents_planned,
         active_policies,
-        recent_events,
+        _recent_events: recent_events,
         git_remote,
     }
 }
