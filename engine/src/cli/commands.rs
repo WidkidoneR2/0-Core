@@ -42,6 +42,7 @@ pub enum Command {
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
     Prioritize(PrioritizeCommand),
+    Autobiography(AutobiographyCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -366,6 +367,11 @@ pub enum TradeoffCommand {
 pub enum PrioritizeCommand {
     Run,
     Explain,
+}
+
+#[derive(Debug, Clone)]
+pub enum AutobiographyCommand {
+    Narrate { version: Option<String> },
 }
 
 #[derive(Debug, Clone)]

@@ -33,3 +33,5 @@ pub mod planning;
 pub mod tradeoffs;
 
 pub mod prioritize;
+
+pub mod autobiography;

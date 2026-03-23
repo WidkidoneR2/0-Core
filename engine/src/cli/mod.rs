@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand, PrioritizeCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand, PrioritizeCommand, AutobiographyCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands, PrioritizeCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands, PrioritizeCommands, AutobiographyCommands,
 };
 
 pub fn parse() -> Command {
@@ -266,6 +266,10 @@ pub fn parse() -> Command {
         Commands::Prioritize { command } => Command::Prioritize(match command {
             PrioritizeCommands::Run     => PrioritizeCommand::Run,
             PrioritizeCommands::Explain => PrioritizeCommand::Explain,
+        }),
+        Commands::Autobiography { command } => Command::Autobiography(match command {
+            AutobiographyCommands::Narrate { version } =>
+                AutobiographyCommand::Narrate { version },
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,
