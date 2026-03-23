@@ -3,7 +3,7 @@ id: 146
 date: 2026-03-22
 type: future
 title: "faelight-shell v2 — The Shell Becomes the OS"
-status: planned
+status: in-progress
 tags: [shell, daily-driver, independence, zsh-replacement, v12, v13]
 priority: high
 ---
@@ -205,7 +205,7 @@ These phases complete the migration:
 
 ## Gate Check
 
-- ⬜ Phase 7  — external commands, cd, PATH
+- ✅ Phase 7  — external commands, cd, PATH DONE (2026-03-23)
 - ⬜ Phase 8  — job control
 - ⬜ Phase 9  — signals
 - ⬜ Phase 10 — shell variables
