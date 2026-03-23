@@ -41,6 +41,7 @@ pub enum Command {
     Goals(GoalsCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
+    Prioritize(PrioritizeCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -359,6 +360,12 @@ pub enum TradeoffCommand {
     Analyze { decision: String },
     History,
     Balance,
+}
+
+#[derive(Debug, Clone)]
+pub enum PrioritizeCommand {
+    Run,
+    Explain,
 }
 
 #[derive(Debug, Clone)]

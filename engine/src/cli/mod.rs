@@ -5,13 +5,13 @@ use clap::Parser;
 use commands::{
     Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand,
+    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand, PrioritizeCommand,
 };
 use parser::{
     Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
     LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
     CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands,
+    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands, PrioritizeCommands,
 };
 
 pub fn parse() -> Command {
@@ -262,6 +262,10 @@ pub fn parse() -> Command {
             TradeoffCommands::Analyze { decision } => TradeoffCommand::Analyze { decision },
             TradeoffCommands::History              => TradeoffCommand::History,
             TradeoffCommands::Balance              => TradeoffCommand::Balance,
+        }),
+        Commands::Prioritize { command } => Command::Prioritize(match command {
+            PrioritizeCommands::Run     => PrioritizeCommand::Run,
+            PrioritizeCommands::Explain => PrioritizeCommand::Explain,
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
             EvolutionCommands::Map   => EvolutionCommand::Map,
