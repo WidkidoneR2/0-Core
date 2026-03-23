@@ -207,7 +207,7 @@ These phases complete the migration:
 
 - ✅ Phase 7  — external commands, cd, PATH DONE (2026-03-23)
 - ✅ Phase 8  — job control DONE (2026-03-23)
-- ⬜ Phase 9  — signals
+- ✅ Phase 9  — signals DONE (2026-03-23)
 - ⬜ Phase 10 — shell variables
 - ⬜ Phase 11 — pipes to external
 - ⬜ Phase 12 — package helpers

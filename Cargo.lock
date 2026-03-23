@@ -1849,6 +1849,7 @@ dependencies = [
  "ctrlc",
  "faelight-git",
  "git2",
+ "libc",
  "rusqlite",
  "rustyline",
  "serde_json",

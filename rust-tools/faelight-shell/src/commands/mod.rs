@@ -2,6 +2,7 @@
 // Phase 1: 10 forest-native commands
 
 use crate::db::ForestDb;
+extern crate libc;
 use colored::*;
 
 
@@ -1420,22 +1421,42 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     };
 
     // Execute — inherit stdin/stdout/stderr so interactive commands work
+    // Phase 9 — child resets SIGINT to default before exec
+    // shell ignores SIGINT while waiting, then restores it after
+    use std::os::unix::process::CommandExt;
+
     let start = std::time::Instant::now();
-    let status = std::process::Command::new(&cmd_orig)
-        .args(&args)
+
+    let mut cmd_builder = std::process::Command::new(&cmd_orig);
+    cmd_builder.args(&args)
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status();
+        .stderr(std::process::Stdio::inherit());
 
+    // Reset SIGINT to default in child before exec
+    unsafe {
+        cmd_builder.pre_exec(|| {
+            libc::signal(libc::SIGINT, libc::SIG_DFL);
+            Ok(())
+        });
+    }
+
+    // Shell ignores SIGINT while child runs
+    unsafe { libc::signal(libc::SIGINT, libc::SIG_IGN); }
+
+    let status = cmd_builder.status();
     let elapsed = start.elapsed();
+
+    // Restore SIGINT in shell after child exits
+    unsafe { libc::signal(libc::SIGINT, libc::SIG_DFL); }
 
     match status {
         Ok(s) => {
             let code = s.code().unwrap_or(-1);
 
             // Show timing for slow commands (> 2 seconds) — forest context
-            if elapsed.as_secs() >= 2 {
+            // Only show if not signal-killed
+            if code != -1 && elapsed.as_secs() >= 2 {
                 println!("  {} {:.1}s",
                     format!("{} took", cmd_orig).dimmed(),
                     elapsed.as_secs_f64()
@@ -1452,7 +1473,10 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 ],
             );
 
-            if code != 0 {
+            if code == -1 {
+                // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
+                return CommandResult::Empty;
+            } else if code != 0 {
                 // Non-zero exit — show it, but not as a hard error
                 println!("  {} {} exited {}",
                     "○".dimmed(),
