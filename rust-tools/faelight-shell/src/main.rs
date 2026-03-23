@@ -48,6 +48,24 @@ fn split_semicolons(line: &str) -> Vec<String> {
     segments
 }
 
+
+/// Detect and strip redirection from a command line.
+/// Returns (cleaned_line, Some((path, append))) or (line, None)
+fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
+    // Match >> before > (order matters)
+    if let Some(idx) = line.rfind(" >> ") {
+        let cmd  = line[..idx].trim().to_string();
+        let path = line[idx+4..].trim().to_string();
+        return (cmd, Some((path, true)));
+    }
+    if let Some(idx) = line.rfind(" > ") {
+        let cmd  = line[..idx].trim().to_string();
+        let path = line[idx+3..].trim().to_string();
+        return (cmd, Some((path, false)));
+    }
+    (line.to_string(), None)
+}
+
 fn main() -> Result<()> {
     // Connect to state.db
     let db = db::ForestDb::open()?;
@@ -259,6 +277,31 @@ fn main() -> Result<()> {
                     continue 'repl;
                 }
 
+                // Phase 13 — Redirection: detect > and >> before execution
+                let (line, redirect) = detect_redirect(line);
+                let line = line.as_str();
+                // Re-parse pipeline after stripping redirect
+                let in_quotes2 = line.contains('"') && {
+                    let mut inside = false;
+                    let mut last_pipe_in_quotes = false;
+                    for ch in line.chars() {
+                        if ch == '"' { inside = !inside; }
+                        if ch == '|' && inside { last_pipe_in_quotes = true; }
+                    }
+                    last_pipe_in_quotes
+                };
+                let has_pipe2 = !in_quotes2 && line.contains(" | ");
+                let pipeline_ops = if has_pipe2 {
+                    value::parse_pipeline(line)
+                } else {
+                    pipeline_ops
+                };
+                let base_cmd = if has_pipe2 {
+                    line.splitn(2, " | ").next().unwrap_or(line).to_string()
+                } else {
+                    base_cmd
+                };
+
                 // Resolve join ops — execute right-side tables before pipeline runs
                 let pipeline_ops: Vec<value::PipeOp> = pipeline_ops.into_iter().map(|op| {
                     if let value::PipeOp::Join { table, on } = op {
@@ -273,17 +316,53 @@ fn main() -> Result<()> {
                     }
                 }).collect();
 
-                match commands::execute(&base_cmd, &db, &core_root) {
+                let cmd_output: Option<String> = match commands::execute(&base_cmd, &db, &core_root) {
                     commands::CommandResult::Exit => break 'repl,
                     commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
                         let result = value::apply_pipeline(v, &pipeline_ops);
-                        println!("{}", result.render());
+                        Some(result.render())
                     }
-                    commands::CommandResult::Value(v) => println!("{}", v.render()),
-                    commands::CommandResult::Output(out) => println!("{}", out),
-                    commands::CommandResult::Empty => {}
+                    commands::CommandResult::Value(v) => Some(v.render()),
+                    commands::CommandResult::Output(out) => Some(out),
+                    commands::CommandResult::Empty => None,
                     commands::CommandResult::Error(e) => {
                         eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
+                        None
+                    }
+                };
+
+                // Write to file if redirect was detected, otherwise print
+                if let Some(output) = cmd_output {
+                    if let Some((ref path, append)) = redirect {
+                        use std::io::Write;
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        let full_path = if path.starts_with("~/") {
+                            format!("{}/{}", home, &path[2..])
+                        } else {
+                            path.clone()
+                        };
+                        let file = std::fs::OpenOptions::new()
+                            .write(true)
+                            .create(true)
+                            .append(append)
+                            .truncate(!append)
+                            .open(&full_path);
+                        match file {
+                            Ok(mut f) => {
+                                let _ = f.write_all(output.as_bytes());
+                                let _ = f.write_all(b"
+");
+                                let mode = if append { ">>" } else { ">" };
+                                println!("  {} {} {}",
+                                    "○".bright_cyan(),
+                                    mode.dimmed(),
+                                    full_path.bright_white()
+                                );
+                            }
+                            Err(e) => eprintln!("  ✗ redirect failed: {}", e),
+                        }
+                    } else {
+                        println!("{}", output);
                     }
                 }
                 // Phase 17 — evaluate triggers after every command
