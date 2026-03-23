@@ -118,6 +118,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: TradeoffCommands,
     },
+    /// Dynamic prioritization — rerank goals by live conditions (Core v9)
+    Prioritize {
+        #[command(subcommand)]
+        command: PrioritizeCommands,
+    },
     Evolution {
         #[command(subcommand)]
         command: EvolutionCommands,
@@ -783,6 +788,14 @@ pub enum TradeoffCommands {
     History,
     /// Current system balance across all four axes
     Balance,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum PrioritizeCommands {
+    /// Rerank all goals given current forest state
+    Run,
+    /// Explain why goals are ranked as they are
+    Explain,
 }
 
 #[derive(Debug, Subcommand)]
