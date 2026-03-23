@@ -149,33 +149,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "cd" => cd(args),
         "clear" | "c" | "cls" => { print!("\x1B[2J\x1B[1;1H"); use std::io::Write; std::io::stdout().flush().ok(); CommandResult::Output(crate::prompt::status_line(db)) }
-        _ => {
-            let known = ["health","events","decisions","intents","tools","audit","ps","ports","services","files","net","pkgs",
-                "forecast","sandbox","story","advise","version","commits","cd",
-                "clear","exit","search","checkpoint","git","tt","et","at","dt",
-                "ht","ct","domains","help"];
-            let suggestion = known.iter()
-                .filter(|k| {
-                    let k = k.to_string();
-                    let c = cmd.as_str();
-                    k.starts_with(&c[..c.len().min(3)]) ||
-                    c.starts_with(&k[..k.len().min(3)]) ||
-                    levenshtein(&k, c) <= 2
-                })
-                .min_by_key(|k| levenshtein(k, &cmd));
-
-            if let Some(s) = suggestion {
-                CommandResult::Error(format!(
-                    "Unknown command: {}  — did you mean {}?",
-                    cmd.bright_white(), s.bright_cyan()
-                ))
-            } else {
-                CommandResult::Error(format!(
-                    "Unknown command: {}  — type {} for help",
-                    cmd.bright_white(), "help".bright_cyan()
-                ))
-            }
-        }
+        _ => run_external(line, db),
     };
 
     // Security layer — log every command
@@ -1335,6 +1309,149 @@ fn cd(args: &[&str]) -> CommandResult {
     match std::env::set_current_dir(&path) {
         Ok(_) => CommandResult::Empty,
         Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e)),
+    }
+}
+
+fn run_external(line: &str, db: &ForestDb) -> CommandResult {
+    // Extract original-case command and arguments from line
+    let mut tokens = line.trim().splitn(2, ' ');
+    let cmd_orig = match tokens.next() {
+        Some(c) if !c.is_empty() => c.to_string(),
+        _ => return CommandResult::Empty,
+    };
+    let rest = tokens.next().unwrap_or("");
+
+    // Forest-native alternatives — suggest these before "not found"
+    // The forest knows its own tools
+    let forest_map: &[(&str, &str)] = &[
+        ("gchurn",     "core evolution map  — domain coupling index"),
+        ("top",        "ps | sort cpu desc  — process table"),
+        ("htop",       "ps | sort cpu desc  — process table"),
+        ("history",    "ht                  — shell history as table"),
+        ("grep",       "search <term>       — forest history search"),
+        ("netstat",    "net                 — network connections table"),
+        ("df",         "files               — filesystem view"),
+        ("du",         "files               — filesystem view"),
+        ("journalctl", "et                  — events table"),
+    ];
+    let cmd_lower = cmd_orig.to_lowercase();
+    for (ext, forest) in forest_map {
+        if cmd_lower == *ext {
+            return CommandResult::Error(format!(
+                "  {} is not a forest command
+  {} forest-native: {}",
+                cmd_orig.bright_white(),
+                "→".bright_cyan(),
+                forest.bright_cyan()
+            ));
+        }
+    }
+
+    // Check PATH — try to find the binary
+    let found = std::process::Command::new("sh")
+        .args(["-c", &format!("command -v {} > /dev/null 2>&1", cmd_orig)])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    if !found {
+        // Forest-aware suggestion from known commands
+        let known = [
+            "health","events","decisions","intents","tools","audit","ps","ports",
+            "services","files","net","pkgs","forecast","sandbox","story","advise",
+            "version","commits","cd","clear","exit","search","checkpoint","git",
+            "tt","et","at","dt","ht","ct","domains","help",
+        ];
+        let suggestion = known.iter()
+            .filter(|k| levenshtein(k, &cmd_lower) <= 2)
+            .min_by_key(|k| levenshtein(k, &cmd_lower));
+        return if let Some(s) = suggestion {
+            CommandResult::Error(format!(
+                "  {} not found — did you mean {}?",
+                cmd_orig.bright_white(), s.bright_cyan()
+            ))
+        } else {
+            CommandResult::Error(format!(
+                "  {} not found in PATH — type {} for forest commands",
+                cmd_orig.bright_white(), "help".bright_cyan()
+            ))
+        };
+    }
+
+    // Build arg list — respect quoted strings
+    let args: Vec<String> = if rest.is_empty() {
+        vec![]
+    } else {
+        // Simple arg split — handles quoted args
+        let mut result = vec![];
+        let mut current = String::new();
+        let mut in_quote = false;
+        let mut quote_char = ' ';
+        for ch in rest.chars() {
+            match ch {
+                '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
+                c if in_quote && c == quote_char => { in_quote = false; }
+                ' ' if !in_quote => {
+                    if !current.is_empty() {
+                        result.push(current.clone());
+                        current.clear();
+                    }
+                }
+                _ => current.push(ch),
+            }
+        }
+        if !current.is_empty() { result.push(current); }
+        result
+    };
+
+    // Execute — inherit stdin/stdout/stderr so interactive commands work
+    let start = std::time::Instant::now();
+    let status = std::process::Command::new(&cmd_orig)
+        .args(&args)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status();
+
+    let elapsed = start.elapsed();
+
+    match status {
+        Ok(s) => {
+            let code = s.code().unwrap_or(-1);
+
+            // Show timing for slow commands (> 2 seconds) — forest context
+            if elapsed.as_secs() >= 2 {
+                println!("  {} {:.1}s",
+                    format!("{} took", cmd_orig).dimmed(),
+                    elapsed.as_secs_f64()
+                );
+            }
+
+            // Emit external.run event to state.db
+            let now = chrono::Utc::now().timestamp();
+            let _ = db.conn.execute(
+                "INSERT INTO events (domain,action,payload,timestamp)                  VALUES ('external','run',?1,?2)",
+                rusqlite::params![
+                    format!("cmd:{} exit:{}", cmd_orig, code),
+                    now
+                ],
+            );
+
+            if code != 0 {
+                // Non-zero exit — show it, but not as a hard error
+                println!("  {} {} exited {}",
+                    "○".dimmed(),
+                    cmd_orig.dimmed(),
+                    code.to_string().yellow()
+                );
+                CommandResult::Empty
+            } else {
+                CommandResult::Empty
+            }
+        }
+        Err(e) => CommandResult::Error(format!(
+            "  failed to run {}: {}", cmd_orig.bright_white(), e
+        )),
     }
 }
 
