@@ -1,6 +1,6 @@
 # Changelog
 
-## [11.2.0] — Unnamed Release (2026-03-22)
+## [11.2.0] — Will and Motion (2026-03-22)
 
 ### 🎯 Completed Intents
 - **INT-109** — faelight-compositor — Rust Wayland Compositor on Smithay
