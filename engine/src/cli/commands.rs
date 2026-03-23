@@ -39,6 +39,7 @@ pub enum Command {
     Simulate(SimulateCommand),
     Evolution(EvolutionCommand),
     Goals(GoalsCommand),
+    Plan(PlanCommand),
     Checkpoint(CheckpointCommand),
     Capabilities {
         json: bool,
@@ -342,6 +343,14 @@ pub enum GoalsCommand {
     Accept { id: String },
     Reject { id: String },
     Show { id: String },
+}
+
+#[derive(Debug, Clone)]
+pub enum PlanCommand {
+    Generate { goal_id: String },
+    Review   { id: String },
+    Simulate { id: String },
+    List,
 }
 
 #[derive(Debug, Clone)]

@@ -108,6 +108,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GoalsCommands,
     },
+    /// Task planning — break accepted goals into concrete steps (Core v9)
+    Plan {
+        #[command(subcommand)]
+        command: PlanCommands,
+    },
     Evolution {
         #[command(subcommand)]
         command: EvolutionCommands,
@@ -739,6 +744,27 @@ pub enum GoalsCommands {
         /// Goal ID
         id: String,
     },
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum PlanCommands {
+    /// Generate a task plan for an accepted goal
+    Generate {
+        /// Goal ID (e.g. GOAL-001)
+        goal_id: String,
+    },
+    /// Review a plan in full
+    Review {
+        /// Plan ID (e.g. PLAN-001)
+        id: String,
+    },
+    /// Simulate plan execution — risk analysis via scenario engine
+    Simulate {
+        /// Plan ID (e.g. PLAN-001)
+        id: String,
+    },
+    /// List all plans
+    List,
 }
 
 #[derive(Debug, Subcommand)]
