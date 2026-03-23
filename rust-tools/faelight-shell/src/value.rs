@@ -153,6 +153,9 @@ pub enum PipeOp {
     Watch { interval: u64 },
     Join { table: String, on: String },
     JoinData { rows: Vec<std::collections::HashMap<String, Value>>, on: String },
+    // pipe to external unix command
+    #[allow(dead_code)]
+    External(String),
     Group { field: String },
 }
 
@@ -307,6 +310,17 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
             table: table.to_string(),
             on: field.to_string(),
         }),
-        _ => None,
+        _ => {
+            // Unknown pipe op — try as external command
+            let cmd = s.trim().to_string();
+            if cmd.is_empty() { return None; }
+            // Only treat as external if it looks like a binary name
+            let first = cmd.split_whitespace().next().unwrap_or("");
+            if first.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '/') {
+                Some(PipeOp::External(cmd))
+            } else {
+                None
+            }
+        }
     }
 }
