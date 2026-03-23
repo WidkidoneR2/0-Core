@@ -22,6 +22,7 @@ mod config;
 mod jobs;
 
 use anyhow::Result;
+use std::collections::HashMap;
 use rustyline::{error::ReadlineError, Editor, Config, EditMode, CompletionType};
 
 
@@ -68,6 +69,53 @@ fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     (line.to_string(), None)
 }
 
+
+/// Expand $VAR and ${VAR} references in a line.
+/// Reads from shell_vars first, then std::env.
+fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '$' && i + 1 < chars.len() {
+            i += 1;
+            // ${VAR} form
+            if chars[i] == '{' {
+                i += 1;
+                let start = i;
+                while i < chars.len() && chars[i] != '}' { i += 1; }
+                let name: String = chars[start..i].iter().collect();
+                if i < chars.len() { i += 1; } // skip }
+                let val = vars.get(&name)
+                    .cloned()
+                    .or_else(|| std::env::var(&name).ok())
+                    .unwrap_or_default();
+                result.push_str(&val);
+            } else {
+                // $VAR form — read until non-alphanumeric/underscore
+                let start = i;
+                while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
+                    i += 1;
+                }
+                let name: String = chars[start..i].iter().collect();
+                if name.is_empty() {
+                    result.push('$');
+                } else {
+                    let val = vars.get(&name)
+                        .cloned()
+                        .or_else(|| std::env::var(&name).ok())
+                        .unwrap_or_default();
+                    result.push_str(&val);
+                }
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+    result
+}
+
 fn main() -> Result<()> {
     // Connect to state.db
     let db = db::ForestDb::open()?;
@@ -104,6 +152,9 @@ fn main() -> Result<()> {
 
     // Phase 8 — job table
     let mut job_table = jobs::JobTable::new();
+
+    // Phase 10 — shell variable table
+    let mut shell_vars: HashMap<String, String> = HashMap::new();
 
     // REPL loop
     'repl: loop {
@@ -207,6 +258,44 @@ fn main() -> Result<()> {
                 }
 
                 // Execute
+                // Phase 10 — handle let and export before anything else
+                let trimmed = line.trim();
+                if trimmed.starts_with("let ") {
+                    // let x = "value"  or  let x = value
+                    let rest = &trimmed[4..];
+                    if let Some(eq) = rest.find(" = ") {
+                        let name = rest[..eq].trim().to_string();
+                        let val  = rest[eq+3..].trim()
+                            .trim_matches('"')
+                            .trim_matches('\'')
+                            .to_string();
+                        let expanded = expand_vars(&val, &shell_vars);
+                        println!("  {} {} = {}", "→".bright_cyan(), name.bright_white(), expanded.dimmed());
+                        shell_vars.insert(name, expanded);
+                    } else {
+                        eprintln!("  {} usage: let <name> = <value>", "✗".bright_red());
+                    }
+                    continue;
+                }
+                if trimmed.starts_with("export ") {
+                    // export EDITOR=nvim  or  export EDITOR = nvim
+                    let rest = &trimmed[7..];
+                    let (name, val) = if let Some(eq) = rest.find('=') {
+                        (rest[..eq].trim(), rest[eq+1..].trim().trim_matches('"').trim_matches('\''))
+                    } else {
+                        (rest.trim(), "")
+                    };
+                    let expanded = expand_vars(val, &shell_vars);
+                    std::env::set_var(name, &expanded);
+                    shell_vars.insert(name.to_string(), expanded.clone());
+                    println!("  {} export {} = {}", "→".bright_cyan(), name.bright_white(), expanded.dimmed());
+                    continue;
+                }
+
+                // Phase 10 — expand $VARS before alias resolution
+                let line = expand_vars(line, &shell_vars);
+                let line = line.as_str();
+
                 // Expand aliases before pipeline parsing
                 let first_word = line.split_whitespace().next().unwrap_or("").to_lowercase();
                 let line = if let Some(aliased) = db.get_alias(&first_word) {
