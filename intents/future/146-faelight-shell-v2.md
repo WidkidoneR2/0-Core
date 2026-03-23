@@ -214,7 +214,7 @@ These phases complete the migration:
 - ✅ Phase 13 — redirection DONE (2026-03-23)
 - ✅ Phase 14 — multi-command input DONE (2026-03-23)
 - ✅ Phase 15 — config file DONE (2026-03-23)
-- ⬜ Phase 16 — interactive improvements
+- ✅ Phase 16 — interactive improvements DONE (2026-03-23)
 - ⬜ Phase 17 — prompt v2
 - ⬜ Phase 18 — script arguments
 - ⬜ Phase 19 — fsh as login shell
