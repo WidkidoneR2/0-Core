@@ -549,10 +549,26 @@ fn append_to_history(result: &ScanResult) {
     let entry = HistoryEntry {
         timestamp: result.timestamp.clone(),
         total: result.findings.len(),
-        critical: result.findings.iter().filter(|f| f.severity == Severity::Critical).count(),
-        high: result.findings.iter().filter(|f| f.severity == Severity::High).count(),
-        medium: result.findings.iter().filter(|f| f.severity == Severity::Medium).count(),
-        low: result.findings.iter().filter(|f| f.severity == Severity::Low).count(),
+        critical: result
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::Critical)
+            .count(),
+        high: result
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::High)
+            .count(),
+        medium: result
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::Medium)
+            .count(),
+        low: result
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::Low)
+            .count(),
     };
 
     let path = history_path();
@@ -603,15 +619,14 @@ fn days_since(date_str: &str) -> Option<i64> {
 }
 
 pub fn debt(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "security",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("security", &[Capability::FilesystemReadHome])?;
 
-    let last_scan = fs::read_to_string(last_scan_path())
-        .map_err(|_| crate::errors::CoreError::Runtime(
-            "No scan data found — run 'core security scan' first".to_string()
-        ))?;
+    let last_scan = fs::read_to_string(last_scan_path()).map_err(|_| {
+        crate::errors::CoreError::Runtime(
+            "No scan data found — run 'core security scan' first".to_string(),
+        )
+    })?;
 
     let result: ScanResult = serde_json::from_str(&last_scan)
         .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
@@ -622,12 +637,19 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "🔒 Security Debt Report".bold());
     println!("  {} {}", "Scan date:".dimmed(), result.timestamp.dimmed());
-    println!("  {} {}", "Findings: ".dimmed(), result.findings.len().to_string().bright_white());
+    println!(
+        "  {} {}",
+        "Findings: ".dimmed(),
+        result.findings.len().to_string().bright_white()
+    );
     println!("{}", "━".repeat(55).dimmed());
 
-    let mut findings_with_age: Vec<(&Finding, i64)> = result.findings.iter()
+    let mut findings_with_age: Vec<(&Finding, i64)> = result
+        .findings
+        .iter()
         .map(|f| {
-            let age = first_seen.get(&f.id)
+            let age = first_seen
+                .get(&f.id)
                 .and_then(|d| days_since(d))
                 .unwrap_or(0);
             (f, age)
@@ -641,10 +663,10 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
     for (finding, age) in &findings_with_age {
         let sev_colored = match finding.severity {
             Severity::Critical => "CRIT  ".bright_red().bold(),
-            Severity::High     => "HIGH  ".bright_red(),
-            Severity::Medium   => "MED   ".bright_yellow(),
-            Severity::Low      => "LOW   ".bright_blue(),
-            Severity::Info     => "INFO  ".dimmed(),
+            Severity::High => "HIGH  ".bright_red(),
+            Severity::Medium => "MED   ".bright_yellow(),
+            Severity::Low => "LOW   ".bright_blue(),
+            Severity::Info => "INFO  ".dimmed(),
         };
         let age_colored = if *age >= 30 {
             format!("{}d", age).bright_red()
@@ -653,7 +675,8 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
         } else {
             format!("{}d", age).dimmed()
         };
-        println!("  {} {} {} — {}",
+        println!(
+            "  {} {} {} — {}",
             sev_colored,
             age_colored,
             finding.package.bright_white(),
@@ -662,16 +685,33 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!("{}", "━".repeat(55).dimmed());
-    println!("  {} {} finding-days", "Total debt:".dimmed(), total_debt.to_string().bright_white());
+    println!(
+        "  {} {} finding-days",
+        "Total debt:".dimmed(),
+        total_debt.to_string().bright_white()
+    );
 
     let avg = if !findings_with_age.is_empty() {
         total_debt / findings_with_age.len() as i64
-    } else { 0 };
-    println!("  {} {} days per finding", "Average age:".dimmed(), avg.to_string().bright_white());
+    } else {
+        0
+    };
+    println!(
+        "  {} {} days per finding",
+        "Average age:".dimmed(),
+        avg.to_string().bright_white()
+    );
 
-    let aging = findings_with_age.iter().filter(|(_, age)| *age >= 30).count();
+    let aging = findings_with_age
+        .iter()
+        .filter(|(_, age)| *age >= 30)
+        .count();
     if aging > 0 {
-        println!("  {} {} finding(s) older than 30 days", "⚠️ ".bright_yellow(), aging);
+        println!(
+            "  {} {} finding(s) older than 30 days",
+            "⚠️ ".bright_yellow(),
+            aging
+        );
     } else {
         println!("  {} All findings under 30 days", "✓".bright_green());
     }
@@ -680,10 +720,8 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn trend(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "security",
-        &[Capability::FilesystemReadHome],
-    )?;
+    ctx.capabilities
+        .require("security", &[Capability::FilesystemReadHome])?;
 
     let path = history_path();
     let content = fs::read_to_string(&path).unwrap_or_default();
@@ -692,11 +730,15 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(55).dimmed());
 
     if content.is_empty() {
-        println!("  {} No history yet — run 'core security scan' to begin tracking", "ℹ".dimmed());
+        println!(
+            "  {} No history yet — run 'core security scan' to begin tracking",
+            "ℹ".dimmed()
+        );
         return Ok(());
     }
 
-    let entries: Vec<HistoryEntry> = content.lines()
+    let entries: Vec<HistoryEntry> = content
+        .lines()
         .filter_map(|l| serde_json::from_str(l).ok())
         .collect();
 
@@ -707,7 +749,8 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
 
     let recent: Vec<&HistoryEntry> = entries.iter().rev().take(10).collect();
 
-    println!("  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
+    println!(
+        "  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
         "Date".dimmed(),
         "Total".dimmed(),
         "Crit".dimmed(),
@@ -726,11 +769,20 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
             entry.total.to_string().bright_green()
         };
 
-        println!("  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
+        println!(
+            "  {:<20} {:>5} {:>5} {:>5} {:>5} {:>5}",
             entry.timestamp.dimmed(),
             total_colored,
-            if entry.critical > 0 { entry.critical.to_string().bright_red() } else { entry.critical.to_string().dimmed() },
-            if entry.high > 0 { entry.high.to_string().bright_yellow() } else { entry.high.to_string().dimmed() },
+            if entry.critical > 0 {
+                entry.critical.to_string().bright_red()
+            } else {
+                entry.critical.to_string().dimmed()
+            },
+            if entry.high > 0 {
+                entry.high.to_string().bright_yellow()
+            } else {
+                entry.high.to_string().dimmed()
+            },
             entry.medium.to_string().dimmed(),
             entry.low.to_string().dimmed(),
         );
@@ -743,11 +795,22 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
         let last = entries.last().unwrap();
         let delta = last.total as i64 - first.total as i64;
         if delta < 0 {
-            println!("  {} {} finding(s) resolved since first scan", "✅".green(), delta.abs());
+            println!(
+                "  {} {} finding(s) resolved since first scan",
+                "✅".green(),
+                delta.abs()
+            );
         } else if delta > 0 {
-            println!("  {} {} new finding(s) since first scan", "⚠️ ".bright_yellow(), delta);
+            println!(
+                "  {} {} new finding(s) since first scan",
+                "⚠️ ".bright_yellow(),
+                delta
+            );
         } else {
-            println!("  {} Finding count unchanged since first scan", "→".dimmed());
+            println!(
+                "  {} Finding count unchanged since first scan",
+                "→".dimmed()
+            );
         }
     }
 
@@ -758,7 +821,7 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
 // ── INT-119: Security Advise ─────────────────────────────────────────────────
 
 pub fn advise(ctx: &AppContext) -> CoreResult<()> {
-    use crate::domains::decisions::{DecisionContext, find_similar_context};
+    use crate::domains::decisions::{find_similar_context, DecisionContext};
     use colored::*;
 
     println!();
@@ -779,8 +842,13 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
         scan_timestamp = json["timestamp"].as_str().unwrap_or("unknown").to_string();
         let findings = json["findings"].as_array().map(|a| a.len()).unwrap_or(0);
         finding_count = findings;
-        patchable_count = json["findings"].as_array()
-            .map(|a| a.iter().filter(|f| f["patchable"].as_bool().unwrap_or(false)).count())
+        patchable_count = json["findings"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter(|f| f["patchable"].as_bool().unwrap_or(false))
+                    .count()
+            })
             .unwrap_or(0);
 
         // Calculate scan age
@@ -792,16 +860,23 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
         // Parse timestamp string "YYYY-MM-DD HH:MM:SS" to estimate age
         scan_age_days = if scan_timestamp != "unknown" && scan_timestamp != "never" {
             // Use file modification time as fallback
-            scan_path.metadata()
+            scan_path
+                .metadata()
                 .ok()
                 .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| {
                     let file_ts = d.as_secs();
-                    if now > file_ts { (now - file_ts) / 86400 } else { 0 }
+                    if now > file_ts {
+                        (now - file_ts) / 86400
+                    } else {
+                        0
+                    }
                 })
                 .unwrap_or(0)
-        } else { 999 };
+        } else {
+            999
+        };
     } else {
         scan_timestamp = "never".to_string();
         finding_count = 0;
@@ -821,25 +896,44 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
     } else if scan_age_days < 7 {
         format!("{} days ago", scan_age_days).yellow().to_string()
     } else {
-        format!("{} days ago", scan_age_days).bright_red().to_string()
+        format!("{} days ago", scan_age_days)
+            .bright_red()
+            .to_string()
     };
 
-    println!("    Last scan:      {} ({})", scan_timestamp.dimmed(), age_str);
+    println!(
+        "    Last scan:      {} ({})",
+        scan_timestamp.dimmed(),
+        age_str
+    );
     println!("    Findings:       {}", finding_count.to_string().yellow());
-    println!("    Patchable:      {}", if patchable_count == 0 {
-        "0 — none actionable".bright_green().to_string()
-    } else {
-        format!("{} — action needed", patchable_count).bright_red().to_string()
-    });
+    println!(
+        "    Patchable:      {}",
+        if patchable_count == 0 {
+            "0 — none actionable".bright_green().to_string()
+        } else {
+            format!("{} — action needed", patchable_count)
+                .bright_red()
+                .to_string()
+        }
+    );
 
     println!();
 
     // Risk signals
     let mut signals: Vec<&str> = vec![];
-    if scan_age_days > 7 { signals.push("security scan outdated (>7 days)"); }
-    if scan_age_days > 14 { signals.push("security scan critically stale (>14 days)"); }
-    if patchable_count > 0 { signals.push("patchable vulnerabilities present"); }
-    if patchable_count > 3 { signals.push("multiple patchable vulnerabilities — high risk"); }
+    if scan_age_days > 7 {
+        signals.push("security scan outdated (>7 days)");
+    }
+    if scan_age_days > 14 {
+        signals.push("security scan critically stale (>14 days)");
+    }
+    if patchable_count > 0 {
+        signals.push("patchable vulnerabilities present");
+    }
+    if patchable_count > 3 {
+        signals.push("multiple patchable vulnerabilities — high risk");
+    }
 
     println!("  {}", "Risk Signals:".bright_white().bold());
     if signals.is_empty() {
@@ -857,23 +951,34 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
     let fingerprint = context.fingerprint();
     let similar = find_similar_context(ctx, &fingerprint, 10);
 
-    let security_decisions: Vec<_> = similar.iter()
+    let security_decisions: Vec<_> = similar
+        .iter()
         .filter(|(_, desc, _, _)| {
             let d = desc.to_lowercase();
-            d.contains("security") || d.contains("audit") || d.contains("scan") ||
-            d.contains("patch") || d.contains("vulnerab")
+            d.contains("security")
+                || d.contains("audit")
+                || d.contains("scan")
+                || d.contains("patch")
+                || d.contains("vulnerab")
         })
         .collect();
 
     println!("  {}", "Historical Pattern:".bright_white().bold());
     if security_decisions.is_empty() {
         println!("    {} No security decisions recorded yet", "○".dimmed());
-        println!("    Use {} to track security decisions", "core decide".bright_cyan());
+        println!(
+            "    Use {} to track security decisions",
+            "core decide".bright_cyan()
+        );
     } else {
-        let successes = security_decisions.iter().filter(|(_, _, o, _)| o == "success").count();
+        let successes = security_decisions
+            .iter()
+            .filter(|(_, _, o, _)| o == "success")
+            .count();
         let total = security_decisions.len();
         println!("    {} security decisions in similar context", total);
-        println!("    {} succeeded ({:.0}% success rate)",
+        println!(
+            "    {} succeeded ({:.0}% success rate)",
             successes,
             (successes as f64 / total as f64) * 100.0
         );
@@ -885,43 +990,66 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "Advisory:".bright_white().bold());
 
     if scan_age_days > 14 {
-        println!("    {} Run security scan immediately: {}",
-            "→".bright_red(), "core security scan".bright_cyan());
+        println!(
+            "    {} Run security scan immediately: {}",
+            "→".bright_red(),
+            "core security scan".bright_cyan()
+        );
     } else if scan_age_days > 7 {
-        println!("    {} Security scan recommended: {}",
-            "→".yellow(), "core security scan".bright_cyan());
+        println!(
+            "    {} Security scan recommended: {}",
+            "→".yellow(),
+            "core security scan".bright_cyan()
+        );
     } else if scan_age_days < 3 {
-        println!("    {} Recent scan — security posture monitored",
-            "→".green().to_string().dimmed());
+        println!(
+            "    {} Recent scan — security posture monitored",
+            "→".green().to_string().dimmed()
+        );
     }
 
     if patchable_count > 0 {
-        println!("    {} {} patchable vulnerabilities — run: {}",
+        println!(
+            "    {} {} patchable vulnerabilities — run: {}",
             "→".bright_red(),
             patchable_count,
-            "core security report".bright_cyan());
+            "core security report".bright_cyan()
+        );
     }
 
     let next_scan_days = 7_i64 - scan_age_days as i64;
     if next_scan_days > 0 && scan_age_days < 7 {
-        println!("    {} Next recommended scan in {} days",
-            "→".dimmed(), next_scan_days.to_string().bright_white());
+        println!(
+            "    {} Next recommended scan in {} days",
+            "→".dimmed(),
+            next_scan_days.to_string().bright_white()
+        );
     }
 
     if signals.is_empty() {
-        println!("    {} No action required — forest is secure",
-            "→".green().to_string().dimmed());
+        println!(
+            "    {} No action required — forest is secure",
+            "→".green().to_string().dimmed()
+        );
     }
 
     // ── Sandbox policy violations ─────────────────────────────────
     {
-        let sandbox_runs: i64 = ctx.runtime.db.query_row(
-            "SELECT COUNT(*) FROM events WHERE domain='sandbox'",
-            [], |r| r.get(0)
-        ).unwrap_or(0);
+        let sandbox_runs: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE domain='sandbox'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if sandbox_runs > 0 {
             println!("  {}", "Sandbox Activity:".bright_white().bold());
-            println!("  {} recent sandbox events", sandbox_runs.to_string().bright_white());
+            println!(
+                "  {} recent sandbox events",
+                sandbox_runs.to_string().bright_white()
+            );
             println!("  {} No policy violations detected", "✅".green());
             println!();
         }
@@ -935,12 +1063,24 @@ pub fn advise(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
-    ctx.capabilities.require("security", &[crate::capabilities::Capability::FilesystemReadHome])?;
+    ctx.capabilities.require(
+        "security",
+        &[crate::capabilities::Capability::FilesystemReadHome],
+    )?;
 
     println!();
-    println!("{}", "  ╭─ 🔬 Security Simulate ─────────────────────────────".bright_cyan());
-    println!("  │  What would happen if we applied: {}", patch.bright_yellow().bold());
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╭─ 🔬 Security Simulate ─────────────────────────────".bright_cyan()
+    );
+    println!(
+        "  │  What would happen if we applied: {}",
+        patch.bright_yellow().bold()
+    );
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     // Check if patch references a known CVE or package
     let is_cve = patch.to_uppercase().starts_with("CVE-");
@@ -957,8 +1097,11 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
         if lock_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&lock_path) {
                 let pkg_name = patch.split('-').last().unwrap_or("unknown");
-                let matches: Vec<&str> = content.lines()
-                    .filter(|l| l.contains("name = ") && l.to_lowercase().contains(&pkg_name.to_lowercase()))
+                let matches: Vec<&str> = content
+                    .lines()
+                    .filter(|l| {
+                        l.contains("name = ") && l.to_lowercase().contains(&pkg_name.to_lowercase())
+                    })
                     .collect();
                 if matches.is_empty() {
                     println!("  │    {} No direct matches in Cargo.lock", "✅".green());
@@ -970,7 +1113,11 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
             }
         }
     } else {
-        println!("  │  {} Package/patch: {}", "📦".to_string(), patch.bright_white());
+        println!(
+            "  │  {} Package/patch: {}",
+            "📦".to_string(),
+            patch.bright_white()
+        );
         println!("  │");
         println!("  │  {} Risk Assessment:", "①".bright_white().bold());
 
@@ -979,35 +1126,67 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
         let mut found_count = 0;
         if lock_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&lock_path) {
-                found_count = content.lines()
-                    .filter(|l| l.contains("name = ") && l.to_lowercase().contains(&patch.to_lowercase()))
+                found_count = content
+                    .lines()
+                    .filter(|l| {
+                        l.contains("name = ") && l.to_lowercase().contains(&patch.to_lowercase())
+                    })
                     .count();
             }
         }
 
         if found_count > 0 {
-            println!("  │    {} Found in {} dependency location(s)", "⚠".yellow(), found_count);
-            println!("  │    Applying this patch affects {} tool(s)", found_count.to_string().bright_yellow());
+            println!(
+                "  │    {} Found in {} dependency location(s)",
+                "⚠".yellow(),
+                found_count
+            );
+            println!(
+                "  │    Applying this patch affects {} tool(s)",
+                found_count.to_string().bright_yellow()
+            );
         } else {
-            println!("  │    {} Package not found in current dependencies", "✅".green());
+            println!(
+                "  │    {} Package not found in current dependencies",
+                "✅".green()
+            );
         }
     }
 
     println!("  │");
     println!("  │  {} Recommended Actions:", "②".bright_white().bold());
-    println!("  │    1. Run {} to see current findings", "core security scan".bright_cyan());
-    println!("  │    2. Test in sandbox: {}", "faelight-sandbox run --policy build -- cargo update".bright_cyan());
-    println!("  │    3. Review with: {}", "core security advise".bright_cyan());
+    println!(
+        "  │    1. Run {} to see current findings",
+        "core security scan".bright_cyan()
+    );
+    println!(
+        "  │    2. Test in sandbox: {}",
+        "faelight-sandbox run --policy build -- cargo update".bright_cyan()
+    );
+    println!(
+        "  │    3. Review with: {}",
+        "core security advise".bright_cyan()
+    );
     println!("  │");
-    println!("  │  {} This is a simulation — no changes made", "💡".to_string().dimmed());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "  │  {} This is a simulation — no changes made",
+        "💡".to_string().dimmed()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     // Emit event
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
-    let payload = format!(r#"{{"actor":"core","result":"ok","detail":{{"patch":"{}","command":"security.simulate"}}}}"#, patch);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let payload = format!(
+        r#"{{"actor":"core","result":"ok","detail":{{"patch":"{}","command":"security.simulate"}}}}"#,
+        patch
+    );
     ctx.runtime.db.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES ('security', 'simulate', ?1, ?2)",
         rusqlite::params![payload, ts],
@@ -1016,4 +1195,3 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
 
     Ok(())
 }
-

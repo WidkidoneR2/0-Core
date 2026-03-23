@@ -16,13 +16,13 @@ use smithay_client_toolkit::{
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 mod dbus;
 mod queue;
@@ -32,36 +32,50 @@ pub use render::*;
 
 #[derive(Debug, Clone)]
 pub struct Notification {
-    pub id:       u32,
+    pub id: u32,
     pub app_name: String,
-    pub summary:  String,
-    pub body:     String,
-    pub urgency:  Urgency,
-    pub timeout:  i32,
-    pub created:  Instant,
+    pub summary: String,
+    pub body: String,
+    pub urgency: Urgency,
+    pub timeout: i32,
+    pub created: Instant,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Urgency { Low, Normal, Critical }
+pub enum Urgency {
+    Low,
+    Normal,
+    Critical,
+}
 
 impl Urgency {
-    pub fn from_hints(hints: &std::collections::HashMap<String, zbus::zvariant::OwnedValue>) -> Self {
+    pub fn from_hints(
+        hints: &std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
+    ) -> Self {
         if let Some(v) = hints.get("urgency") {
             if let Ok(u) = u8::try_from(v.clone()) {
-                return match u { 0 => Self::Low, 2 => Self::Critical, _ => Self::Normal };
+                return match u {
+                    0 => Self::Low,
+                    2 => Self::Critical,
+                    _ => Self::Normal,
+                };
             }
         }
         Self::Normal
     }
     pub fn border_color(&self) -> [u8; 4] {
         match self {
-            Self::Low      => render::BORDER_LOW,
-            Self::Normal   => render::BORDER_NORMAL,
+            Self::Low => render::BORDER_LOW,
+            Self::Normal => render::BORDER_NORMAL,
             Self::Critical => render::BORDER_CRITICAL,
         }
     }
     pub fn timeout_ms(&self) -> u64 {
-        match self { Self::Critical => 8000, Self::Low => 3000, Self::Normal => 5000 }
+        match self {
+            Self::Critical => 8000,
+            Self::Low => 3000,
+            Self::Normal => 5000,
+        }
     }
 }
 
@@ -71,36 +85,51 @@ const POPUP_W: u32 = 380;
 const POPUP_H: u32 = 80;
 
 struct NotifyApp {
-    registry_state:  RegistryState,
-    output_state:    OutputState,
-    shm:             Shm,
-    pool:            SlotPool,
-    layer:           LayerSurface,
-    queue:           NotifQueue,
+    registry_state: RegistryState,
+    output_state: OutputState,
+    shm: Shm,
+    pool: SlotPool,
+    layer: LayerSurface,
+    queue: NotifQueue,
     first_configure: bool,
-    last_draw:       Instant,
+    last_draw: Instant,
 }
 
 impl NotifyApp {
     fn draw(&mut self) {
         let notif = self.queue.lock().unwrap().first().cloned();
         let (buffer, canvas) = match self.pool.create_buffer(
-            POPUP_W as i32, POPUP_H as i32,
-            (POPUP_W * 4) as i32, wl_shm::Format::Argb8888,
-        ) { Ok(b) => b, Err(_) => return };
+            POPUP_W as i32,
+            POPUP_H as i32,
+            (POPUP_W * 4) as i32,
+            wl_shm::Format::Argb8888,
+        ) {
+            Ok(b) => b,
+            Err(_) => return,
+        };
 
-        for p in canvas.chunks_exact_mut(4) { p.copy_from_slice(&[0,0,0,0]); }
+        for p in canvas.chunks_exact_mut(4) {
+            p.copy_from_slice(&[0, 0, 0, 0]);
+        }
 
         if let Some(n) = notif {
             render::draw_notification(
-                canvas, POPUP_W, POPUP_H,
-                &n.app_name, &n.summary, &n.body,
+                canvas,
+                POPUP_W,
+                POPUP_H,
+                &n.app_name,
+                &n.summary,
+                &n.body,
                 n.urgency.border_color(),
             );
         }
 
-        self.layer.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer.wl_surface().damage_buffer(0, 0, POPUP_W as i32, POPUP_H as i32);
+        self.layer
+            .wl_surface()
+            .attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer
+            .wl_surface()
+            .damage_buffer(0, 0, POPUP_W as i32, POPUP_H as i32);
         self.layer.wl_surface().commit();
         self.last_draw = Instant::now();
     }
@@ -108,8 +137,14 @@ impl NotifyApp {
 
 impl LayerShellHandler for NotifyApp {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {}
-    fn configure(&mut self, _: &Connection, qh: &QueueHandle<Self>,
-        _: &LayerSurface, _: LayerSurfaceConfigure, _: u32) {
+    fn configure(
+        &mut self,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+        _: &LayerSurface,
+        _: LayerSurfaceConfigure,
+        _: u32,
+    ) {
         if self.first_configure {
             self.first_configure = false;
         }
@@ -118,26 +153,60 @@ impl LayerShellHandler for NotifyApp {
 }
 
 impl CompositorHandler for NotifyApp {
-    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
-    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn scale_factor_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: i32,
+    ) {
+    }
+    fn transform_changed(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: wl_output::Transform,
+    ) {
+    }
     fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
-    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_enter(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
+    fn surface_leave(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface,
+        _: &wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for NotifyApp {
-    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
+    fn output_state(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
 }
 
 impl ShmHandler for NotifyApp {
-    fn shm_state(&mut self) -> &mut Shm { &mut self.shm }
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
+    }
 }
 
 impl ProvidesRegistryState for NotifyApp {
-    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
+    fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
     registry_handlers![OutputState];
 }
 
@@ -180,8 +249,11 @@ fn main() {
 
     let surface = compositor.create_surface(&qh);
     let layer = layer_shell.create_layer_surface(
-        &qh, surface, Layer::Overlay,
-        Some("faelight-notify"), None,
+        &qh,
+        surface,
+        Layer::Overlay,
+        Some("faelight-notify"),
+        None,
     );
     layer.set_size(POPUP_W, POPUP_H);
     layer.set_anchor(Anchor::TOP | Anchor::RIGHT);
@@ -189,19 +261,23 @@ fn main() {
     layer.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer.wl_surface().commit();
 
-    let pool = SlotPool::new((POPUP_W * POPUP_H * 4 * 16) as usize, &shm)
-        .expect("Failed to create pool");
+    let pool =
+        SlotPool::new((POPUP_W * POPUP_H * 4 * 16) as usize, &shm).expect("Failed to create pool");
 
     let mut app = NotifyApp {
-        registry_state:  RegistryState::new(&globals),
-        output_state:    OutputState::new(&globals, &qh),
-        shm, pool, layer,
+        registry_state: RegistryState::new(&globals),
+        output_state: OutputState::new(&globals, &qh),
+        shm,
+        pool,
+        layer,
         queue: queue.clone(),
         first_configure: true,
-        last_draw:       Instant::now(),
+        last_draw: Instant::now(),
     };
 
-    event_queue.roundtrip(&mut app).expect("Initial roundtrip failed");
+    event_queue
+        .roundtrip(&mut app)
+        .expect("Initial roundtrip failed");
     eprintln!("✅ faelight-notify v4.0.0 running");
 
     loop {
@@ -212,7 +288,11 @@ fn main() {
         {
             let mut q = queue.lock().unwrap();
             q.retain(|n| {
-                let ms = if n.timeout > 0 { n.timeout as u64 } else { n.urgency.timeout_ms() };
+                let ms = if n.timeout > 0 {
+                    n.timeout as u64
+                } else {
+                    n.urgency.timeout_ms()
+                };
                 n.created.elapsed().as_millis() < ms as u128
             });
         }

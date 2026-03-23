@@ -37,7 +37,10 @@ fn parse_event(conn: &Connection, line: &str) -> Result<()> {
     if let Some(obj) = v.get("WorkspacesChanged") {
         // Find the focused workspace
         if let Some(workspaces) = obj["workspaces"].as_array() {
-            if let Some(focused) = workspaces.iter().find(|w| w["is_focused"].as_bool().unwrap_or(false)) {
+            if let Some(focused) = workspaces
+                .iter()
+                .find(|w| w["is_focused"].as_bool().unwrap_or(false))
+            {
                 let id = focused["id"].as_u64().unwrap_or(0);
                 let idx = focused["idx"].as_u64().unwrap_or(0);
                 let payload = serde_json::json!({
@@ -63,7 +66,10 @@ fn parse_event(conn: &Connection, line: &str) -> Result<()> {
     } else if let Some(obj) = v.get("WindowsChanged") {
         // Track focused window changes
         if let Some(windows) = obj["windows"].as_array() {
-            if let Some(focused) = windows.iter().find(|w| w["is_focused"].as_bool().unwrap_or(false)) {
+            if let Some(focused) = windows
+                .iter()
+                .find(|w| w["is_focused"].as_bool().unwrap_or(false))
+            {
                 let app_id = focused["app_id"].as_str().unwrap_or("unknown");
                 let window_id = focused["id"].as_u64().unwrap_or(0);
                 let payload = serde_json::json!({
@@ -122,9 +128,15 @@ fn main() -> Result<()> {
 
     for line in reader.lines() {
         let line = line?;
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
         if let Err(e) = parse_event(&conn, &line) {
-            eprintln!("⚠️  parse error: {} — line: {}", e, &line[..line.len().min(80)]);
+            eprintln!(
+                "⚠️  parse error: {} — line: {}",
+                e,
+                &line[..line.len().min(80)]
+            );
         }
     }
 

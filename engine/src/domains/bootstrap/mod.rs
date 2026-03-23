@@ -14,14 +14,21 @@ use std::process::Command;
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 pub fn plan(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("bootstrap", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("bootstrap", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
     let _home = std::env::var("HOME").unwrap_or_default();
 
     println!();
-    println!("{}", "  ╭─ 🌱 Bootstrap Plan ────────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🌱 Bootstrap Plan ────────────────────────────────".bright_cyan()
+    );
     println!("  │  What would it take to rebuild this forest?");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     // 1. System requirements
     println!("  │  {}", "① System Requirements".bright_white().bold());
@@ -41,15 +48,24 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     println!("  │");
     println!("  │  {}", "③ Tool Inventory".bright_white().bold());
     let tools = read_registry_tools(core_root);
-    println!("  │    {} tools registered", tools.len().to_string().bright_white());
+    println!(
+        "  │    {} tools registered",
+        tools.len().to_string().bright_white()
+    );
     println!("  │    cargo build --release --workspace");
-    println!("  │    {} tools to deploy to ~/0-core/scripts/", tools.len().to_string().bright_white());
+    println!(
+        "  │    {} tools to deploy to ~/0-core/scripts/",
+        tools.len().to_string().bright_white()
+    );
 
     // 4. Stow interfaces
     println!("  │");
     println!("  │  {}", "④ Interfaces".bright_white().bold());
     let stow_pkgs = read_stow_packages(core_root);
-    println!("  │    {} stow packages to deploy", stow_pkgs.len().to_string().bright_white());
+    println!(
+        "  │    {} stow packages to deploy",
+        stow_pkgs.len().to_string().bright_white()
+    );
     for pkg in &stow_pkgs {
         println!("  │      stow {}", pkg.dimmed());
     }
@@ -58,7 +74,10 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     println!("  │");
     println!("  │  {}", "⑤ Active Intents".bright_white().bold());
     let intents = read_active_intents(core_root);
-    println!("  │    {} intents in-progress or planned", intents.len().to_string().bright_white());
+    println!(
+        "  │    {} intents in-progress or planned",
+        intents.len().to_string().bright_white()
+    );
     for intent in &intents {
         println!("  │      {} {}", "→".dimmed(), intent.dimmed());
     }
@@ -67,15 +86,25 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     println!("  │");
     println!("  │  {}", "⑥ Key Decisions".bright_white().bold());
     let decisions = read_decisions(ctx);
-    println!("  │    {} decisions recorded", decisions.len().to_string().bright_white());
+    println!(
+        "  │    {} decisions recorded",
+        decisions.len().to_string().bright_white()
+    );
     for d in decisions.iter().take(3) {
         println!("  │      {} {}", "→".dimmed(), d.dimmed());
     }
 
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
     println!("  {} Full plan assumes git history intact", "💡".yellow());
-    println!("  {} Run {} for state consistency check", "💡".yellow(), "core bootstrap verify".bright_cyan());
+    println!(
+        "  {} Run {} for state consistency check",
+        "💡".yellow(),
+        "core bootstrap verify".bright_cyan()
+    );
     println!();
 
     emit_event(ctx, "plan");
@@ -83,13 +112,20 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn verify(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("bootstrap", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("bootstrap", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
 
     println!();
-    println!("{}", "  ╭─ 🔍 Bootstrap Verify ──────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🔍 Bootstrap Verify ──────────────────────────────".bright_cyan()
+    );
     println!("  │  Is the current state consistent with history?");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     let mut issues = Vec::new();
     let mut passed = 0;
@@ -104,11 +140,19 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     if missing.is_empty() {
-        println!("  │  {} All {} registered tools deployed", "✅".green(), tools.len());
+        println!(
+            "  │  {} All {} registered tools deployed",
+            "✅".green(),
+            tools.len()
+        );
         passed += 1;
     } else {
-        println!("  │  {} {} tools not deployed: {}", "⚠".yellow(), missing.len(),
-            missing[..missing.len().min(3)].join(", ").bright_red());
+        println!(
+            "  │  {} {} tools not deployed: {}",
+            "⚠".yellow(),
+            missing.len(),
+            missing[..missing.len().min(3)].join(", ").bright_red()
+        );
         issues.push(format!("{} tools not deployed", missing.len()));
     }
 
@@ -124,20 +168,36 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     if unstowed.is_empty() {
-        println!("  │  {} All {} stow packages present", "✅".green(), stow_pkgs.len());
+        println!(
+            "  │  {} All {} stow packages present",
+            "✅".green(),
+            stow_pkgs.len()
+        );
         passed += 1;
     } else {
-        println!("  │  {} {} stow packages missing", "⚠".yellow(), unstowed.len());
+        println!(
+            "  │  {} {} stow packages missing",
+            "⚠".yellow(),
+            unstowed.len()
+        );
         issues.push(format!("{} stow packages missing", unstowed.len()));
     }
 
     // Check 3 — git history intact
     let commit_count = get_commit_count(core_root);
     if commit_count > 100 {
-        println!("  │  {} Git history intact ({} commits)", "✅".green(), commit_count);
+        println!(
+            "  │  {} Git history intact ({} commits)",
+            "✅".green(),
+            commit_count
+        );
         passed += 1;
     } else {
-        println!("  │  {} Git history shallow ({} commits)", "⚠".yellow(), commit_count);
+        println!(
+            "  │  {} Git history shallow ({} commits)",
+            "⚠".yellow(),
+            commit_count
+        );
         issues.push("git history may be shallow".to_string());
     }
 
@@ -157,21 +217,38 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
         println!("  │  {} Runtime state.db present", "✅".green());
         passed += 1;
     } else {
-        println!("  │  {} Runtime state.db missing — events lost", "✗".bright_red());
+        println!(
+            "  │  {} Runtime state.db missing — events lost",
+            "✗".bright_red()
+        );
         issues.push("state.db missing".to_string());
     }
 
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
     if issues.is_empty() {
-        println!("  │  {} All {} checks passed — forest is consistent", "✅".green(), passed);
+        println!(
+            "  │  {} All {} checks passed — forest is consistent",
+            "✅".green(),
+            passed
+        );
     } else {
-        println!("  │  {}/{} checks passed — {} issue(s) found",
-            passed, passed + issues.len(), issues.len().to_string().yellow());
+        println!(
+            "  │  {}/{} checks passed — {} issue(s) found",
+            passed,
+            passed + issues.len(),
+            issues.len().to_string().yellow()
+        );
         for issue in &issues {
             println!("  │    {} {}", "→".bright_red(), issue.bright_red());
         }
     }
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     emit_event(ctx, "verify");
@@ -179,20 +256,28 @@ pub fn verify(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn diff(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("bootstrap", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("bootstrap", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
 
     println!();
-    println!("{}", "  ╭─ 📊 Bootstrap Diff ────────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 📊 Bootstrap Diff ────────────────────────────────".bright_cyan()
+    );
     println!("  │  What diverged from the canonical state?");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     // Compare registry tools vs deployed tools
     let tools = read_registry_tools(core_root);
     let scripts_dir = PathBuf::from(core_root).join("scripts");
 
     // Tools in registry but not deployed
-    let not_deployed: Vec<&String> = tools.iter()
+    let not_deployed: Vec<&String> = tools
+        .iter()
         .filter(|t| !scripts_dir.join(t).exists())
         .collect();
 
@@ -208,7 +293,10 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
     }
 
     if not_deployed.is_empty() && unregistered.is_empty() {
-        println!("  │  {} No drift detected — registry matches deployment", "✅".green());
+        println!(
+            "  │  {} No drift detected — registry matches deployment",
+            "✅".green()
+        );
     } else {
         if !not_deployed.is_empty() {
             println!("  │  {} In registry, not deployed:", "⚠".yellow());
@@ -227,12 +315,19 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
     // Check for intent drift — intents in future/ that are stale
     let future_dir = PathBuf::from(core_root).join("intents/future");
     let future_count = std::fs::read_dir(&future_dir)
-        .map(|d| d.count()).unwrap_or(0);
+        .map(|d| d.count())
+        .unwrap_or(0);
 
     println!("  │");
-    println!("  │  {} active intents in ledger", future_count.to_string().bright_white());
+    println!(
+        "  │  {} active intents in ledger",
+        future_count.to_string().bright_white()
+    );
 
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     emit_event(ctx, "diff");
@@ -242,8 +337,10 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn get_rust_version() -> String {
-    Command::new("rustc").arg("--version")
-        .output().ok()
+    Command::new("rustc")
+        .arg("--version")
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "unknown".to_string())
@@ -252,7 +349,8 @@ fn get_rust_version() -> String {
 fn get_git_remote(core_root: &str) -> String {
     Command::new("git")
         .args(["-C", core_root, "remote", "get-url", "origin"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "origin".to_string())
@@ -261,7 +359,8 @@ fn get_git_remote(core_root: &str) -> String {
 fn get_commit_count(core_root: &str) -> usize {
     Command::new("git")
         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
-        .output().ok()
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0)
@@ -270,7 +369,8 @@ fn get_commit_count(core_root: &str) -> usize {
 fn read_registry_tools(core_root: &str) -> Vec<String> {
     let path = PathBuf::from(core_root).join("01-registry/tools.toml");
     let content = std::fs::read_to_string(&path).unwrap_or_default();
-    content.lines()
+    content
+        .lines()
         .filter(|l| l.starts_with("name = "))
         .map(|l| l.split('"').nth(1).unwrap_or("").to_string())
         .filter(|s| !s.is_empty())
@@ -280,31 +380,37 @@ fn read_registry_tools(core_root: &str) -> Vec<String> {
 fn read_stow_packages(core_root: &str) -> Vec<String> {
     let stow_dir = PathBuf::from(core_root).join("03-interfaces/stow");
     std::fs::read_dir(&stow_dir)
-        .map(|d| d.flatten()
-            .filter(|e| e.path().is_dir())
-            .map(|e| e.file_name().to_string_lossy().to_string())
-            .collect())
+        .map(|d| {
+            d.flatten()
+                .filter(|e| e.path().is_dir())
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 fn read_active_intents(core_root: &str) -> Vec<String> {
     let future_dir = PathBuf::from(core_root).join("intents/future");
     std::fs::read_dir(&future_dir)
-        .map(|d| d.flatten()
-            .map(|e| e.file_name().to_string_lossy().to_string())
-            .filter(|s| s.ends_with(".md"))
-            .collect())
+        .map(|d| {
+            d.flatten()
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .filter(|s| s.ends_with(".md"))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 fn read_decisions(ctx: &AppContext) -> Vec<String> {
-    let mut stmt = match ctx.runtime.db.prepare(
-        "SELECT description FROM decisions ORDER BY timestamp DESC LIMIT 5"
-    ) {
+    let mut stmt = match ctx
+        .runtime
+        .db
+        .prepare("SELECT description FROM decisions ORDER BY timestamp DESC LIMIT 5")
+    {
         Ok(s) => s,
         Err(_) => return vec![],
     };
-    stmt.query_map([], |r| r.get::<_,String>(0))
+    stmt.query_map([], |r| r.get::<_, String>(0))
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default()
 }
@@ -312,8 +418,12 @@ fn read_decisions(ctx: &AppContext) -> Vec<String> {
 fn emit_event(ctx: &AppContext, action: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
-    let payload = format!(r#"{{"actor":"core","result":"ok","detail":{{"command":"bootstrap.{}"}}}}"#, action);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let payload = format!(
+        r#"{{"actor":"core","result":"ok","detail":{{"command":"bootstrap.{}"}}}}"#,
+        action
+    );
     ctx.runtime.db.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES ('bootstrap', ?1, ?2, ?3)",
         rusqlite::params![action, payload, ts],

@@ -5,18 +5,20 @@ use colored::*;
 
 fn read_version(ctx: &AppContext) -> String {
     let root = &ctx.core_root;
-    std::fs::read_to_string(
-        std::path::PathBuf::from(&root).join("00-meta/VERSION")
-    ).unwrap_or_else(|_| "unknown".into()).trim().to_string()
+    std::fs::read_to_string(std::path::PathBuf::from(&root).join("00-meta/VERSION"))
+        .unwrap_or_else(|_| "unknown".into())
+        .trim()
+        .to_string()
 }
 
 fn read_theme(ctx: &AppContext) -> String {
     let root = &ctx.core_root;
     let version = read_version(ctx);
-    let changelog = std::fs::read_to_string(
-        std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md")
-    ).unwrap_or_default();
-    changelog.lines()
+    let changelog =
+        std::fs::read_to_string(std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md"))
+            .unwrap_or_default();
+    changelog
+        .lines()
         .find(|l| l.starts_with(&format!("## [{}]", version)))
         .and_then(|l| l.split(" — ").nth(1))
         .and_then(|s| s.split('(').next())
@@ -34,18 +36,18 @@ fn status_narrative(status: &str) -> &'static str {
     match status {
         "accepted" => "authorized and in motion",
         "rejected" => "considered and set aside",
-        _          => "proposed, awaiting decision",
+        _ => "proposed, awaiting decision",
     }
 }
 
 pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()> {
     let version = read_version(ctx);
-    let theme   = read_theme(ctx);
+    let theme = read_theme(ctx);
 
     // Load all goals — filter by version if requested
     let mut stmt = match ctx.runtime.db.prepare(
         "SELECT id, title, reason, plan, priority, status, created_at, updated_at \
-         FROM forest_goals ORDER BY created_at ASC"
+         FROM forest_goals ORDER BY created_at ASC",
     ) {
         Ok(s) => s,
         Err(_) => {
@@ -56,11 +58,19 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
         }
     };
 
-    let goals: Vec<(String,String,String,String,String,String,i64,i64)> = stmt
-        .query_map([], |r| Ok((
-            r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,
-            r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?,
-        )))
+    let goals: Vec<(String, String, String, String, String, String, i64, i64)> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+            ))
+        })
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
 
@@ -73,76 +83,97 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     }
 
     // Count totals
-    let total        = goals.len();
-    let accepted     = goals.iter().filter(|g| g.5 == "accepted").count();
-    let rejected     = goals.iter().filter(|g| g.5 == "rejected").count();
-    let pending      = total - accepted - rejected;
+    let total = goals.len();
+    let accepted = goals.iter().filter(|g| g.5 == "accepted").count();
+    let rejected = goals.iter().filter(|g| g.5 == "rejected").count();
+    let pending = total - accepted - rejected;
     let total_commits: String = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default().trim().to_string();
+        .unwrap_or_default()
+        .trim()
+        .to_string();
 
     let display_version = version_filter.unwrap_or(&version);
 
     println!();
-    println!("  {} {}", "📖  Forest Autobiography".bright_cyan().bold(),
-        format!("v{}", display_version).dimmed());
+    println!(
+        "  {} {}",
+        "📖  Forest Autobiography".bright_cyan().bold(),
+        format!("v{}", display_version).dimmed()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
 
     // Opening narrative
-    println!("  {} — {}", display_version.bright_white().bold(), theme.bright_green());
+    println!(
+        "  {} — {}",
+        display_version.bright_white().bold(),
+        theme.bright_green()
+    );
     println!();
     println!("  {}", "The forest set its intentions.".dimmed().italic());
-    println!("  {} goals proposed  ·  {} authorized  ·  {} set aside  ·  {} pending",
+    println!(
+        "  {} goals proposed  ·  {} authorized  ·  {} set aside  ·  {} pending",
         total.to_string().bright_white(),
         accepted.to_string().bright_green(),
         rejected.to_string().dimmed(),
         pending.to_string().yellow()
     );
     if !total_commits.is_empty() {
-        println!("  {} commits in the forest's memory", total_commits.bright_white());
+        println!(
+            "  {} commits in the forest's memory",
+            total_commits.bright_white()
+        );
     }
     println!();
 
     // Narrate each goal
-    for (idx, (id, title, reason, plan, priority, status, created, updated)) in goals.iter().enumerate() {
+    for (idx, (id, title, reason, plan, priority, status, created, updated)) in
+        goals.iter().enumerate()
+    {
         let date_created = format_ts(*created);
         let date_updated = format_ts(*updated);
-        let narrative    = status_narrative(status);
+        let narrative = status_narrative(status);
 
         // Load plan if exists
-        let plan_steps: Option<Vec<String>> = ctx.runtime.db
+        let plan_steps: Option<Vec<String>> = ctx
+            .runtime
+            .db
             .query_row(
                 "SELECT steps FROM forest_plans WHERE goal_id=?1 LIMIT 1",
                 rusqlite::params![id],
-                |r| r.get::<_,String>(0),
+                |r| r.get::<_, String>(0),
             )
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok());
 
         // Load tradeoff if exists
-        let tradeoff_rec: Option<String> = ctx.runtime.db
+        let tradeoff_rec: Option<String> = ctx
+            .runtime
+            .db
             .query_row(
                 "SELECT recommendation FROM forest_tradeoffs WHERE linked_goal=?1 LIMIT 1",
                 rusqlite::params![id],
                 |r| r.get(0),
-            ).ok();
+            )
+            .ok();
 
         // Priority color
         let pri_colored = match priority.as_str() {
-            "HIGH"   => priority.bright_red(),
+            "HIGH" => priority.bright_red(),
             "MEDIUM" => priority.yellow(),
-            _        => priority.dimmed(),
+            _ => priority.dimmed(),
         };
 
         // Status color
         let status_colored = match status.as_str() {
             "accepted" => "[authorized]".bright_green(),
             "rejected" => "[set aside] ".dimmed(),
-            _          => "[pending]   ".yellow(),
+            _ => "[pending]   ".yellow(),
         };
 
         println!("{}", "─".repeat(60).dimmed());
-        println!("  {} {}  {} {}",
+        println!(
+            "  {} {}  {} {}",
             format!("Goal {}", idx + 1).bright_cyan().bold(),
             id.yellow(),
             status_colored,
@@ -150,33 +181,53 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
         );
         println!("  {}", title.bright_white().bold());
         println!();
-        println!("  {} {}", "Why the forest wanted this:".dimmed(), reason.italic());
+        println!(
+            "  {} {}",
+            "Why the forest wanted this:".dimmed(),
+            reason.italic()
+        );
         println!("  {} {}", "Originally planned:".dimmed(), plan.dimmed());
-        println!("  {} {}  → {}",
+        println!(
+            "  {} {}  → {}",
             "Timeline:".dimmed(),
             date_created.bright_white(),
-            if date_updated != date_created { date_updated.clone() } else { "same day".to_string() }.dimmed()
+            if date_updated != date_created {
+                date_updated.clone()
+            } else {
+                "same day".to_string()
+            }
+            .dimmed()
         );
         println!("  {} {}", "Status:".dimmed(), narrative.bright_white());
         println!();
 
         // Plan steps if available
         if let Some(steps) = &plan_steps {
-            println!("  {} ({} steps)",
-                "Concrete path:".bright_white().bold(), steps.len());
+            println!(
+                "  {} ({} steps)",
+                "Concrete path:".bright_white().bold(),
+                steps.len()
+            );
             for (i, step) in steps.iter().take(3).enumerate() {
                 println!("    {}. {}", i + 1, step.dimmed());
             }
             if steps.len() > 3 {
-                println!("    {} {} more steps...", "+".dimmed(),
-                    (steps.len() - 3).to_string().dimmed());
+                println!(
+                    "    {} {} more steps...",
+                    "+".dimmed(),
+                    (steps.len() - 3).to_string().dimmed()
+                );
             }
             println!();
         }
 
         // Tradeoff if available
         if let Some(rec) = &tradeoff_rec {
-            println!("  {} {}", "Tradeoff weighed:".bright_white().bold(), rec.dimmed().italic());
+            println!(
+                "  {} {}",
+                "Tradeoff weighed:".bright_white().bold(),
+                rec.dimmed().italic()
+            );
             println!();
         }
     }
@@ -194,7 +245,8 @@ pub fn narrate(ctx: &AppContext, version_filter: Option<&str>) -> CoreResult<()>
     };
     println!("  {}", closing.bright_white().italic());
     println!();
-    println!("  {} {}",
+    println!(
+        "  {} {}",
         "Next:".dimmed(),
         "core goals generate  — let the forest propose new intentions".bright_cyan()
     );

@@ -73,9 +73,10 @@ fn history_path() -> PathBuf {
 
 fn load_history() -> Vec<ClipEntry> {
     let path = history_path();
-    if !path.exists() { return Vec::new(); }
-    serde_json::from_str(&fs::read_to_string(&path).unwrap_or_default())
-        .unwrap_or_default()
+    if !path.exists() {
+        return Vec::new();
+    }
+    serde_json::from_str(&fs::read_to_string(&path).unwrap_or_default()).unwrap_or_default()
 }
 
 fn save_history(entries: &[ClipEntry]) -> Result<()> {
@@ -88,11 +89,14 @@ fn save_history(entries: &[ClipEntry]) -> Result<()> {
 fn push_to_history(content: &str) -> Result<()> {
     let mut entries = load_history();
     entries.retain(|e| e.content != content);
-    entries.insert(0, ClipEntry {
-        content: content.to_string(),
-        timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-        mime: "text/plain;charset=utf-8".to_string(),
-    });
+    entries.insert(
+        0,
+        ClipEntry {
+            content: content.to_string(),
+            timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            mime: "text/plain;charset=utf-8".to_string(),
+        },
+    );
     entries.truncate(MAX_HISTORY);
     save_history(&entries)
 }
@@ -146,8 +150,19 @@ fn cmd_history(limit: usize, json: bool) -> Result<()> {
     }
     println!("📋 Clipboard History (last {})\n", shown.len());
     for (i, entry) in shown.iter().enumerate() {
-        let preview: String = entry.content.lines().next().unwrap_or("").chars().take(72).collect();
-        let cont = if entry.content.len() > 72 || entry.content.contains('\n') { "…" } else { "" };
+        let preview: String = entry
+            .content
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(72)
+            .collect();
+        let cont = if entry.content.len() > 72 || entry.content.contains('\n') {
+            "…"
+        } else {
+            ""
+        };
         println!("  {:>2}  {}  {}{}", i + 1, entry.timestamp, preview, cont);
     }
     Ok(())
@@ -155,7 +170,9 @@ fn cmd_history(limit: usize, json: bool) -> Result<()> {
 
 fn cmd_clear() -> Result<()> {
     let path = history_path();
-    if path.exists() { fs::remove_file(&path)?; }
+    if path.exists() {
+        fs::remove_file(&path)?;
+    }
     eprintln!("📋 Clipboard history cleared");
     Ok(())
 }
@@ -178,11 +195,22 @@ fn cmd_pick() -> Result<()> {
     use std::process::{Command, Stdio};
 
     let entries = load_history();
-    if entries.is_empty() { anyhow::bail!("no clipboard history to pick from"); }
+    if entries.is_empty() {
+        anyhow::bail!("no clipboard history to pick from");
+    }
 
-    let input = entries.iter().enumerate()
+    let input = entries
+        .iter()
+        .enumerate()
         .map(|(i, e)| {
-            let p: String = e.content.lines().next().unwrap_or("").chars().take(72).collect();
+            let p: String = e
+                .content
+                .lines()
+                .next()
+                .unwrap_or("")
+                .chars()
+                .take(72)
+                .collect();
             format!("{:>2}  {}  {}", i + 1, e.timestamp, p)
         })
         .collect::<Vec<_>>()
@@ -190,15 +218,20 @@ fn cmd_pick() -> Result<()> {
 
     let mut child = Command::new("fzf")
         .args(["--prompt=📋 clipboard> ", "--height=40%", "--reverse"])
-        .stdin(Stdio::piped()).stdout(Stdio::piped())
-        .spawn().context("fzf not found")?;
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .context("fzf not found")?;
 
     child.stdin.as_mut().unwrap().write_all(input.as_bytes())?;
     let output = child.wait_with_output()?;
 
     if output.status.success() {
         let line = String::from_utf8_lossy(&output.stdout);
-        let idx: usize = line.trim().split_whitespace().next()
+        let idx: usize = line
+            .trim()
+            .split_whitespace()
+            .next()
             .and_then(|s| s.parse().ok())
             .context("could not parse selection")?;
         if let Some(entry) = entries.get(idx - 1) {
@@ -233,8 +266,7 @@ fn cmd_watch() -> Result<()> {
 }
 
 fn cmd_hold() -> Result<()> {
-    let content = std::env::var("FAELIGHT_CLIP_CONTENT")
-        .unwrap_or_default();
+    let content = std::env::var("FAELIGHT_CLIP_CONTENT").unwrap_or_default();
     wayland::native_copy_daemon(content)
 }
 

@@ -1,7 +1,7 @@
 // faelight-notify v4 — D-Bus server
 // Implements org.freedesktop.Notifications spec
 
-use crate::{Notification, NotifQueue, Urgency};
+use crate::{NotifQueue, Notification, Urgency};
 use std::sync::atomic::{AtomicU32, Ordering};
 use zbus::{connection, interface};
 

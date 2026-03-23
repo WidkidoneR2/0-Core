@@ -649,7 +649,8 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
             "window.focus" => {
                 focus_count += 1;
                 // Track time spent per app
-                let app = payload.as_deref()
+                let app = payload
+                    .as_deref()
                     .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
                     .and_then(|v| v["detail"]["app_id"].as_str().map(|s| s.to_string()))
                     .unwrap_or_else(|| "unknown".to_string());
@@ -667,8 +668,12 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!();
-    println!("  {} compositor events today", rows.len().to_string().bright_white());
-    println!("  {} window focuses  •  {} windows opened  •  {} workspace switches",
+    println!(
+        "  {} compositor events today",
+        rows.len().to_string().bright_white()
+    );
+    println!(
+        "  {} window focuses  •  {} windows opened  •  {} workspace switches",
         focus_count.to_string().cyan(),
         open_count.to_string().green(),
         switch_count.to_string().yellow(),
@@ -684,11 +689,7 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
             let mins = secs / 60;
             let bar_len = (mins.min(30)) as usize;
             let bar = "█".repeat(bar_len);
-            println!("  {:20}  {}  {}m",
-                app.bright_white(),
-                bar.green(),
-                mins,
-            );
+            println!("  {:20}  {}  {}m", app.bright_white(), bar.green(), mins,);
         }
         println!();
     }
@@ -696,14 +697,22 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
     // Recent activity timeline
     println!("  {}", "Recent activity:".dimmed());
     for (action, payload, ts) in rows.iter().rev().take(8) {
-        let app = payload.as_deref()
+        let app = payload
+            .as_deref()
             .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
             .and_then(|v| {
-                v["detail"]["app_id"].as_str().map(|s| s.to_string())
-                    .or_else(|| v["detail"]["workspace_idx"].as_u64().map(|n| format!("workspace {}", n)))
+                v["detail"]["app_id"]
+                    .as_str()
+                    .map(|s| s.to_string())
+                    .or_else(|| {
+                        v["detail"]["workspace_idx"]
+                            .as_u64()
+                            .map(|n| format!("workspace {}", n))
+                    })
             })
             .unwrap_or_default();
-        println!("  {}  {}  {}",
+        println!(
+            "  {}  {}  {}",
             format_ts(*ts).dimmed(),
             action.cyan(),
             app.white(),
@@ -734,7 +743,8 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Detect attention fragmentation: 3+ workspace switches within 60 seconds
-    let switches: Vec<i64> = rows.iter()
+    let switches: Vec<i64> = rows
+        .iter()
         .filter(|(a, _)| a == "workspace.switch")
         .map(|(_, ts)| *ts)
         .collect();
@@ -746,34 +756,54 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
         }
     }
 
-    let focus_events: Vec<i64> = rows.iter()
+    let focus_events: Vec<i64> = rows
+        .iter()
         .filter(|(a, _)| a == "window.focus")
         .map(|(_, ts)| *ts)
         .collect();
 
     // Average focus duration
     let avg_focus = if focus_events.len() > 1 {
-        let diffs: Vec<i64> = focus_events.windows(2)
+        let diffs: Vec<i64> = focus_events
+            .windows(2)
             .map(|w| w[1] - w[0])
             .filter(|&d| d < 300)
             .collect();
-        if diffs.is_empty() { 0 }
-        else { diffs.iter().sum::<i64>() / diffs.len() as i64 }
-    } else { 0 };
+        if diffs.is_empty() {
+            0
+        } else {
+            diffs.iter().sum::<i64>() / diffs.len() as i64
+        }
+    } else {
+        0
+    };
 
     println!();
-    let focus_quality = if avg_focus > 120 { "🟢 Deep focus" }
-        else if avg_focus > 30 { "🟡 Moderate focus" }
-        else { "🔴 Fragmented" };
+    let focus_quality = if avg_focus > 120 {
+        "🟢 Deep focus"
+    } else if avg_focus > 30 {
+        "🟡 Moderate focus"
+    } else {
+        "🔴 Fragmented"
+    };
 
     println!("  Focus quality:     {}", focus_quality.bright_white());
     println!("  Avg focus duration: {}s", avg_focus.to_string().cyan());
-    println!("  Workspace switches: {}", switches.len().to_string().yellow());
-    println!("  Attention fragments: {} (rapid switch bursts)", fragments.to_string().bright_white());
+    println!(
+        "  Workspace switches: {}",
+        switches.len().to_string().yellow()
+    );
+    println!(
+        "  Attention fragments: {} (rapid switch bursts)",
+        fragments.to_string().bright_white()
+    );
     println!();
 
     if fragments > 3 {
-        println!("  {} Attention highly fragmented today — consider single-task focus", "⚠️ ".yellow());
+        println!(
+            "  {} Attention highly fragmented today — consider single-task focus",
+            "⚠️ ".yellow()
+        );
     } else if fragments == 0 && avg_focus > 60 {
         println!("  {} Excellent focus discipline today", "✅".green());
     } else {
@@ -787,13 +817,15 @@ pub fn why_attention(ctx: &AppContext) -> CoreResult<()> {
 
 pub fn ledger_indexes(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "🌲 Ledger — Creating indexes...".cyan().bold());
-    ctx.runtime.db.execute_batch("
+    ctx.runtime.db.execute_batch(
+        "
         CREATE INDEX IF NOT EXISTS idx_events_domain ON events(domain);
         CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
         CREATE INDEX IF NOT EXISTS idx_events_domain_ts ON events(domain, timestamp);
         CREATE INDEX IF NOT EXISTS idx_events_action ON events(action);
         CREATE INDEX IF NOT EXISTS idx_capabilities_ts ON capabilities_log(timestamp);
-    ")?;
+    ",
+    )?;
     println!("  ✅ idx_events_domain");
     println!("  ✅ idx_events_timestamp");
     println!("  ✅ idx_events_domain_ts");
@@ -806,29 +838,47 @@ pub fn ledger_indexes(ctx: &AppContext) -> CoreResult<()> {
 
 pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     // Total events
-    let total: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events", [], |r| r.get(0))?;
-    let first_ts: i64 = ctx.runtime.db.query_row(
-        "SELECT MIN(timestamp) FROM events", [], |r| r.get(0)).unwrap_or(0);
-    let last_ts: i64 = ctx.runtime.db.query_row(
-        "SELECT MAX(timestamp) FROM events", [], |r| r.get(0)).unwrap_or(0);
+    let total: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))?;
+    let first_ts: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT MIN(timestamp) FROM events", [], |r| r.get(0))
+        .unwrap_or(0);
+    let last_ts: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT MAX(timestamp) FROM events", [], |r| r.get(0))
+        .unwrap_or(0);
 
     // Events per domain
-    let mut stmt = ctx.runtime.db.prepare(
-        "SELECT domain, COUNT(*) as cnt FROM events GROUP BY domain ORDER BY cnt DESC")?;
-    let domains: Vec<(String, i64)> = stmt.query_map([], |r| {
-        Ok((r.get(0)?, r.get(1)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let mut stmt = ctx
+        .runtime
+        .db
+        .prepare("SELECT domain, COUNT(*) as cnt FROM events GROUP BY domain ORDER BY cnt DESC")?;
+    let domains: Vec<(String, i64)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
 
     // Events today
     let today = chrono_today();
     let today_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events WHERE timestamp >= ?", [today], |r| r.get(0))?;
+        "SELECT COUNT(*) FROM events WHERE timestamp >= ?",
+        [today],
+        |r| r.get(0),
+    )?;
 
     // Database size
     let db_size = std::fs::metadata(
-        std::path::PathBuf::from(&ctx.core_root).join("runtime").join("state.db")
-    ).map(|m| m.len()).unwrap_or(0);
+        std::path::PathBuf::from(&ctx.core_root)
+            .join("runtime")
+            .join("state.db"),
+    )
+    .map(|m| m.len())
+    .unwrap_or(0);
 
     println!("{}", "🌲 Ledger Stats".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
@@ -841,8 +891,12 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     let first = format_ts(first_ts);
     let last = format_ts(last_ts);
     let span_days = (last_ts - first_ts) / 86400;
-    println!("  {} first event  •  {} last event  •  {} days of history",
-        first.dimmed(), last.dimmed(), span_days.to_string().yellow());
+    println!(
+        "  {} first event  •  {} last event  •  {} days of history",
+        first.dimmed(),
+        last.dimmed(),
+        span_days.to_string().yellow()
+    );
     println!();
 
     println!("  {}", "Events by domain:".dimmed());
@@ -850,7 +904,8 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     for (domain, count) in &domains {
         let bar_len = (count * 20 / max_count) as usize;
         let bar = "█".repeat(bar_len);
-        println!("  {:15}  {}  {}",
+        println!(
+            "  {:15}  {}  {}",
             domain.bright_white(),
             bar.cyan(),
             count.to_string().dimmed(),
@@ -859,28 +914,44 @@ pub fn ledger_stats(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Capabilities log
-    let cap_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM capabilities_log", [], |r| r.get(0)).unwrap_or(0);
-    println!("  {} capability log entries", cap_count.to_string().dimmed());
+    let cap_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM capabilities_log", [], |r| r.get(0))
+        .unwrap_or(0);
+    println!(
+        "  {} capability log entries",
+        cap_count.to_string().dimmed()
+    );
 
     Ok(())
 }
 
 fn format_bytes(bytes: u64) -> String {
-    if bytes < 1024 { format!("{}B", bytes) }
-    else if bytes < 1024 * 1024 { format!("{:.1}KB", bytes as f64 / 1024.0) }
-    else { format!("{:.1}MB", bytes as f64 / 1024.0 / 1024.0) }
+    if bytes < 1024 {
+        format!("{}B", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1}KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1}MB", bytes as f64 / 1024.0 / 1024.0)
+    }
 }
 
 pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT id, action, payload, timestamp FROM events WHERE domain = ? ORDER BY timestamp DESC LIMIT 50"
     )?;
-    let rows: Vec<(i64, String, Option<String>, i64)> = stmt.query_map([domain], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<(i64, String, Option<String>, i64)> = stmt
+        .query_map([domain], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
-    println!("{}", format!("🌲 Ledger — domain: {}", domain).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Ledger — domain: {}", domain).cyan().bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -888,19 +959,25 @@ pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         return Ok(());
     }
 
-    println!("  {} events (showing last {})", rows.len().to_string().bright_white(), rows.len().min(50));
+    println!(
+        "  {} events (showing last {})",
+        rows.len().to_string().bright_white(),
+        rows.len().min(50)
+    );
     println!();
 
     for (id, action, payload, ts) in &rows {
         let time = format_ts(*ts);
         // Extract result from payload
-        let result = payload.as_deref()
+        let result = payload
+            .as_deref()
             .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
             .and_then(|v| v["result"].as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "ok".to_string());
 
         // Extract health if doctor domain
-        let extra = payload.as_deref()
+        let extra = payload
+            .as_deref()
             .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
             .and_then(|v| v["detail"]["health"].as_u64())
             .map(|h| format!("  health:{}%", h))
@@ -912,7 +989,8 @@ pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
             result.yellow().to_string()
         };
 
-        println!("  {} {:6}  {}  {}{}",
+        println!(
+            "  {} {:6}  {}  {}{}",
             id.to_string().dimmed(),
             time.dimmed(),
             action.bright_white(),
@@ -925,20 +1003,23 @@ pub fn ledger_query(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 
 pub fn ledger_export(ctx: &AppContext) -> CoreResult<()> {
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT id, domain, action, payload, timestamp FROM events ORDER BY timestamp ASC"
+        "SELECT id, domain, action, payload, timestamp FROM events ORDER BY timestamp ASC",
     )?;
-    let rows: Vec<serde_json::Value> = stmt.query_map([], |r| {
-        let payload: Option<String> = r.get(3)?;
-        Ok(serde_json::json!({
-            "id": r.get::<_, i64>(0)?,
-            "domain": r.get::<_, String>(1)?,
-            "action": r.get::<_, String>(2)?,
-            "payload": payload.as_deref()
-                .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
-                .unwrap_or(serde_json::Value::Null),
-            "timestamp": r.get::<_, i64>(4)?,
-        }))
-    })?.filter_map(|r| r.ok()).collect();
+    let rows: Vec<serde_json::Value> = stmt
+        .query_map([], |r| {
+            let payload: Option<String> = r.get(3)?;
+            Ok(serde_json::json!({
+                "id": r.get::<_, i64>(0)?,
+                "domain": r.get::<_, String>(1)?,
+                "action": r.get::<_, String>(2)?,
+                "payload": payload.as_deref()
+                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                    .unwrap_or(serde_json::Value::Null),
+                "timestamp": r.get::<_, i64>(4)?,
+            }))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     let export = serde_json::json!({
         "exported_at": chrono::Local::now().to_rfc3339(),
@@ -973,7 +1054,10 @@ pub fn why_health_since(ctx: &AppContext, since: &str) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    println!("{}", format!("🌲 Why — Health since {}", since).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Why — Health since {}", since).cyan().bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
 
     if rows.is_empty() {
@@ -987,34 +1071,46 @@ pub fn why_health_since(ctx: &AppContext, since: &str) -> CoreResult<()> {
     let mut drops = vec![];
 
     for (payload, ts) in &rows {
-        let health: i64 = payload.as_deref()
+        let health: i64 = payload
+            .as_deref()
             .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
             .and_then(|v| v["detail"]["health"].as_i64())
             .unwrap_or(95);
 
         let date = chrono::DateTime::from_timestamp(*ts, 0)
-            .map(|d| d.with_timezone(&chrono::Local).format("%m-%d %H:%M").to_string())
+            .map(|d| {
+                d.with_timezone(&chrono::Local)
+                    .format("%m-%d %H:%M")
+                    .to_string()
+            })
             .unwrap_or_default();
 
         let delta_str = match prev {
             Some(p) => {
                 let d = health - p;
-                if d > 0 { format!(" ▲{}", d).green().to_string() }
-                else if d < 0 {
+                if d > 0 {
+                    format!(" ▲{}", d).green().to_string()
+                } else if d < 0 {
                     drops.push((*ts, health, p));
                     format!(" ▼{}", d.abs()).bright_red().to_string()
+                } else {
+                    "  ·".dimmed().to_string()
                 }
-                else { "  ·".dimmed().to_string() }
             }
             None => String::new(),
         };
 
         let bar = "█".repeat((health / 5) as usize);
-        let health_colored = if health >= 95 { format!("{}%", health).green() }
-            else if health >= 80 { format!("{}%", health).yellow() }
-            else { format!("{}%", health).bright_red() };
+        let health_colored = if health >= 95 {
+            format!("{}%", health).green()
+        } else if health >= 80 {
+            format!("{}%", health).yellow()
+        } else {
+            format!("{}%", health).bright_red()
+        };
 
-        println!("  {}  {} {}{}",
+        println!(
+            "  {}  {} {}{}",
             date.dimmed(),
             bar.cyan(),
             health_colored,
@@ -1028,10 +1124,18 @@ pub fn why_health_since(ctx: &AppContext, since: &str) -> CoreResult<()> {
         println!("  {} Health drops detected:", "⚠️".yellow());
         for (ts, health, prev) in &drops {
             let date = chrono::DateTime::from_timestamp(*ts, 0)
-                .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+                .map(|d| {
+                    d.with_timezone(&chrono::Local)
+                        .format("%Y-%m-%d %H:%M")
+                        .to_string()
+                })
                 .unwrap_or_default();
-            println!("  {}  {}% → {}%  — run 'core why chain' for context",
-                date.dimmed(), prev.to_string().green(), health.to_string().yellow());
+            println!(
+                "  {}  {}% → {}%  — run 'core why chain' for context",
+                date.dimmed(),
+                prev.to_string().green(),
+                health.to_string().yellow()
+            );
         }
     }
 
@@ -1048,7 +1152,8 @@ pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         .query_map([], |r| {
             let payload: Option<String> = r.get(0)?;
             let ts: i64 = r.get(1)?;
-            let h = payload.as_deref()
+            let h = payload
+                .as_deref()
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
                 .and_then(|v| v["detail"]["health"].as_i64())
                 .unwrap_or(95);
@@ -1058,12 +1163,18 @@ pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         .collect();
 
     // Find drops
-    let drops: Vec<(i64, i64, i64)> = health_events.windows(2)
+    let drops: Vec<(i64, i64, i64)> = health_events
+        .windows(2)
         .filter(|w| w[0].0 < w[1].0) // current < previous = drop
         .map(|w| (w[1].1, w[1].0, w[0].0)) // (ts, prev_health, new_health)
         .collect();
 
-    println!("{}", format!("🌲 Why — Causal analysis: {}", domain).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Why — Causal analysis: {}", domain)
+            .cyan()
+            .bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
 
     if drops.is_empty() {
@@ -1074,12 +1185,20 @@ pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
 
     for (drop_ts, prev_h, new_h) in drops.iter().take(3) {
         let date = chrono::DateTime::from_timestamp(*drop_ts, 0)
-            .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+            .map(|d| {
+                d.with_timezone(&chrono::Local)
+                    .format("%Y-%m-%d %H:%M")
+                    .to_string()
+            })
             .unwrap_or_default();
 
         println!();
-        println!("  📉 Health drop at {}  {}% → {}%",
-            date.dimmed(), prev_h.to_string().green(), new_h.to_string().yellow());
+        println!(
+            "  📉 Health drop at {}  {}% → {}%",
+            date.dimmed(),
+            prev_h.to_string().green(),
+            new_h.to_string().yellow()
+        );
 
         // Find events in this domain within ±1 hour of the drop
         let window_start = drop_ts - 3600;
@@ -1098,12 +1217,24 @@ pub fn why_causal(ctx: &AppContext, domain: &str) -> CoreResult<()> {
         if domain_events.is_empty() {
             println!("  {} No {} events in ±1h window", "·".dimmed(), domain);
         } else {
-            println!("  {} events in '{}' domain ±1h:", domain_events.len(), domain);
+            println!(
+                "  {} events in '{}' domain ±1h:",
+                domain_events.len(),
+                domain
+            );
             for (action, ts) in &domain_events {
                 let rel = ts - drop_ts;
-                let rel_str = if rel < 0 { format!("{}m before", (-rel)/60) }
-                    else { format!("{}m after", rel/60) };
-                println!("    {}  {}  {}", format_ts(*ts).dimmed(), action.cyan(), rel_str.dimmed());
+                let rel_str = if rel < 0 {
+                    format!("{}m before", (-rel) / 60)
+                } else {
+                    format!("{}m after", rel / 60)
+                };
+                println!(
+                    "    {}  {}  {}",
+                    format_ts(*ts).dimmed(),
+                    action.cyan(),
+                    rel_str.dimmed()
+                );
             }
         }
     }
@@ -1121,7 +1252,8 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
         .query_map([], |r| {
             let payload: Option<String> = r.get(0)?;
             let ts: i64 = r.get(1)?;
-            let h = payload.as_deref()
+            let h = payload
+                .as_deref()
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
                 .and_then(|v| v["detail"]["health"].as_i64())
                 .unwrap_or(95);
@@ -1131,7 +1263,8 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
         .collect();
 
     // Find most recent drop
-    let drop = health_events.windows(2)
+    let drop = health_events
+        .windows(2)
         .find(|w| w[0].0 < w[1].0)
         .map(|w| (w[1].1, w[1].0, w[0].0));
 
@@ -1148,12 +1281,17 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
     };
 
     let date = chrono::DateTime::from_timestamp(drop_ts, 0)
-        .map(|d| d.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .map(|d| {
+            d.with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+        })
         .unwrap_or_default();
 
     println!();
-    println!("  Last health drop: {}",  date.bright_white());
-    println!("  {}% → {}%  (delta: {})",
+    println!("  Last health drop: {}", date.bright_white());
+    println!(
+        "  {}% → {}%  (delta: {})",
         prev_h.to_string().green(),
         new_h.to_string().yellow(),
         format!("-{}", prev_h - new_h).bright_red(),
@@ -1178,18 +1316,23 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
     } else {
         for (domain, action, payload, ts) in &all_events {
             let rel_secs = drop_ts - ts;
-            let rel_str = format!("-{}m{}s", rel_secs/60, rel_secs%60);
+            let rel_str = format!("-{}m{}s", rel_secs / 60, rel_secs % 60);
 
             // Extract result
-            let result = payload.as_deref()
+            let result = payload
+                .as_deref()
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
                 .and_then(|v| v["result"].as_str().map(|s| s.to_string()))
                 .unwrap_or_else(|| "ok".to_string());
 
-            let result_colored = if result == "ok" { result.green().to_string() }
-                else { result.yellow().to_string() };
+            let result_colored = if result == "ok" {
+                result.green().to_string()
+            } else {
+                result.yellow().to_string()
+            };
 
-            println!("  {}  {:12}  {:20}  {}  {}",
+            println!(
+                "  {}  {:12}  {:20}  {}  {}",
                 format_ts(*ts).dimmed(),
                 rel_str.dimmed(),
                 domain.cyan(),
@@ -1214,8 +1357,9 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
 
     for (domain, action, ts) in &after {
         let rel_secs = ts - drop_ts;
-        let rel_str = format!("+{}m{}s", rel_secs/60, rel_secs%60);
-        println!("  {}  {:12}  {:20}  {}",
+        let rel_str = format!("+{}m{}s", rel_secs / 60, rel_secs % 60);
+        println!(
+            "  {}  {:12}  {:20}  {}",
             format_ts(*ts).dimmed(),
             rel_str.green().dimmed(),
             domain.cyan(),
@@ -1230,7 +1374,12 @@ pub fn why_chain(ctx: &AppContext) -> CoreResult<()> {
 // ─── PATTERN RECOGNITION + SUGGESTIONS (Core v5 Phase 4) ────────────────────
 
 pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreResult<()> {
-    println!("{}", format!("🌲 Why — Correlate: {} ↔ {}", domain_a, domain_b).cyan().bold());
+    println!(
+        "{}",
+        format!("🌲 Why — Correlate: {} ↔ {}", domain_a, domain_b)
+            .cyan()
+            .bold()
+    );
     println!("{}", "━".repeat(52).dimmed());
 
     // Get all events for both domains
@@ -1244,12 +1393,28 @@ pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreRe
         .filter_map(|r| r.ok())
         .collect();
 
-    let a_events: Vec<i64> = events.iter().filter(|(d,_,_)| d == domain_a).map(|(_,_,ts)| *ts).collect();
-    let b_events: Vec<i64> = events.iter().filter(|(d,_,_)| d == domain_b).map(|(_,_,ts)| *ts).collect();
+    let a_events: Vec<i64> = events
+        .iter()
+        .filter(|(d, _, _)| d == domain_a)
+        .map(|(_, _, ts)| *ts)
+        .collect();
+    let b_events: Vec<i64> = events
+        .iter()
+        .filter(|(d, _, _)| d == domain_b)
+        .map(|(_, _, ts)| *ts)
+        .collect();
 
     println!();
-    println!("  {} events in '{}'", a_events.len().to_string().cyan(), domain_a);
-    println!("  {} events in '{}'", b_events.len().to_string().cyan(), domain_b);
+    println!(
+        "  {} events in '{}'",
+        a_events.len().to_string().cyan(),
+        domain_a
+    );
+    println!(
+        "  {} events in '{}'",
+        b_events.len().to_string().cyan(),
+        domain_b
+    );
     println!();
 
     if a_events.is_empty() || b_events.is_empty() {
@@ -1266,25 +1431,45 @@ pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreRe
             let diff = (b_ts - a_ts).abs();
             diff < 3600 && diff > 0
         });
-        if close { close_count += 1; }
+        if close {
+            close_count += 1;
+        }
     }
 
-    let proximity_pct = if total_a > 0 { close_count * 100 / total_a } else { 0 };
+    let proximity_pct = if total_a > 0 {
+        close_count * 100 / total_a
+    } else {
+        0
+    };
 
     // Average time between A and nearest B
-    let avg_lag: i64 = a_events.iter().filter_map(|a_ts| {
-        b_events.iter()
-            .filter(|b_ts| **b_ts > *a_ts)
-            .map(|b_ts| b_ts - a_ts)
-            .min()
-    }).take(20).sum::<i64>() / a_events.len().max(1) as i64;
+    let avg_lag: i64 = a_events
+        .iter()
+        .filter_map(|a_ts| {
+            b_events
+                .iter()
+                .filter(|b_ts| **b_ts > *a_ts)
+                .map(|b_ts| b_ts - a_ts)
+                .min()
+        })
+        .take(20)
+        .sum::<i64>()
+        / a_events.len().max(1) as i64;
 
-    println!("  {}% of '{}' events have '{}' activity within 1h",
-        proximity_pct.to_string().bright_white(), domain_a, domain_b);
+    println!(
+        "  {}% of '{}' events have '{}' activity within 1h",
+        proximity_pct.to_string().bright_white(),
+        domain_a,
+        domain_b
+    );
 
     if avg_lag > 0 && avg_lag < 86400 {
-        println!("  Avg time from '{}' to next '{}': {}m",
-            domain_a, domain_b, (avg_lag / 60).to_string().cyan());
+        println!(
+            "  Avg time from '{}' to next '{}': {}m",
+            domain_a,
+            domain_b,
+            (avg_lag / 60).to_string().cyan()
+        );
     }
 
     println!();
@@ -1331,119 +1516,195 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     let mut suggestions: Vec<(u8, String, String)> = vec![]; // (priority, icon, message)
 
     // ── 1. Doctor run frequency ─────────────────────────────────────────────
-    let last_doctor: Option<i64> = ctx.runtime.db.query_row(
-        "SELECT MAX(timestamp) FROM events WHERE domain='doctor'",
-        [], |r| r.get(0)
-    ).ok().flatten();
+    let last_doctor: Option<i64> = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT MAX(timestamp) FROM events WHERE domain='doctor'",
+            [],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
 
     if let Some(ts) = last_doctor {
         let hours_since = (now - ts) / 3600;
         if hours_since > 24 {
-            suggestions.push((1, "⚠️".to_string(),
-                format!("No doctor run in {}h — health drift risk elevated. Run: d", hours_since)));
+            suggestions.push((
+                1,
+                "⚠️".to_string(),
+                format!(
+                    "No doctor run in {}h — health drift risk elevated. Run: d",
+                    hours_since
+                ),
+            ));
         } else if hours_since > 8 {
-            suggestions.push((3, "💡".to_string(),
-                format!("Last doctor run {}h ago — consider a check", hours_since)));
+            suggestions.push((
+                3,
+                "💡".to_string(),
+                format!("Last doctor run {}h ago — consider a check", hours_since),
+            ));
         }
     }
 
     // ── 2. Security findings aging ───────────────────────────────────────────
-    let last_security: Option<i64> = ctx.runtime.db.query_row(
-        "SELECT MAX(timestamp) FROM events WHERE domain='security'",
-        [], |r| r.get(0)
-    ).ok().flatten();
+    let last_security: Option<i64> = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT MAX(timestamp) FROM events WHERE domain='security'",
+            [],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
 
     if let Some(ts) = last_security {
         let days_since = (now - ts) / 86400;
         if days_since > 7 {
-            suggestions.push((2, "🛡️".to_string(),
-                format!("Security scan {}d ago — run: core security scan", days_since)));
+            suggestions.push((
+                2,
+                "🛡️".to_string(),
+                format!(
+                    "Security scan {}d ago — run: core security scan",
+                    days_since
+                ),
+            ));
         }
     }
 
     // ── 3. Checkpoint age ────────────────────────────────────────────────────
     let core_root = std::path::PathBuf::from(&ctx.core_root);
     let cp_dir = core_root.join("runtime/checkpoints");
-    let latest_cp = std::fs::read_dir(&cp_dir).ok()
-        .and_then(|d| d.filter_map(|e| e.ok())
+    let latest_cp = std::fs::read_dir(&cp_dir).ok().and_then(|d| {
+        d.filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
             .map(|e| e.metadata().and_then(|m| m.modified()).ok())
             .flatten()
-            .max());
+            .max()
+    });
 
     if let Some(modified) = latest_cp {
         let age_secs = std::time::SystemTime::now()
-            .duration_since(modified).unwrap_or_default().as_secs();
+            .duration_since(modified)
+            .unwrap_or_default()
+            .as_secs();
         let age_days = age_secs / 86400;
         if age_days > 7 {
-            suggestions.push((3, "📸".to_string(),
-                format!("Last checkpoint {}d ago — consider: cpc <name>", age_days)));
+            suggestions.push((
+                3,
+                "📸".to_string(),
+                format!("Last checkpoint {}d ago — consider: cpc <name>", age_days),
+            ));
         }
     }
 
     // ── 4. Health trend ──────────────────────────────────────────────────────
-    let mut hstmt = ctx.runtime.db.prepare(
-        "SELECT payload FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 5"
-    )?;
-    let recent_health: Vec<i64> = hstmt.query_map([], |r| {
-        let p: Option<String> = r.get(0)?;
-        Ok(p.as_deref()
-            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
-            .and_then(|v| v["detail"]["health"].as_i64())
-            .unwrap_or(95))
-    })?.filter_map(|r| r.ok()).collect();
+    let mut hstmt = ctx
+        .runtime
+        .db
+        .prepare("SELECT payload FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 5")?;
+    let recent_health: Vec<i64> = hstmt
+        .query_map([], |r| {
+            let p: Option<String> = r.get(0)?;
+            Ok(p.as_deref()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                .and_then(|v| v["detail"]["health"].as_i64())
+                .unwrap_or(95))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     if recent_health.len() >= 3 {
-        let avg: f64 = recent_health.iter().map(|h| *h as f64).sum::<f64>() / recent_health.len() as f64;
+        let avg: f64 =
+            recent_health.iter().map(|h| *h as f64).sum::<f64>() / recent_health.len() as f64;
         let below_95 = recent_health.iter().filter(|&&h| h < 95).count();
         if below_95 >= 2 {
-            suggestions.push((1, "📉".to_string(),
-                format!("Health below 95% in {}/{} recent runs (avg: {:.0}%) — investigate warnings",
-                    below_95, recent_health.len(), avg)));
+            suggestions.push((
+                1,
+                "📉".to_string(),
+                format!(
+                    "Health below 95% in {}/{} recent runs (avg: {:.0}%) — investigate warnings",
+                    below_95,
+                    recent_health.len(),
+                    avg
+                ),
+            ));
         }
     }
 
     // ── 5. In-progress intents ───────────────────────────────────────────────
     let intents_dir = core_root.join("intents/future");
-    let in_progress: Vec<String> = std::fs::read_dir(&intents_dir).ok()
-        .map(|d| d.filter_map(|e| e.ok())
-            .filter(|e| {
-                let content = std::fs::read_to_string(e.path()).unwrap_or_default();
-                content.contains("status: in-progress")
-            })
-            .map(|e| e.file_name().to_string_lossy().to_string())
-            .collect())
+    let in_progress: Vec<String> = std::fs::read_dir(&intents_dir)
+        .ok()
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    let content = std::fs::read_to_string(e.path()).unwrap_or_default();
+                    content.contains("status: in-progress")
+                })
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .collect()
+        })
         .unwrap_or_default();
 
     if in_progress.len() > 2 {
-        suggestions.push((2, "🎯".to_string(),
-            format!("{} intents in-progress — focus on one: cistart <id>", in_progress.len())));
+        suggestions.push((
+            2,
+            "🎯".to_string(),
+            format!(
+                "{} intents in-progress — focus on one: cistart <id>",
+                in_progress.len()
+            ),
+        ));
     }
 
     // ── 6. Event ledger growth ───────────────────────────────────────────────
-    let total_events: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total_events: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))
+        .unwrap_or(0);
 
-    let today_events: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events WHERE timestamp >= ?", [chrono_today()], |r| r.get(0)
-    ).unwrap_or(0);
+    let today_events: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE timestamp >= ?",
+            [chrono_today()],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     // ── Output ───────────────────────────────────────────────────────────────
     println!();
-    println!("  {} Based on {} events across {} days of history",
+    println!(
+        "  {} Based on {} events across {} days of history",
         "📊".cyan(),
         total_events.to_string().bright_white(),
-        ((now - ctx.runtime.db.query_row(
-            "SELECT MIN(timestamp) FROM events", [], |r: &rusqlite::Row| r.get::<_, i64>(0)
-        ).unwrap_or(now)) / 86400).to_string().dimmed(),
+        ((now
+            - ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT MIN(timestamp) FROM events",
+                    [],
+                    |r: &rusqlite::Row| r.get::<_, i64>(0)
+                )
+                .unwrap_or(now))
+            / 86400)
+            .to_string()
+            .dimmed(),
     );
     println!("  {} events today", today_events.to_string().cyan());
     println!();
 
     if suggestions.is_empty() {
         println!("  ✅ No suggestions — forest is in excellent shape");
-        println!("  {} Keep running d regularly to maintain health data", "💡".cyan());
+        println!(
+            "  {} Keep running d regularly to maintain health data",
+            "💡".cyan()
+        );
     } else {
         // Sort by priority
         suggestions.sort_by_key(|(p, _, _)| *p);
@@ -1489,7 +1750,8 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
         match action.as_str() {
             "window.focus" => {
                 focus_count += 1;
-                let app = payload.as_deref()
+                let app = payload
+                    .as_deref()
                     .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
                     .and_then(|v| v["detail"]["app_id"].as_str().map(|s| s.to_string()))
                     .unwrap_or_else(|| "unknown".to_string());
@@ -1504,8 +1766,12 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     }
 
     println!();
-    println!("  {} total compositor events", events.len().to_string().bright_white());
-    println!("  {} window focuses  •  {} workspace switches  •  {} windows opened",
+    println!(
+        "  {} total compositor events",
+        events.len().to_string().bright_white()
+    );
+    println!(
+        "  {} window focuses  •  {} workspace switches  •  {} windows opened",
         focus_count.to_string().cyan(),
         switch_count.to_string().yellow(),
         open_count.to_string().green(),
@@ -1521,7 +1787,8 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
         for (app, count) in apps.iter().take(6) {
             let bar_len = (count * 20 / max) as usize;
             let bar = "█".repeat(bar_len);
-            println!("  {:25}  {}  {}x",
+            println!(
+                "  {:25}  {}  {}x",
                 app.bright_white(),
                 bar.cyan(),
                 count.to_string().dimmed(),
@@ -1534,9 +1801,13 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     let days = events.len() as f64 / 24.0; // rough session estimate
     let switch_rate = switch_count as f64 / days.max(1.0);
 
-    let focus_quality = if switch_rate < 2.0 { "🟢 Deep focus sessions" }
-        else if switch_rate < 5.0 { "🟡 Moderate switching" }
-        else { "🔴 High fragmentation" };
+    let focus_quality = if switch_rate < 2.0 {
+        "🟢 Deep focus sessions"
+    } else if switch_rate < 5.0 {
+        "🟡 Moderate switching"
+    } else {
+        "🔴 High fragmentation"
+    };
 
     println!("  Focus quality: {}", focus_quality.bright_white());
     println!("  Workspace switch rate: {:.1}/session", switch_rate);
@@ -1548,7 +1819,8 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     let health_events: Vec<(i64, i64)> = hstmt
         .query_map(rusqlite::params![week_ago], |r| {
             let p: Option<String> = r.get(0)?;
-            let h = p.as_deref()
+            let h = p
+                .as_deref()
                 .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
                 .and_then(|v| v["detail"]["health"].as_i64())
                 .unwrap_or(95);
@@ -1557,7 +1829,8 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
         .filter_map(|r| r.ok())
         .collect();
 
-    let drops: Vec<i64> = health_events.windows(2)
+    let drops: Vec<i64> = health_events
+        .windows(2)
         .filter(|w| w[0].0 < w[1].0)
         .map(|w| w[1].1)
         .collect();
@@ -1565,15 +1838,20 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     if !drops.is_empty() {
         let mut drop_switch_count = 0u32;
         for drop_ts in &drops {
-            let switches_near_drop = events.iter()
+            let switches_near_drop = events
+                .iter()
                 .filter(|(a, _, ts)| a == "workspace.switch" && (ts - drop_ts).abs() < 1800)
                 .count();
-            if switches_near_drop > 0 { drop_switch_count += 1; }
+            if switches_near_drop > 0 {
+                drop_switch_count += 1;
+            }
         }
         let drop_pct = drop_switch_count * 100 / drops.len().max(1) as u32;
         println!();
-        println!("  {}% of health drops had workspace switching within 30m",
-            drop_pct.to_string().bright_white());
+        println!(
+            "  {}% of health drops had workspace switching within 30m",
+            drop_pct.to_string().bright_white()
+        );
         if drop_pct > 50 {
             println!("  💡 Attention fragmentation may precede health drift");
         }
@@ -1603,8 +1881,10 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Group by day
-    let mut daily_switches: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
-    let mut daily_focuses: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    let mut daily_switches: std::collections::BTreeMap<String, u32> =
+        std::collections::BTreeMap::new();
+    let mut daily_focuses: std::collections::BTreeMap<String, u32> =
+        std::collections::BTreeMap::new();
 
     for (action, ts) in &events {
         let day = chrono::DateTime::from_timestamp(*ts, 0)
@@ -1619,17 +1899,29 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
 
     println!();
     println!("  {}", "Daily focus quality:".dimmed());
-    println!("  {:8}  {:6}  {:7}  {}", "Date", "Focus", "Switch", "Quality");
+    println!(
+        "  {:8}  {:6}  {:7}  {}",
+        "Date", "Focus", "Switch", "Quality"
+    );
     println!("  {}", "─".repeat(35).dimmed());
 
     for day in daily_focuses.keys() {
         let focuses = daily_focuses.get(day).copied().unwrap_or(0);
         let switches = daily_switches.get(day).copied().unwrap_or(0);
-        let ratio = if switches > 0 { focuses as f64 / switches as f64 } else { focuses as f64 };
-        let quality = if ratio > 10.0 { "🟢 Deep" }
-            else if ratio > 5.0 { "🟡 Moderate" }
-            else { "🔴 Fragmented" };
-        println!("  {:8}  {:6}  {:7}  {}",
+        let ratio = if switches > 0 {
+            focuses as f64 / switches as f64
+        } else {
+            focuses as f64
+        };
+        let quality = if ratio > 10.0 {
+            "🟢 Deep"
+        } else if ratio > 5.0 {
+            "🟡 Moderate"
+        } else {
+            "🔴 Fragmented"
+        };
+        println!(
+            "  {:8}  {:6}  {:7}  {}",
             day.bright_white(),
             focuses.to_string().cyan(),
             switches.to_string().yellow(),
@@ -1638,17 +1930,19 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Fragmentation detection — 3+ switches in 60 seconds
-    let switches: Vec<i64> = events.iter()
+    let switches: Vec<i64> = events
+        .iter()
         .filter(|(a, _)| a == "workspace.switch")
         .map(|(_, ts)| *ts)
         .collect();
 
-    let fragments = switches.windows(3)
-        .filter(|w| w[2] - w[0] < 60)
-        .count();
+    let fragments = switches.windows(3).filter(|w| w[2] - w[0] < 60).count();
 
     println!();
-    println!("  Attention fragments detected: {}", fragments.to_string().bright_white());
+    println!(
+        "  Attention fragments detected: {}",
+        fragments.to_string().bright_white()
+    );
     if fragments > 5 {
         println!("  ⚠️  High fragmentation — consider single-workspace focus sessions");
     } else if fragments == 0 {
@@ -1664,16 +1958,23 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
 // ── INT-129 — Event Log File Management ──────────────────────────────────────
 
 pub fn status(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("events", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("events", &[Capability::FilesystemReadHome])?;
     let home = std::env::var("HOME").unwrap_or_default();
     let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
 
     println!();
-    println!("{}", "  ╭─ 📋 Event Log Status ───────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 📋 Event Log Status ───────────────────────────────".bright_cyan()
+    );
 
     if !events_dir.exists() {
         println!("  │  {} No event log directory yet", "○".dimmed());
-        println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ╰────────────────────────────────────────────────────".dimmed()
+        );
         return Ok(());
     }
 
@@ -1688,7 +1989,8 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
             if name.ends_with(".jsonl") {
                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 let lines = std::fs::read_to_string(&path)
-                    .map(|c| c.lines().count()).unwrap_or(0);
+                    .map(|c| c.lines().count())
+                    .unwrap_or(0);
                 total_bytes += size;
                 total_lines += lines;
                 files.push((name, size, lines));
@@ -1698,28 +2000,44 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
 
     files.sort_by(|a, b| b.0.cmp(&a.0));
 
-    println!("  │  {} events across {} days",
+    println!(
+        "  │  {} events across {} days",
         total_lines.to_string().bright_white(),
         files.len().to_string().bright_white()
     );
     println!("  │  Size: {}", format_bytes(total_bytes).bright_white());
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
     for (name, size, lines) in files.iter().take(10) {
-        println!("  │  {:<22} {:>6} events  {}",
-            name.bright_cyan(), lines.to_string().dimmed(),
+        println!(
+            "  │  {:<22} {:>6} events  {}",
+            name.bright_cyan(),
+            lines.to_string().dimmed(),
             format_bytes(*size).dimmed()
         );
     }
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
     println!("  │  Lifecycle: 30 days active  |  12 months archived");
-    println!("  │  Run {} to compress old logs", "core events archive".bright_cyan());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "  │  Run {} to compress old logs",
+        "core events archive".bright_cyan()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
     Ok(())
 }
 
 pub fn archive(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("events", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("events", &[Capability::FilesystemReadHome])?;
     let home = std::env::var("HOME").unwrap_or_default();
     let events_dir = std::path::PathBuf::from(&home).join("0-core/runtime/events");
     let archive_dir = events_dir.join("archive");
@@ -1736,16 +2054,22 @@ pub fn archive(ctx: &AppContext) -> CoreResult<()> {
         for entry in entries.flatten() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".jsonl") { continue; }
+            if !name.ends_with(".jsonl") {
+                continue;
+            }
             let date_str = name.trim_end_matches(".jsonl");
             let age = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
                 .map(|d| {
                     let dt = chrono::DateTime::<chrono::Local>::from_naive_utc_and_offset(
-                        d.and_hms_opt(0,0,0).unwrap_or_default().and_utc().naive_utc(),
-                        *now.offset()
+                        d.and_hms_opt(0, 0, 0)
+                            .unwrap_or_default()
+                            .and_utc()
+                            .naive_utc(),
+                        *now.offset(),
                     );
                     now.signed_duration_since(dt).num_days()
-                }).unwrap_or(0);
+                })
+                .unwrap_or(0);
             if age > 365 {
                 std::fs::remove_file(&path).ok();
                 deleted += 1;
@@ -1761,23 +2085,42 @@ pub fn archive(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!();
-    println!("{}", "  ╭─ 📦 Event Log Archive ─────────────────────────────".bright_cyan());
-    println!("  │  {} files kept (last 30 days)", kept.to_string().bright_white());
-    println!("  │  {} files archived", archived.to_string().bright_yellow());
-    println!("  │  {} files deleted (>12 months)", deleted.to_string().dimmed());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╭─ 📦 Event Log Archive ─────────────────────────────".bright_cyan()
+    );
+    println!(
+        "  │  {} files kept (last 30 days)",
+        kept.to_string().bright_white()
+    );
+    println!(
+        "  │  {} files archived",
+        archived.to_string().bright_yellow()
+    );
+    println!(
+        "  │  {} files deleted (>12 months)",
+        deleted.to_string().dimmed()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
     Ok(())
 }
 
 fn compress_file(src: &std::path::PathBuf, dst: &std::path::PathBuf) -> bool {
     use std::io::{Read, Write};
-    let Ok(mut input) = std::fs::File::open(src) else { return false; };
-    let Ok(output) = std::fs::File::create(dst) else { return false; };
+    let Ok(mut input) = std::fs::File::open(src) else {
+        return false;
+    };
+    let Ok(output) = std::fs::File::create(dst) else {
+        return false;
+    };
     let mut enc = flate2::write::GzEncoder::new(output, flate2::Compression::default());
     let mut buf = Vec::new();
-    if input.read_to_end(&mut buf).is_err() { return false; }
+    if input.read_to_end(&mut buf).is_err() {
+        return false;
+    }
     enc.write_all(&buf).is_ok() && enc.finish().is_ok()
 }
-
-

@@ -3,8 +3,7 @@
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal,
+    execute, terminal,
 };
 use greetd_ipc::{codec::SyncCodec, AuthMessageType, Request, Response};
 use ratatui::{
@@ -19,17 +18,23 @@ use std::io;
 use std::os::unix::net::UnixStream;
 use std::time::{Duration, Instant};
 
-const ACCENT: Color = Color::Rgb(100, 220, 100);   // true green
-const DIM: Color = Color::Rgb(119, 143, 127);       // #778f7f
-const BG: Color = Color::Rgb(15, 20, 17);           // #0f1411
-const FG: Color = Color::Rgb(215, 224, 218);        // #d7e0da
-const ERR: Color = Color::Rgb(227, 107, 107);       // #e36b6b
+const ACCENT: Color = Color::Rgb(100, 220, 100); // true green
+const DIM: Color = Color::Rgb(119, 143, 127); // #778f7f
+const BG: Color = Color::Rgb(15, 20, 17); // #0f1411
+const FG: Color = Color::Rgb(215, 224, 218); // #d7e0da
+const ERR: Color = Color::Rgb(227, 107, 107); // #e36b6b
 
 #[derive(Clone, PartialEq)]
-enum Field { Username, Password }
+enum Field {
+    Username,
+    Password,
+}
 
 #[derive(Clone, PartialEq)]
-enum SessionChoice { Niri, Sway }
+enum SessionChoice {
+    Niri,
+    Sway,
+}
 
 impl SessionChoice {
     fn cmd(&self) -> Vec<String> {
@@ -95,36 +100,39 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
     let sock_path = std::env::var("GREETD_SOCK")
         .map_err(|_| "GREETD_SOCK not set — run via greetd".to_string())?;
 
-    let mut stream = UnixStream::connect(&sock_path)
-        .map_err(|e| format!("Socket error: {}", e))?;
+    let mut stream = UnixStream::connect(&sock_path).map_err(|e| format!("Socket error: {}", e))?;
 
     // Create session
-    let req = Request::CreateSession { username: state.username.clone() };
+    let req = Request::CreateSession {
+        username: state.username.clone(),
+    };
     req.write_to(&mut stream).map_err(|e| e.to_string())?;
 
     loop {
         let response = Response::read_from(&mut stream).map_err(|e| e.to_string())?;
         match response {
-            Response::AuthMessage { auth_message_type, auth_message: _ } => {
-                match auth_message_type {
-                    AuthMessageType::Secret => {
-                        let resp = Request::PostAuthMessageResponse {
-                            response: Some(state.password.clone()),
-                        };
-                        resp.write_to(&mut stream).map_err(|e| e.to_string())?;
-                    }
-                    AuthMessageType::Visible => {
-                        let resp = Request::PostAuthMessageResponse {
-                            response: Some(state.username.clone()),
-                        };
-                        resp.write_to(&mut stream).map_err(|e| e.to_string())?;
-                    }
-                    AuthMessageType::Info | AuthMessageType::Error => {
-                        Request::PostAuthMessageResponse { response: None }
-                            .write_to(&mut stream).map_err(|e| e.to_string())?;
-                    }
+            Response::AuthMessage {
+                auth_message_type,
+                auth_message: _,
+            } => match auth_message_type {
+                AuthMessageType::Secret => {
+                    let resp = Request::PostAuthMessageResponse {
+                        response: Some(state.password.clone()),
+                    };
+                    resp.write_to(&mut stream).map_err(|e| e.to_string())?;
                 }
-            }
+                AuthMessageType::Visible => {
+                    let resp = Request::PostAuthMessageResponse {
+                        response: Some(state.username.clone()),
+                    };
+                    resp.write_to(&mut stream).map_err(|e| e.to_string())?;
+                }
+                AuthMessageType::Info | AuthMessageType::Error => {
+                    Request::PostAuthMessageResponse { response: None }
+                        .write_to(&mut stream)
+                        .map_err(|e| e.to_string())?;
+                }
+            },
             Response::Success => {
                 let start = Request::StartSession {
                     cmd: state.session.cmd(),
@@ -137,7 +145,10 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
                 let _ = Response::read_from(&mut stream);
                 return Ok(true);
             }
-            Response::Error { error_type: _, description } => {
+            Response::Error {
+                error_type: _,
+                description,
+            } => {
                 let _ = Request::CancelSession.write_to(&mut stream);
                 return Err(description);
             }
@@ -145,15 +156,17 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
     }
 }
 
-fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginState) -> io::Result<()> {
+fn draw(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    state: &LoginState,
+) -> io::Result<()> {
     terminal.draw(|f| {
         let area = f.area();
-        f.render_widget(
-            Block::default().style(Style::default().bg(BG)),
-            area,
-        );
+        f.render_widget(Block::default().style(Style::default().bg(BG)), area);
 
-        let pulse = ((state.boot_time.elapsed().as_millis() % 2000) as f64 / 2000.0 * std::f64::consts::TAU).sin();
+        let pulse = ((state.boot_time.elapsed().as_millis() % 2000) as f64 / 2000.0
+            * std::f64::consts::TAU)
+            .sin();
         let pulse_color = if pulse > 0.5 { ACCENT } else { DIM };
 
         // Center layout
@@ -183,14 +196,23 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
             .border_style(Style::default().fg(ACCENT))
             .title(Line::from(vec![
                 Span::styled(" 🌲 ", Style::default().fg(ACCENT)),
-                Span::styled("Faelight Forest", Style::default().fg(FG).add_modifier(Modifier::BOLD)),
-                Span::styled(format!(" v{} ", read_system_version()), Style::default().fg(DIM)),
+                Span::styled(
+                    "Faelight Forest",
+                    Style::default().fg(FG).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(" v{} ", read_system_version()),
+                    Style::default().fg(DIM),
+                ),
             ]))
             .title_alignment(Alignment::Center)
             .style(Style::default().bg(BG));
         f.render_widget(border, panel);
 
-        let inner = panel.inner(Margin { horizontal: 2, vertical: 1 });
+        let inner = panel.inner(Margin {
+            horizontal: 2,
+            vertical: 1,
+        });
 
         let rows = Layout::default()
             .direction(Direction::Vertical)
@@ -212,11 +234,17 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
 
         // Status / error
         let status_text = if let Some(ref err) = state.error {
-            Line::from(vec![Span::styled(format!("⚠  {}", err), Style::default().fg(ERR))])
+            Line::from(vec![Span::styled(
+                format!("⚠  {}", err),
+                Style::default().fg(ERR),
+            )])
         } else {
             Line::from(vec![Span::styled(&state.status, Style::default().fg(DIM))])
         };
-        f.render_widget(Paragraph::new(status_text).alignment(Alignment::Center), rows[1]);
+        f.render_widget(
+            Paragraph::new(status_text).alignment(Alignment::Center),
+            rows[1],
+        );
 
         // Username field
         let user_style = if state.focused == Field::Username {
@@ -262,11 +290,19 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
         let session_line = Line::from(vec![
             Span::styled("Session: ", Style::default().fg(DIM)),
             Span::styled(
-                if state.session == SessionChoice::Niri { "[Niri] " } else { " Niri  " },
+                if state.session == SessionChoice::Niri {
+                    "[Niri] "
+                } else {
+                    " Niri  "
+                },
                 niri_style,
             ),
             Span::styled(
-                if state.session == SessionChoice::Sway { "[Sway]" } else { " Sway " },
+                if state.session == SessionChoice::Sway {
+                    "[Sway]"
+                } else {
+                    " Sway "
+                },
                 sway_style,
             ),
             Span::styled("  (Tab)", Style::default().fg(DIM)),
@@ -280,7 +316,10 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
             Span::styled("  ·  Commits: ", Style::default().fg(DIM)),
             Span::styled(&state.commits, Style::default().fg(pulse_color)),
         ]);
-        f.render_widget(Paragraph::new(info_line).alignment(Alignment::Center), rows[9]);
+        f.render_widget(
+            Paragraph::new(info_line).alignment(Alignment::Center),
+            rows[9],
+        );
 
         // Hint
         let hint = Line::from(vec![
@@ -292,11 +331,9 @@ fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, state: &LoginStat
             Span::styled(" clear", Style::default().fg(DIM)),
         ]);
         f.render_widget(Paragraph::new(hint).alignment(Alignment::Center), rows[11]);
-
     })?;
     Ok(())
 }
-
 
 fn read_system_version() -> String {
     std::fs::read_to_string("/etc/faelight/VERSION")
@@ -322,7 +359,9 @@ fn main() -> io::Result<()> {
 
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press { continue; }
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
                 match key.code {
                     KeyCode::Tab => {
                         state.session = match state.session {
@@ -370,18 +409,18 @@ fn main() -> io::Result<()> {
                         state.error = None;
                         state.status = "Welcome to Faelight Forest".to_string();
                     }
-                    KeyCode::Backspace => {
-                        match state.focused {
-                            Field::Username => { state.username.pop(); }
-                            Field::Password => { state.password.pop(); }
+                    KeyCode::Backspace => match state.focused {
+                        Field::Username => {
+                            state.username.pop();
                         }
-                    }
-                    KeyCode::Char(c) => {
-                        match state.focused {
-                            Field::Username => state.username.push(c),
-                            Field::Password => state.password.push(c),
+                        Field::Password => {
+                            state.password.pop();
                         }
-                    }
+                    },
+                    KeyCode::Char(c) => match state.focused {
+                        Field::Username => state.username.push(c),
+                        Field::Password => state.password.push(c),
+                    },
                     _ => {}
                 }
             }

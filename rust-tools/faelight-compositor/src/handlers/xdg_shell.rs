@@ -1,12 +1,11 @@
 use crate::FaelightCompositor;
 use smithay::{
     delegate_xdg_shell,
-    desktop::{Space, Window, PopupManager, PopupKind},
+    desktop::{PopupKind, PopupManager, Space, Window},
     reexports::wayland_server::protocol::wl_seat,
     utils::Serial,
     wayland::shell::xdg::{
-        PopupSurface, PositionerState, ToplevelSurface,
-        XdgShellHandler, XdgShellState,
+        PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
     },
 };
 
@@ -24,11 +23,10 @@ impl XdgShellHandler for FaelightCompositor {
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         if let Some(window) = self.space.elements().last().cloned() {
             let wl_surface = window.toplevel().unwrap().wl_surface().clone();
-            self.seat.get_keyboard().unwrap().set_focus(
-                self,
-                Some(wl_surface),
-                serial,
-            );
+            self.seat
+                .get_keyboard()
+                .unwrap()
+                .set_focus(self, Some(wl_surface), serial);
             window.set_activated(true);
             window.toplevel().unwrap().send_pending_configure();
         }
@@ -59,8 +57,16 @@ impl XdgShellHandler for FaelightCompositor {
         surface.send_repositioned(token);
     }
 
-    fn move_request(&mut self, _surface: ToplevelSurface, _seat: wl_seat::WlSeat, _serial: Serial) {}
-    fn resize_request(&mut self, _surface: ToplevelSurface, _seat: wl_seat::WlSeat, _serial: Serial, _edges: smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::ResizeEdge) {}
+    fn move_request(&mut self, _surface: ToplevelSurface, _seat: wl_seat::WlSeat, _serial: Serial) {
+    }
+    fn resize_request(
+        &mut self,
+        _surface: ToplevelSurface,
+        _seat: wl_seat::WlSeat,
+        _serial: Serial,
+        _edges: smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::ResizeEdge,
+    ) {
+    }
     fn grab(&mut self, _surface: PopupSurface, _seat: wl_seat::WlSeat, _serial: Serial) {}
 }
 

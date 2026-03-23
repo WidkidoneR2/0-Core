@@ -12,7 +12,11 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "faelight-release", about = "🌲 Intelligent release and generation manager", version = "0.1.0")]
+#[command(
+    name = "faelight-release",
+    about = "🌲 Intelligent release and generation manager",
+    version = "0.1.0"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -65,17 +69,24 @@ fn main() -> Result<()> {
 
     match cli.command {
         Command::Publish { version, theme } => {
-            let theme = if theme.is_empty() { "Unnamed Release".to_string() } else { theme };
+            let theme = if theme.is_empty() {
+                "Unnamed Release".to_string()
+            } else {
+                theme
+            };
             let data = changelog::ChangelogData::build(&root, &version, &theme)?;
             let stats = changelog::ReleaseStats::gather(&root);
             let version_str = version.clone();
-            let (published, final_theme) = tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
+            let (published, final_theme) =
+                tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
             if published {
                 // Auto-update tool counts in README
                 let readme_path = std::path::PathBuf::from(&root).join("README.md");
                 crate::readme::update_tool_counts(&readme_path, root.to_str().unwrap_or(""));
                 // Auto-sync docs via faelight-docs
-                let _ = std::process::Command::new("faelight-docs").arg("sync").status();
+                let _ = std::process::Command::new("faelight-docs")
+                    .arg("sync")
+                    .status();
 
                 // Re-write changelog with the actual theme from TUI
                 let changelog_path = std::path::PathBuf::from(&root).join("00-meta/CHANGELOG.md");
@@ -83,7 +94,7 @@ fn main() -> Result<()> {
                     if let Ok(cl) = std::fs::read_to_string(&changelog_path) {
                         let fixed = cl.replace(
                             &format!("[{}] — Unnamed Release", version_str),
-                            &format!("[{}] — {}", version_str, final_theme)
+                            &format!("[{}] — {}", version_str, final_theme),
                         );
                         std::fs::write(&changelog_path, fixed).ok();
                     }
@@ -92,7 +103,13 @@ fn main() -> Result<()> {
                 // Update commit count
                 let commits_file = std::path::Path::new("/etc/faelight/COMMITS");
                 if let Ok(output) = std::process::Command::new("git")
-                    .args(["-C", root.to_str().unwrap_or("."), "rev-list", "--count", "HEAD"])
+                    .args([
+                        "-C",
+                        root.to_str().unwrap_or("."),
+                        "rev-list",
+                        "--count",
+                        "HEAD",
+                    ])
                     .output()
                 {
                     let count = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -105,10 +122,17 @@ fn main() -> Result<()> {
                 }
                 let version_file = std::path::Path::new("/etc/faelight/VERSION");
                 if version_file.parent().map(|p| p.exists()).unwrap_or(false) {
-                    let v = if version_str.starts_with("v") { version_str.clone() } else { format!("v{}", version_str) };
+                    let v = if version_str.starts_with("v") {
+                        version_str.clone()
+                    } else {
+                        format!("v{}", version_str)
+                    };
                     if let Err(e) = std::fs::write(version_file, &v) {
                         eprintln!("⚠️  Could not update /etc/faelight/VERSION: {}", e);
-                        eprintln!("   Run manually: sudo sh -c echo {} > /etc/faelight/VERSION", v);
+                        eprintln!(
+                            "   Run manually: sudo sh -c echo {} > /etc/faelight/VERSION",
+                            v
+                        );
                     } else {
                         println!("✅ /etc/faelight/VERSION updated to {}", v);
                     }
@@ -145,24 +169,31 @@ fn main() -> Result<()> {
             // Phase 6 — Learning insights
             let insights = learning::analyze(&root, &data, &version);
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            println!("🧠 Learning Insights (confidence: {}%)", insights.confidence);
+            println!(
+                "🧠 Learning Insights (confidence: {}%)",
+                insights.confidence
+            );
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("💡 Theme suggestion: {}", insights.theme_suggestion);
             println!("📅 Cadence: {}", insights.release_cadence);
             if !insights.anomalies.is_empty() {
                 println!("🔍 Anomalies:");
-                for a in &insights.anomalies { println!("   {}", a); }
+                for a in &insights.anomalies {
+                    println!("   {}", a);
+                }
             }
             if !insights.pattern_notes.is_empty() {
                 println!("📊 Patterns:");
-                for n in &insights.pattern_notes { println!("   {}", n); }
+                for n in &insights.pattern_notes {
+                    println!("   {}", n);
+                }
             }
         }
 
         Command::Status => {
             let gen_path = root.join("runtime/generation");
-            let current = std::fs::read_to_string(&gen_path)
-                .unwrap_or_else(|_| "unknown".to_string());
+            let current =
+                std::fs::read_to_string(&gen_path).unwrap_or_else(|_| "unknown".to_string());
             let current = current.trim();
 
             println!("🌲 faelight-release status");
@@ -181,8 +212,7 @@ fn main() -> Result<()> {
         Command::History => {
             let releases_dir = root.join("00-meta/releases");
             let gen_path = root.join("runtime/generation");
-            let current = std::fs::read_to_string(&gen_path)
-                .unwrap_or_default();
+            let current = std::fs::read_to_string(&gen_path).unwrap_or_default();
             let current = current.trim();
 
             println!("🌲 Release History");
@@ -200,7 +230,8 @@ fn main() -> Result<()> {
                 let manifest_path = releases_dir.join(v).join("manifest.toml");
                 let date = if manifest_path.exists() {
                     let content = std::fs::read_to_string(&manifest_path).unwrap_or_default();
-                    content.lines()
+                    content
+                        .lines()
                         .find(|l| l.starts_with("date"))
                         .and_then(|l| l.split('"').nth(1))
                         .unwrap_or("unknown")
@@ -210,7 +241,8 @@ fn main() -> Result<()> {
                 };
                 let theme = if manifest_path.exists() {
                     let content = std::fs::read_to_string(&manifest_path).unwrap_or_default();
-                    content.lines()
+                    content
+                        .lines()
                         .find(|l| l.starts_with("theme"))
                         .and_then(|l| l.split('"').nth(1))
                         .unwrap_or("—")

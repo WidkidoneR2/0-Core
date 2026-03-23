@@ -14,15 +14,21 @@ fn cwd_str(max_len: usize) -> String {
             let path = p.to_string_lossy().to_string();
             if path.starts_with(&home) {
                 format!("~{}", &path[home.len()..])
-            } else { path }
+            } else {
+                path
+            }
         })
         .unwrap_or_else(|_| "?".to_string());
     if cwd.len() > max_len {
         let parts: Vec<&str> = cwd.split('/').collect();
         if parts.len() > 2 {
             format!("~/{}", parts.last().copied().unwrap_or(""))
-        } else { cwd }
-    } else { cwd }
+        } else {
+            cwd
+        }
+    } else {
+        cwd
+    }
 }
 
 fn health_str(health: i64) -> String {
@@ -53,7 +59,8 @@ pub fn render_line(db: &ForestDb) -> String {
 pub fn status_line(db: &ForestDb) -> String {
     let h = health_str(db.health_score().unwrap_or(95));
     let cwd = cwd_str(30);
-    format!("\n  {} {}  {}  {}\n",
+    format!(
+        "\n  {} {}  {}  {}\n",
         "🌲".normal(),
         cwd.bright_cyan().bold(),
         h,
@@ -73,7 +80,9 @@ pub fn rl_wrap(s: &str) -> String {
             while let Some(&nc) = chars.peek() {
                 out.push(nc);
                 chars.next();
-                if nc == 'm' { break; }
+                if nc == 'm' {
+                    break;
+                }
             }
             out.push('\x02');
         } else {

@@ -8,7 +8,11 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[derive(Parser)]
-#[command(name = "faelight-search", about = "🌲 Search everything the forest knows", version = "1.0.0")]
+#[command(
+    name = "faelight-search",
+    about = "🌲 Search everything the forest knows",
+    version = "1.0.0"
+)]
 struct Cli {
     /// Search query
     query: String,
@@ -33,21 +37,31 @@ struct Cli {
 }
 
 fn core_root() -> PathBuf {
-    dirs::home_dir().unwrap_or_else(|| PathBuf::from("/home/christian")).join("0-core")
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("/home/christian"))
+        .join("0-core")
 }
 
 // ─── FILE SEARCH ─────────────────────────────────────────────────────────────
 fn search_files(query: &str, root: &PathBuf, limit: usize) -> Vec<String> {
     let output = Command::new("grep")
         .args([
-            "-r", "--include=*.rs", "--include=*.toml", "--include=*.md",
-            "--include=*.kdl", "--include=*.zsh", "-l", "-i", query,
+            "-r",
+            "--include=*.rs",
+            "--include=*.toml",
+            "--include=*.md",
+            "--include=*.kdl",
+            "--include=*.zsh",
+            "-l",
+            "-i",
+            query,
             root.to_str().unwrap_or("."),
         ])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::default(),
-            stdout: vec![], stderr: vec![],
+            stdout: vec![],
+            stderr: vec![],
         });
 
     String::from_utf8_lossy(&output.stdout)
@@ -55,7 +69,9 @@ fn search_files(query: &str, root: &PathBuf, limit: usize) -> Vec<String> {
         .filter(|l| !l.contains("/target/"))
         .map(|l| {
             // Make path relative
-            l.replace(root.to_str().unwrap_or(""), "").trim_start_matches('/').to_string()
+            l.replace(root.to_str().unwrap_or(""), "")
+                .trim_start_matches('/')
+                .to_string()
         })
         .take(limit)
         .collect()
@@ -69,25 +85,37 @@ fn search_intents(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, Str
 
     for subdir in &["future", "complete", "decisions", "incidents", "philosophy"] {
         let dir = intents_dir.join(subdir);
-        if !dir.exists() { continue; }
+        if !dir.exists() {
+            continue;
+        }
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
-                if path.extension().and_then(|x| x.to_str()) != Some("md") { continue; }
+                if path.extension().and_then(|x| x.to_str()) != Some("md") {
+                    continue;
+                }
                 let content = std::fs::read_to_string(&path).unwrap_or_default();
-                let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let filename = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 if filename.to_lowercase().contains(&q) || content.to_lowercase().contains(&q) {
-                    let title = content.lines()
+                    let title = content
+                        .lines()
                         .find(|l| l.starts_with("title:"))
                         .and_then(|l| l.split('"').nth(1))
                         .unwrap_or(&filename)
                         .to_string();
-                    let status = content.lines()
+                    let status = content
+                        .lines()
                         .find(|l| l.starts_with("status:"))
                         .map(|l| l.replace("status:", "").trim().to_string())
                         .unwrap_or_default();
                     results.push((filename, title, status));
-                    if results.len() >= limit { return results; }
+                    if results.len() >= limit {
+                        return results;
+                    }
                 }
             }
         }
@@ -98,13 +126,20 @@ fn search_intents(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, Str
 // ─── COMMIT SEARCH ───────────────────────────────────────────────────────────
 fn search_commits(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, String)> {
     let output = Command::new("git")
-        .args(["-C", root.to_str().unwrap_or("."),
-               "log", "--oneline", &format!("--grep={}", query), "-i",
-               &format!("-{}", limit)])
+        .args([
+            "-C",
+            root.to_str().unwrap_or("."),
+            "log",
+            "--oneline",
+            &format!("--grep={}", query),
+            "-i",
+            &format!("-{}", limit),
+        ])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::default(),
-            stdout: vec![], stderr: vec![],
+            stdout: vec![],
+            stderr: vec![],
         });
 
     String::from_utf8_lossy(&output.stdout)
@@ -122,7 +157,9 @@ fn search_commits(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, Str
 // ─── EVENT SEARCH ────────────────────────────────────────────────────────────
 fn search_events(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, String, String)> {
     let db_path = root.join("runtime/state.db");
-    if !db_path.exists() { return vec![]; }
+    if !db_path.exists() {
+        return vec![];
+    }
 
     let conn = match rusqlite::Connection::open(&db_path) {
         Ok(c) => c,
@@ -155,7 +192,11 @@ fn search_events(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, Stri
     rows.filter_map(|r| r.ok())
         .map(|(domain, action, ts)| {
             let time = chrono::DateTime::from_timestamp(ts, 0)
-                .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                .map(|d| {
+                    d.with_timezone(&chrono::Local)
+                        .format("%H:%M:%S")
+                        .to_string()
+                })
                 .unwrap_or_else(|| "??:??:??".to_string());
             (time, domain, action)
         })
@@ -165,18 +206,26 @@ fn search_events(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, Stri
 // ─── ALIAS SEARCH ────────────────────────────────────────────────────────────
 fn search_aliases(query: &str, root: &PathBuf, limit: usize) -> Vec<(String, String)> {
     let alias_file = root.join("03-interfaces/stow/shell-zsh/.config/zsh/aliases.zsh");
-    if !alias_file.exists() { return vec![]; }
+    if !alias_file.exists() {
+        return vec![];
+    }
 
     let content = std::fs::read_to_string(&alias_file).unwrap_or_default();
     let q = query.to_lowercase();
 
-    content.lines()
+    content
+        .lines()
         .filter(|l| l.starts_with("alias ") && l.to_lowercase().contains(&q))
         .filter_map(|l| {
             let rest = l.trim_start_matches("alias ");
             let mut parts = rest.splitn(2, '=');
             let name = parts.next()?.trim().to_string();
-            let cmd = parts.next()?.trim().trim_matches('\'').trim_matches('"').to_string();
+            let cmd = parts
+                .next()?
+                .trim()
+                .trim_matches('\'')
+                .trim_matches('"')
+                .to_string();
             Some((name, cmd))
         })
         .take(limit)
@@ -191,7 +240,11 @@ fn main() -> Result<()> {
     let all = !cli.files && !cli.intents && !cli.commits && !cli.events && !cli.aliases;
 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    println!("🌲 {}  {}", "faelight-search".bold(), format!("\"{}\"", q).bright_white());
+    println!(
+        "🌲 {}  {}",
+        "faelight-search".bold(),
+        format!("\"{}\"", q).bright_white()
+    );
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
     let mut total = 0;
@@ -200,7 +253,11 @@ fn main() -> Result<()> {
     if all || cli.intents {
         let results = search_intents(q, &root, cli.limit);
         if !results.is_empty() {
-            println!("\n{} {}", "📋 Intents".bold().bright_green(), format!("({})", results.len()).dimmed());
+            println!(
+                "\n{} {}",
+                "📋 Intents".bold().bright_green(),
+                format!("({})", results.len()).dimmed()
+            );
             for (file, title, status) in &results {
                 println!("  {}  {}", status.dimmed(), title.bright_white());
                 println!("  {}", file.dimmed());
@@ -213,7 +270,11 @@ fn main() -> Result<()> {
     if all || cli.files {
         let results = search_files(q, &root, cli.limit);
         if !results.is_empty() {
-            println!("\n{} {}", "📁 Files".bold().bright_blue(), format!("({})", results.len()).dimmed());
+            println!(
+                "\n{} {}",
+                "📁 Files".bold().bright_blue(),
+                format!("({})", results.len()).dimmed()
+            );
             for f in &results {
                 println!("  {}", f.bright_white());
             }
@@ -225,7 +286,11 @@ fn main() -> Result<()> {
     if all || cli.commits {
         let results = search_commits(q, &root, cli.limit);
         if !results.is_empty() {
-            println!("\n{} {}", "🔀 Commits".bold().bright_yellow(), format!("({})", results.len()).dimmed());
+            println!(
+                "\n{} {}",
+                "🔀 Commits".bold().bright_yellow(),
+                format!("({})", results.len()).dimmed()
+            );
             for (hash, msg) in &results {
                 println!("  {}  {}", hash.dimmed(), msg.bright_white());
             }
@@ -237,9 +302,18 @@ fn main() -> Result<()> {
     if all || cli.events {
         let results = search_events(q, &root, cli.limit);
         if !results.is_empty() {
-            println!("\n{} {}", "⚡ Events".bold().bright_cyan(), format!("({})", results.len()).dimmed());
+            println!(
+                "\n{} {}",
+                "⚡ Events".bold().bright_cyan(),
+                format!("({})", results.len()).dimmed()
+            );
             for (time, domain, action) in &results {
-                println!("  {}  {}  {}", time.dimmed(), domain.bright_white(), action.dimmed());
+                println!(
+                    "  {}  {}  {}",
+                    time.dimmed(),
+                    domain.bright_white(),
+                    action.dimmed()
+                );
             }
             total += results.len();
         }
@@ -249,7 +323,11 @@ fn main() -> Result<()> {
     if all || cli.aliases {
         let results = search_aliases(q, &root, cli.limit);
         if !results.is_empty() {
-            println!("\n{} {}", "⌨️  Aliases".bold().bright_magenta(), format!("({})", results.len()).dimmed());
+            println!(
+                "\n{} {}",
+                "⌨️  Aliases".bold().bright_magenta(),
+                format!("({})", results.len()).dimmed()
+            );
             for (name, cmd) in &results {
                 println!("  {}  {}", name.bright_white(), cmd.dimmed());
             }

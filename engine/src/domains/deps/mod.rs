@@ -12,13 +12,20 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub fn graph(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("deps", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("deps", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
 
     println!();
-    println!("{}", "  ╭─ 🌐 Dependency Graph ───────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🌐 Dependency Graph ───────────────────────────────".bright_cyan()
+    );
     println!("  │  Visual dependency map of all forest tools");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     let deps = gather_deps(core_root);
     let mut domain_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -33,10 +40,15 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
 
     for domain in &domains {
         let tools = &domain_map[domain];
-        println!("  │  {} {}", domain_icon(&domain), domain.bright_white().bold());
+        println!(
+            "  │  {} {}",
+            domain_icon(&domain),
+            domain.bright_white().bold()
+        );
         for tool in tools {
             let tool_deps = deps.get(tool).map(|d| d.len()).unwrap_or(0);
-            println!("  │    {} {}  {} deps",
+            println!(
+                "  │    {} {}  {} deps",
                 "├─".dimmed(),
                 tool.bright_cyan(),
                 tool_deps.to_string().dimmed()
@@ -48,15 +60,26 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     // Summary
     let total_tools = deps.len();
     let total_deps: usize = deps.values().map(|d| d.len()).sum();
-    let avg_deps = if total_tools > 0 { total_deps / total_tools } else { 0 };
+    let avg_deps = if total_tools > 0 {
+        total_deps / total_tools
+    } else {
+        0
+    };
 
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
-    println!("  │  {} tools  |  {} total deps  |  {} avg per tool",
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
+    println!(
+        "  │  {} tools  |  {} total deps  |  {} avg per tool",
         total_tools.to_string().bright_white(),
         total_deps.to_string().bright_white(),
         avg_deps.to_string().bright_white()
     );
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     emit_event(ctx, "graph");
@@ -64,13 +87,20 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn risk(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("deps", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("deps", &[Capability::FilesystemReadHome])?;
     let core_root = &ctx.core_root;
 
     println!();
-    println!("{}", "  ╭─ ⚠️  Dependency Risk ────────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ ⚠️  Dependency Risk ────────────────────────────────".bright_cyan()
+    );
     println!("  │  Which dependencies carry the most risk?");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     // Parse Cargo.lock for all deps and their usage count
     let lock_path = PathBuf::from(core_root).join("Cargo.lock");
@@ -80,14 +110,18 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
     if let Ok(content) = std::fs::read_to_string(&lock_path) {
         let mut current_name = String::new();
         let mut current_version = String::new();
-    let _ = &current_version;
+        let _ = &current_version;
         for line in content.lines() {
             if line.starts_with("name = ") {
-                current_name = line.trim_start_matches("name = ")
-                    .trim_matches('"').to_string();
+                current_name = line
+                    .trim_start_matches("name = ")
+                    .trim_matches('"')
+                    .to_string();
             } else if line.starts_with("version = ") {
-                let ver = line.trim_start_matches("version = ")
-                    .trim_matches('"').to_string();
+                let ver = line
+                    .trim_start_matches("version = ")
+                    .trim_matches('"')
+                    .to_string();
                 if !current_name.is_empty() {
                     current_version = ver.clone();
                     *dep_usage.entry(current_name.clone()).or_insert(0) += 1;
@@ -98,7 +132,8 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // High-risk = used by many tools (high coupling)
-    let mut risk_list: Vec<(String, usize, String)> = dep_usage.iter()
+    let mut risk_list: Vec<(String, usize, String)> = dep_usage
+        .iter()
         .filter(|(_, count)| **count > 1)
         .map(|(name, count)| {
             let version = dep_versions.get(name).cloned().unwrap_or_default();
@@ -108,13 +143,21 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
 
     risk_list.sort_by(|a, b| b.1.cmp(&a.1));
 
-    println!("  │  {} High-coupling dependencies (used by 2+ tools):", "⚠".yellow());
+    println!(
+        "  │  {} High-coupling dependencies (used by 2+ tools):",
+        "⚠".yellow()
+    );
     println!("  │");
     for (name, count, version) in risk_list.iter().take(15) {
-        let risk_level = if *count > 10 { "HIGH".bright_red() }
-            else if *count > 5 { "MED".yellow() }
-            else { "LOW".dimmed() };
-        println!("  │  {:<30} v{:<12} {} tools  {}",
+        let risk_level = if *count > 10 {
+            "HIGH".bright_red()
+        } else if *count > 5 {
+            "MED".yellow()
+        } else {
+            "LOW".dimmed()
+        };
+        println!(
+            "  │  {:<30} v{:<12} {} tools  {}",
             name.bright_white(),
             version.dimmed(),
             count.to_string().bright_yellow(),
@@ -122,10 +165,22 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
         );
     }
 
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
-    println!("  │  {} High-coupling deps are upgrade risks", "💡".to_string());
-    println!("  │  Run {} before upgrading", "core security simulate <dep>".bright_cyan());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
+    println!(
+        "  │  {} High-coupling deps are upgrade risks",
+        "💡".to_string()
+    );
+    println!(
+        "  │  Run {} before upgrading",
+        "core security simulate <dep>".bright_cyan()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     emit_event(ctx, "risk");
@@ -133,50 +188,74 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
 }
 
 pub fn audit(ctx: &AppContext) -> CoreResult<()> {
-    ctx.capabilities.require("deps", &[Capability::FilesystemReadHome])?;
+    ctx.capabilities
+        .require("deps", &[Capability::FilesystemReadHome])?;
     let _core_root = &ctx.core_root;
 
     println!();
-    println!("{}", "  ╭─ 🔍 Dependency Audit ──────────────────────────────".bright_cyan());
+    println!(
+        "{}",
+        "  ╭─ 🔍 Dependency Audit ──────────────────────────────".bright_cyan()
+    );
     println!("  │  Cross-reference deps with decision history");
-    println!("{}", "  ├────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ├────────────────────────────────────────────────────".dimmed()
+    );
 
     // Get decisions from ledger
     let decisions: Vec<String> = {
-        let mut stmt = ctx.runtime.db.prepare(
-            "SELECT description FROM decisions ORDER BY timestamp DESC"
-        ).ok();
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT description FROM decisions ORDER BY timestamp DESC")
+            .ok();
         if let Some(ref mut s) = stmt {
-            s.query_map([], |r| r.get::<_,String>(0))
+            s.query_map([], |r| r.get::<_, String>(0))
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default()
-        } else { vec![] }
+        } else {
+            vec![]
+        }
     };
 
     // Key deps to audit
-    let key_deps = ["openssl", "rusqlite", "tokio", "ratatui", "smithay",
-                    "wayland", "rand", "serde", "clap", "colored"];
+    let key_deps = [
+        "openssl", "rusqlite", "tokio", "ratatui", "smithay", "wayland", "rand", "serde", "clap",
+        "colored",
+    ];
 
     println!("  │  {} Key dependency audit:", "🔍".to_string());
     println!("  │");
 
     for dep in &key_deps {
         // Check if this dep has any decision records
-        let has_decision = decisions.iter().any(|d|
-            d.to_lowercase().contains(dep)
-        );
+        let has_decision = decisions.iter().any(|d| d.to_lowercase().contains(dep));
 
-        let icon = if has_decision { "✅".to_string() } else { "○ ".to_string() };
-        let note = if has_decision { "decision recorded".green().to_string() }
-            else { "no decision record".dimmed().to_string() };
+        let icon = if has_decision {
+            "✅".to_string()
+        } else {
+            "○ ".to_string()
+        };
+        let note = if has_decision {
+            "decision recorded".green().to_string()
+        } else {
+            "no decision record".dimmed().to_string()
+        };
 
         println!("  │  {} {:<20} {}", icon, dep.bright_white(), note);
     }
 
     println!("  │");
-    println!("  │  {} Record dependency decisions with:", "💡".to_string().dimmed());
+    println!(
+        "  │  {} Record dependency decisions with:",
+        "💡".to_string().dimmed()
+    );
     println!("  │  {}", "core decide".bright_cyan());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 
     emit_event(ctx, "audit");
@@ -192,20 +271,33 @@ fn gather_deps(core_root: &str) -> HashMap<String, Vec<String>> {
     if let Ok(entries) = std::fs::read_dir(&tools_dir) {
         for entry in entries.flatten() {
             let cargo_toml = entry.path().join("Cargo.toml");
-            if !cargo_toml.exists() { continue; }
+            if !cargo_toml.exists() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.contains(".archived") { continue; }
+            if name.contains(".archived") {
+                continue;
+            }
 
             let deps = std::fs::read_to_string(&cargo_toml)
                 .map(|t| {
                     let mut in_deps = false;
-                    t.lines().filter_map(|l| {
-                        if l.starts_with("[dependencies]") { in_deps = true; return None; }
-                        if l.starts_with('[') && l != "[dependencies]" { in_deps = false; }
-                        if in_deps && l.contains('=') {
-                            Some(l.split('=').next().unwrap_or("").trim().to_string())
-                        } else { None }
-                    }).collect::<Vec<_>>()
+                    t.lines()
+                        .filter_map(|l| {
+                            if l.starts_with("[dependencies]") {
+                                in_deps = true;
+                                return None;
+                            }
+                            if l.starts_with('[') && l != "[dependencies]" {
+                                in_deps = false;
+                            }
+                            if in_deps && l.contains('=') {
+                                Some(l.split('=').next().unwrap_or("").trim().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
 
@@ -236,26 +328,33 @@ fn categorize_tool(name: &str) -> String {
 
 fn domain_icon(domain: &str) -> &'static str {
     match domain {
-        "Shell & Terminal"  => "🐚",
-        "UI & Display"      => "🖥",
-        "Version Control"   => "🌿",
-        "Security"          => "🔒",
-        "Compositor"        => "🪟",
-        "System Tools"      => "🛠",
-        "Faelight Core"     => "🌲",
-        "Core Engine"       => "⚙",
-        _                   => "○",
+        "Shell & Terminal" => "🐚",
+        "UI & Display" => "🖥",
+        "Version Control" => "🌿",
+        "Security" => "🔒",
+        "Compositor" => "🪟",
+        "System Tools" => "🛠",
+        "Faelight Core" => "🌲",
+        "Core Engine" => "⚙",
+        _ => "○",
     }
 }
 
 fn emit_event(ctx: &AppContext, action: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
-    let payload = format!(r#"{{"actor":"core","result":"ok","detail":{{"command":"deps.{}"}}}}"#, action);
-    ctx.runtime.db.execute(
-        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('deps', ?1, ?2, ?3)",
-        rusqlite::params![action, payload, ts],
-    ).ok();
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let payload = format!(
+        r#"{{"actor":"core","result":"ok","detail":{{"command":"deps.{}"}}}}"#,
+        action
+    );
+    ctx.runtime
+        .db
+        .execute(
+            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('deps', ?1, ?2, ?3)",
+            rusqlite::params![action, payload, ts],
+        )
+        .ok();
     crate::runtime::write_event_log("deps", action, &payload, ts);
 }

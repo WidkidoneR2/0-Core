@@ -5,19 +5,18 @@ use crate::state::ClientState;
 use crate::FaelightCompositor;
 
 use smithay::{
+    delegate_data_device, delegate_output, delegate_seat,
     input::{Seat, SeatHandler, SeatState},
     reexports::wayland_server::{protocol::wl_surface::WlSurface, Resource},
     wayland::{
         output::OutputHandler,
         selection::{
             data_device::{
-                set_data_device_focus, DataDeviceHandler, DataDeviceState,
-                WaylandDndGrabHandler,
+                set_data_device_focus, DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler,
             },
             SelectionHandler,
         },
     },
-    delegate_data_device, delegate_output, delegate_seat,
 };
 
 impl SeatHandler for FaelightCompositor {
@@ -33,7 +32,8 @@ impl SeatHandler for FaelightCompositor {
         &mut self,
         _seat: &Seat<Self>,
         _image: smithay::input::pointer::CursorImageStatus,
-    ) {}
+    ) {
+    }
 
     fn focus_changed(&mut self, seat: &Seat<Self>, focused: Option<&WlSurface>) {
         let dh = &self.display_handle;

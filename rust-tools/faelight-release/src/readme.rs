@@ -3,47 +3,52 @@
 
 use crate::changelog::{ChangelogData, ReleaseStats};
 use anyhow::{Context, Result};
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 const DYNAMIC_START: &str = "<!-- DYNAMIC SECTION - Updated by bump-system-version -->";
 const DYNAMIC_END: &str = "<!-- END DYNAMIC SECTION -->";
 
-
 /// Update static tool count references throughout README
 pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
-    let Ok(mut content) = std::fs::read_to_string(readme_path) else { return; };
-    
+    let Ok(mut content) = std::fs::read_to_string(readme_path) else {
+        return;
+    };
+
     // Count tools from registry
     let registry_path = std::path::PathBuf::from(core_root).join("01-registry/tools.toml");
     let tool_count = std::fs::read_to_string(&registry_path)
         .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
-    if tool_count == 0 { return; }
+    if tool_count == 0 {
+        return;
+    }
 
     // Replace all tool count references
     for old in 50..60 {
-        if old == tool_count { continue; }
+        if old == tool_count {
+            continue;
+        }
         content = content.replace(
             &format!("{} Rust tools you fully understand", old),
-            &format!("{} Rust tools you fully understand", tool_count)
+            &format!("{} Rust tools you fully understand", tool_count),
         );
         content = content.replace(
             &format!("# {} custom Rust tools", old),
-            &format!("# {} custom Rust tools", tool_count)
+            &format!("# {} custom Rust tools", tool_count),
         );
         content = content.replace(
             &format!("score all {} tools", old),
-            &format!("score all {} tools", tool_count)
+            &format!("score all {} tools", tool_count),
         );
         content = content.replace(
             &format!("The Rust Ecosystem ({} Tools)", old),
-            &format!("The Rust Ecosystem ({} Tools)", tool_count)
+            &format!("The Rust Ecosystem ({} Tools)", tool_count),
         );
         content = content.replace(
             &format!("Build all {} tools", old),
-            &format!("Build all {} tools", tool_count)
+            &format!("Build all {} tools", tool_count),
         );
     }
 
@@ -58,27 +63,24 @@ pub fn update_readme(
     data: &ChangelogData,
     stats: &ReleaseStats,
 ) -> Result<()> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("cannot read {}", path.display()))?;
+    let content =
+        fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
 
     let new_dynamic = build_dynamic_section(version, theme, date, data, stats);
 
     // Find the dynamic section bounds
-    content.find(DYNAMIC_START)
+    content
+        .find(DYNAMIC_START)
         .context("DYNAMIC SECTION start marker not found in README")?;
-    let end = content.find(DYNAMIC_END)
+    let end = content
+        .find(DYNAMIC_END)
         .context("DYNAMIC SECTION end marker not found in README")?;
     let end_full = end + DYNAMIC_END.len();
 
     // Preserve everything after the dynamic section
     let static_section = &content[end_full..];
 
-    let new_content = format!(
-        "{}\n{}{}",
-        new_dynamic,
-        DYNAMIC_END,
-        static_section
-    );
+    let new_content = format!("{}\n{}{}", new_dynamic, DYNAMIC_END, static_section);
 
     fs::write(path, new_content)?;
     Ok(())
@@ -91,7 +93,13 @@ fn build_dynamic_section(
     data: &ChangelogData,
     stats: &ReleaseStats,
 ) -> String {
-    let health_color = if stats.health >= 95 { "brightgreen" } else if stats.health >= 80 { "yellow" } else { "red" };
+    let health_color = if stats.health >= 95 {
+        "brightgreen"
+    } else if stats.health >= 80 {
+        "yellow"
+    } else {
+        "red"
+    };
 
     let mut s = String::new();
 
@@ -119,10 +127,7 @@ fn build_dynamic_section(
 
     // Latest release section
     s.push_str("## 🎊 Latest Release\n\n");
-    s.push_str(&format!(
-        "### {} - 🌲 {} ({})\n\n",
-        version, theme, date
-    ));
+    s.push_str(&format!("### {} - 🌲 {} ({})\n\n", version, theme, date));
 
     // Completed intents as bullet points
     if !data.intents.is_empty() {

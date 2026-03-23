@@ -37,14 +37,16 @@ impl GenerationInfo {
 }
 
 fn extract_str(content: &str, key: &str) -> Option<String> {
-    content.lines()
+    content
+        .lines()
         .find(|l| l.trim().starts_with(key))
         .and_then(|l| l.split('"').nth(1))
         .map(|s| s.to_string())
 }
 
 fn extract_u32(content: &str, key: &str) -> Option<u32> {
-    content.lines()
+    content
+        .lines()
         .find(|l| l.trim().starts_with(key))
         .and_then(|l| l.split('=').nth(1))
         .and_then(|s| s.trim().parse().ok())
@@ -80,10 +82,14 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
         t.to_string()
     } else {
         // Find previous version
-        let current_idx = versions.iter().position(|v| v == &current)
+        let current_idx = versions
+            .iter()
+            .position(|v| v == &current)
             .context("current generation not found in releases")?;
         if current_idx == 0 {
-            return Err(anyhow!("already at oldest generation — cannot roll back further"));
+            return Err(anyhow!(
+                "already at oldest generation — cannot roll back further"
+            ));
         }
         versions[current_idx - 1].clone()
     };
@@ -101,13 +107,25 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     println!("🌲 faelight-release rollback");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
-    println!("  Current:  {} — {}", current_info.version, current_info.theme);
-    println!("  Target:   {} — {}", target_info.version, target_info.theme);
+    println!(
+        "  Current:  {} — {}",
+        current_info.version, current_info.theme
+    );
+    println!(
+        "  Target:   {} — {}",
+        target_info.version, target_info.theme
+    );
     println!();
     println!("  Generation diff:");
-    println!("  Health:   {}% → {}%", current_info.health, target_info.health);
+    println!(
+        "  Health:   {}% → {}%",
+        current_info.health, target_info.health
+    );
     println!("  Tools:    {} → {}", current_info.tools, target_info.tools);
-    println!("  Intents:  {} → {}", current_info.intents, target_info.intents);
+    println!(
+        "  Intents:  {} → {}",
+        current_info.intents, target_info.intents
+    );
     println!();
     println!("  ⚠️  This will:");
     println!("  · Switch generation pointer to {}", target_version);
@@ -134,8 +152,12 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
     // Checkout git tag
     println!("  → Checking out v{}...", target_version);
     let result = Command::new("git")
-        .args(["-C", core_root.to_str().unwrap_or("."),
-               "checkout", &format!("v{}", target_version)])
+        .args([
+            "-C",
+            core_root.to_str().unwrap_or("."),
+            "checkout",
+            &format!("v{}", target_version),
+        ])
         .output();
 
     match result {
@@ -166,7 +188,9 @@ pub fn rollback(core_root: &PathBuf, target: Option<&str>) -> Result<()> {
 
 fn emit_rollback_event(core_root: &PathBuf, from: &str, to: &str) {
     let db_path = core_root.join("runtime/state.db");
-    if !db_path.exists() { return; }
+    if !db_path.exists() {
+        return;
+    }
 
     let payload = serde_json::json!({
         "actor": "faelight-release",

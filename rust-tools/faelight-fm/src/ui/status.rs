@@ -7,7 +7,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     let line = if let Some(ref msg) = app.status_message {
         let color = match app.message_color {
             MessageColor::Success => FaelightColors::INTENT_COMPLETE,
-            MessageColor::Error   => FaelightColors::INTENT_CANCELLED,
+            MessageColor::Error => FaelightColors::INTENT_CANCELLED,
             MessageColor::Warning => FaelightColors::INTENT_FUTURE,
         };
         Line::from(vec![
@@ -18,9 +18,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
         let entry = app.selected_entry();
 
         if let Some(entry) = entry {
-            let mut spans = vec![
-                Span::styled(" ", Style::default()),
-            ];
+            let mut spans = vec![Span::styled(" ", Style::default())];
 
             // File name
             spans.push(Span::styled(
@@ -45,10 +43,12 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
             // Intent info
             if let Some(ref intent) = entry.intent_info {
                 let status_color = match intent.status {
-                    faelight_fm::intent::IntentStatus::Complete  => FaelightColors::INTENT_COMPLETE,
-                    faelight_fm::intent::IntentStatus::Future    => FaelightColors::INTENT_FUTURE,
-                    faelight_fm::intent::IntentStatus::Cancelled => FaelightColors::INTENT_CANCELLED,
-                    faelight_fm::intent::IntentStatus::Deferred  => FaelightColors::INTENT_DEFERRED,
+                    faelight_fm::intent::IntentStatus::Complete => FaelightColors::INTENT_COMPLETE,
+                    faelight_fm::intent::IntentStatus::Future => FaelightColors::INTENT_FUTURE,
+                    faelight_fm::intent::IntentStatus::Cancelled => {
+                        FaelightColors::INTENT_CANCELLED
+                    }
+                    faelight_fm::intent::IntentStatus::Deferred => FaelightColors::INTENT_DEFERRED,
                 };
                 spans.push(Span::styled(
                     "  │  ◆ INT-",

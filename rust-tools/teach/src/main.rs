@@ -1153,7 +1153,6 @@ fn prompt(msg: &str) -> String {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-
 // ── faelight-shell Tutorial Module (INT-131) ─────────────────────────────────
 
 fn run_shell_tutorial(args: &[String]) {
@@ -1162,11 +1161,21 @@ fn run_shell_tutorial(args: &[String]) {
     // teach shell list
     if args.iter().any(|a| a == "list") {
         println!();
-        println!("{}", "  ╭─ 📚 faelight-shell Lessons ─────────────────────────".bright_cyan());
+        println!(
+            "{}",
+            "  ╭─ 📚 faelight-shell Lessons ─────────────────────────".bright_cyan()
+        );
         for (i, lesson) in lessons.iter().enumerate() {
-            println!("  │  {}  {}", format!("{:02}", i+1).bright_white().bold(), lesson.title.dimmed());
+            println!(
+                "  │  {}  {}",
+                format!("{:02}", i + 1).bright_white().bold(),
+                lesson.title.dimmed()
+            );
         }
-        println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+        println!(
+            "{}",
+            "  ╰────────────────────────────────────────────────────".dimmed()
+        );
         println!("  Run: {} to start", "teach shell".bright_cyan());
         println!();
         return;
@@ -1179,7 +1188,8 @@ fn run_shell_tutorial(args: &[String]) {
     }
 
     // teach shell <number>
-    let lesson_num = args.first()
+    let lesson_num = args
+        .first()
         .and_then(|a| a.parse::<usize>().ok())
         .map(|n| n.saturating_sub(1))
         .unwrap_or(0);
@@ -1326,14 +1336,25 @@ fn run_lesson(lesson: &Lesson) {
     use std::io::{self, BufRead, Write};
 
     println!();
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan()
+    );
     println!("  📚 {}", lesson.title.bright_white().bold());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_cyan()
+    );
     println!("  {}", lesson.intro.dimmed());
     println!();
 
     for (i, step) in lesson.steps.iter().enumerate() {
-        println!("  {} Step {}/{}", "→".bright_cyan(), i+1, lesson.steps.len());
+        println!(
+            "  {} Step {}/{}",
+            "→".bright_cyan(),
+            i + 1,
+            lesson.steps.len()
+        );
         println!("  {}", step.instruction.bright_white());
         println!();
 
@@ -1341,7 +1362,10 @@ fn run_lesson(lesson: &Lesson) {
             print!("  🌲 forest❯ ");
             io::stdout().flush().ok();
             let stdin = io::stdin();
-            let input = stdin.lock().lines().next()
+            let input = stdin
+                .lock()
+                .lines()
+                .next()
                 .and_then(|l| l.ok())
                 .unwrap_or_default();
             let input = input.trim();
@@ -1359,15 +1383,22 @@ fn run_lesson(lesson: &Lesson) {
                 println!();
                 break;
             } else {
-                println!("  {} Not quite — type {} for a hint",
-                    "✗".bright_red(), "hint".bright_cyan());
+                println!(
+                    "  {} Not quite — type {} for a hint",
+                    "✗".bright_red(),
+                    "hint".bright_cyan()
+                );
             }
         }
     }
 
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!("  {} Lesson complete!", "🎉".to_string());
-    println!("  Next: {} or {} to see all lessons",
+    println!(
+        "  Next: {} or {} to see all lessons",
         "teach shell".bright_cyan(),
         "teach shell list".bright_cyan()
     );
@@ -1376,14 +1407,30 @@ fn run_lesson(lesson: &Lesson) {
 
 fn show_shell_progress(lessons: &[Lesson]) {
     println!();
-    println!("{}", "  ╭─ 📊 faelight-shell Progress ───────────────────────".bright_cyan());
-    println!("  │  {} lessons available", lessons.len().to_string().bright_white());
+    println!(
+        "{}",
+        "  ╭─ 📊 faelight-shell Progress ───────────────────────".bright_cyan()
+    );
+    println!(
+        "  │  {} lessons available",
+        lessons.len().to_string().bright_white()
+    );
     for (i, lesson) in lessons.iter().enumerate() {
-        println!("  │  {}  {}", format!("{:02}", i+1).dimmed(), lesson.title.bright_white());
+        println!(
+            "  │  {}  {}",
+            format!("{:02}", i + 1).dimmed(),
+            lesson.title.bright_white()
+        );
     }
     println!("  │");
-    println!("  │  Run {} to start any lesson", "teach shell <number>".bright_cyan());
-    println!("{}", "  ╰────────────────────────────────────────────────────".dimmed());
+    println!(
+        "  │  Run {} to start any lesson",
+        "teach shell <number>".bright_cyan()
+    );
+    println!(
+        "{}",
+        "  ╰────────────────────────────────────────────────────".dimmed()
+    );
     println!();
 }
 

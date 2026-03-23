@@ -311,8 +311,6 @@ fn print_diff(session: &SandboxSession) {
     );
 }
 
-
-
 fn get_io_bytes() -> (u64, u64) {
     // Returns (read_bytes, write_bytes) from /proc/self/io
     let content = std::fs::read_to_string("/proc/self/io").unwrap_or_default();
@@ -320,10 +318,18 @@ fn get_io_bytes() -> (u64, u64) {
     let mut write = 0u64;
     for line in content.lines() {
         if line.starts_with("read_bytes:") {
-            read = line.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+            read = line
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
         }
         if line.starts_with("write_bytes:") {
-            write = line.split_whitespace().nth(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+            write = line
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
         }
     }
     (read, write)
@@ -341,10 +347,19 @@ fn get_memory_kb() -> u64 {
         .unwrap_or(0)
 }
 
-fn emit_to_ledger_with_policy(session: &SandboxSession, duration_secs: u64, files_changed: usize, policy_name: Option<&str>) {
+fn emit_to_ledger_with_policy(
+    session: &SandboxSession,
+    duration_secs: u64,
+    files_changed: usize,
+    policy_name: Option<&str>,
+) {
     let db_path = std::path::PathBuf::from(home()).join("0-core/runtime/state.db");
-    if !db_path.exists() { return; }
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else { return; };
+    if !db_path.exists() {
+        return;
+    }
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return;
+    };
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -365,13 +380,18 @@ fn emit_to_ledger_with_policy(session: &SandboxSession, duration_secs: u64, file
     conn.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params!["sandbox", "run", payload, ts],
-    ).ok();
+    )
+    .ok();
 }
 
 fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
     let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
-    if !db_path.exists() { return; }
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else { return; };
+    if !db_path.exists() {
+        return;
+    }
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return;
+    };
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -390,7 +410,8 @@ fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: u
     conn.execute(
         "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params!["sandbox", "run", payload, ts],
-    ).ok();
+    )
+    .ok();
 }
 
 fn main() -> Result<()> {
@@ -422,9 +443,7 @@ fn main() -> Result<()> {
             // Load policy if specified
             let active_policy = if let Some(policy_name) = &policy {
                 match policy::SandboxPolicy::load(policy_name) {
-                    Ok(p) => {
-                        Some(p)
-                    }
+                    Ok(p) => Some(p),
                     Err(e) => {
                         eprintln!("  ✗ Policy error: {}", e);
                         return Ok(());
@@ -436,7 +455,10 @@ fn main() -> Result<()> {
 
             println!("   Session: {}", session_id.dimmed());
             println!("   Command: {}", command_str.bright_white());
-            let policy_controls_net = active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false);
+            let policy_controls_net = active_policy
+                .as_ref()
+                .map(|p| !p.allow_net)
+                .unwrap_or(false);
             if !policy_controls_net {
                 println!(
                     "   Network: {}",
@@ -473,7 +495,10 @@ fn main() -> Result<()> {
                 }
             }
             if profile {
-                println!("   Profile: {}", "enabled — resource tracking".bright_cyan());
+                println!(
+                    "   Profile: {}",
+                    "enabled — resource tracking".bright_cyan()
+                );
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
@@ -502,7 +527,10 @@ fn main() -> Result<()> {
             // Execute — respect policy + isolate flag
             let isolate_level = isolate.as_deref().unwrap_or("none");
             let network_isolated = net_off
-                || active_policy.as_ref().map(|p| !p.allow_net).unwrap_or(false)
+                || active_policy
+                    .as_ref()
+                    .map(|p| !p.allow_net)
+                    .unwrap_or(false)
                 || matches!(isolate_level, "net" | "full");
             let pid_isolated = isolate_level == "full";
             let fs_isolated = isolate_level == "full";
@@ -518,17 +546,25 @@ fn main() -> Result<()> {
                 }
             }
 
-            let max_cpu = active_policy.as_ref().map(|p| p.max_cpu_seconds).unwrap_or(0);
+            let max_cpu = active_policy
+                .as_ref()
+                .map(|p| p.max_cpu_seconds)
+                .unwrap_or(0);
 
             // Warn about fs write restriction (full enforcement in v3 Phase 3)
             if let Some(ref p) = active_policy {
                 if !p.allow_fs_write {
-                    println!("  {} Policy: filesystem writes will be detected and flagged",
-                        "🛡".yellow());
+                    println!(
+                        "  {} Policy: filesystem writes will be detected and flagged",
+                        "🛡".yellow()
+                    );
                 }
                 if max_cpu > 0 && max_cpu < 300 {
-                    println!("  {} Policy: CPU limit {}s (enforcement in Phase 3)",
-                        "🛡".yellow(), max_cpu);
+                    println!(
+                        "  {} Policy: CPU limit {}s (enforcement in Phase 3)",
+                        "🛡".yellow(),
+                        max_cpu
+                    );
                 }
             }
 
@@ -607,11 +643,17 @@ fn main() -> Result<()> {
                 for (p, af) in &session.after {
                     match session.before.get(p) {
                         None => n += 1,
-                        Some(bf) => if bf.hash != af.hash { n += 1; }
+                        Some(bf) => {
+                            if bf.hash != af.hash {
+                                n += 1;
+                            }
+                        }
                     }
                 }
                 for p in session.before.keys() {
-                    if !session.after.contains_key(p) { n += 1; }
+                    if !session.after.contains_key(p) {
+                        n += 1;
+                    }
                 }
                 n
             };
@@ -626,11 +668,17 @@ fn main() -> Result<()> {
                 println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
                 println!("{}", "📊 Resource Profile".bright_cyan().bold());
                 println!("   Duration:  {:.3}s", profile_elapsed.as_secs_f64());
-                println!("   Memory Δ:  {} KB", (end_mem as i64 - start_mem as i64).to_string().bright_yellow());
+                println!(
+                    "   Memory Δ:  {} KB",
+                    (end_mem as i64 - start_mem as i64)
+                        .to_string()
+                        .bright_yellow()
+                );
                 let end_io = get_io_bytes();
                 let read_mb = (end_io.0.saturating_sub(start_io.0)) / 1024 / 1024;
                 let write_mb = (end_io.1.saturating_sub(start_io.1)) / 1024 / 1024;
-                println!("   Disk read: {} MB  write: {} MB",
+                println!(
+                    "   Disk read: {} MB  write: {} MB",
                     read_mb.to_string().bright_yellow(),
                     write_mb.to_string().bright_yellow()
                 );
@@ -890,7 +938,12 @@ fn main() -> Result<()> {
                 println!("  No policies found");
             } else {
                 for p in &policies {
-                    println!("  {} {:<16} {}", "▶".dimmed(), p.name.bright_cyan(), p.description.dimmed());
+                    println!(
+                        "  {} {:<16} {}",
+                        "▶".dimmed(),
+                        p.name.bright_cyan(),
+                        p.description.dimmed()
+                    );
                 }
             }
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
@@ -902,11 +955,32 @@ fn main() -> Result<()> {
             println!("  Policy: {}", p.name.bright_cyan().bold());
             println!("  {}", p.description.dimmed());
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-            println!("  Network:    {}", if p.allow_net { "allowed".bright_green() } else { "isolated".bright_red() });
-            println!("  FS writes:  {}", if p.allow_fs_write { "allowed".bright_green() } else { "blocked".bright_red() });
+            println!(
+                "  Network:    {}",
+                if p.allow_net {
+                    "allowed".bright_green()
+                } else {
+                    "isolated".bright_red()
+                }
+            );
+            println!(
+                "  FS writes:  {}",
+                if p.allow_fs_write {
+                    "allowed".bright_green()
+                } else {
+                    "blocked".bright_red()
+                }
+            );
             println!("  CPU limit:  {}s", p.max_cpu_seconds);
             println!("  Memory:     {}MB", p.max_memory_mb);
-            println!("  Events:     {}", if p.emit_events { "yes".green() } else { "no".dimmed() });
+            println!(
+                "  Events:     {}",
+                if p.emit_events {
+                    "yes".green()
+                } else {
+                    "no".dimmed()
+                }
+            );
             println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         }
         Commands::Audit { tool, limit } => {
@@ -933,21 +1007,36 @@ fn main() -> Result<()> {
                 .filter_map(|r| r.ok())
                 .collect();
             println!();
-            println!("{}", "  ╭─ 🧪 Sandbox Audit Trail ──────────────────────────────".bright_cyan());
+            println!(
+                "{}",
+                "  ╭─ 🧪 Sandbox Audit Trail ──────────────────────────────".bright_cyan()
+            );
             if rows.is_empty() {
                 println!("  │  {} No sandbox runs recorded yet", "○".dimmed());
-                println!("  │  Use {} to run commands", "faelight-sandbox run".bright_cyan());
+                println!(
+                    "  │  Use {} to run commands",
+                    "faelight-sandbox run".bright_cyan()
+                );
             } else {
-                for (payload, ts) in &rows {
+                for (payload, _ts) in &rows {
                     if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload) {
                         let cmd = v["detail"]["command"].as_str().unwrap_or("unknown");
                         let exit = v["detail"]["exit_code"].as_i64().unwrap_or(-1);
                         let dur = v["detail"]["duration_secs"].as_u64().unwrap_or(0);
                         let changed = v["detail"]["files_changed"].as_u64().unwrap_or(0);
                         let result = v["result"].as_str().unwrap_or("?");
-                        let result_icon = if result == "ok" { "✅".to_string() } else { "❌".to_string() };
-                        let short_cmd = if cmd.len() > 40 { format!("{}...", &cmd[..40]) } else { cmd.to_string() };
-                        println!("  │  {} {}  {}s  {} files  exit:{}",
+                        let result_icon = if result == "ok" {
+                            "✅".to_string()
+                        } else {
+                            "❌".to_string()
+                        };
+                        let short_cmd = if cmd.len() > 40 {
+                            format!("{}...", &cmd[..40])
+                        } else {
+                            cmd.to_string()
+                        };
+                        println!(
+                            "  │  {} {}  {}s  {} files  exit:{}",
                             result_icon,
                             short_cmd.bright_white(),
                             dur.to_string().dimmed(),
@@ -957,7 +1046,10 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            println!("{}", "  ╰─────────────────────────────────────────────────────".dimmed());
+            println!(
+                "{}",
+                "  ╰─────────────────────────────────────────────────────".dimmed()
+            );
             println!();
         }
         Commands::Snapshots => {

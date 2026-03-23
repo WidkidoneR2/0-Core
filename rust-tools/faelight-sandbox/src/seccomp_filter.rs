@@ -46,14 +46,14 @@ pub fn build_filter(strict: bool) -> Option<BpfProgram> {
         SeccompAction::Allow,
         SeccompAction::KillProcess,
         target_arch,
-    ).ok()?;
+    )
+    .ok()?;
 
     filter.try_into().ok()
 }
 
 pub fn apply_filter(strict: bool) -> Result<(), String> {
-    let filter = build_filter(strict)
-        .ok_or_else(|| "Failed to build seccomp filter".to_string())?;
-    seccompiler::apply_filter(&filter)
-        .map_err(|e| format!("Failed to apply seccomp filter: {}", e))
+    let filter =
+        build_filter(strict).ok_or_else(|| "Failed to build seccomp filter".to_string())?;
+    seccompiler::apply_filter(&filter).map_err(|e| format!("Failed to apply seccomp filter: {}", e))
 }

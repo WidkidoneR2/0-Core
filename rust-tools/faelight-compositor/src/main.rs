@@ -11,8 +11,8 @@
 mod handlers;
 mod input;
 mod state;
-mod winit;
 mod udev_backend;
+mod winit;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 use state::FaelightCompositor;

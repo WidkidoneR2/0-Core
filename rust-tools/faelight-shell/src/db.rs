@@ -1,8 +1,8 @@
 // faelight-shell — state.db connection
 use anyhow::{Context, Result};
 use rusqlite::Connection;
+use rustyline::{history::FileHistory, Editor, Helper};
 use std::path::PathBuf;
-use rustyline::{Editor, Helper, history::FileHistory};
 
 pub struct ForestDb {
     pub conn: Connection,
@@ -30,7 +30,7 @@ impl ForestDb {
                 name      TEXT NOT NULL UNIQUE,
                 command   TEXT NOT NULL,
                 created   INTEGER NOT NULL
-            );"
+            );",
         )?;
 
         Ok(Self { conn, core_root })
@@ -41,9 +41,10 @@ impl ForestDb {
     }
 
     pub fn load_history<H: Helper>(&self, rl: &mut Editor<H, FileHistory>) {
-        if let Ok(mut stmt) = self.conn.prepare(
-            "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 100"
-        ) {
+        if let Ok(mut stmt) = self
+            .conn
+            .prepare("SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 100")
+        {
             let history: Vec<String> = stmt
                 .query_map([], |r| r.get(0))
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
@@ -60,46 +61,55 @@ impl ForestDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.conn.execute(
-            "INSERT OR REPLACE INTO shell_aliases (name, command, created) VALUES (?1, ?2, ?3)",
-            rusqlite::params![name, command, ts],
-        ).is_ok()
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO shell_aliases (name, command, created) VALUES (?1, ?2, ?3)",
+                rusqlite::params![name, command, ts],
+            )
+            .is_ok()
     }
 
     pub fn remove_alias(&self, name: &str) -> bool {
-        self.conn.execute(
-            "DELETE FROM shell_aliases WHERE name = ?1",
-            rusqlite::params![name],
-        ).map(|n| n > 0).unwrap_or(false)
+        self.conn
+            .execute(
+                "DELETE FROM shell_aliases WHERE name = ?1",
+                rusqlite::params![name],
+            )
+            .map(|n| n > 0)
+            .unwrap_or(false)
     }
 
     pub fn get_alias(&self, name: &str) -> Option<String> {
-        self.conn.query_row(
-            "SELECT command FROM shell_aliases WHERE name = ?1",
-            rusqlite::params![name],
-            |r| r.get(0),
-        ).ok()
+        self.conn
+            .query_row(
+                "SELECT command FROM shell_aliases WHERE name = ?1",
+                rusqlite::params![name],
+                |r| r.get(0),
+            )
+            .ok()
     }
 
     pub fn list_aliases(&self) -> Vec<(String, String)> {
-        let mut stmt = match self.conn.prepare(
-            "SELECT name, command FROM shell_aliases ORDER BY name"
-        ) {
+        let mut stmt = match self
+            .conn
+            .prepare("SELECT name, command FROM shell_aliases ORDER BY name")
+        {
             Ok(s) => s,
             Err(_) => return vec![],
         };
-        stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
+        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
             .map(|rows| rows.filter_map(|r| r.ok()).collect())
             .unwrap_or_default()
     }
 
     pub fn load_plugins(&self) -> Vec<(String, String, String)> {
         // Returns Vec<(command_name, expansion, description)>
-        let plugin_dir = std::path::PathBuf::from(
-            std::env::var("HOME").unwrap_or_default()
-        ).join(".config/faelight-shell/plugins");
+        let plugin_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".config/faelight-shell/plugins");
 
-        if !plugin_dir.exists() { return vec![]; }
+        if !plugin_dir.exists() {
+            return vec![];
+        }
 
         let mut commands = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&plugin_dir) {
@@ -110,9 +120,21 @@ impl ForestDb {
                         if let Ok(parsed) = toml::from_str::<toml::Value>(&content) {
                             if let Some(cmds) = parsed.get("command").and_then(|c| c.as_array()) {
                                 for cmd in cmds {
-                                    let name = cmd.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                                    let expand = cmd.get("expand").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                                    let desc = cmd.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let name = cmd
+                                        .get("name")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let expand = cmd
+                                        .get("expand")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let desc = cmd
+                                        .get("description")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
                                     if !name.is_empty() && !expand.is_empty() {
                                         commands.push((name, expand, desc));
                                     }
@@ -131,13 +153,20 @@ impl ForestDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.conn.execute(
-            "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-            rusqlite::params![command, ts],
-        ).ok();
+        self.conn
+            .execute(
+                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+                rusqlite::params![command, ts],
+            )
+            .ok();
     }
 
-    pub fn query_events(&self, domain: Option<&str>, today_only: bool, limit: usize) -> Vec<(String, String, i64)> {
+    pub fn query_events(
+        &self,
+        domain: Option<&str>,
+        today_only: bool,
+        limit: usize,
+    ) -> Vec<(String, String, i64)> {
         let today_ts = if today_only {
             // Start of today in unix time
             let now = std::time::SystemTime::now()
@@ -174,19 +203,25 @@ impl ForestDb {
             Err(_) => return vec![],
         };
         stmt.query_map([], |r| {
-            Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
         })
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default()
     }
 
     pub fn health_score(&self) -> Option<i64> {
-        self.conn.query_row(
-            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-            [],
-            |r| r.get::<_,String>(0),
-        ).ok()
-        .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-        .and_then(|v| v["detail"]["health"].as_i64())
+        self.conn
+            .query_row(
+                "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+                [],
+                |r| r.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+            .and_then(|v| v["detail"]["health"].as_i64())
     }
 }

@@ -3,15 +3,20 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand,
-    NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
-    CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand, PlanCommand, TradeoffCommand, PrioritizeCommand, AutobiographyCommand,
+    AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
+    Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
+    GitCommand, GoalsCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
+    SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
+    WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    Cli, Commands, AnomalyCommands, AuditCommands, BootstrapCommands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands, GitCommands, IntentCommands, LauncherCommands,
-    LinkCommands, NotifyCommands, PluginCommands, ProfileCommands, ReleaseCommands,
-    CheckpointCommands, SandboxCommands, SecurityCommands, SimulateCommands, TraceCommands, UpdateCommands,
-    LedgerCommands, WhyCommands, WorkspaceCommands, EvolutionCommands, GoalsCommands, PlanCommands, TradeoffCommands, PrioritizeCommands, AutobiographyCommands,
+    AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
+    Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
+    EvolutionCommands, GitCommands, GoalsCommands, IntentCommands, LauncherCommands,
+    LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
+    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
+    TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -235,7 +240,9 @@ pub fn parse() -> Command {
             WhyCommands::HealthSince { since } => WhyCommand::HealthSince { since },
             WhyCommands::Causal { domain } => WhyCommand::Causal { domain },
             WhyCommands::Chain => WhyCommand::Chain,
-            WhyCommands::Correlate { domain_a, domain_b } => WhyCommand::Correlate { domain_a, domain_b },
+            WhyCommands::Correlate { domain_a, domain_b } => {
+                WhyCommand::Correlate { domain_a, domain_b }
+            }
             WhyCommands::Suggest => WhyCommand::Suggest,
             WhyCommands::Workspace => WhyCommand::Workspace,
             WhyCommands::Focus => WhyCommand::Focus,
@@ -245,34 +252,33 @@ pub fn parse() -> Command {
             TraceCommands::Domain { domain } => TraceCommand::Domain { domain },
         }),
         Commands::Goals { command } => Command::Goals(match command {
-            GoalsCommands::List         => GoalsCommand::List,
-            GoalsCommands::Generate     => GoalsCommand::Generate,
-            GoalsCommands::Priority     => GoalsCommand::Priority,
+            GoalsCommands::List => GoalsCommand::List,
+            GoalsCommands::Generate => GoalsCommand::Generate,
+            GoalsCommands::Priority => GoalsCommand::Priority,
             GoalsCommands::Accept { id } => GoalsCommand::Accept { id },
             GoalsCommands::Reject { id } => GoalsCommand::Reject { id },
-            GoalsCommands::Show { id }   => GoalsCommand::Show { id },
+            GoalsCommands::Show { id } => GoalsCommand::Show { id },
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
-            PlanCommands::Review   { id }      => PlanCommand::Review   { id },
-            PlanCommands::Simulate { id }      => PlanCommand::Simulate { id },
-            PlanCommands::List                 => PlanCommand::List,
+            PlanCommands::Review { id } => PlanCommand::Review { id },
+            PlanCommands::Simulate { id } => PlanCommand::Simulate { id },
+            PlanCommands::List => PlanCommand::List,
         }),
         Commands::Tradeoff { command } => Command::Tradeoff(match command {
             TradeoffCommands::Analyze { decision } => TradeoffCommand::Analyze { decision },
-            TradeoffCommands::History              => TradeoffCommand::History,
-            TradeoffCommands::Balance              => TradeoffCommand::Balance,
+            TradeoffCommands::History => TradeoffCommand::History,
+            TradeoffCommands::Balance => TradeoffCommand::Balance,
         }),
         Commands::Prioritize { command } => Command::Prioritize(match command {
-            PrioritizeCommands::Run     => PrioritizeCommand::Run,
+            PrioritizeCommands::Run => PrioritizeCommand::Run,
             PrioritizeCommands::Explain => PrioritizeCommand::Explain,
         }),
         Commands::Autobiography { command } => Command::Autobiography(match command {
-            AutobiographyCommands::Narrate { version } =>
-                AutobiographyCommand::Narrate { version },
+            AutobiographyCommands::Narrate { version } => AutobiographyCommand::Narrate { version },
         }),
         Commands::Evolution { command } => Command::Evolution(match command {
-            EvolutionCommands::Map   => EvolutionCommand::Map,
+            EvolutionCommands::Map => EvolutionCommand::Map,
             EvolutionCommands::Tools => EvolutionCommand::Tools,
             EvolutionCommands::Suggest => EvolutionCommand::Suggest,
             EvolutionCommands::EvolvePropose => EvolutionCommand::EvolvePropose,
@@ -298,8 +304,16 @@ pub fn parse() -> Command {
             CheckpointCommands::Snapshots => CheckpointCommand::Snapshots,
         }),
         Commands::Decision { command } => Command::Decision(match command {
-            DecisionCommands::Record { description, intent } => DecisionCommand::Record { description, intent },
-            DecisionCommands::Outcome { id, result, notes } => DecisionCommand::Outcome { id, result, notes },
+            DecisionCommands::Record {
+                description,
+                intent,
+            } => DecisionCommand::Record {
+                description,
+                intent,
+            },
+            DecisionCommands::Outcome { id, result, notes } => {
+                DecisionCommand::Outcome { id, result, notes }
+            }
             DecisionCommands::List { open } => DecisionCommand::List { open },
             DecisionCommands::Hindsight => DecisionCommand::Hindsight,
             DecisionCommands::Show { id } => DecisionCommand::Show { id },
@@ -312,23 +326,25 @@ pub fn parse() -> Command {
             DecisionCommands::Friction => DecisionCommand::Friction,
             DecisionCommands::Reversal => DecisionCommand::Reversal,
         }),
-        Commands::Heuristics { domain } => Command::Decision(DecisionCommand::Heuristics { domain }),
+        Commands::Heuristics { domain } => {
+            Command::Decision(DecisionCommand::Heuristics { domain })
+        }
         Commands::Deps { command } => Command::Deps(match command {
             DepsCommands::Graph => DepsCommand::Graph,
-            DepsCommands::Risk  => DepsCommand::Risk,
+            DepsCommands::Risk => DepsCommand::Risk,
             DepsCommands::Audit => DepsCommand::Audit,
         }),
         Commands::Narrative { since, intent } => Command::Narrative { since, intent },
         Commands::Snapshot { json, save } => Command::Snapshot { json, save },
         Commands::Bootstrap { command } => Command::Bootstrap(match command {
-            BootstrapCommands::Plan   => BootstrapCommand::Plan,
+            BootstrapCommands::Plan => BootstrapCommand::Plan,
             BootstrapCommands::Verify => BootstrapCommand::Verify,
-            BootstrapCommands::Diff   => BootstrapCommand::Diff,
+            BootstrapCommands::Diff => BootstrapCommand::Diff,
         }),
         Commands::Anomaly { command } => Command::Anomaly(match command {
-            AnomalyCommands::Scan    => AnomalyCommand::Scan,
+            AnomalyCommands::Scan => AnomalyCommand::Scan,
             AnomalyCommands::History => AnomalyCommand::History,
-            AnomalyCommands::Alert   => AnomalyCommand::Alert,
+            AnomalyCommands::Alert => AnomalyCommand::Alert,
         }),
         Commands::Audit { command } => Command::Audit(match command {
             AuditCommands::Scan => AuditCommand::Scan,
@@ -339,7 +355,13 @@ pub fn parse() -> Command {
         Commands::Lessons => Command::Decision(DecisionCommand::Lessons),
         Commands::Story => Command::Decision(DecisionCommand::Story),
         Commands::Advise { decision } => Command::Decision(DecisionCommand::Advise { decision }),
-        Commands::Decide { description, intent } => Command::Decision(DecisionCommand::Record { description, intent }),
+        Commands::Decide {
+            description,
+            intent,
+        } => Command::Decision(DecisionCommand::Record {
+            description,
+            intent,
+        }),
         Commands::Hindsight => Command::Decision(DecisionCommand::Hindsight),
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }

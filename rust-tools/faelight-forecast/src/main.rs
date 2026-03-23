@@ -2,13 +2,12 @@
 //! 🌲 Predictive health intelligence — the forest sees what is coming.
 
 use anyhow::Result;
-use chrono::{Local, Duration};
+use chrono::{Duration, Local};
 use clap::Parser;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal,
     cursor,
+    event::{self, Event, KeyCode, KeyEventKind},
+    execute, terminal,
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -23,22 +22,32 @@ use std::io;
 use std::path::PathBuf;
 
 // ─── THEME ──────────────────────────────────────────────────────────────────
-const BG:     Color = Color::Rgb(15, 20, 17);
-const FG:     Color = Color::Rgb(215, 224, 218);
+const BG: Color = Color::Rgb(15, 20, 17);
+const FG: Color = Color::Rgb(215, 224, 218);
 const ACCENT: Color = Color::Rgb(163, 227, 107);
-const DIM:    Color = Color::Rgb(119, 143, 127);
+const DIM: Color = Color::Rgb(119, 143, 127);
 const YELLOW: Color = Color::Rgb(227, 199, 107);
-const RED:    Color = Color::Rgb(227, 107, 107);
-const BLUE:   Color = Color::Rgb(107, 163, 227);
-const CYAN:   Color = Color::Rgb(107, 227, 210);
+const RED: Color = Color::Rgb(227, 107, 107);
+const BLUE: Color = Color::Rgb(107, 163, 227);
+const CYAN: Color = Color::Rgb(107, 227, 210);
 
 fn health_color(h: f64) -> Color {
-    if h >= 95.0 { ACCENT } else if h >= 85.0 { YELLOW } else { RED }
+    if h >= 95.0 {
+        ACCENT
+    } else if h >= 85.0 {
+        YELLOW
+    } else {
+        RED
+    }
 }
 
 // ─── CLI ────────────────────────────────────────────────────────────────────
 #[derive(Parser)]
-#[command(name = "faelight-forecast", about = "🌲 Predictive health intelligence", version = "1.0.0")]
+#[command(
+    name = "faelight-forecast",
+    about = "🌲 Predictive health intelligence",
+    version = "1.0.0"
+)]
 struct Cli {
     /// Plain text output (no TUI)
     #[arg(long)]
@@ -77,9 +86,9 @@ fn db_path() -> PathBuf {
 }
 
 fn load_health(conn: &Connection) -> Vec<HealthPoint> {
-    let mut stmt = match conn.prepare(
-        "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id ASC"
-    ) {
+    let mut stmt = match conn
+        .prepare("SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id ASC")
+    {
         Ok(s) => s,
         Err(_) => return vec![],
     };
@@ -89,21 +98,23 @@ fn load_health(conn: &Connection) -> Vec<HealthPoint> {
         Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
         Err(_) => return vec![],
     };
-    raw.into_iter().filter_map(|(p, ts)| {
-        let v: serde_json::Value = serde_json::from_str(&p).ok()?;
-        Some(HealthPoint {
-            health: v["detail"]["health"].as_f64()?,
-            warnings: v["detail"]["warnings"].as_i64().unwrap_or(0),
-            failed: v["detail"]["failed"].as_i64().unwrap_or(0),
-            timestamp: ts,
+    raw.into_iter()
+        .filter_map(|(p, ts)| {
+            let v: serde_json::Value = serde_json::from_str(&p).ok()?;
+            Some(HealthPoint {
+                health: v["detail"]["health"].as_f64()?,
+                warnings: v["detail"]["warnings"].as_i64().unwrap_or(0),
+                failed: v["detail"]["failed"].as_i64().unwrap_or(0),
+                timestamp: ts,
+            })
         })
-    }).collect()
+        .collect()
 }
 
 fn load_security(conn: &Connection) -> Vec<SecurityPoint> {
-    let mut stmt = match conn.prepare(
-        "SELECT payload, timestamp FROM events WHERE domain='security' ORDER BY id ASC"
-    ) {
+    let mut stmt = match conn
+        .prepare("SELECT payload, timestamp FROM events WHERE domain='security' ORDER BY id ASC")
+    {
         Ok(s) => s,
         Err(_) => return vec![],
     };
@@ -113,30 +124,32 @@ fn load_security(conn: &Connection) -> Vec<SecurityPoint> {
         Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
         Err(_) => return vec![],
     };
-    raw.into_iter().filter_map(|(p, ts)| {
-        let v: serde_json::Value = serde_json::from_str(&p).ok()?;
-        Some(SecurityPoint {
-            critical: v["detail"]["critical"].as_i64().unwrap_or(0),
-            high: v["detail"]["high"].as_i64().unwrap_or(0),
-            medium: v["detail"]["medium"].as_i64().unwrap_or(0),
-            low: v["detail"]["low"].as_i64().unwrap_or(0),
-            timestamp: ts,
+    raw.into_iter()
+        .filter_map(|(p, ts)| {
+            let v: serde_json::Value = serde_json::from_str(&p).ok()?;
+            Some(SecurityPoint {
+                critical: v["detail"]["critical"].as_i64().unwrap_or(0),
+                high: v["detail"]["high"].as_i64().unwrap_or(0),
+                medium: v["detail"]["medium"].as_i64().unwrap_or(0),
+                low: v["detail"]["low"].as_i64().unwrap_or(0),
+                timestamp: ts,
+            })
         })
-    }).collect()
+        .collect()
 }
 
 // ─── ANALYSIS ────────────────────────────────────────────────────────────────
 struct Analysis {
     // History
-    health_history: Vec<u64>,       // for sparkline
+    health_history: Vec<u64>, // for sparkline
     #[allow(dead_code)]
     health_points: Vec<HealthPoint>,
     // Current state
     current_health: f64,
     // Trend
-    trend_slope: f64,               // health change per day
-    stability_score: f64,           // 0-100, higher = more stable
-    drop_frequency: f64,            // drops per day
+    trend_slope: f64,     // health change per day
+    stability_score: f64, // 0-100, higher = more stable
+    drop_frequency: f64,  // drops per day
     // Projection
     projected: Vec<(String, f64, String)>, // (date, health, signal)
     // Security
@@ -158,16 +171,25 @@ struct Analysis {
 fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Analysis {
     let n = health.len();
     let current = health.last().map(|h| h.health).unwrap_or(95.0);
-    let avg = if n > 0 { health.iter().map(|h| h.health).sum::<f64>() / n as f64 } else { 95.0 };
+    let avg = if n > 0 {
+        health.iter().map(|h| h.health).sum::<f64>() / n as f64
+    } else {
+        95.0
+    };
     let min = health.iter().map(|h| h.health).fold(100.0f64, f64::min);
-    let drops: Vec<_> = health.windows(2).filter(|w| w[1].health < w[0].health).collect();
+    let drops: Vec<_> = health
+        .windows(2)
+        .filter(|w| w[1].health < w[0].health)
+        .collect();
     let drop_count = drops.len();
 
     // Trend — linear regression over last 20 points
     let window = health.iter().rev().take(20).collect::<Vec<_>>();
     let trend_slope = if window.len() >= 2 {
         let first_ts = window.last().unwrap().timestamp as f64;
-        let points: Vec<(f64, f64)> = window.iter().rev()
+        let points: Vec<(f64, f64)> = window
+            .iter()
+            .rev()
             .map(|p| ((p.timestamp as f64 - first_ts) / 86400.0, p.health))
             .collect();
         let n = points.len() as f64;
@@ -176,20 +198,34 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
         let sum_xy: f64 = points.iter().map(|(x, y)| x * y).sum();
         let sum_xx: f64 = points.iter().map(|(x, _)| x * x).sum();
         let denom = n * sum_xx - sum_x * sum_x;
-        if denom.abs() > 0.001 { (n * sum_xy - sum_x * sum_y) / denom } else { 0.0 }
-    } else { 0.0 };
+        if denom.abs() > 0.001 {
+            (n * sum_xy - sum_x * sum_y) / denom
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
 
     // Stability — inverse of variance
     let variance = if n > 1 {
         health.iter().map(|h| (h.health - avg).powi(2)).sum::<f64>() / (n - 1) as f64
-    } else { 0.0 };
+    } else {
+        0.0
+    };
     let stability_score = (100.0 - variance.sqrt() * 10.0).max(0.0).min(100.0);
 
     // Drop frequency (drops per day)
     let time_span_days = if n >= 2 {
         (health.last().unwrap().timestamp - health.first().unwrap().timestamp) as f64 / 86400.0
-    } else { 1.0 };
-    let drop_frequency = if time_span_days > 0.0 { drop_count as f64 / time_span_days } else { 0.0 };
+    } else {
+        1.0
+    };
+    let drop_frequency = if time_span_days > 0.0 {
+        drop_count as f64 / time_span_days
+    } else {
+        0.0
+    };
 
     // Security aging
     let first_scan_ts = security.first().map(|s| s.timestamp).unwrap_or(0);
@@ -206,7 +242,8 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
     let mut projected = vec![];
     for d in 1..=days {
         let date = (chrono::Local::now() + Duration::days(d as i64))
-            .format("%m/%d").to_string();
+            .format("%m/%d")
+            .to_string();
         let proj = (current + trend_slope * d as f64).max(0.0).min(100.0);
         // Security aging signal
         let age = security_age_days + d as f64;
@@ -225,19 +262,33 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
     // Patterns
     let mut patterns = vec![];
     if drop_frequency > 0.5 {
-        patterns.push(format!("Health drops {:.1}x/day — likely uncommitted changes during work sessions", drop_frequency));
+        patterns.push(format!(
+            "Health drops {:.1}x/day — likely uncommitted changes during work sessions",
+            drop_frequency
+        ));
     }
     if stability_score > 90.0 {
-        patterns.push("High stability — system changes are well-managed and committed promptly".to_string());
+        patterns.push(
+            "High stability — system changes are well-managed and committed promptly".to_string(),
+        );
     }
     if current_high > 0 {
-        patterns.push(format!("{} high CVEs tracked — all upstream pending, no action available", current_high));
+        patterns.push(format!(
+            "{} high CVEs tracked — all upstream pending, no action available",
+            current_high
+        ));
     }
     if avg > 93.0 {
-        patterns.push(format!("Average health {:.1}% — forest is consistently healthy", avg));
+        patterns.push(format!(
+            "Average health {:.1}% — forest is consistently healthy",
+            avg
+        ));
     }
     if drop_count > 0 {
-        patterns.push(format!("{} health drops recorded — all recovered within the same session", drop_count));
+        patterns.push(format!(
+            "{} health drops recorded — all recovered within the same session",
+            drop_count
+        ));
     }
 
     // Suggestions
@@ -250,12 +301,18 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
         suggestions.push("✅ Health stable — no action required".to_string());
     }
     if security_age_days > 60.0 {
-        suggestions.push(format!("🛡️  Security scan data is {:.0} days old — run: core security scan", security_age_days));
+        suggestions.push(format!(
+            "🛡️  Security scan data is {:.0} days old — run: core security scan",
+            security_age_days
+        ));
     }
     if drop_frequency > 0.3 {
-        suggestions.push("💡 Run `lock-core` before ending sessions to maintain 100% health".to_string());
+        suggestions
+            .push("💡 Run `lock-core` before ending sessions to maintain 100% health".to_string());
     }
-    suggestions.push("💡 Next milestone: Core v5 Phase 1 — data foundation for intelligence layer".to_string());
+    suggestions.push(
+        "💡 Next milestone: Core v5 Phase 1 — data foundation for intelligence layer".to_string(),
+    );
 
     // Sparkline
     let health_history: Vec<u64> = health.iter().map(|h| h.health as u64).collect();
@@ -285,16 +342,25 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
 fn plain_output(a: &Analysis, days: u32) {
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("🌲 faelight-forecast v1.0.0");
-    println!("   Health Intelligence — {}", Local::now().format("%Y-%m-%d %H:%M"));
+    println!(
+        "   Health Intelligence — {}",
+        Local::now().format("%Y-%m-%d %H:%M")
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
     println!("📊 Current State");
     println!("   Health:     {}%", a.current_health);
-    println!("   Avg health: {:.1}%  (over {} runs)", a.avg_health, a.total_runs);
+    println!(
+        "   Avg health: {:.1}%  (over {} runs)",
+        a.avg_health, a.total_runs
+    );
     println!("   Min health: {}%", a.min_health);
     println!("   Stability:  {:.0}/100", a.stability_score);
     println!("   Trend:      {:.3}%/day", a.trend_slope);
-    println!("   Drops:      {} total ({:.2}/day)", a.drop_count, a.drop_frequency);
+    println!(
+        "   Drops:      {} total ({:.2}/day)",
+        a.drop_count, a.drop_frequency
+    );
     println!();
     println!("📈 {}-Day Projection", days);
     for (date, health, signal) in &a.projected {
@@ -307,10 +373,14 @@ fn plain_output(a: &Analysis, days: u32) {
     println!("   CVE data age:    {:.0} days", a.security_age_days);
     println!();
     println!("🔍 Patterns");
-    for p in &a.patterns { println!("   · {}", p); }
+    for p in &a.patterns {
+        println!("   · {}", p);
+    }
     println!();
     println!("💡 Suggestions");
-    for s in &a.suggestions { println!("   {}", s); }
+    for s in &a.suggestions {
+        println!("   {}", s);
+    }
     println!();
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
@@ -328,11 +398,11 @@ fn draw_tui(
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // header
-                Constraint::Length(4),  // gauge + sparkline
-                Constraint::Length(4),  // stats row
-                Constraint::Min(0),     // main content
-                Constraint::Length(1),  // footer
+                Constraint::Length(3), // header
+                Constraint::Length(4), // gauge + sparkline
+                Constraint::Length(4), // stats row
+                Constraint::Min(0),    // main content
+                Constraint::Length(1), // footer
             ])
             .split(area);
 
@@ -345,17 +415,32 @@ fn draw_tui(
 
         let left = Paragraph::new(Line::from(vec![
             Span::styled(" 🌲 ", Style::default().fg(ACCENT)),
-            Span::styled("Health Forecast", Style::default().fg(FG).add_modifier(Modifier::BOLD)),
-            Span::styled("  — the forest sees what is coming", Style::default().fg(DIM)),
+            Span::styled(
+                "Health Forecast",
+                Style::default().fg(FG).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "  — the forest sees what is coming",
+                Style::default().fg(DIM),
+            ),
         ]))
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(ACCENT)));
+        .block(
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(ACCENT)),
+        );
         f.render_widget(left, header_chunks[0]);
 
-        let right = Paragraph::new(Line::from(vec![
-            Span::styled(format!("{}  ", now), Style::default().fg(DIM)),
-        ]))
+        let right = Paragraph::new(Line::from(vec![Span::styled(
+            format!("{}  ", now),
+            Style::default().fg(DIM),
+        )]))
         .alignment(ratatui::layout::Alignment::Right)
-        .block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(ACCENT)));
+        .block(
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(ACCENT)),
+        );
         f.render_widget(right, header_chunks[1]);
 
         // ── GAUGE + SPARKLINE ────────────────────────────────────────────
@@ -366,10 +451,12 @@ fn draw_tui(
 
         let hc = health_color(a.current_health);
         let gauge = Gauge::default()
-            .block(Block::default()
-                .title(Span::styled(" Current Health ", Style::default().fg(DIM)))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(DIM)))
+            .block(
+                Block::default()
+                    .title(Span::styled(" Current Health ", Style::default().fg(DIM)))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(DIM)),
+            )
             .gauge_style(Style::default().fg(hc).bg(BG))
             .percent(a.current_health as u16)
             .label(Span::styled(
@@ -379,13 +466,15 @@ fn draw_tui(
         f.render_widget(gauge, gauge_chunks[0]);
 
         let spark = Sparkline::default()
-            .block(Block::default()
-                .title(Span::styled(
-                    format!(" Health History ({} runs) ", a.total_runs),
-                    Style::default().fg(DIM),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(DIM)))
+            .block(
+                Block::default()
+                    .title(Span::styled(
+                        format!(" Health History ({} runs) ", a.total_runs),
+                        Style::default().fg(DIM),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(DIM)),
+            )
             .data(&a.health_history)
             .style(Style::default().fg(ACCENT));
         f.render_widget(spark, gauge_chunks[1]);
@@ -401,24 +490,43 @@ fn draw_tui(
             ])
             .split(chunks[2]);
 
-        let trend_color = if a.trend_slope > 0.0 { ACCENT } else if a.trend_slope < -0.1 { RED } else { YELLOW };
-        let trend_arrow = if a.trend_slope > 0.05 { "↑" } else if a.trend_slope < -0.05 { "↓" } else { "→" };
+        let trend_color = if a.trend_slope > 0.0 {
+            ACCENT
+        } else if a.trend_slope < -0.1 {
+            RED
+        } else {
+            YELLOW
+        };
+        let trend_arrow = if a.trend_slope > 0.05 {
+            "↑"
+        } else if a.trend_slope < -0.05 {
+            "↓"
+        } else {
+            "→"
+        };
 
         let stat_data = [
             (" Avg Health ", format!("{:.1}%", a.avg_health), ACCENT),
             (" Stability ", format!("{:.0}/100", a.stability_score), CYAN),
-            (" Trend ", format!("{} {:.3}%/day", trend_arrow, a.trend_slope), trend_color),
+            (
+                " Trend ",
+                format!("{} {:.3}%/day", trend_arrow, a.trend_slope),
+                trend_color,
+            ),
             (" Drops ", format!("{} total", a.drop_count), YELLOW),
         ];
 
         for (i, (title, val, color)) in stat_data.iter().enumerate() {
-            let w = Paragraph::new(Line::from(vec![
-                Span::styled(format!("  {}", val), Style::default().fg(*color).add_modifier(Modifier::BOLD)),
-            ]))
-            .block(Block::default()
-                .title(Span::styled(*title, Style::default().fg(DIM)))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(DIM)));
+            let w = Paragraph::new(Line::from(vec![Span::styled(
+                format!("  {}", val),
+                Style::default().fg(*color).add_modifier(Modifier::BOLD),
+            )]))
+            .block(
+                Block::default()
+                    .title(Span::styled(*title, Style::default().fg(DIM)))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(DIM)),
+            );
             f.render_widget(w, stats_chunks[i]);
         }
 
@@ -434,55 +542,89 @@ fn draw_tui(
             .split(main_chunks[0]);
 
         // Projection
-        let proj_items: Vec<ListItem> = a.projected.iter().map(|(date, health, signal)| {
-            let hc = health_color(*health);
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("  {}  ", date), Style::default().fg(DIM)),
-                Span::styled(format!("{:>5.1}%  ", health), Style::default().fg(hc).add_modifier(Modifier::BOLD)),
-                Span::styled(signal.clone(), Style::default().fg(DIM)),
-            ]))
-        }).collect();
+        let proj_items: Vec<ListItem> = a
+            .projected
+            .iter()
+            .map(|(date, health, signal)| {
+                let hc = health_color(*health);
+                ListItem::new(Line::from(vec![
+                    Span::styled(format!("  {}  ", date), Style::default().fg(DIM)),
+                    Span::styled(
+                        format!("{:>5.1}%  ", health),
+                        Style::default().fg(hc).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(signal.clone(), Style::default().fg(DIM)),
+                ]))
+            })
+            .collect();
 
         let proj_list = List::new(proj_items)
-            .block(Block::default()
-                .title(Span::styled(
-                    format!(" 📈 {}-Day Projection ", days),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(ACCENT)))
+            .block(
+                Block::default()
+                    .title(Span::styled(
+                        format!(" 📈 {}-Day Projection ", days),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(ACCENT)),
+            )
             .style(Style::default().bg(BG));
         f.render_widget(proj_list, left_chunks[0]);
 
         // Security
-        let sec_age_color = if a.security_age_days > 60.0 { RED } else if a.security_age_days > 30.0 { YELLOW } else { ACCENT };
+        let sec_age_color = if a.security_age_days > 60.0 {
+            RED
+        } else if a.security_age_days > 30.0 {
+            YELLOW
+        } else {
+            ACCENT
+        };
         let sec_items = vec![
             ListItem::new(Line::from(vec![
                 Span::styled("  High CVEs:    ", Style::default().fg(DIM)),
-                Span::styled(format!("{}", a.current_high), Style::default().fg(RED).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{}", a.current_high),
+                    Style::default().fg(RED).add_modifier(Modifier::BOLD),
+                ),
                 Span::styled("  (all upstream pending)", Style::default().fg(DIM)),
             ])),
             ListItem::new(Line::from(vec![
                 Span::styled("  Medium CVEs:  ", Style::default().fg(DIM)),
-                Span::styled(format!("{}", a.current_medium), Style::default().fg(YELLOW).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{}", a.current_medium),
+                    Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
+                ),
             ])),
             ListItem::new(Line::from(vec![
                 Span::styled("  Data age:     ", Style::default().fg(DIM)),
-                Span::styled(format!("{:.0} days", a.security_age_days), Style::default().fg(sec_age_color).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{:.0} days", a.security_age_days),
+                    Style::default()
+                        .fg(sec_age_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ])),
             ListItem::new(Line::from(vec![
                 Span::styled("  30d threshold: ", Style::default().fg(DIM)),
                 Span::styled(
-                    format!("{:.0} days away", (30.0 - a.security_age_days % 30.0).max(0.0)),
+                    format!(
+                        "{:.0} days away",
+                        (30.0 - a.security_age_days % 30.0).max(0.0)
+                    ),
                     Style::default().fg(DIM),
                 ),
             ])),
         ];
         let sec_list = List::new(sec_items)
-            .block(Block::default()
-                .title(Span::styled(" 🛡️  Security Intelligence ", Style::default().fg(BLUE).add_modifier(Modifier::BOLD)))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(BLUE)))
+            .block(
+                Block::default()
+                    .title(Span::styled(
+                        " 🛡️  Security Intelligence ",
+                        Style::default().fg(BLUE).add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(BLUE)),
+            )
             .style(Style::default().bg(BG));
         f.render_widget(sec_list, left_chunks[1]);
 
@@ -492,30 +634,49 @@ fn draw_tui(
             .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
             .split(main_chunks[1]);
 
-        let pattern_items: Vec<ListItem> = a.patterns.iter().map(|p| {
-            ListItem::new(Line::from(vec![
-                Span::styled("  · ", Style::default().fg(ACCENT)),
-                Span::styled(p.clone(), Style::default().fg(FG)),
-            ]))
-        }).collect();
+        let pattern_items: Vec<ListItem> = a
+            .patterns
+            .iter()
+            .map(|p| {
+                ListItem::new(Line::from(vec![
+                    Span::styled("  · ", Style::default().fg(ACCENT)),
+                    Span::styled(p.clone(), Style::default().fg(FG)),
+                ]))
+            })
+            .collect();
         let pattern_list = List::new(pattern_items)
-            .block(Block::default()
-                .title(Span::styled(" 🔍 Patterns Detected ", Style::default().fg(CYAN).add_modifier(Modifier::BOLD)))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(CYAN)))
+            .block(
+                Block::default()
+                    .title(Span::styled(
+                        " 🔍 Patterns Detected ",
+                        Style::default().fg(CYAN).add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(CYAN)),
+            )
             .style(Style::default().bg(BG));
         f.render_widget(pattern_list, right_chunks[0]);
 
-        let suggest_items: Vec<ListItem> = a.suggestions.iter().map(|s| {
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("  {}  ", s), Style::default().fg(FG)),
-            ]))
-        }).collect();
+        let suggest_items: Vec<ListItem> = a
+            .suggestions
+            .iter()
+            .map(|s| {
+                ListItem::new(Line::from(vec![Span::styled(
+                    format!("  {}  ", s),
+                    Style::default().fg(FG),
+                )]))
+            })
+            .collect();
         let suggest_list = List::new(suggest_items)
-            .block(Block::default()
-                .title(Span::styled(" 💡 Suggestions ", Style::default().fg(YELLOW).add_modifier(Modifier::BOLD)))
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(YELLOW)))
+            .block(
+                Block::default()
+                    .title(Span::styled(
+                        " 💡 Suggestions ",
+                        Style::default().fg(YELLOW).add_modifier(Modifier::BOLD),
+                    ))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(YELLOW)),
+            )
             .style(Style::default().bg(BG));
         f.render_widget(suggest_list, right_chunks[1]);
 
@@ -557,8 +718,13 @@ fn main() -> Result<()> {
         draw_tui(&mut terminal, &analysis, cli.days)?;
         if event::poll(std::time::Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press { continue; }
-                if matches!(key.code, KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc) {
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
+                if matches!(
+                    key.code,
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc
+                ) {
                     break;
                 }
             }
@@ -566,6 +732,10 @@ fn main() -> Result<()> {
     }
 
     terminal::disable_raw_mode()?;
-    execute!(terminal.backend_mut(), terminal::LeaveAlternateScreen, cursor::Show)?;
+    execute!(
+        terminal.backend_mut(),
+        terminal::LeaveAlternateScreen,
+        cursor::Show
+    )?;
     Ok(())
 }
