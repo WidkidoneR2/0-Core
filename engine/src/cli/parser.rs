@@ -123,6 +123,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: PrioritizeCommands,
     },
+    /// Intent autobiography — the forest narrates its own goal history (Core v9)
+    Autobiography {
+        #[command(subcommand)]
+        command: AutobiographyCommands,
+    },
     Evolution {
         #[command(subcommand)]
         command: EvolutionCommands,
@@ -796,6 +801,15 @@ pub enum PrioritizeCommands {
     Run,
     /// Explain why goals are ranked as they are
     Explain,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum AutobiographyCommands {
+    /// Narrate the forest's goal history
+    Narrate {
+        /// Filter by version (e.g. 11.1.0)
+        version: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

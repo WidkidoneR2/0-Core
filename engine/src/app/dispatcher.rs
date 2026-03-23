@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, PlanCommand, TradeoffCommand, PrioritizeCommand,
+    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, PlanCommand, TradeoffCommand, PrioritizeCommand, AutobiographyCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
 };
@@ -446,6 +446,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Prioritize(c) => match c {
             PrioritizeCommand::Run     => crate::domains::prioritize::prioritize(ctx),
             PrioritizeCommand::Explain => crate::domains::prioritize::explain(ctx),
+        },
+        Command::Autobiography(c) => match c {
+            AutobiographyCommand::Narrate { version } =>
+                crate::domains::autobiography::narrate(ctx, version.as_deref()),
         },
         Command::Evolution(c) => match c {
             EvolutionCommand::Map   => crate::domains::evolution::map(ctx),

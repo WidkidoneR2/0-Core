@@ -3,7 +3,7 @@ id: 133
 date: 2026-03-17
 type: future
 title: "Core v9 — Intent: The Forest Chooses Where to Grow"
-status: in-progress
+status: complete
 tags: [core, v9, intent, goals, planning, autonomy, architecture, v13]
 version: 13.0.0
 priority: medium
@@ -232,7 +232,7 @@ Phase 5 — Intent Autobiography (core autobiography)
 ✅ Phase 2 — Task Planning DONE (2026-03-23)
 ✅ Phase 3 — Tradeoff Engine DONE (2026-03-23)
 ✅ Phase 4 — Dynamic Prioritization DONE (2026-03-23)
-⬜ Phase 5 — Intent Autobiography
+✅ Phase 5 — Intent Autobiography DONE (2026-03-23)
 ```
 
 ## What v10 Builds On
