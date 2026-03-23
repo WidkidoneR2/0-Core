@@ -22,6 +22,32 @@ mod scripting;
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
+
+/// Split a line on `;` separators, respecting quoted strings.
+/// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
+fn split_semicolons(line: &str) -> Vec<String> {
+    let mut segments = vec![];
+    let mut current = String::new();
+    let mut in_quote = false;
+    let mut quote_char = ' ';
+    for ch in line.chars() {
+        match ch {
+            '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; current.push(ch); }
+            c if in_quote && c == quote_char => { in_quote = false; current.push(ch); }
+            ';' if !in_quote => {
+                let seg = current.trim().to_string();
+                if !seg.is_empty() { segments.push(seg); }
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+    let seg = current.trim().to_string();
+    if !seg.is_empty() { segments.push(seg); }
+    if segments.is_empty() { segments.push(line.trim().to_string()); }
+    segments
+}
+
 fn main() -> Result<()> {
     // Connect to state.db
     let db = db::ForestDb::open()?;
@@ -42,7 +68,7 @@ fn main() -> Result<()> {
     db.load_history(&mut rl);
 
     // REPL loop
-    loop {
+    'repl: loop {
         let prompt_str = prompt::render_line(&db);
 
         match rl.readline(&prompt_str) {
@@ -55,6 +81,17 @@ fn main() -> Result<()> {
                 _session_commands += 1;
                 if line.contains(" | ") { _session_pipelines += 1; }
                 db.save_history_entry(&line);
+                // Phase 14 — multi-command: split on ; before execution
+                let segments = split_semicolons(&line);
+                let segment_count = segments.len();
+                if segment_count > 1 {
+                    println!("  {} {} commands", "○".bright_cyan(), segment_count);
+                }
+                for (seg_idx, segment) in segments.iter().enumerate() {
+                if segment_count > 1 {
+                    println!("  {} {}", format!("[{}/{}]", seg_idx + 1, segment_count).dimmed(), segment.dimmed());
+                }
+                let line = segment.as_str();
 
                 // Natural language ?prefix
                 if line.starts_with('?') && line.len() > 1 {
@@ -219,7 +256,7 @@ fn main() -> Result<()> {
                     }
                     println!("
   {} stream stopped", "○".dimmed());
-                    continue;
+                    continue 'repl;
                 }
 
                 // Resolve join ops — execute right-side tables before pipeline runs
@@ -237,7 +274,7 @@ fn main() -> Result<()> {
                 }).collect();
 
                 match commands::execute(&base_cmd, &db, &core_root) {
-                    commands::CommandResult::Exit => break,
+                    commands::CommandResult::Exit => break 'repl,
                     commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
                         let result = value::apply_pipeline(v, &pipeline_ops);
                         println!("{}", result.render());
@@ -258,6 +295,7 @@ fn main() -> Result<()> {
                     last_domain: None,
                 };
                 triggers::evaluate(&db, &trigger_ctx, &core_root);
+                } // end 'segments loop
             }
             Err(ReadlineError::Interrupted) => {
                 // Ctrl+C — clear line, return to prompt
