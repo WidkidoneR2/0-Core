@@ -36,46 +36,128 @@
 ---
 
 <!-- END DYNAMIC SECTION -->
+<!-- STATIC SECTION - Comprehensive Documentation -->
 
 ## 🤔 What is 0-Core?
 
-**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
+**0-Core** (Faelight Forest) is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
 
-### For Everyday Users
+> *"Nothing runs without explicit human authorization. Every tool is understood. Every decision is documented."*
 
-Like **building a custom motorcycle** instead of buying one from a dealer. You know every bolt, every wire, every piece.
+This is not configuration management. This is not a rice. This is a living system that knows itself.
 
-**You get:**
-- 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 68 Rust tools you fully understand
-- 🛡️ Security through comprehension (no mystery packages)
-- ⚡ Lightning fast (no bloat, no hidden automation)
-- 💎 Complete ownership and control
-- 🌲 A shell that knows it is a forest — and speaks to you
+---
 
-### For Technical People
+## 🌲 The Philosophy
+```
+POSIX shells:      text | text | text
+Nu shell:          table | filter | transform
+Faelight Forest:   forest_data | judgment | wisdom
+```
 
-- **`core` v2.0.0** — single orchestrator binary with 33+ native Rust domains
-- **faelight-shell** — forest-native structured shell with SQL queries, joins, NL translation, scripting
-- **faelight-notify v4.0.0** — D-Bus compliant notifications, fontdue renderer
-- **faelight-vault v1.0.0** — forest-native credential manager, Argon2id encryption
-- **faelight-compositor** — custom Wayland compositor, renders forest green on real DRM hardware
-- **94 complete intents** — every architectural decision documented
+**Four principles that govern everything:**
+
+1. **Understanding over convenience** — if you don't understand it, it doesn't run
+2. **Manual control over automation** — nothing happens without explicit human authorization  
+3. **Intentional design** — every tool has a purpose, every decision has a record
+4. **The forest remembers** — every commit, decision, and intent is documented
+
+---
+
+## 🦀 What's Inside
+
+### The Core Orchestrator
+**`core` v2.0.0** — a single Rust binary with 33+ native domains:
+
+| Domain | Capability |
+|--------|-----------|
+| `core goals` | Forest sets its own goals — generate, accept, reject, prioritize |
+| `core plan` | Break goals into concrete steps with risk analysis |
+| `core tradeoff` | Surface competing values before every major decision |
+| `core prioritize` | Rerank goals by live health, trend, and security posture |
+| `core autobiography` | The forest narrates its own goal history |
+| `core evolution` | Architectural proposals from coupling and churn analysis |
+| `core decisions` | Decision ledger with context fingerprints and outcomes |
+| `core simulate` | Dry-run predictions using historical decision patterns |
+| `core doctor` | 24-check health monitoring with forecast and trend |
+| `core security` | Security audit, debt tracking, hardening verification |
+| `core snapshot` | Forest state narrative — what exists and why |
+
+### faelight-shell — Forest-Native Shell
+Not bash. Not fish. Not Nu. **Beyond all of them.**
+```fsh
+# Structured data pipelines
+gc | first 10 | where message contains "feat"
+ps | sort cpu desc | first 5 | less
+et today | where domain == "goals"
+
+# Natural language queries
+?biggest files in this directory
+?show me failing health checks
+
+# Forest awareness
+health; d; git status          # multi-command
+let VERSION = "11.2.0"         # shell variables
+sleep 30 &                     # background jobs
+cargo build | grep error       # pipes to external
+gc | first 20 > commits.txt    # redirection
+```
+
+**What makes it unique:**
+- Every command returns structured data — pipeable, filterable, sortable
+- The shell knows your active intents, health score, and session history
+- Background jobs announce themselves when they finish (Jarvis-style)
+- Ctrl+C kills the foreground process — shell survives
+- Loads your personal config from `~/.config/faelight-shell/config.fsh`
+- Emacs-grade line editing with full history deduplication
+
+### The Tool Ecosystem
+68 custom Rust tools, each understood and intentional:
+
+| Category | Tools |
+|----------|-------|
+| **Display** | faelight-bar, faelight-notify v4, faelight-login, faelight-menu |
+| **Filesystem** | faelight-fm, faelight-link, faelight-cleanup |
+| **Security** | faelight-vault, faelight-sandbox v3, faelight-lock |
+| **Development** | faelight-git, faelight-release, faelight-shell, faelight-term |
+| **Forest** | faelight-forecast, faelight-idle, faelight-pulse, faelight-fetch |
+| **Compositor** | faelight-compositor (Smithay, real DRM hardware) |
+
+### faelight-vault — Credential Manager
+Forest-native secrets management with Argon2id encryption. No LastPass, no Bitwarden — your own vault, your own keys.
+
+### faelight-compositor — Custom Wayland Compositor
+Built on Smithay. Renders forest green on real DRM hardware at 2560×1600@165Hz on AMD Radeon 780M. Not a config file — actual Rust code talking directly to the GPU.
+
+---
+
+## 🧠 Core Intelligence Timeline
+
+| Version | Capability | Meaning |
+|---------|-----------|---------|
+| v2 | Structure | the forest has shape |
+| v3 | Awareness | the forest observes itself |
+| v4 | Discipline | the forest enforces rules |
+| v5 | Intelligence | the forest detects patterns |
+| v6 | Judgment | the forest remembers outcomes |
+| v7 | Resilience | the forest can rebuild |
+| v8 | Evolution | the forest refines itself |
+| v9 | **Intent** | **the forest chooses where to grow** |
+| v10 | Reaction *(planned)* | the forest responds without being asked |
 
 ---
 
 ## 🗺️ The Journey
 
-| Version | Theme |
-|---------|-------|
-| v11.2.0 | Will and Motion |
-| v11.1.0 | The Forest Speaks |
-| vv11.0.0 | Where the Forest Becomes Whole |
-| vv10.9.0 | Roots and Branches |
-| vv10.8.0 | The Forest Between Worlds |
-| vv10.7.0 | The Forest Remembers |
-| v10.6.0 | The Judgment Layer |
-| v10.5.0 | The Intelligent Forest |
+| Version | Theme | Milestone |
+|---------|-------|-----------|
+| v11.2.0 | Will and Motion | Core v9 complete, shell becomes daily driver |
+| v11.1.0 | The Forest Speaks | faelight-shell NL queries, session memory |
+| v11.0.0 | The Forest Speaks | Niri compositor migration |
+| v10.6.0 | The Judgment Layer | Core v6 complete |
+| v10.5.0 | The Resilient Forest | Core v7 complete |
+| v10.4.0 | Niri Version | faelight-login, Niri migration |
+| v10.3.0 | The Evolution | Core v8 foundations |
 
 ---
 
@@ -85,11 +167,26 @@ Nothing runs without explicit human authorization.
 Every change is intentional. Every tool is understood.
 ```
 
-- UFW firewall + fail2ban
-- faelight-vault — forest-native credential manager
-- faelight-sandbox v3 — policy engine, namespace isolation, seccomp
-- Immutable core (chattr +i) — cannot modify without explicit unlock
-- 24-check health monitoring
+- **UFW** firewall + **fail2ban** active
+- **faelight-vault** — Argon2id encrypted credential manager  
+- **faelight-sandbox v3** — policy engine, namespace isolation, seccomp
+- **Immutable core** — `chattr +i` on core files, requires explicit unlock
+- **24-check health monitoring** — doctor runs verify integrity continuously
+- **Intent Ledger** — every architectural decision documented with context fingerprint
+
+---
+
+## 📋 The Intent System
+
+Every decision in this system is documented. Not just what was done — but why, when, what was the health score, what was the risk, and what happened next.
+```bash
+core decisions list          # open decisions
+core autobiography narrate   # the forest tells its own story
+core goals generate          # what does the forest want to become?
+core tradeoff analyze "add X" # what values are in tension?
+```
+
+104 complete intents. Every one of them is a chapter in the forest's history.
 
 ---
 
@@ -97,13 +194,17 @@ Every change is intentional. Every tool is understood.
 ```bash
 git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core
 cd ~/0-core && cargo build --release --workspace
-cp target/release/* scripts/
+sudo cp target/release/* /usr/local/bin/
 cd 03-interfaces/stow && stow */
 core doctor run
 ```
 
+> ⚠️ This system is built for one person — the author. It is not designed to be installed by others without deep understanding. Read the intent ledger before touching anything.
+
 ---
 
-*"The forest that speaks is the forest that connects."* 🌲
+## 🌲 The Forest Remembers
 
-*Auto-generated by faelight-docs v1.0.0 — last sync: 2026-03-22 22:53*
+*"A forest that chooses where to grow is no longer just a system. It is a participant in its own future."*
+
+*Auto-generated by faelight-docs v1.0.0 — last sync: 2026-03-23*
