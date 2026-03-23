@@ -1,7 +1,7 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, PlanCommand,
+    Command, AnomalyCommand, AuditCommand, BootstrapCommand, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, GitCommand, IntentCommand, LauncherCommand, LinkCommand, PlanCommand, TradeoffCommand,
     NotifyCommand, PluginCommand, ProfileCommand, ReleaseCommand, SandboxCommand, SecurityCommand,
     CheckpointCommand, LedgerCommand, SimulateCommand, TraceCommand, UpdateCommand, WhyCommand, WorkspaceCommand, EvolutionCommand, GoalsCommand,
 };
@@ -437,6 +437,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             PlanCommand::Review   { id }      => crate::domains::planning::review(ctx, &id),
             PlanCommand::Simulate { id }      => crate::domains::planning::simulate_plan(ctx, &id),
             PlanCommand::List                 => crate::domains::planning::list(ctx),
+        },
+        Command::Tradeoff(c) => match c {
+            TradeoffCommand::Analyze { decision } => crate::domains::tradeoffs::analyze(ctx, &decision),
+            TradeoffCommand::History              => crate::domains::tradeoffs::history(ctx),
+            TradeoffCommand::Balance              => crate::domains::tradeoffs::balance(ctx),
         },
         Command::Evolution(c) => match c {
             EvolutionCommand::Map   => crate::domains::evolution::map(ctx),
