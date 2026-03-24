@@ -62,7 +62,7 @@ Core v10                  — forest-level reactions
 Both feed the same reaction engine. Phase 17 handles local shell
 events. v10 handles forest-wide state changes.
 
-## The Five Pillars
+## The Six Pillars
 
 ### Pillar 1 — Reaction Rules
 Human-defined rules that bind forest state to responses.
@@ -159,7 +159,44 @@ Reaction 042 fired at 14:23
   Outcome: forecast recovered to +0.4
 ```
 
+### Pillar 6 — Reaction Discipline
+The forest respects your focus. Not every signal is worth an interruption.
+Every reaction answers three questions before firing:
+- Is this worth interrupting the human now?
+- Can this be batched with other reactions?
+- Can this decay quietly if ignored long enough?
+```bash
+core react discipline        # show current discipline config
+core react cooldowns         # show active cooldown timers
+core react coalesce          # show batched pending reactions
+```
+
+Reaction definition with discipline:
+```
+on health < 95:
+  priority:    medium
+  cooldown:    30m          # don't fire again within 30 minutes
+  coalesce:    true         # batch with similar signals
+  escalate_if: health < 90  # escalate to HIGH if condition worsens
+  decay_after: 2h           # silently discard if ignored for 2 hours
+
+on gchurn(file) > 50:
+  priority:    low
+  cooldown:    4h           # hotspot won't nag every session
+  coalesce:    true         # group multiple hotspot findings
+  decay_after: 24h          # stale churn warning auto-expires
+```
+
+The forest has:
+- **Memory of annoyance** — cooldown prevents repeated interruption
+- **Respect for focus** — coalescing batches related signals
+- **Temporal intelligence** — decay lets low-priority signals expire
+
+Discipline config lives in `runtime/reaction-discipline.toml` —
+editable without recompiling. The human tunes how loud the forest is.
+
 ## The Three Guardrails
+
 
 **Rule 1** — Reactions never execute outside accepted v9 goal scope.
 The goal boundary is the reaction boundary.
@@ -171,6 +208,11 @@ The forest surfaces signals and suggestions. Humans execute.
 Health < 80%: only stability reactions fire.
 Health < 95%: expansion reactions suspended.
 Health ≥ 95%: full reaction engine active.
+
+**Rule 4** — Reactions respect human focus.
+Discipline gates fire before any reaction surfaces —
+cooldown, coalesce, and decay are enforced, not optional.
+A forest that interrupts constantly is a forest that gets ignored.
 
 ## Relationship to Other Intents
 ```
@@ -188,6 +230,7 @@ engine/src/domains/
     bus.rs          — event bus integration
     bounds.rs       — boundary enforcement
     narrative.rs    — reaction story generation
+    discipline.rs   — cooldown, coalesce, decay enforcement
 
 runtime/
   reactions/        — active rules
@@ -201,6 +244,7 @@ Phase 2 — Reaction Rules (define + evaluate)
 Phase 3 — Conditional Intelligence (goal-scoped reactions)
 Phase 4 — Reaction Boundaries (safety enforcement)
 Phase 5 — Reaction Narrative (explain + story)
+Phase 6 — Reaction Discipline (cooldown, coalesce, decay)
 ```
 
 ## Gate Check
@@ -212,6 +256,7 @@ Phase 5 — Reaction Narrative (explain + story)
 ⬜ Phase 3 — Conditional Intelligence
 ⬜ Phase 4 — Reaction Boundaries
 ⬜ Phase 5 — Reaction Narrative
+⬜ Phase 6 — Reaction Discipline
 ```
 
 ## The Phrase
