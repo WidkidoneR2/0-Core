@@ -3,7 +3,7 @@ id: 145
 date: 2026-03-21
 type: future
 title: "faelight-docs — Living Documentation Engine"
-status: in-progress
+status: complete
 tags: [docs, readme, welcome, automation, core, v11, v12]
 version: 11.2.0
 priority: medium
@@ -129,8 +129,8 @@ fn find_static_start(content: &str) -> Option<usize> {
 ✅ faelight-docs welcome — updates zshrc welcome message DONE (2026-03-25)
 ✅ faelight-docs check — dry run diff DONE (2026-03-25)
 ✅ faelight-docs preview — show generated output DONE (2026-03-25)
-⬜ faelight-release integration — auto-sync on publish
-⬜ TOOLS.md generation
+✅ faelight-release integration — auto-sync on publish DONE (2026-03-25)
+⬜ TOOLS.md generation — DEFERRED (scope creep, README covers tool data)
 ```
 
 ## The Phrase
