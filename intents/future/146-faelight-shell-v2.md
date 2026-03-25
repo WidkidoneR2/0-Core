@@ -210,18 +210,49 @@ These phases complete the migration:
 - ✅ Phase 9  — signals DONE (2026-03-23)
 - ✅ Phase 10 — shell variables DONE (2026-03-23)
 - ✅ Phase 11 — pipes to external DONE (2026-03-23)
-- ⬜ Phase 12 — package helpers
 - ✅ Phase 13 — redirection DONE (2026-03-23)
 - ✅ Phase 14 — multi-command input DONE (2026-03-23)
 - ✅ Phase 15 — config file DONE (2026-03-23)
 - ✅ Phase 16 — interactive improvements DONE (2026-03-23)
-- ⬜ Phase 17 — prompt v2
-- ⬜ Phase 18 — script arguments
-- ⬜ Phase 19 — fsh as login shell
-- ⬜ Phase 20 — zsh retirement plan
+
+## Reordered Priority (2026-03-25 — strategy revision)
+- ⬜ Phase 17 — prompt v2 (MOVED UP — addictive daily driver feel)
+- ⬜ Phase 17b — completion v1 (MOVED UP from 21 — forest-aware tab completion)
+- ⬜ Phase 12 — package helpers (composable, structured, pkg undo)
+- ⬜ Phase 18 — script ergonomics (sh{} escape hatch, typed lists, error intelligence)
+- ⬜ Phase 18b — flow mode (intent continuity — the unfair advantage)
+- ⬜ Phase 20 — zsh retirement plan (audit only, no switch yet)
+- ⬜ Phase 19 — fsh as login shell (LAST — after 80% confidence)
 - ⬜ Phase 21-32 — full daily driver
 
+## Compatibility Contract (2026-03-25)
+
+**faelight-shell is NOT a POSIX shell.**
+
+It does not run bash or zsh scripts.
+It runs `.fsh` scripts and forest pipelines.
+For POSIX compatibility when needed, use the escape hatch:
+```fsh
+sh {
+  awk '{print $1}' /etc/passwd | sort
+}
+```
+
+This is a deliberate choice, not a limitation:
+- You control every script in this system
+- POSIX compatibility serves people running other people's scripts
+- The forest is not trying to replace bash — it replaces the *need* for bash
+
+**The forest model:**
+```
+text    → Unix shells
+tables  → Nushell
+buffers → Emacs
+forest  → faelight-shell  (structured, observable, self-aware)
+```
+
 ## The Philosophy
+
 
 **The shell does not replace zsh overnight.
 Each phase earns trust through stability.
