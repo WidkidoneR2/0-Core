@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use crate::schema::SchemaRegistry;
 
 const COMMANDS: &[&str] = &[
+    "core",
     "health",
     "events",
     "decisions",
@@ -166,18 +167,214 @@ impl ForestHelper {
             return (0, cands);
         }
 
-        // ── Case 3: first word ────────────────────────────────────────────────
-        if !line.contains(' ') {
-            let cands: Vec<String> = COMMANDS
+        // ── Case 2b: forest-aware subcommand completion ─────────────────────
+        // Same logic as Case 3 — prefix match against full "core goals" style strings
+        {
+            // All multi-word completions — prefix match from start=0
+            const MULTI_CMDS: &[&str] = &[
+                "core goals list",
+                "core goals generate",
+                "core goals accept",
+                "core goals reject",
+                "core goals show",
+                "core goals priority",
+                "core plan generate",
+                "core plan review",
+                "core plan simulate",
+                "core plan list",
+                "core tradeoff analyze",
+                "core tradeoff history",
+                "core tradeoff balance",
+                "core prioritize run",
+                "core prioritize explain",
+                "core autobiography narrate",
+                "core evolution map",
+                "core evolution tools",
+                "core evolution suggest",
+                "core decisions list",
+                "core decisions record",
+                "core decisions stats",
+                "core doctor run",
+                "core doctor trend",
+                "core doctor forecast",
+                "core security scan",
+                "core security report",
+                "core security history",
+                "core checkpoint create",
+                "core checkpoint list",
+                "core checkpoint restore",
+                "core events list",
+                "core events since",
+                "core events filter",
+                "core events watch",
+                "core simulate doctor",
+                "core simulate update",
+                "core simulate scenario",
+                "core goals",
+                "core plan",
+                "core tradeoff",
+                "core prioritize",
+                "core autobiography",
+                "core evolution",
+                "core decisions",
+                "core doctor",
+                "core security",
+                "core checkpoint",
+                "core events",
+                "core simulate",
+                "core snapshot",
+                "core narrative",
+                "core anomaly",
+                "core audit",
+                "core deps",
+                "core capabilities",
+                "core version",
+                "et today",
+                "et goals",
+                "et git",
+                "et security",
+                "et doctor",
+                "cd ~/",
+                "cd ~/0-core",
+                "cd ~/0-core/rust-tools",
+            ];
+            let cands: Vec<String> = MULTI_CMDS
                 .iter()
                 .filter(|c| c.starts_with(line))
                 .map(|s| s.to_string())
                 .collect();
+            if !cands.is_empty() {
+                return (0, cands);
+            }
+        }
+        // ── Case 2c: path completion — cd or path-like argument ─────────────────
+        if line.starts_with("cd ") {
+            let partial = &line["cd ".len()..];
+            let cands = path_completions(partial)
+                .into_iter()
+                .map(|p| format!("cd {}", p))
+                .collect();
+            return (0, cands);
+        }
+        // any argument starting with / ~/ or ./
+        if line.contains(' ') {
+            let last = line.split_whitespace().last().unwrap_or("");
+            if last.starts_with('/') || last.starts_with("~/") || last.starts_with("./") {
+                let start = line.len() - last.len();
+                let cands = path_completions(last);
+                return (start, cands);
+            }
+        }
+
+        // ── Case 3: first word — static list + PATH binaries ─────────────────
+        if !line.contains(' ') {
+            let mut cands: Vec<String> = COMMANDS
+                .iter()
+                .filter(|c| c.starts_with(line))
+                .map(|s| s.to_string())
+                .collect();
+            let mut bins = binary_completions(line);
+            cands.append(&mut bins);
+            cands.sort();
+            cands.dedup();
             return (0, cands);
         }
 
         (line.len(), vec![])
     }
+}
+
+// ── path_completions — filesystem completion with ~/ expansion ────────────────
+fn path_completions(partial: &str) -> Vec<String> {
+    let expanded = if partial.starts_with("~/") {
+        let home = std::env::var("HOME").unwrap_or_default();
+        partial.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        partial.to_string()
+    };
+
+    let (dir, stem) = if expanded.is_empty() || expanded.ends_with('/') {
+        (
+            if expanded.is_empty() {
+                "./".to_string()
+            } else {
+                expanded.clone()
+            },
+            String::new(),
+        )
+    } else {
+        let p = std::path::Path::new(&expanded);
+        let parent = p
+            .parent()
+            .map(|d| {
+                let s = d.to_string_lossy().to_string();
+                if s.is_empty() {
+                    "./".to_string()
+                } else {
+                    format!("{}/", s)
+                }
+            })
+            .unwrap_or_else(|| "./".to_string());
+        let stem = p
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        (parent, stem)
+    };
+
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return vec![];
+    };
+
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut results: Vec<String> = entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') && !stem.starts_with('.') {
+                return None; // hide dotfiles unless user typed a dot
+            }
+            if name.starts_with(&stem) {
+                let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                let full = format!("{}{}{}", dir, name, if is_dir { "/" } else { "" });
+                // restore ~/ prefix if original started with ~/
+                let display = if partial.starts_with("~/") {
+                    full.replacen(&format!("{}/", home), "~/", 1)
+                } else {
+                    full
+                };
+                Some(display)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    results.sort();
+    results
+}
+
+// ── binary_completions — scan $PATH for matching executables ──────────────────
+fn binary_completions(partial: &str) -> Vec<String> {
+    if partial.is_empty() {
+        return vec![];
+    }
+    let path_env = std::env::var("PATH").unwrap_or_default();
+    let mut results: Vec<String> = path_env
+        .split(':')
+        .flat_map(|dir| std::fs::read_dir(dir).ok().into_iter().flatten().flatten())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with(partial) {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    results.sort();
+    results.dedup();
+    results
 }
 
 impl Completer for ForestHelper {
