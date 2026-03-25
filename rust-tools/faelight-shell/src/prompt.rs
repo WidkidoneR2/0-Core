@@ -42,28 +42,32 @@ fn health_str(health: i64) -> colored::ColoredString {
     }
 }
 
-fn git_branch() -> Option<String> {
-    // Fast git branch detection — read .git/HEAD directly, no subprocess
+fn git_info() -> Option<(String, bool)> {
+    // Branch — read .git/HEAD directly, no subprocess
     let cwd = std::env::current_dir().ok()?;
     let mut dir = cwd.as_path();
-    loop {
+    let git_root = loop {
         let git_head = dir.join(".git/HEAD");
         if git_head.exists() {
-            let content = std::fs::read_to_string(&git_head).ok()?;
-            let branch = content
-                .trim()
-                .strip_prefix("ref: refs/heads/")
-                .unwrap_or("HEAD")
-                .to_string();
-            return Some(branch);
+            break dir.to_path_buf();
         }
         dir = dir.parent()?;
-    }
-}
+    };
+    let head = std::fs::read_to_string(git_root.join(".git/HEAD")).ok()?;
+    let branch = head
+        .trim()
+        .strip_prefix("ref: refs/heads/")
+        .unwrap_or("HEAD")
+        .to_string();
 
-fn git_status_symbol() -> &'static str {
-    // Disabled — subprocess-free dirty check coming in Phase 17b
-    ""
+    // Dirty check — git status --porcelain, 8ms on this repo
+    let dirty = std::process::Command::new("git")
+        .args(["-C", &git_root.to_string_lossy(), "status", "--porcelain"])
+        .output()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    Some((branch, dirty))
 }
 
 fn active_intent(db: &ForestDb) -> Option<String> {
@@ -100,18 +104,18 @@ pub struct PromptContext {
 pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     let cwd = cwd_str(35);
     let health = db.health_score().unwrap_or(95);
-    let branch = git_branch();
+    let git = git_info();
 
     // ── Line 1: System state ─────────────────────────────────────────────
     let mut line1 = format!("  {}", cwd.bright_cyan().bold());
 
-    if let Some(ref b) = branch {
-        let status = git_status_symbol();
+    if let Some((ref b, dirty)) = git {
+        let symbol = if dirty { "*" } else { "" };
         line1.push_str(&format!(
             " {} {}{}",
             "(".dimmed().to_string(),
             b.bright_yellow().to_string(),
-            format!("{})", status).dimmed().to_string()
+            format!("{})", symbol).dimmed().to_string()
         ));
     }
 
