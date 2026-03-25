@@ -133,6 +133,17 @@ fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> 
 }
 
 fn main() -> Result<()> {
+    // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
+    let result = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .name("faelight-repl".into())
+        .spawn(|| repl_main())?
+        .join()
+        .map_err(|_| anyhow::anyhow!("REPL thread panicked"))?;
+    result
+}
+
+fn repl_main() -> Result<()> {
     // Connect to state.db
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();
@@ -169,6 +180,10 @@ fn main() -> Result<()> {
     // Phase 8 — job table
     let mut job_table = jobs::JobTable::new();
 
+    // Phase 17 — prompt context tracking
+    let last_duration_ms: Option<u64> = None;
+    let last_exit_code:   Option<i32> = None;
+
     // Phase 10 — shell variable table
     let mut shell_vars: HashMap<String, String> = HashMap::new();
 
@@ -176,6 +191,14 @@ fn main() -> Result<()> {
     'repl: loop {
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
+
+        // Phase 17 — render two-line context above input
+        let ctx = prompt::PromptContext {
+            last_duration_ms,
+            last_exit_code,
+            job_count: job_table.job_count(),
+        };
+        prompt::render_context(&db, &ctx);
 
         let prompt_str = prompt::render_line(&db);
 

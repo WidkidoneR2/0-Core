@@ -1380,7 +1380,7 @@ fn sys_network() -> CommandResult {
 
     let mut rows = Vec::new();
     let mut current: HashMap<String, Value> = HashMap::new();
-    let mut lines = output.lines().peekable();
+    let lines = output.lines().peekable();
 
     for line in lines {
         if line.starts_with(|c: char| c.is_ascii_digit()) {

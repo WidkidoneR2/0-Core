@@ -161,4 +161,8 @@ impl JobTable {
     pub fn is_empty(&self) -> bool {
         self.jobs.is_empty()
     }
+
+    pub fn job_count(&self) -> usize {
+        self.jobs.len()
+    }
 }

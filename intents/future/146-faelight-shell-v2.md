@@ -216,7 +216,7 @@ These phases complete the migration:
 - ✅ Phase 16 — interactive improvements DONE (2026-03-23)
 
 ## Reordered Priority (2026-03-25 — strategy revision)
-- ⬜ Phase 17 — prompt v2 (MOVED UP — addictive daily driver feel)
+- ✅ Phase 17 — prompt v2 DONE (2026-03-25) — two-line, git branch, health, timing, alias recursion guard
 - ⬜ Phase 17b — completion v1 (MOVED UP from 21 — forest-aware tab completion)
 - ⬜ Phase 12 — package helpers (composable, structured, pkg undo)
 - ⬜ Phase 18 — script ergonomics (sh{} escape hatch, typed lists, error intelligence)
