@@ -1421,7 +1421,6 @@ fn sys_packages() -> CommandResult {
 
     let rows: Vec<HashMap<String, Value>> = output
         .lines()
-        .take(100)
         .filter_map(|line| {
             let mut parts = line.splitn(2, ' ');
             let name = parts.next()?.to_string();
