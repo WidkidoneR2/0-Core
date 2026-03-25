@@ -108,6 +108,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GoalsCommands,
     },
+    /// Reaction engine — the forest responds without being asked (Core v10)
+    React {
+        #[command(subcommand)]
+        command: ReactCommands,
+    },
     /// Task planning — break accepted goals into concrete steps (Core v9)
     Plan {
         #[command(subcommand)]
@@ -769,6 +774,23 @@ pub enum GoalsCommands {
         /// Goal ID
         id: String,
     },
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ReactCommands {
+    /// List all reaction rules and their cooldown status
+    List,
+    /// Evaluate all rules now and surface any reactions
+    Run,
+    /// Show log of all triggered reactions
+    History,
+    /// Explain why a specific reaction fired
+    Explain {
+        /// Reaction ID (e.g. 1, 2, 3)
+        id: String,
+    },
+    /// Show active cooldown timers
+    Discipline,
 }
 
 #[derive(Debug, clap::Subcommand)]
