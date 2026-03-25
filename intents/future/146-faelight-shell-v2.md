@@ -217,7 +217,7 @@ These phases complete the migration:
 
 ## Reordered Priority (2026-03-25 — strategy revision)
 - ✅ Phase 17 — prompt v2 DONE (2026-03-25) — two-line, git branch, health, timing, alias recursion guard
-- ⬜ Phase 17b — completion v1 (MOVED UP from 21 — forest-aware tab completion)
+- ✅ Phase 17b — completion v1 DONE (2026-03-25) — path, PATH binaries, pipeline-aware, List mode grid
 - ⬜ Phase 12 — package helpers (composable, structured, pkg undo)
 - ⬜ Phase 18 — script ergonomics (sh{} escape hatch, typed lists, error intelligence)
 - ⬜ Phase 18b — flow mode (intent continuity — the unfair advantage)
