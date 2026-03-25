@@ -216,7 +216,7 @@ These phases complete the migration:
 - ✅ Phase 16 — interactive improvements DONE (2026-03-23)
 
 ## Reordered Priority (2026-03-25 — strategy revision)
-- ✅ Phase 17 — prompt v2 DONE (2026-03-25) — two-line, git branch, health, timing, alias recursion guard
+- ✅ Phase 17 — prompt v2 DONE (2026-03-25) — two-line, git branch+dirty(*), health, timing, alias recursion guard, live git_info() via --porcelain (8ms)
 - ✅ Phase 17b — completion v1 DONE (2026-03-25) — path, PATH binaries, pipeline-aware, List mode grid
 - ⬜ Phase 12 — package helpers (composable, structured, pkg undo)
 - ⬜ Phase 18 — script ergonomics (sh{} escape hatch, typed lists, error intelligence)
