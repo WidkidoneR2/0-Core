@@ -219,7 +219,7 @@ These phases complete the migration:
 - ✅ Phase 17 — prompt v2 DONE (2026-03-25) — two-line, git branch+dirty(*), health, timing, alias recursion guard, live git_info() via --porcelain (8ms)
 - ✅ Phase 17b — completion v1 DONE (2026-03-25) — path, PATH binaries, pipeline-aware, List mode grid
 - ✅ Phase 12 — package helpers DONE (2026-03-25) — pkg list/search/install/remove/update, paru-backed, structured tables, pipeable
-- ⬜ Phase 18 — script ergonomics (sh{} escape hatch, typed lists, error intelligence)
+- ✅ Phase 18 — script arguments DONE (2026-03-25) — $1 $2 $# positional args, is_literal guard, correct arg splitting
 - ⬜ Phase 18b — flow mode (intent continuity — the unfair advantage)
 - ⬜ Phase 20 — zsh retirement plan (audit only, no switch yet)
 - ⬜ Phase 19 — fsh as login shell (LAST — after 80% confidence)
