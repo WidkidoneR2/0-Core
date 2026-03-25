@@ -1,8 +1,9 @@
 # 🛠️ Faelight Forest Tools Reference
 
-Complete reference for all 34 custom Rust tools in 0-Core v8.4.0.
+> ⚠️ This document is being updated for v11.2.0 (68 tools). See `core evolution tools` for current tool roster.
 
-**Total Tools:** 34 production-ready Rust binaries + 1 library  
+**Current Total:** 68 custom Rust tools in Faelight Forest v11.2.0
+**Last full audit:** v8.4.0 (partial — needs full rewrite)  
 **Test Status:** 34/34 passing (run `~/0-core/scripts/test-all-tools`)  
 **Language:** 100% Rust (105,879 lines)
 
