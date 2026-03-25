@@ -125,10 +125,10 @@ fn find_static_start(content: &str) -> Option<usize> {
 
 ## Gate Check
 ```
-⬜ faelight-docs sync — updates README static section
-⬜ faelight-docs welcome — updates zshrc welcome message
-⬜ faelight-docs check — dry run diff
-⬜ faelight-docs preview — show generated output
+✅ faelight-docs sync — updates README static section DONE (2026-03-25)
+✅ faelight-docs welcome — updates zshrc welcome message DONE (2026-03-25)
+✅ faelight-docs check — dry run diff DONE (2026-03-25)
+✅ faelight-docs preview — show generated output DONE (2026-03-25)
 ⬜ faelight-release integration — auto-sync on publish
 ⬜ TOOLS.md generation
 ```
