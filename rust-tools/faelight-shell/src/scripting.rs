@@ -164,15 +164,45 @@ pub fn run_stmts(stmts: &[Statement], scope: &mut Scope, db: &ForestDb, core_roo
     true
 }
 
+
+// A "literal" expression is a plain value — not a command to execute.
+// Strings, numbers, booleans, and single words that are not known commands.
+fn is_literal(s: &str) -> bool {
+    let s = s.trim();
+    // Quoted string
+    if s.starts_with('"') && s.ends_with('"') {
+        return true;
+    }
+    // Number
+    if s.parse::<f64>().is_ok() {
+        return true;
+    }
+    // Boolean
+    if s == "true" || s == "false" {
+        return true;
+    }
+    // Single word with no spaces — treat as literal value, not a command
+    // This covers $1 expansions like "faelight-shell", "0.7.0", etc.
+    if !s.contains(' ') && !s.contains('|') {
+        return true;
+    }
+    false
+}
+
 fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str) -> bool {
     match stmt {
         Statement::Let { name, expr } => {
             let expanded = scope.interpolate(expr);
-            let result = execute(&expanded, db, core_root);
-            let val = match result {
-                CommandResult::Value(v) => v,
-                CommandResult::Output(s) => Value::Text(s),
-                _ => Value::Text(expanded),
+            // If the expression is a quoted string literal — store directly
+            // If it looks like a command (contains pipe, known verb, etc.) — execute
+            let val = if is_literal(&expanded) {
+                Value::Text(expanded.trim_matches('"').to_string())
+            } else {
+                match execute(&expanded, db, core_root) {
+                    CommandResult::Value(v) => v,
+                    CommandResult::Output(s) => Value::Text(s),
+                    _ => Value::Text(expanded),
+                }
             };
             scope.set(name, val);
             true
@@ -331,12 +361,21 @@ fn check_event(event: &str, db: &ForestDb) -> bool {
 }
 
 /// Execute a .fsh script file
-pub fn run_file(path: &str, db: &ForestDb, core_root: &str) -> CommandResult {
+pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]) -> CommandResult {
     match std::fs::read_to_string(path) {
         Ok(source) => {
             let stmts = parse(&source);
             let mut scope = Scope::new();
+            // Populate $1, $2, ... from script arguments
+            for (i, arg) in script_args.iter().enumerate() {
+                scope.set(&(i + 1).to_string(), Value::Text(arg.to_string()));
+            }
+            // Also set $# for arg count
+            scope.set("#", Value::Text(script_args.len().to_string()));
             println!("  {} {}", "🌿 running".dimmed(), path.bright_white());
+            if !script_args.is_empty() {
+                println!("  {} args: {}", "→".dimmed(), script_args.join(" ").bright_white());
+            }
             println!();
             let ok = run_stmts(&stmts, &mut scope, db, core_root);
             if ok {
