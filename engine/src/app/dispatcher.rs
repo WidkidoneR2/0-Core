@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GoalsCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -431,6 +431,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GoalsCommand::Accept { id } => crate::domains::goals::accept(ctx, &id),
             GoalsCommand::Reject { id } => crate::domains::goals::reject(ctx, &id),
             GoalsCommand::Show { id } => crate::domains::goals::show(ctx, &id),
+        },
+        Command::React(c) => match c {
+            ReactCommand::List => crate::domains::reaction::list(ctx),
+            ReactCommand::Run => crate::domains::reaction::run(ctx),
+            ReactCommand::History => crate::domains::reaction::history(ctx),
+            ReactCommand::Explain { id } => crate::domains::reaction::explain(ctx, &id),
+            ReactCommand::Discipline => crate::domains::reaction::discipline(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

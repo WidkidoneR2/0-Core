@@ -3,7 +3,7 @@ id: 140
 date: 2026-03-21
 type: future
 title: "Core v10 — Reaction: The Forest Responds Without Being Asked"
-status: planned
+status: in-progress
 tags: [core, v10, reaction, events, reflexes, automation, v13]
 version: 13.0.0
 priority: medium
@@ -249,9 +249,9 @@ Phase 6 — Reaction Discipline (cooldown, coalesce, decay)
 
 ## Gate Check
 ```
-⬜ Core v9 complete — all 5 phases done
-⬜ faelight-shell Phase 17 complete — event system ready
-⬜ Phase 1 — Event Bus
+✅ Core v9 complete — all 5 phases done
+✅ faelight-shell Phase 17 complete — event system ready
+✅ Phase 1 — Event Bus + Reaction Engine DONE (2026-03-25) — 6 rules, cooldown/discipline, history, explain
 ⬜ Phase 2 — Reaction Rules
 ⬜ Phase 3 — Conditional Intelligence
 ⬜ Phase 4 — Reaction Boundaries
