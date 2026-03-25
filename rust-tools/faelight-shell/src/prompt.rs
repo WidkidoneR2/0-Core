@@ -50,7 +50,8 @@ fn git_branch() -> Option<String> {
         let git_head = dir.join(".git/HEAD");
         if git_head.exists() {
             let content = std::fs::read_to_string(&git_head).ok()?;
-            let branch = content.trim()
+            let branch = content
+                .trim()
                 .strip_prefix("ref: refs/heads/")
                 .unwrap_or("HEAD")
                 .to_string();
@@ -66,21 +67,25 @@ fn git_status_symbol() -> &'static str {
 }
 
 fn active_intent(db: &ForestDb) -> Option<String> {
-    db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='focus_intent'",
-        [],
-        |r| r.get::<_, String>(0),
-    ).ok()
+    db.conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='focus_intent'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
 }
 
 fn commits_today(db: &ForestDb) -> i64 {
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    db.conn.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' \
+    db.conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' \
          AND datetime(timestamp, 'unixepoch', 'localtime') LIKE ?1",
-        rusqlite::params![format!("{}%", today)],
-        |r| r.get(0),
-    ).unwrap_or(0)
+            rusqlite::params![format!("{}%", today)],
+            |r| r.get(0),
+        )
+        .unwrap_or(0)
 }
 
 // ── Phase 17 — Prompt v2 Context Lines ────────────────────────────────────
@@ -88,21 +93,22 @@ fn commits_today(db: &ForestDb) -> i64 {
 
 pub struct PromptContext {
     pub last_duration_ms: Option<u64>,
-    pub last_exit_code:   Option<i32>,
-    pub job_count:        usize,
+    pub last_exit_code: Option<i32>,
+    pub job_count: usize,
 }
 
 pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
-    let cwd     = cwd_str(35);
-    let health  = db.health_score().unwrap_or(95);
-    let branch  = git_branch();
+    let cwd = cwd_str(35);
+    let health = db.health_score().unwrap_or(95);
+    let branch = git_branch();
 
     // ── Line 1: System state ─────────────────────────────────────────────
     let mut line1 = format!("  {}", cwd.bright_cyan().bold());
 
     if let Some(ref b) = branch {
         let status = git_status_symbol();
-        line1.push_str(&format!(" {} {}{}",
+        line1.push_str(&format!(
+            " {} {}{}",
             "(".dimmed().to_string(),
             b.bright_yellow().to_string(),
             format!("{})", status).dimmed().to_string()
@@ -118,24 +124,32 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 
     // Job count
     if ctx.job_count > 0 {
-        line1.push_str(&format!(" {}",
-            format!("[{} job{}]", ctx.job_count,
-                if ctx.job_count == 1 { "" } else { "s" }).yellow()
+        line1.push_str(&format!(
+            " {}",
+            format!(
+                "[{} job{}]",
+                ctx.job_count,
+                if ctx.job_count == 1 { "" } else { "s" }
+            )
+            .yellow()
         ));
     }
 
     // Execution time — only show if > 100ms
     if let Some(ms) = ctx.last_duration_ms {
         if ms >= 2000 {
-            line1.push_str(&format!(" {}", format!("[{:.1}s]", ms as f64 / 1000.0).dimmed()));
+            line1.push_str(&format!(
+                " {}",
+                format!("[{:.1}s]", ms as f64 / 1000.0).dimmed()
+            ));
         } else if ms >= 100 {
             line1.push_str(&format!(" {}", format!("[{}ms]", ms).dimmed()));
         }
     }
 
     // ── Line 2: Forest context ────────────────────────────────────────────
-    let h_str      = health_str(health);
-    let intent     = active_intent(db);
+    let h_str = health_str(health);
+    let intent = active_intent(db);
     let today_commits = commits_today(db);
 
     let mut parts: Vec<String> = vec![h_str.to_string()];
@@ -145,12 +159,15 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
 
     if today_commits > 0 {
-        parts.push(format!("{} today",
-            today_commits.to_string().bright_white()).dimmed().to_string()
+        parts.push(
+            format!("{} today", today_commits.to_string().bright_white())
+                .dimmed()
+                .to_string(),
         );
     }
 
-    let line2 = format!("  {} {}",
+    let line2 = format!(
+        "  {} {}",
         "→".dimmed(),
         parts.join(&" · ".dimmed().to_string())
     );
