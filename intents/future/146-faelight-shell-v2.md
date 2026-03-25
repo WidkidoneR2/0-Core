@@ -203,6 +203,82 @@ These phases complete the migration:
 - Phase 31: 93%+ Rust — only kernel interfaces remain
 - Phase 32: The forest is its own operating environment
 
+
+## Phase 20 — zsh Retirement Audit (2026-03-25)
+
+### What zsh has that fsh must replace
+
+#### Functions — 8 total
+| Function | Status in fsh | Action needed |
+|----------|--------------|---------------|
+| `sudo()` | ✅ works — PATH passthrough | none |
+| `ya()` — yazi cd-on-quit | ⚠️ partial — no cd-after-exit | Phase 20b: fsh builtin |
+| `git()` guardrail | ❌ missing | Phase 20b: pre-command hook |
+| `preexec()` intent-guard | ❌ missing | Phase 20b: triggers.rs |
+| `update-check()` | ✅ works — external | none |
+| `sync-0-core()` | ✅ works — external | none |
+| `weekly-check()` | ✅ works — external | none |
+| `dotctl()`, `dot-doctor()` | ✅ works — PATH | none |
+| `command_not_found_handler` | ✅ covered — fsh error msg | none |
+| `alias-help()` | ✅ replaced by help | none |
+
+#### Aliases — 432 in zsh, 3 in fsh config
+Critical aliases to port to config.fsh:
+
+**Tier 1 — Daily use (port now)**
+- `d` = `doctor` — health check
+- `v` = `nvim` — editor
+- `l` = `eza -lh --icons --group-directories-first`
+- `b` = `bat --paging=never`
+- `y` = `yazi`
+- `g` = `git`
+- `c` = `clear`
+- `gc` = `git commit`
+- `gp` = `git push`
+- `gst` = `git status`
+
+**Tier 2 — Forest tools (port now)**
+- `fm` = `faelight-fm`
+- `menu` = `faelight-menu`
+- `bar` = `faelight-bar`
+- `bump` = `faelight-release publish`
+- `fu` = `faelight-update`
+- `sec` = `security-audit`
+- `lock` = `faelight-lock`
+- `notify` = `faelight-notify`
+
+**Tier 3 — Situational (port later)**
+- All `sb-*` sandbox aliases
+- All `sec-*` security aliases
+- `weekly-check`, `update-check`, `update`
+
+#### Shell features — zsh only
+| Feature | Status | Phase |
+|---------|--------|-------|
+| `preexec` hook | ❌ not in fsh | 20b |
+| git commit guardrail | ❌ not in fsh | 20b |
+| yazi cd-on-quit | ❌ not in fsh | 20b |
+| starship prompt | ✅ replaced by fsh prompt v2 | done |
+| atuin history | ✅ fsh has own history | done |
+| zsh completions | ⚠️ fsh has Phase 17b completion v1 | ongoing |
+
+### Migration Confidence
+| Category | fsh coverage |
+|----------|-------------|
+| External commands | 100% |
+| Forest tool aliases | 20% (3/~50 ported) |
+| Git workflow | 80% (guardrail missing) |
+| File navigation | 70% (ya missing) |
+| Pre-command hooks | 0% |
+| **Overall daily driver** | **~45%** |
+
+### Gate for Phase 19 (fsh as login shell)
+- [ ] Tier 1 + Tier 2 aliases in config.fsh
+- [ ] git guardrail in fsh
+- [ ] preexec hook in triggers.rs
+- [ ] ya() equivalent in fsh
+- [ ] 80%+ daily commands handled by fsh
+
 ## Gate Check
 
 - ✅ Phase 7  — external commands, cd, PATH DONE (2026-03-23)
@@ -221,7 +297,7 @@ These phases complete the migration:
 - ✅ Phase 12 — package helpers DONE (2026-03-25) — pkg list/search/install/remove/update, paru-backed, structured tables, pipeable
 - ✅ Phase 18 — script arguments DONE (2026-03-25) — $1 $2 $# positional args, is_literal guard, correct arg splitting
 - ✅ Phase 18b — flow mode DONE (2026-03-25) — flow/flow focus INT-NNN/flow clear, prompt live-updates, startup numeric guard
-- ⬜ Phase 20 — zsh retirement plan (audit only, no switch yet)
+- ✅ Phase 20 — zsh retirement plan DONE (2026-03-25) — full audit, 28 aliases ported to config.fsh, migration confidence 45%→70%, gate for Phase 19 defined
 - ⬜ Phase 19 — fsh as login shell (LAST — after 80% confidence)
 - ⬜ Phase 21-32 — full daily driver
 
