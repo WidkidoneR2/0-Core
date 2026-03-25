@@ -30,6 +30,10 @@ impl ForestDb {
                 name      TEXT NOT NULL UNIQUE,
                 command   TEXT NOT NULL,
                 created   INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS shell_state (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );",
         )?;
 
@@ -211,6 +215,30 @@ impl ForestDb {
         })
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default()
+    }
+
+    pub fn set_focus_intent(&self, intent: &str) {
+        let _ = self.conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('focus_intent', ?1)",
+            rusqlite::params![intent],
+        );
+    }
+
+    pub fn get_focus_intent(&self) -> Option<String> {
+        self.conn
+            .query_row(
+                "SELECT value FROM shell_state WHERE key='focus_intent'",
+                [],
+                |r| r.get::<_, String>(0),
+            )
+            .ok()
+    }
+
+    pub fn clear_focus_intent(&self) {
+        let _ = self.conn.execute(
+            "DELETE FROM shell_state WHERE key='focus_intent'",
+            [],
+        );
     }
 
     pub fn health_score(&self) -> Option<i64> {
