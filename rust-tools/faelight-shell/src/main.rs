@@ -182,7 +182,7 @@ fn repl_main() -> Result<()> {
 
     // Phase 17 — prompt context tracking
     let last_duration_ms: Option<u64> = None;
-    let last_exit_code:   Option<i32> = None;
+    let last_exit_code: Option<i32> = None;
 
     // Phase 10 — shell variable table
     let mut shell_vars: HashMap<String, String> = HashMap::new();
