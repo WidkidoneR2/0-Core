@@ -137,7 +137,6 @@ pub fn ensure_default() {
 alias ll = "ls"
 alias gs = "git status"
 alias gc5 = "gc | first 5"
-alias health = "health"
 
 # Settings
 set history_limit = 10000

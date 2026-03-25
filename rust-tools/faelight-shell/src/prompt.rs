@@ -1,11 +1,12 @@
 // faelight-shell — prompt and status line
-// render_line  — single-line readline prompt (no emoji, Tab completion safe)
-// status_line  — pretty status printed after clear or on welcome
+// render_line    — single-line readline prompt (no emoji, Tab completion safe)
+// render_context — two-line forest context printed BEFORE the input line
+// status_line    — pretty status printed after clear or on welcome
 
 use crate::db::ForestDb;
 use colored::*;
 
-// ── Shared helper — build cwd and health strings ──────────────────────────────
+// ── Shared helpers ─────────────────────────────────────────────────────────
 
 fn cwd_str(max_len: usize) -> String {
     let cwd = std::env::current_dir()
@@ -31,30 +32,142 @@ fn cwd_str(max_len: usize) -> String {
     }
 }
 
-fn health_str(health: i64) -> String {
+fn health_str(health: i64) -> colored::ColoredString {
     if health >= 95 {
-        format!("{}%", health).bright_green().to_string()
+        format!("{}%", health).bright_green()
     } else if health >= 80 {
-        format!("{}%", health).yellow().to_string()
+        format!("{}%", health).yellow()
     } else {
-        format!("{}%", health).bright_red().to_string()
+        format!("{}%", health).bright_red()
     }
 }
 
-// ── readline prompt — no emoji, ANSI wrapped, Tab completion safe ─────────────
-// Emoji and wide chars break rustyline cursor position silently.
-// The 🌲 lives in status_line instead.
+fn git_branch() -> Option<String> {
+    // Fast git branch detection — read .git/HEAD directly, no subprocess
+    let cwd = std::env::current_dir().ok()?;
+    let mut dir = cwd.as_path();
+    loop {
+        let git_head = dir.join(".git/HEAD");
+        if git_head.exists() {
+            let content = std::fs::read_to_string(&git_head).ok()?;
+            let branch = content.trim()
+                .strip_prefix("ref: refs/heads/")
+                .unwrap_or("HEAD")
+                .to_string();
+            return Some(branch);
+        }
+        dir = dir.parent()?;
+    }
+}
 
-pub fn render_line(db: &ForestDb) -> String {
-    let h = health_str(db.health_score().unwrap_or(95));
-    let cwd = cwd_str(20);
-    let raw = format!("{} {} > ", cwd.bright_cyan(), h);
+fn git_status_symbol() -> &'static str {
+    // Disabled — subprocess-free dirty check coming in Phase 17b
+    ""
+}
+
+fn active_intent(db: &ForestDb) -> Option<String> {
+    db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='focus_intent'",
+        [],
+        |r| r.get::<_, String>(0),
+    ).ok()
+}
+
+fn commits_today(db: &ForestDb) -> i64 {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' \
+         AND datetime(timestamp, 'unixepoch', 'localtime') LIKE ?1",
+        rusqlite::params![format!("{}%", today)],
+        |r| r.get(0),
+    ).unwrap_or(0)
+}
+
+// ── Phase 17 — Prompt v2 Context Lines ────────────────────────────────────
+// Printed BEFORE readline — avoids rustyline cursor issues with emoji/wide chars
+
+pub struct PromptContext {
+    pub last_duration_ms: Option<u64>,
+    pub last_exit_code:   Option<i32>,
+    pub job_count:        usize,
+}
+
+pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
+    let cwd     = cwd_str(35);
+    let health  = db.health_score().unwrap_or(95);
+    let branch  = git_branch();
+
+    // ── Line 1: System state ─────────────────────────────────────────────
+    let mut line1 = format!("  {}", cwd.bright_cyan().bold());
+
+    if let Some(ref b) = branch {
+        let status = git_status_symbol();
+        line1.push_str(&format!(" {} {}{}",
+            "(".dimmed().to_string(),
+            b.bright_yellow().to_string(),
+            format!("{})", status).dimmed().to_string()
+        ));
+    }
+
+    // Exit code — only show if non-zero
+    if let Some(code) = ctx.last_exit_code {
+        if code != 0 {
+            line1.push_str(&format!(" {}", format!("[✗ {}]", code).bright_red()));
+        }
+    }
+
+    // Job count
+    if ctx.job_count > 0 {
+        line1.push_str(&format!(" {}",
+            format!("[{} job{}]", ctx.job_count,
+                if ctx.job_count == 1 { "" } else { "s" }).yellow()
+        ));
+    }
+
+    // Execution time — only show if > 100ms
+    if let Some(ms) = ctx.last_duration_ms {
+        if ms >= 2000 {
+            line1.push_str(&format!(" {}", format!("[{:.1}s]", ms as f64 / 1000.0).dimmed()));
+        } else if ms >= 100 {
+            line1.push_str(&format!(" {}", format!("[{}ms]", ms).dimmed()));
+        }
+    }
+
+    // ── Line 2: Forest context ────────────────────────────────────────────
+    let h_str      = health_str(health);
+    let intent     = active_intent(db);
+    let today_commits = commits_today(db);
+
+    let mut parts: Vec<String> = vec![h_str.to_string()];
+
+    if let Some(ref i) = intent {
+        parts.push(i.bright_cyan().to_string());
+    }
+
+    if today_commits > 0 {
+        parts.push(format!("{} today",
+            today_commits.to_string().bright_white()).dimmed().to_string()
+        );
+    }
+
+    let line2 = format!("  {} {}",
+        "→".dimmed(),
+        parts.join(&" · ".dimmed().to_string())
+    );
+
+    println!("{}", line1);
+    println!("{}", line2);
+}
+
+// ── readline prompt — no emoji, ANSI wrapped, Tab completion safe ──────────
+// Emoji and wide chars break rustyline cursor position silently.
+
+pub fn render_line(_db: &ForestDb) -> String {
+    let raw = format!("  {} ", "fsh ❯".bright_green().bold());
     rl_wrap(&raw)
 }
 
-// ── status line — printed after clear, shown in welcome ───────────────────────
-// This is where the forest personality lives.
-// Called by: c/clear command, print_welcome
+// ── status line — printed after clear, shown in welcome ───────────────────
 
 pub fn status_line(db: &ForestDb) -> String {
     let h = health_str(db.health_score().unwrap_or(95));
@@ -68,7 +181,7 @@ pub fn status_line(db: &ForestDb) -> String {
     )
 }
 
-// ── ANSI wrap — required for rustyline cursor accuracy ────────────────────────
+// ── ANSI wrap — required for rustyline cursor accuracy ────────────────────
 
 pub fn rl_wrap(s: &str) -> String {
     let mut out = String::new();
