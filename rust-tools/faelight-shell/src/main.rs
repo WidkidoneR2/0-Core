@@ -231,6 +231,50 @@ fn repl_main() -> Result<()> {
                         );
                     }
                     let line = segment.as_str();
+                    // Phase 18b — Flow mode: earliest intercept
+                    {
+                        let ftok = line.split_whitespace().next().unwrap_or("");
+                        if ftok == "flow" {
+                            let sub = line.split_whitespace().nth(1).unwrap_or("");
+                            let arg = line.split_whitespace().nth(2).unwrap_or("");
+                            if let Ok(fdb) = crate::db::ForestDb::open() {
+                                match sub {
+                                    "focus" => {
+                                        if arg.is_empty() {
+                                            println!("  {} usage: flow focus INT-NNN", "\u{2717}".bright_red());
+                                        } else if !arg.starts_with("INT-") {
+                                            println!("  {} must be INT-NNN format", "\u{2717}".bright_red());
+                                        } else {
+                                            fdb.set_focus_intent(arg);
+                                            println!("  {} focus set -> {}", "\u{1f332}".normal(), arg.bright_green().bold());
+                                        }
+                                    }
+                                    "clear" => {
+                                        fdb.clear_focus_intent();
+                                        println!("  {} focus cleared", "\u{25cb}".dimmed());
+                                    }
+                                    "status" | "" => {
+                                        match fdb.get_focus_intent() {
+                                            Some(intent) => {
+                                                println!();
+                                                println!("  {} {}", "Active focus:".dimmed(), intent.bright_green().bold());
+                                                println!("  {} flow clear  to release", "hint:".dimmed());
+                                                println!();
+                                            }
+                                            None => {
+                                                println!("  {} no active focus -- use: flow focus INT-NNN", "\u{25cb}".dimmed());
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        println!("  {} unknown subcommand: {}", "\u{2717}".bright_red(), sub);
+                                        println!("  usage: flow | flow focus INT-NNN | flow clear");
+                                    }
+                                }
+                            }
+                            continue 'repl;
+                        }
+                    }
 
                     // Natural language ?prefix
                     if line.starts_with('?') && line.len() > 1 {
@@ -829,6 +873,19 @@ fn print_welcome(core_root: &str) {
 
     if let Some(ref focus) = focus_intent {
         println!("  {} {}", "Today:".dimmed(), focus.bright_white());
+        // Auto-persist detected intent so prompt.rs can read it
+        if let Ok(db) = crate::db::ForestDb::open() {
+            // Only write if no conscious focus already set
+            if db.get_focus_intent().is_none() {
+                // Extract INT-NNN from filename — only if first token is numeric
+                if let Some(int_id) = focus.split_whitespace().next() {
+                    if int_id.chars().all(|c| c.is_ascii_digit()) {
+                        let intent_key = format!("INT-{}", int_id);
+                        db.set_focus_intent(&intent_key);
+                    }
+                }
+            }
+        }
     }
     println!();
     // Session memory + digest
