@@ -3721,7 +3721,13 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             ];
             for candidate in &candidates {
                 if std::path::Path::new(candidate).exists() {
-                    return crate::scripting::run_file(candidate, db, core_root);
+                    // Split all args after filename by whitespace
+                    // splitn(3) joins trailing args — re-split them here
+                    let script_args: Vec<&str> = args[1..]
+                        .iter()
+                        .flat_map(|s| s.split_whitespace())
+                        .collect();
+                    return crate::scripting::run_file(candidate, db, core_root, &script_args);
                 }
             }
             CommandResult::Error(format!("script not found: {}", path))
