@@ -107,7 +107,7 @@ Phase 5 — Prediction Confidence (accuracy tracking and calibration)
 
 ## Gate Check
 ```
-⬜ Core v10 complete — reaction engine ready
+✅ Core v10 complete — reaction engine ready (2026-03-26) — 6 rules, TOML config, goal-scoped, boundaries, narrative, discipline
 ⬜ Phase 1 — Session Pattern Engine
 ⬜ Phase 2 — Health Trajectory
 ⬜ Phase 3 — Intent Velocity
