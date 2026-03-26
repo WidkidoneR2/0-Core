@@ -255,7 +255,7 @@ Phase 6 — Reaction Discipline (cooldown, coalesce, decay)
 ✅ Phase 2 — Reaction Rules DONE (2026-03-26) — TOML overrides, enable/disable/add, custom.toml, defaults.toml
 ✅ Phase 3 — Conditional Intelligence DONE (2026-03-26) — goal-scoped reactions, active goal context shown on run, keyword relevance matching
 ✅ Phase 4 — Reaction Boundaries DONE (2026-03-26) — RuleClass gates, bounds command, audit command, 4 guardrails enforced in code
-⬜ Phase 5 — Reaction Narrative
+✅ Phase 5 — Reaction Narrative DONE (2026-03-26) — story command, narrative sentences, goal context, priority summary
 ⬜ Phase 6 — Reaction Discipline
 ```
 

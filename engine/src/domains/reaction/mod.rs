@@ -695,6 +695,125 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+
+pub fn story(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let today = chrono::Local::now()
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+        .timestamp();
+
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT id, rule_id, triggered_at, message, context
+         FROM reaction_log
+         WHERE triggered_at >= ?1
+         ORDER BY triggered_at ASC"
+    )?;
+
+    let rows: Vec<(i64, String, i64, String, String)> = stmt
+        .query_map(rusqlite::params![today], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    println!("{}", "🌲 Reaction Story — Today".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    if rows.is_empty() {
+        println!("  {} No reactions fired today", "○".dimmed());
+        println!("  The forest has been quiet — run: core react run");
+        println!();
+        println!("{}", "━".repeat(52).dimmed());
+        return Ok(());
+    }
+
+    let goals = active_goals(ctx);
+    println!(
+        "  {} reaction(s) today  •  {} active goal(s)",
+        rows.len().to_string().bright_white(),
+        goals.len().to_string().dimmed(),
+    );
+    println!();
+
+    for (i, (id, rule_id, ts, message, _context)) in rows.iter().enumerate() {
+        let time = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|d| d.with_timezone(&chrono::Local).format("%H:%M").to_string())
+            .unwrap_or_default();
+
+        let all_rules = rules();
+        let rule = all_rules.iter().find(|r| r.id == rule_id.as_str());
+        let priority_icon = match rule.map(|r| r.priority) {
+            Some(1) => "🔴",
+            Some(2) => "🟡",
+            _ => "🟢",
+        };
+
+        let class_label = match rule.map(|r| &r.class) {
+            Some(RuleClass::Stability)   => "stability",
+            Some(RuleClass::Maintenance) => "maintenance",
+            Some(RuleClass::Expansion)   => "expansion",
+            None => "unknown",
+        };
+
+        // Narrative sentence
+        let narrative = match rule_id.as_str() {
+            "health.advisory" => "The forest noticed health declining across recent runs.",
+            "health.stale"    => "The forest detected no health check in over a day.",
+            "security.aging"  => "The forest flagged aging security scan data.",
+            "checkpoint.stale"=> "The forest suggested a snapshot — no checkpoint recently.",
+            "intent.overflow" => "The forest detected too many intents in flight simultaneously.",
+            "forecast.declining" => "The forest saw the health forecast trending downward.",
+            _ => "The forest detected a condition worth surfacing.",
+        };
+
+        println!(
+            "  {} {}  {} #{} [{}]",
+            priority_icon,
+            time.dimmed(),
+            rule_id.bright_white(),
+            id,
+            class_label.dimmed(),
+        );
+        println!("     {}", narrative.dimmed());
+        println!("     {}", message.white());
+
+        if let Some(goal) = goal_context_for(rule_id, &goals) {
+            println!("     {} {}", "🎯".dimmed(), goal.dimmed());
+        }
+
+        if i < rows.len() - 1 {
+            println!();
+        }
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Summary sentence
+    let high_count = rows.iter().filter(|(_, rule_id, _, _, _)| {
+        rules().iter().find(|r| r.id == rule_id.as_str())
+            .map(|r| r.priority == 1)
+            .unwrap_or(false)
+    }).count();
+
+    if high_count > 0 {
+        println!(
+            "  {} {} high-priority signal(s) today — review recommended",
+            "⚠️ ".yellow(),
+            high_count
+        );
+    } else {
+        println!("  {} Low-priority day — forest signalling within normal range", "✅".green());
+    }
+    println!();
+
+    Ok(())
+}
+
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let all_rules = rules();

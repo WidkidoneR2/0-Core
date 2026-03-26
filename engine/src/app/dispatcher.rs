@@ -445,6 +445,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::domains::reaction::add(ctx, &id, &description, priority, cooldown_m),
             ReactCommand::Bounds => crate::domains::reaction::bounds(ctx),
             ReactCommand::Audit => crate::domains::reaction::audit(ctx),
+            ReactCommand::Story => crate::domains::reaction::story(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),
