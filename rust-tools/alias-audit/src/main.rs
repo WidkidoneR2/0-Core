@@ -43,7 +43,7 @@ const EXPECTED_TOOLS: [&str; 34] = [
     "intent-guard",
     "faelight-snapshot",
     // Desktop Environment (9)
-    "faelight-fetch",
+    "faelight-digest",
     "faelight-bar",
     "faelight-menu",
     "faelight-notify",

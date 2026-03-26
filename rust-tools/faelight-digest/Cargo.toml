@@ -1,0 +1,13 @@
+[package]
+name = "faelight-digest"
+version = "1.0.0"
+edition = "2021"
+description = "Forest morning digest — system stats + forest context"
+
+[dependencies]
+colored = "2.1"
+chrono = "0.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+sysinfo = "0.31"
+faelight-core = { path = "../faelight-core" }
+faelight-zone = { path = "../faelight-zone" }

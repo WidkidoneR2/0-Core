@@ -1569,6 +1569,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-digest"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "faelight-core",
+ "faelight-zone",
+ "rusqlite",
+ "sysinfo",
+]
+
+[[package]]
 name = "faelight-docs"
 version = "1.0.0"
 dependencies = [
@@ -1576,17 +1588,6 @@ dependencies = [
  "colored",
  "dirs 5.0.1",
  "faelight-core",
-]
-
-[[package]]
-name = "faelight-fetch"
-version = "2.3.0"
-dependencies = [
- "clap",
- "colored",
- "faelight-core",
- "faelight-zone",
- "sysinfo",
 ]
 
 [[package]]
@@ -1823,20 +1824,6 @@ dependencies = [
  "serde_json",
  "toml 0.8.23",
  "walkdir",
-]
-
-[[package]]
-name = "faelight-search"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "dirs 5.0.1",
- "rusqlite",
- "serde",
- "serde_json",
 ]
 
 [[package]]

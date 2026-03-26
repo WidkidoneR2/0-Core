@@ -103,13 +103,6 @@ description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"
 
 [[tool]]
-name = "faelight-fetch"
-version = "2.3.0"
-category = "ui"
-description = "System information display with live resources"
-expected_usage = "high"
-
-[[tool]]
 name = "faelight-fm"
 version = "2.3.0"
 category = "tools"
@@ -354,3 +347,9 @@ version = "1.0.0"
 category = "documentation"
 description = "Living documentation engine — syncs README and welcome message with forest state"
 expected_usage = "low"
+[[tool]]
+name = "faelight-digest"
+version = "1.0.0"
+category = "shell"
+description = "Forest morning digest — system stats + forest context"
+expected_usage = "high"
