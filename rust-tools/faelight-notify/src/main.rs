@@ -39,6 +39,7 @@ pub struct Notification {
     pub urgency: Urgency,
     pub timeout: i32,
     pub created: Instant,
+    pub display_start: Option<Instant>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,9 +73,9 @@ impl Urgency {
     }
     pub fn timeout_ms(&self) -> u64 {
         match self {
-            Self::Critical => 8000,
-            Self::Low => 3000,
-            Self::Normal => 5000,
+            Self::Critical => 10000,
+            Self::Low => 5000,
+            Self::Normal => 6000,
         }
     }
 }
@@ -97,6 +98,15 @@ struct NotifyApp {
 
 impl NotifyApp {
     fn draw(&mut self) {
+        // Set display_start when notification first becomes visible
+        {
+            let mut q = self.queue.lock().unwrap();
+            if let Some(first) = q.first_mut() {
+                if first.display_start.is_none() {
+                    first.display_start = Some(std::time::Instant::now());
+                }
+            }
+        }
         let notif = self.queue.lock().unwrap().first().cloned();
         let (buffer, canvas) = match self.pool.create_buffer(
             POPUP_W as i32,
@@ -293,7 +303,12 @@ fn main() {
                 } else {
                     n.urgency.timeout_ms()
                 };
-                n.created.elapsed().as_millis() < ms as u128
+                // Expire from display_start if set, else from created
+                let elapsed = n.display_start
+                    .unwrap_or(n.created)
+                    .elapsed()
+                    .as_millis();
+                elapsed < ms as u128
             });
         }
 
