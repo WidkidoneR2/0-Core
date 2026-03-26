@@ -504,3 +504,198 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
 }
 
 // ── Phase 3: Intent Velocity ──────────────────────────────────────────────────
+// ── Phase 4: Coupling Forecasting ─────────────────────────────────────────────
+pub fn coupling(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    let core_root = &ctx.core_root;
+    println!("{}", "🌲 Predict — Coupling Forecast".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Run evolution map analysis
+    let output = std::process::Command::new(format!("{}/scripts/core", core_root))
+        .args(["evolution", "map"])
+        .output();
+
+    match output {
+        Ok(out) => {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let mut domains: Vec<(String, u32)> = Vec::new();
+
+            for line in text.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    // Skip header lines — only real domain names (no spaces, lowercase)
+                    let name = parts[0];
+                    let is_domain = name.chars().all(|c| c.is_lowercase() || c == '_' || c == '-')
+                        && name.len() > 2 && !name.contains(':');
+                    if is_domain {
+                        if let Ok(coupling) = parts.last().unwrap_or(&"0").parse::<u32>() {
+                            if coupling > 0 {
+                                domains.push((name.to_string(), coupling));
+                            }
+                        }
+                    }
+                }
+            }
+
+            domains.sort_by(|a, b| b.1.cmp(&a.1));
+
+            println!("  {} High coupling domains", "▶".bright_cyan());
+            if domains.is_empty() {
+                println!("    {} No coupling detected — architecture is clean", "✅".normal());
+            } else {
+                for (domain, coupling) in domains.iter().take(8) {
+                    let risk = if *coupling >= 3 {
+                        "⚠️  HIGH".bright_red().to_string()
+                    } else if *coupling >= 2 {
+                        "🟡 MED".yellow().to_string()
+                    } else {
+                        "🟢 LOW".green().to_string()
+                    };
+                    println!("    {:25} coupling: {}  {}",
+                        domain.bright_white(),
+                        coupling.to_string().cyan(),
+                        risk);
+                }
+            }
+            println!();
+
+            // Prediction
+            let high_risk: Vec<_> = domains.iter().filter(|(_, c)| *c >= 3).collect();
+            println!("  {} Architectural prediction", "▶".bright_yellow());
+            if high_risk.is_empty() {
+                println!("    {} Architecture is healthy — no critical coupling approaching",
+                    "✅".normal());
+            } else {
+                println!("    {} {} domain(s) approaching coupling threshold",
+                    "⚠️ ".normal(), high_risk.len().to_string().bright_red());
+                for (domain, _) in &high_risk {
+                    println!("    {} {} — consider extracting to separate crate in v12",
+                        "→".bright_cyan(), domain.bright_white());
+                }
+            }
+        }
+        Err(_) => {
+            println!("  {} Could not run evolution map", "○".dimmed());
+        }
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  {} Run: core evolution map  core predict coupling", "hint:".dimmed());
+    Ok(())
+}
+
+pub fn churn(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    println!("{}", "🌲 Predict — File Churn".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Get most changed files from git log
+    let output = std::process::Command::new("git")
+        .args(["log", "--pretty=format:", "--name-only", "--diff-filter=M", "-n", "100"])
+        .current_dir(&ctx.core_root)
+        .output();
+
+    match output {
+        Ok(out) => {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+            for line in text.lines() {
+                let line = line.trim();
+                if !line.is_empty() && line.ends_with(".rs") {
+                    *counts.entry(line.to_string()).or_insert(0) += 1;
+                }
+            }
+
+            let mut files: Vec<(String, u32)> = counts.into_iter().collect();
+            files.sort_by(|a, b| b.1.cmp(&a.1));
+
+            println!("  {} Most changed files (last 100 commits)", "▶".bright_cyan());
+            for (file, count) in files.iter().take(8) {
+                let risk = if *count >= 10 { "⚠️ ".normal().to_string() }
+                    else { "  ".to_string() };
+                let short = file.split('/').last().unwrap_or(file);
+                println!("    {} {:35} {} changes", risk, short.bright_white(), count.to_string().cyan());
+            }
+
+            if let Some((top_file, top_count)) = files.first() {
+                println!();
+                println!("  {} Prediction", "▶".bright_yellow());
+                let short = top_file.split('/').last().unwrap_or(top_file);
+                println!("    {} {} is your highest churn file ({} changes)",
+                    "→".bright_cyan(), short.bright_white(), top_count);
+                println!("    {} Consider refactoring if this grows past 15 changes",
+                    "→".dimmed());
+            }
+        }
+        Err(_) => println!("  {} git not available", "○".dimmed()),
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+// ── Phase 5: Prediction Confidence ───────────────────────────────────────────
+pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    println!("{}", "🌲 Predict — Prediction Accuracy".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Count predictions made vs outcomes recorded
+    let total_predictions: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let total_outcomes: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    println!("  {} Prediction history", "▶".bright_cyan());
+    println!("    {} {} predictions generated", "·".dimmed(),
+        total_predictions.to_string().bright_white());
+    println!("    {} {} outcomes recorded", "·".dimmed(),
+        total_outcomes.to_string().bright_white());
+    println!();
+
+    // Confidence from current session patterns
+    let commit_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let doctor_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='doctor' AND action='run'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let confidence = match (commit_count, doctor_count) {
+        (c, d) if c >= 200 && d >= 100 => 85,
+        (c, d) if c >= 100 && d >= 50  => 70,
+        (c, d) if c >= 50  && d >= 20  => 55,
+        _                               => 40,
+    };
+
+    println!("  {} Model confidence", "▶".bright_yellow());
+    println!("    {} Based on {} commits + {} health runs",
+        "·".dimmed(), commit_count, doctor_count);
+    let conf_str = if confidence >= 80 {
+        format!("{}%  HIGH", confidence).bright_green().to_string()
+    } else if confidence >= 60 {
+        format!("{}%  MEDIUM", confidence).yellow().to_string()
+    } else {
+        format!("{}%  LOW — need more data", confidence).dimmed().to_string()
+    };
+    println!("    {} Confidence: {}", "→".bright_cyan(), conf_str);
+    println!();
+    println!("  {} Confidence grows with every commit and doctor run", "hint:".dimmed());
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}

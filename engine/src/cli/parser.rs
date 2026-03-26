@@ -791,6 +791,12 @@ pub enum PredictCommands {
     Intents,
     /// What intent is most likely to ship next
     Next,
+    /// Coupling forecast — which domains will hit critical coupling
+    Coupling,
+    /// File churn prediction — highest risk files
+    Churn,
+    /// Prediction confidence and accuracy tracking
+    Accuracy,
 }
 
 #[derive(Debug, clap::Subcommand)]

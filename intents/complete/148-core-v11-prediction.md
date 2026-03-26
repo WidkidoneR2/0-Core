@@ -3,7 +3,7 @@ id: 148
 date: 2026-03-25
 type: future
 title: "Core v11 — Prediction: The Forest Anticipates"
-status: planned
+status: in-progress
 tags: [core, v11, prediction, patterns, anticipation, ai, v13]
 version: 13.0.0
 priority: medium
@@ -108,11 +108,11 @@ Phase 5 — Prediction Confidence (accuracy tracking and calibration)
 ## Gate Check
 ```
 ✅ Core v10 complete — reaction engine ready (2026-03-26) — 6 rules, TOML config, goal-scoped, boundaries, narrative, discipline
-⬜ Phase 1 — Session Pattern Engine
-⬜ Phase 2 — Health Trajectory
-⬜ Phase 3 — Intent Velocity
-⬜ Phase 4 — Coupling Forecasting
-⬜ Phase 5 — Prediction Confidence
+✅ Phase 1 — Session Pattern Engine DONE (2026-03-26) — day/hour patterns, peak hours, avg cadence
+✅ Phase 2 — Health Trajectory DONE (2026-03-26) — trend line, 3/7 run forecast, early warning
+✅ Phase 3 — Intent Velocity DONE (2026-03-26) — completion rate, backlog projection, next prediction
+✅ Phase 4 — Coupling Forecasting DONE (2026-03-26) — domain coupling, churn, architectural risk
+✅ Phase 5 — Prediction Confidence DONE (2026-03-26) — 85% HIGH confidence, 289 commits + 334 health runs
 ```
 
 ## The Phrase
