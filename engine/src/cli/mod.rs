@@ -273,6 +273,8 @@ pub fn parse() -> Command {
             ReactCommands::Bounds => ReactCommand::Bounds,
             ReactCommands::Audit => ReactCommand::Audit,
             ReactCommands::Story => ReactCommand::Story,
+            ReactCommands::Coalesce => ReactCommand::Coalesce,
+            ReactCommands::DisciplineShow => ReactCommand::DisciplineShow,
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },

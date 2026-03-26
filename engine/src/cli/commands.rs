@@ -396,6 +396,8 @@ pub enum ReactCommand {
     Bounds,
     Audit,
     Story,
+    Coalesce,
+    DisciplineShow,
 }
 
 #[derive(Debug, Clone)]

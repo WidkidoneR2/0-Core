@@ -809,6 +809,10 @@ pub enum ReactCommands {
     Audit,
     /// Show today's reaction narrative as a story
     Story,
+    /// Show batched coalescing signal groups
+    Coalesce,
+    /// Show discipline config — decay, coalesce, escalate settings
+    DisciplineShow,
     /// Add a custom reaction rule
     Add {
         /// Rule ID (e.g. git.commit_streak)
