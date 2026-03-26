@@ -32,7 +32,7 @@ output "eDP-2" {
 }
 
 layout {
-    gaps 8
+    gaps 12
     center-focused-column "never"
 
     preset-column-widths {
@@ -46,12 +46,14 @@ layout {
 
     focus-ring {
         width 2
-        active-color "#7fc4a0"
-        inactive-color "#2a3830"
+        active-color "#a3e36b"
+        inactive-color "#1a2410"
     }
 
     border {
-        off
+        width 2
+        active-color "#a3e36b88"
+        inactive-color "#1a241066"
     }
 }
 
@@ -269,4 +271,15 @@ binds {
     XF86AudioPrev         allow-when-locked=true { spawn "playerctl" "previous"; }
     XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
+}
+
+// ── Forest Visual Identity — INT-136 ─────────────────────
+window-rule {
+    geometry-corner-radius 8
+    clip-to-geometry true
+}
+
+window-rule {
+    match is-focused=false
+    opacity 0.92
 }

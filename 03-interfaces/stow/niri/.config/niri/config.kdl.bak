@@ -26,8 +26,8 @@ input {
     focus-follows-mouse max-scroll-amount="0%"
 }
 
-output "eDP-1" {
-    scale 1.0
+output "eDP-2" {
+    scale 1.5
     background-color "#0f1411"
 }
 
@@ -56,9 +56,41 @@ layout {
 }
 
 // ─── Autostart ────────────────────────────────────────────
-spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-notify"
-spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-clipboard watch"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-niri-bridge"
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-idle"
+
+// ── Forest Animations ────────────────────────────────────
+animations {
+    window-open {
+        duration-ms 180
+        curve "ease-out-expo"
+    }
+    window-close {
+        duration-ms 140
+        curve "ease-out-quad"
+    }
+    workspace-switch {
+        duration-ms 220
+        curve "ease-out-cubic"
+    }
+    window-movement {
+        duration-ms 180
+        curve "ease-out-cubic"
+    }
+    window-resize {
+        duration-ms 180
+        curve "ease-out-cubic"
+    }
+}
+
+prefer-no-csd
+
+hotkey-overlay {
+    skip-at-startup
+}
 
 // ─── Window Rules ─────────────────────────────────────────
 window-rule {
@@ -79,11 +111,13 @@ window-rule {
 window-rule {
     match app-id="faelight-palette-float"
     open-floating true
+    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
     match app-id="faelight-menu-float"
     open-floating true
+    default-floating-position x=600 y=300 relative-to="top-left"
 }
 
 window-rule {
@@ -96,8 +130,8 @@ binds {
     // ── Apps ──────────────────────────────────────────────
     Mod+Alt+Return  { spawn "/home/christian/0-core/scripts/faelight-term"; }
     Mod+Return      { spawn "foot"; }
-    Mod+b           { spawn "/home/christian/0-core/scripts/faelight-browser"; }
-    Mod+d           { spawn "foot" "--app-id=faelight-launcher-float" "-e" "/home/christian/0-core/scripts/faelight-launcher"; }
+    Mod+b           { spawn "brave"; }
+    Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
     Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; }
     Mod+n           { spawn "foot" "-e" "nvim"; }
     Mod+Shift+y     { spawn "foot" "-e" "yazi"; }
@@ -106,8 +140,8 @@ binds {
     Mod+Shift+f     { spawn "/home/christian/0-core/scripts/faelight-fm"; }
 
     // ── Faelight Tools ────────────────────────────────────
-    Mod+Space       { spawn "foot" "--app-id=faelight-palette-float" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
-    Mod+Escape      { spawn "foot" "--app-id=faelight-menu-float" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
+    Mod+Space       { spawn "foot" "--app-id=faelight-palette-float" "-W" "80x24" "-e" "/home/christian/0-core/scripts/faelight-palette"; }
+    Mod+Escape      { spawn "foot" "--app-id=faelight-menu-float" "-W" "60x20" "-e" "/home/christian/0-core/scripts/faelight-menu"; }
     Mod+Alt+k       { spawn "keepassxc"; }
     Mod+Alt+e       { spawn "tutanota-desktop"; }
     Mod+Alt+n       { spawn "notesnook"; }
@@ -123,7 +157,6 @@ binds {
     Mod+Alt+p       { spawn "foot" "-e" "/home/christian/0-core/scripts/core-protect"; }
     Mod+Alt+f       { spawn "foot" "-e" "/home/christian/0-core/scripts/profile"; }
     Mod+Alt+a       { spawn "foot" "-e" "/home/christian/0-core/scripts/keyscan"; }
-    Mod+Alt+b       { spawn "foot" "-e" "/home/christian/0-core/scripts/bump-system-version"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
     Mod+Alt+l       { spawn "foot" "-e" "/home/christian/0-core/scripts/latest-update"; }
     Mod+Alt+w       { spawn "foot" "-e" "/home/christian/0-core/scripts/dotctl"; }
@@ -133,7 +166,7 @@ binds {
     Mod+Ctrl+g      { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
     // ── Clipboard ─────────────────────────────────────────
-    Mod+p           { spawn "sh" "-c" "cliphist list | /home/christian/0-core/scripts/faelight-launcher --dmenu | cliphist decode | wl-copy"; }
+    Mod+p           { spawn "sh" "-c" "cliphist list | foot --app-id=faelight-palette-float -W 80x24 -e fzf | cliphist decode | wl-copy"; }
     Mod+Shift+p     { spawn "sh" "-c" "cliphist wipe && notify-send '📋 Clipboard' 'History cleared'"; }
 
     // ── Notifications ─────────────────────────────────────
