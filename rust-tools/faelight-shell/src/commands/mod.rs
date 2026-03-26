@@ -161,6 +161,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "unalias" => unalias_cmd(db, args),
         "plugins" => list_plugins(db),
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
+        "z" | "zi" => z_jump(args),
         "cd" => cd(args),
         "d" => {
             // forest built-in: d → core doctor run
@@ -1331,9 +1332,12 @@ fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 
+    let home = std::env::var("HOME").unwrap_or_default();
     let dir = args.first().copied().unwrap_or(".");
     let path = if dir == "." {
-        std::path::PathBuf::from(core_root)
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+    } else if dir.starts_with("~/") {
+        std::path::PathBuf::from(format!("{}/{}", home, &dir[2..]))
     } else {
         std::path::PathBuf::from(dir)
     };
@@ -1870,7 +1874,12 @@ fn cd(args: &[&str]) -> CommandResult {
     };
 
     match std::env::set_current_dir(&path) {
-        Ok(_) => CommandResult::Empty,
+        Ok(_) => {
+            let _ = std::process::Command::new("zoxide")
+                .args(["add", &path.to_string_lossy()])
+                .status();
+            CommandResult::Empty
+        }
         Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e)),
     }
 }
@@ -2200,6 +2209,42 @@ fn usage_report(db: &ForestDb) -> CommandResult {
     CommandResult::Output(out)
 }
 
+
+fn z_jump(args: &[&str]) -> CommandResult {
+    if args.is_empty() {
+        let home = std::env::var("HOME").unwrap_or_default();
+        return match std::env::set_current_dir(&home) {
+            Ok(_) => {
+                let _ = std::process::Command::new("zoxide").args(["add", &home]).status();
+                CommandResult::Empty
+            }
+            Err(e) => CommandResult::Error(format!("z: {}", e)),
+        };
+    }
+    let query = args.join(" ");
+    let result = std::process::Command::new("zoxide")
+        .args(["query", "--", &query])
+        .output();
+    match result {
+        Ok(output) if output.status.success() => {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if path.is_empty() {
+                return CommandResult::Error(format!("z: no match for '{}'", query));
+            }
+            match std::env::set_current_dir(&path) {
+                Ok(_) => {
+                    let _ = std::process::Command::new("zoxide").args(["add", &path]).status();
+                    CommandResult::Empty
+                }
+                Err(e) => CommandResult::Error(format!("z: {}: {}", path, e)),
+            }
+        }
+        _ => CommandResult::Error(format!(
+            "  z: no match for '{}'
+  hint: use cd first — zoxide will learn it", query
+        ))
+    }
+}
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // Extract original-case command and arguments from line

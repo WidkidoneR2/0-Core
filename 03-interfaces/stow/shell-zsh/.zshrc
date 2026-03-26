@@ -24,8 +24,8 @@ setopt PUSHD_SILENT          # Don't print stack on pushd/popd
 # Add to PATH
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/bin:$PATH"
-export PATH="$HOME/0-core/scripts:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/0-core/scripts:$PATH"
 
 # Editor
 export EDITOR=nvim
