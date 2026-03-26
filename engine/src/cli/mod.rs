@@ -266,6 +266,9 @@ pub fn parse() -> Command {
             PredictCommands::Decline => PredictCommand::Decline,
             PredictCommands::Intents => PredictCommand::Intents,
             PredictCommands::Next => PredictCommand::Next,
+            PredictCommands::Coupling => PredictCommand::Coupling,
+            PredictCommands::Churn => PredictCommand::Churn,
+            PredictCommands::Accuracy => PredictCommand::Accuracy,
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,

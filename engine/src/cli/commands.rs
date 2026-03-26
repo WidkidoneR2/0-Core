@@ -391,6 +391,9 @@ pub enum PredictCommand {
     Decline,
     Intents,
     Next,
+    Coupling,
+    Churn,
+    Accuracy,
 }
 
 #[derive(Debug, Clone)]
