@@ -5,7 +5,7 @@ use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GoalsCommand, PredictCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
-    EvolutionCommands, GitCommands, GoalsCommands, ReactCommands, IntentCommands, LauncherCommands,
+    EvolutionCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
     TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
@@ -258,6 +258,12 @@ pub fn parse() -> Command {
             GoalsCommands::Accept { id } => GoalsCommand::Accept { id },
             GoalsCommands::Reject { id } => GoalsCommand::Reject { id },
             GoalsCommands::Show { id } => GoalsCommand::Show { id },
+        }),
+        Commands::Predict { command } => Command::Predict(match command {
+            PredictCommands::Sessions => PredictCommand::Sessions,
+            PredictCommands::Cadence => PredictCommand::Cadence,
+            PredictCommands::Health => PredictCommand::Health,
+            PredictCommands::Decline => PredictCommand::Decline,
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,
