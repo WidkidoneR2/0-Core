@@ -2217,11 +2217,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         ("top", "ps | sort cpu desc  — process table"),
         ("htop", "ps | sort cpu desc  — process table"),
         ("history", "ht                  — shell history as table"),
-        ("grep", "search <term>       — forest history search"),
-        ("netstat", "net                 — network connections table"),
-        ("df", "files               — filesystem view"),
-        ("du", "files               — filesystem view"),
-        ("journalctl", "et                  — events table"),
     ];
     let cmd_lower = cmd_orig.to_lowercase();
     for (ext, forest) in forest_map {
@@ -2328,7 +2323,13 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         if !current.is_empty() {
             result.push(current);
         }
-        result
+        // Expand ~ in each argument
+        let home_tilde = std::env::var("HOME").unwrap_or_default();
+        result.into_iter().map(|s| {
+            if s == "~" { home_tilde.clone() }
+            else if s.starts_with("~/") { format!("{}/{}", home_tilde, &s[2..]) }
+            else { s }
+        }).collect()
     };
 
     // Execute — inherit stdin/stdout/stderr so interactive commands work
