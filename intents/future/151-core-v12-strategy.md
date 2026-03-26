@@ -89,8 +89,9 @@ v12 maintains a running Jarvis readiness score (0-100):
 | 80-95 | Strategic advisor (v12 Strategy) |
 | 95-100| Autonomous agent (v13 Autonomy) |
 
-Current estimated score: **45/100** — reactive assistant territory.
-v11 will push this to ~65. v12 to ~85. v13 is the destination.
+Current estimated score: **65/100** — anticipatory partner territory.
+v11 shipped (2026-03-26) and pushed score from 45 → 65.
+v12 targets ~85. v13 is the destination.
 
 ## What v12 Needs From v10 and v11
 ```
@@ -120,7 +121,7 @@ Phase 5 — Strategy Memory (did past strategies work?)
 
 ## Gate Check
 ```
-⬜ Core v11 complete — prediction engine ready
+✅ Core v11 complete — prediction engine ready (2026-03-26) — 9 predict commands, 85% HIGH confidence
 ⬜ Phase 1 — Horizon Engine
 ⬜ Phase 2 — Action Sequencing
 ⬜ Phase 3 — Cross-Intent Coherence
