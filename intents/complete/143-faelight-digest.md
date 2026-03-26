@@ -3,7 +3,7 @@ id: 143
 date: 2026-03-21
 type: future
 title: "faelight-digest — Morning Forest Summary"
-status: planned
+status: complete
 tags: [digest, summary, shell, session, morning, v11]
 version: 11.0.0
 priority: medium
@@ -71,7 +71,7 @@ Morning (5am-10am): full digest always.
 ✅ Commits since last session (2026-03-21)
 ✅ Health + forecast trend (2026-03-21)
 ✅ Active intents summary (2026-03-21)
-⬜ Top churn files (from file_index + git)
+✅ Top churn files — recent files from file_index by modified timestamp (2026-03-26)
 ✅ Pending decisions reminder (2026-03-21)
 ✅ Low audit score tools (2026-03-21)
 ✅ Time-aware greeting (2026-03-21) (morning/evening/night)
