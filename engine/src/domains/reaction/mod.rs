@@ -39,6 +39,40 @@ pub struct ReactionRule {
     pub cooldown_s:  i64,        // seconds before re-firing
 }
 
+#[derive(Debug, serde::Deserialize)]
+struct TomlRule {
+    id:          String,
+    description: Option<String>,
+    priority:    Option<u8>,
+    cooldown_m:  Option<i64>,
+    enabled:     Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TomlRuleFile {
+    rule: Option<Vec<TomlRule>>,
+}
+
+fn load_toml_overrides(core_root: &str) -> Vec<TomlRule> {
+    let dir = std::path::PathBuf::from(core_root).join("runtime/reactions");
+    let mut all = vec![];
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("toml") {
+                if let Ok(text) = std::fs::read_to_string(&path) {
+                    if let Ok(parsed) = toml::from_str::<TomlRuleFile>(&text) {
+                        if let Some(rules) = parsed.rule {
+                            all.extend(rules);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    all
+}
+
 pub fn rules() -> Vec<ReactionRule> {
     vec![
         ReactionRule {
@@ -275,12 +309,29 @@ fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
     ];
 
     let all_rules = rules();
+    let toml_overrides = load_toml_overrides(&ctx.core_root);
     let mut fired = vec![];
 
     for eval in evaluators {
-        if let Some(reaction) = eval(ctx) {
-            let rule = all_rules.iter().find(|r| r.id == reaction.rule_id.as_str());
-            let cooldown = rule.map(|r| r.cooldown_s).unwrap_or(1800);
+        if let Some(mut reaction) = eval(ctx) {
+            // Check if disabled in TOML
+            let toml = toml_overrides.iter().find(|r| r.id == reaction.rule_id);
+            if let Some(t) = toml {
+                if t.enabled == Some(false) {
+                    continue;
+                }
+                // Apply TOML priority override
+                if let Some(p) = t.priority {
+                    reaction.priority = p;
+                }
+            }
+            // Cooldown: TOML override takes precedence over Rust default
+            let base_cooldown = all_rules.iter()
+                .find(|r| r.id == reaction.rule_id.as_str())
+                .map(|r| r.cooldown_s)
+                .unwrap_or(1800);
+            let cooldown = toml.and_then(|t| t.cooldown_m).map(|m| m * 60)
+                .unwrap_or(base_cooldown);
             if !is_on_cooldown(ctx, &reaction.rule_id, cooldown) {
                 fired.push(reaction);
             }
@@ -292,6 +343,162 @@ fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
 }
 
 // ── CLI commands ──────────────────────────────────────────────────────────────
+
+
+pub fn enable(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    toggle_rule(ctx, id, true)
+}
+
+pub fn disable(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    toggle_rule(ctx, id, false)
+}
+
+fn toggle_rule(_ctx: &AppContext, id: &str, enabled: bool) -> CoreResult<()> {
+    let dir = std::path::PathBuf::from(
+        std::env::var("HOME").unwrap_or_default()
+    ).join("0-core/runtime/reactions");
+
+    let mut found = false;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                if !text.contains(&format!("id = \"{}\"", id)) {
+                    continue;
+                }
+                // Parse line by line, track which [[rule]] block we are in
+                let mut out = String::new();
+                let mut current_id = String::new();
+                let mut patched = false;
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if trimmed == "[[rule]]" {
+                        current_id = String::new();
+                    } else if let Some(val) = trimmed.strip_prefix("id = \"") {
+                        current_id = val.trim_end_matches('"').to_string();
+                    } else if trimmed.starts_with("enabled = ") && current_id == id {
+                        out.push_str(&format!("enabled = {}\n", enabled));
+                        patched = true;
+                        continue;
+                    }
+                    out.push_str(line);
+                    out.push('\n');
+                }
+                if patched {
+                    std::fs::write(&path, out).ok();
+                    found = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if found {
+        let state = if enabled { "enabled".bright_green() } else { "disabled".yellow() };
+        println!("  {} rule {} {}", "✅".normal(), id.bright_white(), state);
+    } else {
+        println!("  {} rule '{}' not found in runtime/reactions/", "✗".bright_red(), id);
+        println!("  Rules must exist in a TOML file to be toggled");
+    }
+    Ok(())
+}
+
+pub fn add(ctx: &AppContext, id: &str, description: &str, priority: u8, cooldown_m: i64) -> CoreResult<()> {
+    let path = std::path::PathBuf::from(&ctx.core_root)
+        .join("runtime/reactions/custom.toml");
+
+    let entry = format!(
+        "\n[[rule]]\nid = \"{}\"\ndescription = \"{}\"\npriority = {}\ncooldown_m = {}\nenabled = true\n",
+        id, description, priority, cooldown_m
+    );
+
+    // Append to custom.toml
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    std::fs::write(&path, format!("{}{}", existing, entry))
+        .map_err(|e| crate::errors::CoreError::Runtime(e.to_string()))?;
+
+    println!("  {} rule added → {}", "✅".normal(), id.bright_green().bold());
+    println!("  {} runtime/reactions/custom.toml", "→".dimmed());
+    println!("  {} core react run  — to evaluate now", "hint:".dimmed());
+    Ok(())
+}
+
+pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
+    let toml_overrides = load_toml_overrides(&ctx.core_root);
+    let all_rules = rules();
+
+    println!("{}", "🌲 Reaction Rules — Full Registry".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    for rule in &all_rules {
+        let toml = toml_overrides.iter().find(|r| r.id == rule.id);
+        let enabled = toml.and_then(|t| t.enabled).unwrap_or(true);
+        let cooldown = toml.and_then(|t| t.cooldown_m).unwrap_or(rule.cooldown_s / 60);
+        let priority = toml.and_then(|t| t.priority).unwrap_or(rule.priority);
+
+        let status = if enabled {
+            "✅ enabled".green().to_string()
+        } else {
+            "○ disabled".dimmed().to_string()
+        };
+
+        let priority_icon = match priority {
+            1 => "🔴",
+            2 => "🟡",
+            _ => "🟢",
+        };
+
+        println!(
+            "  {} {}  {}  cooldown: {}m",
+            priority_icon,
+            rule.id.bright_white(),
+            status,
+            cooldown.to_string().dimmed(),
+        );
+        println!("    {}", rule.description.dimmed());
+        println!();
+    }
+
+    // Show any custom rules
+    let custom_path = std::path::PathBuf::from(&ctx.core_root)
+        .join("runtime/reactions/custom.toml");
+    if custom_path.exists() {
+        if let Ok(text) = std::fs::read_to_string(&custom_path) {
+            if let Ok(parsed) = toml::from_str::<TomlRuleFile>(&text) {
+                if let Some(custom_rules) = parsed.rule {
+                    if !custom_rules.is_empty() {
+                        println!("  {}", "Custom rules:".dimmed());
+                        for r in &custom_rules {
+                            let enabled = r.enabled.unwrap_or(true);
+                            let status = if enabled {
+                                "✅ enabled".green().to_string()
+                            } else {
+                                "○ disabled".dimmed().to_string()
+                            };
+                            println!(
+                                "  🔧 {}  {}",
+                                r.id.bright_white(),
+                                status,
+                            );
+                            if let Some(ref d) = r.description {
+                                println!("    {}", d.dimmed());
+                            }
+                            println!();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  {} core react enable/disable <id>  — toggle a rule", "hint:".dimmed());
+    Ok(())
+}
 
 pub fn list(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
