@@ -120,6 +120,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "let" => scripting_let_cmd(db, core_root, args),
         "run" | "fsh" => scripting_run_cmd(db, core_root, args),
         "snapshot" => snapshot_cmd(db, args),
+        "debug" => debug_cmd(db, args),
+        "usage" | "usage-report" => usage_report(db),
         "since" => since_cmd(db, core_root, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
@@ -2025,6 +2027,179 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 
     CommandResult::Output(out)
 }
+
+fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let sub = args.first().copied().unwrap_or("last");
+    match sub {
+        "last" => {
+            let last: Option<(String, i64)> = db.conn.query_row(
+                "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 1",
+                [], |r| Ok((r.get(0)?, r.get(1)?))
+            ).ok();
+            let last_ext: Option<(String, i64)> = db.conn.query_row(
+                "SELECT payload, timestamp FROM events WHERE domain='external' AND action='run' ORDER BY timestamp DESC LIMIT 1",
+                [], |r| Ok((r.get(0)?, r.get(1)?))
+            ).ok();
+            let mut out = String::new();
+            out.push_str(&format!("{}\n", "🌲 Debug — Last Command".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
+            if let Some((cmd, ts)) = &last {
+                let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .unwrap_or_default();
+                out.push_str(&format!("  {} Last shell command\n", "▶".bright_cyan()));
+                out.push_str(&format!("    {} {}\n", "cmd:".dimmed(), cmd.bright_white()));
+                out.push_str(&format!("    {} {}\n", "at:".dimmed(), dt.dimmed()));
+                let first_tok = cmd.split_whitespace().next().unwrap_or("");
+                let classification = if db.get_alias(first_tok).is_some() {
+                    "alias expanded"
+                } else {
+                    match first_tok {
+                        "cd"|"ls"|"pwd"|"health"|"events"|"intents"|"since"|"gc"|
+                        "ps"|"forecast"|"checkpoint"|"git"|"commits"|"story"|
+                        "advise"|"debug"|"usage" => "forest builtin",
+                        "q"|"exit"|"quit" => "shell control",
+                        "flow" => "flow mode",
+                        _ => "external PATH"
+                    }
+                };
+                out.push_str(&format!("    {} {}\n", "type:".dimmed(), classification.bright_green()));
+            }
+            out.push('\n');
+            if let Some((payload, ts)) = &last_ext {
+                let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .unwrap_or_default();
+                out.push_str(&format!("  {} Last external run\n", "▶".yellow()));
+                out.push_str(&format!("    {} {}\n", "event:".dimmed(), payload.white()));
+                out.push_str(&format!("    {} {}\n", "at:".dimmed(), dt.dimmed()));
+            }
+            out.push('\n');
+            let last_reaction: Option<(String, String, i64)> = db.conn.query_row(
+                "SELECT rule_id, message, triggered_at FROM reaction_log ORDER BY triggered_at DESC LIMIT 1",
+                [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            ).ok();
+            if let Some((rule, msg, ts)) = last_reaction {
+                let dt = chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .unwrap_or_default();
+                out.push_str(&format!("  {} Last reaction fired\n", "▶".yellow()));
+                out.push_str(&format!("    {} {}\n", "rule:".dimmed(), rule.cyan()));
+                out.push_str(&format!("    {} {}\n", "msg:".dimmed(), msg.dimmed()));
+                out.push_str(&format!("    {} {}\n", "at:".dimmed(), dt.dimmed()));
+            } else {
+                out.push_str(&format!("  {} No reactions fired recently\n", "▶".dimmed()));
+            }
+            out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
+            out.push_str(&format!("  {} Run: debug reactions  debug preexec\n", "hint:".dimmed()));
+            CommandResult::Output(out)
+        }
+        "reactions" => {
+            let mut out = String::new();
+            out.push_str(&format!("{}\n", "🌲 Debug — Reaction State".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
+            let now = chrono::Local::now().timestamp();
+            let rules = ["health.advisory","health.stale","security.aging",
+                         "checkpoint.stale","intent.overflow","forecast.declining"];
+            for rule in &rules {
+                let cooldown: Option<i64> = db.conn.query_row(
+                    "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+                    rusqlite::params![rule], |r| r.get(0)
+                ).ok();
+                let state = match cooldown {
+                    Some(ts) => {
+                        let elapsed = now - ts;
+                        if elapsed < 3600 {
+                            format!("on cooldown ({}m ago)", elapsed / 60).yellow().to_string()
+                        } else {
+                            format!("ready ({}h ago)", elapsed / 3600).green().to_string()
+                        }
+                    }
+                    None => "never fired - ready".green().to_string()
+                };
+                out.push_str(&format!("  {} {}\n    {}\n\n",
+                    "▶".bright_cyan(), rule.bright_white(), state));
+            }
+            out.push_str(&format!("{}\n", "━".repeat(52).dimmed()));
+            out.push_str(&format!("  {} Edit: runtime/reaction-discipline.toml\n", "hint:".dimmed()));
+            CommandResult::Output(out)
+        }
+        "preexec" => {
+            let mut out = String::new();
+            out.push_str(&format!("{}\n", "🌲 Debug — Pre-exec Hooks".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
+            out.push_str(&format!("  {} Active guards\n", "▶".bright_cyan()));
+            out.push_str(&format!("    {} git guardrail - blocks commit/push when locked\n", "✅".normal()));
+            out.push_str(&format!("    {} flow mode - intent focus when set\n", "✅".normal()));
+            out.push_str(&format!("    {} intent-guard hook - planned Phase 20b\n", "⬜".normal()));
+            out.push_str(&format!("\n  {} All guards EXPLICIT and OBSERVABLE\n", "info:".dimmed()));
+            out.push_str(&format!("  {} No implicit mutations - every block shows reason\n", "info:".dimmed()));
+            out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
+            CommandResult::Output(out)
+        }
+        _ => CommandResult::Error(format!(
+            "  debug: unknown '{}'\n  usage: debug last | debug reactions | debug preexec", sub
+        ))
+    }
+}
+
+fn usage_report(db: &ForestDb) -> CommandResult {
+    let mut out = String::new();
+    out.push_str(&format!("{}\n", "🌲 Usage Report — faelight-shell".cyan().bold()));
+    out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
+    let total_shell: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let total_external: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='external' AND action='run'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    let total = total_shell + total_external;
+    let native_pct = if total > 0 { (total_shell * 100) / total } else { 0 };
+    let ext_pct = 100 - native_pct;
+    out.push_str(&format!("  {} Command Coverage\n", "▶".bright_cyan()));
+    out.push_str(&format!("    · {} total commands tracked\n", total.to_string().bright_white()));
+    out.push_str(&format!("    · {}% handled natively ({} cmds)\n", native_pct.to_string().bright_green(), total_shell));
+    out.push_str(&format!("    · {}% forwarded to PATH ({} cmds)\n", ext_pct.to_string().yellow(), total_external));
+    out.push('\n');
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT command, COUNT(*) as n FROM shell_history GROUP BY command ORDER BY n DESC LIMIT 8"
+    ) {
+        let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap().filter_map(|r| r.ok()).collect();
+        if !rows.is_empty() {
+            out.push_str(&format!("  {} Top native commands\n", "▶".bright_cyan()));
+            let max = rows[0].1.max(1);
+            for (cmd, count) in &rows {
+                let bar = "█".repeat(((count * 20) / max).max(1) as usize);
+                out.push_str(&format!("    {:20} {} {}\n",
+                    cmd.bright_white(), bar.bright_green(), count.to_string().dimmed()));
+            }
+            out.push('\n');
+        }
+    }
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT payload, COUNT(*) as n FROM events WHERE domain='external' AND action='run' GROUP BY payload ORDER BY n DESC LIMIT 5"
+    ) {
+        let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap().filter_map(|r| r.ok()).collect();
+        if !rows.is_empty() {
+            out.push_str(&format!("  {} Top external commands\n", "▶".yellow()));
+            for (payload, count) in &rows {
+                let cmd = payload.trim_start_matches("cmd:").split(" exit:").next().unwrap_or(payload);
+                out.push_str(&format!("    {:20} {} times\n", cmd.white(), count.to_string().dimmed()));
+            }
+            out.push('\n');
+        }
+    }
+    let confidence = if native_pct >= 90 { "🟢 HIGH — ready for login shell" }
+        else if native_pct >= 75 { "🟡 MEDIUM — daily driver territory" }
+        else { "🔴 LOW — still building" };
+    out.push_str(&format!("  {} Migration Confidence: {}\n", "▶".bright_cyan(), confidence));
+    out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
+    CommandResult::Output(out)
+}
+
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // Extract original-case command and arguments from line
