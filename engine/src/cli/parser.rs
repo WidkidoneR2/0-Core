@@ -807,6 +807,8 @@ pub enum ReactCommands {
     Bounds,
     /// Audit all rules against current boundaries and goals
     Audit,
+    /// Show today's reaction narrative as a story
+    Story,
     /// Add a custom reaction rule
     Add {
         /// Rule ID (e.g. git.commit_streak)

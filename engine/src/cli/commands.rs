@@ -395,6 +395,7 @@ pub enum ReactCommand {
     Add { id: String, description: String, priority: u8, cooldown_m: i64 },
     Bounds,
     Audit,
+    Story,
 }
 
 #[derive(Debug, Clone)]
