@@ -212,8 +212,8 @@ These phases complete the migration:
 | Function | Status in fsh | Action needed |
 |----------|--------------|---------------|
 | `sudo()` | ✅ works — PATH passthrough | none |
-| `ya()` — yazi cd-on-quit | ⚠️ partial — no cd-after-exit | Phase 20b: fsh builtin |
-| `git()` guardrail | ❌ missing | Phase 20b: pre-command hook |
+| `ya()` — yazi cd-on-quit | ✅ DONE (2026-03-26) — yazi + faelight-fm with cd-on-quit | Phase 20b |
+| `git()` guardrail | ✅ DONE (2026-03-26) — git commit/push blocked when core locked | Phase 20b |
 | `preexec()` intent-guard | ❌ missing | Phase 20b: triggers.rs |
 | `update-check()` | ✅ works — external | none |
 | `sync-0-core()` | ✅ works — external | none |

@@ -19,11 +19,20 @@ mod ui;
 use app::AppState;
 
 fn main() -> Result<()> {
-    // Get starting directory
-    let start_path = env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| env::current_dir().expect("Failed to get current directory"));
+    // Parse args: faelight-fm [start_path] [--cwd-file <path>]
+    let args: Vec<String> = env::args().collect();
+    let mut start_path = env::current_dir().expect("Failed to get current directory");
+    let mut cwd_file: Option<String> = None;
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--cwd-file" && i + 1 < args.len() {
+            cwd_file = Some(args[i + 1].clone());
+            i += 2;
+        } else {
+            start_path = PathBuf::from(&args[i]);
+            i += 1;
+        }
+    }
 
     // Setup terminal
     enable_raw_mode()?;
@@ -47,6 +56,11 @@ fn main() -> Result<()> {
     )?;
     terminal.show_cursor()?;
 
+    // Write cwd to file on exit if --cwd-file was passed
+    if let Some(ref cwd_path) = cwd_file {
+        let current = app.cwd.to_string_lossy().to_string();
+        let _ = std::fs::write(cwd_path, &current);
+    }
     if let Err(err) = res {
         eprintln!("Error: {}", err);
     }
