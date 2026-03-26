@@ -218,6 +218,38 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 CommandResult::Output(out.trim_end().to_string())
             }
         }
+        "env" => {
+            let mut out = String::new();
+            out.push_str(&format!("{}\n", "🌲 Shell Environment".cyan().bold()));
+            out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
+            let vars = [
+                "HOME", "USER", "SHELL", "PATH", "EDITOR", "WAYLAND_DISPLAY",
+                "XDG_CURRENT_DESKTOP", "XDG_RUNTIME_DIR", "LANG", "TERM",
+            ];
+            for var in &vars {
+                if let Ok(val) = std::env::var(var) {
+                    let display = if val.len() > 60 {
+                        format!("{}…", &val[..60])
+                    } else {
+                        val
+                    };
+                    out.push_str(&format!("  {:25} {}\n",
+                        var.bright_cyan(), display.white()));
+                }
+            }
+            // Also show fsh-specific vars
+            out.push_str(&format!("\n  {}\n", "fsh vars:".dimmed()));
+            if let Some(focus) = db.get_focus_intent() {
+                out.push_str(&format!("  {:25} {}\n",
+                    "FSH_FOCUS".bright_cyan(), focus.bright_green()));
+            }
+            out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
+            CommandResult::Output(out)
+        }
+        "clear" => {
+            print!("\x1b[2J\x1b[H");
+            CommandResult::Empty
+        }
         "pwd" => {
             let path = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
