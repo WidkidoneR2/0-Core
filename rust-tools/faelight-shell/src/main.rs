@@ -132,6 +132,39 @@ fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> 
     result
 }
 
+// Strip # comments — only at start of line or after whitespace, never inside strings
+fn strip_comments(input: &str) -> String {
+    input.lines().map(|line| {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') {
+            return String::new();
+        }
+        let mut in_single = false;
+        let mut in_double = false;
+        let mut comment_pos = None;
+        for (i, ch) in line.char_indices() {
+            match ch {
+                '\'' if !in_double => in_single = !in_single,
+                '"'  if !in_single => in_double = !in_double,
+                '#'  if !in_single && !in_double => {
+                    if i == 0 || line[..i].ends_with(|c: char| c.is_whitespace()) {
+                        comment_pos = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        match comment_pos {
+            Some(pos) => line[..pos].trim_end().to_string(),
+            None => line.to_string(),
+        }
+    })
+    .filter(|l| !l.is_empty())
+    .collect::<Vec<_>>()
+    .join("\n")
+}
+
 fn main() -> Result<()> {
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     let result = std::thread::Builder::new()
@@ -204,6 +237,8 @@ fn repl_main() -> Result<()> {
 
         match rl.readline(&prompt_str) {
             Ok(line) => {
+                // Strip comments before any processing
+                let line = strip_comments(line.trim());
                 let line = line.trim().to_string();
                 if line.is_empty() {
                     continue;
