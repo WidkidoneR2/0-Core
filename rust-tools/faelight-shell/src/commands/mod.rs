@@ -120,6 +120,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "let" => scripting_let_cmd(db, core_root, args),
         "run" | "fsh" => scripting_run_cmd(db, core_root, args),
         "snapshot" => snapshot_cmd(db, args),
+        "since" => since_cmd(db, core_root, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
         "dashboard" | "dash" => dashboard_cmd(db, core_root, args),
@@ -1869,6 +1870,159 @@ fn cd(args: &[&str]) -> CommandResult {
         Ok(_) => CommandResult::Empty,
         Err(e) => CommandResult::Error(format!("cd: {}: {}", target, e)),
     }
+}
+
+fn parse_since_time(arg: &str) -> i64 {
+    let now = chrono::Local::now().timestamp();
+    let arg_lower = arg.to_lowercase();
+    match arg_lower.as_str() {
+        "today" => chrono::Local::now().date_naive()
+            .and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp(),
+        "yesterday" => now - 86400,
+        "week" | "this week" => now - 7 * 86400,
+        _ => {
+            if arg_lower.ends_with('h') {
+                let h: i64 = arg_lower.trim_end_matches('h').parse().unwrap_or(1);
+                now - h * 3600
+            } else if arg_lower.ends_with('m') {
+                let m: i64 = arg_lower.trim_end_matches('m').parse().unwrap_or(30);
+                now - m * 60
+            } else if arg_lower.ends_with('d') {
+                let d: i64 = arg_lower.trim_end_matches('d').parse().unwrap_or(1);
+                now - d * 86400
+            } else {
+                chrono::NaiveDate::parse_from_str(&arg_lower, "%Y-%m-%d")
+                    .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp())
+                    .unwrap_or(now - 86400)
+            }
+        }
+    }
+}
+
+fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    let _ = core_root;
+    let arg = args.join(" ");
+    let arg = if arg.is_empty() { "yesterday".to_string() } else { arg };
+    let since_ts = parse_since_time(&arg);
+    let now = chrono::Local::now().timestamp();
+
+    let fmt_ts = |ts: i64| -> String {
+        chrono::DateTime::from_timestamp(ts, 0)
+            .map(|d| d.with_timezone(&chrono::Local).format("%m-%d %H:%M").to_string())
+            .unwrap_or_default()
+    };
+
+    let mut out = String::new();
+    out.push_str(&format!("{}\n", "\u{1f332} Since \u{2014} Forest Timeline".cyan().bold()));
+    out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
+    out.push_str(&format!("  {} {} \u{2192} now\n\n",
+        "Period:".dimmed(), fmt_ts(since_ts).bright_white()));
+
+    // Git commits
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='git' AND action='commit' AND timestamp >= ?1 ORDER BY timestamp ASC"
+    ) {
+        let commits: Vec<(Option<String>, i64)> = stmt.query_map(
+            rusqlite::params![since_ts], |r| Ok((r.get(0)?, r.get(1)?))
+        ).unwrap().filter_map(|r| r.ok()).collect();
+
+        if !commits.is_empty() {
+            out.push_str(&format!("  \u{1f527} {} git commit(s)\n",
+                commits.len().to_string().bright_white()));
+            for (payload, ts) in commits.iter().take(5) {
+                let msg = payload.as_deref()
+                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+                    .and_then(|v| v["detail"]["message"].as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "commit".to_string());
+                let short = if msg.len() > 50 { format!("{}\u{2026}", &msg[..50]) } else { msg };
+                out.push_str(&format!("    {}  {}\n", fmt_ts(*ts).dimmed(), short.white()));
+            }
+            if commits.len() > 5 {
+                out.push_str(&format!("    \u{2026} {} more\n", commits.len() - 5));
+            }
+            out.push('\n');
+        }
+    }
+
+    // Health changes
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT payload, timestamp FROM events WHERE domain='doctor' AND action='run' AND timestamp >= ?1 ORDER BY timestamp ASC"
+    ) {
+        let health_events: Vec<(i64, i64)> = stmt.query_map(
+            rusqlite::params![since_ts], |r| {
+                let p: Option<String> = r.get(0)?;
+                let ts: i64 = r.get(1)?;
+                let h = p.as_deref()
+                    .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                    .and_then(|v| v["detail"]["health"].as_i64())
+                    .unwrap_or(95);
+                Ok((h, ts))
+            }
+        ).unwrap().filter_map(|r| r.ok()).collect();
+
+        if !health_events.is_empty() {
+            let first_h = health_events.first().map(|e| e.0).unwrap_or(95);
+            let last_h = health_events.last().map(|e| e.0).unwrap_or(95);
+            let delta = last_h - first_h;
+            let delta_str = if delta > 0 {
+                format!("\u{25b2}{}", delta).green().to_string()
+            } else if delta < 0 {
+                format!("\u{25bc}{}", delta.abs()).bright_red().to_string()
+            } else { "stable".dimmed().to_string() };
+            out.push_str(&format!("  \u{1f3e5} health: {}% \u{2192} {}%  {}  ({} checks)\n\n",
+                first_h.to_string().dimmed(),
+                last_h.to_string().bright_white(),
+                delta_str,
+                health_events.len().to_string().dimmed()));
+        }
+    }
+
+    // Reactions fired
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT rule_id, triggered_at, message FROM reaction_log WHERE triggered_at >= ?1 ORDER BY triggered_at ASC"
+    ) {
+        let reactions: Vec<(String, i64, String)> = stmt.query_map(
+            rusqlite::params![since_ts], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        ).unwrap().filter_map(|r| r.ok()).collect();
+
+        if !reactions.is_empty() {
+            out.push_str(&format!("  \u{26a1} {} reaction(s) fired\n",
+                reactions.len().to_string().bright_white()));
+            for (rule, ts, msg) in reactions.iter().take(3) {
+                let short = if msg.len() > 45 { format!("{}\u{2026}", &msg[..45]) } else { msg.clone() };
+                out.push_str(&format!("    {}  {} \u{2014} {}\n",
+                    fmt_ts(*ts).dimmed(), rule.cyan(), short.dimmed()));
+            }
+            out.push('\n');
+        }
+    }
+
+    // External commands
+    let cmd_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='external' AND action='run' AND timestamp >= ?1",
+        rusqlite::params![since_ts], |r| r.get(0)
+    ).unwrap_or(0);
+    if cmd_count > 0 {
+        out.push_str(&format!("  \u{2328}\u{fe0f}  {} external command(s) run\n\n",
+            cmd_count.to_string().bright_white()));
+    }
+
+    // Idle sessions
+    let idle_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='idle' AND action='idle.start' AND timestamp >= ?1",
+        rusqlite::params![since_ts], |r| r.get(0)
+    ).unwrap_or(0);
+    if idle_count > 0 {
+        out.push_str(&format!("  \u{1f4a4} {} idle session(s)\n\n",
+            idle_count.to_string().dimmed()));
+    }
+
+    let elapsed_h = (now - since_ts) / 3600;
+    out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
+    out.push_str(&format!("  \u{23f1}\u{fe0f}  {}h of forest history\n",
+        elapsed_h.to_string().bright_white()));
+
+    CommandResult::Output(out)
 }
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
