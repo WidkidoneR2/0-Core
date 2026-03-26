@@ -803,6 +803,10 @@ pub enum ReactCommands {
         /// Rule ID (e.g. health.advisory)
         id: String,
     },
+    /// Show current reaction boundary gates and health status
+    Bounds,
+    /// Audit all rules against current boundaries and goals
+    Audit,
     /// Add a custom reaction rule
     Add {
         /// Rule ID (e.g. git.commit_streak)

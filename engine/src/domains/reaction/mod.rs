@@ -31,12 +31,20 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
 
 // ── Rule definitions ─────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum RuleClass {
+    Stability,   // fires even when health < 80%
+    Maintenance, // fires when health >= 80%
+    Expansion,   // fires only when health >= 95%
+}
+
 #[derive(Debug, Clone)]
 pub struct ReactionRule {
     pub id:          &'static str,
     pub description: &'static str,
-    pub priority:    u8,         // 1=high 2=medium 3=low
-    pub cooldown_s:  i64,        // seconds before re-firing
+    pub priority:    u8,
+    pub cooldown_s:  i64,
+    pub class:       RuleClass,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -79,37 +87,43 @@ pub fn rules() -> Vec<ReactionRule> {
             id:          "health.advisory",
             description: "Health below 95% in 2+ recent doctor runs",
             priority:    1,
-            cooldown_s:  1800, // 30 min
+            cooldown_s:  1800,
+            class:       RuleClass::Stability,
         },
         ReactionRule {
             id:          "health.stale",
             description: "No doctor run in 24+ hours — health drift risk",
             priority:    1,
-            cooldown_s:  3600, // 1 hour
+            cooldown_s:  3600,
+            class:       RuleClass::Stability,
         },
         ReactionRule {
             id:          "security.aging",
             description: "Security scan older than 7 days",
             priority:    2,
-            cooldown_s:  86400, // 1 day
+            cooldown_s:  86400,
+            class:       RuleClass::Maintenance,
         },
         ReactionRule {
             id:          "checkpoint.stale",
             description: "No checkpoint taken in 7+ days",
             priority:    3,
-            cooldown_s:  86400, // 1 day
+            cooldown_s:  86400,
+            class:       RuleClass::Expansion,
         },
         ReactionRule {
             id:          "intent.overflow",
             description: "3+ intents in-progress simultaneously",
             priority:    2,
-            cooldown_s:  7200, // 2 hours
+            cooldown_s:  7200,
+            class:       RuleClass::Maintenance,
         },
         ReactionRule {
             id:          "forecast.declining",
             description: "Health forecast trend below -1.5",
             priority:    1,
-            cooldown_s:  3600, // 1 hour
+            cooldown_s:  3600,
+            class:       RuleClass::Stability,
         },
     ]
 }
@@ -345,6 +359,17 @@ fn goal_context_for(rule_id: &str, goals: &[GoalContext]) -> Option<String> {
     goals.first().map(|g| format!("{} — {}", g.id, g.title))
 }
 
+fn current_health(ctx: &AppContext) -> u32 {
+    std::fs::read_to_string(
+        std::path::PathBuf::from(&ctx.core_root).join("runtime/cache/health.txt")
+    )
+    .unwrap_or_else(|_| "95".to_string())
+    .trim()
+    .trim_end_matches('%')
+    .parse()
+    .unwrap_or(95)
+}
+
 fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
     let evaluators: Vec<fn(&AppContext) -> Option<Reaction>> = vec![
         eval_health_advisory,
@@ -357,26 +382,36 @@ fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
 
     let all_rules = rules();
     let toml_overrides = load_toml_overrides(&ctx.core_root);
+    let health = current_health(ctx);
     let mut fired = vec![];
 
     for eval in evaluators {
         if let Some(mut reaction) = eval(ctx) {
+            // Boundary gate — Rule 3
+            let rule = all_rules.iter().find(|r| r.id == reaction.rule_id.as_str());
+            let allowed = match rule.map(|r| &r.class) {
+                Some(RuleClass::Stability) => true,           // always fires
+                Some(RuleClass::Maintenance) => health >= 80, // needs basic health
+                Some(RuleClass::Expansion) => health >= 95,   // only when healthy
+                None => health >= 80,
+            };
+            if !allowed {
+                continue;
+            }
+
             // Check if disabled in TOML
             let toml = toml_overrides.iter().find(|r| r.id == reaction.rule_id);
             if let Some(t) = toml {
                 if t.enabled == Some(false) {
                     continue;
                 }
-                // Apply TOML priority override
                 if let Some(p) = t.priority {
                     reaction.priority = p;
                 }
             }
-            // Cooldown: TOML override takes precedence over Rust default
-            let base_cooldown = all_rules.iter()
-                .find(|r| r.id == reaction.rule_id.as_str())
-                .map(|r| r.cooldown_s)
-                .unwrap_or(1800);
+
+            // Cooldown
+            let base_cooldown = rule.map(|r| r.cooldown_s).unwrap_or(1800);
             let cooldown = toml.and_then(|t| t.cooldown_m).map(|m| m * 60)
                 .unwrap_or(base_cooldown);
             if !is_on_cooldown(ctx, &reaction.rule_id, cooldown) {
@@ -544,6 +579,119 @@ pub fn rules_list(ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "━".repeat(52).dimmed());
     println!("  {} core react enable/disable <id>  — toggle a rule", "hint:".dimmed());
+    Ok(())
+}
+
+
+pub fn bounds(ctx: &AppContext) -> CoreResult<()> {
+    let health = current_health(ctx);
+
+    println!("{}", "🌲 Reaction Boundaries".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    let gate_status = |threshold: u32, label: &str| {
+        if health >= threshold {
+            format!("✅ OPEN  (health {}% ≥ {}%)", health, threshold).green().to_string()
+        } else {
+            format!("🔒 CLOSED (health {}% < {}%)", health, threshold).yellow().to_string()
+        }
+    };
+
+    println!("  {} Current health: {}%", "📊".normal(),
+        if health >= 95 { health.to_string().bright_green() }
+        else if health >= 80 { health.to_string().yellow() }
+        else { health.to_string().bright_red() }
+    );
+    println!();
+    println!("  {} Stability rules  (health.*, forecast.*)  {}",
+        "🔴".normal(), gate_status(0, "0"));
+    println!("     Always active — fire regardless of health");
+    println!();
+    println!("  {} Maintenance rules (security.*, intent.*)  {}",
+        "🟡".normal(), gate_status(80, "80"));
+    println!("     Require health ≥ 80% to fire");
+    println!();
+    println!("  {} Expansion rules  (checkpoint.*)  {}",
+        "🟢".normal(), gate_status(95, "95"));
+    println!("     Require health ≥ 95% to fire");
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+
+    // Rule 1 — No reactions outside goal scope
+    println!("  {} Rule 1: Reactions bounded by accepted v9 goals", "🛡️ ".normal());
+    println!("  {} Rule 2: Reactions propose, never execute", "🛡️ ".normal());
+    println!("  {} Rule 3: Stability gates enforced in code", "🛡️ ".normal());
+    println!("  {} Rule 4: Discipline (cooldown/decay) non-optional", "🛡️ ".normal());
+    println!();
+
+    Ok(())
+}
+
+pub fn audit(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let health = current_health(ctx);
+    let all_rules = rules();
+    let toml_overrides = load_toml_overrides(&ctx.core_root);
+    let goals = active_goals(ctx);
+    let now = chrono::Local::now().timestamp();
+
+    println!("{}", "🌲 Reaction Audit".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+    println!("  Health: {}%  Goals: {}", health, goals.len());
+    println!();
+
+    for rule in &all_rules {
+        let toml = toml_overrides.iter().find(|r| r.id == rule.id);
+        let enabled = toml.and_then(|t| t.enabled).unwrap_or(true);
+
+        let boundary_ok = match &rule.class {
+            RuleClass::Stability   => true,
+            RuleClass::Maintenance => health >= 80,
+            RuleClass::Expansion   => health >= 95,
+        };
+
+        let cooldown_s = toml.and_then(|t| t.cooldown_m).map(|m| m * 60)
+            .unwrap_or(rule.cooldown_s);
+        let last_fired: Option<i64> = ctx.runtime.db.query_row(
+            "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+            rusqlite::params![rule.id],
+            |r| r.get(0),
+        ).ok();
+        let on_cooldown = last_fired.map(|ts| now - ts < cooldown_s).unwrap_or(false);
+
+        let class_label = match &rule.class {
+            RuleClass::Stability   => "stability  ",
+            RuleClass::Maintenance => "maintenance",
+            RuleClass::Expansion   => "expansion  ",
+        };
+
+        let state = if !enabled {
+            "○ disabled".dimmed().to_string()
+        } else if !boundary_ok {
+            "🔒 gated  ".yellow().to_string()
+        } else if on_cooldown {
+            "🔵 cooldown".dimmed().to_string()
+        } else {
+            "✅ ready   ".green().to_string()
+        };
+
+        println!(
+            "  {} {} [{}]  {}",
+            state,
+            rule.id.bright_white(),
+            class_label.dimmed(),
+            goal_context_for(rule.id, &goals)
+                .map(|g| format!("→ {}", g))
+                .unwrap_or_default()
+                .dimmed()
+                .to_string(),
+        );
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
     Ok(())
 }
 
