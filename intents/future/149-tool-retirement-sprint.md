@@ -3,7 +3,7 @@ id: 149
 date: 2026-03-25
 type: future
 title: "Tool Retirement Sprint — Clean What the Core Has Absorbed"
-status: planned
+status: in-progress
 tags: [tools, retirement, cleanup, core, shell, hygiene, v12]
 version: 12.0.0
 priority: medium
@@ -53,13 +53,13 @@ One tool at a time. Never batch retire without verifying health between each.
 
 ## Gate Check
 ```
-⬜ archaeology-0-core retired
-⬜ workspace-view retired
-⬜ entropy-check retired
-⬜ bin-doctor investigated and decided
-⬜ faelight-search retired
-⬜ 100% health verified after each retirement
-⬜ Tool count updated in faelight-docs
+⬜ archaeology-0-core — DEFERRED: health check dependency in doctor/checks.rs, requires engine change
+⬜ workspace-view — DEFERRED: workspace/mod.rs calls it directly, requires engine rewrite
+⬜ entropy-check — DEFERRED: listed in doctor/aliases.rs, requires alias check update
+⬜ bin-doctor — DEFERRED: referenced in doctor/checks.rs, absorbed into bins.rs but not unlinked
+✅ faelight-search RETIRED (2026-03-26) — binary removed, source removed, registry cleaned, aliases commented out
+✅ 100% path resilience verified after faelight-search retirement (44/44)
+✅ tools.toml updated — 49 tools registered
 ```
 
 ## The Phrase
