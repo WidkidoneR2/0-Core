@@ -132,6 +132,15 @@ fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> 
     result
 }
 
+// Check if 0-core is locked (immutable flag set)
+fn is_core_locked(core_root: &str) -> bool {
+    std::process::Command::new("lsattr")
+        .args(["-d", core_root])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("----i"))
+        .unwrap_or(false)
+}
+
 // Strip # comments — only at start of line or after whitespace, never inside strings
 fn strip_comments(input: &str) -> String {
     input.lines().map(|line| {
@@ -311,6 +320,40 @@ fn repl_main() -> Result<()> {
                         }
                     }
 
+                    // Phase 20b — Git guardrail: block commit/push when core is locked
+                    {
+                        let ftok = line.split_whitespace().next().unwrap_or("");
+                        let stok = line.split_whitespace().nth(1).unwrap_or("");
+                        let in_core = std::env::current_dir()
+                            .map(|d| d.starts_with(&core_root))
+                            .unwrap_or(false);
+                        if ftok == "git" && in_core && is_core_locked(&core_root) {
+                            match stok {
+                                "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge" => {
+                                    println!();
+                                    println!("  {} Core is LOCKED — editing blocked", "🔒".normal());
+                                    println!("  {} No commits, pushes or changes allowed while locked", "✗".bright_red());
+                                    println!("  {} Run: unlock-core  — then make your changes", "→".bright_cyan());
+                                    println!();
+                                    continue 'repl;
+                                }
+                                _ => {}
+                            }
+                        }
+                        // Also block fg commit/push when locked
+                        if (ftok == "fg" && in_core && is_core_locked(&core_root)) {
+                            match stok {
+                                "commit" | "push" | "sync" => {
+                                    println!();
+                                    println!("  {} Core is LOCKED — editing blocked", "🔒".normal());
+                                    println!("  {} Run: unlock-core  — then commit", "→".bright_cyan());
+                                    println!();
+                                    continue 'repl;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                     // Natural language ?prefix
                     if line.starts_with('?') && line.len() > 1 {
                         let query = line[1..].trim();
@@ -669,6 +712,17 @@ fn repl_main() -> Result<()> {
                         })
                         .collect();
 
+                    // Phase 20b: inject --cwd-file for yazi/fm before execute
+                    let fm_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
+                    let is_fm_cmd = {
+                        let fc = base_cmd.split_whitespace().next().unwrap_or("").to_lowercase();
+                        fc == "yazi" || fc == "faelight-fm"
+                    };
+                    let base_cmd = if is_fm_cmd {
+                        format!("{} --cwd-file {}", base_cmd, fm_cwd_file.display())
+                    } else {
+                        base_cmd
+                    };
                     let cmd_output: Option<String> =
                         match commands::execute(&base_cmd, &db, &core_root) {
                             commands::CommandResult::Exit => break 'repl,
@@ -721,6 +775,16 @@ fn repl_main() -> Result<()> {
                         } else {
                             println!("{}", output);
                         }
+                    }
+                    // Phase 20b — apply cwd after yazi/fm exits
+                    if is_fm_cmd {
+                        if let Ok(cwd) = std::fs::read_to_string(&fm_cwd_file) {
+                            let cwd = cwd.trim();
+                            if !cwd.is_empty() {
+                                let _ = std::env::set_current_dir(cwd);
+                            }
+                        }
+                        let _ = std::fs::remove_file(&fm_cwd_file);
                     }
                     // Phase 17 — evaluate triggers after every command
                     triggers::ensure_schema(&db);
