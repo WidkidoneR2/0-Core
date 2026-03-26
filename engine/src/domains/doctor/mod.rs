@@ -276,10 +276,12 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_sandbox(&core_root),
     ];
 
-    let total = checks.len() as u32;
-    let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
-    let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
-    let failed = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    // Exclude core_protection from health % — lock state is operational, not a health issue
+    let scored: Vec<_> = checks.iter().filter(|r| r.id != "core_protect").collect();
+    let total = scored.len() as u32;
+    let passed = scored.iter().filter(|r| r.status == Status::Pass).count() as u32;
+    let warnings = scored.iter().filter(|r| r.status == Status::Warn).count() as u32;
+    let failed = scored.iter().filter(|r| r.status == Status::Fail).count() as u32;
     let health = if total > 0 { (passed * 100) / total } else { 0 };
 
     render_cockpit(&checks, &version, health, passed, warnings, failed);
