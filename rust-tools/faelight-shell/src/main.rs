@@ -956,18 +956,28 @@ fn print_welcome(core_root: &str) {
         })
         .unwrap_or_default();
 
-    // Show today's focus from most recent in-progress intent
-    let focus_intent = std::fs::read_dir(root.join("intents/future"))
+    // Show today's focus from actual in-progress intents only
+    let focus_intent: Option<String> = std::fs::read_dir(root.join("intents/future"))
         .ok()
-        .and_then(|mut d| d.next())
-        .and_then(|e| e.ok())
-        .map(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
-                .trim_end_matches(".md")
-                .replace('-', " ")
-                .to_string()
+        .and_then(|entries| {
+            let mut in_progress: Vec<String> = entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                .filter_map(|e| {
+                    let content = std::fs::read_to_string(e.path()).ok()?;
+                    if !content.contains("status: in-progress") { return None; }
+                    Some(e.file_name()
+                        .to_string_lossy()
+                        .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
+                        .trim_end_matches(".md")
+                        .replace('-', " ")
+                        .to_string())
+                })
+                .collect();
+            in_progress.sort();
+            if in_progress.is_empty() { None } else {
+                Some(in_progress.join(", "))
+            }
         });
 
     if let Some(ref focus) = focus_intent {

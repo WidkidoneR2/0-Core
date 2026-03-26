@@ -162,6 +162,62 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "plugins" => list_plugins(db),
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "z" | "zi" => z_jump(args),
+        "which" => {
+            let cmd = args.first().copied().unwrap_or("");
+            if cmd.is_empty() {
+                return CommandResult::Error("which: missing argument".to_string());
+            }
+            let mut out = String::new();
+
+            // Check forest builtins
+            let builtins = ["cd","pwd","ls","ll","health","events","intents","tools",
+                "version","schema","commits","story","advise","audit","forecast",
+                "sandbox","checkpoint","since","git","gc","gf","gchurn","gbr",
+                "ps","ports","services","files","find","net","pkgs","pkg",
+                "history","ht","hstats","histogram","domains","logs","debug",
+                "usage","z","zi","ya","yazi","fm","flow","let","run","snapshot",
+                "timeline","dashboard","chart","watch","select","search","on",
+                "help","exit","quit","q","?"];
+
+            if builtins.contains(&cmd) {
+                out.push_str(&format!("  {} {} — forest builtin\n",
+                    "🌲".normal(), cmd.bright_green()));
+            }
+
+            // Check aliases
+            if let Some(aliased) = db.get_alias(cmd) {
+                out.push_str(&format!("  {} {} → {} — alias\n",
+                    "→".bright_cyan(), cmd.bright_white(), aliased.dimmed()));
+            }
+
+            // Check forest scripts
+            let home = std::env::var("HOME").unwrap_or_default();
+            let script_path = format!("{}/0-core/scripts/{}", home, cmd);
+            if std::path::Path::new(&script_path).exists() {
+                out.push_str(&format!("  {} {} — forest script\n",
+                    "🌲".normal(), script_path.bright_white()));
+            }
+
+            // Check PATH
+            let path_result = std::process::Command::new("which")
+                .arg(cmd)
+                .output()
+                .ok()
+                .and_then(|o| if o.status.success() {
+                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+                } else { None });
+
+            if let Some(path) = path_result {
+                out.push_str(&format!("  {} {} — PATH\n",
+                    "○".dimmed(), path.dimmed()));
+            }
+
+            if out.is_empty() {
+                CommandResult::Error(format!("which: {} not found", cmd))
+            } else {
+                CommandResult::Output(out.trim_end().to_string())
+            }
+        }
         "pwd" => {
             let path = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
