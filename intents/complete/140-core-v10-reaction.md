@@ -3,7 +3,7 @@ id: 140
 date: 2026-03-21
 type: future
 title: "Core v10 — Reaction: The Forest Responds Without Being Asked"
-status: in-progress
+status: complete
 tags: [core, v10, reaction, events, reflexes, automation, v13]
 version: 13.0.0
 priority: medium
@@ -256,7 +256,7 @@ Phase 6 — Reaction Discipline (cooldown, coalesce, decay)
 ✅ Phase 3 — Conditional Intelligence DONE (2026-03-26) — goal-scoped reactions, active goal context shown on run, keyword relevance matching
 ✅ Phase 4 — Reaction Boundaries DONE (2026-03-26) — RuleClass gates, bounds command, audit command, 4 guardrails enforced in code
 ✅ Phase 5 — Reaction Narrative DONE (2026-03-26) — story command, narrative sentences, goal context, priority summary
-⬜ Phase 6 — Reaction Discipline
+✅ Phase 6 — Reaction Discipline DONE (2026-03-26) — decay, coalesce, discipline-show, reaction-discipline.toml
 ```
 
 ## The Phrase

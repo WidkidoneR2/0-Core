@@ -420,6 +420,15 @@ fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
         }
     }
 
+    // Apply decay — suppress rules that fired long ago and were ignored
+    let discipline = load_discipline(&ctx.core_root);
+    let fired: Vec<Reaction> = fired.into_iter().filter(|reaction| {
+        let disc = discipline.iter().find(|d| d.rule_id == reaction.rule_id);
+        let decay_h = disc.and_then(|d| d.decay_after_h).unwrap_or(48.0);
+        !is_decayed(ctx, &reaction.rule_id, decay_h)
+    }).collect();
+
+    let mut fired = fired;
     fired.sort_by_key(|r| r.priority);
     fired
 }
@@ -811,6 +820,157 @@ pub fn story(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
 
+    Ok(())
+}
+
+
+#[derive(Debug, serde::Deserialize)]
+struct DisciplineRule {
+    rule_id:      String,
+    decay_after_h: Option<f64>,
+    coalesce:     Option<bool>,
+    escalate_if:  Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct DisciplineFile {
+    discipline: Option<Vec<DisciplineRule>>,
+}
+
+fn load_discipline(core_root: &str) -> Vec<DisciplineRule> {
+    let path = std::path::PathBuf::from(core_root)
+        .join("runtime/reaction-discipline.toml");
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| toml::from_str::<DisciplineFile>(&text).ok())
+        .and_then(|f| f.discipline)
+        .unwrap_or_default()
+}
+
+fn is_decayed(ctx: &AppContext, rule_id: &str, decay_after_h: f64) -> bool {
+    let decay_s = (decay_after_h * 3600.0) as i64;
+    let now = chrono::Local::now().timestamp();
+    // Check if rule fired within decay window — if it did and we are past decay, suppress
+    ctx.runtime.db.query_row(
+        "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+        rusqlite::params![rule_id],
+        |r| r.get::<_, i64>(0),
+    )
+    .ok()
+    .map(|last| {
+        let elapsed = now - last;
+        // Decayed: fired more than decay_after_h ago — suppress silently
+        elapsed > decay_s
+    })
+    .unwrap_or(false)
+}
+
+pub fn coalesce(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let discipline = load_discipline(&ctx.core_root);
+    let all_rules = rules();
+    let toml_overrides = load_toml_overrides(&ctx.core_root);
+    let now = chrono::Local::now().timestamp();
+
+    println!("{}", "🌲 Reaction Coalesce — Grouped Signals".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    let mut coalesce_groups: std::collections::HashMap<&str, Vec<String>> =
+        std::collections::HashMap::new();
+
+    for rule in &all_rules {
+        let disc = discipline.iter().find(|d| d.rule_id == rule.id);
+        if disc.and_then(|d| d.coalesce).unwrap_or(false) {
+            // Check if this rule has a pending (fired but within cooldown) signal
+            let last: Option<i64> = ctx.runtime.db.query_row(
+                "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+                rusqlite::params![rule.id],
+                |r| r.get(0),
+            ).ok();
+
+            if let Some(ts) = last {
+                let toml = toml_overrides.iter().find(|r| r.id == rule.id);
+                let cooldown = toml.and_then(|t| t.cooldown_m).map(|m| m * 60)
+                    .unwrap_or(rule.cooldown_s);
+                if now - ts < cooldown {
+                    // Still on cooldown — coalescing candidate
+                    let group = match rule.class {
+                        RuleClass::Stability   => "health",
+                        RuleClass::Maintenance => "maintenance",
+                        RuleClass::Expansion   => "expansion",
+                    };
+                    coalesce_groups.entry(group).or_default().push(rule.id.to_string());
+                }
+            }
+        }
+    }
+
+    if coalesce_groups.is_empty() {
+        println!("  {} No coalescing candidates — no batched signals pending", "○".dimmed());
+    } else {
+        for (group, rule_ids) in &coalesce_groups {
+            println!("  {} group: {}", "📦".normal(), group.bright_white());
+            for id in rule_ids {
+                println!("    {} {}", "→".dimmed(), id.cyan());
+            }
+            println!();
+        }
+        println!("  {} These signals would surface together in one notification", "hint:".dimmed());
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+pub fn discipline_show(ctx: &AppContext) -> CoreResult<()> {
+    let discipline = load_discipline(&ctx.core_root);
+    let all_rules = rules();
+    let now = chrono::Local::now().timestamp();
+
+    println!("{}", "🌲 Reaction Discipline — Config".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    for rule in &all_rules {
+        let disc = discipline.iter().find(|d| d.rule_id == rule.id);
+
+        let decay_h = disc.and_then(|d| d.decay_after_h).unwrap_or(24.0);
+        let coalesce = disc.and_then(|d| d.coalesce).unwrap_or(false);
+        let escalate = disc.and_then(|d| d.escalate_if.as_deref()).unwrap_or("—");
+
+        // Check decay status
+        let last: Option<i64> = ctx.runtime.db.query_row(
+            "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+            rusqlite::params![rule.id],
+            |r| r.get(0),
+        ).ok();
+
+        let decay_status = match last {
+            Some(ts) => {
+                let elapsed_h = (now - ts) as f64 / 3600.0;
+                if elapsed_h > decay_h {
+                    format!("⏱  decayed ({:.1}h > {:.0}h)", elapsed_h, decay_h).dimmed().to_string()
+                } else {
+                    format!("✅ active  ({:.1}h of {:.0}h)", elapsed_h, decay_h).green().to_string()
+                }
+            }
+            None => "✅ never fired".green().to_string(),
+        };
+
+        println!(
+            "  {}  decay: {}h  coalesce: {}  escalate: {}",
+            rule.id.bright_white(),
+            decay_h.to_string().cyan(),
+            if coalesce { "yes".green().to_string() } else { "no".dimmed().to_string() },
+            escalate.dimmed(),
+        );
+        println!("    {}", decay_status);
+        println!();
+    }
+
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  {} Edit: runtime/reaction-discipline.toml", "hint:".dimmed());
     Ok(())
 }
 
