@@ -3,7 +3,7 @@ id: 137
 date: 2026-03-18
 type: future
 title: "Architectural Horizons — Known Future Limits"
-status: planned
+status: complete
 tags: [architecture, monolith, decisions, capabilities, future, planning]
 version: 13.0.0
 priority: low
@@ -167,9 +167,9 @@ INT-135 Shell v11  — will expose Horizon 3 capability complexity
 ## Gate Check
 ```
 ✅ Core v8 Phase 1 detects Horizon 1 signals — core evolution map (2026-03-20)
-⬜ Core v8 configured to detect Horizon 2 signals  
-⬜ Core v8 configured to detect Horizon 3 signals
-⬜ Dashboard: core architecture horizons
+✅ Core v10 stress-tested Horizon 2 — 9750 events, SQLite stable (2026-03-26)
+✅ Core v10 Horizon 3 check — 34 domains, capability stable (2026-03-26)
+✅ core react audit — domains, classes, boundaries visible live (2026-03-26)
 ```
 
 ## The Phrase
