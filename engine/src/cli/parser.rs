@@ -108,6 +108,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GoalsCommands,
     },
+    /// Stress test engine — verify v11 before v12 builds on top (INT-152)
+    Stress {
+        #[command(subcommand)]
+        command: StressCommands,
+    },
     /// Prediction engine — the forest anticipates (Core v11)
     Predict {
         #[command(subcommand)]
@@ -779,6 +784,22 @@ pub enum GoalsCommands {
         /// Goal ID
         id: String,
     },
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum StressCommands {
+    /// Event storm — inject 500 events, verify no corruption
+    Events,
+    /// Prediction under load — all 9 predict commands
+    Predict,
+    /// Reaction integrity — cooldowns and history
+    React,
+    /// Health trajectory integrity
+    Health,
+    /// Intent velocity accuracy
+    Intents,
+    /// Full stress report — run all tests
+    Report,
 }
 
 #[derive(Debug, Clone, clap::Subcommand)]

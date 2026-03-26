@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, PredictCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GoalsCommand, PredictCommand, ReactCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -431,6 +431,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GoalsCommand::Accept { id } => crate::domains::goals::accept(ctx, &id),
             GoalsCommand::Reject { id } => crate::domains::goals::reject(ctx, &id),
             GoalsCommand::Show { id } => crate::domains::goals::show(ctx, &id),
+        },
+        Command::Stress(c) => match c {
+            StressCommand::Events => crate::domains::stress::events(ctx),
+            StressCommand::Predict => crate::domains::stress::predict(ctx),
+            StressCommand::React => crate::domains::stress::react(ctx),
+            StressCommand::Health => crate::domains::stress::health(ctx),
+            StressCommand::Intents => crate::domains::stress::intents(ctx),
+            StressCommand::Report => crate::domains::stress::report(ctx),
         },
         Command::Predict(c) => match c {
             PredictCommand::Sessions => crate::domains::predict::sessions(ctx),

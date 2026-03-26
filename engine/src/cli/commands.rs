@@ -45,6 +45,7 @@ pub enum Command {
     Simulate(SimulateCommand),
     Evolution(EvolutionCommand),
     Goals(GoalsCommand),
+    Stress(StressCommand),
     Predict(PredictCommand),
     React(ReactCommand),
     Plan(PlanCommand),
@@ -381,6 +382,16 @@ pub enum GoalsCommand {
     Accept { id: String },
     Reject { id: String },
     Show { id: String },
+}
+
+#[derive(Debug, Clone)]
+pub enum StressCommand {
+    Events,
+    Predict,
+    React,
+    Health,
+    Intents,
+    Report,
 }
 
 #[derive(Debug, Clone)]
