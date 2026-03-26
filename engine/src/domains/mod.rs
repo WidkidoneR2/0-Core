@@ -38,3 +38,5 @@ pub mod autobiography;
 
 pub mod reaction;
 pub mod predict;
+
+pub mod stress;
