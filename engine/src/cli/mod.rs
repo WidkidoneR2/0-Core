@@ -270,6 +270,8 @@ pub fn parse() -> Command {
             ReactCommands::Disable { id } => ReactCommand::Disable { id },
             ReactCommands::Add { id, description, priority, cooldown_m } =>
                 ReactCommand::Add { id, description, priority, cooldown_m },
+            ReactCommands::Bounds => ReactCommand::Bounds,
+            ReactCommands::Audit => ReactCommand::Audit,
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },

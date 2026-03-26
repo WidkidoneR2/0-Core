@@ -443,6 +443,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ReactCommand::Disable { id } => crate::domains::reaction::disable(ctx, &id),
             ReactCommand::Add { id, description, priority, cooldown_m } =>
                 crate::domains::reaction::add(ctx, &id, &description, priority, cooldown_m),
+            ReactCommand::Bounds => crate::domains::reaction::bounds(ctx),
+            ReactCommand::Audit => crate::domains::reaction::audit(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

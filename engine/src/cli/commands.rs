@@ -393,6 +393,8 @@ pub enum ReactCommand {
     Enable { id: String },
     Disable { id: String },
     Add { id: String, description: String, priority: u8, cooldown_m: i64 },
+    Bounds,
+    Audit,
 }
 
 #[derive(Debug, Clone)]
