@@ -437,6 +437,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             PredictCommand::Cadence => crate::domains::predict::cadence(ctx),
             PredictCommand::Health => crate::domains::predict::health(ctx),
             PredictCommand::Decline => crate::domains::predict::decline(ctx),
+            PredictCommand::Intents => crate::domains::predict::intents(ctx),
+            PredictCommand::Next => crate::domains::predict::next(ctx),
         },
         Command::React(c) => match c {
             ReactCommand::List => crate::domains::reaction::list(ctx),

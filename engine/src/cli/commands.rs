@@ -389,6 +389,8 @@ pub enum PredictCommand {
     Cadence,
     Health,
     Decline,
+    Intents,
+    Next,
 }
 
 #[derive(Debug, Clone)]
