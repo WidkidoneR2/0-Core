@@ -3,7 +3,7 @@ id: 141
 date: 2026-03-21
 type: future
 title: "faelight-notify v4 — Freedesktop Spec, zbus, Wayland Native"
-status: planned
+status: in-progress
 tags: [notify, wayland, dbus, zbus, freedesktop, rust, v11]
 version: 11.0.0
 priority: high
@@ -77,15 +77,15 @@ Keep it minimal — no animation, no shadows, clean text.
 
 ## Gate Check
 ```
-⬜ zbus D-Bus server — org.freedesktop.Notifications
-⬜ Wayland surface rendering
-⬜ fontdue text rendering (font matches faelight-bar)
-⬜ Urgency levels
-⬜ Timeout + progress bar
-⬜ Click to dismiss
-⬜ notify-send works
-⬜ Brave browser notifications work
-⬜ Core v10 can trigger via D-Bus
+✅ zbus D-Bus server — org.freedesktop.Notifications (2026-03-26)
+✅ Wayland surface rendering (2026-03-26) — smithay-client-toolkit, layer shell
+✅ fontdue text rendering (2026-03-26) — HackNerdFont, matches faelight-bar
+✅ Urgency levels (2026-03-26) — low/normal/critical, different colors and timeouts
+✅ Timeout (2026-03-26) — display_start expiry fix, low 5s normal 6s critical 10s
+⬜ Click to dismiss — planned
+✅ notify-send works (2026-03-26) — all three urgency levels verified
+⬜ Brave browser notifications — test pending
+✅ Core v10 can trigger via D-Bus (2026-03-26) — notify-send from core reactions
 ```
 
 ## The Phrase

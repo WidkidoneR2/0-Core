@@ -48,6 +48,7 @@ impl NotificationsServer {
             urgency,
             timeout: expire_timeout,
             created: std::time::Instant::now(),
+            display_start: None,
         };
 
         let mut q = self.queue.lock().unwrap();
