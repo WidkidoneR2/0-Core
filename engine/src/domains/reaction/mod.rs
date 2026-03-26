@@ -298,6 +298,53 @@ fn eval_forecast_declining(ctx: &AppContext) -> Option<Reaction> {
 
 // ── Evaluate all rules ────────────────────────────────────────────────────────
 
+struct GoalContext {
+    id:    String,
+    title: String,
+}
+
+fn active_goals(ctx: &AppContext) -> Vec<GoalContext> {
+    let mut stmt = match ctx.runtime.db.prepare(
+        "SELECT id, title FROM forest_goals WHERE status = 'accepted' ORDER BY id ASC"
+    ) {
+        Ok(s) => s,
+        Err(_) => return vec![],
+    };
+    stmt.query_map([], |r| Ok(GoalContext {
+        id:    r.get(0)?,
+        title: r.get(1)?,
+    }))
+    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+    .unwrap_or_default()
+}
+
+fn goal_context_for(rule_id: &str, goals: &[GoalContext]) -> Option<String> {
+    if goals.is_empty() {
+        return None;
+    }
+    // Map rule domains to relevant goal keywords
+    let keywords: &[&str] = match rule_id {
+        r if r.starts_with("health.") || r == "forecast.declining" =>
+            &["stability", "health", "retire", "tool", "core"],
+        r if r.starts_with("security.") =>
+            &["security", "audit", "hardening"],
+        "intent.overflow" =>
+            &["intent", "goal", "focus", "retire", "tool"],
+        "checkpoint.stale" =>
+            &["resilience", "backup", "checkpoint", "snapshot"],
+        _ => &[],
+    };
+    // Find first goal whose title contains any keyword
+    for goal in goals {
+        let title_lower = goal.title.to_lowercase();
+        if keywords.iter().any(|k| title_lower.contains(k)) {
+            return Some(format!("{} — {}", goal.id, goal.title));
+        }
+    }
+    // If no keyword match, return first accepted goal as general context
+    goals.first().map(|g| format!("{} — {}", g.id, g.title))
+}
+
 fn evaluate_all(ctx: &AppContext) -> Vec<Reaction> {
     let evaluators: Vec<fn(&AppContext) -> Option<Reaction>> = vec![
         eval_health_advisory,
@@ -565,10 +612,18 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
         println!("  {} No reactions triggered — forest is stable", "✅".green());
         println!("  All rules within bounds or on cooldown");
     } else {
+        let goals = active_goals(ctx);
         println!(
             "  {} reaction(s) triggered",
             fired.len().to_string().bright_white()
         );
+        if !goals.is_empty() {
+            println!(
+                "  {} {} active goal(s) in scope",
+                "🎯".normal(),
+                goals.len().to_string().dimmed(),
+            );
+        }
         println!();
 
         for r in &fired {
@@ -579,9 +634,13 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
             };
             println!("  {}  {}", icon, r.message.bright_white());
             println!("      {} {}", "→".dimmed(), r.action.cyan());
+
+            // Goal context enrichment
+            if let Some(goal) = goal_context_for(&r.rule_id, &goals) {
+                println!("      {} {}", "🎯 goal:".dimmed(), goal.bright_white().dimmed());
+            }
             println!();
 
-            // Record to log + cooldown
             let _ = record_fired(ctx, &r.rule_id, &r.message, &r.context);
         }
     }

@@ -253,7 +253,7 @@ Phase 6 — Reaction Discipline (cooldown, coalesce, decay)
 ✅ faelight-shell Phase 17 complete — event system ready
 ✅ Phase 1 — Event Bus + Reaction Engine DONE (2026-03-25) — 6 rules, cooldown/discipline, history, explain
 ✅ Phase 2 — Reaction Rules DONE (2026-03-26) — TOML overrides, enable/disable/add, custom.toml, defaults.toml
-⬜ Phase 3 — Conditional Intelligence
+✅ Phase 3 — Conditional Intelligence DONE (2026-03-26) — goal-scoped reactions, active goal context shown on run, keyword relevance matching
 ⬜ Phase 4 — Reaction Boundaries
 ⬜ Phase 5 — Reaction Narrative
 ⬜ Phase 6 — Reaction Discipline
