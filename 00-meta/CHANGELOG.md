@@ -1,5 +1,43 @@
 # Changelog
 
+## [11.3.0] — Unnamed Release (2026-03-25)
+
+### 🎯 Completed Intents
+- **INT-140** — Core v10 — Reaction: The Forest Responds Without Being Asked
+- **INT-145** — faelight-docs — Living Documentation Engine
+
+### ✨ Features
+- faelight-shell — since command, comment stripping, fsh-deploy now builds release
+- INT-140 COMPLETE — Core v10 Reaction Engine, all 6 phases, forest responds without being asked
+- INT-140 Phase 5 — reaction narrative, story command, today arc with goal context
+- INT-140 Phase 4 — reaction boundaries, health gates, bounds/audit commands, 4 guardrails
+- INT-140 Phase 3 — goal-scoped reactions, active goal context enrichment on react run
+- INT-140 Phase 2 — TOML reaction rules, enable/disable/add, human-editable config
+- INT-140 Phase 1 — reaction engine, 6 rules, cooldown/discipline, history, explain
+- INT-146 Phase 20 — zsh retirement audit, 28 aliases ported to config.fsh, stale binaries removed
+- INT-146 Phase 18b — flow mode, conscious intent focus, prompt live-updates
+- INT-145 complete — faelight-docs v1.0.0, status/check now agree, TOOLS.md deferred
+- INT-146 Phase 17 — prompt v2, two-line forest prompt, git branch, alias recursion guard fixed
+- INT-148 Core v11 Prediction, INT-149 Tool Retirement, INT-150 Docs Audit
+- INT-147 faelight-voice — The Forest Speaks Aloud, Piper TTS via Rust FFI
+
+### 🔧 Fixes
+- faelight-shell — comment stripping, # handled correctly at line start and inline
+- clippy — resolve all workspace warnings, faelight-shell/vault/gen/sandbox/wallpaper
+
+### 🔩 Internal (13 commits)
+- INT-146: Phase 18 complete — script arguments $1 $2 $#
+- faelight-shell: Phase 18 — script arguments $1 $2 $# working in .fsh scripts
+- INT-146: Phase 12 complete — pkg package helpers
+- faelight-shell: Phase 12 — pkg package helpers (list, search, install, remove, update)
+- faelight-shell: fix pkgs — remove take(100) limit, show all packages
+- ...and 8 more internal changes
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1669  ·  Tools: 51 deployed  ·  Intents: 94 complete
+
+---
+
 ## [11.2.0] — Will and Motion (2026-03-22)
 
 ### 🎯 Completed Intents
