@@ -787,6 +787,10 @@ pub enum PredictCommands {
     Cadence,
     Health,
     Decline,
+    /// Estimated completion dates for planned intents
+    Intents,
+    /// What intent is most likely to ship next
+    Next,
 }
 
 #[derive(Debug, clap::Subcommand)]

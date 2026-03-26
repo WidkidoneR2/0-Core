@@ -354,3 +354,153 @@ pub fn decline(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
     Ok(())
 }
+
+// ── Phase 3: Intent Velocity ──────────────────────────────────────────────────
+pub fn intents(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use chrono::Datelike;
+
+    let core_root = &ctx.core_root;
+    let complete_dir = std::path::Path::new(core_root).join("intents/complete");
+    let future_dir = std::path::Path::new(core_root).join("intents/future");
+
+    println!("{}", "🌲 Predict — Intent Velocity".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    // Count complete intents with dates
+    let mut complete_dates: Vec<chrono::NaiveDate> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&complete_dir) {
+        for e in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(e.path()) {
+                for line in content.lines() {
+                    if line.starts_with("date:") {
+                        let date_str = line.trim_start_matches("date:").trim();
+                        if let Ok(d) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                            complete_dates.push(d);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let planned_count = std::fs::read_dir(&future_dir)
+        .map(|e| e.flatten().filter(|f| {
+            f.path().extension().map(|x| x == "md").unwrap_or(false)
+        }).count())
+        .unwrap_or(0);
+
+    complete_dates.sort();
+
+    println!("  {} Intent Ledger", "▶".bright_cyan());
+    println!("    {} {} complete", "·".dimmed(), complete_dates.len().to_string().bright_green());
+    println!("    {} {} planned", "·".dimmed(), planned_count.to_string().bright_white());
+    println!();
+
+    if complete_dates.len() < 5 {
+        println!("  {} Need more complete intents for velocity analysis", "○".dimmed());
+        return Ok(());
+    }
+
+    // Calculate velocity over last 28 days
+    let now = chrono::Local::now().date_naive();
+    let window_start = now - chrono::Duration::days(28);
+    let recent: Vec<_> = complete_dates.iter()
+        .filter(|d| **d >= window_start)
+        .collect();
+
+    let per_week = recent.len() as f64 / 4.0;
+    let per_month = recent.len() as f64;
+
+    println!("  {} Completion velocity", "▶".bright_cyan());
+    println!("    {} {} intents completed in last 28 days", "·".dimmed(),
+        recent.len().to_string().bright_white());
+    println!("    {} {:.1} per week average", "·".dimmed(),
+        per_week.to_string().bright_white());
+    println!();
+
+    // Predict backlog clearance
+    if per_week > 0.0 {
+        let weeks_to_clear = planned_count as f64 / per_week;
+        println!("  {} Backlog prediction", "▶".bright_yellow());
+        println!("    {} {} planned intents", "·".dimmed(),
+            planned_count.to_string().bright_white());
+        println!("    {} At current pace: {:.0} weeks to clear backlog",
+            "·".dimmed(), weeks_to_clear.to_string().bright_white());
+
+        let clear_date = now + chrono::Duration::weeks(weeks_to_clear as i64);
+        println!("    {} Estimated completion: {}",
+            "→".bright_green(),
+            clear_date.format("%Y-%m-%d").to_string().bright_white());
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+    println!("  {} Run: core predict next  core predict backlog", "hint:".dimmed());
+    Ok(())
+}
+
+pub fn next(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    let core_root = &ctx.core_root;
+    let future_dir = std::path::Path::new(core_root).join("intents/future");
+
+    println!("{}", "🌲 Predict — Next Intent".cyan().bold());
+    println!("{}", "━".repeat(52).dimmed());
+    println!();
+
+    let mut intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
+    if let Ok(entries) = std::fs::read_dir(&future_dir) {
+        for e in entries.flatten() {
+            if e.path().extension().map(|x| x == "md").unwrap_or(false) {
+                if let Ok(content) = std::fs::read_to_string(e.path()) {
+                    let mut id = String::new();
+                    let mut title = String::new();
+                    let mut status = String::new();
+                    let mut priority = String::new();
+                    for line in content.lines().take(15) {
+                        if line.starts_with("id:") { id = line.trim_start_matches("id:").trim().to_string(); }
+                        if line.starts_with("title:") { title = line.trim_start_matches("title:").trim().trim_matches('"').to_string(); }
+                        if line.starts_with("status:") { status = line.trim_start_matches("status:").trim().to_string(); }
+                        if line.starts_with("priority:") { priority = line.trim_start_matches("priority:").trim().to_string(); }
+                    }
+                    if !id.is_empty() {
+                        intents.push((id, title, status));
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort by id numerically
+    intents.sort_by(|a, b| {
+        let na: u32 = a.0.parse().unwrap_or(999);
+        let nb: u32 = b.0.parse().unwrap_or(999);
+        na.cmp(&nb)
+    });
+
+    let in_progress: Vec<_> = intents.iter().filter(|(_, _, s)| s == "in-progress").collect();
+    let planned: Vec<_> = intents.iter().filter(|(_, _, s)| s == "planned").collect();
+
+    if !in_progress.is_empty() {
+        println!("  {} Currently in progress", "▶".bright_cyan());
+        for (id, title, _) in &in_progress {
+            println!("    {} INT-{}  {}", "→".bright_green(), id.bright_white(), title.cyan());
+        }
+        println!();
+    }
+
+    println!("  {} Predicted next (by priority order)", "▶".bright_yellow());
+    for (id, title, _) in planned.iter().take(5) {
+        println!("    {} INT-{}  {}", "·".dimmed(), id.bright_white(), title.white());
+    }
+
+    println!();
+    println!("{}", "━".repeat(52).dimmed());
+    Ok(())
+}
+
+// ── Phase 3: Intent Velocity ──────────────────────────────────────────────────
