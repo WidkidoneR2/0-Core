@@ -261,10 +261,15 @@ pub fn parse() -> Command {
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,
+            ReactCommands::Rules => ReactCommand::Rules,
             ReactCommands::Run => ReactCommand::Run,
             ReactCommands::History => ReactCommand::History,
             ReactCommands::Explain { id } => ReactCommand::Explain { id },
             ReactCommands::Discipline => ReactCommand::Discipline,
+            ReactCommands::Enable { id } => ReactCommand::Enable { id },
+            ReactCommands::Disable { id } => ReactCommand::Disable { id },
+            ReactCommands::Add { id, description, priority, cooldown_m } =>
+                ReactCommand::Add { id, description, priority, cooldown_m },
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },

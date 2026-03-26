@@ -780,6 +780,8 @@ pub enum GoalsCommands {
 pub enum ReactCommands {
     /// List all reaction rules and their cooldown status
     List,
+    /// Show full rule registry with TOML overrides applied
+    Rules,
     /// Evaluate all rules now and surface any reactions
     Run,
     /// Show log of all triggered reactions
@@ -791,6 +793,29 @@ pub enum ReactCommands {
     },
     /// Show active cooldown timers
     Discipline,
+    /// Enable a reaction rule
+    Enable {
+        /// Rule ID (e.g. health.advisory)
+        id: String,
+    },
+    /// Disable a reaction rule
+    Disable {
+        /// Rule ID (e.g. health.advisory)
+        id: String,
+    },
+    /// Add a custom reaction rule
+    Add {
+        /// Rule ID (e.g. git.commit_streak)
+        id: String,
+        /// Description of what this rule detects
+        description: String,
+        /// Priority: 1=high 2=medium 3=low
+        #[arg(default_value = "3")]
+        priority: u8,
+        /// Cooldown in minutes
+        #[arg(default_value = "60")]
+        cooldown_m: i64,
+    },
 }
 
 #[derive(Debug, clap::Subcommand)]

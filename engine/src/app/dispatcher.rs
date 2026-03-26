@@ -434,10 +434,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         },
         Command::React(c) => match c {
             ReactCommand::List => crate::domains::reaction::list(ctx),
+            ReactCommand::Rules => crate::domains::reaction::rules_list(ctx),
             ReactCommand::Run => crate::domains::reaction::run(ctx),
             ReactCommand::History => crate::domains::reaction::history(ctx),
             ReactCommand::Explain { id } => crate::domains::reaction::explain(ctx, &id),
             ReactCommand::Discipline => crate::domains::reaction::discipline(ctx),
+            ReactCommand::Enable { id } => crate::domains::reaction::enable(ctx, &id),
+            ReactCommand::Disable { id } => crate::domains::reaction::disable(ctx, &id),
+            ReactCommand::Add { id, description, priority, cooldown_m } =>
+                crate::domains::reaction::add(ctx, &id, &description, priority, cooldown_m),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

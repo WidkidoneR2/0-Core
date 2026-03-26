@@ -385,10 +385,14 @@ pub enum GoalsCommand {
 #[derive(Debug, Clone)]
 pub enum ReactCommand {
     List,
+    Rules,
     Run,
     History,
     Explain { id: String },
     Discipline,
+    Enable { id: String },
+    Disable { id: String },
+    Add { id: String, description: String, priority: u8, cooldown_m: i64 },
 }
 
 #[derive(Debug, Clone)]
