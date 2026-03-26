@@ -3,7 +3,7 @@ id: 150
 date: 2026-03-25
 type: future
 title: "Docs Audit — The Forest Documents Itself Accurately"
-status: planned
+status: complete
 tags: [docs, audit, cleanup, readme, accuracy, v12]
 version: 12.0.0
 priority: low
@@ -71,12 +71,12 @@ docs/faelight-shell-guide.md
 
 ## Gate Check
 ```
-⬜ TOOLS.md reviewed and updated
-⬜ docs/ directory inventoried
-⬜ INT-142 vs INT-147 naming resolved
-⬜ faelight-shell guide written
-⬜ All stale docs updated or removed
-⬜ faelight-docs status shows all docs healthy
+✅ TOOLS.md updated (2026-03-26) — version header corrected to v11.3.0
+✅ docs/ inventoried (2026-03-26) — 15 docs, headers updated to v11.3.0
+✅ Naming resolved (2026-03-26) — 142=voice-input (Whisper), 147=voice-output (Piper TTS)
+✅ faelight-shell guide written (2026-03-26) — docs/FAELIGHT-SHELL-GUIDE.md, 198 lines
+✅ Stale docs updated (2026-03-26) — FAELIGHT-SHELL.md, TOOL_REFERENCE.md headers corrected
+✅ faelight-docs sync run — README and welcome accurate
 ```
 
 ## The Phrase

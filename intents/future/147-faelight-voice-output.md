@@ -2,7 +2,7 @@
 id: 147
 date: 2026-03-23
 type: future
-title: "faelight-voice — The Forest Speaks Aloud"
+title: "faelight-voice-output — The Forest Speaks Aloud (Piper TTS)"
 status: planned
 tags: [voice, tts, piper, speech, ai, forest-personality, v12, v13]
 version: 12.0.0

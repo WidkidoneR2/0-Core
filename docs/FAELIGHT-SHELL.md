@@ -2,7 +2,7 @@
 
 > *"A forest deserves a shell that knows it is a forest."*
 
-**Version:** v0.6.0 (Faelight Forest 11.2.0 — Will and Motion)  
+**Version:** v0.6.0 (Faelight Forest 11.3.0 — The Forest Grows) | Last verified: 2026-03-26  
 **Status:** Active daily driver development — INT-146  
 **Last updated:** 2026-03-25
 

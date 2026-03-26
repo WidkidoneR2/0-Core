@@ -1,5 +1,5 @@
 # 🌲 0-Core Tools
-> Last Updated: 2026-02-22 (v10.1.0)
+> Last Updated: 2026-03-26 (v11.3.0) — see `core evolution tools` for live data
 
 ## Core Orchestrator
 
