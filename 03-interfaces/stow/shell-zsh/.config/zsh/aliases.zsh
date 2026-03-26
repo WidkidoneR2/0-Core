@@ -617,7 +617,7 @@ alias wp='faelight-wallpaper'
 
 # ─── faelight-search ───
 # alias fs=faelight-search  # removed — faelight-shell takes priority
-alias search='faelight-search'
+# alias search='faelight-search'  # RETIRED 2026-03-26 — use ? in fsh or fd
 
 # ─── faelight-intent ───
 alias fid='faelight-intent'

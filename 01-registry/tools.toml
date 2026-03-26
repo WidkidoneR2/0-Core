@@ -312,12 +312,6 @@ category = "desktop"
 description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
 expected_usage = "rare"
 
-[[tool]]
-name = "faelight-search"
-version = "1.0.0"
-category = "search"
-description = "Unified search — files, intents, commits, events, aliases"
-expected_usage = "medium"
 
 [[tool]]
 name = "faelight-intent"
