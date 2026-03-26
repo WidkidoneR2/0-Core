@@ -162,6 +162,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "plugins" => list_plugins(db),
         "plugin-reload" | "plr" => reload_plugins_cmd(db),
         "z" | "zi" => z_jump(args),
+        "pwd" => {
+            let path = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "?".to_string());
+            CommandResult::Output(path)
+        }
         "cd" => cd(args),
         "d" => {
             // forest built-in: d → core doctor run
