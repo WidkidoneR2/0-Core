@@ -1,6 +1,6 @@
 # Changelog
 
-## [11.3.0] — Unnamed Release (2026-03-25)
+## [11.3.0] — The Forest Grows (2026-03-25)
 
 ### 🎯 Completed Intents
 - **INT-140** — Core v10 — Reaction: The Forest Responds Without Being Asked
