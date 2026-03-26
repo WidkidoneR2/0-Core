@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GoalsCommand, PredictCommand, ReactCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -431,6 +431,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GoalsCommand::Accept { id } => crate::domains::goals::accept(ctx, &id),
             GoalsCommand::Reject { id } => crate::domains::goals::reject(ctx, &id),
             GoalsCommand::Show { id } => crate::domains::goals::show(ctx, &id),
+        },
+        Command::Predict(c) => match c {
+            PredictCommand::Sessions => crate::domains::predict::sessions(ctx),
+            PredictCommand::Cadence => crate::domains::predict::cadence(ctx),
+            PredictCommand::Health => crate::domains::predict::health(ctx),
+            PredictCommand::Decline => crate::domains::predict::decline(ctx),
         },
         Command::React(c) => match c {
             ReactCommand::List => crate::domains::reaction::list(ctx),

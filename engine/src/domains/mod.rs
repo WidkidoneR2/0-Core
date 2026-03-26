@@ -37,3 +37,4 @@ pub mod prioritize;
 pub mod autobiography;
 
 pub mod reaction;
+pub mod predict;

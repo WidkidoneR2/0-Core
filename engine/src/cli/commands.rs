@@ -45,6 +45,7 @@ pub enum Command {
     Simulate(SimulateCommand),
     Evolution(EvolutionCommand),
     Goals(GoalsCommand),
+    Predict(PredictCommand),
     React(ReactCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
@@ -380,6 +381,14 @@ pub enum GoalsCommand {
     Accept { id: String },
     Reject { id: String },
     Show { id: String },
+}
+
+#[derive(Debug, Clone)]
+pub enum PredictCommand {
+    Sessions,
+    Cadence,
+    Health,
+    Decline,
 }
 
 #[derive(Debug, Clone)]

@@ -108,6 +108,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GoalsCommands,
     },
+    /// Prediction engine — the forest anticipates (Core v11)
+    Predict {
+        #[command(subcommand)]
+        command: PredictCommands,
+    },
     /// Reaction engine — the forest responds without being asked (Core v10)
     React {
         #[command(subcommand)]
@@ -774,6 +779,14 @@ pub enum GoalsCommands {
         /// Goal ID
         id: String,
     },
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum PredictCommands {
+    Sessions,
+    Cadence,
+    Health,
+    Decline,
 }
 
 #[derive(Debug, clap::Subcommand)]
