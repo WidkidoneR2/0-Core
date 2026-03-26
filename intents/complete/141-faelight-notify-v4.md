@@ -3,7 +3,7 @@ id: 141
 date: 2026-03-21
 type: future
 title: "faelight-notify v4 — Freedesktop Spec, zbus, Wayland Native"
-status: in-progress
+status: complete
 tags: [notify, wayland, dbus, zbus, freedesktop, rust, v11]
 version: 11.0.0
 priority: high
