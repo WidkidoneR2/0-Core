@@ -115,6 +115,18 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "advise" => advise(db),
         "audit" => audit(db, core_root),
         "forecast" => forecast(db),
+        // ── Core subcommand shortcuts — no prefix needed ────────────────────
+        "predict" | "react" | "stress" | "doctor" | "goals" | "decisions"
+        | "evolution" | "security" | "capabilities" | "intent"
+        | "genealogy" | "autonomy" => {
+            let sub = args.join(" ");
+            let full = if sub.is_empty() {
+                format!("{}/scripts/core {}", core_root, cmd)
+            } else {
+                format!("{}/scripts/core {} {}", core_root, cmd, sub)
+            };
+            run_external(&full, db)
+        }
         "sandbox" => sandbox(db),
         "checkpoint" | "cpc" => checkpoint(db),
         "let" => scripting_let_cmd(db, core_root, args),
