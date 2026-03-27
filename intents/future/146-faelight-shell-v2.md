@@ -190,9 +190,9 @@ Gate: 80%+ of daily commands work in fsh
 ## Phase 21-32 — Full Daily Driver
 
 These phases complete the migration:
-- Phase 21: Completion v2 — context-aware, plugin-based
-- Phase 22: Theme system — colors, icons, prompt styles
-- Phase 23: Session persistence — restore shell state on restart
+- Phase 21: Completion v2 ✅ DONE (2026-03-26) — dynamic intent IDs, core predict/react/stress subcommands
+- Phase 22: Theme system ✅ DONE (2026-03-26) — forest/minimal/classic/jarvis, jarvis shows prediction inline
+- Phase 23: Session persistence ✅ DONE (2026-03-27) — directory restored on startup
 - Phase 24: Remote shell — ssh with forest context
 - Phase 25: fsh as default for faelight-term
 - Phase 26: Core v9 integration — goals surface in shell
@@ -299,7 +299,10 @@ Critical aliases to port to config.fsh:
 - ✅ Phase 18b — flow mode DONE (2026-03-25) — flow/flow focus INT-NNN/flow clear, prompt live-updates, startup numeric guard
 - ✅ Phase 20 — zsh retirement plan DONE (2026-03-25) — full audit, 28 aliases ported to config.fsh, migration confidence 45%→70%, gate for Phase 19 defined
 - ⬜ Phase 19 — fsh as login shell (LAST — after 80% confidence)
-- ⬜ Phase 21-32 — full daily driver
+- ✅ Phase 21 — context-aware completion DONE (2026-03-26)
+✅ Phase 22 — theme system + jarvis DONE (2026-03-26)
+✅ Phase 23 — session persistence DONE (2026-03-27)
+⬜ Phase 24-32 — remaining daily driver phases
 
 ## Compatibility Contract (2026-03-25)
 
