@@ -111,8 +111,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
     // All other themes use full context below
     let _ = ctx; // suppress unused warning for now
-    let theme_for_context = theme.clone();
-    let _ = theme_for_context;
+    let is_jarvis = theme == "jarvis";
     let cwd = cwd_str(35);
     let health = db.health_score().unwrap_or(95);
     let git = git_info();
@@ -179,6 +178,49 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
                 .dimmed()
                 .to_string(),
         );
+    }
+    // Jarvis theme — add prediction insight inline
+    if is_jarvis {
+        // Read next predicted intent
+        let home = std::env::var("HOME").unwrap_or_default();
+        let next_intent = std::fs::read_dir(format!("{}/0-core/intents/future", home))
+            .ok()
+            .and_then(|entries| {
+                let mut in_progress: Vec<String> = entries
+                    .flatten()
+                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                    .filter_map(|e| {
+                        let content = std::fs::read_to_string(e.path()).ok()?;
+                        if !content.contains("status: in-progress") { return None; }
+                        let id = e.file_name()
+                            .to_string_lossy()
+                            .split('-')
+                            .next()
+                            .unwrap_or("?")
+                            .to_string();
+                        Some(format!("INT-{}", id))
+                    })
+                    .collect();
+                in_progress.sort();
+                in_progress.first().cloned()
+            });
+
+        // Read health trend
+        let trend_hint = {
+            let cache = std::fs::read_to_string(
+                format!("{}/.cache/faelight/health-status", home)
+            ).unwrap_or_else(|_| "100".to_string());
+            let h: u32 = cache.trim().parse().unwrap_or(100);
+            if h >= 100 { "peak".bright_green().to_string() }
+            else if h >= 95 { "stable".dimmed().to_string() }
+            else { "advisory".yellow().to_string() }
+        };
+
+        let jarvis_hint = match next_intent {
+            Some(id) => format!("▸ {} · {}", id.bright_cyan(), trend_hint),
+            None => format!("▸ {}", trend_hint),
+        };
+        parts.push(jarvis_hint);
     }
 
     let line2 = format!(
