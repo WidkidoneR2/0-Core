@@ -122,6 +122,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "snapshot" => snapshot_cmd(db, args),
         "debug" => debug_cmd(db, args),
         "usage" | "usage-report" => usage_report(db),
+        "theme" => theme_cmd(db, args),
         "since" => since_cmd(db, core_root, args),
         "timeline" => timeline_cmd(db, args),
         "snap-diff" => snap_diff_cmd(db, args),
@@ -2458,6 +2459,33 @@ fn z_jump(args: &[&str]) -> CommandResult {
         ))
     }
 }
+
+
+fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let themes = ["forest", "minimal", "jarvis", "classic"];
+    match args.first().copied() {
+        None => {
+            let current = db.get_theme();
+            let mut out = String::new();
+            out.push_str(&format!("{}\n\n", "🌲 Prompt Themes".cyan().bold()));
+            for t in &themes {
+                let marker = if *t == current.as_str() { "▶" } else { " " };
+                out.push_str(&format!("  {} {}\n", marker.bright_green(), t.bright_white()));
+            }
+            out.push_str(&format!("\n  {} theme <name> to switch\n", "hint:".dimmed()));
+            CommandResult::Output(out)
+        }
+        Some(name) if themes.contains(&name) => {
+            db.set_theme(name);
+            CommandResult::Output(format!("  {} prompt theme set to {}",
+                "✅".normal(), name.bright_green()))
+        }
+        Some(name) => CommandResult::Error(format!(
+            "  theme: unknown theme '{}'\n  available: forest, minimal, jarvis, classic", name
+        ))
+    }
+}
+
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     // Extract original-case command and arguments from line
