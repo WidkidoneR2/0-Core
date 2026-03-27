@@ -1,5 +1,52 @@
 # Changelog
 
+## [11.4.0] — Unnamed Release (2026-03-26)
+
+### 🎯 Completed Intents
+- **INT-137** — Architectural Horizons — Known Future Limits
+- **INT-141** — faelight-notify v4 — Freedesktop Spec, zbus, Wayland Native
+- **INT-143** — faelight-digest — Morning Forest Summary
+- **INT-148** — Core v11 — Prediction: The Forest Anticipates
+- **INT-152** — Core v11 Stress Test — Verify Before v12 Builds On Top
+- **INT-154** — Core Health Stress Test — Chaos Engineering for the Forest
+
+### ✨ Features
+- INT-146 Phase 21 — context-aware completion v2, dynamic intent IDs, core predict/react/stress, aliases
+- INT-154 COMPLETE — health chaos stress test 5/5 PASS, forest is chaos-resilient
+- fsh — theme command, minimal/forest/classic/jarvis themes, echo/cat/type builtins, INT-155 Phase 1
+- fsh — echo builtin, cat builtin, type command, quote stripping fixed
+- fsh — env command, clear builtin, c alias now forest-native
+- fsh — which builtin, pwd builtin, welcome shows real in-progress intents
+- fsh — pwd builtin, audit_scores deduped, faelight-search removed from scores
+- INT-152 COMPLETE — Core v11 stress test 5/5 PASS, v12 foundation verified solid
+- INT-136 Phase 1 — forest visual identity, gaps 12, focus-ring #a3e36b, border, rounded corners 8px, inactive opacity 0.92
+- INT-141 COMPLETE — faelight-notify v4, freedesktop spec, all urgency levels, display_start fix
+- INT-148 COMPLETE — Core v11 all 5 phases + INT-151 refined with v11 foundations, Jarvis score 65/100
+- INT-148 COMPLETE — Core v11 Prediction Engine, all 5 phases, forest anticipates
+- INT-148 Phase 3 — Intent Velocity, completion rate, backlog prediction, next intent
+- INT-148 Phase 1+2 — Core v11 Prediction Engine: session patterns, health trajectory, cadence
+- fsh — zoxide z command, cd feeds zoxide, grep/df pass through, tilde expansion, eza ls/ll, core PATH fix
+- debug last/reactions/preexec + usage report — transparency commands answer complexity concerns
+- INT-146 Phase 20b — git guardrail, yazi cd-on-quit, faelight-fm cwd-file support
+- INT-143 complete — faelight-digest v1.0.0, replaces faelight-fetch, system+forest context
+- INT-149 — faelight-search retired, source+binary+registry+aliases cleaned, 44/44 path resilience
+
+### 🔧 Fixes
+- INT-152 and INT-154 status corrected to complete
+- INT-141 and INT-148 status corrected to complete in ledger
+- doctor health % excludes core_protect — lock state is operational not a health issue
+- fsh — grep/df/du pass through, tilde expansion in external args, forest_map trimmed
+
+### 🔩 Internal (3 commits)
+- remove niri config backup after INT-136 Phase 1 verified
+- faelight-docs sync — v11.3.0 The Forest Grows, README and welcome updated
+- update to 11.3.0
+
+### 📊 Stats
+- Health: 95%  ·  Commits: 1701  ·  Tools: 50 deployed  ·  Intents: 100 complete
+
+---
+
 ## [11.3.0] — The Forest Grows (2026-03-25)
 
 ### 🎯 Completed Intents

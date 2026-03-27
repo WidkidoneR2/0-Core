@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.3.0
+# 🌲 Faelight Forest 11.4.0
 
-![Version](https://img.shields.io/badge/version-11.3.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.4.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,20 +11,24 @@
 
 ## 🎊 Latest Release
 
-### 11.3.0 - 🌲 The Forest Grows (2026-03-25)
+### 11.4.0 - 🌲 The Bloom (2026-03-26)
 
-- 140 — Core v10 — Reaction: The Forest Responds Without Being Asked
-- 145 — faelight-docs — Living Documentation Engine
-- faelight-shell — since command, comment stripping, fsh-deploy now builds release
-- INT-140 COMPLETE — Core v10 Reaction Engine, all 6 phases, forest responds without being asked
-- INT-140 Phase 5 — reaction narrative, story command, today arc with goal context
-- INT-140 Phase 4 — reaction boundaries, health gates, bounds/audit commands, 4 guardrails
-- INT-140 Phase 3 — goal-scoped reactions, active goal context enrichment on react run
+- 137 — Architectural Horizons — Known Future Limits
+- 141 — faelight-notify v4 — Freedesktop Spec, zbus, Wayland Native
+- 143 — faelight-digest — Morning Forest Summary
+- 148 — Core v11 — Prediction: The Forest Anticipates
+- 152 — Core v11 Stress Test — Verify Before v12 Builds On Top
+- 154 — Core Health Stress Test — Chaos Engineering for the Forest
+- INT-146 Phase 21 — context-aware completion v2, dynamic intent IDs, core predict/react/stress, aliases
+- INT-154 COMPLETE — health chaos stress test 5/5 PASS, forest is chaos-resilient
+- fsh — theme command, minimal/forest/classic/jarvis themes, echo/cat/type builtins, INT-155 Phase 1
+- fsh — echo builtin, cat builtin, type command, quote stripping fixed
+- fsh — env command, clear builtin, c alias now forest-native
 
-- Commits: 1669
-- Tools: 51 deployed
+- Commits: 1701
+- Tools: 50 deployed
 - Health: 95%
-- Intents: 94 complete
+- Intents: 100 complete
 
 [Full Changelog →](CHANGELOG.md)
 
