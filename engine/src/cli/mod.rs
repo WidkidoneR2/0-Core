@@ -266,6 +266,12 @@ pub fn parse() -> Command {
             StressCommands::Health => StressCommand::Health,
             StressCommands::Intents => StressCommand::Intents,
             StressCommands::Report => StressCommand::Report,
+            StressCommands::HealthReport => StressCommand::HealthReport,
+            StressCommands::Scenario1 => StressCommand::Scenario1,
+            StressCommands::Scenario2 => StressCommand::Scenario2,
+            StressCommands::Scenario3 => StressCommand::Scenario3,
+            StressCommands::Scenario4 => StressCommand::Scenario4,
+            StressCommands::Scenario5 => StressCommand::Scenario5,
         }),
         Commands::Predict { command } => Command::Predict(match command {
             PredictCommands::Sessions => PredictCommand::Sessions,

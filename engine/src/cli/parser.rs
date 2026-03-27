@@ -800,6 +800,18 @@ pub enum StressCommands {
     Intents,
     /// Full stress report — run all tests
     Report,
+    /// Chaos health report — all 5 scenarios
+    HealthReport,
+    /// Scenario 1 — sudden health drop
+    Scenario1,
+    /// Scenario 2 — slow decline detection
+    Scenario2,
+    /// Scenario 3 — recovery verification
+    Scenario3,
+    /// Scenario 4 — false alarm resistance
+    Scenario4,
+    /// Scenario 5 — lock/unlock cycle
+    Scenario5,
 }
 
 #[derive(Debug, Clone, clap::Subcommand)]
