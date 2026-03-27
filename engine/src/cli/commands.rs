@@ -392,6 +392,12 @@ pub enum StressCommand {
     Health,
     Intents,
     Report,
+    HealthReport,
+    Scenario1,
+    Scenario2,
+    Scenario3,
+    Scenario4,
+    Scenario5,
 }
 
 #[derive(Debug, Clone)]

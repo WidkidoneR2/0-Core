@@ -439,6 +439,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StressCommand::Health => crate::domains::stress::health(ctx),
             StressCommand::Intents => crate::domains::stress::intents(ctx),
             StressCommand::Report => crate::domains::stress::report(ctx),
+            StressCommand::HealthReport => crate::domains::stress::health_report(ctx),
+            StressCommand::Scenario1 => crate::domains::stress::scenario1(ctx),
+            StressCommand::Scenario2 => crate::domains::stress::scenario2(ctx),
+            StressCommand::Scenario3 => crate::domains::stress::scenario3(ctx),
+            StressCommand::Scenario4 => crate::domains::stress::scenario4(ctx),
+            StressCommand::Scenario5 => crate::domains::stress::scenario5(ctx),
         },
         Command::Predict(c) => match c {
             PredictCommand::Sessions => crate::domains::predict::sessions(ctx),

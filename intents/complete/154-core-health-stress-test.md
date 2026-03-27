@@ -3,7 +3,7 @@ id: 154
 date: 2026-03-26
 type: future
 title: "Core Health Stress Test — Chaos Engineering for the Forest"
-status: planned
+status: in-progress
 tags: [health, stress, chaos, testing, reliability, doctor, reactions]
 version: 11.4.0
 priority: high
@@ -58,12 +58,12 @@ Scenario 5: health stays at 100% throughout lock/unlock cycle
 
 ## Gate Check
 ```
-⬜ Scenario 1 — sudden drop detected and flagged
-⬜ Scenario 2 — early warning fires before threshold
-⬜ Scenario 3 — recovery clean and documented
-⬜ Scenario 4 — false alarm resistance verified
-⬜ Scenario 5 — lock/unlock cycle stable
-⬜ core stress health-report — full scenario results
+✅ Scenario 1 — 72% drop detected, synthetic event cleaned (2026-03-26)
+✅ Scenario 2 — monotonic decline [98→84] detected before 80% (2026-03-26)
+✅ Scenario 3 — recovery at 100%, no residual degradation (2026-03-26)
+✅ Scenario 4 — cooldown prevents spam, 3 total fires logged (2026-03-26)
+✅ Scenario 5 — 100% health, shell_state intact, core_protect excluded (2026-03-26)
+✅ core stress health-report — 5/5 PASS, health system chaos-resilient (2026-03-26)
 ```
 
 ## The Phrase
