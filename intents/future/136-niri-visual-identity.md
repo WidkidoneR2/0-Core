@@ -209,16 +209,16 @@ Phase 5  — Seasonal wallpaper system
 ```
 
 ## Success Criteria
-- ⬜ Forest green active borders (#a3e36b)
-- ⬜ Rounded corners (8px default)
-- ⬜ Comfortable gaps (12px between windows)
-- ⬜ Screen edge margins (4px)
-- ⬜ Inactive window opacity (92%)
-- ⬜ Drop shadows on windows
-- ⬜ Smooth animations (open/close/switch)
-- ⬜ Health-aware border color
-- ⬜ Per-app window rules (terminal, bar, dialogs)
-- ⬜ Seasonal wallpaper system
+- ✅ Forest green active borders (#a3e36b) DONE (2026-03-26)
+- ✅ Rounded corners (8px default) DONE (2026-03-26)
+- ✅ Comfortable gaps (12px between windows) DONE (2026-03-26)
+- ⬜ Screen edge margins (4px) — deferred Phase 2
+- ✅ Inactive window opacity (92%) DONE (2026-03-26)
+- ⬜ Drop shadows on windows — deferred Phase 2
+- ✅ Smooth animations DONE — already configured (ease-out curves)
+- ⬜ Health-aware border color — deferred Phase 4
+- ⬜ Per-app window rules — deferred Phase 2
+- ⬜ Seasonal wallpaper system — deferred Phase 5
 
 ## The Phrase
 
