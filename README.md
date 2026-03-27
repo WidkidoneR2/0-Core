@@ -19,7 +19,7 @@
 - ✅ **faelight-shell Phase 21** — context-aware completion, dynamic intent IDs, 8 new builtins, 4 prompt themes
 - ✅ **INT-136 Phase 1** — Niri visual identity: forest green focus ring, rounded corners, inactive opacity
 
-[Full Changelog →](CHANGELOG.md)
+[Full Changelog →](https://github.com/WidkidoneR2/0-Core/blob/main/00-meta/CHANGELOG.md)
 
 ---
 <!-- END DYNAMIC SECTION -->
