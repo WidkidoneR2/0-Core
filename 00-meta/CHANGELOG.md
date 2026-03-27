@@ -1,6 +1,6 @@
 # Changelog
 
-## [11.4.0] — Unnamed Release (2026-03-26)
+## [11.4.0] — The Bloom (2026-03-26)
 
 ### 🎯 Completed Intents
 - **INT-137** — Architectural Horizons — Known Future Limits
