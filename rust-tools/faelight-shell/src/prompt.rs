@@ -102,6 +102,17 @@ pub struct PromptContext {
 }
 
 pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
+    let theme = db.get_theme();
+    if theme == "minimal" {
+        // Minimal: just path, no health/git
+        let cwd = cwd_str(40);
+        println!("  {}", cwd.bright_cyan());
+        return;
+    }
+    // All other themes use full context below
+    let _ = ctx; // suppress unused warning for now
+    let theme_for_context = theme.clone();
+    let _ = theme_for_context;
     let cwd = cwd_str(35);
     let health = db.health_score().unwrap_or(95);
     let git = git_info();
@@ -183,8 +194,20 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 // ── readline prompt — no emoji, ANSI wrapped, Tab completion safe ──────────
 // Emoji and wide chars break rustyline cursor position silently.
 
-pub fn render_line(_db: &ForestDb) -> String {
-    let raw = format!("  {} ", "fsh ❯".bright_green().bold());
+pub fn render_line(db: &ForestDb) -> String {
+    let theme = db.get_theme();
+    let raw = match theme.as_str() {
+        "minimal" => format!("  {} ", "❯".bright_green().bold()),
+        "classic" => {
+            let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+            let host = std::fs::read_to_string("/etc/hostname")
+                .unwrap_or_else(|_| "host".to_string());
+            let host = host.trim();
+            let cwd = cwd_str(30);
+            format!("  {}@{} {} $ ", user.dimmed(), host.dimmed(), cwd.bright_cyan())
+        }
+        _ => format!("  {} ", "fsh ❯".bright_green().bold()), // forest + jarvis use same prompt line
+    };
     rl_wrap(&raw)
 }
 

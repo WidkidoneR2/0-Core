@@ -234,6 +234,21 @@ impl ForestDb {
             .ok()
     }
 
+    pub fn set_theme(&self, theme: &str) {
+        let _ = self.conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('prompt_theme', ?1)",
+            rusqlite::params![theme],
+        );
+    }
+
+    pub fn get_theme(&self) -> String {
+        self.conn.query_row(
+            "SELECT value FROM shell_state WHERE key='prompt_theme'",
+            [],
+            |r| r.get(0),
+        ).unwrap_or_else(|_| "forest".to_string())
+    }
+
     pub fn clear_focus_intent(&self) {
         let _ = self.conn.execute(
             "DELETE FROM shell_state WHERE key='focus_intent'",
