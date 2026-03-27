@@ -194,7 +194,7 @@ These phases complete the migration:
 - Phase 22: Theme system ✅ DONE (2026-03-26) — forest/minimal/classic/jarvis, jarvis shows prediction inline
 - Phase 23: Session persistence ✅ DONE (2026-03-27) — directory restored on startup
 - Phase 24: Remote shell — ssh with forest context (lower priority)
-- Phase 25: fsh as default for faelight-term ✅ NEXT
+- Phase 25: fsh as default for faelight-term ✅ DONE (2026-03-27) — faelight-term launches fsh, falls back to zsh
 - Phase 26: Core v9 integration — goals surface in shell (partially done via predict next)
 - Phase 27: Voice command foundation (INT-142, depends on voice intents)
 - Phase 28: Predictive suggestions from history (HIGH VALUE — biggest daily driver win)
