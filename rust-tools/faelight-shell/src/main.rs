@@ -846,7 +846,9 @@ fn print_welcome(core_root: &str) {
         .trim()
         .to_string();
 
-    let health_num: u32 = std::fs::read_to_string(root.join("runtime/cache/health.txt"))
+    let health_num: u32 = std::fs::read_to_string(
+            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                .join(".cache/faelight/health-status"))
         .unwrap_or_else(|_| "95".into())
         .trim()
         .trim_end_matches('%')
