@@ -193,15 +193,26 @@ These phases complete the migration:
 - Phase 21: Completion v2 ✅ DONE (2026-03-26) — dynamic intent IDs, core predict/react/stress subcommands
 - Phase 22: Theme system ✅ DONE (2026-03-26) — forest/minimal/classic/jarvis, jarvis shows prediction inline
 - Phase 23: Session persistence ✅ DONE (2026-03-27) — directory restored on startup
-- Phase 24: Remote shell — ssh with forest context
-- Phase 25: fsh as default for faelight-term
-- Phase 26: Core v9 integration — goals surface in shell
-- Phase 27: Voice command foundation (INT-142)
-- Phase 28: Predictive suggestions from history
-- Phase 29: zsh fully optional
+- Phase 24: Remote shell — ssh with forest context (lower priority)
+- Phase 25: fsh as default for faelight-term ✅ NEXT
+- Phase 26: Core v9 integration — goals surface in shell (partially done via predict next)
+- Phase 27: Voice command foundation (INT-142, depends on voice intents)
+- Phase 28: Predictive suggestions from history (HIGH VALUE — biggest daily driver win)
+- Phase 29: zsh fully optional (natural progression)
 - Phase 30: faelight-shell replaces zsh in autostart
 - Phase 31: 93%+ Rust — only kernel interfaces remain
 - Phase 32: The forest is its own operating environment
+
+## Revised Phase Priority (2026-03-27)
+```
+Priority 1: Phase 25 — fsh in faelight-term (achievable now)
+Priority 2: Phase 28 — predictive suggestions from history (biggest UX win)
+Priority 3: Phase 26 — goals in shell (almost done)
+Priority 4: Phase 29/30 — zsh retirement (as confidence grows)
+Priority 5: Phase 19 — login shell (final gate, after 95%+ native)
+Deferred:   Phase 24 — remote ssh (lower priority)
+Depends:    Phase 27 — voice (blocked on INT-142)
+```
 
 
 ## Phase 20 — zsh Retirement Audit (2026-03-25)

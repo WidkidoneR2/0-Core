@@ -104,8 +104,16 @@ impl Pty {
                 drop(pty_result.slave);
 
                 // Execute shell (TERM already set in parent before fork)
-                let shell = CString::new("/bin/zsh").unwrap();
-                let args = [CString::new("zsh").unwrap()];
+                // Phase 25 — fsh as default shell for faelight-term
+                let fsh_path = format!("{}/scripts/faelight-shell",
+                    std::env::var("HOME").unwrap_or_default() + "/0-core");
+                let (shell_path, shell_name) = if std::path::Path::new(&fsh_path).exists() {
+                    (fsh_path.clone(), "faelight-shell".to_string())
+                } else {
+                    ("/bin/zsh".to_string(), "zsh".to_string())
+                };
+                let shell = CString::new(shell_path).unwrap();
+                let args = [CString::new(shell_name).unwrap()];
 
                 execvp(&shell, &args).expect("Failed to exec shell");
                 unreachable!()
