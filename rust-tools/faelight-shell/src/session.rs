@@ -16,6 +16,7 @@ pub struct SessionMemory {
     #[allow(dead_code)]
     pub last_intent: Option<String>,
     pub last_session_ts: Option<i64>,
+    pub last_dir: Option<String>,
 }
 
 impl SessionMemory {
@@ -62,6 +63,14 @@ impl SessionMemory {
             .ok()
             .and_then(|v| v.parse().ok());
 
+        let last_dir: Option<String> = conn
+            .query_row(
+                "SELECT value FROM session_state WHERE key='last_dir'",
+                [],
+                |r| r.get(0),
+            )
+            .ok();
+
         // Read current commit count
         let commits_path = std::path::Path::new("/etc/faelight/COMMITS");
         let current_commits: u64 = std::fs::read_to_string(commits_path)
@@ -75,6 +84,7 @@ impl SessionMemory {
             current_commit_count: current_commits,
             last_intent,
             last_session_ts: last_ts,
+            last_dir,
         })
     }
 
@@ -107,6 +117,13 @@ impl SessionMemory {
                 "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_session_ts', ?1)",
                 rusqlite::params![ts],
             );
+            // Save current directory
+            if let Ok(cwd) = std::env::current_dir() {
+                let _ = conn.execute(
+                    "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_dir', ?1)",
+                    rusqlite::params![cwd.to_string_lossy().to_string()],
+                );
+            }
             if let Some(intent) = current_intent {
                 let _ = conn.execute(
                     "INSERT OR REPLACE INTO session_state (key, value) VALUES ('last_intent', ?1)",

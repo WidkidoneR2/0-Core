@@ -1001,6 +1001,13 @@ fn print_welcome(core_root: &str) {
     println!();
     // Session memory + digest
     if let Some(mem) = session::SessionMemory::load(core_root) {
+        // Phase 23 — restore last working directory
+        if let Some(ref last_dir) = mem.last_dir {
+            let path = std::path::Path::new(last_dir);
+            if path.exists() && path.is_dir() {
+                let _ = std::env::set_current_dir(path);
+            }
+        }
         let msg = session::render(&mem, core_root);
         if !msg.is_empty() {
             println!("{}", msg);
