@@ -218,6 +218,125 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 CommandResult::Output(out.trim_end().to_string())
             }
         }
+        "echo" => {
+            let raw = args.join(" ");
+            // Strip single layer of surrounding quotes
+            let output = if raw.len() >= 2 &&
+                ((raw.starts_with('"') && raw.ends_with('"')) ||
+                 (raw.starts_with("'") && raw.ends_with("'"))) {
+                raw[1..raw.len()-1].to_string()
+            } else {
+                raw
+            };
+            CommandResult::Output(output)
+        }
+        "type" => {
+            let cmd = args.first().copied().unwrap_or("");
+            if cmd.is_empty() {
+                return CommandResult::Error("type: missing argument".to_string());
+            }
+            let mut out = String::new();
+            out.push_str(&format!("{}\n\n", format!("🌲 type: {}", cmd).cyan().bold()));
+
+            // 1. Check forest builtins
+            let builtins = ["cd","pwd","ls","ll","clear","echo","env","type","which",
+                "health","events","intents","tools","version","schema","commits",
+                "story","advise","audit","forecast","sandbox","checkpoint","since",
+                "git","gc","gf","gchurn","gbr","ps","ports","services","files",
+                "find","net","pkgs","pkg","history","ht","hstats","histogram",
+                "domains","logs","debug","usage","z","zi","ya","yazi","fm","flow",
+                "let","run","snapshot","timeline","dashboard","chart","watch",
+                "select","search","on","help","exit","quit","q","?"];
+
+            if builtins.contains(&cmd) {
+                out.push_str(&format!("  {} forest builtin\n", "▶".bright_green()));
+                out.push_str(&format!("    {} handled natively by fsh — no PATH lookup\n",
+                    "·".dimmed()));
+            }
+
+            // 2. Check aliases
+            if let Some(aliased) = db.get_alias(cmd) {
+                out.push_str(&format!("  {} alias\n", "▶".bright_cyan()));
+                out.push_str(&format!("    {} {} → {}\n",
+                    "·".dimmed(), cmd.bright_white(), aliased.bright_cyan()));
+            }
+
+            // 3. Check config.fsh aliases
+            let home = std::env::var("HOME").unwrap_or_default();
+            let config_path = format!("{}/.config/faelight-shell/config.fsh", home);
+            if let Ok(config) = std::fs::read_to_string(&config_path) {
+                for line in config.lines() {
+                    if line.trim_start().starts_with("alias ") {
+                        let parts: Vec<&str> = line.splitn(3, '=').collect();
+                        if parts.len() >= 2 {
+                            let alias_name = parts[0].trim().trim_start_matches("alias ").trim();
+                            if alias_name == cmd {
+                                let target = parts[1].trim();
+                                out.push_str(&format!("  {} config.fsh alias\n", "▶".bright_cyan()));
+                                out.push_str(&format!("    {} {} → {}\n",
+                                    "·".dimmed(), cmd.bright_white(), target.bright_cyan()));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Check forest scripts
+            let script_path = format!("{}/0-core/scripts/{}", home, cmd);
+            if std::path::Path::new(&script_path).exists() {
+                out.push_str(&format!("  {} forest script\n", "▶".bright_green()));
+                out.push_str(&format!("    {} {}\n", "·".dimmed(), script_path.dimmed()));
+            }
+
+            // 5. PATH lookup
+            if let Ok(out_bytes) = std::process::Command::new("which").arg(cmd).output() {
+                if out_bytes.status.success() {
+                    let path = String::from_utf8_lossy(&out_bytes.stdout).trim().to_string();
+                    out.push_str(&format!("  {} PATH binary\n", "▶".yellow()));
+                    out.push_str(&format!("    {} {}\n", "·".dimmed(), path.dimmed()));
+                }
+            }
+
+            if out.trim_end().ends_with("bold()") || out.lines().count() <= 2 {
+                out.push_str(&format!("  {} not found anywhere\n", "✗".bright_red()));
+            }
+
+            CommandResult::Output(out.trim_end().to_string())
+        }
+        "cat" => {
+            let file = args.first().copied().unwrap_or("");
+            if file.is_empty() {
+                return CommandResult::Error("cat: missing filename".to_string());
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let path = if file.starts_with("~/") {
+                format!("{}/{}", home, &file[2..])
+            } else {
+                file.to_string()
+            };
+            match std::fs::read_to_string(&path) {
+                Ok(content) => {
+                    // Add line numbers for code files
+                    let ext = std::path::Path::new(&path)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("");
+                    let code_exts = ["rs","py","js","ts","toml","yaml","yml","sh","zsh","kdl","md"];
+                    if code_exts.contains(&ext) {
+                        let numbered: String = content.lines().enumerate()
+                            .map(|(i, line)| format!("  {}  {}",
+                                format!("{:4}", i + 1).dimmed(),
+                                line))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        CommandResult::Output(numbered)
+                    } else {
+                        CommandResult::Output(content)
+                    }
+                }
+                Err(e) => CommandResult::Error(format!("cat: {}: {}", file, e)),
+            }
+        }
         "env" => {
             let mut out = String::new();
             out.push_str(&format!("{}\n", "🌲 Shell Environment".cyan().bold()));
