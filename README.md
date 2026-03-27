@@ -1,49 +1,38 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
 # 🌲 Faelight Forest 11.4.0
-
 ![Version](https://img.shields.io/badge/version-11.4.0-green?style=flat-square)
-![Health](https://img.shields.io/badge/health-95%25-brightgreen?style=flat-square)
+![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> **A self-aware, path-resilient personal computing environment built from first principles.**
+> **A self-aware, anticipatory personal computing environment built from first principles in Rust.**
 
-## 🎊 Latest Release
+## 🎊 Latest Release — 11.4.0 "The Bloom"
 
-### 11.4.0 - 🌲 The Bloom (2026-03-26)
+6 intents shipped. 30 commits. The forest learned to anticipate.
 
-- 137 — Architectural Horizons — Known Future Limits
-- 141 — faelight-notify v4 — Freedesktop Spec, zbus, Wayland Native
-- 143 — faelight-digest — Morning Forest Summary
-- 148 — Core v11 — Prediction: The Forest Anticipates
-- 152 — Core v11 Stress Test — Verify Before v12 Builds On Top
-- 154 — Core Health Stress Test — Chaos Engineering for the Forest
-- INT-146 Phase 21 — context-aware completion v2, dynamic intent IDs, core predict/react/stress, aliases
-- INT-154 COMPLETE — health chaos stress test 5/5 PASS, forest is chaos-resilient
-- fsh — theme command, minimal/forest/classic/jarvis themes, echo/cat/type builtins, INT-155 Phase 1
-- fsh — echo builtin, cat builtin, type command, quote stripping fixed
-- fsh — env command, clear builtin, c alias now forest-native
-
-- Commits: 1701
-- Tools: 50 deployed
-- Health: 95%
-- Intents: 100 complete
+- ✅ **Core v11 Prediction** — 9 commands: session patterns, health trajectory, intent velocity, coupling forecasting, accuracy tracking
+- ✅ **Core v11 Stress Test** — 5/5 PASS — prediction, reaction, health all verified under load
+- ✅ **Core Health Chaos** — 5/5 scenarios PASS — forest survives deliberate failure injection
+- ✅ **faelight-notify v4** — freedesktop spec, zbus D-Bus, all urgency levels, Wayland native
+- ✅ **faelight-shell Phase 21** — context-aware completion, dynamic intent IDs, 8 new builtins, 4 prompt themes
+- ✅ **INT-136 Phase 1** — Niri visual identity: forest green focus ring, rounded corners, inactive opacity
 
 [Full Changelog →](CHANGELOG.md)
 
 ---
-
 <!-- END DYNAMIC SECTION -->
-<!-- STATIC SECTION - Comprehensive Documentation -->
+
+<!-- STATIC SECTION -->
 
 ## 🤔 What is 0-Core?
 
-**0-Core** (Faelight Forest) is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
+**0-Core** (Faelight Forest) is a completely custom Linux environment built on vanilla Arch Linux where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
 
 > *"Nothing runs without explicit human authorization. Every tool is understood. Every decision is documented."*
 
-This is not configuration management. This is not a rice. This is a living system that knows itself.
+This is not configuration management. This is not a rice. This is a living system that knows itself — and now anticipates what comes next.
 
 ---
 
@@ -51,7 +40,7 @@ This is not configuration management. This is not a rice. This is a living syste
 ```
 POSIX shells:      text | text | text
 Nu shell:          table | filter | transform
-Faelight Forest:   forest_data | judgment | wisdom
+Faelight Forest:   forest_data | judgment | wisdom | anticipation
 ```
 
 **Four principles that govern everything:**
@@ -59,91 +48,87 @@ Faelight Forest:   forest_data | judgment | wisdom
 1. **Understanding over convenience** — if you don't understand it, it doesn't run
 2. **Manual control over automation** — nothing happens without explicit human authorization
 3. **Intentional design** — every tool has a purpose, every decision has a record
-4. **The forest remembers** — every commit, decision, and intent is documented
+4. **The forest remembers** — every commit, decision, and intent is documented and learned from
+
+---
+
+## 🧠 Core Intelligence Timeline
+
+| Version | Capability | Status | Meaning |
+|---------|-----------|--------|---------|
+| v1–v5 | Foundation → Intelligence | ✅ Complete | structure, awareness, discipline, patterns |
+| v6 | Judgment | ✅ Complete | the forest remembers outcomes |
+| v7 | Resilience | ✅ Complete | the forest can rebuild itself |
+| v8 | Evolution | ✅ Complete | the forest refines its architecture |
+| v9 | Intent | ✅ Complete | the forest chooses where to grow |
+| v10 | Reaction | ✅ Complete | the forest responds without being asked |
+| v11 | Prediction | ✅ Complete | the forest anticipates before it happens |
+| v12 | Strategy | 🔜 Planned | the forest plans across multiple horizons |
+| v13 | Autonomy | 🔜 Planned | the forest chooses its own purpose |
+
+**Jarvis Readiness: 65/100** — anticipatory partner territory. v12 targets 85. v13 is the destination.
 
 ---
 
 ## 🦀 What's Inside
 
 ### The Core Orchestrator
+
 **`core` v2.0.0** — a single Rust binary with 36+ native domains:
 
 | Domain | Capability |
 |--------|-----------|
+| `core predict` | 9 commands — session patterns, health trajectory, intent velocity, coupling risk, accuracy |
+| `core react` | 6 rules — health advisory, security aging, checkpoint staleness, intent overflow |
+| `core stress` | Verification suite — event storm, prediction load, reaction integrity, health chaos |
 | `core goals` | Forest sets its own goals — generate, accept, reject, prioritize |
-| `core plan` | Break goals into concrete steps with risk analysis |
-| `core tradeoff` | Surface competing values before every major decision |
-| `core prioritize` | Rerank goals by live health, trend, and security posture |
-| `core autobiography` | The forest narrates its own goal history |
-| `core evolution` | Architectural proposals from coupling and churn analysis |
+| `core doctor` | 23-check health monitoring with forecast, trend, and early warning |
 | `core decisions` | Decision ledger with context fingerprints and outcomes |
-| `core simulate` | Dry-run predictions using historical decision patterns |
-| `core doctor` | 24-check health monitoring with forecast and trend |
+| `core evolution` | Architectural proposals from coupling and churn analysis |
 | `core security` | Security audit, debt tracking, hardening verification |
-| `core snapshot` | Forest state narrative — what exists and why |
+| `core simulate` | Dry-run predictions using historical decision patterns |
+| `core checkpoint` | State snapshots with full forest context |
 
 ### faelight-shell — Forest-Native Shell
 
-Not bash. Not fish. Not Nu. **Beyond all of them.**
+Not bash. Not fish. Not Nu. The forest's own voice.
 ```fsh
 # Structured data pipelines
 gc | first 10 | where message contains "feat"
-ps | sort cpu desc | first 5 | less
-et today | where domain == "goals"
+ps | sort cpu desc | first 5
 
-# Natural language queries
-?biggest files in this directory
-?show me failing health checks
+# Forest-native builtins
+pwd          # forest builtin
+which core   # shows: forest script + PATH
+type d       # shows: alias → core doctor run
+env          # structured environment table
+theme minimal # instant prompt theme switch
 
-# Forest awareness
-health; d; git status          # multi-command
-let VERSION = "11.2.0"         # shell variables
-sleep 30 &                     # background jobs
-cargo build | grep error       # pipes to external
-gc | first 20 > commits.txt    # redirection
+# Prediction awareness
+core predict next       # what intent ships next?
+core predict sessions   # when do you typically build?
+
+# Context-aware tab completion
+core predict <TAB>      # shows all 9 predict subcommands
+cistart 14<TAB>         # shows INT-140 through INT-149
 ```
 
-**What makes it unique:**
-- Every command returns structured data — pipeable, filterable, sortable
-- The shell knows your active intents, health score, and session history
-- Background jobs announce themselves when they finish (Jarvis-style)
-- Ctrl+C kills the foreground process — shell survives
-- Loads your personal config from `~/.config/faelight-shell/config.fsh`
-- Emacs-grade line editing with full history deduplication
+**Current state:** 92% native command handling. 4 prompt themes. 8+ builtins.
+
+**Themes:** `forest` (full context) · `minimal` (path only) · `classic` (user@host) · `jarvis` (prediction inline, coming)
 
 ### The Tool Ecosystem
-67 custom Rust tools, each understood and intentional:
+
+44 custom Rust tools, each understood and intentional:
 
 | Category | Tools |
 |----------|-------|
 | **Display** | faelight-bar, faelight-notify v4, faelight-login, faelight-menu |
-| **Filesystem** | faelight-fm, faelight-link, faelight-cleanup |
+| **Shell** | faelight-shell, faelight-term, faelight-git, faelight-release |
+| **Forest** | faelight-digest, faelight-forecast, faelight-idle, faelight-pulse |
 | **Security** | faelight-vault, faelight-sandbox v3, faelight-lock |
-| **Development** | faelight-git, faelight-release, faelight-shell, faelight-term |
-| **Forest** | faelight-forecast, faelight-idle, faelight-pulse, faelight-fetch |
-| **Compositor** | faelight-compositor (Smithay, real DRM hardware) |
-
-### faelight-vault — Credential Manager
-Forest-native secrets management with Argon2id encryption. No LastPass, no Bitwarden — your own vault, your own keys.
-
-### faelight-compositor — Custom Wayland Compositor
-Built on Smithay. Renders forest green on real DRM hardware at 2560x1600@165Hz on AMD Radeon 780M. Not a config file — actual Rust code talking directly to the GPU.
-
----
-
-## 🧠 Core Intelligence Timeline
-
-| Version | Capability | Meaning |
-|---------|-----------|---------|
-| v2 | Structure | the forest has shape |
-| v3 | Awareness | the forest observes itself |
-| v4 | Discipline | the forest enforces rules |
-| v5 | Intelligence | the forest detects patterns |
-| v6 | Judgment | the forest remembers outcomes |
-| v7 | Resilience | the forest can rebuild |
-| v8 | Evolution | the forest refines itself |
-| v9 | **Intent** | **the forest chooses where to grow** |
-| v10 | Reaction *(planned)* | the forest responds without being asked |
+| **Compositor** | faelight-compositor (Smithay, real DRM), faelight-niri-bridge |
+| **Filesystem** | faelight-fm, faelight-link, faelight-clipboard |
 
 ---
 
@@ -151,13 +136,13 @@ Built on Smithay. Renders forest green on real DRM hardware at 2560x1600@165Hz o
 
 | Version | Theme | Milestone |
 |---------|-------|-----------|
+| v11.4.0 | **The Bloom** | Core v11 Prediction complete, fsh Phase 21, chaos testing |
+| v11.3.0 | The Forest Grows | Core v10 Reaction complete, fsh builtins sprint |
 | v11.2.0 | Will and Motion | Core v9 complete, shell becomes daily driver |
 | v11.1.0 | The Forest Speaks | faelight-shell NL queries, session memory |
-| v11.0.0 | The Forest Speaks | Niri compositor migration |
+| v11.0.0 | Niri Migration | Sway → Niri compositor, faelight-login |
 | v10.6.0 | The Judgment Layer | Core v6 complete |
-| v10.5.0 | The Resilient Forest | Core v7 complete |
-| v10.4.0 | Niri Version | faelight-login, Niri migration |
-| v10.3.0 | The Evolution | Core v8 foundations |
+| v10.4.0 | Niri Version | faelight-login, faelight-notify v3 |
 
 ---
 
@@ -171,22 +156,22 @@ Every change is intentional. Every tool is understood.
 - **faelight-vault** — Argon2id encrypted credential manager
 - **faelight-sandbox v3** — policy engine, namespace isolation, seccomp
 - **Immutable core** — `chattr +i` on core files, requires explicit unlock
-- **24-check health monitoring** — doctor runs verify integrity continuously
-- **Intent Ledger** — every architectural decision documented with context fingerprint
+- **23-check health monitoring** — continuous integrity verification
+- **Chaos-tested** — deliberate failure injection verified 5/5 scenarios
 
 ---
 
 ## 📋 The Intent System
 
-Every decision in this system is documented. Not just what was done — but why, when, what was the health score, what was the risk, and what happened next.
+Every decision is documented. Not just what — but why, when, what health score, what risk, what happened next.
 ```bash
-core decisions list          # open decisions
-core autobiography narrate   # the forest tells its own story
-core goals generate          # what does the forest want to become?
-core tradeoff analyze "add X" # what values are in tension?
+core predict next         # what does the forest anticipate shipping next?
+core react story          # what has the forest been signaling today?
+core decisions list       # open decisions awaiting resolution
+core stress health-report # verify system survives deliberate failure
 ```
 
-101 complete intents. Every one of them is a chapter in the forest's history.
+113 complete intents. 7 planned. Every one a chapter in the forest's history.
 
 ---
 
@@ -199,12 +184,12 @@ cd 03-interfaces/stow && stow */
 core doctor run
 ```
 
-> ⚠️ This system is built for one person — the author. It is not designed to be installed by others without deep understanding. Read the intent ledger before touching anything.
+> ⚠️ This system is built for one person. It is not designed to be installed by others without deep understanding. Read the intent ledger before touching anything.
 
 ---
 
 ## 🌲 The Forest Remembers
 
-*"A forest that chooses where to grow is no longer just a system. It is a participant in its own future."*
+*"A forest that predicts the storm and plans the shelter before the first cloud appears — that is not intelligence. That is wisdom."*
 
-*Auto-generated by faelight-docs v1.0.0 — last sync: 2026-03-26 21:15*
+*Auto-generated by faelight-docs v1.0.0 — last sync: 2026-03-26*
