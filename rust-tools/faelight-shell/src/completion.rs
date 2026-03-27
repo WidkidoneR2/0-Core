@@ -57,6 +57,30 @@ const COMMANDS: &[&str] = &[
     "network",
     "pkgs",
     "packages",
+    "pwd",
+    "which",
+    "env",
+    "clear",
+    "echo",
+    "cat",
+    "type",
+    "theme",
+    "z",
+    "zi",
+    "ya",
+    "yazi",
+    "fm",
+    "flow",
+    "usage",
+    "theme",
+    "debug",
+    "since",
+    "d",
+    "v",
+    "c",
+    "q",
+    "fs",
+    "ll",
     "gc",
     "git-commits",
     "gf",
@@ -221,6 +245,36 @@ impl ForestHelper {
                 "core security",
                 "core checkpoint",
                 "core events",
+                "core predict sessions",
+                "core predict cadence",
+                "core predict health",
+                "core predict decline",
+                "core predict intents",
+                "core predict next",
+                "core predict coupling",
+                "core predict churn",
+                "core predict accuracy",
+                "core react list",
+                "core react rules",
+                "core react run",
+                "core react history",
+                "core react story",
+                "core react audit",
+                "core react bounds",
+                "core stress events",
+                "core stress predict",
+                "core stress react",
+                "core stress health",
+                "core stress intents",
+                "core stress report",
+                "core stress health-report",
+                "core intent list",
+                "core intent show",
+                "core intent complete",
+                "core predict",
+                "core react",
+                "core stress",
+                "core intent",
                 "core simulate",
                 "core snapshot",
                 "core narrative",
@@ -263,6 +317,72 @@ impl ForestHelper {
                 let start = line.len() - last.len();
                 let cands = path_completions(last);
                 return (start, cands);
+            }
+        }
+
+        // ── Case 2d: dynamic intent ID completion ──────────────────────────
+        if line.starts_with("intent show ") || line.starts_with("cistart ")
+            || line.starts_with("cicomplete ") {
+            let cmd_len = line.find(' ').map(|i| {
+                line[i+1..].find(' ').map(|j| i+j+2).unwrap_or(i+1)
+            }).unwrap_or(line.len());
+            let partial = &line[cmd_len..];
+            let home = std::env::var("HOME").unwrap_or_default();
+            let mut ids: Vec<String> = Vec::new();
+            for dir in &["intents/future", "intents/complete"] {
+                let path = format!("{}/0-core/{}", home, dir);
+                if let Ok(entries) = std::fs::read_dir(&path) {
+                    for e in entries.flatten() {
+                        if let Some(name) = e.path().file_stem()
+                            .and_then(|s| s.to_str())
+                            .map(|s| s.to_string()) {
+                            if let Some(id) = name.split('-').next() {
+                                if id.chars().all(|c| c.is_ascii_digit()) {
+                                    if partial.is_empty() || id.starts_with(partial) {
+                                        ids.push(id.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ids.sort();
+            ids.dedup();
+            if !ids.is_empty() {
+                let start = line.len() - partial.len();
+                return (start, ids);
+            }
+        }
+
+        // ── Case 2e: alias completion from config.fsh ─────────────────────────
+        if !line.contains(' ') && !line.is_empty() {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let config = format!("{}/.config/faelight-shell/config.fsh", home);
+            if let Ok(content) = std::fs::read_to_string(&config) {
+                let alias_names: Vec<String> = content.lines()
+                    .filter(|l| l.trim_start().starts_with("alias "))
+                    .filter_map(|l| {
+                        let parts: Vec<&str> = l.splitn(2, '=').collect();
+                        if parts.len() >= 1 {
+                            let name = parts[0].trim().trim_start_matches("alias ").trim().to_string();
+                            if name.starts_with(line) { Some(name) } else { None }
+                        } else { None }
+                    })
+                    .collect();
+                if !alias_names.is_empty() {
+                    // Merge with existing COMMANDS completions below
+                    let mut cands: Vec<String> = COMMANDS.iter()
+                        .filter(|c| c.starts_with(line))
+                        .map(|s| s.to_string())
+                        .collect();
+                    cands.extend(alias_names);
+                    let mut bins = binary_completions(line);
+                    cands.append(&mut bins);
+                    cands.sort();
+                    cands.dedup();
+                    return (0, cands);
+                }
             }
         }
 
