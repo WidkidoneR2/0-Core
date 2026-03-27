@@ -3,7 +3,7 @@ id: 154
 date: 2026-03-26
 type: future
 title: "Core Health Stress Test — Chaos Engineering for the Forest"
-status: in-progress
+status: complete
 tags: [health, stress, chaos, testing, reliability, doctor, reactions]
 version: 11.4.0
 priority: high
