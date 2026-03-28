@@ -301,6 +301,13 @@ impl ChangelogData {
                 _ => internal.push(commit),
             }
         }
+        // Newest first in all sections
+        features.reverse();
+        fixes.reverse();
+        performance.reverse();
+        refactors.reverse();
+        docs.reverse();
+        internal.reverse();
 
         let date = chrono::Local::now().format("%Y-%m-%d").to_string();
 
@@ -337,16 +344,32 @@ impl ChangelogData {
             out.push('\n');
         }
 
-        // Features
+        // Features — grouped by scope
         if !self.features.is_empty() {
             out.push_str("### ✨ Features\n");
-            for c in &self.features {
-                let scope = if c.scope.is_empty() {
-                    String::new()
-                } else {
-                    format!("({}) ", c.scope)
-                };
-                out.push_str(&format!("- {}{}\n", scope, c.message));
+            // Group by scope
+            let mut scopes: Vec<String> = self.features.iter()
+                .map(|c| if c.scope.is_empty() { "general".to_string() } else { c.scope.clone() })
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+            scopes.sort();
+            // Show scoped groups first, then general
+            for scope in &scopes {
+                let group: Vec<&Commit> = self.features.iter()
+                    .filter(|c| {
+                        let s = if c.scope.is_empty() { "general" } else { &c.scope };
+                        s == scope.as_str()
+                    })
+                    .collect();
+                if !group.is_empty() {
+                    if scope != "general" {
+                        out.push_str(&format!("\n**{}**\n", scope));
+                    }
+                    for c in group {
+                        out.push_str(&format!("- {}\n", c.message));
+                    }
+                }
             }
             out.push('\n');
         }
@@ -361,6 +384,15 @@ impl ChangelogData {
                     format!("({}) ", c.scope)
                 };
                 out.push_str(&format!("- {}{}\n", scope, c.message));
+            }
+            out.push('\n');
+        }
+
+        // Docs
+        if !self.docs.is_empty() {
+            out.push_str("### 📚 Documentation\n");
+            for c in &self.docs {
+                out.push_str(&format!("- {}\n", c.message));
             }
             out.push('\n');
         }
@@ -434,7 +466,13 @@ impl ReleaseStats {
         let intents = count_complete_intents(core_root);
 
         Self {
-            health: 95, // read from state.db in future phase
+            health: {
+                let cache = std::fs::read_to_string(
+                    std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
+                        .join(".cache/faelight/health-status")
+                ).unwrap_or_else(|_| "100".to_string());
+                cache.trim().parse::<u32>().unwrap_or(100)
+            },
             total_commits: commits,
             tools_deployed: tools,
             intents_complete: intents,
