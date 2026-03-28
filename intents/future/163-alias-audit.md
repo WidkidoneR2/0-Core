@@ -40,7 +40,7 @@ docs = cd ~/Documents   (collision — also faelight-docs)
 
 ## The Three Layers
 
-### Layer 1 — Muscle Memory (MAX 60 aliases)
+### Layer 1 — Muscle Memory (MAX 100 aliases)
 Short, stable, never changes. You type these without thinking.
 These are the only aliases that earn their place.
 ```
@@ -63,7 +63,7 @@ cicomplete  cpc  cpr  ce  cew  cistart  cicomplete  decide  vault  clip
 ports  myip  sr  ssn  paci
 ```
 
-Total Layer 1: ~60 aliases. Every one memorizable.
+Total Layer 1: ~100 aliases. Every one memorizable.
 
 ### Layer 2 — Named Scripts (not aliases)
 These are workflows disguised as aliases. They deserve real scripts:
@@ -187,7 +187,7 @@ One table. Every concept. One canonical form.
 
 ## Target State
 ```
-Layer 1 aliases (zsh):    ~60   (down from 446)
+Layer 1 aliases (zsh):    ~100  (down from 446)
 Layer 1 aliases (fsh):    ~32   (current, review each)
 Named scripts:            +5    (extracted from aliases)
 Core commands:            0     (all already in core)
@@ -205,6 +205,78 @@ core alias-audit stale    # show stale references
 core alias-audit report   # full audit report
 ```
 
+## The Command Guide (docs/COMMAND-GUIDE.md)
+A single factual reference for daily and weekly use.
+Not aspirational — only what actually exists and works today.
+
+### Structure
+```
+# 🌲 Faelight Forest — Command Guide
+Last updated: <date> (v11.x.x)
+
+## Daily Commands (use every session)
+| Command | What it does | When to use |
+|---------|-------------|-------------|
+| d       | Run doctor — full health check | Every session start |
+| fs      | Open faelight-shell | Primary shell |
+| v       | Open neovim | Edit any file |
+| g       | Git shortcut | Any git operation |
+| ya      | Yazi file manager | Navigate filesystem |
+| cistart NNN | Start an intent | Before any intent work |
+| cicomplete NNN | Complete an intent | After intent done |
+| fg commit | Forest git commit | After any changes |
+| lock-core | Lock core files | Before shutdown |
+| unlock-core | Unlock core files | Before editing |
+
+## Weekly Commands (use most weeks)
+| Command | What it does | When to use |
+|---------|-------------|-------------|
+| core predict next | What ships next | Planning sessions |
+| core react story | What forest signaled | Weekly review |
+| core stress report | Verify v11 integrity | After major changes |
+| fu | Run faelight-update | Weekly updates |
+| core security scan | Security check | Weekly |
+| bump | Release new version | After milestone |
+
+## Forest Intelligence (core commands)
+| Command | What it does |
+|---------|-------------|
+| predict sessions | Your work rhythm patterns |
+| predict health | Health trajectory forecast |
+| predict next | Next intent prediction |
+| react run | Evaluate all rules now |
+| react story | Today's reaction narrative |
+| stress report | Full system verification |
+| doctor forecast | Health forecast |
+
+## fsh Builtins (native shell commands)
+| Command | What it does |
+|---------|-------------|
+| pwd | Current directory |
+| which <cmd> | Where command resolves |
+| type <cmd> | Full resolution detail |
+| env | Shell environment table |
+| theme <name> | Switch prompt theme |
+| echo <text> | Output text |
+| cat <file> | View file with line numbers |
+| clear / c | Clear terminal |
+
+## Prompt Themes
+| Theme | What it shows |
+|-------|-------------|
+| forest | Full context: path, git, health, commits |
+| minimal | Path only — zero noise |
+| classic | user@host path $ |
+| jarvis | Forest + prediction inline |
+```
+
+### Rules for the Guide
+1. Only commands that work TODAY — no aspirational entries
+2. Updated on every release by faelight-docs
+3. One row per command — no duplicates
+4. "When to use" column keeps it actionable
+5. Replaces scattered documentation across 15 docs files
+
 ## Gate Check
 ```
 ⬜ Duplicate block (lines 66-76) removed
@@ -213,15 +285,18 @@ core alias-audit report   # full audit report
 ⬜ Stale version strings removed
 ⬜ docs collision resolved
 ⬜ Hidden logic aliases → scripts
-⬜ Layer 1 aliases ≤ 60 total
+⬜ Layer 1 aliases ≤ 100 total
 ⬜ fsh config.fsh reviewed — all 32 earn their place
 ⬜ docs/CANONICAL-COMMANDS.md created
 ⬜ core alias-audit scan passes with 0 critical issues
 ⬜ Both zsh AND fsh alias files in sync on concepts
+⬜ docs/COMMAND-GUIDE.md created — daily and weekly commands
+⬜ Guide is factual — only what works today
+⬜ Guide updated by faelight-docs on each release
 ```
 
 ## The Phrase
-**"60 aliases you know by heart
+**"100 aliases you know by heart
 are worth more than 446
 you discover by accident."**
 
