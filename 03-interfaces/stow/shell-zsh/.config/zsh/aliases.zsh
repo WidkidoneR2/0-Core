@@ -28,7 +28,7 @@ alias b='bat --paging=never'              # Bat viewer
 # ─── Core Management ───
 alias bar='faelight-bar'
 alias bootstrap='faelight-bootstrap'
-alias bump='faelight-release publish'  # faelight-release replaces bump-system-version
+# removed stale (bump-system-version retired): alias bump='faelight-release publish'  # faelight-release replaces bump-system-version
 alias dash='faelight-dashboard'
 alias dashboard='faelight-dashboard'
 alias dmenu='faelight-palette'
@@ -44,9 +44,9 @@ alias ft='faelight-term'
 alias zone='faelight-zone'
 
 # ─── Health & Monitoring ───
-alias doctor='dot-doctor'
-alias check-health='dot-doctor'
-alias health='dot-doctor'
+# removed stale (dot-doctor retired): alias doctor='dot-doctor'
+# removed stale (dot-doctor retired): alias check-health='dot-doctor'
+# removed stale (dot-doctor retired): alias health='dot-doctor'
 alias drift='entropy-check'
 alias entropy='entropy-check'
 
@@ -63,24 +63,14 @@ alias sb-restore='faelight-sandbox restore'
 alias sec-scan='security-audit scan'
 alias sec-report='security-audit report'
 alias sec-history='security-audit history'
-alias sec='security-audit'
-alias sb='faelight-sandbox'
-alias sb-diff='faelight-sandbox diff'
-alias sb-status='faelight-sandbox status'
-alias sb-clear='faelight-sandbox clear'
-alias sb-snap='faelight-sandbox snapshot'
-alias sb-snaps='faelight-sandbox snapshots'
-alias sb-restore='faelight-sandbox restore'
-alias sec-scan='security-audit scan'
-alias sec-report='security-audit report'
-alias sec-history='security-audit history'                # System update
+# (duplicates removed 2026-03-29 — INT-163)
 alias topgrade='faelight-update'           # Topgrade replaced by faelight-update
 alias fudr='faelight-update --dry-run'     # Check updates without applying
 alias fui='faelight-update --interactive' # Interactive update
 alias fuup='faelight-update'              # Quick update
 alias update='safe-update'
 alias safe-update='~/0-core/scripts/safe-update'
-alias safe-up='snap-now && safe-update && dot-doctor'
+# removed stale (dot-doctor retired): alias safe-up='snap-now && safe-update && dot-doctor'
 
 # ─── Git & Version Control ───
 alias fg='faelight-git'
@@ -156,7 +146,7 @@ alias cls='core link sync'           # sync all dotfiles — one command
 alias clp='core link plan'           # preview before syncing
 alias ce='core events list'
 alias cew='core events watch'          # live event stream
-alias cpl='core plugin list'            # plugin registry
+alias cplugs='core plugin list'   # was cpl — renamed INT-163
 alias cpa='core plugin add'             # register plugin
 alias cps='core plugin status'          # plugin status         # live event stream          # today's events
 alias ces='core events since'        # ces 1h / ces 30m / ces 2d
@@ -242,7 +232,7 @@ alias work='cd ~/2-work'
 alias ws='workspace-view'
 alias keep='cd ~/3-keep'
 alias conf='cd ~/.config'
-alias docs='cd ~/Documents'
+alias cdocs='cd ~/Documents'  # was docs — renamed INT-163
 alias down='cd ~/Downloads'
 alias pics='cd ~/Pictures'
 alias vids='cd ~/Videos'
@@ -259,7 +249,7 @@ alias cdp='cd -'
 
 # ─── Config Directories ───
 alias nvimconf='cd ~/.config/nvim'
-alias swayconf='cd ~/.config/sway'
+# removed stale (sway retired): alias swayconf='cd ~/.config/sway'
 alias zshconf='cd ~/.config/zsh'
 
 # ═══════════════════════════════════════════════════════════
@@ -268,7 +258,7 @@ alias zshconf='cd ~/.config/zsh'
 # ═══════════════════════════════════════════════════════════
 
 # ─── Git Shortcuts ───
-alias g='git'
+# removed duplicate: alias g='git'
 alias ga='git add'
 alias gaa='git add -A'
 alias gc='git commit -m'
@@ -325,7 +315,7 @@ alias cdm='core-diff --open meld'
 alias cdh='core-diff --high-risk'
 alias cdlast='core-diff since HEAD~1'
 alias cdrel='core-diff since $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD)'
-alias cdcheck='cdiff && dot-doctor'
+# removed stale (dot-doctor retired): alias cdcheck='cdiff && dot-doctor'
 alias cdreview='cdv && cdh'
 alias cdbar='core-diff faelight-bar'
 alias cdsway='core-diff wm-sway'
@@ -335,7 +325,7 @@ alias cdnvim='core-diff editor-nvim'
 # ─── Security & Secrets ───
 alias scan-secrets='gitleaks detect --no-git -v'
 alias scan-staged='gitleaks protect --staged -v'
-alias pre-commit='echo "🔍 Pre-commit checks..." && gitleaks protect --staged -v && dot-doctor && echo "✅ Safe to commit!"'
+# removed stale (dot-doctor retired): alias pre-commit='echo "🔍 Pre-commit checks..." && gitleaks protect --staged -v && dot-doctor && echo "✅ Safe to commit!"'
 alias secrets-mount='gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted"'
 alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 
@@ -391,14 +381,14 @@ alias fix-keys='sudo pacman-key --init && sudo pacman-key --populate && sudo pac
 alias sysinfo='fastfetch'
 alias neofetch='fastfetch'
 alias sysver='uname -r'
-alias card='echo "╔════════════════════════════════════════╗" && echo "║  🌲 FAELIGHT FOREST v9.3.0            ║" && echo "║  🏥 Health: $(dot-doctor | grep "Health:" | awk "{print \$2}")                        ║" && echo "║  📦 Tools: 40 Production Ready         ║" && echo "║  🔒 Security: Hardened                 ║" && echo "╚════════════════════════════════════════╝"'
+# removed stale (dot-doctor retired): alias card='echo "╔════════════════════════════════════════╗" && echo "║  🌲 FAELIGHT FOREST v9.3.0            ║" && echo "║  🏥 Health: $(dot-doctor | grep "Health:" | awk "{print \$2}")                        ║" && echo "║  📦 Tools: 40 Production Ready         ║" && echo "║  🔒 Security: Hardened                 ║" && echo "╚════════════════════════════════════════╝"'
 
 # ─── Power Management ───
 alias sr='reboot'
 alias ssn='shutdown now'
 alias suspend='systemctl suspend'
 alias hibernate='systemctl hibernate'
-alias logout='swaymsg exit'
+# removed stale (sway retired): alias logout='swaymsg exit'
 
 # ─── Process Management ───
 alias psa='ps auxf'
@@ -418,16 +408,16 @@ alias security-check='sudo pacman -Syu && echo "---" && arch-audit && echo "---"
 alias security-score='test -f ~/.lynis-score && echo "🛡️  Hardening Index: $(cat ~/.lynis-score)/100" || echo "Run audit-full or audit-quick first"'
 alias audit-full='sudo lynis audit system | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
 alias audit-quick='sudo lynis audit system --quick | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
-alias full-audit='dot-doctor && entropy-check && security-check'
-alias system-health='dot-doctor && lynis audit system --quick'
+# removed stale (dot-doctor retired): alias full-audit='dot-doctor && entropy-check && security-check'
+# removed stale (dot-doctor retired): alias system-health='dot-doctor && lynis audit system --quick'
 
 # ─── Fail2ban ───
 alias jail-status='sudo fail2ban-client status'
 alias ban-list='sudo fail2ban-client status sshd'
 
 # ─── Sway WM ───
-alias sway-reload='swaymsg reload'
-alias sway-info='swaymsg -t get_tree'
+# removed stale (sway retired): alias sway-reload='swaymsg reload'
+# removed stale (sway retired): alias sway-info='swaymsg -t get_tree'
 alias bar-restart='~/0-core/scripts/launch-bar'
 
 # ─── Disk & Storage ───
@@ -493,7 +483,7 @@ alias lazyvim-clean='nvim --headless "+Lazy! clean" +qa'
 
 # ─── Config Editing ───
 alias nzsh='nvim ~/.config/zsh/.zshrc'
-alias nsway='nvim ~/.config/sway/config'
+# removed stale (sway retired): alias nsway='nvim ~/.config/sway/config'
 alias nbar='nvim ~/0-core/rust-tools/faelight-bar/src/main.rs'
 
 # ═══════════════════════════════════════════════════════════
@@ -507,7 +497,7 @@ alias nowdate='date +"%Y-%m-%d"'
 alias timestamp='date +"%Y%m%d_%H%M%S"'
 
 # ─── Archive Operations ───
-alias extract='tar -xzvf'
+# removed: tar extract alias — ouch decompress is canonical (INT-163)
 alias targz='tar -czf'
 alias untar='tar -xvf'
 
@@ -548,18 +538,18 @@ alias s='source ~/.zshrc'
 alias path='echo $PATH | tr ":" "\n"'
 
 # ─── Status & Overview ───
-alias status='dot-doctor && echo "" && git status'
-alias overview='fastfetch && echo "" && dot-doctor && echo "" && git -C ~/0-core status -s'
+# removed stale (dot-doctor retired): alias status='dot-doctor && echo "" && git status'
+# removed stale (dot-doctor retired): alias overview='fastfetch && echo "" && dot-doctor && echo "" && git -C ~/0-core status -s'
 alias check-updates='update-check'
 alias weekly='weekly-check'
 alias lastup='latest-update'
 alias latest='latest-update'
-alias forest-ver='echo "🌲 Faelight Forest v9.3.0"'
+# removed stale (version string): alias forest-ver='echo "🌲 Faelight Forest v9.3.0"'
 
 # ─── Release Management ───
-alias release-prep='echo "📦 Preparing release..." && bump-system-version && compile-changelog.sh && git status'
-alias compile-log='~/0-core/scripts/compile-changelog.sh'
-alias mklog='~/0-core/scripts/compile-changelog.sh'
+# removed stale (bump-system-version retired): alias release-prep='echo "📦 Preparing release..." && bump-system-version && compile-changelog.sh && git status'
+# removed stale (compile-changelog retired): alias compile-log='~/0-core/scripts/compile-changelog.sh'
+# removed stale (compile-changelog retired): alias mklog='~/0-core/scripts/compile-changelog.sh'
 
 # ─── Direnv ───
 alias envrc-allow='direnv allow'
@@ -624,7 +614,7 @@ alias fid='faelight-intent'
 alias idash='faelight-intent'
 
 # ─── core ledger (Core v5 Phase 1) ───
-alias cls='core ledger stats'
+alias cledger='core ledger stats'  # was cls — renamed INT-163
 alias clq='core ledger query'
 alias cle='core ledger export'
 alias cli='core ledger indexes'
