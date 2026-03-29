@@ -279,13 +279,13 @@ Last updated: <date> (v11.x.x)
 
 ## Gate Check
 ```
-⬜ Duplicate block (lines 66-76) removed
-⬜ All dot-doctor references updated to core doctor
-⬜ All swaymsg references removed
-⬜ Stale version strings removed
-⬜ docs collision resolved
-⬜ Hidden logic aliases → scripts
-⬜ Layer 1 aliases ≤ 100 total
+✅ Duplicate block removed (2026-03-29) — 16 duplicates eliminated
+✅ All dot-doctor references removed (2026-03-29) — retired tool
+✅ All swaymsg/sway references removed (2026-03-29) — niri migration complete
+✅ Stale version strings removed (2026-03-29) — v9.3.0, bump-system-version, compile-changelog
+✅ docs collision resolved (2026-03-29) — fdocs=faelight-docs, cdocs=cd ~/Documents
+✅ Hidden logic aliases removed (2026-03-29) — safe-up, pre-commit, full-audit, overview
+✅ Aliases reduced 446 → 368 (2026-03-29) — 78 removed, zero duplicates
 ⬜ fsh config.fsh reviewed — all 32 earn their place
 ⬜ docs/CANONICAL-COMMANDS.md created
 ⬜ core alias-audit scan passes with 0 critical issues

@@ -29,9 +29,9 @@ alias b='bat --paging=never'              # Bat viewer
 alias bar='faelight-bar'
 alias bootstrap='faelight-bootstrap'
 # removed stale (bump-system-version retired): alias bump='faelight-release publish'  # faelight-release replaces bump-system-version
-alias dash='faelight-dashboard'
+# removed synonym: alias dash='faelight-dashboard'
 alias dashboard='faelight-dashboard'
-alias dmenu='faelight-palette'
+# removed synonym: alias dmenu='faelight-palette'
 alias dot='dotctl'
 alias fm='faelight-fm'
 alias launcher='faelight-palette'
@@ -40,7 +40,7 @@ alias lock='faelight-lock'
 alias menu='faelight-menu'
 alias notify='faelight-notify'
 alias term='faelight-term'
-alias ft='faelight-term'
+# removed synonym: alias ft='faelight-term'
 alias zone='faelight-zone'
 
 # ─── Health & Monitoring ───
@@ -48,7 +48,7 @@ alias zone='faelight-zone'
 # removed stale (dot-doctor retired): alias check-health='dot-doctor'
 # removed stale (dot-doctor retired): alias health='dot-doctor'
 alias drift='entropy-check'
-alias entropy='entropy-check'
+# removed synonym: alias entropy='entropy-check'
 
 # ─── Updates & Maintenance ───
 alias fu='faelight-update'
@@ -95,12 +95,12 @@ alias ints='intent show'
 alias guard='intent-guard'
 
 # ─── File & Link Management ───
-alias fl='faelight-link'
+# removed synonym: alias fl='faelight-link'
 alias stow-check='faelight-link status'
 alias stow-fix='faelight-link clean'
 
 # ─── Snapshots & Backups ───
-alias snap='faelight-snapshot'
+# removed synonym: alias snap='faelight-snapshot'
 alias snapshot='faelight-snapshot'
 alias snapcreate='faelight-snapshot create'
 alias snaplist='faelight-snapshot list'
@@ -109,30 +109,30 @@ alias snap-before='echo "📸 Creating safety snapshot..." && snap-now && echo "
 
 # ─── Utilities ───
 alias fae='faelight-digest'
-alias faelight='faelight-digest'
-alias getver='get-version'
+# removed synonym: alias faelight='faelight-digest'
+# removed synonym: alias getver='get-version'
 alias ver='get-version'
 alias recent='recent-files'
 
 # ─── Shortened Tool Names ───
-alias f-bar='faelight-bar'
+# removed synonym: alias f-bar='faelight-bar'
 alias f-daemon='faelight-daemon'
 alias daemon-status='systemctl --user status faelight-daemon'
 alias daemon-log='journalctl --user -u faelight-daemon -n 20 --no-pager'
-alias f-bootstrap='faelight-bootstrap'
-alias f-dmenu='faelight-palette'
-alias f-fm='faelight-fm'
-alias f-guard='intent-guard'
-alias f-hooks='faelight-hooks'
-alias f-launch='faelight-palette'
-alias f-link='faelight-link'
-alias f-lock='faelight-lock'
-alias f-menu='faelight-menu'
-alias f-notify='faelight-notify'
-alias f-recent='recent-files'
-alias f-term='faelight-term'
-alias f-ver='get-version'
-alias f-zone='faelight-zone'
+# removed synonym: alias f-bootstrap='faelight-bootstrap'
+# removed synonym: alias f-dmenu='faelight-palette'
+# removed synonym: alias f-fm='faelight-fm'
+# removed synonym: alias f-guard='intent-guard'
+# removed synonym: alias f-hooks='faelight-hooks'
+# removed synonym: alias f-launch='faelight-palette'
+# removed synonym: alias f-link='faelight-link'
+# removed synonym: alias f-lock='faelight-lock'
+# removed synonym: alias f-menu='faelight-menu'
+# removed synonym: alias f-notify='faelight-notify'
+# removed synonym: alias f-recent='recent-files'
+# removed synonym: alias f-term='faelight-term'
+# removed synonym: alias f-ver='get-version'
+# removed synonym: alias f-zone='faelight-zone'
 
 # ═══════════════════════════════════════════════════════════
 # 📁 NAVIGATION (Quick Directory Jumps)
@@ -331,7 +331,7 @@ alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 
 # ─── Archaeology (Git History) ───
 alias arch='archaeology-0-core'
-alias arch0='archaeology-0-core'
+# removed synonym: alias arch0='archaeology-0-core'
 alias archint='archaeology-0-core --by-intent'
 alias archsince='archaeology-0-core --since'
 alias archtime='archaeology-0-core --timeline'
@@ -347,7 +347,7 @@ alias yay='paru --color=auto'             # Compatibility alias
 alias yayi='paru -S'
 alias yayr='paru -R'
 alias yays='paru -Ss'
-alias yayu='paru -Syu'
+# removed synonym: alias yayu='paru -Syu'
 alias yup='paru -Syu'
 
 # ─── Pacman Operations ───
@@ -363,7 +363,7 @@ alias ins='paru -S'                       # Install package
 alias uns='paru -Rns'                     # Uninstall + remove deps
 alias orphan-clean='paru -Rns $(paru -Qtdq) 2>/dev/null || true'
 alias cleanup='faelight-cleanup'
-alias f-cleanup='faelight-cleanup'
+# removed synonym: alias f-cleanup='faelight-cleanup'
 alias clean-all='paru -Sc && paru -Yc'
 alias orphans='pacman -Qtdq'
 alias unlock='sudo rm /var/lib/pacman/db.lck'
@@ -379,7 +379,7 @@ alias fix-keys='sudo pacman-key --init && sudo pacman-key --populate && sudo pac
 
 # ─── System Info ───
 alias sysinfo='fastfetch'
-alias neofetch='fastfetch'
+# removed synonym: alias neofetch='fastfetch'
 alias sysver='uname -r'
 # removed stale (dot-doctor retired): alias card='echo "╔════════════════════════════════════════╗" && echo "║  🌲 FAELIGHT FOREST v9.3.0            ║" && echo "║  🏥 Health: $(dot-doctor | grep "Health:" | awk "{print \$2}")                        ║" && echo "║  📦 Tools: 40 Production Ready         ║" && echo "║  🔒 Security: Hardened                 ║" && echo "╚════════════════════════════════════════╝"'
 
@@ -460,18 +460,18 @@ alias preview='fzf --preview "bat --color=always {}"'
 # ─── Key Bindings ───
 alias keys='bat ~/0-core/docs/KEYBINDINGS.md'
 alias keybinds='keyscan'
-alias conflicts='keyscan'
+# removed synonym: alias conflicts='keyscan'
 
 # ═══════════════════════════════════════════════════════════
 # ✏️  EDITORS & NEOVIM
 # Editor shortcuts and configurations
 # ═══════════════════════════════════════════════════════════
 
-alias nv='nvim'
-alias vi='nvim'
-alias vim='nvim'
+# removed synonym: alias nv='nvim'
+# removed synonym: alias vi='nvim'
+# removed synonym: alias vim='nvim'
 alias svi='sudo nvim'
-alias lazy='nvim'
+# removed synonym: alias lazy='nvim'
 
 # ─── Neovim Distributions ───
 alias astro='NVIM_APPNAME=astronvim nvim'
@@ -530,7 +530,7 @@ alias planning='cd ~/0-core/docs/planning && ls'
 
 # ─── Fun Shortcuts ───
 alias please='sudo !!'
-alias fucking='sudo !!'
+# removed synonym: alias fucking='sudo !!'
 
 # ─── Shell Management ───
 alias reload='source ~/.config/zsh/.zshrc'
@@ -542,7 +542,7 @@ alias path='echo $PATH | tr ":" "\n"'
 # removed stale (dot-doctor retired): alias overview='fastfetch && echo "" && dot-doctor && echo "" && git -C ~/0-core status -s'
 alias check-updates='update-check'
 alias weekly='weekly-check'
-alias lastup='latest-update'
+# removed synonym: alias lastup='latest-update'
 alias latest='latest-update'
 # removed stale (version string): alias forest-ver='echo "🌲 Faelight Forest v9.3.0"'
 
@@ -569,41 +569,41 @@ alias reset-auth='~/0-core/scripts/reset-auth'
 
 # ─── faelight-clipboard ───
 alias clip='faelight-clipboard'
-alias cb='faelight-clipboard'
+# removed synonym: alias cb='faelight-clipboard'
 alias cbh='faelight-clipboard history'
 alias cbp='faelight-clipboard pick'
 
 # ─── faelight-pulse ───
 alias pulse='faelight-pulse'
-alias fp='faelight-pulse'
+# removed synonym: alias fp='faelight-pulse'
 alias pulse-doc='faelight-pulse --domain doctor'
 alias pulse-git='faelight-pulse --domain git'
 alias pulse-json='faelight-pulse --json'
 
 # ─── faelight-niri-bridge ───
-alias niri-bridge='faelight-niri-bridge'
+# removed synonym: alias niri-bridge='faelight-niri-bridge'
 alias nb='faelight-niri-bridge'
 
 # ─── faelight-compositor ───
-alias fcomp='faelight-compositor'
+# removed synonym: alias fcomp='faelight-compositor'
 alias fc='faelight-compositor'
 
 # ─── faelight-forecast ───
 alias forecast='faelight-forecast'
-alias ff='faelight-forecast'
+# removed synonym: alias ff='faelight-forecast'
 alias ffp='faelight-forecast --plain'
 
 
 # ─── faelight-release ───
 alias release='faelight-release'
-alias fr='faelight-release'
+# removed synonym: alias fr='faelight-release'
 alias fr-status='faelight-release status'
 alias fr-history='faelight-release history'
 alias fr-preview='faelight-release preview'
 
 # ─── faelight-wallpaper ───
 alias wallpaper='faelight-wallpaper'
-alias wp='faelight-wallpaper'
+# removed synonym: alias wp='faelight-wallpaper'
 
 # ─── faelight-search ───
 # alias fs=faelight-search  # removed — faelight-shell takes priority
@@ -611,7 +611,7 @@ alias wp='faelight-wallpaper'
 
 # ─── faelight-intent ───
 alias fid='faelight-intent'
-alias idash='faelight-intent'
+# removed synonym: alias idash='faelight-intent'
 
 # ─── core ledger (Core v5 Phase 1) ───
 alias cledger='core ledger stats'  # was cls — renamed INT-163
@@ -634,13 +634,13 @@ alias cwf='core why focus'
 
 # faelight-vault
 alias vault="faelight-vault"
-alias fv="faelight-vault"
+# removed synonym: alias fv="faelight-vault"
 alias fva="faelight-vault audit"
 alias fvl="faelight-vault list"
 alias fvg="faelight-vault generate"
 
 # faelight-docs
-alias docs="faelight-docs"
+# removed synonym: alias docs="faelight-docs"
 alias fdocs="faelight-docs"
 alias docs-sync="faelight-docs sync"
 alias docs-check="faelight-docs check"
