@@ -22,11 +22,32 @@ Manual steps = human error. Missed deploys. Wrong binary active.
 fsh-deploy exists but is a 200-char alias, not a proper script.
 
 ## The Current State
-```
+`````````````
 fsh-deploy   = alias (200 chars, fragile)
 core deploy  = no equivalent (3 manual commands)
 faelight-*   = each tool has no deploy standard
-```
+`````````````
+
+## The Sync Problem
+Every deploy currently copies the binary to TWO places:
+`````````````bash
+sudo cp ~/0-core/target/release/core ~/0-core/scripts/core
+sudo cp ~/0-core/target/release/core ~/.cargo/bin/core
+`````````````
+If one copy fails silently, the two binaries are out of sync.
+You run `core` thinking it is the new version — it is not.
+This is how subtle bugs enter the system undetected.
+
+## The Symlink Solution
+**scripts/ is the single source of truth.**
+~/.cargo/bin/ symlinks to scripts/ — never a second copy.
+`````````````
+~/0-core/scripts/core          ← the ONE real binary
+~/.cargo/bin/core              → symlink to scripts/core
+`````````````
+
+One binary. One deploy. Can never be out of sync.
+Apply this pattern to ALL forest binaries.
 
 ## The Solution
 A proper deploy script for each binary.
