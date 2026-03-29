@@ -3,7 +3,7 @@ id: 163
 date: 2026-03-28
 type: future
 title: "Alias Audit — One Concept, One Command"
-status: planned
+status: in-progress
 tags: [aliases, audit, zsh, fsh, canonicalization, cleanup, integrity]
 version: 11.5.0
 priority: critical
