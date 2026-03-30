@@ -200,7 +200,9 @@ alias secadvise='core security advise'            # security judgment advisory
 
 # ─── faelight-shell ───
 alias fs='faelight-shell'                          # forest-native shell
-alias fsh-deploy='cd ~/0-core && cargo build --release -p faelight-shell 2>&1 | grep -E "^error|Compiling|Finished" && sudo cp ~/0-core/target/release/faelight-shell ~/0-core/scripts/faelight-shell && sudo cp ~/0-core/target/release/faelight-shell ~/.cargo/bin/faelight-shell && echo "✅ faelight-shell deployed (release)" && faelight-shell --version 2>/dev/null | head -1'
+alias deploy='~/0-core/scripts/deploy'            # deploy core or faelight-shell
+alias rollback='~/0-core/scripts/rollback'        # rollback to previous version
+alias forest-status='~/0-core/scripts/forest-status' # show active versions + chain
 
 # ─── Core Audit — Tool Intelligence Layer ───
 alias audit='core audit scan'                     # score all tools

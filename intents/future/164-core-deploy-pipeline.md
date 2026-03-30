@@ -3,7 +3,7 @@ id: 164
 date: 2026-03-28
 type: future
 title: "Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe"
-status: planned
+status: in-progress
 tags: [build, deploy, cargo, versioned, symlink, rollback, reliability]
 version: 11.5.0
 priority: high

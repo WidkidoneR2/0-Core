@@ -116,7 +116,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "audit" => audit(db, core_root),
         "forecast" => forecast(db),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
-        "predict" | "react" | "stress" | "doctor" | "goals" | "decisions"
+        "predict" | "react" | "stress" | "doctor" | "goals"
         | "evolution" | "security" | "capabilities" | "intent"
         | "genealogy" | "autonomy" => {
             let sub = args.join(" ");
@@ -377,10 +377,6 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
             out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
             CommandResult::Output(out)
-        }
-        "clear" => {
-            print!("\x1b[2J\x1b[H");
-            CommandResult::Empty
         }
         "pwd" => {
             let path = std::env::current_dir()
@@ -1554,7 +1550,7 @@ fn sys_services() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-fn sys_files(core_root: &str, args: &[&str]) -> CommandResult {
+fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
 

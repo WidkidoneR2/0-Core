@@ -599,7 +599,7 @@ pub fn bounds(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
-    let gate_status = |threshold: u32, label: &str| {
+    let gate_status = |threshold: u32, _label: &str| {
         if health >= threshold {
             format!("✅ OPEN  (health {}% ≥ {}%)", health, threshold).green().to_string()
         } else {
