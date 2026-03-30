@@ -128,6 +128,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: StrategyCommands,
     },
+    /// Genealogy — the forest remembers how it grew (INT-153)
+    Genealogy {
+        #[command(subcommand)]
+        command: GenealogyCommands,
+    },
     /// Task planning — break accepted goals into concrete steps (Core v9)
     Plan {
         #[command(subcommand)]
@@ -1027,4 +1032,17 @@ pub enum StrategyCommands {
     },
     /// What worked, what didn't?
     Review,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum GenealogyCommands {
+    /// Show lineage of a specific intent
+    Show {
+        /// Intent ID (e.g. 148)
+        id: String,
+    },
+    /// Show full intent family tree
+    Tree,
+    /// Show founding intents with no ancestors
+    Roots,
 }

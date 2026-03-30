@@ -6,6 +6,7 @@ title: "faelight-shell v2 — The Shell Becomes the OS"
 status: in-progress
 tags: [shell, daily-driver, independence, zsh-replacement, v12, v13]
 priority: high
+spawned_by: 120
 ---
 
 ## Vision

@@ -41,3 +41,4 @@ pub mod predict;
 
 pub mod stress;
 pub mod strategy;
+pub mod genealogy;

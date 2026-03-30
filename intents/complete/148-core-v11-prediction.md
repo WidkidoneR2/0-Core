@@ -8,6 +8,8 @@ tags: [core, v11, prediction, patterns, anticipation, ai, v13]
 version: 13.0.0
 priority: medium
 depends_on: [140]
+spawned_by: 140
+spawns: [151]
 ---
 
 ## The Core Timeline
