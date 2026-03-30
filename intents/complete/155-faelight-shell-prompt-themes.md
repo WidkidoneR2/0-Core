@@ -3,7 +3,7 @@ id: 155
 date: 2026-03-26
 type: future
 title: "faelight-shell Prompt Themes — The Shell Has a Face"
-status: in-progress
+status: complete
 tags: [shell, prompt, themes, visual, identity, fsh, v12]
 version: 12.0.0
 priority: medium
@@ -71,7 +71,7 @@ No restart required — prompt updates immediately.
 ✅ theme command in fsh dispatch DONE (2026-03-26)
 ✅ Forest theme DONE (2026-03-26) — default, health + git + commits
 ✅ Minimal theme DONE (2026-03-26) — just path and cursor
-⬜ Jarvis theme — planned Phase 2 (needs core predict integration)
+✅ Jarvis theme — active intent + health trend inline (▸ INT-NNN · peak/stable/advisory) (2026-03-30)
 ✅ Classic theme DONE (2026-03-26) — user@host path $
 ✅ theme persists in shell_state db (2026-03-26)
 ✅ theme switches immediately without restart DONE (2026-03-26)
