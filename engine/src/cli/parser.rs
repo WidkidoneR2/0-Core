@@ -999,4 +999,15 @@ pub enum StrategyCommands {
         /// The action to analyze
         action: String,
     },
+    /// Which intents are pulling in opposite directions?
+    Conflicts,
+    /// Is the current work plan internally consistent?
+    Coherence,
+    /// Can these two goals be pursued together?
+    Merge {
+        /// First goal ID
+        goal1: String,
+        /// Second goal ID
+        goal2: String,
+    },
 }

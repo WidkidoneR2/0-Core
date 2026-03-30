@@ -480,4 +480,7 @@ pub enum StrategyCommand {
     Sequence { goal_id: String },
     Unblock,
     Tradeoff { action: String },
+    Conflicts,
+    Coherence,
+    Merge { goal1: String, goal2: String },
 }
