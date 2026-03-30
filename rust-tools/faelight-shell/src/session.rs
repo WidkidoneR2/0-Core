@@ -71,12 +71,13 @@ impl SessionMemory {
             )
             .ok();
 
-        // Read current commit count
-        let commits_path = std::path::Path::new("/etc/faelight/COMMITS");
-        let current_commits: u64 = std::fs::read_to_string(commits_path)
-            .unwrap_or_default()
-            .trim()
-            .parse()
+        // Read current commit count — live from git
+        let current_commits: u64 = std::process::Command::new("git")
+            .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse().ok())
             .unwrap_or(0);
 
         Some(SessionMemory {
@@ -100,10 +101,13 @@ impl SessionMemory {
             ",
             );
 
-            let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-                .unwrap_or_default()
-                .trim()
-                .to_string();
+            let commits = std::process::Command::new("git")
+                .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "0".to_string());
             let ts = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs().to_string())
