@@ -2,9 +2,9 @@
 id: 164
 date: 2026-03-28
 type: future
-title: "Core Deploy Pipeline — Build Fast, Deploy Correctly, Every Time"
+title: "Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe"
 status: planned
-tags: [build, deploy, cargo, core, fsh, workflow, reliability]
+tags: [build, deploy, cargo, versioned, symlink, rollback, reliability]
 version: 11.5.0
 priority: high
 ---
@@ -12,136 +12,228 @@ priority: high
 ## The Problem
 Every core change requires 3 manual commands:
 ```bash
-cd ~/0-core && cargo build --release -p core 2>&1 | grep -E "^error|Compiling|Finished"
+cd ~/0-core && cargo build --release -p core
 sudo cp ~/0-core/target/release/core ~/0-core/scripts/core
 sudo cp ~/0-core/target/release/core ~/.cargo/bin/core
 ```
+Two copies = drift risk. No history. No rollback.
+If something breaks after deploy: rebuild from scratch or stay broken.
 
-And for faelight-shell, the same 3-command pattern.
-Manual steps = human error. Missed deploys. Wrong binary active.
-fsh-deploy exists but is a 200-char alias, not a proper script.
+## The Architecture
 
-## The Current State
-`````````````
-fsh-deploy   = alias (200 chars, fragile)
-core deploy  = no equivalent (3 manual commands)
-faelight-*   = each tool has no deploy standard
-`````````````
+### Directory Layout (final form)
+```
+~/0-core/
+├── bin/                        # ALL real binaries live here
+│   ├── core                    → core@2.0.0-7477a3b  (active symlink)
+│   ├── core@2.0.0-7477a3b      # immutable binary
+│   ├── core@2.0.0-abc1234      # previous version
+│   ├── fsh                     → fsh@0.6.0-def5678
+│   ├── fsh@0.6.0-def5678
+│   └── fsh@0.6.0-abc9999
+├── scripts/
+│   ├── deploy                  # ONE deploy script
+│   └── rollback                # ONE rollback script
+└── target/                     # cargo build output
 
-## The Sync Problem
-Every deploy currently copies the binary to TWO places:
-`````````````bash
-sudo cp ~/0-core/target/release/core ~/0-core/scripts/core
-sudo cp ~/0-core/target/release/core ~/.cargo/bin/core
-`````````````
-If one copy fails silently, the two binaries are out of sync.
-You run `core` thinking it is the new version — it is not.
-This is how subtle bugs enter the system undetected.
+~/.cargo/bin/
+├── core  → ~/0-core/bin/core   # symlink to active pointer
+├── fsh   → ~/0-core/bin/fsh    # symlink to active pointer
+```
 
-## The Symlink Solution
-**scripts/ is the single source of truth.**
-~/.cargo/bin/ symlinks to scripts/ — never a second copy.
-`````````````
-~/0-core/scripts/core          ← the ONE real binary
-~/.cargo/bin/core              → symlink to scripts/core
-`````````````
+### The Symlink Chain
+```
+~/.cargo/bin/core
+    → ~/0-core/bin/core          (active pointer)
+        → ~/0-core/bin/core@VERSION-HASH  (immutable binary)
+```
 
-One binary. One deploy. Can never be out of sync.
-Apply this pattern to ALL forest binaries.
+Three levels. Two symlinks. One real binary. Can never drift.
 
-## The Solution
-A proper deploy script for each binary.
-Consistent. Fast. Verified. One command.
+### Version Naming
+```
+core@VERSION-GITHASH
+Example: core@2.0.0-7477a3b
+```
+Version from Cargo.toml + git short hash.
+Every build is uniquely identified and traceable to its commit.
 
-## Phase 1 — core-deploy script
+## The Deploy Script
 ```bash
 #!/usr/bin/env bash
-# ~/0-core/scripts/core-deploy
-# Build and deploy core binary to all required paths
-
+# ~/0-core/scripts/deploy
+# Usage: deploy [core|fsh|all] [--dev]
 set -euo pipefail
 
-CORE_ROOT="$HOME/0-core"
-RELEASE_BIN="$CORE_ROOT/target/release/core"
-SCRIPT_PATH="$CORE_ROOT/scripts/core"
-CARGO_PATH="$HOME/.cargo/bin/core"
+ROOT="$HOME/0-core"
+BIN_DIR="$ROOT/bin"
+CARGO_BIN="$HOME/.cargo/bin"
+KEEP_VERSIONS=5
 
-echo "🌲 Building core..."
-cd "$CORE_ROOT"
+mkdir -p "$BIN_DIR"
 
-if cargo build --release -p core 2>&1 | grep -E "^error|Compiling|Finished"; then
-    if grep -q "Finished" <<< "$(cargo build --release -p core 2>&1)"; then
-        echo "✅ Build successful"
+build() {
+    local pkg="$1"
+    local mode="${2:---release}"
+    echo "🌲 Building $pkg ($mode)..."
+    if [[ "$mode" == "--dev" ]]; then
+        (cd "$ROOT" && cargo build -p "$pkg")
+        echo "$ROOT/target/debug/$pkg"
+    else
+        (cd "$ROOT" && cargo build --release -p "$pkg")
+        echo "$ROOT/target/release/$pkg"
     fi
-fi
+}
 
-echo "🚀 Deploying core..."
-sudo cp "$RELEASE_BIN" "$SCRIPT_PATH"
-sudo cp "$RELEASE_BIN" "$CARGO_PATH"
+get_version() {
+    local bin="$1"
+    local version
+    version=$("$bin" --version 2>/dev/null | awk "{print \$2}" | head -1)
+    local hash
+    hash=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    echo "${version:-0.0.0}-${hash}"
+}
 
-echo "✅ Core deployed to:"
-echo "   $SCRIPT_PATH"
-echo "   $CARGO_PATH"
+install_bin() {
+    local name="$1"
+    local src="$2"
+    local version
+    version=$(get_version "$src")
+    local versioned="$BIN_DIR/${name}@${version}"
+    local active="$BIN_DIR/$name"
+    local global="$CARGO_BIN/$name"
 
-# Verify
-DEPLOYED_VER=$("$CARGO_PATH" --version 2>/dev/null | head -1)
-echo "   Version: $DEPLOYED_VER"
+    echo "📦 Installing ${name}@${version}..."
+    cp "$src" "$versioned"
+    chmod +x "$versioned"
 
-# Quick health check
-core doctor run --quiet 2>/dev/null && echo "✅ Health: OK" || echo "⚠️  Run d to check health"
+    echo "🔗 Updating active pointer..."
+    ln -sfn "$versioned" "$active"
+
+    echo "🔗 Ensuring global symlink..."
+    ln -sfn "$active" "$global"
+
+    echo "🧪 Verifying..."
+    "$global" --version 2>/dev/null | head -1 && echo "✅ ${name}@${version} deployed"
+
+    # Auto-clean old versions (keep last N)
+    ls -t "$BIN_DIR/${name}@"* 2>/dev/null | tail -n +$((KEEP_VERSIONS + 1)) | xargs rm -f 2>/dev/null || true
+    echo "🧹 Kept last $KEEP_VERSIONS versions"
+}
+
+deploy_one() {
+    local name="$1"
+    local dev_flag="${2:-}"
+    local src
+    src=$(build "$name" "$dev_flag")
+    install_bin "$name" "$src"
+}
+
+case "${1:-}" in
+    core) deploy_one core "${2:-}" ;;
+    fsh)  deploy_one fsh "${2:-}" ;;
+    all)
+        deploy_one core
+        deploy_one fsh
+        ;;
+    *)
+        echo "Usage: deploy [core|fsh|all] [--dev]"
+        exit 1
+        ;;
+esac
 ```
 
-## Phase 2 — fsh-deploy as proper script
-Replace the 200-char alias with a real script:
+## The Rollback Script
 ```bash
 #!/usr/bin/env bash
-# ~/0-core/scripts/fsh-deploy
-# Build and deploy faelight-shell to all required paths
+# ~/0-core/scripts/rollback
+# Usage: rollback [core|fsh]
+set -euo pipefail
+
+BIN_DIR="$HOME/0-core/bin"
+NAME="$1"
+
+echo "📜 Available versions of $NAME:"
+ls -t "$BIN_DIR/${NAME}@"* 2>/dev/null | while read -r v; do
+    version=$(basename "$v")
+    current=$(readlink "$BIN_DIR/$NAME")
+    if [[ "$v" == "$current" ]]; then
+        echo "  → $version  (current)"
+    else
+        echo "    $version"
+    fi
+done
+
+echo ""
+read -rp "Enter version to activate (e.g. core@2.0.0-abc1234): " VERSION
+TARGET="$BIN_DIR/$VERSION"
+
+if [[ ! -f "$TARGET" ]]; then
+    echo "❌ Version not found: $VERSION"
+    exit 1
+fi
+
+ln -sfn "$TARGET" "$BIN_DIR/$NAME"
+echo "🔄 Rolled back to $VERSION"
+"$BIN_DIR/$NAME" --version
 ```
 
-## Phase 3 — Unified deploy command
+## forest-status Command
 ```bash
-core deploy        # deploy core binary
-fsh-deploy         # deploy faelight-shell
-deploy-all         # deploy everything
+forest-status
+# 🌲 Forest Status
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#   core    → core@2.0.0-7477a3b   ✅ symlink valid
+#   fsh     → fsh@0.6.0-def5678    ✅ symlink valid
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#   Lock:   🔒 LOCKED
+#   Health: 100%
+#   Dirty:  0 files
 ```
 
-## Phase 4 — Build optimization
-Current: full workspace rebuild on every change.
-Better: cargo watch for development, release build for deploy.
-```bash
-# Development (fast feedback):
-cargo watch -x "build -p core"
-
-# Deploy (release, verified):
-core-deploy
+## Why This Is Better
+```
+Before:                    After:
+core (overwritten)         core@2.0.0-7477a3b (immutable)
+no history                 full version history in bin/
+no rollback                rollback in milliseconds
+drift possible             drift impossible (two symlinks)
+debug = rebuild            debug = switch version pointer
 ```
 
-## Phase 5 — Workspace sync verification
-After every deploy, verify binaries are in sync:
-```bash
-core deploy --verify
-# Checks: scripts/core == ~/.cargo/bin/core (same hash)
-# Checks: version matches /etc/faelight/VERSION
-# Checks: all tool binaries present in scripts/
+## Implementation Order (careful, one step at a time)
+```
+Step 1: Create ~/0-core/bin/ directory
+Step 2: Write scripts/deploy — test on core ONLY first
+Step 3: Verify symlink chain works correctly
+Step 4: Test rollback with a second deploy
+Step 5: Add fsh to deploy
+Step 6: Write forest-status
+Step 7: Update aliases in zsh and fsh config
+Step 8: Add deploy/rollback/forest-status to COMMAND-GUIDE.md
 ```
 
 ## Gate Check
 ```
-⬜ ~/0-core/scripts/core-deploy script created
-⬜ ~/0-core/scripts/fsh-deploy script created (replaces alias)
-⬜ core-deploy alias in both zsh and fsh configs
-⬜ fsh-deploy alias updated to use script
-⬜ deploy --verify checks binary hash sync
-⬜ cargo watch available for development builds
-⬜ deploy-all script for full workspace deploy
-⬜ All tool deploys follow same pattern
+⬜ ~/0-core/bin/ directory created
+⬜ scripts/deploy written and tested on core
+⬜ core@VERSION-HASH naming working
+⬜ Symlink chain: ~/.cargo/bin/core → bin/core → bin/core@VERSION
+⬜ rollback command works (tested)
+⬜ Auto-clean keeps last 5 versions
+⬜ deploy all works (core + fsh)
+⬜ forest-status shows active versions
+⬜ aliases updated: deploy/rollback/forest-status in zsh + fsh
+⬜ No binary ever manually copied again
+⬜ Test: deploy → verify → rollback → verify previous works
 ```
 
 ## The Phrase
-**"A system that deploys correctly every time
-is a system you can trust.
-Manual steps are where trust breaks."**
+**"You are no longer deploying binaries.
+You are publishing versions.
+Every version is immutable.
+Every rollback is instant.
+The forest always knows what is running."**
 
 ---
-*"Build fast. Deploy correctly. Verify always."* 🌲
+*"One symlink chain. Zero drift. Infinite rollback."* 🌲
