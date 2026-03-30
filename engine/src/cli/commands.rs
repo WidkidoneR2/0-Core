@@ -483,4 +483,7 @@ pub enum StrategyCommand {
     Conflicts,
     Coherence,
     Merge { goal1: String, goal2: String },
+    Jarvis,
+    Trust,
+    Gap,
 }

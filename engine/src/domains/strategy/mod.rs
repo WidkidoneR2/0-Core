@@ -27,6 +27,12 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
             horizon      TEXT    NOT NULL,
             snapshot     TEXT    NOT NULL,
             created_at   INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS jarvis_readiness_log (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            score        INTEGER NOT NULL,
+            factors      TEXT    NOT NULL,
+            recorded_at  INTEGER NOT NULL
         );",
     )?;
     Ok(())
@@ -912,3 +918,228 @@ pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
     Ok(())
 }
 
+// ── Phase 4: Jarvis Readiness Tracking ───────────────────────────────────────
+
+fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
+    let mut factors: Vec<(String, i32, String)> = Vec::new(); // (name, score, note)
+    let mut total = 0i32;
+
+    // Factor 1: Core intelligence layers (max 40)
+    // v9 Intent (+10), v10 Reaction (+10), v11 Prediction (+10), v12 Strategy (+10)
+    factors.push(("v9 Intent Engine".to_string(), 10, "Complete — goals/planning/prioritization".to_string()));
+    factors.push(("v10 Reaction Engine".to_string(), 10, "Complete — rules/signals/narrative".to_string()));
+    factors.push(("v11 Prediction Engine".to_string(), 10, "Complete — 9 predict commands, 85% confidence".to_string()));
+    // v12 partial — in progress
+    factors.push(("v12 Strategy Engine".to_string(), 5, "In progress — horizon/sequence/coherence built".to_string()));
+    total += 35;
+
+    // Factor 2: Health stability (max 10)
+    let health = get_health(ctx);
+    let health_score = if health >= 95 { 10 } else if health >= 80 { 5 } else { 0 };
+    factors.push(("System Health".to_string(), health_score,
+        format!("{}% health (target ≥ 95%)", health)));
+    total += health_score;
+
+    // Factor 3: Intent velocity (max 10)
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    let complete_count = {
+        let intent_dir = root.join("intents");
+        let categories = ["complete", "decisions", "experiments", "philosophy",
+                          "future", "cancelled", "deferred", "incidents", "active"];
+        let mut count = 0usize;
+        for cat in &categories {
+            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+                for entry in entries.flatten() {
+                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
+                            if c.contains("status: complete") { count += 1; }
+                        }
+                    }
+                }
+            }
+        }
+        count
+    };
+    let velocity_score = if complete_count >= 100 { 10 } else if complete_count >= 50 { 7 } else { 3 };
+    factors.push(("Intent Velocity".to_string(), velocity_score,
+        format!("{} intents complete", complete_count)));
+    total += velocity_score;
+
+    // Factor 4: Commit cadence (max 10)
+    let commits = get_recent_commits(ctx);
+    let commit_score = if commits >= 1000 { 10 } else if commits >= 500 { 7 } else { 3 };
+    factors.push(("Commit Cadence".to_string(), commit_score,
+        format!("{} total commits", commits)));
+    total += commit_score;
+
+    // Factor 5: Shell intelligence (max 10) — fsh as daily driver
+    // Partial — fsh exists but not yet daily driver
+    factors.push(("Shell Intelligence".to_string(), 5,
+        "faelight-shell at 90% native coverage — not yet daily driver".to_string()));
+    total += 5;
+
+    // Factor 6: Prediction accuracy (max 10) — not yet measured
+    factors.push(("Prediction Accuracy".to_string(), 0,
+        "Not yet measured — INT-167 Feedback Loop needed".to_string()));
+
+    // Log this score to DB
+    let factors_json = factors.iter()
+        .map(|(n, s, note)| format!("{}:{}/{}", n, s, note))
+        .collect::<Vec<_>>()
+        .join("|");
+    let _ = ctx.runtime.db.execute(
+        "INSERT INTO jarvis_readiness_log (score, factors, recorded_at) VALUES (?1, ?2, ?3)",
+        rusqlite::params![total, factors_json, now_ts()],
+    );
+
+    (total, factors)
+}
+
+/// core strategy jarvis — how close is the forest to Jarvis-level capability?
+pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let (score, factors) = compute_jarvis_score(ctx);
+
+    println!();
+    println!("  {}", "🌲 Strategy — Jarvis Readiness".bright_green().bold());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    // Score display
+    let score_bar = {
+        let filled = (score as usize) / 5;
+        let empty = 20usize.saturating_sub(filled);
+        format!("[{}{}]", "█".repeat(filled).bright_green(), "░".repeat(empty).dimmed())
+    };
+    let score_color = if score >= 80 { format!("{}/100", score).bright_green().to_string() }
+        else if score >= 60 { format!("{}/100", score).bright_yellow().to_string() }
+        else { format!("{}/100", score).bright_red().to_string() };
+
+    println!("  {} Jarvis Score: {} {}", "▶".bright_cyan(), score_color, score_bar);
+    println!();
+
+    // Level description
+    let level = match score {
+        80..=100 => "Strategic Advisor — approaching Jarvis",
+        60..=79  => "Anticipatory Partner — forest sees ahead",
+        40..=59  => "Reactive Assistant — forest responds",
+        20..=39  => "Aware System — forest observes",
+        _        => "Basic Tool — forest executes",
+    };
+    println!("  {} Level: {}", "·".dimmed(), level.bright_white());
+    println!();
+
+    // Factor breakdown
+    println!("  {} {}", "▶".bright_cyan(), "Score breakdown:".bright_white().bold());
+    for (name, pts, note) in &factors {
+        let pts_str = if *pts > 0 {
+            format!("+{}", pts).bright_green().to_string()
+        } else {
+            "+0".dimmed().to_string()
+        };
+        println!("    {} {} {}  {}", "·".dimmed(), pts_str, name.bright_white(), note.dimmed());
+    }
+    println!();
+
+    // Milestone targets
+    println!("  {} {}", "▶".bright_cyan(), "Milestones:".bright_white().bold());
+    println!("    {} 65/100 — Anticipatory partner  {} (current)",
+        if score >= 65 { "✅" } else { "⬜" }, "←".bright_yellow());
+    println!("    {} 80/100 — Strategic advisor     (complete v12)",
+        if score >= 80 { "✅" } else { "⬜" });
+    println!("    {} 95/100 — Autonomous agent      (complete v13)",
+        if score >= 95 { "✅" } else { "⬜" });
+    println!();
+
+    Ok(())
+}
+
+/// core strategy trust — what evidence would justify more autonomy?
+pub fn trust(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let (score, _) = compute_jarvis_score(ctx);
+
+    println!();
+    println!("  {}", "🌲 Strategy — Trust".bright_green().bold());
+    println!("  {}", "What evidence would justify more autonomy?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "Current trust level:".bright_white().bold());
+    println!("    {} Jarvis score: {}/100", "·".dimmed(), score);
+    println!("    {} v13 Autonomy requires: 95/100", "·".dimmed());
+    println!("    {} Gap: {} points", "·".dimmed(), (95 - score).max(0));
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "Evidence required for more autonomy:".bright_white().bold());
+
+    // Trust gates
+    let gates = vec![
+        (score >= 80, "Complete Core v12 Strategy — all 5 phases", "core strategy gap"),
+        (false, "Prediction accuracy > 75% measured over 30 days", "core predict accuracy"),
+        (false, "faelight-shell as primary daily driver", "intent show 146"),
+        (false, "faelight-context + memory operational", "intent show 159"),
+        (false, "Zero critical health failures in 30 days", "core doctor run"),
+    ];
+
+    for (met, requirement, command) in &gates {
+        let icon = if *met { "✅" } else { "⬜" };
+        println!("    {} {}", icon, requirement.bright_white());
+        if !met {
+            println!("       {} Next step: {}", "→".bright_green(), command.dimmed());
+        }
+    }
+    println!();
+
+    println!("  {} v13 Autonomy is earned, not given.", "·".dimmed());
+    println!("  {} The forest must demonstrate it is right more often than wrong.", "·".dimmed());
+    println!();
+
+    Ok(())
+}
+
+/// core strategy gap — what capabilities are missing for full Jarvis?
+pub fn gap(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let (score, _) = compute_jarvis_score(ctx);
+
+    println!();
+    println!("  {}", "🌲 Strategy — Gap Analysis".bright_green().bold());
+    println!("  {}", "What capabilities are missing for full Jarvis?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    println!("  {} Current: {}/100 → Target: 95/100", "▶".bright_cyan(), score);
+    println!();
+
+    let gaps = vec![
+        (false, "HIGH",   "Prediction Accuracy Feedback Loop",  "INT-167", "Forest cannot learn if predictions are right"),
+        (false, "HIGH",   "faelight-shell Daily Driver",        "INT-146", "Shell not yet primary interface"),
+        (false, "HIGH",   "Core v12 Strategy — Phases 4+5",     "INT-151", "Jarvis tracking + strategy memory incomplete"),
+        (false, "MEDIUM", "faelight-context",                   "INT-159", "No deep codebase understanding"),
+        (false, "MEDIUM", "faelight-memory",                    "INT-160", "No persistent project knowledge"),
+        (false, "MEDIUM", "Shell Architecture Hardening",       "INT-162", "ExecContext + layer separation needed"),
+        (false, "LOW",    "Core v13 Autonomy",                  "INT-156", "The destination — requires all above"),
+    ];
+
+    println!("  {} {}", "▶".bright_cyan(), "Capability gaps (ordered by impact):".bright_white().bold());
+    for (done, priority, capability, intent, reason) in &gaps {
+        let icon = if *done { "✅" } else { "⬜" };
+        let pri_color = match *priority {
+            "HIGH"   => priority.bright_red().to_string(),
+            "MEDIUM" => priority.bright_yellow().to_string(),
+            _        => priority.dimmed().to_string(),
+        };
+        println!("    {} [{}] {} ({})", icon, pri_color, capability.bright_white(), intent);
+        println!("       {} {}", "·".dimmed(), reason.dimmed());
+    }
+    println!();
+
+    let remaining = 95 - score;
+    println!("  {} {} points needed to reach v13 Autonomy", "·".dimmed(), remaining);
+    println!("  {} Estimated sessions: {}", "·".dimmed(),
+        if remaining > 20 { "10-15 focused sessions" } else { "5-10 focused sessions" });
+    println!();
+
+    Ok(())
+}

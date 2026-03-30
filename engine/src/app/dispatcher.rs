@@ -484,6 +484,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::Conflicts => crate::domains::strategy::conflicts(ctx),
             StrategyCommand::Coherence => crate::domains::strategy::coherence(ctx),
             StrategyCommand::Merge { goal1, goal2 } => crate::domains::strategy::merge(ctx, &goal1, &goal2),
+            StrategyCommand::Jarvis => crate::domains::strategy::jarvis(ctx),
+            StrategyCommand::Trust => crate::domains::strategy::trust(ctx),
+            StrategyCommand::Gap => crate::domains::strategy::gap(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

@@ -1010,4 +1010,10 @@ pub enum StrategyCommands {
         /// Second goal ID
         goal2: String,
     },
+    /// How close is the forest to Jarvis-level capability?
+    Jarvis,
+    /// What evidence would justify more autonomy?
+    Trust,
+    /// What capabilities are missing for full Jarvis?
+    Gap,
 }
