@@ -33,6 +33,12 @@ output "eDP-2" {
 
 layout {
     gaps 12
+    struts {
+        left 4
+        right 4
+        top 4
+        bottom 4
+    }
     center-focused-column "never"
 
     preset-column-widths {
@@ -282,4 +288,18 @@ window-rule {
 window-rule {
     match is-focused=false
     opacity 0.92
+}
+
+// ── Per-app window rules — INT-136 Phase 2 ───────────────
+// Foot terminal — slightly more transparent, structured corners
+window-rule {
+    match app-id="foot"
+    opacity 0.95
+    geometry-corner-radius 6
+}
+
+// Floating windows — softer corners
+window-rule {
+    match is-floating=true
+    geometry-corner-radius 12
 }
