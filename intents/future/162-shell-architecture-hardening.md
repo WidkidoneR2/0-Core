@@ -62,6 +62,81 @@ Every fsh command fires events into state.db — that is the causal link.
 Every structured command defines its output schema.
 No more implicit tables. No more silent type failures.
 
+## Phase 0 — ExecContext: From String-Driven to Context-Driven (1 session)
+
+This is the most important change in the entire intent.
+Everything else builds on it.
+
+### The Problem
+Right now execution is string-driven:
+```
+string → split → match → execute
+```
+This means the shell has no memory of what it is executing,
+no context to pass to hooks, no structure for policy enforcement.
+preexec hooks (INT-171), structured errors (INT-174), and failure
+recovery (INT-176) are impossible to build cleanly without this.
+
+### The Solution
+Create ExecContext — a typed description of every command execution:
+```rust
+pub struct ExecContext {
+    pub raw:       String,         // exactly what the user typed
+    pub expanded:  String,         // after alias expansion
+    pub cmd:       String,         // resolved command name
+    pub args:      Vec<String>,    // resolved arguments
+    pub cwd:       PathBuf,        // current working directory
+    pub intent:    Option<String>, // active intent (INT-NNN) if any
+    pub timestamp: u64,            // when this was executed
+}
+```
+
+### The Execution Pipeline
+Replace recursive string dispatch with a clean lifecycle:
+```rust
+// engine/exec.rs — ONE place, ONE responsibility
+pub fn execute(line: &str, db: &ForestDb) -> CommandResult {
+    let mut ctx = parse_to_context(line);  // build ExecContext
+    resolve_alias(&mut ctx, db);           // expand aliases
+    preexec(&mut ctx, db);                 // before_run hooks (INT-171)
+    let result = dispatch(&ctx, db);       // run the command
+    postexec(&ctx, &result, db);           // logging, events, suggestions
+    result
+}
+```
+
+### commands/mod.rs Becomes Pure Dispatch
+```rust
+// Before: commands/mod.rs does everything
+// After:  commands/mod.rs does ONE thing
+pub fn dispatch(ctx: &ExecContext, db: &ForestDb) -> CommandResult {
+    match ctx.cmd.as_str() {
+        "gc" => gc(ctx, db),
+        "d"  => doctor(ctx, db),
+        // ...
+    }
+}
+```
+
+### What This Unlocks Immediately
+```
+INT-171 Pre-Command Decision Layer  → preexec hook exists
+INT-174 Structured Errors           → ExecContext gives error context
+INT-176 Failure Recovery            → ctx stored on failure
+INT-177 Shell Observability         → postexec collects metrics
+INT-173 Command Registry            → dispatch table becomes registry
+```
+
+### Acceptance Criteria
+```
+⬜ ExecContext struct defined in engine/exec.rs
+⬜ execute() pipeline: parse → alias → preexec → dispatch → postexec
+⬜ commands/mod.rs reduced to pure dispatch only
+⬜ No recursive execute() calls anywhere
+⬜ All existing commands pass ExecContext instead of raw strings
+⬜ Build passes with zero regressions
+```
+
 ## Phase 1 — Layer Audit (1 session)
 Audit every function in commands/mod.rs and classify:
 ```
@@ -205,6 +280,7 @@ No hidden state. No ambient forest reads inside scripts.
 
 ## Gate Check
 ```
+⬜ Phase 0 — ExecContext implemented, execution pipeline clean
 ⬜ Phase 1 — Layer audit complete
 ⬜ Phase 2 — Schema system implemented
 ⬜ Phase 3 — Pipeline operators complete
