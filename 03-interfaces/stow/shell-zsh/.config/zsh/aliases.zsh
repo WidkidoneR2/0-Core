@@ -10,7 +10,7 @@
 # ═══════════════════════════════════════════════════════════
 
 alias c='clear'                           # Clean terminal
-alias d='doctor'                          # System health check
+alias d='core doctor run'                 # System health check
 alias f='faelight'                        # Main CLI
 alias g='git'                             # Git shortcut
 alias h='history'                         # Command history
