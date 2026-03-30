@@ -3,7 +3,7 @@ id: 136
 date: 2026-03-17
 type: future
 title: "Faelight Forest — Visual Identity & Niri Cosmetics"
-status: in-progress
+status: complete
 tags: [niri, cosmetics, visual, borders, corners, gaps, aesthetics, v11]
 version: 11.1.0
 priority: medium
