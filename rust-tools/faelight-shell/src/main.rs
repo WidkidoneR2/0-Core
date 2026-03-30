@@ -841,10 +841,13 @@ fn print_welcome(core_root: &str) {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Living Forest".to_string());
 
-    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let commits = std::process::Command::new("git")
+        .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "?".to_string());
 
     let health_num: u32 = std::fs::read_to_string(
             std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
@@ -863,14 +866,32 @@ fn print_welcome(core_root: &str) {
         format!("{}% ❌", health_num).bright_red().to_string()
     };
 
-    let complete_count = std::fs::read_dir(root.join("intents/complete"))
-        .map(|d| d.count())
-        .unwrap_or(0);
-    let planned_count = std::fs::read_dir(root.join("intents/future"))
-        .map(|d| d.count())
-        .unwrap_or(0);
-    let tool_count = std::fs::read_dir(root.join("scripts"))
-        .map(|d| d.flatten().filter(|e| e.path().is_file()).count())
+    // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
+    let (complete_count, planned_count) = {
+        let intent_dir = root.join("intents");
+        let categories = ["complete", "decisions", "experiments", "philosophy",
+                          "future", "cancelled", "deferred", "incidents", "active"];
+        let mut complete = 0usize;
+        let mut planned = 0usize;
+        for cat in &categories {
+            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+                for entry in entries.flatten() {
+                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if content.contains("status: complete") { complete += 1; }
+                            else if content.contains("status: planned") { planned += 1; }
+                        }
+                    }
+                }
+            }
+        }
+        (complete, planned)
+    };
+    // Count tools from registry — mirrors doctor check_path_resilience logic exactly
+    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+        .map(|t| t.lines()
+            .filter(|l| l.starts_with("name = "))
+            .count())
         .unwrap_or(0);
 
     let quotes = [
