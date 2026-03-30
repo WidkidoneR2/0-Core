@@ -3,7 +3,7 @@ id: 164
 date: 2026-03-28
 type: future
 title: "Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe"
-status: in-progress
+status: complete
 tags: [build, deploy, cargo, versioned, symlink, rollback, reliability]
 version: 11.5.0
 priority: high
@@ -215,17 +215,17 @@ Step 8: Add deploy/rollback/forest-status to COMMAND-GUIDE.md
 
 ## Gate Check
 ```
-⬜ ~/0-core/bin/ directory created
-⬜ scripts/deploy written and tested on core
-⬜ core@VERSION-HASH naming working
-⬜ Symlink chain: ~/.cargo/bin/core → bin/core → bin/core@VERSION
-⬜ rollback command works (tested)
-⬜ Auto-clean keeps last 5 versions
-⬜ deploy all works (core + fsh)
-⬜ forest-status shows active versions
-⬜ aliases updated: deploy/rollback/forest-status in zsh + fsh
-⬜ No binary ever manually copied again
-⬜ Test: deploy → verify → rollback → verify previous works
+✅ ~/0-core/bin/ directory created (2026-03-30)
+✅ scripts/deploy written and tested on core (2026-03-30)
+✅ core@VERSION-HASH naming working — e.g. core@2.0.0-e637f00 (2026-03-30)
+✅ Symlink chain: ~/.cargo/bin/core → scripts/core (real binary) + bin/core@VERSION (history) (2026-03-30)
+✅ rollback command works — tested both directions (2026-03-30)
+✅ Auto-clean keeps last 5 versions — verified in deploy script (2026-03-30)
+✅ deploy all works — core + faelight-shell (2026-03-30)
+✅ forest-status shows active versions + chain valid (2026-03-30)
+✅ aliases updated: deploy/rollback/forest-status in zsh + fsh config.fsh (2026-03-30)
+✅ No binary ever manually copied again — deploy script handles all (2026-03-30)
+✅ Test: deploy → verify → rollback → verify previous works (2026-03-30)
 ```
 
 ## The Phrase
