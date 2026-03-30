@@ -3,7 +3,7 @@ id: 172
 date: 2026-03-30
 type: future
 title: "Shell Config Stow — config.fsh Under Version Control"
-status: planned
+status: in-progress
 tags: [stow, config, faelight-shell, version-control, symlink, structure]
 version: 11.5.0
 priority: medium
