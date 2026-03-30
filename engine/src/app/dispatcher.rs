@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -473,6 +473,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ReactCommand::Story => crate::domains::reaction::story(ctx),
             ReactCommand::Coalesce => crate::domains::reaction::coalesce(ctx),
             ReactCommand::DisciplineShow => crate::domains::reaction::discipline_show(ctx),
+        },
+        Command::Db(c) => match c {
+            DbCommand::Backup => crate::domains::db::backup(ctx),
+            DbCommand::Restore { file } => crate::domains::db::restore(ctx, &file),
+            DbCommand::Verify => crate::domains::db::verify(ctx),
+            DbCommand::Status => crate::domains::db::status(ctx),
+            DbCommand::Compact => crate::domains::db::compact(ctx),
         },
         Command::Genealogy(c) => match c {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),

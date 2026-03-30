@@ -127,3 +127,8 @@ logs/
 **/*-SECRET*
 runtime/
 engine/target/
+# INT-166 — state.db backups
+runtime/backups/
+runtime/state.db.bak
+runtime/state.db-wal
+runtime/state.db-shm
