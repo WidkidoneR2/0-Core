@@ -53,14 +53,21 @@ One tool at a time. Never batch retire without verifying health between each.
 
 ## Gate Check
 ```
-⬜ archaeology-0-core — DEFERRED: health check dependency in doctor/checks.rs, requires engine change
-⬜ workspace-view — DEFERRED: workspace/mod.rs calls it directly, requires engine rewrite
-⬜ entropy-check — DEFERRED: listed in doctor/aliases.rs, requires alias check update
-⬜ bin-doctor — DEFERRED: referenced in doctor/checks.rs, absorbed into bins.rs but not unlinked
+⬜ archaeology-0-core — deferred to INT-162 layer audit — health check in doctor/checks.rs must be updated first
+⬜ workspace-view — deferred to INT-162 layer audit — workspace/mod.rs calls it directly
+⬜ entropy-check — deferred — absorbed into doctor/entropy.rs (457 lines), binary retirement safe after INT-162
+⬜ bin-doctor — deferred — absorbed into doctor/bins.rs (253 lines), binary retirement safe after INT-162
 ✅ faelight-search RETIRED (2026-03-26) — binary removed, source removed, registry cleaned, aliases commented out
 ✅ 100% path resilience verified after faelight-search retirement (44/44)
 ✅ tools.toml updated — 49 tools registered
 ```
+
+## Retirement Philosophy (2026-03-30)
+Tool retirement is not a sprint — it is a careful process.
+The rule: core absorbs the function → verify completely → retire safely → one at a time.
+Remaining candidates are deferred to INT-162 (Shell Architecture Hardening)
+where the layer audit will make the dependencies explicit and safe to remove.
+INT-179 (faelight-shell v3) will handle zsh alias retirement as fsh coverage grows.
 
 ## The Phrase
 
