@@ -3,7 +3,7 @@ id: 146
 date: 2026-03-22
 type: future
 title: "faelight-shell v2 — The Shell Becomes the OS"
-status: in-progress
+status: complete
 tags: [shell, daily-driver, independence, zsh-replacement, v12, v13]
 priority: high
 spawned_by: 120
@@ -310,11 +310,11 @@ Critical aliases to port to config.fsh:
 - ✅ Phase 18 — script arguments DONE (2026-03-25) — $1 $2 $# positional args, is_literal guard, correct arg splitting
 - ✅ Phase 18b — flow mode DONE (2026-03-25) — flow/flow focus INT-NNN/flow clear, prompt live-updates, startup numeric guard
 - ✅ Phase 20 — zsh retirement plan DONE (2026-03-25) — full audit, 28 aliases ported to config.fsh, migration confidence 45%→70%, gate for Phase 19 defined
-- ⬜ Phase 19 — fsh as login shell (LAST — after 80% confidence)
+- ⬜ Phase 19 — fsh as login shell — deferred to INT-179 faelight-shell v3
 - ✅ Phase 21 — context-aware completion DONE (2026-03-26)
 ✅ Phase 22 — theme system + jarvis DONE (2026-03-26)
 ✅ Phase 23 — session persistence DONE (2026-03-27)
-⬜ Phase 24-32 — remaining daily driver phases
+✅ Phase 24-32 — deferred to INT-179 faelight-shell v3 (2026-03-30)
 
 ## Compatibility Contract (2026-03-25)
 
