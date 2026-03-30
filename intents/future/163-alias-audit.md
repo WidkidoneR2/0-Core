@@ -286,12 +286,12 @@ Last updated: <date> (v11.x.x)
 ✅ docs collision resolved (2026-03-29) — fdocs=faelight-docs, cdocs=cd ~/Documents
 ✅ Hidden logic aliases removed (2026-03-29) — safe-up, pre-commit, full-audit, overview
 ✅ Aliases reduced 446 → 368 (2026-03-29) — 78 removed, zero duplicates
-⬜ fsh config.fsh reviewed — all 32 earn their place
-⬜ docs/CANONICAL-COMMANDS.md created
-⬜ core alias-audit scan passes with 0 critical issues
-⬜ Both zsh AND fsh alias files in sync on concepts
-⬜ docs/COMMAND-GUIDE.md created — daily and weekly commands
-⬜ Guide is factual — only what works today
+✅ fsh config.fsh reviewed — dead alias removed, all remaining earn their place (2026-03-30)
+✅ docs/CANONICAL-COMMANDS.md — folded into COMMAND-GUIDE.md (2026-03-30)
+✅ core alias-audit scan passes with 0 critical issues (2026-03-30)
+✅ Both zsh AND fsh alias files in sync on concepts (2026-03-30)
+✅ docs/COMMAND-GUIDE.md created — 155 lines, all current commands (2026-03-30)
+✅ Guide is factual — only what works today (2026-03-30)
 ⬜ Guide updated by faelight-docs on each release
 ```
 
