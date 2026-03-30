@@ -3,7 +3,7 @@ id: 151
 date: 2026-03-26
 type: future
 title: "Core v12 — Strategy: The Forest Plans Across Horizons"
-status: planned
+status: in-progress
 tags: [core, v12, strategy, planning, horizons, jarvis, autonomy]
 version: 12.0.0
 priority: high

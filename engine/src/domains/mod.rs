@@ -40,3 +40,4 @@ pub mod reaction;
 pub mod predict;
 
 pub mod stress;
+pub mod strategy;
