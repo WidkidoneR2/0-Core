@@ -122,7 +122,7 @@ Phase 5 — Strategy Memory (did past strategies work?)
 ## Gate Check
 ```
 ✅ Core v11 complete — prediction engine ready (2026-03-26) — 9 predict commands, 85% HIGH confidence
-⬜ Phase 1 — Horizon Engine
+✅ Phase 1 — Horizon Engine — now/week/quarter commands live, horizon_snapshots table created (2026-03-30)
 ⬜ Phase 2 — Action Sequencing
 ⬜ Phase 3 — Cross-Intent Coherence
 ⬜ Phase 4 — Jarvis Readiness Tracking
