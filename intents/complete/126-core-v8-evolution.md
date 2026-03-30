@@ -8,6 +8,7 @@ tags: [core, v8, evolution, architecture, intelligence, proposals, v12]
 version: 12.0.0
 priority: medium
 depends_on: [122]
+spawns: [133]
 ---
 
 ## The Core Timeline

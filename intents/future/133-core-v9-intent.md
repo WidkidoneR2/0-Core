@@ -8,6 +8,8 @@ tags: [core, v9, intent, goals, planning, autonomy, architecture, v13]
 version: 13.0.0
 priority: medium
 depends_on: [126]
+spawned_by: 126
+spawns: [140]
 ---
 
 ## The Core Timeline

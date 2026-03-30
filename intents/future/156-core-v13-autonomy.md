@@ -7,6 +7,8 @@ status: planned
 tags: [core, v13, autonomy, jarvis, ai, self-directed, v13]
 version: 13.0.0
 priority: high
+spawned_by: 151
+spawns: [178]
 ---
 
 ## The Core Timeline

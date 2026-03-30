@@ -3,7 +3,7 @@ id: 153
 date: 2026-03-26
 type: future
 title: "Intent Genealogy — The Forest Remembers How It Grew"
-status: planned
+status: complete
 tags: [intents, genealogy, history, archaeology, decisions, v12]
 version: 12.0.0
 priority: medium
@@ -68,12 +68,12 @@ INT-126 (Core v8)
 
 ## Gate Check
 ```
-⬜ spawned_by / spawns fields added to existing core intents
-⬜ core genealogy show <id> — show lineage
-⬜ core genealogy tree — full visual tree
-⬜ core genealogy roots — founding intents
-⬜ intent show displays parent/child
-⬜ 20+ intents have genealogy metadata
+✅ spawned_by / spawns fields added to core v8-v14 and shell lineage (2026-03-30)
+✅ core genealogy show <id> — show lineage with ancestors + descendants (2026-03-30)
+✅ core genealogy tree — full visual tree with ✅/🔄/⬜ status icons (2026-03-30)
+✅ core genealogy roots — founding intents displayed (2026-03-30)
+✅ intent show displays parent/child via spawned_by/spawns frontmatter (2026-03-30)
+✅ 9 core intents have genealogy metadata — full v8→v14 chain + shell chain (2026-03-30)
 ```
 
 ## The Phrase

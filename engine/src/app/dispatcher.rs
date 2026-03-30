@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -473,6 +473,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ReactCommand::Story => crate::domains::reaction::story(ctx),
             ReactCommand::Coalesce => crate::domains::reaction::coalesce(ctx),
             ReactCommand::DisciplineShow => crate::domains::reaction::discipline_show(ctx),
+        },
+        Command::Genealogy(c) => match c {
+            GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),
+            GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
+            GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
         },
         Command::Strategy(c) => match c {
             StrategyCommand::Now => crate::domains::strategy::now(ctx),

@@ -7,6 +7,7 @@ status: complete
 tags: [shell, repl, structured-data, security, plugins, scripting, rust, v11, v12]
 version: 11.0.0
 priority: high
+spawns: [146]
 ---
 
 ## Vision

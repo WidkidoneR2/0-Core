@@ -49,6 +49,7 @@ pub enum Command {
     Predict(PredictCommand),
     React(ReactCommand),
     Strategy(StrategyCommand),
+    Genealogy(GenealogyCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
     Prioritize(PrioritizeCommand),
@@ -489,4 +490,11 @@ pub enum StrategyCommand {
     History,
     Learn { strategy_id: String, outcome: String },
     Review,
+}
+
+#[derive(Debug, Clone)]
+pub enum GenealogyCommand {
+    Show { id: String },
+    Tree,
+    Roots,
 }

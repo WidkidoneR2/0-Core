@@ -7,6 +7,8 @@ status: complete
 tags: [core, v12, strategy, planning, horizons, jarvis, autonomy]
 version: 12.0.0
 priority: high
+spawned_by: 148
+spawns: [156]
 ---
 
 ## The Core Timeline

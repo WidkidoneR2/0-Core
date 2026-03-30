@@ -8,6 +8,8 @@ tags: [core, v10, reaction, events, reflexes, automation, v13]
 version: 13.0.0
 priority: medium
 depends_on: [133, 120]
+spawned_by: 133
+spawns: [148]
 ---
 
 ## The Core Timeline
