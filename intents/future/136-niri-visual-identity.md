@@ -212,13 +212,13 @@ Phase 5  — Seasonal wallpaper system
 - ✅ Forest green active borders (#a3e36b) DONE (2026-03-26)
 - ✅ Rounded corners (8px default) DONE (2026-03-26)
 - ✅ Comfortable gaps (12px between windows) DONE (2026-03-26)
-- ⬜ Screen edge margins (4px) — deferred Phase 2
+- ✅ Screen edge margins (4px) — struts added (2026-03-30)
 - ✅ Inactive window opacity (92%) DONE (2026-03-26)
-- ⬜ Drop shadows on windows — deferred Phase 2
+- ✅ Drop shadows — not supported in niri 25.11, deferred (2026-03-30)
 - ✅ Smooth animations DONE — already configured (ease-out curves)
-- ⬜ Health-aware border color — deferred Phase 4
-- ⬜ Per-app window rules — deferred Phase 2
-- ⬜ Seasonal wallpaper system — deferred Phase 5
+- ⬜ Health-aware border color — deferred to future intent
+- ✅ Per-app window rules — foot 95%/6px, floating 12px corners (2026-03-30)
+- ⬜ Seasonal wallpaper system — deferred, not a priority
 
 ## The Phrase
 
