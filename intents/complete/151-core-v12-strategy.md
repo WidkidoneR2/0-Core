@@ -3,7 +3,7 @@ id: 151
 date: 2026-03-26
 type: future
 title: "Core v12 — Strategy: The Forest Plans Across Horizons"
-status: in-progress
+status: complete
 tags: [core, v12, strategy, planning, horizons, jarvis, autonomy]
 version: 12.0.0
 priority: high
@@ -126,7 +126,7 @@ Phase 5 — Strategy Memory (did past strategies work?)
 ✅ Phase 2 — Action Sequencing — sequence/unblock/tradeoff commands live (2026-03-30)
 ✅ Phase 3 — Cross-Intent Coherence — conflicts/coherence/merge commands live (2026-03-30)
 ✅ Phase 4 — Jarvis Readiness Tracking — jarvis/trust/gap commands live, score 70/100 (2026-03-30)
-⬜ Phase 5 — Strategy Memory
+✅ Phase 5 — Strategy Memory — history/learn/review commands live, learning loop closed (2026-03-30)
 ```
 
 ## Relationship to Other Intents

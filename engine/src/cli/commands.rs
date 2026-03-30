@@ -486,4 +486,7 @@ pub enum StrategyCommand {
     Jarvis,
     Trust,
     Gap,
+    History,
+    Learn { strategy_id: String, outcome: String },
+    Review,
 }

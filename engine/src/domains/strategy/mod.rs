@@ -1143,3 +1143,231 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+// ── Phase 5: Strategy Memory ──────────────────────────────────────────────────
+
+/// core strategy history — past strategies and outcomes
+pub fn history(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    println!();
+    println!("  {}", "🌲 Strategy — History".bright_green().bold());
+    println!("  {}", "Past strategies and did they help?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    // Horizon snapshots
+    let mut snapshots: Vec<(String, String, i64)> = Vec::new();
+    {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT horizon, snapshot, created_at FROM horizon_snapshots ORDER BY created_at DESC LIMIT 10"
+        )?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            snapshots.push((row.get(0)?, row.get(1)?, row.get(2)?));
+        }
+    }
+
+    // Jarvis score history
+    let mut scores: Vec<(i32, i64)> = Vec::new();
+    {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT score, recorded_at FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 5"
+        )?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            scores.push((row.get(0)?, row.get(1)?));
+        }
+    }
+
+    // Strategy proposals
+    let mut strategies: Vec<(String, String, i32, i64)> = Vec::new();
+    {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT horizon, proposal, acted_on, created_at FROM forest_strategies ORDER BY created_at DESC LIMIT 10"
+        )?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            strategies.push((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?));
+        }
+    }
+
+    // Jarvis score trend
+    println!("  {} {}", "▶".bright_cyan(), "Jarvis readiness trend:".bright_white().bold());
+    if scores.is_empty() {
+        println!("    {} No score history yet — run: core strategy jarvis", "·".dimmed());
+    } else {
+        for (score, ts) in &scores {
+            let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| ts.to_string());
+            let bar = "█".repeat((*score as usize) / 10);
+            println!("    {} {} [{}] {}", "·".dimmed(), dt.dimmed(),
+                bar.bright_green(), format!("{}/100", score).bright_white());
+        }
+    }
+    println!();
+
+    // Horizon snapshots
+    println!("  {} {}", "▶".bright_cyan(), "Recent horizon snapshots:".bright_white().bold());
+    if snapshots.is_empty() {
+        println!("    {} No snapshots yet — run: core strategy now/week/quarter", "·".dimmed());
+    } else {
+        for (horizon, snapshot, ts) in &snapshots {
+            let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| ts.to_string());
+            println!("    {} [{}] {} — {}", "·".dimmed(),
+                horizon.bright_cyan(), dt.dimmed(), snapshot.dimmed());
+        }
+    }
+    println!();
+
+    // Strategy proposals
+    println!("  {} {}", "▶".bright_cyan(), "Strategy proposals:".bright_white().bold());
+    if strategies.is_empty() {
+        println!("    {} No strategies recorded yet", "·".dimmed());
+    } else {
+        for (horizon, proposal, acted_on, ts) in &strategies {
+            let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|d| d.format("%Y-%m-%d").to_string())
+                .unwrap_or_else(|| ts.to_string());
+            let status = if *acted_on == 1 { "✅ acted".bright_green().to_string() }
+                else { "⬜ pending".dimmed().to_string() };
+            println!("    {} [{}] {} — {} — {}",
+                "·".dimmed(), horizon.bright_cyan(),
+                dt.dimmed(), proposal.bright_white(), status);
+        }
+    }
+    println!();
+
+    Ok(())
+}
+
+/// core strategy learn <strategy_id> <outcome> — record that a strategy worked or didn't
+pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    let acted = match outcome.to_lowercase().as_str() {
+        "yes" | "true" | "worked" | "good" | "1" => 1,
+        _ => 0,
+    };
+
+    // Try to update an existing strategy
+    let updated = ctx.runtime.db.execute(
+        "UPDATE forest_strategies SET acted_on = ?1 WHERE id = ?2",
+        rusqlite::params![acted, strategy_id.parse::<i64>().unwrap_or(0)],
+    )?;
+
+    println!();
+    println!("  {}", "🌲 Strategy — Learn".bright_green().bold());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    if updated > 0 {
+        let outcome_display = if acted == 1 {
+            "✅ worked".bright_green().to_string()
+        } else {
+            "❌ did not work".bright_red().to_string()
+        };
+        println!("  {} Strategy {} recorded as: {}", "✅".bright_green(),
+            strategy_id.bright_white(), outcome_display);
+        println!("  {} The forest remembers.", "·".dimmed());
+    } else {
+        // Insert as a new learned outcome
+        ctx.runtime.db.execute(
+            "INSERT INTO forest_strategies (horizon, proposal, priority, created_at, acted_on) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params!["learned", strategy_id, 50, now_ts(), acted],
+        )?;
+        println!("  {} Outcome recorded for: {}", "✅".bright_green(), strategy_id.bright_white());
+    }
+    println!();
+
+    Ok(())
+}
+
+/// core strategy review — what worked, what didn't?
+pub fn review(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    println!();
+    println!("  {}", "🌲 Strategy — Review".bright_green().bold());
+    println!("  {}", "What worked? What didn't?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    let mut worked: Vec<(String, String, i64)> = Vec::new();
+    {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT horizon, proposal, created_at FROM forest_strategies WHERE acted_on = 1 ORDER BY created_at DESC LIMIT 5"
+        )?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            worked.push((row.get(0)?, row.get(1)?, row.get(2)?));
+        }
+    }
+
+    let mut did_not_work: Vec<(String, String, i64)> = Vec::new();
+    {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT horizon, proposal, created_at FROM forest_strategies WHERE acted_on = 0 AND horizon != 'now' AND horizon != 'week' AND horizon != 'quarter' ORDER BY created_at DESC LIMIT 5"
+        )?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            did_not_work.push((row.get(0)?, row.get(1)?, row.get(2)?));
+        }
+    }
+
+    // Score trajectory
+    let scores: Vec<i32> = {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT score FROM jarvis_readiness_log ORDER BY recorded_at ASC"
+        )?;
+        stmt.query_map([], |r| r.get::<_, i32>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    };
+
+    println!("  {} {}", "▶".bright_cyan(), "Jarvis score trajectory:".bright_white().bold());
+    if scores.len() < 2 {
+        println!("    {} Not enough data yet — run core strategy jarvis over time", "·".dimmed());
+    } else {
+        let first = scores.first().copied().unwrap_or(0);
+        let last = scores.last().copied().unwrap_or(0);
+        let delta = last - first;
+        let trend = if delta > 0 { format!("↑ +{}", delta).bright_green().to_string() }
+            else if delta < 0 { format!("↓ {}", delta).bright_red().to_string() }
+            else { "→ stable".dimmed().to_string() };
+        println!("    {} {} → {} ({})", "·".dimmed(), first, last, trend);
+    }
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "What worked:".bright_white().bold());
+    if worked.is_empty() {
+        println!("    {} No outcomes recorded yet — run: core strategy learn <id> yes", "·".dimmed());
+    } else {
+        for (horizon, proposal, _) in &worked {
+            println!("    {} [{}] {}", "✅".bright_green(), horizon.bright_cyan(), proposal);
+        }
+    }
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "What didn't work:".bright_white().bold());
+    if did_not_work.is_empty() {
+        println!("    {} No negative outcomes recorded", "·".dimmed());
+    } else {
+        for (horizon, proposal, _) in &did_not_work {
+            println!("    {} [{}] {}", "❌".bright_red(), horizon.bright_cyan(), proposal);
+        }
+    }
+    println!();
+
+    // Key insight
+    println!("  {} {}", "▶".bright_cyan(), "Key insight:".bright_white().bold());
+    println!("    {} The forest learns by recording outcomes.", "·".dimmed());
+    println!("    {} Run: core strategy learn <id> yes/no — after acting on a strategy", "→".bright_green());
+    println!();
+
+    Ok(())
+}

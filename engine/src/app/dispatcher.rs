@@ -487,6 +487,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::Jarvis => crate::domains::strategy::jarvis(ctx),
             StrategyCommand::Trust => crate::domains::strategy::trust(ctx),
             StrategyCommand::Gap => crate::domains::strategy::gap(ctx),
+            StrategyCommand::History => crate::domains::strategy::history(ctx),
+            StrategyCommand::Learn { strategy_id, outcome } => crate::domains::strategy::learn(ctx, &strategy_id, &outcome),
+            StrategyCommand::Review => crate::domains::strategy::review(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

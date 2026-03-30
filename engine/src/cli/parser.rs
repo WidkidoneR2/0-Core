@@ -1016,4 +1016,15 @@ pub enum StrategyCommands {
     Trust,
     /// What capabilities are missing for full Jarvis?
     Gap,
+    /// Past strategies and did they help?
+    History,
+    /// Record outcome of a strategy
+    Learn {
+        /// Strategy ID or description
+        strategy_id: String,
+        /// Outcome: yes/no/worked/failed
+        outcome: String,
+    },
+    /// What worked, what didn't?
+    Review,
 }
