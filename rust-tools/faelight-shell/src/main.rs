@@ -341,7 +341,7 @@ fn repl_main() -> Result<()> {
                             }
                         }
                         // Also block fg commit/push when locked
-                        if (ftok == "fg" && in_core && is_core_locked(&core_root)) {
+                        if ftok == "fg" && in_core && is_core_locked(&core_root) {
                             match stok {
                                 "commit" | "push" | "sync" => {
                                     println!();

@@ -358,7 +358,6 @@ pub fn decline(ctx: &AppContext) -> CoreResult<()> {
 // ── Phase 3: Intent Velocity ──────────────────────────────────────────────────
 pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    use chrono::Datelike;
 
     let core_root = &ctx.core_root;
     let complete_dir = std::path::Path::new(core_root).join("intents/complete");
@@ -412,7 +411,7 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
         .collect();
 
     let per_week = recent.len() as f64 / 4.0;
-    let per_month = recent.len() as f64;
+    let _per_month = recent.len() as f64;
 
     println!("  {} Completion velocity", "▶".bright_cyan());
     println!("    {} {} intents completed in last 28 days", "·".dimmed(),
@@ -460,12 +459,12 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
                     let mut id = String::new();
                     let mut title = String::new();
                     let mut status = String::new();
-                    let mut priority = String::new();
+                    let mut _priority = String::new();
                     for line in content.lines().take(15) {
                         if line.starts_with("id:") { id = line.trim_start_matches("id:").trim().to_string(); }
                         if line.starts_with("title:") { title = line.trim_start_matches("title:").trim().trim_matches('"').to_string(); }
                         if line.starts_with("status:") { status = line.trim_start_matches("status:").trim().to_string(); }
-                        if line.starts_with("priority:") { priority = line.trim_start_matches("priority:").trim().to_string(); }
+                        if line.starts_with("priority:") { _priority = line.trim_start_matches("priority:").trim().to_string(); }
                     }
                     if !id.is_empty() {
                         intents.push((id, title, status));
