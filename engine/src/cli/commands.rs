@@ -48,6 +48,7 @@ pub enum Command {
     Stress(StressCommand),
     Predict(PredictCommand),
     React(ReactCommand),
+    Strategy(StrategyCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
     Prioritize(PrioritizeCommand),
@@ -469,4 +470,11 @@ pub enum EvolutionCommand {
     FutureSim { change: String },
     FutureRisk { change: String },
     FutureImpact { change: String },
+}
+
+#[derive(Debug, Clone)]
+pub enum StrategyCommand {
+    Now,
+    Week,
+    Quarter,
 }

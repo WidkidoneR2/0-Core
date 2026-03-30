@@ -123,6 +123,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: ReactCommands,
     },
+    /// Strategy engine — the forest plans across horizons (Core v12)
+    Strategy {
+        #[command(subcommand)]
+        command: StrategyCommands,
+    },
     /// Task planning — break accepted goals into concrete steps (Core v9)
     Plan {
         #[command(subcommand)]
@@ -972,4 +977,14 @@ pub enum EvolutionCommands {
         /// Description of the change
         change: String,
     },
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum StrategyCommands {
+    /// What needs attention this session?
+    Now,
+    /// What should the next 7 days focus on?
+    Week,
+    /// The 90-day arc toward Jarvis
+    Quarter,
 }

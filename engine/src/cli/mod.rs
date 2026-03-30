@@ -5,7 +5,7 @@ use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GoalsCommand, PredictCommand, ReactCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    GitCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
-    EvolutionCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StressCommands, IntentCommands, LauncherCommands,
+    EvolutionCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
     TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
@@ -300,6 +300,11 @@ pub fn parse() -> Command {
             ReactCommands::Story => ReactCommand::Story,
             ReactCommands::Coalesce => ReactCommand::Coalesce,
             ReactCommands::DisciplineShow => ReactCommand::DisciplineShow,
+        }),
+        Commands::Strategy { command } => Command::Strategy(match command {
+            StrategyCommands::Now => StrategyCommand::Now,
+            StrategyCommands::Week => StrategyCommand::Week,
+            StrategyCommands::Quarter => StrategyCommand::Quarter,
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
