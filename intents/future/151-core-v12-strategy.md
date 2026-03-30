@@ -125,7 +125,7 @@ Phase 5 — Strategy Memory (did past strategies work?)
 ✅ Phase 1 — Horizon Engine — now/week/quarter commands live, horizon_snapshots table created (2026-03-30)
 ✅ Phase 2 — Action Sequencing — sequence/unblock/tradeoff commands live (2026-03-30)
 ✅ Phase 3 — Cross-Intent Coherence — conflicts/coherence/merge commands live (2026-03-30)
-⬜ Phase 4 — Jarvis Readiness Tracking
+✅ Phase 4 — Jarvis Readiness Tracking — jarvis/trust/gap commands live, score 70/100 (2026-03-30)
 ⬜ Phase 5 — Strategy Memory
 ```
 

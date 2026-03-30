@@ -311,6 +311,9 @@ pub fn parse() -> Command {
             StrategyCommands::Conflicts => StrategyCommand::Conflicts,
             StrategyCommands::Coherence => StrategyCommand::Coherence,
             StrategyCommands::Merge { goal1, goal2 } => StrategyCommand::Merge { goal1, goal2 },
+            StrategyCommands::Jarvis => StrategyCommand::Jarvis,
+            StrategyCommands::Trust => StrategyCommand::Trust,
+            StrategyCommands::Gap => StrategyCommand::Gap,
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
