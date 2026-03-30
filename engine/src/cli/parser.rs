@@ -128,6 +128,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: StrategyCommands,
     },
+    /// Database backup and recovery (INT-166)
+    Db {
+        #[command(subcommand)]
+        command: DbCommands,
+    },
     /// Genealogy — the forest remembers how it grew (INT-153)
     Genealogy {
         #[command(subcommand)]
@@ -1045,4 +1050,21 @@ pub enum GenealogyCommands {
     Tree,
     /// Show founding intents with no ancestors
     Roots,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum DbCommands {
+    /// Manual snapshot to timestamped file
+    Backup,
+    /// Restore from a backup snapshot
+    Restore {
+        /// Filename or path to restore from
+        file: String,
+    },
+    /// Run integrity check
+    Verify,
+    /// Show db size, table counts, last backup
+    Status,
+    /// VACUUM to reclaim space
+    Compact,
 }

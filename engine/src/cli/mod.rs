@@ -5,7 +5,7 @@ use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
-    EvolutionCommands, GenealogyCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
+    DbCommands, EvolutionCommands, GenealogyCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
     TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
@@ -300,6 +300,13 @@ pub fn parse() -> Command {
             ReactCommands::Story => ReactCommand::Story,
             ReactCommands::Coalesce => ReactCommand::Coalesce,
             ReactCommands::DisciplineShow => ReactCommand::DisciplineShow,
+        }),
+        Commands::Db { command } => Command::Db(match command {
+            DbCommands::Backup => DbCommand::Backup,
+            DbCommands::Restore { file } => DbCommand::Restore { file },
+            DbCommands::Verify => DbCommand::Verify,
+            DbCommands::Status => DbCommand::Status,
+            DbCommands::Compact => DbCommand::Compact,
         }),
         Commands::Genealogy { command } => Command::Genealogy(match command {
             GenealogyCommands::Show { id } => GenealogyCommand::Show { id },

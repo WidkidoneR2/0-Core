@@ -61,7 +61,11 @@ impl Runtime {
         fs::create_dir_all(&snapshots)?;
         fs::create_dir_all(&locks)?;
         let db_path = root.join("state.db");
+        let backups = root.join("backups");
+        fs::create_dir_all(&backups)?;
         let db = Connection::open(&db_path)?;
+        // INT-166: Enable WAL mode for corruption prevention
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
         db.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS domain_state (

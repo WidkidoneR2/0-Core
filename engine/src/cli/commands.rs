@@ -50,6 +50,7 @@ pub enum Command {
     React(ReactCommand),
     Strategy(StrategyCommand),
     Genealogy(GenealogyCommand),
+    Db(DbCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
     Prioritize(PrioritizeCommand),
@@ -497,4 +498,13 @@ pub enum GenealogyCommand {
     Show { id: String },
     Tree,
     Roots,
+}
+
+#[derive(Debug, Clone)]
+pub enum DbCommand {
+    Backup,
+    Restore { file: String },
+    Verify,
+    Status,
+    Compact,
 }
