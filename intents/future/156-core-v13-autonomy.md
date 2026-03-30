@@ -68,7 +68,7 @@ Never bypass human authorization on destructive actions
 ## The Jarvis Readiness Gate
 v13 only ships when Jarvis readiness score reaches 95/100.
 Current: 65/100.
-v12 targets: 85/100.
+v12 delivered: 70/100 (horizon/sequence/coherence/jarvis/memory — all 5 phases).
 v13 gate: 95/100.
 
 The score is not arbitrary — it represents demonstrated accuracy
@@ -121,7 +121,7 @@ core mandate pause       # temporarily suspend autonomy
 
 ## Gate Check
 ```
-⬜ Core v12 complete — strategy engine ready
+✅ Core v12 complete — 12 strategy commands, Jarvis 70/100 (2026-03-30)
 ⬜ Jarvis readiness score >= 95/100
 ⬜ Phase 1 — Mandate System
 ⬜ Phase 2 — Autonomous Action Engine
