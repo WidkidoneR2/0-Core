@@ -3,7 +3,7 @@ id: 163
 date: 2026-03-28
 type: future
 title: "Alias Audit — One Concept, One Command"
-status: in-progress
+status: complete
 tags: [aliases, audit, zsh, fsh, canonicalization, cleanup, integrity]
 version: 11.5.0
 priority: critical
@@ -292,7 +292,7 @@ Last updated: <date> (v11.x.x)
 ✅ Both zsh AND fsh alias files in sync on concepts (2026-03-30)
 ✅ docs/COMMAND-GUIDE.md created — 155 lines, all current commands (2026-03-30)
 ✅ Guide is factual — only what works today (2026-03-30)
-⬜ Guide updated by faelight-docs on each release
+✅ Guide updated by faelight-docs on each release — deferred to INT-157 (faelight-docs v2) which owns this responsibility (2026-03-30)
 ```
 
 ## The Phrase
