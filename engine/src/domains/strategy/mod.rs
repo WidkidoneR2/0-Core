@@ -593,3 +593,322 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
 
     Ok(())
 }
+
+// ── Phase 3: Cross-Intent Coherence ──────────────────────────────────────────
+
+#[derive(Debug)]
+struct IntentMeta {
+    id: String,
+    title: String,
+    status: String,
+    tags: Vec<String>,
+    priority: String,
+    #[allow(dead_code)]
+    version: String,
+    depends_on: Vec<String>,
+}
+
+fn load_intent_meta(core_root: &str) -> Vec<IntentMeta> {
+    let root = std::path::PathBuf::from(core_root);
+    let mut intents = Vec::new();
+    for dir in &["future", "complete"] {
+        if let Ok(entries) = std::fs::read_dir(root.join("intents").join(dir)) {
+            for entry in entries.flatten() {
+                if !entry.path().extension().map(|e| e == "md").unwrap_or(false) { continue; }
+                let Ok(content) = std::fs::read_to_string(entry.path()) else { continue };
+                let id = content.lines()
+                    .find(|l| l.starts_with("id:"))
+                    .map(|l| l.trim_start_matches("id:").trim().to_string())
+                    .unwrap_or_default();
+                let title = content.lines()
+                    .find(|l| l.starts_with("title:"))
+                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                    .unwrap_or_default();
+                let status = content.lines()
+                    .find(|l| l.starts_with("status:"))
+                    .map(|l| l.trim_start_matches("status:").trim().to_string())
+                    .unwrap_or_default();
+                let priority = content.lines()
+                    .find(|l| l.starts_with("priority:"))
+                    .map(|l| l.trim_start_matches("priority:").trim().to_string())
+                    .unwrap_or_default();
+                let version = content.lines()
+                    .find(|l| l.starts_with("version:"))
+                    .map(|l| l.trim_start_matches("version:").trim().to_string())
+                    .unwrap_or_default();
+                let tags: Vec<String> = content.lines()
+                    .find(|l| l.starts_with("tags:"))
+                    .map(|l| l.trim_start_matches("tags:")
+                        .trim()
+                        .trim_start_matches('[')
+                        .trim_end_matches(']')
+                        .split(',')
+                        .map(|t| t.trim().to_string())
+                        .collect())
+                    .unwrap_or_default();
+                let depends_on: Vec<String> = content.lines()
+                    .find(|l| l.starts_with("depends_on:"))
+                    .map(|l| l.trim_start_matches("depends_on:")
+                        .trim()
+                        .trim_start_matches('[')
+                        .trim_end_matches(']')
+                        .split(',')
+                        .map(|t| t.trim().to_string())
+                        .filter(|t| !t.is_empty())
+                        .collect())
+                    .unwrap_or_default();
+                if !id.is_empty() {
+                    intents.push(IntentMeta { id, title, status, tags, priority, version, depends_on });
+                }
+            }
+        }
+    }
+    intents
+}
+
+/// core strategy conflicts — which intents are pulling in opposite directions?
+pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let intents = load_intent_meta(&ctx.core_root);
+    let in_progress: Vec<&IntentMeta> = intents.iter()
+        .filter(|i| i.status == "in-progress")
+        .collect();
+
+    println!();
+    println!("  {}", "🌲 Strategy — Conflicts".bright_green().bold());
+    println!("  {}", "Which intents are pulling in opposite directions?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    let mut conflict_found = false;
+
+    // Check 1: Dependency violations — in-progress intent depends on planned intent
+    println!("  {} {}", "▶".bright_cyan(), "Dependency check:".bright_white().bold());
+    let mut dep_issues = 0;
+    for intent in &in_progress {
+        for dep in &intent.depends_on {
+            // Find the dependency
+            let dep_status = intents.iter()
+                .find(|i| i.id.to_string() == dep.as_str() ||
+                    format!("{}", i.id).contains(dep.as_str()))
+                .map(|i| i.status.as_str())
+                .unwrap_or("unknown");
+            if dep_status == "planned" {
+                println!("    {} {} depends on {} which is still planned",
+                    "⚠".bright_yellow(),
+                    intent.id.bright_white(),
+                    dep.bright_yellow());
+                dep_issues += 1;
+                conflict_found = true;
+            }
+        }
+    }
+    if dep_issues == 0 {
+        println!("    {} No dependency violations", "✅".bright_green());
+    }
+    println!();
+
+    // Check 2: Tag overlap — multiple in-progress intents touching same domain
+    println!("  {} {}", "▶".bright_cyan(), "Domain overlap:".bright_white().bold());
+    let mut tag_counts: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for intent in &in_progress {
+        for tag in &intent.tags {
+            tag_counts.entry(tag.clone()).or_default().push(intent.id.clone());
+        }
+    }
+    let mut overlap_found = false;
+    for (tag, ids) in &tag_counts {
+        if ids.len() > 1 && !["shell", "fsh", "core"].contains(&tag.as_str()) {
+            println!("    {} [{}] touched by: {}",
+                "⚠".bright_yellow(),
+                tag.bright_yellow(),
+                ids.join(", ").bright_white());
+            overlap_found = true;
+            conflict_found = true;
+        }
+    }
+    if !overlap_found {
+        println!("    {} No domain overlap conflicts", "✅".bright_green());
+    }
+    println!();
+
+    // Check 3: Too many in-progress
+    println!("  {} {}", "▶".bright_cyan(), "Focus check:".bright_white().bold());
+    if in_progress.len() > 3 {
+        println!("    {} {} intents in flight — recommended max is 3",
+            "⚠".bright_yellow(), in_progress.len());
+        for i in &in_progress {
+            println!("      {} {}: {}", "·".dimmed(), i.id.bright_white(), i.title);
+        }
+        conflict_found = true;
+    } else {
+        println!("    {} {} intents in flight — within focus limit",
+            "✅".bright_green(), in_progress.len());
+    }
+    println!();
+
+    if !conflict_found {
+        println!("  {} No conflicts detected — the forest is coherent", "✅".bright_green());
+    }
+
+    Ok(())
+}
+
+/// core strategy coherence — is the current work plan internally consistent?
+pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let intents = load_intent_meta(&ctx.core_root);
+    let in_progress: Vec<&IntentMeta> = intents.iter()
+        .filter(|i| i.status == "in-progress")
+        .collect();
+    let planned: Vec<&IntentMeta> = intents.iter()
+        .filter(|i| i.status == "planned")
+        .collect();
+
+    println!();
+    println!("  {}", "🌲 Strategy — Coherence".bright_green().bold());
+    println!("  {}", "Is the current work plan internally consistent?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    let health = get_health(ctx);
+    let mut score = 100i32;
+    let mut issues: Vec<String> = Vec::new();
+
+    // Factor 1: Health
+    if health < 95 { score -= 10; issues.push(format!("Health at {}% (target ≥ 95%)", health)); }
+
+    // Factor 2: Focus
+    if in_progress.len() > 3 {
+        score -= 20;
+        issues.push(format!("{} intents in flight (recommended ≤ 3)", in_progress.len()));
+    }
+
+    // Factor 3: All in-progress have high/critical priority
+    let low_priority_active: Vec<&str> = in_progress.iter()
+        .filter(|i| i.priority == "low" || i.priority == "medium")
+        .map(|i| i.id.as_str())
+        .collect();
+    if !low_priority_active.is_empty() {
+        score -= 10;
+        issues.push(format!("Low priority intents in flight: {}", low_priority_active.join(", ")));
+    }
+
+    // Factor 4: Planned count reasonable
+    if planned.len() > 20 {
+        score -= 5;
+        issues.push(format!("{} planned intents — backlog growing", planned.len()));
+    }
+
+    let score_display = if score >= 85 {
+        format!("{}/100", score).bright_green().to_string()
+    } else if score >= 70 {
+        format!("{}/100", score).bright_yellow().to_string()
+    } else {
+        format!("{}/100", score).bright_red().to_string()
+    };
+
+    println!("  {} Coherence score: {}", "▶".bright_cyan(), score_display);
+    println!();
+
+    if issues.is_empty() {
+        println!("  {} Work plan is fully coherent", "✅".bright_green());
+    } else {
+        println!("  {} {} issue(s) affecting coherence:", "⚠".bright_yellow(), issues.len());
+        println!();
+        for issue in &issues {
+            println!("    {} {}", "·".dimmed(), issue.bright_white());
+        }
+    }
+    println!();
+
+    // Show active intents summary
+    println!("  {} {}", "▶".bright_cyan(), "Active intents:".bright_white().bold());
+    for intent in &in_progress {
+        let pri_color = match intent.priority.as_str() {
+            "critical" => intent.priority.bright_red().to_string(),
+            "high" => intent.priority.bright_yellow().to_string(),
+            _ => intent.priority.dimmed().to_string(),
+        };
+        println!("    {} {}: {} [{}]",
+            "·".dimmed(), intent.id.bright_white(), intent.title, pri_color);
+    }
+    println!();
+
+    Ok(())
+}
+
+/// core strategy merge <goal1> <goal2> — can these goals be pursued together?
+pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    let get_goal = |id: &str| -> Option<(String, String, String, String)> {
+        ctx.runtime.db.query_row(
+            "SELECT id, title, reason, priority FROM forest_goals WHERE id = ?1",
+            rusqlite::params![id],
+            |r| Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+            )),
+        ).ok()
+    };
+
+    println!();
+    println!("  {}", "🌲 Strategy — Merge".bright_green().bold());
+    println!("  {}", format!("Can {} and {} be pursued together?", goal1, goal2).dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    let g1 = get_goal(goal1);
+    let g2 = get_goal(goal2);
+
+    match (g1, g2) {
+        (None, _) => println!("  {} Goal {} not found — run: core goals list", "❌".bright_red(), goal1),
+        (_, None) => println!("  {} Goal {} not found — run: core goals list", "❌".bright_red(), goal2),
+        (Some((id1, title1, reason1, pri1)), Some((id2, title2, reason2, pri2))) => {
+            println!("  {} {} — {}", "▶".bright_cyan(), id1.bright_white().bold(), title1);
+            println!("  {} {} — {}", "▶".bright_cyan(), id2.bright_white().bold(), title2);
+            println!();
+
+            // Check for shared keywords in reasons
+            let words1: std::collections::HashSet<&str> = reason1.split_whitespace().collect();
+            let words2: std::collections::HashSet<&str> = reason2.split_whitespace().collect();
+            let shared: Vec<&&str> = words1.intersection(&words2)
+                .filter(|w| w.len() > 4)
+                .collect();
+
+            println!("  {} {}", "▶".bright_cyan(), "Compatibility analysis:".bright_white().bold());
+
+            if !shared.is_empty() {
+                println!("    {} Shared concepts: {}", "✅".bright_green(),
+                    shared.iter().take(5).map(|w| **w).collect::<Vec<_>>().join(", "));
+            }
+
+            // Priority compatibility
+            let compatible = (pri1.as_str(), pri2.as_str());
+            match compatible {
+                ("low", "low") | ("medium", "medium") =>
+                    println!("    {} Both {} priority — can share sessions", "✅".bright_green(), pri1),
+                ("high", "high") | ("critical", "critical") =>
+                    println!("    {} Both {} priority — may compete for focus", "⚠".bright_yellow(), pri1),
+                _ =>
+                    println!("    {} Different priorities ({} vs {}) — sequence instead of parallel",
+                        "⚠".bright_yellow(), pri1, pri2),
+            }
+            println!();
+
+            println!("  {} {}", "▶".bright_cyan(), "Recommendation:".bright_white().bold());
+            if pri1 == "high" && pri2 == "high" {
+                println!("    {} Pursue sequentially — complete {} first", "→".bright_green(), id1);
+            } else {
+                println!("    {} These goals can be pursued in parallel", "→".bright_green());
+                println!("    {} Consider creating a combined plan: core plan generate {}", "→".bright_green(), id1);
+            }
+        }
+    }
+    println!();
+    Ok(())
+}
+
