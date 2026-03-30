@@ -3,7 +3,7 @@ id: 172
 date: 2026-03-30
 type: future
 title: "Shell Config Stow — config.fsh Under Version Control"
-status: in-progress
+status: complete
 tags: [stow, config, faelight-shell, version-control, symlink, structure]
 version: 11.5.0
 priority: medium
@@ -55,13 +55,13 @@ Step 10: fg commit
 
 ## Gate Check
 ```
-⬜ shell-faelight stow package created
-⬜ config.fsh content verified identical before/after
-⬜ ~/.config/faelight-shell/config.fsh is now a symlink
-⬜ Symlink resolves to ~/0-core/03-interfaces/stow/shell-faelight/...
-⬜ faelight-shell loads aliases correctly after stow
-⬜ d shows 100% health, stow symlinks all valid
-⬜ fg commit — config.fsh tracked in git
+✅ shell-faelight stow package created (2026-03-30)
+✅ config.fsh content verified identical before/after — diff shows no changes (2026-03-30)
+✅ ~/.config/faelight-shell/config.fsh is now a symlink (2026-03-30)
+✅ Symlink resolves to ~/0-core/03-interfaces/stow/shell-faelight/.config/faelight-shell/config.fsh (2026-03-30)
+✅ faelight-shell loads aliases correctly — 34 aliases 2 settings confirmed (2026-03-30)
+✅ d shows 100% health, 13/13 stow packages valid (2026-03-30)
+✅ fg commit — config.fsh tracked in git (2026-03-30)
 ```
 
 ## The Phrase
