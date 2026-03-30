@@ -478,6 +478,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::Now => crate::domains::strategy::now(ctx),
             StrategyCommand::Week => crate::domains::strategy::week(ctx),
             StrategyCommand::Quarter => crate::domains::strategy::quarter(ctx),
+            StrategyCommand::Sequence { goal_id } => crate::domains::strategy::sequence(ctx, &goal_id),
+            StrategyCommand::Unblock => crate::domains::strategy::unblock(ctx),
+            StrategyCommand::Tradeoff { action } => crate::domains::strategy::tradeoff(ctx, &action),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

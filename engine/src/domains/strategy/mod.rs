@@ -7,6 +7,7 @@
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
+use serde_json;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // ── DB init ───────────────────────────────────────────────────────────────────
@@ -323,6 +324,272 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
         "INSERT INTO horizon_snapshots (horizon, snapshot, created_at) VALUES (?1, ?2, ?3)",
         rusqlite::params!["quarter", snapshot, now_ts()],
     )?;
+
+    Ok(())
+}
+
+// ── Phase 2: Action Sequencing ────────────────────────────────────────────────
+
+/// core strategy sequence <goal_id> — optimal path to a goal
+pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    // Look up the goal
+    let goal: Option<(String, String, String, String)> = ctx.runtime.db
+        .query_row(
+            "SELECT id, title, plan, status FROM forest_goals WHERE id = ?1",
+            rusqlite::params![goal_id],
+            |r| Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+            )),
+        )
+        .ok();
+
+    println!();
+    println!("  {}", "🌲 Strategy — Sequence".bright_green().bold());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    match goal {
+        None => {
+            println!("  {} Goal {} not found", "❌".bright_red(), goal_id.bright_white());
+            println!("  {} Run: core goals list", "·".dimmed());
+        }
+        Some((id, title, plan, status)) => {
+            println!("  {} {} — {}", "▶".bright_cyan(),
+                id.bright_white().bold(), title.bright_white());
+            println!("  {} Status: {}", "·".dimmed(), status.bright_yellow());
+            println!();
+
+            // Show the plan from forest_plans if it exists
+            let plan_steps: Option<(String, String, i64)> = ctx.runtime.db
+                .query_row(
+                    "SELECT steps, risk, sessions FROM forest_plans WHERE goal_id = ?1 ORDER BY created_at DESC LIMIT 1",
+                    rusqlite::params![&id],
+                    |r| Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, i64>(2)?,
+                    )),
+                )
+                .ok();
+
+            if let Some((steps, risk, sessions)) = plan_steps {
+                println!("  {} {}", "▶".bright_cyan(), "Execution sequence:".bright_white().bold());
+                // Steps may be JSON array or newline-separated text
+                let parsed: Vec<String> = if steps.trim_start().starts_with('[') {
+                    serde_json::from_str(&steps).unwrap_or_else(|_| vec![steps.clone()])
+                } else {
+                    steps.lines()
+                        .map(|l| l.trim().trim_start_matches('-').trim().to_string())
+                        .filter(|l| !l.is_empty())
+                        .collect()
+                };
+                for (i, step) in parsed.iter().enumerate() {
+                    println!("    {} [{}] {}", "→".bright_green(), i + 1, step);
+                }
+                println!();
+                println!("  {} {}", "▶".bright_cyan(), "Execution profile:".bright_white().bold());
+                println!("    {} Estimated sessions: {}", "·".dimmed(), sessions);
+                println!("    {} Risk level: {}", "·".dimmed(), risk.bright_yellow());
+            } else {
+                println!("  {} {}", "▶".bright_cyan(), "Recommended sequence:".bright_white().bold());
+                // Fall back to the goal's own plan field
+                for (i, step) in plan.lines().enumerate().take(8) {
+                    let step = step.trim().trim_start_matches('-').trim();
+                    if !step.is_empty() {
+                        println!("    {} [{}] {}", "→".bright_green(), i + 1, step);
+                    }
+                }
+                println!();
+                println!("  {} Run: core plan generate {} — to build a detailed plan",
+                    "💡".bright_yellow(), id);
+            }
+
+            // Check for related intents
+            let root = std::path::PathBuf::from(&ctx.core_root);
+            let related: Vec<String> = std::fs::read_dir(root.join("intents/future"))
+                .map(|entries| entries.flatten()
+                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                    .filter_map(|e| {
+                        let c = std::fs::read_to_string(e.path()).ok()?;
+                        if !c.contains("status: in-progress") { return None; }
+                        let t = c.lines()
+                            .find(|l| l.starts_with("title:"))?
+                            .trim_start_matches("title:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string();
+                        let id = e.file_name()
+                            .to_string_lossy()
+                            .split('-')
+                            .next()
+                            .unwrap_or("?")
+                            .to_string();
+                        Some(format!("INT-{}: {}", id, t))
+                    })
+                    .collect())
+                .unwrap_or_default();
+
+            if !related.is_empty() {
+                println!();
+                println!("  {} {}", "▶".bright_cyan(), "Active intents supporting this goal:".bright_white().bold());
+                for intent in &related {
+                    println!("    {} {}", "·".dimmed(), intent);
+                }
+            }
+        }
+    }
+    println!();
+    Ok(())
+}
+
+/// core strategy unblock — what is blocking the most progress?
+pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let health = get_health(ctx);
+    let in_progress = get_in_progress_intents(ctx);
+    let commits = get_recent_commits(ctx);
+
+    println!();
+    println!("  {}", "🌲 Strategy — Unblock".bright_green().bold());
+    println!("  {}", "What is blocking the most progress?".dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    let mut blockers: Vec<(u8, String, String)> = Vec::new(); // (priority, blocker, action)
+
+    // Health blocker
+    if health < 80 {
+        blockers.push((10, format!("Health at {}% — system needs attention", health),
+            "Run: d — investigate and fix warnings".to_string()));
+    }
+
+    // Too many intents in flight
+    if in_progress.len() > 3 {
+        blockers.push((20, format!("{} intents in flight — cognitive overload", in_progress.len()),
+            format!("Focus on one: {}", in_progress.first().cloned().unwrap_or_default())));
+    }
+
+    // Check for stale in-progress intents (no recent commits)
+    let _root = std::path::PathBuf::from(&ctx.core_root);
+    let _recent = commits;
+
+    // Goals without plans
+    let goals_no_plan: Vec<String> = {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT id, title FROM forest_goals WHERE status = 'accepted' AND id NOT IN (SELECT goal_id FROM forest_plans)"
+        )?;
+        stmt.query_map([], |r| Ok(format!("{}: {}", r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    };
+
+    if !goals_no_plan.is_empty() {
+        for goal in &goals_no_plan {
+            blockers.push((30, format!("Goal {} has no execution plan", goal),
+                format!("Run: core plan generate {}", goal.split(':').next().unwrap_or(""))));
+        }
+    }
+
+    // No accepted goals
+    let goal_count: i64 = ctx.runtime.db
+        .query_row("SELECT COUNT(*) FROM forest_goals WHERE status = 'accepted'", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    if goal_count == 0 {
+        blockers.push((40, "No accepted goals — forest has no direction".to_string(),
+            "Run: core goals generate — to create goals from evidence".to_string()));
+    }
+
+    if blockers.is_empty() {
+        println!("  {} No blockers detected — the forest is clear to build", "✅".bright_green());
+        println!();
+        println!("  {} {}", "▶".bright_cyan(), "Current state:".bright_white().bold());
+        println!("    {} Health:  {}%", "·".dimmed(), health);
+        println!("    {} Active:  {} intents", "·".dimmed(), in_progress.len());
+        println!("    {} Goals:   {} accepted", "·".dimmed(), goal_count);
+    } else {
+        blockers.sort_by_key(|b| b.0);
+        println!("  {} {} blocker(s) detected:", "⚠".bright_yellow(), blockers.len());
+        println!();
+        for (i, (_, blocker, action)) in blockers.iter().enumerate() {
+            println!("  {} [{}] {}", "🔴".bright_red(), i + 1, blocker.bright_white());
+            println!("       {} {}", "→".bright_green(), action);
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
+/// core strategy tradeoff <action> — what do we give up to do this now?
+pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let in_progress = get_in_progress_intents(ctx);
+    let health = get_health(ctx);
+
+    println!();
+    println!("  {}", "🌲 Strategy — Tradeoff".bright_green().bold());
+    println!("  {}", format!("What do we give up to do \"{}\" now?", action).dimmed());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "Proposed action:".bright_white().bold());
+    println!("    {} {}", "→".bright_green(), action.bright_white());
+    println!();
+
+    println!("  {} {}", "▶".bright_cyan(), "What you give up:".bright_white().bold());
+
+    // Currently in progress — these get delayed
+    if in_progress.is_empty() {
+        println!("    {} Nothing currently in flight — clean slate", "·".dimmed());
+    } else {
+        println!("    {} Delays these in-progress intents:", "·".dimmed());
+        for intent in &in_progress {
+            println!("      {} {}", "·".dimmed(), intent);
+        }
+    }
+    println!();
+
+    // Health risk
+    println!("  {} {}", "▶".bright_cyan(), "Risk assessment:".bright_white().bold());
+    if health < 95 {
+        println!("    {} Health at {}% — adding work increases risk", "⚠".bright_yellow(), health);
+    } else {
+        println!("    {} Health at {}% — safe to take on new work", "✅".bright_green(), health);
+    }
+
+    if in_progress.len() > 2 {
+        println!("    {} {} intents already in flight — high context-switch cost",
+            "⚠".bright_yellow(), in_progress.len());
+    } else {
+        println!("    {} {} intents in flight — manageable", "✅".bright_green(), in_progress.len());
+    }
+    println!();
+
+    // Check historical tradeoffs for similar actions
+    let similar: Option<(String, String)> = ctx.runtime.db
+        .query_row(
+            "SELECT description, recommendation FROM forest_tradeoffs ORDER BY created_at DESC LIMIT 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+        )
+        .ok();
+
+    if let Some((desc, rec)) = similar {
+        println!("  {} {}", "▶".bright_cyan(), "Most recent tradeoff analysis:".bright_white().bold());
+        println!("    {} {}", "·".dimmed(), desc);
+        println!("    {} {}", "→".bright_green(), rec);
+        println!();
+    }
+
+    println!("  {} Run: core tradeoff analyze — for a full tradeoff analysis", "💡".bright_yellow());
+    println!();
 
     Ok(())
 }

@@ -987,4 +987,16 @@ pub enum StrategyCommands {
     Week,
     /// The 90-day arc toward Jarvis
     Quarter,
+    /// Optimal path to achieve a goal
+    Sequence {
+        /// Goal ID (e.g. GOAL-001)
+        goal_id: String,
+    },
+    /// What is blocking the most progress?
+    Unblock,
+    /// What do we give up to do this action now?
+    Tradeoff {
+        /// The action to analyze
+        action: String,
+    },
 }

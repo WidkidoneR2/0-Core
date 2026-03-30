@@ -477,4 +477,7 @@ pub enum StrategyCommand {
     Now,
     Week,
     Quarter,
+    Sequence { goal_id: String },
+    Unblock,
+    Tradeoff { action: String },
 }

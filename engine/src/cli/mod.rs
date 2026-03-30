@@ -305,6 +305,9 @@ pub fn parse() -> Command {
             StrategyCommands::Now => StrategyCommand::Now,
             StrategyCommands::Week => StrategyCommand::Week,
             StrategyCommands::Quarter => StrategyCommand::Quarter,
+            StrategyCommands::Sequence { goal_id } => StrategyCommand::Sequence { goal_id },
+            StrategyCommands::Unblock => StrategyCommand::Unblock,
+            StrategyCommands::Tradeoff { action } => StrategyCommand::Tradeoff { action },
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
