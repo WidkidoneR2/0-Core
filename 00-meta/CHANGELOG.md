@@ -1,5 +1,69 @@
 # Changelog
 
+## [11.5.0] — The Shell Awakens (2026-03-30)
+
+### 🎯 Completed Intents
+- **INT-120** — faelight-shell — Forest-Native Shell Environment
+- **INT-126** — Core v8 — Evolution: The Forest Refines Itself
+- **INT-136** — Faelight Forest — Visual Identity & Niri Cosmetics
+- **INT-140** — Core v10 — Reaction: The Forest Responds Without Being Asked
+- **INT-146** — faelight-shell v2 — The Shell Becomes the OS
+- **INT-148** — Core v11 — Prediction: The Forest Anticipates
+- **INT-149** — Tool Retirement Sprint — Clean What the Core Has Absorbed
+- **INT-151** — Core v12 — Strategy: The Forest Plans Across Horizons
+- **INT-153** — Intent Genealogy — The Forest Remembers How It Grew
+- **INT-155** — faelight-shell Prompt Themes — The Shell Has a Face
+- **INT-162** — Shell Architecture Hardening — The Foundation Must Be Solid
+- **INT-163** — Alias Audit — One Concept, One Command
+- **INT-164** — Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe
+- **INT-165** — fsh Welcome Screen — Truth Only, No Stale Data
+- **INT-166** — state.db Backup and Recovery — Protect the Forest's Memory
+- **INT-171** — Pre-Command Decision Layer — The Shell That Understands Before It Executes
+- **INT-172** — Shell Config Stow — config.fsh Under Version Control
+- **INT-173** — Command Registry — The Shell Knows What It Can Do
+- **INT-174** — Structured Errors — The Shell Explains Its Failures
+
+### ✨ Features
+- fsh — core subcommand shortcuts, predict/react/stress/doctor/goals native, no prefix needed
+- fsh — jarvis theme Phase 22, prediction inline in prompt, INT-136 + health state visible
+- fsh Phase 23 — session persistence, directory restored on startup
+- fsh Phase 25 — faelight-term launches fsh by default, falls back to zsh
+- faelight-release — docs section added, newest first, live health, scope grouping
+
+### 🔧 Fixes
+- README changelog link — full GitHub URL to 00-meta/CHANGELOG.md
+- fsh welcome — reads live health from ~/.cache/faelight/health-status
+- INT-163 — aliases.zsh 446→412, zero duplicates, 21 stale aliases removed (dot-doctor, sway, v9.3.0)
+- INT-163 — alias-audit removes retired dot-doctor + bump-system-version, array size 34→32
+- INT-163 — synonym cleanup, 446→368 aliases, zero duplicates, one concept one command
+- d alias points to core doctor run directly, doctor synonym removed INT-163
+
+### 📚 Documentation
+- README rewritten — core v10+v11 complete, accurate tool count, journey updated, chaos testing documented
+- INT-157 faelight-docs v2, INT-158 Partner Vision — the forest becomes a genuine collaborator
+- INT-159 faelight-context, INT-160 faelight-memory, INT-161 build order — path to partnership
+- INT-146 Phase 21+22+23 gates updated
+- INT-146 Phase 25 gate updated, phase priority order documented
+- INT-162 Shell Architecture Hardening + INT-163 Alias Audit — foundation integrity before v12
+- INT-163 updated — 100 alias target, COMMAND-GUIDE.md deliverable added
+- INT-164 Core Deploy Pipeline + INT-165 fsh Welcome Truth — build and accuracy improvements
+- INT-166/167/168/169 — state.db backup, prediction feedback loop, test suite, niri autostart audit
+- INT-164 updated — symlink strategy, forest-status command, simplified deploy pipeline
+- INT-164 versioned deploy architecture + INT-171 Pre-Command Decision Layer
+
+### 🔩 Internal (52 commits)
+- faelight-forest 11.4.0 live
+- faelight-docs sync — v11.4.0 The Bloom
+- INT-163: add COMMAND-GUIDE.md, clean config.fsh dead alias
+- INT-163: add COMMAND-GUIDE.md, clean config.fsh, update gate checks
+- INT-164: deploy pipeline, rollback, forest-status, clean warnings
+- ...and 47 more internal changes
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 1779  ·  Tools: 50 deployed  ·  Intents: 115 complete
+
+---
+
 ## [11.4.0] — The Bloom (2026-03-26)
 
 ### 🎯 Completed Intents

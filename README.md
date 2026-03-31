@@ -1,27 +1,52 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.4.0
-![Version](https://img.shields.io/badge/version-11.4.0-green?style=flat-square)
+# 🌲 Faelight Forest 11.5.0
+
+![Version](https://img.shields.io/badge/version-11.5.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> **A self-aware, anticipatory personal computing environment built from first principles in Rust.**
+> **A self-aware, path-resilient personal computing environment built from first principles.**
 
-## 🎊 Latest Release — 11.4.0 "The Bloom"
+## 🎊 Latest Release
 
-6 intents shipped. 30 commits. The forest learned to anticipate.
+### 11.5.0 - 🌲 The Shell Awakens (2026-03-30)
 
-- ✅ **Core v11 Prediction** — 9 commands: session patterns, health trajectory, intent velocity, coupling forecasting, accuracy tracking
-- ✅ **Core v11 Stress Test** — 5/5 PASS — prediction, reaction, health all verified under load
-- ✅ **Core Health Chaos** — 5/5 scenarios PASS — forest survives deliberate failure injection
-- ✅ **faelight-notify v4** — freedesktop spec, zbus D-Bus, all urgency levels, Wayland native
-- ✅ **faelight-shell Phase 21** — context-aware completion, dynamic intent IDs, 8 new builtins, 4 prompt themes
-- ✅ **INT-136 Phase 1** — Niri visual identity: forest green focus ring, rounded corners, inactive opacity
+- 120 — faelight-shell — Forest-Native Shell Environment
+- 126 — Core v8 — Evolution: The Forest Refines Itself
+- 136 — Faelight Forest — Visual Identity & Niri Cosmetics
+- 140 — Core v10 — Reaction: The Forest Responds Without Being Asked
+- 146 — faelight-shell v2 — The Shell Becomes the OS
+- 148 — Core v11 — Prediction: The Forest Anticipates
+- 149 — Tool Retirement Sprint — Clean What the Core Has Absorbed
+- 151 — Core v12 — Strategy: The Forest Plans Across Horizons
+- 153 — Intent Genealogy — The Forest Remembers How It Grew
+- 155 — faelight-shell Prompt Themes — The Shell Has a Face
+- 162 — Shell Architecture Hardening — The Foundation Must Be Solid
+- 163 — Alias Audit — One Concept, One Command
+- 164 — Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe
+- 165 — fsh Welcome Screen — Truth Only, No Stale Data
+- 166 — state.db Backup and Recovery — Protect the Forest's Memory
+- 171 — Pre-Command Decision Layer — The Shell That Understands Before It Executes
+- 172 — Shell Config Stow — config.fsh Under Version Control
+- 173 — Command Registry — The Shell Knows What It Can Do
+- 174 — Structured Errors — The Shell Explains Its Failures
+- fsh — core subcommand shortcuts, predict/react/stress/doctor/goals native, no prefix needed
+- fsh — jarvis theme Phase 22, prediction inline in prompt, INT-136 + health state visible
+- fsh Phase 23 — session persistence, directory restored on startup
+- fsh Phase 25 — faelight-term launches fsh by default, falls back to zsh
+- faelight-release — docs section added, newest first, live health, scope grouping
 
-[Full Changelog →](https://github.com/WidkidoneR2/0-Core/blob/main/00-meta/CHANGELOG.md)
+- Commits: 1779
+- Tools: 50 deployed
+- Health: 100%
+- Intents: 115 complete
+
+[Full Changelog →](CHANGELOG.md)
 
 ---
+
 <!-- END DYNAMIC SECTION -->
 
 <!-- STATIC SECTION -->
