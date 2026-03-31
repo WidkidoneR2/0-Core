@@ -22,6 +22,14 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
             created_at   INTEGER NOT NULL,
             expires_at   INTEGER
         );
+        CREATE TABLE IF NOT EXISTS prediction_outcomes (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            prediction_id INTEGER NOT NULL,
+            actual        TEXT    NOT NULL,
+            correct       INTEGER NOT NULL DEFAULT 0,
+            delta         TEXT,
+            verified_at   INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS session_patterns (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             day_of_week  INTEGER NOT NULL,
@@ -32,6 +40,20 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
         );",
     )?;
     Ok(())
+}
+
+// ── Prediction Storage Helper (INT-167) ─────────────────────────────────────
+fn store_prediction(ctx: &AppContext, kind: &str, prediction: &str, confidence: i64) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let expires_at = now + (7 * 24 * 3600); // verify in 7 days
+    let _ = ctx.runtime.db.execute(
+        "INSERT INTO forest_predictions (kind, prediction, confidence, evidence, created_at, expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![kind, prediction, confidence, "{}", now, expires_at],
+    );
 }
 
 // ── Phase 1: Session Pattern Engine ──────────────────────────────────────────
@@ -130,9 +152,13 @@ pub fn sessions(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Prediction", "▶".bright_yellow());
     if by_day[current_dow] >= by_day[best_day] / 2 {
+        let pred_text = format!("Today ({}) is a typical build day", days[current_dow]);
+        store_prediction(ctx, "sessions", &pred_text, 75);
         println!("    {} Today ({}) is a typical build day for you",
             "→".bright_green(), days[current_dow].bright_white());
     } else {
+        let pred_text = format!("{} is the most active build day", days[best_day]);
+        store_prediction(ctx, "sessions", &pred_text, 80);
         println!("    {} {} is your most active day — consider scheduling there",
             "→".bright_cyan(), days[best_day].bright_white());
     }
@@ -196,6 +222,7 @@ pub fn cadence(ctx: &AppContext) -> CoreResult<()> {
     // Prediction: next week
     let predicted_next_week = (per_week * 1.05) as u32; // slight upward trend
     println!("  {} Prediction — next 7 days", "▶".bright_yellow());
+    store_prediction(ctx, "cadence", &format!("~{} commits expected next 7 days", predicted_next_week), 75);
     println!("    {} ~{} commits expected (based on current pace)",
         "→".bright_green(), predicted_next_week.to_string().bright_white());
 
@@ -430,6 +457,7 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
             "·".dimmed(), weeks_to_clear.to_string().bright_white());
 
         let clear_date = now + chrono::Duration::weeks(weeks_to_clear as i64);
+        store_prediction(ctx, "intents", &format!("Backlog clears in {:.0} weeks by {}", weeks_to_clear, clear_date.format("%Y-%m-%d")), 70);
         println!("    {} Estimated completion: {}",
             "→".bright_green(),
             clear_date.format("%Y-%m-%d").to_string().bright_white());
@@ -626,6 +654,7 @@ pub fn churn(ctx: &AppContext) -> CoreResult<()> {
                 println!();
                 println!("  {} Prediction", "▶".bright_yellow());
                 let short = top_file.split('/').last().unwrap_or(top_file);
+                store_prediction(ctx, "churn", &format!("{} is highest churn file ({} changes)", short, top_count), 80);
                 println!("    {} {} is your highest churn file ({} changes)",
                     "→".bright_cyan(), short.bright_white(), top_count);
                 println!("    {} Consider refactoring if this grows past 15 changes",
@@ -648,53 +677,80 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
-    // Count predictions made vs outcomes recorded
+    // Real prediction counts from database
     let total_predictions: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
     ).unwrap_or(0);
-
     let total_outcomes: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
     ).unwrap_or(0);
+    let correct_outcomes: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes WHERE correct=1", [], |r| r.get(0)
+    ).unwrap_or(0);
 
-    println!("  {} Prediction history", "▶".bright_cyan());
-    println!("    {} {} predictions generated", "·".dimmed(),
+    println!("  {} Prediction history", "\u{25b6}".bright_cyan());
+    println!("    {} {} predictions stored", "\u{00b7}".dimmed(),
         total_predictions.to_string().bright_white());
-    println!("    {} {} outcomes recorded", "·".dimmed(),
+    println!("    {} {} outcomes verified", "\u{00b7}".dimmed(),
         total_outcomes.to_string().bright_white());
+    if total_outcomes > 0 {
+        let accuracy = (correct_outcomes * 100) / total_outcomes;
+        println!("    {} {}% accuracy ({}/{} correct)", "\u{00b7}".dimmed(),
+            accuracy.to_string().bright_green(), correct_outcomes, total_outcomes);
+    }
     println!();
 
-    // Confidence from current session patterns
+    // Breakdown by kind
+    if total_predictions > 0 {
+        println!("  {} Predictions by type", "\u{25b6}".bright_cyan());
+        for kind in &["sessions", "cadence", "health", "intents", "churn", "coupling"] {
+            let count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM forest_predictions WHERE kind=?1",
+                rusqlite::params![kind], |r| r.get(0)
+            ).unwrap_or(0);
+            if count > 0 {
+                println!("    {} {:<12} {} stored", "\u{00b7}".dimmed(), kind, count);
+            }
+        }
+        println!();
+    }
+
+    // Model confidence
     let commit_count: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit'",
         [], |r| r.get(0)
     ).unwrap_or(0);
-
     let doctor_count: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM events WHERE domain='doctor' AND action='run'",
         [], |r| r.get(0)
     ).unwrap_or(0);
-
-    let confidence = match (commit_count, doctor_count) {
+    let base_confidence: i64 = match (commit_count, doctor_count) {
         (c, d) if c >= 200 && d >= 100 => 85,
         (c, d) if c >= 100 && d >= 50  => 70,
         (c, d) if c >= 50  && d >= 20  => 55,
         _                               => 40,
     };
-
-    println!("  {} Model confidence", "▶".bright_yellow());
-    println!("    {} Based on {} commits + {} health runs",
-        "·".dimmed(), commit_count, doctor_count);
-    let conf_str = if confidence >= 80 {
-        format!("{}%  HIGH", confidence).bright_green().to_string()
-    } else if confidence >= 60 {
-        format!("{}%  MEDIUM", confidence).yellow().to_string()
+    let calibrated = if total_outcomes >= 10 {
+        let measured = (correct_outcomes * 100) / total_outcomes;
+        (base_confidence + measured) / 2
     } else {
-        format!("{}%  LOW — need more data", confidence).dimmed().to_string()
+        base_confidence
     };
-    println!("    {} Confidence: {}", "→".bright_cyan(), conf_str);
+    println!("  {} Model confidence", "\u{25b6}".bright_yellow());
+    println!("    {} Based on {} commits + {} doctor runs",
+        "\u{00b7}".dimmed(), commit_count, doctor_count);
+    let conf_str = if calibrated >= 80 {
+        format!("{}%  HIGH", calibrated).bright_green().to_string()
+    } else if calibrated >= 60 {
+        format!("{}%  MEDIUM", calibrated).yellow().to_string()
+    } else {
+        format!("{}%  LOW", calibrated).dimmed().to_string()
+    };
+    println!("    {} Confidence: {}", "\u{2192}".bright_cyan(), conf_str);
+    if total_outcomes < 10 {
+        println!("    {} Run predict commands to build accuracy baseline", "\u{2192}".dimmed());
+    }
     println!();
-    println!("  {} Confidence grows with every commit and doctor run", "hint:".dimmed());
-    println!("{}", "━".repeat(52).dimmed());
+    println!("{}", "\u{2501}".repeat(52).dimmed());
     Ok(())
 }
