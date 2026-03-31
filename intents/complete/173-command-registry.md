@@ -3,7 +3,7 @@ id: 173
 date: 2026-03-30
 type: future
 title: "Command Registry — The Shell Knows What It Can Do"
-status: in-progress
+status: complete
 tags: [shell, fsh, registry, completion, commands, intelligence]
 version: 12.0.0
 priority: medium
