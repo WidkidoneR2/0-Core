@@ -502,6 +502,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::History => crate::domains::strategy::history(ctx),
             StrategyCommand::Learn { strategy_id, outcome } => crate::domains::strategy::learn(ctx, &strategy_id, &outcome),
             StrategyCommand::Review => crate::domains::strategy::review(ctx),
+            StrategyCommand::Next { list, why } => crate::domains::strategy::next(ctx, list, why.as_deref()),
+            StrategyCommand::Queue => crate::domains::strategy::queue(ctx),
+            StrategyCommand::Blockers => crate::domains::strategy::blockers(ctx),
         },
         Command::Plan(c) => match c {
             PlanCommand::Generate { goal_id } => crate::domains::planning::generate(ctx, &goal_id),

@@ -1037,6 +1037,19 @@ pub enum StrategyCommands {
     },
     /// What worked, what didn't?
     Review,
+    /// What should I work on next? (INT-181)
+    Next {
+        /// List all ranked intents instead of top recommendation
+        #[arg(long)]
+        list: bool,
+        /// Explain why a specific intent is ranked where it is
+        #[arg(long)]
+        why: Option<String>,
+    },
+    /// Ordered work queue for next 5 sessions (INT-181)
+    Queue,
+    /// What is blocking the most planned intents? (INT-181)
+    Blockers,
 }
 
 #[derive(Debug, clap::Subcommand)]

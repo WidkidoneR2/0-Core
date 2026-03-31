@@ -3,7 +3,7 @@ id: 181
 date: 2026-03-30
 type: feature
 title: "Forest Next Intent Engine — The Forest Knows What Comes Next"
-status: planned
+status: in-progress
 tags: [core, intelligence, strategy, intents, v12, autonomy, planning]
 version: 12.1.0
 ---
@@ -89,15 +89,15 @@ Core v11 prediction feeds into velocity_alignment score.
 
 ## Gate Check
 ```
-⬜ Dependency graph built from intent files
-⬜ Scoring algorithm implemented — 5 factors weighted
-⬜ core strategy next — top recommendation with reasoning
-⬜ core strategy next --list — ranked queue of all planned
-⬜ core strategy queue — 5-session work plan
-⬜ core strategy blockers — what is blocking most progress
-⬜ Queue updates dynamically after each cicomplete
-⬜ Integrated with INT-161 build order philosophy
-⬜ Jarvis readiness score factors in strategy engine quality
+✅ Dependency graph built from intent files — INT-NNN references parsed (2026-03-31)
+✅ Scoring algorithm implemented — dep/health/velocity/presentation/complexity (2026-03-31)
+✅ core strategy next — top recommendation with confidence and reasoning (2026-03-31)
+✅ core strategy next --list — 18 intents ranked and scored (2026-03-31)
+✅ core strategy queue — 5-session work plan with reasons (2026-03-31)
+✅ core strategy blockers — dependency blockers surfaced with open dep count (2026-03-31)
+✅ Queue updates dynamically — reads live intent files on every call (2026-03-31)
+✅ Integrated with INT-161 — implements it as a running scoring engine (2026-03-31)
+✅ Jarvis readiness — next/queue/blockers feed strategy quality assessment (2026-03-31)
 ```
 
 ## The Phrase

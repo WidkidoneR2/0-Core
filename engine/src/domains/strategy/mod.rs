@@ -1371,3 +1371,243 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
 
     Ok(())
 }
+
+
+// ── INT-181: Forest Next Intent Engine ───────────────────────────────────────
+
+#[derive(Debug, Clone)]
+struct ScoredIntent {
+    id:          String,
+    title:       String,
+    score:       f64,
+    reasons:     Vec<String>,
+    blockers:    Vec<String>,
+}
+
+fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    let future_dir = root.join("intents/future");
+    let complete_dir = root.join("intents/complete");
+
+    // Collect complete intent IDs for dependency checking
+    let complete_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
+        .map(|d| d.flatten()
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                let id = name.split('-').next().unwrap_or("").to_string();
+                if id.chars().all(|c| c.is_ascii_digit()) { Some(id) } else { None }
+            })
+            .collect())
+        .unwrap_or_default();
+
+    let health = get_health(ctx);
+    let in_progress = get_in_progress_intents(ctx);
+
+    let mut scored: Vec<ScoredIntent> = vec![];
+
+    let entries = match std::fs::read_dir(&future_dir) {
+        Ok(e) => e,
+        Err(_) => return scored,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e != "md").unwrap_or(true) { continue; }
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        // Only planned intents
+        if !content.contains("status: planned") { continue; }
+
+        // Extract ID and title
+        let fname = entry.file_name().to_string_lossy().to_string();
+        let id = fname.split('-').next().unwrap_or("0").to_string();
+        let title = content.lines()
+            .find(|l| l.starts_with("title:"))
+            .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+            .unwrap_or_else(|| fname.clone());
+
+        // Factor 1: Dependency readiness (0.35)
+        let dep_refs: Vec<String> = {
+            let re = regex_find_ints(&content);
+            re.iter().filter(|dep| dep != &&id && !complete_ids.contains(*dep)).cloned().collect()
+        };
+        let open_deps = dep_refs.len();
+        let dep_score = if open_deps == 0 { 1.0 } else { 1.0 / (1.0 + open_deps as f64) };
+
+        // Factor 2: Health impact (0.25) — lower health = higher urgency for infra intents
+        let tags = content.lines()
+            .find(|l| l.starts_with("tags:"))
+            .unwrap_or("")
+            .to_string();
+        let is_infra = tags.contains("security") || tags.contains("health") || tags.contains("integrity");
+        let health_score = if health < 90 && is_infra { 1.0 } else { 0.5 };
+
+        // Factor 3: Velocity alignment (0.20) — matches current in-progress domain
+        let in_progress_tags: Vec<String> = in_progress.iter()
+            .flat_map(|_| vec!["shell".to_string(), "core".to_string()])
+            .collect();
+        let velocity_score = if in_progress_tags.iter().any(|t| tags.contains(t.as_str())) { 1.0 } else { 0.4 };
+
+        // Factor 4: Presentation proximity (0.15) — summer 2026 presentation
+        let presentation_keywords = ["voice", "jarvis", "shell", "demo", "partner", "autonomy"];
+        let pres_score = if presentation_keywords.iter().any(|k| content.to_lowercase().contains(k)) { 0.9 } else { 0.4 };
+
+        // Factor 5: Complexity fit (0.05) — prefer medium complexity
+        let line_count = content.lines().count();
+        let complexity_score = if line_count > 50 && line_count < 200 { 1.0 } else { 0.5 };
+
+        let total = dep_score * 0.35
+            + health_score * 0.25
+            + velocity_score * 0.20
+            + pres_score * 0.15
+            + complexity_score * 0.05;
+
+        let mut reasons = vec![];
+        let mut blockers = vec![];
+
+        if open_deps == 0 {
+            reasons.push("All dependencies complete".to_string());
+        } else {
+            blockers.push(format!("{} open dependencies: {}", open_deps, dep_refs.join(", ")));
+        }
+        if is_infra && health < 90 { reasons.push(format!("Health at {}% — infra work needed", health)); }
+        if velocity_score > 0.5 { reasons.push("Matches current work momentum".to_string()); }
+        if pres_score > 0.5 { reasons.push("Relevant to summer presentation".to_string()); }
+
+        scored.push(ScoredIntent { id, title, score: total, reasons, blockers });
+    }
+
+    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    scored
+}
+
+fn regex_find_ints(text: &str) -> Vec<String> {
+    let mut ids = vec![];
+    let mut i = 0;
+    let chars: Vec<char> = text.chars().collect();
+    while i < chars.len() {
+        if i + 4 < chars.len()
+            && chars[i] == 'I' && chars[i+1] == 'N' && chars[i+2] == 'T'
+            && chars[i+3] == '-'
+            && chars[i+4].is_ascii_digit()
+        {
+            let start = i + 4;
+            let mut end = start;
+            while end < chars.len() && chars[end].is_ascii_digit() { end += 1; }
+            let id: String = chars[start..end].iter().collect();
+            if !ids.contains(&id) { ids.push(id); }
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    ids
+}
+
+pub fn next(ctx: &AppContext, list: bool, why: Option<&str>) -> CoreResult<()> {
+    let scored = score_intents(ctx);
+    if scored.is_empty() {
+        println!("  {} No planned intents found", "○".dimmed());
+        return Ok(());
+    }
+
+    if let Some(intent_id) = why {
+        // Explain specific intent ranking
+        if let Some(s) = scored.iter().find(|s| s.id == intent_id) {
+            println!();
+            println!("  {} Why INT-{} is ranked here:", "🎯".normal(), s.id.bright_white());
+            println!("  {} Score: {:.0}%", "→".bright_cyan(), s.score * 100.0);
+            println!();
+            for r in &s.reasons  { println!("  {} {}", "✅".normal(), r.bright_white()); }
+            for b in &s.blockers { println!("  {} {}", "⛔".normal(), b.yellow()); }
+            println!();
+        } else {
+            println!("  {} INT-{} not found in planned intents", "✗".bright_red(), intent_id);
+        }
+        return Ok(());
+    }
+
+    if list {
+        println!();
+        println!("  {} Ranked Intent Queue", "📋".normal());
+        println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        for (i, s) in scored.iter().enumerate() {
+            let marker = if i == 0 { "→".bright_green().to_string() } else { format!("{}", i + 1).dimmed().to_string() };
+            println!("  {} INT-{:<4} {:<50} {:.0}%",
+                marker,
+                s.id.bright_white(),
+                s.title.chars().take(48).collect::<String>(),
+                s.score * 100.0
+            );
+        }
+        println!();
+        return Ok(());
+    }
+
+    // Top recommendation
+    let top = &scored[0];
+    let alt = scored.get(1);
+
+    println!();
+    println!("  {} Forest Recommendation", "🎯".normal());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+    println!("  {} INT-{} — {}", "→".bright_green().bold(), top.id.bright_white().bold(), top.title.bright_white());
+    println!("  {} Confidence: {:.0}%", " ".normal(), top.score * 100.0);
+    println!();
+    if !top.reasons.is_empty() {
+        println!("  {} {}", "Why:".bright_cyan(), top.reasons.join(" · ").dimmed());
+    }
+    if !top.blockers.is_empty() {
+        println!("  {} {}", "Note:".yellow(), top.blockers.join(" · ").dimmed());
+    }
+    if let Some(alt) = alt {
+        println!();
+        println!("  {} Alternative: INT-{} — {} ({:.0}%)", "○".dimmed(), alt.id, alt.title.chars().take(40).collect::<String>(), alt.score * 100.0);
+    }
+    println!();
+    println!("  {} cistart {}", "→".bright_cyan(), top.id.bright_green());
+    println!();
+    Ok(())
+}
+
+pub fn queue(ctx: &AppContext) -> CoreResult<()> {
+    let scored = score_intents(ctx);
+    println!();
+    println!("  {} 5-Session Work Queue", "📋".normal());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+    for (i, s) in scored.iter().take(5).enumerate() {
+        println!("  Session {} → INT-{} — {}", (i + 1).to_string().bright_cyan(), s.id.bright_white(), s.title);
+        if !s.reasons.is_empty() {
+            println!("            {} {}", "·".dimmed(), s.reasons[0].dimmed());
+        }
+        println!();
+    }
+    Ok(())
+}
+
+pub fn blockers(ctx: &AppContext) -> CoreResult<()> {
+    let scored = score_intents(ctx);
+    println!();
+    println!("  {} Intent Blockers", "⛔".normal());
+    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!();
+    let blocked: Vec<&ScoredIntent> = scored.iter().filter(|s| !s.blockers.is_empty()).collect();
+    if blocked.is_empty() {
+        println!("  {} No blockers found — all planned intents are ready to start", "✅".normal());
+    } else {
+        for s in blocked {
+            println!("  INT-{} — {}", s.id.bright_white(), s.title.dimmed());
+            for b in &s.blockers {
+                println!("    {} {}", "⛔".normal(), b.yellow());
+            }
+            println!();
+        }
+    }
+    Ok(())
+}

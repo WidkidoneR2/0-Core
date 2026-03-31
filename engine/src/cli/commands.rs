@@ -491,6 +491,9 @@ pub enum StrategyCommand {
     History,
     Learn { strategy_id: String, outcome: String },
     Review,
+    Next { list: bool, why: Option<String> },
+    Queue,
+    Blockers,
 }
 
 #[derive(Debug, Clone)]
