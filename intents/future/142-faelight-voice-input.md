@@ -58,6 +58,25 @@ whisper small.en  — balanced (~150MB) — RECOMMENDED
 whisper medium.en — highest accuracy (~500MB)
 ```
 
+## Dependency Requirements (investigate before starting)
+```
+whisper.cpp     — AUR only, out-of-date (1.8.3-1), depends on libggml-git (unstable)
+libggml-git     — AUR git package, unstable dependency chain
+python-pytorch  — 2GB+ if using python-openai-whisper (not recommended)
+alsa-lib        — already installed ✅
+```
+
+### Recommended Install Path
+Wait for whisper.cpp AUR package to be updated, OR:
+Build whisper.cpp from source directly — more stable than AUR git dependency:
+```bash
+git clone https://github.com/ggerganov/whisper.cpp
+cd whisper.cpp && make
+./models/download-ggml-model.sh small.en
+```
+Then use whisper-rs with WHISPER_CPP_PATH pointing to local build.
+Do NOT install on a healthy system until dependency chain is verified stable.
+
 ## Gate Check
 ```
 ⬜ whisper-rs compiles in workspace
