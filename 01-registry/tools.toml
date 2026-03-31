@@ -367,3 +367,10 @@ version = "1.0.0"
 category = "notification"
 description = "IPC controller for faelight-notify — set modes, dismiss notifications"
 expected_usage = "low"
+
+[[tool]]
+name = "verify-bootstrap"
+version = "2.0.0"
+category = "system"
+description = "Bootstrap verification — validates 0-Core installation completed successfully"
+expected_usage = "low"
