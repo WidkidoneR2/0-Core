@@ -3,7 +3,7 @@ id: 183
 date: 2026-03-31
 type: arch
 title: "Deploy Pipeline — Self-Maintaining, Registry-Driven, Zero Manual Steps"
-status: in-progress
+status: complete
 tags: [deploy, registry, automation, tools, pipeline, architecture, self-healing]
 version: 11.6.0
 ---
