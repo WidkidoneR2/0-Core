@@ -109,6 +109,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // INT-176 — Failure Recovery
         "last_command" | "lc" => last_command_cmd(db, args),
         "failures" => failure_history_cmd(db, args),
+        // INT-177 — Shell Observability
+        "observe" => observe_cmd(db, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "command" => command_cmd(db, args, core_root),
@@ -2659,6 +2661,198 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             cmd_orig.bright_white(),
             e
         )),
+    }
+}
+
+// ── INT-177: Shell Observability ────────────────────────────────────────────────
+
+fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let sub = args.first().copied().unwrap_or("session");
+    match sub {
+        "session" => observe_session(db),
+        "commands" => observe_commands(db),
+        "diff"     => observe_diff(db),
+        "anomalies"=> observe_anomalies(db),
+        "patterns" => observe_patterns(db),
+        _ => CommandResult::Output(format!(
+            "  Usage: observe [session|commands|diff|anomalies|patterns]"
+        )),
+    }
+}
+
+fn observe_session(db: &ForestDb) -> CommandResult {
+    // Count commands this session from shell_history
+    let total_cmds: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE timestamp >= (SELECT COALESCE(MIN(timestamp),0) FROM shell_history ORDER BY timestamp DESC LIMIT 500)",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    // Count failures
+    let failures: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    // Count commits this session
+    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
+        .unwrap_or_else(|_| "0".to_string())
+        .trim().to_string();
+
+    // Active intent
+    let intent = db.get_focus_intent().unwrap_or_else(|| "none".to_string());
+
+    // Success rate
+    let success_rate = if total_cmds > 0 {
+        ((total_cmds - failures) * 100 / total_cmds) as u64
+    } else { 100 };
+
+    let mut out = String::new();
+    out.push_str("
+");
+    out.push_str(&format!("  {} Session Summary
+", "🌲".normal()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    out.push_str(&format!("  {:<16} {}
+", "Commands:".dimmed(), format!("{} total, {} failed ({}% success)", total_cmds, failures, success_rate).bright_white()));
+    out.push_str(&format!("  {:<16} {}
+", "Commits:".dimmed(), commits.bright_white()));
+    out.push_str(&format!("  {:<16} {}
+", "Active intent:".dimmed(), intent.bright_green()));
+    out.push_str("
+");
+    CommandResult::Output(out)
+}
+
+fn observe_commands(db: &ForestDb) -> CommandResult {
+    // Most used commands from shell_history
+    let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
+
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT command, COUNT(*) as count FROM shell_history
+         GROUP BY command ORDER BY count DESC LIMIT 10"
+    ) {
+        let _ = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        }).map(|iter| {
+            for row in iter.flatten() {
+                let mut m = std::collections::HashMap::new();
+                m.insert("command".to_string(), crate::value::Value::Text(row.0));
+                m.insert("count".to_string(),   crate::value::Value::Int(row.1));
+                rows.push(m);
+            }
+        });
+    }
+
+    if rows.is_empty() {
+        CommandResult::Output("  ○ No command history available".to_string())
+    } else {
+        CommandResult::Value(crate::value::Value::Table(rows))
+    }
+}
+
+fn observe_diff(db: &ForestDb) -> CommandResult {
+    let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
+        .unwrap_or_else(|_| "0".to_string()).trim().to_string();
+
+    let failures: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let errors: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'error_log_%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let mut out = String::new();
+    out.push_str("
+");
+    out.push_str(&format!("  {} Session Delta
+", "🔄".normal()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    out.push_str(&format!("  {:<16} {} commits total
+", "Commits:".dimmed(), commits.bright_white()));
+    out.push_str(&format!("  {:<16} {} this session
+", "Failures:".dimmed(),
+        if failures == 0 { "0 ✅".bright_green().to_string() } else { failures.to_string().yellow().to_string() }
+    ));
+    out.push_str(&format!("  {:<16} {} this session
+", "Errors:".dimmed(),
+        if errors == 0 { "0 ✅".bright_green().to_string() } else { errors.to_string().yellow().to_string() }
+    ));
+    out.push_str("
+");
+    CommandResult::Output(out)
+}
+
+fn observe_anomalies(db: &ForestDb) -> CommandResult {
+    let failures: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let mut anomalies: Vec<String> = vec![];
+
+    if failures >= 3 {
+        anomalies.push(format!("{} failures this session — investigate with: failures", failures));
+    }
+
+    let perm_errors: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'error_log_%' AND value LIKE '%E_PERMISSION%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    if perm_errors > 0 {
+        anomalies.push(format!("{} permission errors — core locked during work?", perm_errors));
+    }
+
+    let mut out = String::new();
+    out.push_str("
+");
+    out.push_str(&format!("  {} Anomalies
+", "⚠️ ".normal()));
+    out.push_str(&format!("{}
+", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    if anomalies.is_empty() {
+        out.push_str("  ✅ No anomalies detected — session looks normal
+");
+    } else {
+        for a in &anomalies {
+            out.push_str(&format!("  {} {}
+", "⚠️ ".normal(), a.yellow()));
+        }
+    }
+    out.push_str("
+");
+    CommandResult::Output(out)
+}
+
+fn observe_patterns(db: &ForestDb) -> CommandResult {
+    // Show top command patterns from all history
+    let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
+
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT command, COUNT(*) as count FROM shell_history
+         GROUP BY command ORDER BY count DESC LIMIT 5"
+    ) {
+        let _ = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        }).map(|iter| {
+            for row in iter.flatten() {
+                let mut m = std::collections::HashMap::new();
+                m.insert("pattern".to_string(), crate::value::Value::Text(row.0));
+                m.insert("frequency".to_string(), crate::value::Value::Int(row.1));
+                rows.push(m);
+            }
+        });
+    }
+
+    if rows.is_empty() {
+        CommandResult::Output("  ○ Not enough history to show patterns".to_string())
+    } else {
+        CommandResult::Value(crate::value::Value::Table(rows))
     }
 }
 
