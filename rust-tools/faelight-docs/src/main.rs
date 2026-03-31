@@ -1,4 +1,4 @@
-// faelight-docs v1.0.0 — Living Documentation Engine
+// faelight-docs v2.0.0 — Living Documentation Engine
 // INT-145 — Keeps README and welcome message in sync with forest state
 //
 // BOUNDARY RULE: faelight-release owns README lines 1-37 (dynamic section)
@@ -17,7 +17,7 @@ use colored::*;
 use std::path::PathBuf;
 
 const BOUNDARY_MARKER: &str = "<!-- END DYNAMIC SECTION -->";
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "2.0.0";
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -30,11 +30,16 @@ fn main() {
         "sync" => {
             cmd_welcome(false);
             cmd_readme(false);
+            verify_links(false);
             println!("  {} All docs synced", "✅".normal());
         }
         "check" => {
             cmd_welcome(true);
             cmd_readme(true);
+            verify_links(true);
+        }
+        "verify-links" | "links" => {
+            verify_links(false);
         }
         "welcome" => cmd_welcome(false),
         "readme" => cmd_readme(false),
@@ -79,27 +84,49 @@ fn gather_state() -> ForestState {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Living Forest".to_string());
 
-    let tool_count = std::fs::read_dir(root.join("scripts"))
-        .map(|d| d.flatten().filter(|e| e.path().is_file()).count())
+    // Count registered tools from tools.toml — matches doctor path resilience check
+    let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
+        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
-    let intent_complete = std::fs::read_dir(root.join("intents/complete"))
-        .map(|d| d.count())
-        .unwrap_or(0);
-    let intent_planned = std::fs::read_dir(root.join("intents/future"))
-        .map(|d| d.count())
-        .unwrap_or(0);
+    // Count intents by scanning all categories — mirrors doctor check_intents logic
+    let (intent_complete, intent_planned) = {
+        let intent_dir = root.join("intents");
+        let categories = ["complete", "decisions", "experiments", "philosophy",
+                          "future", "cancelled", "deferred", "incidents", "active"];
+        let mut complete = 0usize;
+        let mut planned = 0usize;
+        for cat in &categories {
+            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+                for entry in entries.flatten() {
+                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                        if let Ok(text) = std::fs::read_to_string(entry.path()) {
+                            if text.contains("status: complete") { complete += 1; }
+                            else if text.contains("status: planned") { planned += 1; }
+                        }
+                    }
+                }
+            }
+        }
+        (complete, planned)
+    };
 
     let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
         .unwrap_or_default()
         .trim()
         .to_string();
 
-    let health = std::fs::read_to_string(root.join("runtime/cache/health.txt"))
-        .unwrap_or_else(|_| "95".to_string())
-        .trim()
-        .trim_end_matches('%')
-        .to_string();
+    // Read live health — prefer ~/.cache/faelight/health-status, fall back to state.db cache
+    let health = {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let cache_path = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
+        std::fs::read_to_string(&cache_path)
+            .or_else(|_| std::fs::read_to_string(root.join("runtime/cache/health.txt")))
+            .unwrap_or_else(|_| "100".to_string())
+            .trim()
+            .trim_end_matches('%')
+            .to_string()
+    };
 
     let core_domains = std::fs::read_dir(root.join("engine/src/domains"))
         .map(|d| d.flatten().filter(|e| e.path().is_dir()).count())
@@ -312,6 +339,57 @@ fn regex_replace_first(text: &str, pattern_kind: &str, replacement: &str) -> Str
     }
 }
 
+fn verify_links(dry_run: bool) -> bool {
+    let root = core_root();
+    let readme_path = root.join("README.md");
+    let content = match std::fs::read_to_string(&readme_path) {
+        Ok(c) => c,
+        Err(_) => return true,
+    };
+
+    let mut broken: Vec<String> = vec![];
+
+    // Scan for markdown links [text](path)
+    let mut pos = 0;
+    let bytes = content.as_bytes();
+    while pos < content.len() {
+        if let Some(start) = content[pos..].find("](") {
+            let link_start = pos + start + 2;
+            if let Some(end) = content[link_start..].find(')') {
+                let link = &content[link_start..link_start + end];
+                // Only check relative links (not http/https/mailto/#)
+                if !link.starts_with("http") && !link.starts_with('#') && !link.starts_with("mailto") && !link.is_empty() {
+                    let full_path = root.join(link);
+                    if !full_path.exists() {
+                        broken.push(link.to_string());
+                    }
+                }
+                pos = link_start + end + 1;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+        let _ = bytes; // suppress warning
+    }
+
+    if broken.is_empty() {
+        if !dry_run {
+            println!("  {} README links verified — all resolve correctly", "✅".normal());
+        }
+        return true;
+    }
+
+    for link in &broken {
+        println!("  {} Broken link: {}", "✗".bright_red(), link.bright_white());
+    }
+    if dry_run {
+        println!("  {} {} broken link(s) found — fix before release", "⚠️ ".normal(), broken.len());
+    }
+    false
+}
+
 fn cmd_status() {
     let state = gather_state();
     let root = core_root();
@@ -416,6 +494,7 @@ fn cmd_help() {
         ("welcome", "Regenerate zshrc welcome message"),
         ("readme", "Regenerate README static section"),
         ("preview", "Preview what would change"),
+        ("links", "Verify all README links resolve"),
         ("status", "Show doc sync status"),
     ];
     for (c, d) in &cmds {

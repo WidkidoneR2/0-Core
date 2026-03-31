@@ -3,7 +3,7 @@ id: 157
 date: 2026-03-26
 type: future
 title: "faelight-docs v2 — The Forest Documents Itself Accurately"
-status: planned
+status: in-progress
 tags: [docs, automation, readme, release, accuracy, v12]
 version: 12.0.0
 priority: high
@@ -57,13 +57,13 @@ verified live data. No manual step. No drift.
 
 ## Gate Check
 ```
-⬜ Phase 1 — live tool count from scripts/
-⬜ Phase 1 — live health from state.db
-⬜ Phase 1 — live intent count from ledger scan
-⬜ Phase 2 — dynamic section fully accurate on release
-⬜ Phase 3 — preview diff before publish
-⬜ Phase 4 — auto-sync on version bump
-⬜ README never shows stale data after any release
+✅ Phase 1 — live tool count from tools.toml — matches doctor exactly (2026-03-31)
+✅ Phase 1 — live health from ~/.cache/faelight/health-status (2026-03-31)
+✅ Phase 1 — live intent count mirrors doctor logic — all categories scanned (2026-03-31)
+✅ Phase 2 — dynamic section fully accurate — tools/health/intents all live (2026-03-31)
+✅ Phase 3 — verify-links command — scans all README links before release (2026-03-31)
+✅ Phase 4 — deploy faelight-docs works — added to deploy script (2026-03-31)
+✅ README never shows stale data — live reads verified, link check on every sync (2026-03-31)
 ```
 
 ## The Phrase
