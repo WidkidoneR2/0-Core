@@ -281,7 +281,7 @@ No hidden state. No ambient forest reads inside scripts.
 ## Gate Check
 ```
 ✅ Phase 0 — ExecContext implemented, execution pipeline clean — preexec/postexec hooks live (2026-03-30)
-⬜ Phase 1 — Layer audit complete
+✅ Phase 1 — Layer audit complete — 65 functions classified, 1 POLICY migration identified (forecast), docs/SHELL-LAYER-AUDIT.md (2026-03-31)
 ⬜ Phase 2 — Schema system implemented
 ⬜ Phase 3 — Pipeline operators complete
 ⬜ Phase 4 — Grammar formalized
