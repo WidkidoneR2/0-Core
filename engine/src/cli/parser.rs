@@ -138,6 +138,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GenealogyCommands,
     },
+    /// Registry — manage the tool registry (INT-183)
+    Registry {
+        #[command(subcommand)]
+        command: RegistryCommands,
+    },
     /// Task planning — break accepted goals into concrete steps (Core v9)
     Plan {
         #[command(subcommand)]
@@ -1065,6 +1070,26 @@ pub enum GenealogyCommands {
     Roots,
 }
 
+#[derive(Debug, clap::Subcommand)]
+pub enum RegistryCommands {
+    /// List all tools in the registry
+    List,
+    /// Show details for a specific tool
+    Show {
+        /// Tool name
+        name: String,
+    },
+    /// Retire a tool — mark as retired, excluded from deploy and doctor
+    Retire {
+        /// Tool name
+        name: String,
+    },
+    /// Unretire a tool — restore to active status
+    Unretire {
+        /// Tool name
+        name: String,
+    },
+}
 #[derive(Debug, clap::Subcommand)]
 pub enum DbCommands {
     /// Manual snapshot to timestamped file

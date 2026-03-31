@@ -108,15 +108,15 @@ When the forest detects a tool is outdated or broken:
 
 ## Gate Check
 ```
-⬜ tools.toml — all 53 tools have type/deployable/retired fields
-⬜ deploy script reads from tools.toml — no hardcoded list
-⬜ deploy all — deploys all rust deployable non-retired tools
-⬜ Retiring a tool — set retired=true, deploy skips it automatically
-⬜ Adding a tool — add to registry, deploy picks it up automatically
-⬜ Doctor path resilience — reads deployable/retired from registry
-⬜ core tool retire <name> — marks tool as retired
-⬜ Self-healing — deploy detects and reports missing tools
-⬜ Zero manual deploy script edits ever again
+✅ tools.toml — all 53 tools have type/deployable/retired fields (2026-03-31)
+✅ deploy script reads from tools.toml — registry-driven, no hardcoded list (2026-03-31)
+✅ deploy all — deploys all rust deployable non-retired tools from registry (2026-03-31)
+✅ Retiring a tool — core registry retire <name>, deploy skips automatically (2026-03-31)
+✅ Adding a tool — add to registry with deployable=true, deploy picks up automatically (2026-03-31)
+⬜ Doctor path resilience — reads deployable/retired from registry (next phase)
+✅ core registry retire <name> — marks tool as retired, unretire restores it (2026-03-31)
+⬜ Self-healing — deploy detects and reports missing tools (next phase)
+✅ Zero manual deploy script edits — registry is source of truth (2026-03-31)
 ```
 
 ## The Phrase
