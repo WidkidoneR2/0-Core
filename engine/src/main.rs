@@ -13,6 +13,8 @@ mod logging;
 mod policy;
 mod registry;
 mod runtime;
+#[cfg(test)]
+mod test_utils;
 mod utils;
 
 fn main() {
