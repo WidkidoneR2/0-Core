@@ -630,13 +630,15 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     if first_tok == "fg" {
-                        let id = line
-                            .split_whitespace()
-                            .nth(1)
-                            .and_then(|s| s.parse::<usize>().ok())
-                            .unwrap_or(1);
-                        job_table.fg(id);
-                        continue;
+                        let second = line.split_whitespace().nth(1).unwrap_or("");
+                        // Only intercept as job control if second token is a number
+                        // fg commit, fg push, etc. → fall through to execute_with_context
+                        if second.is_empty() || second.parse::<usize>().is_ok() {
+                            let id = second.parse::<usize>().unwrap_or(1);
+                            job_table.fg(id);
+                            continue;
+                        }
+                        // Otherwise fall through — fg commit etc. handled by alias
                     }
                     if first_tok == "kill" {
                         let arg = line.split_whitespace().nth(1).unwrap_or("");

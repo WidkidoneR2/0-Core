@@ -52,6 +52,13 @@ alias deploy = "~/0-core/scripts/deploy"
 alias rollback = "~/0-core/scripts/rollback"
 alias forest-status = "~/0-core/scripts/forest-status"
 
+# Forest workflow aliases — INT-171
+alias cistart = "core intent start"
+alias cicomplete = "core intent complete"
+alias lock-core = "core-protect lock"
+alias unlock-core = "core-protect unlock"
+alias fg = "~/0-core/scripts/faelight-git"
+
 # Pre-command decision rules — INT-171
 before_run {
     if command contains "paru -Syu" { warn "System update — run during maintenance window?" }
