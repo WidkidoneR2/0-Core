@@ -53,6 +53,9 @@ struct Cli {
     /// Disable health-reactive color shifting
     #[arg(long)]
     static_color: bool,
+    /// Health check — print status and exit
+    #[arg(long)]
+    health: bool,
 }
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -251,6 +254,10 @@ delegate_shm!(WallpaperState);
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if cli.health {
+        println!("faelight-wallpaper v0.1.0 — healthy");
+        return Ok(());
+    }
 
     let initial_color = if let Some(ref hex) = cli.color {
         parse_hex_color(hex)

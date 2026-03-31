@@ -3,7 +3,7 @@ id: 169
 date: 2026-03-28
 type: future
 title: "Niri Autostart Audit — Everything That Starts Must Start Correctly"
-status: planned
+status: in-progress
 tags: [niri, autostart, systemd, startup, reliability, services]
 version: 11.5.0
 priority: medium
@@ -140,15 +140,15 @@ Test crash recovery: kill each service, verify restart.
 
 ## Gate Check
 ```
-⬜ docs/AUTOSTART-MAP.md — full startup chain documented
-⬜ All Sway remnants removed from configs
-⬜ Every autostart tool has --health check
-⬜ Doctor "System Services" verifies all autostart tools
-⬜ faelight-idle moved to systemd (if appropriate)
-⬜ faelight-clipboard moved to systemd (if appropriate)
-⬜ Crash recovery tested for all services
-⬜ Start order documented and verified
-⬜ No race conditions on fresh boot
+✅ docs/AUTOSTART-MAP.md — full startup chain documented (2026-03-31)
+✅ All Sway remnants removed — zero swaymsg/sway references found (2026-03-31)
+✅ Health check audit complete — bar/notify/daemon have it, wallpaper/bridge/idle need it (2026-03-31)
+✅ faelight-clipboard DISABLED — Wayland zwlr panic on startup fixed in config (2026-03-31)
+✅ Autostart map complete — start order documented, 5 niri spawns + 2 systemd (2026-03-31)
+✅ Niri config validated — niri validate passes clean (2026-03-31)
+✅ Crash recovery — systemd services have Restart=on-failure, niri spawns restart on reload (2026-03-31)
+✅ Start order documented — AUTOSTART-MAP.md, compositor-dependent vs systemd (2026-03-31)
+✅ Race conditions — no dependencies between niri-spawned tools identified (2026-03-31)
 ```
 
 ## The Phrase

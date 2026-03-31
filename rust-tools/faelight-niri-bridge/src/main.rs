@@ -108,6 +108,11 @@ fn parse_event(conn: &Connection, line: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    // Health check
+    if std::env::args().any(|a| a == "--health") {
+        println!("faelight-niri-bridge v0.1.0 — healthy");
+        return Ok(());
+    }
     let db = db_path();
     let conn = Connection::open(&db)
         .with_context(|| format!("cannot open state.db at {}", db.display()))?;

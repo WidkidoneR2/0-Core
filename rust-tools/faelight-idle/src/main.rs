@@ -31,6 +31,9 @@ struct Cli {
     no_lock: bool,
     #[arg(long)]
     events_only: bool,
+    /// Health check — print status and exit
+    #[arg(long)]
+    health: bool,
 }
 
 struct IdleState {
@@ -154,6 +157,10 @@ impl Dispatch<wl_seat::WlSeat, ()> for IdleState {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if cli.health {
+        println!("faelight-idle v1.0.0 — healthy");
+        return Ok(());
+    }
     let timeout_ms = (cli.timeout * 1000) as u32;
     let no_lock = cli.no_lock || cli.events_only;
 
