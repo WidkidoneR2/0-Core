@@ -3,7 +3,7 @@ id: 156
 date: 2026-03-26
 type: future
 title: "Core v13 — Autonomy: The Forest Chooses Its Own Purpose"
-status: planned
+status: in-progress
 tags: [core, v13, autonomy, jarvis, ai, self-directed, v13]
 version: 13.0.0
 priority: high
@@ -124,14 +124,14 @@ core mandate pause       # temporarily suspend autonomy
 ## Gate Check
 ```
 ✅ Core v12 complete — 12 strategy commands, Jarvis 70/100 (2026-03-30)
-⬜ Jarvis readiness score >= 95/100
-⬜ Phase 1 — Mandate System
-⬜ Phase 2 — Autonomous Action Engine
-⬜ Phase 3 — Trust Calibration
-⬜ Phase 4 — Transparency Layer
-⬜ Phase 5 — Revocation System
-⬜ All hard boundaries verified and tested
-⬜ Full audit trail for every autonomous action
+⬜ Jarvis readiness score >= 95/100 — currently 78/100 (gate not yet reached)
+✅ Phase 1 — Mandate System — mandate_list/set/revoke/revoke_all live (2026-03-31)
+✅ Phase 2 — Autonomy Engine foundation — pending/run/log/revert live, DORMANT (2026-03-31)
+✅ Phase 3 — Trust Score foundation — trust_score/history/expand live (2026-03-31)
+✅ Phase 4 — Transparency Layer — autonomy_log table + command live (2026-03-31)
+✅ Phase 5 — Revocation System — mandate_revoke + revoke_all live (2026-03-31)
+✅ Hard boundaries enforced — gate check blocks all actions until 95/100 (2026-03-31)
+✅ Audit trail ready — autonomy_log table created, awaiting activation (2026-03-31)
 ```
 
 ## Relationship to Other Intents

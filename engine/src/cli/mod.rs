@@ -5,7 +5,7 @@ use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    DbCommand, GitCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
-    DbCommands, EvolutionCommands, GenealogyCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
+    DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
     TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
@@ -312,6 +312,19 @@ pub fn parse() -> Command {
             GenealogyCommands::Show { id } => GenealogyCommand::Show { id },
             GenealogyCommands::Tree => GenealogyCommand::Tree,
             GenealogyCommands::Roots => GenealogyCommand::Roots,
+        }),
+        Commands::Autonomy { command } => Command::Autonomy(match command {
+            AutonomyCommands::MandateList => AutonomyCommand::MandateList,
+            AutonomyCommands::MandateSet { rule } => AutonomyCommand::MandateSet { rule },
+            AutonomyCommands::MandateRevoke { id } => AutonomyCommand::MandateRevoke { id },
+            AutonomyCommands::MandateRevokeAll => AutonomyCommand::MandateRevokeAll,
+            AutonomyCommands::Pending => AutonomyCommand::Pending,
+            AutonomyCommands::Run => AutonomyCommand::Run,
+            AutonomyCommands::Log => AutonomyCommand::Log,
+            AutonomyCommands::Revert => AutonomyCommand::Revert,
+            AutonomyCommands::TrustScore => AutonomyCommand::TrustScore,
+            AutonomyCommands::TrustHistory => AutonomyCommand::TrustHistory,
+            AutonomyCommands::TrustExpand => AutonomyCommand::TrustExpand,
         }),
         Commands::Registry { command } => Command::Registry(match command {
             RegistryCommands::List => RegistryCommand::List,

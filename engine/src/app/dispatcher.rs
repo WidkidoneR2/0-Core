@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    DbCommand, GitCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -485,6 +485,19 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),
             GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
+        },
+        Command::Autonomy(cmd) => match cmd {
+            AutonomyCommand::MandateList => crate::domains::autonomy::mandate_list(ctx),
+            AutonomyCommand::MandateSet { rule } => crate::domains::autonomy::mandate_set(ctx, &rule),
+            AutonomyCommand::MandateRevoke { id } => crate::domains::autonomy::mandate_revoke(ctx, &id),
+            AutonomyCommand::MandateRevokeAll => crate::domains::autonomy::mandate_revoke_all(ctx),
+            AutonomyCommand::Pending => crate::domains::autonomy::autonomy_pending(ctx),
+            AutonomyCommand::Run => crate::domains::autonomy::autonomy_run(ctx),
+            AutonomyCommand::Log => crate::domains::autonomy::autonomy_log(ctx),
+            AutonomyCommand::Revert => crate::domains::autonomy::autonomy_revert(ctx),
+            AutonomyCommand::TrustScore => crate::domains::autonomy::trust_score(ctx),
+            AutonomyCommand::TrustHistory => crate::domains::autonomy::trust_history(ctx),
+            AutonomyCommand::TrustExpand => crate::domains::autonomy::trust_expand(ctx),
         },
         Command::Registry(cmd) => match cmd {
             RegistryCommand::List => crate::domains::registry::list(ctx),

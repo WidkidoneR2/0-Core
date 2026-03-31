@@ -138,6 +138,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GenealogyCommands,
     },
+    /// Autonomy — mandate system and autonomous action engine (INT-156)
+    Autonomy {
+        #[command(subcommand)]
+        command: AutonomyCommands,
+    },
     /// Registry — manage the tool registry (INT-183)
     Registry {
         #[command(subcommand)]
@@ -1070,6 +1075,31 @@ pub enum GenealogyCommands {
     Roots,
 }
 
+#[derive(Debug, clap::Subcommand)]
+pub enum AutonomyCommands {
+    /// List active mandates
+    MandateList,
+    /// Define a new mandate
+    MandateSet { rule: String },
+    /// Revoke a mandate by ID
+    MandateRevoke { id: String },
+    /// Revoke all mandates — return to manual mode
+    MandateRevokeAll,
+    /// Show pending autonomous actions
+    Pending,
+    /// Execute pending authorized actions
+    Run,
+    /// Show autonomy action log
+    Log,
+    /// Revert last autonomous action
+    Revert,
+    /// Show trust score
+    TrustScore,
+    /// Show trust history
+    TrustHistory,
+    /// Request expanded autonomy
+    TrustExpand,
+}
 #[derive(Debug, clap::Subcommand)]
 pub enum RegistryCommands {
     /// List all tools in the registry
