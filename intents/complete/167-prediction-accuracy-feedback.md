@@ -3,7 +3,7 @@ id: 167
 date: 2026-03-28
 type: future
 title: "Prediction Accuracy Feedback Loop — Close the Learning Circle"
-status: in-progress
+status: complete
 tags: [prediction, accuracy, feedback, learning, v11, v12]
 version: 12.0.0
 priority: high
