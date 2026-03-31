@@ -925,13 +925,43 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let mut total = 0i32;
 
     // Factor 1: Core intelligence layers (max 40)
-    // v9 Intent (+10), v10 Reaction (+10), v11 Prediction (+10), v12 Strategy (+10)
-    factors.push(("v9 Intent Engine".to_string(), 10, "Complete — goals/planning/prioritization".to_string()));
-    factors.push(("v10 Reaction Engine".to_string(), 10, "Complete — rules/signals/narrative".to_string()));
-    factors.push(("v11 Prediction Engine".to_string(), 10, "Complete — 9 predict commands, 85% confidence".to_string()));
-    // v12 partial — in progress
-    factors.push(("v12 Strategy Engine".to_string(), 5, "In progress — horizon/sequence/coherence built".to_string()));
-    total += 35;
+    // v9-v12 — check intent ledger for actual completion status
+    let complete_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/complete");
+    let completed_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
+        .map(|d| d.flatten()
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                name.split('-').next().map(|s| s.to_string())
+            })
+            .collect())
+        .unwrap_or_default();
+
+    // v9 — INT-133, v10 — INT-134, v11 — INT-148 — read from ledger
+    let v9_done  = completed_ids.contains("133");
+    let v10_done = completed_ids.contains("134");
+    let v11_done = completed_ids.contains("148");
+    let v9_score  = if v9_done  { 10 } else { 0 };
+    let v10_score = if v10_done { 10 } else { 0 };
+    let v11_score = if v11_done { 10 } else { 0 };
+    factors.push(("v9 Intent Engine".to_string(), v9_score,
+        if v9_done { "Complete — goals/planning/prioritization".to_string() }
+        else { "Incomplete — INT-133 not in complete ledger".to_string() }));
+    factors.push(("v10 Reaction Engine".to_string(), v10_score,
+        if v10_done { "Complete — rules/signals/narrative".to_string() }
+        else { "Incomplete — INT-134 not in complete ledger".to_string() }));
+    factors.push(("v11 Prediction Engine".to_string(), v11_score,
+        if v11_done { "Complete — 9 predict commands, predictions now stored".to_string() }
+        else { "Incomplete — INT-148 not in complete ledger".to_string() }));
+    total += v9_score + v10_score + v11_score;
+
+    // v12 — check if INT-151 is complete
+    let (v12_score, v12_note) = if completed_ids.contains("151") {
+        (10, "Complete — horizon/sequence/coherence/jarvis/trust (INT-151)".to_string())
+    } else {
+        (5, "In progress — horizon/sequence/coherence built".to_string())
+    };
+    factors.push(("v12 Strategy Engine".to_string(), v12_score, v12_note));
+    total += v12_score;
 
     // Factor 2: Health stability (max 10)
     let health = get_health(ctx);
@@ -978,9 +1008,27 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         "faelight-shell at 90% native coverage — not yet daily driver".to_string()));
     total += 5;
 
-    // Factor 6: Prediction accuracy (max 10) — not yet measured
-    factors.push(("Prediction Accuracy".to_string(), 0,
-        "Not yet measured — INT-167 Feedback Loop needed".to_string()));
+    // Factor 6: Prediction accuracy (max 10) — reads from forest_predictions (INT-167)
+    let pred_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let outcome_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let correct_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes WHERE correct=1", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let (pred_score, pred_note) = if pred_count == 0 {
+        (0, "No predictions stored yet — run: core predict sessions".to_string())
+    } else if outcome_count == 0 {
+        (3, format!("{} predictions stored, awaiting verification (7-day window)", pred_count))
+    } else {
+        let accuracy = (correct_count * 100) / outcome_count.max(1);
+        let score = if accuracy >= 80 { 10 } else if accuracy >= 65 { 7 } else { 4 };
+        (score, format!("{}% accuracy ({}/{} correct), {} predictions stored", accuracy, correct_count, outcome_count, pred_count))
+    };
+    factors.push(("Prediction Accuracy".to_string(), pred_score, pred_note));
+    total += pred_score;
 
     // Log this score to DB
     let factors_json = factors.iter()
@@ -1045,8 +1093,9 @@ pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} {}", "▶".bright_cyan(), "Milestones:".bright_white().bold());
     println!("    {} 65/100 — Anticipatory partner  {} (current)",
         if score >= 65 { "✅" } else { "⬜" }, "←".bright_yellow());
-    println!("    {} 80/100 — Strategic advisor     (complete v12)",
-        if score >= 80 { "✅" } else { "⬜" });
+    let v12_status = if std::path::PathBuf::from(&ctx.core_root).join("intents/complete").read_dir().map(|d| d.flatten().any(|e| e.file_name().to_string_lossy().starts_with("151"))).unwrap_or(false) { "✅ v12 complete" } else { "complete v12" };
+    println!("    {} 80/100 — Strategic advisor     ({})",
+        if score >= 80 { "✅" } else { "⬜" }, v12_status);
     println!("    {} 95/100 — Autonomous agent      (complete v13)",
         if score >= 95 { "✅" } else { "⬜" });
     println!();
@@ -1113,7 +1162,7 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     let gaps = vec![
-        (false, "HIGH",   "Prediction Accuracy Feedback Loop",  "INT-167", "Forest cannot learn if predictions are right"),
+        (true,  "HIGH",   "Prediction Accuracy Feedback Loop",  "INT-167", "Predictions now stored and tracked — accuracy accumulating"),
         (false, "HIGH",   "faelight-shell Daily Driver",        "INT-146", "Shell not yet primary interface"),
         (false, "HIGH",   "Core v12 Strategy — Phases 4+5",     "INT-151", "Jarvis tracking + strategy memory incomplete"),
         (false, "MEDIUM", "faelight-context",                   "INT-159", "No deep codebase understanding"),
