@@ -113,9 +113,9 @@ When the forest detects a tool is outdated or broken:
 ✅ deploy all — deploys all rust deployable non-retired tools from registry (2026-03-31)
 ✅ Retiring a tool — core registry retire <name>, deploy skips automatically (2026-03-31)
 ✅ Adding a tool — add to registry with deployable=true, deploy picks up automatically (2026-03-31)
-⬜ Doctor path resilience — reads deployable/retired from registry (next phase)
+✅ Doctor path resilience — reads deployable/retired from registry, 47/47 (2026-03-31)
 ✅ core registry retire <name> — marks tool as retired, unretire restores it (2026-03-31)
-⬜ Self-healing — deploy detects and reports missing tools (next phase)
+✅ Self-healing — deploy check reports missing tools automatically (2026-03-31)
 ✅ Zero manual deploy script edits — registry is source of truth (2026-03-31)
 ```
 
