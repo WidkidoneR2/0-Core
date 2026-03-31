@@ -3,7 +3,7 @@ id: 162
 date: 2026-03-28
 type: future
 title: "Shell Architecture Hardening — The Foundation Must Be Solid"
-status: in-progress
+status: complete
 tags: [shell, architecture, schemas, pipelines, layers, fsh, v12, integrity]
 version: 12.0.0
 priority: critical
