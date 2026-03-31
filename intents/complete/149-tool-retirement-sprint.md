@@ -3,7 +3,7 @@ id: 149
 date: 2026-03-25
 type: future
 title: "Tool Retirement Sprint — Clean What the Core Has Absorbed"
-status: in-progress
+status: complete
 tags: [tools, retirement, cleanup, core, shell, hygiene, v12]
 version: 12.0.0
 priority: medium
@@ -68,6 +68,8 @@ The rule: core absorbs the function → verify completely → retire safely → 
 Remaining candidates are deferred to INT-162 (Shell Architecture Hardening)
 where the layer audit will make the dependencies explicit and safe to remove.
 INT-179 (faelight-shell v3) will handle zsh alias retirement as fsh coverage grows.
+After v11.5.0 release, a Tool Retirement Sprint v2 will be created with a full audit
+of remaining candidates — by then INT-162 layer audit will have classified all dependencies.
 
 ## The Phrase
 
