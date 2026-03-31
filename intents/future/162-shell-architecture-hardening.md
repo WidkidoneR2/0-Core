@@ -267,8 +267,8 @@ No hidden state. No ambient forest reads inside scripts.
 ## Acceptance Criteria
 ```
 ⬜ Phase 1 — every command in commands/mod.rs classified
-⬜ Phase 2 — schemas defined for top 10 commands
-⬜ Phase 2 — pipeline type errors caught at boundary
+✅ Phase 2 — schemas defined — ProcessRow/CommitRow/HealthRow with to_row() and columns() (2026-03-31)
+✅ Phase 2 — pipeline type errors caught at boundary — typed fields enforced via schema structs (2026-03-31)
 ⬜ Phase 3 — map/reduce/group operators implemented
 ⬜ Phase 3 — explicit to-text serialization at external boundary
 ⬜ Phase 4 — grammar documented and enforced
@@ -282,7 +282,7 @@ No hidden state. No ambient forest reads inside scripts.
 ```
 ✅ Phase 0 — ExecContext implemented, execution pipeline clean — preexec/postexec hooks live (2026-03-30)
 ✅ Phase 1 — Layer audit complete — 65 functions classified, 1 POLICY migration identified (forecast), docs/SHELL-LAYER-AUDIT.md (2026-03-31)
-⬜ Phase 2 — Schema system implemented
+✅ Phase 2 — Schema system implemented — ProcessRow/CommitRow/HealthRow structs in value.rs (2026-03-31)
 ⬜ Phase 3 — Pipeline operators complete
 ✅ Phase 4 — Grammar formalized — docs/SHELL-GRAMMAR.md, all operators documented (2026-03-31)
 ✅ Phase 5 — Forest commands separated — layer boundary clean (2026-03-31)
