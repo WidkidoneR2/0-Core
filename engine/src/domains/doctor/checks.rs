@@ -808,26 +808,45 @@ pub fn check_tool_installation() -> CheckResult {
 }
 
 pub fn check_path_resilience(core_root: &str) -> CheckResult {
-    let rust_tools_dir = PathBuf::from(core_root).join("rust-tools");
     let scripts_dir = PathBuf::from(core_root).join("scripts");
-    let skip = [
-        "faelight-core",
-        "faelight-daemon",
-        "faelight-browser",
-        "bin-doctor",
-        "faelight-menu",
-        "archaeology-0-core",
-    ];
-    let rust_tools: Vec<String> = fs::read_dir(&rust_tools_dir)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| e.file_name().into_string().ok())
-                .filter(|n| !skip.contains(&n.as_str()))
-                .collect()
+    let registry_path = PathBuf::from(core_root).join("01-registry/tools.toml");
+
+    // Read deployable, non-retired tools from registry (INT-183)
+    let rust_tools: Vec<String> = fs::read_to_string(&registry_path)
+        .map(|content| {
+            let mut tools = vec![];
+            let mut name = String::new();
+            let mut deployable = false;
+            let mut retired = false;
+            let mut tool_type = String::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line == "[[tool]]" {
+                    if !name.is_empty() && deployable && !retired && tool_type == "rust" {
+                        tools.push(name.clone());
+                    }
+                    name.clear();
+                    deployable = false;
+                    retired = false;
+                    tool_type.clear();
+                } else if let Some(v) = line.strip_prefix("name = \"") {
+                    name = v.trim_end_matches('"').to_string();
+                } else if let Some(v) = line.strip_prefix("type = \"") {
+                    tool_type = v.trim_end_matches('"').to_string();
+                } else if line == "deployable = true" {
+                    deployable = true;
+                } else if line == "retired = true" {
+                    retired = true;
+                }
+            }
+            // Last tool
+            if !name.is_empty() && deployable && !retired && tool_type == "rust" {
+                tools.push(name);
+            }
+            tools
         })
         .unwrap_or_default();
+
     let total = rust_tools.len();
     let deployed = rust_tools
         .iter()
