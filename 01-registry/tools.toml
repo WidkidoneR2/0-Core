@@ -9,368 +9,474 @@ version = "9.1.0"
 category = "development"
 description = "Audits shell aliases for coverage and conflicts"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "archaeology-0-core"
 version = "3.0.0"
 category = "development"
 description = "Analyzes 0-core history and evolution"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "bin-doctor"
 version = "2.0.0"
 category = "health"
 description = "Binary manifest drift detection"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "core"
 version = "2.0.0"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "core-diff"
 version = "3.1.0"
 category = "development"
 description = "Diff system state across versions"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "core-protect"
 version = "2.3.0"
 category = "security"
 description = "Lock/unlock core protection system"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "dotctl"
 version = "3.1.0"
 category = "dotfiles"
 description = "Dotfile control center — stow package management"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "entropy-check"
 version = "2.0.0"
 category = "health"
 description = "Configuration entropy and drift detection"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight"
 version = "2.1.0"
 category = "core"
 description = "Core launcher and entry point"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-bar"
 version = "5.0.0"
 category = "ui"
 description = "Wayland status bar — health subscriber"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-bootstrap"
 version = "2.1.0"
 category = "system"
 description = "System bootstrap and provisioning"
 expected_usage = "rare"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-browser"
 version = "0.4.0"
 category = "tools"
 description = "TUI web browser with w3m-style navigation"
 expected_usage = "medium"
-
+type = "rust"
+deployable = false
+retired = false
 [[tool]]
 name = "faelight-cleanup"
 version = "1.0.0"
 category = "system"
 description = "System cleanup and temp file management"
 expected_usage = "rare"
-
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-daemon"
 version = "3.0.0"
 category = "core"
 description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"
-
+type = "rust"
+deployable = false
+retired = false
 [[tool]]
 name = "faelight-fm"
 version = "2.3.0"
 category = "tools"
 description = "Terminal file manager with daemon integration"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-git"
 version = "3.3.0"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-hooks"
 version = "10.2.0"
 category = "development"
 description = "Git hooks management"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-link"
 version = "2.0.0"
 category = "dotfiles"
 description = "Symlink management and audit"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-lock"
 version = "2.1.0"
 category = "security"
 description = "File and directory locking"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-menu"
 version = "3.0.0"
 category = "ui"
 description = "Power management and system menu"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-notify"
 version = "4.0.0"
 category = "ui"
 description = "Notification system"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-palette"
 version = "2.0.0"
 category = "ui"
 description = "Color palette and theme management"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-sandbox"
 version = "3.0.0"
 category = "development"
 description = "Safe execution sandbox with session history"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-shell"
 version = "0.6.0"
 category = "shell"
 description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-term"
 version = "10.3.0"
 category = "ui"
 description = "Terminal emulator"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-update"
 version = "3.3.0"
 category = "system"
 description = "System update manager with rollback"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-zone"
 version = "2.1.0"
 category = "system"
 description = "Zone management and context switching"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "get-version"
 version = "4.0.0"
 category = "versioning"
 description = "Version query tool"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "intent"
 version = "3.0.0"
 category = "planning"
 description = "Intent ledger management"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "intent-guard"
 version = "2.1.0"
 category = "planning"
 description = "Intent discipline and focus enforcement"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "keyscan"
 version = "3.0.0"
 category = "security"
 description = "SSH key scanner and audit"
 expected_usage = "rare"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "latest-update"
 version = "4.0.0"
 category = "system"
 description = "Latest update tracker"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "profile"
 version = "2.1.0"
 category = "system"
 description = "Profile management"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "safe-update"
 version = "2.1.0"
 category = "system"
 description = "Safe system update with health gates"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "teach"
 version = "4.0.0"
 category = "development"
 description = "Live system narrator with presentation mode"
 expected_usage = "rare"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "workspace-view"
 version = "2.0.0"
 category = "development"
 description = "Workspace overview and navigation"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-clipboard"
 version = "0.2.0"
 category = "desktop"
 description = "Rust clipboard manager — wlr-data-control, history, fzf picker"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-pulse"
 version = "1.0.0"
 category = "monitoring"
 description = "Live event stream TUI — the forest watching itself breathe"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-niri-bridge"
 version = "0.1.0"
 category = "compositor"
 description = "Niri IPC → event ledger bridge — compositor events as forest memory"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-forecast"
 version = "1.0.0"
 category = "intelligence"
 description = "Predictive health intelligence — the forest sees what is coming"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-release"
 version = "0.1.0"
 category = "release"
 description = "Intelligent release and generation manager — the forest publishes itself"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-wallpaper"
 version = "0.1.0"
 category = "desktop"
 description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
 expected_usage = "rare"
-
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-intent"
 version = "1.0.0"
 category = "intent"
 description = "Intent dashboard — the forest knows where it is going"
 expected_usage = "low"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-idle"
 version = "1.0.0"
 category = "system"
 description = "Rust idle daemon — ext-idle-notify-v1, replaces swayidle, event ledger integration"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-compositor"
 version = "0.1.0"
 category = "compositor"
 description = "Rust Wayland compositor on Smithay — the last sibling comes home (INT-109)"
 expected_usage = "high"
-
+type = "rust"
+deployable = false
+retired = false
 [[tool]]
 name = "faelight-gen"
 version = "1.0.0"
 category = "security"
 description = "Forest-native password and secret generator suite — 12 types, colored output"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-vault"
 version = "1.0.0"
 category = "security"
 description = "Forest-native credential manager — Argon2id encryption, health scores, audit, faelight-gen integration"
 expected_usage = "medium"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-docs"
 version = "2.0.0"
 category = "documentation"
 description = "Living documentation engine — syncs README and welcome message with forest state"
 expected_usage = "low"
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-digest"
 version = "1.0.0"
 category = "shell"
 description = "Forest morning digest — system stats + forest context"
 expected_usage = "high"
-
+type = "rust"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-login"
 version = "1.0.0"
 category = "system"
 description = "Faelight login greeter — greetd-compatible TUI login screen"
 expected_usage = "low"
-
+type = "special"
+deployable = true
+retired = false
 [[tool]]
 name = "security-audit"
 version = "1.0.0"
 category = "security"
 description = "Security audit scanner — checks system for vulnerabilities"
 expected_usage = "low"
-
+type = "script"
+deployable = true
+retired = false
 [[tool]]
 name = "faelight-notifyctl"
 version = "1.0.0"
 category = "notification"
 description = "IPC controller for faelight-notify — set modes, dismiss notifications"
 expected_usage = "low"
-
+type = "script"
+deployable = true
+retired = false
 [[tool]]
 name = "verify-bootstrap"
 version = "2.0.0"
 category = "system"
 description = "Bootstrap verification — validates 0-Core installation completed successfully"
 expected_usage = "low"
+type = "rust"
+deployable = true
+retired = false
