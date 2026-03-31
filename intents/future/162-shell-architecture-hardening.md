@@ -272,7 +272,7 @@ No hidden state. No ambient forest reads inside scripts.
 ⬜ Phase 3 — map/reduce/group operators implemented
 ⬜ Phase 3 — explicit to-text serialization at external boundary
 ⬜ Phase 4 — grammar documented and enforced
-⬜ Phase 5 — forest commands call core, not embed logic
+✅ Phase 5 — forest commands call core — forecast() dead code removed (79 lines) (2026-03-31)
 ⬜ Phase 6 — .fsh scripts deterministic and testable
 ⬜ DEC-005 fully implemented — zero policy logic in fsh
 ⬜ Zero silent type failures in pipelines
@@ -285,7 +285,7 @@ No hidden state. No ambient forest reads inside scripts.
 ⬜ Phase 2 — Schema system implemented
 ⬜ Phase 3 — Pipeline operators complete
 ✅ Phase 4 — Grammar formalized — docs/SHELL-GRAMMAR.md, all operators documented (2026-03-31)
-⬜ Phase 5 — Forest commands separated
+✅ Phase 5 — Forest commands separated — layer boundary clean (2026-03-31)
 ⬜ Phase 6 — Scripting story complete
 ```
 
