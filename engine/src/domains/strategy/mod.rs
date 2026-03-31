@@ -1419,8 +1419,8 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
             Err(_) => continue,
         };
 
-        // Only planned intents
-        if !content.contains("status: planned") { continue; }
+        // Only planned intents — skip deferred
+        if !content.contains("status: planned") || content.contains("status: deferred") { continue; }
 
         // Extract ID and title
         let fname = entry.file_name().to_string_lossy().to_string();
