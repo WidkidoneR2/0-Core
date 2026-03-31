@@ -3,7 +3,7 @@ id: 181
 date: 2026-03-30
 type: feature
 title: "Forest Next Intent Engine — The Forest Knows What Comes Next"
-status: in-progress
+status: complete
 tags: [core, intelligence, strategy, intents, v12, autonomy, planning]
 version: 12.1.0
 ---
