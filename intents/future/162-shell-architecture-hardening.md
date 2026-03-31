@@ -284,7 +284,7 @@ No hidden state. No ambient forest reads inside scripts.
 ✅ Phase 1 — Layer audit complete — 65 functions classified, 1 POLICY migration identified (forecast), docs/SHELL-LAYER-AUDIT.md (2026-03-31)
 ⬜ Phase 2 — Schema system implemented
 ⬜ Phase 3 — Pipeline operators complete
-⬜ Phase 4 — Grammar formalized
+✅ Phase 4 — Grammar formalized — docs/SHELL-GRAMMAR.md, all operators documented (2026-03-31)
 ⬜ Phase 5 — Forest commands separated
 ⬜ Phase 6 — Scripting story complete
 ```
