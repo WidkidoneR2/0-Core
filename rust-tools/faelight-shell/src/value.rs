@@ -273,6 +273,12 @@ pub enum PipeOp {
     Group {
         field: String,
     },
+    // Phase 3 — INT-162 pipeline operators
+    Map { expr: String },
+    Reduce { expr: String },
+    Unique { field: String },
+    Flatten,
+    ToText,
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
@@ -413,6 +419,89 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             }
             Value::Table(result)
         }
+        // Phase 3 — map: transform each row's field with a simple expression
+        (Value::Table(rows), PipeOp::Map { expr }) => {
+            let parts: Vec<&str> = expr.splitn(3, ' ').collect();
+            let mapped: Vec<_> = rows.into_iter().map(|mut row| {
+                // Supported: "field * 2", "field + N", "field - N"
+                if parts.len() == 3 {
+                    let field = parts[0];
+                    let op    = parts[1];
+                    let rhs: f64 = parts[2].parse().unwrap_or(0.0);
+                    if let Some(val) = row.get(field).and_then(|v| match v { Value::Float(f) => Some(*f), Value::Int(i) => Some(*i as f64), Value::Text(s) => s.parse::<f64>().ok(), _ => None }) {
+                        let result = match op {
+                            "*" => val * rhs,
+                            "+" => val + rhs,
+                            "-" => val - rhs,
+                            "/" => if rhs != 0.0 { val / rhs } else { val },
+                            _   => val,
+                        };
+                        row.insert(field.to_string(), Value::Float(result));
+                    }
+                }
+                row
+            }).collect();
+            Value::Table(mapped)
+        }
+        // Phase 3 — reduce: aggregate a numeric field to a single value
+        (Value::Table(rows), PipeOp::Reduce { expr }) => {
+            let parts: Vec<&str> = expr.splitn(2, ' ').collect();
+            let (agg, field) = if parts.len() == 2 {
+                (parts[0], parts[1])
+            } else {
+                return Value::Nothing;
+            };
+            let nums: Vec<f64> = rows.iter()
+                .filter_map(|r| match r.get(field)? { Value::Float(f) => Some(*f), Value::Int(i) => Some(*i as f64), Value::Text(s) => s.parse::<f64>().ok(), _ => None })
+                .collect();
+            if nums.is_empty() { return Value::Nothing; }
+            let result = match agg {
+                "sum"  => nums.iter().sum(),
+                "avg"  => nums.iter().sum::<f64>() / nums.len() as f64,
+                "min"  => nums.iter().cloned().fold(f64::INFINITY, f64::min),
+                "max"  => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+                _      => return Value::Nothing,
+            };
+            Value::Float(result)
+        }
+        // Phase 3 — unique: deduplicate rows by field value
+        (Value::Table(rows), PipeOp::Unique { field }) => {
+            let mut seen = std::collections::HashSet::new();
+            let unique: Vec<_> = rows.into_iter().filter(|row| {
+                let key = row.get(field).map(|v| v.as_text()).unwrap_or_default();
+                seen.insert(key)
+            }).collect();
+            Value::Table(unique)
+        }
+        // Phase 3 — flatten: expand Table-of-Tables into a single Table
+        (Value::Table(rows), PipeOp::Flatten) => {
+            let mut flat = vec![];
+            for row in rows {
+                let mut is_nested = false;
+                for v in row.values() {
+                    if let Value::Table(inner) = v {
+                        flat.extend(inner.clone());
+                        is_nested = true;
+                        break;
+                    }
+                }
+                if !is_nested { flat.push(row); }
+            }
+            Value::Table(flat)
+        }
+        // Phase 3 — to-text: serialize Table to plain text (external boundary)
+        (Value::Table(rows), PipeOp::ToText) => {
+            if rows.is_empty() { return Value::Text(String::new()); }
+            let headers: Vec<String> = rows[0].keys().cloned().collect();
+            let mut lines = vec![headers.join("\t")];
+            for row in &rows {
+                let line: Vec<String> = headers.iter()
+                    .map(|h| row.get(h).map(|v| v.as_text()).unwrap_or_default())
+                    .collect();
+                lines.push(line.join("\t"));
+            }
+            Value::Text(lines.join("\n"))
+        }
         (v, _) => v, // passthrough for non-table values
     }
 }
@@ -465,6 +554,22 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
             table: table.to_string(),
             on: field.to_string(),
         }),
+        // Phase 3 — map <field> <op> <val>
+        ["map", ..] => Some(PipeOp::Map {
+            expr: s.trim_start_matches("map").trim().to_string(),
+        }),
+        // Phase 3 — reduce <agg> <field>
+        ["reduce", ..] => Some(PipeOp::Reduce {
+            expr: s.trim_start_matches("reduce").trim().to_string(),
+        }),
+        // Phase 3 — unique <field>
+        ["unique", field] => Some(PipeOp::Unique {
+            field: field.to_string(),
+        }),
+        // Phase 3 — flatten
+        ["flatten"] => Some(PipeOp::Flatten),
+        // Phase 3 — to-text
+        ["to-text"] => Some(PipeOp::ToText),
         _ => {
             // Unknown pipe op — try as external command
             let cmd = s.trim().to_string();
