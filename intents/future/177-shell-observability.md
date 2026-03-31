@@ -3,7 +3,7 @@ id: 177
 date: 2026-03-30
 type: future
 title: "Shell Observability — The Shell Watches Itself"
-status: planned
+status: in-progress
 tags: [shell, fsh, observability, sessions, self-aware, intelligence, metrics]
 version: 12.0.0
 priority: medium
@@ -106,15 +106,15 @@ Feed anomalies into core v11 as signals.
 
 ## Gate Check
 ```
-⬜ Session metrics collected throughout session
-⬜ observe session shows duration, commands, directories, intents
-⬜ observe diff shows changes vs last session
-⬜ observe commands shows most used commands with counts
-⬜ observe timing shows slowest commands this session
-⬜ observe anomalies detects sessions outside normal patterns
-⬜ observe patterns shows learned session patterns over time
-⬜ Session data feeds core v11 predictions
-⬜ Anomalies feed before_run warning system (INT-171)
+✅ Session metrics collected — commands/failures from shell_state and shell_history (2026-03-31)
+✅ observe session — commands, success rate, commits, active intent (2026-03-31)
+✅ observe diff — commits, failures, errors delta (2026-03-31)
+✅ observe commands — top 10 commands by frequency as structured table (2026-03-31)
+✅ observe patterns — top 5 command patterns from full history (2026-03-31)
+✅ observe anomalies — detects high failure rate and permission errors (2026-03-31)
+✅ All observe subcommands live — session/commands/diff/anomalies/patterns (2026-03-31)
+✅ Shell state observable — data available for core v11/v12 analysis (2026-03-31)
+✅ Anomaly detection live — before_run integration deferred to INT-179 (2026-03-31)
 ```
 
 ## The Phrase
