@@ -3,7 +3,7 @@ id: 142
 date: 2026-03-21
 type: future
 title: "faelight-voice-input — Voice Input to Forest Pipelines (Whisper)"
-status: planned
+status: deferred
 tags: [voice, whisper, nlp, shell, rust, v12]
 version: 12.0.0
 priority: medium
