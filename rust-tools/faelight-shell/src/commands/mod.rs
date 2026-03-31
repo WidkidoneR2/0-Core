@@ -114,7 +114,6 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "story" => story(db),
         "advise" => advise(db),
         "audit" => audit(db, core_root),
-        "forecast" => forecast(db),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "predict" | "react" | "stress" | "doctor" | "goals"
         | "evolution" | "security" | "capabilities" | "intent"
@@ -418,84 +417,6 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     };
     emit_command(db, &cmd, result_str);
     result
-}
-
-fn forecast(db: &ForestDb) -> CommandResult {
-    // Read last 10 doctor events and compute trend
-    let points: Vec<i64> = {
-        let mut stmt = match db.conn.prepare(
-            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 10",
-        ) {
-            Ok(s) => s,
-            Err(_) => return CommandResult::Error("No forecast data".to_string()),
-        };
-        stmt.query_map([], |r| r.get::<_, String>(0))
-            .map(|rows| {
-                rows.filter_map(|r| r.ok())
-                    .filter_map(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-                    .filter_map(|v| v["detail"]["health"].as_i64())
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-
-    if points.len() < 3 {
-        return CommandResult::Output(format!(
-            "  {} Not enough data for forecast yet — run {} a few times",
-            "○".dimmed(),
-            "d".bright_cyan()
-        ));
-    }
-
-    let current = points[0];
-    let recent_avg: f64 = points.iter().take(3).map(|h| *h as f64).sum::<f64>() / 3.0;
-    let older_avg: f64 =
-        points.iter().skip(3).map(|h| *h as f64).sum::<f64>() / (points.len() - 3) as f64;
-    let trend = recent_avg - older_avg;
-    let forecast_24h = (current as f64 + trend * 0.5).round() as i64;
-    let forecast_7d = (current as f64 + trend * 2.0).round() as i64;
-    let forecast_24h = forecast_24h.max(0).min(100);
-    let forecast_7d = forecast_7d.max(0).min(100);
-
-    let trend_icon = if trend > 1.0 {
-        "📈"
-    } else if trend < -1.0 {
-        "📉"
-    } else {
-        "➡️ "
-    };
-    let trend_str = if trend > 0.5 {
-        format!("+{:.1}", trend).bright_green().to_string()
-    } else if trend < -0.5 {
-        format!("{:.1}", trend).yellow().to_string()
-    } else {
-        "stable".dimmed().to_string()
-    };
-
-    let mut out = String::new();
-    out.push_str(&format!(
-        "\n{}\n",
-        "  ╭─ 📈 Health Forecast ──────────────────────────────".bright_cyan()
-    ));
-    out.push_str(&format!(
-        "  │  Current:  {}%\n",
-        current.to_string().bright_white().bold()
-    ));
-    out.push_str(&format!(
-        "  │  24h:      {}%\n",
-        forecast_24h.to_string().bright_green()
-    ));
-    out.push_str(&format!(
-        "  │  7d:       {}%\n",
-        forecast_7d.to_string().bright_green()
-    ));
-    out.push_str(&format!("  │  Trend:    {} {}\n", trend_icon, trend_str));
-    out.push_str(
-        &"  ╰────────────────────────────────────────────────────"
-            .dimmed()
-            .to_string(),
-    );
-    CommandResult::Output(out)
 }
 
 fn sandbox(db: &ForestDb) -> CommandResult {
