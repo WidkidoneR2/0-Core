@@ -50,6 +50,7 @@ pub enum Command {
     React(ReactCommand),
     Strategy(StrategyCommand),
     Genealogy(GenealogyCommand),
+    Autonomy(AutonomyCommand),
     Registry(RegistryCommand),
     Db(DbCommand),
     Plan(PlanCommand),
@@ -502,6 +503,20 @@ pub enum GenealogyCommand {
     Show { id: String },
     Tree,
     Roots,
+}
+#[derive(Debug, Clone)]
+pub enum AutonomyCommand {
+    MandateList,
+    MandateSet { rule: String },
+    MandateRevoke { id: String },
+    MandateRevokeAll,
+    Pending,
+    Run,
+    Log,
+    Revert,
+    TrustScore,
+    TrustHistory,
+    TrustExpand,
 }
 #[derive(Debug, Clone)]
 pub enum RegistryCommand {
