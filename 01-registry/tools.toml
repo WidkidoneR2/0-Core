@@ -118,7 +118,7 @@ expected_usage = "high"
 
 [[tool]]
 name = "faelight-hooks"
-version = "10.3.0"
+version = "10.2.0"
 category = "development"
 description = "Git hooks management"
 expected_usage = "medium"
@@ -146,7 +146,7 @@ expected_usage = "medium"
 
 [[tool]]
 name = "faelight-notify"
-version = "2.1.0"
+version = "4.0.0"
 category = "ui"
 description = "Notification system"
 expected_usage = "high"
@@ -160,14 +160,14 @@ expected_usage = "medium"
 
 [[tool]]
 name = "faelight-sandbox"
-version = "2.0.0"
+version = "3.0.0"
 category = "development"
 description = "Safe execution sandbox with session history"
 expected_usage = "medium"
 
 [[tool]]
 name = "faelight-shell"
-version = "0.2.0"
+version = "0.6.0"
 category = "shell"
 description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
