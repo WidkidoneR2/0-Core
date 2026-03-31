@@ -3,7 +3,7 @@ id: 174
 date: 2026-03-30
 type: future
 title: "Structured Errors — The Shell Explains Its Failures"
-status: in-progress
+status: complete
 tags: [shell, fsh, errors, debugging, observability, intelligence]
 version: 12.0.0
 priority: high
