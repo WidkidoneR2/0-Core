@@ -3,7 +3,7 @@ id: 169
 date: 2026-03-28
 type: future
 title: "Niri Autostart Audit — Everything That Starts Must Start Correctly"
-status: in-progress
+status: complete
 tags: [niri, autostart, systemd, startup, reliability, services]
 version: 11.5.0
 priority: medium
