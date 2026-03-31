@@ -3,7 +3,7 @@ id: 171
 date: 2026-03-30
 type: future
 title: "Pre-Command Decision Layer — The Shell That Understands Before It Executes"
-status: in-progress
+status: complete
 tags: [shell, fsh, preexec, decision, safety, intelligence, v12]
 version: 12.0.0
 priority: high
