@@ -51,3 +51,9 @@ alias la = "eza -la --icons"
 alias deploy = "~/0-core/scripts/deploy"
 alias rollback = "~/0-core/scripts/rollback"
 alias forest-status = "~/0-core/scripts/forest-status"
+
+# Pre-command decision rules — INT-171
+before_run {
+    if command contains "paru -Syu" { warn "System update — run during maintenance window?" }
+    if command contains "sudo rm" { block "Use rm directly — sudo rm is too dangerous" }
+}
