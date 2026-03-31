@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    DbCommand, GitCommand, GenealogyCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -485,6 +485,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),
             GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
+        },
+        Command::Registry(cmd) => match cmd {
+            RegistryCommand::List => crate::domains::registry::list(ctx),
+            RegistryCommand::Show { name } => crate::domains::registry::show(ctx, &name),
+            RegistryCommand::Retire { name } => crate::domains::registry::retire(ctx, &name),
+            RegistryCommand::Unretire { name } => crate::domains::registry::unretire(ctx, &name),
         },
         Command::Strategy(c) => match c {
             StrategyCommand::Now => crate::domains::strategy::now(ctx),

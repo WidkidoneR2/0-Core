@@ -50,6 +50,7 @@ pub enum Command {
     React(ReactCommand),
     Strategy(StrategyCommand),
     Genealogy(GenealogyCommand),
+    Registry(RegistryCommand),
     Db(DbCommand),
     Plan(PlanCommand),
     Tradeoff(TradeoffCommand),
@@ -501,6 +502,13 @@ pub enum GenealogyCommand {
     Show { id: String },
     Tree,
     Roots,
+}
+#[derive(Debug, Clone)]
+pub enum RegistryCommand {
+    List,
+    Show { name: String },
+    Retire { name: String },
+    Unretire { name: String },
 }
 
 #[derive(Debug, Clone)]
