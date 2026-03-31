@@ -3,7 +3,7 @@ id: 176
 date: 2026-03-30
 type: future
 title: "Failure Recovery — The Shell Remembers What Went Wrong"
-status: in-progress
+status: complete
 tags: [shell, fsh, errors, recovery, retry, intelligence, observability]
 version: 12.0.0
 priority: high
