@@ -3,7 +3,7 @@ id: 177
 date: 2026-03-30
 type: future
 title: "Shell Observability — The Shell Watches Itself"
-status: in-progress
+status: complete
 tags: [shell, fsh, observability, sessions, self-aware, intelligence, metrics]
 version: 12.0.0
 priority: medium
