@@ -157,7 +157,88 @@ pub fn apply_pipeline(value: Value, ops: &[PipeOp]) -> Value {
     current
 }
 
+// ── Phase 2: Schema System — INT-162 ─────────────────────────────────────────
+// Typed schemas guarantee consistent column names across pipeline operators.
+// Each schema implements to_row() → HashMap<String, Value> for pipeline compat.
+
+/// Schema for `ps` output
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
+pub struct ProcessRow {
+    pub pid:    u32,
+    pub name:   String,
+    pub cpu:    f32,
+    pub memory: f32,
+    pub status: String,
+}
+
+#[allow(dead_code)]
+impl ProcessRow {
+    pub fn to_row(&self) -> HashMap<String, Value> {
+        let mut m = HashMap::new();
+        m.insert("pid".into(),    Value::Int(self.pid as i64));
+        m.insert("name".into(),   Value::Text(self.name.clone()));
+        m.insert("cpu".into(),    Value::Float(self.cpu as f64));
+        m.insert("memory".into(), Value::Float(self.memory as f64));
+        m.insert("status".into(), Value::Text(self.status.clone()));
+        m
+    }
+    pub fn columns() -> &'static [&'static str] {
+        &["pid", "name", "cpu", "memory", "status"]
+    }
+}
+
+/// Schema for `gc` output
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct CommitRow {
+    pub hash:    String,
+    pub message: String,
+    pub author:  String,
+    pub date:    String,
+    pub domain:  String,
+}
+
+#[allow(dead_code)]
+impl CommitRow {
+    pub fn to_row(&self) -> HashMap<String, Value> {
+        let mut m = HashMap::new();
+        m.insert("hash".into(),    Value::Text(self.hash.clone()));
+        m.insert("message".into(), Value::Text(self.message.clone()));
+        m.insert("author".into(),  Value::Text(self.author.clone()));
+        m.insert("date".into(),    Value::Text(self.date.clone()));
+        m.insert("domain".into(),  Value::Text(self.domain.clone()));
+        m
+    }
+    pub fn columns() -> &'static [&'static str] {
+        &["hash", "message", "author", "date", "domain"]
+    }
+}
+
+/// Schema for health check output
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct HealthRow {
+    pub check:   String,
+    pub status:  String,
+    pub message: String,
+}
+
+#[allow(dead_code)]
+impl HealthRow {
+    pub fn to_row(&self) -> HashMap<String, Value> {
+        let mut m = HashMap::new();
+        m.insert("check".into(),   Value::Text(self.check.clone()));
+        m.insert("status".into(),  Value::Text(self.status.clone()));
+        m.insert("message".into(), Value::Text(self.message.clone()));
+        m
+    }
+    pub fn columns() -> &'static [&'static str] {
+        &["check", "status", "message"]
+    }
+}
+
+#[derive(Clone)]
 pub enum PipeOp {
     Where {
         field: String,
