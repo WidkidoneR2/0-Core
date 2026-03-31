@@ -3,7 +3,7 @@ id: 157
 date: 2026-03-26
 type: future
 title: "faelight-docs v2 — The Forest Documents Itself Accurately"
-status: in-progress
+status: complete
 tags: [docs, automation, readme, release, accuracy, v12]
 version: 12.0.0
 priority: high
