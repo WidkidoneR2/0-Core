@@ -106,6 +106,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // INT-174 — Structured Errors
         "last_error" | "last-error" => last_error_cmd(db, args),
         "errors" => error_history_cmd(db, args),
+        // INT-173 — Command Registry
+        "describe" => describe_cmd(db, args, core_root),
+        "command" => command_cmd(db, args, core_root),
         "health" => health(db),
         "events" => events(db, args),
         "decisions" => decisions(db),
@@ -2639,6 +2642,74 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             cmd_orig.bright_white(),
             e
         )),
+    }
+}
+
+// ── INT-173: Command Registry Commands ───────────────────────────────────────
+
+fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
+    let name = args.first().copied().unwrap_or("");
+    if name.is_empty() {
+        return CommandResult::Error("describe: missing command name".to_string());
+    }
+    let mut reg = crate::registry::Registry::new();
+    reg.populate(db, core_root);
+    match reg.get(name) {
+        None => CommandResult::Output(format!("  ○ {} — not in registry", name)),
+        Some(entry) => {
+            let mut out = String::new();
+            out.push_str(&format!("\n  {} {}\n", "🌲".normal(), entry.name.bright_white().bold()));
+            out.push_str(&format!("  {:<12} {}\n", "kind:".dimmed(), entry.kind.label().bright_cyan()));
+            out.push_str(&format!("  {:<12} {}\n", "source:".dimmed(), entry.source.dimmed()));
+            if !entry.description.is_empty() {
+                out.push_str(&format!("  {:<12} {}\n", "description:".dimmed(), entry.description.bright_white()));
+            }
+            if !entry.usage.is_empty() {
+                out.push_str(&format!("  {:<12} {}\n", "usage:".dimmed(), entry.usage.dimmed()));
+            }
+            CommandResult::Output(out.trim_end().to_string())
+        }
+    }
+}
+
+fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
+    let sub = args.first().copied().unwrap_or("list");
+    let mut reg = crate::registry::Registry::new();
+    reg.populate(db, core_root);
+
+    match sub {
+        "list" | "" => {
+            let filter = args.get(1).copied().unwrap_or("");
+            let entries = reg.all_sorted();
+            let rows: Vec<std::collections::HashMap<String, crate::value::Value>> = entries
+                .iter()
+                .filter(|e| filter.is_empty() || e.kind.label() == filter || e.name.contains(filter))
+                .map(|e| {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("name".to_string(),   crate::value::Value::Text(e.name.clone()));
+                    m.insert("kind".to_string(),   crate::value::Value::Text(e.kind.label().to_string()));
+                    m.insert("description".to_string(), crate::value::Value::Text(e.description.clone()));
+                    m
+                })
+                .collect();
+            if rows.is_empty() {
+                CommandResult::Output("  ○ No commands found".to_string())
+            } else {
+                CommandResult::Value(crate::value::Value::Table(rows))
+            }
+        }
+        "info" => {
+            let name = args.get(1).copied().unwrap_or("");
+            if name.is_empty() {
+                return CommandResult::Error("command info: missing command name".to_string());
+            }
+            describe_cmd(db, &[name], core_root)
+        }
+        "count" => {
+            let count = reg.entries.len();
+            CommandResult::Output(format!("  {} commands in registry", count.to_string().bright_white()))
+        }
+        _ => CommandResult::Error(format!("command: unknown subcommand '{}'", sub)),
     }
 }
 

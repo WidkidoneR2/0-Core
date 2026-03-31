@@ -8,6 +8,7 @@
 mod commands;
 mod db;
 mod error;
+mod registry;
 mod exec;
 mod output;
 use colored::Colorize;
@@ -217,6 +218,10 @@ fn repl_main() -> Result<()> {
 
     // Apply config aliases and settings
     config::apply(&cfg, &db);
+
+    // INT-173 — build command registry on startup
+    let mut registry = registry::Registry::new();
+    registry.populate(&db, &core_root);
 
     // Load history from state.db
     db.load_history(&mut rl);
