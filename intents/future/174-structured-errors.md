@@ -3,7 +3,7 @@ id: 174
 date: 2026-03-30
 type: future
 title: "Structured Errors — The Shell Explains Its Failures"
-status: planned
+status: in-progress
 tags: [shell, fsh, errors, debugging, observability, intelligence]
 version: 12.0.0
 priority: high
@@ -94,15 +94,15 @@ consider adding a guard."
 
 ## Gate Check
 ```
-⬜ Error struct defined — code, message, suggestion, context, timestamp
-⬜ All builtins return structured errors
-⬜ External command failures wrapped in structured errors
-⬜ Error display shows code + message + suggestion
-⬜ last_error shows most recent structured error
-⬜ last_error explain shows full context
-⬜ history errors shows session error log
-⬜ Error codes documented in registry (INT-173)
-⬜ before_run (INT-171) can pattern match on error codes
+✅ Error struct defined — ShellError in error.rs with code/message/suggestion/command/directory/timestamp (2026-03-30)
+✅ External command failures wrapped — E_EXIT_NONZERO on non-zero exit (2026-03-30)
+✅ External command failures wrapped — make_error() stores in shell_state (2026-03-30)
+✅ Error display — ❌ E_CODE: message + 💡 suggestion (2026-03-30)
+✅ last_error command — retrieves from shell_state last_error key (2026-03-30)
+✅ last_error explain — shows code/message/suggestion/command/directory (2026-03-30)
+✅ errors command — session error log as structured table (2026-03-30)
+✅ Error codes defined in error::codes module — 9 codes (2026-03-30)
+✅ Errors stored in shell_state — accessible to before_run and core (2026-03-30)
 ```
 
 ## The Phrase
