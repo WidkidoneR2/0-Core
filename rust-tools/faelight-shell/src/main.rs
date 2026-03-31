@@ -7,6 +7,7 @@
 
 mod commands;
 mod db;
+mod error;
 mod exec;
 mod output;
 use colored::Colorize;

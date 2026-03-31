@@ -103,6 +103,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "help" | "h" => help(),
         "?" => CommandResult::Output(crate::nl::render_pattern_list()),
         "exit" | "quit" | "q" => CommandResult::Exit,
+        // INT-174 — Structured Errors
+        "last_error" | "last-error" => last_error_cmd(db, args),
+        "errors" => error_history_cmd(db, args),
         "health" => health(db),
         "events" => events(db, args),
         "decisions" => decisions(db),
@@ -2610,13 +2613,20 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
                 CommandResult::Empty
             } else if code != 0 {
-                // Non-zero exit — show it, but not as a hard error
-                println!(
-                    "  {} {} exited {}",
-                    "○".dimmed(),
-                    cmd_orig.dimmed(),
-                    code.to_string().yellow()
+                // Non-zero exit — structured error
+                let cwd = std::env::current_dir()
+                    .map(|d| d.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let suggestion = format!("Check the output above — {} exited with code {}", cmd_orig, code);
+                let display = crate::error::make_error(
+                    crate::error::codes::EXIT_NONZERO,
+                    &format!("{} exited with code {}", cmd_orig, code),
+                    &suggestion,
+                    line,
+                    &cwd,
+                    db,
                 );
+                print!("{}", display);
                 suggest_after_external(line, &cmd_lower);
                 CommandResult::Empty
             } else {
@@ -2629,6 +2639,70 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             cmd_orig.bright_white(),
             e
         )),
+    }
+}
+
+// ── INT-174: Structured Error Commands ───────────────────────────────────────
+
+fn last_error_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let subcommand = args.first().copied().unwrap_or("");
+    let stored = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='last_error'",
+        [],
+        |r| r.get::<_, String>(0),
+    ).ok();
+
+    match stored {
+        None => CommandResult::Output("  ○ No errors recorded this session".to_string()),
+        Some(s) => {
+            match crate::error::ShellError::from_storage(&s) {
+                None => CommandResult::Output(format!("  ○ {}", s)),
+                Some(err) => {
+                    match subcommand {
+                        "suggest" => CommandResult::Output(
+                            format!("  💡 {}", err.suggestion)
+                        ),
+                        "explain" => CommandResult::Output(format!(
+                            "\n  ❌ {}\n  Message:    {}\n  Suggestion: {}\n  Command:    {}\n  Directory:  {}\n",
+                            err.code, err.message, err.suggestion, err.command, err.directory
+                        )),
+                        _ => CommandResult::Output(err.display()),
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let limit: usize = args.first()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+
+    let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
+
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT key, value FROM shell_state WHERE key LIKE 'error_log_%' ORDER BY key DESC LIMIT ?1"
+    ) {
+        let _ = stmt.query_map(rusqlite::params![limit as i64], |r| {
+            Ok(r.get::<_, String>(1)?)
+        }).map(|iter| {
+            for row in iter.flatten() {
+                if let Some(err) = crate::error::ShellError::from_storage(&row) {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("code".to_string(),    crate::value::Value::Text(err.code.to_string()));
+                    m.insert("message".to_string(), crate::value::Value::Text(err.message));
+                    m.insert("command".to_string(), crate::value::Value::Text(err.command));
+                    rows.push(m);
+                }
+            }
+        });
+    }
+
+    if rows.is_empty() {
+        CommandResult::Output("  ○ No errors recorded this session".to_string())
+    } else {
+        CommandResult::Value(crate::value::Value::Table(rows))
     }
 }
 
