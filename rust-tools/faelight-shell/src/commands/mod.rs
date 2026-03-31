@@ -106,6 +106,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // INT-174 — Structured Errors
         "last_error" | "last-error" => last_error_cmd(db, args),
         "errors" => error_history_cmd(db, args),
+        // INT-176 — Failure Recovery
+        "last_command" | "lc" => last_command_cmd(db, args),
+        "failures" => failure_history_cmd(db, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "command" => command_cmd(db, args, core_root),
@@ -2616,7 +2619,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
                 CommandResult::Empty
             } else if code != 0 {
-                // Non-zero exit — structured error
+                // Non-zero exit — structured error + failure memory
                 let cwd = std::env::current_dir()
                     .map(|d| d.to_string_lossy().to_string())
                     .unwrap_or_default();
@@ -2630,6 +2633,20 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                     db,
                 );
                 print!("{}", display);
+                // INT-176 — store last failed command for recovery
+                let _ = db.conn.execute(
+                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_failed_command', ?1)",
+                    rusqlite::params![line],
+                );
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64).unwrap_or(0);
+                let log_key = format!("failure_log_{}", ts);
+                let log_val = format!("{}|E_EXIT_NONZERO: {} exited with code {}", line, cmd_orig, code);
+                let _ = db.conn.execute(
+                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+                    rusqlite::params![log_key, log_val],
+                );
                 suggest_after_external(line, &cmd_lower);
                 CommandResult::Empty
             } else {
@@ -2642,6 +2659,116 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             cmd_orig.bright_white(),
             e
         )),
+    }
+}
+
+// ── INT-176: Failure Recovery Commands ──────────────────────────────────────────
+
+fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let sub = args.first().copied().unwrap_or("show");
+
+    let last_failed = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='last_failed_command'",
+        [],
+        |r| r.get::<_, String>(0),
+    ).ok();
+
+    match last_failed {
+        None => CommandResult::Output("  ○ No failed commands recorded this session".to_string()),
+        Some(cmd) => {
+            match sub {
+                "retry" => {
+                    println!("  {} Retrying: {}", "↺".bright_cyan(), cmd.bright_white());
+                    println!();
+                    CommandResult::Output(format!("__retry__{}", cmd))
+                }
+                "explain" => {
+                    let last_err = db.conn.query_row(
+                        "SELECT value FROM shell_state WHERE key='last_error'",
+                        [],
+                        |r| r.get::<_, String>(0),
+                    ).ok();
+                    let mut out = String::new();
+                    out.push_str(&format!("
+  {} Last failed command: {}
+", "✗".bright_red(), cmd.bright_white()));
+                    if let Some(err) = last_err {
+                        if let Some(e) = crate::error::ShellError::from_storage(&err) {
+                            out.push_str(&format!("  {} {}: {}
+", "❌".normal(), e.code, e.message));
+                            if !e.suggestion.is_empty() {
+                                out.push_str(&format!("  {} {}
+", "💡".normal(), e.suggestion));
+                            }
+                        }
+                    }
+                    CommandResult::Output(out)
+                }
+                "fix" => {
+                    let last_err = db.conn.query_row(
+                        "SELECT value FROM shell_state WHERE key='last_error'",
+                        [],
+                        |r| r.get::<_, String>(0),
+                    ).ok();
+                    let fix = if let Some(err) = last_err {
+                        if let Some(e) = crate::error::ShellError::from_storage(&err) {
+                            match e.code {
+                                "E_CORE_LOCKED" => Some(format!("unlock-core && {}", cmd)),
+                                "E_NOT_GIT_REPO" => Some(format!("cd ~/0-core && {}", cmd)),
+                                "E_PERMISSION"   => Some(format!("sudo {}", cmd)),
+                                "E_CMD_NOT_FOUND" => Some(format!("# Install the tool first, then: {}", cmd)),
+                                _ => None,
+                            }
+                        } else { None }
+                    } else { None };
+
+                    match fix {
+                        Some(f) => CommandResult::Output(format!("
+  {} Suggested fix:
+  {}
+", "💡".normal(), f.bright_cyan())),
+                        None => CommandResult::Output(format!("
+  {} No automatic fix available for: {}
+  Check the error with: last_command explain
+", "○".dimmed(), cmd.dimmed())),
+                    }
+                }
+                _ => {
+                    CommandResult::Output(format!("
+  {} Last failed: {}
+  → retry | explain | fix
+", "✗".bright_red(), cmd.bright_white()))
+                }
+            }
+        }
+    }
+}
+
+fn failure_history_cmd(db: &ForestDb, _args: &[&str]) -> CommandResult {
+    let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
+
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT key, value FROM shell_state WHERE key LIKE 'failure_log_%' ORDER BY key DESC LIMIT 20"
+    ) {
+        let _ = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        }).map(|iter| {
+            for row in iter.flatten() {
+                let parts: Vec<&str> = row.1.splitn(2, '|').collect();
+                if parts.len() == 2 {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("command".to_string(), crate::value::Value::Text(parts[0].to_string()));
+                    m.insert("error".to_string(),   crate::value::Value::Text(parts[1].chars().take(50).collect()));
+                    rows.push(m);
+                }
+            }
+        });
+    }
+
+    if rows.is_empty() {
+        CommandResult::Output("  ✅ No failures recorded this session".to_string())
+    } else {
+        CommandResult::Value(crate::value::Value::Table(rows))
     }
 }
 

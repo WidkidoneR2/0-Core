@@ -191,6 +191,27 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         db.save_history_entry(&ctx.raw);
     }
 
+    // ── Failure Memory — INT-176 ──────────────────────────────────────────────
+    // Store last failed command so last_command retry/explain/fix can use it
+    if status == "error" {
+        let _ = db.conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_failed_command', ?1)",
+            rusqlite::params![ctx.raw],
+        );
+        // Append to session failure log
+        let ts = ctx.timestamp as i64;
+        let error_msg = match result {
+            crate::commands::CommandResult::Error(e) => e.clone(),
+            _ => "unknown error".to_string(),
+        };
+        let log_key = format!("failure_log_{}", ts);
+        let log_val = format!("{}|{}", ctx.raw, error_msg);
+        let _ = db.conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+            rusqlite::params![log_key, log_val],
+        );
+    }
+
     // ── Suggest system — INT-171 Phase 4 ─────────────────────────────────────
     if status == "ok" || status == "empty" {
         let suggestion = match ctx.cmd.as_str() {
