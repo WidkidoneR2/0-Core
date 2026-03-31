@@ -61,11 +61,36 @@ The shell must become the daily driver before v13 ships.
 A partner that lives in a shell you do not use daily
 is a partner you will never trust.
 
+## Current State (updated 2026-03-30)
+```
+✅ Core v12 Strategy complete (INT-151)
+✅ Shell Architecture Hardening (INT-162)
+✅ Pre-Command Decision Layer (INT-171)
+✅ Structured Errors (INT-174)
+✅ Command Registry (INT-173)
+✅ Alias Audit (INT-163)
+✅ Deploy Pipeline (INT-164)
+Migration confidence: 75% daily driver
+```
+
+## Next Stepping Stones (in order)
+```
+INT-181 — Forest Next Intent Engine    (forest tells you what's next)
+INT-168 — Test Suite Foundation        (structural integrity before v13)
+INT-180 — Sway Removal                 (clean up the past)
+INT-182 — Release and Docs Pipeline    (one command, everything updated)
+INT-179 — fsh v3 daily driver          (zsh retirement path)
+INT-142 — Voice Input                  (Jarvis speaks)
+INT-147 — Voice Output                 (Jarvis listens)
+INT-156 — Core v13 Autonomy            (the forest chooses)
+```
+
 ## Gate Check
 ```
+✅ Core v12 complete (2026-03-30)
+⬜ INT-181 — Forest Next Intent Engine live
 ⬜ faelight-shell at 95%+ native command handling
 ⬜ faelight-shell as login shell (Phase 19)
-⬜ Core v12 complete
 ⬜ faelight-context v1.0.0
 ⬜ faelight-memory v1.0.0
 ⬜ Core v13 complete
