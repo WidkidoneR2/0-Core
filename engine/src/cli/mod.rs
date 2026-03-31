@@ -329,6 +329,9 @@ pub fn parse() -> Command {
             StrategyCommands::History => StrategyCommand::History,
             StrategyCommands::Learn { strategy_id, outcome } => StrategyCommand::Learn { strategy_id, outcome },
             StrategyCommands::Review => StrategyCommand::Review,
+            StrategyCommands::Next { list, why } => StrategyCommand::Next { list, why },
+            StrategyCommands::Queue => StrategyCommand::Queue,
+            StrategyCommands::Blockers => StrategyCommand::Blockers,
         }),
         Commands::Plan { command } => Command::Plan(match command {
             PlanCommands::Generate { goal_id } => PlanCommand::Generate { goal_id },
