@@ -2617,8 +2617,10 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                     cmd_orig.dimmed(),
                     code.to_string().yellow()
                 );
+                suggest_after_external(line, &cmd_lower);
                 CommandResult::Empty
             } else {
+                suggest_after_external(line, &cmd_lower);
                 CommandResult::Empty
             }
         }
@@ -2627,6 +2629,23 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             cmd_orig.bright_white(),
             e
         )),
+    }
+}
+
+fn suggest_after_external(line: &str, cmd_lower: &str) {
+    let suggestion: Option<&str> = match cmd_lower {
+        "cicomplete"  => Some("💡 Next: fg commit — record the completion"),
+        "cistart"     => Some("💡 Next: read the intent carefully before writing any code"),
+        "lock-core" | "core-protect" if line.contains("lock") && !line.contains("unlock") => Some("💡 Forest is protected — remember to unlock-core before editing"),
+        "unlock-core" | "core-protect" if line.contains("unlock") => Some("💡 Reminder: run lock-core before shutdown"),
+        "deploy"      => Some("💡 Suggestion: run d — verify health after deploy"),
+        "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),
+        "core" if line.contains("intent complete") => Some("💡 Next: fg commit — record the completion"),
+        "core" if line.contains("intent start")   => Some("💡 Next: read the intent carefully before writing any code"),
+        _ => None,
+    };
+    if let Some(msg) = suggestion {
+        println!("  {}", msg);
     }
 }
 
