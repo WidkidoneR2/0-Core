@@ -43,7 +43,7 @@
 - Health: 100%
 - Intents: 115 complete
 
-[Full Changelog →](CHANGELOG.md)
+[Full Changelog →](00-meta/CHANGELOG.md)
 
 ---
 
