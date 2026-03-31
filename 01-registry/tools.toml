@@ -250,13 +250,6 @@ description = "Live system narrator with presentation mode"
 expected_usage = "rare"
 
 [[tool]]
-name = "verify-bootstrap"
-version = "2.0.0"
-category = "system"
-description = "Bootstrap verification"
-expected_usage = "low"
-
-[[tool]]
 name = "workspace-view"
 version = "2.0.0"
 category = "development"
@@ -343,7 +336,7 @@ expected_usage = "medium"
 
 [[tool]]
 name = "faelight-docs"
-version = "1.0.0"
+version = "2.0.0"
 category = "documentation"
 description = "Living documentation engine — syncs README and welcome message with forest state"
 expected_usage = "low"
@@ -353,3 +346,24 @@ version = "1.0.0"
 category = "shell"
 description = "Forest morning digest — system stats + forest context"
 expected_usage = "high"
+
+[[tool]]
+name = "faelight-login"
+version = "1.0.0"
+category = "system"
+description = "Faelight login greeter — greetd-compatible TUI login screen"
+expected_usage = "low"
+
+[[tool]]
+name = "security-audit"
+version = "1.0.0"
+category = "security"
+description = "Security audit scanner — checks system for vulnerabilities"
+expected_usage = "low"
+
+[[tool]]
+name = "faelight-notifyctl"
+version = "1.0.0"
+category = "notification"
+description = "IPC controller for faelight-notify — set modes, dismiss notifications"
+expected_usage = "low"
