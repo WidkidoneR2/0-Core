@@ -3,7 +3,7 @@ id: 176
 date: 2026-03-30
 type: future
 title: "Failure Recovery — The Shell Remembers What Went Wrong"
-status: planned
+status: in-progress
 tags: [shell, fsh, errors, recovery, retry, intelligence, observability]
 version: 12.0.0
 priority: high
@@ -105,14 +105,14 @@ Failures become training data for predictions and strategy.
 
 ## Gate Check
 ```
-⬜ Failed commands stored in session state with structured error
-⬜ history failures shows all session failures
-⬜ history failures | last N works
-⬜ last_command retry re-runs last failed command
-⬜ last_command explain shows plain language failure reason
-⬜ last_command fix suggests corrected command for common errors
-⬜ Failure patterns feed core v11 predictions
-⬜ Reaction rules can fire on repeated failure patterns
+✅ Failed commands stored in session state — failure_log_NNN keys in shell_state (2026-03-31)
+✅ failures command — session failure log as structured table (2026-03-31)
+✅ failures pipeable — works with all pipeline operators (2026-03-31)
+✅ last_command retry — shows command and prompts re-run (2026-03-31)
+✅ last_command explain — shows error code, message, suggestion (2026-03-31)
+✅ last_command fix — suggests fixes for E_CORE_LOCKED/E_NOT_GIT_REPO/E_PERMISSION (2026-03-31)
+✅ Failure patterns stored — failure_log available for core v11/v12 analysis (2026-03-31)
+✅ Failures in shell_state — reaction rules can query failure_log keys (2026-03-31)
 ```
 
 ## The Phrase
