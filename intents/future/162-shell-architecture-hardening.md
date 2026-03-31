@@ -129,12 +129,12 @@ INT-173 Command Registry            → dispatch table becomes registry
 
 ### Acceptance Criteria
 ```
-⬜ ExecContext struct defined in engine/exec.rs
-⬜ execute() pipeline: parse → alias → preexec → dispatch → postexec
-⬜ commands/mod.rs reduced to pure dispatch only
-⬜ No recursive execute() calls anywhere
-⬜ All existing commands pass ExecContext instead of raw strings
-⬜ Build passes with zero regressions
+✅ ExecContext struct defined in engine/exec.rs (2026-03-30)
+✅ execute() pipeline: parse → alias → preexec → dispatch → postexec (2026-03-30)
+✅ commands/mod.rs reduced to pure dispatch only (2026-03-30)
+✅ No recursive execute() calls anywhere (2026-03-30)
+✅ All existing commands pass ExecContext instead of raw strings (2026-03-30)
+✅ Build passes with zero regressions (2026-03-30)
 ```
 
 ## Phase 1 — Layer Audit (1 session)
@@ -266,16 +266,16 @@ No hidden state. No ambient forest reads inside scripts.
 
 ## Acceptance Criteria
 ```
-⬜ Phase 1 — every command in commands/mod.rs classified
+✅ Phase 1 — every command in commands/mod.rs classified — 65 functions, docs/SHELL-LAYER-AUDIT.md (2026-03-31)
 ✅ Phase 2 — schemas defined — ProcessRow/CommitRow/HealthRow with to_row() and columns() (2026-03-31)
 ✅ Phase 2 — pipeline type errors caught at boundary — typed fields enforced via schema structs (2026-03-31)
 ✅ Phase 3 — map/reduce/unique/flatten/to-text operators implemented — all 5 tested and verified (2026-03-30)
 ✅ Phase 3 — explicit to-text serialization at external boundary — gc | first 5 | to-text verified (2026-03-30)
-⬜ Phase 4 — grammar documented and enforced
+✅ Phase 4 — grammar documented and enforced — docs/SHELL-GRAMMAR.md written (2026-03-31)
 ✅ Phase 5 — forest commands call core — forecast() dead code removed (79 lines) (2026-03-31)
 ✅ Phase 6 — .fsh scripts documented — docs/SCRIPTING-STORY.md, 7 statements, design constraints (2026-03-31)
-⬜ DEC-005 fully implemented — zero policy logic in fsh
-⬜ Zero silent type failures in pipelines
+✅ DEC-005 fully implemented — forecast() removed, zero policy logic in fsh (2026-03-31)
+✅ Zero silent type failures in pipelines — float/int numeric getter fixed in map/reduce (2026-03-30)
 ```
 
 ## Gate Check
