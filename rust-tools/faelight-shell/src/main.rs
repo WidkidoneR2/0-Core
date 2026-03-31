@@ -7,6 +7,8 @@
 
 mod commands;
 mod db;
+#[cfg(test)]
+mod tests;
 mod error;
 mod registry;
 mod exec;
