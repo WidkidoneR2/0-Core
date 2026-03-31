@@ -725,7 +725,7 @@ fn repl_main() -> Result<()> {
                         base_cmd
                     };
                     let cmd_output: Option<String> =
-                        match exec::execute_with_context(&base_cmd, &db, &core_root) {
+                        match exec::execute_with_context(&base_cmd, &db, &core_root, &cfg.before_rules) {
                             commands::CommandResult::Exit => break 'repl,
                             commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
                                 let result = value::apply_pipeline(v, &pipeline_ops);

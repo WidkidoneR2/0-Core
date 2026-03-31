@@ -9,17 +9,55 @@
 use crate::db::ForestDb;
 use colored::*;
 
+/// A single before_run rule — condition + action
+#[derive(Debug, Clone)]
+pub struct BeforeRunRule {
+    pub condition: RuleCondition,
+    pub action:    RuleAction,
+    pub message:   String,
+}
+
+/// What to check before running a command
+#[derive(Debug, Clone)]
+pub enum RuleCondition {
+    CommandEquals(String),
+    CommandContains(String),
+    CommandStartsWith(String),
+}
+
+/// What to do when condition matches
+#[derive(Debug, Clone)]
+pub enum RuleAction {
+    Block,
+    Warn,
+    Suggest,
+}
+
+impl BeforeRunRule {
+    /// Check if this rule matches the given command line
+    pub fn matches(&self, raw: &str) -> bool {
+        let raw_lower = raw.to_lowercase();
+        match &self.condition {
+            RuleCondition::CommandEquals(s)     => raw_lower == s.to_lowercase(),
+            RuleCondition::CommandContains(s)   => raw_lower.contains(&s.to_lowercase()),
+            RuleCondition::CommandStartsWith(s) => raw_lower.starts_with(&s.to_lowercase()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ShellConfig {
-    pub aliases: Vec<(String, String)>,
-    pub settings: Vec<(String, String)>,
+    pub aliases:      Vec<(String, String)>,
+    pub settings:     Vec<(String, String)>,
+    pub before_rules: Vec<BeforeRunRule>,
 }
 
 impl ShellConfig {
     pub fn empty() -> Self {
         Self {
-            aliases: vec![],
-            settings: vec![],
+            aliases:      vec![],
+            settings:     vec![],
+            before_rules: vec![],
         }
     }
 }
@@ -38,13 +76,76 @@ pub fn load() -> ShellConfig {
         Err(_) => return ShellConfig::empty(),
     };
 
-    let mut aliases = vec![];
-    let mut settings = vec![];
+    let mut aliases      = vec![];
+    let mut settings     = vec![];
+    let mut before_rules = vec![];
 
+    // Parse before_run { } blocks
+    let mut in_before_run = false;
     for line in text.lines() {
         let line = line.trim();
         // Skip comments and empty lines
         if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        // before_run block open/close
+        if line == "before_run {" {
+            in_before_run = true;
+            continue;
+        }
+        if in_before_run && line == "}" {
+            in_before_run = false;
+            continue;
+        }
+        // Parse before_run rules:
+        // if command contains "rm -rf" { block "message" }
+        // if command starts_with "paru" { warn "message" }
+        // if command == "deploy" { suggest "message" }
+        if in_before_run {
+            if let Some(rest) = line.strip_prefix("if command ") {
+                // Parse: <cond_type> "<cond_val>" { <action> "<message>" }
+                let (cond, remainder) = if let Some(r) = rest.strip_prefix("contains ") {
+                    (Some("contains"), r)
+                } else if let Some(r) = rest.strip_prefix("starts_with ") {
+                    (Some("starts_with"), r)
+                } else if let Some(r) = rest.strip_prefix("== ") {
+                    (Some("=="), r)
+                } else {
+                    (None, rest)
+                };
+                if let Some(cond_type) = cond {
+                    // Extract quoted condition value
+                    if let Some(q1) = remainder.find('"') {
+                        if let Some(q2) = remainder[q1+1..].find('"') {
+                            let cond_val = remainder[q1+1..q1+1+q2].to_string();
+                            let after = remainder[q1+1+q2+1..].trim();
+                            // Extract action and message: { block "msg" }
+                            if let Some(inner) = after.strip_prefix("{").and_then(|s| s.strip_suffix("}")) {
+                                let inner = inner.trim();
+                                let (action, msg_rest) = if let Some(r) = inner.strip_prefix("block ") {
+                                    (Some(RuleAction::Block), r)
+                                } else if let Some(r) = inner.strip_prefix("warn ") {
+                                    (Some(RuleAction::Warn), r)
+                                } else if let Some(r) = inner.strip_prefix("suggest ") {
+                                    (Some(RuleAction::Suggest), r)
+                                } else {
+                                    (None, inner)
+                                };
+                                if let Some(action) = action {
+                                    let message = msg_rest.trim().trim_matches('"').to_string();
+                                    let condition = match cond_type {
+                                        "contains"    => RuleCondition::CommandContains(cond_val),
+                                        "starts_with" => RuleCondition::CommandStartsWith(cond_val),
+                                        _             => RuleCondition::CommandEquals(cond_val),
+                                    };
+                                    before_rules.push(BeforeRunRule { condition, action, message });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             continue;
         }
 
@@ -78,7 +179,7 @@ pub fn load() -> ShellConfig {
         // Future: source, export, etc.
     }
 
-    ShellConfig { aliases, settings }
+    ShellConfig { aliases, settings, before_rules }
 }
 
 /// Apply config to the running shell — register aliases and settings.
