@@ -1547,6 +1547,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-context"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "colored",
+ "serde",
+ "serde_json",
+ "walkdir",
+]
+
+[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [
