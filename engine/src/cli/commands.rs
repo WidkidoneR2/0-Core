@@ -50,6 +50,7 @@ pub enum Command {
     React(ReactCommand),
     Strategy(StrategyCommand),
     Genealogy(GenealogyCommand),
+    Integrity(IntegrityCommand),
     Autonomy(AutonomyCommand),
     Registry(RegistryCommand),
     Db(DbCommand),
@@ -504,6 +505,9 @@ pub enum GenealogyCommand {
     Tree,
     Roots,
 }
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum IntegrityCommand { Run, Status, Log, Fix, Apply { id: i64 } }
 #[derive(Debug, Clone)]
 pub enum AutonomyCommand {
     MandateList,

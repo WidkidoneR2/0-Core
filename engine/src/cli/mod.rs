@@ -5,7 +5,7 @@ use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
-    DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
+    DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
     TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
@@ -312,6 +312,13 @@ pub fn parse() -> Command {
             GenealogyCommands::Show { id } => GenealogyCommand::Show { id },
             GenealogyCommands::Tree => GenealogyCommand::Tree,
             GenealogyCommands::Roots => GenealogyCommand::Roots,
+        }),
+        Commands::Integrity { command } => Command::Integrity(match command {
+            IntegrityCommands::Run          => IntegrityCommand::Run,
+            IntegrityCommands::Status       => IntegrityCommand::Status,
+            IntegrityCommands::Log          => IntegrityCommand::Log,
+            IntegrityCommands::Fix          => IntegrityCommand::Fix,
+            IntegrityCommands::Apply { id } => IntegrityCommand::Apply { id },
         }),
         Commands::Autonomy { command } => Command::Autonomy(match command {
             AutonomyCommands::MandateList => AutonomyCommand::MandateList,

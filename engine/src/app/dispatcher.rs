@@ -3,7 +3,7 @@ use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
-    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
+    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
@@ -485,6 +485,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),
             GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
+        },
+        Command::Integrity(cmd) => match cmd {
+            IntegrityCommand::Run          => crate::domains::integrity::cmd_run(ctx),
+            IntegrityCommand::Status       => crate::domains::integrity::cmd_status(ctx),
+            IntegrityCommand::Log          => crate::domains::integrity::cmd_log(ctx),
+            IntegrityCommand::Fix          => crate::domains::integrity::cmd_fix(ctx),
+            IntegrityCommand::Apply { id: _ } => crate::domains::integrity::cmd_fix(ctx), // TODO: apply by id
         },
         Command::Autonomy(cmd) => match cmd {
             AutonomyCommand::MandateList => crate::domains::autonomy::mandate_list(ctx),
