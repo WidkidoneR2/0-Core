@@ -1103,11 +1103,13 @@ pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
 
     // Milestone targets
     println!("  {} {}", "▶".bright_cyan(), "Milestones:".bright_white().bold());
-    println!("    {} 65/100 — Anticipatory partner  {} (current)",
-        if score >= 65 { "✅" } else { "⬜" }, "←".bright_yellow());
+    println!("    {} 65/100 — Anticipatory partner  {}",
+        if score >= 65 { "✅" } else { "⬜" }, if score < 80 { "← (current)".bright_yellow().to_string() } else { "".to_string() });
     let v12_status = if std::path::PathBuf::from(&ctx.core_root).join("intents/complete").read_dir().map(|d| d.flatten().any(|e| e.file_name().to_string_lossy().starts_with("151"))).unwrap_or(false) { "✅ v12 complete" } else { "complete v12" };
-    println!("    {} 80/100 — Strategic advisor     ({})",
-        if score >= 80 { "✅" } else { "⬜" }, v12_status);
+    println!("    {} 80/100 — Strategic advisor     {} {}",
+        if score >= 80 { "✅" } else { "⬜" },
+        v12_status,
+        if score >= 80 && score < 95 { "← (current)".bright_yellow().to_string() } else { "".to_string() });
     println!("    {} 95/100 — Autonomous agent      (complete v13)",
         if score >= 95 { "✅" } else { "⬜" });
     println!();
