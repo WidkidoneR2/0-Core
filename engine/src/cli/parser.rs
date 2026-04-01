@@ -138,6 +138,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: GenealogyCommands,
     },
+    /// Integrity — consistency oracle and self-repair engine (INT-184)
+    Integrity {
+        #[command(subcommand)]
+        command: IntegrityCommands,
+    },
     /// Autonomy — mandate system and autonomous action engine (INT-156)
     Autonomy {
         #[command(subcommand)]
@@ -1075,6 +1080,19 @@ pub enum GenealogyCommands {
     Roots,
 }
 
+#[derive(Debug, clap::Subcommand)]
+pub enum IntegrityCommands {
+    /// Full integrity scan with repair options
+    Run,
+    /// Show current integrity status and pending proposals
+    Status,
+    /// Show history of integrity issues
+    Log,
+    /// Apply pending proposals
+    Fix,
+    /// Apply a specific pending proposal by ID
+    Apply { id: i64 },
+}
 #[derive(Debug, clap::Subcommand)]
 pub enum AutonomyCommands {
     /// List active mandates
