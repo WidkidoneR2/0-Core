@@ -480,3 +480,13 @@ expected_usage = "low"
 type = "rust"
 deployable = true
 retired = false
+
+[[tool]]
+name = "faelight-context"
+version = "1.0.0"
+category = "intelligence"
+description = "Deep codebase understanding engine — scan, map, patterns, summary, decisions"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false

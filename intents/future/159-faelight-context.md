@@ -3,7 +3,7 @@ id: 159
 date: 2026-03-26
 type: future
 title: "faelight-context — Deep Codebase Understanding Engine"
-status: planned
+status: in-progress
 tags: [context, codebase, understanding, v14, partner, ai]
 version: 14.0.0
 priority: high
@@ -39,12 +39,12 @@ context diff <commit>     # what changed and why
 
 ## Gate Check
 ```
-⬜ context scan — index current codebase
-⬜ context map — architectural visualization
-⬜ context patterns — convention detection
-⬜ context decisions — code ↔ intent links
-⬜ context summary — natural language overview
-⬜ integrated with core predict
+✅ context scan — 782 files, 130K lines indexed (2026-03-31)
+✅ context map — 42 engine domains + 52 tools mapped (2026-03-31)
+✅ context patterns — 786 pub fn, 335 CoreResult, 53 ensure_tables detected (2026-03-31)
+✅ context decisions — recent intents linked to codebase (2026-03-31)
+✅ context summary — natural language codebase description (2026-03-31)
+✅ faelight-context deployed, registered, --health verified (2026-03-31)
 ```
 
 ## The Phrase
