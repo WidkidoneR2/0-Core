@@ -1003,10 +1003,22 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     total += commit_score;
 
     // Factor 5: Shell intelligence (max 10) — fsh as daily driver
-    // Partial — fsh exists but not yet daily driver
     factors.push(("Shell Intelligence".to_string(), 5,
         "faelight-shell at 90% native coverage — not yet daily driver".to_string()));
     total += 5;
+
+    // Factor 7: Context awareness (max 7) — faelight-context + faelight-memory
+    let context_exists = std::path::PathBuf::from(&ctx.core_root)
+        .join("scripts/faelight-context").exists();
+    let memory_exists = std::path::PathBuf::from(&ctx.core_root)
+        .join("scripts/faelight-memory").exists();
+    let (ctx_score, ctx_note) = match (context_exists, memory_exists) {
+        (true, true)  => (7, "faelight-context + faelight-memory both operational".to_string()),
+        (true, false) => (4, "faelight-context operational, faelight-memory pending INT-160".to_string()),
+        _             => (0, "Neither context nor memory built yet".to_string()),
+    };
+    factors.push(("Context & Memory".to_string(), ctx_score, ctx_note));
+    total += ctx_score;
 
     // Factor 6: Prediction accuracy (max 10) — reads from forest_predictions (INT-167)
     let pred_count: i64 = ctx.runtime.db.query_row(
