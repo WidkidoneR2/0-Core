@@ -1020,6 +1020,18 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     factors.push(("Context & Memory".to_string(), ctx_score, ctx_note));
     total += ctx_score;
 
+    // Factor 0: Integrity score (max 5) — reads from integrity engine (INT-184)
+    let (integrity_pct, _, _, _) = crate::domains::integrity::quick_scan(ctx);
+    let (int_score, int_note) = if integrity_pct >= 95 {
+        (5, format!("{}% — system state verified and consistent", integrity_pct))
+    } else if integrity_pct >= 75 {
+        (3, format!("{}% — some inconsistencies detected (run: core integrity run)", integrity_pct))
+    } else {
+        (0, format!("{}% — integrity issues require attention before autonomy", integrity_pct))
+    };
+    factors.push(("Integrity Score".to_string(), int_score, int_note));
+    total += int_score;
+
     // Factor 6: Prediction accuracy (max 10) — reads from forest_predictions (INT-167)
     let pred_count: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
