@@ -3,7 +3,7 @@ id: 184
 date: 2026-03-31
 type: arch
 title: "Doctor Integrity Engine — The Forest Audits and Heals Itself"
-status: in-progress
+status: complete
 tags: [doctor, integrity, self-healing, audit, trust, consistency, architecture]
 version: 12.0.0
 priority: critical
@@ -52,8 +52,8 @@ Tier 3 — Self-Repair (MISSING — this intent):
 ### Category 1: Intent Ledger Consistency
 ```
 CHECK: Every intent with status: complete lives in intents/complete/
-CHECK: Every intent with status: in-progress lives in intents/future/
-CHECK: Every intent with status: in-progress has a documented reason
+CHECK: Every intent with status: complete lives in intents/future/
+CHECK: Every intent with status: complete has a documented reason
 CHECK: No intent ID appears twice across any directory
 CHECK: in-progress intents — only one should exist at a time
 CHECK: cicomplete was called after every intent marked complete
