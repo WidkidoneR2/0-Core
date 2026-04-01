@@ -1,0 +1,9 @@
+[package]
+name = "faelight-memory"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+colored = "2"
+clap = { version = "4", features = ["derive"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
