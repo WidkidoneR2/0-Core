@@ -7,6 +7,7 @@
 // Architecture:
 //   line → build_context() → preexec() → dispatch() → postexec() → result
 
+use colored::Colorize;
 use crate::config::{BeforeRunRule, RuleAction};
 use crate::db::ForestDb;
 use crate::commands::{self, CommandResult};
@@ -227,6 +228,53 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         };
         if let Some(msg) = suggestion {
             println!("  {}", msg);
+        }
+
+        // ── Phase 28: Predictive Suggestions ──────────────────────────────────
+        // Read shell_history to find what commands usually follow this one
+        if suggestion.is_none() {
+            let cmd_prefix = ctx.cmd.clone();
+            let full_raw = ctx.raw.clone();
+
+            // Find the most common next command after this one
+            let next_cmd: Option<String> = db.conn.query_row(
+                "SELECT next_cmd, COUNT(*) as freq FROM (
+                    SELECT h2.command as next_cmd
+                    FROM shell_history h1
+                    JOIN shell_history h2 ON h2.id = h1.id + 1
+                    WHERE h1.command = ?1 OR h1.command LIKE ?2
+                    AND h2.command != h1.command
+                    AND h2.command NOT IN ('q', 'exit', 'clear', 'c', 'pwd')
+                ) GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
+                rusqlite::params![cmd_prefix, format!("{}%", full_raw)],
+                |r| r.get(0)
+            ).ok();
+
+            if let Some(next) = next_cmd {
+                let freq: i64 = db.conn.query_row(
+                    "SELECT COUNT(*) FROM (
+                        SELECT h2.command as next_cmd
+                        FROM shell_history h1
+                        JOIN shell_history h2 ON h2.id = h1.id + 1
+                        WHERE (h1.command = ?1 OR h1.command LIKE ?2)
+                        AND h2.command = ?3
+                    )",
+                    rusqlite::params![cmd_prefix, format!("{}%", ctx.raw), next],
+                    |r| r.get(0)
+                ).unwrap_or(0);
+
+                let total: i64 = db.conn.query_row(
+                    "SELECT COUNT(*) FROM shell_history WHERE command = ?1 OR command LIKE ?2",
+                    rusqlite::params![cmd_prefix, format!("{}%", ctx.raw)],
+                    |r| r.get(0)
+                ).unwrap_or(1);
+
+                let pct = (freq * 100) / total.max(1);
+                if pct >= 50 && freq >= 3 {
+                    println!("  {} Usually followed by: {} ({}% of the time)",
+                        "→".bright_cyan(), next.bright_white(), pct);
+                }
+            }
         }
     }
 }
