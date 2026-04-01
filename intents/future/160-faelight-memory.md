@@ -3,7 +3,7 @@ id: 160
 date: 2026-03-26
 type: future
 title: "faelight-memory — Persistent Project Knowledge Layer"
-status: planned
+status: in-progress
 tags: [memory, knowledge, patterns, learning, v14, partner]
 version: 14.0.0
 priority: high
@@ -45,13 +45,13 @@ memory confidence     # how confident is each memory?
 
 ## Gate Check
 ```
-⬜ memory tables in state.db
-⬜ memory show — structured knowledge display
-⬜ memory add — explicit human teaching
-⬜ memory query — retrieval by topic
-⬜ auto-extraction from session patterns
-⬜ confidence scoring per memory
-⬜ integrated with core predict accuracy
+✅ memory tables in state.db — forest_memory table created (2026-03-31)
+✅ memory show — categorized by preference/convention/wisdom/failure (2026-03-31)
+✅ memory add — manual facts with category + confidence (2026-03-31)
+✅ memory query — full-text search across all memories (2026-03-31)
+✅ auto-extraction — extract from commit history, health runs, conventions (2026-03-31)
+✅ confidence scoring — manual=80%, auto=70-95%, query shows distribution (2026-03-31)
+✅ faelight-memory deployed, registered, --health verified (2026-03-31)
 ```
 
 ## The Phrase

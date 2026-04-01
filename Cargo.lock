@@ -1741,6 +1741,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-memory"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "colored",
+ "rusqlite",
+]
+
+[[package]]
 name = "faelight-menu"
 version = "3.0.0"
 dependencies = [

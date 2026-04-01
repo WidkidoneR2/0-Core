@@ -490,3 +490,13 @@ expected_usage = "medium"
 type = "rust"
 deployable = true
 retired = false
+
+[[tool]]
+name = "faelight-memory"
+version = "1.0.0"
+category = "intelligence"
+description = "Persistent knowledge layer — store, query, auto-extract wisdom from session history"
+expected_usage = "medium"
+type = "rust"
+deployable = true
+retired = false
