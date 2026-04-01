@@ -263,7 +263,150 @@ The Jarvis readiness score should factor in Integrity:
 - Weekly integrity digest in core strategy week
 - Feed into v13 Autonomy decision engine
 
+## Architectural Foundation (non-negotiable)
+
+### 1. IntegrityCheck Trait — Everything is This
+```rust
+pub enum Severity { AutoFix, Propose, Alert }
+
+pub struct IntegrityIssue {
+    pub category:    Category,
+    pub check:       &'static str,
+    pub severity:    Severity,
+    pub description: String,
+    pub fix:         Option<FixAction>,
+    pub weight:      u8, // 1-5: 1=trivial, 5=critical
+}
+
+pub trait IntegrityCheck {
+    fn name(&self)     -> &'static str;
+    fn category(&self) -> Category;
+    fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue>;
+}
+```
+
+Every check — without exception — implements this trait.
+No ad hoc logic. No special cases. No closures.
+
+### 2. Execution Pipeline (strict phases, no exceptions)
+```
+Phase A — Scan    (pure, no mutation — collect all issues)
+Phase B — Plan    (classify: auto-fix / propose / alert)
+Phase C — Apply   (execute auto-fixes only)
+Phase D — Re-scan (re-run affected domains only)
+Phase E — Report  (display proposals + alerts)
+```
+
+**Why re-scan matters:** Without Phase D, the system reports
+issues that were just fixed. That is false data. False data destroys trust.
+
+### 3. Deterministic Check Order (fixed, not configurable)
+```
+1. IntentChecks      (foundation — affects Jarvis)
+2. RegistryChecks    (affects autostart + docs)
+3. JarvisChecks      (depends on intent + registry)
+4. AutostartChecks   (depends on registry)
+5. DbChecks          (affects Jarvis logs)
+6. DocsChecks        (depends on registry + intents)
+7. ShellChecks       (depends on registry)
+8. TemporalChecks    (clock drift, scan freshness)
+```
+
+Order is mandatory. Intent fixes feed into Jarvis checks.
+Registry fixes feed into autostart + docs checks.
+Running them out of order = logical race conditions.
+
+### 4. Typed FixActions (not strings, not closures)
+```rust
+pub enum FixAction {
+    MoveFile         { from: PathBuf, to: PathBuf },
+    UpdateRegistry   { tool: String, version: String },
+    RemoveAutostart  { tool: String },
+    InsertDbRow      { table: String, values: Vec<String> },
+    VacuumDb,
+    SyncDocs,
+    UpdateJarvisFactor { factor: String, value: String },
+}
+```
+
+Typed actions are: loggable, replayable, testable, previewable.
+String-based fixes are none of those things.
+
+### 5. Persistent Proposal Queue
+```sql
+CREATE TABLE IF NOT EXISTS pending_fixes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    action      TEXT    NOT NULL,  -- JSON-serialized FixAction
+    description TEXT    NOT NULL,
+    created_at  INTEGER NOT NULL,
+    applied_at  INTEGER
+);
+```
+
+Without persistence, proposals disappear between sessions.
+The drift persists. The user forgets. Nothing gets fixed.
+
+### 6. Weighted Integrity Score
+```
+Integrity % = 1 - (sum(issue.weight) / sum(all_check_weights))
+```
+
+Weight scale:
+- 1 = trivial (doc count mismatch)
+- 2 = minor (registry version drift)
+- 3 = moderate (intent in wrong directory)
+- 4 = significant (tool missing from scripts/)
+- 5 = critical (DB corruption, crashed service)
+
+10 trivial doc issues ≠ 1 DB corruption issue.
+The naive count treats them as equal. That is wrong.
+
+### 7. Safe vs Heavy Mutations
+
+`d` (safe only — no destructive operations):
+- Registry version sync from Cargo.toml
+- Jarvis factor refresh from live data
+- Insert missing DB rows
+- faelight-docs sync
+
+`core integrity run` (full engine including heavy mutations):
+- Move intent files between directories
+- Remove retired tools from autostart config
+- VACUUM database
+- Config rewrites
+
+**Safe = no file deletion, no config rewrite, no destructive ops.**
+
+### 8. Category 8: Temporal Consistency (missing from original)
+```
+CHECK: Last successful doctor run < 24h ago           weight: 2
+CHECK: Last integrity scan < 24h ago                  weight: 2
+CHECK: No intent marked complete with future date     weight: 3
+CHECK: System clock sane (no >1hr drift)              weight: 4
+CHECK: Jarvis readiness log has entry < 24h           weight: 2
+```
+
+Time drift is a silent corruption multiplier.
+A system with clock drift produces meaningless timestamps in:
+- prediction accuracy windows
+- integrity log history
+- forest_predictions expires_at
+
+### What We Are Actually Building
+
+Not "a better doctor."
+
+A **Local Consistency Oracle** — a system that verifies its own state
+before allowing autonomous action.
+
+v13 autonomy doesn't just act.
+It acts on **verified state**.
+
+That distinction separates automation from intelligence.
+
 ## Gate Check
+
+
 ```
 ⬜ integrity_log table in state.db
 ⬜ IntegrityCheck struct — severity: auto-fix/propose/alert
