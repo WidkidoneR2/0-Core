@@ -2565,7 +2565,14 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
 
     let start = std::time::Instant::now();
 
-    let mut cmd_builder = std::process::Command::new(&cmd_orig);
+    // Expand tilde in command path
+    let home_cmd = std::env::var("HOME").unwrap_or_default();
+    let cmd_resolved = if cmd_orig.starts_with("~/") {
+        format!("{}/{}", home_cmd, &cmd_orig[2..])
+    } else {
+        cmd_orig.clone()
+    };
+    let mut cmd_builder = std::process::Command::new(&cmd_resolved);
     cmd_builder
         .args(&args)
         .stdin(std::process::Stdio::inherit())

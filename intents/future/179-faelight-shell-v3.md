@@ -3,7 +3,7 @@ id: 179
 date: 2026-03-30
 type: future
 title: "faelight-shell v3 — The Daily Driver: The Shell Becomes Self-Aware"
-status: planned
+status: in-progress
 tags: [shell, fsh, daily-driver, self-aware, intelligence, zsh-retirement, v13]
 version: 13.0.0
 priority: high
