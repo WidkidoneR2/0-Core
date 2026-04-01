@@ -408,22 +408,22 @@ That distinction separates automation from intelligence.
 
 
 ```
-⬜ integrity_log table in state.db
-⬜ IntegrityCheck struct — severity: auto-fix/propose/alert
-⬜ core integrity run — full scan with repair options
-⬜ core integrity log — history of all issues
-⬜ core integrity fix — apply pending proposals
-⬜ Intent ledger integrity — status vs directory mismatch detected and fixed
-⬜ Registry integrity — version drift detected and synced
-⬜ Jarvis score integrity — all factors read from live data, no hardcoded stale strings
-⬜ Autostart integrity — retired tools flagged, crashed services reported
-⬜ State DB integrity — corruption check, orphan cleanup, WAL verified
-⬜ Documentation integrity — README counts match live data
-⬜ Shell integrity — stale aliases flagged
-⬜ Doctor header shows Integrity % alongside Health %
-⬜ Auto-fix runs silently on every d
-⬜ Jarvis score integrates integrity factor
-⬜ Integrity log trend analysis — regression detection
+✅ integrity_log table in state.db (2026-03-31)
+✅ IntegrityCheck trait — 13 checks, 8 categories, pipeline A-E (2026-03-31)
+✅ core integrity run — scan, classify, fix, re-scan, report (2026-03-31)
+✅ core integrity log — history with severity + fix status (2026-03-31)
+✅ core integrity fix — pending_fixes table, persist until resolved (2026-03-31)
+✅ Intent ledger integrity — status/directory mismatch, duplicate IDs, in-progress count (2026-03-31)
+✅ Registry integrity — version drift auto-fixed, missing deployable tools alerted (2026-03-31)
+✅ Jarvis score integrity — JarvisLogFreshnessCheck, auto-rebuild when stale (2026-03-31)
+✅ Autostart integrity — retired tool in autostart detected and proposed for removal (2026-03-31)
+✅ State DB integrity — PRAGMA integrity_check + WAL mode check (2026-03-31)
+✅ Documentation integrity — README tool count vs registry auto-synced (2026-03-31)
+✅ Shell integrity — stale Sway/Hyprland references detected (2026-03-31)
+✅ Doctor shows Integrity % — d now shows Health % + Integrity % (2026-03-31)
+✅ Auto-fix on every d — safe fixes run on every doctor call (2026-03-31)
+⬜ Jarvis score integrates integrity factor — next phase
+⬜ Integrity log trend analysis — regression detection (Phase 7)
 ```
 
 ## Why This Comes Before v13
