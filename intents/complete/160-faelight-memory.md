@@ -3,7 +3,7 @@ id: 160
 date: 2026-03-26
 type: future
 title: "faelight-memory — Persistent Project Knowledge Layer"
-status: in-progress
+status: complete
 tags: [memory, knowledge, patterns, learning, v14, partner]
 version: 14.0.0
 priority: high
