@@ -50,6 +50,7 @@ pub fn render_cockpit(
     passed: u32,
     warnings: u32,
     failed: u32,
+    integrity_pct: u32,
 ) {
     // ── Summary header ────────────────────────────────────────────────
     let health_color = if health >= 95 {
@@ -140,4 +141,13 @@ pub fn render_cockpit(
         "📊",
         format!("Health: {}%", health).bright_white().bold(),
     );
+    // Integrity score
+    let int_str = if integrity_pct >= 95 {
+        format!("Integrity: {}%", integrity_pct).bright_green().to_string()
+    } else if integrity_pct >= 75 {
+        format!("Integrity: {}%", integrity_pct).yellow().to_string()
+    } else {
+        format!("Integrity: {}%", integrity_pct).bright_red().to_string()
+    };
+    println!("  {} {}", "🔍".normal(), int_str);
 }

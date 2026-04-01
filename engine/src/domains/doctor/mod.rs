@@ -284,7 +284,25 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let failed = scored.iter().filter(|r| r.status == Status::Fail).count() as u32;
     let health = if total > 0 { (passed * 100) / total } else { 0 };
 
-    render_cockpit(&checks, &version, health, passed, warnings, failed);
+    // Run integrity quick scan (safe auto-fixes only)
+    let (integrity_pct, int_fixed, int_proposed, int_alerts) =
+        crate::domains::integrity::quick_scan(ctx);
+
+    render_cockpit(&checks, &version, health, passed, warnings, failed, integrity_pct);
+
+    // Show integrity summary if issues found
+    if int_fixed > 0 || int_proposed > 0 || int_alerts > 0 {
+        println!();
+        if int_fixed > 0 {
+            println!("  {} Auto-fixed {} integrity issue(s)", "✅".green(), int_fixed);
+        }
+        if int_proposed > 0 {
+            println!("  {} {} integrity proposal(s) pending — run: core integrity fix", "⚠️ ".normal(), int_proposed);
+        }
+        if int_alerts > 0 {
+            println!("  {} {} integrity alert(s) require attention — run: core integrity run", "❌".normal(), int_alerts);
+        }
+    }
 
     // Core v5 Phase 2 — inline forecast after doctor run
     {
