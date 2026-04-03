@@ -88,7 +88,7 @@ Retirement criteria:
 ⬜ All Tier 1 + Tier 2 aliases in config.fsh
 ⬜ 90%+ of daily commands handled by fsh
 ⬜ No zsh dependency in any autostart script
-⬜ faelight-login boots directly into fsh
+✅ faelight-login boots directly into fsh (2026-04-03)
 ⬜ 30 days of fsh as primary shell without issues
 ```
 
@@ -156,12 +156,12 @@ v3 target:   100% daily driver — zsh fully retired
 ✅ INT-171 complete — before_run hooks (2026-03-30)
 ✅ Phase 19 — fsh registered as login shell — chsh complete (2026-04-03)
 ⬜ Phase 20b — all zsh functions replaced or deferred
-⬜ Phase 28 — predictive suggestions working (80%+ accuracy)
+✅ Phase 28 — gate tightened (>=30 occurrences, >=0.7 confidence, >=80% accuracy)
 ⬜ INT-173 — Command Registry integrated
 ⬜ INT-174 — Structured Errors — every failure named
 ⬜ INT-175 — Script Debug Mode — --trace working
-⬜ INT-176 — Failure Recovery — last_command retry/explain
-⬜ INT-177 — Shell Observability — observe session/diff/anomalies
+✅ INT-176 — Failure Recovery — last_command retry/explain/fix/options (complete)
+✅ INT-177 — Shell Observability — observe session/diff/anomalies/causality/phase (complete)
 ⬜ Phase 29 — zsh fully optional (90%+ daily commands in fsh)
 ⬜ Phase 30 — fsh replaces zsh in all autostart configs
 ⬜ Phase 31 — 95%+ Rust
