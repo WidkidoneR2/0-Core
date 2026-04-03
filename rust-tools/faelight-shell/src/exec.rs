@@ -270,9 +270,30 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                 ).unwrap_or(1);
 
                 let pct = (freq * 100) / total.max(1);
-                if pct >= 50 && freq >= 3 {
-                    println!("  {} Usually followed by: {} ({}% of the time)",
-                        "→".bright_cyan(), next.bright_white(), pct);
+                // Phase 28 gate — INT-186: must meet ALL thresholds before firing
+                // Firing on weak patterns trains the user to ignore suggestions
+                let confidence = pct as f64 / 100.0;
+                let occurrences = freq;
+                let accuracy_ok  = pct >= 80;       // >= 80% accuracy
+                let volume_ok    = occurrences >= 30; // >= 30 occurrences
+                let conf_ok      = confidence >= 0.7; // >= 0.7 confidence
+                // Cooldown: no suggestion in last 3 minutes
+                let last_suggest: i64 = db.conn.query_row(
+                    "SELECT MAX(timestamp) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
+                    [], |r| r.get(0)
+                ).ok().flatten().unwrap_or(0);
+                let now_ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64).unwrap_or(0);
+                let cooldown_ok = (now_ts - last_suggest) > 180; // 3 min cooldown
+                if accuracy_ok && volume_ok && conf_ok && cooldown_ok {
+                    println!("  {} Usually followed by: {} ({}% · {} occurrences)",
+                        "→".bright_cyan(), next.bright_white(), pct, occurrences);
+                    // Log suggestion for cooldown tracking
+                    let _ = db.conn.execute(
+                        "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+                        rusqlite::params![format!("SUGGEST:{}", next), now_ts],
+                    );
                 }
             }
         }
