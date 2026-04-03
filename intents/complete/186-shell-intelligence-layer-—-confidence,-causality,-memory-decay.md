@@ -3,7 +3,7 @@ id: 186
 date: 2026-04-03
 type: arch
 title: "Shell Intelligence Layer — Confidence, Causality, Memory Decay"
-status: in-progress
+status: complete
 tags: [shell, intelligence, confidence, causality, memory, decay, fsh, v14]
 priority: critical
 depends_on: [179, 185]
