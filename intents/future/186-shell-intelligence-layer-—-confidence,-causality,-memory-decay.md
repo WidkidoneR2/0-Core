@@ -89,10 +89,10 @@ Decay managed by contextd expiry system.
 ✅ Every suggestion includes expiry context (2026-04-03)
 ✅ Every suggestion includes counterfactual (2026-04-03)
 ✅ observe causality command live (2026-04-03)
-⬜ Multi-path failure recovery (alternatives not just retry)
+✅ Multi-path failure recovery — last_command options with 4 paths (2026-04-03)
 ✅ memory decay/distill/stats commands live (2026-04-03)
-⬜ Time-based patterns: morning vs evening detection
-⬜ Session phase detection: build/ops/exploration
+✅ Time-based patterns — morning/afternoon/evening/night context (2026-04-03)
+✅ Session phase detection — build/commit/intent/monitoring/exploration (2026-04-03)
 
 ## The Phrase
 "Confidence says: I am 78% sure.
