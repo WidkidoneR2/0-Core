@@ -1121,9 +1121,13 @@ fn print_welcome(core_root: &str) {
         // Phase 23 — restore last working directory
         if let Some(ref last_dir) = mem.last_dir {
             let path = std::path::Path::new(last_dir);
-            if path.exists() && path.is_dir() {
-                let _ = std::env::set_current_dir(path);
-            }
+            // Always restore to core_root — keep work in forest home
+            let restore_path = if path.exists() && path.is_dir() && !last_dir.contains("/engine/src") && !last_dir.contains("/rust-tools/") {
+                path
+            } else {
+                std::path::Path::new(core_root)
+            };
+            let _ = std::env::set_current_dir(restore_path);
         }
         let msg = session::render(&mem, core_root);
         if !msg.is_empty() {
