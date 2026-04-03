@@ -191,10 +191,26 @@ fn main() -> Result<()> {
 }
 
 fn repl_main() -> Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+
+    // POSIX -c flag support — required for login shell compatibility
+    // niri-session does: exec bash -c "exec -l '$SHELL' -c '$0 -l $*'"
+    // We must handle: faelight-shell -c "command string"
+    if let Some(c_pos) = args.iter().position(|a| a == "-c") {
+        if let Some(cmd_str) = args.get(c_pos + 1) {
+            // Execute the command string via sh and exit
+            let status = std::process::Command::new("/bin/sh")
+                .args(["-c", cmd_str])
+                .status()
+                .unwrap_or_else(|_| std::process::exit(1));
+            std::process::exit(status.code().unwrap_or(0));
+        }
+        std::process::exit(0);
+    }
+
     // Phase 19 — Login shell support
     // If invoked as login shell (argv[0] starts with '-' or --login flag),
     // source /etc/profile and ~/.profile to set up environment
-    let args: Vec<String> = std::env::args().collect();
     let is_login = args.get(0).map(|a| a.starts_with('-')).unwrap_or(false)
         || args.contains(&"--login".to_string())
         || args.contains(&"-l".to_string());
