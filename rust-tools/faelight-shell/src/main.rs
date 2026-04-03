@@ -791,6 +791,25 @@ fn repl_main() -> Result<()> {
                                 Some(result.render())
                             }
                             commands::CommandResult::Value(v) => Some(v.render()),
+                            commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
+                                // External command with pipe — reconstruct full pipeline and run via sh
+                                let full_pipe = line;
+                                let sh_output = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(full_pipe)
+                                    .output();
+                                match sh_output {
+                                    Ok(o) => {
+                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                        if !stderr.is_empty() {
+                                            eprint!("{}", stderr);
+                                        }
+                                        Some(stdout)
+                                    }
+                                    Err(_) => Some(out),
+                                }
+                            }
                             commands::CommandResult::Output(out) => Some(out),
                             commands::CommandResult::Empty => None,
                             commands::CommandResult::Error(e) => {
