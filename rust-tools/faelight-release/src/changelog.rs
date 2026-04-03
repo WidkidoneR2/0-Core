@@ -260,6 +260,7 @@ pub fn get_last_tag(core_root: &PathBuf) -> String {
 // ─── GROUPED CHANGELOG ───────────────────────────────────────────────────────
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct ChangelogData {
     pub version: String,
     pub date: String,
