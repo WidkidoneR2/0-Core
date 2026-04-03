@@ -85,8 +85,8 @@ Phase 32: The forest is its own operating environment
 
 Retirement criteria:
 ```
-⬜ All Tier 1 + Tier 2 aliases in config.fsh
-⬜ 90%+ of daily commands handled by fsh
+✅ All 370 aliases imported into fsh DB from zsh aliases.zsh (2026-04-03)
+✅ 90%+ daily commands in fsh — pipes, heredoc, aliases all working (2026-04-03)
 ⬜ No zsh dependency in any autostart script
 ✅ faelight-login boots directly into fsh (2026-04-03)
 ⬜ 30 days of fsh as primary shell without issues
@@ -155,7 +155,7 @@ v3 target:   100% daily driver — zsh fully retired
 ✅ INT-162 complete — ExecContext, layer separation (2026-03-30)
 ✅ INT-171 complete — before_run hooks (2026-03-30)
 ✅ Phase 19 — fsh registered as login shell — chsh complete (2026-04-03)
-⬜ Phase 20b — all zsh functions replaced or deferred
+✅ Phase 20b — zsh aliases audited and imported, functions deferred to Phase 29 (2026-04-03)
 ✅ Phase 28 — gate tightened (>=30 occurrences, >=0.7 confidence, >=80% accuracy)
 ⬜ INT-173 — Command Registry integrated
 ⬜ INT-174 — Structured Errors — every failure named
