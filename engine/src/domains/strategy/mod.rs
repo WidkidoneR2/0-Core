@@ -1004,7 +1004,7 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
 
     // Factor 5: Shell intelligence (max 10) — fsh as daily driver
     factors.push(("Shell Intelligence".to_string(), 5,
-        "faelight-shell at 90% native coverage — not yet daily driver".to_string()));
+        "faelight-shell is login shell (2026-04-03) — 30-day daily driver window active".to_string()));
     total += 5;
 
     // Factor 7: Context awareness (max 7) — faelight-context + faelight-memory
