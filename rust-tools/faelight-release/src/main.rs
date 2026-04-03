@@ -78,11 +78,18 @@ fn main() -> Result<()> {
             let stats = changelog::ReleaseStats::gather(&root);
             let version_str = version.clone();
             let (published, final_theme) =
-                tui::ReleaseTui::new(version, theme, data, stats).run(&root)?;
+                tui::ReleaseTui::new(version, theme, data.clone(), stats.clone()).run(&root)?;
             if published {
-                // Auto-update tool counts in README
+                // Auto-update full dynamic README section
                 let readme_path = std::path::PathBuf::from(&root).join("README.md");
-                crate::readme::update_tool_counts(&readme_path, root.to_str().unwrap_or(""));
+                let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+                if let Err(e) = crate::readme::update_readme(
+                    &readme_path, &version_str, &final_theme, &today, &data, &stats
+                ) {
+                    eprintln!("⚠️  README update failed: {}", e);
+                } else {
+                    println!("✅ README dynamic section updated");
+                }
                 // Auto-sync docs via faelight-docs
                 let _ = std::process::Command::new("faelight-docs")
                     .arg("sync")
@@ -137,7 +144,19 @@ fn main() -> Result<()> {
                         println!("✅ /etc/faelight/VERSION updated to {}", v);
                     }
                 }
-                println!("🌲 Release complete! Push with: fg sync");
+                // Auto-commit the release
+                let commit_msg = format!("release: Faelight Forest {} — {}", version_str, final_theme);
+                let _ = std::process::Command::new("git")
+                    .args(["-C", root.to_str().unwrap_or("."), "add", "-A"])
+                    .status();
+                let commit_status = std::process::Command::new("git")
+                    .args(["-C", root.to_str().unwrap_or("."), "commit", "-m", &commit_msg])
+                    .status();
+                match commit_status {
+                    Ok(s) if s.success() => println!("✅ Release committed: {}", commit_msg),
+                    _ => println!("⚠️  Auto-commit failed — run: fg commit"),
+                }
+                println!("🌲 Release complete! Push with: gp");
             } else {
                 println!("Release aborted.");
             }

@@ -10,6 +10,7 @@ const DYNAMIC_START: &str = "<!-- DYNAMIC SECTION - Updated by bump-system-versi
 const DYNAMIC_END: &str = "<!-- END DYNAMIC SECTION -->";
 
 /// Update static tool count references throughout README
+#[allow(dead_code)]
 pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
     let Ok(mut content) = std::fs::read_to_string(readme_path) else {
         return;
