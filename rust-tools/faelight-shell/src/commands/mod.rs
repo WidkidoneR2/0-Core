@@ -111,6 +111,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "failures" => failure_history_cmd(db, args),
         // INT-177 — Shell Observability
         "observe" => observe_cmd(db, args),
+        "memory" => memory_cmd(db, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "command" => command_cmd(db, args, core_root),
@@ -2680,9 +2681,10 @@ fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         "commands" => observe_commands(db),
         "diff"     => observe_diff(db),
         "anomalies"=> observe_anomalies(db),
-        "patterns" => observe_patterns(db),
+        "patterns"  => observe_patterns(db),
+        "causality" => observe_causality(db),
         _ => CommandResult::Output(format!(
-            "  Usage: observe [session|commands|diff|anomalies|patterns]"
+            "  Usage: observe [session|commands|diff|anomalies|patterns|causality]"
         )),
     }
 }
@@ -2861,6 +2863,99 @@ fn observe_patterns(db: &ForestDb) -> CommandResult {
     } else {
         CommandResult::Value(crate::value::Value::Table(rows))
     }
+}
+
+fn observe_causality(db: &ForestDb) -> CommandResult {
+    let mut output = String::new();
+    output.push_str("\n  Causality Analysis\n");
+    output.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+    // Commit frequency causality
+    let recent_commits: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
+        rusqlite::params![{
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 86400
+        }],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    let prev_commits: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp BETWEEN ?1 AND ?2",
+        rusqlite::params![
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 172800,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 86400
+        ],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    if recent_commits > prev_commits {
+        let diff = recent_commits - prev_commits;
+        output.push_str(&format!("  → Commit frequency increased (+{} today vs yesterday)\n", diff));
+        output.push_str("     Cause: higher intent completion rate or active build session\n\n");
+    } else if recent_commits < prev_commits {
+        let diff = prev_commits - recent_commits;
+        output.push_str(&format!("  → Commit frequency decreased (-{} today vs yesterday)\n", diff));
+        output.push_str("     Cause: planning/reading session or blocked on dependency\n\n");
+    } else {
+        output.push_str("  → Commit frequency stable\n\n");
+    }
+
+    // Failure causality
+    let recent_failures: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'failure_log_%' AND timestamp > ?1",
+        rusqlite::params![
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 3600
+        ],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    if recent_failures >= 3 {
+        output.push_str(&format!("  → {} failures in last hour\n", recent_failures));
+        output.push_str("     Cause: possible failure loop — same command pattern repeating\n");
+        output.push_str("     Suggestion: run last_command explain\n\n");
+    }
+
+    // Deploy causality
+    let deploy_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
+        rusqlite::params![
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 3600
+        ],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    let health_after_deploy: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
+        rusqlite::params![
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 3600
+        ],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    if deploy_count > 0 && health_after_deploy == 0 {
+        output.push_str(&format!("  → {} deploy(s) in last hour with no health check\n", deploy_count));
+        output.push_str("     Cause: health unchecked after deploy — run d\n\n");
+    }
+
+    if recent_commits == 0 && recent_failures == 0 && deploy_count == 0 {
+        output.push_str("  → No significant causal signals in last hour\n");
+        output.push_str("     System activity appears normal\n");
+    }
+
+    output.push_str("\n");
+    CommandResult::Output(output)
 }
 
 // ── INT-176: Failure Recovery Commands ──────────────────────────────────────────
@@ -4914,3 +5009,109 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
     println!();
     CommandResult::Empty
 }
+
+
+fn memory_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    match args.first().copied().unwrap_or("show") {
+        "decay" => memory_decay(db),
+        "distill" => memory_distill(db),
+        "stats" => memory_stats(db),
+        _ => CommandResult::Output(
+            "  Usage: memory [decay|distill|stats]\n  decay   — show pattern age and decay status\n  distill — compress old history into patterns\n  stats   — memory health overview\n".to_string()
+        ),
+    }
+}
+
+fn memory_stats(db: &ForestDb) -> CommandResult {
+    let total: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let week_old: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE timestamp < ?1",
+        rusqlite::params![
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0) - 604800
+        ], |r| r.get(0)
+    ).unwrap_or(0);
+    let suggest_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    let mut out = String::new();
+    out.push_str("\n  Memory Stats\n");
+    out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+    out.push_str(&format!("  · Total history entries:  {}\n", total));
+    out.push_str(&format!("  · Entries > 7 days old:   {} ({:.0}% eligible for decay)\n",
+        week_old, if total > 0 { week_old as f64 / total as f64 * 100.0 } else { 0.0 }));
+    out.push_str(&format!("  · Suggestion log entries: {}\n", suggest_count));
+    out.push_str(&format!("  · Active patterns:        {} unique commands\n",
+        total - week_old - suggest_count));
+    out.push_str("\n  Run: memory distill — to compress old history\n\n");
+    CommandResult::Output(out)
+}
+
+fn memory_decay(db: &ForestDb) -> CommandResult {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    // Find commands not seen in 30 days
+    let stale: Vec<(String, i64)> = {
+        let mut stmt = match db.conn.prepare(
+            "SELECT command, COUNT(*) as freq FROM shell_history
+             WHERE timestamp < ?1
+             AND command NOT LIKE 'SUGGEST:%'
+             GROUP BY command
+             ORDER BY freq ASC LIMIT 15"
+        ) {
+            Ok(s) => s,
+            Err(_) => return CommandResult::Output("  No decay data available\n".to_string()),
+        };
+        stmt.query_map(rusqlite::params![now - 2592000], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        }).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default()
+    };
+    let mut out = String::new();
+    out.push_str("\n  Pattern Decay Analysis (30+ days old)\n");
+    out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+    if stale.is_empty() {
+        out.push_str("  · No stale patterns detected\n");
+    } else {
+        out.push_str("  Stale commands (low frequency, > 30 days):\n");
+        for (cmd, freq) in &stale {
+            out.push_str(&format!("    · {:<30} {} occurrences\n", cmd, freq));
+        }
+        out.push_str("\n  Run: memory distill — to prune and compress\n");
+    }
+    out.push_str("\n");
+    CommandResult::Output(out)
+}
+
+fn memory_distill(db: &ForestDb) -> CommandResult {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    // Prune: remove suggestion log entries older than 7 days
+    let suggest_pruned = db.conn.execute(
+        "DELETE FROM shell_history WHERE command LIKE 'SUGGEST:%' AND timestamp < ?1",
+        rusqlite::params![now - 604800]
+    ).unwrap_or(0);
+    // Prune: remove single-occurrence commands older than 60 days
+    let stale_pruned = db.conn.execute(
+        "DELETE FROM shell_history WHERE timestamp < ?1 AND command IN (
+            SELECT command FROM shell_history
+            WHERE timestamp < ?1
+            GROUP BY command HAVING COUNT(*) = 1
+        )",
+        rusqlite::params![now - 5184000]
+    ).unwrap_or(0);
+    let mut out = String::new();
+    out.push_str("\n  Memory Distillation\n");
+    out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+    out.push_str(&format!("  ✅ Pruned {} stale suggestion log entries\n", suggest_pruned));
+    out.push_str(&format!("  ✅ Pruned {} single-occurrence commands > 60 days old\n", stale_pruned));
+    out.push_str("  · High-frequency patterns preserved\n");
+    out.push_str("  · Run: memory stats — to see updated counts\n\n");
+    CommandResult::Output(out)
+}
+
