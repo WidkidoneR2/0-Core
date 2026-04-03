@@ -139,6 +139,10 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
                     env: vec![
                         "XDG_SESSION_TYPE=wayland".to_string(),
                         format!("XDG_CURRENT_DESKTOP={}", state.session.label()),
+                        // Force SHELL to zsh for niri-session compatibility
+                        // niri-session checks $SHELL and re-execs through it
+                        // fsh is the login shell but niri-session needs a POSIX shell
+                        "SHELL=/bin/zsh".to_string(),
                     ],
                 };
                 start.write_to(&mut stream).map_err(|e| e.to_string())?;
