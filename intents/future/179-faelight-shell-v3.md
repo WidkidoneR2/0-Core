@@ -154,7 +154,7 @@ v3 target:   100% daily driver — zsh fully retired
 ```
 ✅ INT-162 complete — ExecContext, layer separation (2026-03-30)
 ✅ INT-171 complete — before_run hooks (2026-03-30)
-⬜ Phase 19 — fsh registered as login shell
+✅ Phase 19 — fsh registered as login shell — chsh complete (2026-04-03)
 ⬜ Phase 20b — all zsh functions replaced or deferred
 ⬜ Phase 28 — predictive suggestions working (80%+ accuracy)
 ⬜ INT-173 — Command Registry integrated
