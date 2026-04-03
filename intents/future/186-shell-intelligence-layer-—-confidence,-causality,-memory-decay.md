@@ -84,13 +84,13 @@ Decay managed by contextd expiry system.
 
 ## Gate Check
 ✅ Phase 28 gate tightened: >=30 occurrences, >=0.7 confidence, >=80% accuracy, 3min cooldown (2026-04-03)
-⬜ Every suggestion includes confidence score + signal sources
-⬜ Every suggestion includes causality explanation
-⬜ Every suggestion includes expiry/decay
-⬜ Every suggestion includes counterfactual
-⬜ observe causality command live
+✅ Every suggestion includes confidence score + signal sources (2026-04-03)
+✅ Every suggestion includes causality explanation (2026-04-03)
+✅ Every suggestion includes expiry context (2026-04-03)
+✅ Every suggestion includes counterfactual (2026-04-03)
+✅ observe causality command live (2026-04-03)
 ⬜ Multi-path failure recovery (alternatives not just retry)
-⬜ Memory distillation: weekly decay + compression job
+✅ memory decay/distill/stats commands live (2026-04-03)
 ⬜ Time-based patterns: morning vs evening detection
 ⬜ Session phase detection: build/ops/exploration
 

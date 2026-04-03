@@ -2683,8 +2683,9 @@ fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         "anomalies"=> observe_anomalies(db),
         "patterns"  => observe_patterns(db),
         "causality" => observe_causality(db),
+        "phase"     => observe_phase(db),
         _ => CommandResult::Output(format!(
-            "  Usage: observe [session|commands|diff|anomalies|patterns|causality]"
+            "  Usage: observe [session|commands|diff|anomalies|patterns|causality|phase]"
         )),
     }
 }
@@ -2958,6 +2959,75 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
     CommandResult::Output(output)
 }
 
+fn observe_phase(db: &ForestDb) -> CommandResult {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+
+    // Detect time of day
+    let hour = {
+        let dt = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        (dt % 86400) / 3600 + 5 // rough UTC offset, adjust if needed
+    } % 24;
+
+    let time_context = if hour >= 5 && hour < 12 {
+        ("Morning", "sync + planning patterns common")
+    } else if hour >= 12 && hour < 17 {
+        ("Afternoon", "build + deploy patterns common")
+    } else if hour >= 17 && hour < 22 {
+        ("Evening", "commit + review patterns common")
+    } else {
+        ("Night", "deep work or recovery session")
+    };
+
+    // Detect session phase from recent command patterns
+    let deploy_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
+        rusqlite::params![now - 3600], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let commit_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
+        rusqlite::params![now - 3600], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let intent_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE (command LIKE 'cistart%' OR command LIKE 'cicomplete%') AND timestamp > ?1",
+        rusqlite::params![now - 3600], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let health_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
+        rusqlite::params![now - 3600], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let phase = if deploy_count >= 3 {
+        ("Build/Deploy Phase", "Focus: building and deploying tools", "Expect: deploy errors, version bumps, health checks")
+    } else if commit_count >= 3 {
+        ("Commit Phase", "Focus: wrapping up changes", "Expect: fg commit, gp, d in sequence")
+    } else if intent_count >= 1 {
+        ("Intent Phase", "Focus: starting or completing an intent", "Expect: cistart/cicomplete, focused work")
+    } else if health_count >= 2 {
+        ("Monitoring Phase", "Focus: verifying system health", "Expect: d, core integrity run, core strategy jarvis")
+    } else {
+        ("Exploration Phase", "Focus: general navigation and investigation", "Expect: varied command patterns")
+    };
+
+    let mut out = String::new();
+    out.push_str("\n  Session Phase Detection\n");
+    out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+    out.push_str(&format!("  {} Time context:  {} — {}\n", "·".dimmed(), time_context.0, time_context.1));
+    out.push_str(&format!("  {} Session phase: {}\n", "▶".bright_cyan(), phase.0));
+    out.push_str(&format!("  {} {}\n", "·".dimmed(), phase.1));
+    out.push_str(&format!("  {} {}\n\n", "·".dimmed(), phase.2));
+    out.push_str(&format!("  Last hour: {} deploys  ·  {} commits  ·  {} intent ops  ·  {} health checks\n\n",
+        deploy_count, commit_count, intent_count, health_count));
+    CommandResult::Output(out)
+}
+
 // ── INT-176: Failure Recovery Commands ──────────────────────────────────────────
 
 fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
@@ -3029,10 +3099,52 @@ fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 ", "○".dimmed(), cmd.dimmed())),
                     }
                 }
+                "options" => {
+                    let cmd_lower = cmd.to_lowercase();
+                    let opts: Vec<(&str, &str)> = if cmd_lower.contains("deploy") {
+                        vec![
+                            ("Retry deploy",          "deploy <tool>"),
+                            ("Check build errors",    "cargo build 2>&1 | tail -20"),
+                            ("Verify registry",       "core registry show <tool>"),
+                            ("Check disk space",      "df -h ~/0-core/target"),
+                        ]
+                    } else if cmd_lower.starts_with("fg") || cmd_lower.contains("git") || cmd_lower.starts_with("gp") {
+                        vec![
+                            ("Check git status",      "gst"),
+                            ("Retry push",            "gp"),
+                            ("Check remote",          "git remote -v"),
+                            ("Inspect recent commits","glog"),
+                        ]
+                    } else if cmd_lower.contains("cargo") || cmd_lower.contains("build") {
+                        vec![
+                            ("Check compile errors",  "cargo build 2>&1 | grep error"),
+                            ("Clean and rebuild",     "cargo clean && cargo build"),
+                            ("Check Cargo.toml",      "cat Cargo.toml | head -20"),
+                        ]
+                    } else if cmd_lower.starts_with("core ") {
+                        vec![
+                            ("Run health check",      "d"),
+                            ("Redeploy core",         "deploy core"),
+                            ("Verify core binary",    "core --version"),
+                            ("Check integrity",       "core integrity run"),
+                        ]
+                    } else {
+                        vec![
+                            ("Retry last command",    "last_command retry"),
+                            ("Explain error",         "last_command explain"),
+                            ("Run health check",      "d"),
+                        ]
+                    };
+                    let mut out = format!("\n  Recovery Options for: {}\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n", cmd);
+                    for (i, (label, hint)) in opts.iter().enumerate() {
+                        out.push_str(&format!("  {}. {}\n     → {}\n\n", i + 1, label, hint));
+                    }
+                    CommandResult::Output(out)
+                }
                 _ => {
                     CommandResult::Output(format!("
   {} Last failed: {}
-  → retry | explain | fix
+  → retry | explain | fix | options
 ", "✗".bright_red(), cmd.bright_white()))
                 }
             }
