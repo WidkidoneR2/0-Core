@@ -243,6 +243,9 @@ fn repl_main() -> Result<()> {
     // Connect to state.db
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();
+    let _ = std::env::set_current_dir(&core_root);
+    // Start in ~/0-core by default
+    let _ = std::env::set_current_dir(&core_root);
 
     // Phase 15 — load config.fsh
     config::ensure_default();
@@ -318,6 +321,20 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 db.save_history_entry(&line);
+                let mut heredoc_handled = false;
+                // Heredoc: detect << and delegate to sh with inherited stdin
+                if line.contains(" << ") {
+                    let status = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(&line)
+                        .stdin(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::inherit())
+                        .stderr(std::process::Stdio::inherit())
+                        .status();
+                    let _ = status;
+                    heredoc_handled = true;
+                }
+                if heredoc_handled { continue 'repl; }
                 // Phase 14 — multi-command: split on ; before execution
                 let segments = split_semicolons(&line);
                 let segment_count = segments.len();
