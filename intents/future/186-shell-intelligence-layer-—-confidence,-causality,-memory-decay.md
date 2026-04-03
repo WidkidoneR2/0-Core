@@ -3,7 +3,7 @@ id: 186
 date: 2026-04-03
 type: arch
 title: "Shell Intelligence Layer — Confidence, Causality, Memory Decay"
-status: planned
+status: in-progress
 tags: [shell, intelligence, confidence, causality, memory, decay, fsh, v14]
 priority: critical
 depends_on: [179, 185]
@@ -83,7 +83,7 @@ All suggestions include confidence + causality from insight payload.
 Decay managed by contextd expiry system.
 
 ## Gate Check
-⬜ Phase 28 gate tightened: >=30 occurrences, >=0.7 confidence, >=80% accuracy
+✅ Phase 28 gate tightened: >=30 occurrences, >=0.7 confidence, >=80% accuracy, 3min cooldown (2026-04-03)
 ⬜ Every suggestion includes confidence score + signal sources
 ⬜ Every suggestion includes causality explanation
 ⬜ Every suggestion includes expiry/decay

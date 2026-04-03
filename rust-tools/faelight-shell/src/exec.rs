@@ -287,8 +287,24 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                     .map(|d| d.as_secs() as i64).unwrap_or(0);
                 let cooldown_ok = (now_ts - last_suggest) > 180; // 3 min cooldown
                 if accuracy_ok && volume_ok && conf_ok && cooldown_ok {
-                    println!("  {} Usually followed by: {} ({}% · {} occurrences)",
-                        "→".bright_cyan(), next.bright_white(), pct, occurrences);
+                    // Full judgment credibility output — INT-186
+                    println!("  {} Suggestion: {}",
+                        "💡".normal(), next.bright_white());
+                    println!("     {} Confidence: {:.2}  ·  {} occurrences  ·  {}% accuracy",
+                        "·".dimmed(), confidence, occurrences, pct);
+                    println!("     {} Causality: after '{}' this follows {}% of the time ({} sessions)",
+                        "·".dimmed(), ctx.cmd.dimmed(), pct, occurrences);
+                    // Counterfactual — what would make this wrong
+                    let counterfactual = if ctx.cmd == "d" {
+                        "already ran d recently"
+                    } else if ctx.cmd.starts_with("deploy") {
+                        "build failed or different tool deployed"
+                    } else if ctx.cmd.starts_with("fg") {
+                        "already pushed or no changes staged"
+                    } else {
+                        "pattern recently changed or different context"
+                    };
+                    println!("     {} Might be wrong if: {}", "·".dimmed(), counterfactual.dimmed());
                     // Log suggestion for cooldown tracking
                     let _ = db.conn.execute(
                         "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
