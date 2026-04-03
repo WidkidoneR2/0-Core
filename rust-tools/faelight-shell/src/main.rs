@@ -191,6 +191,39 @@ fn main() -> Result<()> {
 }
 
 fn repl_main() -> Result<()> {
+    // Phase 19 — Login shell support
+    // If invoked as login shell (argv[0] starts with '-' or --login flag),
+    // source /etc/profile and ~/.profile to set up environment
+    let args: Vec<String> = std::env::args().collect();
+    let is_login = args.get(0).map(|a| a.starts_with('-')).unwrap_or(false)
+        || args.contains(&"--login".to_string())
+        || args.contains(&"-l".to_string());
+    if is_login {
+        // Source /etc/profile
+        if std::path::Path::new("/etc/profile").exists() {
+            let _ = std::process::Command::new("sh")
+                .args(["-c", "source /etc/profile 2>/dev/null || true"])
+                .status();
+        }
+        // Source ~/.profile if it exists
+        if let Ok(home) = std::env::var("HOME") {
+            let profile = std::path::PathBuf::from(&home).join(".profile");
+            if profile.exists() {
+                let _ = std::process::Command::new("sh")
+                    .args(["-c", &format!("source {} 2>/dev/null || true", profile.display())])
+                    .status();
+            }
+        }
+        // Ensure scripts/ is in PATH
+        if let Ok(home) = std::env::var("HOME") {
+            let scripts = format!("{}/0-core/scripts", home);
+            let cargo_bin = format!("{}/.cargo/bin", home);
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            if !current_path.contains(&scripts) {
+                std::env::set_var("PATH", format!("{}:{}:{}", scripts, cargo_bin, current_path));
+            }
+        }
+    }
     // Connect to state.db
     let db = db::ForestDb::open()?;
     let core_root = db.core_root();
