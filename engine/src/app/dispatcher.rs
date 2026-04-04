@@ -520,6 +520,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             RegistryCommand::Show { name } => crate::domains::registry::show(ctx, &name),
             RegistryCommand::Retire { name } => crate::domains::registry::retire(ctx, &name),
             RegistryCommand::Unretire { name } => crate::domains::registry::unretire(ctx, &name),
+            RegistryCommand::RealityCheck => crate::domains::registry::reality_check(ctx),
         },
         Command::Strategy(c) => match c {
             StrategyCommand::Now => crate::domains::strategy::now(ctx),

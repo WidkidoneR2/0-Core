@@ -1167,6 +1167,8 @@ pub enum RegistryCommands {
         /// Tool name
         name: String,
     },
+    /// Compare actual tool usage vs expected_usage
+    RealityCheck,
 }
 #[derive(Debug, clap::Subcommand)]
 pub enum DbCommands {

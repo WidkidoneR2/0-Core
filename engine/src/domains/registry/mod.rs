@@ -185,3 +185,64 @@ fn retire_in_block(content: &str, name: &str, retired: bool) -> String {
     }
     result
 }
+
+pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    // Load tools.toml
+    let tools_path = std::path::PathBuf::from(&ctx.core_root).join("01-registry/tools.toml");
+    let tools_str = std::fs::read_to_string(&tools_path).unwrap_or_default();
+    let tools_val: toml::Value = toml::from_str(&tools_str).unwrap_or(toml::Value::Table(toml::map::Map::new()));
+    let empty = vec![];
+    let tools = tools_val.get("tool").and_then(|t| t.as_array()).unwrap_or(&empty);
+    // Get actual usage from forest_events (last 7 days)
+    let window = chrono::Utc::now().timestamp() - 604800;
+    let mut usage_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    if let Ok(mut stmt) = ctx.runtime.db.prepare(
+        "SELECT domain, COUNT(*) as cnt FROM forest_events WHERE timestamp > ?1 GROUP BY domain"
+    ) {
+        let rows: Vec<(String, i64)> = stmt
+            .query_map(rusqlite::params![window], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
+        for (domain, cnt) in rows {
+            usage_map.insert(domain, cnt);
+        }
+    }
+    println!();
+    println!("  {} Registry Reality Check — actual vs expected usage (7 days)", "🔍".normal());
+    println!("  {}", "─".repeat(60).dimmed());
+    println!("  {:<25} {:<10} {:<10} {}", "tool".dimmed(), "expected".dimmed(), "actual".dimmed(), "status".dimmed());
+    println!("  {}", "─".repeat(60).dimmed());
+    let mut drift_count = 0;
+    for tool in tools {
+        let name = tool.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+        let expected = tool.get("expected_usage").and_then(|v| v.as_str()).unwrap_or("low");
+        let actual_count = usage_map.get(name).copied().unwrap_or(0);
+        let actual_label = match actual_count {
+            0 => "none",
+            1..=3 => "low",
+            4..=10 => "medium",
+            _ => "high",
+        };
+        let status = if expected == actual_label || actual_count == 0 {
+            "✅".to_string()
+        } else {
+            drift_count += 1;
+            "⚠️ drift".to_string()
+        };
+        println!("  {:<25} {:<10} {:<10} {}",
+            name,
+            expected.dimmed(),
+            format!("{} ({}x)", actual_label, actual_count).bright_white(),
+            status
+        );
+    }
+    println!("  {}", "─".repeat(60).dimmed());
+    if drift_count > 0 {
+        println!("  {} {} tools show usage drift vs registry expectation", "⚠️".normal(), drift_count.to_string().bright_yellow());
+    } else {
+        println!("  {} All tools within expected usage range", "✅".normal());
+    }
+    println!();
+    Ok(())
+}
