@@ -1,6 +1,7 @@
 // faelight-shell — Schema-Aware Completion
 // Phase 11: Tab completion that knows column names, commands, and pipeline ops
 
+extern crate rusqlite;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -355,34 +356,34 @@ impl ForestHelper {
             }
         }
 
-        // ── Case 2e: alias completion from config.fsh ─────────────────────────
+        // ── Case 2e: alias completion from state.db ─────────────────────────
         if !line.contains(' ') && !line.is_empty() {
             let home = std::env::var("HOME").unwrap_or_default();
-            let config = format!("{}/.config/faelight-shell/config.fsh", home);
-            if let Ok(content) = std::fs::read_to_string(&config) {
-                let alias_names: Vec<String> = content.lines()
-                    .filter(|l| l.trim_start().starts_with("alias "))
-                    .filter_map(|l| {
-                        let parts: Vec<&str> = l.splitn(2, '=').collect();
-                        if parts.len() >= 1 {
-                            let name = parts[0].trim().trim_start_matches("alias ").trim().to_string();
-                            if name.starts_with(line) { Some(name) } else { None }
-                        } else { None }
-                    })
-                    .collect();
-                if !alias_names.is_empty() {
-                    // Merge with existing COMMANDS completions below
-                    let mut cands: Vec<String> = COMMANDS.iter()
-                        .filter(|c| c.starts_with(line))
-                        .map(|s| s.to_string())
-                        .collect();
-                    cands.extend(alias_names);
-                    let mut bins = binary_completions(line);
-                    cands.append(&mut bins);
-                    cands.sort();
-                    cands.dedup();
-                    return (0, cands);
+            let db_path = format!("{}/0-core/runtime/state.db", home);
+            let mut alias_names: Vec<String> = Vec::new();
+            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                if let Ok(mut stmt) = conn.prepare(
+                    "SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name"
+                ) {
+                    let pattern = format!("{}%", line);
+                    if let Ok(rows) = stmt.query_map([&pattern], |r| r.get::<_, String>(0)) {
+                        for row in rows.flatten() {
+                            alias_names.push(row);
+                        }
+                    }
                 }
+            }
+            let mut cands: Vec<String> = COMMANDS.iter()
+                .filter(|c| c.starts_with(line))
+                .map(|s| s.to_string())
+                .collect();
+            cands.extend(alias_names);
+            let mut bins = binary_completions(line);
+            cands.append(&mut bins);
+            cands.sort();
+            cands.dedup();
+            if !cands.is_empty() {
+                return (0, cands);
             }
         }
 
