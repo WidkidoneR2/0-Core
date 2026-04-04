@@ -466,6 +466,31 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 db.save_history_entry(&line);
+                // Surface contextd insights if any pending
+                if let Ok(conn) = rusqlite::Connection::open(&format!("{}/0-core/runtime/state.db",
+                    std::env::var("HOME").unwrap_or_default())) {
+                    let insight: Option<(String, String, f64)> = conn.query_row(
+                        "SELECT signal, detail, importance FROM forest_insights
+                         WHERE shown = 0 AND importance >= 0.7
+                         ORDER BY importance DESC LIMIT 1",
+                        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                    ).ok();
+                    if let Some((signal, detail, _importance)) = insight {
+                        println!();
+                        println!("  {} {} {}",
+                            "💡".to_string(),
+                            signal.as_str(),
+                            "(contextd insight)".to_string()
+                        );
+                        println!("     {}", detail);
+                        println!();
+                        // Mark as shown
+                        let _ = conn.execute(
+                            "UPDATE forest_insights SET shown = 1 WHERE signal = ?1 AND shown = 0",
+                            rusqlite::params![signal],
+                        );
+                    }
+                }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
