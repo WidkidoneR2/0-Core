@@ -59,15 +59,15 @@ Observed truth requires continuous observation.
 Without contextd, partner suggestions come from stale snapshots not presence.
 
 ## Gate Check
-⬜ Event enum in core, emitted after every dispatch
-⬜ forest_events table in state.db
-⬜ faelight-contextd polls and consumes events
-⬜ forest_insights table populated by signal detection
-⬜ Intervention gate enforced (importance/confidence/cooldown)
-⬜ fsh surfaces insights after each command
+✅ Event emission in core — CommandSucceeded/CommandFailed after every dispatch
+✅ forest_events table in state.db
+✅ faelight-contextd polls events, detects signals (failure-loop, deploy-unchecked, focus-fragmentation)
+✅ forest_insights table populated by signal detection
+✅ Intervention gate enforced — importance >= 0.7, confidence >= 0.6, 1h cooldown
+✅ fsh surfaces insights after each command
 ⬜ Tool usage logged vs registry expected_usage
 ⬜ core registry reality-check live
-⬜ contextd runs as systemd user service
+✅ contextd runs as systemd user service — active (running), 404K
 
 ## The Phrase
 "You have a brain. Now give it nerves.
