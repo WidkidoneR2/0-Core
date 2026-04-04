@@ -449,10 +449,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "clear" | "c" | "cls" => {
-            print!("\x1B[2J\x1B[1;1H");
+            // \x1B[3J clears scrollback, \x1B[2J clears screen, \x1B[H moves to top
+            print!("\x1B[3J\x1B[2J\x1B[H");
             use std::io::Write;
             std::io::stdout().flush().ok();
-            CommandResult::Output(crate::prompt::status_line(db))
+            CommandResult::Empty
         }
         _ => run_external(line, db),
     };

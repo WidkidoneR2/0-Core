@@ -3,7 +3,7 @@ id: 185
 date: 2026-04-03
 type: arch
 title: "faelight-contextd — The Nervous System: Background Awareness Daemon"
-status: planned
+status: in-progress
 tags: [contextd, daemon, events, awareness, nervous-system, v14, architecture]
 priority: critical
 depends_on: [156, 184]

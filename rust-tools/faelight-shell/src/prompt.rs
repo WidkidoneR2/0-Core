@@ -255,6 +255,7 @@ pub fn render_line(db: &ForestDb) -> String {
 
 // ── status line — printed after clear, shown in welcome ───────────────────
 
+#[allow(dead_code)]
 pub fn status_line(db: &ForestDb) -> String {
     let h = health_str(db.health_score().unwrap_or(95));
     let cwd = cwd_str(30);
