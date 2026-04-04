@@ -18,7 +18,7 @@ Not a tool you fight. A tool that anticipates.
 ⬜ Inline env var assignment — SHELL=/bin/zsh cmd not supported
 ⬜ fsh typed inside fsh — spawns new shell instead of showing status
 ⬜ zsh typed inside fsh — spawns zsh instead of showing fsh identity
-⬜ Tab completion for aliases — ci<TAB> should show cistart/cicomplete
+✅ Tab completion for aliases — ci<TAB> should show cistart/cicomplete
 ---
 ⬜ grep — basic pattern matching (no need to fall through to system grep)
 ⬜ find — name + depth + type filters
@@ -78,7 +78,7 @@ Every command understood. Nothing installed blindly.
 ⬜ Tier 2 structured data — filter, where, select, from/to json, open
 ⬜ fsh identity screen — typing fsh shows status not subshell
 ⬜ explain command working — forest knows its own tools
-⬜ Tab completion for aliases working
+✅ Tab completion for aliases working
 ⬜ Zero friction daily driver — 30 days without reaching for zsh
 ---
 **"A shell that grows with you
