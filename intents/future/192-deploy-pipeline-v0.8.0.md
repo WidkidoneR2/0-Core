@@ -3,7 +3,7 @@ id: 192
 date: 2026-04-04
 type: arch
 title: "Deploy Pipeline v0.8.0 — registry_tools.py and Architecture Split"
-status: planned
+status: in-progress
 tags: [deploy, scripts, registry, architecture, python]
 ---
 ## Vision
