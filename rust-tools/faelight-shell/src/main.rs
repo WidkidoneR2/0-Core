@@ -388,6 +388,30 @@ fn repl_main() -> Result<()> {
 
         match rl.readline(&prompt_str) {
             Ok(line) => {
+                // Check reload signal at TOP of loop — before any processing
+                if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
+                    let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
+                    println!("  {} New fsh version detected — reloading...", "🔄".to_string());
+                    use std::os::unix::process::CommandExt;
+                    // Try known deploy paths in order
+                    let home = std::env::var("HOME").unwrap_or_default();
+                    let candidates = vec![
+                        format!("{}/0-core/scripts/faelight-shell", home),
+                        format!("{}/.cargo/bin/faelight-shell", home),
+                    ];
+                    let mut exec_err = None;
+                    for path in &candidates {
+                        if std::path::Path::new(path).exists() {
+                            exec_err = Some(std::process::Command::new(path).exec());
+                            break;
+                        }
+                    }
+                    // fallback to current_exe
+                    if let Ok(exe) = std::env::current_exe() {
+                        let _ = std::process::Command::new(exe).exec();
+                    }
+                    eprintln!("  ✗ reload failed: {:?}", exec_err);
+                }
                 // Strip comments before any processing
                 let line = strip_comments(line.trim());
                 let line = line.trim().to_string();
@@ -430,15 +454,6 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 db.save_history_entry(&line);
-                // Check for reload signal from deploy
-                if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
-                    let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
-                    println!("  {} New fsh version detected — reloading...", "🔄".to_string());
-                    if let Ok(exe) = std::env::current_exe() {
-                        use std::os::unix::process::CommandExt;
-                        let _ = std::process::Command::new(exe).exec();
-                    }
-                }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
@@ -810,6 +825,17 @@ fn repl_main() -> Result<()> {
                         }
                         last_pipe_in_quotes
                     };
+                    // Strip redirect EARLY — when found, delegate entire command to sh
+                    let (line_stripped, redirect_early) = detect_redirect(line);
+                    if redirect_early.is_some() {
+                        // Delegate to sh for reliable redirect handling
+                        let _ = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(line)
+                            .status();
+                        continue 'repl;
+                    }
+                    let line = line_stripped.as_str();
                     let has_pipe = !in_quotes && line.contains(" | ");
                     let pipeline_ops = if has_pipe {
                         value::parse_pipeline(line)
@@ -943,9 +969,9 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
 
-                    // Phase 13 — Redirection: detect > and >> before execution
-                    let (line, redirect) = detect_redirect(line);
-                    let line = line.as_str();
+                    // Phase 13 — Redirection: already done early, use redirect_early
+                    let line = line;
+                    let redirect = redirect_early;
                     // Re-parse pipeline after stripping redirect
                     let in_quotes2 = line.contains('"') && {
                         let mut inside = false;
@@ -969,7 +995,8 @@ fn repl_main() -> Result<()> {
                     let base_cmd = if has_pipe2 {
                         line.split(" | ").next().unwrap_or(line).to_string()
                     } else {
-                        base_cmd
+                        // Use redirect-stripped line as base_cmd
+                        line.to_string()
                     };
 
                     // Resolve join ops — execute right-side tables before pipeline runs

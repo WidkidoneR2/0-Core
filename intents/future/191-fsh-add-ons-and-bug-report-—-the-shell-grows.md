@@ -15,9 +15,9 @@ Not a tool you fight. A tool that anticipates.
 ---
 ✅ Glob expansion — *.md, .rs, **/.toml do not expand
 ⬜ grep | head pipe — stderr bleeds through on pipe errors
-⬜ Inline env var assignment — SHELL=/bin/zsh cmd not supported
+✅ Inline env var assignment — VAR=value cmd and standalone VAR=value working
 ✅ fsh typed inside fsh — shows identity screen
-⬜ zsh typed inside fsh — show message then spawn (intentional handoff)
+✅ zsh typed inside fsh — shows message then spawns, returns to fsh on exit
 ✅ Tab completion for aliases — ci<TAB> should show cistart/cicomplete
 ---
 ✅ grep — basic pattern matching + flag fallthrough to system grep
@@ -28,7 +28,7 @@ Not a tool you fight. A tool that anticipates.
 ✅ realpath (rp) — resolve absolute paths
 ✅ !! — repeat last command
 ✅ !<pattern> — search and run from history
-⬜ history search — fuzzy history search inline
+✅ history search (hs) — fuzzy history search inline
 ✅ alias — list all aliases working
 ✅ unalias — remove alias from DB
 ✅ export — set environment variable for session
