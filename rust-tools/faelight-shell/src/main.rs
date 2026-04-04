@@ -73,14 +73,26 @@ fn split_semicolons(line: &str) -> Vec<String> {
 fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     // Match >> before > (order matters)
     if let Some(idx) = line.rfind(" >> ") {
-        let cmd = line[..idx].trim().to_string();
         let path = line[idx + 4..].trim().to_string();
-        return (cmd, Some((path, true)));
+        // Only treat as redirect if path looks like a file (not a number/comparison)
+        if !path.is_empty() && !path.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            let cmd = line[..idx].trim().to_string();
+            return (cmd, Some((path, true)));
+        }
     }
     if let Some(idx) = line.rfind(" > ") {
-        let cmd = line[..idx].trim().to_string();
         let path = line[idx + 3..].trim().to_string();
-        return (cmd, Some((path, false)));
+        // Only treat as redirect if:
+        // - path is not empty
+        // - path does not start with a digit (comparison like > 70)
+        // - path does not start with = (>= comparison)
+        // - it is not inside a pipe segment before a command
+        let first_char = path.chars().next();
+        let is_comparison = first_char.map(|c| c.is_ascii_digit() || c == '=').unwrap_or(false);
+        if !path.is_empty() && !is_comparison {
+            let cmd = line[..idx].trim().to_string();
+            return (cmd, Some((path, false)));
+        }
     }
     (line.to_string(), None)
 }
