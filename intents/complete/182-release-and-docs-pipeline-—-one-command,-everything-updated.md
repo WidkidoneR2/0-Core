@@ -3,7 +3,7 @@ id: 182
 date: 2026-03-30
 type: feature
 title: "Release and Docs Pipeline — One Command, Everything Updated"
-status: in-progress
+status: complete
 tags: [release, docs, automation, faelight-release, faelight-docs, github, readme]
 version: 11.6.0
 ---

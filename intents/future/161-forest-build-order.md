@@ -3,7 +3,7 @@ id: 161
 date: 2026-03-26
 type: future
 title: "Forest Build Order — The Path to Partnership"
-status: planned
+status: in-progress
 tags: [planning, order, roadmap, v12, v13, v14, v15]
 version: 14.0.0
 priority: visionary
@@ -88,11 +88,11 @@ INT-156 — Core v13 Autonomy            (the forest chooses)
 ## Gate Check
 ```
 ✅ Core v12 complete (2026-03-30)
-⬜ INT-181 — Forest Next Intent Engine live
-⬜ faelight-shell at 95%+ native command handling
-⬜ faelight-shell as login shell (Phase 19)
-⬜ faelight-context v1.0.0
-⬜ faelight-memory v1.0.0
+✅ INT-181 — Forest Next Intent Engine live (complete)
+✅ faelight-shell at 95%+ — pipes, heredoc, aliases, login shell (2026-04-03)
+✅ faelight-shell as login shell — Phase 19 complete (2026-04-03)
+✅ faelight-context v1.0.0 complete (INT-159)
+✅ faelight-memory v1.0.0 complete (INT-160)
 ⬜ Core v13 complete
 ⬜ Jarvis score 95/100
 ⬜ First project built in partnership
