@@ -909,6 +909,18 @@ fn repl_main() -> Result<()> {
                     } else {
                         base_cmd
                     };
+                    // Raw shell pipe (not forest pipe ops) — run entire line via sh
+                    // This prevents E_EXIT_NONZERO noise when left side of pipe fails
+                    if has_pipe2 && pipeline_ops.is_empty() {
+                        let sh_output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(line)
+                            .stdout(std::process::Stdio::inherit())
+                            .stderr(std::process::Stdio::inherit())
+                            .status();
+                        let _ = sh_output;
+                        continue 'repl;
+                    }
                     let cmd_output: Option<String> =
                         match exec::execute_with_context(&base_cmd, &db, &core_root, &cfg.before_rules) {
                             commands::CommandResult::Exit => break 'repl,
