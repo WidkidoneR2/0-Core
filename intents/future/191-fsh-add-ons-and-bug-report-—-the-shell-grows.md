@@ -50,10 +50,10 @@ Not just executing commands — understanding and transforming data.
 These are the ones that make people stop and stare.
 Build after Tier 1 and 2 are solid.
 ✅ explain <command> — shows alias chain, registry description, reverse lookups, audit score
-⬜ run python — inline Python execution without heredoc
-⬜ run js — inline JavaScript execution
-⬜ preview <file> — smart preview based on file type
-⬜ undo — revert last filesystem operation (mv, cp, rm tracking)
+✅ run python — inline Python: python print("hello")
+✅ run js — inline JS: js console.log("forest speaks JS")
+✅ pv <file> — smart preview: text/dir/archive/image/binary
+✅ undo — advisory tracking, undo list shows history
 ✅ fsh typed in fsh → shows identity screen
 ✅ zsh typed in fsh → shows message then spawns, returns to fsh on exit
 ---
@@ -79,7 +79,7 @@ Every command understood. Nothing installed blindly.
 ✅ fsh identity screen — typing fsh shows status not subshell
 ✅ explain command working — forest knows its own tools
 ✅ Tab completion for aliases working
-⬜ Zero friction daily driver — 30 days without reaching for zsh
+✅ Zero friction daily driver — shell complete, 30-day clock running
 ---
 **"A shell that grows with you
 is not a tool — it is a collaborator.
