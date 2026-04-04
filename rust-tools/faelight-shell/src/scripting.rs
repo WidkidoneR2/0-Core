@@ -362,21 +362,101 @@ fn check_event(event: &str, db: &ForestDb) -> bool {
 
 /// Execute a .fsh script file
 pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]) -> CommandResult {
+    // Parse flags from script_args
+    let trace   = script_args.contains(&"--trace");
+    let dry_run = script_args.contains(&"--dry-run");
+    let verbose = script_args.contains(&"--verbose");
+    let clean_args: Vec<&str> = script_args.iter()
+        .filter(|a| !a.starts_with("--"))
+        .copied()
+        .collect();
+
     match std::fs::read_to_string(path) {
         Ok(source) => {
             let stmts = parse(&source);
             let mut scope = Scope::new();
-            // Populate $1, $2, ... from script arguments
-            for (i, arg) in script_args.iter().enumerate() {
+            for (i, arg) in clean_args.iter().enumerate() {
                 scope.set(&(i + 1).to_string(), Value::Text(arg.to_string()));
             }
-            // Also set $# for arg count
-            scope.set("#", Value::Text(script_args.len().to_string()));
+            scope.set("#", Value::Text(clean_args.len().to_string()));
+
+            if dry_run {
+                println!();
+                println!("  {} {} (dry run)", "🌿".normal(), path.bright_white());
+                println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+                for (i, stmt) in stmts.iter().enumerate() {
+                    let label = match stmt {
+                        Statement::Run { command } => command.clone(),
+                        Statement::Let { name, expr } => format!("let {} = {}", name, expr),
+                        Statement::Emit { event, .. } => format!("emit {}", event),
+                        Statement::Warn { message } => format!("warn {}", message),
+                        Statement::Confirm { message } => format!("confirm {}", message),
+                        Statement::If { condition, .. } => format!("if {}", condition),
+                        Statement::When { event, .. } => format!("when {}", event),
+                    };
+                    println!("  [{:>2}] {} {}", i+1, "○".dimmed(), label.bright_cyan());
+                }
+                println!();
+                println!("  {} dry run complete — {} steps", "○".dimmed(), stmts.len());
+                println!();
+                return CommandResult::Empty;
+            }
+
             println!("  {} {}", "🌿 running".dimmed(), path.bright_white());
-            if !script_args.is_empty() {
-                println!("  {} args: {}", "→".dimmed(), script_args.join(" ").bright_white());
+            if trace { println!("  {} trace mode active", "→".bright_cyan()); }
+            if verbose { println!("  {} verbose mode active", "→".bright_cyan()); }
+            if !clean_args.is_empty() {
+                println!("  {} args: {}", "→".dimmed(), clean_args.join(" ").bright_white());
             }
             println!();
+
+            if trace {
+                // Trace mode: run each statement individually with timing
+                let mut all_ok = true;
+                for (i, stmt) in stmts.iter().enumerate() {
+                    let stmt_str = match stmt {
+                        Statement::Run { command } => command.clone(),
+                        Statement::Let { name, expr } => format!("let {} = {}", name, expr),
+                        Statement::Emit { event, .. } => format!("emit {}", event),
+                        Statement::Warn { message } => format!("warn {}", message),
+                        Statement::Confirm { message } => format!("confirm {}", message),
+                        Statement::If { condition, .. } => format!("if {}", condition),
+                        Statement::When { event, .. } => format!("when {}", event),
+                    };
+                    let start = std::time::Instant::now();
+                    let single: Vec<Statement> = vec![stmt.clone()];
+                    let ok = run_stmts(&single, &mut scope, db, core_root);
+                    let elapsed = start.elapsed();
+                    let ms = elapsed.as_millis();
+                    if ok {
+                        println!("  [{:>2}] {} {}  {} ({}ms)",
+                            i+1,
+                            "✅".normal(),
+                            stmt_str.bright_white(),
+                            "".dimmed(),
+                            ms);
+                        if verbose {
+                            // Show any vars set in this step
+                            println!("       {} scope after step", "→".dimmed());
+                        }
+                    } else {
+                        println!("  [{:>2}] {} {}  ({}ms)",
+                            i+1,
+                            "❌".normal(),
+                            stmt_str.bright_white(),
+                            ms);
+                        all_ok = false;
+                        break;
+                    }
+                }
+                println!();
+                if all_ok {
+                    return CommandResult::Output(format!("  {} trace complete", "✅".normal()));
+                } else {
+                    return CommandResult::Error("script failed — see trace above".to_string());
+                }
+            }
+
             let ok = run_stmts(&stmts, &mut scope, db, core_root);
             if ok {
                 CommandResult::Output(format!("  {} script complete", "✅".normal()))
