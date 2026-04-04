@@ -31,8 +31,8 @@ Not a tool you fight. A tool that anticipates.
 ⬜ history search — fuzzy history search inline
 ⬜ alias — list all aliases (already partially done)
 ⬜ unalias — remove alias from DB
-⬜ export — set environment variable for session
-⬜ unset — remove variable
+✅ export — set environment variable for session
+✅ unset — remove variable
 ---
 These are what make fsh different from every other shell.
 Not just executing commands — understanding and transforming data.
