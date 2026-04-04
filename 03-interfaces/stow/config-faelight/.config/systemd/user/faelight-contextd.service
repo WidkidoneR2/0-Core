@@ -1,0 +1,13 @@
+[Unit]
+Description=faelight-contextd — The Nervous System of Faelight Forest
+After=graphical-session.target
+PartOf=graphical-session.target
+[Service]
+Type=simple
+ExecStart=/home/christian/0-core/scripts/faelight-contextd start
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+[Install]
+WantedBy=graphical-session.target

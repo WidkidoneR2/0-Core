@@ -4,6 +4,7 @@ members = [
     "rust-tools/faelight-docs",
     "rust-tools/faelight-vault",
     "rust-tools/*",
+    "rust-tools/faelight-contextd",
     "engine",
 ]
 

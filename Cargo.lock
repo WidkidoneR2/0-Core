@@ -1558,6 +1558,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-contextd"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "faelight-core"
 version = "1.0.0"
 dependencies = [
