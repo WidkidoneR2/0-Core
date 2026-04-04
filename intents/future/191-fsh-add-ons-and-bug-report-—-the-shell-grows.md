@@ -14,7 +14,7 @@ The forest's shell should feel like an extension of thought.
 Not a tool you fight. A tool that anticipates.
 ---
 ✅ Glob expansion — *.md, .rs, **/.toml do not expand
-⬜ grep | head pipe — stderr bleeds through on pipe errors
+✅ grep | head pipe — redirect > and >> now delegate to sh correctly
 ✅ Inline env var assignment — VAR=value cmd and standalone VAR=value working
 ✅ fsh typed inside fsh — shows identity screen
 ✅ zsh typed inside fsh — shows message then spawns, returns to fsh on exit
@@ -72,7 +72,7 @@ Jarvis        90/100 — Strategic Advisor
 The forest thinks in Rust.
 Every command understood. Nothing installed blindly.
 ---
-⬜ All known bugs fixed
+✅ All known bugs fixed — redirect, inline vars, binary reload, alias corruption
 ✅ Glob expansion working — *.rs expands correctly
 ✅ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
 ⬜ Tier 2 structured data — filter, where, select, from/to json, open
