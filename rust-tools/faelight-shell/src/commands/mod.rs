@@ -174,6 +174,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
         "history-table" | "ht" | "history" => history_table(db),
+        "history-search" | "hs" | "hsearch" => history_search_cmd(db, args),
+        "zsh" | "bash" => shell_handoff_cmd(line),
         "hstats" => history_stats(db),
         "histogram" => histogram_cmd(db, args),
         "hpattern" => history_pattern(db),
@@ -806,6 +808,93 @@ fn audit_table(db: &ForestDb, _core_root: &str) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    let pattern = if args.is_empty() {
+        return CommandResult::Error("usage: hs <pattern>  — search command history".to_string());
+    } else {
+        args.join(" ")
+    };
+    let like = format!("%{}%", pattern);
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp FROM shell_history WHERE command LIKE ?1 ORDER BY timestamp DESC LIMIT 50"
+    ) {
+        Ok(s) => s,
+        Err(e) => return CommandResult::Error(e.to_string()),
+    };
+    let results: Vec<(String, i64)> = stmt
+        .query_map(rusqlite::params![&like], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+    if results.is_empty() {
+        return CommandResult::Output(format!(
+            "  {} no history matches for '{}'", "○".dimmed(), pattern
+        ));
+    }
+    let mut out = String::new();
+    out.push_str(&format!("
+  {} {}
+",
+        "🔍 History search:".bright_cyan().bold(),
+        pattern.bright_white()
+    ));
+    out.push_str(&format!("  {}
+", "─".repeat(52).dimmed()));
+    for (i, (cmd, ts)) in results.iter().enumerate() {
+        let time = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|t| t.format("%m-%d %H:%M").to_string())
+            .unwrap_or_else(|| "?".to_string());
+        // Highlight the matching pattern in the command
+        let highlighted = cmd.replace(
+            &pattern,
+            &format!("[1;33m{}[0m", pattern)
+        );
+        out.push_str(&format!("  {} {}  {}
+",
+            format!("{:3}", i + 1).dimmed(),
+            time.dimmed(),
+            highlighted
+        ));
+    }
+    out.push_str(&format!("
+  {} {} match{}
+",
+        "→".dimmed(),
+        results.len().to_string().bright_green(),
+        if results.len() == 1 { "" } else { "es" }
+    ));
+    out.push_str(&format!("  {} run with {}
+",
+        "tip:".dimmed(),
+        format!("!{}", pattern).bright_cyan()
+    ));
+    CommandResult::Output(out)
+}
+fn shell_handoff_cmd(line: &str) -> CommandResult {
+    let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
+    println!();
+    println!("  {} Stepping out of the forest...", "🌲".to_string());
+    println!("  {} You are entering {}",
+        "→".bright_cyan(),
+        shell.bright_yellow().bold()
+    );
+    println!("  {} Type {} to return to fsh",
+        "→".dimmed(),
+        "exit".bright_green()
+    );
+    println!();
+    // Small pause so message is seen
+    std::thread::sleep(std::time::Duration::from_millis(400));
+    // Spawn the shell
+    let _ = std::process::Command::new(shell)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status();
+    println!();
+    println!("  {} Welcome back to Faelight Shell 🌲", "✅".green());
+    println!();
+    CommandResult::Empty
+}
 fn history_table(db: &ForestDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
@@ -4025,10 +4114,22 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     } else {
         // Search PATH manually
         let path_env = std::env::var("PATH").unwrap_or_default();
-        path_env.split(':')
+        let found = path_env.split(':')
             .map(|dir| format!("{}/{}", dir, cmd))
-            .find(|p| std::path::Path::new(p).exists())
-            .unwrap_or_else(|| cmd.to_string())
+            .find(|p| std::path::Path::new(p).exists());
+        match found {
+            Some(p) => p,
+            None => {
+                // Last resort: try current_exe for any shell-like name
+                if matches!(*cmd, "fsh" | "shell" | "faelight-shell") {
+                    std::env::current_exe()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|_| cmd.to_string())
+                } else {
+                    cmd.to_string()
+                }
+            }
+        }
     };
     let err = std::process::Command::new(&resolved)
         .args(&args[1..])
