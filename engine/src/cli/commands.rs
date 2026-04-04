@@ -540,6 +540,7 @@ pub enum RegistryCommand {
     Show { name: String },
     Retire { name: String },
     Unretire { name: String },
+    RealityCheck,
 }
 
 #[derive(Debug, Clone)]

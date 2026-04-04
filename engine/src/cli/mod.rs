@@ -348,6 +348,7 @@ pub fn parse() -> Command {
             RegistryCommands::Show { name } => RegistryCommand::Show { name },
             RegistryCommands::Retire { name } => RegistryCommand::Retire { name },
             RegistryCommands::Unretire { name } => RegistryCommand::Unretire { name },
+            RegistryCommands::RealityCheck => RegistryCommand::RealityCheck,
         }),
         Commands::Strategy { command } => Command::Strategy(match command {
             StrategyCommands::Now => StrategyCommand::Now,
