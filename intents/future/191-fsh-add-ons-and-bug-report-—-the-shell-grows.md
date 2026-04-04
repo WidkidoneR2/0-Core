@@ -26,7 +26,7 @@ Not a tool you fight. A tool that anticipates.
 ⬜ stat — detailed file metadata
 ⬜ preview — quick file preview (bat for text, size for binary)
 ⬜ realpath — resolve absolute paths
-⬜ !! — repeat last command
+✅ !! — repeat last command
 ⬜ !<pattern> — search and run from history
 ⬜ history search — fuzzy history search inline
 ⬜ alias — list all aliases (already partially done)
