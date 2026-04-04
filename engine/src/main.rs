@@ -34,8 +34,27 @@ fn main() {
     // This prevents corruption without blocking the bar/prompt polling
     let _lock = runtime::RuntimeLock::acquire(&ctx.runtime).ok();
 
-    if let Err(e) = app::dispatcher::dispatch(cmd, &ctx) {
-        eprintln!("{} {}", "✗".bright_red(), e);
-        std::process::exit(1);
+    // Emit forest event for contextd to observe
+    let cmd_name = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
+    let domain = std::env::args().nth(1).unwrap_or_else(|| "unknown".to_string());
+    match app::dispatcher::dispatch(cmd, &ctx) {
+        Ok(()) => {
+            runtime::emit_forest_event(
+                &ctx.runtime.db,
+                "CommandSucceeded",
+                &domain,
+                &cmd_name,
+            );
+        }
+        Err(e) => {
+            runtime::emit_forest_event(
+                &ctx.runtime.db,
+                "CommandFailed",
+                &domain,
+                &format!("{}: {}", cmd_name, e),
+            );
+            eprintln!("{} {}", "✗".bright_red(), e);
+            std::process::exit(1);
+        }
     }
 }
