@@ -156,7 +156,7 @@ fn build_dynamic_section(
     s.push_str(&format!("- Intents: {} complete\n", stats.intents_complete));
     s.push('\n');
 
-    s.push_str("[Full Changelog →](CHANGELOG.md)\n\n");
+    s.push_str("[Full Changelog →](00-meta/CHANGELOG.md)\n\n");
     s.push_str("---\n");
 
     s
