@@ -89,6 +89,23 @@ impl Runtime {
                 granted     INTEGER NOT NULL,
                 timestamp   INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS forest_events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind        TEXT NOT NULL,
+                domain      TEXT NOT NULL,
+                detail      TEXT,
+                timestamp   INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS forest_insights (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal      TEXT NOT NULL,
+                detail      TEXT NOT NULL,
+                importance  REAL NOT NULL DEFAULT 0.0,
+                confidence  REAL NOT NULL DEFAULT 0.0,
+                expires_at  INTEGER,
+                shown       INTEGER NOT NULL DEFAULT 0,
+                created_at  INTEGER NOT NULL
+            );
         ",
         )?;
         Ok(Self {
@@ -102,6 +119,13 @@ impl Runtime {
     }
 }
 
+pub fn emit_forest_event(db: &Connection, kind: &str, domain: &str, detail: &str) {
+    let ts = chrono::Utc::now().timestamp();
+    let _ = db.execute(
+        "INSERT INTO forest_events (kind, domain, detail, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![kind, domain, detail, ts],
+    );
+}
 pub struct RuntimeLock {
     path: PathBuf,
 }
