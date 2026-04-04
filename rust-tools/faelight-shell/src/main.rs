@@ -651,6 +651,24 @@ fn repl_main() -> Result<()> {
                     // Phase 10 — handle let and export before anything else
                     let trimmed = line.trim();
 
+                    // Standalone VAR=value (no command) — treat as export
+                    if !trimmed.contains(' ') && trimmed.contains('=') {
+                        let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+                        if parts.len() == 2 {
+                            let name = parts[0];
+                            let valid = !name.is_empty()
+                                && name.chars().next().map(|c| c.is_ascii_uppercase() || c == '_').unwrap_or(false)
+                                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                            if valid {
+                                let val = parts[1].trim_matches('\"').trim_matches('\'').to_string();
+                                let expanded = expand_vars(&val, &shell_vars);
+                                std::env::set_var(name, &expanded);
+                                shell_vars.insert(name.to_string(), expanded.clone());
+                                println!("  {} {} = {}", "→".bright_cyan(), name.bright_white(), expanded.dimmed());
+                                continue 'repl;
+                            }
+                        }
+                    }
                     // Inline env var assignment: KEY=val cmd  or  KEY=val KEY2=val cmd
                     {
                         let mut temp_vars: Vec<(String, String)> = vec![];
@@ -673,13 +691,24 @@ fn repl_main() -> Result<()> {
                             }
                             break;
                         }
-                        if !temp_vars.is_empty() && !rest.is_empty() {
-                            // Set vars temporarily for the child process
+                        if !temp_vars.is_empty() {
+                            // Set vars in environment
                             for (k, v) in &temp_vars {
                                 std::env::set_var(k, v);
+                                shell_vars.insert(k.clone(), v.clone());
+                            }
+                            if rest.is_empty() {
+                                // Standalone VAR=value — just set and confirm
+                                for (k, v) in &temp_vars {
+                                    println!("  {} {} = {}",
+                                        "→".bright_cyan(),
+                                        k.bright_white(),
+                                        v.dimmed()
+                                    );
+                                }
+                                continue 'repl;
                             }
                             let result = exec::execute_with_context(rest, &db, &core_root, &cfg.before_rules);
-                            // Note: vars stay set for session (POSIX-like behavior)
                             match result {
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::Error(e) => {
