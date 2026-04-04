@@ -94,14 +94,14 @@ Before it acts, it must prove it knows when it is right.
 Simulation = proof without risk.
 
 ## Gate Check
-⬜ core delegate simulate live and accurate
-⬜ Trust contract schema defined for each action type
-⬜ Risk threshold system enforced
-⬜ Hard boundaries encoded and tested
-⬜ Typed rollback for every auto-executable action
+✅ core delegate simulate live and accurate
+✅ Trust contract schema defined for each action type
+✅ Risk threshold system enforced
+✅ Hard boundaries encoded and tested
+✅ Typed rollback for every auto-executable action
 ⬜ Simulation accuracy tracked over 14+ days
 ⬜ Activation gate enforced (85% accuracy before real delegation)
-⬜ core delegate contracts/history/accuracy/suspend live
+✅ core delegate contracts/history/accuracy/suspend live
 
 ## The Phrase
 "Delegation is not permission.
