@@ -3,7 +3,7 @@ id: 191
 date: 2026-04-03
 type: planned
 title: "fsh Add-Ons and Bug Report — The Shell Grows"
-status: in-progress
+status: complete
 tags: [fsh, shell, builtins, glob, grep, find, ux, daily-driver]
 ---
 fsh is the daily driver. The 30-day clock is running.
