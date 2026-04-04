@@ -3,7 +3,7 @@ id: 192
 date: 2026-04-04
 type: arch
 title: "Deploy Pipeline v0.8.0 — registry_tools.py and Architecture Split"
-status: in-progress
+status: complete
 tags: [deploy, scripts, registry, architecture, python]
 ---
 ## Vision
@@ -41,13 +41,13 @@ Deploy becomes pure bash orchestration.
 - All timing, dirty flag, cleanup preserved
 
 ## Gates
-⬜ registry_tools.py created with all 3 commands
-⬜ deploy update-version uses registry_tools.py
-⬜ deploy check uses registry_tools.py
-⬜ deploy all uses registry_tools.py
-⬜ All existing deploy commands verified working
-⬜ deploy version bumped to v0.8.0
-⬜ Zero regressions from v0.7.0
+✅ registry_tools.py created with all 3 commands
+✅ deploy update-version uses registry_tools.py
+✅ deploy check uses registry_tools.py
+✅ deploy all uses registry_tools.py
+✅ All existing deploy commands verified working
+✅ deploy version bumped to v0.8.0
+✅ Zero regressions from v0.7.0
 
 ---
 *"The deploy script should read like a story, not a Python tutorial."* 🌲
