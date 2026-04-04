@@ -165,6 +165,16 @@ impl ForestDb {
             .ok();
     }
 
+    pub fn get_last_command(&self) -> Option<String> {
+        self.conn
+            .query_row(
+                "SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .ok()
+    }
+
     pub fn query_events(
         &self,
         domain: Option<&str>,

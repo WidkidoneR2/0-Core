@@ -93,8 +93,6 @@ fn expand_globs(line: &str) -> String {
         return line.to_string();
     }
     let mut result_parts: Vec<String> = vec![];
-    let mut in_quotes = false;
-    let mut quote_char = ' ';
     let parts: Vec<&str> = line.split_whitespace().collect();
     for part in parts {
         // Check if part is quoted
@@ -397,6 +395,21 @@ fn repl_main() -> Result<()> {
                     continue;
                 }
 
+                // !! — expand to last command before saving history
+                let line = if line.trim() == "!!" {
+                    match db.get_last_command() {
+                        Some(last) => {
+                            println!("  {}", last.as_str());
+                            last
+                        }
+                        None => {
+                            eprintln!("  fsh: no previous command");
+                            continue;
+                        }
+                    }
+                } else {
+                    line
+                };
                 // Save to history
                 let _ = rl.add_history_entry(&line);
                 _session_commands += 1;

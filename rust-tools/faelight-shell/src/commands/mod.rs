@@ -71,6 +71,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     let args_vec: Vec<&str> = parts.collect();
     let args = args_vec.as_slice();
 
+    // !! — repeat last command
+    if line.trim() == "!!" {
+        match db.get_last_command() {
+            Some(last) => {
+                println!("  {}", last.dimmed());
+                return execute(&last, db, core_root);
+            }
+            None => return CommandResult::Error("No previous command in history".to_string()),
+        }
+    }
+
     // Alias resolution — check before dispatch
     if let Some(aliased) = db.get_alias(&cmd) {
         let expanded = if args.is_empty() {
