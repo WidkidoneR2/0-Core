@@ -7,11 +7,12 @@ use commands::{
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
-    SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
+    DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
 };
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
+    DelegateCommands,
     Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
     DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
@@ -102,6 +103,14 @@ pub fn parse() -> Command {
             IntentCommands::Velocity => IntentCommand::Velocity,
             IntentCommands::Branch { id } => IntentCommand::Branch { id },
             IntentCommands::Edit { id } => IntentCommand::Edit { id },
+        }),
+        Commands::Delegate { command } => Command::Delegate(match command {
+            DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },
+            DelegateCommands::Contracts => DelegateCommand::Contracts,
+            DelegateCommands::History => DelegateCommand::History,
+            DelegateCommands::Accuracy => DelegateCommand::Accuracy,
+            DelegateCommands::Suspend => DelegateCommand::Suspend,
+            DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,

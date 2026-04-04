@@ -43,6 +43,7 @@ pub enum Command {
     Why(WhyCommand),
     Trace(TraceCommand),
     Simulate(SimulateCommand),
+    Delegate(DelegateCommand),
     Evolution(EvolutionCommand),
     Goals(GoalsCommand),
     Stress(StressCommand),
@@ -328,6 +329,15 @@ pub enum SimulateCommand {
     Scenario { description: String },
 }
 
+#[derive(Debug)]
+pub enum DelegateCommand {
+    Simulate { action: String },
+    Contracts,
+    History,
+    Accuracy,
+    Suspend,
+    Activate { contract: String },
+}
 #[derive(Debug)]
 pub enum TraceCommand {
     Last,

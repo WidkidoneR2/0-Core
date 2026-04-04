@@ -181,6 +181,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SimulateCommands,
     },
+    /// Delegation engine — trust contracts and safe autonomy simulation
+    Delegate {
+        #[command(subcommand)]
+        command: DelegateCommands,
+    },
     /// Checkpoint system state for recovery
     Checkpoint {
         #[command(subcommand)]
@@ -633,6 +638,27 @@ pub enum SimulateCommands {
     },
 }
 
+#[derive(Subcommand)]
+pub enum DelegateCommands {
+    /// Simulate a delegation action without executing
+    Simulate {
+        /// Action to simulate (e.g. "restart faelight-notify")
+        action: String,
+    },
+    /// List all trust contracts and their status
+    Contracts,
+    /// Show delegation simulation history
+    History,
+    /// Show simulation accuracy over time
+    Accuracy,
+    /// Suspend all delegation instantly
+    Suspend,
+    /// Activate a contract after gate is met
+    Activate {
+        /// Contract name to activate
+        contract: String,
+    },
+}
 #[derive(Subcommand)]
 pub enum TraceCommands {
     /// Show last 10 events with full detail

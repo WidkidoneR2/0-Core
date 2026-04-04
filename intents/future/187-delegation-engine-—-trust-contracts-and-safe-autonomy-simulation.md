@@ -3,7 +3,7 @@ id: 187
 date: 2026-04-03
 type: arch
 title: "Delegation Engine — Trust Contracts and Safe Autonomy Simulation"
-status: planned
+status: in-progress
 tags: [delegation, trust, autonomy, simulation, contracts, v13, v14]
 priority: high
 depends_on: [156, 185, 186]
