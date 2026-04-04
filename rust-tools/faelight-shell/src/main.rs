@@ -672,6 +672,17 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
 
+                    if let Some(rest) = trimmed.strip_prefix("unset ") {
+                        let name = rest.trim();
+                        shell_vars.remove(name);
+                        std::env::remove_var(name);
+                        println!(
+                            "  {} unset {}",
+                            "→".bright_cyan(),
+                            name.bright_white(),
+                        );
+                        continue;
+                    }
                     // Phase 10 — expand $VARS before alias resolution
                     let line = expand_vars(line, &shell_vars);
                     // Glob expansion — expand *.rs, *.md etc

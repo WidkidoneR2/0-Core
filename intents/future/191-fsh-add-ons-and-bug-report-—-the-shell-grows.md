@@ -13,7 +13,7 @@ This is not a version bump — it is the shell maturing.
 The forest's shell should feel like an extension of thought.
 Not a tool you fight. A tool that anticipates.
 ---
-⬜ Glob expansion — *.md, .rs, **/.toml do not expand
+✅ Glob expansion — *.md, .rs, **/.toml do not expand
 ⬜ grep | head pipe — stderr bleeds through on pipe errors
 ⬜ Inline env var assignment — SHELL=/bin/zsh cmd not supported
 ⬜ fsh typed inside fsh — spawns new shell instead of showing status
@@ -73,7 +73,7 @@ The forest thinks in Rust.
 Every command understood. Nothing installed blindly.
 ---
 ⬜ All known bugs fixed
-⬜ Glob expansion working — *.rs expands correctly
+✅ Glob expansion working — *.rs expands correctly
 ⬜ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
 ⬜ Tier 2 structured data — filter, where, select, from/to json, open
 ⬜ fsh identity screen — typing fsh shows status not subshell
