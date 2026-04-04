@@ -2641,7 +2641,11 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                 // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
                 CommandResult::Empty
             } else if code != 0 {
-                // Non-zero exit — structured error + failure memory
+                // Non-zero exit — suppress wrapper noise if part of a pipe
+                if line.contains(" | ") {
+                    return CommandResult::Empty;
+                }
+                // Structured error + failure memory
                 let cwd = std::env::current_dir()
                     .map(|d| d.to_string_lossy().to_string())
                     .unwrap_or_default();
