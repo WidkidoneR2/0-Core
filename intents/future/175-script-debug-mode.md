@@ -3,7 +3,7 @@ id: 175
 date: 2026-03-30
 type: future
 title: "Script Debug Mode — Trace Every Step"
-status: planned
+status: in-progress
 tags: [shell, fsh, scripting, debug, trace, observability]
 version: 12.0.0
 priority: medium
