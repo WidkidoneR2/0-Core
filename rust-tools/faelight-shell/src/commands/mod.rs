@@ -126,13 +126,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "explain" => explain_cmd(db, core_root, args),
+        "open" => open_cmd(args),
+        "from" => from_cmd(args),
+        "to" => to_cmd(args),
         "where" => where_cmd(db, core_root, args),
         "command" => command_cmd(db, args, core_root),
         "health" => health(db),
         "events" => events(db, args),
         "decisions" => decisions(db),
         "intents" => intents(core_root),
-        "tools" => tools(db, core_root),
+        "tools" => tools_table(db, core_root),
         "version" => version(core_root),
         "schema" => schema(args),
         "commits" => commits(core_root),
@@ -681,6 +684,106 @@ fn git_status(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
+fn open_cmd(args: &[&str]) -> CommandResult {
+    use crate::value::Value;
+    let file = match args.first() {
+        Some(f) => f,
+        None => return CommandResult::Error("open: missing filename".to_string()),
+    };
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = if file.starts_with("~/") {
+        file.replacen("~/", &format!("{}/", home), 1)
+    } else { file.to_string() };
+    let ext = std::path::Path::new(&path)
+        .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => return CommandResult::Error(format!("open: {}: {}", file, e)),
+    };
+    match ext.as_str() {
+        "json" => {
+            match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(serde_json::Value::Array(arr)) => {
+                    let rows: Vec<std::collections::HashMap<String, Value>> = arr.iter()
+                        .filter_map(|v| v.as_object())
+                        .map(|obj| obj.iter().map(|(k, v)| {
+                            let val = match v {
+                                serde_json::Value::String(s) => Value::Text(s.clone()),
+                                serde_json::Value::Number(n) => Value::Int(n.as_i64().unwrap_or(0)),
+                                serde_json::Value::Bool(b) => Value::Text(b.to_string()),
+                                _ => Value::Text(v.to_string()),
+                            };
+                            (k.clone(), val)
+                        }).collect())
+                        .collect();
+                    CommandResult::Value(Value::Table(rows))
+                }
+                Ok(serde_json::Value::Object(obj)) => {
+                    let rows: Vec<std::collections::HashMap<String, Value>> = obj.iter().map(|(k, v)| {
+                        let mut row = std::collections::HashMap::new();
+                        row.insert("key".to_string(), Value::Text(k.clone()));
+                        row.insert("value".to_string(), Value::Text(v.to_string().trim_matches('"').to_string()));
+                        row
+                    }).collect();
+                    CommandResult::Value(Value::Table(rows))
+                }
+                _ => CommandResult::Output(content),
+            }
+        }
+        "toml" => {
+            match toml::from_str::<toml::Value>(&content) {
+                Ok(toml::Value::Table(table)) => {
+                    let rows: Vec<std::collections::HashMap<String, Value>> = table.iter().map(|(k, v)| {
+                        let mut row = std::collections::HashMap::new();
+                        row.insert("key".to_string(), Value::Text(k.clone()));
+                        row.insert("value".to_string(), Value::Text(v.to_string().trim_matches('"').to_string()));
+                        row
+                    }).collect();
+                    CommandResult::Value(Value::Table(rows))
+                }
+                _ => CommandResult::Output(content),
+            }
+        }
+        "csv" => {
+            let mut lines = content.lines();
+            let headers: Vec<String> = lines.next()
+                .map(|h| h.split(',').map(|s| s.trim().to_string()).collect())
+                .unwrap_or_default();
+            let rows: Vec<std::collections::HashMap<String, Value>> = lines.map(|line| {
+                let vals: Vec<&str> = line.split(',').collect();
+                headers.iter().enumerate().map(|(i, h)| {
+                    (h.clone(), Value::Text(vals.get(i).copied().unwrap_or("").trim().to_string()))
+                }).collect()
+            }).collect();
+            CommandResult::Value(Value::Table(rows))
+        }
+        _ => {
+            let rows: Vec<std::collections::HashMap<String, Value>> = content.lines()
+                .enumerate()
+                .map(|(i, line)| {
+                    let mut row = std::collections::HashMap::new();
+                    row.insert("n".to_string(), Value::Int(i as i64 + 1));
+                    row.insert("line".to_string(), Value::Text(line.to_string()));
+                    row
+                }).collect();
+            CommandResult::Value(Value::Table(rows))
+        }
+    }
+}
+fn from_cmd(args: &[&str]) -> CommandResult {
+    let fmt = args.first().copied().unwrap_or("");
+    CommandResult::Error(format!(
+        "from: use open instead — e.g. {} or {}",
+        format!("open file.{}", if fmt.is_empty() { "json" } else { fmt }).bright_cyan(),
+        "open data.csv | select name".bright_cyan()
+    ))
+}
+fn to_cmd(args: &[&str]) -> CommandResult {
+    match args.first().copied().unwrap_or("") {
+        "json" => CommandResult::Error("to json: pipe a table — e.g. tools | to json".to_string()),
+        fmt => CommandResult::Error(format!("to: unknown format '{}' — try: json", fmt)),
+    }
+}
 fn tools_table(db: &ForestDb, core_root: &str) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
@@ -3855,6 +3958,7 @@ fn intents(core_root: &str) -> CommandResult {
     CommandResult::Output(out)
 }
 
+#[allow(dead_code)]
 fn tools(_db: &ForestDb, core_root: &str) -> CommandResult {
     let tools_dir = std::path::PathBuf::from(core_root).join("rust-tools");
     let total = std::fs::read_dir(&tools_dir)
