@@ -184,7 +184,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
         "find" | "fd" => find_cmd(db, core_root, args),
-        "grep" => grep_cmd(args),
+        "grep" => grep_cmd(line, args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
@@ -3767,9 +3767,27 @@ fn schema(args: &[&str]) -> CommandResult {
 // find reindex   — rebuild index from core_root
 // find <path>    — query files under a specific path
 
-fn grep_cmd(args: &[&str]) -> CommandResult {
+fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::Error("usage: grep <pattern> [file]  or  grep [-i] <pattern> [file]".to_string());
+    }
+    // If any unrecognized flags present — fall through to system grep
+    let known_flags = ["-i"];
+    let has_unknown_flags = args.iter().any(|a| a.starts_with('-') && !known_flags.contains(a));
+    if has_unknown_flags {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(line)
+            .output();
+        return match output {
+            Ok(o) => {
+                let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                if !stderr.is_empty() { eprint!("{}", stderr); }
+                if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout.trim_end().to_string()) }
+            }
+            Err(e) => CommandResult::Error(format!("grep: {}", e)),
+        };
     }
     let (case_insensitive, rest) = if args.first() == Some(&"-i") {
         (true, &args[1..])
