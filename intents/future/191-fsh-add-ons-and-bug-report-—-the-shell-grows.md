@@ -27,10 +27,10 @@ Not a tool you fight. A tool that anticipates.
 ✅ preview (peek) — quick file preview (bat for text, size for binary)
 ⬜ realpath — resolve absolute paths
 ✅ !! — repeat last command
-⬜ !<pattern> — search and run from history
+✅ !<pattern> — search and run from history
 ⬜ history search — fuzzy history search inline
-⬜ alias — list all aliases (already partially done)
-⬜ unalias — remove alias from DB
+✅ alias — list all aliases working
+✅ unalias — remove alias from DB
 ✅ export — set environment variable for session
 ✅ unset — remove variable
 ---

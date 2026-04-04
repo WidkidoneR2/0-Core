@@ -188,6 +188,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "tree" => tree_cmd(args),
         "fstat" | "stat" => stat_cmd(args),
         "peek" | "preview" => preview_cmd(args),
+        "exec" => exec_cmd(args),
+        "reload" => exec_cmd(&["fsh"]),
+        "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
@@ -3851,6 +3854,61 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
 }
 
+fn exec_cmd(args: &[&str]) -> CommandResult {
+    use std::os::unix::process::CommandExt;
+    let home = std::env::var("HOME").unwrap_or_default();
+    // Special case: exec fsh or exec faelight-shell → re-exec current binary
+    let cmd = match args.first() {
+        Some(c) => c,
+        None => return CommandResult::Error("exec: missing command".to_string()),
+    };
+    let is_self = matches!(*cmd, "fsh" | "faelight-shell" | "shell");
+    let resolved = if is_self {
+        std::env::current_exe()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| cmd.to_string())
+    } else if cmd.starts_with("~/") {
+        cmd.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        // Search PATH manually
+        let path_env = std::env::var("PATH").unwrap_or_default();
+        path_env.split(':')
+            .map(|dir| format!("{}/{}", dir, cmd))
+            .find(|p| std::path::Path::new(p).exists())
+            .unwrap_or_else(|| cmd.to_string())
+    };
+    let err = std::process::Command::new(&resolved)
+        .args(&args[1..])
+        .exec();
+    CommandResult::Error(format!("exec: {}: {}", cmd, err))
+}
+fn source_cmd(args: &[&str]) -> CommandResult {
+    let file = match args.first() {
+        Some(f) => f,
+        None => return CommandResult::Error("source: missing filename".to_string()),
+    };
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = if file.starts_with("~/") {
+        file.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        file.to_string()
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(content) => {
+            let lines: Vec<String> = content.lines()
+                .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+                .map(|l| l.to_string())
+                .collect();
+            CommandResult::Output(format!(
+                "  {} sourced {} ({} lines) — aliases and settings loaded on next restart",
+                "✅".to_string(),
+                file,
+                lines.len()
+            ))
+        }
+        Err(e) => CommandResult::Error(format!("source: {}: {}", file, e)),
+    }
+}
 fn tree_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let dir_arg = args.iter().find(|a| !a.starts_with('-')).copied().unwrap_or(".");
