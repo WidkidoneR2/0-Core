@@ -185,6 +185,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "files" | "ls" => sys_files(core_root, args),
         "find" | "fd" => find_cmd(db, core_root, args),
         "grep" => grep_cmd(line, args),
+        "tree" => tree_cmd(args),
+        "fstat" | "stat" => stat_cmd(args),
+        "peek" | "preview" => preview_cmd(args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
@@ -3848,6 +3851,163 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
 }
 
+fn tree_cmd(args: &[&str]) -> CommandResult {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let dir_arg = args.iter().find(|a| !a.starts_with('-')).copied().unwrap_or(".");
+    let max_depth: usize = args.windows(2)
+        .find(|w| w[0] == "-d" || w[0] == "--depth")
+        .and_then(|w| w[1].parse().ok())
+        .unwrap_or(3);
+    let path = if dir_arg.starts_with("~/") {
+        dir_arg.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        dir_arg.to_string()
+    };
+    let mut out = String::new();
+    out.push_str(&format!("{}
+", path.bright_cyan().bold()));
+    let mut count = (0usize, 0usize); // (dirs, files)
+    tree_walk(std::path::Path::new(&path), "", 0, max_depth, &mut out, &mut count);
+    out.push_str(&format!("
+  {} {} directories, {} files",
+        "─".dimmed(), count.0.to_string().bright_white(), count.1.to_string().bright_white()));
+    CommandResult::Output(out)
+}
+fn tree_walk(path: &std::path::Path, prefix: &str, depth: usize, max_depth: usize, out: &mut String, count: &mut (usize, usize)) {
+    if depth >= max_depth { return; }
+    let Ok(entries) = std::fs::read_dir(path) else { return };
+    let mut items: Vec<std::fs::DirEntry> = entries.flatten().collect();
+    items.sort_by_key(|e| e.file_name());
+    // Filter hidden files
+    items.retain(|e| !e.file_name().to_string_lossy().starts_with('.'));
+    let total = items.len();
+    for (i, entry) in items.iter().enumerate() {
+        let is_last = i == total - 1;
+        let connector = if is_last { "└── " } else { "├── " };
+        let name = entry.file_name().to_string_lossy().to_string();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let display = if is_dir { name.bright_cyan().to_string() } else { name.normal().to_string() };
+        out.push_str(&format!("{}{}{}
+", prefix, connector, display));
+        if is_dir {
+            count.0 += 1;
+            let new_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
+            tree_walk(&entry.path(), &new_prefix, depth + 1, max_depth, out, count);
+        } else {
+            count.1 += 1;
+        }
+    }
+}
+fn stat_cmd(args: &[&str]) -> CommandResult {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let file = match args.first() {
+        Some(f) => f,
+        None => return CommandResult::Error("stat: missing filename".to_string()),
+    };
+    let path = if file.starts_with("~/") {
+        file.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        file.to_string()
+    };
+    let meta = match std::fs::metadata(&path) {
+        Ok(m) => m,
+        Err(e) => return CommandResult::Error(format!("stat: {}: {}", file, e)),
+    };
+    let size = meta.len();
+    let kind = if meta.is_dir() { "directory" } else if meta.is_symlink() { "symlink" } else { "file" };
+    let modified = meta.modified().ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| "?".to_string()))
+        .unwrap_or_else(|| "?".to_string());
+    let size_display = if size > 1_048_576 {
+        format!("{:.1} MB", size as f64 / 1_048_576.0)
+    } else if size > 1024 {
+        format!("{:.1} KB", size as f64 / 1024.0)
+    } else {
+        format!("{} B", size)
+    };
+    let perms = meta.permissions();
+    use std::os::unix::fs::PermissionsExt;
+    let mode = format!("{:o}", perms.mode() & 0o777);
+    let mut out = String::new();
+    out.push_str(&format!("
+  {}
+", path.bright_cyan().bold()));
+    out.push_str(&format!("  {}  {}
+", "Type:    ".dimmed(), kind.bright_white()));
+    out.push_str(&format!("  {}  {}
+", "Size:    ".dimmed(), size_display.bright_green()));
+    out.push_str(&format!("  {}  {}
+", "Mode:    ".dimmed(), mode.yellow()));
+    out.push_str(&format!("  {}  {}
+", "Modified:".dimmed(), modified.dimmed()));
+    CommandResult::Output(out)
+}
+fn preview_cmd(args: &[&str]) -> CommandResult {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let file = match args.first() {
+        Some(f) => f,
+        None => return CommandResult::Error("preview: missing filename".to_string()),
+    };
+    let path = if file.starts_with("~/") {
+        file.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        file.to_string()
+    };
+    let meta = match std::fs::metadata(&path) {
+        Ok(m) => m,
+        Err(e) => return CommandResult::Error(format!("preview: {}: {}", file, e)),
+    };
+    let size = meta.len();
+    let ext = std::path::Path::new(&path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let text_exts = ["rs","py","js","ts","toml","yaml","yml","sh","zsh","kdl","md","txt","json","html","css","ron","conf","ini","env"];
+    if text_exts.contains(&ext.as_str()) {
+        // Show first 30 lines via bat
+        let output = std::process::Command::new("bat")
+            .args(["--paging=never", "--line-range=1:30", &path])
+            .output();
+        match output {
+            Ok(o) if o.status.success() => {
+                let content = String::from_utf8_lossy(&o.stdout).to_string();
+                CommandResult::Output(content.trim_end().to_string())
+            }
+            _ => {
+                // fallback to native read
+                match std::fs::read_to_string(&path) {
+                    Ok(content) => {
+                        let preview: String = content.lines().take(30)
+                            .enumerate()
+                            .map(|(i, l)| format!("  {}  {}", format!("{:4}", i+1).dimmed(), l))
+                            .collect::<Vec<_>>()
+                            .join("
+");
+                        CommandResult::Output(preview)
+                    }
+                    Err(e) => CommandResult::Error(format!("preview: {}", e)),
+                }
+            }
+        }
+    } else {
+        // Binary — show size and type info
+        let size_display = if size > 1_048_576 {
+            format!("{:.1} MB", size as f64 / 1_048_576.0)
+        } else if size > 1024 {
+            format!("{:.1} KB", size as f64 / 1024.0)
+        } else {
+            format!("{} B", size)
+        };
+        CommandResult::Output(format!(
+            "  {} Binary file — {} ({} bytes)",
+            "○".dimmed(), size_display.bright_white(), size.to_string().dimmed()
+        ))
+    }
+}
 fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;
