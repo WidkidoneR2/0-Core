@@ -65,8 +65,8 @@ Without contextd, partner suggestions come from stale snapshots not presence.
 ✅ forest_insights table populated by signal detection
 ✅ Intervention gate enforced — importance >= 0.7, confidence >= 0.6, 1h cooldown
 ✅ fsh surfaces insights after each command
-⬜ Tool usage logged vs registry expected_usage
-⬜ core registry reality-check live
+✅ Tool usage logged vs registry expected_usage — forest_events domain tracking
+✅ core registry reality-check live — compares actual vs expected usage
 ✅ contextd runs as systemd user service — active (running), 404K
 
 ## The Phrase
