@@ -87,7 +87,7 @@ Retirement criteria:
 ```
 ✅ All 370 aliases imported into fsh DB from zsh aliases.zsh (2026-04-03)
 ✅ 90%+ daily commands in fsh — pipes, heredoc, aliases all working (2026-04-03)
-⬜ No zsh dependency in any autostart script
+✅ No zsh dependency in autostart — foot.ini updated, niri-session SHELL fixed (2026-04-03)
 ✅ faelight-login boots directly into fsh (2026-04-03)
 ⬜ 30 days of fsh as primary shell without issues
 ```
@@ -157,9 +157,9 @@ v3 target:   100% daily driver — zsh fully retired
 ✅ Phase 19 — fsh registered as login shell — chsh complete (2026-04-03)
 ✅ Phase 20b — zsh aliases audited and imported, functions deferred to Phase 29 (2026-04-03)
 ✅ Phase 28 — gate tightened (>=30 occurrences, >=0.7 confidence, >=80% accuracy)
-⬜ INT-173 — Command Registry integrated
-⬜ INT-174 — Structured Errors — every failure named
-⬜ INT-175 — Script Debug Mode — --trace working
+✅ INT-173 — Command Registry complete
+✅ INT-174 — Structured Errors complete
+✅ INT-175 — Script Debug Mode complete — --trace/--dry-run/--verbose (2026-04-03)
 ✅ INT-176 — Failure Recovery — last_command retry/explain/fix/options (complete)
 ✅ INT-177 — Shell Observability — observe session/diff/anomalies/causality/phase (complete)
 ⬜ Phase 29 — zsh fully optional (90%+ daily commands in fsh)
