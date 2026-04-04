@@ -36,13 +36,13 @@ Not a tool you fight. A tool that anticipates.
 ---
 These are what make fsh different from every other shell.
 Not just executing commands — understanding and transforming data.
-⬜ filter — structured filtering like NuShell (where field > value)
+✅ filter (where) — structured filtering: tools | where score > 70
 ✅ where — finds aliases, builtins, scripts, binaries in one command
-⬜ select — pick fields from structured output
-⬜ group — group structured data by field
-⬜ from json — parse JSON into forest table
-⬜ to json — serialize forest data to JSON
-⬜ open — read file into structured data (JSON, TOML, CSV auto-detected)
+✅ select — pick fields: tools | where score > 85 | select name score
+✅ group — group by field: tools | group kind
+✅ from json — open file.json returns structured table
+✅ to json — pipe op: tools | to json
+✅ open — reads JSON/TOML/CSV into structured table
 ✅ time <cmd> — measure execution time of any command
 ✅ eval — via sh fallback
 ✅ source — load .fsh scripts
@@ -75,7 +75,7 @@ Every command understood. Nothing installed blindly.
 ✅ All known bugs fixed — redirect, inline vars, binary reload, alias corruption
 ✅ Glob expansion working — *.rs expands correctly
 ✅ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
-⬜ Tier 2 structured data — filter, where, select, from/to json, open
+✅ Tier 2 structured data — filter, where, select, from/to json, open
 ✅ fsh identity screen — typing fsh shows status not subshell
 ✅ explain command working — forest knows its own tools
 ✅ Tab completion for aliases working
