@@ -55,7 +55,7 @@ Build after Tier 1 and 2 are solid.
 ⬜ preview <file> — smart preview based on file type
 ⬜ undo — revert last filesystem operation (mv, cp, rm tracking)
 ✅ fsh typed in fsh → shows identity screen
-⬜ zsh typed in fsh → show fsh identity, offer to continue in zsh
+✅ zsh typed in fsh → shows message then spawns, returns to fsh on exit
 ---
 When someone types `fsh` inside fsh — instead of spawning a subshell,
 show who the forest is:
