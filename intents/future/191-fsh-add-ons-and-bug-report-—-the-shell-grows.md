@@ -37,7 +37,7 @@ Not a tool you fight. A tool that anticipates.
 These are what make fsh different from every other shell.
 Not just executing commands — understanding and transforming data.
 ⬜ filter — structured filtering like NuShell (where field > value)
-⬜ where — broader than which: finds aliases, builtins, scripts, binaries
+✅ where — finds aliases, builtins, scripts, binaries in one command
 ⬜ select — pick fields from structured output
 ⬜ group — group structured data by field
 ⬜ from json — parse JSON into forest table
@@ -49,7 +49,7 @@ Not just executing commands — understanding and transforming data.
 ---
 These are the ones that make people stop and stare.
 Build after Tier 1 and 2 are solid.
-⬜ explain <command> — describe what a command does, its aliases, its source
+✅ explain <command> — shows alias chain, registry description, reverse lookups, audit score
 ⬜ run python — inline Python execution without heredoc
 ⬜ run js — inline JavaScript execution
 ⬜ preview <file> — smart preview based on file type
@@ -77,7 +77,7 @@ Every command understood. Nothing installed blindly.
 ✅ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
 ⬜ Tier 2 structured data — filter, where, select, from/to json, open
 ✅ fsh identity screen — typing fsh shows status not subshell
-⬜ explain command working — forest knows its own tools
+✅ explain command working — forest knows its own tools
 ✅ Tab completion for aliases working
 ⬜ Zero friction daily driver — 30 days without reaching for zsh
 ---
