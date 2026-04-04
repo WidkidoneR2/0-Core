@@ -396,6 +396,7 @@ fn repl_main() -> Result<()> {
                 }
 
                 // !! — expand to last command before saving history
+                // !<pattern> — search history for pattern and run
                 let line = if line.trim() == "!!" {
                     match db.get_last_command() {
                         Some(last) => {
@@ -404,6 +405,18 @@ fn repl_main() -> Result<()> {
                         }
                         None => {
                             eprintln!("  fsh: no previous command");
+                            continue;
+                        }
+                    }
+                } else if line.trim().starts_with('!') && line.trim().len() > 1 && !line.trim().starts_with("!!") {
+                    let pattern = &line.trim()[1..];
+                    match db.get_command_matching(pattern) {
+                        Some(found) => {
+                            println!("  {}", found.as_str());
+                            found
+                        }
+                        None => {
+                            eprintln!("  fsh: no history match for: {}", pattern);
                             continue;
                         }
                     }

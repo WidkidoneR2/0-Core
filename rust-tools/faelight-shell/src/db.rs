@@ -174,6 +174,16 @@ impl ForestDb {
             )
             .ok()
     }
+    pub fn get_command_matching(&self, pattern: &str) -> Option<String> {
+        let like = format!("%{}%", pattern);
+        self.conn
+            .query_row(
+                "SELECT command FROM shell_history WHERE command LIKE ?1 ORDER BY timestamp DESC LIMIT 1",
+                rusqlite::params![like],
+                |r| r.get(0),
+            )
+            .ok()
+    }
 
     pub fn query_events(
         &self,
