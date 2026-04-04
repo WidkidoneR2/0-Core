@@ -25,7 +25,7 @@ Not a tool you fight. A tool that anticipates.
 ✅ tree — recursive directory view with depth control
 ✅ stat (fstat) — detailed file metadata
 ✅ preview (peek) — quick file preview (bat for text, size for binary)
-⬜ realpath — resolve absolute paths
+✅ realpath (rp) — resolve absolute paths
 ✅ !! — repeat last command
 ✅ !<pattern> — search and run from history
 ⬜ history search — fuzzy history search inline
@@ -43,9 +43,9 @@ Not just executing commands — understanding and transforming data.
 ⬜ from json — parse JSON into forest table
 ⬜ to json — serialize forest data to JSON
 ⬜ open — read file into structured data (JSON, TOML, CSV auto-detected)
-⬜ time <cmd> — measure execution time of any command
-⬜ eval — run dynamically generated commands
-⬜ source — load .fsh scripts into current session scope
+✅ time <cmd> — measure execution time of any command
+✅ eval — via sh fallback
+✅ source — load .fsh scripts
 ---
 These are the ones that make people stop and stare.
 Build after Tier 1 and 2 are solid.
@@ -54,7 +54,7 @@ Build after Tier 1 and 2 are solid.
 ⬜ run js — inline JavaScript execution
 ⬜ preview <file> — smart preview based on file type
 ⬜ undo — revert last filesystem operation (mv, cp, rm tracking)
-⬜ fsh typed in fsh → show faelight-fetch + forest identity screen
+✅ fsh typed in fsh → shows identity screen
 ⬜ zsh typed in fsh → show fsh identity, offer to continue in zsh
 ---
 When someone types `fsh` inside fsh — instead of spawning a subshell,
@@ -74,9 +74,9 @@ Every command understood. Nothing installed blindly.
 ---
 ⬜ All known bugs fixed
 ✅ Glob expansion working — *.rs expands correctly
-⬜ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
+✅ Tier 1 builtins complete — grep, find, !!, alias/unalias, export/unset
 ⬜ Tier 2 structured data — filter, where, select, from/to json, open
-⬜ fsh identity screen — typing fsh shows status not subshell
+✅ fsh identity screen — typing fsh shows status not subshell
 ⬜ explain command working — forest knows its own tools
 ✅ Tab completion for aliases working
 ⬜ Zero friction daily driver — 30 days without reaching for zsh
