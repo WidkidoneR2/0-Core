@@ -430,6 +430,15 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 db.save_history_entry(&line);
+                // Check for reload signal from deploy
+                if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
+                    let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
+                    println!("  {} New fsh version detected — reloading...", "🔄".to_string());
+                    if let Ok(exe) = std::env::current_exe() {
+                        use std::os::unix::process::CommandExt;
+                        let _ = std::process::Command::new(exe).exec();
+                    }
+                }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {

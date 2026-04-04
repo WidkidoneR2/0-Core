@@ -192,7 +192,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "exec" => exec_cmd(args),
         "realpath" | "rp" => realpath_cmd(args),
         "time" => time_cmd(line, args),
-        "reload" => exec_cmd(&["fsh"]),
+        "reload" => {
+            use std::os::unix::process::CommandExt;
+            let exe = std::env::current_exe().unwrap_or_default();
+            let err = std::process::Command::new(&exe).exec();
+            CommandResult::Error(format!("reload: {}", err))
+        },
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
