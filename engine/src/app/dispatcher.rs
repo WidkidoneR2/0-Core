@@ -5,7 +5,7 @@ use crate::cli::commands::{
     Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
-    SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
+    DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
     WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
@@ -373,6 +373,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             SimulateCommand::Scenario { description } => {
                 crate::domains::simulate::scenario(ctx, &description)
             }
+        },
+        Command::Delegate(cmd) => match cmd {
+            DelegateCommand::Simulate { action } => crate::domains::delegate::simulate(ctx, &action),
+            DelegateCommand::Contracts => crate::domains::delegate::contracts(ctx),
+            DelegateCommand::History => crate::domains::delegate::history(ctx),
+            DelegateCommand::Accuracy => crate::domains::delegate::accuracy(ctx),
+            DelegateCommand::Suspend => crate::domains::delegate::suspend(ctx),
+            DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 
         Command::Decision(cmd) => match cmd {

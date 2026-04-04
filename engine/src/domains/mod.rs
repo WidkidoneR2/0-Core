@@ -23,6 +23,7 @@ pub mod release;
 pub mod sandbox;
 pub mod security;
 pub mod simulate;
+pub mod delegate;
 pub mod snapshot;
 pub mod update;
 pub mod workspace;
