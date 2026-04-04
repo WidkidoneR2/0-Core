@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.5.0
+# 🌲 Faelight Forest 11.6.0
 
-![Version](https://img.shields.io/badge/version-11.5.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.6.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,37 +11,24 @@
 
 ## 🎊 Latest Release
 
-### 11.5.0 - 🌲 The Shell Awakens (2026-03-30)
+### 11.6.0 - 🌲 The Shell Lives (2026-04-03)
 
-- 120 — faelight-shell — Forest-Native Shell Environment
-- 126 — Core v8 — Evolution: The Forest Refines Itself
-- 136 — Faelight Forest — Visual Identity & Niri Cosmetics
-- 140 — Core v10 — Reaction: The Forest Responds Without Being Asked
-- 146 — faelight-shell v2 — The Shell Becomes the OS
-- 148 — Core v11 — Prediction: The Forest Anticipates
-- 149 — Tool Retirement Sprint — Clean What the Core Has Absorbed
-- 151 — Core v12 — Strategy: The Forest Plans Across Horizons
-- 153 — Intent Genealogy — The Forest Remembers How It Grew
-- 155 — faelight-shell Prompt Themes — The Shell Has a Face
-- 162 — Shell Architecture Hardening — The Foundation Must Be Solid
-- 163 — Alias Audit — One Concept, One Command
-- 164 — Core Deploy Pipeline — Versioned, Immutable, Rollback-Safe
-- 165 — fsh Welcome Screen — Truth Only, No Stale Data
-- 166 — state.db Backup and Recovery — Protect the Forest's Memory
-- 171 — Pre-Command Decision Layer — The Shell That Understands Before It Executes
-- 172 — Shell Config Stow — config.fsh Under Version Control
-- 173 — Command Registry — The Shell Knows What It Can Do
-- 174 — Structured Errors — The Shell Explains Its Failures
-- fsh — core subcommand shortcuts, predict/react/stress/doctor/goals native, no prefix needed
-- fsh — jarvis theme Phase 22, prediction inline in prompt, INT-136 + health state visible
-- fsh Phase 23 — session persistence, directory restored on startup
-- fsh Phase 25 — faelight-term launches fsh by default, falls back to zsh
-- faelight-release — docs section added, newest first, live health, scope grouping
+- 133 — Core v9 — Intent: The Forest Chooses Where to Grow
+- 150 — Docs Audit — The Forest Documents Itself Accurately
+- 157 — faelight-docs v2 — The Forest Documents Itself Accurately
+- 159 — faelight-context — Deep Codebase Understanding Engine
+- 160 — faelight-memory — Persistent Project Knowledge Layer
+- 167 — Prediction Accuracy Feedback Loop — Close the Learning Circle
+- 168 — Test Suite Foundation — 73K Lines of Rust Deserves Tests
+- 169 — Niri Autostart Audit — Everything That Starts Must Start Correctly
+- 175 — Script Debug Mode — Trace Every Step
+- 176 — Failure Recovery — The Shell Remembers What Went Wrong
+- 177 — Shell Observability — The Shell Watches Itself
 
-- Commits: 1779
-- Tools: 50 deployed
+- Commits: 1853
+- Tools: 55 deployed
 - Health: 100%
-- Intents: 115 complete
+- Intents: 131 complete
 
 [Full Changelog →](CHANGELOG.md)
 

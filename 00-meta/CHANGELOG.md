@@ -1,5 +1,45 @@
 # Changelog
 
+## [11.6.0] — The Shell Lives (2026-04-03)
+
+### 🎯 Completed Intents
+- **INT-133** — Core v9 — Intent: The Forest Chooses Where to Grow
+- **INT-150** — Docs Audit — The Forest Documents Itself Accurately
+- **INT-157** — faelight-docs v2 — The Forest Documents Itself Accurately
+- **INT-159** — faelight-context — Deep Codebase Understanding Engine
+- **INT-160** — faelight-memory — Persistent Project Knowledge Layer
+- **INT-167** — Prediction Accuracy Feedback Loop — Close the Learning Circle
+- **INT-168** — Test Suite Foundation — 73K Lines of Rust Deserves Tests
+- **INT-169** — Niri Autostart Audit — Everything That Starts Must Start Correctly
+- **INT-175** — Script Debug Mode — Trace Every Step
+- **INT-176** — Failure Recovery — The Shell Remembers What Went Wrong
+- **INT-177** — Shell Observability — The Shell Watches Itself
+
+### 🔧 Fixes
+- README changelog link — correct path to 00-meta/CHANGELOG.md
+- deploy auto-syncs registry version — get_version generalized, update_registry_version on every deploy
+- INT-142 deferred, scorer skips deferred intents, strategy next now correctly skips blocked intents
+- jarvis score reads from intent ledger — v9-v12 dynamic, no hardcoded stale data, 78/100
+- jarvis context & memory factor — 82/100 Strategic Advisor milestone reached
+- jarvis milestone pointer dynamic — shows current level correctly at 85/100
+- jarvis shell intelligence note — login shell active, 30-day window started 2026-04-03
+
+### 📚 Documentation
+- COMMAND-GUIDE.md updated — deploy pipeline, integrity, registry, autonomy, context, memory, fsh commands all documented
+
+### 🔩 Internal (61 commits)
+- Faelight Forest 11.5.0 "The Shell Awakens" is live
+- update to Faelight Forest 11.5.0
+- intents: INT-161 updated with current state, INT-180/181/182 created — Sway removal, next intent engine, release pipeline
+- INT-157: faelight-docs v2.0.0 — live health/tools/intents, link verification, deploy pipeline
+- INT-157: complete — faelight-docs v2 closed
+- ...and 56 more internal changes
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 1853  ·  Tools: 55 deployed  ·  Intents: 131 complete
+
+---
+
 ## [11.5.0] — The Shell Awakens (2026-03-30)
 
 ### 🎯 Completed Intents
