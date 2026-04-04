@@ -16,8 +16,8 @@ Not a tool you fight. A tool that anticipates.
 ✅ Glob expansion — *.md, .rs, **/.toml do not expand
 ⬜ grep | head pipe — stderr bleeds through on pipe errors
 ⬜ Inline env var assignment — SHELL=/bin/zsh cmd not supported
-⬜ fsh typed inside fsh — spawns new shell instead of showing status
-⬜ zsh typed inside fsh — spawns zsh instead of showing fsh identity
+✅ fsh typed inside fsh — shows identity screen
+⬜ zsh typed inside fsh — show message then spawn (intentional handoff)
 ✅ Tab completion for aliases — ci<TAB> should show cistart/cicomplete
 ---
 ✅ grep — basic pattern matching + flag fallthrough to system grep

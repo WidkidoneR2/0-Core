@@ -650,6 +650,48 @@ fn repl_main() -> Result<()> {
                     // Execute
                     // Phase 10 — handle let and export before anything else
                     let trimmed = line.trim();
+
+                    // Inline env var assignment: KEY=val cmd  or  KEY=val KEY2=val cmd
+                    {
+                        let mut temp_vars: Vec<(String, String)> = vec![];
+                        let mut rest = trimmed;
+                        loop {
+                            // Match WORD=value at start (no spaces around =, WORD is [A-Z_][A-Z0-9_]*)
+                            let maybe_var = rest.split_whitespace().next().unwrap_or("");
+                            if let Some(eq) = maybe_var.find('=') {
+                                let name = &maybe_var[..eq];
+                                let valid = !name.is_empty() &&
+                                    name.chars().next().map(|c| c.is_ascii_uppercase() || c == '_').unwrap_or(false) &&
+                                    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                                if valid {
+                                    let val = maybe_var[eq+1..].trim_matches('\"').trim_matches('\'').to_string();
+                                    let expanded = expand_vars(&val, &shell_vars);
+                                    temp_vars.push((name.to_string(), expanded));
+                                    rest = rest[maybe_var.len()..].trim_start();
+                                    continue;
+                                }
+                            }
+                            break;
+                        }
+                        if !temp_vars.is_empty() && !rest.is_empty() {
+                            // Set vars temporarily for the child process
+                            for (k, v) in &temp_vars {
+                                std::env::set_var(k, v);
+                            }
+                            let result = exec::execute_with_context(rest, &db, &core_root, &cfg.before_rules);
+                            // Note: vars stay set for session (POSIX-like behavior)
+                            match result {
+                                commands::CommandResult::Exit => break 'repl,
+                                commands::CommandResult::Error(e) => {
+                                    eprintln!("  {} {}", colored::Colorize::bright_red("✗"), e);
+                                }
+                                commands::CommandResult::Output(out) => println!("{}", out),
+                                _ => {}
+                            }
+                            continue 'repl;
+                        }
+                    }
+
                     if let Some(rest) = trimmed.strip_prefix("let ") {
                         // let x = "value"  or  let x = value
                         if let Some(eq) = rest.find(" = ") {
