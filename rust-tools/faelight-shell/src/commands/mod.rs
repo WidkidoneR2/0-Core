@@ -158,6 +158,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "checkpoint" | "cpc" => checkpoint(db),
         "let" => scripting_let_cmd(db, core_root, args),
         "run" => scripting_run_cmd(db, core_root, args),
+        "python" | "py" => run_python_cmd(args),
+        "js" | "node" => run_js_cmd(args),
+        "undo" => undo_cmd(db, args),
+        "pv" => smart_preview_cmd(args),
         "fsh" | "faelight-shell" => fsh_identity_cmd(),
         "snapshot" => snapshot_cmd(db, args),
         "debug" => debug_cmd(db, args),
@@ -5730,6 +5734,264 @@ fn scripting_let_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
     CommandResult::Empty
 }
 
+fn smart_preview_cmd(args: &[&str]) -> CommandResult {
+    let file = match args.first() {
+        Some(f) => f,
+        None => return CommandResult::Error("pv: missing filename".to_string()),
+    };
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = if file.starts_with("~/") {
+        file.replacen("~/", &format!("{}/", home), 1)
+    } else { file.to_string() };
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return CommandResult::Error(format!("pv: {}: not found", file));
+    }
+    // Directory — show tree
+    if p.is_dir() {
+        let mut out = String::new();
+        out.push_str(&format!("  {} {}
+", "📁".to_string(), path.bright_cyan().bold()));
+        let mut count = (0usize, 0usize);
+        tree_walk(p, "  ", 0, 2, &mut out, &mut count);
+        out.push_str(&format!("
+  {} {} dirs, {} files
+",
+            "─".dimmed(), count.0, count.1));
+        return CommandResult::Output(out);
+    }
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let meta = std::fs::metadata(&path).ok();
+    let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+    let size_str = if size > 1_048_576 {
+        format!("{:.1} MB", size as f64 / 1_048_576.0)
+    } else if size > 1024 {
+        format!("{:.1} KB", size as f64 / 1024.0)
+    } else {
+        format!("{} B", size)
+    };
+    match ext.as_str() {
+        // Text files — bat preview
+        "rs"|"py"|"js"|"ts"|"toml"|"yaml"|"yml"|"sh"|"zsh"|"kdl"|"md"|"txt"|"json"|"html"|"css"|"ron"|"conf"|"ini"|"env"|"fsh" => {
+            let output = std::process::Command::new("bat")
+                .args(["--paging=never", "--line-range=1:50", "--color=always", &path])
+                .output();
+            match output {
+                Ok(o) if o.status.success() => {
+                    CommandResult::Output(String::from_utf8_lossy(&o.stdout).trim_end().to_string())
+                }
+                _ => {
+                    let content = std::fs::read_to_string(&path).unwrap_or_default();
+                    let preview: String = content.lines().take(50)
+                        .enumerate()
+                        .map(|(i, l)| format!("  {}  {}", format!("{:4}", i+1).dimmed(), l))
+                        .collect::<Vec<_>>().join("
+");
+                    CommandResult::Output(preview)
+                }
+            }
+        }
+        // Archives — list contents
+        "zip"|"tar"|"gz"|"tgz"|"xz"|"bz2"|"zst" => {
+            let output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(match ext.as_str() {
+                    "zip" => format!("unzip -l {} 2>/dev/null | head -20", path),
+                    _ => format!("tar -tf {} 2>/dev/null | head -20", path),
+                })
+                .output();
+            let listing = output.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            CommandResult::Output(format!(
+                "  {} Archive: {} ({})
+{}", "📦".to_string(),
+                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
+                size_str.dimmed(), listing
+            ))
+        }
+        // Images — show dimensions via file command
+        "png"|"jpg"|"jpeg"|"gif"|"webp"|"svg"|"bmp" => {
+            let info = std::process::Command::new("file")
+                .arg(&path).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            CommandResult::Output(format!(
+                "  {} Image: {} ({})
+  {}",
+                "🖼".to_string(),
+                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
+                size_str.dimmed(),
+                info.dimmed()
+            ))
+        }
+        // Binaries / executables
+        _ => {
+            let file_info = std::process::Command::new("file")
+                .arg(&path).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            CommandResult::Output(format!(
+                "  {} {} ({})
+  {}",
+                "○".dimmed(),
+                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
+                size_str.bright_white(),
+                file_info.dimmed()
+            ))
+        }
+    }
+}
+fn run_python_cmd(args: &[&str]) -> CommandResult {
+    if args.is_empty() {
+        // Interactive python3
+        let _ = std::process::Command::new("python3")
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+        return CommandResult::Empty;
+    }
+    // run python <code> or run python <file.py>
+    let first = args[0];
+    let home = std::env::var("HOME").unwrap_or_default();
+    let expanded = if first.starts_with("~/") {
+        first.replacen("~/", &format!("{}/", home), 1)
+    } else {
+        first.to_string()
+    };
+    // File execution
+    if expanded.ends_with(".py") || std::path::Path::new(&expanded).exists() {
+        let status = std::process::Command::new("python3")
+            .arg(&expanded)
+            .args(&args[1..])
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+        return match status {
+            Ok(_) => CommandResult::Empty,
+            Err(e) => CommandResult::Error(format!("python: {}", e)),
+        };
+    }
+    // Inline code — join all args as code
+    let code = args.join(" ");
+    let output = std::process::Command::new("python3")
+        .args(["-c", &code])
+        .output();
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            if !stderr.is_empty() {
+                eprintln!("  {}", stderr.bright_red());
+            }
+            if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout) }
+        }
+        Err(e) => CommandResult::Error(format!("python: {}", e)),
+    }
+}
+fn run_js_cmd(args: &[&str]) -> CommandResult {
+    // Check for node/deno
+    let runtime = if std::process::Command::new("node").arg("--version")
+        .output().map(|o| o.status.success()).unwrap_or(false) {
+        "node"
+    } else if std::process::Command::new("deno").arg("--version")
+        .output().map(|o| o.status.success()).unwrap_or(false) {
+        "deno"
+    } else {
+        return CommandResult::Error("js: node or deno not found in PATH".to_string());
+    };
+    if args.is_empty() {
+        let _ = std::process::Command::new(runtime)
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+        return CommandResult::Empty;
+    }
+    let first = args[0];
+    let home = std::env::var("HOME").unwrap_or_default();
+    let expanded = if first.starts_with("~/") {
+        first.replacen("~/", &format!("{}/", home), 1)
+    } else { first.to_string() };
+    if expanded.ends_with(".js") || expanded.ends_with(".ts") || std::path::Path::new(&expanded).exists() {
+        let _ = std::process::Command::new(runtime)
+            .arg(&expanded)
+            .args(&args[1..])
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+        return CommandResult::Empty;
+    }
+    // Inline code
+    let code = args.join(" ");
+    let flag = if runtime == "deno" { "eval" } else { "-e" };
+    let output = std::process::Command::new(runtime).args([flag, &code]).output();
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            if !stderr.is_empty() { eprintln!("  {}", stderr.bright_red()); }
+            if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout) }
+        }
+        Err(e) => CommandResult::Error(format!("js: {}", e)),
+    }
+}
+fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    // Track last filesystem operation in shell_state
+    // undo list — show recent operations
+    // undo — revert last tracked operation
+    let sub = args.first().copied().unwrap_or("");
+    match sub {
+        "list" | "ls" => {
+            let mut stmt = match db.conn.prepare(
+                "SELECT value FROM shell_state WHERE key LIKE 'undo_%' ORDER BY key DESC LIMIT 10"
+            ) {
+                Ok(s) => s,
+                Err(_) => return CommandResult::Output("  ○ No undo history".to_string()),
+            };
+            let entries: Vec<String> = stmt
+                .query_map([], |r| r.get(0))
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            if entries.is_empty() {
+                return CommandResult::Output("  ○ No undo history — operations tracked after mv/cp/rm".to_string());
+            }
+            let mut out = String::new();
+            out.push_str(&format!("
+  {} Undo history
+", "↩".bright_cyan()));
+            for entry in &entries {
+                out.push_str(&format!("  · {}
+", entry.dimmed()));
+            }
+            CommandResult::Output(out)
+        }
+        "" => {
+            // Try to undo last operation
+            let last: Option<String> = db.conn.query_row(
+                "SELECT value FROM shell_state WHERE key LIKE 'undo_%' ORDER BY key DESC LIMIT 1",
+                [], |r| r.get(0)
+            ).ok();
+            match last {
+                None => CommandResult::Output(format!(
+                    "  {} Nothing to undo — use mv/cp/rm to track operations",
+                    "○".dimmed()
+                )),
+                Some(op) => {
+                    CommandResult::Output(format!(
+                        "  {} Last operation: {}
+  {} Use shell to manually revert — undo tracking is advisory",
+                        "↩".bright_cyan(), op.bright_white(),
+                        "→".dimmed()
+                    ))
+                }
+            }
+        }
+        _ => CommandResult::Error(format!("undo: unknown subcommand '{}' — try: list", sub)),
+    }
+}
 fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     match args.first() {
         None => CommandResult::Error("Usage: run <file.fsh> or run --list".to_string()),
