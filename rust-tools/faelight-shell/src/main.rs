@@ -87,6 +87,89 @@ fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
 
 /// Expand $VAR and ${VAR} references in a line.
 /// Reads from shell_vars first, then std::env.
+fn expand_globs(line: &str) -> String {
+    // Only expand if line contains * or ? outside of quotes
+    if !line.contains('*') && !line.contains('?') {
+        return line.to_string();
+    }
+    let mut result_parts: Vec<String> = vec![];
+    let mut in_quotes = false;
+    let mut quote_char = ' ';
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    for part in parts {
+        // Check if part is quoted
+        if (part.starts_with('"') && part.ends_with('"')) ||
+           (part.starts_with('\'') && part.ends_with('\'')) {
+            result_parts.push(part.to_string());
+            continue;
+        }
+        if part.contains('*') || part.contains('?') {
+            // Expand tilde
+            let expanded = if part.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                part.replacen("~", &home, 1)
+            } else {
+                part.to_string()
+            };
+            // Use glob crate pattern matching via std::fs
+            let pattern_path = std::path::Path::new(&expanded);
+            let parent = { let p = pattern_path.parent().unwrap_or(std::path::Path::new(".")); if p.as_os_str().is_empty() { std::path::Path::new(".") } else { p } };
+            let file_pattern = pattern_path.file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or(part);
+            let mut matches: Vec<String> = vec![];
+            if let Ok(entries) = std::fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let name_str = name.to_string_lossy();
+                    if glob_match(file_pattern, &name_str) {
+                        matches.push(entry.path().to_string_lossy().to_string());
+                    }
+                }
+            }
+            matches.sort();
+            if matches.is_empty() {
+                result_parts.push(part.to_string());
+            } else {
+                result_parts.extend(matches);
+            }
+        } else {
+            result_parts.push(part.to_string());
+        }
+    }
+    result_parts.join(" ")
+}
+
+fn glob_match(pattern: &str, name: &str) -> bool {
+    // Simple glob: * matches anything, ? matches one char
+    let mut pi = 0;
+    let mut ni = 0;
+    let p: Vec<char> = pattern.chars().collect();
+    let n: Vec<char> = name.chars().collect();
+    let mut star_pi = usize::MAX;
+    let mut star_ni = 0;
+    while ni < n.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == n[ni]) {
+            pi += 1;
+            ni += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star_pi = pi;
+            star_ni = ni;
+            pi += 1;
+        } else if star_pi != usize::MAX {
+            pi = star_pi + 1;
+            star_ni += 1;
+            ni = star_ni;
+        } else {
+            return false;
+        }
+    }
+    while pi < p.len() && p[pi] == '*' {
+        pi += 1;
+    }
+    pi == p.len()
+}
+
 fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
@@ -578,6 +661,8 @@ fn repl_main() -> Result<()> {
 
                     // Phase 10 — expand $VARS before alias resolution
                     let line = expand_vars(line, &shell_vars);
+                    // Glob expansion — expand *.rs, *.md etc
+                    let line = expand_globs(&line);
                     let line = line.as_str();
 
                     // Expand aliases before pipeline parsing
