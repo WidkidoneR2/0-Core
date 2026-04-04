@@ -125,6 +125,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "memory" => memory_cmd(db, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
+        "explain" => explain_cmd(db, core_root, args),
+        "where" => where_cmd(db, core_root, args),
         "command" => command_cmd(db, args, core_root),
         "health" => health(db),
         "events" => events(db, args),
@@ -167,7 +169,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "git" if args.is_empty() => git_status(core_root),
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
-        "where" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
+        "where_old_disabled" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
         "tools-table" | "tt" => tools_table(db, core_root),
         "events-table" | "et" => events_table(db, args),
         "audit-table" | "at" => audit_table(db, core_root),
@@ -3301,6 +3303,153 @@ fn failure_history_cmd(db: &ForestDb, _args: &[&str]) -> CommandResult {
 
 // ── INT-173: Command Registry Commands ───────────────────────────────────────
 
+fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    let cmd = args.first().copied().unwrap_or("");
+    if cmd.is_empty() {
+        return CommandResult::Error("explain: missing command name".to_string());
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut out = String::new();
+    out.push_str(&format!("
+  {} {}
+",
+        "🌲 explain:".bright_green().bold(),
+        cmd.bright_white().bold()
+    ));
+    out.push_str(&format!("  {}
+", "─".repeat(48).dimmed()));
+    // 1. Alias resolution
+    if let Some(aliased) = db.get_alias(cmd) {
+        out.push_str(&format!("  {:<14} {}
+", "alias:".dimmed(), format!("{} → {}", cmd, aliased).bright_cyan()));
+        // Recurse one level to show what the alias points to
+        let target_cmd = aliased.split_whitespace().next().unwrap_or("");
+        if !target_cmd.is_empty() && target_cmd != cmd {
+            out.push_str(&format!("  {:<14} {}
+", "resolves to:".dimmed(), target_cmd.bright_white()));
+        }
+    }
+    // 2. Registry description
+    let mut reg = crate::registry::Registry::new();
+    reg.populate(db, core_root);
+    if let Some(entry) = reg.get(cmd) {
+        out.push_str(&format!("  {:<14} {}
+", "kind:".dimmed(), entry.kind.label().bright_cyan()));
+        if !entry.description.is_empty() {
+            out.push_str(&format!("  {:<14} {}
+", "description:".dimmed(), entry.description.bright_white()));
+        }
+        if !entry.usage.is_empty() {
+            out.push_str(&format!("  {:<14} {}
+", "usage:".dimmed(), entry.usage.dimmed()));
+        }
+        if !entry.source.is_empty() {
+            out.push_str(&format!("  {:<14} {}
+", "source:".dimmed(), entry.source.dimmed()));
+        }
+    }
+    // 3. Forest builtins list
+    let builtins = ["cd","pwd","ls","ll","clear","echo","env","type","which",
+        "health","events","intents","tools","version","schema","commits",
+        "grep","find","tree","fstat","peek","realpath","rp","time","exec",
+        "reload","source","fsh","explain","where","hs","history-search",
+        "alias","unalias","export","unset","let","run","help","exit","quit"];
+    if builtins.contains(&cmd) {
+        out.push_str(&format!("  {:<14} {}
+", "builtin:".dimmed(), "native fsh command — no PATH lookup".bright_green()));
+    }
+    // 4. Forest script
+    let script_path = format!("{}/0-core/scripts/{}", home, cmd);
+    if std::path::Path::new(&script_path).exists() {
+        out.push_str(&format!("  {:<14} {}
+", "script:".dimmed(), script_path.dimmed()));
+    }
+    // 5. PATH binary
+    if let Ok(o) = std::process::Command::new("which").arg(cmd).output() {
+        if o.status.success() {
+            let path = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            out.push_str(&format!("  {:<14} {}
+", "binary:".dimmed(), path.dimmed()));
+        }
+    }
+    // 6. Reverse alias lookup — who points to this?
+    // Match whole word — command starts with cmd or contains " cmd"
+    let like1 = format!("{}%", cmd);
+    let like2 = format!("% {}%", cmd);
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT name, command FROM shell_aliases WHERE (command LIKE ?1 OR command LIKE ?2) AND name != ?3 ORDER BY name LIMIT 5"
+    ) {
+        let aliases: Vec<(String, String)> = stmt
+            .query_map(rusqlite::params![&like1, &like2, cmd], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
+        if !aliases.is_empty() {
+            let names: Vec<String> = aliases.iter().map(|(n, _)| n.bright_cyan().to_string()).collect();
+            out.push_str(&format!("  {:<14} {}
+", "also via:".dimmed(), names.join("  ")));
+        }
+    }
+    // 7. Audit score
+    if let Ok(score) = db.conn.query_row(
+        "SELECT score FROM audit_scores WHERE tool_name = ?1 ORDER BY timestamp DESC LIMIT 1",
+        rusqlite::params![cmd], |r| r.get::<_, i64>(0)
+    ) {
+        let color = if score >= 80 { format!("{}/100", score).bright_green().to_string() }
+                    else if score >= 60 { format!("{}/100", score).yellow().to_string() }
+                    else { format!("{}/100", score).bright_red().to_string() };
+        out.push_str(&format!("  {:<14} {}
+", "audit score:".dimmed(), color));
+    }
+    out.push_str(&format!("  {}
+", "─".repeat(48).dimmed()));
+    CommandResult::Output(out)
+}
+fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
+    let cmd = args.first().copied().unwrap_or("");
+    if cmd.is_empty() {
+        return CommandResult::Error("where: missing command name".to_string());
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut out = String::new();
+    let mut found = false;
+    // Alias
+    if let Some(aliased) = db.get_alias(cmd) {
+        out.push_str(&format!("  {} alias       {} → {}
+",
+            "▶".bright_cyan(), cmd.bright_white(), aliased.bright_cyan()));
+        found = true;
+    }
+    // Forest script
+    let script_path = format!("{}/0-core/scripts/{}", home, cmd);
+    if std::path::Path::new(&script_path).exists() {
+        out.push_str(&format!("  {} script      {}
+", "▶".bright_green(), script_path.dimmed()));
+        found = true;
+    }
+    // PATH
+    if let Ok(o) = std::process::Command::new("which").arg(cmd).output() {
+        if o.status.success() {
+            let path = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            out.push_str(&format!("  {} binary      {}
+", "▶".yellow(), path.dimmed()));
+            found = true;
+        }
+    }
+    // Builtin
+    let builtins = ["cd","pwd","ls","echo","env","type","which","grep","find",
+        "tree","fstat","peek","realpath","time","exec","reload","source",
+        "fsh","explain","where","hs","alias","unalias","export","unset","let","run"];
+    if builtins.contains(&cmd) {
+        out.push_str(&format!("  {} builtin     native fsh
+", "▶".bright_green()));
+        found = true;
+    }
+    if !found {
+        out.push_str(&format!("  {} not found: {}
+", "✗".bright_red(), cmd));
+    }
+    CommandResult::Output(out.trim_end().to_string())
+}
 fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
     let name = args.first().copied().unwrap_or("");
     if name.is_empty() {
