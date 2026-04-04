@@ -627,7 +627,7 @@ pub mod checks {
                     }
                 }
             }
-            if in_progress.len() > 3 {
+            if in_progress.len() > 5 {
                 issues.push(IntegrityIssue::alert(
                     Category::Intent,
                     "intent_inprogress_count",
