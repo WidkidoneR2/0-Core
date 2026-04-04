@@ -20,11 +20,11 @@ Not a tool you fight. A tool that anticipates.
 ⬜ zsh typed inside fsh — spawns zsh instead of showing fsh identity
 ✅ Tab completion for aliases — ci<TAB> should show cistart/cicomplete
 ---
-⬜ grep — basic pattern matching (no need to fall through to system grep)
-⬜ find — name + depth + type filters
-⬜ tree — recursive directory view with depth control
-⬜ stat — detailed file metadata
-⬜ preview — quick file preview (bat for text, size for binary)
+✅ grep — basic pattern matching + flag fallthrough to system grep
+✅ find — name + depth + type filters
+✅ tree — recursive directory view with depth control
+✅ stat (fstat) — detailed file metadata
+✅ preview (peek) — quick file preview (bat for text, size for binary)
 ⬜ realpath — resolve absolute paths
 ✅ !! — repeat last command
 ⬜ !<pattern> — search and run from history
