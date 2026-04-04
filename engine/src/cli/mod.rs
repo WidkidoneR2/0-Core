@@ -101,6 +101,7 @@ pub fn parse() -> Command {
             IntentCommands::Burndown => IntentCommand::Burndown,
             IntentCommands::Velocity => IntentCommand::Velocity,
             IntentCommands::Branch { id } => IntentCommand::Branch { id },
+            IntentCommands::Edit { id } => IntentCommand::Edit { id },
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,

@@ -126,6 +126,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Burndown => crate::domains::intent::burndown(ctx),
                 IntentCommand::Velocity => crate::domains::intent::velocity(ctx),
                 IntentCommand::Branch { id } => crate::domains::intent::branch(ctx, &id),
+                IntentCommand::Edit { id } => crate::domains::intent::edit(ctx, &id),
             }
         }
 

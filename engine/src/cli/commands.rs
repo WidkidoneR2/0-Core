@@ -187,8 +187,10 @@ pub enum IntentCommand {
     },
     Stats,
     Validate,
+    Edit {
+        id: String,
+    },
 }
-
 #[derive(Debug)]
 pub enum ProfileCommand {
     List,

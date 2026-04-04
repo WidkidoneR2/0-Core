@@ -1145,6 +1145,32 @@ pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+pub fn edit(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    let all = load_all(ctx);
+    let id_norm = id.trim_start_matches("INT-").trim_start_matches("int-");
+    let intent = all.iter().find(|i| {
+        i.id.trim_start_matches("INT-").trim_start_matches("int-") == id_norm
+    });
+    match intent {
+        Some(i) => {
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+            let path = intents_dir(ctx).join(&i.folder).join(&i.filename);
+            let status = std::process::Command::new(&editor)
+                .arg(&path)
+                .status()
+                .map_err(|e| crate::errors::CoreError::Io(e))?;
+            if status.success() {
+                println!("  {} INT-{} saved", "✅".to_string(), i.id);
+            }
+            Ok(())
+        }
+        None => {
+            eprintln!("  ❌ Intent {} not found", id);
+            Ok(())
+        }
+    }
+}
+
 pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;

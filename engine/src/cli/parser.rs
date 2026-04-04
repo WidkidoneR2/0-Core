@@ -394,6 +394,10 @@ pub enum IntentCommands {
     },
     Stats,
     Validate,
+    /// Open intent file in $EDITOR
+    Edit {
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]
