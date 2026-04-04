@@ -184,6 +184,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
         "find" | "fd" => find_cmd(db, core_root, args),
+        "grep" => grep_cmd(args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
@@ -3761,6 +3762,69 @@ fn schema(args: &[&str]) -> CommandResult {
 // find           — query from index (or rebuild if empty)
 // find reindex   — rebuild index from core_root
 // find <path>    — query files under a specific path
+
+fn grep_cmd(args: &[&str]) -> CommandResult {
+    if args.is_empty() {
+        return CommandResult::Error("usage: grep <pattern> [file]  or  grep [-i] <pattern> [file]".to_string());
+    }
+    let (case_insensitive, rest) = if args.first() == Some(&"-i") {
+        (true, &args[1..])
+    } else {
+        (false, args)
+    };
+    if rest.is_empty() {
+        return CommandResult::Error("usage: grep <pattern> [file]".to_string());
+    }
+    let pattern = rest[0].trim_matches('"').trim_matches('\'');
+    let file_arg = rest.get(1).copied();
+
+    let lines: Vec<String> = if let Some(path) = file_arg {
+        let expanded = if path.starts_with("~/") {
+            let home = std::env::var("HOME").unwrap_or_default();
+            path.replacen("~/", &format!("{}/", home), 1)
+        } else {
+            path.to_string()
+        };
+        match std::fs::read_to_string(&expanded) {
+            Ok(content) => content.lines().map(|l| l.to_string()).collect(),
+            Err(e) => return CommandResult::Error(format!("grep: {}: {}", expanded, e)),
+        }
+    } else {
+        return CommandResult::Error("grep: pipe support coming — use grep <pattern> <file> for now".to_string());
+    };
+
+    let matched: Vec<String> = lines.into_iter().enumerate().filter_map(|(i, line)| {
+        let matches = if case_insensitive {
+            line.to_lowercase().contains(&pattern.to_lowercase())
+        } else {
+            line.contains(pattern)
+        };
+        if matches {
+            let highlighted = if case_insensitive {
+                line.clone()
+            } else {
+                line.replace(pattern, &format!("[1;31m{}[0m", pattern))
+            };
+            Some(format!("  {}  {}", format!("{:4}", i + 1).dimmed(), highlighted))
+        } else {
+            None
+        }
+    }).collect();
+
+    if matched.is_empty() {
+        CommandResult::Output(format!("  {} no matches for '{}'", "○".dimmed(), pattern))
+    } else {
+        CommandResult::Output(format!(
+            "{}
+  {} {} match{}",
+            matched.join("
+"),
+            "✅".green(),
+            matched.len().to_string().bright_green(),
+            if matched.len() == 1 { "" } else { "es" }
+        ))
+    }
+}
 
 fn find_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     use crate::value::Value;
