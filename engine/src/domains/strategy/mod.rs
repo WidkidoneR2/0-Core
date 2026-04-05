@@ -1039,10 +1039,10 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     total += nervous_score;
     // Factor 9: Delegation Engine (+3) — trust contracts simulating
     let contract_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM delegation_contracts", [], |r| r.get(0)
+        "SELECT COUNT(*) FROM delegate_contracts", [], |r| r.get(0)
     ).unwrap_or(0);
     let sim_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM delegation_history", [], |r| r.get(0)
+        "SELECT COUNT(*) FROM delegate_simulations", [], |r| r.get(0)
     ).unwrap_or(0);
     let (deleg_score, deleg_note) = if contract_count >= 5 && sim_count > 0 {
         (3, format!("{} contracts, {} simulations -- delegation active", contract_count, sim_count))
