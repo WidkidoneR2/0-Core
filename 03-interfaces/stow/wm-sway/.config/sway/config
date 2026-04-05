@@ -286,7 +286,6 @@ bindsym $mod+Alt+w exec $term -e ~/0-core/scripts/dotctl
 
 # Specialized Tools
 bindsym $mod+Ctrl+d exec $term -e ~/0-core/scripts/core-diff
-bindsym $mod+Ctrl+a exec $term -e ~/0-core/scripts/archaeology-0-core
 bindsym $mod+Ctrl+c exec $term -e ~/0-core/scripts/compile-changelog.sh
 bindsym $mod+Ctrl+g exec $term -e ~/0-core/scripts/faelight-stow
 

@@ -875,6 +875,23 @@ pub fn check_path_resilience(core_root: &str) -> CheckResult {
 }
 
 pub fn check_archaeology(core_root: &str) -> CheckResult {
+    // If archaeology-0-core is retired in registry, pass gracefully
+    let tools_toml = std::path::PathBuf::from(core_root).join("01-registry/tools.toml");
+    if let Ok(s) = std::fs::read_to_string(&tools_toml) {
+        let mut in_block = false;
+        for line in s.lines() {
+            if line.contains("archaeology-0-core") { in_block = true; }
+            if in_block && line.trim() == "retired = true" {
+                return CheckResult {
+                    id: "archaeology".into(),
+                    name: "Archaeology".into(),
+                    status: Status::Pass,
+                    message: "archaeology-0-core retired — git history via core archaeology".into(),
+                    fix: None,
+                };
+            }
+        }
+    }
     let script = std::path::PathBuf::from(core_root).join("scripts/archaeology-0-core");
 
     if !script.exists() {

@@ -3,7 +3,7 @@ id: 193
 date: 2026-04-04
 type: planned
 title: "Tool Retirement Sprint — The Forest Prunes Itself"
-status: planned
+status: in-progress
 tags: [retirement, cleanup, tools, registry, pruning, v13-prep]
 ---
 The forest has grown to 55 tools. Not all of them deserve to stay.

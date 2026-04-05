@@ -332,12 +332,6 @@ alias secrets-mount='gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secre
 alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 
 # ─── Archaeology (Git History) ───
-alias arch='archaeology-0-core'
-# removed synonym: alias arch0='archaeology-0-core'
-alias archint='archaeology-0-core --by-intent'
-alias archsince='archaeology-0-core --since'
-alias archtime='archaeology-0-core --timeline'
-alias archwk='archaeology-0-core --this-week'
 
 # ═══════════════════════════════════════════════════════════
 # 📦 PACKAGE MANAGEMENT (Paru/Pacman)

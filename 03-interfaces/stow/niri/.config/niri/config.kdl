@@ -169,7 +169,6 @@ binds {
     Mod+Alt+l       { spawn "foot" "-e" "/home/christian/0-core/scripts/latest-update"; }
     Mod+Alt+w       { spawn "foot" "-e" "/home/christian/0-core/scripts/dotctl"; }
     Mod+Ctrl+d      { spawn "foot" "-e" "/home/christian/0-core/scripts/core-diff"; }
-    Mod+Ctrl+a      { spawn "foot" "-e" "/home/christian/0-core/scripts/archaeology-0-core"; }
     Mod+Ctrl+c      { spawn "foot" "-e" "/home/christian/0-core/scripts/compile-changelog.sh"; }
     Mod+Ctrl+g      { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-stow"; }
 
