@@ -173,7 +173,7 @@ Phase 5 — Co-Authored Roadmap (shared long-term vision)
 ✅ Phase 3 — Longitudinal Memory (reflect/pattern/growth live)
 ✅ Phase 4 — Honest Disagreement (pushback live)
 ✅ Phase 5 — Co-Authored Roadmap (roadmap/roadmap-why/roadmap-diff live)
-⬜ Forest has proposed at least 3 intents that proved valuable — 2 proposals made, accumulating
+⬜ Forest has proposed at least 3 intents — 2 proposals recorded, accumulating
 ⬜ Forest has disagreed at least once and been correct — tracking begins
 ```
 

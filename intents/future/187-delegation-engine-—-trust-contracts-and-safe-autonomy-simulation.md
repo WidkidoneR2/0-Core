@@ -99,8 +99,8 @@ Simulation = proof without risk.
 ✅ Risk threshold system enforced
 ✅ Hard boundaries encoded and tested
 ✅ Typed rollback for every auto-executable action
-⬜ Simulation accuracy tracked over 14+ days
-⬜ Activation gate enforced (85% accuracy before real delegation)
+⬜ Simulation accuracy tracked over 14+ days — clock running (started 2026-04-03)
+⬜ Activation gate enforced — gate at 85% simulation accuracy, currently accumulating
 ✅ core delegate contracts/history/accuracy/suspend live
 
 ## The Phrase

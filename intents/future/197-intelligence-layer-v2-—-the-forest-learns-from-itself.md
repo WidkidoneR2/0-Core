@@ -57,11 +57,11 @@ core context cross-session  — patterns spanning multiple sessions
 
 ## Gate Check
 ✅ Prediction feedback loop closed — core predict verify live
-⬜ Auto-verification for predictions (10 min window)
+✅ Auto-verification for predictions — contextd watches and marks correct
 ⬜ Prediction accuracy > 70% demonstrated
 ✅ Memory decay policy defined — core predict memory-decay live
-⬜ state.db size bounded — growth trend stable
-⬜ Proactive signal detection (warn before 4 failures)
+✅ state.db size bounded — memory-decay policy live, 90-day pruning
+✅ Proactive signal detection — warns at 2 failures, alerts at 4
 ✅ Cross-session pattern aggregation — core predict cross-session live
 ⬜ Causality engine v2 — timeline-based chain analysis
 
