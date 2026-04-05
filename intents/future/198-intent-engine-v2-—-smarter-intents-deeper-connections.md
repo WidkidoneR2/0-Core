@@ -62,7 +62,7 @@ core intent predict INT-NNN       — completion prediction
 ✅ Intent health scoring — core intent health live
 ⬜ Smart intent creation with context suggestions
 ⬜ Dependency graph v2 with critical path
-⬜ Intent autobiography v2 — richer narrative
+✅ Intent autobiography v2 — core intent story live, shows gates/commits/refs/phrase
 ✅ Completion prediction — core intent predict live, velocity-based estimation
 
 ## The Phrase
