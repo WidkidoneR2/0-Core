@@ -157,7 +157,6 @@ binds {
     Mod+Alt+c       { spawn "filen-desktop"; }
     Mod+Alt+h       { spawn "foot" "-e" "/home/christian/0-core/scripts/dot-doctor"; }
     Mod+Alt+m       { spawn "/home/christian/0-core/scripts/faelight-dashboard"; }
-    Mod+Alt+x       { spawn "foot" "-e" "/home/christian/0-core/scripts/entropy-check"; }
     Mod+Alt+g       { spawn "foot" "-e" "/home/christian/0-core/scripts/faelight-git"; }
     Mod+Alt+i       { spawn "foot" "-e" "/home/christian/0-core/scripts/intent"; }
     Mod+Alt+z       { spawn "/home/christian/0-core/scripts/faelight-snapshot"; }

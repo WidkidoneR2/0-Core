@@ -30,7 +30,7 @@ enum Commands {
     Tools,
 }
 
-const EXPECTED_TOOLS: [&str; 29] = [
+const EXPECTED_TOOLS: [&str; 28] = [
     // Core Infrastructure (11)
     "faelight-update",
     "faelight-core",
@@ -38,7 +38,6 @@ const EXPECTED_TOOLS: [&str; 29] = [
     "safe-update",
     "core-diff",
     "dotctl",
-    "entropy-check",
     "intent-guard",
     "faelight-snapshot",
     // Desktop Environment (9)

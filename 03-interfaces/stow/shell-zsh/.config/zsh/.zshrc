@@ -738,8 +738,6 @@ alias secrets-unmount='fusermount -u ~/secrets && echo "🔒 Secrets locked"'
 alias secrets='cd ~/secrets'
 
 # Entropy check
-alias entropy='entropy-check'
-alias drift='entropy-check'
 
 # Faelight unified tool
 alias fl='faelight'

@@ -74,7 +74,7 @@ description = "Configuration entropy and drift detection"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight"
 version = "2.1.0"
