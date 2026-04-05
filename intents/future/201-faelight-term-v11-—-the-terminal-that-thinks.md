@@ -3,7 +3,7 @@ id: 201
 date: 2026-04-05
 type: planned
 title: "faelight-term v11 — The Terminal That Thinks"
-status: planned
+status: in-progress
 tags: [terminal, faelight-term, daily-driver, ux, intelligence, v11]
 ---
 Foot is a great terminal. kitty is a great terminal.
