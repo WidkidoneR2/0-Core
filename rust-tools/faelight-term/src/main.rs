@@ -873,6 +873,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctrl_pressed: false,
         shift_pressed: false,
         mouse_pressed: false,
+        last_click_time: std::time::Instant::now(),
+        click_count: 0,
+        last_click_pos: (0, 0),
         selection_start: None,
         selection_end: None,
         main_font,
@@ -954,6 +957,9 @@ struct App {
     ctrl_pressed: bool,
     shift_pressed: bool,
     mouse_pressed: bool,
+    last_click_time: std::time::Instant,
+    click_count: u32,
+    last_click_pos: (usize, usize),
     selection_start: Option<(usize, usize)>,
     selection_end: Option<(usize, usize)>,
     main_font: FontRef<'static>,
@@ -1466,11 +1472,39 @@ impl PointerHandler for App {
                             }
                         }
 
-                        // Normal click - start selection
-                        self.mouse_pressed = true;
-                        if row < self.terminal.rows && col < self.terminal.cols {
-                            self.selection_start = Some((row, col));
-                            self.selection_end = Some((row, col));
+                        // Detect double/triple click
+                        let now = std::time::Instant::now();
+                        let elapsed = now.duration_since(self.last_click_time).as_millis();
+                        let same_pos = self.last_click_pos == (row, col);
+                        if elapsed < 400 && same_pos {
+                            self.click_count += 1;
+                        } else {
+                            self.click_count = 1;
+                        }
+                        self.last_click_time = now;
+                        self.last_click_pos = (row, col);
+                        if self.click_count == 2 && row < self.terminal.rows {
+                            // Double-click: select word
+                            let grid_row = &self.terminal.grid[row];
+                            let mut start_col = col;
+                            let mut end_col = col;
+                            while start_col > 0 && grid_row[start_col-1].ch != ' ' { start_col -= 1; }
+                            while end_col < self.terminal.cols-1 && grid_row[end_col+1].ch != ' ' { end_col += 1; }
+                            self.selection_start = Some((row, start_col));
+                            self.selection_end = Some((row, end_col));
+                            self.copy_to_primary();
+                        } else if self.click_count >= 3 && row < self.terminal.rows {
+                            // Triple-click: select entire line
+                            self.selection_start = Some((row, 0));
+                            self.selection_end = Some((row, self.terminal.cols - 1));
+                            self.copy_to_primary();
+                        } else {
+                            // Normal click - start selection
+                            self.mouse_pressed = true;
+                            if row < self.terminal.rows && col < self.terminal.cols {
+                                self.selection_start = Some((row, col));
+                                self.selection_end = Some((row, col));
+                            }
                         }
                     }
                 }
