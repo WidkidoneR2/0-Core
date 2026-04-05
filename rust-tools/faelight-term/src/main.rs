@@ -1015,7 +1015,6 @@ impl App {
         if let Some(buffer) = text {
             const CHUNK_SIZE: usize = 4096;
             let bytes = buffer.as_bytes();
-            let _ = self.pty.master.write_all(b"\x1b[200~");
             for chunk in bytes.chunks(CHUNK_SIZE) {
                 let _ = self.pty.master.write_all(chunk);
                 let _ = self.pty.master.flush();
@@ -1023,7 +1022,6 @@ impl App {
                     std::thread::sleep(std::time::Duration::from_millis(5));
                 }
             }
-            let _ = self.pty.master.write_all(b"\x1b[201~");
             let _ = self.pty.master.flush();
         }
     }
