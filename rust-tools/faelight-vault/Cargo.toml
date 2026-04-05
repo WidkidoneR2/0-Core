@@ -6,7 +6,6 @@ description = "Forest-native credential manager — faelight-gen with memory"
 
 [dependencies]
 faelight-core = { path = "../faelight-core" }
-faelight-gen   = { path = "../faelight-gen" }
 
 # Encryption
 age            = { version = "0.10", features = ["armor"] }

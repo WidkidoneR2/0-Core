@@ -1425,6 +1425,7 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
+#[allow(unused_assignments)]
 pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
     let root = std::path::PathBuf::from(&ctx.core_root);
@@ -1527,8 +1528,8 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
         }
     }
     // Show the phrase if it exists
-    if let Some(phrase_start) = content.find("**"") {
-        let phrase_end = content[phrase_start+3..].find(""**")
+    if let Some(phrase_start) = content.find("**\"") {
+        let phrase_end = content[phrase_start+3..].find("\"**")
             .map(|i| phrase_start + 3 + i)
             .unwrap_or(content.len());
         let phrase = &content[phrase_start+3..phrase_end];

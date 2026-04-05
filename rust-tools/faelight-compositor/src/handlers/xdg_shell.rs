@@ -1,7 +1,7 @@
 use crate::FaelightCompositor;
 use smithay::{
     delegate_xdg_shell,
-    desktop::{PopupKind, PopupManager, Space, Window},
+    desktop::{PopupKind, Window},
     reexports::wayland_server::protocol::wl_seat,
     utils::Serial,
     wayland::shell::xdg::{

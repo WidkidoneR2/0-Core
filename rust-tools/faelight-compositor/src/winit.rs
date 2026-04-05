@@ -69,7 +69,6 @@ pub fn init_winit(
                     );
                 }
                 WinitEvent::Input(event) => {
-                    use smithay::backend::input::InputEvent;
                     tracing::debug!("input event received");
                     let _ = event;
                 }

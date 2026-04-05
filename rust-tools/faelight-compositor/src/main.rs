@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args: Vec<String> = std::env::args().collect();
     let use_drm = args.contains(&"--drm".to_string());
-    let use_winit = args.contains(&"--winit".to_string()) || !use_drm;
+    let _use_winit = args.contains(&"--winit".to_string()) || !use_drm;
 
     if use_drm {
         tracing::info!("faelight-compositor starting — DRM/udev backend (real hardware)");
