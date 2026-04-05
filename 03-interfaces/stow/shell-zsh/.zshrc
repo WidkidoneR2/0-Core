@@ -22,10 +22,11 @@ setopt PUSHD_SILENT          # Don't print stack on pushd/popd
 # ═══════════════════════════════════════════════════════════
 
 # Add to PATH
-export PATH="$HOME/.local/bin:$PATH"
-export PATH="$HOME/bin:$PATH"
-export PATH="$HOME/.cargo/bin:$PATH"
-export PATH="$HOME/0-core/scripts:$PATH"
+# Idempotent PATH additions
+[[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && export PATH="$HOME/.local/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH="$HOME/.cargo/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/0-core/scripts:"* ]] && export PATH="$HOME/0-core/scripts:$PATH"
 
 # Editor
 export EDITOR=nvim
@@ -125,7 +126,7 @@ bindkey '^S' history-incremental-search-forward
 
 # Uncomment to see startup time:
 # echo "Startup time: ${(( $(date +%s%N) - $EPOCHREALTIME ))%.*}ms"
-export PATH=~/.npm-global/bin:$PATH
+[[ ":$PATH:" != *":$HOME/.npm-global/bin:"* ]] && export PATH="$HOME/.npm-global/bin:$PATH"
 export ATUIN_TMUX_POPUP=false
 # shellcheck disable=SC2034,SC2153,SC2086,SC2155
 

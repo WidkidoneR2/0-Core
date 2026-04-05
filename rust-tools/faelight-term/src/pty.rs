@@ -114,17 +114,23 @@ impl Pty {
                 };
                 let shell = CString::new(shell_path).unwrap();
                 let args = [CString::new(shell_name).unwrap()];
-                // Set up proper PATH so fsh can find ~/0-core/scripts
+                // Set up proper PATH -- deduplicated, forest paths first
                 let home = std::env::var("HOME").unwrap_or_default();
                 let scripts_path = format!("{}/0-core/scripts", home);
                 let cargo_bin = format!("{}/.cargo/bin", home);
+                let npm_bin = format!("{}/.npm-global/bin", home);
+                let local_bin = format!("{}/.local/bin", home);
                 let current_path = std::env::var("PATH").unwrap_or_else(|_|
                     "/usr/local/bin:/usr/bin:/bin".to_string());
-                let new_path = if current_path.contains(&scripts_path) {
-                    current_path
-                } else {
-                    format!("{}:{}:{}", scripts_path, cargo_bin, current_path)
-                };
+                let mut seen = std::collections::HashSet::new();
+                let mut parts: Vec<String> = Vec::new();
+                for p in &[&scripts_path, &cargo_bin, &npm_bin, &local_bin] {
+                    if seen.insert(p.to_string()) { parts.push(p.to_string()); }
+                }
+                for p in current_path.split(':') {
+                    if !p.is_empty() && seen.insert(p.to_string()) { parts.push(p.to_string()); }
+                }
+                let new_path = parts.join(":");
                 std::env::set_var("PATH", &new_path);
                 std::env::set_var("HOME", &home);
                 std::env::set_var("SHELL", &fsh_path);
