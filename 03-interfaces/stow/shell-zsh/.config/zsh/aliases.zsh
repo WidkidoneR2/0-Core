@@ -231,7 +231,6 @@ alias loch='tokei ~/0-core/rust-tools --sort lines'  # 0-core LOC
 alias cdcore='cd ~/0-core'
 alias src='cd ~/1-src'
 alias work='cd ~/2-work'
-alias ws='workspace-view'
 alias keep='cd ~/3-keep'
 alias conf='cd ~/.config'
 alias cdocs='cd ~/Documents'  # was docs — renamed INT-163
@@ -515,8 +514,6 @@ alias weather='curl wttr.in'
 alias prof='profile'
 alias prof-list='profile list'
 alias prof-switch='profile switch'
-alias wsa='workspace-view --active'
-alias wss='workspace-view --summary'
 
 # ─── Documentation ───
 alias guide='bat ~/0-core/COMPLETE_GUIDE.md'

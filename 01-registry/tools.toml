@@ -326,7 +326,7 @@ description = "Workspace overview and navigation"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-clipboard"
 version = "0.2.0"
