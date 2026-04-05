@@ -68,9 +68,56 @@ fn split_semicolons(line: &str) -> Vec<String> {
     segments
 }
 
+
+/// Split a line on && and || operators (respecting quotes)
+/// Returns Vec<(cmd, operator)> where operator is None for last cmd,
+/// Some(true) for && (run next if success), Some(false) for || (run next if fail)
+fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
+    let mut result = vec![];
+    let mut current = String::new();
+    let mut in_quote = false;
+    let mut quote_char = ' ';
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        match ch {
+            '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; current.push(ch); }
+            c if in_quote && c == quote_char => { in_quote = false; current.push(ch); }
+            '&' if !in_quote && i + 1 < chars.len() && chars[i+1] == '&' => {
+                let seg = current.trim().to_string();
+                if !seg.is_empty() { result.push((seg, Some(true))); }
+                current.clear();
+                i += 2; // skip &&
+                continue;
+            }
+            '|' if !in_quote && i + 1 < chars.len() && chars[i+1] == '|' => {
+                let seg = current.trim().to_string();
+                if !seg.is_empty() { result.push((seg, Some(false))); }
+                current.clear();
+                i += 2; // skip ||
+                continue;
+            }
+            _ => current.push(ch),
+        }
+        i += 1;
+    }
+    let seg = current.trim().to_string();
+    if !seg.is_empty() { result.push((seg, None)); }
+    if result.is_empty() { result.push((line.trim().to_string(), None)); }
+    result
+}
+
 /// Detect and strip redirection from a command line.
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
 fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
+    // Match 2>/dev/null and 2>file FIRST
+    if line.contains(" 2>/dev/null") || line.contains(" 2>&1") || 
+       (line.contains(" 2>") && !line.contains(" 2>=")) {
+        // Return the line as-is but signal that it needs special handling
+        // The caller will handle 2> patterns natively
+        return (line.to_string(), Some(("__stderr__".to_string(), false)));
+    }
     // Match >> before > (order matters)
     if let Some(idx) = line.rfind(" >> ") {
         let path = line[idx + 4..].trim().to_string();
@@ -519,6 +566,32 @@ fn repl_main() -> Result<()> {
                             segment.dimmed()
                         );
                     }
+                    // Handle && and || logical operators
+                    let logical_parts = split_logical(segment);
+                    if logical_parts.len() > 1 {
+                        let mut _last_success = true;
+                        for (lcmd, op) in &logical_parts {
+                            // Decide whether to run this command
+                            let should_run = match op {
+                                _ => true, // Always run first cmd
+                            };
+                            // For subsequent cmds, check previous result
+                            let _ = should_run;
+                            // Run via sh -c for now to handle complex cases
+                            let status = std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg(lcmd)
+                                .envs(std::env::vars())
+                                .status();
+                            _last_success = status.map(|s| s.success()).unwrap_or(false);
+                            // Check if we should continue
+                            if let Some(is_and) = op {
+                                if *is_and && !_last_success { break; }  // && stops on failure
+                                if !is_and && _last_success { break; }   // || stops on success
+                            }
+                        }
+                        continue;
+                    }
                     let line = segment.as_str();
                     // Phase 18b — Flow mode: earliest intercept
                     {
@@ -862,14 +935,91 @@ fn repl_main() -> Result<()> {
                         }
                         last_pipe_in_quotes
                     };
-                    // Strip redirect EARLY — when found, delegate entire command to sh
-                    let (line_stripped, redirect_early) = detect_redirect(line);
-                    if redirect_early.is_some() {
-                        // Delegate to sh for reliable redirect handling
-                        let _ = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(line)
-                            .status();
+                    // Handle redirects natively — no sh delegation
+                    let (line_stripped, redirect_info) = detect_redirect(line);
+                    if let Some((ref redirect_target, is_append)) = redirect_info {
+                        // Check for stderr redirect (2> or 2>&1) — use original line
+                        let working_line = if redirect_target == "__stderr__" { line } else { line_stripped.as_str() };
+                        let (cmd_part, stderr_to_stdout, stderr_file) = 
+                            if working_line.contains(" 2>&1") {
+                                let cleaned = working_line.replace(" 2>&1", "").trim().to_string();
+                                // Also strip any stdout redirect
+                                let (c2, _) = detect_redirect(&cleaned);
+                                (c2, true, None)
+                            } else if let Some(idx) = working_line.find(" 2>/dev/null") {
+                                (working_line[..idx].trim().to_string(), false, Some("/dev/null".to_string()))
+                            } else if let Some(idx) = working_line.find(" 2>") {
+                                let after = working_line[idx+3..].trim().to_string();
+                                (working_line[..idx].trim().to_string(), false, Some(after))
+                            } else {
+                                (line_stripped.clone(), false, None)
+                            };
+                        // If it's a pure stderr redirect, handle separately
+                        let is_stderr_only = redirect_target == "__stderr__";
+                        // Open output file
+                        // For stderr-only redirects, handle without opening stdout file
+                        if is_stderr_only {
+                            let stderr_stdio = if let Some(ref sf_path) = stderr_file {
+                                std::fs::File::create(sf_path)
+                                    .map(std::process::Stdio::from)
+                                    .unwrap_or(std::process::Stdio::inherit())
+                            } else { std::process::Stdio::inherit() };
+                            let _ = std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg(&cmd_part)
+                                .stdin(std::process::Stdio::inherit())
+                                .stdout(std::process::Stdio::inherit())
+                                .stderr(stderr_stdio)
+                                .envs(std::env::vars())
+                                .status();
+                            continue 'repl;
+                        }
+                        let file = if is_append {
+                            std::fs::OpenOptions::new().append(true).create(true).open(redirect_target)
+                        } else {
+                            std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(redirect_target)
+                        };
+                        match file {
+                            Ok(f) => {
+                                use std::os::unix::io::IntoRawFd;
+                                use std::os::fd::FromRawFd;
+                                let parts: Vec<&str> = cmd_part.trim().splitn(2, ' ').collect();
+                                if !parts.is_empty() {
+                                    let mut cmd = std::process::Command::new(parts[0]);
+                                    if parts.len() > 1 {
+                                        cmd.args(parts[1].split_whitespace());
+                                    }
+                                    if stderr_to_stdout {
+                                        // 2>&1: open file twice for both stdout and stderr
+                                        let fd = f.into_raw_fd();
+                                        let stdout_f = unsafe { std::fs::File::from_raw_fd(fd) };
+                                        // Reopen same file for stderr
+                                        let stderr_f = if is_append {
+                                            std::fs::OpenOptions::new().append(true).create(true).open(redirect_target)
+                                        } else {
+                                            std::fs::OpenOptions::new().write(true).create(true).open(redirect_target)
+                                        };
+                                        if let Ok(sf) = stderr_f {
+                                            let _ = cmd.stdout(std::process::Stdio::from(stdout_f))
+                                                .stderr(std::process::Stdio::from(sf))
+                                                .status();
+                                        }
+                                    } else if let Some(ref sf_path) = stderr_file {
+                                        // 2>file: stderr to different file
+                                        let sf = std::fs::File::create(sf_path).ok();
+                                        let _ = cmd.stdout(std::process::Stdio::from(f))
+                                            .stderr(sf.map(std::process::Stdio::from).unwrap_or(std::process::Stdio::inherit()))
+                                            .status();
+                                    } else {
+                                        // Normal stdout redirect
+                                        let _ = cmd.stdout(std::process::Stdio::from(f))
+                                            .stderr(std::process::Stdio::inherit())
+                                            .status();
+                                    }
+                                }
+                            }
+                            Err(e) => eprintln!("fsh: redirect error: {}", e),
+                        }
                         continue 'repl;
                     }
                     let line = line_stripped.as_str();
@@ -1008,7 +1158,7 @@ fn repl_main() -> Result<()> {
 
                     // Phase 13 — Redirection: already done early, use redirect_early
                     let line = line;
-                    let redirect = redirect_early;
+                    let redirect = redirect_info;
                     // Re-parse pipeline after stripping redirect
                     let in_quotes2 = line.contains('"') && {
                         let mut inside = false;
