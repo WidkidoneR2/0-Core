@@ -12,7 +12,7 @@
   "flash.nvim": { "branch": "main", "commit": "fcea7ff883235d9024dc41e638f164a450c14ca2" },
   "flexoki-neovim": { "branch": "main", "commit": "c3e2251e813d29d885a7cbbe9808a7af234d845d" },
   "friendly-snippets": { "branch": "main", "commit": "6cd7280adead7f586db6fccbd15d2cac7e2188b9" },
-  "gitsigns.nvim": { "branch": "main", "commit": "07ff073b84d3ef48f286529c36658a65d1a64707" },
+  "gitsigns.nvim": { "branch": "main", "commit": "4bafeca9bc9ce5b3b4b953ec8ca85ddeac25ed29" },
   "grug-far.nvim": { "branch": "main", "commit": "dc4684e163971bb1f5bfb93fbd4bb3e892bf9b15" },
   "gruvbox.nvim": { "branch": "main", "commit": "334d5fd49fc8033f26408425366c66c6390c57bb" },
   "indent-blankline.nvim": { "branch": "master", "commit": "d28a3f70721c79e3c5f6693057ae929f3d9c0a03" },
