@@ -989,36 +989,42 @@ impl App {
     fn paste_from_clipboard(&mut self) {
         use std::io::{Read, Write};
         use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
-
-        match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text) {
+        
+        // Try wl_clipboard_rs first
+        let text = match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::Text) {
             Ok((mut pipe, _mime)) => {
                 let mut buffer = String::new();
-                if pipe.read_to_string(&mut buffer).is_ok() {
-                    // Chunk large pastes to avoid buffer overflow (4KB chunks)
-                    const CHUNK_SIZE: usize = 4096;
-                    let bytes = buffer.as_bytes();
-                    let _ = self.pty.master.write_all(b"\x1b[200~");
-
-                    for chunk in bytes.chunks(CHUNK_SIZE) {
-                        match self.pty.master.write_all(chunk) {
-                            Ok(_) => {
-                                let _ = self.pty.master.flush();
-                                // Small delay for large pastes
-                                if bytes.len() > CHUNK_SIZE {
-                                    std::thread::sleep(std::time::Duration::from_millis(5));
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("⚠️  Paste chunk failed: {}", e);
-                                break;
-                            }
-                        }
-                    }
-                    let _ = self.pty.master.write_all(b"\x1b[201~");
-                    let _ = self.pty.master.flush();
+                if pipe.read_to_string(&mut buffer).is_ok() && !buffer.is_empty() {
+                    Some(buffer)
+                } else { None }
+            }
+            Err(_) => None,
+        };
+        
+        // Fallback to wl-paste subprocess if library failed
+        let text = text.or_else(|| {
+            std::process::Command::new("wl-paste")
+                .arg("--no-newline")
+                .output()
+                .ok()
+                .and_then(|o| if o.status.success() {
+                    String::from_utf8(o.stdout).ok()
+                } else { None })
+        });
+        
+        if let Some(buffer) = text {
+            const CHUNK_SIZE: usize = 4096;
+            let bytes = buffer.as_bytes();
+            let _ = self.pty.master.write_all(b"\x1b[200~");
+            for chunk in bytes.chunks(CHUNK_SIZE) {
+                let _ = self.pty.master.write_all(chunk);
+                let _ = self.pty.master.flush();
+                if bytes.len() > CHUNK_SIZE {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
                 }
             }
-            Err(e) => eprintln!("⚠️  Paste failed: {}", e),
+            let _ = self.pty.master.write_all(b"\x1b[201~");
+            let _ = self.pty.master.flush();
         }
     }
 
