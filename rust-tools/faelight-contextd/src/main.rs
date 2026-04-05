@@ -72,6 +72,10 @@ fn detect_signals(conn: &Connection) {
         insert_insight(conn, "failure-loop",
             &format!("{} failed commands in 5 minutes — possible loop or broken state", recent_failures),
             0.85, 0.80, now);
+    } else if recent_failures >= 2 {
+        insert_insight(conn, "failure-pattern-forming",
+            &format!("{} failed commands in 5 minutes — watching for failure loop", recent_failures),
+            0.72, 0.65, now);
     }
     // Signal 2: deploy without health check
     let last_deploy: Option<i64> = conn.query_row(
@@ -104,8 +108,46 @@ fn detect_signals(conn: &Connection) {
             0.70, 0.65, now);
     }
 }
+fn auto_verify_predictions(conn: &Connection) {
+    // Auto-verify predictions: if predicted command ran within 10 min, mark correct
+    let now = chrono::Utc::now().timestamp();
+    let window_10m = now - 600;
+    
+    // Get unverified predictions
+    let preds: Vec<(i64, String, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, kind, prediction FROM forest_predictions
+             WHERE id NOT IN (SELECT prediction_id FROM prediction_outcomes)
+             AND created_at > ?1"
+        ).unwrap();
+        stmt.query_map(params![now - 86400], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .unwrap().filter_map(|r| r.ok()).collect()
+    };
+    
+    for (id, kind, _prediction) in preds {
+        // Check if predicted domain had activity in last 10 min
+        let domain = match kind.as_str() {
+            "sessions" => "doctor",
+            "cadence" => "intent", 
+            _ => continue,
+        };
+        let activity: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM forest_events WHERE domain = ?1 AND timestamp > ?2",
+            params![domain, window_10m], |r| r.get(0)
+        ).unwrap_or(0);
+        
+        if activity > 0 {
+            let _ = conn.execute(
+                "INSERT INTO prediction_outcomes (prediction_id, actual, correct, verified_at)
+                 VALUES (?1, 'auto-verified', 1, ?2)",
+                params![id, now],
+            );
+        }
+    }
+}
 fn run_once(conn: &Connection) {
     detect_signals(conn);
+    auto_verify_predictions(conn);
     let now = chrono::Utc::now().timestamp();
     let _ = conn.execute(
         "UPDATE forest_insights SET shown = 1 WHERE expires_at < ?1",

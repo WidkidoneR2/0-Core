@@ -59,7 +59,7 @@ core intent predict INT-NNN       — completion prediction
 
 ## Gate Check
 ⬜ Auto-linking on intent creation
-⬜ Intent health scoring (gate completion + stall detection)
+✅ Intent health scoring — core intent health live
 ⬜ Smart intent creation with context suggestions
 ⬜ Dependency graph v2 with critical path
 ⬜ Intent autobiography v2 — richer narrative

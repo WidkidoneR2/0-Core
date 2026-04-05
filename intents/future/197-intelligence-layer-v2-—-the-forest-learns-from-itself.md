@@ -56,13 +56,13 @@ core memory decay --apply   — apply decay (with confirmation)
 core context cross-session  — patterns spanning multiple sessions
 
 ## Gate Check
-⬜ Prediction feedback loop closed — verify command live
+✅ Prediction feedback loop closed — core predict verify live
 ⬜ Auto-verification for predictions (10 min window)
 ⬜ Prediction accuracy > 70% demonstrated
-⬜ Memory decay policy defined and running
+✅ Memory decay policy defined — core predict memory-decay live
 ⬜ state.db size bounded — growth trend stable
 ⬜ Proactive signal detection (warn before 4 failures)
-⬜ Cross-session pattern aggregation
+✅ Cross-session pattern aggregation — core predict cross-session live
 ⬜ Causality engine v2 — timeline-based chain analysis
 
 ## The Phrase
