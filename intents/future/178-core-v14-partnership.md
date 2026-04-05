@@ -167,14 +167,14 @@ Phase 5 — Co-Authored Roadmap (shared long-term vision)
 ✅ INT-159 faelight-context operational
 ✅ INT-160 faelight-memory operational
 ⬜ INT-167 prediction accuracy > 75% over 30 days
-⬜ Jarvis readiness score >= 98/100
+✅ Jarvis readiness score >= 98/100 — reached 98/100 (2026-04-05)
 ✅ Phase 1 — Collaborative Intent Creation (propose/discuss/disagree live)
 ✅ Phase 2 — Shared Decision Making (consult live)
 ✅ Phase 3 — Longitudinal Memory (reflect/pattern/growth live)
 ✅ Phase 4 — Honest Disagreement (pushback live)
 ✅ Phase 5 — Co-Authored Roadmap (roadmap/roadmap-why/roadmap-diff live)
-⬜ Forest has proposed at least 3 intents that proved valuable
-⬜ Forest has disagreed at least once and been correct
+⬜ Forest has proposed at least 3 intents that proved valuable — 2 proposals made, accumulating
+⬜ Forest has disagreed at least once and been correct — tracking begins
 ```
 
 ## Relationship to Other Intents
