@@ -159,7 +159,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         }).count())
         .unwrap_or(0);
     
-    let complete_count: i64 = ctx.runtime.db.query_row(
+    let _complete_count: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM forest_events WHERE kind='CommandSucceeded' AND timestamp > ?1",
         rusqlite::params![window_7d], |r| r.get(0)
     ).unwrap_or(0);
@@ -186,26 +186,49 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         ));
     }
     
-    if complete_count > 50 {
+    // Context-aware proposals based on current state
+    let prediction_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let verified_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
+    ).unwrap_or(0);
+    if prediction_count > 0 && verified_count == 0 {
         proposals.push((
-            "Prediction Accuracy Review".to_string(),
-            "High command volume this week — good time to verify prediction accuracy and close feedback loop.".to_string()
+            "Close Prediction Feedback Loop".to_string(),
+            format!("{} predictions stored but none verified — run core predict verify to build accuracy baseline.", prediction_count)
         ));
     }
-    
-    // Always propose roadmap review
+    // Check for intents with no recent commits (stalling)
+    let stale_intents: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_insights WHERE kind = 'stalled-intent' AND shown = 0",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    if stale_intents > 0 {
+        proposals.push((
+            "Address Stalled Intents".to_string(),
+            format!("{} intents showing no progress — consider closing or deferring to maintain momentum.", stale_intents)
+        ));
+    }
+    // Check shell intelligence gate
     proposals.push((
-        "Roadmap Alignment Check".to_string(),
-        "Regular proposal: verify current work aligns with v14 Partnership path and May 3 gate.".to_string()
+        "Shell Intelligence Gate — May 3".to_string(),
+        "fsh daily driver clock running since 2026-04-03. 28 days remain. Continue using fsh exclusively to strengthen the gate.".to_string()
     ));
-    
-    if proposals.is_empty() {
-        println!("  {} No proposals at this time — forest patterns look healthy", "○".dimmed());
+    // Deduplicate — don't store if same title exists in last 7 days
+    let week_ago = now - 604800;
+    let new_proposals: Vec<(String, String)> = proposals.into_iter().filter(|(title, _)| {
+        ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM partner_proposals WHERE title = ?1 AND created_at > ?2",
+            rusqlite::params![title, week_ago], |r| r.get::<_, i64>(0)
+        ).unwrap_or(0) == 0
+    }).collect();
+    if new_proposals.is_empty() {
+        println!("  {} No new proposals this week — recent proposals still pending", "○".dimmed());
     } else {
-        for (i, (title, reason)) in proposals.iter().enumerate() {
+        for (i, (title, reason)) in new_proposals.iter().enumerate() {
             println!("  {} Proposal {}: {}", "💡".normal(), i+1, title.bright_white().bold());
             println!("     {}", reason.dimmed());
-            // Store proposal
             let _ = ctx.runtime.db.execute(
                 "INSERT INTO partner_proposals (title, reasoning, created_at) VALUES (?1, ?2, ?3)",
                 rusqlite::params![title, reason, now],
