@@ -53,6 +53,7 @@ pub enum Command {
     Genealogy(GenealogyCommand),
     Integrity(IntegrityCommand),
     Autonomy(AutonomyCommand),
+    Partner(PartnerCommand),
     Registry(RegistryCommand),
     Db(DbCommand),
     Plan(PlanCommand),
@@ -533,6 +534,28 @@ pub enum AutonomyCommand {
     TrustScore,
     TrustHistory,
     TrustExpand,
+}
+
+#[derive(Debug, Clone)]
+pub enum PartnerCommand {
+    // Phase 1 — Collaborative Intent Creation
+    Propose,
+    Discuss { intent_id: String },
+    Disagree { intent_id: String },
+    // Phase 2 — Shared Decision Making
+    Consult { question: String },
+    // Phase 3 — Longitudinal Memory
+    Reflect,
+    Pattern,
+    Growth,
+    // Phase 4 — Honest Disagreement
+    Pushback,
+    // Phase 5 — Co-Authored Roadmap
+    Roadmap,
+    RoadmapWhy,
+    RoadmapDiff,
+    // Status
+    Status,
 }
 #[derive(Debug, Clone)]
 pub enum RegistryCommand {
