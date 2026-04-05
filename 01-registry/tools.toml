@@ -389,7 +389,7 @@ description = "Intent dashboard — the forest knows where it is going"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-idle"
 version = "1.0.0"
