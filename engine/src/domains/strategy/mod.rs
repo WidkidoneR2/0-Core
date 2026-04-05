@@ -1002,10 +1002,57 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         format!("{} total commits", commits)));
     total += commit_score;
 
-    // Factor 5: Shell intelligence (max 10) — fsh as daily driver
-    factors.push(("Shell Intelligence".to_string(), 5,
-        "faelight-shell is login shell (2026-04-03) — 30-day daily driver window active".to_string()));
-    total += 5;
+    // Factor 5: Shell intelligence (max 10) — date-aware after 30 days
+    let shell_score = {
+        let login_date = chrono::NaiveDate::from_ymd_opt(2026, 4, 3).unwrap();
+        let today = chrono::Local::now().date_naive();
+        let days = (today - login_date).num_days();
+        if days >= 30 { 10 } else { 5 }
+    };
+    let shell_note = {
+        let login_date = chrono::NaiveDate::from_ymd_opt(2026, 4, 3).unwrap();
+        let today = chrono::Local::now().date_naive();
+        let days = (today - login_date).num_days();
+        if days >= 30 {
+            format!("faelight-shell daily driver for {} days — gate passed", days)
+        } else {
+            format!("faelight-shell login shell since 2026-04-03 — {} of 30 days (gate: May 3)", days)
+        }
+    };
+    factors.push(("Shell Intelligence".to_string(), shell_score, shell_note));
+    total += shell_score;
+    // Factor 8: Nervous System (+5) — faelight-contextd operational
+    let contextd_running = std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "faelight-contextd"])
+        .output().map(|o| o.status.success()).unwrap_or(false);
+    let events_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_events", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let (nervous_score, nervous_note) = if contextd_running && events_count > 0 {
+        (5, format!("faelight-contextd active -- {} events observed", events_count))
+    } else if events_count > 0 {
+        (3, format!("forest_events active ({} events) -- contextd not running", events_count))
+    } else {
+        (0, "Nervous system not operational".to_string())
+    };
+    factors.push(("Nervous System".to_string(), nervous_score, nervous_note));
+    total += nervous_score;
+    // Factor 9: Delegation Engine (+3) — trust contracts simulating
+    let contract_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM delegation_contracts", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let sim_count: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM delegation_history", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let (deleg_score, deleg_note) = if contract_count >= 5 && sim_count > 0 {
+        (3, format!("{} contracts, {} simulations -- delegation active", contract_count, sim_count))
+    } else if contract_count > 0 {
+        (1, format!("{} contracts defined -- simulation pending", contract_count))
+    } else {
+        (0, "Delegation engine not configured".to_string())
+    };
+    factors.push(("Delegation Engine".to_string(), deleg_score, deleg_note));
+    total += deleg_score;
 
     // Factor 7: Context awareness (max 7) — faelight-context + faelight-memory
     let context_exists = std::path::PathBuf::from(&ctx.core_root)
