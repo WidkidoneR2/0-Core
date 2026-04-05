@@ -599,9 +599,6 @@ alias wallpaper='faelight-wallpaper'
 # alias fs=faelight-search  # removed — faelight-shell takes priority
 # alias search='faelight-search'  # RETIRED 2026-03-26 — use ? in fsh or fd
 
-# ─── faelight-intent ───
-alias fid='faelight-intent'
-# removed synonym: alias idash='faelight-intent'
 
 # ─── core ledger (Core v5 Phase 1) ───
 alias cledger='core ledger stats'  # was cls — renamed INT-163

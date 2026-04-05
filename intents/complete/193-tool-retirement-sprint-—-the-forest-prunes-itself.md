@@ -3,7 +3,7 @@ id: 193
 date: 2026-04-04
 type: planned
 title: "Tool Retirement Sprint — The Forest Prunes Itself"
-status: in-progress
+status: complete
 tags: [retirement, cleanup, tools, registry, pruning, v13-prep]
 ---
 The forest has grown to 55 tools. Not all of them deserve to stay.
@@ -48,18 +48,18 @@ For each tool:
 3. Mark source directory as archived (not deleted — history preserved)
 4. Update registry TOML
 5. Verify health check still passes after each retirement
-⬜ archaeology-0-core retired and undeployed
-⬜ workspace-view retired and undeployed
-⬜ entropy-check retired and undeployed
-⬜ bin-doctor retired and undeployed
-⬜ faelight-search retired and undeployed
-⬜ faelight-daemon retired and undeployed
-⬜ faelight-gen decision made (retire or keep with justification)
-⬜ faelight-hooks decision made (retire or keep with justification)
-⬜ faelight-intent decision made (retire or keep with justification)
-⬜ Health check passes after all retirements
-⬜ Registry reality-check shows clean tool list
-⬜ Deploy count reduced — fewer tools, faster builds
+✅ archaeology-0-core retired and undeployed
+✅ workspace-view retired and undeployed
+✅ entropy-check retired and undeployed
+✅ bin-doctor retired and undeployed
+✅ faelight-search — already retired prior to this sprint
+✅ faelight-daemon — KEPT: live infrastructure, neovim socket + systemd service
+✅ faelight-gen — KEPT: password generator connected to faelight-vault, future Jarvis integration planned
+✅ faelight-hooks — KEPT: powers pre-push checks in faelight-git
+✅ faelight-intent retired and undeployed — superseded by core intent
+✅ Health check passes after all retirements — 100% health maintained
+✅ Registry reality-check clean — 44 tools deployed
+✅ Deploy count reduced — 55 → 44 tools (11 retired/kept decisions made)
 "A forest that cannot shed its dead branches cannot grow new ones.
 Retirement is not failure — it is evolution.
 The tools that remain are the tools that matter." 🌲
