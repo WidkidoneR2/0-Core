@@ -63,18 +63,19 @@ fn detect_signals(conn: &Connection) {
     let window_5m = now - 300;
     let window_2h = now - 7200;
     let window_10m = now - 600;
-    // Signal 1: failure loop
+    let window_1h = now - 3600;
+    // Signal 1: failure loop — forest notices when you are stuck
     let recent_failures: i64 = conn.query_row(
         "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandFailed' AND timestamp > ?1",
         params![window_5m], |r| r.get(0)
     ).unwrap_or(0);
     if recent_failures >= 4 {
         insert_insight(conn, "failure-loop",
-            &format!("{} failed commands in 5 minutes — possible loop or broken state", recent_failures),
-            0.85, 0.80, now);
+            &format!("{} failures in 5 minutes — something is broken. Check the error above carefully.", recent_failures),
+            0.90, 0.85, now);
     } else if recent_failures >= 2 {
         insert_insight(conn, "failure-pattern-forming",
-            &format!("{} failed commands in 5 minutes — watching for failure loop", recent_failures),
+            &format!("{} failures in 5 minutes — pattern forming. What changed recently?", recent_failures),
             0.72, 0.65, now);
     }
     // Signal 2: deploy without health check
@@ -90,8 +91,8 @@ fn detect_signals(conn: &Connection) {
             ).unwrap_or(0);
             if health_after == 0 {
                 insert_insight(conn, "deploy-unchecked",
-                    "Deploy detected but no health check ran after — type d to verify",
-                    0.75, 0.70, now);
+                    "You deployed something — health not checked yet. Run d to verify nothing broke.",
+                    0.78, 0.72, now);
             }
         }
     }
@@ -104,8 +105,39 @@ fn detect_signals(conn: &Connection) {
         .unwrap().filter_map(|r| r.ok()).collect();
     if domains.len() >= 5 {
         insert_insight(conn, "focus-fragmentation",
-            &format!("{} different domains touched in 10 minutes — consider focusing", domains.len()),
+            &format!("Touching {} domains in 10 minutes — deep focus builds better than wide. Pick one thread.", domains.len()),
             0.70, 0.65, now);
+    }
+    // Signal 4: long build session — suggest checkpoint
+    let commit_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'git' AND timestamp > ?1",
+        params![window_1h], |r| r.get(0)
+    ).unwrap_or(0);
+    let deploy_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM forest_events WHERE kind = 'CommandSucceeded' AND domain = 'deploy' AND timestamp > ?1",
+        params![window_1h], |r| r.get(0)
+    ).unwrap_or(0);
+    if commit_count >= 3 && deploy_count >= 3 {
+        insert_insight(conn, "high-velocity-session",
+            &format!("{} commits and {} deploys this hour — strong momentum. Consider a checkpoint snapshot.", commit_count, deploy_count),
+            0.68, 0.70, now);
+    }
+    // Signal 5: uncommitted work sitting too long
+    let last_commit: Option<i64> = conn.query_row(
+        "SELECT timestamp FROM forest_events WHERE domain = 'git' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
+        [], |r| r.get(0)
+    ).ok();
+    let last_deploy2: Option<i64> = conn.query_row(
+        "SELECT timestamp FROM forest_events WHERE domain = 'deploy' AND kind = 'CommandSucceeded' ORDER BY timestamp DESC LIMIT 1",
+        [], |r| r.get(0)
+    ).ok();
+    if let (Some(last_d), Some(last_c)) = (last_deploy2, last_commit) {
+        if last_d > last_c + 1800 {
+            // Deploy happened 30+ min after last commit
+            insert_insight(conn, "work-uncommitted",
+                "Deployed work that hasn't been committed yet — fg commit to save your progress.",
+                0.75, 0.70, now);
+        }
     }
 }
 fn auto_verify_predictions(conn: &Connection) {
