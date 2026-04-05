@@ -127,6 +127,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Velocity => crate::domains::intent::velocity(ctx),
                 IntentCommand::Branch { id } => crate::domains::intent::branch(ctx, &id),
                 IntentCommand::Edit { id } => crate::domains::intent::edit(ctx, &id),
+            IntentCommand::Health { stale } => crate::domains::intent::health(ctx, stale),
             }
         }
 
@@ -465,6 +466,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             PredictCommand::Coupling => crate::domains::predict::coupling(ctx),
             PredictCommand::Churn => crate::domains::predict::churn(ctx),
             PredictCommand::Accuracy => crate::domains::predict::accuracy(ctx),
+            PredictCommand::Verify { id, correct } => crate::domains::predict::verify(ctx, &id, correct),
+            PredictCommand::CrossSession => crate::domains::predict::cross_session(ctx),
+            PredictCommand::MemoryDecay { apply } => crate::domains::predict::memory_decay(ctx, apply),
         },
         Command::React(c) => match c {
             ReactCommand::List => crate::domains::reaction::list(ctx),

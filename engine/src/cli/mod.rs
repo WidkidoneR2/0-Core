@@ -103,6 +103,7 @@ pub fn parse() -> Command {
             IntentCommands::Velocity => IntentCommand::Velocity,
             IntentCommands::Branch { id } => IntentCommand::Branch { id },
             IntentCommands::Edit { id } => IntentCommand::Edit { id },
+            IntentCommands::Health { stale } => IntentCommand::Health { stale },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },
@@ -293,6 +294,9 @@ pub fn parse() -> Command {
             PredictCommands::Coupling => PredictCommand::Coupling,
             PredictCommands::Churn => PredictCommand::Churn,
             PredictCommands::Accuracy => PredictCommand::Accuracy,
+            PredictCommands::Verify { id, correct } => PredictCommand::Verify { id, correct },
+            PredictCommands::CrossSession => PredictCommand::CrossSession,
+            PredictCommands::MemoryDecay { apply } => PredictCommand::MemoryDecay { apply },
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,
