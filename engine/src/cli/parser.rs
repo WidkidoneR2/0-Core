@@ -404,6 +404,11 @@ pub enum IntentCommands {
     },
     Stats,
     Validate,
+    /// Predict completion date based on gate velocity
+    Predict { id: String },
+    /// Find related intents by tag overlap
+    #[command(name = "auto-link")]
+    AutoLink { id: String },
     /// Show health scores for active intents
     Health {
         /// Show only stalled intents

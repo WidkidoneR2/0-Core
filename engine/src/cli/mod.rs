@@ -104,6 +104,8 @@ pub fn parse() -> Command {
             IntentCommands::Branch { id } => IntentCommand::Branch { id },
             IntentCommands::Edit { id } => IntentCommand::Edit { id },
             IntentCommands::Health { stale } => IntentCommand::Health { stale },
+            IntentCommands::Predict { id } => IntentCommand::Predict { id },
+            IntentCommands::AutoLink { id } => IntentCommand::AutoLink { id },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },
