@@ -1130,16 +1130,25 @@ pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
         let empty = 20usize.saturating_sub(filled);
         format!("[{}{}]", "█".repeat(filled).bright_green(), "░".repeat(empty).dimmed())
     };
-    let score_color = if score >= 80 { format!("{}/100", score).bright_green().to_string() }
-        else if score >= 60 { format!("{}/100", score).bright_yellow().to_string() }
+    let display_score = score.min(100);
+    let bonus = score - display_score;
+    let score_color = if score >= 80 { format!("{}/100", display_score).bright_green().to_string() }
+        else if score >= 60 { format!("{}/100", display_score).bright_yellow().to_string() }
         else { format!("{}/100", score).bright_red().to_string() };
 
-    println!("  {} Jarvis Score: {} {}", "▶".bright_cyan(), score_color, score_bar);
+    let score_display = if bonus > 0 {
+        format!("{} (+{} bonus)", score_color, bonus)
+    } else {
+        score_color.clone()
+    };
+    println!("  {} Jarvis Score: {} {}", "▶".bright_cyan(), score_display, score_bar);
     println!();
 
     // Level description
     let level = match score {
-        80..=100 => "Strategic Advisor — approaching Jarvis",
+        s if s > 100 => "Jarvis — the forest thinks alongside you",
+        98..=100 => "Autonomous Agent — v14 Partnership ACTIVE",
+        80..=97  => "Strategic Advisor — approaching Jarvis",
         60..=79  => "Anticipatory Partner — forest sees ahead",
         40..=59  => "Reactive Assistant — forest responds",
         20..=39  => "Aware System — forest observes",
