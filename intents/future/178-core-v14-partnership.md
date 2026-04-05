@@ -163,16 +163,16 @@ Phase 5 — Co-Authored Roadmap (shared long-term vision)
 
 ## Gate Check
 ```
-⬜ Core v13 complete — autonomy system operational
-⬜ INT-159 faelight-context operational
-⬜ INT-160 faelight-memory operational
+✅ Core v13 complete — autonomy system operational (2026-04-04)
+✅ INT-159 faelight-context operational
+✅ INT-160 faelight-memory operational
 ⬜ INT-167 prediction accuracy > 75% over 30 days
 ⬜ Jarvis readiness score >= 98/100
-⬜ Phase 1 — Collaborative Intent Creation
-⬜ Phase 2 — Shared Decision Making
-⬜ Phase 3 — Longitudinal Memory
-⬜ Phase 4 — Honest Disagreement
-⬜ Phase 5 — Co-Authored Roadmap
+✅ Phase 1 — Collaborative Intent Creation (propose/discuss/disagree live)
+✅ Phase 2 — Shared Decision Making (consult live)
+✅ Phase 3 — Longitudinal Memory (reflect/pattern/growth live)
+✅ Phase 4 — Honest Disagreement (pushback live)
+✅ Phase 5 — Co-Authored Roadmap (roadmap/roadmap-why/roadmap-diff live)
 ⬜ Forest has proposed at least 3 intents that proved valuable
 ⬜ Forest has disagreed at least once and been correct
 ```
