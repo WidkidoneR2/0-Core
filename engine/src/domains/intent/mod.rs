@@ -1424,3 +1424,122 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    // Find intent in any directory
+    let mut intent_content = None;
+    let mut intent_path = std::path::PathBuf::new();
+    for dir in &["intents/complete", "intents/future", "intents/archive"] {
+        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(id) && name.ends_with(".md") {
+                    intent_path = entry.path();
+                    intent_content = std::fs::read_to_string(&intent_path).ok();
+                    break;
+                }
+            }
+        }
+        if intent_content.is_some() { break; }
+    }
+    let content = match intent_content {
+        None => { println!("  {} Intent {} not found", "✗".bright_red(), id); return Ok(()); }
+        Some(c) => c,
+    };
+    let title = content.lines()
+        .find(|l| l.starts_with("title:"))
+        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+        .unwrap_or_default();
+    let date = content.lines()
+        .find(|l| l.starts_with("date:"))
+        .map(|l| l.trim_start_matches("date:").trim().to_string())
+        .unwrap_or_default();
+    let status = content.lines()
+        .find(|l| l.starts_with("status:"))
+        .map(|l| l.trim_start_matches("status:").trim().to_string())
+        .unwrap_or_default();
+    let tags: Vec<String> = content.lines()
+        .find(|l| l.starts_with("tags:"))
+        .map(|l| l.trim_start_matches("tags:").trim()
+            .trim_matches('[').trim_matches(']')
+            .split(',')
+            .map(|t| t.trim().trim_matches('"').to_string())
+            .filter(|t| !t.is_empty())
+            .collect())
+        .unwrap_or_default();
+    let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+    let done_gates = content.matches("✅").count();
+    // Get git commits touching this intent
+    let commit_log = std::process::Command::new("git")
+        .args(["-C", &ctx.core_root, "log", "--oneline",
+               "--", &format!("intents/**/*{}*", id)])
+        .output().ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let commit_count = commit_log.lines().count();
+    // Find related intents
+    let mut related_ids: Vec<String> = Vec::new();
+    for dir in &["intents/complete", "intents/future"] {
+        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !name.ends_with(".md") || name.starts_with(id) { continue; }
+                let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                // Check if this intent references our id
+                if c.contains(&format!("INT-{}", id)) {
+                    let rid = name.split('-').next().unwrap_or("?").to_string();
+                    related_ids.push(rid);
+                }
+            }
+        }
+    }
+    println!();
+    println!("  {} INT-{} — {}", "📖".normal(), id.bright_white(), title.bright_white());
+    println!("  {}", "═".repeat(60).dimmed());
+    println!();
+    println!("  {:<16} {}", "Date:".dimmed(), date.bright_cyan());
+    println!("  {:<16} {}", "Status:".dimmed(),
+        if status == "complete" { "✅ complete".bright_green().to_string() }
+        else { status.bright_yellow().to_string() });
+    println!("  {:<16} {}/{} gates", "Gates:".dimmed(), done_gates, total_gates);
+    println!("  {:<16} {}", "Tags:".dimmed(), tags.join(", ").dimmed());
+    if commit_count > 0 {
+        println!("  {:<16} {} commits touch this intent", "History:".dimmed(), commit_count.to_string().bright_cyan());
+    }
+    println!();
+    println!("  {} What this intent built:", "▶".bright_cyan());
+    // Extract completed gates as the story
+    let completed: Vec<String> = content.lines()
+        .filter(|l| l.contains("✅"))
+        .map(|l| l.trim().trim_start_matches("✅").trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+    for item in &completed {
+        println!("    {} {}", "✅".normal(), item.bright_white());
+    }
+    if !related_ids.is_empty() {
+        println!();
+        println!("  {} Referenced by:", "▶".bright_cyan());
+        for rid in &related_ids {
+            println!("    {} INT-{}", "·".dimmed(), rid.bright_white());
+        }
+    }
+    // Show the phrase if it exists
+    if let Some(phrase_start) = content.find("**"") {
+        let phrase_end = content[phrase_start+3..].find(""**")
+            .map(|i| phrase_start + 3 + i)
+            .unwrap_or(content.len());
+        let phrase = &content[phrase_start+3..phrase_end];
+        if phrase.len() < 300 {
+            println!();
+            println!("  {}", "─".repeat(60).dimmed());
+            for line in phrase.lines() {
+                println!("  {}", line.bright_white().italic());
+            }
+        }
+    }
+    println!();
+    Ok(())
+}
