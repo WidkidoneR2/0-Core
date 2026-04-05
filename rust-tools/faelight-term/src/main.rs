@@ -967,6 +967,25 @@ impl App {
         }
     }
 
+    fn copy_to_primary(&self) {
+        use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, Source as ClipSource};
+        if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+            let (start_row, start_col) = start.min(end);
+            let (end_row, end_col) = start.max(end);
+            let text = self.terminal.get_visible_text(start_row, end_row, start_col, end_col);
+            if !text.is_empty() {
+                let mut opts = Options::new();
+                opts.clipboard(ClipboardType::Primary);
+                match opts.copy(
+                    ClipSource::Bytes(text.as_bytes().to_vec().into()),
+                    MimeType::Text,
+                ) {
+                    Ok(_) => {}
+                    Err(_) => {} // Silent fail — primary selection is optional
+                }
+            }
+        }
+    }
     fn paste_from_clipboard(&mut self) {
         use std::io::{Read, Write};
         use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
@@ -1420,6 +1439,10 @@ impl PointerHandler for App {
                 PointerEventKind::Release { button, .. } => {
                     if button == 272 {
                         self.mouse_pressed = false;
+                        // Auto-copy selection to primary clipboard on mouse release
+                        if self.selection_start.is_some() && self.selection_end.is_some() {
+                            self.copy_to_primary();
+                        }
                     }
                 }
                 PointerEventKind::Motion { .. } => {
