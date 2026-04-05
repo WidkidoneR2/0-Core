@@ -3,7 +3,7 @@ id: 161
 date: 2026-03-26
 type: future
 title: "Forest Build Order — The Path to Partnership"
-status: in-progress
+status: complete
 tags: [planning, order, roadmap, v12, v13, v14, v15]
 version: 14.0.0
 priority: visionary
@@ -93,9 +93,9 @@ INT-156 — Core v13 Autonomy            (the forest chooses)
 ✅ faelight-shell as login shell — Phase 19 complete (2026-04-03)
 ✅ faelight-context v1.0.0 complete (INT-159)
 ✅ faelight-memory v1.0.0 complete (INT-160)
-⬜ Core v13 complete
-⬜ Jarvis score 95/100
-⬜ First project built in partnership
+✅ Core v13 complete (2026-04-04)
+✅ Jarvis score 95/100 (2026-04-04)
+⬜ First project built in partnership — next: INT-178 Core v14
 ```
 
 ## The Phrase

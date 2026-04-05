@@ -3,7 +3,7 @@ id: 178
 date: 2026-03-30
 type: future
 title: "Core v14 — Partnership: The Forest and Human Co-Create"
-status: planned
+status: in-progress
 tags: [core, v14, partnership, collaboration, co-create, jarvis, ai]
 version: 14.0.0
 priority: low
