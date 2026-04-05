@@ -20,7 +20,7 @@ description = "Analyzes 0-core history and evolution"
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "bin-doctor"
 version = "2.0.0"
