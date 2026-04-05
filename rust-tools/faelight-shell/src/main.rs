@@ -513,31 +513,6 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 db.save_history_entry(&line);
-                // Surface contextd insights if any pending
-                if let Ok(conn) = rusqlite::Connection::open(&format!("{}/0-core/runtime/state.db",
-                    std::env::var("HOME").unwrap_or_default())) {
-                    let insight: Option<(String, String, f64)> = conn.query_row(
-                        "SELECT signal, detail, importance FROM forest_insights
-                         WHERE shown = 0 AND importance >= 0.7
-                         ORDER BY importance DESC LIMIT 1",
-                        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-                    ).ok();
-                    if let Some((signal, detail, _importance)) = insight {
-                        println!();
-                        println!("  {} {} {}",
-                            "💡".to_string(),
-                            signal.as_str(),
-                            "(contextd insight)".to_string()
-                        );
-                        println!("     {}", detail);
-                        println!();
-                        // Mark as shown
-                        let _ = conn.execute(
-                            "UPDATE forest_insights SET shown = 1 WHERE signal = ?1 AND shown = 0",
-                            rusqlite::params![signal],
-                        );
-                    }
-                }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
@@ -1319,6 +1294,27 @@ fn repl_main() -> Result<()> {
                         last_domain: None,
                     };
                     triggers::evaluate(&db, &trigger_ctx, &core_root);
+                    // 🌲 Forest speaks — surface contextd insights after every command
+                    if let Ok(conn) = rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root)) {
+                        let insight: Option<(i64, String, String, f64)> = conn.query_row(
+                            "SELECT id, signal, detail, importance FROM forest_insights
+                             WHERE shown = 0 AND importance >= 0.65
+                             ORDER BY importance DESC, created_at DESC LIMIT 1",
+                            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+                        ).ok();
+                        if let Some((id, _signal, detail, importance)) = insight {
+                            use colored::Colorize;
+                            let icon = if importance >= 0.85 { "⚡" } else { "💬" };
+                            println!();
+                            println!("  {} {} {}", icon,
+                                "forest:".bright_cyan().dimmed(),
+                                detail.bright_white());
+                            let _ = conn.execute(
+                                "UPDATE forest_insights SET shown = 1 WHERE id = ?1",
+                                rusqlite::params![id],
+                            );
+                        }
+                    }
                 } // end 'segments loop
             }
             Err(ReadlineError::Interrupted) => {
