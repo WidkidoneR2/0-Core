@@ -406,6 +406,8 @@ pub enum IntentCommands {
     Validate,
     /// Predict completion date based on gate velocity
     Predict { id: String },
+    /// Show rich narrative autobiography of an intent
+    Story { id: String },
     /// Find related intents by tag overlap
     #[command(name = "auto-link")]
     AutoLink { id: String },

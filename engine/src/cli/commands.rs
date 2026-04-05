@@ -195,6 +195,7 @@ pub enum IntentCommand {
     Health { stale: bool },
     Predict { id: String },
     AutoLink { id: String },
+    Story { id: String },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {

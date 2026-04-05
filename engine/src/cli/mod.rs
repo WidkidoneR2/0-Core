@@ -106,6 +106,7 @@ pub fn parse() -> Command {
             IntentCommands::Health { stale } => IntentCommand::Health { stale },
             IntentCommands::Predict { id } => IntentCommand::Predict { id },
             IntentCommands::AutoLink { id } => IntentCommand::AutoLink { id },
+            IntentCommands::Story { id } => IntentCommand::Story { id },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },
