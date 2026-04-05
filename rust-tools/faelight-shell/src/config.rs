@@ -153,11 +153,10 @@ pub fn load() -> ShellConfig {
             // alias ll = "ls -la"  or  alias ll = ls -la
             if let Some(eq_pos) = rest.find(" = ") {
                 let name = rest[..eq_pos].trim().to_string();
-                let val = rest[eq_pos + 3..]
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .to_string();
+                let raw_val = rest[eq_pos + 3..].trim();
+                // Strip inline comments:  value  # comment
+                let raw_val = if let Some(idx) = raw_val.find("  #") { &raw_val[..idx] } else { raw_val };
+                let val = raw_val.trim_matches('"').trim_matches("'".chars().next().unwrap()).to_string();
                 if !name.is_empty() && !val.is_empty() {
                     aliases.push((name, val));
                 }
