@@ -92,7 +92,20 @@ The forest must always:
 
 If any of these break, v16 collapses into noise or false authority.
 
-## Gate Check
+## The Self-Learning Loop
+v16 closes the final loop in the intelligence arc:
+  Proposal made → Human decides → Outcome recorded → Model updated
+Every accepted proposal that succeeds increases confidence in similar proposals.
+Every rejected proposal is analyzed: why was it wrong?
+Every failed proposal (accepted but produced bad outcome) is the most valuable data.
+The system gets smarter about proposing — not just about what to propose,
+but about when to propose, how confident to be, and what evidence to cite.
+```bash
+core self learn
+core self accuracy
+core self calibrate
+```
+⬜ v15 alignment complete before any v16 work begins (hard dependency)
 ⬜ core self map — architecture coupling analysis
 ⬜ core self evolve — structural proposals with confidence + risk
 ⬜ core self apply --dry-run and --checkpoint working
@@ -100,7 +113,9 @@ If any of these break, v16 collapses into noise or false authority.
 ⬜ core partner challenge — prove me wrong mode
 ⬜ Prime Directive encoded and enforced
 ⬜ All proposals backed by evidence, not opinion
-⬜ v15 alignment complete before any v16 work begins
+⬜ core self learn/accuracy/calibrate — self-learning loop closed
+⬜ Proposal acceptance rate tracked over time
+⬜ Failed proposals analyzed and lessons stored
 
 ## The Phrase
 "The system that can redesign itself
