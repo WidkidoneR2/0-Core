@@ -47,8 +47,6 @@ alias zone='faelight-zone'
 # removed stale (dot-doctor retired): alias doctor='dot-doctor'
 # removed stale (dot-doctor retired): alias check-health='dot-doctor'
 # removed stale (dot-doctor retired): alias health='dot-doctor'
-alias drift='entropy-check'
-# removed synonym: alias entropy='entropy-check'
 
 # ─── Updates & Maintenance ───
 alias fu='faelight-update'
@@ -403,7 +401,6 @@ alias security-check='sudo pacman -Syu && echo "---" && arch-audit && echo "---"
 alias security-score='test -f ~/.lynis-score && echo "🛡️  Hardening Index: $(cat ~/.lynis-score)/100" || echo "Run audit-full or audit-quick first"'
 alias audit-full='sudo lynis audit system | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
 alias audit-quick='sudo lynis audit system --quick | tee /tmp/lynis-output.txt && grep "Hardening index" /tmp/lynis-output.txt | awk "{print \$4}" > ~/.lynis-score'
-# removed stale (dot-doctor retired): alias full-audit='dot-doctor && entropy-check && security-check'
 # removed stale (dot-doctor retired): alias system-health='dot-doctor && lynis audit system --quick'
 
 # ─── Fail2ban ───
