@@ -1924,7 +1924,6 @@ dependencies = [
  "colored",
  "dirs 5.0.1",
  "faelight-core",
- "faelight-gen",
  "hex",
  "rand 0.8.5",
  "rpassword",

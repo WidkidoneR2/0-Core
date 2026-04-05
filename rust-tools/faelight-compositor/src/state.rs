@@ -1,4 +1,3 @@
-use smithay::backend::session::libseat::LibSeatSession;
 use std::{ffi::OsString, sync::Arc};
 
 use rusqlite::Connection;
@@ -34,6 +33,7 @@ pub struct FaelightCompositor {
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
     pub shm_state: ShmState,
+    #[allow(dead_code)]
     pub output_manager_state: OutputManagerState,
     pub seat_state: SeatState<Self>,
     pub data_device_state: DataDeviceState,

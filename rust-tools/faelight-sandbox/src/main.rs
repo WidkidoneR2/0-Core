@@ -384,6 +384,7 @@ fn emit_to_ledger_with_policy(
     .ok();
 }
 
+#[allow(dead_code)]
 fn emit_to_ledger(session: &SandboxSession, duration_secs: u64, files_changed: usize) {
     let db_path = PathBuf::from(home()).join("0-core/runtime/state.db");
     if !db_path.exists() {

@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultEntry {
+    #[allow(dead_code)]
     pub name: String,
     pub cred_type: String,
     pub age_days: i64,
@@ -12,6 +13,7 @@ pub struct VaultEntry {
 
 #[derive(Debug)]
 pub struct VaultEntryFull {
+    #[allow(dead_code)]
     pub name: String,
     pub cred_type: String,
     pub secret: String,

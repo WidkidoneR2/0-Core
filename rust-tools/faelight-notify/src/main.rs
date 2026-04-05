@@ -54,7 +54,7 @@ impl Urgency {
         hints: &std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
     ) -> Self {
         if let Some(v) = hints.get("urgency") {
-            if let Ok(u) = u8::try_from(v.clone()) {
+            if let Ok(u) = u8::try_from(v) {
                 return match u {
                     0 => Self::Low,
                     2 => Self::Critical,
@@ -150,7 +150,7 @@ impl LayerShellHandler for NotifyApp {
     fn configure(
         &mut self,
         _: &Connection,
-        qh: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
         _: &LayerSurface,
         _: LayerSurfaceConfigure,
         _: u32,

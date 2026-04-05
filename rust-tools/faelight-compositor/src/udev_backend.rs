@@ -4,9 +4,7 @@
 use smithay::{
     backend::{
         allocator::gbm::GbmDevice,
-        drm::DrmNode as _,
-        drm::{DrmDevice, DrmDeviceFd, DrmNode, DrmSurface},
-        input::InputEvent,
+        drm::{DrmDevice, DrmDeviceFd},
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
         udev::{UdevBackend, UdevEvent},
@@ -198,7 +196,7 @@ pub fn init_drm(
         .handle()
         .insert_source(udev_backend, move |event, _, state| {
             match event {
-                UdevEvent::Added { device_id, path } => {
+                UdevEvent::Added { device_id: _, path } => {
                     tracing::info!(path = ?path, "DRM device added — opening");
 
                     // ── Session 2: Open DRM Device ────────────────────

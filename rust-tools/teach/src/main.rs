@@ -20,6 +20,7 @@ enum Persona {
 }
 
 impl Persona {
+    #[allow(dead_code)]
     fn label(&self) -> &str {
         match self {
             Persona::Newcomer => "newcomer",

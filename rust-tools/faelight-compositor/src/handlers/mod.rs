@@ -1,7 +1,6 @@
 mod compositor;
 mod xdg_shell;
 
-use crate::state::ClientState;
 use crate::FaelightCompositor;
 
 use smithay::{
