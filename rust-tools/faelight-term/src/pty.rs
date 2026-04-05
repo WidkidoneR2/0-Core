@@ -114,6 +114,20 @@ impl Pty {
                 };
                 let shell = CString::new(shell_path).unwrap();
                 let args = [CString::new(shell_name).unwrap()];
+                // Set up proper PATH so fsh can find ~/0-core/scripts
+                let home = std::env::var("HOME").unwrap_or_default();
+                let scripts_path = format!("{}/0-core/scripts", home);
+                let cargo_bin = format!("{}/.cargo/bin", home);
+                let current_path = std::env::var("PATH").unwrap_or_else(|_|
+                    "/usr/local/bin:/usr/bin:/bin".to_string());
+                let new_path = if current_path.contains(&scripts_path) {
+                    current_path
+                } else {
+                    format!("{}:{}:{}", scripts_path, cargo_bin, current_path)
+                };
+                std::env::set_var("PATH", &new_path);
+                std::env::set_var("HOME", &home);
+                std::env::set_var("SHELL", &fsh_path);
 
                 execvp(&shell, &args).expect("Failed to exec shell");
                 unreachable!()
