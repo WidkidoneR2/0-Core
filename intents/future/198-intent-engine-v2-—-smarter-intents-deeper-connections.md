@@ -58,12 +58,12 @@ core intent story --rich INT-NNN  — rich autobiography entry
 core intent predict INT-NNN       — completion prediction
 
 ## Gate Check
-⬜ Auto-linking on intent creation
+✅ Auto-linking — core intent auto-link live, finds related by tag overlap
 ✅ Intent health scoring — core intent health live
 ⬜ Smart intent creation with context suggestions
 ⬜ Dependency graph v2 with critical path
 ⬜ Intent autobiography v2 — richer narrative
-⬜ Completion prediction based on velocity
+✅ Completion prediction — core intent predict live, velocity-based estimation
 
 ## The Phrase
 "150 intents built the forest.

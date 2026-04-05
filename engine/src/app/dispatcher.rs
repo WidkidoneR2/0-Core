@@ -128,6 +128,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Branch { id } => crate::domains::intent::branch(ctx, &id),
                 IntentCommand::Edit { id } => crate::domains::intent::edit(ctx, &id),
             IntentCommand::Health { stale } => crate::domains::intent::health(ctx, stale),
+            IntentCommand::Predict { id } => crate::domains::intent::predict_completion(ctx, &id),
+            IntentCommand::AutoLink { id } => crate::domains::intent::auto_link(ctx, &id),
             }
         }
 

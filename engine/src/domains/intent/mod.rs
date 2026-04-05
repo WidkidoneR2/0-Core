@@ -1274,3 +1274,153 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    
+    // Find the intent file
+    let mut intent_content = None;
+    let mut intent_name = String::new();
+    for dir in &["intents/future", "intents/complete"] {
+        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(id) && name.ends_with(".md") {
+                    intent_content = std::fs::read_to_string(entry.path()).ok();
+                    intent_name = name;
+                    break;
+                }
+            }
+        }
+        if intent_content.is_some() { break; }
+    }
+    let content = match intent_content {
+        None => { println!("  {} Intent {} not found", "✗".bright_red(), id); return Ok(()); }
+        Some(c) => c,
+    };
+    let title = content.lines()
+        .find(|l| l.starts_with("title:"))
+        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+        .unwrap_or_else(|| intent_name.clone());
+    let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+    let done_gates = content.matches("✅").count();
+    let remaining = total_gates.saturating_sub(done_gates);
+    // Get average gates completed per session from recent intents
+    let complete_dir = root.join("intents/complete");
+    let mut gates_per_session: Vec<f64> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&complete_dir) {
+        for entry in entries.flatten().take(10) {
+            let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            let total = c.matches("✅").count();
+            if total > 0 { gates_per_session.push(total as f64 / 2.0); } // assume ~2 sessions avg
+        }
+    }
+    let avg_gates_per_session = if gates_per_session.is_empty() { 3.0 }
+        else { gates_per_session.iter().sum::<f64>() / gates_per_session.len() as f64 };
+    let sessions_needed = if avg_gates_per_session > 0.0 {
+        (remaining as f64 / avg_gates_per_session).ceil() as usize
+    } else { remaining };
+    println!();
+    println!("  {} Completion Prediction: INT-{}", "🎯".normal(), id);
+    println!("  {}", "─".repeat(56).dimmed());
+    println!("  {:<24} {}", "Intent:".dimmed(), title.bright_white());
+    println!("  {:<24} {}/{} gates done ({}%)",
+        "Gates:".dimmed(), done_gates, total_gates,
+        if total_gates > 0 { (done_gates * 100) / total_gates } else { 0 });
+    println!("  {:<24} {} gates remaining", "Remaining:".dimmed(), remaining.to_string().bright_yellow());
+    println!("  {:<24} {:.1} gates/session (from {} recent intents)",
+        "Velocity:".dimmed(), avg_gates_per_session, gates_per_session.len());
+    println!("  {:<24} ~{} session(s)",
+        "Estimated:".dimmed(), sessions_needed.to_string().bright_cyan());
+    if sessions_needed == 0 {
+        println!("  {} All gates satisfied — ready to cicomplete!", "✅".normal());
+    } else if sessions_needed == 1 {
+        println!("  {} One focused session should complete this intent", "→".bright_cyan());
+    } else {
+        println!("  {} {} sessions estimated at current velocity", "→".bright_cyan(), sessions_needed);
+    }
+    println!();
+    Ok(())
+}
+pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    // Find source intent
+    let mut source_content = String::new();
+    let mut source_title = String::new();
+    for dir in &["intents/future", "intents/complete"] {
+        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(id) && name.ends_with(".md") {
+                    source_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                    source_title = source_content.lines()
+                        .find(|l| l.starts_with("title:"))
+                        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                        .unwrap_or_default();
+                    break;
+                }
+            }
+        }
+    }
+    if source_title.is_empty() {
+        println!("  {} Intent {} not found", "✗".bright_red(), id);
+        return Ok(());
+    }
+    // Extract tags from source
+    let source_tags: Vec<String> = source_content.lines()
+        .find(|l| l.starts_with("tags:"))
+        .map(|l| l.to_lowercase())
+        .unwrap_or_default()
+        .split(',')
+        .map(|t| t.trim().trim_matches('[').trim_matches(']').trim_matches('"').to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+    // Find related intents by tag overlap
+    let mut related: Vec<(String, String, usize)> = Vec::new(); // (id, title, overlap)
+    for dir in &["intents/future", "intents/complete"] {
+        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !name.ends_with(".md") || name.starts_with(id) { continue; }
+                let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                let other_tags: Vec<String> = c.lines()
+                    .find(|l| l.starts_with("tags:"))
+                    .map(|l| l.to_lowercase())
+                    .unwrap_or_default()
+                    .split(',')
+                    .map(|t| t.trim().trim_matches('[').trim_matches(']').trim_matches('"').to_string())
+                    .filter(|t| !t.is_empty())
+                    .collect();
+                let overlap = source_tags.iter().filter(|t| other_tags.contains(t)).count();
+                if overlap >= 2 {
+                    let other_id = name.split('-').next().unwrap_or("?").to_string();
+                    let other_title = c.lines()
+                        .find(|l| l.starts_with("title:"))
+                        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                        .unwrap_or_default();
+                    related.push((other_id, other_title, overlap));
+                }
+            }
+        }
+    }
+    related.sort_by(|a, b| b.2.cmp(&a.2));
+    println!();
+    println!("  {} Auto-Link Analysis: INT-{}", "🔗".normal(), id);
+    println!("  {}", "─".repeat(56).dimmed());
+    println!("  Source: {}", source_title.bright_white());
+    println!("  Tags:   {}", source_tags.join(", ").dimmed());
+    println!();
+    if related.is_empty() {
+        println!("  {} No strongly related intents found", "○".dimmed());
+    } else {
+        println!("  {} Related intents (by tag overlap):", "▶".bright_cyan());
+        for (rid, rtitle, overlap) in related.iter().take(5) {
+            println!("    {} INT-{:<6} {} ({} shared tags)",
+                "·".dimmed(), rid.bright_white(), rtitle.dimmed(), overlap.to_string().bright_cyan());
+        }
+    }
+    println!();
+    Ok(())
+}
