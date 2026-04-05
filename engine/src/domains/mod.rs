@@ -46,4 +46,5 @@ pub mod genealogy;
 pub mod autonomy;
 pub mod integrity;
 pub mod registry;
+pub mod partner;
 pub mod db;

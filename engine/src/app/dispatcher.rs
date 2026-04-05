@@ -515,6 +515,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             AutonomyCommand::TrustHistory => crate::domains::autonomy::trust_history(ctx),
             AutonomyCommand::TrustExpand => crate::domains::autonomy::trust_expand(ctx),
         },
+        Command::Partner(cmd) => crate::domains::partner::dispatch(cmd, ctx),
         Command::Registry(cmd) => match cmd {
             RegistryCommand::List => crate::domains::registry::list(ctx),
             RegistryCommand::Show { name } => crate::domains::registry::show(ctx, &name),

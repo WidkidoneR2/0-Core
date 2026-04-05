@@ -148,6 +148,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: AutonomyCommands,
     },
+    /// Partner — collaborative intent creation and shared decision making (v14)
+    Partner {
+        #[command(subcommand)]
+        command: PartnerCommands,
+    },
     /// Registry — manage the tool registry (INT-183)
     Registry {
         #[command(subcommand)]
@@ -1147,6 +1152,43 @@ pub enum AutonomyCommands {
     TrustHistory,
     /// Request expanded autonomy
     TrustExpand,
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum PartnerCommands {
+    /// Forest proposes a new intent based on observed patterns
+    Propose,
+    /// Forest shares opinion on an existing intent
+    Discuss {
+        /// Intent ID to discuss
+        intent_id: String,
+    },
+    /// Forest respectfully pushes back on an intent
+    Disagree {
+        /// Intent ID to push back on
+        intent_id: String,
+    },
+    /// Consult the forest before making a decision
+    Consult {
+        /// Question to ask the forest
+        question: String,
+    },
+    /// What has the forest learned about your work style?
+    Reflect,
+    /// What patterns define how you work?
+    Pattern,
+    /// How has the system grown over time?
+    Growth,
+    /// Show recent pushback moments
+    Pushback,
+    /// Forest view of the optimal path forward
+    Roadmap,
+    /// Why does the forest recommend this roadmap?
+    RoadmapWhy,
+    /// How does forest roadmap differ from current plan?
+    RoadmapDiff,
+    /// Partner system status and readiness
+    Status,
 }
 #[derive(Debug, clap::Subcommand)]
 pub enum RegistryCommands {
