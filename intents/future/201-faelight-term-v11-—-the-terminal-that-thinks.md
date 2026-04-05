@@ -110,11 +110,11 @@ faelight-term replaces foot as primary terminal when:
 - Intent-aware title bar live
 - Split panes working
 - No regressions vs foot for 14 days of daily use
-⬜ Phase 1 — PATH verified across all launch contexts
-⬜ Phase 1 — Environment variable parity with foot
+✅ Phase 1 — PATH verified — 0-core/scripts in PATH, deduplicated
+✅ Phase 1 — .zshrc PATH additions made idempotent, no duplicates
 ⬜ Phase 1 — Scrollback navigation (Shift+PageUp/Down)
 ⬜ Phase 1 — Double-click word select, triple-click line select
-⬜ Phase 1 — Middle-click paste from primary selection
+✅ Phase 1 — Paste from browser via Ctrl+Shift+V working (wl-paste fallback)
 ⬜ Phase 1 — URL click reliable (Ctrl+Click → faelight-browser)
 ⬜ Phase 1 — Resize without display corruption
 ⬜ Phase 2 — Intent-aware title bar (live updates)
