@@ -3,7 +3,7 @@ id: 197
 date: 2026-04-05
 type: planned
 title: "Intelligence Layer v2 — The Forest Learns From Itself"
-status: planned
+status: in-progress
 tags: [intelligence, prediction, feedback, learning, v2, contextd]
 ---
 ## The Problem

@@ -404,6 +404,12 @@ pub enum IntentCommands {
     },
     Stats,
     Validate,
+    /// Show health scores for active intents
+    Health {
+        /// Show only stalled intents
+        #[arg(long)]
+        stale: bool,
+    },
     /// Open intent file in $EDITOR
     Edit {
         id: String,
@@ -895,6 +901,24 @@ pub enum PredictCommands {
     Churn,
     /// Prediction confidence and accuracy tracking
     Accuracy,
+    /// Verify a prediction as correct or incorrect
+    Verify {
+        /// Prediction ID
+        id: String,
+        /// Was the prediction correct?
+        #[arg(long)]
+        correct: bool,
+    },
+    /// Cross-session pattern analysis
+    #[command(name = "cross-session")]
+    CrossSession,
+    /// Memory decay — prune stale state.db entries
+    #[command(name = "memory-decay")]
+    MemoryDecay {
+        /// Actually apply the decay
+        #[arg(long)]
+        apply: bool,
+    },
 }
 
 #[derive(Debug, clap::Subcommand)]

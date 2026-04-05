@@ -192,6 +192,7 @@ pub enum IntentCommand {
     Edit {
         id: String,
     },
+    Health { stale: bool },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {
@@ -430,6 +431,9 @@ pub enum PredictCommand {
     Coupling,
     Churn,
     Accuracy,
+    Verify { id: String, correct: bool },
+    CrossSession,
+    MemoryDecay { apply: bool },
 }
 
 #[derive(Debug, Clone)]

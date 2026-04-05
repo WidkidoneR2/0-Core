@@ -1210,3 +1210,67 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     Ok(())
 }
+
+pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
+    use colored::*;
+    let root = std::path::PathBuf::from(&ctx.core_root);
+    let future_dir = root.join("intents/future");
+    let now = chrono::Utc::now().timestamp();
+    let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&future_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".md") { continue; }
+            let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            if !content.contains("status: in-progress") { continue; }
+            let id = name.split('-').next().unwrap_or("?").to_string();
+            let title = content.lines()
+                .find(|l| l.starts_with("title:"))
+                .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                .unwrap_or_else(|| name.clone());
+            let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+            let done_gates = content.matches("✅").count();
+            let gate_pct = if total_gates > 0 { (done_gates * 100) / total_gates } else { 0 };
+            let days_since: i64 = {
+                let out = std::process::Command::new("git")
+                    .args(["-C", &ctx.core_root, "log", "-1", "--format=%ct",
+                           "--", &format!("intents/future/{}", name)])
+                    .output().ok();
+                let ts = out.as_ref()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<i64>().unwrap_or(0))
+                    .unwrap_or(0);
+                if ts > 0 { (now - ts) / 86400 } else { 0 }
+            };
+            let mut score = gate_pct as f64;
+            let mut issues: Vec<String> = Vec::new();
+            if days_since > 14 {
+                score -= 20.0;
+                issues.push(format!("stalled {} days", days_since));
+            }
+            score = score.max(0.0).min(100.0);
+            if !stale_only || days_since > 14 {
+                intents.push((id, title, format!("{}/{}", done_gates, total_gates), score, issues));
+            }
+        }
+    }
+    println!();
+    println!("  {} Intent Health", "💊");
+    println!("  {}", "─".repeat(56).dimmed());
+    if intents.is_empty() {
+        println!("  {} All active intents healthy", "✅");
+        println!();
+        return Ok(());
+    }
+    intents.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal));
+    for (id, title, gates, score, issues) in &intents {
+        let s = if *score >= 70.0 { format!("{:.0}%", score).bright_green().to_string() }
+                else if *score >= 40.0 { format!("{:.0}%", score).yellow().to_string() }
+                else { format!("{:.0}%", score).bright_red().to_string() };
+        println!("  INT-{:<6} {:<36} {} gates  {}", id.bright_white(), title.dimmed(), gates, s);
+        for issue in issues {
+            println!("    ⚠  {}", issue.bright_yellow());
+        }
+    }
+    println!();
+    Ok(())
+}

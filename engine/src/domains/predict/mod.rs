@@ -754,3 +754,150 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "\u{2501}".repeat(52).dimmed());
     Ok(())
 }
+
+pub fn verify(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<()> {
+    use colored::*;
+    let pred_id: i64 = id.parse().unwrap_or(0);
+    // Check prediction exists
+    let pred: Option<(i64, String, String, i64)> = ctx.runtime.db.query_row(
+        "SELECT id, kind, prediction, confidence FROM forest_predictions WHERE id = ?1",
+        rusqlite::params![pred_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+    ).ok();
+    match pred {
+        None => {
+            println!("  {} Prediction {} not found", "✗".bright_red(), id);
+        }
+        Some((pid, kind, prediction, confidence)) => {
+            let now = chrono::Utc::now().timestamp();
+            let outcome = if correct { "correct" } else { "incorrect" };
+            ctx.runtime.db.execute(
+                "INSERT INTO prediction_outcomes (prediction_id, actual, correct, verified_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![pid, outcome, if correct { 1 } else { 0 }, now],
+            )?;
+            println!();
+            println!("  {} Prediction verified", "🎯".normal());
+            println!("  {}", "─".repeat(48).dimmed());
+            println!("  {:<14} {}", "ID:".dimmed(), pid);
+            println!("  {:<14} {}", "Kind:".dimmed(), kind.bright_cyan());
+            println!("  {:<14} {}", "Prediction:".dimmed(), prediction.bright_white());
+            println!("  {:<14} {}%", "Confidence:".dimmed(), confidence);
+            println!("  {:<14} {}", "Outcome:".dimmed(),
+                if correct { "✅ CORRECT".bright_green().to_string() }
+                else { "❌ INCORRECT".bright_red().to_string() });
+            println!();
+            // Show updated accuracy
+            let total: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
+            ).unwrap_or(0);
+            let correct_count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM prediction_outcomes WHERE correct=1", [], |r| r.get(0)
+            ).unwrap_or(0);
+            if total > 0 {
+                let pct = (correct_count * 100) / total;
+                println!("  {} Overall accuracy: {}/{} = {}%",
+                    "→".bright_cyan(), correct_count, total,
+                    if pct >= 75 { pct.to_string().bright_green().to_string() }
+                    else { pct.to_string().yellow().to_string() });
+            }
+            println!();
+        }
+    }
+    Ok(())
+}
+pub fn cross_session(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    // Analyze command sequences across all shell history
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT command, COUNT(*) as freq FROM shell_history
+         GROUP BY command ORDER BY freq DESC LIMIT 20"
+    )?;
+    let commands: Vec<(String, i64)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+    // Find command sequences from forest_events
+    let mut seq_stmt = ctx.runtime.db.prepare(
+        "SELECT domain, COUNT(*) as cnt FROM forest_events
+         WHERE kind = 'CommandSucceeded'
+         GROUP BY domain ORDER BY cnt DESC LIMIT 10"
+    )?;
+    let domains: Vec<(String, i64)> = seq_stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+    println!();
+    println!("  {} Cross-Session Intelligence", "🧠".normal());
+    println!("  {}", "─".repeat(48).dimmed());
+    println!();
+    println!("  {} Most frequent commands (all sessions):", "▶".bright_cyan());
+    for (cmd, freq) in commands.iter().take(10) {
+        println!("    {} {:<35} {}x", "·".dimmed(), cmd.bright_white(), freq.to_string().bright_cyan());
+    }
+    println!();
+    println!("  {} Most active core domains:", "▶".bright_cyan());
+    for (domain, cnt) in &domains {
+        println!("    {} {:<20} {} commands", "·".dimmed(), domain.bright_white(), cnt.to_string().bright_cyan());
+    }
+    println!();
+    // Pattern insights
+    let total_history: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM shell_history", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let total_events: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_events", [], |r| r.get(0)
+    ).unwrap_or(0);
+    println!("  {} Data foundation:", "▶".bright_cyan());
+    println!("    {} {} commands in history", "·".dimmed(), total_history.to_string().bright_white());
+    println!("    {} {} events observed by contextd", "·".dimmed(), total_events.to_string().bright_white());
+    println!("    {} Cross-session patterns strengthen over time", "·".dimmed());
+    println!();
+    Ok(())
+}
+pub fn memory_decay(ctx: &AppContext, apply: bool) -> CoreResult<()> {
+    use colored::*;
+    let now = chrono::Utc::now().timestamp();
+    let cutoff_90d = now - 7776000; // 90 days
+    let cutoff_30d = now - 2592000; // 30 days
+    // Count what would be pruned
+    let old_events: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_events WHERE timestamp < ?1",
+        rusqlite::params![cutoff_30d], |r| r.get(0)
+    ).unwrap_or(0);
+    let old_outcomes: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM prediction_outcomes WHERE verified_at < ?1",
+        rusqlite::params![cutoff_90d], |r| r.get(0)
+    ).unwrap_or(0);
+    let old_insights: i64 = ctx.runtime.db.query_row(
+        "SELECT COUNT(*) FROM forest_insights WHERE shown = 1 AND created_at < ?1",
+        rusqlite::params![cutoff_30d], |r| r.get(0)
+    ).unwrap_or(0);
+    println!();
+    println!("  {} Memory Decay Analysis", "🧹".normal());
+    println!("  {}", "─".repeat(48).dimmed());
+    println!("  {:<30} {} entries", "forest_events (>30 days):".dimmed(), old_events.to_string().bright_yellow());
+    println!("  {:<30} {} entries", "prediction_outcomes (>90d):".dimmed(), old_outcomes.to_string().bright_yellow());
+    println!("  {:<30} {} entries", "shown insights (>30 days):".dimmed(), old_insights.to_string().bright_yellow());
+    let total = old_events + old_outcomes + old_insights;
+    println!("  {:<30} {} entries total", "Total to prune:".dimmed(), total.to_string().bright_red());
+    println!();
+    if apply {
+        ctx.runtime.db.execute(
+            "DELETE FROM forest_events WHERE timestamp < ?1",
+            rusqlite::params![cutoff_30d],
+        )?;
+        ctx.runtime.db.execute(
+            "DELETE FROM prediction_outcomes WHERE verified_at < ?1",
+            rusqlite::params![cutoff_90d],
+        )?;
+        ctx.runtime.db.execute(
+            "DELETE FROM forest_insights WHERE shown = 1 AND created_at < ?1",
+            rusqlite::params![cutoff_30d],
+        )?;
+        println!("  {} Memory decay applied — {} entries pruned", "✅".normal(), total);
+    } else {
+        println!("  {} Run with --apply to prune these entries", "→".dimmed());
+    }
+    println!();
+    Ok(())
+}
