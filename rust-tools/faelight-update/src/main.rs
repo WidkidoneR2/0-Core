@@ -53,8 +53,10 @@ struct Cli {
     json: bool,
     /// Only check specific categories (comma-separated: pacman,aur,cargo,neovim,workspace)
 
-    /// Output only the total count of updates (for scripts/bar)
+    /// Run maintenance tasks (clean cache, orphans, journal)
     #[arg(long)]
+    maintain: bool,
+    /// Output only the total count of updates (for scripts/bar)
     count_only: bool,
     #[arg(long, value_delimiter = ',')]
     only: Option<Vec<String>>,
@@ -221,6 +223,78 @@ fn get_drift_score() -> (String, String) {
     };
     label
 }
+
+/// Run system maintenance tasks
+fn run_maintenance() -> Result<()> {
+    println!("{}", "🧹 Faelight Maintenance Mode".green().bold());
+    println!("{}", "─".repeat(48).dimmed());
+    println!();
+    // 1. Clean pacman cache
+    println!("  {} Cleaning pacman cache...", "→".bright_cyan());
+    let status = std::process::Command::new("sudo")
+        .args(["pacman", "-Sc", "--noconfirm"])
+        .status();
+    match status {
+        Ok(s) if s.success() => println!("  {} Pacman cache cleaned", "✅".green()),
+        _ => println!("  {} Pacman cache clean failed (sudo required)", "⚠️".yellow()),
+    }
+    // 2. Remove orphan packages
+    println!("  {} Checking orphan packages...", "→".bright_cyan());
+    let orphans = std::process::Command::new("pacman")
+        .args(["-Qtdq"])
+        .output();
+    if let Ok(out) = orphans {
+        let pkgs: Vec<&str> = std::str::from_utf8(&out.stdout)
+            .unwrap_or("")
+            .lines()
+            .filter(|l| !l.is_empty())
+            .collect();
+        if pkgs.is_empty() {
+            println!("  {} No orphan packages found", "✅".green());
+        } else {
+            println!("  {} {} orphan packages: {}", "⚠️".yellow(), pkgs.len(),
+                pkgs.join(", ").dimmed());
+            println!("  {} Run: sudo pacman -Rns $(pacman -Qtdq)", "💡".bright_cyan());
+        }
+    }
+    // 3. Clean cargo cache
+    println!("  {} Cleaning cargo cache...", "→".bright_cyan());
+    let cargo_clean = std::process::Command::new("cargo")
+        .args(["cache", "--autoclean"])
+        .status();
+    match cargo_clean {
+        Ok(s) if s.success() => println!("  {} Cargo cache cleaned", "✅".green()),
+        _ => println!("  {} Cargo cache: run cargo cache --autoclean manually", "⚠️".yellow()),
+    }
+    // 4. Vacuum systemd journal
+    println!("  {} Vacuuming systemd journal (keep 2 weeks)...", "→".bright_cyan());
+    let journal = std::process::Command::new("sudo")
+        .args(["journalctl", "--vacuum-time=2weeks"])
+        .status();
+    match journal {
+        Ok(s) if s.success() => println!("  {} Journal vacuumed", "✅".green()),
+        _ => println!("  {} Journal vacuum failed (sudo required)", "⚠️".yellow()),
+    }
+    // 5. Check pacnew files
+    println!("  {} Checking .pacnew files...", "→".bright_cyan());
+    if let Ok(out) = std::process::Command::new("find")
+        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
+        .output()
+    {
+        let count = String::from_utf8_lossy(&out.stdout)
+            .lines().filter(|l| !l.is_empty()).count();
+        if count == 0 {
+            println!("  {} No .pacnew files found", "✅".green());
+        } else {
+            println!("  {} {} .pacnew files — run: pacdiff", "⚠️".yellow(), count);
+        }
+    }
+    println!();
+    println!("{}", "─".repeat(48).dimmed());
+    println!("  {} Maintenance complete", "✅".green().bold());
+    println!();
+    Ok(())
+}
 /// Print system identity header
 fn print_system_identity() {
     use std::process::Command;
@@ -296,6 +370,10 @@ fn run() -> Result<()> {
         println!();
     }
 
+    // Maintenance mode
+    if cli.maintain {
+        return run_maintenance();
+    }
     // System Identity header
     if !cli.json && !cli.count_only {
         print_system_identity();
