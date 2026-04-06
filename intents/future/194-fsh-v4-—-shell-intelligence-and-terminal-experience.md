@@ -83,7 +83,7 @@ Ctrl+Click to open in faelight-browser
 ⬜ Session variable persistence (persist VAR)
 ✅ last / save / recall commands
 ⬜ Frequency-scored history search
-⬜ Smarter DELETE confirmation — shows file count, size, recent files
+✅ Smarter DELETE confirmation — shows file count, size, recent files
 ⬜ faelight-term split panes
 ⬜ faelight-term session names + forest-aware title
 ⬜ faelight-term scrollback search
