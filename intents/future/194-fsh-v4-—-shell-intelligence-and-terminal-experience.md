@@ -79,9 +79,9 @@ Ctrl+Click to open in faelight-browser
 ✅ Git branch tab completion
 ⬜ Prediction-aware suggestions (pattern detection → Tab offer)
 ⬜ Multi-line editing (arrow navigation, editor escape)
-⬜ Command timing intelligence (slow command warnings)
+✅ Command timing intelligence (slow command warnings)
 ⬜ Session variable persistence (persist VAR)
-⬜ last / save / recall commands
+✅ last / save / recall commands
 ⬜ Frequency-scored history search
 ⬜ Smarter DELETE confirmation — shows file count, size, recent files
 ⬜ faelight-term split panes
