@@ -74,9 +74,9 @@ Ctrl+Click to open in faelight-browser
 ⬜ Native `||` operator support
 ⬜ Native stderr redirect `2>/dev/null`
 ⬜ Native heredoc without sh stdin inheritance
-⬜ File path tab completion
-⬜ Core subcommand tab completion (core intent <TAB>)
-⬜ Git branch tab completion
+✅ File path tab completion
+✅ Core subcommand tab completion (core intent <TAB>)
+✅ Git branch tab completion
 ⬜ Prediction-aware suggestions (pattern detection → Tab offer)
 ⬜ Multi-line editing (arrow navigation, editor escape)
 ⬜ Command timing intelligence (slow command warnings)
