@@ -1203,6 +1203,7 @@ fn repl_main() -> Result<()> {
                         let _ = sh_output;
                         continue 'repl;
                     }
+                    let _cmd_timer_start = std::time::Instant::now();
                     let cmd_output: Option<String> =
                         match exec::execute_with_context(&base_cmd, &db, &core_root, &cfg.before_rules) {
                             commands::CommandResult::Exit => break 'repl,
@@ -1237,7 +1238,48 @@ fn repl_main() -> Result<()> {
                                 None
                             }
                         };
-
+                    // Command timing intelligence — warn if command is unusually slow (INT-194)
+                    {
+                        let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
+                        let cmd_key = base_cmd.split_whitespace().next().unwrap_or(&base_cmd);
+                        if elapsed_ms > 500 {
+                            let _ = db.conn.execute(
+                                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+                                rusqlite::params![
+                                    format!("TIMING:{}:{}", cmd_key, elapsed_ms),
+                                    std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .map(|d| d.as_secs() as i64).unwrap_or(0)
+                                ],
+                            );
+                            let avg_ms: Option<f64> = db.conn.query_row(
+                                "SELECT AVG(CAST(SUBSTR(command, INSTR(command, ':', INSTR(command, ':')+1)+1) AS REAL))
+                                 FROM shell_history WHERE command LIKE ?1 ORDER BY id DESC LIMIT 20",
+                                rusqlite::params![format!("TIMING:{}:%", cmd_key)],
+                                |r| r.get(0)
+                            ).ok().flatten();
+                            if let Some(avg) = avg_ms {
+                                if avg > 100.0 && elapsed_ms as f64 > avg * 2.0 {
+                                    println!("  {} {} took {}ms — {:.0}x slower than usual ({:.0}ms avg)",
+                                        "⚠️ ".normal(),
+                                        cmd_key.bright_yellow(),
+                                        elapsed_ms,
+                                        elapsed_ms as f64 / avg,
+                                        avg
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    // Store last output for `last` command (INT-194)
+                    if let Some(ref out) = cmd_output {
+                        if !out.is_empty() {
+                            let _ = db.conn.execute(
+                                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_output', ?1)",
+                                rusqlite::params![out],
+                            );
+                        }
+                    }
                     // Write to file if redirect was detected, otherwise print
                     if let Some(output) = cmd_output {
                         if let Some((ref path, append)) = redirect {

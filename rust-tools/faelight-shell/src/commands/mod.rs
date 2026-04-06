@@ -432,6 +432,96 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 .unwrap_or_else(|_| "?".to_string());
             CommandResult::Output(path)
         }
+        // ── last / save / recall — output memory (INT-194) ──────────────────
+        "last" => {
+            // Show last command output if available, otherwise show last command from history
+            let home = std::env::var("HOME").unwrap_or_default();
+            let db_path = format!("{}/0-core/runtime/state.db", home);
+            let conn = rusqlite::Connection::open(&db_path).ok();
+            if let Some(ref c) = conn {
+                // Try last stored output first
+                if let Ok(out) = c.query_row(
+                    "SELECT value FROM shell_state WHERE key = 'last_output'",
+                    [], |r| r.get::<_, String>(0)
+                ) {
+                    return CommandResult::Output(out);
+                }
+                // Fall back to last history entry
+                if let Ok(cmd) = c.query_row(
+                    "SELECT command FROM shell_history WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' ORDER BY id DESC LIMIT 1",
+                    [], |r| r.get::<_, String>(0)
+                ) {
+                    return CommandResult::Output(format!("  Last command: {}", cmd));
+                }
+            }
+            CommandResult::Output("  ○ No output history yet".to_string())
+        }
+        "save" => {
+            if args.is_empty() {
+                return CommandResult::Error("usage: save <name>".to_string());
+            }
+            let name = args[0];
+            let home = std::env::var("HOME").unwrap_or_default();
+            let db_path = format!("{}/0-core/runtime/state.db", home);
+            let result = rusqlite::Connection::open(&db_path).and_then(|c| {
+                // Only save if last_output has real content
+                let last: String = c.query_row(
+                    "SELECT value FROM shell_state WHERE key = 'last_output'",
+                    [], |r| r.get(0)
+                ).unwrap_or_default();
+                if last.is_empty() || last.contains("No last output stored yet") {
+                    return Err(rusqlite::Error::QueryReturnedNoRows);
+                }
+                c.execute(
+                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+                    rusqlite::params![format!("saved_{}", name), last.clone()],
+                )?;
+                Ok(last.len())
+            });
+            match result {
+                Ok(len) => CommandResult::Output(format!("  ✅ Saved {} bytes to slot '{}'", len, name)),
+                Err(_) => CommandResult::Output(
+                    "  ○ Nothing to save — save works with native fsh commands
+  → Try: core strategy now | save <name>".to_string()
+                ),
+            }
+        }
+        "recall" => {
+            if args.is_empty() {
+                // List all saved slots
+                let home = std::env::var("HOME").unwrap_or_default();
+                let db_path = format!("{}/0-core/runtime/state.db", home);
+                let slots: Vec<String> = rusqlite::Connection::open(&db_path)
+                    .and_then(|c| {
+                        let mut stmt = c.prepare(
+                            "SELECT key FROM shell_state WHERE key LIKE 'saved_%' ORDER BY key"
+                        )?;
+                        let rows: Vec<String> = stmt.query_map([], |r| r.get(0))?
+                            .filter_map(|r| r.ok())
+                            .map(|k: String| k.trim_start_matches("saved_").to_string())
+                            .collect();
+                        Ok(rows)
+                    })
+                    .unwrap_or_default();
+                if slots.is_empty() {
+                    return CommandResult::Output("  ○ No saved slots — use: save <name>".to_string());
+                }
+                return CommandResult::Output(format!("  Saved slots: {}", slots.join(", ")));
+            }
+            let name = args[0];
+            let home = std::env::var("HOME").unwrap_or_default();
+            let db_path = format!("{}/0-core/runtime/state.db", home);
+            let result = rusqlite::Connection::open(&db_path)
+                .and_then(|c| c.query_row(
+                    "SELECT value FROM shell_state WHERE key = ?1",
+                    rusqlite::params![format!("saved_{}", name)],
+                    |r| r.get::<_, String>(0)
+                ));
+            match result {
+                Ok(out) => CommandResult::Output(out),
+                Err(_) => CommandResult::Error(format!("No saved slot named '{}'", name)),
+            }
+        }
         "cd" => cd(args),
         "d" => {
             // forest built-in: d → core doctor run
