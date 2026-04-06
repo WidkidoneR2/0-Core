@@ -93,16 +93,16 @@ Show exactly what would change:
 ⚡ Firmware
 📦 Flatpak
 faelight-update bumped to 4.0.0 in Cargo.toml and registry.
-⬜ Version bumped to 4.0.0 in Cargo.toml and registry
-⬜ Risk categorization — 🔴🟡🔵 levels on all updates
-⬜ System Identity header on every run
-⬜ Drift score — days since last upgrade + freshness label
-⬜ Pre-flight warnings — disk, mirror age, pacnew, partial upgrade
-⬜ Performance breakdown — timing per section
-⬜ Maintenance mode — faelight-update --maintain
-⬜ Suggestions section after every run
-⬜ Preview mode -- faelight-update --preview
-⬜ Update history logged to state.db
+✅ Version bumped to 4.0.0 in Cargo.toml and registry
+✅ Risk categorization — 🔴🟡🔵 levels on all updates
+✅ System Identity header on every run
+✅ Drift score — days since last upgrade + freshness label
+✅ Pre-flight warnings — disk, mirror age, pacnew, partial upgrade
+✅ Performance breakdown — timing per section
+✅ Maintenance mode — faelight-update --maintain
+✅ Suggestions section after every run
+✅ Preview mode — faelight-update --preview
+✅ Update history logged to state.db
 ⬜ All original icons preserved exactly
 ⬜ deploy faelight-update and d passes 100%
 "An update manager that only lists packages

@@ -1907,6 +1907,7 @@ dependencies = [
  "once_cell",
  "ratatui 0.29.0",
  "regex",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",
