@@ -66,6 +66,74 @@ struct Cli {
 
 
 
+
+/// Run pre-flight checks before updating
+fn run_preflight_checks() {
+    let mut warnings: Vec<String> = Vec::new();
+    // Check 1: disk space
+    if let Ok(output) = std::process::Command::new("df")
+        .args(["-h", "/"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+        if let Some(line) = text.lines().nth(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 5 {
+                let pct_str = parts[4].trim_end_matches('%');
+                if let Ok(pct) = pct_str.parse::<u32>() {
+                    if pct >= 90 {
+                        warnings.push(format!("Disk space critical: {}% used — clean before updating", pct));
+                    } else if pct >= 80 {
+                        warnings.push(format!("Disk space: {}% used — consider cleaning first", pct));
+                    }
+                }
+            }
+        }
+    }
+    // Check 2: mirrorlist age
+    if let Ok(meta) = std::fs::metadata("/etc/pacman.d/mirrorlist") {
+        if let Ok(modified) = meta.modified() {
+            if let Ok(age) = modified.elapsed() {
+                let days = age.as_secs() / 86400;
+                if days >= 30 {
+                    warnings.push(format!("Mirrorlist is {} days old — run: reflector --save /etc/pacman.d/mirrorlist", days));
+                } else if days >= 14 {
+                    warnings.push(format!("Mirrorlist is {} days old — consider refreshing with reflector", days));
+                }
+            }
+        }
+    }
+    // Check 3: pacnew files
+    if let Ok(output) = std::process::Command::new("find")
+        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let count = text.lines().filter(|l| !l.is_empty()).count();
+        if count > 0 {
+            warnings.push(format!("{} .pacnew config files pending review — run: pacdiff", count));
+        }
+    }
+    // Check 4: partial upgrade risk
+    if let Ok(output) = std::process::Command::new("pacman")
+        .args(["-Qu", "--dbonly"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+        if text.lines().count() > 0 {
+            warnings.push("pacman database may be out of sync — partial upgrade risk".to_string());
+        }
+    }
+    if !warnings.is_empty() {
+        println!("  {} Pre-Update Warnings", "⚠️ ".yellow().bold());
+        println!("  {}", "─".repeat(46).dimmed());
+        for w in &warnings {
+            println!("  {} {}", "•".bright_yellow(), w.bright_white());
+        }
+        println!("  {}", "─".repeat(46).dimmed());
+        println!();
+    }
+}
 /// Get system drift score based on last upgrade time
 fn get_drift_score() -> (String, String) {
     // Read last upgrade time from pacman log
@@ -195,6 +263,10 @@ fn run() -> Result<()> {
         create_snapshot()?;
     }
 
+    // Pre-flight warnings
+    if !cli.json && !cli.count_only && !cli.skip_health {
+        run_preflight_checks();
+    }
     // Check for updates
     if !cli.json && !cli.count_only {
         println!("{}  Checking for updates...", "🔍".cyan());
