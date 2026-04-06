@@ -270,7 +270,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         check_disk_space(),
         check_tool_installation(),
         check_path_resilience(&core_root),
-        check_archaeology(&core_root),
         check_core_protect(&core_root),
         check_schema_validation(&core_root),
         check_sandbox(&core_root),
@@ -385,6 +384,36 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     "{}  Forecast  24h: {}%  7d: {}%  trend: {}{}",
                     trend_icon, forecast_24h, forecast_7d, trend_str, context_str,
                 );
+                // Predictive health advisory
+                let intent_count = active_intents.len();
+                let advisory: Option<(&str, String)> = if health == 100 && trend.abs() <= 0.5 && intent_count == 0 {
+                    Some(("💚", "Forest is stable — no concerns".to_string()))
+                } else if trend < -1.0 && intent_count > 0 {
+                    Some(("💡", format!(
+                        "Health dip during active development — expected pattern ({} intent{} in progress)",
+                        intent_count, if intent_count == 1 { "" } else { "s" }
+                    )))
+                } else if trend < -1.0 && intent_count == 0 {
+                    Some(("⚠️ ", "Declining health with no active work — investigate".to_string()))
+                } else if forecast_7d < 90 {
+                    Some(("⚠️ ", format!(
+                        "7-day forecast shows potential concern ({forecast_7d}%) — review active work"
+                    )))
+                } else if intent_count > 4 {
+                    Some(("💡", format!(
+                        "High intent load ({intent_count} active) — consider completing before opening a new intent"
+                    )))
+                } else if health < 100 && intent_count > 0 {
+                    Some(("💡", format!(
+                        "Below peak health — {} intent{} in progress, recovery expected on completion",
+                        intent_count, if intent_count == 1 { "" } else { "s" }
+                    )))
+                } else {
+                    None
+                };
+                if let Some((icon, msg)) = advisory {
+                    println!("  {}  {}", icon, msg);
+                }
             }
         }
     }
@@ -464,7 +493,6 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
         check_disk_space(),
         check_tool_installation(),
         check_path_resilience(&core_root),
-        check_archaeology(&core_root),
         check_core_protect(&core_root),
         check_schema_validation(&core_root),
         check_sandbox(&core_root),
