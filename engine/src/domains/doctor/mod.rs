@@ -417,6 +417,40 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             }
         }
     }
+    // Auto-store health prediction on every doctor run (INT-167 feedback loop)
+    {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let expires_at = now + (24 * 3600); // verify in 24h on next doctor run
+        let prediction = format!("health will be {}% on next doctor run", health);
+        let _ = ctx.runtime.db.execute(
+            "INSERT OR IGNORE INTO forest_predictions (kind, prediction, confidence, evidence, created_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params!["health", prediction, 85i64, "{}", now, expires_at],
+        );
+        // Auto-verify previous health predictions
+        let prev_preds: Vec<(i64, i64)> = ctx.runtime.db.prepare(
+            "SELECT id, CAST(SUBSTR(prediction, INSTR(prediction, 'be ')+3, INSTR(prediction, '% on')-INSTR(prediction, 'be ')-3) AS INTEGER)
+             FROM forest_predictions
+             WHERE kind='health' AND expires_at <= ?1
+             AND id NOT IN (SELECT prediction_id FROM prediction_outcomes)"
+        ).and_then(|mut s| {
+            let rows: Vec<(i64, i64)> = s.query_map(rusqlite::params![now], |r| Ok((r.get(0)?, r.get(1)?)))
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            Ok(rows)
+        }).unwrap_or_default();
+        for (pred_id, predicted_health) in prev_preds {
+            let correct = (predicted_health - health as i64).abs() <= 5;
+            let _ = ctx.runtime.db.execute(
+                "INSERT INTO prediction_outcomes (prediction_id, actual, correct, verified_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![pred_id, format!("{}%", health), if correct { 1 } else { 0 }, now],
+            );
+        }
+    }
     // Write health score to cache for bar/prompt/palette
     let cache_dir =
         std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight");
