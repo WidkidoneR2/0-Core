@@ -169,9 +169,11 @@ pub enum IntentCommand {
     New {
         template: String,
         title: String,
+        smart: bool,
     },
     Deps {
-        id: String,
+        id: Option<String>,
+        critical_path: bool,
     },
     Burndown,
     Velocity,

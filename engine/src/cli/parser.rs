@@ -379,10 +379,17 @@ pub enum IntentCommands {
         template: String,
         /// Intent title
         title: String,
+        /// Context-aware smart creation — forest suggests based on active work
+        #[arg(long)]
+        smart: bool,
     },
     /// Show dependency graph for an intent
     Deps {
-        id: String,
+        /// Intent ID (optional when using --critical-path)
+        id: Option<String>,
+        /// Show critical path — longest chain to completion
+        #[arg(long)]
+        critical_path: bool,
     },
     /// Show completion burndown chart
     Burndown,
