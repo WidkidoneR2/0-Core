@@ -65,6 +65,46 @@ struct Cli {
 }
 
 
+
+/// Get system drift score based on last upgrade time
+fn get_drift_score() -> (String, String) {
+    // Read last upgrade time from pacman log
+    let log_path = "/var/log/pacman.log";
+    let last_upgrade = std::fs::read_to_string(log_path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| l.contains("starting full system upgrade") || l.contains("upgraded "))
+        .last()
+        .and_then(|l| {
+            // Parse date from [YYYY-MM-DDThh:mm:ss+0000]
+            l.get(1..11)
+        })
+        .map(|s| s.to_string());
+    let days_ago = if let Some(ref date_str) = last_upgrade {
+        let today = chrono::Local::now().date_naive();
+        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+            .map(|d| (today - d).num_days())
+            .unwrap_or(-1)
+    } else {
+        -1
+    };
+    let label = if days_ago < 0 {
+        ("unknown".to_string(), "?".to_string())
+    } else if days_ago == 0 {
+        ("today".to_string(), "FRESH".to_string())
+    } else if days_ago == 1 {
+        ("1 day ago".to_string(), "FRESH".to_string())
+    } else if days_ago <= 3 {
+        (format!("{} days ago", days_ago), "LOW".to_string())
+    } else if days_ago <= 7 {
+        (format!("{} days ago", days_ago), "MEDIUM".to_string())
+    } else if days_ago <= 14 {
+        (format!("{} days ago", days_ago), "HIGH".to_string())
+    } else {
+        (format!("{} days ago", days_ago), "CRITICAL".to_string())
+    };
+    label
+}
 /// Print system identity header
 fn print_system_identity() {
     use std::process::Command;
@@ -106,6 +146,17 @@ fn print_system_identity() {
         else if health.parse::<u32>().unwrap_or(0) >= 80 { health.bright_yellow() }
         else { health.bright_red() }
     );
+    // Drift score
+    let (last_upgrade, drift_label) = get_drift_score();
+    let drift_colored = match drift_label.as_str() {
+        "FRESH" | "LOW" => drift_label.bright_green(),
+        "MEDIUM" => drift_label.bright_yellow(),
+        "HIGH" | "CRITICAL" => drift_label.bright_red(),
+        _ => drift_label.normal(),
+    };
+    println!("  {:<12} {} ({})", "Last update:".dimmed(),
+        last_upgrade.bright_white(), drift_colored);
+    println!("  {:<12} {}", "Drift:".dimmed(), drift_colored);
     println!("{}", "─".repeat(40).dimmed());
     println!();
 }
