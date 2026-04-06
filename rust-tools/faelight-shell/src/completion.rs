@@ -197,55 +197,54 @@ impl ForestHelper {
         {
             // All multi-word completions — prefix match from start=0
             const MULTI_CMDS: &[&str] = &[
-                "core goals list",
-                "core goals generate",
-                "core goals accept",
-                "core goals reject",
-                "core goals show",
-                "core goals priority",
-                "core plan generate",
-                "core plan review",
-                "core plan simulate",
-                "core plan list",
-                "core tradeoff analyze",
-                "core tradeoff history",
-                "core tradeoff balance",
-                "core prioritize run",
-                "core prioritize explain",
-                "core autobiography narrate",
-                "core evolution map",
-                "core evolution tools",
-                "core evolution suggest",
-                "core decisions list",
-                "core decisions record",
-                "core decisions stats",
-                "core doctor run",
-                "core doctor trend",
-                "core doctor forecast",
-                "core security scan",
-                "core security report",
-                "core security history",
-                "core checkpoint create",
-                "core checkpoint list",
-                "core checkpoint restore",
-                "core events list",
-                "core events since",
-                "core events filter",
-                "core events watch",
-                "core simulate doctor",
-                "core simulate update",
-                "core simulate scenario",
-                "core goals",
-                "core plan",
-                "core tradeoff",
-                "core prioritize",
-                "core autobiography",
-                "core evolution",
-                "core decisions",
-                "core doctor",
-                "core security",
-                "core checkpoint",
-                "core events",
+                // ── core intent ──────────────────────────────────────────
+                "core intent focus",
+                "core intent unfocus",
+                "core intent status",
+                "core intent drift",
+                "core intent start",
+                "core intent complete",
+                "core intent new",
+                "core intent new --smart",
+                "core intent deps",
+                "core intent deps --critical-path",
+                "core intent burndown",
+                "core intent velocity",
+                "core intent branch",
+                "core intent list",
+                "core intent show",
+                "core intent search",
+                "core intent stats",
+                "core intent validate",
+                "core intent predict",
+                "core intent story",
+                "core intent auto-link",
+                "core intent health",
+                "core intent edit",
+                "core intent",
+                // ── core partner ─────────────────────────────────────────
+                "core partner propose",
+                "core partner discuss",
+                "core partner disagree",
+                "core partner consult",
+                "core partner reflect",
+                "core partner pattern",
+                "core partner growth",
+                "core partner pushback",
+                "core partner roadmap",
+                "core partner roadmap-why",
+                "core partner roadmap-diff",
+                "core partner status",
+                "core partner",
+                // ── core delegate ─────────────────────────────────────────
+                "core delegate simulate",
+                "core delegate contracts",
+                "core delegate history",
+                "core delegate accuracy",
+                "core delegate suspend",
+                "core delegate activate",
+                "core delegate",
+                // ── core predict ──────────────────────────────────────────
                 "core predict sessions",
                 "core predict cadence",
                 "core predict health",
@@ -255,6 +254,18 @@ impl ForestHelper {
                 "core predict coupling",
                 "core predict churn",
                 "core predict accuracy",
+                "core predict verify",
+                "core predict cross-session",
+                "core predict memory-decay",
+                "core predict",
+                // ── core doctor ───────────────────────────────────────────
+                "core doctor run",
+                "core doctor quick",
+                "core doctor trend",
+                "core doctor forecast",
+                "core doctor history",
+                "core doctor",
+                // ── core react ────────────────────────────────────────────
                 "core react list",
                 "core react rules",
                 "core react run",
@@ -262,6 +273,52 @@ impl ForestHelper {
                 "core react story",
                 "core react audit",
                 "core react bounds",
+                "core react",
+                // ── core integrity ────────────────────────────────────────
+                "core integrity run",
+                "core integrity apply",
+                "core integrity heal",
+                "core integrity heal --dry",
+                "core integrity trend",
+                "core integrity status",
+                "core integrity log",
+                "core integrity",
+                // ── core strategy ─────────────────────────────────────────
+                "core strategy now",
+                "core strategy jarvis",
+                "core strategy horizon",
+                "core strategy coherence",
+                "core strategy",
+                // ── core autonomy ─────────────────────────────────────────
+                "core autonomy status",
+                "core autonomy mandate",
+                "core autonomy history",
+                "core autonomy",
+                // ── core registry ─────────────────────────────────────────
+                "core registry list",
+                "core registry show",
+                "core registry retire",
+                "core registry unretire",
+                "core registry reality-check",
+                "core registry",
+                // ── core db ───────────────────────────────────────────────
+                "core db backup",
+                "core db restore",
+                "core db verify",
+                "core db status",
+                "core db compact",
+                "core db",
+                // ── core checkpoint ───────────────────────────────────────
+                "core checkpoint create",
+                "core checkpoint list",
+                "core checkpoint restore",
+                "core checkpoint",
+                // ── core security ─────────────────────────────────────────
+                "core security scan",
+                "core security report",
+                "core security history",
+                "core security",
+                // ── core stress ───────────────────────────────────────────
                 "core stress events",
                 "core stress predict",
                 "core stress react",
@@ -269,29 +326,68 @@ impl ForestHelper {
                 "core stress intents",
                 "core stress report",
                 "core stress health-report",
-                "core intent list",
-                "core intent show",
-                "core intent complete",
-                "core predict",
-                "core react",
                 "core stress",
-                "core intent",
-                "core simulate",
-                "core snapshot",
+                // ── core goals/plan/tradeoff ──────────────────────────────
+                "core goals list",
+                "core goals generate",
+                "core goals accept",
+                "core goals reject",
+                "core goals show",
+                "core goals",
+                "core plan generate",
+                "core plan review",
+                "core plan list",
+                "core plan",
+                "core tradeoff analyze",
+                "core tradeoff history",
+                "core tradeoff balance",
+                "core tradeoff",
+                "core prioritize run",
+                "core prioritize explain",
+                "core prioritize",
+                // ── core other ────────────────────────────────────────────
+                "core events list",
+                "core events since",
+                "core events filter",
+                "core events watch",
+                "core events",
+                "core genealogy tree",
+                "core genealogy show",
+                "core genealogy roots",
+                "core genealogy",
                 "core narrative",
+                "core snapshot",
                 "core anomaly",
                 "core audit",
                 "core deps",
                 "core capabilities",
                 "core version",
+                "core autobiography",
+                "core evolution",
+                "core simulate",
+                "core advise",
+                "core story",
+                "core lessons",
+                "core hindsight",
+                "core decision",
+                "core decide",
+                "core heuristics",
+                "core why",
+                "core trace",
+                "core ledger",
+                // ── et shortcuts ──────────────────────────────────────────
                 "et today",
                 "et goals",
                 "et git",
                 "et security",
                 "et doctor",
+                // ── cd shortcuts ──────────────────────────────────────────
                 "cd ~/",
                 "cd ~/0-core",
                 "cd ~/0-core/rust-tools",
+                "cd ~/0-core/engine",
+                "cd ~/0-core/intents",
+                "cd ~/0-core/runtime",
             ];
             let cands: Vec<String> = MULTI_CMDS
                 .iter()
@@ -311,13 +407,19 @@ impl ForestHelper {
                 .collect();
             return (0, cands);
         }
-        // any argument starting with / ~/ or ./
+        // any argument that could be a path — starts with / ~/ ./ or is a bare filename
         if line.contains(' ') {
             let last = line.split_whitespace().last().unwrap_or("");
-            if last.starts_with('/') || last.starts_with("~/") || last.starts_with("./") {
-                let start = line.len() - last.len();
+            let is_path_like = last.starts_with('/')
+                || last.starts_with("~/")
+                || last.starts_with("./")
+                || (!last.starts_with('-') && !last.is_empty());
+            if is_path_like {
                 let cands = path_completions(last);
-                return (start, cands);
+                if !cands.is_empty() {
+                    let start = line.len() - last.len();
+                    return (start, cands);
+                }
             }
         }
 
@@ -356,6 +458,40 @@ impl ForestHelper {
             }
         }
 
+        // ── Case 2d2: git branch completion ───────────────────────────────────
+        if line.starts_with("git checkout ")
+            || line.starts_with("git merge ")
+            || line.starts_with("git rebase ")
+            || line.starts_with("git branch ")
+            || line.starts_with("git diff ")
+            || line.starts_with("fg checkout ")
+        {
+            // If line ends with space, partial is empty (show all branches)
+            // Otherwise take the last token
+            let partial = if line.ends_with(' ') {
+                ""
+            } else {
+                line.split_whitespace().last().unwrap_or("")
+            };
+            // Skip if partial looks like a flag
+            if !partial.starts_with('-') {
+                let branches: Vec<String> = std::process::Command::new("git")
+                    .args(["branch", "-a", "--format=%(refname:short)"])
+                    .output()
+                    .map(|o| {
+                        String::from_utf8_lossy(&o.stdout)
+                            .lines()
+                            .map(|l| l.trim().to_string())
+                            .filter(|b| !b.is_empty() && b.starts_with(partial))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if !branches.is_empty() {
+                    let start = line.len() - partial.len();
+                    return (start, branches);
+                }
+            }
+        }
         // ── Case 2e: alias completion from state.db ─────────────────────────
         if !line.contains(' ') && !line.is_empty() {
             let home = std::env::var("HOME").unwrap_or_default();
