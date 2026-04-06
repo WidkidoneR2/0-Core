@@ -82,7 +82,7 @@ Ctrl+Click to open in faelight-browser
 ✅ Command timing intelligence (slow command warnings)
 ⬜ Session variable persistence (persist VAR)
 ✅ last / save / recall commands
-⬜ Frequency-scored history search
+✅ Frequency-scored history search
 ✅ Smarter DELETE confirmation — shows file count, size, recent files
 ⬜ faelight-term split panes
 ⬜ faelight-term session names + forest-aware title
