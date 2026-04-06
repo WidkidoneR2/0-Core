@@ -1016,7 +1016,7 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     };
     let like = format!("%{}%", pattern);
     let mut stmt = match db.conn.prepare(
-        "SELECT command, MAX(timestamp) as ts, COUNT(*) as freq FROM shell_history WHERE command LIKE ?1 AND command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' GROUP BY command ORDER BY freq DESC, ts DESC LIMIT 30"
+        "SELECT command, MAX(timestamp) as ts, COUNT(*) as freq FROM shell_history WHERE command LIKE ?1 AND command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' AND LENGTH(command) < 120 GROUP BY command ORDER BY freq DESC, ts DESC LIMIT 20"
     ) {
         Ok(s) => s,
         Err(e) => return CommandResult::Error(e.to_string()),
