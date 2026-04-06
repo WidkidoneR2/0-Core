@@ -820,7 +820,7 @@ pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<(
 id: {:03}
 date: {}
 type: {}
-title: "{}"
+title: \"{}\"
 status: planned
 tags: [{}]
 version: TBD
@@ -850,7 +850,7 @@ version: TBD
 
 ---
 
-*"The forest grows with intention."* 🌲
+*\"The forest grows with intention.\"* 🌲
 "#,
         next_id, today, type_tag, title, tags
     );
@@ -1542,5 +1542,273 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
         }
     }
     println!();
+    Ok(())
+}
+
+// ── Smart Intent Creation (INT-198) ──────────────────────────────────────────
+pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
+    ctx.capabilities.require(
+        "intent",
+        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+    )?;
+    let intents = load_all(ctx);
+    // Gather active intent context
+    let active: Vec<&Intent> = intents.iter()
+        .filter(|i| i.status == "in-progress")
+        .collect();
+    // Collect tags from active intents for suggestions
+    let mut tag_freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for intent in &active {
+        for tag in &intent.tags {
+            *tag_freq.entry(tag.trim().to_string()).or_insert(0) += 1;
+        }
+    }
+    let mut suggested_tags: Vec<String> = tag_freq.iter()
+        .filter(|(_, &count)| count >= 1)
+        .map(|(tag, _)| tag.clone())
+        .collect();
+    suggested_tags.sort();
+    suggested_tags.dedup();
+    suggested_tags.truncate(5);
+    // Get recent commit context
+    let recent_commits = std::process::Command::new("git")
+        .args(["-C", &ctx.core_root, "log", "--oneline", "-5", "--pretty=format:%s"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    // Find related intents by title similarity to the new title
+    let title_lower = title.to_lowercase();
+    let title_words: Vec<&str> = title_lower.split_whitespace().collect();
+    let related: Vec<(String, String)> = intents.iter()
+        .filter(|i| {
+            let t = i.title.to_lowercase();
+            title_words.iter().any(|w| w.len() > 3 && t.contains(*w))
+        })
+        .map(|i| (i.id.clone(), i.title.clone()))
+        .take(3)
+        .collect();
+    // Display context analysis
+    println!();
+    println!("{}", "🌲 Smart Intent Creation".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!();
+    println!("  {} Context analysis:", "▶".bright_cyan());
+    if !active.is_empty() {
+        println!("    {} {} intents currently in progress:", "·".dimmed(), active.len());
+        for a in &active {
+            println!("      {} INT-{} — {}", "◦".dimmed(), a.id.bright_white(), a.title.dimmed());
+        }
+    }
+    if !suggested_tags.is_empty() {
+        println!("    {} Suggested tags: {}", "·".dimmed(), suggested_tags.join(", ").bright_yellow());
+    }
+    if !recent_commits.is_empty() {
+        println!("    {} Recent work:", "·".dimmed());
+        for line in recent_commits.lines().take(3) {
+            println!("      {} {}", "◦".dimmed(), line.dimmed());
+        }
+    }
+    if !related.is_empty() {
+        println!("    {} Related intents found:", "·".dimmed());
+        for (id, t) in &related {
+            println!("      {} INT-{} — {}", "◦".dimmed(), id.bright_white(), t.dimmed());
+        }
+    }
+    println!();
+    // Build smart tags — merge template defaults with suggested
+    let base_tags = match template {
+        "feature" => "feature, rust, faelight",
+        "fix"     => "fix, bugfix",
+        "arch"    => "architecture, rust, design",
+        "study"   => "study, research, learning",
+        _         => "faelight",
+    };
+    let smart_tags = if !suggested_tags.is_empty() {
+        format!("{}, {}", base_tags, suggested_tags.join(", "))
+    } else {
+        base_tags.to_string()
+    };
+    // Build relates_to section from related intents
+    let relates_section = if !related.is_empty() {
+        let ids: Vec<String> = related.iter().map(|(id, _)| id.clone()).collect();
+        format!("relates_to: [{}]
+", ids.join(", "))
+    } else {
+        String::new()
+    };
+    // Find next ID
+    let max_id = intents.iter()
+        .filter_map(|i| i.id.parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
+    let next_id = max_id + 1;
+    let today = std::process::Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "2026-01-01".to_string());
+    let type_tag = match template {
+        "feature" => "feature",
+        "fix"     => "fix",
+        "arch"    => "arch",
+        "study"   => "study",
+        _         => "future",
+    };
+    let slug = title.to_lowercase().replace(' ', "-");
+    let filename = format!("{:0>3}-{}.md", next_id, slug);
+    let filepath = PathBuf::from(&ctx.core_root)
+        .join("intents/future")
+        .join(&filename);
+    let content = format!(
+        "---
+id: {:03}
+date: {}
+type: {}
+title: \"{}\"
+status: planned
+tags: [{}]
+{}version: TBD
+---
+
+## Vision
+
+<!-- What is this intent trying to achieve? -->
+
+## Why Now
+
+<!-- Active context: {} intents in progress -->
+
+## Approach
+
+<!-- How will this be implemented? -->
+
+## Gate Check
+```
+⬜ Not started
+```
+
+---
+
+*\"The forest grows with intention.\"* 🌲
+",
+        next_id, today, type_tag, title, smart_tags, relates_section, active.len()
+    );
+    fs::write(&filepath, &content).map_err(crate::errors::CoreError::Io)?;
+    println!("  {} Intent created with forest context", "✅".normal());
+    println!("  {} ID:    INT-{:03}", "→".dimmed(), next_id);
+    println!("  {} Title: {}", "→".dimmed(), title.bright_white());
+    println!("  {} Tags:  {}", "→".dimmed(), smart_tags.bright_yellow());
+    println!("  {} File:  {}", "→".dimmed(), filename.dimmed());
+    println!();
+    println!("{}", "━".repeat(56).dimmed());
+    Ok(())
+}
+// ── Critical Path Analysis (INT-198) ─────────────────────────────────────────
+pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    let intents = load_all(ctx);
+    println!();
+    println!("{}", "🔗 Critical Path Analysis".bright_cyan().bold());
+    println!("{}", "━".repeat(56).dimmed());
+    println!();
+    // Find in-progress and planned intents
+    let active: Vec<&Intent> = intents.iter()
+        .filter(|i| i.status == "in-progress" || i.status == "planned")
+        .collect();
+    if active.is_empty() {
+        println!("  {} No active or planned intents found", "○".dimmed());
+        return Ok(());
+    }
+    // Build dependency chains
+    // For each intent, compute chain length by following depends_on
+    let mut chains: Vec<Vec<String>> = Vec::new();
+    for intent in &active {
+        let mut chain = vec![intent.id.clone()];
+        let mut current_deps = intent.depends_on.clone();
+        let mut visited = std::collections::HashSet::new();
+        visited.insert(intent.id.clone());
+        loop {
+            let unmet: Vec<String> = current_deps.iter()
+                .filter(|dep_id| {
+                    !visited.contains(*dep_id) &&
+                    intents.iter().find(|i| &i.id == *dep_id)
+                        .map(|i| i.status != "complete")
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+            if unmet.is_empty() { break; }
+            let next = unmet[0].clone();
+            visited.insert(next.clone());
+            chain.push(next.clone());
+            current_deps = intents.iter()
+                .find(|i| i.id == next)
+                .map(|i| i.depends_on.clone())
+                .unwrap_or_default();
+        }
+        if chain.len() > 1 {
+            chains.push(chain);
+        }
+    }
+    // Find the longest chain — that's the critical path
+    chains.sort_by(|a, b| b.len().cmp(&a.len()));
+    if chains.is_empty() {
+        println!("  {} No dependency chains found in active intents", "○".dimmed());
+        println!("  {} Add depends_on: [INT-NNN] to intent frontmatter to build the graph", "→".dimmed());
+    } else {
+        println!("  {} Critical path ({} steps):", "🔴".normal(), chains[0].len());
+        for (i, id) in chains[0].iter().enumerate() {
+            if let Some(intent) = intents.iter().find(|x| &x.id == id) {
+                let arrow = if i == 0 { "▶".bright_red().to_string() }
+                    else if i == chains[0].len() - 1 { "🏁".to_string() }
+                    else { "→".bright_yellow().to_string() };
+                println!("    {} INT-{} — {} [{}]",
+                    arrow,
+                    intent.id.bright_white(),
+                    intent.title.normal(),
+                    intent.status_colored()
+                );
+            }
+        }
+        println!();
+        if chains.len() > 1 {
+            println!("  {} Other dependency chains:", "▶".bright_cyan());
+            for chain in chains.iter().skip(1).take(3) {
+                let chain_str: Vec<String> = chain.iter()
+                    .map(|id| format!("INT-{}", id))
+                    .collect();
+                println!("    {} {} ({} steps)", "·".dimmed(), chain_str.join(" → ").dimmed(), chain.len());
+            }
+            println!();
+        }
+    }
+    // Show all active intents with their blocker status
+    println!("  {} Active intent status:", "▶".bright_cyan());
+    for intent in &active {
+        let unmet_deps: Vec<String> = intent.depends_on.iter()
+            .filter(|dep_id| {
+                intents.iter().find(|i| &i.id == *dep_id)
+                    .map(|i| i.status != "complete")
+                    .unwrap_or(false)
+            })
+            .map(|id| format!("INT-{}", id))
+            .collect();
+        let status_icon = if unmet_deps.is_empty() {
+            "✅".to_string()
+        } else {
+            "⏳".to_string()
+        };
+        println!("    {} INT-{} — {}",
+            status_icon,
+            intent.id.bright_white(),
+            intent.title.dimmed()
+        );
+        if !unmet_deps.is_empty() {
+            println!("       {} waiting on: {}", "⬆".bright_yellow(), unmet_deps.join(", ").bright_red());
+        }
+    }
+    println!();
+    println!("{}", "━".repeat(56).dimmed());
     Ok(())
 }
