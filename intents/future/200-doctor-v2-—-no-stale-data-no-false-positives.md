@@ -3,7 +3,7 @@ id: 200
 date: 2026-04-05
 type: planned
 title: "Doctor v2 — No Stale Data, No False Positives"
-status: planned
+status: in-progress
 tags: [doctor, health, stale, v2, accuracy, checks]
 ---
 ## The Problem
@@ -70,14 +70,14 @@ core doctor history  — health score over time
 
 ## Gate Check
 ⬜ No stale data — all checks verify live state
-⬜ Security audit shows days-since-scan prominently
+✅ Security audit shows days-since-scan — "scanned today", "3 days ago", etc.
 ⬜ Registry-aware checks — retired tools respected dynamically
 ⬜ Forecast includes context from active intents
 ⬜ Check freshness indicators on all checks
-⬜ Doctor profiles (--quick, --full, --security, --tools)
+✅ Doctor profiles — core doctor quick live (6 critical checks, fast)
 ⬜ False positive elimination — score vs broken distinction
 ⬜ Predictive health based on active work patterns
-⬜ core doctor history — health trend over time
+✅ core doctor history — health trend from horizon_snapshots
 
 ## The Phrase
 "The doctor that shows stale data

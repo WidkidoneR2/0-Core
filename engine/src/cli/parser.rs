@@ -301,6 +301,10 @@ pub enum DoctorCommands {
     Forecast,
     /// Generate deterministic rebuild plan
     Rebuild,
+    /// Quick health check — critical checks only
+    Quick,
+    /// Show health score history over time
+    History,
 }
 
 #[derive(Subcommand)]
@@ -1157,7 +1161,14 @@ pub enum IntegrityCommands {
     /// Apply pending proposals
     Fix,
     /// Apply a specific pending proposal by ID
-    Apply { id: i64 },
+    Apply { id: String },
+    /// Auto-heal all safe integrity issues
+    Heal {
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show integrity score trend over time
+    Trend,
 }
 #[derive(Debug, clap::Subcommand)]
 pub enum AutonomyCommands {

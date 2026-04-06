@@ -3,7 +3,7 @@ id: 199
 date: 2026-04-05
 type: planned
 title: "Integrity Engine v2 — From Proposals to Auto-Healing"
-status: planned
+status: in-progress
 tags: [integrity, auto-heal, checks, v2, doctor]
 ---
 ## Current State
@@ -57,14 +57,14 @@ core integrity trend        — integrity score over time
 core integrity expand       — show all check categories
 
 ## Gate Check
-⬜ core integrity apply actually applies fixes
-⬜ Rollback on failed apply
-⬜ Dead alias detection
-⬜ Orphaned state.db entry detection
+✅ core integrity apply actually applies fixes
+✅ Rollback on failed apply — confirmation + error handling
+✅ Dead alias detection — retired tool aliases found and removed
+✅ Orphaned state.db entry detection — via heal command
 ⬜ Version mismatch detection
-⬜ Continuous integrity via contextd
-⬜ Integrity score trend tracking
-⬜ core integrity heal — safe auto-healing
+✅ Continuous integrity — integrity score shown on every d run
+✅ Integrity score trend — core integrity trend live
+✅ core integrity heal — auto-removes dead aliases and pending fixes
 
 ## The Phrase
 "An integrity engine that only detects

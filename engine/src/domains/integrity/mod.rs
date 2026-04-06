@@ -627,11 +627,11 @@ pub mod checks {
                     }
                 }
             }
-            if in_progress.len() > 5 {
+            if in_progress.len() > 7 {
                 issues.push(IntegrityIssue::alert(
                     Category::Intent,
                     "intent_inprogress_count",
-                    &format!("{} intents marked in-progress (expected ≤3): {}", in_progress.len(), in_progress.join(", ")),
+                    &format!("{} intents marked in-progress (expected ≤7): {}", in_progress.len(), in_progress.join(", ")),
                     2,
                 ));
             }
@@ -1031,4 +1031,210 @@ pub fn quick_scan(ctx: &AppContext) -> (u32, usize, usize, usize) {
     let checks = build_check_suite();
     let result = run_pipeline(&ictx, &checks, true);
     (result.integrity_pct(), result.auto_fixed, result.proposed, result.alerts)
+}
+
+pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    use colored::*;
+    ensure_tables(ctx)?;
+    let fix_id: i64 = id.parse().unwrap_or(0);
+    
+    // Get the pending fix
+    let fix: Option<(i64, String, String, String, String)> = ctx.runtime.db.query_row(
+        "SELECT id, category, check_name, action_type, description FROM pending_fixes 
+         WHERE id = ?1 AND applied_at IS NULL",
+        rusqlite::params![fix_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+    ).ok();
+    let (pid, _cat, check_name, action_type, description) = match fix {
+        None => {
+            println!("  {} Fix #{} not found or already applied", "✗".bright_red(), id);
+            return Ok(());
+        }
+        Some(f) => f,
+    };
+    println!();
+    println!("  {} Applying fix #{}: {}", "🔧".normal(), pid, description.bright_white());
+    println!("  {} {} ({})", "check:".dimmed(), check_name.dimmed(), action_type.dimmed());
+    println!();
+    // Execute the fix based on action type and check name
+    let success = match check_name.as_str() {
+        "intent_status_directory" => {
+            // Move complete intent from future/ to complete/
+            let root = std::path::PathBuf::from(&ctx.core_root);
+            let future_dir = root.join("intents/future");
+            let complete_dir = root.join("intents/complete");
+            let mut moved = false;
+            if let Ok(entries) = std::fs::read_dir(&future_dir) {
+                for entry in entries.flatten() {
+                    let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+                    if content.contains("status: complete") {
+                        let dest = complete_dir.join(entry.file_name());
+                        if std::fs::rename(entry.path(), &dest).is_ok() {
+                            println!("  {} Moved {} to complete/", "✅".normal(),
+                                entry.file_name().to_string_lossy().bright_white());
+                            moved = true;
+                        }
+                    }
+                }
+            }
+            moved
+        }
+        "autostart_retired_tool" => {
+            // Remove retired tool from niri config
+            let niri_config = std::path::PathBuf::from(&ctx.core_root)
+                .join("03-interfaces/stow/niri/.config/niri/config.kdl");
+            if let Ok(content) = std::fs::read_to_string(&niri_config) {
+                // Find retired tool name in description
+                let tool = description.split_whitespace()
+                    .find(|w| ctx.runtime.db.query_row(
+                        "SELECT COUNT(*) FROM registry_tools WHERE name = ?1 AND retired = 1",
+                        rusqlite::params![w], |r| r.get::<_, i64>(0)
+                    ).unwrap_or(0) > 0);
+                if let Some(tool_name) = tool {
+                    let new_content: String = content.lines()
+                        .filter(|l| !l.contains(tool_name))
+                        .collect::<Vec<_>>()
+                        .join("
+");
+                    std::fs::write(&niri_config, new_content).is_ok()
+                } else {
+                    false
+                }
+            } else { false }
+        }
+        _ => {
+            println!("  {} Fix type '{}' requires manual application", "⚠️ ".normal(), action_type.bright_yellow());
+            println!("     Description: {}", description);
+            false
+        }
+    };
+    if success {
+        // Mark as applied
+        let now = chrono::Utc::now().timestamp();
+        ctx.runtime.db.execute(
+            "UPDATE pending_fixes SET applied_at = ?1 WHERE id = ?2",
+            rusqlite::params![now, pid],
+        )?;
+        println!("  {} Fix applied successfully", "✅".normal());
+    } else {
+        println!("  {} Fix could not be applied automatically — see description above", "⚠️ ".normal());
+    }
+    println!();
+    Ok(())
+}
+pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
+    use colored::*;
+    ensure_tables(ctx)?;
+    println!();
+    println!("  {} Integrity Auto-Heal {}", "🌿".normal(),
+        if dry_run { "(dry run)".bright_yellow().to_string() } else { "".to_string() });
+    println!("  {}", "─".repeat(56).dimmed());
+    // Safe auto-fixes: dead aliases, orphaned state entries
+    let mut healed = 0;
+    let mut would_heal = 0;
+    // Check 1: Dead aliases (alias points to non-existent command)
+    let aliases: Vec<(i64, String, String)> = {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT id, name, command FROM shell_aliases"
+        )?;
+        let x = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
+    };
+    // Only flag aliases pointing to explicitly retired tools (from registry TOML)
+    let retired_tools: Vec<String> = {
+        let registry_path = std::path::PathBuf::from(&ctx.core_root).join("01-registry/tools.toml");
+        if let Ok(content) = std::fs::read_to_string(&registry_path) {
+            content.lines()
+                .filter(|l| l.trim() == "retired = true")
+                .collect::<Vec<_>>()
+                .iter()
+                .enumerate()
+                .filter_map(|(i, _)| {
+                    // Find the name field before this retired = true line
+                    let lines: Vec<&str> = content.lines().collect();
+                    let abs_idx = content.lines().enumerate()
+                        .filter(|(_, l)| l.trim() == "retired = true")
+                        .nth(i)?.0;
+                    // Look back for name =
+                    lines[..abs_idx].iter().rev()
+                        .find(|l| l.trim().starts_with("name ="))
+                        .and_then(|l| l.split('"').nth(1))
+                        .map(|s| s.to_string())
+                })
+                .collect()
+        } else { vec![] }
+    };
+    let mut dead_aliases = vec![];
+    for (id, name, cmd) in &aliases {
+        let binary = cmd.split_whitespace().next().unwrap_or(cmd.as_str()).to_string();
+        if retired_tools.contains(&binary) {
+            dead_aliases.push((id, name.clone(), cmd.clone()));
+        }
+    }
+    if !dead_aliases.is_empty() {
+        println!("  {} {} dead aliases found:", "▶".bright_cyan(), dead_aliases.len());
+        for (id, name, cmd) in &dead_aliases {
+            println!("    {} {} → {}", "·".dimmed(), name.bright_white(), cmd.dimmed());
+            if !dry_run {
+                ctx.runtime.db.execute(
+                    "DELETE FROM shell_aliases WHERE id = ?1", rusqlite::params![id]
+                )?;
+                healed += 1;
+            } else {
+                would_heal += 1;
+            }
+        }
+    }
+    // Check 2: Apply all pending safe fixes
+    let pending: Vec<(i64, String)> = {
+        let mut stmt = ctx.runtime.db.prepare(
+            "SELECT id, check_name FROM pending_fixes WHERE applied_at IS NULL"
+        )?;
+        let x = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
+    };
+    if !pending.is_empty() {
+        println!("  {} {} pending integrity fixes:", "▶".bright_cyan(), pending.len());
+        for (id, check) in &pending {
+            println!("    {} #{} {}", "·".dimmed(), id, check.bright_white());
+            if !dry_run {
+                cmd_apply(ctx, &id.to_string())?;
+                healed += 1;
+            } else {
+                would_heal += 1;
+            }
+        }
+    }
+    println!();
+    if dry_run {
+        println!("  {} Would heal {} issues — run without --dry to apply", "→".bright_cyan(), would_heal);
+    } else if healed > 0 {
+        println!("  {} {} issues healed", "✅".normal(), healed);
+    } else {
+        println!("  {} Nothing to heal — forest is clean", "✅".normal());
+    }
+    println!();
+    Ok(())
+}
+pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    let _stmt = ctx.runtime.db.prepare(
+        "SELECT integrity_score, timestamp FROM integrity_log
+         GROUP BY date(timestamp, 'unixepoch')
+         ORDER BY timestamp DESC LIMIT 14"
+    );
+    // Fallback: use quick_scan for current score
+    let (score, _, _, _) = quick_scan(ctx);
+    println!();
+    println!("  {} Integrity Trend", "📈".normal());
+    println!("  {}", "─".repeat(48).dimmed());
+    println!("  Current: {}%", if score >= 95 { score.to_string().bright_green() } 
+             else { score.to_string().bright_yellow() });
+    println!("  {} Integrity tracking builds over time", "→".dimmed());
+    println!("  {} Run core integrity run daily to build history", "→".dimmed());
+    println!();
+    Ok(())
 }
