@@ -226,6 +226,29 @@ fn get_drift_score() -> (String, String) {
     label
 }
 
+
+/// Log update run to state.db
+fn log_update_run(total: usize, duration_ms: u128, outcome: &str) {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/0-core/runtime/state.db", home);
+    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS update_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                total_updates INTEGER NOT NULL,
+                duration_ms INTEGER NOT NULL,
+                outcome TEXT NOT NULL
+            );"
+        );
+        let now = chrono::Utc::now().timestamp();
+        let _ = conn.execute(
+            "INSERT INTO update_history (timestamp, total_updates, duration_ms, outcome)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![now, total as i64, duration_ms as i64, outcome],
+        );
+    }
+}
 /// Run system maintenance tasks
 fn run_maintenance() -> Result<()> {
     println!("{}", "🧹 Faelight Maintenance Mode".green().bold());
@@ -544,7 +567,8 @@ fn run() -> Result<()> {
                 health
             );
         }
-
+        // Log to state.db
+        log_update_run(selections.len(), 0, "success");
         return Ok(());
     } else if cli.dry_run {
         println!("\n{}  Ready to update {} packages!", "✨".yellow(), total);
