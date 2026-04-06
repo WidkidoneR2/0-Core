@@ -3,7 +3,7 @@ id: 204
 date: 2026-04-06
 type: planned
 title: "faelight-update v4.0.0 — The Intelligent Update Manager"
-status: planned
+status: in-progress
 tags: [faelight-update, updates, intelligence, risk, drift, preflight, v4]
 ---
 faelight-update v3 checks for updates.
