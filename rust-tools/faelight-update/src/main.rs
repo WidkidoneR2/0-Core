@@ -64,6 +64,51 @@ struct Cli {
     skip: Option<Vec<String>>,
 }
 
+
+/// Print system identity header
+fn print_system_identity() {
+    use std::process::Command;
+    let hostname = std::fs::read_to_string("/etc/hostname")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let kernel = Command::new("uname")
+        .arg("-r")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let uptime = Command::new("uptime")
+        .arg("-p")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim()
+            .trim_start_matches("up ").to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let wm = std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("WAYLAND_DISPLAY").map(|_| "Wayland".to_string()))
+        .unwrap_or_else(|_| "unknown".to_string());
+    let shell = std::env::var("SHELL")
+        .map(|s| s.split('/').last().unwrap_or("unknown").to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    // Get health from cache
+    let health = std::fs::read_to_string(
+        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight/health-status")
+    ).unwrap_or_else(|_| "?".to_string())
+    .trim().to_string();
+    println!("{}", "🧬 System Profile".cyan().bold());
+    println!("{}", "─".repeat(40).dimmed());
+    println!("  {:<12} {}", "Host:".dimmed(), hostname.bright_white());
+    println!("  {:<12} {}", "Kernel:".dimmed(), kernel.bright_white());
+    println!("  {:<12} {}", "Shell:".dimmed(), shell.bright_white());
+    println!("  {:<12} {}", "WM:".dimmed(), wm.bright_white());
+    println!("  {:<12} {}", "Uptime:".dimmed(), uptime.bright_white());
+    println!("  {:<12} {}%", "Health:".dimmed(),
+        if health == "100" { health.bright_green() }
+        else if health.parse::<u32>().unwrap_or(0) >= 80 { health.bright_yellow() }
+        else { health.bright_red() }
+    );
+    println!("{}", "─".repeat(40).dimmed());
+    println!();
+}
 fn main() {
     if let Err(e) = run() {
         eprintln!("{} {}", "❌".red(), format!("Error: {:#}", e).red());
@@ -84,6 +129,10 @@ fn run() -> Result<()> {
         println!();
     }
 
+    // System Identity header
+    if !cli.json && !cli.count_only {
+        print_system_identity();
+    }
     // Health check
     if !cli.skip_health && !cli.json && !cli.count_only {
         println!("{}  Running health check...", "🏥".green());
