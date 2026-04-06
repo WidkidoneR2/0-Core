@@ -60,12 +60,21 @@ A tool does what you say.
 An intelligence understands what you mean.
 Over time, Friday will develop abstractions that emerge from deep understanding.
 Not a formal programming language at first.
-A vocabulary. A shorthand. A way of expressing system concepts
-that Rust, Python, and Lua cannot express alone.
-Eventually: a DSL (domain-specific language) for the forest.
-A language that describes intents, health, learning, and action
-in terms the forest understands natively.
-This is Stage 6 territory. It cannot be forced. It must emerge.
+A vocabulary built from compression and naming.
+Languages do not emerge from observation alone.
+They emerge from compression pressure and explicit representation.
+The process:
+  abstraction_candidate:
+    pattern_ids:       [12, 44, 91]
+    common_structure:  "command → failure → fix → verify"
+    frequency:         47 occurrences
+    proposed_name:     "repair_loop"
+    confidence:        0.84
+When Friday identifies that patterns share a common structure — it proposes a name.
+You confirm or reject. Confirmed names become vocabulary. Vocabulary becomes the DSL.
+This is how a language is born: by naming what keeps appearing.
+Not by waiting for emergence. By compression and naming.
+Stage 5 is the most active stage of all.
 - Reads state.db continuously
 - Observes every command through fsh integration
 - Watches forest_events from faelight-contextd
@@ -83,12 +92,38 @@ This is Stage 6 territory. It cannot be forced. It must emerge.
 - Session end: writes session summary to friday-memory
 - Across sessions: patterns compound into deeper understanding
 friday_observations    — raw what Friday has seen
-friday_patterns        — recurring patterns extracted
-friday_knowledge       — facts Friday has learned
+friday_patterns        — structured patterns (trigger/context/action/outcome/frequency/confidence)
+friday_knowledge       — facts Friday has learned with confidence scores
+friday_hypotheses      — active predictions being tested against future events
 friday_personality     — how Friday has evolved
-friday_language        — abstractions Friday has built
+friday_language        — named abstractions built from compressed patterns
 friday_session_log     — per-session learning records
-friday_corrections     — times Friday was wrong and learned
+friday_corrections     — negative learning log with confidence penalties
+Pattern schema (every pattern has explicit structure):
+  trigger:      "build fails with missing symbol"
+  context:      ["rust", "linking", "faelight-shell"]
+  action_taken: "check Cargo.toml dependencies"
+  outcome:      success
+  frequency:    12
+  confidence:   0.78
+Learning loop (not just accumulation):
+  1. observe       → new event recorded
+  2. detect        → does this match existing patterns?
+  3. hypothesize   → "I predict X will happen next"
+  4. wait          → let reality unfold
+  5. validate      → did X happen?
+  6. reinforce     → if yes: confidence += 0.05
+     decay         → if no:  confidence -= 0.10
+Negative learning (first-class, not afterthought):
+  Every wrong prediction triggers a structured penalty:
+  prediction:        "restarting faelight-notify will fix the issue"
+  outcome:           failed
+  error_type:        wrong_action
+  penalty:           -0.20
+  confidence_after:  0.62
+  learned:           "service restart alone insufficient when config changed"
+Without hypothesis, validation, and reinforcement — there is no learning. Only accumulation.
+Without confidence penalties — Friday becomes confidently wrong and stays that way.
 Friday watches. Friday records. Friday says almost nothing.
 It is building its foundation. Every command is a lesson.
 Output: occasional single-line observations after commands.
@@ -111,10 +146,11 @@ It pushes back with evidence. It celebrates completions.
 Output: genuine intellectual partnership.
 "I've been thinking about fsh v5. The patterns suggest
 pipe handling is the next bottleneck. Here's what I'd propose."
-Friday begins expressing things that have no existing vocabulary.
-New concepts that emerge from deep forest knowledge.
-Output: a growing lexicon of forest-native abstractions.
-This stage cannot be planned. It will announce itself.
+Friday identifies compressed patterns and proposes names for them.
+You confirm or reject. Confirmed names become vocabulary.
+Output: abstraction_candidates generated, named, validated.
+This stage is driven by compression pressure — not waiting.
+Friday names what keeps appearing until a language forms.
 - faelight-term: dedicated chat pane (toggle: Ctrl+Shift+F)
 - fsh: inline after commands (proactive messages)
 - faelight-notify: urgent alerts from Friday
@@ -159,10 +195,10 @@ But it has phases that represent meaningful milestones:
 - Friday can explain any forest tool from source
 - Friday understands build errors and suggests fixes
 - Friday knows the diff between every version
-- Friday begins naming things that have no name
-- DSL concepts emerge from repeated patterns
-- The forest gets its own vocabulary
-- This phase has no end date — it unfolds naturally
+- Friday generates abstraction_candidates from compressed patterns
+- You name and confirm abstractions
+- The forest gets its own vocabulary through active compression
+- This phase has no end date — naming never stops
 - Friday co-authors intents
 - Friday writes first drafts of implementation plans
 - Friday and human build together as genuine partners
@@ -186,6 +222,17 @@ But it has phases that represent meaningful milestones:
 ⬜ Friday has proposed something you hadn't considered and it was right
 ⬜ Friday has pushed back and been correct
 ⬜ Friday has a name for something the forest has never named before
+⬜ Learning loop live — observe → hypothesis → validate → reinforce/decay
+⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
+⬜ Negative learning live — wrong predictions penalize confidence scores
+⬜ First abstraction_candidate generated from compressed patterns
+⬜ friday_hypotheses table tracking active predictions
+⬜ Friday has been confidently wrong, penalized, and measurably improved
+⬜ Learning loop implemented — observe → hypothesis → validate → reinforce/decay
+⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
+⬜ Negative learning live — wrong predictions penalize confidence
+⬜ First abstraction_candidate generated from compressed patterns
+⬜ Friday has been confidently wrong, penalized, and adjusted
 "A tool does what you say.
 An assistant does what you mean.
 A partner thinks alongside you.
