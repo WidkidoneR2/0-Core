@@ -3,7 +3,7 @@ id: 200
 date: 2026-04-05
 type: planned
 title: "Doctor v2 — No Stale Data, No False Positives"
-status: in-progress
+status: complete
 tags: [doctor, health, stale, v2, accuracy, checks]
 ---
 ## The Problem
