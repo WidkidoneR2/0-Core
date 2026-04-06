@@ -67,6 +67,54 @@ struct Cli {
 
 
 
+
+/// Generate post-run suggestions
+fn print_suggestions(categories: &[UpdateCategory], total: usize) {
+    let mut suggestions: Vec<String> = Vec::new();
+    // Check for kernel update — reboot needed
+    for cat in categories {
+        for item in &cat.items {
+            if item.name.starts_with("linux") && !item.name.contains("headers") {
+                suggestions.push("Reboot recommended — kernel was updated".to_string());
+            }
+        }
+    }
+    // Check for orphan packages
+    if let Ok(output) = std::process::Command::new("pacman")
+        .args(["-Qtdq"])
+        .output()
+    {
+        let count = String::from_utf8_lossy(&output.stdout)
+            .lines().filter(|l| !l.is_empty()).count();
+        if count > 0 {
+            suggestions.push(format!("{} orphan packages found — run: sudo pacman -Rns $(pacman -Qtdq)", count));
+        }
+    }
+    // Check for pacnew files
+    if let Ok(output) = std::process::Command::new("find")
+        .args(["/etc", "-name", "*.pacnew", "-type", "f"])
+        .output()
+    {
+        let count = String::from_utf8_lossy(&output.stdout)
+            .lines().filter(|l| !l.is_empty()).count();
+        if count > 0 {
+            suggestions.push(format!("Run pacdiff to resolve {} config file(s)", count));
+        }
+    }
+    // If nothing was updated
+    if total == 0 {
+        suggestions.push("System is fully up to date — nothing to do".to_string());
+    }
+    if !suggestions.is_empty() {
+        println!();
+        println!("  {} Suggestions", "💡".normal());
+        println!("  {}", "─".repeat(46).dimmed());
+        for s in &suggestions {
+            println!("  {} {}", "•".bright_cyan(), s.bright_white());
+        }
+        println!();
+    }
+}
 /// Run pre-flight checks before updating
 fn run_preflight_checks() {
     let mut warnings: Vec<String> = Vec::new();
@@ -299,6 +347,8 @@ fn run() -> Result<()> {
     // Show summary
     show_update_summary(&updates, cli.verbose);
 
+    // Print suggestions
+    print_suggestions(&updates, total);
     if total == 0 {
         println!("\n{}  All packages up to date!", "✨".green());
         return Ok(());
