@@ -766,3 +766,82 @@ pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(52).dimmed());
     Ok(())
 }
+
+pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let core_root = ctx.core_root.clone();
+    // Only run critical checks — fast subset
+    let checks: Vec<CheckResult> = vec![
+        checks::check_stow(&core_root, &home),
+        checks::check_services(),
+        checks::check_broken_symlinks(&core_root, &home),
+        checks::check_git(&core_root),
+        checks::check_scripts(&core_root),
+        checks::check_disk_space(),
+    ];
+    let passed = checks.iter().filter(|c| c.status == Status::Pass).count();
+    let warned = checks.iter().filter(|c| c.status == Status::Warn).count();
+    let failed = checks.iter().filter(|c| c.status == Status::Fail).count();
+    println!();
+    for check in &checks {
+        let icon = match check.status {
+            Status::Pass => "✅".to_string(),
+            Status::Warn => "⚠️ ".to_string(),
+            Status::Fail | Status::Blocked => "❌".to_string(),
+        };
+        println!("  {}  {:<28} {}", icon, check.name.bright_white(), check.message.dimmed());
+    }
+    println!();
+    let health = if failed > 0 { "CRITICAL" } else if warned > 0 { "ADVISORY" } else { "HEALTHY" };
+    let health_color = if failed > 0 { health.bright_red().to_string() }
+        else if warned > 0 { health.bright_yellow().to_string() }
+        else { health.bright_green().to_string() };
+    println!("  {} {}/{} checks  {}",
+        "⚡ Quick check:".bright_cyan(), passed, checks.len(), health_color);
+    println!();
+    Ok(())
+}
+pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    // Read health history from state.db
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 20"
+    )?;
+    let rows: Vec<(i64, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok()).collect();
+    println!();
+    println!("  {} Doctor History", "📊".normal());
+    println!("  {}", "─".repeat(48).dimmed());
+    if rows.is_empty() {
+        // Fallback: show from horizon_snapshots
+        let mut stmt2 = ctx.runtime.db.prepare(
+            "SELECT health_score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 10"
+        )?;
+        let rows2: Vec<(i64, i64)> = stmt2.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .filter_map(|r| r.ok()).collect();
+        if rows2.is_empty() {
+            println!("  {} No health history yet — run d regularly to build history", "○".dimmed());
+        } else {
+            for (score, ts) in &rows2 {
+                let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                    .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_default();
+                let bar = "█".repeat((*score / 10) as usize);
+                let color = if *score >= 95 { bar.bright_green() } else if *score >= 80 { bar.bright_yellow() } else { bar.bright_red() };
+                println!("  {} {}%  {}", dt.dimmed(), score.to_string().bright_white(), color);
+            }
+        }
+    } else {
+        for (score, ts) in &rows {
+            let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_default();
+            let bar = "█".repeat((*score / 10) as usize);
+            let color = if *score >= 95 { bar.bright_green() } else if *score >= 80 { bar.bright_yellow() } else { bar.bright_red() };
+            println!("  {} {}%  {}", dt.dimmed(), score.to_string().bright_white(), color);
+        }
+    }
+    println!();
+    Ok(())
+}

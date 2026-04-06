@@ -53,6 +53,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DoctorCommand::Trend => crate::domains::doctor::trend(ctx),
                 DoctorCommand::Forecast => crate::domains::doctor::forecast(ctx),
                 DoctorCommand::Rebuild => crate::domains::doctor::rebuild(ctx),
+                DoctorCommand::Quick   => crate::domains::doctor::run_quick(ctx),
+                DoctorCommand::History => crate::domains::doctor::run_history(ctx),
             }
         }
 
@@ -507,7 +509,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             IntegrityCommand::Status       => crate::domains::integrity::cmd_status(ctx),
             IntegrityCommand::Log          => crate::domains::integrity::cmd_log(ctx),
             IntegrityCommand::Fix          => crate::domains::integrity::cmd_fix(ctx),
-            IntegrityCommand::Apply { id: _ } => crate::domains::integrity::cmd_fix(ctx), // TODO: apply by id
+            IntegrityCommand::Apply { id } => crate::domains::integrity::cmd_apply(ctx, &id),
+            IntegrityCommand::Heal { dry_run } => crate::domains::integrity::cmd_heal(ctx, dry_run),
+            IntegrityCommand::Trend => crate::domains::integrity::cmd_trend(ctx),
         },
         Command::Autonomy(cmd) => match cmd {
             AutonomyCommand::MandateList => crate::domains::autonomy::mandate_list(ctx),

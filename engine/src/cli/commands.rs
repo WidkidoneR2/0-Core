@@ -119,6 +119,8 @@ pub enum DoctorCommand {
     Trend,
     Forecast,
     Rebuild,
+    Quick,
+    History,
 }
 
 #[derive(Debug)]
@@ -527,7 +529,7 @@ pub enum GenealogyCommand {
 }
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub enum IntegrityCommand { Run, Status, Log, Fix, Apply { id: i64 } }
+pub enum IntegrityCommand { Run, Status, Log, Fix, Apply { id: String }, Heal { dry_run: bool }, Trend }
 #[derive(Debug, Clone)]
 pub enum AutonomyCommand {
     MandateList,

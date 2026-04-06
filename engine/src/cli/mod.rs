@@ -46,6 +46,8 @@ pub fn parse() -> Command {
             DoctorCommands::Trend => DoctorCommand::Trend,
             DoctorCommands::Forecast => DoctorCommand::Forecast,
             DoctorCommands::Rebuild => DoctorCommand::Rebuild,
+            DoctorCommands::Quick => DoctorCommand::Quick,
+            DoctorCommands::History => DoctorCommand::History,
         }),
         Commands::Link { command } => Command::Link(match command {
             LinkCommands::Status { json } => LinkCommand::Status { json },
@@ -336,6 +338,8 @@ pub fn parse() -> Command {
             IntegrityCommands::Log          => IntegrityCommand::Log,
             IntegrityCommands::Fix          => IntegrityCommand::Fix,
             IntegrityCommands::Apply { id } => IntegrityCommand::Apply { id },
+            IntegrityCommands::Heal { dry_run } => IntegrityCommand::Heal { dry_run },
+            IntegrityCommands::Trend => IntegrityCommand::Trend,
         }),
         Commands::Autonomy { command } => Command::Autonomy(match command {
             AutonomyCommands::MandateList => AutonomyCommand::MandateList,

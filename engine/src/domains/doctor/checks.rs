@@ -626,15 +626,27 @@ pub fn check_security_audit(home: &str) -> CheckResult {
         Status::Pass
     };
 
+    // Calculate days since scan
+    let days_since = chrono::DateTime::parse_from_rfc3339(timestamp)
+        .or_else(|_| chrono::DateTime::parse_from_str(timestamp, "%Y-%m-%d %H:%M:%S"))
+        .map(|dt| {
+            let now = chrono::Utc::now();
+            let scan_time = dt.with_timezone(&chrono::Utc);
+            (now - scan_time).num_days()
+        }).unwrap_or(0);
+    let age_note = if days_since == 0 { "today".to_string() }
+        else if days_since == 1 { "1 day ago".to_string() }
+        else { format!("{} days ago", days_since) };
+    let stale_note = if days_since > 7 { " — consider rescan" } else { "" };
     let message = if patchable_count == 0 {
         format!(
-            "{} findings — all upstream pending, none patchable (scan: {})",
-            findings, timestamp
+            "{} findings — all upstream pending, none patchable (scanned {}{})",
+            findings, age_note, stale_note
         )
     } else {
         format!(
-            "{} findings ({} patchable): {} critical, {} high, {} medium (scan: {})",
-            findings, patchable_count, critical, high, medium, timestamp
+            "{} findings ({} patchable): {} critical, {} high, {} medium (scanned {}{})",
+            findings, patchable_count, critical, high, medium, age_note, stale_note
         )
     };
 
