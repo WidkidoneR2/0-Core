@@ -72,7 +72,7 @@ core doctor history  — health score over time
 ⬜ No stale data — all checks verify live state
 ✅ Security audit shows days-since-scan — "scanned today", "3 days ago", etc.
 ✅ Registry-aware checks — retired tools respected dynamically
-⬜ Forecast includes context from active intents
+✅ Forecast includes context from active intents
 ⬜ Check freshness indicators on all checks
 ✅ Doctor profiles — core doctor quick live (6 critical checks, fast)
 ✅ False positive elimination — score vs broken distinction
