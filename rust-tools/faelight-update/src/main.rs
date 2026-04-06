@@ -319,8 +319,9 @@ fn run() -> Result<()> {
     if !cli.json && !cli.count_only {
         println!("{}  Checking for updates...", "🔍".cyan());
     }
-
+    let check_start = std::time::Instant::now();
     let mut updates = check_all_updates()?;
+    let total_check_ms = check_start.elapsed().as_millis();
 
     // Filter categories based on --only and --skip
     if let Some(ref only) = cli.only {
@@ -354,6 +355,12 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
+    // Performance breakdown
+    if !cli.json && !cli.count_only {
+        println!("  {} Check completed in {:.1}s", "⏱️ ".normal(),
+            total_check_ms as f64 / 1000.0);
+        println!();
+    }
     // Show impact analysis
     let impact = analyze_impact(&updates);
     if impact.has_impact() {
