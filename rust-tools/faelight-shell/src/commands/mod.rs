@@ -1016,13 +1016,13 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     };
     let like = format!("%{}%", pattern);
     let mut stmt = match db.conn.prepare(
-        "SELECT command, timestamp FROM shell_history WHERE command LIKE ?1 ORDER BY timestamp DESC LIMIT 50"
+        "SELECT command, MAX(timestamp) as ts, COUNT(*) as freq FROM shell_history WHERE command LIKE ?1 AND command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' GROUP BY command ORDER BY freq DESC, ts DESC LIMIT 30"
     ) {
         Ok(s) => s,
         Err(e) => return CommandResult::Error(e.to_string()),
     };
-    let results: Vec<(String, i64)> = stmt
-        .query_map(rusqlite::params![&like], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+    let results: Vec<(String, i64, i64)> = stmt
+        .query_map(rusqlite::params![&like], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?)))
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
     if results.is_empty() {
@@ -1039,7 +1039,7 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     ));
     out.push_str(&format!("  {}
 ", "─".repeat(52).dimmed()));
-    for (i, (cmd, ts)) in results.iter().enumerate() {
+    for (i, (cmd, ts, freq)) in results.iter().enumerate() {
         let time = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|t| t.format("%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "?".to_string());
@@ -1048,10 +1048,12 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             &pattern,
             &format!("[1;33m{}[0m", pattern)
         );
-        out.push_str(&format!("  {} {}  {}
+        let freq_label = if *freq > 1 { format!(" ({}x)", freq) } else { String::new() };
+        out.push_str(&format!("  {} {}{}  {}
 ",
             format!("{:3}", i + 1).dimmed(),
             time.dimmed(),
+            freq_label.bright_cyan().to_string(),
             highlighted
         ));
     }
