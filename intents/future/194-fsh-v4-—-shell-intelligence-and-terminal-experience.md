@@ -5,6 +5,7 @@ type: planned
 title: "fsh v4 — Shell Intelligence and Terminal Experience"
 status: in-progress
 tags: [fsh, shell, terminal, faelight-term, intelligence, ux, v4]
+# Progress: grep and archive sh calls removed. PATH check needs is_executable() not is_file(). || native execution needs output handling before activation.
 ---
 fsh v3 became a daily driver. fsh v4 becomes intelligent.
 The shell should anticipate. It should remember context across sessions.
