@@ -45,8 +45,10 @@ struct Cli {
     yes: bool,
 
     /// Show detailed version information for each update
-    #[arg(short, long)]
     verbose: bool,
+    /// Preview what would change without updating
+    #[arg(long)]
+    preview: bool,
 
     /// Output results in JSON format
     #[arg(long)]
@@ -370,6 +372,48 @@ fn run() -> Result<()> {
         println!();
     }
 
+    // Preview mode — show exactly what would change
+    if cli.preview {
+        if !cli.json && !cli.count_only {
+            print_system_identity();
+        }
+        println!("{}  Checking for updates...", "🔍".cyan());
+        let check_start = std::time::Instant::now();
+        let updates = check_all_updates()?;
+        let total_check_ms = check_start.elapsed().as_millis();
+        let total: usize = updates.iter().map(|c| c.count).sum();
+        println!();
+        println!("{}", "📦 Preview — What Would Change".cyan().bold());
+        println!("{}", "─".repeat(48).dimmed());
+        if total == 0 {
+            println!("  {} Nothing to update — system is current", "✅".green());
+        } else {
+            for cat in &updates {
+                if cat.count > 0 {
+                    println!("  {} {} ({} available)",
+                        cat.emoji.yellow(),
+                        cat.name.bold(),
+                        cat.count.to_string().bright_yellow());
+                    for item in &cat.items {
+                        println!("    {} {} {} → {}",
+                            "+".bright_green(),
+                            item.name.bright_white(),
+                            item.current.dimmed(),
+                            item.new.bright_green());
+                    }
+                    println!();
+                }
+            }
+        }
+        println!("{}", "─".repeat(48).dimmed());
+        println!("  {} {} updates available  ({:.1}s)",
+            "→".dimmed(),
+            total.to_string().bright_yellow(),
+            total_check_ms as f64 / 1000.0);
+        println!("  {} Run without --preview to apply", "💡".bright_cyan());
+        println!();
+        return Ok(());
+    }
     // Maintenance mode
     if cli.maintain {
         return run_maintenance();
