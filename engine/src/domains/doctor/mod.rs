@@ -358,9 +358,32 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     "stable".to_string()
                 };
 
+                // Add active intent context to forecast
+                let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+                let future_dir = std::path::PathBuf::from(&core_root).join("intents/future");
+                let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
+                    .map(|entries| {
+                        entries.flatten()
+                            .filter_map(|e| {
+                                let p = e.path();
+                                if p.extension().map(|x| x != "md").unwrap_or(true) { return None; }
+                                let content = std::fs::read_to_string(&p).ok()?;
+                                if !content.contains("status: in-progress") { return None; }
+                                let fname = p.file_stem()?.to_string_lossy().to_string();
+                                let id = fname.split('-').next()?;
+                                Some(format!("INT-{}", id))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let context_str = if !active_intents.is_empty() {
+                    format!(" ({} in progress)", active_intents.join(", "))
+                } else {
+                    String::new()
+                };
                 println!(
-                    "{}  Forecast  24h: {}%  7d: {}%  trend: {}",
-                    trend_icon, forecast_24h, forecast_7d, trend_str,
+                    "{}  Forecast  24h: {}%  7d: {}%  trend: {}{}",
+                    trend_icon, forecast_24h, forecast_7d, trend_str, context_str,
                 );
             }
         }
