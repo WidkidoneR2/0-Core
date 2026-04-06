@@ -673,13 +673,72 @@ fn check_paru_updates() -> Result<UpdateCategory> {
 }
 
 /// Show update summary
+/// Classify update risk level by package name
+fn classify_risk(name: &str) -> &'static str {
+    const CRITICAL: &[&str] = &[
+        "linux", "linux-lts", "linux-zen", "linux-hardened",
+        "systemd", "systemd-libs", "glibc", "gcc", "gcc-libs",
+        "binutils", "mesa", "vulkan-radeon", "vulkan-intel",
+        "openssl", "nss", "pacman", "filesystem",
+        "linux-firmware", "grub", "efibootmgr", "wayland",
+    ];
+    const IMPORTANT: &[&str] = &[
+        "git", "neovim", "rust", "rustup", "cargo",
+        "python", "nodejs", "npm", "openssh", "curl",
+        "wget", "bash", "niri", "sway", "ripgrep",
+        "fd", "bat", "eza", "fzf", "zoxide", "paru",
+    ];
+    let n = name.to_lowercase();
+    if CRITICAL.iter().any(|c| n == *c || n.starts_with(&format!("{}-", c))) {
+        "critical"
+    } else if IMPORTANT.iter().any(|i| n.contains(i)) {
+        "important"
+    } else {
+        "optional"
+    }
+}
 fn show_update_summary(categories: &[UpdateCategory], verbose: bool) {
     println!();
     println!("{}", "📊 Update Summary".cyan().bold());
     println!("{}", "─".repeat(50).cyan());
 
     let total: usize = categories.iter().map(|c| c.count).sum();
-
+    // Risk summary block (INT-204)
+    if total > 0 {
+        let mut critical = 0usize;
+        let mut important = 0usize;
+        let mut optional = 0usize;
+        let mut critical_names: Vec<String> = Vec::new();
+        let mut important_names: Vec<String> = Vec::new();
+        for category in categories {
+            for item in &category.items {
+                match classify_risk(&item.name) {
+                    "critical" => { critical += 1; if critical_names.len() < 3 { critical_names.push(item.name.clone()); } }
+                    "important" => { important += 1; if important_names.len() < 3 { important_names.push(item.name.clone()); } }
+                    _          => { optional += 1; }
+                }
+            }
+        }
+        if critical > 0 {
+            println!("  🔴 {:<10} {} ({})",
+                "Critical:".bright_red().bold(),
+                critical.to_string().bright_red(),
+                critical_names.join(", ").dimmed());
+        }
+        if important > 0 {
+            println!("  🟡 {:<10} {} ({})",
+                "Important:".bright_yellow().bold(),
+                important.to_string().bright_yellow(),
+                important_names.join(", ").dimmed());
+        }
+        if optional > 0 {
+            println!("  🔵 {:<10} {}",
+                "Optional:".bright_blue().bold(),
+                optional.to_string().bright_blue());
+        }
+        println!("{}", "─".repeat(50).dimmed());
+        println!();
+    }
     for category in categories {
         if category.count > 0 {
             println!(
