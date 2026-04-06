@@ -3,7 +3,7 @@ id: 194
 date: 2026-04-04
 type: planned
 title: "fsh v4 — Shell Intelligence and Terminal Experience"
-status: planned
+status: in-progress
 tags: [fsh, shell, terminal, faelight-term, intelligence, ux, v4]
 ---
 fsh v3 became a daily driver. fsh v4 becomes intelligent.
