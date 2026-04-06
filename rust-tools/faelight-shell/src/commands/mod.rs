@@ -4136,9 +4136,11 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     let known_flags = ["-i"];
     let has_unknown_flags = args.iter().any(|a| a.starts_with('-') && !known_flags.contains(a));
     if has_unknown_flags {
-        let output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(line)
+        // Call grep directly — no sh wrapper needed (INT-194)
+        let parts: Vec<&str> = line.trim().splitn(2, "grep").collect();
+        let grep_args = if parts.len() > 1 { parts[1].trim() } else { "" };
+        let output = std::process::Command::new("grep")
+            .args(grep_args.split_whitespace())
             .output();
         return match output {
             Ok(o) => {
@@ -5794,13 +5796,16 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
         }
         // Archives — list contents
         "zip"|"tar"|"gz"|"tgz"|"xz"|"bz2"|"zst" => {
-            let output = std::process::Command::new("sh")
-                .arg("-c")
-                .arg(match ext.as_str() {
-                    "zip" => format!("unzip -l {} 2>/dev/null | head -20", path),
-                    _ => format!("tar -tf {} 2>/dev/null | head -20", path),
-                })
-                .output();
+            // Call unzip/tar directly — no sh wrapper needed (INT-194)
+            let output = if ext == "zip" {
+                std::process::Command::new("unzip")
+                    .args(["-l", &path])
+                    .output()
+            } else {
+                std::process::Command::new("tar")
+                    .args(["-tf", &path])
+                    .output()
+            };
             let listing = output.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_default();
             CommandResult::Output(format!(
