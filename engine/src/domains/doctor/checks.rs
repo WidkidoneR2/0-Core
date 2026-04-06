@@ -178,7 +178,7 @@ pub fn check_yazi_plugins(home: &str) -> CheckResult {
 
 pub fn check_binaries() -> CheckResult {
     let bins = [
-        "sway",
+        "niri",
         "foot",
         "faelight-palette",
         "yazi",
@@ -776,25 +776,54 @@ pub fn check_disk_space() -> CheckResult {
 }
 
 pub fn check_tool_installation() -> CheckResult {
-    let tools = [
-        "faelight-git",
-        "intent",
-        "dot-doctor",
-        "faelight-hooks",
-        "faelight-update",
-        "alias-audit",
-        "core-diff",
-    ];
+    // Registry-aware: read deployable, non-retired, high-usage tools
+    let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+    let registry_path = PathBuf::from(&core_root).join("01-registry/tools.toml");
+    let tools: Vec<String> = fs::read_to_string(&registry_path)
+        .map(|content| {
+            let mut tools = vec![];
+            let mut name = String::new();
+            let mut deployable = false;
+            let mut retired = false;
+            let mut expected_usage = String::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line == "[[tool]]" {
+                    if !name.is_empty() && deployable && !retired
+                        && (expected_usage == "high" || expected_usage == "medium") {
+                        tools.push(name.clone());
+                    }
+                    name.clear();
+                    deployable = false;
+                    retired = false;
+                    expected_usage.clear();
+                } else if let Some(v) = line.strip_prefix("name = \"") {
+                    name = v.trim_end_matches('"').to_string();
+                } else if let Some(v) = line.strip_prefix("expected_usage = \"") {
+                    expected_usage = v.trim_end_matches('"').to_string();
+                } else if line == "deployable = true" {
+                    deployable = true;
+                } else if line == "retired = true" {
+                    retired = true;
+                }
+            }
+            if !name.is_empty() && deployable && !retired
+                && (expected_usage == "high" || expected_usage == "medium") {
+                tools.push(name);
+            }
+            tools
+        })
+        .unwrap_or_default();
     let missing: Vec<_> = tools
         .iter()
         .filter(|t| {
             !Command::new("which")
-                .arg(t)
+                .arg(t.as_str())
                 .output()
                 .map(|o| o.status.success())
                 .unwrap_or(false)
         })
-        .map(|t| t.to_string())
+        .map(|t| t.clone())
         .collect();
     if missing.is_empty() {
         CheckResult {
@@ -810,11 +839,12 @@ pub fn check_tool_installation() -> CheckResult {
             name: "Tool Installation".into(),
             status: Status::Warn,
             message: format!(
-                "{}/{} key tools installed",
+                "{}/{} key tools installed — missing: {}",
                 tools.len() - missing.len(),
-                tools.len()
+                tools.len(),
+                missing.join(", ")
             ),
-            fix: Some("Install missing tools with cargo install".into()),
+            fix: Some("Run: deploy <tool>".into()),
         }
     }
 }
