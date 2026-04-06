@@ -70,10 +70,10 @@ Successful deploys get a green marker.
 Jump between markers: Ctrl+Shift+E (next error), Ctrl+Shift+D (next deploy)
 Detect URLs in output, make them clickable
 Ctrl+Click to open in faelight-browser
-⬜ Native `>` and `>>` redirect without sh fallback
-⬜ Native `||` operator support
-⬜ Native stderr redirect `2>/dev/null`
-⬜ Native heredoc without sh stdin inheritance
+✅ Native `>` and `>>` redirect without sh fallback
+✅ Native `||` operator support
+✅ Native stderr redirect `2>/dev/null`
+✅ Native heredoc without sh stdin inheritance
 ✅ File path tab completion
 ✅ Core subcommand tab completion (core intent <TAB>)
 ✅ Git branch tab completion
