@@ -96,7 +96,10 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
             // Absolute block — these targets are never safe
             let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
             for target in &blocked_targets {
-                if raw.contains(target) {
+                // Match exact path — must be followed by space, end of string, or be standalone
+                let matches = raw.split_whitespace()
+                    .any(|token| token == *target || token == &format!("{}/", target));
+                if matches {
                     return Some(format!(
                         "🛡  Blocked: rm -rf on protected path '{}' — this cannot be undone",
                         target
@@ -164,6 +167,70 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
         }
     }
 
+
+    // ── Safety Rule 4: Smarter DELETE confirmation for rm -rf (INT-194) ──────
+    if cmd == "rm" {
+        let raw_lower = raw.to_lowercase();
+        if raw_lower.contains("-rf") || raw_lower.contains("-fr") {
+            let target = ctx.args.iter()
+                .find(|a| !a.starts_with('-'))
+                .map(|s| s.as_str())
+                .unwrap_or(".");
+            let expanded = if target.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                target.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                target.to_string()
+            };
+            let path = std::path::Path::new(&expanded);
+            if path.exists() {
+                let mut file_count: u64 = 0;
+                let mut total_bytes: u64 = 0;
+                let mut newest_file = String::new();
+                let mut newest_time: u64 = 0;
+                if let Ok(walker) = std::fs::read_dir(path) {
+                    for entry in walker.flatten() {
+                        if let Ok(meta) = entry.metadata() {
+                            file_count += 1;
+                            total_bytes += meta.len();
+                            if let Ok(modified) = meta.modified() {
+                                let secs = modified.duration_since(std::time::UNIX_EPOCH)
+                                    .map(|d| d.as_secs()).unwrap_or(0);
+                                if secs > newest_time {
+                                    newest_time = secs;
+                                    newest_file = entry.file_name().to_string_lossy().to_string();
+                                }
+                            }
+                        }
+                    }
+                }
+                let size_str = if total_bytes > 1_073_741_824 {
+                    format!("{:.1} GB", total_bytes as f64 / 1_073_741_824.0)
+                } else if total_bytes > 1_048_576 {
+                    format!("{:.1} MB", total_bytes as f64 / 1_048_576.0)
+                } else {
+                    format!("{:.1} KB", total_bytes as f64 / 1024.0)
+                };
+                println!();
+                println!("  {} {}", "⚠️ ".normal(), raw.bright_red());
+                println!("  {} {} files, {}", "→".bright_yellow(), file_count, size_str.bright_yellow());
+                if !newest_file.is_empty() {
+                    println!("  {} Most recent: {}", "→".bright_yellow(), newest_file.bright_white());
+                }
+                println!("  {} Type {} to confirm, or Ctrl+C to cancel",
+                    "→".bright_yellow(), "DELETE".bright_red().bold());
+                println!();
+                use std::io::BufRead;
+                let stdin = std::io::stdin();
+                let input = stdin.lock().lines().next()
+                    .and_then(|l| l.ok())
+                    .unwrap_or_default();
+                if input.trim() != "DELETE" {
+                    return Some("🛡  Cancelled — type DELETE exactly to confirm".to_string());
+                }
+            }
+        }
+    }
     None
 }
 
