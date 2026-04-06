@@ -3,7 +3,7 @@ id: 198
 date: 2026-04-05
 type: planned
 title: "Intent Engine v2 — Smarter Intents, Deeper Connections"
-status: in-progress
+status: complete
 tags: [intents, engine, genealogy, auto-link, v2, intelligence]
 ---
 ## Current State
