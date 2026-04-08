@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.6.0
+# 🌲 Faelight Forest 11.7.0
 
-![Version](https://img.shields.io/badge/version-11.6.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.7.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,26 +11,30 @@
 
 ## 🎊 Latest Release
 
-### 11.6.0 - 🌲 The Shell Lives (2026-04-03)
+### 11.7.0 - 🌲 The Intelligence Arc (2026-04-08)
 
-- 133 — Core v9 — Intent: The Forest Chooses Where to Grow
-- 150 — Docs Audit — The Forest Documents Itself Accurately
-- 157 — faelight-docs v2 — The Forest Documents Itself Accurately
-- 159 — faelight-context — Deep Codebase Understanding Engine
-- 160 — faelight-memory — Persistent Project Knowledge Layer
-- 167 — Prediction Accuracy Feedback Loop — Close the Learning Circle
-- 168 — Test Suite Foundation — 73K Lines of Rust Deserves Tests
-- 169 — Niri Autostart Audit — Everything That Starts Must Start Correctly
-- 175 — Script Debug Mode — Trace Every Step
-- 176 — Failure Recovery — The Shell Remembers What Went Wrong
-- 177 — Shell Observability — The Shell Watches Itself
+- 156 — Core v13 — Autonomy: The Forest Chooses Its Own Purpose
+- 158 — The Partner Vision — The Forest Becomes a Genuine Collaborator
+- 161 — Forest Build Order — The Path to Partnership
+- 179 — faelight-shell v3 — The Daily Driver: The Shell Becomes Self-Aware
+- 185 — faelight-contextd — The Nervous System: Background Awareness Daemon
+- 188 — Core v15 — Alignment: The Forest Stays True to What Matters
+- 191 — fsh Add-Ons and Bug Report — The Shell Grows
+- 192 — Deploy Pipeline v0.8.0 — registry_tools.py and Architecture Split
+- 193 — Tool Retirement Sprint — The Forest Prunes Itself
+- 197 — Intelligence Layer v2 — The Forest Learns From Itself
+- 198 — Intent Engine v2 — Smarter Intents, Deeper Connections
+- 199 — Integrity Engine v2 — From Proposals to Auto-Healing
+- 200 — Doctor v2 — No Stale Data, No False Positives
+- 204 — faelight-update v4.0.0 — The Intelligent Update Manager
+- 206 — Engine Coordination Layer — The Forest Thinks as One
 
-- Commits: 1853
+- Commits: 1998
 - Tools: 55 deployed
 - Health: 100%
-- Intents: 131 complete
+- Intents: 146 complete
 
-[Full Changelog →](CHANGELOG.md)
+[Full Changelog →](00-meta/CHANGELOG.md)
 
 ---
 
