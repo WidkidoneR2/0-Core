@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Forest journal — the system writes its own story
+    Journal {
+        #[command(subcommand)]
+        command: JournalCommands,
+    },
     /// Forest documentation — access guides and references
     Docs {
         #[command(subcommand)]
@@ -619,6 +624,23 @@ pub enum UpdateCommands {
     },
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum JournalCommands {
+    /// Show today's journal entries
+    Today,
+    /// Show yesterday's journal entries
+    Yesterday,
+    /// Show this week's journal entries
+    Week,
+    /// Search journal by keyword
+    Search { term: String },
+    /// Show journal for a specific date (YYYY-MM-DD)
+    Show { date: String },
+    /// Write a session-start entry
+    SessionStart,
+    /// Write a daily summary entry
+    DailySummary,
+}
 #[derive(Debug, Clone, Subcommand)]
 pub enum DocsCommands {
     /// Show the core commands guide
