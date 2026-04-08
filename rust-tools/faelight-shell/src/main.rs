@@ -393,6 +393,10 @@ fn repl_main() -> Result<()> {
 
     // Print welcome
     print_welcome(&core_root);
+    // Write journal session-start entry
+    let _ = std::process::Command::new("core")
+        .args(["journal", "session-start"])
+        .output();
     let _session_start = std::time::Instant::now();
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
@@ -1411,6 +1415,10 @@ fn repl_main() -> Result<()> {
         }
     }
 
+    // Write journal daily summary on exit
+    let _ = std::process::Command::new("core")
+        .args(["journal", "daily-summary"])
+        .output();
     // Save session state on exit
     session::SessionMemory::save(&core_root, None);
     println!(

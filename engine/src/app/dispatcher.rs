@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DocsCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DocsCommand, JournalCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -325,6 +325,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Journal(c) => match c {
+            JournalCommand::Today => crate::domains::journal::today(ctx),
+            JournalCommand::Yesterday => crate::domains::journal::yesterday(ctx),
+            JournalCommand::Week => crate::domains::journal::week(ctx),
+            JournalCommand::Search { term } => crate::domains::journal::search(ctx, &term),
+            JournalCommand::Show { date } => crate::domains::journal::show(ctx, &date),
+            JournalCommand::SessionStart => crate::domains::journal::session_start(ctx),
+            JournalCommand::DailySummary => crate::domains::journal::daily_summary(ctx),
+        },
         Command::Docs(c) => match c {
             DocsCommand::Commands => crate::domains::docs::commands(ctx),
             DocsCommand::List => crate::domains::docs::list(ctx),

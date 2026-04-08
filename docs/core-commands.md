@@ -268,5 +268,23 @@
 | What caused this state | `core why` |
 | Security status | `core security audit` |
 ---
+
+**Purpose:** The forest writes its own story. Human-readable narrative entries written automatically at key moments.
+**Key subcommands:**
+  core journal today           — show today's journal entries
+  core journal yesterday       — show yesterday's entries
+  core journal week            — show this week's entries
+  core journal search <term>   — search journal by keyword
+  core journal show <date>     — show journal for YYYY-MM-DD
+  core journal session-start   — write a session-start entry (auto-fired by fsh on login)
+  core journal daily-summary   — write end-of-day summary (auto-fired on fsh exit)
+**Auto-writes when:** session starts, session ends
+**Storage:** ~/0-core/runtime/journal/YYYY-MM-DD.md
+**Notes:** INT-195. The journal is memory. Friday will read from it.
+**Purpose:** Access forest documentation from the terminal.
+**Key subcommands:**
+  core docs commands           — open the full core commands guide
+  core docs list               — list all available documentation files
+**Notes:** INT-202. Documents in ~/0-core/docs/. Living document.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*

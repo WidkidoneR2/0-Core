@@ -38,6 +38,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Journal(JournalCommand),
     Docs(DocsCommand),
     Values(ValuesCommand),
     Align(AlignCommand),
@@ -317,6 +318,16 @@ pub enum ValuesCommand {
     Weight { id: i64, weight: i64 },
 }
 
+#[derive(Debug)]
+pub enum JournalCommand {
+    Today,
+    Yesterday,
+    Week,
+    Search { term: String },
+    Show { date: String },
+    SessionStart,
+    DailySummary,
+}
 #[derive(Debug)]
 pub enum DocsCommand {
     Commands,
