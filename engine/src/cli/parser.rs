@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Engine coordination layer — synchronize and monitor all forest engines
+    Engines {
+        #[command(subcommand)]
+        command: EnginesCommands,
+    },
     /// Query the event ledger
     Events {
         #[command(subcommand)]
@@ -599,7 +604,25 @@ pub enum UpdateCommands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
+/// Engines subcommands
+pub enum EnginesCommands {
+    /// Show all engines and their sync state
+    Status,
+    /// Acknowledge engine upgrade and update contracts
+    Sync {
+        /// Engine name to synchronize
+        engine: String,
+    },
+    /// Show recent cross-engine signals
+    Signals,
+    /// Verify all engines are consistent
+    Check,
+    /// Show engine upgrade history
+    UpgradeLog,
+}
+
+#[derive(Debug, Subcommand)]
 pub enum EventsCommands {
     /// Show event log file status and size
     Status,

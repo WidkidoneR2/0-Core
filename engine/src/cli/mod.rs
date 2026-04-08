@@ -4,7 +4,7 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
+    Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand, PartnerCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
@@ -13,7 +13,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     DelegateCommands,
-    Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EventsCommands,
+    Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
     DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands, PartnerCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
     ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
@@ -232,6 +232,13 @@ pub fn parse() -> Command {
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
+        }),
+        Commands::Engines { command } => Command::Engines(match command {
+            EnginesCommands::Status => EnginesCommand::Status,
+            EnginesCommands::Sync { engine } => EnginesCommand::Sync { engine },
+            EnginesCommands::Signals => EnginesCommand::Signals,
+            EnginesCommands::Check => EnginesCommand::Check,
+            EnginesCommands::UpgradeLog => EnginesCommand::UpgradeLog,
         }),
         Commands::Events { command } => Command::Events(match command {
             EventsCommands::Status => EventsCommand::Status,

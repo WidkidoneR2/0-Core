@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    Command, DecisionCommand, DepsCommand, DoctorCommand, EventsCommand, EvolutionCommand,
+    Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
@@ -324,6 +324,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Engines(c) => match c {
+            EnginesCommand::Status => crate::domains::engines::status(ctx),
+            EnginesCommand::Sync { engine } => crate::domains::engines::sync(ctx, &engine),
+            EnginesCommand::Signals => crate::domains::engines::signals(ctx),
+            EnginesCommand::Check => crate::domains::engines::check(ctx),
+            EnginesCommand::UpgradeLog => crate::domains::engines::upgrade_log(ctx),
+        },
         Command::Events(c) => match c {
             EventsCommand::Status => crate::domains::events::status(ctx),
             EventsCommand::Archive => crate::domains::events::archive(ctx),
