@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Forest documentation — access guides and references
+    Docs {
+        #[command(subcommand)]
+        command: DocsCommands,
+    },
     /// Declared values system — define and manage your principles
     Values {
         #[command(subcommand)]
@@ -614,6 +619,13 @@ pub enum UpdateCommands {
     },
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum DocsCommands {
+    /// Show the core commands guide
+    Commands,
+    /// List available documentation
+    List,
+}
 #[derive(Debug, Subcommand)]
 pub enum ValuesCommands {
     /// List all declared values

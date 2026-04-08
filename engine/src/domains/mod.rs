@@ -5,6 +5,7 @@ pub mod capabilities;
 pub mod checkpoint;
 pub mod decisions;
 pub mod deps;
+pub mod docs;
 pub mod doctor;
 pub mod alignment;
 pub mod engines;

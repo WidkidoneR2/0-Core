@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DocsCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -325,6 +325,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Docs(c) => match c {
+            DocsCommand::Commands => crate::domains::docs::commands(ctx),
+            DocsCommand::List => crate::domains::docs::list(ctx),
+        },
         Command::Values(c) => match c {
             ValuesCommand::List => crate::domains::alignment::values_list(ctx),
             ValuesCommand::Define { statement, weight, scope } => crate::domains::alignment::values_define(ctx, &statement, weight, &scope),
