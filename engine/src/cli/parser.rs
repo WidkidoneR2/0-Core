@@ -83,6 +83,16 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Declared values system — define and manage your principles
+    Values {
+        #[command(subcommand)]
+        command: ValuesCommands,
+    },
+    /// Alignment checking — verify behavior matches declared values
+    Align {
+        #[command(subcommand)]
+        command: AlignCommands,
+    },
     /// Engine coordination layer — synchronize and monitor all forest engines
     Engines {
         #[command(subcommand)]
@@ -601,6 +611,44 @@ pub enum UpdateCommands {
     Safe {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ValuesCommands {
+    /// List all declared values
+    List,
+    /// Declare a new value
+    Define {
+        /// The value statement
+        statement: String,
+        /// Weight 1-10 (default: 7)
+        #[arg(long, default_value = "7")]
+        weight: i64,
+        /// Scope: all | intents | commits | deploys
+        #[arg(long, default_value = "all")]
+        scope: String,
+    },
+    /// Deactivate a declared value by ID
+    Remove { id: i64 },
+    /// Update the weight of a declared value
+    Weight { id: i64, weight: i64 },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AlignCommands {
+    /// Check alignment of a subject against declared values
+    Check {
+        /// Subject to check (e.g. intent name or description)
+        subject: String,
+    },
+    /// Show behavioral drift report for the last 30 days
+    Drift,
+    /// Show weekly alignment report
+    Report {
+        /// Weeks ago (0 = current week)
+        #[arg(long, default_value = "0")]
+        weeks_ago: i64,
     },
 }
 

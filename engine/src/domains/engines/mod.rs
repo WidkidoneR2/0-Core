@@ -312,6 +312,7 @@ pub fn upgrade_log(ctx: &AppContext) -> CoreResult<()> {
 }
 
 /// Record an engine upgrade in the log
+#[allow(dead_code)]
 pub fn record_upgrade(ctx: &AppContext, engine: &str, from: &str, to: &str, breaking: bool, affected: &[&str]) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let affected_json = format!("[{}]", affected.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(","));
