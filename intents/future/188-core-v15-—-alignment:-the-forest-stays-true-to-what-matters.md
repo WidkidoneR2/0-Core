@@ -3,7 +3,7 @@ id: 188
 date: 2026-04-04
 type: planned
 title: "Core v15 — Alignment: The Forest Stays True to What Matters"
-status: planned
+status: in-progress
 tags: [alignment, values, drift, v15, philosophy, consistency, behavioral]
 ---
 | Version | Capability | Meaning |

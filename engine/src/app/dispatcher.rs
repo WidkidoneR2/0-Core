@@ -2,7 +2,8 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
     DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
@@ -324,6 +325,17 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Values(c) => match c {
+            ValuesCommand::List => crate::domains::alignment::values_list(ctx),
+            ValuesCommand::Define { statement, weight, scope } => crate::domains::alignment::values_define(ctx, &statement, weight, &scope),
+            ValuesCommand::Remove { id } => crate::domains::alignment::values_remove(ctx, id),
+            ValuesCommand::Weight { id, weight } => crate::domains::alignment::values_weight(ctx, id, weight),
+        },
+        Command::Align(c) => match c {
+            AlignCommand::Check { subject } => crate::domains::alignment::align_check(ctx, &subject),
+            AlignCommand::Drift => crate::domains::alignment::align_drift(ctx),
+            AlignCommand::Report { weeks_ago } => crate::domains::alignment::align_report(ctx, weeks_ago),
+        },
         Command::Engines(c) => match c {
             EnginesCommand::Status => crate::domains::engines::status(ctx),
             EnginesCommand::Sync { engine } => crate::domains::engines::sync(ctx, &engine),

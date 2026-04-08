@@ -38,6 +38,8 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Values(ValuesCommand),
+    Align(AlignCommand),
     Engines(EnginesCommand),
     Events(EventsCommand),
     Ledger(LedgerCommand),
@@ -306,6 +308,21 @@ pub enum LedgerCommand {
     Export,
     Indexes,
 }
+#[derive(Debug)]
+pub enum ValuesCommand {
+    List,
+    Define { statement: String, weight: i64, scope: String },
+    Remove { id: i64 },
+    Weight { id: i64, weight: i64 },
+}
+
+#[derive(Debug)]
+pub enum AlignCommand {
+    Check { subject: String },
+    Drift,
+    Report { weeks_ago: i64 },
+}
+
 #[derive(Debug)]
 pub enum EnginesCommand {
     Status,
