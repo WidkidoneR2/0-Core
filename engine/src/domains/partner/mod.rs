@@ -113,6 +113,24 @@ fn status(ctx: &AppContext) -> CoreResult<()> {
         "SELECT COUNT(*) FROM partner_disagreements", [], |r| r.get(0)
     ).unwrap_or(0);
     
+    // Show alignment score from v15
+    let alignment_score: Option<f64> = ctx.runtime.db.query_row(
+        "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
+        [], |r| r.get(0)
+    ).ok().flatten();
+
+    if let Some(align_pct) = alignment_score {
+        let pct = (align_pct * 100.0) as i64;
+        let align_colored = if pct >= 80 {
+            format!("{}%", pct).bright_green()
+        } else if pct >= 60 {
+            format!("{}%", pct).bright_yellow()
+        } else {
+            format!("{}%", pct).bright_red()
+        };
+        println!("  {:<24} {}", "Alignment (v15):".dimmed(), align_colored);
+    }
+
     println!("  {}", "─".repeat(48).dimmed());
     println!("  {:<24} {}", "Proposals made:".dimmed(), proposals.to_string().bright_white());
     println!("  {:<24} {}", "Disagreements recorded:".dimmed(), disagreements.to_string().bright_white());
