@@ -3,7 +3,7 @@ id: 195
 date: 2026-04-04
 type: planned
 title: "Forest Journal — The System Writes Its Own Story"
-status: planned
+status: in-progress
 tags: [journal, autobiography, narrative, intelligence, self-awareness, v14-prep]
 ---
 The forest already records everything — intents, commits, health checks, events.
