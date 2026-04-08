@@ -506,18 +506,37 @@ fn count_tools(core_root: &PathBuf) -> u32 {
 }
 
 fn count_complete_intents(core_root: &PathBuf) -> u32 {
-    let complete = core_root.join("intents/complete");
-    std::fs::read_dir(&complete)
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .and_then(|x| x.to_str())
-                        .map(|x| x == "md")
-                        .unwrap_or(false)
-                })
-                .count() as u32
-        })
-        .unwrap_or(0)
+    // Count by scanning all intent subdirs for status: complete in frontmatter
+    // This matches how core intent stats works
+    let intents_dir = core_root.join("intents");
+    let mut count = 0u32;
+    if let Ok(entries) = std::fs::read_dir(&intents_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Ok(files) = std::fs::read_dir(entry.path()) {
+                    for file in files.flatten() {
+                        let p = file.path();
+                        if p.extension().and_then(|x| x.to_str()) == Some("md") {
+                            if let Ok(content) = std::fs::read_to_string(&p) {
+                                if content.contains("status: complete")
+                                    || content.contains("type: complete")
+                                    || content.contains("[complete]") {
+                                    count += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if count > 0 { count } else {
+        // Hard fallback: just count complete/ dir
+        std::fs::read_dir(core_root.join("intents/complete"))
+            .map(|d| d.filter_map(|e| e.ok())
+                .filter(|e| e.path().extension()
+                    .and_then(|x| x.to_str()) == Some("md"))
+                .count() as u32)
+            .unwrap_or(0)
+    }
 }
