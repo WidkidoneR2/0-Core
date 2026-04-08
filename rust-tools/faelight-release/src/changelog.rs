@@ -113,13 +113,16 @@ pub fn find_shipped_intents(core_root: &PathBuf, since_tag: &str) -> Vec<Shipped
         return vec![];
     }
 
-    // Get files modified since last tag using git
+    // Get files ADDED to complete/ since last tag using git (not just modified)
     let output = Command::new("git")
         .args([
             "-C",
             core_root.to_str().unwrap_or("."),
+            "-c",
+            "core.quotePath=false",
             "diff",
             "--name-only",
+            "--diff-filter=A",
             since_tag,
             "HEAD",
             "--",
