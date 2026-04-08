@@ -112,14 +112,14 @@ Phase 3 — Drift Detection (behavioral patterns over time)
 Phase 4 — Disagreement Grounding (v14 integration)
 Phase 5 — Weekly Report (automated conscience check)
 Phase 6 — Roadmap Simulation (stretch — after 30 days data)
-⬜ Values table in state.db with weight, scope, declared_at
-⬜ core values list/define/remove/weight live
-⬜ 5 seed values loaded from declared principles
-⬜ core align check — score intent against declared values
-⬜ core align drift — behavioral drift detection over 30 days
-⬜ Observations strictly behavioral — no personal interpretation
+✅ Values table in state.db with weight, scope, declared_at
+✅ core values list/define/remove/weight live
+✅ 6 seed values loaded from declared principles
+✅ core align check — score intent against declared values
+✅ core align drift — behavioral drift detection over 30 days
+✅ Observations strictly behavioral — no personal interpretation
 ⬜ Disagreement grounded in declared values not opinion
-⬜ core align report — weekly behavioral conscience check
+✅ core align report — weekly behavioral conscience check
 ⬜ Integrated with v14 partner disagree system
 ⬜ Alignment factor added to Jarvis score
 ⬜ STRETCH: core align simulate — path comparison against values
