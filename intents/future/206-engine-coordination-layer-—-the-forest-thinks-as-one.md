@@ -3,7 +3,7 @@ id: 206
 date: 2026-04-08
 type: planned
 title: "Engine Coordination Layer — The Forest Thinks as One"
-status: planned
+status: in-progress
 tags: [coordination, engines, sync, architecture, core, friday, contextd, v17]
 ---
 The forest has grown powerful engines:

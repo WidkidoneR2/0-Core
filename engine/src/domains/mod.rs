@@ -6,6 +6,7 @@ pub mod checkpoint;
 pub mod decisions;
 pub mod deps;
 pub mod doctor;
+pub mod engines;
 pub mod events;
 pub mod evolution;
 pub mod fetch;

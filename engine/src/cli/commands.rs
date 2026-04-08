@@ -38,6 +38,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Engines(EnginesCommand),
     Events(EventsCommand),
     Ledger(LedgerCommand),
     Why(WhyCommand),
@@ -305,6 +306,15 @@ pub enum LedgerCommand {
     Export,
     Indexes,
 }
+#[derive(Debug)]
+pub enum EnginesCommand {
+    Status,
+    Sync { engine: String },
+    Signals,
+    Check,
+    UpgradeLog,
+}
+
 #[derive(Debug)]
 pub enum EventsCommand {
     Status,
