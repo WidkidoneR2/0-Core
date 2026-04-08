@@ -1,0 +1,9 @@
+version = "11.7.0"
+date = "2026-04-08"
+theme = "The Intelligence Arc"
+health_at_release = 100
+commits_since_last = 136
+
+[stats]
+tools_total = 55
+intents_complete = 146

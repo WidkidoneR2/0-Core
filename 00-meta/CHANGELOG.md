@@ -1,5 +1,40 @@
 # Changelog
 
+## [11.7.0] — Unnamed Release (2026-04-08)
+
+### 🎯 Completed Intents
+- **INT-156** — Core v13 — Autonomy: The Forest Chooses Its Own Purpose
+- **INT-158** — The Partner Vision — The Forest Becomes a Genuine Collaborator
+- **INT-161** — Forest Build Order — The Path to Partnership
+- **INT-179** — faelight-shell v3 — The Daily Driver: The Shell Becomes Self-Aware
+- **INT-185** — faelight-contextd — The Nervous System: Background Awareness Daemon
+- **INT-188** — Core v15 — Alignment: The Forest Stays True to What Matters
+- **INT-191** — fsh Add-Ons and Bug Report — The Shell Grows
+- **INT-192** — Deploy Pipeline v0.8.0 — registry_tools.py and Architecture Split
+- **INT-193** — Tool Retirement Sprint — The Forest Prunes Itself
+- **INT-197** — Intelligence Layer v2 — The Forest Learns From Itself
+- **INT-198** — Intent Engine v2 — Smarter Intents, Deeper Connections
+- **INT-199** — Integrity Engine v2 — From Proposals to Auto-Healing
+- **INT-200** — Doctor v2 — No Stale Data, No False Positives
+- **INT-204** — faelight-update v4.0.0 — The Intelligent Update Manager
+- **INT-206** — Engine Coordination Layer — The Forest Thinks as One
+
+### 🔧 Fixes
+- eliminate all workspace warnings — compositor, notify, vault, sandbox, teach, core
+
+### 🔩 Internal (135 commits)
+- INT-191: created — fsh add-ons and bug report, glob/grep/find/identity screen planned
+- INT-191: glob expansion working in fsh — *.md, *.toml, *.rs expand correctly
+- fsh: add !! (repeat last command), fix unused vars in expand_globs
+- intent: mark !! complete in INT-191
+- core: add intent edit <id> — open intent file in $EDITOR directly
+- ...and 130 more internal changes
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 1998  ·  Tools: 55 deployed  ·  Intents: 146 complete
+
+---
+
 ## [11.6.0] — The Shell Lives (2026-04-03)
 
 ### 🎯 Completed Intents
