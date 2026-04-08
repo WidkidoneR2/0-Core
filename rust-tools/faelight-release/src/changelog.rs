@@ -410,20 +410,34 @@ impl ChangelogData {
             out.push('\n');
         }
 
-        // Internal — condensed
+        // Internal — full list, grouped by intent where possible
         if !self.internal.is_empty() {
             out.push_str(&format!(
                 "### 🔩 Internal ({} commits)\n",
                 self.internal.len()
             ));
-            for c in self.internal.iter().take(5) {
-                out.push_str(&format!("- {}\n", c.message));
+            // Group by intent prefix
+            let mut intent_groups: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+            let mut ungrouped: Vec<String> = Vec::new();
+            for c in &self.internal {
+                if let Some(int_id) = extract_intent_id(&c.message) {
+                    intent_groups.entry(int_id.to_string()).or_default().push(c.message.clone());
+                } else {
+                    ungrouped.push(c.message.clone());
+                }
             }
-            if self.internal.len() > 5 {
-                out.push_str(&format!(
-                    "- ...and {} more internal changes\n",
-                    self.internal.len() - 5
-                ));
+            for (intent, messages) in &intent_groups {
+                if messages.len() == 1 {
+                    out.push_str(&format!("- {}\n", messages[0]));
+                } else {
+                    out.push_str(&format!("- **{}** ({} commits)\n", intent, messages.len()));
+                    for msg in messages {
+                        out.push_str(&format!("  - {}\n", msg));
+                    }
+                }
+            }
+            for msg in &ungrouped {
+                out.push_str(&format!("- {}\n", msg));
             }
             out.push('\n');
         }
