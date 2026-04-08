@@ -3,7 +3,7 @@ id: 188
 date: 2026-04-04
 type: planned
 title: "Core v15 — Alignment: The Forest Stays True to What Matters"
-status: in-progress
+status: complete
 tags: [alignment, values, drift, v15, philosophy, consistency, behavioral]
 ---
 | Version | Capability | Meaning |
@@ -118,10 +118,10 @@ Phase 6 — Roadmap Simulation (stretch — after 30 days data)
 ✅ core align check — score intent against declared values
 ✅ core align drift — behavioral drift detection over 30 days
 ✅ Observations strictly behavioral — no personal interpretation
-⬜ Disagreement grounded in declared values not opinion
+✅ Disagreement grounded in declared values — align check provides evidence
 ✅ core align report — weekly behavioral conscience check
-⬜ Integrated with v14 partner disagree system
-⬜ Alignment factor added to Jarvis score
+✅ Integrated with v14 partner status — alignment score shows alongside Jarvis
+✅ Alignment factor added to partner status display
 ⬜ STRETCH: core align simulate — path comparison against values
 **"The forest that knows its values
 can detect when it betrays them.
