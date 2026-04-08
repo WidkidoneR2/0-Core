@@ -1,6 +1,6 @@
 # Changelog
 
-## [11.7.0] — Unnamed Release (2026-04-08)
+## [11.7.0] — The Intelligence Arc (2026-04-08)
 
 ### 🎯 Completed Intents
 - **INT-156** — Core v13 — Autonomy: The Forest Chooses Its Own Purpose
