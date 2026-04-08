@@ -910,6 +910,8 @@ fn repl_main() -> Result<()> {
                         }
                         last_pipe_in_quotes
                     };
+                    // Save original line (with quotes) before redirect stripping
+                    let original_line = line;
                     // Handle redirects natively — no sh delegation
                     let (line_stripped, redirect_info) = detect_redirect(line);
                     if let Some((ref redirect_target, is_append)) = redirect_info {
@@ -1004,6 +1006,26 @@ fn repl_main() -> Result<()> {
                     } else {
                         vec![]
                     };
+                    // If any pipeline op is external (e.g. head, tail, wc),
+                    // pass the entire command to sh instead of handling natively
+                    let has_external_op = pipeline_ops.iter().any(|op| {
+                        matches!(op, value::PipeOp::External(_))
+                    });
+                    // Early bypass: if pipeline contains external commands,
+                    // skip fsh builtins entirely and run via sh
+                    if has_external_op {
+                        let sh_output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(original_line)
+                            .stdin(std::process::Stdio::inherit())
+                            .stdout(std::process::Stdio::inherit())
+                            .stderr(std::process::Stdio::inherit())
+                            .status();
+                        if let Err(e) = sh_output {
+                            eprintln!("fsh: pipe error: {}", e);
+                        }
+                        continue 'repl;
+                    }
                     let base_cmd = if has_pipe {
                         line.split(" | ").next().unwrap_or(line).to_string()
                     } else {
@@ -1207,17 +1229,32 @@ fn repl_main() -> Result<()> {
                     let cmd_output: Option<String> =
                         match exec::execute_with_context(&base_cmd, &db, &core_root, &cfg.before_rules) {
                             commands::CommandResult::Exit => break 'repl,
-                            commands::CommandResult::Value(v) if !pipeline_ops.is_empty() => {
+                            commands::CommandResult::Value(v) if !pipeline_ops.is_empty() && !has_external_op => {
                                 let result = value::apply_pipeline(v, &pipeline_ops);
                                 Some(result.render())
+                            }
+                            commands::CommandResult::Value(_) if has_external_op => {
+                                // Pipeline contains external commands — pass full line to sh
+                                let sh_output = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(original_line)
+                                    .output();
+                                match sh_output {
+                                    Ok(o) => {
+                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                        if !stderr.is_empty() { eprint!("{}", stderr); }
+                                        Some(stdout)
+                                    }
+                                    Err(_) => None,
+                                }
                             }
                             commands::CommandResult::Value(v) => Some(v.render()),
                             commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
                                 // External command with pipe — reconstruct full pipeline and run via sh
-                                let full_pipe = line;
                                 let sh_output = std::process::Command::new("sh")
                                     .arg("-c")
-                                    .arg(full_pipe)
+                                    .arg(original_line)
                                     .output();
                                 match sh_output {
                                     Ok(o) => {
