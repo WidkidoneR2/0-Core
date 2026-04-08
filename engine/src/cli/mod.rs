@@ -4,7 +4,7 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DocsCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand, PartnerCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -14,7 +14,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     DelegateCommands,
-    AlignCommands, Cli, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
+    AlignCommands, Cli, DocsCommands, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
     ValuesCommands,
     DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands, PartnerCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
@@ -234,6 +234,10 @@ pub fn parse() -> Command {
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
+        }),
+        Commands::Docs { command } => Command::Docs(match command {
+            DocsCommands::Commands => DocsCommand::Commands,
+            DocsCommands::List => DocsCommand::List,
         }),
         Commands::Values { command } => Command::Values(match command {
             ValuesCommands::List => ValuesCommand::List,
