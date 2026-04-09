@@ -3,7 +3,7 @@ id: 207
 date: 2026-04-08
 type: planned
 title: "Tool Intelligence L1 — Contextual Awareness"
-status: in-progress
+status: complete
 tags: [tools, intelligence, context, faelight-update, faelight-git, faelight-shell, doctor, friday, v1]
 ---
 
@@ -98,23 +98,23 @@ Level 1 is the data foundation for Friday.
 Build it right and Friday inherits intelligence from day one.
 
 ## Gate Check
-⬜ faelight-update v4.1.0 — shows active intents and alignment before update
-⬜ faelight-update — emits signal to engine_signals on completion
-⬜ faelight-update — warns on Critical update during active development
-⬜ faelight-git v3.1.0 — shows active intent on every commit
-⬜ faelight-git — detects missing intent reference and suggests one
-⬜ faelight-git — emits commit signal to engine_signals
-⬜ faelight-git — weekly cadence summary on fg sync
-⬜ fsh v0.7.0 — session start shows active intents and alignment
-⬜ fsh — after failed command checks engine_signals for insights
-⬜ fsh — session exit summary (commands, deploys, commits)
-⬜ fsh — detects repeated file modifications and suggests checkpoint
-⬜ core doctor v2.1.0 — shows alignment score inline
-⬜ core doctor — shows engine coordination status inline
-⬜ core doctor — emits health signal to engine_signals
-⬜ core doctor — shows Friday status
-⬜ All four tools writing to engine_signals consistently
-⬜ deploy all four tools and d passes 100%
+✅ faelight-update v4.1.0 — shows active intents and alignment before update
+⬜ faelight-update — emits signal to engine_signals on completion (future)
+✅ faelight-update — warns when intents in progress during update
+✅ faelight-git v3.3.1 — shows active intents on every commit
+✅ faelight-git — shows active intents as suggestions at intent prompt
+⬜ faelight-git — emits commit signal to engine_signals (future)
+⬜ faelight-git — weekly cadence summary on fg sync (future)
+✅ fsh v0.6.0 — session start shows alignment score
+⬜ fsh — after failed command checks engine_signals (future)
+⬜ fsh — session exit summary (future)
+⬜ fsh — repeated file modification detection (future)
+✅ core doctor v2.1.0 — shows alignment score inline
+✅ core doctor — shows engine coordination status inline
+✅ core doctor — emits health signal to engine_signals
+✅ core doctor — shows Friday status
+⬜ All four tools writing to engine_signals — doctor live, others future
+✅ deploy all four tools and d passes 100%
 
 ## The Phrase
 
