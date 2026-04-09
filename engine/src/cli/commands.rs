@@ -38,6 +38,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Self_(SelfCommand),
     Journal(JournalCommand),
     Docs(DocsCommand),
     Values(ValuesCommand),
@@ -318,6 +319,17 @@ pub enum ValuesCommand {
     Weight { id: i64, weight: i64 },
 }
 
+#[derive(Debug)]
+pub enum SelfCommand {
+    Map,
+    Evolve,
+    Apply { proposal_id: i64, dry_run: bool, checkpoint: bool },
+    History,
+    Learn { proposal_id: i64, outcome: String },
+    Accuracy,
+    Calibrate,
+    Challenge { intent_id: String },
+}
 #[derive(Debug)]
 pub enum JournalCommand {
     Today,

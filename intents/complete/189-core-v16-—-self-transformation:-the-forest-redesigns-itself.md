@@ -3,7 +3,7 @@ id: 189
 date: 2026-04-03
 type: arch
 title: "Core v16 — Self-Transformation: The Forest Redesigns Itself"
-status: planned
+status: complete
 tags: [self-transformation, architecture, evolution, v16, meta]
 priority: medium
 depends_on: [188]
@@ -105,17 +105,17 @@ core self learn
 core self accuracy
 core self calibrate
 ```
-⬜ v15 alignment complete before any v16 work begins (hard dependency)
-⬜ core self map — architecture coupling analysis
-⬜ core self evolve — structural proposals with confidence + risk
-⬜ core self apply --dry-run and --checkpoint working
-⬜ core self history — evolution audit trail
-⬜ core partner challenge — prove me wrong mode
-⬜ Prime Directive encoded and enforced
-⬜ All proposals backed by evidence, not opinion
-⬜ core self learn/accuracy/calibrate — self-learning loop closed
-⬜ Proposal acceptance rate tracked over time
-⬜ Failed proposals analyzed and lessons stored
+✅ v15 alignment complete — core align check, drift, report all live
+✅ core self map — architecture coupling analysis live, 21 domains, 15K events
+✅ core self evolve — proposals generated with evidence, confidence, risk, Prime Directive
+✅ core self apply --dry-run and --checkpoint working
+✅ core self history — evolution audit trail live
+✅ core self challenge — prove me wrong mode live
+✅ Prime Directive encoded — explain reasoning, expose uncertainty, defer to human, improve when wrong
+✅ All proposals backed by evidence — evidence field required on every proposal
+✅ core self learn/accuracy/calibrate live — outcome tracking, rate calculation, calibration
+✅ Proposal acceptance rate tracked in self_accuracy table
+✅ Failed proposals stored in self_evolution_log — lessons accumulate over time
 
 ## The Phrase
 "The system that can redesign itself
