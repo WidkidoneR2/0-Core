@@ -832,7 +832,21 @@ pub enum DelegateCommands {
     Activate {
         /// Contract name to activate
         contract: String,
+    },    /// Show counterfactual comparison log
+    Counterfactuals,
+    /// Log a counterfactual (proposed vs actual action)
+    LogCounterfactual {
+        /// What the system proposed
+        proposed: String,
+        /// What you actually did
+        human: String,
+        /// Did the actions match?
+        matched: bool,
+        /// Predicted confidence (0.0-1.0)
+        confidence: f64,
     },
+    /// Three-dimensional accuracy report
+    AccuracyReport,
 }
 #[derive(Subcommand)]
 pub enum TraceCommands {

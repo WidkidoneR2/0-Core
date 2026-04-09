@@ -442,6 +442,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DelegateCommand::History => crate::domains::delegate::history(ctx),
             DelegateCommand::Accuracy => crate::domains::delegate::accuracy(ctx),
             DelegateCommand::Suspend => crate::domains::delegate::suspend(ctx),
+            DelegateCommand::Counterfactuals => crate::domains::delegate::counterfactuals(ctx),
+            DelegateCommand::LogCounterfactual { proposed, human, matched, confidence } =>
+                crate::domains::delegate::log_counterfactual(ctx, &proposed, &human, matched, confidence),
+            DelegateCommand::AccuracyReport => crate::domains::delegate::accuracy_report(ctx),
             DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 

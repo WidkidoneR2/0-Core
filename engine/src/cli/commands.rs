@@ -401,7 +401,9 @@ pub enum DelegateCommand {
     History,
     Accuracy,
     Suspend,
-    Activate { contract: String },
+    Activate { contract: String },    Counterfactuals,
+    LogCounterfactual { proposed: String, human: String, matched: bool, confidence: f64 },
+    AccuracyReport,
 }
 #[derive(Debug)]
 pub enum TraceCommand {
