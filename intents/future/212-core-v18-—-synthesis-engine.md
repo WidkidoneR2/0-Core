@@ -1,0 +1,73 @@
+---
+id: 212
+date: 2026-04-08
+type: planned
+title: "Core v18 — Synthesis Engine: The Forest Speaks With One Voice"
+status: planned
+tags: [synthesis, intelligence, friday, v18, unification, signal-fusion]
+---
+v17 gives the forest weighted patterns — it knows what matters.
+But Friday still reads five separate intelligence layers independently.
+These are five voices. Friday needs one.
+The Synthesis Engine bridges all intelligence layers to Friday.
+It does not add new intelligence. It combines existing intelligence
+into a unified, ranked, coherent signal. One read. One picture. One voice.
+  SynthesisSnapshot {
+      timestamp:      i64,
+      health:         u32,
+      alignment:      f64,
+      top_patterns:   Vec<WeightedPattern>,
+      active_context: ForestContext,
+      ranked_signals: Vec<RankedSignal>,
+      friday_brief:   String,   // 2-3 sentence natural language summary
+  }
+The friday_brief is the most important field.
+It is what Friday will eventually say out loud.
+It is what appears in the journal.
+It is what surfaces in d when Friday is active.
+Example brief:
+"You are in a high-focus build session (INT-178, 37 commits today).
+Pattern weight engine shows deploy-after-intent at 0.91 — strongest signal.
+Alignment is 100%. No concerns. Momentum is strong — continue."
+  ranked_score = pattern_weight
+               * recency_factor(signal.timestamp)
+               * confidence_factor(signal.confidence)
+               * context_relevance(signal, active_context)
+recency_factor: signals from last 30min score highest
+confidence_factor: from prediction calibration
+context_relevance: is this signal relevant to what you are doing right now?
+The synthesis engine must know what you are doing right now:
+- Which intent is active (from cistart)
+- Which directory you are in
+- How long since last commit
+- Last command executed
+- Time of day and session duration
+  core synthesize now        — generate a synthesis snapshot right now
+  core synthesize brief      — show the current Friday brief
+  core synthesize history    — past snapshots
+  core synthesize watch      — continuous mode, updates every 60 seconds
+faelight-daemon v2 calls synthesize on schedule.
+Doctor shows brief when Friday status = active.
+Synthesis Engine activates when:
+- v17 Pattern Weight Engine is live
+- faelight-daemon v2 is running
+- At least 7 days of pattern data exists
+Until then: synthesis runs on-demand only.
+⬜ v17 Pattern Weight Engine complete (hard dependency)
+⬜ SynthesisSnapshot struct defined with all fields
+⬜ Signal ranking formula implemented (weight * recency * confidence * context)
+⬜ Active context detection working (intent, dir, last commit, last command)
+⬜ Friday brief generation — 2-3 sentence natural language summary
+⬜ core synthesize now — generates and stores snapshot
+⬜ core synthesize brief — shows current brief
+⬜ core synthesize history — past snapshots
+⬜ doctor shows brief when Friday status = active
+⬜ faelight-daemon v2 calls synthesize on schedule
+⬜ Brief written to journal automatically
+⬜ 7-day data gate enforced before continuous mode
+"Intelligence is not the sum of its parts.
+It is what emerges when the parts stop shouting
+and start listening to each other.
+v18 is not smarter than v17.
+It is quieter.
+And in the quiet, Friday finds its voice." 🌲
