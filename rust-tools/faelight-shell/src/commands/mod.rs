@@ -538,6 +538,36 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Err(_) => CommandResult::Error("core doctor run failed".to_string()),
             }
         }
+        "edit" => {
+            // INT-194 Gate 14 — open $EDITOR with last command for complex editing
+            let last_cmd = db.get_last_command().unwrap_or_default();
+            let tmp = "/tmp/fsh-edit.sh";
+            let _ = std::fs::write(tmp, format!("{}
+", last_cmd));
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+            let status = std::process::Command::new(&editor)
+                .arg(tmp)
+                .stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status();
+            match status {
+                Ok(_) => {
+                    let edited = std::fs::read_to_string(tmp)
+                        .unwrap_or_default()
+                        .trim()
+                        .to_string();
+                    let _ = std::fs::remove_file(tmp);
+                    if edited.is_empty() {
+                        CommandResult::Empty
+                    } else {
+                        println!("  {} {}", "→".bright_cyan(), edited.dimmed());
+                        execute(&edited, db, core_root)
+                    }
+                }
+                Err(e) => CommandResult::Error(format!("edit: could not open editor: {}", e)),
+            }
+        }
         "clear" | "c" | "cls" => {
             // \x1B[3J clears scrollback, \x1B[2J clears screen, \x1B[H moves to top
             print!("\x1B[3J\x1B[2J\x1B[H");
