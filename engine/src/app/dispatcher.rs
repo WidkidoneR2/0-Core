@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DocsCommand, JournalCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DocsCommand, JournalCommand, SelfCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -325,6 +325,19 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Self_(c) => match c {
+            SelfCommand::Map => crate::domains::self_transform::map(ctx),
+            SelfCommand::Evolve => crate::domains::self_transform::evolve(ctx),
+            SelfCommand::Apply { proposal_id, dry_run, checkpoint } =>
+                crate::domains::self_transform::apply(ctx, proposal_id, dry_run, checkpoint),
+            SelfCommand::History => crate::domains::self_transform::history(ctx),
+            SelfCommand::Learn { proposal_id, outcome } =>
+                crate::domains::self_transform::learn(ctx, proposal_id, &outcome),
+            SelfCommand::Accuracy => crate::domains::self_transform::accuracy(ctx),
+            SelfCommand::Calibrate => crate::domains::self_transform::calibrate(ctx),
+            SelfCommand::Challenge { intent_id } =>
+                crate::domains::self_transform::challenge(ctx, &intent_id),
+        },
         Command::Journal(c) => match c {
             JournalCommand::Today => crate::domains::journal::today(ctx),
             JournalCommand::Yesterday => crate::domains::journal::yesterday(ctx),

@@ -286,5 +286,23 @@
   core docs commands           — open the full core commands guide
   core docs list               — list all available documentation files
 **Notes:** INT-202. Documents in ~/0-core/docs/. Living document.
+
+**Purpose:** Core v16 — The forest redesigns itself. Architecture analysis, structural proposals, evolution tracking. The Prime Directive governs all: explain reasoning, expose uncertainty, defer to human, improve when wrong.
+**Key subcommands:**
+  core self map              — architecture coupling analysis (domains, events, engine health, signals)
+  core self evolve           — generate structural proposals with confidence + risk + evidence
+  core self apply <id>       — accept a proposal (use --dry-run first, --checkpoint to be safe)
+  core self history          — evolution audit trail (all proposals + outcomes)
+  core self learn <id> <outcome> — record success/failure of an applied proposal
+  core self accuracy         — proposal acceptance and success rates over time
+  core self calibrate        — adjust confidence thresholds based on rejection patterns
+  core self challenge <INT-XXX>  — prove-me-wrong mode, stress-tests a plan
+**Prime Directive (encoded):**
+  1. Explain reasoning — every proposal cites evidence
+  2. Expose uncertainty — confidence score on every proposal
+  3. Defer final authority — you decide, always
+  4. Improve when wrong — track outcomes, update model
+**Tables:** self_proposals, self_evolution_log, self_accuracy in state.db
+**Notes:** INT-189. v15 alignment must be complete before v16 (hard dependency). Proposals accumulate over time — the forest gets smarter with use.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*

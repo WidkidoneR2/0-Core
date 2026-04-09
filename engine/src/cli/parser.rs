@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Core v16 — Self-Transformation: The Forest Redesigns Itself
+    Self_ {
+        #[command(subcommand)]
+        command: SelfCommands,
+    },
     /// Forest journal — the system writes its own story
     Journal {
         #[command(subcommand)]
@@ -624,6 +629,42 @@ pub enum UpdateCommands {
     },
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum SelfCommands {
+    /// Architecture coupling analysis
+    Map,
+    /// Generate structural proposals with confidence + risk
+    Evolve,
+    /// Apply a proposal (use --dry-run first)
+    Apply {
+        /// Proposal ID from core self evolve
+        proposal_id: i64,
+        /// Show what would happen without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Create checkpoint before applying
+        #[arg(long)]
+        checkpoint: bool,
+    },
+    /// Evolution audit trail
+    History,
+    /// Record outcome of a proposal
+    Learn {
+        /// Proposal ID
+        proposal_id: i64,
+        /// Outcome: success or failure
+        outcome: String,
+    },
+    /// Proposal accuracy over time
+    Accuracy,
+    /// Adjust proposal thresholds based on history
+    Calibrate,
+    /// Prove-me-wrong mode — stress test a plan
+    Challenge {
+        /// Intent ID to challenge (e.g. INT-189)
+        intent_id: String,
+    },
+}
 #[derive(Debug, Clone, Subcommand)]
 pub enum JournalCommands {
     /// Show today's journal entries
