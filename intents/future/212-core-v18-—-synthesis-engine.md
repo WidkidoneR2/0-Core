@@ -71,3 +71,44 @@ and start listening to each other.
 v18 is not smarter than v17.
 It is quieter.
 And in the quiet, Friday finds its voice." 🌲
+
+The snapshot must incorporate the full signal architecture from INT-215/216:
+```rust
+pub struct SynthesisSnapshot {
+    pub timestamp:        i64,
+    pub health:           u32,
+    pub alignment:        f64,
+    pub top_patterns:     Vec<WeightedPattern>,   // from v17 WeightBreakdown
+    pub active_context:   ForestContext,
+    pub ranked_signals:   Vec<RankedSignal>,
+    pub contradictions:   Vec<Contradiction>,      // NEW — cross-engine conflicts
+    pub friday_brief:     String,                  // 2-3 sentence interpretation
+    pub brief_confidence: f32,                     // NEW — how confident is the brief?
+    pub causality_hints:  Vec<CausalityHint>,      // NEW — why things are happening
+}
+```
+When synthesis runs, it must check for engine disagreements:
+- alignment says "focus > speed" but 4 intents are open
+- delegation confidence high but outcome_success below gate
+- prediction says "deploy next" but health is below 95%
+These are surfaced as contradictions, not suppressed.
+Friday uses contradictions as the highest-priority brief content.
+The brief is NOT a summary. It is an interpretation.
+Rules:
+  - If any contradiction detected → lead with contradiction
+  - If any Critical-class pattern → mention explicitly
+  - Always include health + alignment status
+  - Mention active intent and momentum direction
+  - Keep confidence score — below 0.6 confidence = don't surface
+  - Never repeat the same brief twice in a session without change
+The ranking formula uses v17 WeightBreakdown directly:
+  ranked_score = breakdown.final_weight
+               * recency_factor(signal.timestamp)
+               * context_relevance(signal, active_context)
+No recomputation. Trust v17's work.
+Additional gates from refinements:
+⬜ Contradiction detection — engines disagreement flagged in snapshot
+⬜ brief_confidence field — below 0.6 suppresses brief
+⬜ causality_hints — at least one causal link per snapshot
+⬜ WeightBreakdown.final_weight used directly (not recomputed)
+⬜ Contradiction leads brief when present
