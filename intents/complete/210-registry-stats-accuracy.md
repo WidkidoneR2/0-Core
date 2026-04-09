@@ -3,7 +3,7 @@ id: 210
 date: 2026-04-08
 type: planned
 title: "Registry Stats Accuracy — Tools Count and Release Stats"
-status: planned
+status: complete
 tags: [registry, stats, tools, accuracy, faelight-release, housekeeping]
 ---
 The forest reports inconsistent tool counts:
@@ -18,7 +18,7 @@ but still count toward the registry total.
 2. faelight-release count_tools() — count only deployed=true tools
 3. doctor path resilience check — align with actual deployed count
 4. state.db tools table — sync with registry after cleanup
-⬜ Retired tools removed from tools.toml
-⬜ faelight-release count_tools() counts deployed=true only
-⬜ Tool count consistent across d, tools, faelight-release
-⬜ d passes 100% after cleanup
+✅ Retired tools removed from tools.toml — 5 removed, 50 active
+✅ faelight-release count_tools() and readme.rs count skip retired=true tools
+✅ Tool count consistent — 50 active tools across all views
+✅ d passes 100% after commit
