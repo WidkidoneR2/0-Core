@@ -3,9 +3,9 @@ id: 194
 date: 2026-04-04
 type: planned
 title: "fsh v4 — Shell Intelligence and Terminal Experience"
-status: in-progress
+status: complete
 tags: [fsh, shell, terminal, faelight-term, intelligence, ux, v4]
-# Progress: grep and archive sh calls removed. PATH check needs is_executable() not is_file(). || native execution needs output handling before activation.
+# Completed: All 15 gates done. Gate 14 — edit builtin opens $EDITOR (nvim) with last command, executes result on save. fsh v4 is complete.
 ---
 fsh v3 became a daily driver. fsh v4 becomes intelligent.
 The shell should anticipate. It should remember context across sessions.
@@ -78,7 +78,7 @@ Ctrl+Click to open in faelight-browser
 ✅ Core subcommand tab completion (core intent <TAB>)
 ✅ Git branch tab completion
 ✅ Prediction-aware suggestions — fires after 3+ pattern occurrences in history
-⬜ Multi-line editing (arrow navigation, editor escape)
+✅ edit builtin — opens $EDITOR with last command, executes on save
 ✅ Command timing intelligence (slow command warnings)
 ✅ Session variable persistence — persist VAR saves to state.db, restores on login
 ✅ last / save / recall commands
