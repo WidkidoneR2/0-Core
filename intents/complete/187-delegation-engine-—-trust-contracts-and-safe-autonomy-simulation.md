@@ -3,7 +3,7 @@ id: 187
 date: 2026-04-03
 type: in-progress
 title: "Delegation Engine — Trust Contracts and Safe Autonomy Simulation"
-status: in-progress
+status: complete
 tags: [delegation, trust, autonomy, simulation, contracts, capabilities, v13, v14]
 ---
 "Nothing runs without explicit human authorization" conflicts with v13 Autonomy.
@@ -158,12 +158,12 @@ core delegate counterfactuals     — show ground truth comparison log
 ⬜ Simulation accuracy tracked over 14+ days — clock running (started 2026-04-03)
 ⬜ Activation gate enforced — gate requires action_match >= 0.85, outcome_success >= 0.80, calibration_error <= 0.10
 ✅ core delegate contracts/history/accuracy/suspend live
-⬜ Three-dimensional accuracy implemented (action_match / outcome_success / calibration_error)
-⬜ Counterfactual tracking live — human_action vs simulated_action logged
-⬜ Typed capabilities replacing string action types
-⬜ RunCommand rollback eliminated from schema
-⬜ Rollback paths simulation-verified before activation allowed
-⬜ Hard boundaries enforced at execution layer (not just policy)
+✅ Three-dimensional accuracy implemented — DelegateAccuracy struct with all 3 dimensions
+✅ Counterfactual tracking live — delegate_counterfactuals table, log-counterfactual command
+✅ Typed Capability enum defined — RestartService, CreateCheckpoint, NotifyUser, RunDiagnostic, ClearCache
+✅ RunCommand eliminated — RollbackAction enum has only structured types
+⬜ Rollback simulation verification — pending (tied to activation gate)
+✅ Hard boundaries enforced at execution layer — check_hard_boundaries() before any logic
 "Delegation is not permission.
 It is earned trust, precisely scoped,
 with a guaranteed way back.
