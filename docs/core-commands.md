@@ -304,5 +304,26 @@
   4. Improve when wrong — track outcomes, update model
 **Tables:** self_proposals, self_evolution_log, self_accuracy in state.db
 **Notes:** INT-189. v15 alignment must be complete before v16 (hard dependency). Proposals accumulate over time — the forest gets smarter with use.
+
+**Purpose:** Trust contracts and safe autonomy simulation. Defines what the forest can propose autonomously, under what constraints, with what rollback guarantees. Activation requires passing three accuracy gates over 14+ days.
+**Key subcommands:**
+  core delegate simulate <action>     — test delegation without executing (always safe)
+  core delegate contracts             — list all trust contracts with risk levels
+  core delegate history               — past simulations and outcomes
+  core delegate accuracy-report       — three-dimensional accuracy (action_match/outcome_success/calibration_error)
+  core delegate counterfactuals       — ground truth log: proposed vs human action
+  core delegate log-counterfactual    — record what you actually did vs what was proposed
+  core delegate activate <contract>   — enable real delegation (only after all gates pass)
+  core delegate suspend               — pause all delegation instantly
+**Activation gates (ALL must pass):**
+  action_match >= 0.85
+  outcome_success >= 0.80
+  calibration_error <= 0.10
+  14+ days of simulation data
+**Hard boundaries (enforced at execution layer, never delegated):**
+  git commit/push, file deletion, protected paths, permission changes
+**Typed capabilities:** RestartService, CreateCheckpoint, NotifyUser, RunDiagnostic, ClearCache
+**Typed rollbacks:** RestartService, RestoreFile, RevertDb (RunCommand eliminated)
+**Notes:** INT-187. Clock started 2026-04-03. Simulation only until gates pass.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*

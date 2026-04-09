@@ -118,6 +118,10 @@ pub fn parse() -> Command {
             DelegateCommands::History => DelegateCommand::History,
             DelegateCommands::Accuracy => DelegateCommand::Accuracy,
             DelegateCommands::Suspend => DelegateCommand::Suspend,
+            DelegateCommands::Counterfactuals => DelegateCommand::Counterfactuals,
+            DelegateCommands::LogCounterfactual { proposed, human, matched, confidence } =>
+                DelegateCommand::LogCounterfactual { proposed, human, matched, confidence },
+            DelegateCommands::AccuracyReport => DelegateCommand::AccuracyReport,
             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
         }),
         Commands::Profile { command } => Command::Profile(match command {
