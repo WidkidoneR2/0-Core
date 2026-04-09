@@ -433,6 +433,24 @@ fn repl_main() -> Result<()> {
 
     // Phase 10 — shell variable table
     let mut shell_vars: HashMap<String, String> = HashMap::new();
+    // Restore persisted variables from state.db
+    {
+        let db_path = std::path::PathBuf::from(core_root.clone()).join("runtime/state.db");
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            );
+            if let Ok(mut stmt) = conn.prepare("SELECT key, value FROM shell_persist") {
+                let rows: Vec<(String, String)> = stmt.query_map([], |r| {
+                    Ok((r.get(0)?, r.get(1)?))
+                }).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+                for (k, v) in rows {
+                    std::env::set_var(&k, &v);
+                    shell_vars.insert(k, v);
+                }
+            }
+        }
+    }
 
     // REPL loop
     'repl: loop {
@@ -878,6 +896,24 @@ fn repl_main() -> Result<()> {
                             "→".bright_cyan(),
                             name.bright_white(),
                         );
+                        continue;
+                    }
+                    // persist VAR — save variable to state.db for cross-session persistence
+                    if let Some(rest) = trimmed.strip_prefix("persist ") {
+                        let name = rest.trim();
+                        let env_val = std::env::var(name).ok();
+                        if let Some(val) = shell_vars.get(name).or_else(|| env_val.as_deref().map(|v| shell_vars.get(v)).flatten()).or(env_val.as_ref()) {
+                            let val = val.clone();
+                            if let Ok(conn) = rusqlite::Connection::open(std::path::PathBuf::from(core_root.as_str()).join("runtime/state.db")) {
+                                let _ = conn.execute(
+                                    "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
+                                    rusqlite::params![name, &val],
+                                );
+                                println!("  {} {} persisted across sessions", "→".bright_cyan(), name.bright_white());
+                            }
+                        } else {
+                            println!("  {} variable '{}' not set — use: export {}=value first", "⚠️ ".yellow(), name, name);
+                        }
                         continue;
                     }
                     // Phase 10 — expand $VARS before alias resolution
