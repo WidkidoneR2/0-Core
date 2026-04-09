@@ -417,6 +417,71 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             }
         }
     }
+    // INT-207 L1 — Alignment score inline
+    {
+        let align_score: Option<f64> = ctx.runtime.db.query_row(
+            "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
+            [], |r| r.get(0)
+        ).ok().flatten();
+        if let Some(score) = align_score {
+            let pct = (score * 100.0) as i64;
+            let colored = if pct >= 80 {
+                format!("{}%", pct).bright_green()
+            } else if pct >= 60 {
+                format!("{}%", pct).bright_yellow()
+            } else {
+                format!("{}%", pct).bright_red()
+            };
+            println!("  {}  Alignment (v15): {}", "🧭".normal(), colored);
+        }
+    }
+    // INT-207 L1 — Engine coordination status inline
+    {
+        let pending: i64 = ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM engine_upgrade_log WHERE migrated = 0",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+        let degraded: i64 = ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM engine_registry WHERE status = 'degraded'",
+            [], |r| r.get(0)
+        ).unwrap_or(0);
+        if pending > 0 || degraded > 0 {
+            println!("  {}  Engines: {} unsynced, {} degraded — run: core engines check",
+                "⚠️ ".yellow(), pending, degraded);
+        }
+    }
+    // INT-207 L1 — Friday status
+    {
+        let friday_status: String = ctx.runtime.db.query_row(
+            "SELECT status FROM engine_registry WHERE name = 'friday'",
+            [], |r| r.get(0)
+        ).unwrap_or_else(|_| "dormant".to_string());
+        let friday_colored = match friday_status.as_str() {
+            "active"  => "active".bright_green().to_string(),
+            "dormant" => "dormant".dimmed().to_string(),
+            _         => friday_status.dimmed().to_string(),
+        };
+        println!("  {}  Friday: {}", "🌲".normal(), friday_colored);
+    }
+    // INT-207 L1 — Emit health signal to engine_signals
+    {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64).unwrap_or(0);
+        let _ = ctx.runtime.db.execute(
+            "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
+             VALUES ('doctor', 'health', ?1, ?2, ?3)",
+            rusqlite::params![
+                format!("{{\"health\":{}}}", health),
+                health as f64 / 100.0,
+                now
+            ],
+        );
+        let _ = ctx.runtime.db.execute(
+            "UPDATE engine_registry SET last_active = ?1 WHERE name = 'core'",
+            rusqlite::params![now],
+        );
+    }
     // Auto-store health prediction on every doctor run (INT-167 feedback loop)
     {
         let now = std::time::SystemTime::now()

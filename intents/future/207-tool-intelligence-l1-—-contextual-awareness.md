@@ -3,7 +3,7 @@ id: 207
 date: 2026-04-08
 type: planned
 title: "Tool Intelligence L1 — Contextual Awareness"
-status: planned
+status: in-progress
 tags: [tools, intelligence, context, faelight-update, faelight-git, faelight-shell, doctor, friday, v1]
 ---
 
