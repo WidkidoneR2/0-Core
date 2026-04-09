@@ -18,9 +18,22 @@ pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
 
     // Count tools from registry
     let registry_path = std::path::PathBuf::from(core_root).join("01-registry/tools.toml");
-    let tool_count = std::fs::read_to_string(&registry_path)
-        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
-        .unwrap_or(0);
+    let tool_count = {
+        let raw = std::fs::read_to_string(&registry_path).unwrap_or_default();
+        let mut count = 0usize;
+        let mut in_retired = false;
+        let mut saw_name = false;
+        for line in raw.lines() {
+            let t = line.trim();
+            if t == "[[tool]]" {
+                if saw_name && !in_retired { count += 1; }
+                in_retired = false; saw_name = false;
+            } else if t == "retired = true" { in_retired = true; }
+            else if t.starts_with("name =") { saw_name = true; }
+        }
+        if saw_name && !in_retired { count += 1; }
+        count
+    };
 
     if tool_count == 0 {
         return;

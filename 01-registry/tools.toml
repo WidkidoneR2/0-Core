@@ -13,24 +13,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "archaeology-0-core"
-version = "3.0.0"
-category = "development"
-description = "Analyzes 0-core history and evolution"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
-name = "bin-doctor"
-version = "2.0.0"
-category = "health"
-description = "Binary manifest drift detection"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
 name = "core"
 version = "3.0.0"
 category = "core"
@@ -66,15 +48,6 @@ expected_usage = "medium"
 type = "rust"
 deployable = true
 retired = false
-[[tool]]
-name = "entropy-check"
-version = "2.0.0"
-category = "health"
-description = "Configuration entropy and drift detection"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = true
 [[tool]]
 name = "faelight"
 version = "2.1.0"
@@ -319,15 +292,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "workspace-view"
-version = "2.0.0"
-category = "development"
-description = "Workspace overview and navigation"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
 name = "faelight-clipboard"
 version = "0.2.0"
 category = "desktop"
@@ -381,15 +345,6 @@ expected_usage = "rare"
 type = "rust"
 deployable = true
 retired = false
-[[tool]]
-name = "faelight-intent"
-version = "1.0.0"
-category = "intent"
-description = "Intent dashboard — the forest knows where it is going"
-expected_usage = "low"
-type = "rust"
-deployable = true
-retired = true
 [[tool]]
 name = "faelight-idle"
 version = "1.0.0"
