@@ -84,11 +84,11 @@ Ctrl+Click to open in faelight-browser
 ✅ last / save / recall commands
 ✅ Frequency-scored history search
 ✅ Smarter DELETE confirmation — shows file count, size, recent files
-⬜ faelight-term split panes
-⬜ faelight-term session names + forest-aware title
-⬜ faelight-term scrollback search
-⬜ faelight-term output annotations — red/green error markers
-⬜ faelight-term URL detection + clickable links
+⬜ faelight-term split panes — tracked in INT-201
+✅ faelight-term session names + forest-aware title — live in INT-201
+⬜ faelight-term scrollback search — tracked in INT-201
+⬜ faelight-term output annotations — tracked in INT-201
+⬜ faelight-term URL detection — tracked in INT-201
 **"The shell is not a tool you use.
 It is a space you think in.
 Every improvement to the shell is an improvement to thought itself.
