@@ -192,20 +192,25 @@ pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
             });
         if recent { return Ok(()); }
     }
-    // Count commits today
-    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let commits_today: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain = 'git' AND action = 'commit'
-         AND date(datetime(timestamp, 'unixepoch')) = ?1",
-        rusqlite::params![today],
-        |r| r.get(0)
-    ).unwrap_or(0);
-    // Get active intents
-    let active: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_insights WHERE signal LIKE '%intent%in-progress%'",
-        [],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    // Count commits today via git log (most accurate)
+    let core_root_path = std::path::PathBuf::from(&ctx.core_root);
+    let commits_today: i64 = std::process::Command::new("git")
+        .args(["-C", core_root_path.to_str().unwrap_or("."),
+               "log", "--oneline", "--since=midnight"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout)
+            .lines().count() as i64)
+        .unwrap_or(0);
+    // Count active intents from filesystem
+    let active: i64 = std::fs::read_dir(core_root_path.join("intents/future"))
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter(|e| {
+                if let Ok(content) = std::fs::read_to_string(e.path()) {
+                    content.contains("status: in-progress") || content.contains("type: in-progress")
+                } else { false }
+            })
+            .count() as i64)
+        .unwrap_or(0);
     let message = if commits_today > 0 {
         format!("Session started. {} commits today. {} intents in progress. Health 100%.",
             commits_today, active)
