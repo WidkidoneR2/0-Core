@@ -785,7 +785,17 @@ fn build_forest_title() -> String {
             p_str.replace(&home, "~")
         })
         .unwrap_or_else(|_| "~".to_string());
-    format!("🌲 {} | {} | {}%", active_intent, cwd, health)
+    // Get last command exit status from cache file
+    let status_icon = std::fs::read_to_string(
+        format!("{}/.cache/faelight/last-exit-status", home)
+    ).unwrap_or_default()
+    .trim().to_string();
+    let status_icon = match status_icon.as_str() {
+        "success" => " ✓",
+        "failure" => " ✗",
+        _ => "",
+    };
+    format!("🌲 {} | {} | {}%{}", active_intent, cwd, health, status_icon)
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();

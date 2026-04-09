@@ -1399,6 +1399,19 @@ fn repl_main() -> Result<()> {
                             );
                         }
                     }
+                    // INT-201 — Track last command exit status for faelight-term indicator
+                    {
+                        let exit_ok = match &cmd_output {
+                            Some(out) => !out.starts_with("✗") && !out.contains("error"),
+                            None => true,
+                        };
+                        let status_val = if exit_ok { "success" } else { "failure" };
+                        let cache_dir = std::path::PathBuf::from(
+                            std::env::var("HOME").unwrap_or_default()
+                        ).join(".cache/faelight");
+                        let _ = std::fs::create_dir_all(&cache_dir);
+                        let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
+                    }
                     // Write to file if redirect was detected, otherwise print
                     if let Some(output) = cmd_output {
                         if let Some((ref path, append)) = redirect {
