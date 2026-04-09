@@ -83,6 +83,7 @@ pub fn handle_key<B: ratatui::backend::Backend>(
         KeyCode::Char('C') => app.clear_selections(), // Shift+C
 
         // Search
+        KeyCode::Char('s') => app.cycle_sort(),  // v3 — cycle sort mode
         KeyCode::Char('/') => app.start_search(),
 
         // Quit

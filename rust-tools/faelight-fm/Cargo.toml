@@ -1,6 +1,6 @@
 [package]
 name = "faelight-fm"
-version = "2.3.0"
+version = "3.0.0"
 edition = "2021"
 
 [dependencies]
@@ -21,6 +21,8 @@ shellexpand = "3.1"
 faelight-core = { path = "../faelight-core" }
 faelight-zone = { path = "../faelight-zone" }
 
+# Database
+rusqlite = { version = "0.31", features = ["bundled"] }
 # Error handling
 anyhow = "1.0"
 thiserror = "1.0"
