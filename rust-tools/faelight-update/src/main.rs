@@ -372,7 +372,54 @@ fn print_system_identity() {
     println!("  {:<12} {} ({})", "Last update:".dimmed(),
         last_upgrade.bright_white(), drift_colored);
     println!("  {:<12} {}", "Drift:".dimmed(), drift_colored);
-    println!("{}", "─".repeat(40).dimmed());
+    // INT-207 L1 — Show active intents
+    let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
+    let intents_dir = std::path::PathBuf::from(&core_root).join("intents/future");
+    let active_intents: Vec<String> = std::fs::read_dir(&intents_dir)
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter(|e| {
+                if let Ok(c) = std::fs::read_to_string(e.path()) {
+                    c.contains("status: in-progress") || c.contains("type: in-progress")
+                } else { false }
+            })
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                let num = name.split('-').next().unwrap_or("").to_string();
+                if !num.is_empty() { Some(format!("INT-{}", num)) } else { None }
+            })
+            .collect())
+        .unwrap_or_default();
+    if !active_intents.is_empty() {
+        println!("  {:<12} {}", "Active:".dimmed(),
+            active_intents.join(", ").bright_cyan());
+    }
+    // INT-207 L1 — Show alignment score
+    let state_db = std::path::PathBuf::from(&core_root).join("runtime/state.db");
+    if let Ok(conn) = rusqlite::Connection::open(&state_db) {
+        let align: Option<f64> = conn.query_row(
+            "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
+            [], |r| r.get(0)
+        ).ok().flatten();
+        if let Some(score) = align {
+            let pct = (score * 100.0) as i64;
+            let colored = if pct >= 80 {
+                format!("{}%", pct).bright_green()
+            } else if pct >= 60 {
+                format!("{}%", pct).bright_yellow()
+            } else {
+                format!("{}%", pct).bright_red()
+            };
+            println!("  {:<12} {}", "Alignment:".dimmed(), colored);
+        }
+    }
+    // Warn if critical update during active development
+    if !active_intents.is_empty() {
+        println!("{}", "─".repeat(40).dimmed());
+        println!("  {} {} intent(s) in progress — update may interrupt development",
+            "💡".normal(), active_intents.len().to_string().bright_yellow());
+    } else {
+        println!("{}", "─".repeat(40).dimmed());
+    }
     println!();
 }
 fn main() {

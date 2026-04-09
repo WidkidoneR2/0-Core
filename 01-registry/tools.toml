@@ -230,7 +230,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-update"
-version = "4.0.0"
+version = "4.1.0"
 category = "system"
 description = "System update manager with rollback"
 expected_usage = "medium"
