@@ -118,10 +118,10 @@ faelight-term replaces foot as primary terminal when:
 ⬜ Phase 1 — URL click reliable — Ctrl+Click exists, reliability needs verification
 ⬜ Phase 1 — Resize without display corruption — known issue, pending fix
 ✅ Phase 2 — Intent-aware title bar live — 🌲 INT-XXX | ~/dir | 100%, updates every 5s
-⬜ Phase 2 — Command success/failure indicators
+✅ Phase 2 — Command success/failure indicators — ✓/✗ in title bar
 ⬜ Phase 2 — Forest status strip (toggleable)
 ⬜ Phase 3 — Split panes (H/V split, navigation)
-⬜ Phase 3 — Smart scrollback search (Ctrl+F inline)
+✅ Phase 3 — Smart scrollback search — Ctrl+F search mode, Enter=next, Esc=exit
 ⬜ Phase 3 — Notification on long commands (>30s)
 ⬜ Phase 3 — Session memory (directory + intent context)
 ⬜ Phase 4 — Font ligatures and powerline glyphs

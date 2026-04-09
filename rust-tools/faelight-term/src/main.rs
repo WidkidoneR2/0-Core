@@ -916,6 +916,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         padding_f32,
         last_url_scan: Instant::now(),
         ctrl_pressed: false,
+        search_mode: false,
+        search_query: String::new(),
+        search_results: Vec::new(),
+        search_result_idx: 0,
         shift_pressed: false,
         mouse_pressed: false,
         last_click_time: std::time::Instant::now(),
@@ -1009,6 +1013,11 @@ struct App {
     padding_f32: f32,
     last_url_scan: Instant,
     ctrl_pressed: bool,
+    // INT-201 — Scrollback search
+    search_mode: bool,
+    search_query: String,
+    search_results: Vec<(usize, usize)>, // (row, col) positions
+    search_result_idx: usize,
     shift_pressed: bool,
     mouse_pressed: bool,
     last_click_time: std::time::Instant,
@@ -1120,6 +1129,40 @@ impl App {
         }
     }
 
+    fn do_search(&mut self) {
+        self.search_results.clear();
+        if self.search_query.is_empty() {
+            return;
+        }
+        let query_lower = self.search_query.to_lowercase();
+        // Search through scrollback
+        for (row_idx, row) in self.terminal.scrollback.iter().enumerate() {
+            let line: String = row.iter().map(|c| c.ch).collect();
+            if line.to_lowercase().contains(&query_lower) {
+                if let Some(col) = line.to_lowercase().find(&query_lower) {
+                    self.search_results.push((row_idx, col));
+                }
+            }
+        }
+        // Search through current screen
+        let sb_len = self.terminal.scrollback.len();
+        for (row_idx, row) in self.terminal.grid.iter().enumerate() {
+            let line: String = row.iter().map(|c: &Cell| c.ch).collect();
+            if line.to_lowercase().contains(&query_lower) {
+                if let Some(col) = line.to_lowercase().find(&query_lower) {
+                    self.search_results.push((sb_len + row_idx, col));
+                }
+            }
+        }
+        // Jump to first result
+        if !self.search_results.is_empty() {
+            self.search_result_idx = self.search_results.len() - 1;
+            let (row, _) = self.search_results[self.search_result_idx];
+            let offset = (self.terminal.scrollback.len() + self.terminal.rows)
+                .saturating_sub(row + self.terminal.rows);
+            self.terminal.scroll_offset = offset.min(self.terminal.scrollback.len());
+        }
+    }
     fn draw(&mut self, qh: &QueueHandle<Self>) {
         let stride = self.width as i32 * 4;
 
@@ -1635,6 +1678,68 @@ impl KeyboardHandler for App {
         _: u32,
         event: KeyEvent,
     ) {
+        // INT-201 — Ctrl+F to enter search mode
+        if self.ctrl_pressed
+            && !self.shift_pressed
+            && (event.keysym == Keysym::f || event.keysym == Keysym::F)
+        {
+            self.search_mode = !self.search_mode;
+            if !self.search_mode {
+                self.search_query.clear();
+                self.search_results.clear();
+            } else {
+                // Update title to show search mode
+                self.window.set_title("🔍 Search: (type to search, Enter=next, Esc=exit)");
+                self.window.commit();
+            }
+            return;
+        }
+        // Handle search input when in search mode
+        if self.search_mode {
+            match event.keysym {
+                Keysym::Escape => {
+                    self.search_mode = false;
+                    self.search_query.clear();
+                    self.search_results.clear();
+                    return;
+                }
+                Keysym::Return => {
+                    // Jump to next result
+                    if !self.search_results.is_empty() {
+                        self.search_result_idx = (self.search_result_idx + 1) % self.search_results.len();
+                        let (row, _) = self.search_results[self.search_result_idx];
+                        // Scroll to show this row
+                        let total = self.terminal.scrollback.len() + self.terminal.rows;
+                        let offset = total.saturating_sub(row + self.terminal.rows);
+                        self.terminal.scroll_offset = offset.min(self.terminal.scrollback.len());
+                    }
+                    return;
+                }
+                Keysym::BackSpace => {
+                    self.search_query.pop();
+                    self.do_search();
+                    let count = self.search_results.len();
+                    let q = self.search_query.clone();
+                    self.window.set_title(&format!("🔍 Search: {} ({} matches)", q, count));
+                    self.window.commit();
+                    return;
+                }
+                _ => {
+                    // Add character to search query
+                    if let Some(ch) = event.utf8.as_ref().and_then(|s| s.chars().next()) {
+                        if ch.is_ascii_graphic() || ch == ' ' {
+                            self.search_query.push(ch);
+                            self.do_search();
+                            let count = self.search_results.len();
+                            let q = self.search_query.clone();
+                            self.window.set_title(&format!("🔍 Search: {} ({} matches)", q, count));
+                            self.window.commit();
+                        }
+                    }
+                    return;
+                }
+            }
+        }
         // FIX 6: Handle both uppercase and lowercase for copy/paste
         if self.ctrl_pressed
             && self.shift_pressed
