@@ -47,6 +47,30 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     // ── Show current state ────────────────────────────────────
     println!("{}", "🌲 faelight-git commit".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
+    // INT-207 L1 — Show active intents context
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
+        let active: Vec<String> = std::fs::read_dir(&intents_dir)
+            .map(|d| d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    if let Ok(c) = std::fs::read_to_string(e.path()) {
+                        c.contains("status: in-progress") || c.contains("type: in-progress")
+                    } else { false }
+                })
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let num = name.split('-').next().unwrap_or("").to_string();
+                    if !num.is_empty() && num.parse::<u32>().is_ok() {
+                        Some(format!("INT-{}", num))
+                    } else { None }
+                })
+                .collect())
+            .unwrap_or_default();
+        if !active.is_empty() {
+            println!("  {} {}", "Working on:".dimmed(), active.join(", ").bright_cyan());
+        }
+    }
 
     let staged = status.staged_files();
     let unstaged = status.unstaged_files();
@@ -121,6 +145,30 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         println!("  {} linked to intent {}", "✅".green(), i.cyan());
         Some(i.clone())
     } else {
+        // Show active intents as suggestions
+        {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
+            let active: Vec<String> = std::fs::read_dir(&intents_dir)
+                .map(|d| d.filter_map(|e| e.ok())
+                    .filter(|e| {
+                        if let Ok(c) = std::fs::read_to_string(e.path()) {
+                            c.contains("status: in-progress") || c.contains("type: in-progress")
+                        } else { false }
+                    })
+                    .filter_map(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        let num = name.split('-').next().unwrap_or("").to_string();
+                        if !num.is_empty() && num.parse::<u32>().is_ok() {
+                            Some(format!("INT-{}", num))
+                        } else { None }
+                    })
+                    .collect())
+                .unwrap_or_default();
+            if !active.is_empty() {
+                println!("  {} {}", "💡 Active:".dimmed(), active.join(", ").bright_cyan());
+            }
+        }
         print!("  Intent reference (INT-0XX or 'skip'): ");
         io::stdout().flush()?;
         let mut input = String::new();
