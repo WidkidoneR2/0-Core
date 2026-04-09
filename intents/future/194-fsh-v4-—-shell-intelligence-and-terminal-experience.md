@@ -77,10 +77,10 @@ Ctrl+Click to open in faelight-browser
 ✅ File path tab completion
 ✅ Core subcommand tab completion (core intent <TAB>)
 ✅ Git branch tab completion
-⬜ Prediction-aware suggestions (pattern detection → Tab offer)
+✅ Prediction-aware suggestions — fires after 3+ pattern occurrences in history
 ⬜ Multi-line editing (arrow navigation, editor escape)
 ✅ Command timing intelligence (slow command warnings)
-⬜ Session variable persistence (persist VAR)
+✅ Session variable persistence — persist VAR saves to state.db, restores on login
 ✅ last / save / recall commands
 ✅ Frequency-scored history search
 ✅ Smarter DELETE confirmation — shows file count, size, recent files
