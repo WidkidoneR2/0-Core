@@ -753,6 +753,40 @@ fn health_check() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn build_forest_title() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let core_root = format!("{}/0-core", home);
+    // Get active intent
+    let active_intent = std::fs::read_dir(format!("{}/intents/future", core_root))
+        .ok()
+        .and_then(|d| {
+            d.filter_map(|e| e.ok())
+                .find(|e| {
+                    std::fs::read_to_string(e.path())
+                        .map(|c| c.contains("status: in-progress") || c.contains("type: in-progress"))
+                        .unwrap_or(false)
+                })
+                .map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let num = name.split('-').next().unwrap_or("").to_string();
+                    format!("INT-{}", num)
+                })
+        })
+        .unwrap_or_else(|| "forest".to_string());
+    // Get health from cache
+    let health = std::fs::read_to_string(
+        format!("{}/.cache/faelight/health-status", home)
+    ).unwrap_or_else(|_| "?".to_string())
+    .trim().to_string();
+    // Get current directory (abbreviated)
+    let cwd = std::env::current_dir()
+        .map(|p| {
+            let p_str = p.to_string_lossy().to_string();
+            p_str.replace(&home, "~")
+        })
+        .unwrap_or_else(|_| "~".to_string());
+    format!("🌲 {} | {} | {}%", active_intent, cwd, health)
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
 
@@ -860,6 +894,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pointer: None,
         cursor_blink_state: true,
         last_blink: Instant::now(),
+        last_title_update: Instant::now(),
         config,
         font_size,
         bg_color,
@@ -914,6 +949,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app.last_blink = Instant::now();
         }
 
+        // INT-201 — Intent-aware title bar (update every 5 seconds)
+        if app.last_title_update.elapsed() > Duration::from_secs(5) {
+            let title = build_forest_title();
+            app.window.set_title(&title);
+            app.window.commit();
+            app.last_title_update = Instant::now();
+        }
+
         event_loop.dispatch(Duration::from_millis(16), &mut app)?;
         if app.exit {
             break;
@@ -943,6 +986,7 @@ struct App {
     pointer: Option<wl_pointer::WlPointer>,
     cursor_blink_state: bool,
     last_blink: Instant,
+    last_title_update: Instant,
     font_size: f32,
     // Pre-parsed colors for performance
     bg_color: [u8; 3],
