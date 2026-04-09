@@ -90,3 +90,45 @@ Causality is not a feature.
 It is the difference between memory and understanding.
 The event log is not a record of the past.
 It is the proof of reasoning." 🌲
+
+This is the single most important struct in the system:
+```rust
+pub enum SignalKind {
+    Observation,     // raw facts
+    Interpretation,  // meaning derived
+    Judgment,        // evaluation against rules/values
+    Decision,        // chosen action (not executed)
+    Proposal,        // candidate action (pre-decision or human-gated)
+    Outcome,         // result of execution
+}
+pub struct Signal {
+    pub id: Uuid,
+    pub timestamp: DateTime<Utc>,
+    pub kind: SignalKind,
+    pub type_name: String,        // e.g. "health.cpu.high", "intent.created"
+    pub source_engine: String,
+    pub payload: serde_json::Value,
+    pub confidence: f32,          // short-term belief
+    pub weight: f32,              // long-term importance (v17)
+    pub decay_rate: f32,          // confidence decay rate
+    pub caused_by: Vec<Uuid>,     // causality graph
+    pub related_intent: Option<Uuid>,
+    pub supersedes: Option<Uuid>, // corrections/refinements
+    pub expires_at: Option<DateTime<Utc>>,
+    pub schema_version: u32,
+    pub signature: Option<String>,
+}
+```
+- Every non-observation signal MUST have caused_by
+- Chains must be traceable: observation → interpretation → judgment → decision → outcome
+- No orphan decisions. Ever.
+signals table — core signal storage
+signal_edges table — causality graph (child_id, parent_id, relation)
+decisions table — chosen actions, not yet executed
+proposals table — human gate interface (requires_approval=true)
+outcomes table — result of execution, feeds back to Friday
+confidence = short-term belief (decays)
+weight = long-term importance (stable, updated by v17)
+decay: effective_confidence = confidence * e^(-decay_rate * time)
+Supersession: interpretation_v1 → superseded_by → interpretation_v2
+Prevents stale wisdom and ghost patterns.
