@@ -27,6 +27,16 @@ pub enum Command {
 
     /// Stream all events live to terminal
     EventStream,
+    /// Get full forest context (active intent, health, alignment, top prediction)
+    GetForestContext,
+    /// Get pre-computed next prediction for current context
+    GetPrediction,
+    /// Get health watchdog status
+    WatchdogStatus,
+    /// Get recent engine signals
+    GetEngineSignals { limit: u32 },
+    /// Get neovim context for a specific file path
+    GetNeovimContext { file_path: String },
 }
 
 /// Responses sent from daemon to client
@@ -60,6 +70,47 @@ pub enum Response {
 
     /// Subscription confirmed
     Subscribed { domains: Vec<String> },
+    /// Forest context snapshot
+    ForestContext {
+        health: u32,
+        alignment: f64,
+        active_intent: Option<String>,
+        commits_today: i64,
+        friday_status: String,
+        top_prediction: Option<String>,
+    },
+    /// Pre-computed prediction
+    Prediction {
+        suggestion: Option<String>,
+        confidence: f64,
+        cached_at: i64,
+    },
+    /// Watchdog status
+    Watchdog {
+        last_check: i64,
+        last_health: u32,
+        alerts_today: i64,
+    },
+    /// Engine signals
+    EngineSignals {
+        signals: Vec<SignalEntry>,
+    },
+    /// Neovim context for a file
+    NeovimContext {
+        file_path: String,
+        active_intent: Option<String>,
+        intent_title: Option<String>,
+        suggestion: Option<String>,
+    },
+}
+/// Engine signal entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalEntry {
+    pub source: String,
+    pub signal_type: String,
+    pub payload: String,
+    pub weight: f64,
+    pub created_at: i64,
 }
 
 /// File entry information

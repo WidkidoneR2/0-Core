@@ -325,5 +325,20 @@
 **Typed capabilities:** RestartService, CreateCheckpoint, NotifyUser, RunDiagnostic, ClearCache
 **Typed rollbacks:** RestartService, RestoreFile, RevertDb (RunCommand eliminated)
 **Notes:** INT-187. Clock started 2026-04-03. Simulation only until gates pass.
+
+**Purpose:** Query faelight-daemon v2 — the always-on background brain. Monitors health, pre-computes predictions, aggregates signals.
+**Key subcommands:**
+  core daemon status           — full forest context: health, alignment, intent, commits, prediction
+  core daemon signals [n]      — last N engine signals (default 10)
+  core daemon watchdog         — health watchdog status and alert count
+  core daemon context          — raw forest context JSON from daemon
+  core daemon neovim <file>    — neovim context for a specific file path
+**Background tasks (runs always):**
+  Health watchdog: every 60s — alerts if health drops below 95%
+  Prediction pre-compute: every 30s — caches next likely command
+  Signal aggregation: every 30s — summarizes engine signal counts
+**Socket:** ~/.local/state/0-core/daemon.sock
+**Service:** systemctl --user status faelight-daemon
+**Notes:** INT-196. faelight-daemon v3.1.0. Background brain feeds Friday when it activates.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*

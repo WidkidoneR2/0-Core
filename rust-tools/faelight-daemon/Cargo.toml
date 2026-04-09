@@ -1,6 +1,6 @@
 [package]
 name = "faelight-daemon"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 description = "Background daemon for Faelight Forest operations"
 
@@ -23,6 +23,8 @@ clap = { version = "4", features = ["derive"] }
 
 # Pretty output
 colored = "2"
+# Date/time
+chrono = { version = "0.4", features = ["clock"] }
 
 [[bin]]
 name = "faelight-daemon"

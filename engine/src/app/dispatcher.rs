@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DocsCommand, JournalCommand, SelfCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -325,6 +325,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Daemon(c) => match c {
+            DaemonCommand::Status => crate::domains::daemon::status(ctx),
+            DaemonCommand::Context => crate::domains::daemon::context(ctx),
+            DaemonCommand::Signals { limit } => crate::domains::daemon::signals(ctx, limit),
+            DaemonCommand::Neovim { file_path } => crate::domains::daemon::neovim(ctx, &file_path),
+            DaemonCommand::Watchdog => crate::domains::daemon::watchdog(ctx),
+        },
         Command::Self_(c) => match c {
             SelfCommand::Map => crate::domains::self_transform::map(ctx),
             SelfCommand::Evolve => crate::domains::self_transform::evolve(ctx),

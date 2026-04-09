@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Query faelight-daemon v2 — background brain
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommands,
+    },
     /// Core v16 — Self-Transformation: The Forest Redesigns Itself
     Self_ {
         #[command(subcommand)]
@@ -629,6 +634,25 @@ pub enum UpdateCommands {
     },
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum DaemonCommands {
+    /// Current daemon health and forest context
+    Status,
+    /// Full forest context snapshot from daemon
+    Context,
+    /// Recent engine signals
+    Signals {
+        /// Number of signals to show
+        limit: u32,
+    },
+    /// Neovim context for a file
+    Neovim {
+        /// File path being edited
+        file_path: String,
+    },
+    /// Health watchdog status
+    Watchdog,
+}
 #[derive(Debug, Clone, Subcommand)]
 pub enum SelfCommands {
     /// Architecture coupling analysis
