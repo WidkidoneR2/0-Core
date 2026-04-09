@@ -4,7 +4,7 @@ pub mod parser;
 use clap::Parser;
 use commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand, PartnerCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -14,7 +14,7 @@ use commands::{
 use parser::{
     AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
     DelegateCommands,
-    AlignCommands, Cli, DaemonCommands, DocsCommands, JournalCommands, SelfCommands, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
+    AlignCommands, Cli, DaemonCommands, DocsCommands, JournalCommands, SelfCommands, WeightCommands, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
     ValuesCommands,
     DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands, PartnerCommands,
     LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
@@ -238,6 +238,13 @@ pub fn parse() -> Command {
         Commands::Update { command } => Command::Update(match command {
             UpdateCommands::Run { args } => UpdateCommand::Run { args },
             UpdateCommands::Safe { args } => UpdateCommand::Safe { args },
+        }),
+        Commands::Weight { command } => Command::Weight(match command {
+            WeightCommands::List => WeightCommand::List,
+            WeightCommands::Top => WeightCommand::Top,
+            WeightCommands::Compute => WeightCommand::Compute,
+            WeightCommands::Explain { id } => WeightCommand::Explain { id },
+            WeightCommands::Calibrate { id, outcome } => WeightCommand::Calibrate { id, outcome },
         }),
         Commands::Daemon { command } => Command::Daemon(match command {
             DaemonCommands::Status => DaemonCommand::Status,

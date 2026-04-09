@@ -83,6 +83,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: UpdateCommands,
     },
+    /// Core v17 — Pattern Weight Engine
+    Weight {
+        #[command(subcommand)]
+        command: WeightCommands,
+    },
     /// Query faelight-daemon v2 — background brain
     Daemon {
         #[command(subcommand)]
@@ -634,6 +639,19 @@ pub enum UpdateCommands {
     },
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum WeightCommands {
+    /// Show all patterns ranked by weight
+    List,
+    /// Show Critical and Strong patterns only
+    Top,
+    /// Scan events and compute pattern weights
+    Compute,
+    /// Full weight breakdown for a pattern
+    Explain { id: String },
+    /// Record outcome for calibration
+    Calibrate { id: String, outcome: String },
+}
 #[derive(Debug, Clone, Subcommand)]
 pub enum DaemonCommands {
     /// Current daemon health and forest context
