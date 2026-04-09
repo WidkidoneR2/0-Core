@@ -122,7 +122,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-daemon"
-version = "3.0.0"
+version = "3.1.0"
 category = "core"
 description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"

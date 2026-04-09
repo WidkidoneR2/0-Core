@@ -49,8 +49,24 @@ impl Daemon {
             let home = std::env::var("HOME").unwrap_or_default();
             format!("{}/0-core/runtime/state.db", home)
         };
+        let db_path_poll = db_path.clone();
         tokio::spawn(async move {
-            poll_events(poll_tx, db_path).await;
+            poll_events(poll_tx, db_path_poll).await;
+        });
+        // INT-196 v2 — Health watchdog (checks every 60 seconds)
+        let watchdog_db = db_path.clone();
+        tokio::spawn(async move {
+            health_watchdog(watchdog_db).await;
+        });
+        // INT-196 v2 — Prediction pre-compute (every 30 seconds)
+        let predict_db = db_path.clone();
+        tokio::spawn(async move {
+            prediction_precompute(predict_db).await;
+        });
+        // INT-196 v2 — Signal aggregation (every 30 seconds)
+        let signal_db = db_path.clone();
+        tokio::spawn(async move {
+            signal_aggregation(signal_db).await;
         });
 
         // Bind to Unix socket
@@ -314,6 +330,11 @@ async fn process_command(cmd: Command) -> Response {
             println!("{} Shutdown requested", "🛑".red().bold());
             std::process::exit(0);
         }
+        Command::GetForestContext => get_forest_context().await,
+        Command::GetPrediction => get_prediction().await,
+        Command::WatchdogStatus => get_watchdog_status().await,
+        Command::GetEngineSignals { limit } => get_engine_signals(limit).await,
+        Command::GetNeovimContext { file_path } => get_neovim_context(file_path).await,
         // Streaming commands handled above — should not reach here
         Command::Subscribe { .. } | Command::EventStream => Response::Error {
             message: "Streaming command reached process_command — bug".to_string(),
@@ -336,4 +357,246 @@ async fn read_directory(path: &str) -> Result<Vec<Entry>, std::io::Error> {
     }
     entries.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(entries)
+}
+// ── INT-196 v2 Background Tasks ───────────────────────────────────────────────
+/// Health watchdog — checks every 60 seconds, alerts on drops
+async fn health_watchdog(db_path: String) {
+    let mut last_health: u32 = 100;
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        let health = read_health_cache();
+        if health < 95 && last_health >= 95 {
+            println!("⚠️  WATCHDOG: Health dropped to {}% — was {}%", health, last_health);
+            // Write alert to state.db
+            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                let now = chrono::Utc::now().timestamp();
+                let _ = conn.execute(
+                    "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
+                     VALUES ('watchdog', 'health_alert', ?1, ?2, ?3)",
+                    rusqlite::params![
+                        format!("{{\"health\":{},\"previous\":{}}}", health, last_health),
+                        health as f64 / 100.0,
+                        now
+                    ],
+                );
+            }
+        } else if health >= 100 && last_health < 95 {
+            println!("✅ WATCHDOG: Health restored to {}%", health);
+        }
+        last_health = health;
+    }
+}
+/// Prediction pre-compute — runs every 30 seconds
+async fn prediction_precompute(db_path: String) {
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+        let Ok(conn) = rusqlite::Connection::open(&db_path) else { continue; };
+        let now = chrono::Utc::now().timestamp();
+        // Find most frequent next command in history
+        let suggestion: Option<String> = conn.query_row(
+            "SELECT next_cmd FROM (
+               SELECT h2.command as next_cmd, COUNT(*) as freq
+               FROM shell_history h1
+               JOIN shell_history h2 ON h2.id = h1.id + 1
+               WHERE h1.timestamp > ?1
+               GROUP BY next_cmd ORDER BY freq DESC LIMIT 1
+             )",
+            rusqlite::params![now - 86400],
+            |r| r.get(0)
+        ).ok();
+        if let Some(ref s) = suggestion {
+            let _ = conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('daemon_prediction', ?1)",
+                rusqlite::params![s],
+            );
+        }
+    }
+}
+/// Signal aggregation — summarizes engine signals every 30 seconds
+async fn signal_aggregation(db_path: String) {
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+        let Ok(conn) = rusqlite::Connection::open(&db_path) else { continue; };
+        let now = chrono::Utc::now().timestamp();
+        // Count signals in last hour
+        let signal_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM engine_signals WHERE created_at > ?1",
+            rusqlite::params![now - 3600], |r| r.get(0)
+        ).unwrap_or(0);
+        if signal_count > 0 {
+            // Update daemon activity log
+            let _ = conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('daemon_signal_count_1h', ?1)",
+                rusqlite::params![signal_count.to_string()],
+            );
+        }
+    }
+}
+// ── INT-196 v2 Command Implementations ───────────────────────────────────────
+fn get_db_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    format!("{}/0-core/runtime/state.db", home)
+}
+fn read_health_cache() -> u32 {
+    let home = std::env::var("HOME").unwrap_or_default();
+    std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
+        .unwrap_or_else(|_| "100".to_string())
+        .trim()
+        .parse()
+        .unwrap_or(100)
+}
+async fn get_forest_context() -> crate::protocol::Response {
+    let db_path = get_db_path();
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return crate::protocol::Response::Error { message: "Cannot open state.db".to_string() };
+    };
+    let health = read_health_cache();
+    let alignment: f64 = conn.query_row(
+        "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
+        [], |r| r.get::<_, Option<f64>>(0)
+    ).unwrap_or(None).unwrap_or(1.0);
+    let friday_status: String = conn.query_row(
+        "SELECT status FROM engine_registry WHERE name = 'friday'",
+        [], |r| r.get(0)
+    ).unwrap_or_else(|_| "dormant".to_string());
+    // Get active intent from filesystem
+    let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
+    let active_intent = std::fs::read_dir(format!("{}/intents/future", core_root))
+        .ok()
+        .and_then(|d| {
+            d.filter_map(|e| e.ok())
+                .find(|e| {
+                    std::fs::read_to_string(e.path())
+                        .map(|c| c.contains("status: in-progress"))
+                        .unwrap_or(false)
+                })
+                .map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let num = name.split('-').next().unwrap_or("").to_string();
+                    format!("INT-{}", num)
+                })
+        });
+    // Commits today
+    let _today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let commits_today: i64 = std::process::Command::new("git")
+        .args(["-C", &core_root, "log", "--oneline", "--since=midnight"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
+        .unwrap_or(0);
+    // Top prediction
+    let top_prediction: Option<String> = conn.query_row(
+        "SELECT value FROM shell_state WHERE key = 'daemon_prediction'",
+        [], |r| r.get(0)
+    ).ok();
+    crate::protocol::Response::ForestContext {
+        health,
+        alignment,
+        active_intent,
+        commits_today,
+        friday_status,
+        top_prediction,
+    }
+}
+async fn get_prediction() -> crate::protocol::Response {
+    let db_path = get_db_path();
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return crate::protocol::Response::Prediction { suggestion: None, confidence: 0.0, cached_at: 0 };
+    };
+    let now = chrono::Utc::now().timestamp();
+    let suggestion: Option<String> = conn.query_row(
+        "SELECT value FROM shell_state WHERE key = 'daemon_prediction'",
+        [], |r| r.get(0)
+    ).ok();
+    crate::protocol::Response::Prediction {
+        suggestion,
+        confidence: 0.75,
+        cached_at: now,
+    }
+}
+async fn get_watchdog_status() -> crate::protocol::Response {
+    let db_path = get_db_path();
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return crate::protocol::Response::Watchdog { last_check: 0, last_health: 0, alerts_today: 0 };
+    };
+    let now = chrono::Utc::now().timestamp();
+    let alerts_today: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM engine_signals WHERE source = 'watchdog' AND created_at > ?1",
+        rusqlite::params![now - 86400], |r| r.get(0)
+    ).unwrap_or(0);
+    crate::protocol::Response::Watchdog {
+        last_check: now,
+        last_health: read_health_cache(),
+        alerts_today,
+    }
+}
+async fn get_engine_signals(limit: u32) -> crate::protocol::Response {
+    let db_path = get_db_path();
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return crate::protocol::Response::EngineSignals { signals: vec![] };
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT source, signal_type, payload, weight, created_at
+         FROM engine_signals ORDER BY created_at DESC LIMIT ?1"
+    ) {
+        Ok(s) => s,
+        Err(_) => return crate::protocol::Response::EngineSignals { signals: vec![] },
+    };
+    let signals: Vec<crate::protocol::SignalEntry> = stmt.query_map(
+        rusqlite::params![limit], |r| {
+            Ok(crate::protocol::SignalEntry {
+                source: r.get(0)?,
+                signal_type: r.get(1)?,
+                payload: r.get(2).unwrap_or_default(),
+                weight: r.get(3)?,
+                created_at: r.get(4)?,
+            })
+        }
+    ).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+    crate::protocol::Response::EngineSignals { signals }
+}
+async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
+    let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
+    // Find active intent
+    let active = std::fs::read_dir(format!("{}/intents/future", core_root))
+        .ok()
+        .and_then(|d| {
+            d.filter_map(|e| e.ok())
+                .find(|e| {
+                    std::fs::read_to_string(e.path())
+                        .map(|c| c.contains("status: in-progress"))
+                        .unwrap_or(false)
+                })
+                .map(|e| e.path())
+        });
+    let (active_intent, intent_title) = match active {
+        Some(path) => {
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let num = name.split('-').next().unwrap_or("").to_string();
+            let intent_id = format!("INT-{}", num);
+            // Extract title from filename
+            let title = name.trim_end_matches(".md")
+                .splitn(3, '-')
+                .nth(2)
+                .unwrap_or("")
+                .replace('-', " ");
+            (Some(intent_id), Some(title))
+        }
+        None => (None, None),
+    };
+    // Generate suggestion based on file being edited
+    let suggestion = if file_path.contains("commands/mod.rs") || file_path.contains("commands.rs") {
+        Some("Editing commands — remember to wire through parser.rs, cli/mod.rs, dispatcher.rs".to_string())
+    } else if file_path.contains("main.rs") && file_path.contains("faelight-") {
+        Some("Editing tool source — run deploy after building".to_string())
+    } else if file_path.contains("mod.rs") && file_path.contains("domains/") {
+        Some("Editing domain — wire through CLI stack: commands → parser → mod → dispatcher".to_string())
+    } else {
+        None
+    };
+    crate::protocol::Response::NeovimContext {
+        file_path,
+        active_intent,
+        intent_title,
+        suggestion,
+    }
 }

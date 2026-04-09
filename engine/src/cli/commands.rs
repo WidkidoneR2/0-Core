@@ -38,6 +38,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Daemon(DaemonCommand),
     Self_(SelfCommand),
     Journal(JournalCommand),
     Docs(DocsCommand),
@@ -319,6 +320,14 @@ pub enum ValuesCommand {
     Weight { id: i64, weight: i64 },
 }
 
+#[derive(Debug)]
+pub enum DaemonCommand {
+    Status,
+    Context,
+    Signals { limit: u32 },
+    Neovim { file_path: String },
+    Watchdog,
+}
 #[derive(Debug)]
 pub enum SelfCommand {
     Map,

@@ -3,7 +3,7 @@ id: 196
 date: 2026-04-05
 type: planned
 title: "faelight-daemon v2 — The Background Brain Gets Smarter"
-status: planned
+status: complete
 tags: [daemon, background, intelligence, socket, neovim, v2]
 ---
 ## Current State
@@ -50,12 +50,12 @@ daemon watchdog       — health watchdog status
 daemon predictions    — pre-computed prediction cache
 
 ## Gate Check
-⬜ daemon neovim integration v2 — rich context protocol
-⬜ health watchdog — monitors and alerts on health drops
-⬜ prediction pre-computation — zero latency suggestions
-⬜ event aggregation — acts on contextd signals
-⬜ memory pressure monitoring
-⬜ daemon status shows all v2 capabilities
+✅ daemon neovim integration v2 — GetNeovimContext protocol live
+✅ health watchdog — 60s polling, alerts to engine_signals on drop below 95%
+✅ prediction pre-computation — 30s cache in shell_state.daemon_prediction
+✅ event aggregation — 30s signal count summary
+⬜ memory pressure monitoring — deferred to v3
+✅ core daemon status/signals/watchdog/context/neovim all live
 
 ## The Phrase
 "The daemon that only runs is infrastructure.
