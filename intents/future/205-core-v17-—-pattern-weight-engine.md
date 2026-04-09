@@ -233,3 +233,35 @@ and the direction things are heading.
 The forest does not shout about everything.
 It speaks loudest about what matters most.
 And when it speaks — it can tell you exactly why." 🌲
+
+Remove volatility from ContextWeights.
+Use it as a pure penalty multiplier alongside confidence:
+  base_score * m.confidence * stability_factor(m.volatility)
+Weights = what matters dimensionally.
+Modifiers = how trustworthy/stable the signal is.
+  t > 0.0 => 0.5 + (t * 0.5)   // worsening: up to 1.0
+  t <= 0.0 => 0.5 + (t * 0.4)  // improving: down to 0.1
+Improving patterns are less predictive. Penalize harder.
+frequency = occurrences_in_window / window_size_days
+This approximates rate without needing explicit opportunity tracking.
+Raw occurrence counts allow low-risk noise to outrank rare high-risk signals.
+When a prediction misses:
+  contribution = (dimension_weight * dimension_score) / total_score
+Adjust only the top contributing dimensions, in proportion.
+Blanket ±0.02 on all dimensions is too blunt.
+Not [0.8, 1.2]. Values inform, they do not override.
+At 0.8 the system can suppress a real signal by 20% — dangerous.
+Tight clamp prevents "ignored reality because it didn't align with identity."
+struct WeightBreakdown {
+    base: f64,
+    confidence_adjusted: f64,
+    decay_adjusted: f64,
+    identity_adjusted: f64,
+    final_weight: f64,
+}
+Store alongside every computed weight.
+Friday needs this to explain its reasoning.
+When something feels wrong, trace which stage amplified or killed the signal.
+weights = what matters (frequency, recency, trend, context)
+modifiers = how trustworthy it is (confidence, volatility/stability)
+These must stay architecturally separate.
