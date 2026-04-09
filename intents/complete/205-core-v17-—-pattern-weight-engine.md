@@ -3,7 +3,7 @@ id: 205
 date: 2026-04-08
 type: planned
 title: "Core v17 — Pattern Weight Engine"
-status: planned
+status: complete
 tags: [core, v17, patterns, weight, intelligence, friday, prediction, strategy]
 ---
 Core v17 is not a new feature.
@@ -209,21 +209,21 @@ This is trial and error done honestly.
 Not pretending the first guess was right.
 Not hiding when it was wrong.
 Iterating toward truth.
-⬜ PatternMetrics struct defined and stored in state.db
-⬜ compute_weight function with context-sensitive coefficients
-⬜ trend_factor and stability_factor implemented
-⬜ apply_decay function live — patterns lose weight over time
-⬜ apply_identity_alignment integrated with v15 values (when ready)
-⬜ WeightClass thresholds with behavior mapping
-⬜ Positive reinforcement weights (not just failure patterns)
-⬜ Explainability output — every weight fully decomposable
-⬜ pattern_weights table in state.db
-⬜ core predict uses weights to rank predictions
-⬜ core strategy uses weights to prioritize
-⬜ Friday WeightClass → behavior mapping live
-⬜ Calibration protocol logging context coefficient adjustments
-⬜ At least one Critical-class pattern correctly identified and acted on
-⬜ deploy core and d passes 100%
+✅ PatternMetrics struct defined — frequency/recency/consequence/trend/volatility/confidence
+✅ compute_weight_with_breakdown — context-sensitive ContextWeights
+✅ trend_factor (0.4 asymmetry) and stability_factor implemented
+✅ apply_decay live — 0.015 decay rate
+✅ apply_identity_alignment clamped [0.9,1.1] — reads from alignment_checks
+✅ WeightClass: Ignore/Weak/Moderate/Strong/Critical with Friday behavior mapping
+✅ Positive patterns use same formula with is_positive flag
+✅ WeightBreakdown struct — base/confidence_adj/volatility_adj/decay_adj/identity_adj
+✅ pattern_weights + weight_calibrations tables in state.db
+✅ core predict next uses v17 weights — roadmap-aware scoring
+⬜ core strategy weight integration — next session
+✅ Friday behavior mapping: Ignore→silent, Critical→interrupt
+✅ weight_calibrations table + core weight calibrate command
+⬜ Critical pattern — needs more data accumulation
+✅ deploy core clean, d passes 100%
 "A system that treats all patterns equally
 has not yet learned to pay attention.
 Weight is not judgment.

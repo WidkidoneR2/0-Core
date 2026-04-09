@@ -340,5 +340,27 @@
 **Socket:** ~/.local/state/0-core/daemon.sock
 **Service:** systemctl --user status faelight-daemon
 **Notes:** INT-196. faelight-daemon v3.1.0. Background brain feeds Friday when it activates.
+
+**Purpose:** Core v17 — Every pattern earns its weight. Frequency, recency, consequence, trend, volatility, confidence combine into a single explainable score. Powers Friday's WeightClass behavior mapping.
+**Key subcommands:**
+  core weight compute          — scan events, compute weights for all known patterns
+  core weight list             — all patterns ranked by weight with class and confidence
+  core weight top              — Critical and Strong patterns only
+  core weight explain <id>     — full 5-stage breakdown: base → confidence → volatility → decay → identity
+  core weight calibrate <id> <outcome> — record outcome for calibration learning
+**WeightClass behavior:**
+  IGNORE   (< 0.25) — silent, not worth surfacing
+  WEAK     (0.25–0.45) — mention only if asked
+  MODERATE (0.45–0.65) — suggest during relevant context
+  STRONG   (0.65–0.80) — recommend proactively
+  CRITICAL (> 0.80)   — challenge / interrupt current action
+**Design principles:**
+  - volatility = modifier (not a weight dimension)
+  - trend asymmetry: worsening amplifies 0.5x, improving dampens 0.4x
+  - frequency = rate (occurrences/window_days), not raw count
+  - identity alignment clamped [0.9, 1.1]
+  - WeightBreakdown on every weight — fully explainable
+**Tables:** pattern_weights, weight_calibrations in state.db
+**Notes:** INT-205. Feeds core predict next (weight-ranked), Friday WeightClass behavior, and future Tool Intelligence L2/L3.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*

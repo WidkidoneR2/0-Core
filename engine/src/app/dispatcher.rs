@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -325,6 +325,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 UpdateCommand::Safe { args } => crate::domains::update::safe(ctx, &args),
             }
         }
+        Command::Weight(c) => match c {
+            WeightCommand::List => crate::domains::weight_engine::list(ctx),
+            WeightCommand::Top => crate::domains::weight_engine::top(ctx),
+            WeightCommand::Compute => crate::domains::weight_engine::compute(ctx),
+            WeightCommand::Explain { id } => crate::domains::weight_engine::explain(ctx, &id),
+            WeightCommand::Calibrate { id, outcome } =>
+                crate::domains::weight_engine::calibrate(ctx, &id, &outcome),
+        },
         Command::Daemon(c) => match c {
             DaemonCommand::Status => crate::domains::daemon::status(ctx),
             DaemonCommand::Context => crate::domains::daemon::context(ctx),

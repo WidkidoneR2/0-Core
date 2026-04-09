@@ -38,6 +38,7 @@ pub enum Command {
     },
     Launcher(LauncherCommand),
     Update(UpdateCommand),
+    Weight(WeightCommand),
     Daemon(DaemonCommand),
     Self_(SelfCommand),
     Journal(JournalCommand),
@@ -320,6 +321,14 @@ pub enum ValuesCommand {
     Weight { id: i64, weight: i64 },
 }
 
+#[derive(Debug)]
+pub enum WeightCommand {
+    List,
+    Top,
+    Compute,
+    Explain { id: String },
+    Calibrate { id: String, outcome: String },
+}
 #[derive(Debug)]
 pub enum DaemonCommand {
     Status,

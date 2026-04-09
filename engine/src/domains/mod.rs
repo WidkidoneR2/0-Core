@@ -6,6 +6,7 @@ pub mod checkpoint;
 pub mod decisions;
 pub mod deps;
 pub mod daemon;
+pub mod weight_engine;
 pub mod docs;
 pub mod self_transform;
 pub mod journal;

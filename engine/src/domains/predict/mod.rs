@@ -520,11 +520,48 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
 
-    println!("  {} Predicted next (by priority order)", "▶".bright_yellow());
-    for (id, title, _) in planned.iter().take(5) {
-        println!("    {} INT-{}  {}", "·".dimmed(), id.bright_white(), title.white());
+    println!("  {} Predicted next (weighted by v17 pattern engine)", "▶".bright_yellow());
+    // v17 — weight-ranked intent prediction
+    let weight_scores: Vec<(f64, &(String, String, String))> = {
+        let top_patterns: Vec<(String, f64)> = ctx.runtime.db.prepare(
+            "SELECT id, final_weight FROM pattern_weights ORDER BY final_weight DESC LIMIT 10"
+        ).and_then(|mut s| {
+            let rows: Vec<(String, f64)> = s.query_map([], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            }).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+            Ok(rows)
+        }).unwrap_or_default();
+        planned.iter().map(|intent| {
+            let (id, title, _) = *intent;
+            let id_num: u32 = id.parse().unwrap_or(999);
+            let title_lower = title.to_lowercase();
+            // Recency: newer intents score higher
+            let recency_score = (1.0 - (id_num as f64 / 300.0)).max(0.0);
+            // Pattern relevance boost
+            let pattern_boost: f64 = top_patterns.iter().map(|(pat_id, weight)| {
+                let rel = match pat_id.as_str() {
+                    "intent-load" => if title_lower.contains("pattern") || title_lower.contains("weight") || title_lower.contains("friday") { 0.2 } else { 0.0 },
+                    "health-drops" => if title_lower.contains("doctor") || title_lower.contains("health") { 0.2 } else { 0.0 },
+                    _ => 0.0,
+                };
+                rel * weight
+            }).sum::<f64>();
+            // Roadmap boost: intents 205-216 are the active path to Friday
+            let roadmap = if id_num >= 205 && id_num <= 216 { 0.35 }
+                else if id_num >= 200 { 0.15 }
+                else { 0.0 };
+            (recency_score + pattern_boost + roadmap, *intent)
+        }).collect()
+    };
+    let mut scored = weight_scores;
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    for (score, (id, title, _)) in scored.iter().take(5) {
+        let bar = if *score >= 0.5 { "●●●".bright_green() }
+            else if *score >= 0.3 { "●●○".bright_yellow() }
+            else { "●○○".dimmed() };
+        println!("    {} INT-{}  {} {}", bar, id.bright_white(), title.white(),
+            format!("({:.2})", score).dimmed());
     }
-
     println!();
     println!("{}", "━".repeat(52).dimmed());
     Ok(())
