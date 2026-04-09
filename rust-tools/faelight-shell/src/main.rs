@@ -1348,6 +1348,48 @@ fn repl_main() -> Result<()> {
                             }
                         }
                     }
+                    // INT-194 — Prediction-aware suggestions (pattern detection)
+                    // After each command, check if there is a strong "next command" pattern
+                    {
+                        let cmd_key = base_cmd.split_whitespace().next().unwrap_or(&base_cmd).to_string();
+                        // Only suggest for meaningful commands, not builtins
+                        let skip_suggest = matches!(cmd_key.as_str(),
+                            "d" | "ls" | "cd" | "echo" | "cat" | "help" | "exit" | "q" | "clear"
+                        );
+                        if !skip_suggest {
+                            // Find what command most often follows this one
+                            let next_cmd: Option<String> = db.conn.query_row(
+                                "SELECT next_cmd, COUNT(*) as freq
+                                 FROM (
+                                   SELECT h2.command as next_cmd
+                                   FROM shell_history h1
+                                   JOIN shell_history h2 ON h2.id = h1.id + 1
+                                   WHERE h1.command LIKE ?1
+                                   AND h2.command NOT LIKE ?1
+                                   AND length(h2.command) > 2
+                                 )
+                                 GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
+                                rusqlite::params![format!("{}%", cmd_key)],
+                                |r| r.get(0)
+                            ).ok();
+                            if let Some(suggestion) = next_cmd {
+                                // Only show if it appears often (check count >= 3)
+                                let freq: i64 = db.conn.query_row(
+                                    "SELECT COUNT(*) FROM shell_history h1
+                                     JOIN shell_history h2 ON h2.id = h1.id + 1
+                                     WHERE h1.command LIKE ?1 AND h2.command = ?2",
+                                    rusqlite::params![format!("{}%", cmd_key), &suggestion],
+                                    |r| r.get(0)
+                                ).unwrap_or(0);
+                                if freq >= 3 {
+                                    println!("  {} you usually run {} next",
+                                        "💡".normal(),
+                                        suggestion.bright_cyan()
+                                    );
+                                }
+                            }
+                        }
+                    }
                     // Store last output for `last` command (INT-194)
                     if let Some(ref out) = cmd_output {
                         if !out.is_empty() {
