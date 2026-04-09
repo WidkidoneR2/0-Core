@@ -15,16 +15,32 @@ pub fn parent(path: &Path) -> Option<&Path> {
 
 use crate::error::Result;
 use std::fs;
+fn log_fm_event(action: &str, path: &str) {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/0-core/runtime/state.db", home);
+    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64).unwrap_or(0);
+        let payload = format!("action={} path={}", action, path);
+        let _ = conn.execute(
+            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('fm', ?1, ?2, ?3)",
+            rusqlite::params![action, payload, ts],
+        );
+    }
+}
 
 /// Copy a file to a new location
 pub fn copy_file(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
     fs::copy(src, dst)?;
+    log_fm_event("copy", &src.to_string_lossy());
     Ok(())
 }
 
 /// Move a file to a new location
 pub fn move_file(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
     fs::rename(src, dst)?;
+    log_fm_event("move", &src.to_string_lossy());
     Ok(())
 }
 
@@ -44,6 +60,7 @@ pub fn delete_file(path: &std::path::Path) -> Result<()> {
     } else {
         fs::remove_file(path)?;
     }
+    log_fm_event("delete", &path.to_string_lossy());
     Ok(())
 }
 

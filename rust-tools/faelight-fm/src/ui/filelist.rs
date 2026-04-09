@@ -37,14 +37,10 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                 FaelightColors::file_style(is_selected)
             };
 
-            let size_str = if entry.is_dir {
-                "      ".to_string()
-            } else {
-                match std::fs::metadata(&entry.path) {
-                    Ok(m) => format_size(m.len()),
-                    Err(_) => "      ".to_string(),
-                }
-            };
+            // v3 — use pre-read metadata
+            let size_str = entry.size_str();
+            let perms = entry.permissions_str();
+            let modified_str = entry.modified_str();
 
             let suffix = if entry.is_symlink { " →" } else { "" };
 
@@ -61,6 +57,11 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                 " "
             };
 
+            let perm_color = if entry.is_executable {
+                Color::Rgb(100, 200, 150)
+            } else {
+                Color::Rgb(100, 140, 100)
+            };
             let spans = vec![
                 Span::styled(
                     format!(" {} ", git_marker),
@@ -70,10 +71,14 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
                     format!("{} ", intent_marker),
                     Style::default().fg(FaelightColors::ACCENT_GREEN).bg(bg),
                 ),
+                Span::styled(
+                    format!("{} ", perms),
+                    Style::default().fg(perm_color).bg(bg),
+                ),
                 Span::styled(format!("{} ", entry.icon()), name_style),
                 Span::styled(format!("{}{}", entry.name, suffix), name_style),
                 Span::styled(
-                    format!("  {}", size_str),
+                    format!("  {:>7}  {}", size_str, modified_str),
                     Style::default().fg(FaelightColors::TEXT_DIM).bg(bg),
                 ),
             ];
@@ -127,6 +132,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) -> Vec<(u16, u16, us
     file_regions
 }
 
+#[allow(dead_code)]
 fn format_size(bytes: u64) -> String {
     if bytes < 1024 {
         format!("{:>4}B ", bytes)

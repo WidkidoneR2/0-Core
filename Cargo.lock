@@ -1615,13 +1615,14 @@ dependencies = [
 
 [[package]]
 name = "faelight-fm"
-version = "2.3.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "crossterm 0.28.1",
  "faelight-core",
  "faelight-zone",
  "ratatui 0.28.1",
+ "rusqlite",
  "serde",
  "serde_json",
  "shellexpand",

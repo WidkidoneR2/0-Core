@@ -20,6 +20,35 @@ pub enum YankMode {
     Cut, // dd - move file
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SortMode {
+    Name,
+    SizeDesc,
+    Modified,
+    Type,
+}
+impl Default for SortMode {
+    fn default() -> Self { SortMode::Name }
+}
+impl SortMode {
+    pub fn next(self) -> Self {
+        match self {
+            SortMode::Name     => SortMode::SizeDesc,
+            SortMode::SizeDesc => SortMode::Modified,
+            SortMode::Modified => SortMode::Type,
+            SortMode::Type     => SortMode::Name,
+        }
+    }
+    #[allow(dead_code)]
+    pub fn label(&self) -> &'static str {
+        match self {
+            SortMode::Name     => "name",
+            SortMode::SizeDesc => "size",
+            SortMode::Modified => "modified",
+            SortMode::Type     => "type",
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum MessageColor {
     #[default]
@@ -50,6 +79,7 @@ pub struct AppState {
     pub yank_mode: YankMode,
     pub status_message: Option<String>,
     pub message_color: MessageColor,
+    pub sort_mode: SortMode,
     pub file_click_regions: Vec<(u16, u16, usize)>, // (row, width, file_index)
     pub zone_click_regions: Vec<(u16, u16, u16, u16, u8)>, // (x, y, width, height, zone_num)
     // === PHASE 1: Multi-select ===
@@ -96,6 +126,7 @@ impl AppState {
             yank_mode: YankMode::Copy,
             status_message: None,
             message_color: MessageColor::Success,
+            sort_mode: SortMode::Name,
             file_click_regions: Vec::new(),
             zone_click_regions: Vec::new(),
             // Phase 1 fields
@@ -154,11 +185,16 @@ impl AppState {
                         path,
                         name: daemon_entry.name,
                         is_dir: daemon_entry.is_dir,
-                        is_symlink: false, // TODO: daemon should track this
+                        is_symlink: false,
                         git_status,
                         zone,
                         health: HealthStatus::Ok,
                         intent_info,
+                        size: daemon_entry.size,
+                        modified: None,
+                        permissions: if daemon_entry.is_dir { 0o755u32 } else { 0o644u32 },
+                        is_executable: false,
+                        is_hidden: false,
                     }
                 })
                 .collect();
@@ -187,7 +223,21 @@ impl AppState {
                         .symlink_metadata()
                         .map(|m| m.is_symlink())
                         .unwrap_or(false);
-
+                    // v3 — permissions, size, modified
+                    let (size, modified, permissions, is_executable) = {
+                        use std::os::unix::fs::PermissionsExt;
+                        match std::fs::metadata(&path) {
+                            Ok(m) => {
+                                let mode = m.permissions().mode();
+                                (m.len(), m.modified().ok(), mode, mode & 0o111 != 0)
+                            }
+                            Err(_) => (0, None, 0o644u32, false),
+                        }
+                    };
+                    let is_hidden = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| n.starts_with('.'))
+                        .unwrap_or(false);
                     let zone = zones::classify(&path);
 
                     let intents = intent::find_intents_for_path(&self.intent_dir, &path);
@@ -208,17 +258,71 @@ impl AppState {
                         zone,
                         health: HealthStatus::Ok,
                         intent_info,
+                        size,
+                        modified,
+                        permissions,
+                        is_executable,
+                        is_hidden,
                     })
                 })
                 .collect()
         };
 
+        self.sort_entries();
         self.apply_filter();
         self.selected = 0;
         self.load_preview();
         Ok(())
     }
 
+    pub fn cycle_sort(&mut self) {
+        self.sort_mode = self.sort_mode.next();
+        self.sort_entries();
+        self.apply_filter();
+        self.selected = 0;
+    }
+    pub fn sort_entries(&mut self) {
+        match self.sort_mode {
+            SortMode::Name => {
+                self.entries.sort_by(|a, b| {
+                    match (a.is_dir, b.is_dir) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                    }
+                });
+            }
+            SortMode::SizeDesc => {
+                self.entries.sort_by(|a, b| {
+                    match (a.is_dir, b.is_dir) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => b.size.cmp(&a.size),
+                    }
+                });
+            }
+            SortMode::Modified => {
+                self.entries.sort_by(|a, b| {
+                    match (a.is_dir, b.is_dir) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => b.modified.cmp(&a.modified),
+                    }
+                });
+            }
+            SortMode::Type => {
+                self.entries.sort_by(|a, b| {
+                    let ext_a = a.path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    let ext_b = b.path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    match (a.is_dir, b.is_dir) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => ext_a.cmp(ext_b),
+                    }
+                });
+            }
+        }
+    }
     pub fn apply_filter(&mut self) {
         if self.search_query.is_empty() {
             self.filtered_entries = self.entries.clone();

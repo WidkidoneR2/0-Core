@@ -4,7 +4,7 @@ pub fn create_layout(area: Rect) -> (Rect, Rect, Rect, Rect, Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1), // Top bar
+            Constraint::Length(3), // Top bar
             Constraint::Length(1), // Path bar
             Constraint::Min(0),    // Main area
             Constraint::Length(3), // Status bar
