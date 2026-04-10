@@ -299,6 +299,7 @@ impl Terminal {
             if self.scrollback.len() > self.max_scrollback {
                 self.scrollback.remove(0);
             }
+            self.scroll_offset = 0; // INT-201: follow output
             self.grid.push(vec![Cell::default(); self.cols]);
             self.cursor_row = self.rows - 1;
         }
@@ -530,6 +531,7 @@ impl Perform for Terminal {
                         self.scrollback.remove(0);
                     }
                     self.grid.push(vec![Cell::default(); self.cols]);
+                self.scroll_offset = 0; // INT-201: follow output
                 }
             }
             'T' => {
@@ -1972,6 +1974,8 @@ impl WindowHandler for App {
                     &winsize,
                 )
             };
+            // INT-201 resize fix: redraw after resize
+            self.draw(qh);
         }
 
         if self.first_configure {
