@@ -65,12 +65,29 @@ fn levenshtein(a: &str, b: &str) -> usize {
 }
 
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
-    let mut parts = line.trim().splitn(3, ' ');
-    let cmd = match parts.next() {
-        Some(c) if !c.is_empty() => c.to_lowercase(),
-        _ => return CommandResult::Empty,
-    };
-    let args_vec: Vec<&str> = parts.collect();
+    fn tokenize_args(s: &str) -> Vec<String> {
+        let mut tokens: Vec<String> = Vec::new();
+        let mut current = String::new();
+        let mut in_quote = false;
+        let mut quote_char = ' ';
+        for ch in s.chars() {
+            match ch {
+                '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
+                c if in_quote && c == quote_char => { in_quote = false; }
+                ' ' if !in_quote => {
+                    if !current.is_empty() { tokens.push(current.clone()); current.clear(); }
+                }
+                c => current.push(c),
+            }
+        }
+        if !current.is_empty() { tokens.push(current); }
+        tokens
+    }
+    let trimmed_line = line.trim();
+    let cmd = trimmed_line.splitn(2, ' ').next().unwrap_or("").to_lowercase();
+    let rest_str = trimmed_line.splitn(2, ' ').nth(1).unwrap_or("");
+    let owned_args: Vec<String> = tokenize_args(rest_str);
+    let args_vec: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
     let args = args_vec.as_slice();
 
     // !! — repeat last command
@@ -281,15 +298,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "echo" => {
-            let raw = args.join(" ");
-            // Strip single layer of surrounding quotes
-            let output = if raw.len() >= 2 &&
-                ((raw.starts_with('"') && raw.ends_with('"')) ||
-                 (raw.starts_with("'") && raw.ends_with("'"))) {
-                raw[1..raw.len()-1].to_string()
-            } else {
-                raw
-            };
+            let output = args.iter().map(|a| {
+                let a = a.trim();
+                if a.len() >= 2 && ((a.starts_with('"') && a.ends_with('"')) || (a.starts_with("'") && a.ends_with("'"))) {
+                    a[1..a.len()-1].to_string()
+                } else {
+                    a.to_string()
+                }
+            }).collect::<Vec<_>>().join(" ");
             CommandResult::Output(output)
         }
         "type" => {
