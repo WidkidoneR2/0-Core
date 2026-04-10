@@ -137,7 +137,7 @@ Level 2 produces the data. The weight engine gives it meaning.
 
 ## Gate Check
 ✅ faelight-update v4.2.0 — structured update_pattern logged to state.db (2026-04-09)
-⬜ faelight-update — pattern feeds INT-205 pattern_weights table
+✅ faelight-update — pattern feeds INT-205 pattern_weights table (2026-04-09)
 ✅ faelight-git v3.2.0 — structured commit_pattern logged to state.db (2026-04-09)
 ✅ faelight-git — commit velocity and session depth tracked (2026-04-09)
 ✅ fsh v0.8.0 — structured session_pattern logged on exit (2026-04-09)
@@ -145,7 +145,7 @@ Level 2 produces the data. The weight engine gives it meaning.
 ✅ core doctor v2.2.0 — structured health_pattern logged per run (2026-04-09)
 ✅ core doctor — trigger type recorded (manual | post-deploy | scheduled) (2026-04-09)
 ⬜ friday_observations populated from all four tools
-⬜ pattern_weights table receiving data from tool outcomes
+✅ pattern_weights table receiving data from tool outcomes (2026-04-09)
 ⬜ At least 30 days of structured data across all four tools
 ⬜ core engines signals shows tool signals flowing
 ✅ deploy all four tools and d passes 100% (2026-04-09)
