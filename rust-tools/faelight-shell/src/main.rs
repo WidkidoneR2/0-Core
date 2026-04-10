@@ -32,6 +32,15 @@ use std::collections::HashMap;
 
 /// Split a line on `;` separators, respecting quoted strings.
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
+fn normalize_input(s: &str) -> String {
+    s.replace("‘", "'")
+     .replace("’", "'")
+     .replace("“", "\"")
+     .replace("”", "\"")
+     .replace("–", "-")
+     .replace("—", "--")
+}
+
 fn split_semicolons(line: &str) -> Vec<String> {
     let mut segments = vec![];
     let mut current = String::new();
@@ -534,6 +543,7 @@ fn repl_main() -> Result<()> {
                 if line.contains(" | ") {
                     _session_pipelines += 1;
                 }
+                let line = normalize_input(&line);
                 db.save_history_entry(&line);
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
