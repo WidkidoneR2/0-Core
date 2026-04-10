@@ -1627,10 +1627,10 @@ impl PointerHandler for App {
                     // Handle selection dragging
                     if self.mouse_pressed
                         && self.selection_start.is_some()
-                        && row < self.terminal.rows
                         && col < self.terminal.cols
                     {
-                        self.selection_end = Some((row, col));
+                        let clamped_row = row.min(self.terminal.rows - 1);
+                        self.selection_end = Some((clamped_row, col));
                     }
 
                     // Check for URL hover
