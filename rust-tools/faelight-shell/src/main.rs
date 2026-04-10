@@ -27,6 +27,7 @@ mod triggers;
 mod value;
 
 use anyhow::Result;
+use chrono::{Datelike, Timelike};
 use rustyline::{error::ReadlineError, CompletionType, Config, EditMode, Editor};
 use std::collections::HashMap;
 
@@ -39,6 +40,34 @@ fn normalize_input(s: &str) -> String {
      .replace("”", "\"")
      .replace("–", "-")
      .replace("—", "--")
+}
+
+
+fn expand_subshells(line: &str) -> String {
+    let trigger: &str = &('$'.to_string() + "(");
+    if !line.contains(trigger) { return line.to_string(); }
+    let mut result = String::new();
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1] == '(' {
+            i += 2;
+            let mut depth = 1usize;
+            let mut inner = String::new();
+            while i < chars.len() && depth > 0 {
+                if chars[i] == '(' { depth += 1; }
+                else if chars[i] == ')' { depth -= 1; }
+                if depth > 0 { inner.push(chars[i]); }
+                i += 1;
+            }
+            let output = std::process::Command::new("sh")
+                .arg("-c").arg(&inner).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            result.push_str(&output);
+        } else { result.push(chars[i]); i += 1; }
+    }
+    result
 }
 
 fn split_semicolons(line: &str) -> Vec<String> {
@@ -411,6 +440,9 @@ fn repl_main() -> Result<()> {
     let _session_start = std::time::Instant::now();
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
+    let mut _session_deploys: usize = 0;
+    let mut _session_commits: usize = 0;
+    let mut _session_failed: usize = 0;
 
     // Phase 16 — configured interactive editor
     let rl_config = Config::builder()
@@ -469,32 +501,6 @@ fn repl_main() -> Result<()> {
         job_table.check_completed();
 
 
-fn expand_subshells(line: &str) -> String {
-    let trigger: &str = &('$'.to_string() + "(");
-    if !line.contains(trigger) { return line.to_string(); }
-    let mut result = String::new();
-    let chars: Vec<char> = line.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1] == '(' {
-            i += 2;
-            let mut depth = 1usize;
-            let mut inner = String::new();
-            while i < chars.len() && depth > 0 {
-                if chars[i] == '(' { depth += 1; }
-                else if chars[i] == ')' { depth -= 1; }
-                if depth > 0 { inner.push(chars[i]); }
-                i += 1;
-            }
-            let output = std::process::Command::new("sh")
-                .arg("-c").arg(&inner).output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .unwrap_or_default();
-            result.push_str(&output);
-        } else { result.push(chars[i]); i += 1; }
-    }
-    result
-}
         // Phase 17 — render two-line context above input
         let ctx = prompt::PromptContext {
             last_duration_ms,
@@ -569,9 +575,12 @@ fn expand_subshells(line: &str) -> String {
                 // Save to history
                 let _ = rl.add_history_entry(&line);
                 _session_commands += 1;
+                if line.starts_with("deploy") { _session_deploys += 1; }
+                if line.starts_with("fg commit") { _session_commits += 1; }
                 if line.contains(" | ") {
                     _session_pipelines += 1;
                 }
+                let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 db.save_history_entry(&line);
                 let mut heredoc_handled = false;
@@ -958,6 +967,8 @@ fn expand_subshells(line: &str) -> String {
                     }
                     // Phase 10 — expand $VARS before alias resolution
                     let line = expand_vars(line, &shell_vars);
+                    // Subshell expansion
+                    let line = expand_subshells(&line);
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
@@ -1554,6 +1565,17 @@ fn expand_subshells(line: &str) -> String {
         .output();
     // Save session state on exit
     session::SessionMemory::save(&core_root, None);
+    // INT-208: Log session pattern
+    let _session_duration = _session_start.elapsed().as_secs() / 60;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let dow = chrono::Local::now().weekday().num_days_from_monday() as i64;
+    let hour = chrono::Local::now().hour() as i64;
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+        rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now],
+    );
     println!(
         "{}",
         colored::Colorize::dimmed("  🌲 The forest remembers.")
