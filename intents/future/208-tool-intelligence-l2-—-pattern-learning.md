@@ -3,7 +3,7 @@ id: 208
 date: 2026-04-08
 type: planned
 title: "Tool Intelligence L2 — Pattern Learning"
-status: planned
+status: in-progress
 tags: [tools, intelligence, patterns, learning, state.db, friday, weight-engine, v2]
 ---
 
