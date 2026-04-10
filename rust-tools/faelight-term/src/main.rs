@@ -224,27 +224,6 @@ impl Terminal {
         text
     }
 
-    /// Scan all visible rows for URLs
-    pub fn get_all_text(&self) -> String {
-        let mut text = String::new();
-        for row in &self.scrollback {
-            let line: String = row.iter().map(|c| c.ch).collect();
-            let trimmed = line.trim_end();
-            if !trimmed.is_empty() {
-                text.push_str(trimmed);
-                text.push('\n');
-            }
-        }
-        for row in &self.grid {
-            let line: String = row.iter().map(|c| c.ch).collect();
-            let trimmed = line.trim_end();
-            if !trimmed.is_empty() {
-                text.push_str(trimmed);
-                text.push('\n');
-            }
-        }
-        text.trim_end().to_string()
-    }
     fn scan_urls(&mut self) {
         self.detected_urls.clear();
 
@@ -1058,20 +1037,28 @@ impl App {
         }
     }
 
-    fn copy_all_to_clipboard(&self) {
+    fn copy_last_output(&self) {
         use wl_clipboard_rs::copy::{MimeType, Options, Source as ClipSource};
-        let text = self.terminal.get_all_text();
+        let mut all_lines: Vec<String> = Vec::new();
+        for row in &self.terminal.scrollback {
+            all_lines.push(row.iter().map(|c| c.ch).collect::<String>());
+        }
+        for row in &self.terminal.grid {
+            all_lines.push(row.iter().map(|c| c.ch).collect::<String>());
+        }
+        let prompt = "fsh ❯";
+        let positions: Vec<usize> = all_lines.iter().enumerate().filter(|(_, l)| l.contains(prompt)).map(|(i, _)| i).collect();
+        if positions.len() < 2 { return; }
+        let start = positions[positions.len() - 2] + 1;
+        let end = positions[positions.len() - 1];
+        let text: String = all_lines[start..end].iter().map(|l| l.trim_end()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join("
+");
         if !text.is_empty() {
             let opts = Options::new();
-            match opts.copy(
-                ClipSource::Bytes(text.as_bytes().to_vec().into()),
-                MimeType::Text,
-            ) {
-                Ok(_) => {}
-                Err(e) => eprintln!("Copy all failed: {}", e),
-            }
+            let _ = opts.copy(ClipSource::Bytes(text.into_bytes().into()), MimeType::Text);
         }
     }
+
     fn copy_to_primary(&self) {
         use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, Source as ClipSource};
         if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
@@ -1631,6 +1618,9 @@ impl PointerHandler for App {
                     {
                         let clamped_row = row.min(self.terminal.rows - 1);
                         self.selection_end = Some((clamped_row, col));
+                        if row == 0 && self.terminal.scroll_offset < self.terminal.scrollback.len() {
+                            self.terminal.scroll_offset = (self.terminal.scroll_offset + 1).min(self.terminal.scrollback.len());
+                        }
                     }
 
                     // Check for URL hover
@@ -1754,7 +1744,7 @@ impl KeyboardHandler for App {
             && self.shift_pressed
             && (event.keysym == Keysym::a || event.keysym == Keysym::A)
         {
-            self.copy_all_to_clipboard();
+            self.copy_last_output();
             return;
         }
 
