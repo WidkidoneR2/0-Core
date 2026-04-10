@@ -7,6 +7,33 @@ use anyhow::{bail, Result};
 use colored::*;
 use std::io::{self, Write};
 
+
+fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pushed: bool) {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
+    let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+    if !db_path.exists() { return; }
+    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS commit_patterns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                hash TEXT NOT NULL,
+                message TEXT NOT NULL,
+                intent_id TEXT,
+                outcome TEXT NOT NULL
+            );"
+        );
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default().as_secs() as i64;
+        let outcome = if pushed { "pushed" } else { "local-only" };
+        let intent_id = intent_ref.as_deref().unwrap_or("");
+        let _ = conn.execute(
+            "INSERT INTO commit_patterns (timestamp, hash, message, intent_id, outcome) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![ts, hash, message, intent_id, outcome],
+        );
+    }
+}
 fn emit_git_event(action: &str, detail: &str) {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/home/christian".to_string());
     let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
@@ -250,11 +277,13 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         let push = std::process::Command::new("git").arg("push").status()?;
         if push.success() {
             emit_git_event("push", &format!(r#""hash":"{}","branch":"main""#, hash));
+            log_commit_pattern(&hash, &message, &intent_ref, true);
             println!("{}", "  🚀 Pushed to origin".green().bold());
         } else {
             println!("{}", "  ❌ Push failed — run 'git push' manually".red());
         }
     } else {
+        log_commit_pattern(&hash, &message, &intent_ref, false);
         println!("{}", "  ℹ️  Committed locally — push when ready".dimmed());
     }
 
