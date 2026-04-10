@@ -20,17 +20,31 @@ fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pu
                 hash TEXT NOT NULL,
                 message TEXT NOT NULL,
                 intent_id TEXT,
-                outcome TEXT NOT NULL
+                outcome TEXT NOT NULL,
+                velocity_per_hour REAL NOT NULL DEFAULT 0.0,
+                session_depth INTEGER NOT NULL DEFAULT 0
             );"
         );
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default().as_secs() as i64;
+        let one_hour_ago = ts - 3600;
+        let today_start = ts - (ts % 86400);
+        let velocity: f64 = conn.query_row(
+            "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
+            rusqlite::params![one_hour_ago],
+            |r| r.get::<_, i64>(0),
+        ).unwrap_or(0) as f64;
+        let session_depth: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
+            rusqlite::params![today_start],
+            |r| r.get(0),
+        ).unwrap_or(0);
         let outcome = if pushed { "pushed" } else { "local-only" };
         let intent_id = intent_ref.as_deref().unwrap_or("");
         let _ = conn.execute(
-            "INSERT INTO commit_patterns (timestamp, hash, message, intent_id, outcome) VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![ts, hash, message, intent_id, outcome],
+            "INSERT INTO commit_patterns (timestamp, hash, message, intent_id, outcome, velocity_per_hour, session_depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![ts, hash, message, intent_id, outcome, velocity, session_depth],
         );
     }
 }
