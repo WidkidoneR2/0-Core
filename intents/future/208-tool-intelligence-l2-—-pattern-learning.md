@@ -147,7 +147,7 @@ Level 2 produces the data. The weight engine gives it meaning.
 ⬜ friday_observations populated from all four tools
 ✅ pattern_weights table receiving data from tool outcomes (2026-04-09)
 ⬜ At least 30 days of structured data across all four tools
-⬜ core engines signals shows tool signals flowing
+✅ core engines signals shows tool signals flowing (2026-04-09)
 ✅ deploy all four tools and d passes 100% (2026-04-09)
 
 ## The Phrase

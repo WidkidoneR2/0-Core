@@ -362,5 +362,18 @@
   - WeightBreakdown on every weight — fully explainable
 **Tables:** pattern_weights, weight_calibrations in state.db
 **Notes:** INT-205. Feeds core predict next (weight-ranked), Friday WeightClass behavior, and future Tool Intelligence L2/L3.
+
+---
+## Tool Intelligence L2 -- Pattern Learning (INT-208)
+**Purpose:** Every tool now remembers what it did. Structured learning feeds Friday before Friday wakes up.
+**New tables in state.db:**
+  health_patterns    -- every doctor run: health_pct, integrity_pct, checks, trigger_type
+  commit_patterns    -- every commit: hash, message, intent_id, outcome, velocity_per_hour, session_depth
+  session_patterns   -- every fsh session exit: day_of_week, hour_start/end, commit_count
+  update_history     -- every update run: total_updates, outcome, health_after, drift_label
+**Engine signals from tools:**
+  engine_signals source=doctor           -- health signal on every doctor run
+  engine_signals source=faelight-update  -- update signal on every update run
+**Notes:** INT-208 (10/13 gates complete 2026-04-09). 30-day threshold for meaningful patterns. Friday inherits all on activation.
 *Living document — updated with every new domain.*
 *Last updated: Faelight Forest 11.7.0 — The Intelligence Arc*
