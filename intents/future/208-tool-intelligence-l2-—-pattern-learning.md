@@ -142,7 +142,7 @@ Level 2 produces the data. The weight engine gives it meaning.
 ⬜ faelight-git — commit velocity and session depth tracked
 ✅ fsh v0.8.0 — structured session_pattern logged on exit (2026-04-09)
 ⬜ fsh — focus_score computed per session
-⬜ core doctor v2.2.0 — structured health_pattern logged per run
+✅ core doctor v2.2.0 — structured health_pattern logged per run (2026-04-09)
 ⬜ core doctor — trigger type recorded (manual | post-deploy | scheduled)
 ⬜ friday_observations populated from all four tools
 ⬜ pattern_weights table receiving data from tool outcomes
