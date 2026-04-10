@@ -140,7 +140,7 @@ Level 2 produces the data. The weight engine gives it meaning.
 ⬜ faelight-update — pattern feeds INT-205 pattern_weights table
 ⬜ faelight-git v3.2.0 — structured commit_pattern logged to state.db
 ⬜ faelight-git — commit velocity and session depth tracked
-⬜ fsh v0.8.0 — structured session_pattern logged on exit
+✓️ fsh v0.8.0 — structured session_pattern logged on exit (2026-04-09)
 ⬜ fsh — focus_score computed per session
 ⬜ core doctor v2.2.0 — structured health_pattern logged per run
 ⬜ core doctor — trigger type recorded (manual | post-deploy | scheduled)
