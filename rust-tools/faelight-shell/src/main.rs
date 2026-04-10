@@ -189,7 +189,9 @@ fn expand_globs(line: &str) -> String {
                     let name = entry.file_name();
                     let name_str = name.to_string_lossy();
                     if glob_match(file_pattern, &name_str) {
-                        matches.push(entry.path().to_string_lossy().to_string());
+                        let p = entry.path().to_string_lossy().to_string();
+                        let p = p.strip_prefix("./").unwrap_or(&p).to_string();
+                        matches.push(p);
                     }
                 }
             }
@@ -840,7 +842,8 @@ fn repl_main() -> Result<()> {
                                 }
                                 continue 'repl;
                             }
-                            let result = exec::execute_with_context(rest, &db, &core_root, &cfg.before_rules);
+                            let rest = expand_vars(rest, &shell_vars);
+                            let result = exec::execute_with_context(&rest, &db, &core_root, &cfg.before_rules);
                             match result {
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::Error(e) => {
