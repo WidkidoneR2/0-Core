@@ -249,6 +249,15 @@ fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: 
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params![now, total as i64, duration_ms as i64, outcome, health_after, drift],
         );
+        let payload = format!(
+            "{{\"total_updates\":{},\"outcome\":\"{}\",\"health_after\":{},\"drift\":\"{}\"}}",
+            total, outcome, health_after, drift
+        );
+        let weight = if outcome == "success" { health_after as f64 / 100.0 } else { 0.3 };
+        let _ = conn.execute(
+            "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('faelight-update', 'update', ?1, ?2, ?3)",
+            rusqlite::params![payload, weight, now],
+        );
     }
 }
 /// Run system maintenance tasks
