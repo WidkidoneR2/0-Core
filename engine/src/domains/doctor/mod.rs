@@ -303,12 +303,13 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 integrity_pct INTEGER NOT NULL,
                 checks_passed INTEGER NOT NULL,
                 checks_warned INTEGER NOT NULL,
-                checks_failed INTEGER NOT NULL
+                checks_failed INTEGER NOT NULL,
+                trigger_type TEXT NOT NULL DEFAULT 'manual'
             );"
         );
         let _ = db.execute(
-            "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params![ts, health as i64, integrity_pct as i64, passed as i64, warnings as i64, failed as i64],
+            "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed, trigger_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![ts, health as i64, integrity_pct as i64, passed as i64, warnings as i64, failed as i64, "manual"],
         );
     }
 
