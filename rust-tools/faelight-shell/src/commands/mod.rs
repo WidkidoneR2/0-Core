@@ -4,6 +4,7 @@
 use crate::db::ForestDb;
 extern crate libc;
 use colored::*;
+use std::os::unix::process::CommandExt;
 
 // ── Time formatting helper ───────────────────────────────────────────────────
 fn fmt_time(ts: i64, fmt: &str) -> String {
@@ -37,6 +38,7 @@ fn emit_command(db: &ForestDb, cmd: &str, result: &str) {
     ).ok();
 }
 
+#[allow(dead_code)]
 fn levenshtein(a: &str, b: &str) -> usize {
     let la = a.len();
     let lb = b.len();
@@ -204,8 +206,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "realpath" | "rp" => realpath_cmd(args),
         "time" => time_cmd(line, args),
         "reload" => {
-            use std::os::unix::process::CommandExt;
-            let exe = std::env::current_exe().unwrap_or_default();
+                    let exe = std::env::current_exe().unwrap_or_default();
             let err = std::process::Command::new(&exe).exec();
             CommandResult::Error(format!("reload: {}", err))
         },
@@ -2775,251 +2776,23 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 
-fn run_external(line: &str, db: &ForestDb) -> CommandResult {
-    // Extract original-case command and arguments from line
-    let mut tokens = line.trim().splitn(2, ' ');
-    let cmd_orig = match tokens.next() {
-        Some(c) if !c.is_empty() => c.to_string(),
-        _ => return CommandResult::Empty,
-    };
-    let rest = tokens.next().unwrap_or("");
-
-    // Forest-native alternatives — suggest these before "not found"
-    // The forest knows its own tools
-    let forest_map: &[(&str, &str)] = &[
-        ("gchurn", "core evolution map  — domain coupling index"),
-        ("top", "ps | sort cpu desc  — process table"),
-        ("htop", "ps | sort cpu desc  — process table"),
-        ("history", "ht                  — shell history as table"),
-    ];
-    let cmd_lower = cmd_orig.to_lowercase();
-    for (ext, forest) in forest_map {
-        if cmd_lower == *ext {
-            return CommandResult::Error(format!(
-                "  {} is not a forest command
-  {} forest-native: {}",
-                cmd_orig.bright_white(),
-                "→".bright_cyan(),
-                forest.bright_cyan()
-            ));
-        }
-    }
-
-    // Check PATH — try to find the binary
-    let found = std::process::Command::new("sh")
-        .args(["-c", &format!("command -v {} > /dev/null 2>&1", cmd_orig)])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-
-    if !found {
-        // Forest-aware suggestion from known commands
-        let known = [
-            "health",
-            "events",
-            "decisions",
-            "intents",
-            "tools",
-            "audit",
-            "ps",
-            "ports",
-            "services",
-            "files",
-            "net",
-            "pkgs",
-            "forecast",
-            "sandbox",
-            "story",
-            "advise",
-            "version",
-            "commits",
-            "cd",
-            "clear",
-            "exit",
-            "search",
-            "checkpoint",
-            "git",
-            "tt",
-            "et",
-            "at",
-            "dt",
-            "ht",
-            "ct",
-            "domains",
-            "help",
-        ];
-        let suggestion = known
-            .iter()
-            .filter(|k| levenshtein(k, &cmd_lower) <= 2)
-            .min_by_key(|k| levenshtein(k, &cmd_lower));
-        return if let Some(s) = suggestion {
-            CommandResult::Error(format!(
-                "  {} not found — did you mean {}?",
-                cmd_orig.bright_white(),
-                s.bright_cyan()
-            ))
-        } else {
-            CommandResult::Error(format!(
-                "  {} not found in PATH — type {} for forest commands",
-                cmd_orig.bright_white(),
-                "help".bright_cyan()
-            ))
-        };
-    }
-
-    // Build arg list — respect quoted strings
-    let args: Vec<String> = if rest.is_empty() {
-        vec![]
-    } else {
-        // Simple arg split — handles quoted args
-        let mut result = vec![];
-        let mut current = String::new();
-        let mut in_quote = false;
-        let mut quote_char = ' ';
-        for ch in rest.chars() {
-            match ch {
-                '"' | '\'' if !in_quote => {
-                    in_quote = true;
-                    quote_char = ch;
-                }
-                c if in_quote && c == quote_char => {
-                    in_quote = false;
-                }
-                ' ' if !in_quote => {
-                    if !current.is_empty() {
-                        result.push(current.clone());
-                        current.clear();
-                    }
-                }
-                _ => current.push(ch),
-            }
-        }
-        if !current.is_empty() {
-            result.push(current);
-        }
-        // Expand ~ in each argument
-        let home_tilde = std::env::var("HOME").unwrap_or_default();
-        result.into_iter().map(|s| {
-            if s == "~" { home_tilde.clone() }
-            else if s.starts_with("~/") { format!("{}/{}", home_tilde, &s[2..]) }
-            else { s }
-        }).collect()
-    };
-
-    // Execute — inherit stdin/stdout/stderr so interactive commands work
-    // Phase 9 — child resets SIGINT to default before exec
-    // shell ignores SIGINT while waiting, then restores it after
-    use std::os::unix::process::CommandExt;
-
-    let start = std::time::Instant::now();
-
-    // Expand tilde in command path
-    let home_cmd = std::env::var("HOME").unwrap_or_default();
-    let cmd_resolved = if cmd_orig.starts_with("~/") {
-        format!("{}/{}", home_cmd, &cmd_orig[2..])
-    } else {
-        cmd_orig.clone()
-    };
-    let mut cmd_builder = std::process::Command::new(&cmd_resolved);
-    cmd_builder
-        .args(&args)
+fn run_external(line: &str, _db: &ForestDb) -> CommandResult {
+    let status = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(line)
         .stdin(std::process::Stdio::inherit())
         .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit());
-
-    // Reset SIGINT to default in child before exec
-    unsafe {
-        cmd_builder.pre_exec(|| {
-            libc::signal(libc::SIGINT, libc::SIG_DFL);
-            Ok(())
-        });
-    }
-
-    // Shell ignores SIGINT while child runs
-    unsafe {
-        libc::signal(libc::SIGINT, libc::SIG_IGN);
-    }
-
-    let status = cmd_builder.status();
-    let elapsed = start.elapsed();
-
-    // Restore SIGINT in shell after child exits
-    unsafe {
-        libc::signal(libc::SIGINT, libc::SIG_DFL);
-    }
-
+        .stderr(std::process::Stdio::inherit())
+        .status();
     match status {
         Ok(s) => {
-            let code = s.code().unwrap_or(-1);
-
-            // Show timing for slow commands (> 2 seconds) — forest context
-            // Only show if not signal-killed
-            if code != -1 && elapsed.as_secs() >= 2 {
-                println!(
-                    "  {} {:.1}s",
-                    format!("{} took", cmd_orig).dimmed(),
-                    elapsed.as_secs_f64()
-                );
-            }
-
-            // Emit external.run event to state.db
-            let now = chrono::Utc::now().timestamp();
-            let _ = db.conn.execute(
-                "INSERT INTO events (domain,action,payload,timestamp)                  VALUES ('external','run',?1,?2)",
-                rusqlite::params![
-                    format!("cmd:{} exit:{}", cmd_orig, code),
-                    now
-                ],
-            );
-
-            if code == -1 {
-                // Signal termination (e.g. Ctrl+C) — clean interrupt, no noise
-                CommandResult::Empty
-            } else if code != 0 {
-                // Non-zero exit — suppress wrapper noise if part of a pipe
-                if line.contains(" | ") {
-                    return CommandResult::Empty;
-                }
-                // Structured error + failure memory
-                let cwd = std::env::current_dir()
-                    .map(|d| d.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                let suggestion = format!("Check the output above — {} exited with code {}", cmd_orig, code);
-                let display = crate::error::make_error(
-                    crate::error::codes::EXIT_NONZERO,
-                    &format!("{} exited with code {}", cmd_orig, code),
-                    &suggestion,
-                    line,
-                    &cwd,
-                    db,
-                );
-                print!("{}", display);
-                // INT-176 — store last failed command for recovery
-                let _ = db.conn.execute(
-                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_failed_command', ?1)",
-                    rusqlite::params![line],
-                );
-                let ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64).unwrap_or(0);
-                let log_key = format!("failure_log_{}", ts);
-                let log_val = format!("{}|E_EXIT_NONZERO: {} exited with code {}", line, cmd_orig, code);
-                let _ = db.conn.execute(
-                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
-                    rusqlite::params![log_key, log_val],
-                );
-                suggest_after_external(line, &cmd_lower);
-                CommandResult::Empty
-            } else {
-                suggest_after_external(line, &cmd_lower);
-                CommandResult::Empty
+            if s.success() { CommandResult::Empty }
+            else {
+                let code = s.code().unwrap_or(1);
+                CommandResult::Error(format!("  exited with code {}", code))
             }
         }
-        Err(e) => CommandResult::Error(format!(
-            "  failed to run {}: {}",
-            cmd_orig.bright_white(),
-            e
-        )),
+        Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
     }
 }
 
@@ -3810,6 +3583,7 @@ fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
+#[allow(dead_code)]
 fn suggest_after_external(line: &str, cmd_lower: &str) {
     let suggestion: Option<&str> = match cmd_lower {
         "cicomplete"  => Some("💡 Next: fg commit — record the completion"),
@@ -4259,18 +4033,16 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     let has_unknown_flags = args.iter().any(|a| a.starts_with('-') && !known_flags.contains(a));
     if has_unknown_flags {
         // Call grep directly — no sh wrapper needed (INT-194)
-        let parts: Vec<&str> = line.trim().splitn(2, "grep").collect();
-        let grep_args = if parts.len() > 1 { parts[1].trim() } else { "" };
-        let output = std::process::Command::new("grep")
-            .args(grep_args.split_whitespace())
-            .output();
-        return match output {
-            Ok(o) => {
-                let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                if !stderr.is_empty() { eprint!("{}", stderr); }
-                if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout.trim_end().to_string()) }
-            }
+        let status = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(line)
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+        return match status {
+            Ok(s) if s.success() => CommandResult::Empty,
+            Ok(s) => CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1))),
             Err(e) => CommandResult::Error(format!("grep: {}", e)),
         };
     }
@@ -4479,7 +4251,6 @@ fn time_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
 }
 fn exec_cmd(args: &[&str]) -> CommandResult {
-    use std::os::unix::process::CommandExt;
     let home = std::env::var("HOME").unwrap_or_default();
     // Special case: exec fsh or exec faelight-shell → re-exec current binary
     let cmd = match args.first() {

@@ -48,14 +48,30 @@ impl ExecContext {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        // Parse cmd and args from raw line
+        // Parse cmd and args from raw line -- quote-aware tokenizer
+        fn tokenize(s: &str) -> Vec<String> {
+            let mut tokens: Vec<String> = Vec::new();
+            let mut current = String::new();
+            let mut in_quote = false;
+            let mut quote_char = ' ';
+            for ch in s.chars() {
+                match ch {
+                    '\"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
+                    c if in_quote && c == quote_char => { in_quote = false; }
+                    ' ' if !in_quote => {
+                        if !current.is_empty() { tokens.push(current.clone()); current.clear(); }
+                    }
+                    c => current.push(c),
+                }
+            }
+            if !current.is_empty() { tokens.push(current); }
+            tokens
+        }
         let mut parts = raw.splitn(2, ' ');
         let cmd = parts.next().unwrap_or("").to_lowercase();
         let args: Vec<String> = parts.next()
-            .unwrap_or("")
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
+            .map(|s| tokenize(s))
+            .unwrap_or_default();
 
         // Read active intent from db if available
         let intent = db.get_focus_intent();

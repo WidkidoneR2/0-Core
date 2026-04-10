@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // faelight-shell — Structured Error System
 // INT-174 — The Shell Explains Its Failures
 //
