@@ -228,7 +228,7 @@ fn get_drift_score() -> (String, String) {
 
 
 /// Log update run to state.db
-fn log_update_run(total: usize, duration_ms: u128, outcome: &str) {
+fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: i64, drift: &str) {
     let home = std::env::var("HOME").unwrap_or_default();
     let db_path = format!("{}/0-core/runtime/state.db", home);
     if let Ok(conn) = rusqlite::Connection::open(&db_path) {
@@ -238,14 +238,16 @@ fn log_update_run(total: usize, duration_ms: u128, outcome: &str) {
                 timestamp INTEGER NOT NULL,
                 total_updates INTEGER NOT NULL,
                 duration_ms INTEGER NOT NULL,
-                outcome TEXT NOT NULL
+                outcome TEXT NOT NULL,
+                health_after INTEGER,
+                drift_label TEXT
             );"
         );
         let now = chrono::Utc::now().timestamp();
         let _ = conn.execute(
-            "INSERT INTO update_history (timestamp, total_updates, duration_ms, outcome)
-             VALUES (?1, ?2, ?3, ?4)",
-            rusqlite::params![now, total as i64, duration_ms as i64, outcome],
+            "INSERT INTO update_history (timestamp, total_updates, duration_ms, outcome, health_after, drift_label)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![now, total as i64, duration_ms as i64, outcome, health_after, drift],
         );
     }
 }
@@ -615,7 +617,8 @@ fn run() -> Result<()> {
             );
         }
         // Log to state.db
-        log_update_run(selections.len(), 0, "success");
+        let (_, drift_after) = get_drift_score();
+        log_update_run(selections.len(), 0, "success", health as i64, &drift_after);
         return Ok(());
     } else if cli.dry_run {
         println!("\n{}  Ready to update {} packages!", "✨".yellow(), total);
