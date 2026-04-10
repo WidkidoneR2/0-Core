@@ -468,6 +468,33 @@ fn repl_main() -> Result<()> {
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
 
+
+fn expand_subshells(line: &str) -> String {
+    let trigger: &str = &('$'.to_string() + "(");
+    if !line.contains(trigger) { return line.to_string(); }
+    let mut result = String::new();
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1] == '(' {
+            i += 2;
+            let mut depth = 1usize;
+            let mut inner = String::new();
+            while i < chars.len() && depth > 0 {
+                if chars[i] == '(' { depth += 1; }
+                else if chars[i] == ')' { depth -= 1; }
+                if depth > 0 { inner.push(chars[i]); }
+                i += 1;
+            }
+            let output = std::process::Command::new("sh")
+                .arg("-c").arg(&inner).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_default();
+            result.push_str(&output);
+        } else { result.push(chars[i]); i += 1; }
+    }
+    result
+}
         // Phase 17 — render two-line context above input
         let ctx = prompt::PromptContext {
             last_duration_ms,
@@ -931,6 +958,8 @@ fn repl_main() -> Result<()> {
                     }
                     // Phase 10 — expand $VARS before alias resolution
                     let line = expand_vars(line, &shell_vars);
+                    // Subshell expansion
+                    let line = expand_subshells(&line);
                     // Glob expansion — expand *.rs, *.md etc
                     let line = expand_globs(&line);
                     let line = line.as_str();
