@@ -822,7 +822,17 @@ fn repl_main() -> Result<()> {
                     let trimmed = line.trim();
 
                     // Standalone VAR=value (no command) — treat as export
-                    if !trimmed.contains(' ') && trimmed.contains('=') {
+                    let is_standalone_assign = trimmed.contains('=') && {
+                        let eq_pos = trimmed.find('=').unwrap_or(0);
+                        let before_eq = &trimmed[..eq_pos];
+                        let after_eq = trimmed[eq_pos+1..].trim();
+                        let no_space_before = !before_eq.contains(' ');
+                        let value_is_quoted = (after_eq.starts_with('"') && after_eq.ends_with('"'))
+                            || (after_eq.starts_with('\'') && after_eq.ends_with('\''));
+                        let no_space_after = !after_eq.contains(' ');
+                        no_space_before && (no_space_after || value_is_quoted)
+                    };
+                    if is_standalone_assign {
                         let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
                         if parts.len() == 2 {
                             let name = parts[0];
