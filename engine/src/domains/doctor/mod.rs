@@ -289,6 +289,29 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
     render_cockpit(&checks, &version, health, passed, warnings, failed, integrity_pct);
 
+    // INT-208: Log health pattern to state.db
+    {
+        let db = &ctx.runtime.db;
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default().as_secs() as i64;
+        let _ = db.execute_batch(
+            "CREATE TABLE IF NOT EXISTS health_patterns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                health_pct INTEGER NOT NULL,
+                integrity_pct INTEGER NOT NULL,
+                checks_passed INTEGER NOT NULL,
+                checks_warned INTEGER NOT NULL,
+                checks_failed INTEGER NOT NULL
+            );"
+        );
+        let _ = db.execute(
+            "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![ts, health as i64, integrity_pct as i64, passed as i64, warnings as i64, failed as i64],
+        );
+    }
+
     // Show integrity summary if issues found
     if int_fixed > 0 || int_proposed > 0 || int_alerts > 0 {
         println!();
