@@ -449,6 +449,57 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 CommandResult::Output(results.join("\n"))
             }
         }
+        "patch" => {
+            // patch file.rs --old "old text" --new "new text"
+            // In-place find-and-replace -- no Python script needed
+            if args.len() < 5 {
+                return CommandResult::Error(
+                    "usage: patch <file> --old <text> --new <text>\n  patch file.rs --old \"old code\" --new \"new code\"".to_string()
+                );
+            }
+            let filepath = args[0];
+            let expanded = if filepath.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                filepath.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                filepath.to_string()
+            };
+            // Parse --old and --new flags
+            let mut old_text: Option<String> = None;
+            let mut new_text: Option<String> = None;
+            let mut i = 1;
+            while i < args.len() {
+                match args[i] {
+                    "--old" if i + 1 < args.len() => { old_text = Some(args[i+1].to_string()); i += 2; }
+                    "--new" if i + 1 < args.len() => { new_text = Some(args[i+1].to_string()); i += 2; }
+                    _ => { i += 1; }
+                }
+            }
+            let old_text = match old_text {
+                Some(t) => t,
+                None => return CommandResult::Error("patch: --old text required".to_string()),
+            };
+            let new_text = match new_text {
+                Some(t) => t,
+                None => return CommandResult::Error("patch: --new text required".to_string()),
+            };
+            let content_str = match std::fs::read_to_string(&expanded) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("patch: {}: {}", filepath, e)),
+            };
+            let count = content_str.matches(old_text.as_str()).count();
+            if count == 0 {
+                return CommandResult::Error(format!("patch: text not found in {}", filepath));
+            }
+            if count > 1 {
+                return CommandResult::Error(format!("patch: {} occurrences found -- text must be unique (found {})", count, count));
+            }
+            let patched = content_str.replacen(&old_text, &new_text, 1);
+            match std::fs::write(&expanded, &patched) {
+                Ok(_) => CommandResult::Output(format!("  {} patched {} (1 replacement)", "✅".to_string(), filepath)),
+                Err(e) => CommandResult::Error(format!("patch: write failed: {}", e)),
+            }
+        }
         "type" => {
             let cmd = args.first().copied().unwrap_or("");
             if cmd.is_empty() {
