@@ -748,33 +748,52 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "edit" => {
-            // INT-194 Gate 14 — open $EDITOR with last command for complex editing
-            let last_cmd = db.get_last_command().unwrap_or_default();
-            let tmp = "/tmp/fsh-edit.sh";
-            let _ = std::fs::write(tmp, format!("{}
-", last_cmd));
+            // INT-223 Phase 4 — edit file:line or file:pattern or last command
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-            let status = std::process::Command::new(&editor)
-                .arg(tmp)
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .status();
-            match status {
-                Ok(_) => {
-                    let edited = std::fs::read_to_string(tmp)
-                        .unwrap_or_default()
-                        .trim()
-                        .to_string();
-                    let _ = std::fs::remove_file(tmp);
-                    if edited.is_empty() {
-                        CommandResult::Empty
-                    } else {
-                        println!("  {} {}", "→".bright_cyan(), edited.dimmed());
-                        execute(&edited, db, core_root)
+            if args.is_empty() {
+                let last_cmd = db.get_last_command().unwrap_or_default();
+                let tmp = "/tmp/fsh-edit.sh";
+                let _ = std::fs::write(tmp, format!("{}\n", last_cmd));
+                let status = std::process::Command::new(&editor)
+                    .arg(tmp).stdin(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit()).status();
+                return match status {
+                    Ok(_) => {
+                        let edited = std::fs::read_to_string(tmp).unwrap_or_default().trim().to_string();
+                        let _ = std::fs::remove_file(tmp);
+                        if edited.is_empty() { CommandResult::Empty }
+                        else { println!("  {} {}", "→".bright_cyan(), edited.dimmed()); execute(&edited, db, core_root) }
+                    }
+                    Err(e) => CommandResult::Error(format!("edit: {}", e)),
+                };
+            }
+            let spec: String = args.join(" ");
+            let (filepath, line_or_pattern): (&str, Option<&str>) = if let Some(colon) = spec.rfind(':') {
+                let f = &spec[..colon]; let lp = &spec[colon+1..];
+                if !lp.is_empty() { (f, Some(lp)) } else { (spec.as_str(), None) }
+            } else { (spec.as_str(), None) };
+            let expanded = if filepath.starts_with("~/") {
+                filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+            } else { filepath.to_string() };
+            let mut editor_args: Vec<String> = Vec::new();
+            if let Some(lp) = line_or_pattern {
+                if let Ok(lineno) = lp.parse::<usize>() {
+                    editor_args.push(format!("+{}", lineno));
+                } else if let Ok(content_str) = std::fs::read_to_string(&expanded) {
+                    if let Some((i, _)) = content_str.lines().enumerate().find(|(_, l)| l.to_lowercase().contains(&lp.to_lowercase())) {
+                        editor_args.push(format!("+{}", i + 1));
                     }
                 }
-                Err(e) => CommandResult::Error(format!("edit: could not open editor: {}", e)),
+            }
+            editor_args.push(expanded);
+            let status = std::process::Command::new(&editor)
+                .args(&editor_args).stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit()).status();
+            match status {
+                Ok(_) => CommandResult::Empty,
+                Err(e) => CommandResult::Error(format!("edit: {}", e)),
             }
         }
         "clear" | "c" | "cls" => {

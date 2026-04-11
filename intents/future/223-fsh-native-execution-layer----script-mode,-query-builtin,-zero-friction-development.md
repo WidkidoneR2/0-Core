@@ -87,7 +87,7 @@ Phase 8 — show builtin
 ⬜ edit file.rs:pattern opens editor at match
 ✅ search pattern recursive structured output (2026-04-11)
 ✅ search pattern --type rs filtered by type (2026-04-11)
-⬜ patch file.rs --old X --new Y in-place replacement
+✅ patch file.rs --old X --new Y in-place replacement (2026-04-11)
 ⬜ native pipe: grep | head without sh fallback
 ⬜ native pipe: cat | grep without sh fallback
 ⬜ zero /tmp workflow verified end to end
