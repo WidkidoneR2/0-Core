@@ -1063,6 +1063,27 @@ fn repl_main() -> Result<()> {
                             Ok(f) => {
                                 use std::os::unix::io::IntoRawFd;
                                 use std::os::fd::FromRawFd;
+                                // Try fsh builtins first
+                                let builtin_result = commands::execute(&cmd_part, &db, &core_root);
+                                let builtin_out = match builtin_result {
+                                    commands::CommandResult::Output(o) => Some(o),
+                                    commands::CommandResult::Value(v) => Some(v.render()),
+                                    _ => None,
+                                };
+                                if let Some(out) = builtin_out {
+                                    use std::io::Write;
+                                    if is_append {
+                                        if let Ok(mut f2) = std::fs::OpenOptions::new().append(true).create(true).open(redirect_target) {
+                                            let _ = f2.write_all(out.as_bytes());
+                                            let _ = f2.write_all(b"\n");
+                                        }
+                                    } else {
+                                        if let Ok(mut f2) = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(redirect_target) {
+                                            let _ = f2.write_all(out.as_bytes());
+                                            let _ = f2.write_all(b"\n");
+                                        }
+                                    }
+                                } else {
                                 let parts: Vec<&str> = cmd_part.trim().splitn(2, ' ').collect();
                                 if !parts.is_empty() {
                                     let mut cmd = std::process::Command::new(parts[0]);
@@ -1097,6 +1118,7 @@ fn repl_main() -> Result<()> {
                                             .status();
                                     }
                                 }
+                                } // end else external
                             }
                             Err(e) => eprintln!("fsh: redirect error: {}", e),
                         }
