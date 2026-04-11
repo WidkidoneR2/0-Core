@@ -370,6 +370,85 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
         }
+        "fsearch" => {
+            // fsearch "fn expand"                    -- all files recursively
+            // fsearch "fn expand" --type rs          -- only .rs files
+            // fsearch "fn expand" --file main.rs     -- only in specific file
+            if args.is_empty() {
+                return CommandResult::Error("usage: search <pattern> [--type ext] [--file name]".to_string());
+            }
+            let pattern = args[0].to_lowercase();
+            let mut filter_type: Option<&str> = None;
+            let mut filter_file: Option<&str> = None;
+            let mut i = 1;
+            while i < args.len() {
+                match args[i] {
+                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1]); i += 2; }
+                    "--file" if i + 1 < args.len() => { filter_file = Some(args[i+1]); i += 2; }
+                    _ => { i += 1; }
+                }
+            }
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let mut results: Vec<String> = Vec::new();
+            fn walk_dir(
+                dir: &std::path::Path,
+                pattern: &str,
+                filter_type: Option<&str>,
+                filter_file: Option<&str>,
+                results: &mut Vec<String>,
+            ) {
+                let entries = match std::fs::read_dir(dir) {
+                    Ok(e) => e,
+                    Err(_) => return,
+                };
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    // Skip hidden dirs and target/
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with('.') || name == "target" || name == "node_modules" {
+                            continue;
+                        }
+                    }
+                    if path.is_dir() {
+                        walk_dir(&path, pattern, filter_type, filter_file, results);
+                    } else if path.is_file() {
+                        // Type filter
+                        if let Some(ext) = filter_type {
+                            if path.extension().and_then(|e| e.to_str()) != Some(ext) {
+                                continue;
+                            }
+                        }
+                        // File filter
+                        if let Some(fname) = filter_file {
+                            if path.file_name().and_then(|n| n.to_str()) != Some(fname) {
+                                continue;
+                            }
+                        }
+                        // Only search text files (check extension)
+                        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                        let text_exts = ["rs","py","md","toml","sh","fsh","txt","json","yaml","yml","html","css","js","ts"];
+                        if !text_exts.contains(&ext) { continue; }
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            for (lineno, line) in content.lines().enumerate() {
+                                if line.to_lowercase().contains(pattern) {
+                                    let rel = path.strip_prefix(std::env::current_dir().unwrap_or_default())
+                                        .unwrap_or(&path)
+                                        .display()
+                                        .to_string();
+                                    results.push(format!("{:30} {:4}  {}", rel, lineno+1, line.trim()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
+            if results.is_empty() {
+                CommandResult::Output(format!("  (no matches for '{}')", pattern))
+            } else {
+                CommandResult::Output(results.join("\n"))
+            }
+        }
         "type" => {
             let cmd = args.first().copied().unwrap_or("");
             if cmd.is_empty() {
@@ -2047,75 +2126,6 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
                 "  {} {} packages installed",
                 "📦".normal(),
                 count.to_string().bright_white()
-            );
-            CommandResult::Value(Value::Table(rows))
-        }
-
-        // ── pkg search <term> ─────────────────────────────────────────────
-        "search" => {
-            let term = match args.get(1) {
-                Some(t) => t,
-                None => return CommandResult::Error(
-                    "  usage: pkg search <term>".to_string()
-                ),
-            };
-
-            let output = std::process::Command::new("paru")
-                .args(["-Ss", term])
-                .output()
-                .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .unwrap_or_default();
-
-            // paru -Ss output format:
-            // repo/name version [installed]
-            //     description
-            let mut rows: Vec<HashMap<String, Value>> = vec![];
-            let mut lines = output.lines().peekable();
-            while let Some(line) = lines.next() {
-                if line.starts_with(' ') || line.is_empty() {
-                    continue;
-                }
-                // parse "repo/name version [installed]"
-                let mut parts = line.splitn(2, '/');
-                let repo = parts.next().unwrap_or("?").trim().to_string();
-                let rest = parts.next().unwrap_or("").trim();
-                let mut name_ver = rest.splitn(2, ' ');
-                let name = name_ver.next().unwrap_or("?").to_string();
-                let ver_rest = name_ver.next().unwrap_or("").trim();
-                let installed = ver_rest.to_lowercase().contains("[installed]");
-                let version = ver_rest
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("?")
-                    .to_string();
-                let desc = lines.peek()
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default();
-                let _ = lines.next(); // consume description line
-
-                let mut row = HashMap::new();
-                row.insert("name".to_string(), Value::Text(name));
-                row.insert("version".to_string(), Value::Text(version));
-                row.insert("repo".to_string(), Value::Text(repo));
-                row.insert("installed".to_string(), Value::Bool(installed));
-                row.insert("description".to_string(), Value::Text(desc));
-                rows.push(row);
-            }
-
-            if rows.is_empty() {
-                return CommandResult::Output(format!(
-                    "  {} no packages found for: {}",
-                    "○".dimmed(),
-                    term.bright_white()
-                ));
-            }
-
-            println!(
-                "  {} {} results for {}",
-                "🔍".normal(),
-                rows.len().to_string().bright_white(),
-                term.bright_cyan()
             );
             CommandResult::Value(Value::Table(rows))
         }
