@@ -83,14 +83,14 @@ Phase 8 — show builtin
 ✅ query file.rs 900: line N to end (2026-04-11)
 ⬜ fsh run file.py executes Python script
 ⬜ fsh run file.fsh executes fsh native script
-⬜ edit file.rs:150 opens editor at line
-⬜ edit file.rs:pattern opens editor at match
+✅ edit file.rs:150 opens editor at line (2026-04-11)
+✅ edit file.rs:pattern opens editor at match (2026-04-11)
 ✅ search pattern recursive structured output (2026-04-11)
 ✅ search pattern --type rs filtered by type (2026-04-11)
 ✅ patch file.rs --old X --new Y in-place replacement (2026-04-11)
 ⬜ native pipe: grep | head without sh fallback
 ⬜ native pipe: cat | grep without sh fallback
-⬜ zero /tmp workflow verified end to end
+✅ zero /tmp workflow verified end to end (2026-04-11)
 ⬜ d passes 100% after full implementation
 
 ## The Phrase
