@@ -308,6 +308,68 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }).collect::<Vec<_>>().join(" ");
             CommandResult::Output(output)
         }
+        "query" => {
+            // query file.rs 100:150  -- lines 100-150
+            // query file.rs :50      -- first 50 lines
+            // query file.rs 900:     -- line 900 to end
+            // query file.rs pattern  -- lines containing pattern
+            if args.is_empty() {
+                return CommandResult::Error("usage: query <file> [range|pattern]\n  query file.rs 100:150\n  query file.rs :50\n  query file.rs 900:\n  query file.rs fn_main".to_string());
+            }
+            let filepath = args[0];
+            let expanded = if filepath.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                filepath.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                filepath.to_string()
+            };
+            let content_str = match std::fs::read_to_string(&expanded) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("query: {}: {}", filepath, e)),
+            };
+            let file_lines: Vec<&str> = content_str.lines().collect();
+            let total = file_lines.len();
+            if args.len() == 1 {
+                // No range -- show all with line numbers
+                let out = file_lines.iter().enumerate()
+                    .map(|(i, l)| format!("{:4} {}", i+1, l))
+                    .collect::<Vec<_>>().join("\n");
+                return CommandResult::Output(out);
+            }
+            let spec = args[1];
+            // Range: 100:150, :50, 900:, 100:+30
+            if spec.contains(':') {
+                let parts: Vec<&str> = spec.splitn(2, ':').collect();
+                let start_str = parts[0];
+                let end_str = parts[1];
+                let start = if start_str.is_empty() { 1 } else { start_str.parse::<usize>().unwrap_or(1) };
+                let end = if end_str.is_empty() {
+                    total
+                } else if end_str.starts_with('+') {
+                    let offset = end_str[1..].parse::<usize>().unwrap_or(0);
+                    (start + offset).min(total)
+                } else {
+                    end_str.parse::<usize>().unwrap_or(total).min(total)
+                };
+                let start = start.saturating_sub(1);
+                let out = file_lines[start..end].iter().enumerate()
+                    .map(|(i, l)| format!("{:4} {}", start+i+1, l))
+                    .collect::<Vec<_>>().join("\n");
+                CommandResult::Output(out)
+            } else {
+                // Pattern match
+                let pattern = spec.to_lowercase();
+                let matches: Vec<String> = file_lines.iter().enumerate()
+                    .filter(|(_, l)| l.to_lowercase().contains(&pattern))
+                    .map(|(i, l)| format!("{:4} {}", i+1, l))
+                    .collect();
+                if matches.is_empty() {
+                    CommandResult::Output(format!("  (no matches for '{}')", spec))
+                } else {
+                    CommandResult::Output(matches.join("\n"))
+                }
+            }
+        }
         "type" => {
             let cmd = args.first().copied().unwrap_or("");
             if cmd.is_empty() {
