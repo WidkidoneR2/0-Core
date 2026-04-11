@@ -3,7 +3,7 @@ id: 223
 date: 2026-04-10
 type: feature
 title: \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight]
 version: TBD
 ---
