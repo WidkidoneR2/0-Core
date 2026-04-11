@@ -77,10 +77,10 @@ Phase 8 — show builtin
 
 ## Gate Check
 
-⬜ query file.rs 100:150 extracts lines correctly
-⬜ query file.rs pattern finds and shows context
-⬜ query file.rs :50 first N lines
-⬜ query file.rs 900: line N to end
+✅ query file.rs 100:150 extracts lines correctly (2026-04-11)
+✅ query file.rs pattern finds and shows context (2026-04-11)
+✅ query file.rs :50 first N lines (2026-04-11)
+✅ query file.rs 900: line N to end (2026-04-11)
 ⬜ fsh run file.py executes Python script
 ⬜ fsh run file.fsh executes fsh native script
 ⬜ edit file.rs:150 opens editor at line
