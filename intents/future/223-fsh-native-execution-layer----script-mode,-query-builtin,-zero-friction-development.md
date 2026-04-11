@@ -91,7 +91,7 @@ Phase 8 — show builtin
 ⬜ native pipe: grep | head without sh fallback
 ⬜ native pipe: cat | grep without sh fallback
 ✅ zero /tmp workflow verified end to end (2026-04-11)
-⬜ d passes 100% after full implementation
+✅ d passes 100% after full implementation (2026-04-11)
 
 ## The Phrase
 

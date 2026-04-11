@@ -6090,33 +6090,71 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
             CommandResult::Empty
         }
         Some(path) => {
-            // Resolve path
+            // INT-223 Phase 3 -- run .py, .sh, .fsh files natively
+            let ext = std::path::Path::new(path).extension()
+                .and_then(|e| e.to_str()).unwrap_or("");
+            let expanded = if path.starts_with("~/") {
+                path.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+            } else { path.to_string() };
+            // Handle .py and .sh directly
+            match ext {
+                "py" => {
+                    if !std::path::Path::new(&expanded).exists() {
+                        return CommandResult::Error(format!("run: file not found: {}", path));
+                    }
+                    let status = std::process::Command::new("python3")
+                        .arg(&expanded)
+                        .args(&args[1..])
+                        .stdin(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::inherit())
+                        .stderr(std::process::Stdio::inherit())
+                        .status();
+                    return match status {
+                        Ok(s) if s.success() => CommandResult::Empty,
+                        Ok(s) => CommandResult::Error(format!("run: python3 exited with {}", s)),
+                        Err(e) => CommandResult::Error(format!("run: {}", e)),
+                    };
+                }
+                "sh" => {
+                    if !std::path::Path::new(&expanded).exists() {
+                        return CommandResult::Error(format!("run: file not found: {}", path));
+                    }
+                    let status = std::process::Command::new("sh")
+                        .arg(&expanded)
+                        .args(&args[1..])
+                        .stdin(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::inherit())
+                        .stderr(std::process::Stdio::inherit())
+                        .status();
+                    return match status {
+                        Ok(s) if s.success() => CommandResult::Empty,
+                        Ok(s) => CommandResult::Error(format!("run: sh exited with {}", s)),
+                        Err(e) => CommandResult::Error(format!("run: {}", e)),
+                    };
+                }
+                _ => {}
+            }
+            // Fall through to .fsh handling
             let resolved = if path.ends_with(".fsh") {
                 path.to_string()
             } else {
                 format!("{}.fsh", path)
             };
-            // Check relative, then scripts/fsh/, then home
             let candidates = vec![
                 resolved.clone(),
                 format!("{}/scripts/fsh/{}", core_root, resolved),
                 std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
                     .join(format!(".config/faelight-shell/scripts/{}", resolved))
-                    .to_string_lossy()
-                    .to_string(),
+                    .to_string_lossy().to_string(),
             ];
             for candidate in &candidates {
                 if std::path::Path::new(candidate).exists() {
-                    // Split all args after filename by whitespace
-                    // splitn(3) joins trailing args — re-split them here
-                    let script_args: Vec<&str> = args[1..]
-                        .iter()
-                        .flat_map(|s| s.split_whitespace())
-                        .collect();
+                    let script_args: Vec<&str> = args[1..].iter()
+                        .flat_map(|s| s.split_whitespace()).collect();
                     return crate::scripting::run_file(candidate, db, core_root, &script_args);
                 }
             }
-            CommandResult::Error(format!("script not found: {}", path))
+            CommandResult::Error(format!("run: file not found: {}", path))
         }
     }
 }
