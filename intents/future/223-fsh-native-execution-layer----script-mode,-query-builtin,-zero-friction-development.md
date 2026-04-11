@@ -81,8 +81,8 @@ Phase 8 — show builtin
 ✅ query file.rs pattern finds and shows context (2026-04-11)
 ✅ query file.rs :50 first N lines (2026-04-11)
 ✅ query file.rs 900: line N to end (2026-04-11)
-⬜ fsh run file.py executes Python script
-⬜ fsh run file.fsh executes fsh native script
+✅ fsh run file.py executes Python script (2026-04-11)
+✅ fsh run file.fsh executes fsh native script (2026-04-11)
 ✅ edit file.rs:150 opens editor at line (2026-04-11)
 ✅ edit file.rs:pattern opens editor at match (2026-04-11)
 ✅ search pattern recursive structured output (2026-04-11)
