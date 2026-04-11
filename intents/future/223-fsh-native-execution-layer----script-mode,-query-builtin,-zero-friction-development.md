@@ -85,8 +85,8 @@ Phase 8 — show builtin
 ⬜ fsh run file.fsh executes fsh native script
 ⬜ edit file.rs:150 opens editor at line
 ⬜ edit file.rs:pattern opens editor at match
-⬜ search pattern recursive structured output
-⬜ search pattern --type rs filtered by type
+✅ search pattern recursive structured output (2026-04-11)
+✅ search pattern --type rs filtered by type (2026-04-11)
 ⬜ patch file.rs --old X --new Y in-place replacement
 ⬜ native pipe: grep | head without sh fallback
 ⬜ native pipe: cat | grep without sh fallback
