@@ -909,7 +909,7 @@ pub mod checks {
                             .find_map(|w| w.parse::<usize>().ok())
                         {
                             if n != registry_tools && (n as i64 - registry_tools as i64).abs() > 2 {
-                                issues.push(IntegrityIssue::auto_fix(
+                                issues.push(IntegrityIssue::propose(
                                     Category::Documentation,
                                     "docs_count_consistency",
                                     &format!("README shows {} tools but registry has {}", n, registry_tools),
