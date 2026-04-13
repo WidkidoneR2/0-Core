@@ -1605,16 +1605,38 @@ fn repl_main() -> Result<()> {
         .output();
     // Save session state on exit
     session::SessionMemory::save(&core_root, None);
-    // INT-208: Log session pattern
+    // INT-208: Log session pattern with focus_score
     let _session_duration = _session_start.elapsed().as_secs() / 60;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64).unwrap_or(0);
     let dow = chrono::Local::now().weekday().num_days_from_monday() as i64;
     let hour = chrono::Local::now().hour() as i64;
+    // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
+    let session_start_ts = now - (_session_duration as i64 * 60);
+    let distinct_intents: i64 = db.conn.query_row(
+        "SELECT COUNT(DISTINCT intent_id) FROM commit_patterns WHERE timestamp > ?1 AND intent_id != ''",
+        rusqlite::params![session_start_ts],
+        |r| r.get(0),
+    ).unwrap_or(1);
+    let focus_score: f64 = if distinct_intents <= 1 { 1.0 } else { 1.0 / distinct_intents as f64 };
+    let _ = db.conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS session_patterns (
+            id TEXT PRIMARY KEY,
+            day_of_week INTEGER,
+            hour_start INTEGER,
+            hour_end INTEGER,
+            commit_count INTEGER,
+            recorded_at INTEGER,
+            focus_score REAL,
+            deploy_count INTEGER,
+            command_count INTEGER,
+            duration_minutes INTEGER
+        );"
+    );
     let _ = db.conn.execute(
-        "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
-        rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now],
+        "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
     println!(
         "{}",
