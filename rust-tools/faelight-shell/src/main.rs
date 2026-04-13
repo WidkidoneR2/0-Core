@@ -586,6 +586,14 @@ fn repl_main() -> Result<()> {
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
+                    // Warn if delimiter is unquoted -- sh will expand backticks
+                    let delimiter = line.split(" << ").nth(1).unwrap_or("").split_whitespace().next().unwrap_or("").trim();
+                    let is_quoted = delimiter.starts_with('\'')
+                        || delimiter.starts_with('"');
+                    if !is_quoted && !delimiter.is_empty() {
+                        println!("  {} heredoc tip: use << '{}'  to prevent backtick expansion",
+                            "💡".normal(), delimiter);
+                    }
                     let status = std::process::Command::new("sh")
                         .arg("-c")
                         .arg(&line)
