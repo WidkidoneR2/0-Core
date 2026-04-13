@@ -3,7 +3,7 @@ id: 224
 date: 2026-04-11
 type: feature
 title: \"fsh v5 -- The Shell That Sees Color, Speaks Code, and Thinks With You\"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
