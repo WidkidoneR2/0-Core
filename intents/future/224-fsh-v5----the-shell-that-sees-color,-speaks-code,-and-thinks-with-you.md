@@ -141,16 +141,16 @@ Phase 5 — diff builtin (git diff for specific file)
 Phase 6 — patch-multi builtin
 Phase 7 — color themes (forest-dawn, forest-night, forest-focus)
 Phase 8 — history enhancements (ht intent, ht slow)
-⬜ show main.rs 46:80 displays with Rust syntax coloring
-⬜ show main.rs fn_main jumps to function with color
-⬜ goto main.rs:362 opens editor at line
-⬜ goto accepts file:line:col format from cargo errors
-⬜ goto "fn name" finds and opens function
+✅ show main.rs 46:80 displays with Rust syntax coloring (2026-04-13)
+✅ show main.rs fn_main jumps to function with color (2026-04-13)
+✅ goto main.rs:362 opens editor at line (2026-04-13)
+✅ goto accepts file:line:col format from cargo errors (2026-04-13)
+✅ goto "fn name" finds and opens function (2026-04-13)
 ⬜ semantic color in query output (paths, numbers, errors)
 ⬜ semantic color in fsearch output
-⬜ rename old new — finds all occurrences, confirms, replaces
-⬜ rename --dry-run shows changes without writing
-⬜ diff main.rs shows git diff for that file
+✅ rename old new — finds all occurrences, confirms, replaces (2026-04-13)
+✅ rename --dry-run shows changes without writing (2026-04-13)
+✅ diff main.rs shows git diff for that file (2026-04-13)
 ⬜ patch-multi applies multiple replacements atomically
 ⬜ theme color forest-dawn works
 ⬜ theme color forest-night works
