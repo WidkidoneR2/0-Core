@@ -64,6 +64,91 @@ fn levenshtein(a: &str, b: &str) -> usize {
     dp[la][lb]
 }
 
+
+/// Syntax highlighter for Rust source lines
+pub fn highlight_rust_line(line: &str) -> String {
+    use colored::Colorize;
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("//") {
+        return line.dimmed().to_string();
+    }
+    if trimmed.contains("error") || trimmed.contains("panic") || trimmed.contains("FAILED") {
+        return line.bright_red().to_string();
+    }
+    let keywords = ["fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ",
+                     "enum ", "trait ", "mod ", "return ", "if ", "else ", "for ", "while ",
+                     "loop ", "async ", "await ", "move ", "ref ", "const ", "static ",
+                     "type ", "where ", "self ", "Self ", "super ", "crate "];
+    let t = line.trim_start();
+    for kw in &keywords {
+        if t.starts_with(kw) || t.starts_with(&format!("pub {}", kw.trim())) {
+            return line.bright_cyan().to_string();
+        }
+    }
+    if line.contains('"') || line.contains("'") {
+        return line.bright_yellow().to_string();
+    }
+    let has_number = line.split_whitespace().any(|w| {
+        w.trim_matches(|c: char| !c.is_ascii_digit()).parse::<f64>().is_ok() && !w.is_empty()
+    });
+    if has_number && !line.contains("::") {
+        return line.bright_magenta().to_string();
+    }
+    line.to_string()
+}
+/// Semantic colorizer for fsh-native output lines
+pub fn colorize_line(line: &str) -> String {
+    use colored::Colorize;
+    use std::borrow::Cow;
+    // Error words -- bright red
+    let lower = line.to_lowercase();
+    if lower.contains("error") || lower.contains("failed") || lower.contains("panic") || lower.contains("fatal") {
+        return line.bright_red().to_string();
+    }
+    // Success words -- bright green
+    if lower.contains("success") || lower.contains("complete") || lower.contains("deployed") {
+        return line.bright_green().to_string();
+    }
+    // Warning words -- bright yellow
+    if lower.contains("warning") || lower.contains("warn") || lower.contains("deprecated") {
+        return line.bright_yellow().to_string();
+    }
+    // Tokenize and color per-word
+    let mut result = String::new();
+    for word in line.split(' ') {
+        let colored_word: Cow<str> = if word.starts_with("INT-") && word.len() > 4 {
+            // Intent IDs -- bright magenta
+            Cow::Owned(word.bright_magenta().to_string())
+        } else if word.ends_with('%') && word[..word.len()-1].parse::<f64>().is_ok() {
+            // Percentages -- color by value
+            let val: f64 = word[..word.len()-1].parse().unwrap_or(0.0);
+            if val >= 95.0 {
+                Cow::Owned(word.bright_green().to_string())
+            } else if val >= 70.0 {
+                Cow::Owned(word.bright_yellow().to_string())
+            } else {
+                Cow::Owned(word.bright_red().to_string())
+            }
+        } else if (word.contains('/') || word.ends_with(".rs") || word.ends_with(".py")
+            || word.ends_with(".md") || word.ends_with(".toml") || word.ends_with(".sh"))
+            && !word.starts_with("//")
+        {
+            // File paths -- bright cyan
+            Cow::Owned(word.bright_cyan().to_string())
+        } else if word.len() == 7 && word.chars().all(|c| c.is_ascii_hexdigit()) {
+            // Git hashes -- bright blue
+            Cow::Owned(word.bright_blue().to_string())
+        } else if word.parse::<f64>().is_ok() && !word.is_empty() {
+            // Numbers -- bright yellow
+            Cow::Owned(word.bright_yellow().to_string())
+        } else {
+            Cow::Borrowed(word)
+        };
+        if !result.is_empty() { result.push(' '); }
+        result.push_str(&colored_word);
+    }
+    result
+}
 pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
     fn tokenize_args(s: &str) -> Vec<String> {
         let mut tokens: Vec<String> = Vec::new();
@@ -331,10 +416,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let total = file_lines.len();
             if args.len() == 1 {
                 // No range -- show all with line numbers
-                let out = file_lines.iter().enumerate()
-                    .map(|(i, l)| format!("{:4} {}", i+1, l))
-                    .collect::<Vec<_>>().join("\n");
-                return CommandResult::Output(out);
+                use colored::Colorize;
+                let is_rust = expanded.ends_with(".rs");
+                for (i, l) in file_lines.iter().enumerate() {
+                    let colored = if is_rust { highlight_rust_line(l) } else { colorize_line(l) };
+                    println!("{} {}", format!("{:4}", i+1).dimmed(), colored);
+                }
+                return CommandResult::Empty;
             }
             let spec = args[1];
             // Range: 100:150, :50, 900:, 100:+30
@@ -352,21 +440,27 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     end_str.parse::<usize>().unwrap_or(total).min(total)
                 };
                 let start = start.saturating_sub(1);
-                let out = file_lines[start..end].iter().enumerate()
-                    .map(|(i, l)| format!("{:4} {}", start+i+1, l))
-                    .collect::<Vec<_>>().join("\n");
-                CommandResult::Output(out)
+                use colored::Colorize;
+                let is_rust = expanded.ends_with(".rs");
+                for (i, l) in file_lines[start..end].iter().enumerate() {
+                    let colored = if is_rust { highlight_rust_line(l) } else { colorize_line(l) };
+                    println!("{} {}", format!("{:4}", start+i+1).dimmed(), colored);
+                }
+                CommandResult::Empty
             } else {
                 // Pattern match
                 let pattern = spec.to_lowercase();
-                let matches: Vec<String> = file_lines.iter().enumerate()
+                use colored::Colorize;
+                let matches: Vec<(usize, &&str)> = file_lines.iter().enumerate()
                     .filter(|(_, l)| l.to_lowercase().contains(&pattern))
-                    .map(|(i, l)| format!("{:4} {}", i+1, l))
                     .collect();
                 if matches.is_empty() {
                     CommandResult::Output(format!("  (no matches for '{}')", spec))
                 } else {
-                    CommandResult::Output(matches.join("\n"))
+                    for (i, l) in matches {
+                        println!("{} {}", format!("{:4}", i+1).dimmed(), colorize_line(*l));
+                    }
+                    CommandResult::Empty
                 }
             }
         }
@@ -765,7 +859,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                                         .unwrap_or(&path)
                                         .display()
                                         .to_string();
-                                    results.push(format!("{:30} {:4}  {}", rel, lineno+1, line.trim()));
+                                    results.push(format!("{:30} {:4}  {}", rel.bright_cyan(), (lineno+1).to_string().bright_green(), colorize_line(line.trim())));
                                 }
                             }
                         }
