@@ -901,12 +901,18 @@ pub mod checks {
                 .map(|r| r.lines().filter(|l| l.trim().starts_with("name = \"")).count())
                 .unwrap_or(0);
 
-            // Count tools mentioned in README
+            // Count tools mentioned in README -- only match specific patterns
             if let Ok(readme) = std::fs::read_to_string(&readme_path) {
                 for line in readme.lines() {
-                    if line.contains("tools") {
+                    // Only match lines like "50 tools" or "tools: 50" or "**50 tools**"
+                    let lower = line.to_lowercase();
+                    let is_tool_count_line = 
+                        (lower.contains("tools deployed") || lower.contains("tools installed")
+                         || lower.contains("key tools") || lower.contains("· tools:"))
+                        && !lower.contains("install") && !lower.contains("pipeline");
+                    if is_tool_count_line {
                         if let Some(n) = line.split_whitespace()
-                            .find_map(|w| w.parse::<usize>().ok())
+                            .find_map(|w| w.trim_matches(|c: char| !c.is_ascii_digit()).parse::<usize>().ok())
                         {
                             if n != registry_tools && (n as i64 - registry_tools as i64).abs() > 2 {
                                 issues.push(IntegrityIssue::propose(
