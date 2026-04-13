@@ -3,7 +3,7 @@ id: 223
 date: 2026-04-10
 type: feature
 title: \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
@@ -88,8 +88,8 @@ Phase 8 — show builtin
 ✅ search pattern recursive structured output (2026-04-11)
 ✅ search pattern --type rs filtered by type (2026-04-11)
 ✅ patch file.rs --old X --new Y in-place replacement (2026-04-11)
-⬜ native pipe: grep | head without sh fallback
-⬜ native pipe: cat | grep without sh fallback
+✅ native pipe: grep | head without sh fallback (2026-04-13)
+✅ native pipe: cat | grep without sh fallback (2026-04-13)
 ✅ zero /tmp workflow verified end to end (2026-04-11)
 ✅ d passes 100% after full implementation (2026-04-11)
 
