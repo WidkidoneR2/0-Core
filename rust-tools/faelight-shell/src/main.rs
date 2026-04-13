@@ -1144,9 +1144,75 @@ fn repl_main() -> Result<()> {
                     let has_external_op = pipeline_ops.iter().any(|op| {
                         matches!(op, value::PipeOp::External(_))
                     });
-                    // Early bypass: if pipeline contains external commands,
-                    // skip fsh builtins entirely and run via sh
+                    // Native pipe execution -- no sh fallback for external pipe chains
                     if has_external_op {
+                        let pipe_parts: Vec<&str> = original_line.split(" | ").collect();
+                        if pipe_parts.len() >= 2 {
+                            // Chain processes natively using Rust pipes
+                            let mut prev_stdout: Option<std::process::ChildStdout> = None;
+                            let mut children: Vec<std::process::Child> = Vec::new();
+                            let mut pipe_ok = true;
+                            for (idx, part) in pipe_parts.iter().enumerate() {
+                                let part = part.trim();
+                                // Quote-aware tokenization for pipe parts
+                                let tokens: Vec<String> = {
+                                    let mut toks = Vec::new();
+                                    let mut cur = String::new();
+                                    let mut in_q = false;
+                                    let mut qc = ' ';
+                                    for ch in part.chars() {
+                                        match ch {
+                                            '"' | '\'' if !in_q => { in_q = true; qc = ch; }
+                                            c if in_q && c == qc => { in_q = false; }
+                                            ' ' if !in_q => { if !cur.is_empty() { toks.push(cur.clone()); cur.clear(); } }
+                                            c => cur.push(c),
+                                        }
+                                    }
+                                    if !cur.is_empty() { toks.push(cur); }
+                                    toks
+                                };
+                                let cmd_name = match tokens.first() {
+                                    Some(c) => c.as_str(),
+                                    None => { pipe_ok = false; break; }
+                                };
+                                let owned_args: Vec<String> = tokens[1..].to_vec();
+                                let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
+                                let is_last = idx == pipe_parts.len() - 1;
+                                let stdin_src = match prev_stdout.take() {
+                                    Some(stdout) => std::process::Stdio::from(stdout),
+                                    None => std::process::Stdio::inherit(),
+                                };
+                                let stdout_dst = if is_last {
+                                    std::process::Stdio::inherit()
+                                } else {
+                                    std::process::Stdio::piped()
+                                };
+                                match std::process::Command::new(cmd_name)
+                                    .args(&args)
+                                    .stdin(stdin_src)
+                                    .stdout(stdout_dst)
+                                    .stderr(std::process::Stdio::inherit())
+                                    .spawn()
+                                {
+                                    Ok(mut child) => {
+                                        if !is_last {
+                                            prev_stdout = child.stdout.take();
+                                        }
+                                        children.push(child);
+                                    }
+                                    Err(_) => {
+                                        // Fall back to sh for complex cases
+                                        pipe_ok = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if pipe_ok {
+                                for mut child in children { let _ = child.wait(); }
+                                continue 'repl;
+                            }
+                        }
+                        // Fallback to sh for complex cases
                         let sh_output = std::process::Command::new("sh")
                             .arg("-c")
                             .arg(original_line)
