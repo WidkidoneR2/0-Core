@@ -466,9 +466,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
 
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
-            DeployCommand::Record { tool, version, outcome, duration_ms } =>
+            DeployCommand::Record { tool, version, outcome, duration_ms, intent: _ } =>
                 crate::domains::deploy::record(ctx, &tool, &version, &outcome, duration_ms),
             DeployCommand::Log => crate::domains::deploy::log(ctx),
+            DeployCommand::Rollback { tool, dry_run } => crate::domains::deploy::rollback(ctx, tool.as_deref(), dry_run),
+            DeployCommand::CheckDeps { tool } => crate::domains::deploy::check_deps(&tool),
         },
         Command::Decision(cmd) => match cmd {
             DecisionCommand::Record {

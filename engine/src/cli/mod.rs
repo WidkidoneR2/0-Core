@@ -27,9 +27,11 @@ pub fn parse() -> Command {
     match cli.command {
         Commands::Deploy { command } => Command::Deploy(match command {
             DeployCommands::Check { tool } => DeployCommand::Check { tool },
-            DeployCommands::Record { tool, version, outcome, duration_ms } =>
-                DeployCommand::Record { tool, version, outcome, duration_ms },
+            DeployCommands::Record { tool, version, outcome, duration_ms, intent } =>
+                DeployCommand::Record { tool, version, outcome, duration_ms, intent },
             DeployCommands::Log => DeployCommand::Log,
+            DeployCommands::Rollback { tool, dry_run } => DeployCommand::Rollback { tool, dry_run },
+            DeployCommands::CheckDeps { tool } => DeployCommand::CheckDeps { tool },
         }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {
