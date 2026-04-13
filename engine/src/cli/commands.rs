@@ -74,8 +74,15 @@ pub enum Command {
         domain: Option<String>,
     },
     Decision(DecisionCommand),
+    Deploy(DeployCommand),
 }
 
+#[derive(Debug)]
+pub enum DeployCommand {
+    Check { tool: String },
+    Record { tool: String, version: String, outcome: String, duration_ms: i64 },
+    Log,
+}
 #[derive(Debug)]
 pub enum DecisionCommand {
     Record {
