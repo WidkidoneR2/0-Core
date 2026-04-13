@@ -67,6 +67,7 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
 }
 /// core deploy record <tool> <version> <outcome> <duration_ms> -- log to state.db
 pub fn record(ctx: &AppContext, tool: &str, version: &str, outcome: &str, duration_ms: i64) -> CoreResult<()> {
+    let _intent = std::env::var("DEPLOY_INTENT").unwrap_or_default();
     let db = &ctx.runtime.db;
     db.execute_batch(CREATE_TABLE)?;
     let now = chrono::Utc::now().timestamp();
@@ -155,6 +156,100 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+/// core deploy rollback [tool] [--dry-run] -- restore previous version
+pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResult<()> {
+    let db = &ctx.runtime.db;
+    db.execute_batch(CREATE_TABLE)?;
+    use colored::*;
+    let query = match tool {
+        Some(t) => format!(
+            "SELECT tool, version, outcome, timestamp FROM deploy_patterns WHERE tool = '{}' ORDER BY timestamp DESC LIMIT 6",
+            t
+        ),
+        None =>
+            "SELECT tool, version, outcome, timestamp FROM deploy_patterns ORDER BY timestamp DESC LIMIT 6".to_string(),
+    };
+    let mut stmt = db.prepare(&query)?;
+    let rows: Vec<(String, String, String, i64)> = stmt
+        .query_map([], |r: &rusqlite::Row| Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+        )))
+        .map(|rows| rows.filter_map(|x| x.ok()).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if rows.len() < 2 {
+        println!("  {} Not enough deploy history to rollback", "○".dimmed());
+        return Ok(());
+    }
+    let current = &rows[0];
+    let previous = &rows[1];
+    println!();
+    println!("  {} Rollback: {}", "🔄".normal(), current.0.bright_cyan());
+    println!("  current:  {} ({})", current.1.bright_white(), current.2.dimmed());
+    println!("  previous: {} ({})", previous.1.bright_green(), previous.2.dimmed());
+    if dry_run {
+        println!("  {} dry-run -- no changes made", "○".dimmed());
+        return Ok(());
+    }
+    // Find versioned binary in bin/
+    let core_root = &ctx.core_root;
+    let bin_dir = std::path::PathBuf::from(core_root).join("bin");
+    let target = format!("{}@{}", previous.0, previous.1);
+    let versioned = bin_dir.read_dir()?
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_string_lossy().starts_with(&target));
+    match versioned {
+        Some(entry) => {
+            let scripts_path = std::path::PathBuf::from(core_root)
+                .join("scripts").join(&previous.0);
+            std::fs::copy(entry.path(), &scripts_path)?;
+            println!("  {} rolled back {} to {}", "✅".normal(),
+                previous.0.bright_cyan(), previous.1.bright_green());
+        }
+        None => {
+            println!("  {} binary not found in bin/ -- versioned binary may have been cleaned up",
+                "⚠️ ".yellow());
+        }
+    }
+    println!();
+    Ok(())
+}
+/// core deploy check-deps <tool> -- show full dependency graph
+pub fn check_deps(tool: &str) -> CoreResult<()> {
+    use colored::*;
+    println!();
+    println!("  {} Dependency graph: {}", "🔍".normal(), tool.bright_cyan());
+    println!("  {}", "─────────────────────────────────".dimmed());
+    let deps = tool_dependencies(tool);
+    if deps.is_empty() {
+        println!("  {} No known downstream dependencies", "○".dimmed());
+    } else {
+        println!("  {} Downstream (tools that depend on {}):", "→".bright_cyan(), tool);
+        for dep in &deps {
+            println!("    {} {}", "·".dimmed(), dep.bright_white());
+        }
+    }
+    // Reverse -- what does this tool depend on?
+    let all_tools = ["faelight-shell", "core", "faelight-git", "faelight-term",
+                     "faelight-update", "faelight-link", "faelight-daemon"];
+    let mut upstream: Vec<&str> = Vec::new();
+    for t in &all_tools {
+        if tool_dependencies(t).contains(&tool) {
+            upstream.push(t);
+        }
+    }
+    if !upstream.is_empty() {
+        println!("  {} Upstream ({} depends on):", "←".bright_yellow(), tool);
+        for dep in &upstream {
+            println!("    {} {}", "·".dimmed(), dep.bright_white());
+        }
+    }
+    println!();
+    Ok(())
+}
+
 fn tool_dependencies(tool: &str) -> Vec<&'static str> {
     match tool {
         "faelight-shell" => vec!["faelight-term"],

@@ -78,10 +78,13 @@ pub enum Command {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum DeployCommand {
     Check { tool: String },
-    Record { tool: String, version: String, outcome: String, duration_ms: i64 },
+    Record { tool: String, version: String, outcome: String, duration_ms: i64, intent: Option<String> },
     Log,
+    Rollback { tool: Option<String>, dry_run: bool },
+    CheckDeps { tool: String },
 }
 #[derive(Debug)]
 pub enum DecisionCommand {

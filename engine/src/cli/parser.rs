@@ -331,9 +331,20 @@ pub enum DeployCommands {
         outcome: String,
         #[arg(long, default_value = "0")]
         duration_ms: i64,
+        #[arg(long)]
+        intent: Option<String>,
     },
     /// Show recent deploy history
     Log,
+    /// Rollback tool to previous version
+    Rollback {
+        tool: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show full dependency graph for a tool
+    #[command(name = "check-deps")]
+    CheckDeps { tool: String },
 }
 #[derive(Subcommand)]
 pub enum DoctorCommands {

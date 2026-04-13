@@ -65,19 +65,19 @@ Phase 3 -- dependency awareness map
 Phase 4 -- fg rollback command
 Phase 5 -- deploy --intent flag
 Phase 6 -- deploy check-deps command
-⬜ deploy_patterns table created in state.db
-⬜ every deploy writes structured deploy_pattern
-⬜ every deploy emits to engine_signals
-⬜ health check before deploy warns if health < 95%
-⬜ health check after deploy targeted verification
-⬜ dependency map defined for all major tools
-⬜ deploy warns when downstream tools are affected
-⬜ fg rollback shows last 5 deploys, restores selected
-⬜ fg rollback tool-specific rollback works
-⬜ deploy --intent flag links deploy to active intent
-⬜ deploy check-deps shows full dependency graph
-⬜ pattern_weights receiving deploy signals
-⬜ d passes 100% after full implementation
+✅ deploy_patterns table created in state.db (2026-04-13)
+✅ every deploy writes structured deploy_pattern (2026-04-13)
+✅ every deploy emits to engine_signals (2026-04-13)
+✅ health check before deploy warns if health < 95% (2026-04-13)
+✅ health check after deploy targeted verification (2026-04-13)
+✅ dependency map defined for all major tools (2026-04-13)
+✅ deploy warns when downstream tools are affected (2026-04-13)
+✅ fg rollback shows last 5 deploys, restores selected (2026-04-13)
+✅ fg rollback tool-specific rollback works (2026-04-13)
+✅ deploy --intent flag links deploy to active intent (2026-04-13)
+✅ deploy check-deps shows full dependency graph (2026-04-13)
+✅ pattern_weights receiving deploy signals (2026-04-13)
+✅ d passes 100% after full implementation (2026-04-13)
 "A deploy that does not remember what it changed
 cannot warn you before it changes something again.
 Deploy v2 is not faster. It is honest." 🌲
