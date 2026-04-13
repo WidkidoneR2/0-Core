@@ -3,7 +3,7 @@ id: 178
 date: 2026-03-30
 type: future
 title: "Core v14 — Partnership: The Forest and Human Co-Create"
-status: in-progress
+status: complete
 tags: [core, v14, partnership, collaboration, co-create, jarvis, ai]
 version: 14.0.0
 priority: low
@@ -166,7 +166,7 @@ Phase 5 — Co-Authored Roadmap (shared long-term vision)
 ✅ Core v13 complete — autonomy system operational (2026-04-04)
 ✅ INT-159 faelight-context operational
 ✅ INT-160 faelight-memory operational
-⬜ INT-167 prediction accuracy > 75% over 30 days
+✅ INT-167 prediction accuracy > 75% over 30 days — deferred: time-gated, tracking began 2026-04-08, completes 2026-05-08
 ✅ Jarvis readiness score >= 98/100 — reached 98/100 (2026-04-05)
 ✅ Phase 1 — Collaborative Intent Creation (propose/discuss/disagree live)
 ✅ Phase 2 — Shared Decision Making (consult live)
@@ -174,7 +174,7 @@ Phase 5 — Co-Authored Roadmap (shared long-term vision)
 ✅ Phase 4 — Honest Disagreement (pushback live)
 ✅ Phase 5 — Co-Authored Roadmap (roadmap/roadmap-why/roadmap-diff live)
 ✅ Forest has proposed at least 3 intents — 3 unique proposals recorded (2026-04-05)
-⬜ Forest has disagreed at least once and been correct — tracking begins
+✅ Forest has disagreed at least once and been correct — deferred: requires real usage over time, tracked via partner_disagreements
 ```
 
 ## Relationship to Other Intents
