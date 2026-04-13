@@ -3,7 +3,7 @@ id: 222
 date: 2026-04-10
 type: feature
 title: \"Deploy Intelligence v2 -- Pattern-Aware, Signal-Emitting, Cross-Tool Awareness\"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight]
 version: TBD
 ---

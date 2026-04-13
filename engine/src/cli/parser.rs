@@ -11,6 +11,11 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Deploy intelligence -- check, record, log
+    Deploy {
+        #[command(subcommand)]
+        command: DeployCommands,
+    },
     Version,
     Doctor {
         #[command(subcommand)]
@@ -315,6 +320,21 @@ pub enum Commands {
     },
 }
 
+#[derive(Subcommand, Clone)]
+pub enum DeployCommands {
+    /// Pre-deploy health gate + dependency check
+    Check { tool: String },
+    /// Record deploy outcome to state.db
+    Record {
+        tool: String,
+        version: String,
+        outcome: String,
+        #[arg(long, default_value = "0")]
+        duration_ms: i64,
+    },
+    /// Show recent deploy history
+    Log,
+}
 #[derive(Subcommand)]
 pub enum DoctorCommands {
     /// Run full health check

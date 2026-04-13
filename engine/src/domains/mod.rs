@@ -1,4 +1,5 @@
 pub mod anomaly;
+pub mod deploy;
 pub mod audit;
 pub mod bootstrap;
 pub mod capabilities;

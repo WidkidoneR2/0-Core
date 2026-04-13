@@ -25,6 +25,12 @@ use parser::{
 pub fn parse() -> Command {
     let cli = Cli::parse();
     match cli.command {
+        Commands::Deploy { command } => Command::Deploy(match command {
+            DeployCommands::Check { tool } => DeployCommand::Check { tool },
+            DeployCommands::Record { tool, version, outcome, duration_ms } =>
+                DeployCommand::Record { tool, version, outcome, duration_ms },
+            DeployCommands::Log => DeployCommand::Log,
+        }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {
             PluginCommands::List => PluginCommand::List,
@@ -565,3 +571,5 @@ pub fn parse() -> Command {
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }
 }
+use crate::cli::parser::DeployCommands;
+use crate::cli::commands::DeployCommand;

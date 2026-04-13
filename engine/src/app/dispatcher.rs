@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DeployCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -464,6 +464,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 
+        Command::Deploy(c) => match c {
+            DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
+            DeployCommand::Record { tool, version, outcome, duration_ms } =>
+                crate::domains::deploy::record(ctx, &tool, &version, &outcome, duration_ms),
+            DeployCommand::Log => crate::domains::deploy::log(ctx),
+        },
         Command::Decision(cmd) => match cmd {
             DecisionCommand::Record {
                 description,
