@@ -370,6 +370,336 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
         }
+        "goto" => {
+            // goto main.rs:362          -- open at line
+            // goto main.rs:362:5        -- open at line (col ignored)
+            // goto "fn expand_subshells" -- find and open at pattern
+            if args.is_empty() {
+                return CommandResult::Error("usage: goto <file:line> or goto \"fn name\"\n  goto main.rs:362\n  goto main.rs:362:5\n  goto \"fn expand_subshells\"".to_string());
+            }
+            let spec = args.join(" ");
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+            // Detect file:line or file:line:col format
+            if spec.contains(':') && !spec.starts_with('"') {
+                let parts: Vec<&str> = spec.splitn(3, ':').collect();
+                let filepath = parts[0];
+                let lineno_str = parts.get(1).unwrap_or(&"1");
+                let lineno = lineno_str.parse::<usize>().unwrap_or(1);
+                let expanded = if filepath.starts_with("~/") {
+                    filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+                } else {
+                    filepath.to_string()
+                };
+                use colored::Colorize;
+                println!("  {} {}:{}", "goto".bright_cyan(), filepath.bright_white(), lineno.to_string().bright_yellow());
+                let status = std::process::Command::new(&editor)
+                    .arg(format!("+{}", lineno))
+                    .arg(&expanded)
+                    .stdin(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .status();
+                return match status {
+                    Ok(_) => CommandResult::Empty,
+                    Err(e) => CommandResult::Error(format!("goto: {}", e)),
+                };
+            }
+            // Pattern search across common source files
+            let pattern = spec.trim_matches('"').to_lowercase();
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let mut found_file: Option<String> = None;
+            let mut found_line: Option<usize> = None;
+            fn search_for_pattern(dir: &std::path::Path, pattern: &str, found_file: &mut Option<String>, found_line: &mut Option<usize>) {
+                let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => return };
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with('.') || name == "target" { continue; }
+                    }
+                    if path.is_dir() {
+                        search_for_pattern(&path, pattern, found_file, found_line);
+                        if found_file.is_some() { return; }
+                    } else if path.is_file() {
+                        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                        if !["rs","py","md","toml","sh","fsh"].contains(&ext) { continue; }
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            for (i, line) in content.lines().enumerate() {
+                                if line.to_lowercase().contains(pattern) {
+                                    *found_file = Some(path.to_string_lossy().to_string());
+                                    *found_line = Some(i + 1);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            search_for_pattern(&cwd, &pattern, &mut found_file, &mut found_line);
+            match (found_file, found_line) {
+                (Some(f), Some(l)) => {
+                    use colored::Colorize;
+                    println!("  {} {}:{}", "goto".bright_cyan(), f.bright_white(), l.to_string().bright_yellow());
+                    let status = std::process::Command::new(&editor)
+                        .arg(format!("+{}", l))
+                        .arg(&f)
+                        .stdin(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::inherit())
+                        .stderr(std::process::Stdio::inherit())
+                        .status();
+                    match status {
+                        Ok(_) => CommandResult::Empty,
+                        Err(e) => CommandResult::Error(format!("goto: {}", e)),
+                    }
+                }
+                _ => CommandResult::Error(format!("goto: '{}' not found", spec)),
+            }
+        }
+        "rename" => {
+            // rename old_name new_name           -- rename across all files
+            // rename old_name new_name --type rs -- only .rs files
+            // rename old_name new_name --dry-run -- preview only
+            if args.len() < 2 {
+                return CommandResult::Error("usage: rename <old> <new> [--type ext] [--dry-run]".to_string());
+            }
+            let old_name = args[0];
+            let new_name = args[1];
+            let mut filter_type: Option<&str> = None;
+            let mut dry_run = false;
+            let mut i = 2;
+            while i < args.len() {
+                match args[i] {
+                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1]); i += 2; }
+                    "--dry-run" => { dry_run = true; i += 1; }
+                    _ => { i += 1; }
+                }
+            }
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let mut matches: Vec<(String, usize)> = Vec::new(); // (filepath, count)
+            fn find_in_dir(dir: &std::path::Path, pattern: &str, filter_type: Option<&str>, matches: &mut Vec<(String, usize)>) {
+                let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => return };
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with('.') || name == "target" || name == "node_modules" { continue; }
+                    }
+                    if path.is_dir() { find_in_dir(&path, pattern, filter_type, matches); }
+                    else if path.is_file() {
+                        if let Some(ext) = filter_type {
+                            if path.extension().and_then(|e| e.to_str()) != Some(ext) { continue; }
+                        } else {
+                            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                            if !["rs","py","md","toml","sh","fsh","txt","json"].contains(&ext) { continue; }
+                        }
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let count = content.matches(pattern).count();
+                            if count > 0 {
+                                matches.push((path.to_string_lossy().to_string(), count));
+                            }
+                        }
+                    }
+                }
+            }
+            find_in_dir(&cwd, old_name, filter_type, &mut matches);
+            if matches.is_empty() {
+                return CommandResult::Output(format!("  (no occurrences of '{}' found)", old_name));
+            }
+            let total: usize = matches.iter().map(|(_, c)| c).sum();
+            use colored::Colorize;
+            println!("  {} occurrences of '{}' in {} files:", total.to_string().bright_yellow(), old_name.bright_white(), matches.len().to_string().bright_cyan());
+            for (f, c) in &matches {
+                let rel = std::path::Path::new(f).strip_prefix(&cwd).unwrap_or(std::path::Path::new(f));
+                println!("    {} {} ({})", "→".dimmed(), rel.display().to_string().bright_cyan(), c.to_string().dimmed());
+            }
+            if dry_run {
+                println!("  {} dry-run -- no changes made", "○".dimmed());
+                return CommandResult::Empty;
+            }
+            // Confirm
+            print!("  Rename all? (y/n): ");
+            use std::io::Write;
+            std::io::stdout().flush().ok();
+            let mut ans = String::new();
+            std::io::stdin().read_line(&mut ans).ok();
+            if ans.trim().to_lowercase() != "y" {
+                println!("  {} cancelled", "○".dimmed());
+                return CommandResult::Empty;
+            }
+            let mut renamed_files = 0usize;
+            let mut renamed_count = 0usize;
+            for (f, _) in &matches {
+                if let Ok(content) = std::fs::read_to_string(f) {
+                    let new_content = content.replace(old_name, new_name);
+                    if std::fs::write(f, &new_content).is_ok() {
+                        renamed_files += 1;
+                        renamed_count += content.matches(old_name).count();
+                    }
+                }
+            }
+            CommandResult::Output(format!("  {} renamed {} occurrences in {} files", "✅".to_string(), renamed_count, renamed_files))
+        }
+        "fdiff" => {
+            // diff main.rs          -- git diff for specific file
+            // diff main.rs HEAD~3   -- diff against older commit
+            // diff main.rs --stat   -- summary only
+            if args.is_empty() {
+                return CommandResult::Error("usage: diff <file> [ref] [--stat]".to_string());
+            }
+            let filepath = args[0];
+            let mut git_ref = "HEAD";
+            let mut stat_only = false;
+            if args.len() > 1 {
+                for arg in &args[1..] {
+                    if *arg == "--stat" { stat_only = true; }
+                    else { git_ref = arg; }
+                }
+            }
+            let mut git_args = vec!["diff", "--color=always"];
+            if stat_only { git_args.push("--stat"); }
+            git_args.push(git_ref);
+            git_args.push("--");
+            git_args.push(filepath);
+            let output = std::process::Command::new("git")
+                .args(&git_args)
+                .output();
+            match output {
+                Ok(o) => {
+                    let stdout = String::from_utf8_lossy(&o.stdout);
+                    let stderr = String::from_utf8_lossy(&o.stderr);
+                    if !stderr.is_empty() {
+                        return CommandResult::Error(format!("diff: {}", stderr.trim()));
+                    }
+                    if stdout.trim().is_empty() {
+                        use colored::Colorize;
+                        CommandResult::Output(format!("  {} no changes in {} since {}", "○".dimmed(), filepath, git_ref))
+                    } else {
+                        print!("{}", stdout);
+                        CommandResult::Empty
+                    }
+                }
+                Err(e) => CommandResult::Error(format!("diff: {}", e)),
+            }
+        }
+        "show" => {
+            // show file.rs 46:80   -- syntax-highlighted lines
+            // show file.rs fn_main -- jump to function with color
+            // show file.rs :20     -- first 20 lines with color
+            fn highlight_rust_line(line: &str) -> String {
+                use colored::Colorize;
+                // Comments
+                let trimmed = line.trim_start();
+                if trimmed.starts_with("//") {
+                    return line.dimmed().to_string();
+                }
+                // Error/panic lines
+                if trimmed.contains("error") || trimmed.contains("panic") || trimmed.contains("FAILED") {
+                    return line.bright_red().to_string();
+                }
+                // Simple token-level coloring
+                let result;
+                let keywords = ["fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ",
+                                 "enum ", "trait ", "mod ", "return ", "if ", "else ", "for ", "while ",
+                                 "loop ", "async ", "await ", "move ", "ref ", "const ", "static ",
+                                 "type ", "where ", "self ", "Self ", "super ", "crate "];
+                // Check if line starts with a keyword
+                let t = line.trim_start();
+                for kw in &keywords {
+                    if t.starts_with(kw) || t.starts_with(&format!("pub {}", kw.trim())) {
+                        result = line.bright_cyan().to_string();
+                        return result;
+                    }
+                }
+                // String literals pulse yellow
+                if line.contains('"') || line.contains("'") {
+                    result = line.bright_yellow().to_string();
+                    return result;
+                }
+                // Numbers stand out
+                let has_number = line.split_whitespace().any(|w| {
+                    w.trim_matches(|c: char| !c.is_ascii_digit()).parse::<f64>().is_ok() && !w.is_empty()
+                });
+                if has_number && !line.contains("::") {
+                    result = line.bright_magenta().to_string();
+                    return result;
+                }
+                line.to_string()
+            }
+            if args.is_empty() {
+                return CommandResult::Error("usage: show <file> [range|pattern]\n  show file.rs 46:80\n  show file.rs fn_main\n  show file.rs :20".to_string());
+            }
+            let filepath = args[0];
+            let expanded = if filepath.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                filepath.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                filepath.to_string()
+            };
+            let content_str = match std::fs::read_to_string(&expanded) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("show: {}: {}", filepath, e)),
+            };
+            let file_lines: Vec<&str> = content_str.lines().collect();
+            let total = file_lines.len();
+            let render = |start: usize, end: usize| -> String {
+                use colored::Colorize;
+                file_lines[start..end].iter().enumerate()
+                    .map(|(i, l)| {
+                        let lineno = format!("{:4}", start+i+1).bright_green().to_string();
+                        let bar = "│".dimmed().to_string();
+                        let highlighted = highlight_rust_line(l);
+                        format!("{} {} {}", lineno, bar, highlighted)
+                    })
+                    .collect::<Vec<_>>().join("\n")
+            };
+            if args.len() == 1 {
+                return CommandResult::Output(render(0, total));
+            }
+            let spec = args[1..].join(" ");
+            if spec.contains(':') {
+                let parts: Vec<&str> = spec.splitn(2, ':').collect();
+                let start_str = parts[0];
+                let end_str = parts[1];
+                let start = if start_str.is_empty() { 1 } else { start_str.parse::<usize>().unwrap_or(1) };
+                let end = if end_str.is_empty() {
+                    total
+                } else if end_str.starts_with('+') {
+                    let offset = end_str[1..].parse::<usize>().unwrap_or(0);
+                    (start + offset).min(total)
+                } else {
+                    end_str.parse::<usize>().unwrap_or(total).min(total)
+                };
+                let start = start.saturating_sub(1);
+                CommandResult::Output(render(start, end))
+            } else {
+                // Pattern match -- show 3 lines of context around each match
+                let pattern = spec.to_lowercase();
+                let mut out_lines: Vec<String> = Vec::new();
+                use colored::Colorize;
+                for (i, line) in file_lines.iter().enumerate() {
+                    if line.to_lowercase().contains(&pattern) {
+                        let ctx_start = i.saturating_sub(2);
+                        let ctx_end = (i + 3).min(total);
+                        if !out_lines.is_empty() { out_lines.push("  ...".dimmed().to_string()); }
+                        for j in ctx_start..ctx_end {
+                            let lineno = format!("{:4}", j+1);
+                            let lineno_colored = if j == i {
+                                lineno.bright_green().bold().to_string()
+                            } else {
+                                lineno.bright_green().to_string()
+                            };
+                            let bar = if j == i { "│".bright_green().to_string() } else { "│".dimmed().to_string() };
+                            let highlighted = highlight_rust_line(file_lines[j]);
+                            out_lines.push(format!("{} {} {}", lineno_colored, bar, highlighted));
+                        }
+                        break; // show first match only
+                    }
+                }
+                if out_lines.is_empty() {
+                    CommandResult::Output(format!("  (no matches for '{}')", spec))
+                } else {
+                    CommandResult::Output(out_lines.join("\n"))
+                }
+            }
+        }
         "fsearch" => {
             // fsearch "fn expand"                    -- all files recursively
             // fsearch "fn expand" --type rs          -- only .rs files
