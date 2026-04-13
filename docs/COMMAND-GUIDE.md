@@ -81,6 +81,16 @@
 
 ---
 
+## Core Deploy Intelligence (INT-222)
+| Command | What it does |
+|---------|-------------|
+| core deploy check <tool> | Pre-deploy health gate + dependency warning |
+| core deploy record <tool> <ver> <outcome> | Log deploy pattern to state.db |
+| core deploy log | Recent deploy history with health + timing |
+| core deploy rollback <tool> | Rollback tool to previous version |
+| core deploy rollback --dry-run | Preview rollback without executing |
+| core deploy check-deps <tool> | Show full dependency graph |
+
 ## Intent System
 
 | Command | What it does |
@@ -114,6 +124,26 @@
 | run file.fsh | Execute fsh native script |
 
 ---
+
+## fsh v5 Builtins (INT-224)
+| Command | What it does |
+|---------|-------------|
+| show file.rs 46:80 | Syntax-highlighted code view |
+| show file.rs fn_main | Jump to function with color |
+| goto file.rs:362 | Open editor at exact line |
+| goto file.rs:362:5 | Open editor at line:col (from cargo errors) |
+| goto "fn name" | Find function and open editor at it |
+| rename old new | Rename across all files with confirmation |
+| rename old new --dry-run | Preview rename without writing |
+| rename old new --type rs | Rename only in .rs files |
+| fdiff file.rs | git diff for specific file |
+| fdiff file.rs HEAD~3 | Diff against older commit |
+| fdiff file.rs --stat | Summary diff only |
+| patch-multi file.rs old1 -- new1 old2 -- new2 | Atomic multi-replacement |
+| ht today | Commands from today with timing |
+| ht session | Commands from current session |
+| ht intent | History grouped by active intent |
+| ht slow | Commands that took >5s |
 
 ## Core Intelligence — Prediction (v11)
 
