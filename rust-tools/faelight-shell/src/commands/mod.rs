@@ -286,7 +286,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "audit-table" | "at" => audit_table(db, core_root),
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
-        "history-table" | "ht" | "history" => history_table(db),
+        "history-table" | "ht" | "history" => {
+            match args.first().copied() {
+                Some("intent") => ht_intent(db),
+                Some("today") => ht_today(db),
+                Some("session") => ht_session(db),
+                Some("slow") => ht_slow(db),
+                Some(search) => history_search_cmd(db, &[search]),
+                None => history_table(db),
+            }
+        }
         "history-search" | "hs" | "hsearch" => history_search_cmd(db, args),
         "zsh" | "bash" => shell_handoff_cmd(line),
         "hstats" => history_stats(db),
@@ -630,6 +639,67 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
             CommandResult::Output(format!("  {} renamed {} occurrences in {} files", "✅".to_string(), renamed_count, renamed_files))
+        }
+        "patch-multi" => {
+            // patch-multi file.rs << TRANSFORMS
+            // old1 -- new1
+            // old2 -- new2
+            // All-or-nothing: if any replacement fails, none are applied
+            if args.is_empty() {
+                return CommandResult::Error("usage: patch-multi <file> <old1> -- <new1> [<old2> -- <new2> ...]".to_string());
+            }
+            let filepath = args[0];
+            let expanded = if filepath.starts_with("~/") {
+                filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+            } else {
+                filepath.to_string()
+            };
+            // Parse pairs: skip "--" tokens, take alternating old/new
+            let tokens: Vec<&str> = args[1..].iter()
+                .filter(|a| **a != "--")
+                .map(|a| *a)
+                .collect();
+            let pairs: Vec<(&str, &str)> = tokens.chunks(2)
+                .filter_map(|chunk| {
+                    if chunk.len() == 2 { Some((chunk[0], chunk[1])) }
+                    else { None }
+                })
+                .collect();
+            if pairs.is_empty() {
+                return CommandResult::Error("patch-multi: no replacement pairs found\n  format: patch-multi file.rs 'old1' -- 'new1' 'old2' -- 'new2'".to_string());
+            }
+            let content_str = match std::fs::read_to_string(&expanded) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("patch-multi: {}: {}", filepath, e)),
+            };
+            // Validate all replacements first (all-or-nothing)
+            let mut errors: Vec<String> = Vec::new();
+            for (old, _) in &pairs {
+                let count = content_str.matches(*old).count();
+                if count == 0 {
+                    errors.push(format!("  not found: '{}'", old));
+                } else if count > 1 {
+                    errors.push(format!("  ambiguous: '{}' ({} matches -- must be unique)", old, count));
+                }
+            }
+            if !errors.is_empty() {
+                use colored::Colorize;
+                println!("  {} patch-multi aborted -- validation failed:", "✗".bright_red());
+                for e in &errors { println!("{}", e); }
+                return CommandResult::Empty;
+            }
+            // Apply all replacements
+            let mut result = content_str.clone();
+            for (old, new) in &pairs {
+                result = result.replacen(old, new, 1);
+            }
+            match std::fs::write(&expanded, &result) {
+                Ok(_) => {
+                    CommandResult::Output(format!("  {} patched {} ({} replacements)",
+                        "✅".to_string(), filepath, pairs.len()))
+                }
+                Err(e) => CommandResult::Error(format!("patch-multi: write failed: {}", e)),
+            }
         }
         "fdiff" => {
             // diff main.rs          -- git diff for specific file
@@ -1817,6 +1887,138 @@ fn history_table(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
+
+fn ht_intent(db: &ForestDb) -> CommandResult {
+    // Group history by active intent at time of command
+    use colored::Colorize;
+    let mut stmt = match db.conn.prepare(
+        "SELECT h.command, h.timestamp, e.payload
+         FROM shell_history h
+         LEFT JOIN events e ON e.domain = 'intent' AND e.action = 'started'
+             AND e.timestamp <= h.timestamp
+         ORDER BY h.timestamp DESC LIMIT 200"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+    };
+    let rows: Vec<(String, i64, String)> = stmt
+        .query_map([], |r| Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, String>(2).unwrap_or_default(),
+        )))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No history yet", "○".dimmed()));
+    }
+    // Group by intent
+    let mut groups: std::collections::BTreeMap<String, Vec<(String, i64)>> = std::collections::BTreeMap::new();
+    for (cmd, ts, intent) in &rows {
+        let key = if intent.is_empty() { "no intent".to_string() } else { intent.clone() };
+        groups.entry(key).or_default().push((cmd.clone(), *ts));
+    }
+    let mut out = String::new();
+    for (intent, cmds) in groups.iter().rev() {
+        out.push_str(&format!("\n  {} {}\n", "▸".bright_cyan(), intent.bright_white()));
+        for (cmd, _ts) in cmds.iter().take(10) {
+            out.push_str(&format!("    {}\n", cmd.dimmed()));
+        }
+    }
+    CommandResult::Output(out.trim_end().to_string())
+}
+fn ht_today(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let today_start = {
+        use chrono::Local;
+        let now = Local::now();
+        let midnight = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
+        midnight.and_utc().timestamp()
+    };
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp FROM shell_history WHERE timestamp >= ?1 ORDER BY timestamp DESC LIMIT 200"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history today", "○".dimmed())),
+    };
+    let rows: Vec<(String, i64)> = stmt
+        .query_map([today_start], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No commands today yet", "○".dimmed()));
+    }
+    let mut out = format!("  {} Today -- {} commands\n", "▸".bright_cyan(), rows.len().to_string().bright_yellow());
+    for (cmd, ts) in &rows {
+        let time = crate::commands::fmt_time(*ts, "%H:%M");
+        out.push_str(&format!("  {} {}\n", time.dimmed(), cmd));
+    }
+    CommandResult::Output(out.trim_end().to_string())
+}
+fn ht_session(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let session_start = {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64).unwrap_or(0);
+        now - 3600 * 4 // last 4 hours as session approximation
+    };
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp FROM shell_history WHERE timestamp >= ?1 ORDER BY timestamp ASC"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No session history", "○".dimmed())),
+    };
+    let rows: Vec<(String, i64)> = stmt
+        .query_map([session_start], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  {} No commands this session", "○".dimmed()));
+    }
+    let mut out = format!("  {} Session -- {} commands\n", "▸".bright_cyan(), rows.len().to_string().bright_yellow());
+    for (cmd, ts) in &rows {
+        let time = crate::commands::fmt_time(*ts, "%H:%M:%S");
+        out.push_str(&format!("  {} {}\n", time.dimmed(), cmd));
+    }
+    CommandResult::Output(out.trim_end().to_string())
+}
+fn ht_slow(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 500"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
+    };
+    let raw: Vec<(String, i64)> = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    // Compute durations
+    let mut with_duration: Vec<(String, i64)> = raw.iter().enumerate()
+        .map(|(i, (cmd, ts))| {
+            let dur = if i + 1 < raw.len() { (ts - raw[i+1].1).max(0) } else { 0 };
+            (cmd.clone(), dur)
+        })
+        .filter(|(_, d)| *d > 5) // only commands that took > 5 seconds
+        .collect();
+    with_duration.sort_by(|a, b| b.1.cmp(&a.1));
+    with_duration.truncate(20);
+    if with_duration.is_empty() {
+        return CommandResult::Output(format!("  {} No slow commands found (>5s threshold)", "○".dimmed()));
+    }
+    let mut out = format!("  {} Slow commands (>5s)\n", "▸".bright_cyan());
+    for (cmd, dur) in &with_duration {
+        let dur_str = if *dur >= 60 {
+            format!("{}m{}s", dur/60, dur%60)
+        } else {
+            format!("{}s", dur)
+        };
+        out.push_str(&format!("  {} {}\n", dur_str.bright_yellow(), cmd));
+    }
+    CommandResult::Output(out.trim_end().to_string())
+}
 fn checkpoints_table(db: &ForestDb) -> CommandResult {
     use crate::value::Value;
     use std::collections::HashMap;

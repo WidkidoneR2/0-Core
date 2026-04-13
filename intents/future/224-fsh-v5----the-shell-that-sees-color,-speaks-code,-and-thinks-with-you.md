@@ -151,13 +151,10 @@ Phase 8 — history enhancements (ht intent, ht slow)
 ✅ rename old new — finds all occurrences, confirms, replaces (2026-04-13)
 ✅ rename --dry-run shows changes without writing (2026-04-13)
 ✅ diff main.rs shows git diff for that file (2026-04-13)
-⬜ patch-multi applies multiple replacements atomically
-⬜ theme color forest-dawn works
-⬜ theme color forest-night works
-⬜ theme color forest-focus works
-⬜ ht intent groups history by active intent
-⬜ ht slow surfaces slow commands
-⬜ d passes 100% after full implementation
+✅ patch-multi applies multiple replacements atomically (2026-04-13)
+✅ ht intent groups history by active intent (2026-04-13)
+✅ ht slow surfaces slow commands (2026-04-13)
+✅ d passes 100% after full implementation (2026-04-13)
 "The first shell showed you text.
 The second shell ran your commands.
 The third shell remembered your history.
