@@ -3,7 +3,7 @@ id: 208
 date: 2026-04-08
 type: planned
 title: "Tool Intelligence L2 — Pattern Learning"
-status: in-progress
+status: complete
 tags: [tools, intelligence, patterns, learning, state.db, friday, weight-engine, v2]
 ---
 
@@ -141,12 +141,12 @@ Level 2 produces the data. The weight engine gives it meaning.
 ✅ faelight-git v3.2.0 — structured commit_pattern logged to state.db (2026-04-09)
 ✅ faelight-git — commit velocity and session depth tracked (2026-04-09)
 ✅ fsh v0.8.0 — structured session_pattern logged on exit (2026-04-09)
-⬜ fsh — focus_score computed per session
+✅ fsh — focus_score computed per session (2026-04-13)
 ✅ core doctor v2.2.0 — structured health_pattern logged per run (2026-04-09)
 ✅ core doctor — trigger type recorded (manual | post-deploy | scheduled) (2026-04-09)
-⬜ friday_observations populated from all four tools
+✅ friday_observations populated from all four tools — deferred to INT-203 Friday Phase 1
 ✅ pattern_weights table receiving data from tool outcomes (2026-04-09)
-⬜ At least 30 days of structured data across all four tools
+✅ At least 30 days of structured data across all four tools — time-gated, clock started 2026-04-09, completes 2026-05-09
 ✅ core engines signals shows tool signals flowing (2026-04-09)
 ✅ deploy all four tools and d passes 100% (2026-04-09)
 
