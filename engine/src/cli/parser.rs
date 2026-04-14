@@ -21,6 +21,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: FridayCommands,
     },
+    /// Core v18 Synthesis Engine
+    Synthesize {
+        #[command(subcommand)]
+        command: SynthesizeCommands,
+    },
     Version,
     Doctor {
         #[command(subcommand)]
@@ -351,6 +356,16 @@ pub enum DeployCommands {
     #[command(name = "check-deps")]
     CheckDeps { tool: String },
 }
+#[derive(Subcommand, Clone)]
+pub enum SynthesizeCommands {
+    /// Generate synthesis snapshot now
+    Now,
+    /// Show current Friday brief
+    Brief,
+    /// Show synthesis history
+    History,
+}
+
 #[derive(Subcommand, Clone)]
 pub enum FridayCommands {
     /// Show what Friday has observed and learned

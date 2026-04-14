@@ -1,4 +1,11 @@
 #[derive(Debug)]
+pub enum SynthesizeCommand {
+    Now,
+    Brief,
+    History,
+}
+
+#[derive(Debug)]
 pub enum FridayCommand {
     Status,
     Ask { question: String },
@@ -84,6 +91,7 @@ pub enum Command {
     Decision(DecisionCommand),
     Deploy(DeployCommand),
     Friday(FridayCommand),
+    Synthesize(SynthesizeCommand),
 }
 
 #[derive(Debug)]

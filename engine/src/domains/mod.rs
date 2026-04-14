@@ -1,3 +1,4 @@
+pub mod synthesis;
 pub mod friday;
 pub mod anomaly;
 pub mod deploy;
