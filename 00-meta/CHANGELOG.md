@@ -1,5 +1,172 @@
 # Changelog
 
+## [11.8.0] — The Self-Making Forest (2026-04-13)
+
+### 🎯 Completed Intents
+- **INT-178** — Core v14 — Partnership: The Forest and Human Co-Create
+- **INT-187** — Delegation Engine — Trust Contracts and Safe Autonomy Simulation
+- **INT-189** — Core v16 — Self-Transformation: The Forest Redesigns Itself
+- **INT-194** — fsh v4 — Shell Intelligence and Terminal Experience
+- **INT-195** — Forest Journal — The System Writes Its Own Story
+- **INT-196** — faelight-daemon v2 — The Background Brain Gets Smarter
+- **INT-202** — Core Commands Guide
+- **INT-205** — Core v17 — Pattern Weight Engine
+- **INT-207** — Tool Intelligence L1 — Contextual Awareness
+- **INT-208** — Tool Intelligence L2 — Pattern Learning
+- **INT-209** — Tool Intelligence L3 — Inter-Tool Coordination
+- **INT-210** — Registry Stats Accuracy — Tools Count and Release Stats
+- **INT-211** — faelight-fm v3 — Permissions Display and Forest Integration
+- **INT-214** — faelight-link v3 — Forest-Aware Dotfile Intelligence
+- **INT-221** — \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\
+- **INT-222** — \"Deploy Intelligence v2 -- Pattern-Aware, Signal-Emitting, Cross-Tool Awareness\
+- **INT-223** — \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\
+- **INT-224** — \"fsh v5 -- The Shell That Sees Color, Speaks Code, and Thinks With You\
+- **INT-225** — \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\
+
+### 🔧 Fixes
+- README title restored — 🌲 Faelight Forest 11.7.0
+- README integrity check demoted from auto-fix to proposal — stops silent auto-updates
+- integrity tool count check now matches specific patterns — stops false 192 detection
+
+### 📚 Documentation
+- COMMAND-GUIDE.md updated to v11.7.0 — all core commands documented
+- COMMAND-GUIDE.md rebuilt with all headers + INT-223 native builtins section
+- fdocs sync — README updated to 50 tools, 169 intents
+- COMMAND-GUIDE updated — INT-222 deploy intelligence + INT-224 fsh v5 builtins
+
+### 🔩 Internal (112 commits)
+- **187** (2 commits)
+  - INT-187 progress — typed capabilities, hard boundaries, 3D accuracy, counterfactuals live
+  - INT-187 complete — Delegation Engine, typed capabilities, hard boundaries, 3D accuracy, counterfactuals
+- INT-189 complete — Core v16 Self-Transformation live, self map/evolve/apply/challenge/learn/accuracy/calibrate
+- **194** (6 commits)
+  - INT-194 progress — persist VAR command live, variables survive across fsh sessions
+  - INT-194 progress — prediction-aware suggestions live, persist VAR complete, 13/15 gates done
+  - INT-194/INT-201 gates updated — 14/19 and 6/17 complete respectively
+  - INT-194: add edit builtin — opens $EDITOR with last command (gate 14 complete)
+  - INT-194: fsh v4 complete — all 15 gates done, edit builtin added
+  - INT-194: fsh v4 complete — all 15 gates done, edit builtin added
+- **195** (2 commits)
+  - sync uncommitted changes — INT-195 started
+  - INT-195 complete — Forest Journal live, session-start/daily-summary auto-fire, core journal commands working
+- **196** (2 commits)
+  - sync uncommitted changes before INT-196
+  - INT-196 complete — faelight-daemon v3.1.0, background brain live, core daemon status/signals/watchdog working
+- **201** (6 commits)
+  - INT-201 progress — faelight-term intent-aware title bar live, backup files cleaned
+  - INT-201 progress — command exit status indicator in title bar, fsh writes to cache
+  - INT-201 progress — scrollback search Ctrl+F live, exit status indicator, title bar updated
+  - INT-201: fix viewport follow output and resize redraw
+  - INT-201: viewport follow output, resize redraw, selection clamp fix
+  - INT-201: Ctrl+Shift+A copies last command output from scrollback, remove dead code
+- INT-202 complete — Core Commands Guide, core docs commands/list live, 50+ domains documented
+- housekeeping — DEC-005 resolved, tool audit scores updated post-INT-204
+- **205** (2 commits)
+  - INT-205 design constraints — volatility as modifier, trend asymmetry fix, exposure rate, attribution calibration, alignment clamp [0.9,1.1], WeightBreakdown struct
+  - INT-205 complete — Core v17 Pattern Weight Engine, predict next weight-ranked, core-commands.md updated
+- **207** (4 commits)
+  - INT-207 progress — doctor v2.1.0, alignment + Friday status + engine signals in d
+  - INT-207 progress — faelight-update v4.1.0, active intents + alignment in system profile
+  - INT-207 progress — faelight-git v3.3.1, active intent context on every commit
+  - INT-207 complete — Tool Intelligence L1, all four tools forest-aware
+- **208** (16 commits)
+  - INT-208: fsh session pattern logging, normalize_input, expand_subshells, all shell fixes consolidated
+  - INT-208: mark gate 5 complete — fsh session_pattern logging live
+  - INT-208: gate 5 complete — fsh session_pattern logging verified
+  - INT-208: faelight-update structured logging — health_after and drift_label added
+  - INT-208: gate 1 complete — faelight-update structured logging, fix gate 5 checkmark
+  - INT-208: faelight-git commit pattern logging live
+  - INT-208: gate 3 complete — faelight-git commit pattern logging verified
+  - INT-208: core doctor health_patterns logging live — gate 7 complete
+  - INT-208: gate 7 complete — core doctor health_patterns verified
+  - INT-208: gates 8 and 13 complete — trigger_type live, all tools deployed at 100%
+  - INT-208: gate 4 complete — faelight-git commit velocity and session depth tracking
+  - INT-208: gates 4 and 8 marked complete in ledger
+  - INT-208: gate 2 complete — faelight-update feeds engine_signals
+  - INT-208: gates 2 and 10 marked complete — engine_signals flowing
+  - INT-208: gate 12 complete, core-commands.md updated with pattern learning tables
+  - INT-208: gate 6 complete — focus_score computed per session with deploy/command/duration tracking
+- **210** (2 commits)
+  - INT-210/211 created — registry stats accuracy, faelight-fm v3; DEC-002 resolved (INT-138)
+  - INT-210 complete — 5 retired tools removed from registry, count_tools() excludes retired, consistent counts
+- INT-211 complete — faelight-fm v3.0.0, permissions display, forest context topbar, sort modes, db logging; DEC-003 resolved
+- **212** (2 commits)
+  - INT-212 created — Core v18 Synthesis Engine, The Forest Speaks With One Voice
+  - INT-212 refined — synthesis engine updated with contradictions/causality/confidence; INT-217 created — Core v19 Friday Phase 1
+- INT-213/214 created — Forest 2FA (TOTP/StrongBox) and faelight-link v3 (forest-aware dotfiles)
+- **215** (2 commits)
+  - INT-215 created — Event Architecture v2, append-only log, signal ontology, causality chains
+  - INT-215 updated with canonical Signal struct; INT-216 created — Friday Formal Architecture
+- INT-218/219 created — Friday Knowledge Engine (situated learning) and Core v20 Friday Phase 2 (deep pattern synthesis, predictive strategy)
+- INT-220: Friday Daemon blueprint — architecture locked, 15 gates defined
+- **221** (2 commits)
+  - INT-221, INT-222, INT-223: create intents for git v4, deploy v2, fsh native execution layer
+  - INT-221, INT-222, INT-223: register intents with full content — git v4, deploy v2, fsh native execution
+- **223** (7 commits)
+  - INT-223: Phase 1 — query builtin live, all 5 modes working
+  - INT-223: update intent — Phase 1 gates complete
+  - INT-223: Phase 5 — fsearch builtin live, zero-/tmp workflow working
+  - INT-223: Phase 6 — patch builtin live, in-place replacement working
+  - INT-223: Phase 4 — edit builtin enhanced with line/pattern focus
+  - INT-223: phases 4/5/6 complete — edit, fsearch, patch, zero-/tmp workflow verified
+  - INT-223: Phase 3 — fsh run supports .py and .sh files natively
+- **224** (2 commits)
+  - INT-224: fsh v5 — The Shell That Sees Color, Speaks Code, and Thinks With You
+  - INT-224: phase 3 — semantic color in query/fsearch output, highlight_rust_line for .rs files
+- INT-225: faelight-release v2 — intelligent synthesis, intent-first narrative, self-naming themes
+- release: Faelight Forest 11.7.0 — The Intelligence Arc
+- Faelight-Forest 11.7.0 is alive
+- README rewritten for 11.7.0 — intelligence arc, core 3.0.0, v15 alignment, engine coordination, Friday
+- fsh: fix pipe interception — external ops bypass fsh builtins, pass original line to sh
+- faelight-release: full commit listing, intent grouping, version format validation
+- faelight-release: fix intent count — reads frontmatter across all dirs, now shows 158
+- journal: fix session-start queries — git log for commits, filesystem for active intents
+- sync uncommitted changes
+- faelight-term: revert search changes — keyboard regression, title bar and exit status kept
+- sync README
+- update README tool count to reflect current deployment state
+- readme updating numbers.
+- fsh: normalize curly quotes and smart punctuation at input entry point
+- fsh: fix inline var re-expansion and glob ./ prefix stripping
+- fsh: add subshell expansion $(command) support
+- fsh: fix quoted arg handling in grep_cmd and run_external, add subshell expansion, clean warnings
+- readme updated
+- README auto-update
+- fsh: fix quoted VAR assignment with spaces, fix echo quote stripping, fix execute tokenizer
+- README auto-update
+- fsh: fix echo redirect — builtin output now writes correctly to files
+- README auto-update
+- fsh: heredoc unquoted delimiter warning — prevents silent backtick expansion
+- y
+- cicomplete 208: Tool Intelligence L2 complete — gates 9/11 deferred (time-gated/Friday)
+- Phase 7 — native pipe execution, quote-aware arg splitting, no sh fallback
+- cicomplete 223: fsh Native Execution Layer complete — all 15 gates done
+- faelight-teach — The Forest Teaches You to Be Fluent in Yourself
+- phases 1/2/4/5 — show (syntax color), goto (file:line jump), rename (dry-run), fdiff (git diff)
+- gates 6/7 marked — semantic color in query and fsearch output
+- fsh v0.7.0 — patch-multi, ht enhancements, all gates complete
+- fsh v5 complete — color, show, goto, rename, fdiff, patch-multi, ht
+- deploy intelligence v2 — check/record/log commands + auto-wired into deploy script
+- rollback, check-deps, intent flag — all 13 gates complete
+- cicomplete 222: Deploy Intelligence v2 complete — check, record, log, rollback, check-deps
+- signal processor live — expiry, consumption tracking, no-loop rule, deploy coordination
+- cicomplete 209: Tool Intelligence L3 complete — signal processor, expiry, consumption, coordination loop
+- Tool Intelligence L3 complete — signal coordination layer live
+- faelight-link v3.0.0 — forest-aware dotfile intelligence, intent tracing, status/audit/verify/why
+- faelight-link v3.0.0 complete — forest-aware dotfile intelligence
+- faelight-git v4.0.0 — auto-intent detection, risk warnings, rollback command
+- fix Active: display bug, mark gates
+- faelight-git v4.0.0 complete — auto-intent, risk warnings, rollback
+- clean auto-link display, fix title parsing
+- faelight-release v2 — intelligent release synthesis
+- faelight-release v2.0.0 — narrative synthesis, 3-theme suggestions, rich stats from state.db
+- faelight-release v2.0.0 complete — narrative synthesis, intelligent themes
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 2124  ·  Tools: 50 deployed  ·  Intents: 176 complete
+
+---
+
 ## [11.7.0] — The Intelligence Arc (2026-04-08)
 
 ### 🎯 Completed Intents
