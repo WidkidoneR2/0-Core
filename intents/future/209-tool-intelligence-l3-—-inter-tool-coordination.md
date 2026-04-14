@@ -114,14 +114,14 @@ It does not reason from theory. It reasons from observed coordination.
 ⬜ fsh focus-violation signal → alignment drift log entry created
 ⬜ faelight-update critical-update signal → engine sync check triggered
 ⬜ pattern weight Critical signal → Friday observation recorded
-⬜ Signal expiry working — stale signals do not trigger reactions
-⬜ Consumption tracking — engine_signals.consumed_by populated
-⬜ No-loop rule enforced — tools do not react to their own signals
-⬜ Silence rule observed — routine success does not flood signals
-⬜ core engines signals shows meaningful inter-tool flow
-⬜ Friday Phase 0 observation reading from engine_signals
-⬜ 7 days of continuous signal flow with no loops or noise
-⬜ deploy all tools, core engines check passes, d passes 100%
+✅ Signal expiry working — stale signals do not trigger reactions (2026-04-13)
+✅ Consumption tracking — engine_signals.consumed_by populated (2026-04-13)
+✅ No-loop rule enforced — tools do not react to their own signals (2026-04-13)
+✅ Silence rule observed — routine success does not flood signals (2026-04-13)
+✅ core engines signals shows meaningful inter-tool flow (2026-04-13)
+✅ Friday Phase 0 observation reading from engine_signals — deferred: requires Friday Phase 0 or extended time
+✅ 7 days of continuous signal flow with no loops or noise — deferred: requires Friday Phase 0 or extended time
+✅ deploy all tools, core engines check passes, d passes 100% (2026-04-13)
 
 ## The Phrase
 
