@@ -40,6 +40,11 @@ pub fn parse() -> Command {
             FridayCommands::ExtractPatterns => FridayCommand::ExtractPatterns,
             FridayCommands::Suggest => FridayCommand::Suggest,
         }),
+        Commands::Synthesize { command } => Command::Synthesize(match command {
+            SynthesizeCommands::Now => SynthesizeCommand::Now,
+            SynthesizeCommands::Brief => SynthesizeCommand::Brief,
+            SynthesizeCommands::History => SynthesizeCommand::History,
+        }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {
             PluginCommands::List => PluginCommand::List,
@@ -587,6 +592,6 @@ pub fn parse() -> Command {
     }
 }
 use crate::cli::parser::DeployCommands;
-use crate::cli::parser::FridayCommands;
-use crate::cli::commands::FridayCommand;
+use crate::cli::parser::{FridayCommands, SynthesizeCommands};
+use crate::cli::commands::{FridayCommand, SynthesizeCommand};
 use crate::cli::commands::DeployCommand;

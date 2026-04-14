@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -469,6 +469,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 
+        Command::Synthesize(c) => match c {
+            SynthesizeCommand::Now => crate::domains::synthesis::cmd_now(ctx),
+            SynthesizeCommand::Brief => crate::domains::synthesis::cmd_brief(ctx),
+            SynthesizeCommand::History => crate::domains::synthesis::cmd_history(ctx),
+        },
         Command::Friday(c) => match c {
             FridayCommand::Status => crate::domains::friday::status(ctx),
             FridayCommand::Ask { question } => crate::domains::friday::ask(ctx, &question),
