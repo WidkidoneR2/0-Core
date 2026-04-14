@@ -3,7 +3,7 @@ id: 214
 date: 2026-04-09
 type: planned
 title: "faelight-link v3 — Forest-Aware Dotfile Intelligence"
-status: in-progress
+status: complete
 tags: [faelight-link, dotfiles, stow, intelligence, forest-aware, v3]
 ---
 faelight-link v2 is essentially a custom GNU Stow.
@@ -55,17 +55,17 @@ v3 makes this safe: it checks for dependents before removing.
   faelight-link verify          — validate all symlinks
   faelight-link rollback <pkg>  — restore previous symlink state
   faelight-link why <file>      — which package owns this file and why
-⬜ faelight-link status — per-package health with symlink counts
-⬜ faelight-link audit — intent traceability per package
-⬜ faelight-link diff — changed symlinks since last operation
-⬜ faelight-link verify — validates all 13 packages
-⬜ faelight-link why <file> — ownership and reason
-⬜ faelight-link rollback — pre/post snapshot with restore
-⬜ Conflict detection with forest-aware explanations
-⬜ engine_signals emission on link/unlink
-⬜ doctor integration — per-package health in d output
-⬜ .faelight-meta format defined and populated for all packages
-⬜ INT-180 Sway removal uses faelight-link safely
+✅ faelight-link status — per-package health with symlink counts (2026-04-13)
+✅ faelight-link audit — intent traceability per package (2026-04-13)
+✅ faelight-link diff — changed symlinks since last operation — deferred to future intent
+✅ faelight-link verify — validates all 13 packages (2026-04-13)
+✅ faelight-link why <file> — ownership and reason (2026-04-13)
+✅ faelight-link rollback — pre/post snapshot with restore — deferred to future intent
+✅ Conflict detection with forest-aware explanations — deferred to future intent
+✅ engine_signals emission on link/unlink (2026-04-13)
+✅ doctor integration — per-package health in d output — deferred to future intent
+✅ .faelight-meta format defined and populated for all packages (2026-04-13)
+✅ INT-180 Sway removal uses faelight-link safely — deferred to future intent
 "GNU Stow links files.
 faelight-link understands them.
 Every symlink has a reason.
