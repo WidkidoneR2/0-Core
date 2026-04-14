@@ -473,6 +473,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::Status => crate::domains::friday::status(ctx),
             FridayCommand::Ask { question } => crate::domains::friday::ask(ctx, &question),
             FridayCommand::Observe => crate::domains::friday::run_observe(ctx),
+            FridayCommand::ExtractPatterns => crate::domains::friday::extract_patterns(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),

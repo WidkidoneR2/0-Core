@@ -37,6 +37,7 @@ pub fn parse() -> Command {
             FridayCommands::Status => FridayCommand::Status,
             FridayCommands::Ask { question } => FridayCommand::Ask { question },
             FridayCommands::Observe => FridayCommand::Observe,
+            FridayCommands::ExtractPatterns => FridayCommand::ExtractPatterns,
         }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {

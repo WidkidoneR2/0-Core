@@ -359,6 +359,8 @@ pub enum FridayCommands {
     Ask { question: String },
     /// Trigger observation cycle manually
     Observe,
+    /// Extract patterns from shell history
+    ExtractPatterns,
 }
 
 #[derive(Subcommand)]
