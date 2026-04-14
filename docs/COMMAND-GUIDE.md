@@ -531,3 +531,8 @@
 | docs/PHILOSOPHY.md | Design principles |
 | docs/AUTOSTART-MAP.md | Niri autostart chain |
 | docs/core-commands.md | Core subcommand deep reference |
+| Command | What it does |
+|---------|-------------|
+| core synthesize now | Generate synthesis snapshot -- unified brief from all intelligence signals |
+| core synthesize brief | Show the current Friday brief (latest snapshot) |
+| core synthesize history | Show past synthesis snapshots |
