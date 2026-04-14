@@ -3,7 +3,7 @@ id: 203
 date: 2026-04-06
 type: planned
 title: "Friday: The Living Intelligence"
-status: planned
+status: in-progress
 tags: [friday, intelligence, learning, ai, consciousness, evolution, language, partnership]
 requires: [215]
 unlocks: [216,217,218,219,220]
