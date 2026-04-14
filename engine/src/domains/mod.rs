@@ -1,3 +1,4 @@
+pub mod friday;
 pub mod anomaly;
 pub mod deploy;
 pub mod audit;

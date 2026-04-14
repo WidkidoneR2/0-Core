@@ -16,6 +16,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: DeployCommands,
     },
+    /// Friday -- The Living Intelligence
+    Friday {
+        #[command(subcommand)]
+        command: FridayCommands,
+    },
     Version,
     Doctor {
         #[command(subcommand)]
@@ -346,6 +351,16 @@ pub enum DeployCommands {
     #[command(name = "check-deps")]
     CheckDeps { tool: String },
 }
+#[derive(Subcommand, Clone)]
+pub enum FridayCommands {
+    /// Show what Friday has observed and learned
+    Status,
+    /// Ask Friday a question about the forest
+    Ask { question: String },
+    /// Trigger observation cycle manually
+    Observe,
+}
+
 #[derive(Subcommand)]
 pub enum DoctorCommands {
     /// Run full health check
