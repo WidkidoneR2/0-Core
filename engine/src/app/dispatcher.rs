@@ -388,6 +388,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Events(c) => match c {
             EventsCommand::Status => crate::domains::events::status(ctx),
             EventsCommand::Archive => crate::domains::events::archive(ctx),
+            EventsCommand::EmitV2 { type_name, payload, caused_by } => crate::domains::events::emit_v2(ctx, &type_name, &payload, caused_by),
+            EventsCommand::Replay { from_seq, to_seq } => crate::domains::events::replay(ctx, from_seq, to_seq),
+            EventsCommand::Chain { seq } => crate::domains::events::chain(ctx, seq),
+            EventsCommand::StatusV2 => crate::domains::events::status_v2(ctx),
             EventsCommand::List => crate::domains::events::list(ctx),
             EventsCommand::Since { duration } => crate::domains::events::since(ctx, &duration),
             EventsCommand::Filter { domain } => crate::domains::events::filter(ctx, &domain),

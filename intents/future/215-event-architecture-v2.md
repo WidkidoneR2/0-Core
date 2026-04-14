@@ -3,7 +3,7 @@ id: 215
 date: 2026-04-09
 type: planned
 title: "Event Architecture v2 — Append-Only Log and Signal Ontology"
-status: planned
+status: in-progress
 tags: [architecture, events, signals, append-only, ontology, friday, audit]
 requires: []
 unlocks: [203,212,216]
