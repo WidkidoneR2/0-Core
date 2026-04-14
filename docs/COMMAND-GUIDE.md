@@ -1,5 +1,5 @@
 # 🌲 Faelight Forest — Command Guide
-**Version:** v11.7.0 | **Updated:** 2026-04-11 | **Intents:** 167 complete
+**Version:** v11.8.0 | **Updated:** 2026-04-13 | **Intents:** 176 complete
 > Muscle memory reference. Only commands that work today.
 > Health: 100% | Integrity: 100% | Jarvis: 105/100
 
@@ -80,6 +80,22 @@
 | deploy faelight-shell | Deploy fsh |
 
 ---
+
+| Command | What it does |
+|---------|-------------|
+| faelight-link status-v3 | Per-package health with intent tracing + CRITICAL markers |
+| faelight-link audit-v3 | Intent traceability -- which intent owns each package |
+| faelight-link verify | Deep validation -- valid/broken/unlinked counts per package |
+| faelight-link why ~/.config/X | Which package owns this file and why |
+| faelight-link stow <pkg> | Stow a package (create symlinks) |
+| faelight-link unstow <pkg> | Unstow a package (remove symlinks) |
+
+| Command | What it does |
+|---------|-------------|
+| fg commit | Smart commit -- auto-links intent, risk warnings, velocity check |
+| fg rollback --list | Show last 10 commits with risk scores |
+| fg rollback N | Interactive rollback to commit N |
+| fg rollback --dry-run | Preview rollback without executing |
 
 ## Core Deploy Intelligence (INT-222)
 | Command | What it does |
