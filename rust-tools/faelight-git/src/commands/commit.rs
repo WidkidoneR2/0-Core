@@ -243,10 +243,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
                     let fname = e.file_name().to_string_lossy().to_string();
                     let num = fname.split('-').next().unwrap_or("").to_string();
                     if !num.is_empty() && num.parse::<u32>().is_ok() {
-                        let short = fname.splitn(3, '-').nth(2)
-                            .unwrap_or("").replace('-', " ").replace(".md", "")
-                            .split("----").next().unwrap_or("").trim().chars().take(35).collect::<String>();
-                        Some((format!("INT-{}", num), short))
+                        Some((format!("INT-{}", num), String::new()))
                     } else { None }
                 })
                 .collect())
@@ -255,7 +252,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
             // Single active intent -- auto-attach
             let (id, title) = &active[0];
             println!("  {} auto-linked: {} {}", "✅".green(), id.bright_cyan(),
-                format!("({})", title).dimmed());
+                if title.is_empty() { "".dimmed() } else { format!("({})", title).dimmed() });
             Some(id.clone())
         } else {
             // Multiple or zero -- ask
