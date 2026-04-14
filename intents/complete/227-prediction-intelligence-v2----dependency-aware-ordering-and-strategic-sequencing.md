@@ -1,7 +1,7 @@
 ---
 id: 227
 title: "Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing"
-status: in-progress
+status: complete
 date: 2026-04-13
 tags: core, intelligence, prediction, friday, strategy
 requires: []
@@ -55,15 +55,15 @@ Phase 3: eligible_next() -- filters by prerequisite completion
 Phase 4: strategic_rank() -- applies multiplier/foundation/blocker boosts
 Phase 5: core predict next shows eligibility reason
 Phase 6: core predict why <INT> explains why/why-not predicted
-⬜ requires/unlocks fields added to all Friday-chain intents
-⬜ prerequisite_graph() builds accurate dependency map
-⬜ eligible_next() correctly filters blocked intents
-⬜ INT-216 no longer predicted before INT-203
-⬜ strategic_rank() boosts foundations and multipliers
-⬜ core predict next shows eligibility reason per intent
-⬜ core predict why INT-NNN explains prediction logic
-⬜ Friday chain predicted in correct dependency order
-⬜ d passes 100% after full implementation
+✅ requires/unlocks fields added to all Friday-chain intents (2026-04-14)
+✅ prerequisite_graph() builds accurate dependency map (2026-04-14)
+✅ eligible_next() correctly filters blocked intents (2026-04-14)
+✅ INT-216 no longer predicted before INT-203 (2026-04-14)
+✅ strategic_rank() boosts foundations and multipliers (2026-04-14)
+✅ core predict next shows eligibility reason per intent (2026-04-14)
+✅ core predict why INT-NNN explains prediction logic (2026-04-14)
+✅ Friday chain predicted in correct dependency order (2026-04-14)
+✅ d passes 100% after full implementation (2026-04-14)
 "The prediction engine that ranks INT-216 above INT-203
 has never built a puzzle.
 It sees the most beautiful piece and reaches for it.
