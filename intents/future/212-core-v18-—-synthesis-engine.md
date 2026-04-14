@@ -3,7 +3,7 @@ id: 212
 date: 2026-04-08
 type: planned
 title: "Core v18 — Synthesis Engine: The Forest Speaks With One Voice"
-status: planned
+status: in-progress
 tags: [synthesis, intelligence, friday, v18, unification, signal-fusion]
 requires: [215,208]
 unlocks: [217,219]
