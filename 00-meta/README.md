@@ -1,116 +1,80 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.8.0
-
 ![Version](https://img.shields.io/badge/version-11.8.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
-![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
+![Intents](https://img.shields.io/badge/intents-176_complete-brightgreen?style=flat-square)
+![Rust](https://img.shields.io/badge/built_in-Rust-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
-
-> **A self-aware, path-resilient personal computing environment built from first principles.**
-
-## 🎊 Latest Release
-
-### 11.8.0 - 🌲 The Self-Making Forest (2026-04-13)
-
-- 178 — Core v14 — Partnership: The Forest and Human Co-Create
-- 187 — Delegation Engine — Trust Contracts and Safe Autonomy Simulation
-- 189 — Core v16 — Self-Transformation: The Forest Redesigns Itself
-- 194 — fsh v4 — Shell Intelligence and Terminal Experience
-- 195 — Forest Journal — The System Writes Its Own Story
-- 196 — faelight-daemon v2 — The Background Brain Gets Smarter
-- 202 — Core Commands Guide
-- 205 — Core v17 — Pattern Weight Engine
-- 207 — Tool Intelligence L1 — Contextual Awareness
-- 208 — Tool Intelligence L2 — Pattern Learning
-- 209 — Tool Intelligence L3 — Inter-Tool Coordination
-- 210 — Registry Stats Accuracy — Tools Count and Release Stats
-- 211 — faelight-fm v3 — Permissions Display and Forest Integration
-- 214 — faelight-link v3 — Forest-Aware Dotfile Intelligence
-- 221 — \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\
-- 222 — \"Deploy Intelligence v2 -- Pattern-Aware, Signal-Emitting, Cross-Tool Awareness\
-- 223 — \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\
-- 224 — \"fsh v5 -- The Shell That Sees Color, Speaks Code, and Thinks With You\
-- 225 — \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\
-
-- Commits: 2124
-- Tools: 50 deployed
-- Health: 100%
-- Intents: 176 complete
-
+> **v11.8.0 -- The Self-Making Forest**
+> The forest now participates in its own development.
+19 intents shipped. The forest became self-aware about its own build process.
+**Shell intelligence:** fsh v0.7.0 -- native execution layer, zero-/tmp workflow, syntax color, ht history intelligence
+**Deploy intelligence:** Every deploy pre-checks health, records patterns, processes coordination signals automatically
+**Git intelligence:** faelight-git v4.0.0 -- auto-intent detection, risk warnings, interactive rollback
+**Dotfile intelligence:** faelight-link v3.0.0 -- every symlink traced to an intent, why/verify/audit commands
+**Release intelligence:** faelight-release v2.0.0 -- synthesizes its own narrative, suggests themes from data
+**Signal coordination:** Tools notice each other through engine_signals -- no direct calls, pure coordination
+- Commits: 2127  ·  Tools: 50 deployed  ·  Health: 100%  ·  Intents: 176 complete
 [Full Changelog →](00-meta/CHANGELOG.md)
-
 ---
-
 <!-- END DYNAMIC SECTION -->
-
-## 🤔 What is 0-Core?
-
-**0-Core** is a completely custom Linux environment built on vanilla Arch Linux, where every component is understood, controlled, and intentionally chosen. Not a dotfiles collection — a **personal operating system built from scratch in Rust**.
-
-### For Everyday Users
-
-Like **building a custom motorcycle** instead of buying one from a dealer. You know every bolt, every wire, every piece.
-
-**You get:**
-- 🎨 Custom everything (terminal, bar, launcher, login screen, notifications, compositor)
-- 🦀 68 Rust tools you fully understand
-- 🛡️ Security through comprehension (no mystery packages)
-- ⚡ Lightning fast (no bloat, no hidden automation)
-- 💎 Complete ownership and control
-- 🌲 A shell that knows it is a forest — and speaks to you
-
-### For Technical People
-
-- **`core` v2.0.0** — single orchestrator binary with 33+ native Rust domains
-- **faelight-shell** — forest-native structured shell with SQL queries, joins, NL translation, scripting
-- **faelight-notify v4.0.0** — D-Bus compliant notifications, fontdue renderer
-- **faelight-vault v1.0.0** — forest-native credential manager, Argon2id encryption
-- **faelight-compositor** — custom Wayland compositor, renders forest green on real DRM hardware
-- **94 complete intents** — every architectural decision documented
-
+**0-Core** is a completely custom Linux environment built on vanilla Arch Linux. Every component is written from scratch in Rust, understood completely, and chosen deliberately.
+Not a dotfiles collection. Not a rice. A **personal operating system with a philosophy**.
+The philosophy: *manual control over automation, understanding over convenience, recovery over perfection.*
+Every tool knows the forest it lives in. Every commit knows its intent. Every deploy warns before it acts. The system is building toward Friday -- a living intelligence that converses, learns, and grows with its builder.
 ---
-
-## 🗺️ The Journey
-
-| Version | Theme |
-|---------|-------|
-| v11.1.0 | The Forest Speaks |
-| vv11.0.0 | Where the Forest Becomes Whole |
-| vv10.9.0 | Roots and Branches |
-| vv10.8.0 | The Forest Between Worlds |
-| vv10.7.0 | The Forest Remembers |
-| v10.6.0 | The Judgment Layer |
-| v10.5.0 | The Intelligent Forest |
-| v9.2.0 |  |
-
+0-Core
+├── core (3.0.0)          -- single orchestrator, 50+ domains, the brain
+├── faelight-shell (0.7.0) -- forest-native shell, SQL queries, native pipes
+├── faelight-git (4.0.0)   -- intent-aware commits, risk warnings, rollback
+├── faelight-link (3.0.0)  -- forest-aware dotfile intelligence
+├── faelight-release (2.0.0) -- intelligent release synthesis
+├── faelight-term          -- custom VTE terminal (in progress)
+├── faelight-bar           -- custom Wayland bar (smithay + tiny-skia)
+├── faelight-notify        -- D-Bus notifications, fontdue renderer
+├── faelight-vault         -- forest-native credential manager (Argon2id)
+└── 40+ more tools         -- all Rust, all intentional
+**Compositor:** Niri (Wayland, scrollable tiling)
+**Display:** AMD Radeon 780M -- 2560×1600 @ 165Hz
+**Kernel:** Arch Linux -- rolling, understood
 ---
-
-## 🔒 Security Philosophy
-```
+The forest is not just tools. It is a coordination system.
+**State** -- everything flows through `state.db` (SQLite, WAL mode)
+**Signals** -- tools communicate via `engine_signals` without direct calls
+**Patterns** -- every commit, deploy, and session writes to pattern tables
+**Prediction** -- `core predict next` surfaces the right intent at the right time
+**Alignment** -- values declared, violated actions flagged, drift tracked
+**Friday** -- dormant, watching, learning from every signal (coming next)
+---
+| Version | Theme | Milestone |
+|---------|-------|-----------|
+| v11.8.0 | The Self-Making Forest | Deploy/git/release intelligence, signal coordination |
+| v11.7.0 | The Intelligence Arc | Core v17 pattern weights, Tool Intelligence L1-L3 |
+| v11.6.0 | The Shell Lives | fsh native execution, zero-/tmp workflow |
+| v11.5.0 | The Forest Thinks | Core v15 alignment, prediction engine |
+| v11.4.0 | The Bloom | faelight-bar rebuild, Niri migration complete |
+| v11.0.0 | Where the Forest Becomes Whole | Full Niri commitment |
+| v10.x | The Intelligent Forest | Pattern learning, health monitoring |
+---
 Nothing runs without explicit human authorization.
 Every change is intentional. Every tool is understood.
-```
-
-- UFW firewall + fail2ban
-- faelight-vault — forest-native credential manager
-- faelight-sandbox v3 — policy engine, namespace isolation, seccomp
-- Immutable core (chattr +i) — cannot modify without explicit unlock
-- 24-check health monitoring
-
+The core is immutable -- locked with chattr +i between sessions.
+- **UFW + fail2ban** -- network hardening
+- **faelight-vault** -- Argon2id credential manager
+- **faelight-sandbox** -- policy engine, namespace isolation, seccomp
+- **Immutable core** -- `lock-core` / `unlock-core` ritual
+- **22-check health monitoring** -- `d` before and after everything
 ---
-
-## 🚀 Quick Start
-```bash
-git clone https://github.com/WidkidoneR2/0-Core.git ~/0-core
-cd ~/0-core && cargo build --release --workspace
-cp target/release/* scripts/
-cd 03-interfaces/stow && stow */
-core doctor run
-```
-
+Every feature, fix, and architectural decision is an intent.
+intents/
+├── future/    -- 17 planned
+├── complete/  -- 176 shipped
+└── incidents/ -- 9 resolved
+Intents are the unit of work. `cistart` before. `cicomplete` after. The forest remembers every intent that was ever started, what it delivered, and what came next.
 ---
-
-*"The forest that speaks is the forest that connects."* 🌲
-
-*Auto-generated by faelight-docs v1.0.0 — last sync: 2026-03-22 21:57*
+**Friday** -- the living intelligence. Reads every signal. Learns every pattern. Speaks when it matters.
+**Core v18** -- Synthesis Engine. The forest speaks with one voice.
+**Prediction v2** -- dependency-aware ordering. The right intent at the right time.
+**fsh v6** -- forest-aware completions, abbreviations, live intent timer.
+---
+*Built by one person. Understood completely. Growing deliberately.*
+*"The forest remembers. The human decides."*
