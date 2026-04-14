@@ -5,6 +5,9 @@ type: planned
 title: "Forest 2FA — The System Knows Only You"
 status: planned
 tags: [security, 2fa, totp, authentication, strongbox, hardening]
+requires: []
+unlocks: []
+strategic_value: leaf
 ---
 The forest protects your life's work.
 But right now, anyone who sits at your keyboard can unlock-core.

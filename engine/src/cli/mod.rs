@@ -374,6 +374,7 @@ pub fn parse() -> Command {
             PredictCommands::Verify { id, correct } => PredictCommand::Verify { id, correct },
             PredictCommands::CrossSession => PredictCommand::CrossSession,
             PredictCommands::MemoryDecay { apply } => PredictCommand::MemoryDecay { apply },
+                    PredictCommands::Why { id } => PredictCommand::Why { id },
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,

@@ -6,6 +6,9 @@ title: \"faelight-teach -- The Forest Teaches You to Be Fluent in Yourself\"
 status: planned
 tags: [feature, rust, faelight]
 version: TBD
+requires: [208,223]
+unlocks: []
+strategic_value: leaf
 ---
 Building a system and being fluent in it are different skills.
 You built fsh. But do you reach for query by reflex?

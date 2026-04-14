@@ -526,6 +526,7 @@ pub enum PredictCommand {
     Churn,
     Accuracy,
     Verify { id: String, correct: bool },
+    Why { id: String },
     CrossSession,
     MemoryDecay { apply: bool },
 }

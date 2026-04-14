@@ -4,6 +4,9 @@ title: "faelight-docs v2 -- Deploy Intelligence for All Documents"
 status: planned
 date: 2026-04-13
 tags: faelight-docs, intelligence, github, documentation
+requires: []
+unlocks: []
+strategic_value: leaf
 ---
 faelight-docs v1 syncs the README.
 It updates version numbers, tool counts, intent counts.

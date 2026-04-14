@@ -1,9 +1,12 @@
 ---
 id: 227
 title: "Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing"
-status: planned
+status: in-progress
 date: 2026-04-13
 tags: core, intelligence, prediction, friday, strategy
+requires: []
+unlocks: [203,215,216,217]
+strategic_value: multiplier
 ---
 core predict next returns INT-216 (Friday Formal Architecture) before INT-203 (Friday: The Living Intelligence).
 This is wrong. INT-216 depends on INT-203. You cannot build the formal architecture before the foundation exists.

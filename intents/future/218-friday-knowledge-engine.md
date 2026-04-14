@@ -5,6 +5,9 @@ type: planned
 title: "Friday Knowledge Engine — Situated Learning and Conflict Resolution"
 status: planned
 tags: [friday, knowledge, learning, rust, arch, python, situated, conflicts, v19-prep]
+requires: [203,216,217]
+unlocks: [219,220]
+strategic_value: multiplier
 ---
 A general AI knows Rust.
 Friday needs to know YOUR forest's Rust.

@@ -5,6 +5,9 @@ type: planned
 title: "Event Architecture v2 — Append-Only Log and Signal Ontology"
 status: planned
 tags: [architecture, events, signals, append-only, ontology, friday, audit]
+requires: []
+unlocks: [203,212,216]
+strategic_value: foundation
 ---
 Current event system: mutable rows, free-form payloads, no schema enforcement.
 Two problems this creates:
