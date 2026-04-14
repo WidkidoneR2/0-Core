@@ -212,9 +212,9 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 1 — Session start/end summaries written automatically (2026-04-14)
 ✅ Phase 1 — Pattern extraction from shell_history (2026-04-14)
 ✅ Phase 1 — friday_patterns populated from real data (2026-04-14)
-⬜ Phase 2 — faelight-term chat pane (Ctrl+Shift+F toggle)
-⬜ Phase 2 — Proactive messages through fsh after commands
-⬜ Phase 2 — friday suggest live with evidence
+✅ Phase 2 — faelight-term chat pane (Ctrl+Shift+F toggle) — deferred to INT-201
+✅ Phase 2 — Proactive messages through fsh after commands (2026-04-14)
+✅ Phase 2 — friday suggest live with evidence (2026-04-14)
 ⬜ Phase 3 — friday_personality table tracking evolution
 ⬜ Phase 3 — Consistent voice emerging from interaction data
 ⬜ Phase 4 — Linux knowledge base (arch/rust/wayland/systemd)
