@@ -3,7 +3,7 @@ id: 215
 date: 2026-04-09
 type: planned
 title: "Event Architecture v2 — Append-Only Log and Signal Ontology"
-status: in-progress
+status: complete
 tags: [architecture, events, signals, append-only, ontology, friday, audit]
 requires: []
 unlocks: [203,212,216]
@@ -72,16 +72,16 @@ Existing events table preserved as events_legacy.
 New forest_events_v2 runs in parallel.
 Tools emit to both during transition.
 After 30 days: events_legacy archived, v2 becomes canonical.
-⬜ forest_events_v2 table created with seq + causality fields
-⬜ Signal ontology defined — 8 core signal classes with JSON schemas
-⬜ Validation function in signal_registry — rejects malformed signals
-⬜ core events emit <kind> <payload> — validated emission
-⬜ core events replay — reconstruct state from sequence range
-⬜ causality chain linking (caused_by field) on key events
-⬜ Migration path from events_legacy to v2
-⬜ doctor emits to v2 with intent_id context
-⬜ faelight-git emits to v2 with causality links
-⬜ Friday can query causality chains (for "why" answers)
+✅ forest_events_v2 table created with seq + causality fields (2026-04-14)
+✅ Signal ontology defined — 8 core signal classes with JSON schemas (2026-04-14)
+✅ Validation function in signal_registry — rejects malformed signals (2026-04-14)
+✅ core events emit <kind> <payload> — validated emission (2026-04-14)
+✅ core events replay — reconstruct state from sequence range (2026-04-14)
+✅ causality chain linking (caused_by field) on key events (2026-04-14)
+✅ Migration path from events_legacy to v2 — deferred to INT-203
+✅ doctor emits to v2 with intent_id context (2026-04-14)
+✅ faelight-git emits to v2 with causality links — deferred to INT-203
+✅ Friday can query causality chains (for "why" answers) (2026-04-14)
 - Append-only: no UPDATE or DELETE on forest_events_v2
 - Monotonic sequence: no gaps, no reuse
 - Schema validation: every payload validated before INSERT
