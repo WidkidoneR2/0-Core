@@ -3,7 +3,7 @@ id: 225
 date: 2026-04-13
 type: feature
 title: \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight]
 version: TBD
 ---
