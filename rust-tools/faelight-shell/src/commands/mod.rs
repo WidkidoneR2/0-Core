@@ -266,7 +266,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "js" | "node" => run_js_cmd(args),
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
-        "fsh" | "faelight-shell" => fsh_identity_cmd(),
+        "fsh" | "faelight-shell" => match args.first().copied() {
+            Some("diag") => fsh_diag(db),
+            Some("gaps") => fsh_gaps(db),
+            _ => fsh_identity_cmd(),
+        },
         "snapshot" => snapshot_cmd(db, args),
         "debug" => debug_cmd(db, args),
         "usage" | "usage-report" => usage_report(db),
@@ -2018,6 +2022,102 @@ fn ht_slow(db: &ForestDb) -> CommandResult {
         out.push_str(&format!("  {} {}\n", dur_str.bright_yellow(), cmd));
     }
     CommandResult::Output(out.trim_end().to_string())
+}
+
+fn fsh_diag(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    // Session count
+    let sessions: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM session_patterns", [],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    // Total commands
+    let total_cmds: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history", [],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    // Average focus score
+    let avg_focus: f64 = db.conn.query_row(
+        "SELECT AVG(focus_score) FROM session_patterns", [],
+        |r| r.get::<_, Option<f64>>(0)
+    ).unwrap_or(None).unwrap_or(1.0);
+    // Peak velocity
+    let peak_vel: f64 = db.conn.query_row(
+        "SELECT MAX(velocity_per_hour) FROM commit_patterns", [],
+        |r| r.get::<_, Option<f64>>(0)
+    ).unwrap_or(None).unwrap_or(0.0);
+    // Error rate (commands with TIMING: that ran long)
+    let slow_cmds: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'TIMING:%'", [],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Shell Diagnostics\n", "🔍".normal()));
+    out.push_str(&format!("  {}\n", "─".repeat(40).dimmed()));
+    out.push_str(&format!("  {:<22} {}\n", "Sessions recorded:".dimmed(), sessions.to_string().bright_white()));
+    out.push_str(&format!("  {:<22} {}\n", "Total commands:".dimmed(), total_cmds.to_string().bright_white()));
+    out.push_str(&format!("  {:<22} {:.2}\n", "Avg focus score:".dimmed(), avg_focus));
+    out.push_str(&format!("  {:<22} {:.1} commits/hr\n", "Peak velocity:".dimmed(), peak_vel));
+    out.push_str(&format!("  {:<22} {}\n", "Long-running cmds:".dimmed(), slow_cmds.to_string().bright_yellow()));
+    out.push_str("\n");
+    CommandResult::Output(out)
+}
+fn fsh_gaps(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    // Find commands that could have used fsh builtins
+    let grep_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'grep %' AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let head_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE (command LIKE 'head %' OR command LIKE 'tail %') AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let python_tmp: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'python3 /tmp/%' AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let cat_grep: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'cat % | grep%' AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Shell Gaps (last 7 days)\n", "🌿".normal()));
+    out.push_str(&format!("  {}\n", "─".repeat(45).dimmed()));
+    let mut any_gaps = false;
+    if grep_count > 2 {
+        out.push_str(&format!("  {} {} x grep  →  try: {}\n",
+            "⚡".yellow(), grep_count.to_string().bright_yellow(),
+            "query file.rs pattern  or  fsearch 'pattern' --type rs".bright_cyan()));
+        any_gaps = true;
+    }
+    if head_count > 2 {
+        out.push_str(&format!("  {} {} x head/tail  →  try: {}\n",
+            "⚡".yellow(), head_count.to_string().bright_yellow(),
+            "query file.rs :50  or  query file.rs 45:60".bright_cyan()));
+        any_gaps = true;
+    }
+    if python_tmp > 2 {
+        out.push_str(&format!("  {} {} x python3 /tmp/  →  try: {}\n",
+            "⚡".yellow(), python_tmp.to_string().bright_yellow(),
+            "run script.py  (fsh runs .py natively)".bright_cyan()));
+        any_gaps = true;
+    }
+    if cat_grep > 1 {
+        out.push_str(&format!("  {} {} x cat|grep  →  try: {}\n",
+            "⚡".yellow(), cat_grep.to_string().bright_yellow(),
+            "cat file | grep pattern  (native pipe, no sh)".bright_cyan()));
+        any_gaps = true;
+    }
+    if !any_gaps {
+        out.push_str(&format!("  {} No gaps detected -- you are using the forest well\n", "✅".green()));
+    }
+    out.push_str("\n");
+    CommandResult::Output(out)
 }
 fn checkpoints_table(db: &ForestDb) -> CommandResult {
     use crate::value::Value;
