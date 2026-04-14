@@ -175,53 +175,106 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         }
     }
 
-    // ── Intent ────────────────────────────────────────────────
+    // ── v4 Risk Assessment ─────────────────────────────────
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let db_path = std::path::PathBuf::from(&home).join("0-core/runtime/state.db");
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default().as_secs() as i64;
+            // Velocity warning
+            let recent: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
+                rusqlite::params![ts - 3600], |r| r.get(0)
+            ).unwrap_or(0);
+            if recent >= 8 {
+                println!("  {} high velocity: {} commits in last hour -- verify before pushing",
+                    "⚠️ ".yellow(), recent.to_string().bright_yellow());
+            }
+            // Health warning
+            let health: i64 = std::fs::read_to_string(
+                std::path::Path::new(&home).join(".cache/faelight/health-status")
+            ).unwrap_or_else(|_| "100".to_string())
+            .trim().parse().unwrap_or(100);
+            if health < 95 {
+                println!("  {} health: {}% -- below peak, review before committing",
+                    "⚠️ ".yellow(), health.to_string().bright_red());
+            }
+        }
+        // Large change warning -- count staged lines
+        if let Ok(output) = std::process::Command::new("git")
+            .args(["diff", "--staged", "--stat"])
+            .output() {
+            let stat = String::from_utf8_lossy(&output.stdout);
+            // Parse "X insertions, Y deletions" from last line
+            if let Some(last) = stat.lines().last() {
+                let nums: Vec<i64> = last.split_whitespace()
+                    .filter_map(|w| w.parse().ok()).collect();
+                let total_lines: i64 = nums.iter().sum();
+                let file_count = nums.first().copied().unwrap_or(0);
+                if total_lines >= 800 && file_count >= 10 {
+                    println!("  {} large change: {} lines across {} files -- consider splitting",
+                        "⚠️ ".yellow(), total_lines.to_string().bright_yellow(),
+                        file_count.to_string().bright_yellow());
+                }
+            }
+        }
+    }
+
+    // ── Intent ── v4 Auto-Detection ──────────────────────────────
     let intent_ref = if no_intent {
-        println!(
-            "{}",
-            "  ⚠️  Proceeding without intent (--no-intent)".yellow()
-        );
+        println!("{}", "  ⚠️  Proceeding without intent (--no-intent)".yellow());
         None
     } else if let Some(ref i) = intent {
         println!("  {} linked to intent {}", "✅".green(), i.cyan());
         Some(i.clone())
     } else {
-        // Show active intents as suggestions
-        {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
-            let active: Vec<String> = std::fs::read_dir(&intents_dir)
-                .map(|d| d.filter_map(|e| e.ok())
-                    .filter(|e| {
-                        if let Ok(c) = std::fs::read_to_string(e.path()) {
-                            c.contains("status: in-progress") || c.contains("type: in-progress")
-                        } else { false }
-                    })
-                    .filter_map(|e| {
-                        let name = e.file_name().to_string_lossy().to_string();
-                        let num = name.split('-').next().unwrap_or("").to_string();
-                        if !num.is_empty() && num.parse::<u32>().is_ok() {
-                            Some(format!("INT-{}", num))
-                        } else { None }
-                    })
-                    .collect())
-                .unwrap_or_default();
-            if !active.is_empty() {
-                println!("  {} {}", "💡 Active:".dimmed(), active.join(", ").bright_cyan());
-            }
-        }
-        print!("  Intent reference (INT-0XX or 'skip'): ");
-        io::stdout().flush()?;
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim().to_string();
-
-        if input == "skip" || input.is_empty() {
-            println!("{}", "  ⚠️  Committing without intent".yellow());
-            None
+        let home = std::env::var("HOME").unwrap_or_default();
+        let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
+        let active: Vec<(String, String)> = std::fs::read_dir(&intents_dir)
+            .map(|d| d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    if let Ok(c) = std::fs::read_to_string(e.path()) {
+                        c.contains("status: in-progress") || c.contains("type: in-progress")
+                    } else { false }
+                })
+                .filter_map(|e| {
+                    let fname = e.file_name().to_string_lossy().to_string();
+                    let num = fname.split('-').next().unwrap_or("").to_string();
+                    if !num.is_empty() && num.parse::<u32>().is_ok() {
+                        let short = fname.splitn(3, '-').nth(2)
+                            .unwrap_or("").replace('-', " ").replace(".md", "")
+                            .split("----").next().unwrap_or("").trim().chars().take(35).collect::<String>();
+                        Some((format!("INT-{}", num), short))
+                    } else { None }
+                })
+                .collect())
+            .unwrap_or_default();
+        if active.len() == 1 {
+            // Single active intent -- auto-attach
+            let (id, title) = &active[0];
+            println!("  {} auto-linked: {} {}", "✅".green(), id.bright_cyan(),
+                format!("({})", title).dimmed());
+            Some(id.clone())
         } else {
-            println!("  {} linked to intent {}", "✅".green(), input.cyan());
-            Some(input)
+            // Multiple or zero -- ask
+            if !active.is_empty() {
+                println!("  {} Active: {}", "💡 Active:".dimmed(),
+                    active.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ").bright_cyan());
+            }
+            print!("  Intent reference (INT-0XX or 'skip'): ");
+            io::stdout().flush()?;
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let input = input.trim().to_string();
+            if input == "skip" || input.is_empty() {
+                println!("{}", "  ⚠️  Committing without intent".yellow());
+                None
+            } else {
+                println!("  {} linked to intent {}", "✅".green(), input.cyan());
+                Some(input)
+            }
         }
     };
 

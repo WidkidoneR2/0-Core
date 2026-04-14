@@ -1,4 +1,5 @@
 //! Command implementations
+pub mod rollback;
 
 pub mod branch;
 pub mod commit;

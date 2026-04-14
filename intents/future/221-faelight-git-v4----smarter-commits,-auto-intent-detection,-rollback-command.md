@@ -3,7 +3,7 @@ id: 221
 date: 2026-04-10
 type: feature
 title: \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight]
 version: TBD
 ---

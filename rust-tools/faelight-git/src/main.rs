@@ -14,7 +14,7 @@ use faelight_git::commands;
 #[derive(Parser)]
 #[command(name = "faelight-git")]
 #[command(about = "🌲 Git Governance for Faelight Forest")]
-#[command(version = "3.3.0")]
+#[command(version = "4.0.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -76,6 +76,18 @@ enum Commands {
     /// Pre-push hook (called by git)
     #[command(hide = true)]
     HookPrePush,
+
+    /// Rollback to a previous commit (interactive or by commit hash)
+    Rollback {
+        /// Specific commit hash to rollback to (optional)
+        hash: Option<String>,
+        /// Show what would change without executing
+        #[arg(long)]
+        dry_run: bool,
+        /// Show last N commits with risk scores
+        #[arg(long)]
+        list: bool,
+    },
 }
 
 fn main() {
@@ -146,6 +158,12 @@ fn main() {
         Commands::HookPreCommit => hook_pre_commit(),
         Commands::HookCommitMsg { file } => hook_commit_msg(&file),
         Commands::HookPrePush => hook_pre_push(),
+        Commands::Rollback { hash, dry_run, list } => {
+            match commands::rollback::run(hash.as_deref(), dry_run, list) {
+                Ok(_) => 0,
+                Err(e) => { eprintln!("{} {}", "Error:".red(), e); 1 }
+            }
+        },
     };
 
     exit(exit_code);
