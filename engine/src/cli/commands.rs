@@ -1,4 +1,10 @@
 #[derive(Debug)]
+pub enum FridayCommand {
+    Status,
+    Ask { question: String },
+    Observe,
+}
+
 pub enum Command {
     Anomaly(AnomalyCommand),
     Bootstrap(BootstrapCommand),
@@ -75,6 +81,7 @@ pub enum Command {
     },
     Decision(DecisionCommand),
     Deploy(DeployCommand),
+    Friday(FridayCommand),
 }
 
 #[derive(Debug)]

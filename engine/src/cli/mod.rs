@@ -33,6 +33,11 @@ pub fn parse() -> Command {
             DeployCommands::Rollback { tool, dry_run } => DeployCommand::Rollback { tool, dry_run },
             DeployCommands::CheckDeps { tool } => DeployCommand::CheckDeps { tool },
         }),
+        Commands::Friday { command } => Command::Friday(match command {
+            FridayCommands::Status => FridayCommand::Status,
+            FridayCommands::Ask { question } => FridayCommand::Ask { question },
+            FridayCommands::Observe => FridayCommand::Observe,
+        }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {
             PluginCommands::List => PluginCommand::List,
@@ -580,4 +585,6 @@ pub fn parse() -> Command {
     }
 }
 use crate::cli::parser::DeployCommands;
+use crate::cli::parser::FridayCommands;
+use crate::cli::commands::FridayCommand;
 use crate::cli::commands::DeployCommand;
