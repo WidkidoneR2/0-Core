@@ -816,6 +816,8 @@ pub enum EnginesCommands {
     Check,
     /// Show engine upgrade history
     UpgradeLog,
+    /// Process unconsumed signals and route reactions
+    Process,
 }
 
 #[derive(Debug, Subcommand)]

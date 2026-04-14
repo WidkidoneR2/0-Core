@@ -382,6 +382,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             EnginesCommand::Sync { engine } => crate::domains::engines::sync(ctx, &engine),
             EnginesCommand::Signals => crate::domains::engines::signals(ctx),
             EnginesCommand::Check => crate::domains::engines::check(ctx),
+            EnginesCommand::Process => crate::domains::engines::process(ctx),
             EnginesCommand::UpgradeLog => crate::domains::engines::upgrade_log(ctx),
         },
         Command::Events(c) => match c {
