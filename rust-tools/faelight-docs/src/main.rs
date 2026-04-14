@@ -13,6 +13,7 @@
 //   preview  — show what would change without writing
 //   status   — what docs exist, last updated
 
+mod registry;
 use colored::*;
 use std::path::PathBuf;
 
@@ -48,6 +49,17 @@ fn main() {
             cmd_readme(true);
         }
         "status" => cmd_status(),
+        "record" => {
+            let doc = args.get(2).map(|s| s.as_str()).unwrap_or("");
+            let note = args.get(3).map(|s| s.as_str()).unwrap_or("");
+            cmd_record(doc, note);
+        }
+        "log" => cmd_log(),
+        "why" => {
+            let doc = args.get(2).map(|s| s.as_str()).unwrap_or("");
+            cmd_why(doc);
+        }
+        "diff" => cmd_diff(),
         _ => cmd_help(),
     }
 }
@@ -478,7 +490,115 @@ fn cmd_status() {
     println!();
 }
 
+fn cmd_record(doc: &str, note: &str) {
+    if doc.is_empty() {
+        println!("  {} usage: fdocs record <doc-name> [note]", "✗".bright_red());
+        return;
+    }
+    registry::ensure_tables();
+    registry::record_update(doc, "manual", "human", note);
+    println!("  {} recorded: {} -- {}", "✅".normal(), doc.bright_cyan(),
+        if note.is_empty() { "manual update".to_string() } else { note.to_string() });
+}
+fn cmd_log() {
+    registry::ensure_tables();
+    let Ok(conn) = rusqlite::Connection::open(registry::db_path()) else {
+        println!("  {} Cannot open state.db", "✗".bright_red());
+        return;
+    };
+    let mut stmt: rusqlite::Statement = match conn.prepare(
+        "SELECT name, action, timestamp, by, note FROM doc_history ORDER BY timestamp DESC LIMIT 20"
+    ) {
+        Ok(s) => s,
+        Err(_) => { println!("  {} No doc history yet", "○".dimmed()); return; }
+    };
+    let rows: Vec<(String, String, i64, String, String)> = stmt
+        .query_map([], |r: &rusqlite::Row| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?, r.get::<_,String>(3)?, r.get::<_,String>(4)?)))
+        .map(|rows| rows.filter_map(|x| x.ok()).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        println!("  {} No doc history yet -- run fdocs record to start tracking", "○".dimmed());
+        return;
+    }
+    println!();
+    println!("  {} Document Update History", "📋".normal());
+    println!("  {}", "─".repeat(55).dimmed());
+    for (name, action, ts, by, note) in &rows {
+        let time = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|t| t.format("%m/%d %H:%M").to_string())
+            .unwrap_or_default();
+        println!("  {} {:<22} {:<10} {} {}",
+            time.dimmed(), name.as_str().bright_cyan(), action.as_str().bright_white(),
+            by.as_str().dimmed(), note.as_str().dimmed());
+    }
+    println!();
+}
+fn cmd_why(doc: &str) {
+    if doc.is_empty() {
+        println!("  {} usage: fdocs why <doc-name>", "✗".bright_red());
+        return;
+    }
+    let entry = registry::REGISTRY.iter().find(|e| e.name == doc || e.path.ends_with(doc));
+    match entry {
+        Some(e) => {
+            println!();
+            println!("  {} {}", "📄".normal(), e.name.bright_cyan());
+            println!("  {} Path:    {}", "→".dimmed(), e.path.dimmed());
+            println!("  {} Owner:   {}", "→".dimmed(), e.owner_intent.bright_green());
+            println!("  {} Purpose: {}", "→".dimmed(), e.description.bright_white());
+            println!("  {} Auto:    {}", "→".dimmed(),
+                if e.auto_update { "yes -- fdocs sync will update".bright_green().to_string() }
+                else { "no -- manual updates required".yellow().to_string() });
+            println!();
+        }
+        None => {
+            println!("  {} {} not found in document registry", "○".dimmed(), doc.bright_yellow());
+            println!("  {} Managed docs: {}", "→".dimmed(),
+                registry::REGISTRY.iter().map(|e| e.name).collect::<Vec<_>>().join(", ").dimmed());
+        }
+    }
+}
+fn cmd_diff() {
+    registry::ensure_tables();
+    let root = registry::core_root();
+    println!();
+    println!("  {} Document Drift Check", "🔍".normal());
+    println!("  {}", "─".repeat(55).dimmed());
+    let Ok(conn) = rusqlite::Connection::open(registry::db_path()) else {
+        println!("  {} Cannot open state.db", "✗".bright_red());
+        return;
+    };
+    let mut any_drift = false;
+    for entry in registry::REGISTRY {
+        let full_path = root.join(entry.path);
+        if !full_path.exists() { continue; }
+        let current_checksum = registry::file_checksum(&full_path);
+        let stored: Option<String> = conn.query_row(
+            "SELECT checksum FROM doc_registry WHERE name = ?1",
+            rusqlite::params![entry.name],
+            |r: &rusqlite::Row| r.get::<_, String>(0)
+        ).ok();
+        match stored {
+            Some(s) if s == current_checksum => {
+                println!("  {} {:<25} no drift", "✅".normal(), entry.name.bright_white());
+            }
+            Some(_) => {
+                println!("  {} {:<25} CHANGED since last record", "⚠️ ".yellow(), entry.name.bright_yellow());
+                any_drift = true;
+            }
+            None => {
+                println!("  {} {:<25} never recorded", "○".dimmed(), entry.name.dimmed());
+            }
+        }
+    }
+    if !any_drift {
+        println!();
+        println!("  {} All tracked documents match their last recorded state", "✅".green());
+    }
+    println!();
+}
 fn cmd_help() {
+
     println!();
     println!(
         "  {} {}",

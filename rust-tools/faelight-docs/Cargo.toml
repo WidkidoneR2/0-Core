@@ -9,3 +9,4 @@ faelight-core = { path = "../faelight-core" }
 colored       = "2.1"
 dirs          = "5.0"
 chrono        = "0.4"
+rusqlite      = { version = "0.31", features = ["bundled"] }
