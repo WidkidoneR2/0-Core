@@ -4,6 +4,7 @@ pub enum FridayCommand {
     Ask { question: String },
     Observe,
     ExtractPatterns,
+    Suggest,
 }
 
 pub enum Command {

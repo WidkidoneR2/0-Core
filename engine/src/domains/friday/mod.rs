@@ -303,7 +303,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             println!("  From recent observations:");
             for (kind, content) in &obs {
                 let short = content.chars().take(80).collect::<String>();
-                println!("  {} [{}] {}", "\u{2192}".bright_cyan(), kind.bright_green(), short.bright_white());
+                println!("  {} [{}] {}", "→".bright_cyan(), kind.bright_green(), short.bright_white());
             }
         }
     } else {
@@ -404,6 +404,62 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
     );
     println!("  {} Pattern extraction complete -- {} new patterns found ({} total)",
         "✅".green(), patterns_found.to_string().bright_white(), total_patterns.to_string().bright_cyan());
+    Ok(())
+}
+
+/// core friday suggest -- evidence-based recommendation from Friday
+pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    observe(ctx)?;
+    let _ = extract_patterns(ctx);
+    let db = &ctx.runtime.db;
+    println!();
+    println!("  {} Friday suggests:", "🌲".normal());
+    println!("  {}", "─".repeat(50).dimmed());
+    println!();
+    // Check predict next from core
+    let _top_intent: Option<String> = db.query_row(
+        "SELECT title FROM intents WHERE status = 'planned' LIMIT 1",
+        [], |r| r.get(0)
+    ).ok();
+    // Get top pattern
+    let top_pattern: Option<(String, String, f64)> = {
+        let mut s = db.prepare(
+            "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 1"
+        )?;
+        let x: Vec<(String,String,f64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
+            ?.filter_map(|r| r.ok()).collect(); x
+    }.into_iter().next();
+    // Get recent health
+    let health: i64 = db.query_row(
+        "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
+        [], |r| r.get::<_,String>(0)
+    ).ok().and_then(|s| s.parse().ok()).unwrap_or(100);
+    let mut suggestions: Vec<String> = Vec::new();
+    if health < 95 {
+        suggestions.push(format!("Health is at {}% -- run d and investigate before continuing.", health));
+    }
+    if let Some((trigger, action, conf)) = top_pattern {
+        suggestions.push(format!("Pattern detected ({:.0}% confidence): when {} \u{2192} {}", conf * 100.0, trigger, action));
+    }
+    let session_cmds: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
+        rusqlite::params![now_ts() - 3600],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    if session_cmds > 50 {
+        suggestions.push(format!("{} commands this hour \u{2014} consider committing and taking a break.", session_cmds));
+    }
+    let obs_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
+    let pattern_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
+    suggestions.push(format!("Friday has {} observations and {} patterns. I am still learning.", obs_count, pattern_count));
+    for (i, s) in suggestions.iter().enumerate() {
+        let icon = if i == 0 { "●".bright_cyan() } else { "○".dimmed() };
+        println!("  {} {}", icon, s.bright_white());
+    }
+    println!();
+    println!("  {} Phase 0 \u{2014} I observe more than I speak. Ask me again as I learn more.", "💡".normal().dimmed());
+    println!();
     Ok(())
 }
 /// core friday observe -- manually trigger observation cycle
