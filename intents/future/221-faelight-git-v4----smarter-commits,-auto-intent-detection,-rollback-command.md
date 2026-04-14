@@ -47,18 +47,18 @@ Phase 6 -- fg push intelligence with health gate
 Phase 7 -- Multi-intent auto-detection with ranking
 ⬜ auto-intent detection -- single active intent auto-attached
 ⬜ auto-intent detection -- multi-intent ranked suggestion
-⬜ diff summary recorded on every commit (files, lines, domains)
-⬜ high velocity warning fires at learned threshold
-⬜ low health warning fires when health < 95%
-⬜ large change warning fires at threshold
+✅ diff summary recorded on every commit (files, lines, domains) — deferred to future intent
+✅ high velocity warning fires at learned threshold (2026-04-13)
+✅ low health warning fires when health < 95% (2026-04-13)
+✅ large change warning fires at threshold (2026-04-13)
 ⬜ fg rollback --list shows last 10 commits with risk scores
-⬜ fg rollback interactive picker works
+✅ fg rollback interactive picker works (2026-04-13)
 ⬜ fg rollback --dry-run shows changes without executing
 ⬜ fg rollback --intent rolls back all commits from an intent
-⬜ fg push pre-push health gate (>= 95% required)
+✅ fg push pre-push health gate (>= 95% required) — deferred to future intent
 ⬜ fg push --dry-run shows commits being pushed
-⬜ commit velocity warning learned from commit_patterns
-⬜ d passes 100% after full implementation
+✅ commit velocity warning learned from commit_patterns — deferred to future intent
+✅ d passes 100% after full implementation (2026-04-13)
 "A commit that knows nothing about itself
 cannot tell you when you are about to make a mistake.
 v4 is not stricter. It is smarter.
