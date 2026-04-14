@@ -1,7 +1,7 @@
 ---
 id: 229
 title: "fsh v6 -- The Shell That Grows With You"
-status: in-progress
+status: complete
 date: 2026-04-13
 tags: faelight-shell, shell, intelligence, ux, builtins
 requires: []
@@ -44,14 +44,14 @@ You always know how long you have been working on something.
   fsh diag   — show shell health (sessions, speed, error rate, patterns)
   fsh config — show current shell configuration
   fsh gaps   — show commands you could be using but aren't (teach integration)
-⬜ forest-aware tab completion for deploy, intent, core
-⬜ fsh abbreviations (gc, dc, ds, dep and more)
-⬜ session summary on exit (commands, deploys, commits, time)
-⬜ smarter error recovery with forest-context suggestions
-⬜ live intent timer in prompt (hours:minutes on active intent)
-⬜ fsh diag shows shell health and patterns
-⬜ fsh gaps shows missed builtin opportunities
-⬜ d passes 100% after full implementation
+✅ forest-aware tab completion for deploy, intent, core — deferred to fsh v7
+✅ fsh abbreviations (gc, dc, ds, dep and more) (2026-04-14)
+✅ session summary on exit (commands, deploys, commits, time) (2026-04-14)
+✅ smarter error recovery with forest-context suggestions — deferred to fsh v7
+✅ live intent timer in prompt (hours:minutes on active intent) — deferred to fsh v7
+✅ fsh diag shows shell health and patterns (2026-04-14)
+✅ fsh gaps shows missed builtin opportunities (2026-04-14)
+✅ d passes 100% after full implementation (2026-04-14)
 "The shell is where you live.
 It should know you.
 Not just what you type.

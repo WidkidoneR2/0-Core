@@ -153,6 +153,16 @@
 
 ---
 
+| Command | What it does |
+|---------|-------------|
+| gc | Abbreviation → fg commit |
+| gp | Abbreviation → fg push |
+| dep | Abbreviation → deploy |
+| ds NNN | Abbreviation → cistart NNN |
+| dc NNN | Abbreviation → cicomplete NNN |
+| fsh diag | Shell health -- sessions, focus score, peak velocity, slow commands |
+| fsh gaps | Missed builtin opportunities -- grep vs fsearch, head vs query, /tmp scripts |
+
 ## fsh v5 Builtins (INT-224)
 | Command | What it does |
 |---------|-------------|
