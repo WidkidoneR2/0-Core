@@ -1,7 +1,7 @@
 ---
 id: 229
 title: "fsh v6 -- The Shell That Grows With You"
-status: planned
+status: in-progress
 date: 2026-04-13
 tags: faelight-shell, shell, intelligence, ux, builtins
 requires: []

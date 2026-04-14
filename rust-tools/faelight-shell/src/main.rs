@@ -580,6 +580,25 @@ fn repl_main() -> Result<()> {
                 if line.contains(" | ") {
                     _session_pipelines += 1;
                 }
+                // INT-229: abbreviation expansion
+                let line = match line.trim() {
+                    "gc"  => { println!("  {} fg commit", "→".bright_cyan()); "fg commit".to_string() }
+                    "gp"  => { println!("  {} fg push",   "→".bright_cyan()); "fg push".to_string() }
+                    "dep" => { println!("  {} deploy",    "→".bright_cyan()); "deploy".to_string() }
+                    s if s.starts_with("ds ") => {
+                        let rest = &s[3..];
+                        let expanded = format!("cistart {}", rest);
+                        println!("  {} {}", "→".bright_cyan(), expanded);
+                        expanded
+                    }
+                    s if s.starts_with("dc ") => {
+                        let rest = &s[3..];
+                        let expanded = format!("cicomplete {}", rest);
+                        println!("  {} {}", "→".bright_cyan(), expanded);
+                        expanded
+                    }
+                    _ => line
+                };
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 db.save_history_entry(&line);
@@ -1704,10 +1723,34 @@ fn repl_main() -> Result<()> {
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
-    println!(
-        "{}",
-        colored::Colorize::dimmed("  🌲 The forest remembers.")
-    );
+    // INT-229: Session summary on exit
+    {
+        use colored::Colorize;
+        let dur_str = if _session_duration >= 60 {
+            format!("{}h{}m", _session_duration/60, _session_duration%60)
+        } else { format!("{}m", _session_duration) };
+        let active_intent: String = std::fs::read_dir(
+            std::path::PathBuf::from(&core_root).join("intents/future")
+        ).map(|d| d.filter_map(|e| e.ok())
+            .filter(|e| std::fs::read_to_string(e.path())
+                .map(|c| c.contains("status: in-progress")).unwrap_or(false))
+            .filter_map(|e| {
+                let n = e.file_name().to_string_lossy().to_string();
+                let num = n.split('-').next()?.to_string();
+                Some(format!("INT-{}", num))
+            }).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default();
+        println!();
+        println!("  🌲 Session complete");
+        println!("  {} commands  ·  {} deploys  ·  {} commits  ·  {}",
+            _session_commands, _session_deploys, _session_commits,
+            dur_str.bright_green());
+        if !active_intent.is_empty() {
+            println!("  Active: {}", active_intent.bright_cyan());
+        }
+        println!();
+    }
+    println!("{}", colored::Colorize::dimmed("  🌲 The forest remembers."));
     Ok(())
 }
 
