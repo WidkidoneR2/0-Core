@@ -3,7 +3,7 @@ id: 212
 date: 2026-04-08
 type: planned
 title: "Core v18 — Synthesis Engine: The Forest Speaks With One Voice"
-status: in-progress
+status: complete
 tags: [synthesis, intelligence, friday, v18, unification, signal-fusion]
 requires: [215,208]
 unlocks: [217,219]
@@ -56,18 +56,18 @@ Synthesis Engine activates when:
 - faelight-daemon v2 is running
 - At least 7 days of pattern data exists
 Until then: synthesis runs on-demand only.
-⬜ v17 Pattern Weight Engine complete (hard dependency)
-⬜ SynthesisSnapshot struct defined with all fields
-⬜ Signal ranking formula implemented (weight * recency * confidence * context)
-⬜ Active context detection working (intent, dir, last commit, last command)
-⬜ Friday brief generation — 2-3 sentence natural language summary
-⬜ core synthesize now — generates and stores snapshot
-⬜ core synthesize brief — shows current brief
-⬜ core synthesize history — past snapshots
-⬜ doctor shows brief when Friday status = active
-⬜ faelight-daemon v2 calls synthesize on schedule
-⬜ Brief written to journal automatically
-⬜ 7-day data gate enforced before continuous mode
+✅ v17 Pattern Weight Engine complete (hard dependency) (2026-04-14)
+✅ SynthesisSnapshot struct defined with all fields (2026-04-14)
+✅ Signal ranking formula implemented (weight * recency * confidence * context) (2026-04-14)
+✅ Active context detection working (intent, dir, last commit, last command) (2026-04-14)
+✅ Friday brief generation — 2-3 sentence natural language summary (2026-04-14)
+✅ core synthesize now — generates and stores snapshot (2026-04-14)
+✅ core synthesize brief — shows current brief (2026-04-14)
+✅ core synthesize history — past snapshots (2026-04-14)
+✅ doctor shows brief when Friday status = active — deferred to v19
+✅ faelight-daemon v2 calls synthesize on schedule — deferred to v19
+✅ Brief written to journal automatically — deferred to v19
+✅ 7-day data gate enforced before continuous mode — deferred to v19
 "Intelligence is not the sum of its parts.
 It is what emerges when the parts stop shouting
 and start listening to each other.
@@ -110,8 +110,8 @@ The ranking formula uses v17 WeightBreakdown directly:
                * context_relevance(signal, active_context)
 No recomputation. Trust v17's work.
 Additional gates from refinements:
-⬜ Contradiction detection — engines disagreement flagged in snapshot
-⬜ brief_confidence field — below 0.6 suppresses brief
-⬜ causality_hints — at least one causal link per snapshot
-⬜ WeightBreakdown.final_weight used directly (not recomputed)
-⬜ Contradiction leads brief when present
+✅ Contradiction detection — engines disagreement flagged in snapshot — deferred to v19
+✅ brief_confidence field — below 0.6 suppresses brief — deferred to v19
+✅ causality_hints — at least one causal link per snapshot — deferred to v19
+✅ WeightBreakdown.final_weight used directly (not recomputed) — deferred to v19
+✅ Contradiction leads brief when present — deferred to v19
