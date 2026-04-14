@@ -260,7 +260,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         } else {
             // Multiple or zero -- ask
             if !active.is_empty() {
-                println!("  {} Active: {}", "💡 Active:".dimmed(),
+                println!("  {} {}", "💡 Active:".dimmed(),
                     active.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ").bright_cyan());
             }
             print!("  Intent reference (INT-0XX or 'skip'): ");
