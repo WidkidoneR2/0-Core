@@ -1,0 +1,5 @@
+# faelight-link v3 metadata
+intent = "INT-000"
+description = "Zsh fallback configuration"
+critical = false
+last_linked = "2026-04-13"

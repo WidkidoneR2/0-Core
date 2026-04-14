@@ -1,0 +1,5 @@
+# faelight-link v3 metadata
+intent = "INT-136"
+description = "Core faelight forest config files"
+critical = true
+last_linked = "2026-04-13"

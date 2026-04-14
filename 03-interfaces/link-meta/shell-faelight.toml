@@ -1,0 +1,5 @@
+# faelight-link v3 metadata
+intent = "INT-146"
+description = "fsh shell configuration -- active daily driver"
+critical = true
+last_linked = "2026-04-13"
