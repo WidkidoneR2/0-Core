@@ -3,6 +3,7 @@ pub enum FridayCommand {
     Status,
     Ask { question: String },
     Observe,
+    ExtractPatterns,
 }
 
 pub enum Command {

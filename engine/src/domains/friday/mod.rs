@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS friday_observations (
     content     TEXT NOT NULL,
     intent_id   TEXT,
     session_id  TEXT,
-    processed   INTEGER NOT NULL DEFAULT 0
+    processed   INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(source, kind, content)
 );
 CREATE TABLE IF NOT EXISTS friday_patterns (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +140,7 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     for (hash, msg, ts) in &commits {
         let content = format!("commit: {} -- {}", hash, msg);
         let _ = db.execute(
-            "INSERT OR IGNORE INTO friday_observations (timestamp, source, kind, content) VALUES (?1, 'git', 'commit', ?2)",
+            "INSERT INTO friday_observations (timestamp, source, kind, content) SELECT ?1, 'git', 'commit', ?2 WHERE NOT EXISTS (SELECT 1 FROM friday_observations WHERE kind='commit' AND content=?2)",
             params![ts, content],
         );
     }
@@ -154,7 +155,7 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     for (tool, version, ts) in &deploys {
         let content = format!("deployed {} v{}", tool, version);
         let _ = db.execute(
-            "INSERT OR IGNORE INTO friday_observations (timestamp, source, kind, content) VALUES (?1, 'deploy', 'deploy', ?2)",
+            "INSERT INTO friday_observations (timestamp, source, kind, content) SELECT ?1, 'deploy', 'deploy', ?2 WHERE NOT EXISTS (SELECT 1 FROM friday_observations WHERE kind='deploy' AND content=?2)",
             params![ts, content],
         );
     }
@@ -169,7 +170,7 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     for (type_name, payload, ts) in &signals {
         let content = format!("signal: {} -- {}", type_name, payload);
         let _ = db.execute(
-            "INSERT OR IGNORE INTO friday_observations (timestamp, source, kind, content) VALUES (?1, 'forest_events_v2', 'signal', ?2)",
+            "INSERT INTO friday_observations (timestamp, source, kind, content) SELECT ?1, 'forest_events_v2', 'signal', ?2 WHERE NOT EXISTS (SELECT 1 FROM friday_observations WHERE kind='signal' AND content=?2)",
             params![ts, content],
         );
     }
@@ -240,6 +241,21 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     observe(ctx)?;
     let db = &ctx.runtime.db;
     let q_lower = question.to_lowercase();
+    // Also search friday_patterns directly
+    let pattern_facts: Vec<(String, String, f64)> = {
+        let mut s = db.prepare(
+            "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 10"
+        )?;
+        let x: Vec<(String,String,f64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
+            ?.filter_map(|r| r.ok())
+            .filter(|(t, a, _)| {
+                q_lower.split_whitespace().any(|w| t.to_lowercase().contains(w) || a.to_lowercase().contains(w))
+                    || q_lower.contains("pattern")
+            })
+            .map(|(t, a, c)| ("pattern".to_string(), format!("When {} → {}", t, a), c))
+            .collect(); x
+    };
+
     // Search knowledge base
     let facts: Vec<(String, String, f64)> = {
         let mut s = db.prepare(
@@ -249,7 +265,9 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
     };
     // Find relevant facts
-    let relevant: Vec<&(String, String, f64)> = facts.iter()
+    let mut all_facts = facts.clone();
+    all_facts.extend(pattern_facts);
+    let relevant: Vec<&(String, String, f64)> = all_facts.iter()
         .filter(|(domain, fact, _)| {
             let d = domain.to_lowercase();
             let f = fact.to_lowercase();
@@ -262,17 +280,20 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     if relevant.is_empty() {
-        // Try to answer from observations
-        let obs: Vec<String> = {
+        // Check for temporal/observation queries
+        let is_temporal = q_lower.contains("today") || q_lower.contains("recent")
+            || q_lower.contains("observed") || q_lower.contains("seen") || q_lower.contains("latest");
+        let obs: Vec<(String, String)> = {
             let mut s = db.prepare(
-                "SELECT content FROM friday_observations ORDER BY timestamp DESC LIMIT 20"
+                "SELECT kind, content FROM friday_observations ORDER BY timestamp DESC LIMIT 20"
             )?;
-            let x = s.query_map([], |r| r.get::<_,String>(0))
+            let x: Vec<(String,String)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
                 ?.filter_map(|r| r.ok())
-                .filter(|c| {
-                    q_lower.split_whitespace().any(|word| c.to_lowercase().contains(word))
+                .filter(|(_k, c)| {
+                    if is_temporal { true }
+                    else { q_lower.split_whitespace().any(|word| c.to_lowercase().contains(word)) }
                 })
-                .take(2).collect::<Vec<_>>(); x
+                .take(5).collect(); x
         };
         if obs.is_empty() {
             println!("  I do not have enough knowledge about \"{}\" yet.", question.bright_white());
@@ -280,8 +301,9 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             println!("  Ask me again as sessions accumulate.");
         } else {
             println!("  From recent observations:");
-            for o in &obs {
-                println!("  {} {}", "→".bright_cyan(), o.bright_white());
+            for (kind, content) in &obs {
+                let short = content.chars().take(80).collect::<String>();
+                println!("  {} [{}] {}", "\u{2192}".bright_cyan(), kind.bright_green(), short.bright_white());
             }
         }
     } else {
@@ -300,6 +322,88 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         );
     }
     println!();
+    Ok(())
+}
+
+/// Phase 1: Extract patterns from shell_history and populate friday_patterns
+pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let mut patterns_found = 0;
+    // Pattern 1: deploy after cicomplete
+    let deploy_after_complete: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history h1
+         WHERE h1.command LIKE 'deploy%'
+         AND EXISTS (
+             SELECT 1 FROM shell_history h2
+             WHERE h2.command LIKE 'cicomplete%'
+             AND h2.timestamp < h1.timestamp
+             AND h2.timestamp > h1.timestamp - 300
+         )",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    if deploy_after_complete > 2 {
+        let _ = db.execute(
+            "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
+             VALUES ('cicomplete runs', '[\"deploy\", \"workflow\"]', 'deploy tool', 'success', ?1, ?2, ?3, 'shell_history')",
+            params![deploy_after_complete, (deploy_after_complete as f64 / 10.0).min(0.95), now],
+        );
+        patterns_found += 1;
+    }
+    // Pattern 2: fg commit after deploy
+    let commit_after_deploy: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history h1
+         WHERE h1.command LIKE 'fg commit%'
+         AND EXISTS (
+             SELECT 1 FROM shell_history h2
+             WHERE h2.command LIKE 'deploy%'
+             AND h2.timestamp < h1.timestamp
+             AND h2.timestamp > h1.timestamp - 300
+         )",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    if commit_after_deploy > 2 {
+        let _ = db.execute(
+            "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
+             VALUES ('deploy completes', '[\"commit\", \"workflow\"]', 'fg commit', 'success', ?1, ?2, ?3, 'shell_history')",
+            params![commit_after_deploy, (commit_after_deploy as f64 / 10.0).min(0.95), now],
+        );
+        patterns_found += 1;
+    }
+    // Pattern 3: Most frequent commands
+    let top_commands: Vec<(String, i64)> = {
+        let mut s = db.prepare(
+            "SELECT command, COUNT(*) as cnt FROM shell_history
+             WHERE command NOT IN ('d', 'ls', 'pwd', 'clear')
+             GROUP BY command ORDER BY cnt DESC LIMIT 10"
+        )?;
+        let x: Vec<(String, i64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
+            ?.filter_map(|r| r.ok()).collect(); x
+    };
+    for (cmd, cnt) in &top_commands {
+        if *cnt > 2 {
+            let _ = db.execute(
+                "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
+                 VALUES ('frequent command', '[\"habit\"]', ?1, 'observed', ?2, 0.8, ?3, 'shell_history')",
+                params![cmd, cnt, now],
+            );
+            patterns_found += 1;
+        }
+    }
+    // Update knowledge with pattern count
+    let total_patterns: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let fact = format!("{} behavioral patterns extracted from {} shell commands.", total_patterns, 
+        db.query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get::<_,i64>(0)).unwrap_or(0));
+    let _ = db.execute(
+        "INSERT OR REPLACE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
+         VALUES ('patterns', ?1, 0.9, 'shell_analysis', ?2, ?2)",
+        params![fact, now],
+    );
+    println!("  {} Pattern extraction complete -- {} new patterns found ({} total)",
+        "✅".green(), patterns_found.to_string().bright_white(), total_patterns.to_string().bright_cyan());
     Ok(())
 }
 /// core friday observe -- manually trigger observation cycle
