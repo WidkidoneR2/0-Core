@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.7.0
+# 🌲 Faelight Forest 11.8.0
 
-![Version](https://img.shields.io/badge/version-11.7.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.8.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,28 +11,32 @@
 
 ## 🎊 Latest Release
 
-### 11.7.0 - 🌲 The Intelligence Arc (2026-04-08)
+### 11.8.0 - 🌲 The Self-Making Forest (2026-04-13)
 
-- 156 — Core v13 — Autonomy: The Forest Chooses Its Own Purpose
-- 158 — The Partner Vision — The Forest Becomes a Genuine Collaborator
-- 161 — Forest Build Order — The Path to Partnership
-- 179 — faelight-shell v3 — The Daily Driver: The Shell Becomes Self-Aware
-- 185 — faelight-contextd — The Nervous System: Background Awareness Daemon
-- 188 — Core v15 — Alignment: The Forest Stays True to What Matters
-- 191 — fsh Add-Ons and Bug Report — The Shell Grows
-- 192 — Deploy Pipeline v0.8.0 — registry_tools.py and Architecture Split
-- 193 — Tool Retirement Sprint — The Forest Prunes Itself
-- 197 — Intelligence Layer v2 — The Forest Learns From Itself
-- 198 — Intent Engine v2 — Smarter Intents, Deeper Connections
-- 199 — Integrity Engine v2 — From Proposals to Auto-Healing
-- 200 — Doctor v2 — No Stale Data, No False Positives
-- 204 — faelight-update v4.0.0 — The Intelligent Update Manager
-- 206 — Engine Coordination Layer — The Forest Thinks as One
+- 178 — Core v14 — Partnership: The Forest and Human Co-Create
+- 187 — Delegation Engine — Trust Contracts and Safe Autonomy Simulation
+- 189 — Core v16 — Self-Transformation: The Forest Redesigns Itself
+- 194 — fsh v4 — Shell Intelligence and Terminal Experience
+- 195 — Forest Journal — The System Writes Its Own Story
+- 196 — faelight-daemon v2 — The Background Brain Gets Smarter
+- 202 — Core Commands Guide
+- 205 — Core v17 — Pattern Weight Engine
+- 207 — Tool Intelligence L1 — Contextual Awareness
+- 208 — Tool Intelligence L2 — Pattern Learning
+- 209 — Tool Intelligence L3 — Inter-Tool Coordination
+- 210 — Registry Stats Accuracy — Tools Count and Release Stats
+- 211 — faelight-fm v3 — Permissions Display and Forest Integration
+- 214 — faelight-link v3 — Forest-Aware Dotfile Intelligence
+- 221 — \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\
+- 222 — \"Deploy Intelligence v2 -- Pattern-Aware, Signal-Emitting, Cross-Tool Awareness\
+- 223 — \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\
+- 224 — \"fsh v5 -- The Shell That Sees Color, Speaks Code, and Thinks With You\
+- 225 — \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\
 
-- Commits: 1998
-- Tools: 55 deployed
+- Commits: 2124
+- Tools: 50 deployed
 - Health: 100%
-- Intents: 146 complete
+- Intents: 176 complete
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
