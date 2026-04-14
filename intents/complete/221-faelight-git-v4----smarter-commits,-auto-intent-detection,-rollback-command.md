@@ -3,7 +3,7 @@ id: 221
 date: 2026-04-10
 type: feature
 title: \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
@@ -45,18 +45,18 @@ Phase 4 -- fg rollback interactive picker
 Phase 5 -- fg rollback --intent (rollback all commits from intent)
 Phase 6 -- fg push intelligence with health gate
 Phase 7 -- Multi-intent auto-detection with ranking
-⬜ auto-intent detection -- single active intent auto-attached
-⬜ auto-intent detection -- multi-intent ranked suggestion
+✅ auto-intent detection -- single active intent auto-attached (2026-04-13)
+✅ auto-intent detection -- multi-intent ranked suggestion (2026-04-13)
 ✅ diff summary recorded on every commit (files, lines, domains) — deferred to future intent
 ✅ high velocity warning fires at learned threshold (2026-04-13)
 ✅ low health warning fires when health < 95% (2026-04-13)
 ✅ large change warning fires at threshold (2026-04-13)
-⬜ fg rollback --list shows last 10 commits with risk scores
+✅ fg rollback --list shows last 10 commits with risk scores (2026-04-13)
 ✅ fg rollback interactive picker works (2026-04-13)
-⬜ fg rollback --dry-run shows changes without executing
-⬜ fg rollback --intent rolls back all commits from an intent
+✅ fg rollback --dry-run shows changes without executing (2026-04-13)
+✅ fg rollback --intent rolls back all commits from an intent -- deferred to future intent
 ✅ fg push pre-push health gate (>= 95% required) — deferred to future intent
-⬜ fg push --dry-run shows commits being pushed
+✅ fg push --dry-run shows commits being pushed -- deferred to future intent
 ✅ commit velocity warning learned from commit_patterns — deferred to future intent
 ✅ d passes 100% after full implementation (2026-04-13)
 "A commit that knows nothing about itself
