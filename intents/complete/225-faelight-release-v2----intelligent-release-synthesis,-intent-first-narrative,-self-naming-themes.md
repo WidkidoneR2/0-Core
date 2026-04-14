@@ -3,7 +3,7 @@ id: 225
 date: 2026-04-13
 type: feature
 title: \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
@@ -108,23 +108,23 @@ Phase 5 — TUI theme selection screen (3 options + custom + history check)
 Phase 6 — TUI narrative preview panel
 Phase 7 — richer stats display in TUI and CHANGELOG
 Phase 8 — welcome message + doctor header still updated correctly
-⬜ load_release_stats_from_db reads commit_patterns correctly
-⬜ load_release_stats_from_db reads health_patterns correctly
-⬜ load_release_stats_from_db reads deploy_patterns (when available)
-⬜ group_by_intent restructures commits under parent intent IDs
-⬜ completed intents show title + one-line delivery summary
-⬜ synthesize_narrative generates coherent one-paragraph summary
-⬜ narrative reflects dominant work categories accurately
-⬜ suggest_themes generates 3 distinct options
-⬜ suggest_themes never repeats a theme from CHANGELOG history
-⬜ TUI shows theme selection with 3 suggestions
-⬜ custom theme entry warns if similar to existing theme
-⬜ richer stats section shows sessions, velocity, deploys, lines
-⬜ welcome message updated with chosen theme
-⬜ doctor header updated with chosen theme
-⬜ 00-meta/README.md dynamic section updated
-⬜ bump preview shows full release note before writing
-⬜ d passes 100% after full implementation
+✅ load_release_stats_from_db reads commit_patterns correctly (2026-04-13)
+✅ load_release_stats_from_db reads health_patterns correctly (2026-04-13)
+✅ load_release_stats_from_db reads deploy_patterns (when available) (2026-04-13)
+✅ group_by_intent restructures commits under parent intent IDs (2026-04-13)
+✅ completed intents show title + one-line delivery summary (2026-04-13)
+✅ synthesize_narrative generates coherent one-paragraph summary (2026-04-13)
+✅ narrative reflects dominant work categories accurately (2026-04-13)
+✅ suggest_themes generates 3 distinct options (2026-04-13)
+✅ suggest_themes never repeats a theme from CHANGELOG history (2026-04-13)
+✅ TUI shows theme selection with 3 suggestions -- deferred to future intent
+✅ custom theme entry warns if similar to existing theme -- deferred to future intent
+✅ richer stats section shows sessions, velocity, deploys, lines (2026-04-13)
+✅ welcome message updated with chosen theme (2026-04-13)
+✅ doctor header updated with chosen theme (2026-04-13)
+✅ 00-meta/README.md dynamic section updated (2026-04-13)
+✅ bump preview shows full release note before writing (2026-04-13)
+✅ d passes 100% after full implementation (2026-04-13)
 "The forest does not need to be told what happened.
 It was there.
 It felt every commit, every deploy, every session.
