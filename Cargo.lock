@@ -1828,7 +1828,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-release"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1836,6 +1836,7 @@ dependencies = [
  "crossterm 0.28.1",
  "dirs 5.0.1",
  "ratatui 0.29.0",
+ "rusqlite",
  "serde",
  "serde_json",
  "toml 0.8.23",

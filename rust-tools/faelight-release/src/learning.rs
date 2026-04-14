@@ -19,6 +19,7 @@ pub struct ReleasePattern {
 
 #[derive(Debug)]
 pub struct LearningInsights {
+    #[allow(dead_code)]
     pub theme_suggestion: String,
     pub anomalies: Vec<String>,
     pub release_cadence: String,

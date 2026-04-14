@@ -329,7 +329,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-release"
-version = "0.1.0"
+version = "2.0.0"
 category = "release"
 description = "Intelligent release and generation manager — the forest publishes itself"
 expected_usage = "medium"
