@@ -456,7 +456,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             } else {
                 format!("{}%", pct).bright_red()
             };
-            println!("  {}  Alignment (v15): {}", "🧭".normal(), colored);
+            println!("  {}  Alignment: {}", "🧭".normal(), colored);
         }
     }
     // INT-207 L1 — Engine coordination status inline
@@ -474,18 +474,19 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 "⚠️ ".yellow(), pending, degraded);
         }
     }
-    // INT-207 L1 — Friday status
+    // INT-203 -- Friday live status
     {
-        let friday_status: String = ctx.runtime.db.query_row(
-            "SELECT status FROM engine_registry WHERE name = 'friday'",
-            [], |r| r.get(0)
-        ).unwrap_or_else(|_| "dormant".to_string());
-        let friday_colored = match friday_status.as_str() {
-            "active"  => "active".bright_green().to_string(),
-            "dormant" => "dormant".dimmed().to_string(),
-            _         => friday_status.dimmed().to_string(),
-        };
-        println!("  {}  Friday: {}", "🌲".normal(), friday_colored);
+        let pats: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
+        let facts: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
+        let obs: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
+        if obs > 0 || pats > 0 {
+            println!("  {}  Friday: watching · {} patterns · {} facts",
+                "🌲".to_string(),
+                pats.to_string().bright_cyan(),
+                facts.to_string().bright_white());
+        } else {
+            println!("  {}  Friday: {}", "🌲".to_string(), "dormant".dimmed());
+        }
     }
     // INT-207 L1 — Emit health signal to engine_signals
     {

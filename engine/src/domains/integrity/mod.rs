@@ -768,7 +768,7 @@ pub mod checks {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
 
-            if last_log.map(|t| now - t > 86400).unwrap_or(true) {
+            if last_log.map(|t| now - t > 604800).unwrap_or(true) {
                 issues.push(IntegrityIssue::auto_fix(
                     Category::Jarvis,
                     "jarvis_log_freshness",
