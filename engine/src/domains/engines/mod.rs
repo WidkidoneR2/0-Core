@@ -329,6 +329,112 @@ pub fn record_upgrade(ctx: &AppContext, engine: &str, from: &str, to: &str, brea
     Ok(())
 }
 
+/// core engines process -- read unconsumed signals, route reactions, mark consumed
+pub fn process(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let now = now_ts();
+    let expire_cutoff = now - 86400; // 24h expiry
+    // Step 1: expire stale signals
+    let expired = ctx.runtime.db.execute(
+        "UPDATE engine_signals SET consumed_by = 'expired'
+         WHERE consumed_by IS NULL AND created_at < ?1",
+        params![expire_cutoff],
+    ).unwrap_or(0);
+    // Step 2: read unconsumed, non-expired signals
+    let mut stmt = ctx.runtime.db.prepare(
+        "SELECT id, source, signal_type, payload, weight
+         FROM engine_signals
+         WHERE consumed_by IS NULL AND created_at >= ?1
+         ORDER BY created_at ASC LIMIT 50"
+    )?;
+    let signals: Vec<(i64, String, String, String, f64)> = stmt.query_map(
+        params![expire_cutoff], |r| Ok((
+            r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,
+            r.get::<_, Option<f64>>(4)?.unwrap_or(0.0)
+        ))
+    )?.filter_map(|r| r.ok()).collect();
+    if signals.is_empty() && expired == 0 {
+        println!("  {} No unprocessed signals", "○".dimmed());
+        return Ok(());
+    }
+    let mut processed = 0usize;
+    let mut reactions: Vec<String> = Vec::new();
+    for (id, source, sig_type, payload, weight) in &signals {
+        // No-loop rule: skip if source would consume its own signal
+        let consumer = route_signal(&source, &sig_type, &payload, *weight, &mut reactions);
+        // Mark consumed
+        let _ = ctx.runtime.db.execute(
+            "UPDATE engine_signals SET consumed_by = ?1 WHERE id = ?2",
+            params![consumer, id],
+        );
+        processed += 1;
+    }
+    use colored::*;
+    if expired > 0 {
+        println!("  {} {} expired signals cleaned", "🧹".normal(), expired);
+    }
+    if processed > 0 {
+        println!("  {} {} signals processed", "✅".green(), processed);
+    }
+    for reaction in &reactions {
+        println!("  {} {}", "→".bright_cyan(), reaction);
+    }
+    // Record observations for Friday
+    if !signals.is_empty() {
+        let payload = format!(r#"{{"processed":{},"reactions":{}}}"#, processed, reactions.len());
+        let _ = ctx.runtime.db.execute(
+            "INSERT INTO engine_signals (source, signal_type, payload, weight, consumed_by, created_at)
+             VALUES ('engines', 'coordination', ?1, 1.0, 'self', ?2)",
+            params![payload, now],
+        );
+    }
+    Ok(())
+}
+fn route_signal(source: &str, sig_type: &str, payload: &str, weight: f64, reactions: &mut Vec<String>) -> String {
+    match (source, sig_type) {
+        // Deploy signal → suggest health check
+        ("deploy", "deploy") => {
+            if let Some(tool) = extract_json_str(payload, "tool") {
+                reactions.push(format!("deploy detected: {} -- run d to verify health", tool));
+            }
+            "engines-coordinator".to_string()
+        }
+        // Health drop → surface as insight
+        ("doctor", "health") => {
+            let health: f64 = extract_json_f64(payload, "health").unwrap_or(100.0);
+            if health < 95.0 {
+                reactions.push(format!("health below peak: {:.0}% -- check for uncommitted changes or failed checks", health));
+            }
+            "engines-coordinator".to_string()
+        }
+        // Critical update → suggest engine sync
+        ("faelight-update", "update") => {
+            if weight < 0.8 {
+                reactions.push("update completed with reduced health -- verify no breaking changes".to_string());
+            }
+            "engines-coordinator".to_string()
+        }
+        // Pattern weight critical → record for Friday
+        ("pattern-weight", "critical-pattern") => {
+            reactions.push("critical pattern detected -- Friday observation recorded".to_string());
+            "friday-observer".to_string()
+        }
+        _ => "engines-coordinator".to_string(),
+    }
+}
+fn extract_json_str(payload: &str, key: &str) -> Option<String> {
+    let search = format!("\"{}\":\"", key);
+    let start = payload.find(&search)? + search.len();
+    let end = payload[start..].find('"')? + start;
+    Some(payload[start..end].to_string())
+}
+fn extract_json_f64(payload: &str, key: &str) -> Option<f64> {
+    let search = format!("\"{}\":", key);
+    let start = payload.find(&search)? + search.len();
+    let end = payload[start..].find(|c: char| !c.is_ascii_digit() && c != '.')? + start;
+    payload[start..end].parse().ok()
+}
+
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -302,6 +302,7 @@ pub fn parse() -> Command {
             EnginesCommands::Sync { engine } => EnginesCommand::Sync { engine },
             EnginesCommands::Signals => EnginesCommand::Signals,
             EnginesCommands::Check => EnginesCommand::Check,
+            EnginesCommands::Process => EnginesCommand::Process,
             EnginesCommands::UpgradeLog => EnginesCommand::UpgradeLog,
         }),
         Commands::Events { command } => Command::Events(match command {

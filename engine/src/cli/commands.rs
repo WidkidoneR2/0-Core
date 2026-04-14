@@ -387,6 +387,7 @@ pub enum EnginesCommand {
     Signals,
     Check,
     UpgradeLog,
+    Process,
 }
 
 #[derive(Debug)]
