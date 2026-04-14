@@ -1611,6 +1611,7 @@ dependencies = [
  "colored",
  "dirs 5.0.1",
  "faelight-core",
+ "rusqlite",
 ]
 
 [[package]]

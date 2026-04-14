@@ -1,7 +1,7 @@
 ---
 id: 228
 title: "faelight-docs v2 -- Deploy Intelligence for All Documents"
-status: planned
+status: in-progress
 date: 2026-04-13
 tags: faelight-docs, intelligence, github, documentation
 requires: []
