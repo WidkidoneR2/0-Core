@@ -312,6 +312,10 @@ pub fn parse() -> Command {
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
             EventsCommands::Watch => EventsCommand::Watch,
+                    EventsCommands::EmitV2 { type_name, payload, caused_by } => EventsCommand::EmitV2 { type_name, payload, caused_by },
+            EventsCommands::Replay { from_seq, to_seq } => EventsCommand::Replay { from_seq, to_seq },
+            EventsCommands::Chain { seq } => EventsCommand::Chain { seq },
+            EventsCommands::StatusV2 => EventsCommand::StatusV2,
         }),
         Commands::Ledger { command } => Command::Ledger(match command {
             LedgerCommands::Stats => LedgerCommand::Stats,

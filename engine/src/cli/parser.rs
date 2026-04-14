@@ -834,6 +834,19 @@ pub enum EventsCommands {
     Filter { domain: String },
     /// Live event stream — watch events as they happen
     Watch,
+    /// Emit a validated signal to forest_events_v2
+    EmitV2 {
+        type_name: String,
+        payload: String,
+        #[arg(long)]
+        caused_by: Option<i64>,
+    },
+    /// Replay signals from sequence range
+    Replay { from_seq: i64, to_seq: i64 },
+    /// Show causality chain for a signal
+    Chain { seq: i64 },
+    /// Show forest_events_v2 status
+    StatusV2,
 }
 
 #[derive(Subcommand)]

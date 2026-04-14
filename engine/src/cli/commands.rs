@@ -398,6 +398,10 @@ pub enum EventsCommand {
     Since { duration: String },
     Filter { domain: String },
     Watch,
+    EmitV2 { type_name: String, payload: String, caused_by: Option<i64> },
+    Replay { from_seq: i64, to_seq: i64 },
+    Chain { seq: i64 },
+    StatusV2,
 }
 
 #[derive(Debug)]
