@@ -3,7 +3,7 @@ id: 214
 date: 2026-04-09
 type: planned
 title: "faelight-link v3 — Forest-Aware Dotfile Intelligence"
-status: planned
+status: in-progress
 tags: [faelight-link, dotfiles, stow, intelligence, forest-aware, v3]
 ---
 faelight-link v2 is essentially a custom GNU Stow.

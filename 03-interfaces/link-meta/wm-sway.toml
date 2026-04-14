@@ -1,0 +1,5 @@
+# faelight-link v3 metadata
+intent = "INT-000"
+description = "Sway window manager config (legacy)"
+critical = false
+last_linked = "2026-04-13"

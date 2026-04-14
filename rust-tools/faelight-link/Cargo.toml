@@ -1,10 +1,11 @@
 [package]
 name = "faelight-link"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
 authors = ["Christian"]
 
 [dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
 faelight-core = { path = "../faelight-core" }
 clap = { version = "4.5", features = ["derive"] }
 colored = "2.1"

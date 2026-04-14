@@ -131,7 +131,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-link"
-version = "2.0.0"
+version = "3.0.0"
 category = "dotfiles"
 description = "Symlink management and audit"
 expected_usage = "low"
