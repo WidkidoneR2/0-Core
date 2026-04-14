@@ -5,6 +5,9 @@ type: planned
 title: "Core v20 — Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy"
 status: planned
 tags: [friday, v20, phase2, prediction, strategy, deep-patterns, anticipation, partner]
+requires: [203,212,217,218]
+unlocks: [220]
+strategic_value: multiplier
 ---
 Friday Phase 1 (v19): The forest finds its voice.
   - Observes and reports

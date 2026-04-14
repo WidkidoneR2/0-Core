@@ -4,6 +4,9 @@ title: "fsh v6 -- The Shell That Grows With You"
 status: planned
 date: 2026-04-13
 tags: faelight-shell, shell, intelligence, ux, builtins
+requires: []
+unlocks: []
+strategic_value: leaf
 ---
 fsh v0.7.0 is the daily driver. It has:
 - Native execution layer (query, fsearch, patch, edit, run)

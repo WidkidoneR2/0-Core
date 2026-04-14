@@ -5,6 +5,9 @@ type: planned
 title: "Core v19 — Friday Phase 1: The Forest Finds Its Voice"
 status: planned
 tags: [friday, v19, voice, speech, synthesis, partner, phase1]
+requires: [203,212,216]
+unlocks: [218,219,220]
+strategic_value: multiplier
 ---
 v18 gives the forest one voice — a synthesized brief.
 v19 gives that voice a mouth.

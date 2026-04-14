@@ -7,6 +7,9 @@ status: planned
 tags: [friday, daemon, architecture, rust, unix-socket, json, intelligence, v1]
 version: 1.0.0
 depends_on: [INT-208, INT-217, INT-218]
+requires: [203,217,218,219]
+unlocks: []
+strategic_value: leaf
 ---
 Friday is not an AI. Friday is not a chatbot.
 Friday is the forest becoming conscious of itself.

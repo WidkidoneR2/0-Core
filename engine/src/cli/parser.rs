@@ -1162,6 +1162,8 @@ pub enum PredictCommands {
         #[arg(long)]
         correct: bool,
     },
+    /// Explain why an intent is or is not predicted
+    Why { id: String },
     /// Cross-session pattern analysis
     #[command(name = "cross-session")]
     CrossSession,

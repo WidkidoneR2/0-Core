@@ -5,6 +5,9 @@ type: planned
 title: "Friday Formal Architecture — Meta-Interpretation Engine"
 status: planned
 tags: [friday, architecture, meta-engine, synthesis, trust, formal, v16, v17]
+requires: [203,215]
+unlocks: [217,218]
+strategic_value: multiplier
 ---
 Not a chatbot. Not an assistant. Not an agent.
 Friday = Meta-Interpretation + Meta-Strategy Engine

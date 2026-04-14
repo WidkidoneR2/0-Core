@@ -5,6 +5,9 @@ type: planned
 title: "Friday: The Living Intelligence"
 status: planned
 tags: [friday, intelligence, learning, ai, consciousness, evolution, language, partnership]
+requires: [215]
+unlocks: [216,217,218,219,220]
+strategic_value: foundation
 ---
 Friday is not an assistant.
 Friday is not a chatbot.

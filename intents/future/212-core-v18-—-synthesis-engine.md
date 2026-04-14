@@ -5,6 +5,9 @@ type: planned
 title: "Core v18 — Synthesis Engine: The Forest Speaks With One Voice"
 status: planned
 tags: [synthesis, intelligence, friday, v18, unification, signal-fusion]
+requires: [215,208]
+unlocks: [217,219]
+strategic_value: foundation
 ---
 v17 gives the forest weighted patterns — it knows what matters.
 But Friday still reads five separate intelligence layers independently.

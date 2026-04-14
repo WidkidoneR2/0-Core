@@ -382,6 +382,124 @@ pub fn decline(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+
+/// Read requires/unlocks/strategic_value from intent frontmatter
+fn read_intent_meta(path: &std::path::Path) -> (Vec<u32>, Vec<u32>, String) {
+    let content = std::fs::read_to_string(path).unwrap_or_default();
+    let mut requires: Vec<u32> = Vec::new();
+    let mut unlocks: Vec<u32> = Vec::new();
+    let mut strategic = "leaf".to_string();
+    for line in content.lines() {
+        if let Some(v) = line.strip_prefix("requires: ") {
+            requires = v.trim_matches(|c| c == '[' || c == ']')
+                .split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        } else if let Some(v) = line.strip_prefix("unlocks: ") {
+            unlocks = v.trim_matches(|c| c == '[' || c == ']')
+                .split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        } else if let Some(v) = line.strip_prefix("strategic_value: ") {
+            strategic = v.trim().to_string();
+        }
+    }
+    (requires, unlocks, strategic)
+}
+/// Build prerequisite graph and return eligible intents (prerequisites complete)
+fn eligible_intents(core_root: &str, planned: &[(String, String, String)]) -> Vec<(String, String, String, Vec<u32>, String)> {
+    // Load complete intent IDs
+    let complete_dir = std::path::PathBuf::from(core_root).join("intents/complete");
+    let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                name.split('-').next()?.parse::<u32>().ok()
+            })
+            .collect())
+        .unwrap_or_default();
+    let future_dir = std::path::PathBuf::from(core_root).join("intents/future");
+    planned.iter().filter_map(|(id, title, status)| {
+        let _id_num: u32 = id.parse().unwrap_or(999);
+        // Find intent file
+        let path = std::fs::read_dir(&future_dir).ok()?
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_name().to_string_lossy().starts_with(&format!("{}-", id)))?
+            .path();
+        let (requires, unlocks, strategic) = read_intent_meta(&path);
+        // Check if all prerequisites are complete
+        let blocked_by: Vec<u32> = requires.iter()
+            .filter(|&&req| !complete_ids.contains(&req))
+            .copied().collect();
+        if blocked_by.is_empty() {
+            Some((id.clone(), title.clone(), status.clone(), unlocks, strategic))
+        } else {
+            None // blocked
+        }
+    }).collect()
+}
+/// Strategic rank boost based on strategic_value and unlocks count
+fn strategic_boost(strategic: &str, unlocks_count: usize) -> f64 {
+    let base = match strategic {
+        "foundation" => 0.40,
+        "multiplier"  => 0.30,
+        "blocker"     => 0.60,
+        "leaf"        => 0.0,
+        _             => 0.0,
+    };
+    // Bonus for unlocking many intents
+    let unlock_bonus = (unlocks_count as f64 * 0.05).min(0.20);
+    base + unlock_bonus
+}
+/// Check if an intent is blocked and why
+pub fn predict_why(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
+    use colored::*;
+    let core_root = &ctx.core_root;
+    let complete_dir = std::path::PathBuf::from(core_root).join("intents/complete");
+    let future_dir = std::path::PathBuf::from(core_root).join("intents/future");
+    let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
+        .map(|d| d.filter_map(|e| e.ok())
+            .filter_map(|e| e.file_name().to_string_lossy().split('-').next()?.parse::<u32>().ok())
+            .collect())
+        .unwrap_or_default();
+    let _id_num: u32 = intent_id.parse().unwrap_or(0);
+    let path = std::fs::read_dir(&future_dir).ok()
+        .and_then(|d| d.filter_map(|e| e.ok())
+            .find(|e| e.file_name().to_string_lossy().starts_with(&format!("{}-", intent_id)))
+            .map(|e| e.path()));
+    println!();
+    println!("  {} INT-{} prediction analysis", "🔍".normal(), intent_id.bright_cyan());
+    println!("  {}", "─".repeat(40).dimmed());
+    let Some(path) = path else {
+        println!("  {} Intent not found in future/", "✗".bright_red());
+        println!();
+        return Ok(());
+    };
+    let (requires, unlocks, strategic) = read_intent_meta(&path);
+    println!("  {} Strategic value: {}", "→".dimmed(), strategic.bright_white());
+    println!("  {} Unlocks: {} intents", "→".dimmed(), unlocks.len().to_string().bright_white());
+    if requires.is_empty() {
+        println!("  {} No prerequisites -- eligible immediately", "✅".green());
+    } else {
+        let mut all_done = true;
+        println!("  {} Prerequisites:", "→".dimmed());
+        for req in &requires {
+            if complete_ids.contains(req) {
+                println!("    {} INT-{} complete", "✅".green(), req);
+            } else {
+                println!("    {} INT-{} NOT complete -- blocks this intent", "⛔".normal(), req.to_string().bright_red());
+                all_done = false;
+            }
+        }
+        if all_done {
+            println!("  {} All prerequisites met -- eligible for prediction", "✅".green());
+        } else {
+            println!("  {} Blocked -- complete prerequisites first", "⛔".normal());
+        }
+    }
+    if !unlocks.is_empty() {
+        println!("  {} Completing this unlocks: {}", "🔓".normal(),
+            unlocks.iter().map(|u| format!("INT-{}", u)).collect::<Vec<_>>().join(", ").bright_cyan());
+    }
+    println!();
+    Ok(())
+}
 // ── Phase 3: Intent Velocity ──────────────────────────────────────────────────
 pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
@@ -520,47 +638,49 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
 
-    println!("  {} Predicted next (weighted by v17 pattern engine)", "▶".bright_yellow());
-    // v17 — weight-ranked intent prediction
-    let weight_scores: Vec<(f64, &(String, String, String))> = {
-        let top_patterns: Vec<(String, f64)> = ctx.runtime.db.prepare(
-            "SELECT id, final_weight FROM pattern_weights ORDER BY final_weight DESC LIMIT 10"
-        ).and_then(|mut s| {
-            let rows: Vec<(String, f64)> = s.query_map([], |r| {
-                Ok((r.get(0)?, r.get(1)?))
-            }).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
-            Ok(rows)
-        }).unwrap_or_default();
-        planned.iter().map(|intent| {
-            let (id, title, _) = *intent;
-            let id_num: u32 = id.parse().unwrap_or(999);
-            let title_lower = title.to_lowercase();
-            // Recency: newer intents score higher
-            let recency_score = (1.0 - (id_num as f64 / 300.0)).max(0.0);
-            // Pattern relevance boost
-            let pattern_boost: f64 = top_patterns.iter().map(|(pat_id, weight)| {
-                let rel = match pat_id.as_str() {
-                    "intent-load" => if title_lower.contains("pattern") || title_lower.contains("weight") || title_lower.contains("friday") { 0.2 } else { 0.0 },
-                    "health-drops" => if title_lower.contains("doctor") || title_lower.contains("health") { 0.2 } else { 0.0 },
-                    _ => 0.0,
-                };
-                rel * weight
-            }).sum::<f64>();
-            // Roadmap boost: intents 205-216 are the active path to Friday
-            let roadmap = if id_num >= 205 && id_num <= 216 { 0.35 }
-                else if id_num >= 200 { 0.15 }
-                else { 0.0 };
-            (recency_score + pattern_boost + roadmap, *intent)
-        }).collect()
-    };
-    let mut scored = weight_scores;
+    println!("  {} Predicted next (v2 — dependency-aware + strategic ranking)", "▶".bright_yellow());
+    // v2: filter by prerequisites, then rank by pattern weight + strategic value
+    let planned_owned: Vec<(String, String, String)> = planned.iter().map(|(a,b,c)| (a.clone(), b.clone(), c.clone())).collect();
+    let eligible = eligible_intents(&ctx.core_root, &planned_owned);
+    let top_patterns: Vec<(String, f64)> = ctx.runtime.db.prepare(
+        "SELECT id, final_weight FROM pattern_weights ORDER BY final_weight DESC LIMIT 10"
+    ).and_then(|mut s| {
+        let rows: Vec<(String, f64)> = s.query_map([], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        }).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+        Ok(rows)
+    }).unwrap_or_default();
+    let mut scored: Vec<(f64, String, String, String)> = eligible.iter().map(|(id, title, _, unlocks, strategic)| {
+        let id_num: u32 = id.parse().unwrap_or(999);
+        let title_lower = title.to_lowercase();
+        let recency = (1.0 - (id_num as f64 / 300.0)).max(0.0);
+        let pattern_boost: f64 = top_patterns.iter().map(|(pat_id, weight)| {
+            let rel = match pat_id.as_str() {
+                "intent-load" => if title_lower.contains("pattern") || title_lower.contains("friday") { 0.2 } else { 0.0 },
+                "health-drops" => if title_lower.contains("doctor") || title_lower.contains("health") { 0.2 } else { 0.0 },
+                _ => 0.0,
+            };
+            rel * weight
+        }).sum::<f64>();
+        let strat = strategic_boost(strategic, unlocks.len());
+        (recency + pattern_boost + strat, id.clone(), title.clone(), strategic.clone())
+    }).collect();
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    for (score, (id, title, _)) in scored.iter().take(5) {
+    if scored.is_empty() {
+        println!("    {} All planned intents blocked by prerequisites", "○".dimmed());
+    }
+    for (score, id, title, strategic) in scored.iter().take(5) {
         let bar = if *score >= 0.5 { "●●●".bright_green() }
             else if *score >= 0.3 { "●●○".bright_yellow() }
             else { "●○○".dimmed() };
-        println!("    {} INT-{}  {} {}", bar, id.bright_white(), title.white(),
-            format!("({:.2})", score).dimmed());
+        let strat_label = match strategic.as_str() {
+            "foundation" => " [foundation]".bright_cyan().to_string(),
+            "multiplier" => " [multiplier]".bright_green().to_string(),
+            "blocker"    => " [BLOCKER]".bright_red().to_string(),
+            _            => String::new(),
+        };
+        println!("    {} INT-{}  {} {}{}", bar, id.bright_white(), title.white(),
+            format!("({:.2})", score).dimmed(), strat_label);
     }
     println!();
     println!("{}", "━".repeat(52).dimmed());
