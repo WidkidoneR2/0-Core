@@ -209,9 +209,9 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 0 — friday_observations table and basic observation engine (2026-04-14)
 ✅ Phase 0 — friday status command live (2026-04-14)
 ✅ Phase 0 — friday ask — Q&A from forest knowledge (2026-04-14)
-⬜ Phase 1 — Session start/end summaries written automatically
-⬜ Phase 1 — Pattern extraction from shell_history
-⬜ Phase 1 — friday_patterns populated from real data
+✅ Phase 1 — Session start/end summaries written automatically (2026-04-14)
+✅ Phase 1 — Pattern extraction from shell_history (2026-04-14)
+✅ Phase 1 — friday_patterns populated from real data (2026-04-14)
 ⬜ Phase 2 — faelight-term chat pane (Ctrl+Shift+F toggle)
 ⬜ Phase 2 — Proactive messages through fsh after commands
 ⬜ Phase 2 — friday suggest live with evidence
