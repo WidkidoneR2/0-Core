@@ -1,7 +1,7 @@
 ---
 id: 228
 title: "faelight-docs v2 -- Deploy Intelligence for All Documents"
-status: in-progress
+status: complete
 date: 2026-04-13
 tags: faelight-docs, intelligence, github, documentation
 requires: []
@@ -47,18 +47,18 @@ Every fdocs sync emits to engine_signals:
   payload: document name, sections updated, freshness
 Friday uses this to know: documentation is current.
 Friday can say: "COMMAND-GUIDE has not been updated since INT-221 completed."
-⬜ document registry defined (all managed docs have manifest entry)
-⬜ fdocs status shows all docs with freshness and drift
-⬜ fdocs sync updates all auto-updatable fields correctly
-⬜ fdocs check identifies stale documents
-⬜ fdocs record logs manual updates to state.db
-⬜ fdocs log shows full document update history
-⬜ fdocs why <doc> shows owning intent
-⬜ README sections correctly categorized (dynamic/semi/manual)
-⬜ fdocs sync never touches MANUAL sections
-⬜ engine_signals emission on every sync
-⬜ GitHub README accurate and presentable for Linus/Graydon
-⬜ d passes 100% after full implementation
+✅ document registry defined (all managed docs have manifest entry) (2026-04-14)
+✅ fdocs status shows all docs with freshness and drift (2026-04-14)
+✅ fdocs sync updates all auto-updatable fields correctly (2026-04-14)
+✅ fdocs check identifies stale documents (2026-04-14)
+✅ fdocs record logs manual updates to state.db (2026-04-14)
+✅ fdocs log shows full document update history (2026-04-14)
+✅ fdocs why <doc> shows owning intent (2026-04-14)
+✅ README sections correctly categorized (dynamic/semi/manual) (2026-04-14)
+✅ fdocs sync never touches MANUAL sections (2026-04-14)
+✅ engine_signals emission on every sync (2026-04-14)
+✅ GitHub README accurate and presentable for Linus/Graydon (2026-04-14)
+✅ d passes 100% after full implementation (2026-04-14)
 "A system that cannot document itself clearly
 cannot explain itself to others.
 faelight-docs v2 is the forest finding its public voice.

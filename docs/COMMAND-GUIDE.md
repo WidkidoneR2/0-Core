@@ -107,6 +107,18 @@
 | core deploy rollback --dry-run | Preview rollback without executing |
 | core deploy check-deps <tool> | Show full dependency graph |
 
+| Command | What it does |
+|---------|-------------|
+| faelight-docs status | All docs, freshness, drift indicators |
+| faelight-docs sync | Sync all auto-updatable fields |
+| faelight-docs check | Identify stale documents (dry run) |
+| faelight-docs diff | Show drift since last recorded state |
+| faelight-docs record <doc> [note] | Record a manual update to state.db |
+| faelight-docs log | Full document update history |
+| faelight-docs why <doc> | Which intent owns this document |
+| faelight-docs welcome | Regenerate zshrc welcome message |
+| faelight-docs readme | Regenerate README static section |
+
 ## Intent System
 
 | Command | What it does |
