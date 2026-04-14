@@ -113,7 +113,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-git"
-version = "3.3.1"
+version = "4.0.0"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
