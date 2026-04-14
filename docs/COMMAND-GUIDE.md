@@ -119,6 +119,15 @@
 | faelight-docs welcome | Regenerate zshrc welcome message |
 | faelight-docs readme | Regenerate README static section |
 
+| Command | What it does |
+|---------|-------------|
+| core events status-v2 | Show forest_events_v2 health, counts, signal types |
+| core events emit-v2 <type> <payload> | Emit validated signal to canonical log |
+| core events emit-v2 <type> <payload> --caused-by SEQ | Emit with causality link |
+| core events replay <from> <to> | Replay signals from sequence range |
+| core events chain <seq> | Show full causality chain for a signal |
+**Signal types:** health, git_commit, intent_start, intent_complete, deploy, alignment, prediction, watchdog_alert
+
 ## Intent System
 
 | Command | What it does |
