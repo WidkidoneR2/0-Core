@@ -206,9 +206,9 @@ But it has phases that represent meaningful milestones:
 - Friday writes first drafts of implementation plans
 - Friday and human build together as genuine partners
 - The presentation to Linus and Graydon includes Friday
-⬜ Phase 0 — friday_observations table and basic observation engine
-⬜ Phase 0 — friday status command live
-⬜ Phase 0 — friday ask — Q&A from forest knowledge
+✅ Phase 0 — friday_observations table and basic observation engine (2026-04-14)
+✅ Phase 0 — friday status command live (2026-04-14)
+✅ Phase 0 — friday ask — Q&A from forest knowledge (2026-04-14)
 ⬜ Phase 1 — Session start/end summaries written automatically
 ⬜ Phase 1 — Pattern extraction from shell_history
 ⬜ Phase 1 — friday_patterns populated from real data
