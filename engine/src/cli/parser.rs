@@ -361,6 +361,8 @@ pub enum FridayCommands {
     Observe,
     /// Extract patterns from shell history
     ExtractPatterns,
+    /// Get Friday's evidence-based suggestion
+    Suggest,
 }
 
 #[derive(Subcommand)]
