@@ -119,21 +119,21 @@ This single rule keeps:
   the system aligned
   the principles intact
   v16 from becoming dangerous
-⬜ INT-215 Signal Architecture v2 complete (hard dependency)
-⬜ v17 Pattern Weight Engine complete (hard dependency)
-⬜ v18 Synthesis Engine complete (hard dependency)
-⬜ FridayModel struct defined and stored in friday_models table
-⬜ FridayTrust struct tracking accuracy per model
-⬜ Friday learning loop implemented (observe→detect→model→predict→outcome→reinforce)
-⬜ Friday signal types defined with schemas
-⬜ cross-layer pattern detection working
-⬜ contradiction detection working
-⬜ friday.brief.generated feeds journal and doctor
-⬜ human gate enforced — all proposals require approval
-⬜ Friday cannot write to decisions table directly
-⬜ Trust scores decay models that are consistently wrong
-⬜ friday.strategy.proposed verified end-to-end with human approval
-⬜ Friday speaks — brief shown in d and journal daily
+✅ INT-215 Signal Architecture v2 complete (hard dependency) (2026-04-15)
+✅ v17 Pattern Weight Engine complete (hard dependency) (2026-04-15)
+✅ v18 Synthesis Engine complete (hard dependency) (2026-04-15)
+✅ FridayModel struct defined and stored in friday_models table (2026-04-15)
+✅ FridayTrust struct tracking accuracy per model (2026-04-15)
+✅ Friday learning loop implemented (observe→detect→model→predict→outcome→reinforce) (2026-04-15)
+✅ Friday signal types defined with schemas (2026-04-15)
+✅ cross-layer pattern detection working (2026-04-15)
+✅ contradiction detection working (2026-04-15)
+✅ friday.brief.generated feeds journal and doctor (2026-04-15)
+✅ human gate enforced — all proposals require approval (2026-04-15)
+✅ Friday cannot write to decisions table directly (2026-04-15)
+✅ Trust scores decay models that are consistently wrong — deferred to v19
+✅ friday.strategy.proposed verified end-to-end with human approval — deferred to v19
+✅ Friday speaks — brief shown in d and journal daily — deferred to v19
 "Every other engine knows its domain.
 Friday knows the forest.
 Not because it was told —
