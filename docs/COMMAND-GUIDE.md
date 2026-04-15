@@ -557,3 +557,18 @@
 **Rules:** anchor must be unique in file. Never use line numbers. For multiline content use quotes.
 **Unicode:** write literal characters directly -- no Python escape sequences needed.
 > ⚠️  **rspatch warning:** Never let --new content contain the --anchor text. If new content includes the anchor string, the next rspatch call will match inside the newly inserted content and double-replace. Always use a different string in --new than what you searched for in --anchor.
+| Command | What it does |
+|---------|-------------|
+| core friday-arch run | Run full meta-interpretation cycle -- cross-layer patterns + contradictions + brief |
+| core friday-arch models | Show Friday's models and trust scores |
+| core friday-arch proposals | Show pending proposals awaiting human review |
+| core friday-arch contradictions | Show active cross-layer contradictions |
+**Architecture principle:** Friday produces insight, not authority.
+Every proposal requires human approval before execution.
+Friday sees all intelligence layers simultaneously -- health, prediction, alignment, intent.
+Contradictions surface automatically in `d` (doctor) output.
+| Command | What it does |
+|---------|-------------|
+| core friday name-abstraction "name" "description" | Name a Friday abstraction -- adds to vocabulary |
+| core friday vocabulary | List all named abstractions |
+| core friday propose-intent | Friday proposes a new intent based on observed patterns |
