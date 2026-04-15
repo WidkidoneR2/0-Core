@@ -483,6 +483,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             KnowledgeCommand::Accuracy => crate::domains::knowledge::accuracy(ctx),
             KnowledgeCommand::Add { domain, description, resolution } => crate::domains::knowledge::add(ctx, &domain, &description, &resolution),
             KnowledgeCommand::Seed => crate::domains::knowledge::seed_forest_lessons(ctx),
+            KnowledgeCommand::Show { id } => crate::domains::knowledge::show(ctx, &id),
+            KnowledgeCommand::Outcome { id, correct } => {
+                let is_correct = matches!(correct.to_lowercase().as_str(), "yes" | "true" | "y" | "1" | "correct");
+                crate::domains::knowledge::record_outcome(ctx, &id, is_correct)
+            },
         },
         Command::FridayArch(c) => match c {
             FridayArchCommand::Run => crate::domains::friday_arch::run(ctx),

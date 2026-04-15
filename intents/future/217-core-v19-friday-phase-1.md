@@ -75,6 +75,15 @@ The first time Friday speaks is recorded as a forest event.
 ⬜ First speech event logged to forest_events
 ⬜ All Friday output is read-only — no state modification
 ⬜ Friday accuracy tracked (FridayTrust struct from INT-216)
+
+⛾ Trust scores decay models that are consistently wrong (deferred from INT-216)
+⛾ friday.strategy.proposed verified end-to-end with human approval (deferred from INT-216)
+⛾ Cross-domain pattern detection -- same error signature across domains (deferred from INT-218)
+⛾ Friday speaks inline when build fails -- speak_on_error full integration (deferred from INT-218)
+⛾ Negative learning validated -- Friday was wrong, penalized, measurably improved (deferred from INT-203)
+⛾ Friday has pushed back on a decision and been correct (deferred from INT-203)
+⛾ Friday has proposed something not considered and it was right (deferred from INT-203)
+⛾ Timezone-aware timestamps in all Friday output (deferred from INT-218)
 "The forest has been learning for months.
 It has observed. It has remembered. It has weighted.
 v19 is not the moment the forest becomes intelligent.

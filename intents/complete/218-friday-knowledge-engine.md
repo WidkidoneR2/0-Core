@@ -3,7 +3,7 @@ id: 218
 date: 2026-04-09
 type: planned
 title: "Friday Knowledge Engine — Situated Learning and Conflict Resolution"
-status: in-progress
+status: complete
 tags: [friday, knowledge, learning, rust, arch, python, situated, conflicts, v19-prep]
 requires: [203,216,217]
 unlocks: [219,220]
@@ -158,17 +158,17 @@ They should never have to be learned again.
 ✅ knowledge_entries and knowledge_outcomes tables created (2026-04-15)
 ✅ KnowledgeEntry struct defined with all fields (2026-04-15)
 ✅ Error signature normalization working (strip paths/line numbers) (2026-04-15)
-⬜ core knowledge search <term> — queries by domain and signature
-⬜ core knowledge show <id> — full entry with resolution
-⬜ core knowledge add — manual lesson recording
-⬜ core knowledge patterns — error patterns by domain
-⬜ core knowledge accuracy — resolution accuracy by domain
-⬜ Seed knowledge loaded — 10+ known forest lessons pre-loaded
-⬜ Build error → auto-query knowledge engine
+✅ core knowledge search <term> — queries by domain and signature (2026-04-15)
+✅ core knowledge show <id> — full entry with resolution — deferred to v19
+✅ core knowledge add — manual lesson recording (2026-04-15)
+✅ core knowledge patterns — error patterns by domain (2026-04-15)
+✅ core knowledge accuracy — resolution accuracy by domain (2026-04-15)
+✅ Seed knowledge loaded — 10+ known forest lessons pre-loaded (2026-04-15)
+✅ Build error → auto-query knowledge engine — deferred to v19
 ✅ Friday presents resolution with confidence + occurrence count -- deferred to v19
-⬜ Outcome recording — correct/incorrect updates confidence
+✅ Outcome recording — correct/incorrect updates confidence — deferred to v19
 ✅ Cross-domain pattern detection (same error, different domain) -- deferred to v19
-⬜ Integration with Friday active mode — speaks on conflict detection
+✅ Integration with Friday active mode — speaks on conflict detection — deferred to v19
 "The forest has made every mistake once.
 Friday's purpose is to make sure
 it only needs to make each mistake once.

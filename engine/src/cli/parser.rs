@@ -378,6 +378,10 @@ pub enum KnowledgeCommands {
     Add { domain: String, description: String, resolution: String },
     /// Seed forest lessons
     Seed,
+    /// Show full entry detail
+    Show { id: String },
+    /// Record outcome: core knowledge outcome <id> yes|no
+    Outcome { id: String, correct: String },
 }
 
 #[derive(Subcommand, Clone)]

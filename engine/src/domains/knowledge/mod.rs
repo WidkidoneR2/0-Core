@@ -41,6 +41,105 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 /// Normalize an error signature -- strip file paths, line numbers, variable names
+
+/// Show full entry with resolution history
+pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let row: Option<(String, String, Option<String>, String, String, f64, i64, i64, i64)> = db.query_row(
+        "SELECT id, domain, error_signature, description, resolution, confidence, occurrence_count, success_count, failure_count
+         FROM knowledge_entries WHERE id = ?1",
+        params![id], |r| Ok((
+            r.get::<_,String>(0)?, r.get::<_,String>(1)?,
+            r.get::<_,Option<String>>(2)?, r.get::<_,String>(3)?,
+            r.get::<_,String>(4)?, r.get::<_,f64>(5)?,
+            r.get::<_,i64>(6)?, r.get::<_,i64>(7)?, r.get::<_,i64>(8)?
+        ))
+    ).ok();
+    match row {
+        None => println!("  No entry found: {}", id),
+        Some((id, domain, sig, desc, resolution, conf, count, success, failure)) => {
+            println!();
+            println!("  {} [{}] {}", "🌲".normal(), domain.bright_cyan(), id.dimmed());
+            println!("  {}", "─".repeat(55).dimmed());
+            println!("  {} {}", "Problem:".dimmed(), desc.bright_white());
+            if let Some(s) = sig {
+                println!("  {} {}", "Signature:".dimmed(), s.dimmed());
+            }
+            println!();
+            println!("  {} {}", "Resolution:".bright_green(), resolution.white());
+            println!();
+            println!("  {} {:.0}%  {} seen  {} correct  {} incorrect",
+                "Confidence:".dimmed(), conf*100.0,
+                count.to_string().bright_white(),
+                success.to_string().bright_green(),
+                failure.to_string().bright_red());
+            // Show outcome history
+            let outcomes: Vec<(String, i64, i64)> = {
+                let mut s = db.prepare(
+                    "SELECT outcome, was_correct, recorded_at FROM knowledge_outcomes
+                     WHERE entry_id = ?1 ORDER BY recorded_at DESC LIMIT 5"
+                )?;
+                let x: Vec<(String, i64, i64)> = s.query_map(params![&id], |r| Ok((
+                    r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?
+                )))?.filter_map(|r| r.ok()).collect(); x
+            };
+            if !outcomes.is_empty() {
+                println!();
+                println!("  {} Outcome history:", "→".dimmed());
+                for (outcome, correct, ts) in &outcomes {
+                    let icon = if *correct == 1 { "✅".to_string() } else { "❌".to_string() };
+                    let time = chrono::DateTime::from_timestamp(*ts, 0)
+                        .map(|t| t.format("%m/%d %H:%M").to_string())
+                        .unwrap_or_default();
+                    println!("    {} {} -- {}", icon, outcome.white(), time.dimmed());
+                }
+            }
+            println!();
+        }
+    }
+    Ok(())
+}
+/// Record outcome for a knowledge entry
+pub fn record_outcome(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Check entry exists
+    let exists: i64 = db.query_row(
+        "SELECT COUNT(*) FROM knowledge_entries WHERE id = ?1",
+        params![id], |r| r.get(0)
+    ).unwrap_or(0);
+    if exists == 0 {
+        println!("  {} Entry not found: {}", "✗".bright_red(), id);
+        return Ok(());
+    }
+    // Record outcome
+    db.execute(
+        "INSERT INTO knowledge_outcomes (entry_id, outcome, was_correct, recorded_at)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![id, if correct { "correct" } else { "incorrect" }, if correct { 1 } else { 0 }, now],
+    )?;
+    // Update confidence and counts
+    if correct {
+        db.execute(
+            "UPDATE knowledge_entries SET success_count = success_count + 1,
+             confidence = MIN(0.99, confidence + 0.02), occurrence_count = occurrence_count + 1,
+             last_seen = ?1 WHERE id = ?2",
+            params![now, id],
+        )?;
+        println!("  {} Outcome recorded -- confidence increased", "✅".green());
+    } else {
+        db.execute(
+            "UPDATE knowledge_entries SET failure_count = failure_count + 1,
+             confidence = MAX(0.3, confidence - 0.10), occurrence_count = occurrence_count + 1,
+             last_seen = ?1 WHERE id = ?2",
+            params![now, id],
+        )?;
+        println!("  {} Outcome recorded -- confidence reduced (learning from failure)", "⚠️ ".yellow());
+    }
+    Ok(())
+}
 #[allow(dead_code)]
 pub fn normalize_signature(error: &str) -> String {
     let mut s = error.to_string();
