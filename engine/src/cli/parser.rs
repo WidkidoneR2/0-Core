@@ -26,6 +26,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SynthesizeCommands,
     },
+    /// Friday Formal Architecture -- Meta-Interpretation Engine
+    FridayArch {
+        #[command(subcommand)]
+        command: FridayArchCommands,
+    },
     Version,
     Doctor {
         #[command(subcommand)]
@@ -356,6 +361,18 @@ pub enum DeployCommands {
     #[command(name = "check-deps")]
     CheckDeps { tool: String },
 }
+#[derive(Subcommand, Clone)]
+pub enum FridayArchCommands {
+    /// Run full meta-interpretation cycle
+    Run,
+    /// Show Friday models and trust scores
+    Models,
+    /// Show pending proposals
+    Proposals,
+    /// Show active contradictions
+    Contradictions,
+}
+
 #[derive(Subcommand, Clone)]
 pub enum SynthesizeCommands {
     /// Generate synthesis snapshot now
