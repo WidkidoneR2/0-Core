@@ -44,6 +44,7 @@ pub fn parse() -> Command {
             FridayCommands::LearningLoop => FridayCommand::LearningLoop,
             FridayCommands::NameAbstraction { name, description } => FridayCommand::NameAbstraction { name, description },
             FridayCommands::Vocabulary => FridayCommand::Vocabulary,
+            FridayCommands::ProposeIntent => FridayCommand::ProposeIntent,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

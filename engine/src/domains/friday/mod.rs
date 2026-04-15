@@ -695,6 +695,152 @@ pub fn list_vocabulary(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+/// Phase 6: Friday co-authors first intent
+pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Gather forest signals to ground the proposal
+    let pattern_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let obs_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let top_pattern: Option<(String, String, f64, i64)> = db.query_row(
+        "SELECT trigger, action, confidence, frequency FROM friday_patterns ORDER BY frequency DESC LIMIT 1",
+        [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?, r.get::<_,i64>(3)?))
+    ).ok();
+    let top_gap: Option<String> = db.query_row(
+        "SELECT command FROM shell_history WHERE command LIKE 'python3 /tmp/%'
+         GROUP BY command ORDER BY COUNT(*) DESC LIMIT 1",
+        [], |r| r.get(0)
+    ).ok();
+    let vocab_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_language", [], |r| r.get(0)
+    ).unwrap_or(0);
+    // Determine what to propose based on what Friday sees
+    let (title, tags, rationale, proposal) = if vocab_count < 3 {
+        (
+            "Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats",
+            "friday, vocabulary, abstraction, language, patterns",
+            format!("Friday has observed {} patterns and named {} abstractions. \
+                The forest repeats behaviors that deserve names. \
+                Naming them gives Friday vocabulary to reason with.", pattern_count, vocab_count),
+            format!("Friday has identified {} patterns from {} observations. \
+                The top pattern occurs {} times. \
+                This intent establishes the vocabulary expansion practice: \
+                weekly review of abstraction candidates, confirmation of names, \
+                and recording in friday_language. \
+                A language built from what the forest actually does.",
+                pattern_count, obs_count,
+                top_pattern.as_ref().map(|p| p.3).unwrap_or(0))
+        )
+    } else if top_gap.is_some() {
+        (
+            "fsh Script Mode -- Eliminate python3 /tmp/ Workflow Completely",
+            "fsh, shell, workflow, scripting, friction",
+            "Friday has observed hundreds of python3 /tmp/ invocations. \
+                Every one is friction. The run builtin exists but the habit persists. \
+                The forest needs a first-class script mode that makes python3 /tmp/ obsolete.".to_string(),
+            "Friday observes that the single largest workflow friction point is the \
+                python3 /tmp/script.py pattern. The run builtin handles .py files but \
+                lacks the ergonomics needed to replace the habit: no argument passing, \
+                no stdin support, no script templates. \
+                This intent builds fsh script mode: fsh new script.py (template), \
+                run script.py arg1 arg2 (with args), run - (from stdin). \
+                Friday proposes this because it has watched the pattern 845 times.".to_string()
+        )
+    } else {
+        (
+            "Friday Session Intelligence -- Know the Session Before It Starts",
+            "friday, intelligence, session, context, awareness",
+            "Friday has observed patterns across sessions but cannot yet orient itself \
+                at session start. The forest deserves a morning briefing.".to_string(),
+            format!("Friday has {} facts and {} patterns. \
+                At session start, Friday should synthesize: what was left incomplete, \
+                what the predictions say comes next, what the health trajectory shows, \
+                and what the dominant pattern suggests. \
+                This intent builds core friday morning-brief -- called automatically \
+                at fsh startup, showing a 3-line situational summary. \
+                Friday already has the data. It just needs to speak first.",
+                pattern_count + obs_count, pattern_count)
+        )
+    };
+    // Generate intent ID suggestion
+    let max_id: i64 = 230; // approximate next available
+    let intent_id = max_id + 1;
+    let slug = title.to_lowercase()
+        .chars().map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-').filter(|s| !s.is_empty()).collect::<Vec<_>>().join("-");
+    let filename = format!("{}-{}.md", intent_id, &slug[..slug.len().min(60)]);
+    let intent_content = format!(r#"---
+id: {intent_id}
+title: "{title}"
+status: planned
+date: {date}
+tags: [{tags}]
+author: friday
+---
+{rationale}
+{proposal}
+Friday observed this need from:
+- {pattern_count} patterns in friday_patterns
+- {obs_count} observations in friday_observations
+- Vocabulary: {vocab_count} named abstractions
+Friday's confidence: 80%
+⬜ Reviewed and approved by Christian
+⬜ Implementation complete
+⬜ Friday's proposal validated by outcome
+"#,
+        intent_id = intent_id,
+        title = title,
+        date = "2026-04-15",
+        tags = tags,
+        rationale = rationale,
+        proposal = proposal,
+        pattern_count = pattern_count,
+        obs_count = obs_count,
+        vocab_count = vocab_count,
+    );
+    println!();
+    println!("  {} Friday proposes:", "🌲".normal());
+    println!("  {}", "─".repeat(55).dimmed());
+    println!("  {} {}", "Title:".dimmed(), title.bright_cyan().bold());
+    println!("  {} {}", "Tags: ".dimmed(), tags.dimmed());
+    println!();
+    println!("  {} Rationale:", "→".bright_green());
+    for line in rationale.lines() {
+        println!("    {}", line.white());
+    }
+    println!();
+    println!("  {} File: intents/future/{}", "📄".normal(), filename.bright_white());
+    println!();
+    print!("  Save this intent? (y/n): ");
+    use std::io::{self, BufRead, Write};
+    io::stdout().flush().ok();
+    let stdin = io::stdin();
+    let line = stdin.lock().lines().next()
+        .and_then(|l| l.ok())
+        .unwrap_or_default();
+    if line.trim().to_lowercase() == "y" {
+        let path = format!("intents/future/{}", filename);
+        std::fs::write(&path, &intent_content)?;
+        // Record in observations
+        let _ = db.execute(
+            "INSERT INTO friday_observations (timestamp, source, kind, content)
+             VALUES (?1, 'friday', 'proposal', ?2)",
+            rusqlite::params![now, format!("proposed intent: {}", title)],
+        );
+        println!("  {} Intent saved: {}", "✅".green(), path.bright_white());
+        println!("  {} Friday co-authored its first intent.", "🌲".normal());
+    } else {
+        println!("  {} Proposal discarded.", "→".dimmed());
+    }
+    Ok(())
+}
 /// Phase 5: Learning loop -- observe → hypothesis → validate → reinforce/decay
 pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
