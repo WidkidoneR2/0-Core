@@ -3,6 +3,7 @@
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Intents](https://img.shields.io/badge/intents-176_complete-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/built_in-Rust-orange?style=flat-square)
+![Intelligence](https://img.shields.io/badge/intelligence-v18_Synthesis-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 > **v11.8.0 -- The Self-Making Forest**
 > The forest now participates in its own development.
@@ -78,3 +79,10 @@ Intents are the unit of work. `cistart` before. `cicomplete` after. The forest r
 ---
 *Built by one person. Understood completely. Growing deliberately.*
 *"The forest remembers. The human decides."*
+| Version | Name | Capability |
+|---------|------|------------|
+| v17 | Pattern Weights | Weighted signal engine |
+| **v18** | **Synthesis Engine** | **One voice -- friday_brief live** |
+| v19 | Friday Phase 1 | planned |
+| v20 | Friday Phase 2 | planned |
+Binary version (`core 3.0.0`) = infrastructure stability. Intelligence version = capability tier. `core version` shows both.
