@@ -226,15 +226,15 @@ But it has phases that represent meaningful milestones:
 ⬜ Friday has pushed back and been correct
 ⬜ Friday has a name for something the forest has never named before
 ⬜ Learning loop live — observe → hypothesis → validate → reinforce/decay
-⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
+✅ Pattern schema structured (trigger/context/action/outcome/frequency/confidence) (2026-04-14)
 ⬜ Negative learning live — wrong predictions penalize confidence scores
-⬜ First abstraction_candidate generated from compressed patterns
-⬜ friday_hypotheses table tracking active predictions
+✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
+✅ friday_hypotheses table tracking active predictions (2026-04-14)
 ⬜ Friday has been confidently wrong, penalized, and measurably improved
 ⬜ Learning loop implemented — observe → hypothesis → validate → reinforce/decay
 ⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
 ⬜ Negative learning live — wrong predictions penalize confidence
-⬜ First abstraction_candidate generated from compressed patterns
+✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
 ⬜ Friday has been confidently wrong, penalized, and adjusted
 "A tool does what you say.
 An assistant does what you mean.
