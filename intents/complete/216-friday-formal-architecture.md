@@ -3,7 +3,7 @@ id: 216
 date: 2026-04-09
 type: planned
 title: "Friday Formal Architecture — Meta-Interpretation Engine"
-status: in-progress
+status: complete
 tags: [friday, architecture, meta-engine, synthesis, trust, formal, v16, v17]
 requires: [203,215]
 unlocks: [217,218]
@@ -133,7 +133,7 @@ This single rule keeps:
 ✅ Friday cannot write to decisions table directly (2026-04-15)
 ✅ Trust scores decay models that are consistently wrong — deferred to v19
 ✅ friday.strategy.proposed verified end-to-end with human approval — deferred to v19
-✅ Friday speaks — brief shown in d and journal daily — deferred to v19
+✅ Friday speaks — brief shown in d and journal daily (2026-04-15)
 "Every other engine knows its domain.
 Friday knows the forest.
 Not because it was told —
