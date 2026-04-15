@@ -3,7 +3,7 @@ id: 218
 date: 2026-04-09
 type: planned
 title: "Friday Knowledge Engine — Situated Learning and Conflict Resolution"
-status: planned
+status: in-progress
 tags: [friday, knowledge, learning, rust, arch, python, situated, conflicts, v19-prep]
 requires: [203,216,217]
 unlocks: [219,220]
