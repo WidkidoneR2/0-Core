@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "core")]
-#[command(version = env!("CARGO_PKG_VERSION"))]
-#[command(about = "0-Core v2 — single orchestrator")]
+#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v18 (Synthesis Engine)"))]
+#[command(about = "0-Core \u{2014} single orchestrator binary")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

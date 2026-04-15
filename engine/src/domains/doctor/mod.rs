@@ -457,6 +457,17 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 format!("{}%", pct).bright_red()
             };
             println!("  {}  Alignment: {}", "🧭".normal(), colored);
+    {
+        let iv: String = ctx.runtime.db.query_row(
+            "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_version'",
+            [], |r| r.get(0)
+        ).unwrap_or_else(|_| "v18".to_string());
+        let iname: String = ctx.runtime.db.query_row(
+            "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_name'",
+            [], |r| r.get(0)
+        ).unwrap_or_else(|_| "Synthesis Engine".to_string());
+        println!("  {}  Intelligence: {} {} {}", "🧠".normal(), iv.bright_cyan(), "—".dimmed(), iname.dimmed());
+    }
         }
     }
     // INT-207 L1 — Engine coordination status inline

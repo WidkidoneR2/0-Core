@@ -15,12 +15,20 @@ use colored::*;
 pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
     match cmd {
         Command::Version => {
-            println!(
-                "{} {}",
+            let intel_ver: String = ctx.runtime.db.query_row(
+                "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_version'",
+                [], |r| r.get(0)
+            ).unwrap_or_else(|_| "v18".to_string());
+            let intel_name: String = ctx.runtime.db.query_row(
+                "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_name'",
+                [], |r| r.get(0)
+            ).unwrap_or_else(|_| "Synthesis Engine".to_string());
+            println!("{} {}  ·  intelligence {} ({})",
                 "core".bright_cyan().bold(),
-                env!("CARGO_PKG_VERSION").dimmed()
-            );
-            println!("{}", "0-Core v2 — single orchestrator".dimmed());
+                env!("CARGO_PKG_VERSION").dimmed(),
+                intel_ver.bright_green(),
+                intel_name.dimmed());
+            println!("{}", "0-Core — single orchestrator binary".dimmed());
             Ok(())
         }
 
