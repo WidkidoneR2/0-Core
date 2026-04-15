@@ -382,6 +382,8 @@ pub enum FridayCommands {
     UpdatePersonality,
     /// Seed Linux/Rust/Forest knowledge base
     SeedKnowledge,
+    /// Run the learning loop
+    LearningLoop,
 }
 
 #[derive(Subcommand)]

@@ -14,6 +14,7 @@ pub enum FridayCommand {
     Suggest,
     UpdatePersonality,
     SeedKnowledge,
+    LearningLoop,
 }
 
 pub enum Command {
