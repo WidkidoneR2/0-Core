@@ -605,6 +605,127 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
         "✅".green(), added.to_string().bright_white());
     Ok(())
 }
+
+/// Phase 5: Learning loop -- observe → hypothesis → validate → reinforce/decay
+pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Step 1: Generate hypotheses from current patterns
+    let patterns: Vec<(i64, String, String, f64)> = {
+        let mut s = db.prepare(
+            "SELECT id, trigger, action, confidence FROM friday_patterns
+             WHERE confidence >= 0.6 ORDER BY confidence DESC LIMIT 5"
+        )?;
+        let x: Vec<(i64, String, String, f64)> = s.query_map([], |r| Ok((
+            r.get(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?, r.get::<_,f64>(3)?
+        )))?.filter_map(|r| r.ok()).collect(); x
+    };
+    let mut hypotheses_created = 0;
+    for (pat_id, trigger, action, confidence) in &patterns {
+        let prediction = format!("When '{}' occurs, '{}' will follow", trigger, action);
+        let exists: i64 = db.query_row(
+            "SELECT COUNT(*) FROM friday_hypotheses WHERE prediction = ?1 AND outcome IS NULL",
+            rusqlite::params![prediction], |r| r.get(0)
+        ).unwrap_or(0);
+        if exists == 0 {
+            let _ = db.execute(
+                "INSERT INTO friday_hypotheses (prediction, context, confidence, created_at, expires_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![
+                    prediction,
+                    format!("{{\"pattern_id\":{}}}", pat_id),
+                    confidence,
+                    now,
+                    now + 86400 // expires in 24h
+                ],
+            );
+            hypotheses_created += 1;
+        }
+    }
+    // Step 2: Validate expired/pending hypotheses against what actually happened
+    let pending: Vec<(i64, String, f64)> = {
+        let mut s = db.prepare(
+            "SELECT id, prediction, confidence FROM friday_hypotheses
+             WHERE outcome IS NULL AND expires_at < ?1 LIMIT 10"
+        )?;
+        let x: Vec<(i64, String, f64)> = s.query_map(rusqlite::params![now], |r| Ok((
+            r.get(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?
+        )))?.filter_map(|r| r.ok()).collect(); x
+    };
+    let mut validated = 0;
+    let mut reinforced = 0;
+    let mut penalized = 0;
+    for (hyp_id, prediction, confidence) in &pending {
+        // Simple validation: check if the predicted action appeared in shell_history
+        // after the hypothesis was created
+        let hyp_created: i64 = db.query_row(
+            "SELECT created_at FROM friday_hypotheses WHERE id = ?1",
+            rusqlite::params![hyp_id], |r| r.get(0)
+        ).unwrap_or(0);
+        // Extract action from prediction text
+        let action_part = prediction.split("'").nth(3).unwrap_or("");
+        let found: i64 = db.query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE ?1 AND timestamp > ?2",
+            rusqlite::params![format!("%{}%", action_part), hyp_created],
+            |r| r.get(0)
+        ).unwrap_or(0);
+        let (outcome, delta) = if found > 0 {
+            ("correct", 0.05f64)  // reinforce
+        } else {
+            ("incorrect", -0.10f64) // penalize
+        };
+        // Update hypothesis
+        let _ = db.execute(
+            "UPDATE friday_hypotheses SET outcome = ?1, resolved_at = ?2, correct = ?3
+             WHERE id = ?4",
+            rusqlite::params![outcome, now, if outcome == "correct" { 1 } else { 0 }, hyp_id],
+        );
+        // Update pattern confidence (reinforce or decay)
+        if !action_part.is_empty() {
+            let new_conf = (confidence + delta).clamp(0.1, 0.99);
+            let _ = db.execute(
+                "UPDATE friday_patterns SET confidence = ?1 WHERE action LIKE ?2",
+                rusqlite::params![new_conf, format!("%{}%", action_part)],
+            );
+            if delta > 0.0 { reinforced += 1; } else { penalized += 1; }
+        }
+        validated += 1;
+    }
+    // Step 3: Generate abstraction candidates from high-frequency patterns
+    let high_freq: Vec<(String, String, i64)> = {
+        let mut s = db.prepare(
+            "SELECT trigger, action, frequency FROM friday_patterns
+             WHERE frequency >= 5 AND confidence >= 0.7 ORDER BY frequency DESC LIMIT 3"
+        )?;
+        let x: Vec<(String, String, i64)> = s.query_map([], |r| Ok((
+            r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?
+        )))?.filter_map(|r| r.ok()).collect(); x
+    };
+    let mut abstractions = 0;
+    for (trigger, action, freq) in &high_freq {
+        let name_candidate = format!("{}_then_{}", 
+            trigger.split_whitespace().last().unwrap_or("event"),
+            action.split_whitespace().last().unwrap_or("action")
+        );
+        let fact = format!("abstraction_candidate: '{}' pattern (trigger: {}, action: {}, freq: {})", 
+            name_candidate, trigger, action, freq);
+        let _ = db.execute(
+            "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
+             VALUES ('abstraction', ?1, 0.7, 'learning_loop', ?2, ?2)",
+            rusqlite::params![fact, now],
+        );
+        abstractions += 1;
+    }
+    println!("  {} Learning loop complete:", "🌲".normal());
+    println!("    {} hypotheses created", hypotheses_created.to_string().bright_white());
+    println!("    {} hypotheses validated ({} reinforced, {} penalized)", 
+        validated.to_string().bright_white(),
+        reinforced.to_string().bright_green(),
+        penalized.to_string().bright_yellow());
+    println!("    {} abstraction candidates generated", abstractions.to_string().bright_cyan());
+    Ok(())
+}
 /// core friday observe -- manually trigger observation cycle
 pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
