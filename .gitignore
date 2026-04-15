@@ -132,3 +132,7 @@ runtime/backups/
 runtime/state.db.bak
 runtime/state.db-wal
 runtime/state.db-shm
+
+# Accidentally committed empty files -- prevent recurrence
+deploy
+faelight-shell
