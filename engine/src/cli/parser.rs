@@ -384,6 +384,10 @@ pub enum FridayCommands {
     SeedKnowledge,
     /// Run the learning loop
     LearningLoop,
+    /// Name a friday abstraction
+    NameAbstraction { name: String, description: String },
+    /// List Friday vocabulary
+    Vocabulary,
 }
 
 #[derive(Subcommand)]

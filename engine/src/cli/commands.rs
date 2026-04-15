@@ -15,6 +15,8 @@ pub enum FridayCommand {
     UpdatePersonality,
     SeedKnowledge,
     LearningLoop,
+    NameAbstraction { name: String, description: String },
+    Vocabulary,
 }
 
 pub enum Command {

@@ -491,6 +491,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::UpdatePersonality => crate::domains::friday::update_personality(ctx),
             FridayCommand::SeedKnowledge => crate::domains::friday::seed_linux_knowledge(ctx),
             FridayCommand::LearningLoop => crate::domains::friday::learning_loop(ctx),
+            FridayCommand::NameAbstraction { name, description } => crate::domains::friday::name_abstraction(ctx, &name, &description),
+            FridayCommand::Vocabulary => crate::domains::friday::list_vocabulary(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
