@@ -243,6 +243,20 @@ pub fn show_models(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+/// Friday speaks when it detects a known error pattern
+pub fn speak_on_error(ctx: &AppContext, error_output: &str) -> CoreResult<()> {
+    if let Some((desc, resolution, confidence)) = crate::domains::knowledge::query_for_error(ctx, error_output) {
+        if confidence >= 0.85 {
+            println!();
+            println!("  {} Friday knows this pattern:", "🌲".normal());
+            println!("  {} {} ({:.0}% confidence)", "→".bright_green(), desc.bright_white(), confidence * 100.0);
+            println!("  {} {}", "fix:".bright_cyan(), resolution.white());
+            println!();
+        }
+    }
+    Ok(())
+}
 /// Run the full Friday formal architecture cycle
 pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;

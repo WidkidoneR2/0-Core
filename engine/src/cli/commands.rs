@@ -5,6 +5,8 @@ pub enum KnowledgeCommand {
     Accuracy,
     Add { domain: String, description: String, resolution: String },
     Seed,
+    Show { id: String },
+    Outcome { id: String, correct: String },  // "yes"/"no" or "true"/"false"
 }
 
 #[derive(Debug)]

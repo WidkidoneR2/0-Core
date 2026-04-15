@@ -110,6 +110,10 @@ pub fn record(ctx: &AppContext, tool: &str, version: &str, outcome: &str, durati
     let icon = if outcome == "success" { "✅" } else { "❌" };
     println!("  {} deploy recorded: {} {} ({}) {}ms",
         icon, tool.bright_cyan(), version.dimmed(), outcome, duration_ms);
+    // INT-218: on failure, Friday checks knowledge engine for known patterns
+    if outcome != "success" {
+        let _ = crate::domains::friday_arch::speak_on_error(ctx, &format!("build failed {}", tool));
+    }
     Ok(())
 }
 /// core deploy log -- recent deploy history

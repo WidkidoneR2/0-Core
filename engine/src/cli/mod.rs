@@ -57,6 +57,8 @@ pub fn parse() -> Command {
             KnowledgeCommands::Accuracy => KnowledgeCommand::Accuracy,
             KnowledgeCommands::Add { domain, description, resolution } => KnowledgeCommand::Add { domain, description, resolution },
             KnowledgeCommands::Seed => KnowledgeCommand::Seed,
+            KnowledgeCommands::Show { id } => KnowledgeCommand::Show { id },
+            KnowledgeCommands::Outcome { id, correct } => KnowledgeCommand::Outcome { id, correct },
         }),
         Commands::FridayArch { command } => Command::FridayArch(match command {
             FridayArchCommands::Run => FridayArchCommand::Run,
