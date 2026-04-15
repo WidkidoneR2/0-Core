@@ -215,10 +215,10 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 2 — faelight-term chat pane (Ctrl+Shift+F toggle) — deferred to INT-201
 ✅ Phase 2 — Proactive messages through fsh after commands (2026-04-14)
 ✅ Phase 2 — friday suggest live with evidence (2026-04-14)
-⬜ Phase 3 — friday_personality table tracking evolution
-⬜ Phase 3 — Consistent voice emerging from interaction data
-⬜ Phase 4 — Linux knowledge base (arch/rust/wayland/systemd)
-⬜ Phase 4 — Friday can explain any forest tool from source
+✅ Phase 3 — friday_personality table tracking evolution (2026-04-14)
+✅ Phase 3 — Consistent voice emerging from interaction data (2026-04-14)
+✅ Phase 4 — Linux knowledge base (arch/rust/wayland/systemd) (2026-04-14)
+✅ Phase 4 — Friday can explain any forest tool from source (2026-04-14)
 ⬜ Phase 5 — First friday-native abstraction named and recorded
 ⬜ Phase 6 — Friday co-authors first intent
 ⬜ Friday has been wrong, corrected, and learned from the correction
