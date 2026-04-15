@@ -259,21 +259,64 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     // Search knowledge base
     let facts: Vec<(String, String, f64)> = {
         let mut s = db.prepare(
-            "SELECT domain, fact, confidence FROM friday_knowledge ORDER BY confidence DESC"
+            "SELECT domain, fact, confidence FROM friday_knowledge ORDER BY confidence DESC, ROWID ASC"
         )?;
         let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
             ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
     };
-    // Find relevant facts
+    // Find relevant facts -- sort by domain specificity first
     let mut all_facts = facts.clone();
     all_facts.extend(pattern_facts);
+    // Detect primary domain from query
+    let primary_domain = ["rust","cargo","borrow","lifetime"].iter().any(|w| q_lower.contains(w)).then_some("rust")
+        .or(["wayland","niri","compositor"].iter().any(|w| q_lower.contains(w)).then_some("wayland"))
+        .or(["pacman","arch","systemctl","aur"].iter().any(|w| q_lower.contains(w)).then_some("arch"))
+        .or(["dbus","zbus"].iter().any(|w| q_lower.contains(w)).then_some("dbus"))
+        .or(["deploy","intent","fsh","state.db"].iter().any(|w| q_lower.contains(w)).then_some("forest"))
+        .or(["build","compile","error","failed"].iter().any(|w| q_lower.contains(w)).then_some("build"));
+    all_facts.sort_by(|a, b| {
+        let a_exact = primary_domain.map(|d| a.0 == d).unwrap_or(false);
+        let b_exact = primary_domain.map(|d| b.0 == d).unwrap_or(false);
+        let a_generic = a.0 == "tools" || a.0 == "forest" || a.0 == "sessions";
+        let b_generic = b.0 == "tools" || b.0 == "forest" || b.0 == "sessions";
+        if a_exact && !b_exact { return std::cmp::Ordering::Less; }
+        if !a_exact && b_exact { return std::cmp::Ordering::Greater; }
+        if a_generic && !b_generic { return std::cmp::Ordering::Greater; }
+        if !a_generic && b_generic { return std::cmp::Ordering::Less; }
+        b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal)
+    });
     let relevant: Vec<&(String, String, f64)> = all_facts.iter()
         .filter(|(domain, fact, _)| {
             let d = domain.to_lowercase();
             let f = fact.to_lowercase();
-            q_lower.split_whitespace().any(|word| d.contains(word) || f.contains(word))
+            // Skip common words, require meaningful matches
+            let stop = ["how", "do", "i", "a", "the", "in", "to", "for", "of", "and", "is", "it", "fix", "get", "use"];
+            // Map query terms to domains
+            let domain_map: &[(&str, &str)] = &[
+                ("rust", "rust"), ("cargo", "rust"), ("borrow", "rust"), ("lifetime", "rust"),
+                ("wayland", "wayland"), ("niri", "wayland"), ("compositor", "wayland"),
+                ("pacman", "arch"), ("arch", "arch"), ("systemctl", "arch"), ("aur", "arch"),
+                ("dbus", "dbus"), ("zbus", "dbus"),
+                ("forest", "forest"), ("fsh", "forest"), ("deploy", "forest"), ("intent", "forest"),
+                ("build", "build"), ("error", "build"), ("compile", "build"),
+            ];
+            let keywords: Vec<&str> = q_lower.split_whitespace()
+                .filter(|w| !stop.contains(w) && w.len() > 2)
+                .collect();
+            if keywords.is_empty() { return true; }
+            // Check domain mapping first
+            let domain_match = keywords.iter().any(|word|
+                domain_map.iter().any(|(kw, dom)| word.contains(kw) && d.contains(dom))
+            );
+            if domain_match { return true; }
+            keywords.iter().any(|word| d.contains(*word) || f.contains(*word))
         })
-        .take(3)
+        .fold(Vec::new(), |mut acc, item| {
+            if !acc.iter().any(|x: &&(String,String,f64)| x.1 == item.1) { acc.push(item); }
+            acc
+        })
+        .into_iter()
+        .take(5)
         .collect();
     println!();
     println!("  {} Friday -- Phase 0", "🌲".normal());
@@ -460,6 +503,106 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {} Phase 0 \u{2014} I observe more than I speak. Ask me again as I learn more.", "💡".normal().dimmed());
     println!();
+    Ok(())
+}
+
+/// Phase 3: Update friday_personality from interaction patterns
+pub fn update_personality(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Count interactions
+    let ask_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_knowledge WHERE times_used > 0", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let pattern_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let obs_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
+    ).unwrap_or(0);
+    // Determine phase based on data richness
+    let phase = if pattern_count >= 20 && obs_count >= 10 { "2" }
+                else if obs_count >= 5 { "1" }
+                else { "0" };
+    // Update personality traits based on data
+    let traits = vec![
+        ("phase", phase.to_string()),
+        ("observations_since_birth", obs_count.to_string()),
+        ("patterns_learned", pattern_count.to_string()),
+        ("knowledge_consulted", ask_count.to_string()),
+        ("voice_confidence", if pattern_count >= 10 { "growing" } else { "nascent" }.to_string()),
+        ("dominant_domain", "forest_operations".to_string()),
+        ("communication_style", "direct, evidence-based, concise".to_string()),
+        ("updated_at", now.to_string()),
+    ];
+    for (key, value) in &traits {
+        let _ = db.execute(
+            "INSERT OR REPLACE INTO friday_personality (key, value, updated_at) VALUES (?1, ?2, ?3)",
+            rusqlite::params![key, value, now],
+        );
+    }
+    println!("  {} Personality updated -- phase {}, {} patterns, {} observations",
+        "✅".green(), phase.bright_cyan(),
+        pattern_count.to_string().bright_white(),
+        obs_count.to_string().bright_white());
+    Ok(())
+}
+/// Phase 4: Seed Linux/Rust/Forest knowledge base
+pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let knowledge = vec![
+        // Arch Linux
+        ("arch", "pacman -Syu updates all packages. pacman -S installs. pacman -Rs removes with deps.", 0.95),
+        ("arch", "systemctl start/stop/enable/disable/status manages services. journalctl -u <service> shows logs.", 0.95),
+        ("arch", "AUR packages are built from source. paru or yay are AUR helpers. Never run as root.", 0.90),
+        ("arch", "Arch uses rolling release. Updates can break things. Always read the Arch news before updating.", 0.90),
+        ("arch", "/etc/pacman.conf controls mirrors and options. reflector updates mirror list.", 0.85),
+        // Wayland/Niri
+        ("wayland", "Niri is a scrollable tiling Wayland compositor. Windows scroll horizontally, not in a tree.", 0.95),
+        ("wayland", "Wayland uses wl_display, wl_surface, wl_compositor objects. No global X display connection.", 0.90),
+        ("wayland", "layer-shell protocol enables desktop widgets and panels. smithay implements it in Rust.", 0.85),
+        ("wayland", "WAYLAND_DISPLAY env var points to the socket. Default is wayland-0 or wayland-1.", 0.85),
+        // Rust toolchain
+        ("rust", "cargo build --release optimizes. cargo build is debug. Always deploy --release binaries.", 0.95),
+        ("rust", "Cargo.toml defines dependencies. Cargo.lock pins exact versions. Both should be committed.", 0.95),
+        ("rust", "rustfmt formats code. clippy lints. cargo check validates without building full binary.", 0.90),
+        ("rust", "The borrow checker prevents use-after-free and data races at compile time.", 0.95),
+        ("rust", "String is heap-allocated, owned. &str is a borrowed string slice. &String coerces to &str.", 0.90),
+        ("rust", "Result<T, E> for recoverable errors. ? operator propagates. unwrap() panics on Err.", 0.95),
+        ("rust", "Vec<T> is a growable array. Use iter() for borrowing, into_iter() for consuming.", 0.90),
+        // Forest tools
+        ("forest", "The forest has 50+ custom Rust tools. Every tool is understood completely.", 0.95),
+        ("forest", "core is the orchestrator binary. It has 50+ domains including friday, synthesis, predict, doctor.", 0.95),
+        ("forest", "fsh is the daily driver shell. query, fsearch, patch, edit, run are native builtins.", 0.95),
+        ("forest", "Deploy workflow: deploy <tool> builds, versions, symlinks, and verifies in one command.", 0.95),
+        ("forest", "state.db is the forest brain. WAL mode. Never DELETE or UPDATE forest_events_v2.", 0.95),
+        ("forest", "cistart before intent work. cicomplete after. fg commit after changes. d before everything.", 0.95),
+        ("forest", "Health 100% = 22/22 checks pass. Below 95% = investigate before shipping.", 0.95),
+        // Build patterns
+        ("build", "When a Rust build fails with E0432, check the use statements and module paths.", 0.90),
+        ("build", "E0308 type mismatch -- check if you need .to_string(), &str vs String, or type annotation.", 0.90),
+        ("build", "E0597 borrow lifetime -- use let x = ...; x pattern to extend lifetime past block.", 0.90),
+        ("build", "E0716 temporary dropped -- assign to a named variable before using its reference.", 0.90),
+        ("build", "dead_code warnings: prefix with _ or add #[allow(dead_code)]. Never suppress real bugs.", 0.85),
+        // DBus
+        ("dbus", "DBus allows IPC between processes. Session bus for user services, system bus for system.", 0.85),
+        ("dbus", "zbus is the idiomatic Rust DBus library. It uses async/await with tokio.", 0.85),
+        ("dbus", "faelight-notify uses DBus org.freedesktop.Notifications interface.", 0.85),
+    ];
+    let mut added = 0;
+    for (domain, fact, confidence) in &knowledge {
+        let result = db.execute(
+            "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'seed_linux', ?4, ?4)",
+            rusqlite::params![domain, fact, confidence, now],
+        );
+        if result.is_ok() { added += 1; }
+    }
+    println!("  {} Linux/Rust/Forest knowledge seeded -- {} facts added",
+        "✅".green(), added.to_string().bright_white());
     Ok(())
 }
 /// core friday observe -- manually trigger observation cycle

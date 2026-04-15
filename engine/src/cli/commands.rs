@@ -12,6 +12,8 @@ pub enum FridayCommand {
     Observe,
     ExtractPatterns,
     Suggest,
+    UpdatePersonality,
+    SeedKnowledge,
 }
 
 pub enum Command {

@@ -488,6 +488,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::Observe => crate::domains::friday::run_observe(ctx),
             FridayCommand::ExtractPatterns => crate::domains::friday::extract_patterns(ctx),
             FridayCommand::Suggest => crate::domains::friday::suggest(ctx),
+            FridayCommand::UpdatePersonality => crate::domains::friday::update_personality(ctx),
+            FridayCommand::SeedKnowledge => crate::domains::friday::seed_linux_knowledge(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
