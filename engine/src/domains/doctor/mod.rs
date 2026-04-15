@@ -499,6 +499,22 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             println!("  {}  Friday: {}", "🌲".to_string(), "dormant".dimmed());
         }
     }
+    // INT-216 -- Friday meta-interpretation brief
+    {
+        let patterns = crate::domains::friday_arch::detect_patterns(ctx).unwrap_or_default();
+        let contradictions = crate::domains::friday_arch::detect_contradictions(ctx).unwrap_or_default();
+        if !contradictions.is_empty() {
+            for (a, b, desc) in contradictions.iter().take(1) {
+                println!("  🧠  ⚠ {} ↔ {}: {}",
+                    a.bright_red(), b.bright_red(),
+                    desc.chars().take(55).collect::<String>().bright_yellow());
+            }
+        } else if !patterns.is_empty() {
+            if let Some(p) = patterns.first() {
+                println!("  🧠  {}", p.chars().take(70).collect::<String>().bright_white());
+            }
+        }
+    }
     // INT-207 L1 — Emit health signal to engine_signals
     {
         let now = std::time::SystemTime::now()
