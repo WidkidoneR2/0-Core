@@ -1,4 +1,12 @@
 #[derive(Debug)]
+pub enum FridayArchCommand {
+    Run,
+    Models,
+    Proposals,
+    Contradictions,
+}
+
+#[derive(Debug)]
 pub enum SynthesizeCommand {
     Now,
     Brief,
@@ -98,6 +106,7 @@ pub enum Command {
     Deploy(DeployCommand),
     Friday(FridayCommand),
     Synthesize(SynthesizeCommand),
+    FridayArch(FridayArchCommand),
 }
 
 #[derive(Debug)]

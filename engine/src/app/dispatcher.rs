@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, FridayArchCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -477,6 +477,17 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 
+        Command::FridayArch(c) => match c {
+            FridayArchCommand::Run => crate::domains::friday_arch::run(ctx),
+            FridayArchCommand::Models => crate::domains::friday_arch::show_models(ctx),
+            FridayArchCommand::Proposals => crate::domains::friday_arch::show_proposals(ctx),
+            FridayArchCommand::Contradictions => {
+                let c = crate::domains::friday_arch::detect_contradictions(ctx)?;
+                for (a, b, d) in &c { println!("  {} ↔ {}: {}", a, b, d); }
+                if c.is_empty() { println!("  No active contradictions"); }
+                Ok(())
+            },
+        },
         Command::Synthesize(c) => match c {
             SynthesizeCommand::Now => crate::domains::synthesis::cmd_now(ctx),
             SynthesizeCommand::Brief => crate::domains::synthesis::cmd_brief(ctx),

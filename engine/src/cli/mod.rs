@@ -51,6 +51,12 @@ pub fn parse() -> Command {
             SynthesizeCommands::Brief => SynthesizeCommand::Brief,
             SynthesizeCommands::History => SynthesizeCommand::History,
         }),
+        Commands::FridayArch { command } => Command::FridayArch(match command {
+            FridayArchCommands::Run => FridayArchCommand::Run,
+            FridayArchCommands::Models => FridayArchCommand::Models,
+            FridayArchCommands::Proposals => FridayArchCommand::Proposals,
+            FridayArchCommands::Contradictions => FridayArchCommand::Contradictions,
+        }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {
             PluginCommands::List => PluginCommand::List,
@@ -598,6 +604,6 @@ pub fn parse() -> Command {
     }
 }
 use crate::cli::parser::DeployCommands;
-use crate::cli::parser::{FridayCommands, SynthesizeCommands};
-use crate::cli::commands::{FridayCommand, SynthesizeCommand};
+use crate::cli::parser::{FridayCommands, SynthesizeCommands, FridayArchCommands};
+use crate::cli::commands::{FridayCommand, SynthesizeCommand, FridayArchCommand};
 use crate::cli::commands::DeployCommand;
