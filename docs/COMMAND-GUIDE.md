@@ -536,3 +536,16 @@
 | core synthesize now | Generate synthesis snapshot -- unified brief from all intelligence signals |
 | core synthesize brief | Show the current Friday brief (latest snapshot) |
 | core synthesize history | Show past synthesis snapshots |
+| Command | What it does |
+|---------|-------------|
+| core friday status | Friday's current state -- observations, patterns, facts |
+| core friday ask "<question>" | Ask Friday about Linux, Rust, Wayland, or the forest |
+| core friday suggest | Evidence-based recommendation from observed patterns |
+| core friday observe | Manually trigger observation cycle |
+| core friday extract-patterns | Extract patterns from shell history |
+| core friday update-personality | Update personality from interaction data |
+| core friday seed-knowledge | Seed Linux/Rust/Forest knowledge base |
+| core synthesize now | Generate synthesis snapshot -- unified forest brief |
+| core synthesize brief | Show current Friday brief |
+| core synthesize history | Past synthesis snapshots |
+| core version | Show core binary version + intelligence tier |
