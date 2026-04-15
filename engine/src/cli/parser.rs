@@ -378,6 +378,10 @@ pub enum FridayCommands {
     ExtractPatterns,
     /// Get Friday's evidence-based suggestion
     Suggest,
+    /// Update personality from interaction data
+    UpdatePersonality,
+    /// Seed Linux/Rust/Forest knowledge base
+    SeedKnowledge,
 }
 
 #[derive(Subcommand)]

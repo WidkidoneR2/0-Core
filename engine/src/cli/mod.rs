@@ -39,6 +39,8 @@ pub fn parse() -> Command {
             FridayCommands::Observe => FridayCommand::Observe,
             FridayCommands::ExtractPatterns => FridayCommand::ExtractPatterns,
             FridayCommands::Suggest => FridayCommand::Suggest,
+            FridayCommands::UpdatePersonality => FridayCommand::UpdatePersonality,
+            FridayCommands::SeedKnowledge => FridayCommand::SeedKnowledge,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,
