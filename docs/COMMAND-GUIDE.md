@@ -572,3 +572,13 @@ Contradictions surface automatically in `d` (doctor) output.
 | core friday name-abstraction "name" "description" | Name a Friday abstraction -- adds to vocabulary |
 | core friday vocabulary | List all named abstractions |
 | core friday propose-intent | Friday proposes a new intent based on observed patterns |
+| Command | What it does |
+|---------|-------------|
+| core knowledge seed | Seed forest lessons -- 18 hard-won lessons pre-loaded |
+| core knowledge search "term" | Search knowledge base by domain, error, or keyword |
+| core knowledge show "id" | Show full entry with resolution and outcome history |
+| core knowledge patterns | Show all patterns organized by domain |
+| core knowledge patterns "domain" | Show patterns for specific domain (rust/fsh/arch/build/niri) |
+| core knowledge accuracy | Show resolution accuracy per domain with visual bar |
+| core knowledge add "domain" "problem" "fix" | Record a new lesson manually |
+| core knowledge outcome "id" yes/no | Record if a fix worked -- updates confidence score |
