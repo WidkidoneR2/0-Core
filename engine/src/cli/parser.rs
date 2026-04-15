@@ -388,6 +388,8 @@ pub enum FridayCommands {
     NameAbstraction { name: String, description: String },
     /// List Friday vocabulary
     Vocabulary,
+    /// Friday proposes a new intent
+    ProposeIntent,
 }
 
 #[derive(Subcommand)]

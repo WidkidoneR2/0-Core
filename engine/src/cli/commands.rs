@@ -17,6 +17,7 @@ pub enum FridayCommand {
     LearningLoop,
     NameAbstraction { name: String, description: String },
     Vocabulary,
+    ProposeIntent,
 }
 
 pub enum Command {

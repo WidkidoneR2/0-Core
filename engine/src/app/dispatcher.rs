@@ -493,6 +493,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::LearningLoop => crate::domains::friday::learning_loop(ctx),
             FridayCommand::NameAbstraction { name, description } => crate::domains::friday::name_abstraction(ctx, &name, &description),
             FridayCommand::Vocabulary => crate::domains::friday::list_vocabulary(ctx),
+            FridayCommand::ProposeIntent => crate::domains::friday::propose_intent(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
