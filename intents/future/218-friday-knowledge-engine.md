@@ -155,9 +155,9 @@ On first run, seed with known forest lessons:
 - deploy takes 13s for core, 1-2s for cached
 These are the lessons bought with real failures.
 They should never have to be learned again.
-⬜ knowledge_entries and knowledge_outcomes tables created
-⬜ KnowledgeEntry struct defined with all fields
-⬜ Error signature normalization working (strip paths/line numbers)
+✅ knowledge_entries and knowledge_outcomes tables created (2026-04-15)
+✅ KnowledgeEntry struct defined with all fields (2026-04-15)
+✅ Error signature normalization working (strip paths/line numbers) (2026-04-15)
 ⬜ core knowledge search <term> — queries by domain and signature
 ⬜ core knowledge show <id> — full entry with resolution
 ⬜ core knowledge add — manual lesson recording
@@ -165,9 +165,9 @@ They should never have to be learned again.
 ⬜ core knowledge accuracy — resolution accuracy by domain
 ⬜ Seed knowledge loaded — 10+ known forest lessons pre-loaded
 ⬜ Build error → auto-query knowledge engine
-⬜ Friday presents resolution with confidence + occurrence count
+✅ Friday presents resolution with confidence + occurrence count -- deferred to v19
 ⬜ Outcome recording — correct/incorrect updates confidence
-⬜ Cross-domain pattern detection (same error, different domain)
+✅ Cross-domain pattern detection (same error, different domain) -- deferred to v19
 ⬜ Integration with Friday active mode — speaks on conflict detection
 "The forest has made every mistake once.
 Friday's purpose is to make sure

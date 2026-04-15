@@ -26,6 +26,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: SynthesizeCommands,
     },
+    /// Friday Knowledge Engine -- situated lessons
+    Knowledge {
+        #[command(subcommand)]
+        command: KnowledgeCommands,
+    },
     /// Friday Formal Architecture -- Meta-Interpretation Engine
     FridayArch {
         #[command(subcommand)]
@@ -361,6 +366,20 @@ pub enum DeployCommands {
     #[command(name = "check-deps")]
     CheckDeps { tool: String },
 }
+#[derive(Subcommand, Clone)]
+pub enum KnowledgeCommands {
+    /// Search knowledge base
+    Search { term: String },
+    /// Show patterns by domain
+    Patterns { domain: Option<String> },
+    /// Show accuracy by domain
+    Accuracy,
+    /// Add a lesson manually
+    Add { domain: String, description: String, resolution: String },
+    /// Seed forest lessons
+    Seed,
+}
+
 #[derive(Subcommand, Clone)]
 pub enum FridayArchCommands {
     /// Run full meta-interpretation cycle
