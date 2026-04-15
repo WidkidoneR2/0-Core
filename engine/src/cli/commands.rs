@@ -1,4 +1,13 @@
 #[derive(Debug)]
+pub enum KnowledgeCommand {
+    Search { term: String },
+    Patterns { domain: Option<String> },
+    Accuracy,
+    Add { domain: String, description: String, resolution: String },
+    Seed,
+}
+
+#[derive(Debug)]
 pub enum FridayArchCommand {
     Run,
     Models,
@@ -107,6 +116,7 @@ pub enum Command {
     Friday(FridayCommand),
     Synthesize(SynthesizeCommand),
     FridayArch(FridayArchCommand),
+    Knowledge(KnowledgeCommand),
 }
 
 #[derive(Debug)]

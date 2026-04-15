@@ -51,6 +51,13 @@ pub fn parse() -> Command {
             SynthesizeCommands::Brief => SynthesizeCommand::Brief,
             SynthesizeCommands::History => SynthesizeCommand::History,
         }),
+        Commands::Knowledge { command } => Command::Knowledge(match command {
+            KnowledgeCommands::Search { term } => KnowledgeCommand::Search { term },
+            KnowledgeCommands::Patterns { domain } => KnowledgeCommand::Patterns { domain },
+            KnowledgeCommands::Accuracy => KnowledgeCommand::Accuracy,
+            KnowledgeCommands::Add { domain, description, resolution } => KnowledgeCommand::Add { domain, description, resolution },
+            KnowledgeCommands::Seed => KnowledgeCommand::Seed,
+        }),
         Commands::FridayArch { command } => Command::FridayArch(match command {
             FridayArchCommands::Run => FridayArchCommand::Run,
             FridayArchCommands::Models => FridayArchCommand::Models,
@@ -604,6 +611,6 @@ pub fn parse() -> Command {
     }
 }
 use crate::cli::parser::DeployCommands;
-use crate::cli::parser::{FridayCommands, SynthesizeCommands, FridayArchCommands};
-use crate::cli::commands::{FridayCommand, SynthesizeCommand, FridayArchCommand};
+use crate::cli::parser::{FridayCommands, SynthesizeCommands, FridayArchCommands, KnowledgeCommands};
+use crate::cli::commands::{FridayCommand, SynthesizeCommand, FridayArchCommand, KnowledgeCommand};
 use crate::cli::commands::DeployCommand;

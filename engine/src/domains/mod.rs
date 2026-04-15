@@ -1,3 +1,4 @@
+pub mod knowledge;
 pub mod friday_arch;
 pub mod synthesis;
 pub mod friday;

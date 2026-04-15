@@ -2,7 +2,7 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
     AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, FridayArchCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
+    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, FridayArchCommand, KnowledgeCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
     ValuesCommand,
     DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
     NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
@@ -477,6 +477,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
         },
 
+        Command::Knowledge(c) => match c {
+            KnowledgeCommand::Search { term } => crate::domains::knowledge::search(ctx, &term),
+            KnowledgeCommand::Patterns { domain } => crate::domains::knowledge::patterns(ctx, domain.as_deref()),
+            KnowledgeCommand::Accuracy => crate::domains::knowledge::accuracy(ctx),
+            KnowledgeCommand::Add { domain, description, resolution } => crate::domains::knowledge::add(ctx, &domain, &description, &resolution),
+            KnowledgeCommand::Seed => crate::domains::knowledge::seed_forest_lessons(ctx),
+        },
         Command::FridayArch(c) => match c {
             FridayArchCommand::Run => crate::domains::friday_arch::run(ctx),
             FridayArchCommand::Models => crate::domains::friday_arch::show_models(ctx),
