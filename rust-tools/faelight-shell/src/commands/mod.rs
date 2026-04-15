@@ -644,6 +644,73 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
             CommandResult::Output(format!("  {} renamed {} occurrences in {} files", "✅".to_string(), renamed_count, renamed_files))
         }
+
+        "rspatch" => {
+            // rspatch file.rs --anchor "unique text" --new "new content" [--mode replace|after|before]
+            // Rust-safe patch: handles multiline content, unicode escapes, anchor-based insertion
+            // Unicode: writes literal UTF-8 -- no Python escape conflicts
+            // Modes: replace (default), after (insert after anchor), before (insert before anchor)
+            if args.len() < 2 {
+                return CommandResult::Error(
+                    "usage: rspatch <file> --anchor <text> --new <text> [--mode replace|after|before]\n\
+                     example: rspatch main.rs --anchor 'fn main()' --new 'fn helper() {}' --mode after".to_string()
+                );
+            }
+            let filepath = args[0];
+            let expanded = if filepath.starts_with("~/") {
+                let home = std::env::var("HOME").unwrap_or_default();
+                filepath.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                filepath.to_string()
+            };
+            let mut anchor_text: Option<String> = None;
+            let mut new_text: Option<String> = None;
+            let mut mode = "replace";
+            let mut i = 1;
+            while i < args.len() {
+                match args[i] {
+                    "--anchor" if i + 1 < args.len() => { anchor_text = Some(args[i+1].to_string()); i += 2; }
+                    "--new"    if i + 1 < args.len() => { new_text = Some(args[i+1].to_string()); i += 2; }
+                    "--mode"   if i + 1 < args.len() => { mode = args[i+1]; i += 2; }
+                    _ => { i += 1; }
+                }
+            }
+            let anchor = match anchor_text {
+                Some(t) => t,
+                None => return CommandResult::Error("rspatch: --anchor required".to_string()),
+            };
+            let new_content = match new_text {
+                Some(t) => t,
+                None => return CommandResult::Error("rspatch: --new required".to_string()),
+            };
+            let content = match std::fs::read_to_string(&expanded) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("rspatch: {}: {}", filepath, e)),
+            };
+            // Validate anchor uniqueness
+            let count = content.matches(anchor.as_str()).count();
+            if count == 0 {
+                return CommandResult::Error(format!("rspatch: anchor not found in {}\n  anchor: {}", filepath, &anchor[..anchor.len().min(60)]));
+            }
+            if count > 1 {
+                return CommandResult::Error(format!("rspatch: anchor matches {} times -- must be unique\n  anchor: {}", count, &anchor[..anchor.len().min(60)]));
+            }
+            // Apply transformation based on mode
+            let patched = match mode {
+                "replace" => content.replacen(&anchor, &new_content, 1),
+                "after"   => content.replacen(&anchor, &format!("{}\n{}", anchor, new_content), 1),
+                "before"  => content.replacen(&anchor, &format!("{}\n{}", new_content, anchor), 1),
+                _ => return CommandResult::Error(format!("rspatch: unknown mode '{}' -- use replace|after|before", mode)),
+            };
+            match std::fs::write(&expanded, &patched) {
+                Ok(_) => CommandResult::Output(format!(
+                    "  {} rspatch {} (mode: {}, anchor: {})",
+                    "✅".to_string(), filepath, mode,
+                    &anchor[..anchor.len().min(40)]
+                )),
+                Err(e) => CommandResult::Error(format!("rspatch: write failed: {}", e)),
+            }
+        }
         "patch-multi" => {
             // patch-multi file.rs << TRANSFORMS
             // old1 -- new1
