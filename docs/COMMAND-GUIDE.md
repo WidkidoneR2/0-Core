@@ -549,3 +549,10 @@
 | core synthesize brief | Show current Friday brief |
 | core synthesize history | Past synthesis snapshots |
 | core version | Show core binary version + intelligence tier |
+| Command | What it does |
+|---------|-------------|
+| rspatch file.rs --anchor "text" --new "content" | Anchor-based replacement (default: replace) |
+| rspatch file.rs --anchor "text" --new "content" --mode after | Insert new content after anchor |
+| rspatch file.rs --anchor "text" --new "content" --mode before | Insert new content before anchor |
+**Rules:** anchor must be unique in file. Never use line numbers. For multiline content use quotes.
+**Unicode:** write literal characters directly -- no Python escape sequences needed.
