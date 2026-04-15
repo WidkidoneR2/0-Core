@@ -556,3 +556,4 @@
 | rspatch file.rs --anchor "text" --new "content" --mode before | Insert new content before anchor |
 **Rules:** anchor must be unique in file. Never use line numbers. For multiline content use quotes.
 **Unicode:** write literal characters directly -- no Python escape sequences needed.
+> ⚠️  **rspatch warning:** Never let --new content contain the --anchor text. If new content includes the anchor string, the next rspatch call will match inside the newly inserted content and double-replace. Always use a different string in --new than what you searched for in --anchor.
