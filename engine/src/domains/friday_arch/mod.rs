@@ -138,6 +138,13 @@ pub fn detect_patterns(ctx: &AppContext) -> CoreResult<Vec<String>> {
              VALUES ('alignment', 'focus>speed', 'intent', ?1, ?2, 'medium', ?3)",
             params![format!("{} active intents", active_intents), desc, now],
         );
+    } else {
+        // Auto-resolve stale intent contradictions when count is back to normal
+        let _ = db.execute(
+            "UPDATE friday_contradictions SET resolved = 1, resolved_at = ?1
+             WHERE engine_b = 'intent' AND resolved = 0",
+            params![now],
+        );
     }
     // Pattern 2: Session commit velocity
     let today_start = now - (now % 86400);
@@ -188,13 +195,14 @@ pub fn detect_contradictions(ctx: &AppContext) -> CoreResult<Vec<(String, String
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let mut contradictions: Vec<(String, String, String)> = Vec::new();
-    // Check existing unresolved contradictions
+    // Check unresolved contradictions detected in last 24h only
+    let cutoff = now_ts() - 86400;
     let rows: Vec<(String, String, String)> = {
         let mut s = db.prepare(
             "SELECT engine_a, engine_b, description FROM friday_contradictions
-             WHERE resolved = 0 ORDER BY detected_at DESC LIMIT 5"
+             WHERE resolved = 0 AND detected_at > ?1 ORDER BY detected_at DESC LIMIT 5"
         )?;
-        let x: Vec<(String, String, String)> = s.query_map([], |r| Ok((
+        let x: Vec<(String, String, String)> = s.query_map(rusqlite::params![cutoff], |r| Ok((
             r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?
         )))?.filter_map(|r| r.ok()).collect(); x
     };
