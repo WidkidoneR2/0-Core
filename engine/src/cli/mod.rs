@@ -42,6 +42,8 @@ pub fn parse() -> Command {
             FridayCommands::UpdatePersonality => FridayCommand::UpdatePersonality,
             FridayCommands::SeedKnowledge => FridayCommand::SeedKnowledge,
             FridayCommands::LearningLoop => FridayCommand::LearningLoop,
+            FridayCommands::NameAbstraction { name, description } => FridayCommand::NameAbstraction { name, description },
+            FridayCommands::Vocabulary => FridayCommand::Vocabulary,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

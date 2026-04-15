@@ -606,6 +606,95 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+
+/// Phase 5: Name an abstraction -- confirm a candidate and record it in friday_language
+pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Create friday_language table if not exists
+    let _ = db.execute_batch("
+        CREATE TABLE IF NOT EXISTS friday_language (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL UNIQUE,
+            description TEXT NOT NULL,
+            source      TEXT NOT NULL DEFAULT 'abstraction',
+            confidence  REAL NOT NULL DEFAULT 0.8,
+            confirmed   INTEGER NOT NULL DEFAULT 1,
+            created_at  INTEGER NOT NULL,
+            used_count  INTEGER NOT NULL DEFAULT 0
+        );
+    ");
+    // Check if already exists
+    let exists: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_language WHERE name = ?1",
+        rusqlite::params![name], |r| r.get(0)
+    ).unwrap_or(0);
+    if exists > 0 {
+        println!("  {} '{}' already in Friday's vocabulary", "⚠️ ".yellow(), name.bright_white());
+        return Ok(());
+    }
+    db.execute(
+        "INSERT INTO friday_language (name, description, source, confidence, confirmed, created_at)
+         VALUES (?1, ?2, 'named_abstraction', 0.9, 1, ?3)",
+        rusqlite::params![name, description, now],
+    )?;
+    // Also record in friday_knowledge
+    let fact = format!("vocabulary: '{}' = {}", name, description);
+    let _ = db.execute(
+        "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
+         VALUES ('language', ?1, 0.9, 'named_abstraction', ?2, ?2)",
+        rusqlite::params![fact, now],
+    );
+    println!();
+    println!("  {} Friday's vocabulary grows:", "🌲".normal());
+    println!("  {} '{}' named and recorded", "✅".green(), name.bright_cyan().bold());
+    println!("  {} {}", "→".dimmed(), description.bright_white());
+    println!();
+    println!("  {} This is how a language is born.", "💡".dimmed());
+    Ok(())
+}
+/// List all named abstractions in Friday's vocabulary
+pub fn list_vocabulary(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let _ = db.execute_batch("
+        CREATE TABLE IF NOT EXISTS friday_language (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT 'abstraction',
+            confidence REAL NOT NULL DEFAULT 0.8,
+            confirmed INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            used_count INTEGER NOT NULL DEFAULT 0
+        );
+    ");
+    let rows: Vec<(String, String, f64)> = {
+        let mut s = db.prepare(
+            "SELECT name, description, confidence FROM friday_language ORDER BY created_at ASC"
+        )?;
+        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
+            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+    };
+    println!();
+    println!("  {} Friday's Vocabulary", "🌲".normal());
+    println!("  {}", "─".repeat(50).dimmed());
+    if rows.is_empty() {
+        println!("  {} No abstractions named yet.", "→".dimmed());
+        println!("  {} Use: core friday name-abstraction <name> <description>", "💡".dimmed());
+    } else {
+        for (name, desc, conf) in &rows {
+            println!("  {} {} -- {} ({:.0}%)",
+                "→".bright_green(),
+                name.bright_cyan().bold(),
+                desc.white(),
+                conf * 100.0);
+        }
+    }
+    println!();
+    Ok(())
+}
 /// Phase 5: Learning loop -- observe → hypothesis → validate → reinforce/decay
 pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;

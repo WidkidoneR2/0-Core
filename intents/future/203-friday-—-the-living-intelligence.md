@@ -219,19 +219,19 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 3 — Consistent voice emerging from interaction data (2026-04-14)
 ✅ Phase 4 — Linux knowledge base (arch/rust/wayland/systemd) (2026-04-14)
 ✅ Phase 4 — Friday can explain any forest tool from source (2026-04-14)
-⬜ Phase 5 — First friday-native abstraction named and recorded
+✅ Phase 5 — First friday-native abstraction named and recorded (2026-04-15)
 ⬜ Phase 6 — Friday co-authors first intent
 ⬜ Friday has been wrong, corrected, and learned from the correction
 ⬜ Friday has proposed something you hadn't considered and it was right
 ⬜ Friday has pushed back and been correct
-⬜ Friday has a name for something the forest has never named before
-⬜ Learning loop live — observe → hypothesis → validate → reinforce/decay
+✅ Friday has a name for something the forest has never named before (2026-04-15)
+✅ Learning loop live — observe → hypothesis → validate → reinforce/decay (2026-04-15)
 ✅ Pattern schema structured (trigger/context/action/outcome/frequency/confidence) (2026-04-14)
 ⬜ Negative learning live — wrong predictions penalize confidence scores
 ✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
 ✅ friday_hypotheses table tracking active predictions (2026-04-14)
 ⬜ Friday has been confidently wrong, penalized, and measurably improved
-⬜ Learning loop implemented — observe → hypothesis → validate → reinforce/decay
+✅ Learning loop implemented — observe → hypothesis → validate → reinforce/decay (2026-04-15)
 ⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
 ⬜ Negative learning live — wrong predictions penalize confidence
 ✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
