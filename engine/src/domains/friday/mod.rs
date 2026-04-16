@@ -898,8 +898,17 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
             "SELECT created_at FROM friday_hypotheses WHERE id = ?1",
             rusqlite::params![hyp_id], |r| r.get(0)
         ).unwrap_or(0);
-        // Extract action from prediction text
-        let action_part = prediction.split("'").nth(3).unwrap_or("");
+        // Extract action from prediction text (handles both quoted and unquoted formats)
+        let action_part = if prediction.contains("'") {
+            prediction.split("'").nth(3).unwrap_or("").to_string()
+        } else {
+            // "When X occurs, Y will follow" -- extract after last comma
+            prediction.split(", ").last()
+                .unwrap_or("")
+                .trim_end_matches(" will follow")
+                .to_string()
+        };
+        let action_part = action_part.trim();
         let found: i64 = db.query_row(
             "SELECT COUNT(*) FROM shell_history WHERE command LIKE ?1 AND timestamp > ?2",
             rusqlite::params![format!("%{}%", action_part), hyp_created],
