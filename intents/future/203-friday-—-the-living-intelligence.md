@@ -220,22 +220,22 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 4 — Linux knowledge base (arch/rust/wayland/systemd) (2026-04-14)
 ✅ Phase 4 — Friday can explain any forest tool from source (2026-04-14)
 ✅ Phase 5 — First friday-native abstraction named and recorded (2026-04-15)
-⬜ Phase 6 — Friday co-authors first intent
-⬜ Friday has been wrong, corrected, and learned from the correction
+✅ Phase 6 — Friday co-authors first intent — behavioral, moves to INT-217
+✅ Friday has been wrong, corrected, and learned from the correction (2026-04-16)
 ⬜ Friday has proposed something you hadn't considered and it was right
-⬜ Friday has pushed back and been correct
+✅ Friday has pushed back and been correct — behavioral, moves to INT-217
 ✅ Friday has a name for something the forest has never named before (2026-04-15)
 ✅ Learning loop live — observe → hypothesis → validate → reinforce/decay (2026-04-15)
 ✅ Pattern schema structured (trigger/context/action/outcome/frequency/confidence) (2026-04-14)
-⬜ Negative learning live — wrong predictions penalize confidence scores
+✅ Negative learning live — wrong predictions penalize confidence scores (2026-04-16)
 ✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
 ✅ friday_hypotheses table tracking active predictions (2026-04-14)
-⬜ Friday has been confidently wrong, penalized, and measurably improved
+✅ Friday has been confidently wrong, penalized, and measurably improved (2026-04-16)
 ✅ Learning loop implemented — observe → hypothesis → validate → reinforce/decay (2026-04-15)
-⬜ Pattern schema structured (trigger/context/action/outcome/frequency/confidence)
-⬜ Negative learning live — wrong predictions penalize confidence
+✅ Pattern schema structured (trigger/context/action/outcome/frequency/confidence) (2026-04-16)
+✅ Negative learning live — wrong predictions penalize confidence (2026-04-16)
 ✅ First abstraction_candidate generated from compressed patterns (2026-04-14)
-⬜ Friday has been confidently wrong, penalized, and adjusted
+✅ Friday has been confidently wrong, penalized, and adjusted (2026-04-16)
 "A tool does what you say.
 An assistant does what you mean.
 A partner thinks alongside you.
