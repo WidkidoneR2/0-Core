@@ -1,0 +1,55 @@
+---
+id: 233
+title: "fsh v8 -- Structured Shell: Data, Syntax, Intelligence"
+status: planned
+date: 2026-04-16
+tags: [fsh, shell, structured-data, syntax, ux, errors, performance, v8]
+---
+fsh has grown organically -- builtins added session by session.
+v8 is a deliberate upgrade.
+Not Nu-shell. But informed by what Nu-shell gets right.
+A shell that handles structured data, speaks clearly,
+recovers from errors gracefully, and grows with Friday.
+- Structured output: commands return data, not just text
+- Consistent syntax: no surprising edge cases
+- Clear errors: tell you exactly what went wrong and why
+- Readable pipelines: you can see what data flows where
+Every error message tells you: what failed, why, and what to do
+No silent failures -- every failed command reports clearly
+echo redirect fixed: echo 'text' > /tmp/file works natively
+rspatch newline handling: \n in --new interpreted as real newline
+Heredoc improvements: better error messages for common mistakes
+Command not found: suggest closest known builtin or alias
+JSON output mode: command | json produces parseable output
+Table display: core knowledge patterns shows as formatted table
+Filter syntax: command | where field = value
+Select syntax: command | select field1 field2
+These work on fsh builtins first, extend to external commands
+Pipeline visualization: show data flow before executing
+Type-aware pipes: warn when text is piped where data expected
+Friday-aware pipelines: Friday suggests next pipe stage
+Error recovery in pipelines: partial failure reports clearly
+config.fsh improvements: better syntax, validation on load
+Shell startup time: must be under 100ms cold start
+History intelligence: frequency-weighted completion
+Abbreviation expansion: more abbreviations, context-aware
+After every failed command: fsh queries knowledge engine
+If known fix exists (confidence >= 0.85): shows fix inline
+fsh diag improvements: more specific gap detection
+fsh gaps: shows frequency of old-habit commands with alternatives
+⬜ echo 'text' > /tmp/file works natively in fsh
+⬜ rspatch \n in --new content interpreted as real newline
+⬜ Every error message includes: what failed, why, what to do next
+⬜ Command not found suggests nearest known alternative
+⬜ JSON output mode working for core knowledge commands
+⬜ Table display for structured fsh output
+⬜ Filter syntax working: command | where field = value
+⬜ Pipeline error recovery -- partial failure reports clearly
+⬜ config.fsh syntax validation on load
+⬜ Shell startup under 100ms
+⬜ fsh queries knowledge engine on build/command failure
+⬜ Known fix shown inline when confidence >= 0.85
+⬜ fsh gaps updated with all new builtin alternatives
+"The shell is not just a command runner.
+It is the interface between you and the forest.
+v8 makes that interface intelligent." 🌲
