@@ -912,6 +912,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         emoji_font,
         scale_context: ScaleContext::new(),
         glyph_cache: GlyphCache::new(), // FIX 4: Add glyph cache
+        // INT-201 Phase 2 -- Forest status strip
+        show_status_strip: false,
+        status_strip_text: String::new(),
+        last_status_update: Instant::now(),
     };
 
     loop {
@@ -1010,6 +1014,10 @@ struct App {
     emoji_font: Option<FontRef<'static>>,
     scale_context: ScaleContext,
     glyph_cache: GlyphCache, // FIX 4: Add glyph cache
+    // INT-201 Phase 2 -- Forest status strip
+    show_status_strip: bool,
+    status_strip_text: String,
+    last_status_update: Instant,
 }
 
 impl App {
@@ -1152,7 +1160,50 @@ impl App {
             self.terminal.scroll_offset = offset.min(self.terminal.scrollback.len());
         }
     }
+    fn build_status_text(&self) -> String {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let core_root = format!("{}/0-core", home);
+        // Active intent -- scan future/ for in-progress
+        let intent = std::fs::read_dir(format!("{}/intents/future", core_root))
+            .ok()
+            .and_then(|d| {
+                d.filter_map(|e| e.ok())
+                    .find(|e| {
+                        std::fs::read_to_string(e.path())
+                            .map(|c| c.contains("status: in-progress"))
+                            .unwrap_or(false)
+                    })
+                    .map(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        // Extract INT-NNN from filename like "201-faelight-term..."
+                        let num = name.split('-').next().unwrap_or("???");
+                        format!("INT-{}", num)
+                    })
+            })
+            .unwrap_or_else(|| "no intent".to_string());
+        // Health -- read from last doctor run file if it exists
+        let health_file = format!("{}/runtime/last_health", core_root);
+        let health = std::fs::read_to_string(&health_file)
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok())
+            .unwrap_or(100);
+        // Friday status -- read engine_registry via focus file pattern
+        let friday_file = format!("{}/runtime/friday_status", core_root);
+        let friday = std::fs::read_to_string(&friday_file)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "active".to_string());
+        format!("  {}  ·  {}%  ·  Friday: {}  ·  Ctrl+Shift+S to hide",
+            intent, health, friday)
+    }
     fn draw(&mut self, qh: &QueueHandle<Self>) {
+        // INT-201 Phase 2 -- Build status text before buffer borrow
+        if self.show_status_strip
+            && self.last_status_update.elapsed() > std::time::Duration::from_secs(5)
+        {
+            self.status_strip_text = self.build_status_text();
+            self.last_status_update = Instant::now();
+        }
         let stride = self.width as i32 * 4;
 
         let buffer = self.buffer.get_or_insert_with(|| {
@@ -1433,6 +1484,97 @@ impl App {
             }
         }
 
+        // INT-201 Phase 2 -- Forest status strip
+        if self.show_status_strip {
+            let strip_h = self.line_height as usize;
+            let strip_y = self.height as usize - strip_h;
+            // Draw separator line
+            for x in 0..self.width as usize {
+                let idx = (strip_y * self.width as usize + x) * 4;
+                if idx + 3 < canvas.len() {
+                    canvas[idx]     = 0x7F;
+                    canvas[idx + 1] = 0xC8;
+                    canvas[idx + 2] = 0x6B;
+                    canvas[idx + 3] = 0xFF;
+                }
+            }
+            // Draw strip background (dark green tint)
+            for y in (strip_y + 1)..(self.height as usize) {
+                for x in 0..self.width as usize {
+                    let idx = (y * self.width as usize + x) * 4;
+                    if idx + 3 < canvas.len() {
+                        canvas[idx]     = 0x1A;
+                        canvas[idx + 1] = 0x24;
+                        canvas[idx + 2] = 0x1A;
+                        canvas[idx + 3] = 0xFF;
+                    }
+                }
+            }
+            // Render text glyphs into strip
+            // Multi-color segments: intent=cyan, health=green/yellow, friday=accent, hint=dimmed
+            let strip_font_size = (self.font_size - 4.0).max(10.0);
+            let strip_char_w = strip_font_size * 0.6;
+            let baseline_y = strip_y as f32 + self.line_height * 0.78;
+            let mut x_pos = self.padding_f32;
+            // Parse segments from status text: "  INT-201  ·  100%  ·  Friday: active  ·  hint"
+            let raw = self.status_strip_text.clone();
+            let parts: Vec<&str> = raw.splitn(4, "  ·  ").collect();
+            let segments: Vec<(String, [u8; 3])> = {
+                let mut s = Vec::new();
+                // Color scheme
+                let cyan    = [0xFF, 0xC8, 0x5C]; // BGR: bright cyan
+                let green   = [0xA3, 0xE3, 0x6B]; // BGR: forest green
+                let yellow  = [0x77, 0xC1, 0xF5]; // BGR: soft yellow
+                let dimmed  = [0x7F, 0x8F, 0x7F]; // BGR: muted
+                let sep     = [0x50, 0x60, 0x50]; // BGR: dark separator
+                for (i, part) in parts.iter().enumerate() {
+                    if i > 0 {
+                        s.push(("  ·  ".to_string(), sep));
+                    }
+                    let color = match i {
+                        0 => cyan,   // intent
+                        1 => {       // health -- green if 100, yellow if degraded
+                            if part.contains("100") { green } else { yellow }
+                        }
+                        2 => green,  // friday status
+                        _ => dimmed, // hint
+                    };
+                    s.push((part.to_string(), color));
+                }
+                s
+            };
+            for (seg_text, color) in &segments {
+                for ch in seg_text.chars() {
+                    if x_pos + strip_char_w > self.width as f32 { break; }
+                    if let Some(glyph) = self.glyph_cache.get_or_render(
+                        &mut self.scale_context, &self.main_font,
+                        self.emoji_font.as_ref(), ch, strip_font_size, *color,
+                    ) {
+                        let gx = x_pos as i32 + glyph.left;
+                        let gy = baseline_y as i32 - glyph.top;
+                        for gy_off in 0..glyph.height {
+                            for gx_off in 0..glyph.width {
+                                let sx = gx + gx_off as i32;
+                                let sy = gy + gy_off as i32;
+                                if sx >= 0 && sy >= strip_y as i32
+                                    && sx < self.width as i32 && sy < self.height as i32 {
+                                    let idx = (sy as usize * self.width as usize + sx as usize) * 4;
+                                    let src = gy_off * glyph.width + gx_off;
+                                    let alpha = glyph.rgba[src * 4 + 3];
+                                    if alpha > 0 && idx + 3 < canvas.len() {
+                                        canvas[idx]     = glyph.rgba[src * 4];
+                                        canvas[idx + 1] = glyph.rgba[src * 4 + 1];
+                                        canvas[idx + 2] = glyph.rgba[src * 4 + 2];
+                                        canvas[idx + 3] = 0xFF;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    x_pos += strip_char_w;
+                }
+            }
+        }
         self.window
             .wl_surface()
             .damage_buffer(0, 0, self.width as i32, self.height as i32);
@@ -1753,6 +1895,18 @@ impl KeyboardHandler for App {
             && (event.keysym == Keysym::v || event.keysym == Keysym::V)
         {
             self.paste_from_clipboard();
+            return;
+        }
+        // INT-201 Phase 2 -- Ctrl+Shift+S: toggle forest status strip
+        if self.ctrl_pressed
+            && self.shift_pressed
+            && (event.keysym == Keysym::s || event.keysym == Keysym::S)
+        {
+            self.show_status_strip = !self.show_status_strip;
+            if self.show_status_strip {
+                self.status_strip_text = self.build_status_text();
+                self.last_status_update = Instant::now();
+            }
             return;
         }
 
