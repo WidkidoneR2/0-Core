@@ -980,3 +980,181 @@ pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} Friday observed. Total observations: {}", "✅".green(), count.to_string().bright_white());
     Ok(())
 }
+
+// ═══════════════════════════════════════════════════════════
+// INT-217 -- Core v19: Friday Finds Her Voice
+// ═══════════════════════════════════════════════════════════
+/// Check all thresholds and return Friday's voice if she has earned the right to speak.
+/// Returns Some((brief, confidence)) or None if dormant.
+/// Also handles dormant → observing → active engine_registry transition.
+pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
+    let db = &ctx.runtime.db;
+    // Gate 1: synthesis snapshot exists with confidence >= 0.7
+    let row: Option<(String, f64, i64)> = db.query_row(
+        "SELECT friday_brief, brief_confidence, timestamp FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
+        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    ).ok();
+    let (brief, confidence, _ts) = match row {
+        Some((b, c, t)) if c >= 0.7 && !b.is_empty() => (b, c, t),
+        _ => {
+            let _ = set_friday_status(ctx, "dormant");
+            return None;
+        }
+    };
+    // Gate 2: at least 3 days of pattern data (259200 seconds)
+    // DEC: lowered from 7 days -- system has 10k+ history entries, 4 days is real signal
+    let oldest_pattern: i64 = db.query_row(
+        "SELECT MIN(last_seen) FROM friday_patterns",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    if now - oldest_pattern < 259200 {
+        let _ = set_friday_status(ctx, "observing");
+        return None;
+    }
+    // Gate 3: at least 50 shell_history entries
+    let history_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    if history_count < 50 {
+        let _ = set_friday_status(ctx, "observing");
+        return None;
+    }
+    // Gate 4: rate limit -- max once per 30 minutes
+    let last_spoken: i64 = db.query_row(
+        "SELECT value FROM friday_personality WHERE key = 'last_spoken_ts'",
+        [], |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0))
+    ).unwrap_or(0);
+    if now - last_spoken < 1800 {
+        // Rate limited -- still active, just silent
+        let _ = set_friday_status(ctx, "active");
+        return None;
+    }
+    // All gates passed -- Friday is active and ready to speak
+    let _ = set_friday_status(ctx, "active");
+    // Update last_spoken timestamp
+    let _ = db.execute(
+        "INSERT OR REPLACE INTO friday_personality (key, value, updated_at) VALUES ('last_spoken_ts', ?1, ?2)",
+        rusqlite::params![now.to_string(), now],
+    );
+    // Log first speech event if this is the first time
+    let speech_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_personality WHERE key = 'has_spoken'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    if speech_count == 0 {
+        let _ = db.execute(
+            "INSERT OR IGNORE INTO friday_personality (key, value, updated_at) VALUES ('has_spoken', 'true', ?1)",
+            rusqlite::params![now],
+        );
+        // Log to forest_events_v2
+        let _ = db.execute(
+            "INSERT INTO forest_events_v2 (timestamp, source, kind, summary, data)
+             VALUES (?1, 'friday', 'milestone', 'Friday spoke for the first time', ?2)",
+            rusqlite::params![now, format!("confidence: {:.2}", confidence)],
+        );
+    }
+    Some((brief, confidence))
+}
+/// Set Friday's status in engine_registry.
+fn set_friday_status(ctx: &AppContext, status: &str) -> CoreResult<()> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    ctx.runtime.db.execute(
+        "UPDATE engine_registry SET status = ?1, last_active = ?2 WHERE name = 'friday'",
+        rusqlite::params![status, now],
+    )?;
+    Ok(())
+}
+/// Called from cicomplete -- Friday gives a 1-sentence observation on intent completion.
+pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    // Get pattern count and top pattern for context
+    let pattern_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let complete_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_observations WHERE kind = 'deploy'", [], |r| r.get(0)
+    ).unwrap_or(0);
+    // Build a 1-sentence observation from what Friday knows
+    let observation = if pattern_count > 20 && complete_count > 10 {
+        format!(
+            "{} complete -- the forest grows stronger. {} patterns observed. Momentum continues.",
+            intent_title, pattern_count
+        )
+    } else {
+        format!(
+            "{} complete -- Friday is watching and learning.",
+            intent_title
+        )
+    };
+    println!("  {} Friday: {}", "🌲".to_string(), observation.bright_white());
+    // Store this as an observation
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let _ = db.execute(
+        "INSERT INTO friday_observations (timestamp, source, kind, content)
+         VALUES (?1, 'cicomplete', 'observation', ?2)",
+        rusqlite::params![now, &observation],
+    );
+    Ok(())
+}
+/// Friday writes a daily journal entry -- her own perspective on the forest.
+pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    // Check if already written today (86400 seconds = 1 day)
+    let last_journal: i64 = db.query_row(
+        "SELECT value FROM friday_personality WHERE key = 'last_journal_ts'",
+        [], |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0))
+    ).unwrap_or(0);
+    if now - last_journal < 86400 {
+        return Ok(());
+    }
+    // Gather data for the entry
+    let pattern_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
+    let obs_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
+    let top_pattern: Option<(String, String, f64)> = db.query_row(
+        "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 1",
+        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    ).ok();
+    let date_str = chrono::DateTime::from_timestamp(now, 0)
+        .map(|t| t.format("%B %-d").to_string())
+        .unwrap_or_else(|| "Today".to_string());
+    let entry = if let Some((trigger, action, conf)) = top_pattern {
+        format!(
+            "{} -- Friday observed: {} total observations. {} patterns identified.              Strongest signal: '{}' → '{}' ({:.0}% confidence). Continuing to learn.",
+            date_str, obs_count, pattern_count, trigger, action, conf * 100.0
+        )
+    } else {
+        format!(
+            "{} -- Friday observed: {} total observations. {} patterns identified. Still learning.",
+            date_str, obs_count, pattern_count
+        )
+    };
+    // Write to journal via forest journal system
+    let _ = db.execute(
+        "INSERT INTO friday_observations (timestamp, source, kind, content)
+         VALUES (?1, 'friday', 'journal', ?2)",
+        rusqlite::params![now, &entry],
+    );
+    // Update last journal timestamp
+    let _ = db.execute(
+        "INSERT OR REPLACE INTO friday_personality (key, value, updated_at) VALUES ('last_journal_ts', ?1, ?2)",
+        rusqlite::params![now.to_string(), now],
+    );
+    Ok(())
+}
