@@ -485,18 +485,37 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 "⚠️ ".yellow(), pending, degraded);
         }
     }
-    // INT-203 -- Friday live status
+    // INT-217 -- Friday voice: surface brief when thresholds met
     {
         let pats: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
         let facts: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
-        let obs: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
-        if obs > 0 || pats > 0 {
-            println!("  {}  Friday: watching · {} patterns · {} facts",
-                "🌲".to_string(),
-                pats.to_string().bright_cyan(),
-                facts.to_string().bright_white());
-        } else {
-            println!("  {}  Friday: {}", "🌲".to_string(), "dormant".dimmed());
+        // Write daily journal entry (no-op if already written today)
+        let _ = crate::domains::friday::write_journal_entry(ctx);
+        match crate::domains::friday::get_voice(ctx) {
+            Some((brief, confidence)) => {
+                println!("  {}  Friday: watching · {} patterns · {} facts",
+                    "🌲".to_string(),
+                    pats.to_string().bright_cyan(),
+                    facts.to_string().bright_white());
+                println!();
+                println!("  {} Friday: {}", "🌲".to_string(), brief.bright_white().bold());
+                println!("  {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
+            }
+            None => {
+                let status: String = ctx.runtime.db.query_row(
+                    "SELECT status FROM engine_registry WHERE name = 'friday'",
+                    [], |r| r.get(0)
+                ).unwrap_or_else(|_| "dormant".to_string());
+                if pats > 0 || facts > 0 {
+                    println!("  {}  Friday: {} · {} patterns · {} facts",
+                        "🌲".to_string(),
+                        status.dimmed(),
+                        pats.to_string().bright_cyan(),
+                        facts.to_string().bright_white());
+                } else {
+                    println!("  {}  Friday: {}", "🌲".to_string(), "dormant".dimmed());
+                }
+            }
         }
     }
     // INT-216 -- Friday meta-interpretation brief

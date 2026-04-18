@@ -774,6 +774,9 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!("  {} Moved to intents/complete/", "📁".dimmed());
     println!("{}", "━".repeat(50).dimmed());
 
+    // INT-217 -- Friday speaks on cicomplete
+    let _ = crate::domains::friday::speak_on_complete(ctx, &intent.title);
+
     Ok(())
 }
 

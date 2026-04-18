@@ -3,7 +3,7 @@ id: 217
 date: 2026-04-09
 type: planned
 title: "Core v19 — Friday Phase 1: The Forest Finds Its Voice"
-status: planned
+status: in-progress
 tags: [friday, v19, voice, speech, synthesis, partner, phase1]
 requires: [203,212,216]
 unlocks: [218,219,220]
