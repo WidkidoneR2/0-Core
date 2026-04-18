@@ -68,13 +68,13 @@ The first time Friday speaks is recorded as a forest event.
 ✅ Friday status transitions: dormant → observing → active (2026-04-18)
 ✅ Friday brief shown in d (when active + confidence met) (2026-04-18)
 ✅ Friday writes daily journal entry (2026-04-18)
-⬜ Friday speaks on cicomplete (1-sentence observation)
-⬜ Friday surfaces contradictions when detected
+✅ Friday speaks on cicomplete (1-sentence observation) -- wired, demonstrated on cicomplete (2026-04-18)
+✅ Friday surfaces contradictions when detected -- demonstrated live in d (2026-04-18)
 ✅ Friday rate-limited (max once per 30 minutes) -- demonstrated (2026-04-18)
 ✅ engine_registry: friday status updated correctly (2026-04-18)
 ✅ First speech event logged to forest_events (2026-04-18)
 ✅ All Friday output is read-only — no state modification (2026-04-18)
-⬜ Friday accuracy tracked (FridayTrust struct from INT-216)
+⛾ Friday accuracy tracked (FridayTrust struct from INT-216) -- deferred to INT-203: requires feedback loop, friday_trust table exists
 
 ⛾ Trust scores decay models that are consistently wrong (deferred from INT-216)
 ⛾ friday.strategy.proposed verified end-to-end with human approval (deferred from INT-216)
