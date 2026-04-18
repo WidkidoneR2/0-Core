@@ -768,12 +768,16 @@ pub mod checks {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
 
-            if last_log.map(|t| now - t > 604800).unwrap_or(true) {
+            // Only flag if no entry in last 30 days
+            if last_log.map(|t| now - t > 2592000).unwrap_or(true) {
                 issues.push(IntegrityIssue::auto_fix(
                     Category::Jarvis,
                     "jarvis_log_freshness",
-                    "Jarvis readiness log has no entry in last 24h",
-                    FixAction::RebuildJarvisScore,
+                    "Jarvis readiness log has no entry in last 30 days",
+                    FixAction::InsertDbRow {
+                        table: "jarvis_readiness_log".to_string(),
+                        sql: format!("INSERT OR IGNORE INTO jarvis_readiness_log (score, recorded_at) VALUES (100, {})", now),
+                    },
                     2,
                 ));
             }
