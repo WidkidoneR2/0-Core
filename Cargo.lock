@@ -469,17 +469,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
 
 [[package]]
-name = "bin-doctor"
-version = "2.0.0"
-dependencies = [
- "chrono",
- "clap",
- "faelight-core",
- "serde",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1360,20 +1349,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c34f04666d835ff5d62e058c3995147c06f42fe86ff053337632bca83e42702d"
 
 [[package]]
-name = "entropy-check"
-version = "2.0.0"
-dependencies = [
- "chrono",
- "clap",
- "colored",
- "faelight-core",
- "serde",
- "serde_json",
- "sha2",
- "walkdir",
-]
-
-[[package]]
 name = "enumflags2"
 version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1702,20 +1677,6 @@ dependencies = [
  "rusqlite",
  "wayland-client",
  "wayland-protocols 0.32.10",
-]
-
-[[package]]
-name = "faelight-intent"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossterm 0.28.1",
- "dirs 5.0.1",
- "ratatui 0.29.0",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -6817,17 +6778,6 @@ dependencies = [
  "wayland-client",
  "wayland-protocols 0.31.2",
  "wayland-protocols-wlr 0.2.0",
-]
-
-[[package]]
-name = "workspace-view"
-version = "2.0.0"
-dependencies = [
- "clap",
- "colored",
- "faelight-core",
- "serde",
- "serde_json",
 ]
 
 [[package]]

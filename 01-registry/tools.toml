@@ -455,3 +455,11 @@ expected_usage = "medium"
 type = "rust"
 deployable = true
 retired = false
+
+[[tools]]
+name = "faelight-contextd"
+version = "0.1.0"
+category = "intelligence"
+description = "Context daemon -- watches state.db, processes signals, surfaces insights"
+expected_usage = "background"
+deployed = true
