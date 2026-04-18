@@ -73,7 +73,7 @@ The first time Friday speaks is recorded as a forest event.
 ✅ Friday rate-limited (max once per 30 minutes) -- demonstrated (2026-04-18)
 ✅ engine_registry: friday status updated correctly (2026-04-18)
 ✅ First speech event logged to forest_events (2026-04-18)
-⬜ All Friday output is read-only — no state modification
+✅ All Friday output is read-only — no state modification (2026-04-18)
 ⬜ Friday accuracy tracked (FridayTrust struct from INT-216)
 
 ⛾ Trust scores decay models that are consistently wrong (deferred from INT-216)
