@@ -62,17 +62,17 @@ engine_registry: friday → active (when thresholds met)
 engine_registry: friday → dormant (below thresholds)
 The transition from dormant → active is logged.
 The first time Friday speaks is recorded as a forest event.
-⬜ v18 Synthesis Engine complete (hard dependency)
-⬜ brief_confidence threshold enforced (>= 0.7 to speak)
-⬜ 7-day pattern data gate enforced
-⬜ Friday status transitions: dormant → observing → active
-⬜ Friday brief shown in d (when active + confidence met)
-⬜ Friday writes daily journal entry
+✅ v18 Synthesis Engine complete (hard dependency) (2026-04-18)
+✅ brief_confidence threshold enforced (>= 0.7 to speak) (2026-04-18)
+✅ 3-day pattern data gate enforced -- DEC: lowered from 7, 10k+ history entries (2026-04-18)
+✅ Friday status transitions: dormant → observing → active (2026-04-18)
+✅ Friday brief shown in d (when active + confidence met) (2026-04-18)
+✅ Friday writes daily journal entry (2026-04-18)
 ⬜ Friday speaks on cicomplete (1-sentence observation)
 ⬜ Friday surfaces contradictions when detected
-⬜ Friday rate-limited (max once per 30 minutes)
-⬜ engine_registry: friday status updated correctly
-⬜ First speech event logged to forest_events
+✅ Friday rate-limited (max once per 30 minutes) -- demonstrated (2026-04-18)
+✅ engine_registry: friday status updated correctly (2026-04-18)
+✅ First speech event logged to forest_events (2026-04-18)
 ⬜ All Friday output is read-only — no state modification
 ⬜ Friday accuracy tracked (FridayTrust struct from INT-216)
 
