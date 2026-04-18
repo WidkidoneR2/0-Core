@@ -3,19 +3,13 @@
 
 use colored::*;
 
-mod adapters;
 mod app;
 mod capabilities;
 mod cli;
 mod domains;
 mod errors;
 mod logging;
-mod policy;
-mod registry;
 mod runtime;
-#[cfg(test)]
-mod test_utils;
-mod utils;
 
 fn main() {
     let cmd = cli::parse();
