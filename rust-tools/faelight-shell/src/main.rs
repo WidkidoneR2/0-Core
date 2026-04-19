@@ -1277,10 +1277,18 @@ fn repl_main() -> Result<()> {
                                     if !cur.is_empty() { toks.push(cur); }
                                     toks
                                 };
-                                let cmd_name = match tokens.first() {
-                                    Some(c) => c.as_str(),
+                                let raw_cmd = match tokens.first() {
+                                    Some(c) => c.clone(),
                                     None => { pipe_ok = false; break; }
                                 };
+                                // Expand tilde in command path
+                                let expanded_cmd = if raw_cmd.starts_with("~/") {
+                                    let home = std::env::var("HOME").unwrap_or_default();
+                                    format!("{}/{}", home, &raw_cmd[2..])
+                                } else {
+                                    raw_cmd.clone()
+                                };
+                                let cmd_name = expanded_cmd.as_str();
                                 let owned_args: Vec<String> = tokens[1..].to_vec();
                                 let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
                                 let is_last = idx == pipe_parts.len() - 1;
@@ -1293,17 +1301,24 @@ fn repl_main() -> Result<()> {
                                 } else {
                                     std::process::Stdio::piped()
                                 };
-                                // INT-233: try fsh builtin first before spawning external
-                                let builtin_line = if args.is_empty() {
-                                    cmd_name.to_string()
+                                // INT-233: try fsh builtin first -- only if first stage, not a path
+                                let builtin_name = if raw_cmd.contains('/') {
+                                    raw_cmd.split('/').last().unwrap_or(&raw_cmd).to_string()
                                 } else {
-                                    format!("{} {}", cmd_name, args.join(" "))
+                                    raw_cmd.clone()
                                 };
-                                let builtin_out = match commands::execute(&builtin_line, &db, &core_root) {
+                                // Only attempt builtin path on first stage and non-path commands
+                                let try_builtin = idx == 0 && !raw_cmd.contains('/');
+                                let builtin_line = if args.is_empty() {
+                                    builtin_name.clone()
+                                } else {
+                                    format!("{} {}", builtin_name, args.join(" "))
+                                };
+                                let builtin_out = if try_builtin { match commands::execute(&builtin_line, &db, &core_root) {
                                     commands::CommandResult::Output(o) => Some(o),
                                     commands::CommandResult::Value(v) => Some(v.render()),
                                     _ => None,
-                                };
+                                }} else { None };
                                 if let Some(out) = builtin_out {
                                     if is_last {
                                         println!("{}", out);
@@ -1325,8 +1340,9 @@ fn repl_main() -> Result<()> {
                                             }
                                             let _ = c.wait();
                                         }
-                                        pipe_ok = true;
-                                        break;
+                                        // Already handled -- skip sh fallback
+                                        for mut child in children { let _ = child.wait(); }
+                                        continue 'repl;
                                     }
                                 } else {
                                     match std::process::Command::new(cmd_name)
