@@ -56,8 +56,8 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ⬜ fsh gaps updated with all new builtin alternatives
 ⬜ fsearch supports basic regex alternation (e.g. pattern1|pattern2 without escaping)
 ⬜ fsh code injection helper -- safe multi-line Rust block insertion without Python unicode escaping
-⬜ gp abbreviation wired -- fg push subcommand missing, gp broken
-⬜ fg sync clippy scope -- only lint staged files not entire workspace
+✅ gp abbreviation wired -- now expands to git push correctly (2026-04-19)
+✅ fg sync clippy scope -- clippy now scoped to staged packages only (2026-04-19)
 ⬜ rspatch and patch handle em dashes in anchor text correctly
 ⬜ shell friction audit -- review all session pain points before v8 build
 

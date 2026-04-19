@@ -680,7 +680,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 None => return CommandResult::Error("rspatch: --anchor required".to_string()),
             };
             let new_content = match new_text {
-                Some(t) => t,
+                Some(t) => t.replace("\\n", "
+"),
                 None => return CommandResult::Error("rspatch: --new required".to_string()),
             };
             let content = match std::fs::read_to_string(&expanded) {
