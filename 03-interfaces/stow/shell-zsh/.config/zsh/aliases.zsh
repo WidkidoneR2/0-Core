@@ -317,7 +317,6 @@ alias cdrel='core-diff since $(git describe --tags --abbrev=0 2>/dev/null || ech
 # removed stale (dot-doctor retired): alias cdcheck='cdiff && dot-doctor'
 alias cdreview='cdv && cdh'
 alias cdbar='core-diff faelight-bar'
-alias cdsway='core-diff wm-sway'
 alias cdzsh='core-diff shell-zsh'
 alias cdnvim='core-diff editor-nvim'
 

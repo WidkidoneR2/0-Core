@@ -63,7 +63,6 @@ rules = [
     # ──────────────────────────────────────────────
     # 📦 STOW PACKAGES - NEON CYAN (BRIGHT!)
     # ──────────────────────────────────────────────
-    { name = "wm-sway/", fg = "#00ffff", bold = true },
     { name = "shell-zsh/", fg = "#00ffff", bold = true },
     { name = "editor-nvim/", fg = "#00ffff", bold = true },
     { name = "term-foot/", fg = "#00ffff", bold = true },
@@ -153,7 +152,6 @@ rules = [
     # ──────────────────────────────────────────────
     # 📦 STOW PACKAGES
     # ──────────────────────────────────────────────
-    { name = "wm-sway/", text = "🖥️" },
     { name = "shell-zsh/", text = "🐚" },
     { name = "editor-nvim/", text = "📝" },
     { name = "term-foot/", text = "💻" },

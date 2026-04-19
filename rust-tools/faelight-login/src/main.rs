@@ -30,24 +30,18 @@ enum Field {
     Password,
 }
 
+// INT-180: Niri-only. Sway removed.
 #[derive(Clone, PartialEq)]
 enum SessionChoice {
     Niri,
-    Sway,
 }
 
 impl SessionChoice {
     fn cmd(&self) -> Vec<String> {
-        match self {
-            SessionChoice::Niri => vec!["niri-session".to_string()],
-            SessionChoice::Sway => vec!["sway".to_string()],
-        }
+        vec!["niri-session".to_string()]
     }
     fn label(&self) -> &str {
-        match self {
-            SessionChoice::Niri => "Niri",
-            SessionChoice::Sway => "Sway",
-        }
+        "Niri"
     }
 }
 
@@ -276,36 +270,10 @@ fn draw(
             .block(pass_block);
         f.render_widget(pass_text, rows[5]);
 
-        // Session selector
-        let niri_style = if state.session == SessionChoice::Niri {
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(DIM)
-        };
-        let sway_style = if state.session == SessionChoice::Sway {
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(DIM)
-        };
+        // Session: Niri only (INT-180)
         let session_line = Line::from(vec![
             Span::styled("Session: ", Style::default().fg(DIM)),
-            Span::styled(
-                if state.session == SessionChoice::Niri {
-                    "[Niri] "
-                } else {
-                    " Niri  "
-                },
-                niri_style,
-            ),
-            Span::styled(
-                if state.session == SessionChoice::Sway {
-                    "[Sway]"
-                } else {
-                    " Sway "
-                },
-                sway_style,
-            ),
-            Span::styled("  (Tab)", Style::default().fg(DIM)),
+            Span::styled("[Niri]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
         ]);
         f.render_widget(Paragraph::new(session_line), rows[7]);
 
@@ -325,8 +293,6 @@ fn draw(
         let hint = Line::from(vec![
             Span::styled("Enter", Style::default().fg(ACCENT)),
             Span::styled(" login  ", Style::default().fg(DIM)),
-            Span::styled("Tab", Style::default().fg(ACCENT)),
-            Span::styled(" session  ", Style::default().fg(DIM)),
             Span::styled("Esc", Style::default().fg(ACCENT)),
             Span::styled(" clear", Style::default().fg(DIM)),
         ]);
@@ -364,9 +330,10 @@ fn main() -> io::Result<()> {
                 }
                 match key.code {
                     KeyCode::Tab => {
-                        state.session = match state.session {
-                            SessionChoice::Niri => SessionChoice::Sway,
-                            SessionChoice::Sway => SessionChoice::Niri,
+                        // INT-180: Niri-only, Tab cycles focus fields
+                        state.focused = match state.focused {
+                            Field::Username => Field::Password,
+                            Field::Password => Field::Username,
                         };
                     }
                     KeyCode::Enter => {

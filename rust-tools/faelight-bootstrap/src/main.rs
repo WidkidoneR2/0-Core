@@ -350,11 +350,7 @@ fn install_dependencies() {
         "base-devel",
         "rustup",
         // Sway desktop
-        "sway",
-        "swaybg",
-        "swayidle",
-        "swaylock",
-        // Wayland tools
+                                        // Wayland tools
         "wl-clipboard",
         "grim",
         "slurp",
@@ -490,7 +486,7 @@ fn timestamp() -> String {
 
 fn stow_packages(core_path: &str) {
     let packages = vec![
-        "wm-sway",
+        // INT-180: wm-sway removed
         "shell-zsh",
         "shell-nushell",
         "prompt-starship",
@@ -604,7 +600,7 @@ fn post_install_tutorial(_core_path: &str) {
     );
     println!("     This activates all aliases and functions");
     println!();
-    println!("  2. {} - Start Sway window manager", "sway".cyan());
+    println!("  2. {} - Start Niri compositor", "niri".cyan());
     println!("     (Or reboot and select Sway from login screen)");
     println!();
     println!("  3. {} - Verify system health", "doctor".cyan());

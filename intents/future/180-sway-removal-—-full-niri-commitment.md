@@ -3,7 +3,7 @@ id: 180
 date: 2026-03-30
 type: arch
 title: "Sway Removal — Full Niri Commitment"
-status: planned
+status: in-progress
 tags: [architecture, niri, sway, wayland, faelight-login, cleanup]
 version: 11.6.0
 ---
