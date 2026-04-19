@@ -26,36 +26,10 @@ const FG: Color = Color::Rgb(215, 224, 218);
 const ERR: Color = Color::Rgb(227, 107, 107);
 const GOLD: Color = Color::Rgb(200, 180, 80);
 // ASCII forest tree -- rendered line by line during boot animation
-const TREE_LINES: &[&str] = &[
-    "                              *",
-    "                            * | *",
-    "                          *   |   *",
-    "                        * .   |   . *",
-    "                      *       |       *",
-    "                    * .   .   |   .   . *",
-    "                  *           |           *",
-    "                * .     .     |     .     . *",
-    "              *               |               *",
-    "            * .       .       |       .       . *",
-    "          *                   |                   *",
-    "        * .         .         |         .         . *",
-    "      *                       |                       *",
-    "    * .           .           |           .           . *",
-    "  *                           |                           *",
-    " * .             .            |            .             . *",
-    "*_______________________________________________|_______________*",
-    "                              |",
-    "                              |",
-    "                         _____|_____",
-    "        F a e l i g h t   F o r e s t",
-];
+
 #[derive(Clone, PartialEq)]
 enum Field { Username, Password }
-#[derive(Clone, PartialEq)]
-enum AppMode {
-    Animating,  // boot animation playing
-    Login,      // normal login
-}
+
 struct LoginState {
     username: String,
     password: String,
@@ -66,9 +40,6 @@ struct LoginState {
     version: String,
     active_intent: String,
     friday_brief: String,
-    mode: AppMode,
-    anim_frame: usize,
-    anim_start: Instant,
     boot_time: Instant,
     pulse: u8,
 }
@@ -88,9 +59,6 @@ impl LoginState {
                 if s.chars().count() > 45 { format!("{}...", truncated) } else { truncated }
             },
             friday_brief: read_friday_brief(),
-            mode: AppMode::Animating,
-            anim_frame: 0,
-            anim_start: Instant::now(),
             boot_time: Instant::now(),
             pulse: 0,
         }
@@ -150,39 +118,7 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
         }
     }
 }
-fn draw_animation(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    state: &LoginState,
-) -> io::Result<()> {
-    terminal.draw(|f| {
-        let area = f.area();
-        f.render_widget(Block::default().style(Style::default().bg(BG)), area);
-        let lines_to_show = state.anim_frame.min(TREE_LINES.len());
-        let mut tree_lines: Vec<Line> = Vec::new();
-        for (i, line) in TREE_LINES.iter().take(lines_to_show).enumerate() {
-            let color = if i >= TREE_LINES.len() - 3 {
-                Color::Rgb(100, 60, 20) // trunk brown
-            } else if i >= TREE_LINES.len() - 6 {
-                ACCENT2
-            } else {
-                ACCENT
-            };
-            tree_lines.push(Line::from(Span::styled(*line, Style::default().fg(color))));
-        }
-        // Add forest name after tree is done
-        if lines_to_show >= TREE_LINES.len() {
-            tree_lines.push(Line::from(""));
-            tree_lines.push(Line::from(vec![
-                Span::styled("  *  ", Style::default().fg(ACCENT)),
-                Span::styled("Faelight Forest  ", Style::default().fg(FG).add_modifier(Modifier::BOLD)),
-                Span::styled(&state.version, Style::default().fg(DIM)),
-            ]));
-        }
-        let tree_widget = Paragraph::new(tree_lines).alignment(Alignment::Center);
-        f.render_widget(tree_widget, area);
-    })?;
-    Ok(())
-}
+
 fn draw_login(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     state: &LoginState,
@@ -344,40 +280,19 @@ fn main() -> io::Result<()> {
     state.version = read_system_version();
     let mut last_draw = Instant::now();
     // Animation: advance one line every 60ms
-    let anim_delay = Duration::from_millis(300);
     loop {
         let now = Instant::now();
-        // Advance animation
-        if state.mode == AppMode::Animating {
-            let elapsed = now.duration_since(state.anim_start);
-            let target_frame = (elapsed.as_millis() / anim_delay.as_millis()) as usize;
-            if target_frame > state.anim_frame {
-                state.anim_frame = target_frame;
-            }
-            // Animation complete when all tree lines shown + 500ms pause
-            if state.anim_frame >= TREE_LINES.len() + 8 {
-                state.mode = AppMode::Login;
-            }
-        }
         // Pulse for title color
         state.pulse = ((now.duration_since(state.boot_time).as_millis() / 800) % 2) as u8;
         // Draw
         if last_draw.elapsed() > Duration::from_millis(33) {
-            match state.mode {
-                AppMode::Animating => draw_animation(&mut terminal, &state)?,
-                AppMode::Login => draw_login(&mut terminal, &state)?,
-            }
+            draw_login(&mut terminal, &state)?;
             last_draw = Instant::now();
         }
         // Events
         if event::poll(Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind != KeyEventKind::Press { continue; }
-                // Skip animation on any key
-                if state.mode == AppMode::Animating {
-                    state.mode = AppMode::Login;
-                    continue;
-                }
                 match key.code {
                     KeyCode::Tab => {
                         state.focused = match state.focused {
