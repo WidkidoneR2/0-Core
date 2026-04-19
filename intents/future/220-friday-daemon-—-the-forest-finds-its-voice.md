@@ -126,12 +126,12 @@ not a tool you invoke but a presence that is always there.
 ✅ Gate 5  — state.db schema: friday_patterns, friday_queries, friday_hypotheses (2026-04-18)
 ⬜ Gate 6  — Learning loop: observe → detect → hypothesize → validate → reinforce
 ⬜ Gate 7  — Inline response: Friday speaks after command when confidence >= 0.75
-⬜ Gate 8  — `friday <question>` command in fsh — context bundle assembled and sent
-⬜ Gate 9  — Friday answers direct questions from forest state
-⬜ Gate 10 — Every query/response logged to friday_queries table
+✅ Gate 8  — `friday <question>` command in fsh — context sent to daemon (2026-04-18)
+✅ Gate 9  — Friday answers direct questions from forest state — live data queries (2026-04-18)
+✅ Gate 10 — Every query/response logged to friday_queries table (2026-04-18)
 ⬜ Gate 11 — Negative learning: dismissal penalizes confidence by -0.3
 ⬜ Gate 12 — Daemon starts on login via faelight-login
-⬜ Gate 13 — Daemon survives fsh restart, state persists in state.db
+✅ Gate 13 — Daemon survives fsh restart, state persists in state.db (2026-04-18)
 ⬜ Gate 14 — `friday status` shows learning stats, pattern count, confidence scores
 ⬜ Gate 15 — 30 days of daily use with zero crashes and zero unauthorized actions
 ---
