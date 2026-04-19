@@ -916,6 +916,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         show_status_strip: false,
         status_strip_text: String::new(),
         last_status_update: Instant::now(),
+        // INT-201 Phase 3 -- Long command notification
+        command_start: None,
+        last_output_time: Instant::now(),
     };
 
     loop {
@@ -924,6 +927,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(n) if n > 0 => {
                 // FIX 2: Use process_bytes for proper UTF-8 handling
                 app.terminal.process_bytes(&buf[..n]);
+                // INT-201 Phase 3 -- Long command notification
                 // Drain pending responses (e.g. DSR cursor position reply)
                 let responses: Vec<Vec<u8>> = app.terminal.pending_responses.drain(..).collect();
                 for resp in responses {
@@ -939,6 +943,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     app.terminal.scan_urls();
                     app.last_url_scan = Instant::now();
                 }
+                app.last_output_time = Instant::now();
             }
             _ => {}
         }
@@ -948,6 +953,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app.terminal.scan_urls();
             app.last_url_scan = Instant::now();
         }
+        // INT-201 Phase 3 -- Fire notification when PTY goes idle after activity
+        if let Some(start) = app.command_start {
+            if app.last_output_time.elapsed().as_millis() > 2000 {
+                let elapsed = start.elapsed();
+                if elapsed.as_secs() >= 30 {
+                    // Command ran long enough -- notify and clear
+                    app.command_start = None;
+                    let secs = elapsed.as_secs();
+                    let _ = std::process::Command::new("notify-send")
+                        .args(["faelight-term", &format!("Command completed in {}s", secs),
+                               "--urgency=normal"])
+                        .spawn();
+                }
+                // If elapsed < 3s -- leave command_start set, keep waiting
+            }
+        }
+
+
         if app.last_blink.elapsed() > Duration::from_millis(500) {
             app.cursor_blink_state = !app.cursor_blink_state;
             app.last_blink = Instant::now();
@@ -1023,6 +1046,9 @@ struct App {
     show_status_strip: bool,
     status_strip_text: String,
     last_status_update: Instant,
+    // INT-201 Phase 3 -- Long command notification
+    command_start: Option<Instant>,
+    last_output_time: Instant,
 }
 
 impl App {
@@ -1695,9 +1721,6 @@ impl PointerHandler for App {
                         // Ctrl+Click to open URL -- check both ctrl_pressed and raw xkb state
                         // Note: also accept if modifiers show ctrl (Wayland pointer events don't carry modifiers)
                         if self.ctrl_pressed {
-                            for u in &self.terminal.detected_urls {
-                                eprintln!("  URL row={} cols={}..{} url={}", u.row, u.start_col, u.end_col, u.url);
-                            }
                             let clicked_url = if row < self.terminal.rows && col < self.terminal.cols {
                                 self.terminal.detected_urls.iter()
                                     .find(|u| u.row == row && col >= u.start_col && col < u.end_col)
@@ -1705,12 +1728,11 @@ impl PointerHandler for App {
                             } else { None };
                             if let Some(url) = clicked_url {
                                 match urls::open_url(&url.url) {
-                                    Ok(_) => eprintln!("Opened: {}", url.url),
+                                    Ok(_) => println!("Opened: {}", url.url),
                                     Err(e) => eprintln!("Failed to open URL: {}", e),
                                 }
                                 return;
-                            } else {
-                            }
+                        }
                         }
                         // Detect double/triple click
                         let now = std::time::Instant::now();
@@ -2006,6 +2028,8 @@ impl KeyboardHandler for App {
             }
             Keysym::Return => {
                 let _ = self.pty.master.write_all(b"\r");
+                // INT-201 Phase 3 -- Track command start on Enter
+                self.command_start = Some(Instant::now());
                 return;
             }
             Keysym::Escape => {
