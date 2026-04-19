@@ -97,9 +97,8 @@ Intent-aware title bar (live updates)
 Command success/failure indicators
 Forest status strip
 Phase 3 — Power Features (what makes it better)
-Split panes
 Smart scrollback search
-Notification on long commands
+✅ Phase 3 — Notification on long commands (>30s) — notify-send fires on PTY idle after command (2026-04-18)
 Session memory
 Phase 4 — Polish
 Font ligatures
@@ -108,7 +107,6 @@ Performance profiling (must be as fast as foot)
 faelight-term replaces foot as primary terminal when:
 - All Phase 1 bugs fixed and verified
 - Intent-aware title bar live
-- Split panes working
 - No regressions vs foot for 14 days of daily use
 ✅ Phase 1 — PATH verified — 0-core/scripts in PATH, deduplicated
 ✅ Phase 1 — .zshrc PATH additions made idempotent, no duplicates
@@ -120,13 +118,11 @@ faelight-term replaces foot as primary terminal when:
 ✅ Phase 2 — Intent-aware title bar live — 🌲 INT-XXX | ~/dir | 100%, updates every 5s
 ✅ Phase 2 — Command success/failure indicators — ✓/✗ in title bar
 ✅ Phase 2 — Forest status strip (toggleable) — multi-color, Ctrl+Shift+S, demonstrated (2026-04-18)
-⬜ Phase 3 — Split panes (H/V split, navigation)
 ✅ Phase 3 — Smart scrollback search — Ctrl+F search mode, Enter=next, Esc=exit
 ⬜ Phase 3 — Notification on long commands (>30s)
 ⬜ Phase 3 — Session memory (directory + intent context)
 ⬜ Phase 4 — Font ligatures and powerline glyphs
 ⬜ Phase 4 — Performance parity with foot
-⬜ 14 days as primary terminal without regressions
 **"Every other terminal shows you text.
 faelight-term shows you context.
 Not what the computer is doing —
