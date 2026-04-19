@@ -359,7 +359,7 @@ impl App {
                     ("Unlock Core",  format!("sudo {}/scripts/core-protect unlock && pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1", core), true),
                     ("Health Check", format!("{}/scripts/doctor", core), true),
                     ("Reload Bar",   "pkill faelight-bar; setsid -f faelight-bar >/dev/null 2>&1".into(), false),
-                    ("Reload Sway",  "swaymsg reload".into(), false),
+                    ("Reload Niri",  "niri msg action reload-config".into(), false),
                     ("Snapshot Now", "snap-now 'manual'".into(), true),
                     ("Git Sync",     format!("{}/scripts/fg sync", core), true),
                 ];
@@ -392,7 +392,7 @@ impl App {
             Mode::Files => {
                 let home = std::env::var("HOME").unwrap_or_default();
                 let files = vec![
-                    "~/.config/sway/config",
+                    "~/.config/niri/config.kdl",
                     "~/0-core/README.md",
                     "~/0-core/CHANGELOG-v10.0.0.md",
                     "~/.config/zsh/aliases.zsh",

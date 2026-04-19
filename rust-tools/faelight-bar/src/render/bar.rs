@@ -61,27 +61,22 @@ fn profile_label_color(profile: &str) -> (&'static str, [u8; 4]) {
 }
 
 fn get_focused_cwd() -> Option<String> {
-    // Get the cwd of the focused terminal via swaymsg
-    let out = Command::new("swaymsg")
-        .args(["-t", "get_tree", "-r"])
+    // INT-180: use niri msg focused-window to get pid, then read /proc/<pid>/cwd
+    let out = Command::new("niri")
+        .args(["msg", "-j", "focused-window"])
         .output()
         .ok()?;
-    let tree = String::from_utf8(out.stdout).ok()?;
-    // Find focused node pid then read /proc/<pid>/cwd
-    let focused_key = "\"focused\":true";
-    let focused_key2 = "\"focused\": true";
+    let json = String::from_utf8(out.stdout).ok()?;
+    // Extract pid from JSON: {"pid": 12345, ...}
     let pid_key = "\"pid\":";
-    let focused_pos = tree.find(focused_key).or_else(|| tree.find(focused_key2))?;
-    let before = &tree[..focused_pos];
-    let pid_pos = before.rfind(pid_key)?;
-    let after = &before[pid_pos + 6..];
+    let pid_pos = json.find(pid_key)?;
+    let after = &json[pid_pos + pid_key.len()..];
     let pid_str: String = after
         .chars()
         .skip_while(|c| !c.is_ascii_digit())
         .take_while(|c| c.is_ascii_digit())
         .collect();
     let pid: u32 = pid_str.parse().ok()?;
-    // Read cwd from /proc
     fs::read_link(format!("/proc/{}/cwd", pid))
         .ok()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
@@ -168,8 +163,9 @@ fn get_workspaces() -> (Vec<i32>, i32) {
     let mut workspaces = vec![];
     let mut active = 1i32;
 
-    if let Ok(out) = Command::new("swaymsg")
-        .args(["-t", "get_workspaces", "-r"])
+    // INT-180: niri workspaces
+    if let Ok(out) = Command::new("niri")
+        .args(["msg", "-j", "workspaces"])
         .output()
     {
         let resp = String::from_utf8_lossy(&out.stdout);
@@ -210,34 +206,25 @@ fn get_workspaces() -> (Vec<i32>, i32) {
 }
 
 fn get_active_window() -> String {
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(
-            r#"swaymsg -t get_tree -r 2>/dev/null | python3 -c "
-import json,sys
-tree=json.load(sys.stdin)
-def find(n):
-    if n.get('focused'): return n
-    for c in n.get('nodes',[])+n.get('floating_nodes',[]):
-        r=find(c)
-        if r: return r
-def show(n):
-    if not n: return
-    app=(n.get('app_id') or '').strip()
-    name=(n.get('name') or '').strip()
-    t=app if app and app!='null' else name
-    if len(t)>40: t=t[:37]+'...'
-    print(t,end='')
-show(find(tree))
-""#,
-        )
+    // INT-180: use niri msg focused-window JSON
+    let out = Command::new("niri")
+        .args(["msg", "-j", "focused-window"])
         .output()
         .ok();
-
-    output
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .filter(|s| s.len() > 1)
+    out.and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|json| {
+            // Extract title from {"title": "...", ...}
+            let key = "\"title\":\"";
+            let pos = json.find(key)?;
+            let after = &json[pos + key.len()..];
+            let end = after.find('\"')  ?;
+            let title = &after[..end];
+            if title.len() > 40 {
+                Some(format!("{}...", &title[..37]))
+            } else {
+                Some(title.to_string())
+            }
+        })
         .unwrap_or_default()
 }
 

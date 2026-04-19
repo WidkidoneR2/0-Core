@@ -57,8 +57,8 @@ impl MenuItem {
 
     fn hint(&self) -> &str {
         match self {
-            MenuItem::Lock => "swaylock",
-            MenuItem::Logout => "swaymsg exit",
+            MenuItem::Lock => "faelight-lock",
+            MenuItem::Logout => "niri msg action quit",
             MenuItem::Suspend => "systemctl suspend",
             MenuItem::Reboot => "systemctl reboot",
             MenuItem::Shutdown => "systemctl poweroff",
@@ -80,10 +80,10 @@ impl MenuItem {
     fn execute(&self) {
         match self {
             MenuItem::Lock => {
-                let _ = Command::new("swaylock").spawn();
+                let _ = Command::new("faelight-lock").spawn();
             }
             MenuItem::Logout => {
-                let _ = Command::new("swaymsg").arg("exit").spawn();
+                let _ = Command::new("niri").args(["msg", "action", "quit"]).spawn();
             }
             MenuItem::Suspend => {
                 let _ = Command::new("systemctl").arg("suspend").status();

@@ -448,19 +448,17 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
 pub fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
     // Niri is primary compositor — check Niri config first, fall back to Sway
     let niri_config = PathBuf::from(home).join(".config/niri/config.kdl");
-    let sway_config = PathBuf::from(home).join(".config/sway/config");
+    // INT-180: sway removed -- Niri only
 
     let (wm_name, wm_config) = if niri_config.exists() {
         ("Niri", niri_config)
-    } else if sway_config.exists() {
-        ("Sway", sway_config)
     } else {
         return CheckResult {
             id: "keybinds".into(),
             name: "WM Keybinds".into(),
             status: Status::Warn,
-            message: "No compositor config found (niri or sway)".into(),
-            fix: Some("Ensure wm-niri or wm-sway is stowed".into()),
+            message: "No Niri config found -- ensure wm-niri is stowed".into(),
+            fix: Some("Run: faelight-link deploy wm-niri".into()),
         };
     };
 

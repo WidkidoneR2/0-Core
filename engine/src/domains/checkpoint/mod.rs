@@ -118,7 +118,7 @@ fn read_config_hashes() -> HashMap<String, String> {
     let mut hashes = HashMap::new();
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/root"));
     let configs = vec![
-        ("sway", home.join(".config/sway/config")),
+        // INT-180: sway removed
         ("zshrc", home.join(".zshrc")),
         ("foot", home.join(".config/foot/foot.ini")),
         ("aliases", home.join(".config/zsh/aliases.zsh")),
@@ -510,7 +510,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
             "zshrc",
             home.join("0-core/03-interfaces/stow/shell-zsh/.zshrc"),
         ),
-        ("sway", home.join(".config/sway/config")),
+        // INT-180: sway removed
         ("foot", home.join(".config/foot/foot.ini")),
     ];
 
