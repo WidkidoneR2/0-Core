@@ -119,11 +119,11 @@ not a tool you invoke but a presence that is always there.
 - Zero network calls — ever
 - Daemon survives fsh restarts without losing state
 - Human authorization required for any action Friday proposes
-⬜ Gate 1  — friday-daemon crate created in rust-tools/
-⬜ Gate 2  — Unix socket server running (/tmp/friday.sock)
-⬜ Gate 3  — fsh sends command_executed JSON event after every command
-⬜ Gate 4  — Friday receives and parses events without error
-⬜ Gate 5  — state.db schema: friday_patterns, friday_queries, friday_hypotheses
+✅ Gate 1  — friday-daemon crate extended (faelight-daemon v4.0.0) (2026-04-18)
+✅ Gate 2  — Unix socket server running (~/.local/state/0-core/daemon.sock) (2026-04-18)
+✅ Gate 3  — fsh sends command_executed JSON event after every command (2026-04-18)
+✅ Gate 4  — Friday receives and parses events without error (2026-04-18)
+✅ Gate 5  — state.db schema: friday_patterns, friday_queries, friday_hypotheses (2026-04-18)
 ⬜ Gate 6  — Learning loop: observe → detect → hypothesize → validate → reinforce
 ⬜ Gate 7  — Inline response: Friday speaks after command when confidence >= 0.75
 ⬜ Gate 8  — `friday <question>` command in fsh — context bundle assembled and sent
