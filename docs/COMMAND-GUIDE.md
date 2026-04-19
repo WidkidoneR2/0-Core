@@ -593,3 +593,19 @@ Contradictions surface automatically in `d` (doctor) output.
 | core knowledge accuracy | Show resolution accuracy per domain with visual bar |
 | core knowledge add "domain" "problem" "fix" | Record a new lesson manually |
 | core knowledge outcome "id" yes/no | Record if a fix worked -- updates confidence score |
+
+Patching Rust files from Python has known pitfalls. Always follow these rules:
+| Rule | Wrong | Right |
+|------|-------|-------|
+| Patching Rust code | Python multiline string with Rust content | `fsh-patch target old.rs new.rs` |
+| Unicode in Python | `"\u{2705}"` in string | `chr(0x2705)` |
+| Backslash in anchor | `"fn foo\n"` inline | Write to `/tmp/old.rs` first |
+| Em dashes in strings | `"some -- text"` inline | Write to file, use `fsh-patch` |
+**fsh-patch usage:**
+cat << RUSTEOF > /tmp/old.rs
+<old rust content>
+RUSTEOF
+cat << RUSTEOF > /tmp/new.rs
+<new rust content>
+RUSTEOF
+fsh-patch ~/0-core/rust-tools/tool/src/file.rs /tmp/old.rs /tmp/new.rs
