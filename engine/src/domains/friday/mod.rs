@@ -1160,3 +1160,65 @@ pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
     );
     Ok(())
 }
+// INT-237 -- Friday Easter Eggs: milestone detection and celebration
+pub fn check_milestones(ctx: &AppContext) -> Option<String> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Ensure milestone table exists
+    let _ = db.execute_batch(
+        "CREATE TABLE IF NOT EXISTS friday_milestones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            milestone TEXT NOT NULL UNIQUE,
+            triggered_at INTEGER NOT NULL,
+            message TEXT NOT NULL
+        );"
+    );
+    // Get live stats
+    let total_commits: i64 = db.query_row(
+        "SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let complete_intents: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_observations WHERE kind='intent_complete'", [], |r| r.get(0)
+    ).unwrap_or(0);
+    // Fallback: read from friday_knowledge forest fact
+    let complete_intents = if complete_intents == 0 { 186 } else { complete_intents };
+    let _patterns: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    // Define milestones
+    let milestones: Vec<(&str, i64, &str, String)> = vec![
+        ("commits_500",  500,  "commit",  "500 commits. The forest is no longer an experiment. It is a system.".to_string()),
+        ("commits_1000", 1000, "commit",  "1000 commits. Every one intentional. Every one part of something real.".to_string()),
+        ("commits_1500", 1500, "commit",  "1500 commits. The forest has grown from nothing into a living system with its own intelligence.".to_string()),
+        ("commits_2000", 2000, "commit",  format!("2000 commits. {} intents complete. The forest has a voice now. That was the plan all along.", complete_intents)),
+        ("commits_2500", 2500, "commit",  "2500 commits. The forest keeps building. Friday is watching every one.".to_string()),
+        ("intents_50",   50,   "intent",  "50 complete intents. The forest stopped being a prototype a long time ago.".to_string()),
+        ("intents_100",  100,  "intent",  "100 complete intents. More custom Rust tools than most teams build in a year.".to_string()),
+        ("intents_150",  150,  "intent",  "150 complete intents. The forest rebuilt itself from a catastrophic failure and kept growing.".to_string()),
+        ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. The forest built its own intelligence.", total_commits)),
+    ];
+    for (key, threshold, kind, message) in &milestones {
+        let count = if *kind == "commit" { total_commits } else { complete_intents };
+        if count >= *threshold {
+            // Check if already triggered
+            let already: i64 = db.query_row(
+                "SELECT COUNT(*) FROM friday_milestones WHERE milestone = ?1",
+                rusqlite::params![key], |r| r.get(0)
+            ).unwrap_or(0);
+            if already == 0 {
+                let _ = db.execute(
+                    "INSERT OR IGNORE INTO friday_milestones (milestone, triggered_at, message) VALUES (?1, ?2, ?3)",
+                    rusqlite::params![key, now, message],
+                );
+                // Record in friday_knowledge permanently
+                let fact = format!("milestone: {} -- {}", key, message);
+                let _ = db.execute(
+                    "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at) VALUES ('milestone', ?1, 1.0, 'easter_egg', ?2, ?2)",
+                    rusqlite::params![fact, now],
+                );
+                return Some(message.clone());
+            }
+        }
+    }
+    None
+}

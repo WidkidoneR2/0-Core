@@ -491,6 +491,12 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         let facts: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
         // Write daily journal entry (no-op if already written today)
         let _ = crate::domains::friday::write_journal_entry(ctx);
+        // INT-237 -- Friday Easter Eggs: check milestones
+        if let Some(celebration) = crate::domains::friday::check_milestones(ctx) {
+            println!();
+            println!("  {} {}", "🌲 Friday milestone:".bright_yellow().bold(), celebration.bright_white());
+            println!();
+        }
         match crate::domains::friday::get_voice(ctx) {
             Some((brief, confidence)) => {
                 println!("  {}  Friday: watching · {} patterns · {} facts",

@@ -1,7 +1,7 @@
 ---
 id: 237
 title: "Friday Easter Eggs -- The Forest Celebrates"
-status: planned
+status: complete
 date: 2026-04-16
 tags: [fun, friday, easter-eggs, milestones, celebration, personality]
 ---
