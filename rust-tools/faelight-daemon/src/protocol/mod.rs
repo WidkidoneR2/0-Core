@@ -27,6 +27,10 @@ pub enum Command {
         health: u32,
         timestamp: i64,
     },
+    /// INT-220 -- Friday: dismiss last suggestion (negative learning)
+    FridayDismiss {
+        pattern_trigger: Option<String>,
+    },
     /// INT-220 -- Friday: ask a question about the forest
     FridayQuery {
         question: String,

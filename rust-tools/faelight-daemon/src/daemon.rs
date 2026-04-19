@@ -68,6 +68,10 @@ impl Daemon {
         tokio::spawn(async move {
             signal_aggregation(signal_db).await;
         });
+        // INT-220 Gate 6 -- Friday learning loop (runs every 30 minutes)
+        tokio::spawn(async move {
+            friday_learning_loop().await;
+        });
 
         // Bind to Unix socket
         let listener = UnixListener::bind(&self.socket_path)?;
@@ -345,6 +349,11 @@ async fn process_command(cmd: Command) -> Response {
         Command::FridayEvent { command, exit_code, duration_ms, intent, health, timestamp } => {
             friday_record_event(command, exit_code, duration_ms, intent, health, timestamp).await
         }
+        // INT-220 Gate 11 -- Friday dismiss: negative learning
+        Command::FridayDismiss { pattern_trigger } => {
+            friday_dismiss(pattern_trigger).await
+        }
+
         // INT-220 -- Friday query: answer a question about the forest
         Command::FridayQuery { question, context } => {
             friday_answer_query(question, context).await
@@ -775,4 +784,70 @@ async fn friday_answer_query(
         rusqlite::params![now, &question, &answer, confidence],
     );
     Response::FridayAnswer { answer, confidence, sources: vec!["live_data".to_string()] }
+}
+
+// INT-220 Gate 6 -- Friday learning loop background task
+async fn friday_learning_loop() {
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1800)).await; // 30 minutes
+        let home = std::env::var("HOME").unwrap_or_default();
+        let core_path = format!("{}/0-core/scripts/core", home);
+        let _ = tokio::process::Command::new(&core_path)
+            .args(["friday", "learning-loop"])
+            .output()
+            .await;
+    }
+}
+
+// INT-220 Gate 11 -- Negative learning: dismissal penalizes confidence by -0.3
+async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Response {
+    use crate::protocol::Response;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return Response::FridaySpeak { message: None, priority: "silent".to_string() };
+    };
+    // Find pattern to penalize
+    let target = if let Some(ref trigger) = pattern_trigger {
+        conn.query_row(
+            "SELECT id, trigger, confidence, dismissals FROM friday_patterns WHERE trigger = ?1",
+            rusqlite::params![trigger],
+            |r| Ok((r.get::<_,i64>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?, r.get::<_,i64>(3).unwrap_or(0)))
+        ).ok()
+    } else {
+        // Most recently spoken pattern
+        conn.query_row(
+            "SELECT id, trigger, confidence, COALESCE(dismissals, 0) FROM friday_patterns ORDER BY last_seen DESC LIMIT 1",
+            [],
+            |r| Ok((r.get::<_,i64>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?, r.get::<_,i64>(3)?))
+        ).ok()
+    };
+    if let Some((id, trigger, confidence, dismissals)) = target {
+        let new_conf = (confidence - 0.3).max(0.1);
+        let new_dismissals = dismissals + 1;
+        // Ensure dismissals column exists
+        let _ = conn.execute_batch("ALTER TABLE friday_patterns ADD COLUMN dismissals INTEGER DEFAULT 0;");
+        if new_dismissals >= 3 {
+            // Archive the pattern
+            let _ = conn.execute(
+                "UPDATE friday_patterns SET confidence = ?1, dismissals = ?2, outcome = 'archived' WHERE id = ?3",
+                rusqlite::params![new_conf, new_dismissals, id],
+            );
+            Response::FridaySpeak {
+                message: Some(format!("Pattern '{}' archived after 3 dismissals.", trigger)),
+                priority: "low".to_string(),
+            }
+        } else {
+            let _ = conn.execute(
+                "UPDATE friday_patterns SET confidence = ?1, dismissals = ?2 WHERE id = ?3",
+                rusqlite::params![new_conf, new_dismissals, id],
+            );
+            Response::FridaySpeak {
+                message: Some(format!("Noted. '{}' confidence reduced to {:.0}%.", trigger, new_conf * 100.0)),
+                priority: "low".to_string(),
+            }
+        }
+    } else {
+        Response::FridaySpeak { message: None, priority: "silent".to_string() }
+    }
 }
