@@ -98,40 +98,14 @@ fn read_file(path: &str, fallback: &str) -> String {
         .unwrap_or_else(|_| fallback.to_string())
 }
 fn read_active_intent() -> String {
-    // Try state.db for active intent
-    let db_path = dirs_home().map(|h| h.join("0-core/runtime/state.db"));
-    if let Some(db) = db_path {
-        if let Ok(conn) = rusqlite::Connection::open_with_flags(
-            &db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            let r: Result<String, _> = conn.query_row(
-                "SELECT value FROM shell_state WHERE key='focus_intent' LIMIT 1",
-                [], |r| r.get(0));
-            if let Ok(v) = r { return v; }
-        }
-    }
-    String::new()
+    // Read from /etc/faelight/INTENT (exported by fsh on session start)
+    read_file("/etc/faelight/INTENT", "")
 }
 fn read_friday_brief() -> String {
-    let db_path = dirs_home().map(|h| h.join("0-core/runtime/state.db"));
-    if let Some(db) = db_path {
-        if let Ok(conn) = rusqlite::Connection::open_with_flags(
-            &db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            let r: Result<(String, f64), _> = conn.query_row(
-                "SELECT friday_brief, brief_confidence FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
-                [], |r| Ok((r.get(0)?, r.get(1)?)));
-            if let Ok((brief, conf)) = r {
-                if conf >= 0.70 && !brief.is_empty() {
-                    let short: String = brief.chars().take(72).collect();
-                    return short;
-                }
-            }
-        }
-    }
-    String::new()
+    // Read from /etc/faelight/FRIDAY (exported by fsh on session start)
+    read_file("/etc/faelight/FRIDAY", "")
 }
-fn dirs_home() -> Option<std::path::PathBuf> {
-    std::env::var("HOME").ok().map(std::path::PathBuf::from)
-}
+// INT-242: data read from /etc/faelight/ files
 fn greet(state: &mut LoginState) -> Result<bool, String> {
     let sock_path = std::env::var("GREETD_SOCK")
         .map_err(|_| "GREETD_SOCK not set".to_string())?;
