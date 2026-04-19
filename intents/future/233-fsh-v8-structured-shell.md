@@ -59,8 +59,25 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ✅ gp abbreviation wired -- now expands to git push correctly (2026-04-19)
 ✅ fg sync clippy scope -- clippy now scoped to staged packages only (2026-04-19)
 ✅ rspatch and patch handle em dashes -- fsh-patch helper bypasses Python unicode issues (2026-04-19)
-⬜ shell friction audit -- review all session pain points before v8 build
+✅ shell friction audit -- 10 pain points documented, patterns and fixes recorded (2026-04-19)
 
+
+Pain points identified from this session and previous sessions:
+1. **Multiline paste** -- pasting 2+ commands passes line 2+ to sh, breaking fsh builtins. Workaround: paste one at a time. Fix: detect multiline input and split at repl level.
+2. **Python unicode escapes** -- `\u{XXXX}` in Python strings breaks with SyntaxError. Fix: use `chr(0xXXXX)` or write Rust to temp files with `fsh-patch`.
+3. **Em dashes in anchors** -- `--` vs `\u2014` mismatch breaks fsh-patch matching. Fix: `fsh-patch` reads raw bytes, handles correctly.
+4. **`>>` append redirect** -- not supported natively, falls to sh. Workaround: Python or single `>` with prepended content.
+5. **`gp` broken** -- expanded to `fg push` which does not exist. Fixed: now expands to `git push`.
+6. **`fg sync` clippy** -- ran on whole workspace, blocking on unrelated warnings. Fixed: scoped to staged packages.
+7. **fsh builtins not in sh pipelines** -- `fsearch | grep` passed to sh which does not know `fsearch`. Fixed: builtin-first pipeline.
+8. **SIGPIPE panic in core** -- `core | head` caused broken pipe panic. Fixed: `SIG_DFL` in core main.
+9. **Python patch anchor failures** -- box-drawing characters in comments broke fsh-patch matching. Fix: use byte-level search or avoid special chars in anchors.
+10. **config.fsh at wrong path** -- expected `~/.config/fsh/` but actual is `~/.config/faelight-shell/`. Documented in config.rs.
+Patterns to avoid:
+- Never use `\u{XXXX}` in Python strings that generate Rust code
+- Always run commands one at a time when using fsh builtins
+- Use `fsh-patch` for all Rust file patching, not Python multiline strings
+- Use `chr(0xXXXX)` for unicode chars in Python
 "The shell is not just a command runner.
 It is the interface between you and the forest.
 v8 makes that interface intelligent." 🌲
