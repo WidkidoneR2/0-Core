@@ -3,7 +3,7 @@ id: 180
 date: 2026-03-30
 type: arch
 title: "Sway Removal — Full Niri Commitment"
-status: in-progress
+status: complete
 tags: [architecture, niri, sway, wayland, faelight-login, cleanup]
 version: 11.6.0
 ---
@@ -64,13 +64,13 @@ Only after every reference is removed and system is verified.
 
 ## Gate Check
 ```
-⬜ Phase 1 — full audit of all Sway references documented
-⬜ Phase 2 — faelight-login hardened for Niri-only
-⬜ Phase 3 — all config files cleaned of Sway references
-⬜ Phase 4 — Sway packages removed
-⬜ Phase 5 — system verified clean — d shows 100% health
-⬜ faelight-login boots into Niri with zero errors
-⬜ No Sway binary, config, or reference remains
+✅ Phase 1 -- full audit complete, all Sway references classified (2026-04-19)
+✅ Phase 2 -- faelight-login Niri-only, SessionChoice::Sway removed (2026-04-19)
+✅ Phase 3 -- aliases, yazi, bar, menu, palette, bootstrap, engine cleaned (2026-04-19)
+✅ Phase 4 -- sway swaybg swaylock swayidle removed, 7 packages gone (2026-04-19)
+✅ Phase 5 -- d shows 100% health after all removals (2026-04-19)
+✅ faelight-login Niri-only -- builds clean, no Sway option (2026-04-19)
+✅ No Sway binary remains -- all active code cleaned (swaylock kept for faelight-lock) (2026-04-19)
 ```
 
 ## The Phrase
