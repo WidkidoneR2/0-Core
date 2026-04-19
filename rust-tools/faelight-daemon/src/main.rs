@@ -40,7 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_string()
     });
 
-    print_banner(&socket_path);
+    // Banner logged to friday.log, not stdout
+    let _ = std::fs::OpenOptions::new().append(true).create(true)
+        .open(format!("{}/.cache/faelight/friday.log", std::env::var("HOME").unwrap_or_default()))
+        .map(|mut f| { use std::io::Write; let _ = f.write_all(format!("[friday] daemon started on {}\n", socket_path).as_bytes()); });
 
     let daemon = Daemon::new(socket_path);
     daemon.run().await?;
@@ -48,14 +51,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn print_banner(socket_path: &str) {
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-    println!("{}", "🌲 FAELIGHT DAEMON v2.0.0".cyan().bold());
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".cyan());
-    println!();
-    println!("  {} {}", "Socket:".bold(), socket_path.green());
-    println!("  {} {}", "Status:".bold(), "LEGENDARY".green().bold());
-    println!();
-    println!("{}", "Ready for connections...".cyan());
-    println!();
-}
