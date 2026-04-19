@@ -1708,11 +1708,13 @@ dependencies = [
 
 [[package]]
 name = "faelight-login"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "crossterm 0.28.1",
  "greetd_ipc",
+ "libc",
  "ratatui 0.29.0",
+ "rusqlite",
  "serde",
  "serde_json",
 ]

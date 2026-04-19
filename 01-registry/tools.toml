@@ -401,7 +401,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-login"
-version = "1.0.0"
+version = "2.0.0"
 category = "system"
 description = "Faelight login greeter — greetd-compatible TUI login screen"
 expected_usage = "low"

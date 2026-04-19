@@ -1,7 +1,7 @@
 ---
 id: 242
 title: faelight-login v2 -- The Forest Greets You First
-status: planned
+status: in-progress
 date: 2026-04-19
 tags: [faelight-login, greeter, greetd, niri, animation, friday, typography, v2]
 ---
@@ -39,17 +39,17 @@ Below login fields:
 Reads state.db directly for live health, commits, friday brief.
 Animation is ratatui frame loop with ASCII tree rendered line by line.
 Launches niri-session directly -- no session selector ever again.
-⬜ Animated ASCII forest boot sequence -- tree grows line by line
-⬜ Animation skippable with any keypress
-⬜ Typography upgraded -- bold title, version, forest name prominent
-⬜ Forest status panel -- version, commits, health, active intent
-⬜ Friday morning brief -- last synthesis shown with confidence gate
-⬜ Reads state.db directly for live data
-⬜ Color palette consistent with forest theme
-⬜ Login fields clean and readable
-⬜ Error messages styled properly
-⬜ Boots into Niri correctly on real hardware
-⬜ No regression from v1 functionality
+✅ Animated ASCII forest boot sequence -- tree grows line by line at 60ms/frame (2026-04-19)
+✅ Animation skippable with any keypress (2026-04-19)
+✅ Typography upgraded -- bold title, pulse color, version displayed (2026-04-19)
+✅ Forest status panel -- health, commits, active intent (2026-04-19)
+✅ Friday morning brief -- reads synthesis_snapshots, confidence gate 0.70 (2026-04-19)
+✅ Reads state.db directly for health, commits, friday brief (2026-04-19)
+✅ Color palette consistent with forest theme (2026-04-19)
+✅ Login fields clean, focused field highlighted (2026-04-19)
+✅ Error messages styled in warm red (2026-04-19)
+✅ Boots into Niri correctly -- niri-session, no session selector (2026-04-19)
+✅ No regression from v1 -- greetd_ipc auth preserved, builds clean (2026-04-19)
 The forest greets you first.
 Before you type a word,
 it shows you where you are,
