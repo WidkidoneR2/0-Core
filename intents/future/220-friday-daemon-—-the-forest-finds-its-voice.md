@@ -125,7 +125,7 @@ not a tool you invoke but a presence that is always there.
 ✅ Gate 4  — Friday receives and parses events without error (2026-04-18)
 ✅ Gate 5  — state.db schema: friday_patterns, friday_queries, friday_hypotheses (2026-04-18)
 ⬜ Gate 6  — Learning loop: observe → detect → hypothesize → validate → reinforce
-⬜ Gate 7  — Inline response: Friday speaks after command when confidence >= 0.75
+✅ Gate 7  — Inline response: Friday speaks after command when confidence >= 0.75 (2026-04-18)
 ✅ Gate 8  — `friday <question>` command in fsh — context sent to daemon (2026-04-18)
 ✅ Gate 9  — Friday answers direct questions from forest state — live data queries (2026-04-18)
 ✅ Gate 10 — Every query/response logged to friday_queries table (2026-04-18)
