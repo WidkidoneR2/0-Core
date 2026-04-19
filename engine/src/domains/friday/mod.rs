@@ -197,13 +197,15 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         "SELECT value FROM friday_personality WHERE key = 'phase'", [],
         |r| r.get(0)
     ).unwrap_or_else(|_| "0".to_string());
+    // Use friday_personality born_at if set, else fall back to first observation
     let born_at: i64 = db.query_row(
         "SELECT value FROM friday_personality WHERE key = 'born_at'", [],
         |r| r.get::<_, String>(0)
     ).unwrap_or_default().parse().unwrap_or(0);
-    let age_hours = if born_at > 0 {
-        (now_ts() - born_at) / 3600
-    } else { 0 };
+    let born_at = if born_at > 0 { born_at } else {
+        db.query_row("SELECT MIN(timestamp) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0)
+    };
+    let age_hours = if born_at > 0 { (now_ts() - born_at) / 3600 } else { 0 };
     println!();
     println!("  {} Friday -- Phase {}", "🌲".normal(), phase.bright_cyan().bold());
     println!("  {}", "━".repeat(50).dimmed());
@@ -223,9 +225,9 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     };
     if !recent.is_empty() {
         println!("  {} Recent observations:", "→".bright_cyan());
-        for (kind, content) in &recent {
-            let short = content.chars().take(65).collect::<String>();
-            println!("    {} {} {}", "·".dimmed(), kind.bright_green(), short.dimmed());
+        for (_kind, content) in &recent {
+            let short = content.chars().take(75).collect::<String>();
+            println!("    {} {}", "·".dimmed(), short.dimmed());
         }
         println!();
     }
