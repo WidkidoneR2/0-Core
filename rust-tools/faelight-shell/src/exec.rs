@@ -296,7 +296,60 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         );
     }
 
-    // ── Suggest system — INT-171 Phase 4 ─────────────────────────────────────
+    // ── INT-233: Knowledge engine query on failure ────────────────────────────
+    // After every failed command, search knowledge base for known fixes
+    if status == "error" {
+        let error_msg = match result {
+            CommandResult::Error(e) => e.clone(),
+            _ => String::new(),
+        };
+        let cmd_lower = ctx.cmd.to_lowercase();
+        let error_lower = error_msg.to_lowercase();
+        // Tokenize error + command into meaningful keywords
+        // Filter noise words, try each token against knowledge base
+        let noise: &[&str] = &["the","a","an","is","in","of","to","with","and","or","not","for","at","by","on","as","it","be","this","that","was","are"];
+        let full_text = format!("{} {}", cmd_lower, error_lower);
+        let tokens: Vec<String> = full_text
+            .split(|c: char| !c.is_alphanumeric() && c != '0')
+            .filter(|t| t.len() >= 3 && !noise.contains(t))
+            .map(|t| t.to_string())
+            .collect();
+        // Use command name as fallback token
+        let search_tokens: Vec<String> = if tokens.is_empty() {
+            vec![cmd_lower.clone()]
+        } else {
+            tokens.into_iter().take(5).collect()
+        };
+        // Try each token against knowledge base (search_tokens built above)
+        // Try each token against knowledge_entries table (search id + description + resolution)
+        let mut lesson: Option<(String, String, f64)> = None;
+        for token in &search_tokens {
+            let result = db.conn.query_row(
+                "SELECT id, resolution, confidence FROM knowledge_entries
+                 WHERE (LOWER(COALESCE(error_signature,'')) LIKE ?1
+                     OR LOWER(COALESCE(description,'')) LIKE ?1
+                     OR LOWER(COALESCE(resolution,'')) LIKE ?1
+                     OR LOWER(id) LIKE ?1)
+                 AND confidence >= 0.85
+                 ORDER BY confidence DESC, success_count DESC
+                 LIMIT 1",
+                rusqlite::params![format!("%{}%", token)],
+                |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
+            ).ok();
+            if result.is_some() {
+                lesson = result;
+                break;
+            }
+        }
+        if let Some((id, resolution, confidence)) = lesson {
+            println!();
+            println!("  {} Friday knows this ({:.0}% confidence):", "🌲".normal(), confidence * 100.0);
+            println!("  {} {}", "->".bright_cyan(), resolution.chars().take(120).collect::<String>());
+            println!("  {} core knowledge show {}", "·".dimmed(), id.dimmed());
+            println!();
+        }
+    }
+    // ── Suggest system -- INT-171 Phase 4 ─────────────────────────────────────
     if status == "ok" || status == "empty" {
         let suggestion = match ctx.cmd.as_str() {
             "fg" if ctx.args.first().map(|s| s.as_str()) == Some("commit") => {
