@@ -82,7 +82,11 @@ impl LoginState {
             health: read_file("/etc/faelight/HEALTH", "100%"),
             commits: read_file("/etc/faelight/COMMITS", "?"),
             version: read_file("/etc/faelight/VERSION", "11.9.0"),
-            active_intent: read_active_intent(),
+            active_intent: {
+                let s = read_active_intent();
+                let truncated: String = s.chars().take(45).collect();
+                if s.chars().count() > 45 { format!("{}...", truncated) } else { truncated }
+            },
             friday_brief: read_friday_brief(),
             mode: AppMode::Animating,
             anim_frame: 0,
