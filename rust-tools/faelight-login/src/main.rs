@@ -106,8 +106,12 @@ fn read_active_intent() -> String {
     read_file("/etc/faelight/INTENT", "")
 }
 fn read_friday_brief() -> String {
-    // Read from /etc/faelight/FRIDAY (exported by fsh on session start)
-    read_file("/etc/faelight/FRIDAY", "")
+    let s = read_file("/etc/faelight/FRIDAY", "");
+    // Filter out daemon noise -- only show Friday synthesis briefs
+    if s.contains("contradiction") || s.contains("cross-layer") || s.contains("CONTRADICTION") || s.contains("signal(s)") {
+        return String::new();
+    }
+    s.chars().take(65).collect()
 }
 // INT-242: data read from /etc/faelight/ files
 fn greet(state: &mut LoginState) -> Result<bool, String> {
@@ -186,12 +190,16 @@ fn draw_login(
     terminal.draw(|f| {
         let area = f.area();
         f.render_widget(Block::default().style(Style::default().bg(BG)), area);
+        // Center vertically by calculating padding
+        let box_height = 22u16;
+        let top_pad = area.height.saturating_sub(box_height) / 2;
+        let bot_pad = area.height.saturating_sub(box_height).saturating_sub(top_pad);
         let outer = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(26),
-                Constraint::Fill(1),
+                Constraint::Length(top_pad),
+                Constraint::Length(box_height),
+                Constraint::Length(bot_pad),
             ])
             .split(area);
         let center = Layout::default()
