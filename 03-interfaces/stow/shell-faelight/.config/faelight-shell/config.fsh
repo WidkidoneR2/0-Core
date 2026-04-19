@@ -64,3 +64,4 @@ before_run {
     if command contains "paru -Syu" { warn "System update — run during maintenance window?" }
     if command contains "sudo rm" { block "Use rm directly — sudo rm is too dangerous" }
 }
+

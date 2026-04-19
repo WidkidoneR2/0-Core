@@ -180,6 +180,35 @@ pub fn load() -> ShellConfig {
 
     ShellConfig { aliases, settings, before_rules }
 }
+/// Validate config.fsh syntax without loading -- returns list of errors
+pub fn validate() -> Vec<String> {
+    let path = config_path();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return vec![],
+    };
+    let mut errors: Vec<String> = vec![];
+    let mut in_before_run = false;
+    for (lineno, raw_line) in text.lines().enumerate() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') { continue; }
+        if line == "before_run {" { in_before_run = true; continue; }
+        if in_before_run && line == "}" { in_before_run = false; continue; }
+        if in_before_run { continue; }
+        if line.starts_with("alias ") {
+            if !line.contains(" = ") {
+                errors.push(format!("  line {}: invalid alias -- missing ' = '\n    got: {}\n    fix: alias name = \"command\"", lineno+1, line));
+            }
+        } else if line.starts_with("set ") {
+            if !line.contains(" = ") {
+                errors.push(format!("  line {}: invalid set -- missing ' = '\n    got: {}\n    fix: set key = value", lineno+1, line));
+            }
+        } else if line != "before_run {" && line != "}" {
+            errors.push(format!("  line {}: unknown directive '{}'\n    fix: valid directives are: alias, set, before_run", lineno+1, &line[..line.len().min(40)]));
+        }
+    }
+    errors
+}
 
 /// Apply config to the running shell — register aliases and settings.
 pub fn apply(cfg: &ShellConfig, db: &ForestDb) {

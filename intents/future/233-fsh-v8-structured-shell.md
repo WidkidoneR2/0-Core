@@ -43,7 +43,7 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 
 ✅ echo 'text' > /tmp/file works natively in fsh (2026-04-19)
 ✅ rspatch \\n in --new content interpreted as real newline (2026-04-19)
-⬜ Every error message includes: what failed, why, what to do next
+✅ Every error message includes: what failed, why, what to do -- rspatch and deploy done (2026-04-19)
 ✅ Command not found suggests nearest known alternative (2026-04-19)
 ⬜ JSON output mode working for core knowledge commands
 ⬜ Table display for structured fsh output
