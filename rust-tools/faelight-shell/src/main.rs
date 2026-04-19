@@ -1717,11 +1717,28 @@ fn repl_main() -> Result<()> {
                             exit_code, health.unwrap_or(100), now_ts
                         );
                         if std::path::Path::new(sock_path).exists() {
-                            use std::io::Write;
+                            use std::io::{Write, BufRead, BufReader};
                             if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(sock_path) {
                                 stream.set_write_timeout(Some(std::time::Duration::from_millis(100))).ok();
+                                stream.set_read_timeout(Some(std::time::Duration::from_millis(1000))).ok();
                                 let _ = stream.write_all(event_json.as_bytes());
                                 let _ = stream.write_all(b"\n");
+                                // Gate 7 -- read FridaySpeak response inline
+                                let mut reader = BufReader::new(&stream);
+                                let mut resp = String::new();
+                                if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
+                                    if (resp.contains("\"low\"") || resp.contains("\"medium\"") || resp.contains("\"high\""))
+                                        && resp.contains("\"message\":\"") {
+                                        if let Some(msg) = resp.split("\"message\":\"").nth(1) {
+                                            if let Some(msg) = msg.split('"').next() {
+                                                if !msg.is_empty() && msg != "null" {
+                                                    println!();
+                                                    println!("  \u{1f332} Friday: {}", msg);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
