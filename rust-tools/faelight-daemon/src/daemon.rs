@@ -646,18 +646,36 @@ async fn friday_record_event(
         "INSERT INTO friday_observations (timestamp, source, kind, content) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![timestamp, "fsh", "command", &obs_content],
     );
-    let speak_msg: Option<String> = conn.query_row(
-        "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.75 ORDER BY confidence DESC LIMIT 1",
-        [],
-        |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
-    ).ok().and_then(|(trigger, action, conf)| {
+    // Gate 7 -- speak when command matches a known pattern trigger
+    let speak_msg: Option<String> = {
         let cmd_base = command.split_whitespace().next().unwrap_or("").to_string();
-        if command.contains(&trigger) || trigger.contains(&cmd_base) {
-            Some(format!("{} → {} ({:.0}%)", trigger, action, conf * 100.0))
-        } else {
-            None
+        let cmd_base = cmd_base.split('/').last().unwrap_or(&cmd_base).to_string();
+        let mut msg: Option<String> = None;
+        if let Ok(mut stmt) = conn.prepare(
+            "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.75 ORDER BY confidence DESC LIMIT 10"
+        ) {
+            let rows = stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)));
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let (trigger, action, conf) = row;
+                    let trigger_base = trigger.split_whitespace().next().unwrap_or("").to_string();
+                    if cmd_base == trigger_base || cmd_base == trigger {
+                        msg = Some(format!("{} → {} ({:.0}%)", trigger, action, conf * 100.0));
+                        break;
+                    }
+                }
+            }
         }
-    });
+        msg
+    };
+    // Log to friday.log for diagnostics
+    if let Some(ref msg) = speak_msg {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let log = format!("{}/.cache/faelight/friday.log", home);
+        let entry = format!("[friday] speak: {}\n", msg);
+        let _ = std::fs::OpenOptions::new().append(true).create(true).open(&log)
+            .map(|mut f| { use std::io::Write; let _ = f.write_all(entry.as_bytes()); });
+    }
     let priority = if speak_msg.is_some() { "low" } else { "silent" };
     Response::FridaySpeak {
         message: speak_msg,

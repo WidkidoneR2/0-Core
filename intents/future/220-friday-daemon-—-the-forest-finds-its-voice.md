@@ -132,7 +132,7 @@ not a tool you invoke but a presence that is always there.
 ⬜ Gate 11 — Negative learning: dismissal penalizes confidence by -0.3
 ⬜ Gate 12 — Daemon starts on login via faelight-login
 ✅ Gate 13 — Daemon survives fsh restart, state persists in state.db (2026-04-18)
-⬜ Gate 14 — `friday status` shows learning stats, pattern count, confidence scores
+✅ Gate 14 — `friday status` shows learning stats, pattern count, confidence scores (2026-04-18)
 ⬜ Gate 15 — 30 days of daily use with zero crashes and zero unauthorized actions
 ---
 **"Friday does not think for you.
