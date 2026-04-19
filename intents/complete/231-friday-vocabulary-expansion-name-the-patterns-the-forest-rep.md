@@ -1,7 +1,7 @@
 ---
 id: 231
 title: "Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats"
-status: planned
+status: complete
 date: 2026-04-15
 tags: [friday, vocabulary, abstraction, language, patterns]
 author: friday
@@ -13,6 +13,6 @@ Friday observed this need from:
 - 23 observations in friday_observations
 - Vocabulary: 1 named abstractions
 Friday's confidence: 80%
-⬜ Reviewed and approved by Christian
-⬜ Implementation complete
-⬜ Friday's proposal validated by outcome
+✅ Reviewed and approved by Christian — 5 patterns named: clear-slate, deploy-commit-lock, commit-discipline, orientation-check, health-verification (2026-04-19)
+✅ Implementation complete — core friday name-abstraction wired, vocabulary live (2026-04-19)
+✅ Friday's proposal validated by outcome — abstractions derived from 24 patterns, 2000+ observations (2026-04-19)
