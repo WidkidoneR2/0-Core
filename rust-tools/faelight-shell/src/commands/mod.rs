@@ -996,7 +996,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         if !text_exts.contains(&ext) { continue; }
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             for (lineno, line) in content.lines().enumerate() {
-                                if line.to_lowercase().contains(pattern) {
+                                let line_lower = line.to_lowercase();
+                                let matched = if pattern.contains('|') {
+                                    pattern.split('|').any(|alt| line_lower.contains(alt.trim()))
+                                } else {
+                                    line_lower.contains(pattern)
+                                };
+                                if matched {
                                     let rel = path.strip_prefix(std::env::current_dir().unwrap_or_default())
                                         .unwrap_or(&path)
                                         .display()
@@ -2179,6 +2185,29 @@ fn fsh_gaps(db: &ForestDb) -> CommandResult {
         out.push_str(&format!("  {} {} x cat|grep  →  try: {}\n",
             "⚡".yellow(), cat_grep.to_string().bright_yellow(),
             "cat file | grep pattern  (native pipe, no sh)".bright_cyan()));
+        any_gaps = true;
+    }
+    // INT-233 -- new builtin alternatives
+    let sed_count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE (command LIKE 'sed %' OR command LIKE '% sed %') AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    let py_patch: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE '%content.replace%' AND timestamp > ?1",
+        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+        |r| r.get(0)
+    ).unwrap_or(0);
+    if sed_count > 2 {
+        out.push_str(&format!("  {} {} x sed  ->  try: {}\n",
+            "⚡".yellow(), sed_count.to_string().bright_yellow(),
+            "rspatch file.rs --anchor 'text' --new 'replacement'".bright_cyan()));
+        any_gaps = true;
+    }
+    if py_patch > 1 {
+        out.push_str(&format!("  {} {} x python patch  ->  try: {}\n",
+            "⚡".yellow(), py_patch.to_string().bright_yellow(),
+            "fsh-patch target old.rs new.rs  (no unicode escape issues)".bright_cyan()));
         any_gaps = true;
     }
     if !any_gaps {
