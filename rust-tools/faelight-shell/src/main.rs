@@ -437,6 +437,8 @@ fn repl_main() -> Result<()> {
     let _ = std::process::Command::new("core")
         .args(["journal", "session-start"])
         .output();
+    // INT-242: export forest state to /etc/faelight/ for login screen
+    let _ = std::process::Command::new("faelight-export").output();
     let _session_start = std::time::Instant::now();
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
