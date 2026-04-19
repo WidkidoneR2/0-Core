@@ -1,7 +1,7 @@
 ---
 id: 238
 title: "forest-stats -- The Forest Visualizes Its Own Growth"
-status: planned
+status: in-progress
 date: 2026-04-16
 tags: [fun, stats, visualization, ascii, history, growth, forest]
 ---
