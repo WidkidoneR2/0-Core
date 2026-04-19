@@ -73,18 +73,31 @@ impl Daemon {
         let listener = UnixListener::bind(&self.socket_path)?;
         let mut connection_count = 0;
 
+        let log_path = {
+            let home = std::env::var("HOME").unwrap_or_default();
+            format!("{}/.cache/faelight/friday.log", home)
+        };
+        // Ensure log dir exists
+        if let Some(parent) = std::path::Path::new(&log_path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
         loop {
             match listener.accept().await {
                 Ok((stream, _)) => {
                     connection_count += 1;
                     let conn_id = connection_count;
                     let sub_rx = tx.subscribe();
-                    println!("{} Connection #{} established", "🔌".green(), conn_id);
+                    let log = log_path.clone();
                     tokio::spawn(async move {
                         if let Err(e) = handle_client(stream, conn_id, sub_rx).await {
-                            eprintln!("{} Connection #{} error: {}", "❌".red(), conn_id, e);
-                        } else {
-                            println!("{} Connection #{} closed", "✅".green(), conn_id);
+                            // Only log real errors, not broken pipe (fire-and-forget clients)
+                            if !e.to_string().contains("Broken pipe") && !e.to_string().contains("os error 32") {
+                                let entry = format!("[friday] conn#{} error: {}
+", conn_id, e);
+                                let _ = std::fs::OpenOptions::new()
+                                    .append(true).create(true).open(&log)
+                                    .map(|mut f| { use std::io::Write; let _ = f.write_all(entry.as_bytes()); });
+                            }
                         }
                     });
                 }
@@ -142,7 +155,7 @@ async fn poll_events(tx: Arc<broadcast::Sender<EventBroadcast>>, db_path: String
 
 async fn handle_client(
     stream: UnixStream,
-    conn_id: u64,
+    _conn_id: u64,
     mut sub_rx: broadcast::Receiver<EventBroadcast>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (reader, mut writer) = stream.into_split();
@@ -158,20 +171,13 @@ async fn handle_client(
 
         let message: Message = match serde_json::from_str(&line) {
             Ok(msg) => msg,
-            Err(e) => {
-                eprintln!(
-                    "{} [#{}] Failed to parse message: {}",
-                    "⚠️".yellow(),
-                    conn_id,
-                    e
-                );
+            Err(_e) => {
+                // Silent -- bad JSON from fire-and-forget clients is expected
                 continue;
             }
         };
 
-        if let MessagePayload::Command(ref cmd) = message.payload {
-            println!("{} [#{}] Command: {:?}", "📨".cyan(), conn_id, cmd);
-        }
+        // Commands logged silently -- no stdout noise
 
         let cmd = match message.payload {
             MessagePayload::Command(cmd) => cmd,

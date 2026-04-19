@@ -1663,9 +1663,15 @@ fn repl_main() -> Result<()> {
                         let home_dir = std::env::var("HOME").unwrap_or_default();
                         let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
                         let sock_path = sock_path_buf.as_str();
+                        // Build JSON safely -- escape special chars in command
+                        let cmd_escaped = cmd_str
+                            .replace('\\', "\\\\")
+                            .replace('"', "\\\"")
+                            .replace('\n', "\\n")
+                            .replace('\r', "\\r");
                         let event_json = format!(
                             "{{\"id\":1,\"payload\":{{\"FridayEvent\":{{\"command\":\"{}\",\"exit_code\":{},\"duration_ms\":0,\"intent\":null,\"health\":{},\"timestamp\":{}}}}}}}",
-                            cmd_str.replace('"', "'"),
+                            cmd_escaped,
                             exit_code, health.unwrap_or(100), now_ts
                         );
                         if std::path::Path::new(sock_path).exists() {
