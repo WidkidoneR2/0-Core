@@ -459,6 +459,16 @@ fn repl_main() -> Result<()> {
 
     // Apply config aliases and settings
     config::apply(&cfg, &db);
+    // INT-233 -- validate config.fsh on load, surface errors immediately
+    {
+        let errors = config::validate();
+        if !errors.is_empty() {
+            println!("  {} config.fsh syntax errors:", "⚠️".normal());
+            for e in &errors {
+                println!("{}", e);
+            }
+        }
+    }
 
     // INT-173 — build command registry on startup
     let mut registry = registry::Registry::new();
