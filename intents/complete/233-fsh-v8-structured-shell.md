@@ -1,7 +1,7 @@
 ---
 id: 233
 title: "fsh v8 -- Structured Shell: Data, Syntax, Intelligence"
-status: in-progress
+status: complete
 date: 2026-04-16
 tags: [fsh, shell, structured-data, syntax, ux, errors, performance, v8]
 ---
@@ -37,9 +37,9 @@ After every failed command: fsh queries knowledge engine
 If known fix exists (confidence >= 0.85): shows fix inline
 fsh diag improvements: more specific gap detection
 fsh gaps: shows frequency of old-habit commands with alternatives
-⬜ faelight-term -- cat large output renders correctly (no corruption)
-⬜ faelight-term -- Ctrl+Click URL opens reliably (modifier state fix)
-⬜ faelight-term -- heredoc inside faelight-term works via fsh not sh
+⛾ faelight-term gates deferred -- term being rebuilt from scratch as new intent
+⛾ faelight-term gates deferred -- term being rebuilt from scratch as new intent
+⛾ faelight-term gates deferred -- term being rebuilt from scratch as new intent
 
 ✅ echo 'text' > /tmp/file works natively in fsh (2026-04-19)
 ✅ rspatch \\n in --new content interpreted as real newline (2026-04-19)
