@@ -51,8 +51,8 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ⬜ Pipeline error recovery -- partial failure reports clearly
 ✅ config.fsh syntax validation on load -- errors with line number and fix shown (2026-04-19)
 ✅ Shell startup under 100ms -- measured 4ms cold start (2026-04-19)
-⬜ fsh queries knowledge engine on build/command failure
-⬜ Known fix shown inline when confidence >= 0.85
+✅ fsh queries knowledge engine on build/command failure -- fires on every error (2026-04-19)
+✅ Known fix shown inline when confidence >= 0.85 -- demonstrated with rspatch (2026-04-19)
 ✅ fsh gaps updated -- rspatch, fsh-patch, sed alternatives shown (2026-04-19)
 ✅ fsearch supports basic regex alternation -- pipe-separated patterns work (2026-04-19)
 ✅ fsh code injection helper -- fsh-patch script for safe Rust patching via temp files (2026-04-19)
