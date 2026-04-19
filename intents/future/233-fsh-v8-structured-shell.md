@@ -48,7 +48,7 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ⬜ JSON output mode working for core knowledge commands
 ⬜ Table display for structured fsh output
 ⬜ Filter syntax working: command | where field = value
-⬜ Pipeline error recovery -- partial failure reports clearly
+✅ Pipeline error recovery -- fsh builtins now pipe to external commands, error shows which stage failed (2026-04-19)
 ✅ config.fsh syntax validation on load -- errors with line number and fix shown (2026-04-19)
 ✅ Shell startup under 100ms -- measured 4ms cold start (2026-04-19)
 ✅ fsh queries knowledge engine on build/command failure -- fires on every error (2026-04-19)
