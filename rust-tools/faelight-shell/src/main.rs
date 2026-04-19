@@ -1293,23 +1293,61 @@ fn repl_main() -> Result<()> {
                                 } else {
                                     std::process::Stdio::piped()
                                 };
-                                match std::process::Command::new(cmd_name)
-                                    .args(&args)
-                                    .stdin(stdin_src)
-                                    .stdout(stdout_dst)
-                                    .stderr(std::process::Stdio::inherit())
-                                    .spawn()
-                                {
-                                    Ok(mut child) => {
-                                        if !is_last {
-                                            prev_stdout = child.stdout.take();
+                                // INT-233: try fsh builtin first before spawning external
+                                let builtin_line = if args.is_empty() {
+                                    cmd_name.to_string()
+                                } else {
+                                    format!("{} {}", cmd_name, args.join(" "))
+                                };
+                                let builtin_out = match commands::execute(&builtin_line, &db, &core_root) {
+                                    commands::CommandResult::Output(o) => Some(o),
+                                    commands::CommandResult::Value(v) => Some(v.render()),
+                                    _ => None,
+                                };
+                                if let Some(out) = builtin_out {
+                                    if is_last {
+                                        println!("{}", out);
+                                    } else {
+                                        // Pipe builtin output to remaining external pipeline stages
+                                        let remaining = pipe_parts[idx+1..].join(" | ");
+                                        use std::io::Write;
+                                        let mut child = std::process::Command::new("sh")
+                                            .arg("-c")
+                                            .arg(&remaining)
+                                            .stdin(std::process::Stdio::piped())
+                                            .stdout(std::process::Stdio::inherit())
+                                            .stderr(std::process::Stdio::inherit())
+                                            .spawn()
+                                            .ok();
+                                        if let Some(ref mut c) = child {
+                                            if let Some(ref mut stdin) = c.stdin.take() {
+                                                let _ = stdin.write_all(out.as_bytes());
+                                            }
+                                            let _ = c.wait();
                                         }
-                                        children.push(child);
-                                    }
-                                    Err(_) => {
-                                        // Fall back to sh for complex cases
-                                        pipe_ok = false;
+                                        pipe_ok = true;
                                         break;
+                                    }
+                                } else {
+                                    match std::process::Command::new(cmd_name)
+                                        .args(&args)
+                                        .stdin(stdin_src)
+                                        .stdout(stdout_dst)
+                                        .stderr(std::process::Stdio::inherit())
+                                        .spawn()
+                                    {
+                                        Ok(mut child) => {
+                                            if !is_last {
+                                                prev_stdout = child.stdout.take();
+                                            }
+                                            children.push(child);
+                                        }
+                                        Err(e) => {
+                                            eprintln!("  {} pipe stage '{}' failed: {}", "✗".bright_red(), cmd_name, e);
+                                            eprintln!("  {} check: is '{}' a valid command?", "·".dimmed(), cmd_name);
+                                            pipe_ok = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
