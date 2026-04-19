@@ -18,6 +18,20 @@ pub enum Command {
 
     /// Ping to check daemon is alive
     Ping,
+    /// INT-220 -- Friday: record a command event for learning
+    FridayEvent {
+        command: String,
+        exit_code: i32,
+        duration_ms: u64,
+        intent: Option<String>,
+        health: u32,
+        timestamp: i64,
+    },
+    /// INT-220 -- Friday: ask a question about the forest
+    FridayQuery {
+        question: String,
+        context: Option<String>,
+    },
 
     /// Shutdown daemon
     Shutdown,
@@ -53,6 +67,17 @@ pub enum Response {
 
     /// Pong response
     Pong,
+    /// INT-220 -- Friday response: optional inline message after command
+    FridaySpeak {
+        message: Option<String>,
+        priority: String, // "silent" | "low" | "medium" | "high"
+    },
+    /// INT-220 -- Friday answer to a direct question
+    FridayAnswer {
+        answer: String,
+        confidence: f64,
+        sources: Vec<String>,
+    },
 
     /// Generic success
     Ok,

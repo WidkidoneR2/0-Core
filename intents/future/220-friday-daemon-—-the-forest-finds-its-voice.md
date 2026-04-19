@@ -3,7 +3,7 @@ id: 220
 date: 2026-04-09
 type: arch
 title: "Friday Daemon — The Forest Finds Its Voice"
-status: planned
+status: in-progress
 tags: [friday, daemon, architecture, rust, unix-socket, json, intelligence, v1]
 version: 1.0.0
 depends_on: [INT-208, INT-217, INT-218]
