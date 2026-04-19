@@ -212,7 +212,7 @@ fn draw_login(
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(22),
+                Constraint::Length(26),
                 Constraint::Fill(1),
             ])
             .split(area);
@@ -220,7 +220,7 @@ fn draw_login(
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(52),
+                Constraint::Length(70),
                 Constraint::Fill(1),
             ])
             .split(outer[1]);
@@ -358,7 +358,7 @@ fn main() -> io::Result<()> {
     state.version = read_system_version();
     let mut last_draw = Instant::now();
     // Animation: advance one line every 60ms
-    let anim_delay = Duration::from_millis(150);
+    let anim_delay = Duration::from_millis(300);
     loop {
         let now = Instant::now();
         // Advance animation
