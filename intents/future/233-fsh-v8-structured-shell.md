@@ -49,7 +49,7 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ⬜ Table display for structured fsh output
 ⬜ Filter syntax working: command | where field = value
 ⬜ Pipeline error recovery -- partial failure reports clearly
-⬜ config.fsh syntax validation on load
+✅ config.fsh syntax validation on load -- errors with line number and fix shown (2026-04-19)
 ✅ Shell startup under 100ms -- measured 4ms cold start (2026-04-19)
 ⬜ fsh queries knowledge engine on build/command failure
 ⬜ Known fix shown inline when confidence >= 0.85
