@@ -583,7 +583,7 @@ fn repl_main() -> Result<()> {
                 // INT-229: abbreviation expansion
                 let line = match line.trim() {
                     "gc"  => { println!("  {} fg commit", "→".bright_cyan()); "fg commit".to_string() }
-                    "gp"  => { println!("  {} fg push",   "→".bright_cyan()); "fg push".to_string() }
+                    "gp"  => { println!("  {} git push", "→".bright_cyan()); "git push".to_string() }
                     "dep" => { println!("  {} deploy",    "→".bright_cyan()); "deploy".to_string() }
                     s if s.starts_with("ds ") => {
                         let rest = &s[3..];

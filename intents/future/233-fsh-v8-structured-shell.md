@@ -16,7 +16,7 @@ recovers from errors gracefully, and grows with Friday.
 - Readable pipelines: you can see what data flows where
 Every error message tells you: what failed, why, and what to do
 No silent failures -- every failed command reports clearly
-echo redirect fixed: echo 'text' > /tmp/file works natively
+✅ echo 'text' > /tmp/file works natively in fsh (2026-04-19)
 rspatch newline handling: \n in --new interpreted as real newline
 Heredoc improvements: better error messages for common mistakes
 Command not found: suggest closest known builtin or alias
