@@ -27,25 +27,27 @@ const ERR: Color = Color::Rgb(227, 107, 107);
 const GOLD: Color = Color::Rgb(200, 180, 80);
 // ASCII forest tree -- rendered line by line during boot animation
 const TREE_LINES: &[&str] = &[
-    "                    .",
-    "                   /|\\",
-    "                  / | \\",
-    "                 /  |  \\",
-    "                / . | . \\",
-    "               /   |||   \\",
-    "              / .  |||  . \\",
-    "             /    .|||.    \\",
-    "            / .   |||   . . \\",
-    "           /    . ||| .      \\",
-    "          /  .   .|||.   .    \\",
-    "         / .    . ||| .    .   \\",
-    "        /      .  |||  .       \\",
-    "       / .  .    .|||.    .  .  \\",
-    "      /   .    .  |||  .    .    \\",
-    "   --/------------|o|------------\\--",
-    "                  |||",
-    "                  |||",
-    "              ____|||____",
+    "                              *",
+    "                            * | *",
+    "                          *   |   *",
+    "                        * .   |   . *",
+    "                      *       |       *",
+    "                    * .   .   |   .   . *",
+    "                  *           |           *",
+    "                * .     .     |     .     . *",
+    "              *               |               *",
+    "            * .       .       |       .       . *",
+    "          *                   |                   *",
+    "        * .         .         |         .         . *",
+    "      *                       |                       *",
+    "    * .           .           |           .           . *",
+    "  *                           |                           *",
+    " * .             .            |            .             . *",
+    "*_______________________________________________|_______________*",
+    "                              |",
+    "                              |",
+    "                         _____|_____",
+    "        F a e l i g h t   F o r e s t",
 ];
 #[derive(Clone, PartialEq)]
 enum Field { Username, Password }
@@ -189,7 +191,7 @@ fn draw_animation(
         if lines_to_show >= TREE_LINES.len() {
             tree_lines.push(Line::from(""));
             tree_lines.push(Line::from(vec![
-                Span::styled("  🌲  ", Style::default().fg(ACCENT)),
+                Span::styled("  *  ", Style::default().fg(ACCENT)),
                 Span::styled("Faelight Forest  ", Style::default().fg(FG).add_modifier(Modifier::BOLD)),
                 Span::styled(&state.version, Style::default().fg(DIM)),
             ]));
@@ -242,7 +244,7 @@ fn draw_login(
         let pulse_color = if state.pulse % 2 == 0 { ACCENT } else { ACCENT2 };
         let version_str = format!("v{}", state.version);
         let title = Paragraph::new(Line::from(vec![
-            Span::styled("  🌲  Faelight Forest  ", Style::default().fg(pulse_color).add_modifier(Modifier::BOLD)),
+            Span::styled("  * Faelight Forest  ", Style::default().fg(pulse_color).add_modifier(Modifier::BOLD)),
             Span::styled(&version_str, Style::default().fg(DIM)),
         ])).block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(DIM)));
         f.render_widget(title, rows[0]);
@@ -311,7 +313,7 @@ fn draw_login(
         if !state.friday_brief.is_empty() {
             f.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("  🌲 ", Style::default().fg(ACCENT)),
+                    Span::styled("  * ", Style::default().fg(ACCENT)),
                     Span::styled(&state.friday_brief, Style::default().fg(DIM)),
                 ])),
                 rows[7]
@@ -356,7 +358,7 @@ fn main() -> io::Result<()> {
     state.version = read_system_version();
     let mut last_draw = Instant::now();
     // Animation: advance one line every 60ms
-    let anim_delay = Duration::from_millis(60);
+    let anim_delay = Duration::from_millis(150);
     loop {
         let now = Instant::now();
         // Advance animation
