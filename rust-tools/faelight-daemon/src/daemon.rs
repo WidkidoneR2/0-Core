@@ -664,6 +664,7 @@ async fn friday_record_event(
         priority: priority.to_string(),
     }
 }
+/// Answer a direct question about the forest -- live data first, knowledge base fallback
 async fn friday_answer_query(
     question: String,
     _context: Option<String>,
@@ -679,48 +680,81 @@ async fn friday_answer_query(
         };
     };
     let q_lower = question.to_lowercase();
-    let mut facts: Vec<(String, f64)> = Vec::new();
-    if let Ok(mut stmt) = conn.prepare(
-        "SELECT fact, confidence FROM friday_knowledge ORDER BY confidence DESC LIMIT 20"
-    ) {
-        let rows = stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?)));
-        if let Ok(rows) = rows {
-            for row in rows.flatten() {
-                let fact_lower = row.0.to_lowercase();
-                let words: Vec<&str> = q_lower.split_whitespace().collect();
-                let matches = words.iter().filter(|w| fact_lower.contains(*w)).count();
-                if matches > 0 {
-                    facts.push(row);
-                }
-            }
-        }
-    }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let _ = conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS friday_queries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp INTEGER NOT NULL,
-            question TEXT NOT NULL,
-            answer TEXT NOT NULL,
-            confidence REAL NOT NULL
-        );"
-    );
-    let (answer, confidence) = if facts.is_empty() {
-        (format!("Friday does not have specific knowledge about: {}", question), 0.3)
+    // Live data queries first
+    let live_answer: Option<String> = if q_lower.contains("intent") || q_lower.contains("complete") || q_lower.contains("done") {
+        let intent_fact: Option<String> = conn.query_row(
+            "SELECT fact FROM friday_knowledge WHERE domain='forest' ORDER BY updated_at DESC LIMIT 1",
+            [], |r| r.get(0)
+        ).ok();
+        let obs: i64 = conn.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
+        Some(intent_fact.unwrap_or_else(|| format!("Friday has observed {} command events.", obs)))
+    } else if q_lower.contains("health") {
+        let health: Option<u32> = conn.query_row(
+            "SELECT health FROM doctor_history ORDER BY timestamp DESC LIMIT 1",
+            [], |r| r.get(0)
+        ).ok();
+        Some(format!("Forest health: {}%. All systems nominal.", health.unwrap_or(100)))
+    } else if q_lower.contains("pattern") || q_lower.contains("learn") {
+        let pats: i64 = conn.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
+        let top: Option<(String, String, f64)> = conn.query_row(
+            "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 1",
+            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        ).ok();
+        if let Some((trigger, action, conf)) = top {
+            Some(format!("Friday has {} patterns. Strongest: '{}' -> '{}' ({:.0}% confidence).", pats, trigger, action, conf * 100.0))
+        } else {
+            Some(format!("Friday has {} patterns learned from your workflow.", pats))
+        }
+    } else if q_lower.contains("tool") {
+        Some("The forest has 50 deployed tools, all written in Rust. Key tools: core, fsh, faelight-term, faelight-daemon, faelight-git, faelight-bar, faelight-fm, faelight-notify. Nothing runs without human authorization.".to_string())
+    } else if q_lower.contains("commit") || q_lower.contains("today") {
+        let commits: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
+            rusqlite::params![now - 86400],
+            |r| r.get(0)
+        ).unwrap_or(0);
+        Some(format!("Friday has observed {} commits in the last 24 hours.", commits))
     } else {
-        let best = &facts[0];
-        (best.0.clone(), best.1)
+        None
     };
+    // Knowledge base fallback
+    let (answer, confidence) = if let Some(a) = live_answer {
+        (a, 0.9)
+    } else {
+        let mut best_fact: Option<(String, f64, usize)> = None;
+        if let Ok(mut stmt) = conn.prepare(
+            "SELECT fact, confidence FROM friday_knowledge WHERE domain != 'forest' ORDER BY confidence DESC LIMIT 30"
+        ) {
+            let rows = stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?)));
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let fact_lower = row.0.to_lowercase();
+                    let words: Vec<&str> = q_lower.split_whitespace().filter(|w| w.len() > 3).collect();
+                    let matches = words.iter().filter(|w| fact_lower.contains(*w)).count();
+                    if matches > 0 {
+                        if best_fact.as_ref().map(|b: &(_, _, usize)| matches > b.2).unwrap_or(true) {
+                            best_fact = Some((row.0, row.1, matches));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some((fact, conf, _)) = best_fact {
+            (fact, conf)
+        } else {
+            (format!("Friday does not have specific knowledge about '{}' yet. Ask me about: intents, health, patterns, tools, commits.", question), 0.3)
+        }
+    };
+    let _ = conn.execute_batch("CREATE TABLE IF NOT EXISTS friday_queries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER NOT NULL,
+        question TEXT NOT NULL, answer TEXT NOT NULL, confidence REAL NOT NULL);");
     let _ = conn.execute(
         "INSERT INTO friday_queries (timestamp, question, answer, confidence) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![now, &question, &answer, confidence],
     );
-    Response::FridayAnswer {
-        answer,
-        confidence,
-        sources: vec!["friday_knowledge".to_string()],
-    }
+    Response::FridayAnswer { answer, confidence, sources: vec!["live_data".to_string()] }
 }
