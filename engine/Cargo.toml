@@ -9,6 +9,7 @@ name = "core"
 path = "src/main.rs"
 
 [dependencies]
+libc = "0.2"
 clap = { version = "4", features = ["derive"] }
 colored = "2"
 anyhow = "1"
