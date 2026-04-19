@@ -12,6 +12,8 @@ mod logging;
 mod runtime;
 
 fn main() {
+    // INT-233: Ignore SIGPIPE -- prevents broken pipe panic when piped to head/grep/etc
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
     let cmd = cli::parse();
 
     let ctx = match app::context::AppContext::init() {
