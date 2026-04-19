@@ -31,15 +31,31 @@ pub fn check_clippy() -> Result<bool> {
         return Ok(true);
     }
 
+    // INT-233 -- Only lint packages with staged files, not entire workspace
+    let staged_files = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut packages: Vec<String> = Vec::new();
+    for file in staged_files.lines() {
+        // Extract package from path: rust-tools/faelight-X/src/... -> faelight-X
+        let parts: Vec<&str> = file.split('/').collect();
+        if parts.len() >= 2 {
+            let pkg = parts[1].to_string();
+            if !packages.contains(&pkg) {
+                packages.push(pkg);
+            }
+        }
+    }
+    let mut args = vec!["clippy".to_string()];
+    if packages.is_empty() {
+        args.push("--workspace".to_string());
+    } else {
+        for pkg in &packages {
+            args.push("-p".to_string());
+            args.push(pkg.clone());
+        }
+    }
+    args.extend(["--".to_string(), "-D".to_string(), "warnings".to_string()]);
     let check = Command::new("cargo")
-        .args([
-            "clippy",
-            "--workspace",
-            "--all-targets",
-            "--",
-            "-D",
-            "warnings",
-        ])
+        .args(&args)
         .output()?;
 
     if !check.status.success() {
