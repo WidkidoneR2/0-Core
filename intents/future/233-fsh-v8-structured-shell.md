@@ -54,6 +54,13 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ⬜ fsh queries knowledge engine on build/command failure
 ⬜ Known fix shown inline when confidence >= 0.85
 ⬜ fsh gaps updated with all new builtin alternatives
+⬜ fsearch supports basic regex alternation (e.g. pattern1|pattern2 without escaping)
+⬜ fsh code injection helper -- safe multi-line Rust block insertion without Python unicode escaping
+⬜ gp abbreviation wired -- fg push subcommand missing, gp broken
+⬜ fg sync clippy scope -- only lint staged files not entire workspace
+⬜ rspatch and patch handle em dashes in anchor text correctly
+⬜ shell friction audit -- review all session pain points before v8 build
+
 "The shell is not just a command runner.
 It is the interface between you and the forest.
 v8 makes that interface intelligent." 🌲
