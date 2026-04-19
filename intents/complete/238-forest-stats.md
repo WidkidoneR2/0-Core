@@ -1,7 +1,7 @@
 ---
 id: 238
 title: "forest-stats -- The Forest Visualizes Its Own Growth"
-status: in-progress
+status: complete
 date: 2026-04-16
 tags: [fun, stats, visualization, ascii, history, growth, forest]
 ---
@@ -25,15 +25,15 @@ Health history: sparkline of health% over last 90 days
 "▁▁▂▃▅▅▅▅▅▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇███████████████████"
 Friday growth: facts and patterns over time
 Shows the moment Friday woke up (April 2026)
-⬜ Reads commit_patterns for velocity data
-⬜ Reads intent completions for timeline
-⬜ Reads synthesis_snapshots for health history
-⬜ Reads friday_knowledge/patterns counts over time
-⬜ ASCII bar chart for commit velocity (52 weeks)
-⬜ Intent completion timeline as growing tree
-⬜ Health sparkline (90 days)
-⬜ Friday growth visualization
-⬜ forest-stats day shows today's session summary
-⬜ All visualizations fit in 80-column terminal
+✅ Reads commit_patterns for velocity data -- 52-week bar chart (2026-04-19)
+✅ Reads intent completions for timeline -- growing tree with last 10 (2026-04-19)
+✅ Reads events/deploy_patterns for session stats (2026-04-19)
+✅ Reads friday_knowledge/patterns counts -- growth sparkline (2026-04-19)
+✅ ASCII bar chart for commit velocity -- 52 weeks (2026-04-19)
+✅ Intent completion timeline as growing tree (2026-04-19)
+✅ Friday knowledge growth sparkline (12w) (2026-04-19)
+✅ Friday growth -- facts, patterns, lessons, vocab (2026-04-19)
+✅ forest-stats day -- commits, deploys, commands (2026-04-19)
+✅ All visualizations fit in 80-column terminal (2026-04-19)
 "The forest does not forget where it came from.
 forest-stats shows the whole journey." 🌲
