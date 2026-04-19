@@ -669,6 +669,23 @@ async fn friday_record_event(
                     let (trigger, action, conf) = row;
                     let trigger_base = trigger.split_whitespace().next().unwrap_or("").to_string();
                     if cmd_base == trigger_base || cmd_base == trigger {
+                        // Check rate limit -- was this pattern spoken recently?
+                        let last_spoken: i64 = conn.query_row(
+                            "SELECT value FROM friday_context WHERE key = ?1",
+                            rusqlite::params![format!("last_spoken_{}", trigger)],
+                            |r| r.get(0)
+                        ).unwrap_or(0);
+                        let now_ts = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64).unwrap_or(0);
+                        if now_ts - last_spoken < 300 {
+                            break; // Skip -- too soon (5 min cooldown)
+                        }
+                        // Record this speak
+                        let _ = conn.execute(
+                            "INSERT OR REPLACE INTO friday_context (key, value, updated_at) VALUES (?1, ?2, ?2)",
+                            rusqlite::params![format!("last_spoken_{}", trigger), now_ts],
+                        );
                         msg = Some(format!("{} → {} ({:.0}%)", trigger, action, conf * 100.0));
                         break;
                     }
