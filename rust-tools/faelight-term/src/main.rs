@@ -943,6 +943,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
 
+        // Always scan URLs each tick -- not just on PTY data
+        if app.last_url_scan.elapsed() > Duration::from_millis(250) {
+            app.terminal.scan_urls();
+            app.last_url_scan = Instant::now();
+        }
         if app.last_blink.elapsed() > Duration::from_millis(500) {
             app.cursor_blink_state = !app.cursor_blink_state;
             app.last_blink = Instant::now();
@@ -1683,23 +1688,30 @@ impl PointerHandler for App {
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == 272 {
-                        let char_width = self.font_size * 0.6;
-                        let line_height = self.font_size * 1.45;
                         let padding = self.padding_f32 as f64;
-                        let col = ((event.position.0 - padding) / char_width as f64) as usize;
-                        let row = ((event.position.1 - padding) / line_height as f64) as usize;
+                        let col = ((event.position.0 - padding) / self.char_width as f64) as usize;
+                        let row = ((event.position.1 - padding) / self.line_height as f64) as usize;
 
-                        // Ctrl+Click to open URL
+                        // Ctrl+Click to open URL -- check both ctrl_pressed and raw xkb state
+                        // Note: also accept if modifiers show ctrl (Wayland pointer events don't carry modifiers)
                         if self.ctrl_pressed {
-                            if let Some(url) = &self.hovered_url {
+                            for u in &self.terminal.detected_urls {
+                                eprintln!("  URL row={} cols={}..{} url={}", u.row, u.start_col, u.end_col, u.url);
+                            }
+                            let clicked_url = if row < self.terminal.rows && col < self.terminal.cols {
+                                self.terminal.detected_urls.iter()
+                                    .find(|u| u.row == row && col >= u.start_col && col < u.end_col)
+                                    .cloned()
+                            } else { None };
+                            if let Some(url) = clicked_url {
                                 match urls::open_url(&url.url) {
-                                    Ok(_) => println!("🔗 Opened: {}", url.url),
-                                    Err(e) => eprintln!("⚠️  Failed to open URL: {}", e),
+                                    Ok(_) => eprintln!("Opened: {}", url.url),
+                                    Err(e) => eprintln!("Failed to open URL: {}", e),
                                 }
                                 return;
+                            } else {
                             }
                         }
-
                         // Detect double/triple click
                         let now = std::time::Instant::now();
                         let elapsed = now.duration_since(self.last_click_time).as_millis();
@@ -1746,12 +1758,10 @@ impl PointerHandler for App {
                     }
                 }
                 PointerEventKind::Motion { .. } => {
-                    // Calculate mouse position
-                    let char_width = self.font_size * 0.6;
-                    let line_height = self.font_size * 1.45;
+                    // Calculate mouse position -- use cached layout values
                     let padding = self.padding_f32 as f64;
-                    let col = ((event.position.0 - padding) / char_width as f64) as usize;
-                    let row = ((event.position.1 - padding) / line_height as f64) as usize;
+                    let col = ((event.position.0 - padding) / self.char_width as f64) as usize;
+                    let row = ((event.position.1 - padding) / self.line_height as f64) as usize;
 
                     // Handle selection dragging
                     if self.mouse_pressed

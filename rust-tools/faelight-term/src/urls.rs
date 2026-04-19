@@ -53,7 +53,14 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
 
     #[cfg(target_os = "linux")]
     {
-        Command::new("xdg-open").arg(url).spawn()?;
+        // Try faelight-browser first, fall back to xdg-open
+        let home = std::env::var("HOME").unwrap_or_default();
+        let faelight_browser = format!("{}/0-core/scripts/faelight-browser", home);
+        if std::path::Path::new(&faelight_browser).exists() {
+            Command::new(&faelight_browser).arg(url).spawn()?;
+        } else {
+            Command::new("xdg-open").arg(url).spawn()?;
+        }
     }
 
     #[cfg(target_os = "macos")]
