@@ -744,6 +744,41 @@ fn repl_main() -> Result<()> {
                             }
                         }
                     }
+                    // INT-220 Gate 11 -- friday dismiss: negative learning
+                    if line == "friday dismiss" || line.starts_with("friday dismiss ") {
+                        let trigger = if line == "friday dismiss" {
+                            "null".to_string()
+                        } else {
+                            format!("\"{}\"", line[15..].trim().replace('"', "'"))
+                        };
+                        let home_dir = std::env::var("HOME").unwrap_or_default();
+                        let sock_path = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+                        let dismiss_json = format!(
+                            r#"{{"id":3,"payload":{{"FridayDismiss":{{"pattern_trigger":{}}}}}}}"#,
+                            trigger
+                        );
+                        if std::path::Path::new(&sock_path).exists() {
+                            use std::io::{Write, BufRead, BufReader};
+                            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&sock_path) {
+                                stream.set_write_timeout(Some(std::time::Duration::from_millis(200))).ok();
+                                stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).ok();
+                                let _ = stream.write_all(dismiss_json.as_bytes());
+                                let _ = stream.write_all(b"\n");
+                                let mut reader = BufReader::new(&stream);
+                                let mut resp = String::new();
+                                if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
+                                    if let Some(msg) = resp.split("\"message\":\"").nth(1) {
+                                        if let Some(msg) = msg.split('"').next() {
+                                            if !msg.is_empty() && msg != "null" {
+                                                println!("  \u{1f332} Friday: {}", msg);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        continue 'repl;
+                    }
                     // INT-220 -- friday <question>: ask Friday about the forest
                     if line.starts_with("friday") && (line == "friday" || line.starts_with("friday ")) {
                         let question = if line == "friday" {
