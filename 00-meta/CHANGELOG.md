@@ -1,5 +1,113 @@
 # Changelog
 
+## [11.9.0] — The Forest That Speaks Back (2026-04-19)
+
+### 🎯 Completed Intents
+- **INT-201** — faelight-term v11 — The Terminal That Thinks
+- **INT-212** — Core v18 — Synthesis Engine: The Forest Speaks With One Voice
+- **INT-215** — Event Architecture v2 — Append-Only Log and Signal Ontology
+- **INT-216** — Friday Formal Architecture — Meta-Interpretation Engine
+- **INT-217** — Core v19 — Friday Phase 1: The Forest Finds Its Voice
+- **INT-218** — Friday Knowledge Engine — Situated Learning and Conflict Resolution
+- **INT-220** — Friday Daemon — The Forest Finds Its Voice
+- **INT-227** — Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing
+- **INT-228** — faelight-docs v2 -- Deploy Intelligence for All Documents
+- **INT-229** — fsh v6 -- The Shell That Grows With You
+- **INT-237** — Friday Easter Eggs -- The Forest Celebrates
+
+### ✨ Features
+- INT-217 Friday Phase 1 — Friday finds her voice, speaks in d with confidence threshold
+- INT-217 complete — Core v19 Friday Phase 1, Friday finds her voice
+- INT-201 Phase 2 — forest status strip with multi-color segments, Ctrl+Shift+S toggle
+- INT-201 Phase 1 — URL click fixed, resize verified, scan_urls every 250ms
+- INT-201 Phase 3 — long command notification, URL click fix, scan_urls every 250ms
+- INT-201 Phase 3 — session memory via state.db last_dir, rusqlite added to term
+- INT-201 complete — faelight-term v11, swash ligature shaping, all phases done
+- INT-220 Friday Daemon — socket wired, fsh sends events, Friday receives and parses
+- INT-220 Friday Daemon v4.0.0 — silent logging, JSON escaping fixed, Friday watches every command
+- INT-220 friday command wired — friday <question> talks to daemon, Gates 8-9 demonstrated
+- INT-220 friday_answer_query upgraded — live data, accurate answers, Gates 9-10 demonstrated
+- INT-220 Gate 7 — Friday speaks inline, deploy completes triggers fg commit suggestion
+- INT-220 Gates 6+11 — learning loop in daemon, friday dismiss with negative learning
+- INT-220 Gate 12 — faelight-daemon autostart on login via niri config
+- INT-220 complete — Friday daemon, all gates done, COMMAND-GUIDE updated
+- INT-237 complete — Friday Easter Eggs, milestone detection live, 50-intent milestone fired
+
+### 🔧 Fixes
+- contradiction auto-resolve when intent count normalizes, 24h staleness cutoff
+- learning loop action extraction — negative learning now correctly penalizes wrong predictions
+- jarvis integrity check — 30 day threshold, real InsertDbRow fix instead of no-op
+- core friday status — age calculation fixed, display cleaned, 105h age correct
+
+### 📚 Documentation
+- COMMAND-GUIDE v11.8.0 — faelight-link v3, faelight-git v4, deploy intelligence sections
+- README v11.8.0 — full rewrite, accurate architecture, intelligence layer, release history
+- rspatch double-replace warning added to COMMAND-GUIDE
+- INT-217 update gates — 9/10 marked complete, Friday active and speaking
+- INT-217 fix gate 12 — all 10 demonstrated gates marked complete
+- INT-217 finalize gates — gate 8 demonstrated, gate 13 scoped to INT-203
+- INT-201 Phase 2 status strip gate marked complete
+- INT-220 gates 1-5 marked complete — Friday daemon watching every command
+- INT-220 Gates 8-10 and 13 marked complete — friday answers accurately from live data
+- INT-220 Gate 7 marked complete — 10/15 gates done
+
+### 🔩 Internal (48 commits)
+- **203** (3 commits)
+  - INT-203 Phase 3+4 gates marked — personality live, 185 facts, domain-aware search
+  - INT-203 Phase 5 complete — first abstraction named (health-check-loop), vocabulary live
+  - INT-203: rich knowledge base — 295 facts, forest tools, workflows, rust errors, niri, intent lifecycle
+- INT-216: Friday Formal Architecture live — models, trust, contradiction detection, meta-interpretation
+- cicomplete 218: Friday Knowledge Engine — 18 lessons, show/outcome/search/accuracy, negative learning live, all deferred items moved to INT-217
+- **218** (2 commits)
+  - INT-218: Knowledge Engine live — 17 lessons seeded, search/patterns/accuracy/add commands
+  - COMMAND-GUIDE: INT-218 knowledge engine commands documented
+- create INT-227/228/229 — prediction v2, faelight-docs v2, fsh v6
+- roadmap: INT-232 (term v12), INT-233 (fsh v8), INT-234 (core v21 planning), INT-235 (friday daemon v2) — 60-day path to Friday conversation
+- fun: INT-236 (ascii-art), INT-237 (friday easter eggs), INT-238 (forest-stats) — the forest celebrates
+- intents: INT-239 (bar v2), INT-240 (archaeology retirement), INT-241 (integrity audit) — architecture cleanup roadmap
+- release: Faelight Forest 11.8.0 — The Self-Making Forest
+- Faelight Forest v11.8.0 — The Self-Making Forest is live
+- Prediction v2 — dependency-aware ordering, prerequisite graph, strategic ranking live
+- Prediction v2 complete — puzzle solver, dependency graph, strategic ranking
+- faelight-docs v2 — document registry, record/log/why/diff commands, drift detection, signals
+- cicomplete 228: faelight-docs v2 complete — document registry, drift detection, deploy-style intelligence
+- fsh v6 — abbreviations, session summary, fsh diag/gaps, fsh_identity dispatch
+- fsh v6 complete — abbreviations, session summary, diag/gaps, COMMAND-GUIDE updated
+- forest_events_v2 — canonical signal log, schema validation, causality chains, replay live
+- cicomplete 215: Event Architecture v2 complete — canonical signal log, causality chains, schema validation
+- Friday Phase 0 begins — the living intelligence awakens
+- Friday Phase 0 — observation engine, knowledge base, friday status/ask live
+- Phase 0 complete — Friday awakens, observes, speaks
+- Phase 1 — pattern extraction, dedup fix, ask improvements, 12 patterns from 9666 commands
+- Phase 1 complete — pattern extraction live, session summaries, friday_patterns populated
+- Phase 2 — friday suggest live, proactive fsh messages, 24 patterns, evidence-based reasoning
+- doctor improvements — Friday live status, alignment label clean, integrity auto-fix suppressed
+- cistart 212: Core v18 Synthesis Engine — the forest finds its voice
+- Core v18 Synthesis Engine live — friday_brief, 85% confidence, all signals unified
+- cicomplete 212: Core v18 Synthesis Engine complete — friday_brief live, 85% confidence
+- intelligence versioning — core version shows v18, doctor shows Intelligence tier, domain_state seeded
+- README + intelligence arc — versioning strategy documented, badge added
+- Phase 3+4 — personality tracker, Linux/Rust/Forest knowledge base, smart domain search
+- COMMAND-GUIDE updated — Friday commands, synthesize, core version documented
+- rspatch builtin — anchor-based Rust-safe patch, replace/after/before modes, no line number fragility
+- Phase 5 — learning loop live, hypotheses created, abstraction candidates generated
+- Phase 5 gates marked — learning loop, hypotheses, abstraction candidates
+- cleanup: remove accidental empty files (&&, 70, deploy, faelight-shell, state.db) from git tracking
+- gitignore: prevent deploy and faelight-shell from being accidentally tracked again
+- Friday Formal Architecture — Meta-Interpretation Engine
+- Friday brief wired into doctor — contradiction detection surfaces in every d
+- cicomplete 216: Friday Formal Architecture — meta-interpretation, contradiction detection, brief in doctor
+- COMMAND-GUIDE: friday-arch and vocabulary commands documented
+- cistart 218: Friday Knowledge Engine — situated learning, the forest never forgets
+- cleanup: remove placeholder modules (adapters, policy, utils, registry) — never implemented, never used, should never have been committed
+- cleanup: remove 6 empty faelight-fm modules (config, health, actions, command, open, snapshot) — never implemented, never declared
+- architecture audit: remove dead tools (bin-doctor, entropy-check, workspace-view, faelight-intent), register faelight-contextd, clean test script
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 2206  ·  Tools: 50 deployed  ·  Intents: 187 complete
+
+---
+
 ## [11.8.0] — The Self-Making Forest (2026-04-13)
 
 ### 🎯 Completed Intents

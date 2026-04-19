@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.8.0
+# 🌲 Faelight Forest 11.9.0
 
-![Version](https://img.shields.io/badge/version-11.8.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-11.9.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,32 +11,29 @@
 
 ## 🎊 Latest Release
 
-### 11.8.0 - 🌲 The Self-Making Forest (2026-04-13)
+### 11.9.0 - 🌲 The Forest That Speaks Back (2026-04-19)
 
-- 178 — Core v14 — Partnership: The Forest and Human Co-Create
-- 187 — Delegation Engine — Trust Contracts and Safe Autonomy Simulation
-- 189 — Core v16 — Self-Transformation: The Forest Redesigns Itself
-- 194 — fsh v4 — Shell Intelligence and Terminal Experience
-- 195 — Forest Journal — The System Writes Its Own Story
-- 196 — faelight-daemon v2 — The Background Brain Gets Smarter
-- 202 — Core Commands Guide
-- 205 — Core v17 — Pattern Weight Engine
-- 207 — Tool Intelligence L1 — Contextual Awareness
-- 208 — Tool Intelligence L2 — Pattern Learning
-- 209 — Tool Intelligence L3 — Inter-Tool Coordination
-- 210 — Registry Stats Accuracy — Tools Count and Release Stats
-- 211 — faelight-fm v3 — Permissions Display and Forest Integration
-- 214 — faelight-link v3 — Forest-Aware Dotfile Intelligence
-- 221 — \"faelight-git v4 -- Smarter Commits, Auto-Intent Detection, Rollback Command\
-- 222 — \"Deploy Intelligence v2 -- Pattern-Aware, Signal-Emitting, Cross-Tool Awareness\
-- 223 — \"fsh Native Execution Layer -- Script Mode, Query Builtin, Zero Friction Development\
-- 224 — \"fsh v5 -- The Shell That Sees Color, Speaks Code, and Thinks With You\
-- 225 — \"faelight-release v2 -- Intelligent Release Synthesis, Intent-First Narrative, Self-Naming Themes\
+- 201 — faelight-term v11 — The Terminal That Thinks
+- 212 — Core v18 — Synthesis Engine: The Forest Speaks With One Voice
+- 215 — Event Architecture v2 — Append-Only Log and Signal Ontology
+- 216 — Friday Formal Architecture — Meta-Interpretation Engine
+- 217 — Core v19 — Friday Phase 1: The Forest Finds Its Voice
+- 218 — Friday Knowledge Engine — Situated Learning and Conflict Resolution
+- 220 — Friday Daemon — The Forest Finds Its Voice
+- 227 — Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing
+- 228 — faelight-docs v2 -- Deploy Intelligence for All Documents
+- 229 — fsh v6 -- The Shell That Grows With You
+- 237 — Friday Easter Eggs -- The Forest Celebrates
+- INT-217 Friday Phase 1 — Friday finds her voice, speaks in d with confidence threshold
+- INT-217 complete — Core v19 Friday Phase 1, Friday finds her voice
+- INT-201 Phase 2 — forest status strip with multi-color segments, Ctrl+Shift+S toggle
+- INT-201 Phase 1 — URL click fixed, resize verified, scan_urls every 250ms
+- INT-201 Phase 3 — long command notification, URL click fix, scan_urls every 250ms
 
-- Commits: 2124
+- Commits: 2206
 - Tools: 50 deployed
 - Health: 100%
-- Intents: 176 complete
+- Intents: 187 complete
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
