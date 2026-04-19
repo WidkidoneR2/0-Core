@@ -1,7 +1,7 @@
 ---
 id: 233
 title: "fsh v8 -- Structured Shell: Data, Syntax, Intelligence"
-status: planned
+status: in-progress
 date: 2026-04-16
 tags: [fsh, shell, structured-data, syntax, ux, errors, performance, v8]
 ---
