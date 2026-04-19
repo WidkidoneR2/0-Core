@@ -227,6 +227,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // INT-177 — Shell Observability
         "observe" => observe_cmd(db, args),
         "memory" => memory_cmd(db, args),
+        "forest-stats" | "fstats" => forest_stats_cmd(db, core_root, args),
         // INT-173 — Command Registry
         "describe" => describe_cmd(db, args, core_root),
         "explain" => explain_cmd(db, core_root, args),
@@ -4380,7 +4381,8 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         "health","events","intents","tools","version","schema","commits",
         "grep","find","tree","fstat","peek","realpath","rp","time","exec",
         "reload","source","fsh","explain","where","hs","history-search",
-        "alias","unalias","export","unset","let","run","help","exit","quit"];
+        "alias","unalias","export","unset","let","run","help","exit","quit",
+        "forest-stats","fstats","memory","fsh-gaps"];
     if builtins.contains(&cmd) {
         out.push_str(&format!("  {:<14} {}
 ", "builtin:".dimmed(), "native fsh command — no PATH lookup".bright_green()));
@@ -7167,6 +7169,172 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
     CommandResult::Empty
 }
 
+
+// INT-238 -- forest-stats: The Forest Visualizes Its Own Growth
+fn forest_stats_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    let subcmd = args.first().copied().unwrap_or("all");
+    match subcmd {
+        "commits" => forest_stats_commits(db),
+        "intents" => forest_stats_intents(core_root),
+        "friday"  => forest_stats_friday(db),
+        "day"     => forest_stats_day(db),
+        "all" | _ => {
+            let mut out = String::new();
+            out.push_str(&format!("\n  {} The Forest Visualizes Its Own Growth\n", "🌲".normal()));
+            out.push_str(&format!("  {}\n\n", "━".repeat(55).dimmed()));
+            out.push_str(&extract_output(forest_stats_commits(db)));
+            out.push_str("\n");
+            out.push_str(&extract_output(forest_stats_intents(core_root)));
+            out.push_str("\n");
+            out.push_str(&extract_output(forest_stats_friday(db)));
+            out.push_str("\n");
+            out.push_str(&extract_output(forest_stats_day(db)));
+            CommandResult::Output(out)
+        }
+    }
+}
+fn extract_output(r: CommandResult) -> String {
+    match r {
+        CommandResult::Output(s) => s,
+        _ => String::new(),
+    }
+}
+fn forest_stats_commits(db: &ForestDb) -> CommandResult {
+    // Build 52-week commit velocity bar chart
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let week_secs: i64 = 604800;
+    let mut out = String::new();
+    out.push_str(&format!("  {} Commit Velocity (52 weeks)\n", "📊".normal()));
+    let mut weeks: Vec<i64> = Vec::new();
+    for w in (0..52).rev() {
+        let start = now - (w + 1) * week_secs;
+        let end   = now - w * week_secs;
+        let count: i64 = db.conn.query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp >= ?1 AND timestamp < ?2",
+            rusqlite::params![start, end],
+            |r| r.get(0)
+        ).unwrap_or(0);
+        weeks.push(count);
+    }
+    let max = *weeks.iter().max().unwrap_or(&1).max(&1);
+    let bars = ["░","▂","▃","▄","▅","▆","▇","█"];
+    let bar_str: String = weeks.iter().map(|&c| {
+        let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
+        bars[idx.min(7)]
+    }).collect();
+    out.push_str(&format!("  {}\n", bar_str.bright_green()));
+    // Month labels every ~4 weeks
+    let total: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit'",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    out.push_str(&format!("  {} total commits\n", total.to_string().bright_white()));
+    CommandResult::Output(out)
+}
+fn forest_stats_intents(core_root: &str) -> CommandResult {
+    let complete_dir = format!("{}/intents/complete", core_root);
+    let mut out = String::new();
+    out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
+    let entries = std::fs::read_dir(&complete_dir).ok();
+    let mut count = 0i32;
+    if let Some(entries) = entries {
+        for _ in entries.flatten() { count += 1; }
+    }
+    // Build a growing tree visualization
+    let _tree_width = count.min(60) as usize;
+    let _trunk = "│";
+    let branch = "├─";
+    let last   = "└─";
+    // Simple: show last 20 intents as branches
+    let complete_path = std::path::Path::new(&complete_dir);
+    let mut files: Vec<_> = std::fs::read_dir(complete_path).ok()
+        .map(|rd| rd.flatten().collect::<Vec<_>>())
+        .unwrap_or_default();
+    files.sort_by_key(|e| e.file_name());
+    let recent: Vec<_> = files.iter().rev().take(10).collect();
+    out.push_str(&format!("  🌲 {} intents complete\n", count.to_string().bright_white()));
+    for (i, entry) in recent.iter().enumerate() {
+        let name = entry.file_name();
+        let s = name.to_string_lossy();
+        let short = s.chars().take(50).collect::<String>();
+        let pfx = if i == recent.len() - 1 { last } else { branch };
+        out.push_str(&format!("  {} {}\n", pfx.dimmed(), short.dimmed()));
+    }
+    CommandResult::Output(out)
+}
+fn forest_stats_friday(db: &ForestDb) -> CommandResult {
+    let mut out = String::new();
+    out.push_str(&format!("  {} Friday's Growth\n", "🌲".normal()));
+    let facts: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let patterns: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let knowledge: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM knowledge_entries", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let vocab: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM friday_language WHERE source='named_abstraction'", [], |r| r.get(0)
+    ).unwrap_or(0);
+    out.push_str(&format!("  {} facts  {} patterns  {} lessons  {} named abstractions\n",
+        facts.to_string().bright_cyan(),
+        patterns.to_string().bright_cyan(),
+        knowledge.to_string().bright_cyan(),
+        vocab.to_string().bright_cyan(),
+    ));
+    // Sparkline of friday_knowledge growth -- count by created_at week
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let bars = ["░","▂","▃","▄","▅","▆","▇","█"];
+    let mut weeks: Vec<i64> = Vec::new();
+    for w in (0..12).rev() {
+        let start = now - (w + 1) * 604800;
+        let end   = now - w * 604800;
+        let count: i64 = db.conn.query_row(
+            "SELECT COUNT(*) FROM friday_knowledge WHERE created_at >= ?1 AND created_at < ?2",
+            rusqlite::params![start, end],
+            |r| r.get(0)
+        ).unwrap_or(0);
+        weeks.push(count);
+    }
+    let max = *weeks.iter().max().unwrap_or(&1).max(&1);
+    let spark: String = weeks.iter().map(|&c| {
+        let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
+        bars[idx.min(7)]
+    }).collect();
+    out.push_str(&format!("  Knowledge growth (12w): {}\n", spark.bright_cyan()));
+    CommandResult::Output(out)
+}
+fn forest_stats_day(db: &ForestDb) -> CommandResult {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let day_start = now - 86400;
+    let mut out = String::new();
+    out.push_str(&format!("  {} Today's Session\n", "⚡".normal()));
+    let commits: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp >= ?1",
+        rusqlite::params![day_start], |r| r.get(0)
+    ).unwrap_or(0);
+    let deploys: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp >= ?1",
+        rusqlite::params![day_start], |r| r.get(0)
+    ).unwrap_or(0);
+    let commands: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE timestamp >= ?1",
+        rusqlite::params![day_start], |r| r.get(0)
+    ).unwrap_or(0);
+    out.push_str(&format!("  {} commits  {} deploys  {} commands\n",
+        commits.to_string().bright_yellow(),
+        deploys.to_string().bright_yellow(),
+        commands.to_string().bright_yellow(),
+    ));
+    CommandResult::Output(out)
+}
 
 fn memory_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     match args.first().copied().unwrap_or("show") {
