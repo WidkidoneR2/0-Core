@@ -3728,7 +3728,7 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 
-fn run_external(line: &str, _db: &ForestDb) -> CommandResult {
+fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     let status = std::process::Command::new("sh")
         .arg("-c")
         .arg(line)
@@ -3741,12 +3741,46 @@ fn run_external(line: &str, _db: &ForestDb) -> CommandResult {
             if s.success() { CommandResult::Empty }
             else {
                 let code = s.code().unwrap_or(1);
+                // INT-233 -- command not found: suggest nearest known alternative
+                if code == 127 {
+                    let typed_cmd = line.split_whitespace().next().unwrap_or("").to_lowercase();
+                    if !typed_cmd.is_empty() {
+                        let known: &[&str] = &[
+                            "deploy", "cistart", "cicomplete", "intent", "fsearch", "query",
+                            "rspatch", "patch", "edit", "run", "friday", "d", "gc", "gp",
+                            "unlock-core", "lock-core", "core", "faelight-git", "fg",
+                            "faelight-daemon", "faelight-shell", "faelight-term",
+                        ];
+                        let prefix_len = typed_cmd.len().min(3);
+                        let prefix = &typed_cmd[..prefix_len];
+                        let suggestion = known.iter()
+                            .filter(|&&k| k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str())
+                            .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
+                            .copied();
+                        let alias_suggestion: Option<String> = db.conn.query_row(
+                            "SELECT name FROM aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
+                            rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
+                            |r| r.get(0)
+                        ).ok();
+                        if let Some(s) = suggestion {
+                            println!("  {} command not found: {}", "x".bright_red(), typed_cmd.bright_red());
+                            println!("  {} did you mean: {}", "->".bright_cyan(), s.bright_cyan());
+                        } else if let Some(a) = alias_suggestion {
+                            println!("  {} command not found: {}", "x".bright_red(), typed_cmd.bright_red());
+                            println!("  {} did you mean: {}", "->".bright_cyan(), a.bright_cyan());
+                        } else {
+                            return CommandResult::Error(format!("  exited with code {}", code));
+                        }
+                        return CommandResult::Empty;
+                    }
+                }
                 CommandResult::Error(format!("  exited with code {}", code))
             }
         }
         Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),
     }
 }
+
 
 // ── INT-177: Shell Observability ────────────────────────────────────────────────
 
