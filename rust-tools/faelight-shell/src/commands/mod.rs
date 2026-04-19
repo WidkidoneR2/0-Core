@@ -686,15 +686,24 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             };
             let content = match std::fs::read_to_string(&expanded) {
                 Ok(c) => c,
-                Err(e) => return CommandResult::Error(format!("rspatch: {}: {}", filepath, e)),
+                Err(_) => return CommandResult::Error(format!(
+                    "rspatch: file not found: {}\n  why: file does not exist or is not readable\n  fix: check path with: ls {}",
+                    filepath, filepath
+                )),
             };
             // Validate anchor uniqueness
             let count = content.matches(anchor.as_str()).count();
             if count == 0 {
-                return CommandResult::Error(format!("rspatch: anchor not found in {}\n  anchor: {}", filepath, &anchor[..anchor.len().min(60)]));
+                return CommandResult::Error(format!(
+                    "rspatch: anchor not found in {}\n  what:  anchor text does not exist in file\n  anchor: {}\n  fix:   run fsearch '{}' to verify exact text",
+                    filepath, &anchor[..anchor.len().min(60)], &anchor[..anchor.len().min(20)]
+                ));
             }
             if count > 1 {
-                return CommandResult::Error(format!("rspatch: anchor matches {} times -- must be unique\n  anchor: {}", count, &anchor[..anchor.len().min(60)]));
+                return CommandResult::Error(format!(
+                    "rspatch: anchor matches {} times -- must be unique\n  what:  anchor text is ambiguous\n  anchor: {}\n  fix:   use a longer, more specific anchor string",
+                    count, &anchor[..anchor.len().min(60)]
+                ));
             }
             // Apply transformation based on mode
             let patched = match mode {
