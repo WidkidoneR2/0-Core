@@ -1849,6 +1849,7 @@ dependencies = [
  "faelight-core",
  "nix 0.29.0",
  "regex",
+ "rusqlite",
  "serde",
  "smithay-client-toolkit 0.20.0",
  "swash",

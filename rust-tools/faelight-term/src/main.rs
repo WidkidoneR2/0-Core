@@ -2115,6 +2115,8 @@ impl KeyboardHandler for App {
 
 impl WindowHandler for App {
     fn request_close(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &Window) {
+        // INT-201 Phase 3 -- Session memory: fsh saves last_dir to state.db on exit
+        // pty.rs reads it on next spawn -- no action needed here
         self.exit = true;
     }
     fn configure(
