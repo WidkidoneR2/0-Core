@@ -66,6 +66,8 @@ Faelight Forest:   forest_data | judgment | wisdom | anticipation | alignment
 | v15 | Alignment | ✅ Complete | the forest stays true to what matters |
 | v16 | Self-Transformation | ✅ Complete | the forest redesigns itself |
 | v17 | Pattern Weight | ✅ Complete | the forest knows what matters most |
+| v18 | Synthesis Engine | ✅ Complete | one voice -- friday_brief live, all signals unified |
+| v19 | Friday Phase 1 | ✅ Complete | Friday speaks -- inline, grounded, earned |
 **Jarvis Readiness: 105/100** — Partnership fully active. v14 engaged. v15 Alignment live.
 The forest now declares values, checks behavioral drift, and grounds every decision in principle.
 **Building toward Friday** — a forest-native intelligence that learns from every session,
