@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use swash::{
     scale::{Render, ScaleContext, Source, StrikeWith},
+    shape::ShapeContext,
     FontRef,
 };
 use vte::{Params, Parser, Perform};
@@ -912,6 +913,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         emoji_font,
         scale_context: ScaleContext::new(),
         glyph_cache: GlyphCache::new(), // FIX 4: Add glyph cache
+        // INT-201 Phase 4 -- Ligature shaping
+        shape_context: ShapeContext::new(),
         // INT-201 Phase 2 -- Forest status strip
         show_status_strip: false,
         status_strip_text: String::new(),
@@ -1042,6 +1045,8 @@ struct App {
     emoji_font: Option<FontRef<'static>>,
     scale_context: ScaleContext,
     glyph_cache: GlyphCache, // FIX 4: Add glyph cache
+    // INT-201 Phase 4 -- Ligature shaping
+    shape_context: ShapeContext,
     // INT-201 Phase 2 -- Forest status strip
     show_status_strip: bool,
     status_strip_text: String,
@@ -1049,6 +1054,103 @@ struct App {
     // INT-201 Phase 3 -- Long command notification
     command_start: Option<Instant>,
     last_output_time: Instant,
+}
+
+// INT-201 Phase 4 -- Free function for ligature shaping (avoids borrow checker conflict)
+fn shape_row(
+    shape_ctx: &mut swash::shape::ShapeContext,
+    scale_ctx: &mut swash::scale::ScaleContext,
+    font: swash::FontRef,
+    font_size: f32,
+    padding: f32,
+    width: u32,
+    height: u32,
+    row: &[Cell],
+    y: f32,
+    canvas: &mut [u8],
+) {
+    use swash::shape::Direction;
+    use swash::text::Script;
+    use swash::scale::{Render, Source, StrikeWith};
+    if row.iter().all(|c| c.ch == ' ') { return; }
+    let text: String = row.iter().map(|c| c.ch).collect();
+    let colors: Vec<[u8;3]> = row.iter().map(|c| c.fg).collect();
+    let metrics = font.metrics(&[]);
+    let ascent = metrics.ascent * font_size / metrics.units_per_em as f32;
+    let baseline_y = y + ascent;
+    let char_w = font_size * 0.6;
+    let mut shaper = shape_ctx
+        .builder(font)
+        .script(Script::Latin)
+        .direction(Direction::LeftToRight)
+        .size(font_size)
+        .features(&[("liga", 1), ("calt", 1), ("kern", 1)])
+        .build();
+    shaper.add_str(&text);
+    let mut x_cursor: f32 = 0.0;
+    let mut char_byte_idx: usize = 0;
+    shaper.shape_with(|cluster| {
+        let src_start = cluster.source.start as usize;
+        // Map byte offset back to char index
+        let char_idx = text[..src_start.min(text.len())].chars().count();
+        let color = colors.get(char_idx).copied().unwrap_or([0xD7, 0xE0, 0xDA]);
+        let _ = char_byte_idx;
+        for glyph in cluster.glyphs {
+            if glyph.id == 0 { x_cursor += glyph.advance; continue; }
+            let x = padding + x_cursor;
+            let mut scaler = scale_ctx
+                .builder(font)
+                .size(font_size)
+                .hint(true)
+                .build();
+            let render = Render::new(&[
+                Source::ColorOutline(0),
+                Source::ColorBitmap(StrikeWith::BestFit),
+                Source::Outline,
+            ]);
+            if let Some(image) = render.render(&mut scaler, glyph.id) {
+                let gw = image.placement.width as usize;
+                let gh = image.placement.height as usize;
+                let gl = image.placement.left;
+                let gt = image.placement.top;
+                let gx = x + gl as f32;
+                let gy = baseline_y - gt as f32;
+                let rgba: Vec<u8> = match image.content {
+                    swash::scale::image::Content::Mask => {
+                        image.data.iter().flat_map(|&a| {
+                            [color[2], color[1], color[0], a]
+                        }).collect()
+                    }
+                    swash::scale::image::Content::Color => image.data.to_vec(),
+                    swash::scale::image::Content::SubpixelMask => {
+                        image.data.chunks(3).flat_map(|c| {
+                            [color[2], color[1], color[0], c[0]]
+                        }).collect()
+                    }
+                };
+                for py in 0..gh {
+                    for px in 0..gw {
+                        let src_idx = (py * gw + px) * 4;
+                        let alpha = rgba[src_idx + 3];
+                        if alpha == 0 { continue; }
+                        let sx = (gx + px as f32).round() as usize;
+                        let sy = (gy + py as f32).round() as usize;
+                        if sx >= width as usize || sy >= height as usize { continue; }
+                        let idx = (sy * width as usize + sx) * 4;
+                        if idx + 3 < canvas.len() {
+                            let af = alpha as f32 / 255.0;
+                            canvas[idx]   = (rgba[src_idx]   as f32 * af + canvas[idx]   as f32 * (1.0 - af)) as u8;
+                            canvas[idx+1] = (rgba[src_idx+1] as f32 * af + canvas[idx+1] as f32 * (1.0 - af)) as u8;
+                            canvas[idx+2] = (rgba[src_idx+2] as f32 * af + canvas[idx+2] as f32 * (1.0 - af)) as u8;
+                        }
+                    }
+                }
+            }
+            x_cursor += glyph.advance;
+        }
+        char_byte_idx += (cluster.source.end - cluster.source.start) as usize;
+    });
+    let _ = char_w;
 }
 
 impl App {
@@ -1274,12 +1376,13 @@ impl App {
             pixel[3] = 0xFF;
         }
 
+        #[allow(unused_variables)]
         let char_width = self.char_width;
+        #[allow(unused_variables)]
         let line_height = self.line_height;
 
-        // Determine which rows to render based on scroll offset
-        let rows_to_render: Vec<&Vec<Cell>> = if self.terminal.scroll_offset > 0 {
-            // Render from scrollback
+        // Determine which rows to render -- owned clone to allow shape_row() calls
+        let rows_to_render: Vec<Vec<Cell>> = if self.terminal.scroll_offset > 0 {
             let start = self
                 .terminal
                 .scrollback
@@ -1289,15 +1392,18 @@ impl App {
                 .iter()
                 .chain(self.terminal.grid.iter())
                 .take(self.terminal.rows)
+                .cloned()
                 .collect()
         } else {
-            // Normal rendering
-            self.terminal.grid.iter().collect()
+            self.terminal.grid.iter().cloned().collect()
         };
 
         for (row_idx, row) in rows_to_render.iter().enumerate() {
             let padding = self.padding_f32;
             let y = padding + row_idx as f32 * line_height;
+
+            // INT-201 Phase 4 -- Shape row for ligature support
+            // (shape_row handles glyph rendering; cell loop below handles backgrounds/cursor/selection)
 
             for (col_idx, cell) in row.iter().enumerate() {
                 let x = padding + col_idx as f32 * char_width;
@@ -1513,6 +1619,19 @@ impl App {
                     }
                 }
             }
+            // INT-201 Phase 4 -- Shape row for ligatures (overdraw with shaped glyphs)
+            shape_row(
+                &mut self.shape_context,
+                &mut self.scale_context,
+                self.main_font,
+                self.font_size,
+                self.padding_f32,
+                self.width,
+                self.height,
+                row,
+                y,
+                canvas,
+            );
         }
 
         // INT-201 Phase 2 -- Forest status strip

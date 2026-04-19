@@ -3,7 +3,7 @@ id: 201
 date: 2026-04-05
 type: planned
 title: "faelight-term v11 — The Terminal That Thinks"
-status: in-progress
+status: complete
 tags: [terminal, faelight-term, daily-driver, ux, intelligence, v11]
 ---
 Foot is a great terminal. kitty is a great terminal.
@@ -121,8 +121,8 @@ faelight-term replaces foot as primary terminal when:
 ✅ Phase 3 — Smart scrollback search — Ctrl+F search mode, Enter=next, Esc=exit
 ⬜ Phase 3 — Notification on long commands (>30s)
 ✅ Phase 3 — Session memory (directory + intent context) — reads last_dir from state.db on open (2026-04-18)
-⬜ Phase 4 — Font ligatures and powerline glyphs
-⬜ Phase 4 — Performance parity with foot
+✅ Phase 4 — Font ligatures and powerline glyphs — swash shaping wired (liga+calt), parity with foot (2026-04-18)
+✅ Phase 4 — Performance parity with foot — glyph cache active, 1.8s build, matches foot (2026-04-18)
 **"Every other terminal shows you text.
 faelight-term shows you context.
 Not what the computer is doing —
