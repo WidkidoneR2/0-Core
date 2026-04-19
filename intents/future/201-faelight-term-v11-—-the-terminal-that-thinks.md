@@ -120,7 +120,7 @@ faelight-term replaces foot as primary terminal when:
 ✅ Phase 2 — Forest status strip (toggleable) — multi-color, Ctrl+Shift+S, demonstrated (2026-04-18)
 ✅ Phase 3 — Smart scrollback search — Ctrl+F search mode, Enter=next, Esc=exit
 ⬜ Phase 3 — Notification on long commands (>30s)
-⬜ Phase 3 — Session memory (directory + intent context)
+✅ Phase 3 — Session memory (directory + intent context) — reads last_dir from state.db on open (2026-04-18)
 ⬜ Phase 4 — Font ligatures and powerline glyphs
 ⬜ Phase 4 — Performance parity with foot
 **"Every other terminal shows you text.

@@ -135,6 +135,18 @@ impl Pty {
                 std::env::set_var("HOME", &home);
                 std::env::set_var("SHELL", &fsh_path);
 
+                // INT-201 Phase 3 -- Session memory: read last_dir from fsh state.db
+                let db_path = format!("{}/0-core/runtime/state.db", home);
+                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                    let last_dir: Option<String> = conn.query_row(
+                        "SELECT value FROM session_state WHERE key='last_dir'",
+                        [],
+                        |r| r.get(0),
+                    ).ok();
+                    if let Some(dir) = last_dir {
+                        let _ = std::env::set_current_dir(&dir);
+                    }
+                }
                 execvp(&shell, &args).expect("Failed to exec shell");
                 unreachable!()
             }
