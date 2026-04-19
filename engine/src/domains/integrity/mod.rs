@@ -295,6 +295,15 @@ pub fn run_pipeline(
 
     for issue in &auto_fixable {
         if let Some(fix) = &issue.fix {
+            // INT-241: skip if this check was already fixed in last 5 minutes (dedup)
+            let recently_fixed: i64 = ctx.ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM integrity_log WHERE check_name = ?1 AND fixed = 1 AND detected_at > ?2",
+                rusqlite::params![issue.check, now_ts() - 300],
+                |r| r.get(0)
+            ).unwrap_or(0);
+            if recently_fixed > 0 {
+                continue; // already fixed this session -- skip
+            }
             let fixed = apply_safe_fix(fix, ctx);
             log_issue(ctx, issue, fixed);
             if fixed {

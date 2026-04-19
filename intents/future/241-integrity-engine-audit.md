@@ -1,7 +1,7 @@
 ---
 id: 241
 title: "Integrity Engine Audit -- No Phantom Fixes, No Silent Failures"
-status: planned
+status: in-progress
 date: 2026-04-18
 tags: [integrity, doctor, audit, fixes, phantom, reliability]
 ---
