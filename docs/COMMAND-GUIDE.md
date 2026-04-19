@@ -539,6 +539,17 @@
 | Command | What it does |
 |---------|-------------|
 | core friday status | Friday's current state -- observations, patterns, facts |
+| core friday learning-loop | Run observe → detect → hypothesize → validate → reinforce cycle |
+Friday daemon runs silently in background, watching every command, speaking when it has something meaningful to say.
+| Command | Purpose |
+|---------|---------|
+| faelight-daemon | Start Friday daemon (auto-starts on login via niri) |
+| friday <question> | Ask Friday about the forest -- live data answers |
+| friday dismiss | Penalize last spoken pattern confidence by -0.3 (negative learning) |
+| friday dismiss "<trigger>" | Penalize a specific pattern by trigger name |
+**Log:** `~/.cache/faelight/friday.log`
+**Socket:** `~/.local/state/0-core/daemon.sock`
+**Friday speaks after:** deploy, cicomplete, and other high-confidence trigger commands
 | core friday ask "<question>" | Ask Friday about Linux, Rust, Wayland, or the forest |
 | core friday suggest | Evidence-based recommendation from observed patterns |
 | core friday observe | Manually trigger observation cycle |
