@@ -335,6 +335,14 @@ async fn process_command(cmd: Command) -> Response {
         Command::WatchdogStatus => get_watchdog_status().await,
         Command::GetEngineSignals { limit } => get_engine_signals(limit).await,
         Command::GetNeovimContext { file_path } => get_neovim_context(file_path).await,
+        // INT-220 -- Friday event: record command for learning
+        Command::FridayEvent { command, exit_code, duration_ms, intent, health, timestamp } => {
+            friday_record_event(command, exit_code, duration_ms, intent, health, timestamp).await
+        }
+        // INT-220 -- Friday query: answer a question about the forest
+        Command::FridayQuery { question, context } => {
+            friday_answer_query(question, context).await
+        }
         // Streaming commands handled above — should not reach here
         Command::Subscribe { .. } | Command::EventStream => Response::Error {
             message: "Streaming command reached process_command — bug".to_string(),
@@ -598,5 +606,115 @@ async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
         active_intent,
         intent_title,
         suggestion,
+    }
+}
+
+// INT-220 Friday Intelligence Functions
+async fn friday_record_event(
+    command: String,
+    exit_code: i32,
+    duration_ms: u64,
+    intent: Option<String>,
+    health: u32,
+    timestamp: i64,
+) -> crate::protocol::Response {
+    use crate::protocol::Response;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return Response::FridaySpeak { message: None, priority: "silent".to_string() };
+    };
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS friday_observations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            content TEXT NOT NULL
+        );"
+    );
+    let obs_content = format!("command: {} exit:{} {}ms intent:{} health:{}%",
+        command, exit_code, duration_ms,
+        intent.as_deref().unwrap_or("none"), health);
+    let _ = conn.execute(
+        "INSERT INTO friday_observations (timestamp, source, kind, content) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![timestamp, "fsh", "command", &obs_content],
+    );
+    let speak_msg: Option<String> = conn.query_row(
+        "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.75 ORDER BY confidence DESC LIMIT 1",
+        [],
+        |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
+    ).ok().and_then(|(trigger, action, conf)| {
+        let cmd_base = command.split_whitespace().next().unwrap_or("").to_string();
+        if command.contains(&trigger) || trigger.contains(&cmd_base) {
+            Some(format!("{} → {} ({:.0}%)", trigger, action, conf * 100.0))
+        } else {
+            None
+        }
+    });
+    let priority = if speak_msg.is_some() { "low" } else { "silent" };
+    Response::FridaySpeak {
+        message: speak_msg,
+        priority: priority.to_string(),
+    }
+}
+async fn friday_answer_query(
+    question: String,
+    _context: Option<String>,
+) -> crate::protocol::Response {
+    use crate::protocol::Response;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let db_path = format!("{}/0-core/runtime/state.db", home);
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return Response::FridayAnswer {
+            answer: "Friday cannot access state.db right now.".to_string(),
+            confidence: 0.0,
+            sources: vec![],
+        };
+    };
+    let q_lower = question.to_lowercase();
+    let mut facts: Vec<(String, f64)> = Vec::new();
+    if let Ok(mut stmt) = conn.prepare(
+        "SELECT fact, confidence FROM friday_knowledge ORDER BY confidence DESC LIMIT 20"
+    ) {
+        let rows = stmt.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?)));
+        if let Ok(rows) = rows {
+            for row in rows.flatten() {
+                let fact_lower = row.0.to_lowercase();
+                let words: Vec<&str> = q_lower.split_whitespace().collect();
+                let matches = words.iter().filter(|w| fact_lower.contains(*w)).count();
+                if matches > 0 {
+                    facts.push(row);
+                }
+            }
+        }
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let _ = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS friday_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            confidence REAL NOT NULL
+        );"
+    );
+    let (answer, confidence) = if facts.is_empty() {
+        (format!("Friday does not have specific knowledge about: {}", question), 0.3)
+    } else {
+        let best = &facts[0];
+        (best.0.clone(), best.1)
+    };
+    let _ = conn.execute(
+        "INSERT INTO friday_queries (timestamp, question, answer, confidence) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![now, &question, &answer, confidence],
+    );
+    Response::FridayAnswer {
+        answer,
+        confidence,
+        sources: vec!["friday_knowledge".to_string()],
     }
 }

@@ -1646,6 +1646,37 @@ fn repl_main() -> Result<()> {
                         last_domain: None,
                     };
                     triggers::evaluate(&db, &trigger_ctx, &core_root);
+                    // INT-220 -- Send FridayEvent to daemon socket (fire and forget)
+                    {
+                        let cmd_str = base_cmd.clone();
+                        // Read exit status from cache file written above
+                        let exit_code: i32 = {
+                            let cache_dir = std::path::PathBuf::from(
+                                std::env::var("HOME").unwrap_or_default()
+                            ).join(".cache/faelight");
+                            let status = std::fs::read_to_string(cache_dir.join("last-exit-status")).unwrap_or_default();
+                            if status.trim() == "success" { 0 } else { 1 }
+                        };
+                        let now_ts = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default().as_secs() as i64;
+                        let home_dir = std::env::var("HOME").unwrap_or_default();
+                        let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
+                        let sock_path = sock_path_buf.as_str();
+                        let event_json = format!(
+                            "{{\"id\":1,\"payload\":{{\"FridayEvent\":{{\"command\":\"{}\",\"exit_code\":{},\"duration_ms\":0,\"intent\":null,\"health\":{},\"timestamp\":{}}}}}}}",
+                            cmd_str.replace('"', "'"),
+                            exit_code, health.unwrap_or(100), now_ts
+                        );
+                        if std::path::Path::new(sock_path).exists() {
+                            use std::io::Write;
+                            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(sock_path) {
+                                stream.set_write_timeout(Some(std::time::Duration::from_millis(100))).ok();
+                                let _ = stream.write_all(event_json.as_bytes());
+                                let _ = stream.write_all(b"\n");
+                            }
+                        }
+                    }
                     // 🌲 Forest speaks — surface contextd insights after every command
                     if let Ok(conn) = rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root)) {
                         let insight: Option<(i64, String, String, f64)> = conn.query_row(
