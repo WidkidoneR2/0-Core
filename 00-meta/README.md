@@ -1,22 +1,44 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-![Version](https://img.shields.io/badge/version-11.8.0-green?style=flat-square)
+# 🌲 Faelight Forest 11.9.0
+
+![Version](https://img.shields.io/badge/version-11.9.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Intents](https://img.shields.io/badge/intents-176_complete-brightgreen?style=flat-square)
-![Rust](https://img.shields.io/badge/built_in-Rust-orange?style=flat-square)
-![Intelligence](https://img.shields.io/badge/intelligence-v18_Synthesis-brightgreen?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
-> **v11.8.0 -- The Self-Making Forest**
-> The forest now participates in its own development.
-19 intents shipped. The forest became self-aware about its own build process.
-**Shell intelligence:** fsh v0.7.0 -- native execution layer, zero-/tmp workflow, syntax color, ht history intelligence
-**Deploy intelligence:** Every deploy pre-checks health, records patterns, processes coordination signals automatically
-**Git intelligence:** faelight-git v4.0.0 -- auto-intent detection, risk warnings, interactive rollback
-**Dotfile intelligence:** faelight-link v3.0.0 -- every symlink traced to an intent, why/verify/audit commands
-**Release intelligence:** faelight-release v2.0.0 -- synthesizes its own narrative, suggests themes from data
-**Signal coordination:** Tools notice each other through engine_signals -- no direct calls, pure coordination
-- Commits: 2127  ·  Tools: 50 deployed  ·  Health: 100%  ·  Intents: 176 complete
+
+> **A self-aware, path-resilient personal computing environment built from first principles.**
+
+## 🎊 Latest Release
+
+### 11.9.0 - 🌲 The Forest That Speaks Back (2026-04-19)
+
+- 201 — faelight-term v11 — The Terminal That Thinks
+- 212 — Core v18 — Synthesis Engine: The Forest Speaks With One Voice
+- 215 — Event Architecture v2 — Append-Only Log and Signal Ontology
+- 216 — Friday Formal Architecture — Meta-Interpretation Engine
+- 217 — Core v19 — Friday Phase 1: The Forest Finds Its Voice
+- 218 — Friday Knowledge Engine — Situated Learning and Conflict Resolution
+- 220 — Friday Daemon — The Forest Finds Its Voice
+- 227 — Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing
+- 228 — faelight-docs v2 -- Deploy Intelligence for All Documents
+- 229 — fsh v6 -- The Shell That Grows With You
+- 237 — Friday Easter Eggs -- The Forest Celebrates
+- INT-217 Friday Phase 1 — Friday finds her voice, speaks in d with confidence threshold
+- INT-217 complete — Core v19 Friday Phase 1, Friday finds her voice
+- INT-201 Phase 2 — forest status strip with multi-color segments, Ctrl+Shift+S toggle
+- INT-201 Phase 1 — URL click fixed, resize verified, scan_urls every 250ms
+- INT-201 Phase 3 — long command notification, URL click fix, scan_urls every 250ms
+
+- Commits: 2206
+- Tools: 50 deployed
+- Health: 100%
+- Intents: 187 complete
+
 [Full Changelog →](00-meta/CHANGELOG.md)
+
 ---
+
 <!-- END DYNAMIC SECTION -->
 **0-Core** is a completely custom Linux environment built on vanilla Arch Linux. Every component is written from scratch in Rust, understood completely, and chosen deliberately.
 Not a dotfiles collection. Not a rice. A **personal operating system with a philosophy**.
