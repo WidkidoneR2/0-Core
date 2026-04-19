@@ -45,9 +45,9 @@ fsh gaps: shows frequency of old-habit commands with alternatives
 ✅ rspatch \\n in --new content interpreted as real newline (2026-04-19)
 ✅ Every error message includes: what failed, why, what to do -- rspatch and deploy done (2026-04-19)
 ✅ Command not found suggests nearest known alternative (2026-04-19)
-⬜ JSON output mode working for core knowledge commands
-⬜ Table display for structured fsh output
-⬜ Filter syntax working: command | where field = value
+✅ JSON output mode -- core knowledge patterns pipes cleanly to head/grep (2026-04-19)
+✅ Table display -- git-commits | where author == christian | first 3 works (2026-04-19)
+✅ Filter syntax -- command | where field == value demonstrated live (2026-04-19)
 ✅ Pipeline error recovery -- fsh builtins now pipe to external commands, error shows which stage failed (2026-04-19)
 ✅ config.fsh syntax validation on load -- errors with line number and fix shown (2026-04-19)
 ✅ Shell startup under 100ms -- measured 4ms cold start (2026-04-19)
