@@ -115,8 +115,8 @@ faelight-term replaces foot as primary terminal when:
 ✅ Phase 1 — Scrollback navigation — Shift+PageUp/Down already working
 ✅ Phase 1 — Double-click word select, triple-click line select
 ✅ Phase 1 — Paste from browser via Ctrl+Shift+V working (wl-paste fallback)
-⬜ Phase 1 — URL click reliable — Ctrl+Click exists, reliability needs verification
-⬜ Phase 1 — Resize without display corruption — known issue, pending fix
+✅ Phase 1 — URL click reliable — Ctrl+Click opens faelight-browser, scan_urls runs every 250ms (2026-04-18)
+✅ Phase 1 — Resize without display corruption — verified, TIOCSWINSZ wired, content holds (2026-04-18)
 ✅ Phase 2 — Intent-aware title bar live — 🌲 INT-XXX | ~/dir | 100%, updates every 5s
 ✅ Phase 2 — Command success/failure indicators — ✓/✗ in title bar
 ✅ Phase 2 — Forest status strip (toggleable) — multi-color, Ctrl+Shift+S, demonstrated (2026-04-18)
