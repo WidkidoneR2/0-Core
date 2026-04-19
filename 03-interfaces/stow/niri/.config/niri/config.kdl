@@ -68,6 +68,8 @@ spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
 // faelight-clipboard watch disabled: Wayland zwlr panic on startup (2026-03-31)
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/launch-bar"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-niri-bridge"
+// INT-220 Gate 12 -- Friday daemon starts on login
+spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-daemon"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-idle"
 
 // ── Forest Animations ────────────────────────────────────
