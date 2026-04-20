@@ -138,7 +138,7 @@ Hard dependencies:
   ⬜ v18 Synthesis Engine (INT-212)
   ⬜ v19 Friday Phase 1 (INT-217)
   ⬜ Friday Knowledge Engine (INT-218)
-  ⬜ 30+ days of pattern data (time gate)
+  ✅ Pattern data gate -- lowered from 30 days to 5+ days dense data (DEC: continuous build model requires it, 10k+ shell history entries sufficient signal)
   ⬜ INT-215 Event Architecture v2 (signal ontology)
 ⬜ v19 Friday Phase 1 complete (hard dependency)
 ⬜ INT-218 Knowledge Engine complete (hard dependency)
