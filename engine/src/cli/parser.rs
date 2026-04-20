@@ -430,6 +430,14 @@ pub enum FridayCommands {
     Vocabulary,
     /// Friday proposes a new intent
     ProposeIntent,
+    /// Initialize Friday Phase 2 -- temporal models and persistent state
+    Phase2Init,
+    /// Show Friday Phase 2 status
+    Phase2Status,
+    /// Friday proposes a multi-step strategic plan
+    Plan,
+    /// Show Friday temporal models
+    TemporalModels,
 }
 
 #[derive(Subcommand)]

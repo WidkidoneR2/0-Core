@@ -517,6 +517,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::NameAbstraction { name, description } => crate::domains::friday::name_abstraction(ctx, &name, &description),
             FridayCommand::Vocabulary => crate::domains::friday::list_vocabulary(ctx),
             FridayCommand::ProposeIntent => crate::domains::friday::propose_intent(ctx),
+            FridayCommand::Phase2Init => crate::domains::friday::phase2::init(ctx),
+            FridayCommand::Phase2Status => crate::domains::friday::phase2::phase2_status(ctx),
+            FridayCommand::Plan => crate::domains::friday::phase2::plan(ctx),
+            FridayCommand::TemporalModels => crate::domains::friday::phase2::show_temporal_models(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
