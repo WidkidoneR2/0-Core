@@ -796,7 +796,8 @@ fn repl_main() -> Result<()> {
                         let rest = line[7..].trim();
                         let subcmds = ["status","suggest","observe","extract-patterns",
                             "update-personality","seed-knowledge","learning-loop",
-                            "vocabulary","propose-intent"];
+                            "vocabulary","propose-intent",
+                            "phase2-init","phase2-status","plan","temporal-models"];
                         let is_sub = subcmds.iter().any(|s| rest == *s)
                             || rest.starts_with("name-abstraction ")
         || rest.starts_with("ask ");
