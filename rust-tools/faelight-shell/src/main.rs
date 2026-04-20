@@ -798,12 +798,17 @@ fn repl_main() -> Result<()> {
                             "update-personality","seed-knowledge","learning-loop",
                             "vocabulary","propose-intent"];
                         let is_sub = subcmds.iter().any(|s| rest == *s)
-                            || rest.starts_with("name-abstraction ");
+                            || rest.starts_with("name-abstraction ")
+        || rest.starts_with("ask ");
                         if is_sub {
-                            let args: Vec<&str> = rest.split_whitespace().collect();
                             let mut cmd = std::process::Command::new("core");
                             cmd.arg("friday");
-                            for a in &args { cmd.arg(a); }
+                            if rest.starts_with("ask ") {
+                                cmd.arg("ask");
+                                cmd.arg(rest[4..].trim());
+                            } else {
+                                for a in rest.split_whitespace() { cmd.arg(a); }
+                            }
                             let _ = cmd.status();
                             continue 'repl;
                         }
