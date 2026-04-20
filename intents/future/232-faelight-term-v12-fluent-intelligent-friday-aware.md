@@ -232,8 +232,8 @@ PHASE 5 -- VALIDATION
 GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Phase 0 -- Foundation:
-⬜ New Cargo.toml with wgpu + cosmic-text locked in
-⬜ Clean module structure created
+✅ New Cargo.toml with wgpu + cosmic-text locked in (2026-04-19)
+✅ Clean module structure created -- 14 files, all modules compile clean (2026-04-19)
 ⬜ Wayland window opens via smithay + wgpu surface
 ⬜ PTY spawns faelight-shell correctly
 ⬜ Characters render via cosmic-text glyph atlas
