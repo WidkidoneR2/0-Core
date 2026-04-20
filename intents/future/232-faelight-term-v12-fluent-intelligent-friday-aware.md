@@ -234,10 +234,10 @@ GATES
 Phase 0 -- Foundation:
 ✅ New Cargo.toml with wgpu + cosmic-text locked in (2026-04-19)
 ✅ Clean module structure created -- 14 files, all modules compile clean (2026-04-19)
-⬜ Wayland window opens via smithay + wgpu surface
-⬜ PTY spawns faelight-shell correctly
-⬜ Characters render via cosmic-text glyph atlas
-⬜ Keyboard input reaches shell -- can type and see output
+✅ Wayland window opens via smithay + SHM surface -- wgpu swap in Phase 1 (2026-04-20)
+✅ PTY spawns faelight-shell correctly -- libc read/write, non-blocking (2026-04-20)
+✅ Characters render via cosmic-text glyph atlas -- PhysicalGlyph + with_pixels pipeline (2026-04-20)
+✅ Keyboard input reaches shell -- can type and see output (2026-04-20)
 Phase 1 -- Baseline:
 ⬜ Full VTE/ANSI compliance verified
 ⬜ Copy/paste flawless -- full scrollback, unicode, multiline, Rust code
