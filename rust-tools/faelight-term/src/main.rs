@@ -92,14 +92,22 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
     while app.running {
         event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
-        // Read PTY output
-        let mut buf = [0u8; 4096];
-        match app.pty.read(&mut buf) {
-            Ok(n) if n > 0 => {
-                app.terminal.feed(&buf[..n]);
-                app.render();
+        // Drain all available PTY output
+        let mut dirty = false;
+        loop {
+            let mut buf = [0u8; 4096];
+            match app.pty.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    app.terminal.feed(&buf[..n]);
+                    dirty = true;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(e) => { eprintln!("PTY read error: {:?}", e); app.running = false; break; }
             }
-            _ => {}
+        }
+        if dirty && app.configured {
+            app.render();
         }
     }
     Ok(())
