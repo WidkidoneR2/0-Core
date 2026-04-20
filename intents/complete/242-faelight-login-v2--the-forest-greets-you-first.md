@@ -1,7 +1,7 @@
 ---
 id: 242
 title: faelight-login v2 -- The Forest Greets You First
-status: in-progress
+status: complete
 date: 2026-04-19
 tags: [faelight-login, greeter, greetd, niri, animation, friday, typography, v2]
 ---
