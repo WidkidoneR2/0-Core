@@ -1,167 +1,67 @@
-//! PTY (Pseudo-Terminal) module for spawning and managing shell processes
-use nix::fcntl::{fcntl, FcntlArg, OFlag};
-use nix::pty::{openpty, Winsize};
-use nix::sys::termios::{self, InputFlags, LocalFlags, OutputFlags, SetArg};
-use nix::unistd::{dup2, execvp, fork, setsid, ForkResult};
-use std::ffi::CString;
-use std::fs::File;
-use std::io::{self, Read};
-use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
-
+//! faelight-term v2 -- PTY layer
+//! Spawns faelight-shell in a pseudoterminal.
+use nix::{
+    pty::{openpty, OpenptyResult},
+    unistd::{close, dup2, execvp, fork, setsid, ForkResult},
+};
+use std::{
+    ffi::CString,
+    os::unix::io::{IntoRawFd, RawFd},
+};
 pub struct Pty {
-    pub master: File,
-    #[allow(dead_code)]
-    pub pid: i32,
+    pub master: RawFd,
 }
-
 impl Pty {
-    /// Spawn a new shell process in a PTY
-    #[allow(unreachable_code)]
-    pub fn spawn_shell(rows: u16, cols: u16) -> io::Result<Self> {
-        // Set up terminal window size
-        let winsize = Winsize {
-            ws_row: rows,
-            ws_col: cols,
-            ws_xpixel: 0,
-            ws_ypixel: 0,
+    pub fn spawn(shell: &str, cols: u16, rows: u16) -> Result<Self, Box<dyn std::error::Error>> {
+        let OpenptyResult { master, slave } = openpty(None, None)?;
+        // Set terminal size via raw fd
+        let master_raw = master.as_raw_fd();
+        let slave_raw  = slave.as_raw_fd();
+        let winsize = nix::pty::Winsize {
+            ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0
         };
-
-        // Get default termios from stdin or create minimal config
-        let termios = if let Ok(t) = termios::tcgetattr(std::io::stdin()) {
-            let mut t = t;
-            // Enable signal processing (Ctrl+C, Ctrl+Z, etc)
-            t.local_flags |= LocalFlags::ISIG;
-            // Keep echo and canonical mode
-            t.local_flags |= LocalFlags::ECHO | LocalFlags::ICANON;
-            t.input_flags |= InputFlags::ICRNL;
-            t.output_flags |= OutputFlags::OPOST | OutputFlags::ONLCR;
-            Some(t)
-        } else {
-            None // Fallback to no termios config
-        };
-
-        // Set TERM environment variable so child inherits it
-        std::env::set_var("TERM", "xterm-256color");
-
-        // Open a PTY (master/slave pair) with termios config
-        let pty_result = openpty(&winsize, termios.as_ref()).map_err(io::Error::other)?;
-
-        // Fork the process
-        match unsafe { fork() } {
-            Ok(ForkResult::Parent { child }) => {
-                // Parent process: close slave, keep master
-                drop(pty_result.slave); // OwnedFd will auto-close
-
-                // Convert master to raw fd
-                let master_fd = pty_result.master.as_raw_fd();
-
-                // Make master non-blocking
-                fcntl(master_fd, FcntlArg::F_SETFL(OFlag::O_NONBLOCK)).map_err(io::Error::other)?;
-
-                // Convert to File (consuming the OwnedFd)
-                let master = unsafe { File::from_raw_fd(pty_result.master.into_raw_fd()) };
-
-                Ok(Pty {
-                    master,
-                    pid: child.as_raw(),
-                })
+        unsafe { nix::libc::ioctl(master_raw, nix::libc::TIOCSWINSZ, &winsize) };
+        match unsafe { fork()? } {
+            ForkResult::Child => {
+                drop(master);
+                setsid().ok();
+                unsafe { nix::libc::ioctl(slave_raw, nix::libc::TIOCSCTTY, 0) };
+                dup2(slave_raw, 0).ok();
+                dup2(slave_raw, 1).ok();
+                dup2(slave_raw, 2).ok();
+                drop(slave);
+                let shell_c = CString::new(shell).unwrap();
+                let args = vec![shell_c.clone()];
+                execvp(&shell_c, &args).ok();
+                std::process::exit(1);
             }
-            Ok(ForkResult::Child) => {
-                // Child process: set up slave as controlling terminal
-
-                // Create new session
-                setsid().expect("Failed to create new session");
-
-                // Set slave as controlling terminal (required for sudo, etc.)
-                unsafe {
-                    use nix::libc::{ioctl, TIOCSCTTY};
-                    ioctl(pty_result.slave.as_raw_fd(), TIOCSCTTY, 0);
-                }
-
-                // Get raw fds
-                let slave_fd = pty_result.slave.as_raw_fd();
-
-                // Redirect stdin/stdout/stderr to slave
-                dup2(slave_fd, 0).expect("Failed to dup2 stdin");
-                dup2(slave_fd, 1).expect("Failed to dup2 stdout");
-                dup2(slave_fd, 2).expect("Failed to dup2 stderr");
-
-                // Configure termios for signal processing on the slave (now stdin)
-                unsafe {
-                    use std::os::fd::BorrowedFd;
-                    let stdin_fd = BorrowedFd::borrow_raw(0);
-                    if let Ok(mut t) = termios::tcgetattr(stdin_fd) {
-                        t.local_flags |= LocalFlags::ISIG; // Enable signals
-                        t.local_flags |= LocalFlags::ECHO | LocalFlags::ICANON;
-                        t.input_flags |= InputFlags::ICRNL;
-                        t.output_flags |= OutputFlags::OPOST | OutputFlags::ONLCR;
-                        let _ = termios::tcsetattr(stdin_fd, SetArg::TCSANOW, &t);
-                    }
-                }
-
-                // Close master and slave in child (fds 0,1,2 are now connected)
-                drop(pty_result.master);
-                drop(pty_result.slave);
-
-                // Execute shell (TERM already set in parent before fork)
-                // Phase 25 — fsh as default shell for faelight-term
-                let fsh_path = format!("{}/scripts/faelight-shell",
-                    std::env::var("HOME").unwrap_or_default() + "/0-core");
-                let (shell_path, shell_name) = if std::path::Path::new(&fsh_path).exists() {
-                    (fsh_path.clone(), "faelight-shell".to_string())
-                } else {
-                    ("/bin/zsh".to_string(), "zsh".to_string())
-                };
-                let shell = CString::new(shell_path).unwrap();
-                let args = [CString::new(shell_name).unwrap()];
-                // Set up proper PATH -- deduplicated, forest paths first
-                let home = std::env::var("HOME").unwrap_or_default();
-                let scripts_path = format!("{}/0-core/scripts", home);
-                let cargo_bin = format!("{}/.cargo/bin", home);
-                let npm_bin = format!("{}/.npm-global/bin", home);
-                let local_bin = format!("{}/.local/bin", home);
-                let current_path = std::env::var("PATH").unwrap_or_else(|_|
-                    "/usr/local/bin:/usr/bin:/bin".to_string());
-                let mut seen = std::collections::HashSet::new();
-                let mut parts: Vec<String> = Vec::new();
-                for p in &[&scripts_path, &cargo_bin, &npm_bin, &local_bin] {
-                    if seen.insert(p.to_string()) { parts.push(p.to_string()); }
-                }
-                for p in current_path.split(':') {
-                    if !p.is_empty() && seen.insert(p.to_string()) { parts.push(p.to_string()); }
-                }
-                let new_path = parts.join(":");
-                std::env::set_var("PATH", &new_path);
-                std::env::set_var("HOME", &home);
-                std::env::set_var("SHELL", &fsh_path);
-
-                // INT-201 Phase 3 -- Session memory: read last_dir from fsh state.db
-                let db_path = format!("{}/0-core/runtime/state.db", home);
-                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                    let last_dir: Option<String> = conn.query_row(
-                        "SELECT value FROM session_state WHERE key='last_dir'",
-                        [],
-                        |r| r.get(0),
-                    ).ok();
-                    if let Some(dir) = last_dir {
-                        let _ = std::env::set_current_dir(&dir);
-                    }
-                }
-                execvp(&shell, &args).expect("Failed to exec shell");
-                unreachable!()
+            ForkResult::Parent { .. } => {
+                drop(slave);
+                let master_fd = master.into_raw_fd();
+                Ok(Self { master: master_fd })
             }
-            Err(e) => Err(io::Error::other(e)),
         }
     }
-
-    /// Read available data from PTY
-    pub fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.master.read(buf)
-    }
-
-    /// Write data to PTY (send to shell)
-    pub fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+    pub fn write(&self, data: &[u8]) -> std::io::Result<usize> {
         use std::io::Write;
-        self.master.write(data)
+        let mut f = unsafe { std::fs::File::from_raw_fd(self.master) };
+        let n = f.write(data)?;
+        std::mem::forget(f);
+        Ok(n)
+    }
+    pub fn read(&self, buf: &mut [u8]) -> std::io::Result<usize> {
+        use std::io::Read;
+        let mut f = unsafe { std::fs::File::from_raw_fd(self.master) };
+        let n = f.read(buf)?;
+        std::mem::forget(f);
+        Ok(n)
+    }
+    pub fn resize(&self, cols: u16, rows: u16) {
+        let winsize = nix::pty::Winsize {
+            ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0
+        };
+        unsafe { nix::libc::ioctl(self.master, nix::libc::TIOCSWINSZ, &winsize) };
     }
 }
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::FromRawFd;
