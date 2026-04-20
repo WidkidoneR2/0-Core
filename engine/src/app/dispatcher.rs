@@ -521,6 +521,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::Phase2Status => crate::domains::friday::phase2::phase2_status(ctx),
             FridayCommand::Plan => crate::domains::friday::phase2::plan(ctx),
             FridayCommand::TemporalModels => crate::domains::friday::phase2::show_temporal_models(ctx),
+            FridayCommand::DetectTemporalPatterns => crate::domains::friday::phase2::detect_temporal_patterns(ctx),
+            FridayCommand::ResolveContradictions => crate::domains::friday::phase2::resolve_contradictions(ctx),
+            FridayCommand::HealthForecast => crate::domains::friday::phase2::health_forecast(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),

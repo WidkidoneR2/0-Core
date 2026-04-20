@@ -49,6 +49,9 @@ pub fn parse() -> Command {
             FridayCommands::Phase2Status => FridayCommand::Phase2Status,
             FridayCommands::Plan => FridayCommand::Plan,
             FridayCommands::TemporalModels => FridayCommand::TemporalModels,
+            FridayCommands::DetectTemporalPatterns => FridayCommand::DetectTemporalPatterns,
+            FridayCommands::ResolveContradictions => FridayCommand::ResolveContradictions,
+            FridayCommands::HealthForecast => FridayCommand::HealthForecast,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

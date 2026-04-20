@@ -438,6 +438,12 @@ pub enum FridayCommands {
     Plan,
     /// Show Friday temporal models
     TemporalModels,
+    /// Detect cross-session temporal patterns and validate models
+    DetectTemporalPatterns,
+    /// Propose resolutions for active contradictions
+    ResolveContradictions,
+    /// Predict health trajectory 24-72h ahead
+    HealthForecast,
 }
 
 #[derive(Subcommand)]
