@@ -1,5 +1,4 @@
 //! faelight-term v2 -- Phase 0: Foundation
-#![allow(dead_code, unused_imports, unused_variables)]
 mod config;
 mod renderer;
 mod terminal;
@@ -36,10 +35,15 @@ use wayland_client::{
     protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
-const INITIAL_COLS: usize = 220;
-const INITIAL_ROWS: usize = 50;
-const INITIAL_WIDTH: u32  = 1760;
-const INITIAL_HEIGHT: u32 = 900;
+use cosmic_text::{
+    Attrs, Buffer, Color, FontSystem, Metrics, Shaping, SwashCache,
+};
+const INITIAL_COLS:   usize = 220;
+const INITIAL_ROWS:   usize = 50;
+const INITIAL_WIDTH:  u32   = 1760;
+const INITIAL_HEIGHT: u32   = 900;
+const FONT_SIZE:      f32   = 14.0;
+const LINE_HEIGHT:    f32   = 20.0;
 fn main() {
     let config = Config::load();
     eprintln!("faelight-term v2 -- starting");
@@ -52,12 +56,12 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::connect_to_env()?;
     let (globals, event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
-    let compositor    = CompositorState::bind(&globals, &qh)?;
-    let xdg_shell     = XdgShell::bind(&globals, &qh)?;
-    let seat_state    = SeatState::new(&globals, &qh);
-    let output_state  = OutputState::new(&globals, &qh);
+    let compositor     = CompositorState::bind(&globals, &qh)?;
+    let xdg_shell      = XdgShell::bind(&globals, &qh)?;
+    let seat_state     = SeatState::new(&globals, &qh);
+    let output_state   = OutputState::new(&globals, &qh);
     let registry_state = RegistryState::new(&globals);
-    let shm           = Shm::bind(&globals, &qh)?;
+    let shm            = Shm::bind(&globals, &qh)?;
     let surface = compositor.create_surface(&qh);
     let window  = xdg_shell.create_window(
         surface.clone(), WindowDecorations::RequestServer, &qh,
@@ -68,6 +72,9 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let pty      = Pty::spawn(&config.shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
     let terminal = Terminal::new(INITIAL_COLS, INITIAL_ROWS);
     let pool     = SlotPool::new((INITIAL_WIDTH * INITIAL_HEIGHT * 4) as usize, &shm)?;
+    // cosmic-text setup
+    let mut font_system = FontSystem::new();
+    let swash_cache     = SwashCache::new();
     let mut app = App {
         config,
         compositor,
@@ -81,8 +88,12 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         pool,
         terminal,
         pty,
+        font_system,
+        swash_cache,
         width:      INITIAL_WIDTH,
         height:     INITIAL_HEIGHT,
+        cell_w:     9u32,
+        cell_h:     LINE_HEIGHT as u32,
         configured: false,
         running:    true,
         keyboard:   None,
@@ -92,18 +103,14 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
     while app.running {
         event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
-        // Drain all available PTY output
         let mut dirty = false;
         loop {
             let mut buf = [0u8; 4096];
             match app.pty.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => {
-                    app.terminal.feed(&buf[..n]);
-                    dirty = true;
-                }
+                Ok(n) => { app.terminal.feed(&buf[..n]); dirty = true; }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
-                Err(e) => { eprintln!("PTY read error: {:?}", e); app.running = false; break; }
+                Err(e) => { eprintln!("PTY error: {}", e); app.running = false; break; }
             }
         }
         if dirty && app.configured {
@@ -125,8 +132,12 @@ struct App {
     pool:           SlotPool,
     terminal:       Terminal,
     pty:            Pty,
+    font_system:    FontSystem,
+    swash_cache:    SwashCache,
     width:          u32,
     height:         u32,
+    cell_w:         u32,
+    cell_h:         u32,
     configured:     bool,
     running:        bool,
     keyboard:       Option<wl_keyboard::WlKeyboard>,
@@ -137,20 +148,97 @@ impl App {
         let width  = self.width;
         let height = self.height;
         let stride = width * 4;
-        let _size  = (stride * height) as usize;
         if let Ok((buffer, canvas)) = self.pool.create_buffer(
             width as i32, height as i32, stride as i32,
             wl_shm::Format::Xrgb8888,
         ) {
             // Fill background
             for pixel in canvas.chunks_exact_mut(4) {
-                pixel[0] = 0x11; // B
-                pixel[1] = 0x14; // G
-                pixel[2] = 0x0f; // R
-                pixel[3] = 0xff; // X
+                pixel[0] = 0x11; pixel[1] = 0x14;
+                pixel[2] = 0x0f; pixel[3] = 0xff;
             }
-            // Phase 0: background only.
-            // Cell rendering (cosmic-text glyph atlas) comes in next gate.
+            // Draw terminal cells
+            let rows = self.terminal.rows;
+            let cols = self.terminal.cols;
+            let cell_w = self.cell_w;
+            let cell_h = self.cell_h;
+            for row in 0..rows {
+                for col in 0..cols {
+                    let cell = self.terminal.grid[row][col];
+                    if cell.ch == ' ' || cell.ch == '\0' { continue; }
+                    let cell_x = (col as u32 * cell_w) as i32;
+                    let cell_y = (row as u32 * cell_h) as i32;
+                    if cell_x + cell_w as i32 > width as i32 { continue; }
+                    if cell_y + cell_h as i32 > height as i32 { continue; }
+                    // Get fg color from palette
+                    let fg_idx = cell.fg as usize % 16;
+                    let fg = self.config.colors[fg_idx];
+                    let fg_r = (fg[0] * 255.0) as u8;
+                    let fg_g = (fg[1] * 255.0) as u8;
+                    let fg_b = (fg[2] * 255.0) as u8;
+                    // Shape and rasterize with cosmic-text
+                    let mut text_buf = Buffer::new(
+                        &mut self.font_system,
+                        Metrics::new(FONT_SIZE, LINE_HEIGHT),
+                    );
+                    text_buf.set_size(&mut self.font_system,
+                        Some(cell_w as f32), Some(cell_h as f32));
+                    let attrs = Attrs::new();
+                    let text = cell.ch.to_string();
+                    text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
+                    text_buf.shape_until_scroll(&mut self.font_system, false);
+                    // Rasterize glyphs using layout_runs + physical + with_pixels
+                    let base_color = Color::rgb(fg_r, fg_g, fg_b);
+                    for run in text_buf.layout_runs() {
+                        for glyph in run.glyphs.iter() {
+                            let phys = glyph.physical((0.0, 0.0), 1.0);
+                            let gx = cell_x + phys.x;
+                            let gy = cell_y + run.line_y as i32 + phys.y;
+                            self.swash_cache.with_pixels(
+                                &mut self.font_system,
+                                phys.cache_key,
+                                base_color,
+                                |px_off, py_off, color| {
+                                    let px = gx + px_off;
+                                    let py = gy + py_off;
+                                    if px < 0 || py < 0 { return; }
+                                    let px = px as u32;
+                                    let py = py as u32;
+                                    if px >= width || py >= height { return; }
+                                    let alpha = color.a();
+                                    if alpha == 0 { return; }
+                                    let offset = (py * stride + px * 4) as usize;
+                                    if offset + 3 >= canvas.len() { return; }
+                                    let a = alpha as u32;
+                                    let inv = 255 - a;
+                                    canvas[offset]     = ((canvas[offset]     as u32 * inv + color.b() as u32 * a) / 255) as u8;
+                                    canvas[offset + 1] = ((canvas[offset + 1] as u32 * inv + color.g() as u32 * a) / 255) as u8;
+                                    canvas[offset + 2] = ((canvas[offset + 2] as u32 * inv + color.r() as u32 * a) / 255) as u8;
+                                    canvas[offset + 3] = 0xff;
+                                }
+                            );
+                        }
+                    }
+                }
+            }
+            // Draw cursor
+            let cx = (self.terminal.cursor_x as u32 * cell_w) as usize;
+            let cy = (self.terminal.cursor_y as u32 * cell_h) as usize;
+            for dy in 0..cell_h as usize {
+                for dx in 0..2usize {
+                    let px = cx + dx;
+                    let py = cy + dy;
+                    if px < width as usize && py < height as usize {
+                        let offset = (py * stride as usize + px * 4) as usize;
+                        if offset + 3 < canvas.len() {
+                            canvas[offset]     = 0xa3;
+                            canvas[offset + 1] = 0xe3;
+                            canvas[offset + 2] = 0x6b;
+                            canvas[offset + 3] = 0xff;
+                        }
+                    }
+                }
+            }
             self.surface.attach(Some(buffer.wl_buffer()), 0, 0);
             self.surface.damage_buffer(0, 0, width as i32, height as i32);
             self.surface.commit();
@@ -188,6 +276,11 @@ impl WindowHandler for App {
         if let (Some(w), Some(h)) = configure.new_size {
             self.width  = w.get() as u32;
             self.height = h.get() as u32;
+            // Resize pool
+            let needed = (self.width * self.height * 4) as usize;
+            if let Err(e) = self.pool.resize(needed) {
+                eprintln!("pool resize error: {}", e);
+            }
         }
         self.configured = true;
         self.render();
