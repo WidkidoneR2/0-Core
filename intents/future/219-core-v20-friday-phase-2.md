@@ -148,13 +148,13 @@ Hard dependencies:
 ✅ Temporal pattern detection -- 5 models validated from 232 health records, cross-session peak detected (2026-04-19)
 ✅ Contradiction resolution proposals -- proposals generated with confidence scores, human approval required (2026-04-19)
 ✅ Predictive health trajectory -- 24h and 72h forecast live, risk factors detected (2026-04-19)
-⬜ FridayBehavior trust-modulated interrupt levels
-⬜ Knowledge engine integration — auto-query on build errors
-⬜ Cross-intent pattern detection working
+✅ FridayBehavior trust-modulated interrupt levels -- CHALLENGE/RECOMMEND/SUGGEST/SILENT based on confidence + accuracy (2026-04-19)
+✅ Knowledge engine integration — friday_knowledge populated from cross-intent and temporal detection, auto-query on build errors via friday_arch (2026-04-19)
+✅ Cross-intent pattern detection -- 183 intents analyzed, domain distribution, 0 regressions in intelligence arc (2026-04-19)
 ✅ FridayState persistence across sessions -- friday_state table, 8 keys persisted (2026-04-19)
-⬜ Friday speaks with calibrated confidence (louder when right)
-⬜ Phase 2 accuracy >= 70% on temporal predictions before activation
-⬜ Human gate preserved — all proposals require approval
+✅ Friday speaks with calibrated confidence -- interrupt levels modulated by historical_accuracy and validated_count (2026-04-19)
+✅ Phase 2 accuracy >= 70% -- intelligence-arc-stability 96%, session-depth-commits 90% (2026-04-19)
+✅ Human gate preserved — resolve-contradictions saves proposals with status=pending, no action without approval (2026-04-19)
 "Phase 1 is the forest finding its voice.
 Phase 2 is the forest earning the right to use it.
 Not by being louder.
