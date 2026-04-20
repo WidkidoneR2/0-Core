@@ -35,6 +35,8 @@ core friday plan -- show Friday's 3-step prediction for current session
 core friday context -- show current conversation context buffer
 core friday reason "question" -- Friday reasons across facts to answer
 core friday anticipate -- what Friday expects you to need next
+// Hard dependency: Core v20 (INT-219) complete -- ✅ 2026-04-19
+// Note: core friday plan exists from v20 -- v21 builds session-aware evolution
 ⬜ 3-step lookahead engine working -- predicts next 3 actions
 ⬜ Prediction confidence shown per step
 ⬜ Conversation context buffer -- last 10 exchanges stored
