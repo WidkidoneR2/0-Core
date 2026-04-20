@@ -194,7 +194,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-term"
-version = "10.3.0"
+version = "2.0.0"
 category = "ui"
 description = "Terminal emulator"
 expected_usage = "high"
