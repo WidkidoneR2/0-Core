@@ -2,7 +2,7 @@
 //! Spawns faelight-shell in a pseudoterminal.
 use nix::{
     pty::{openpty, OpenptyResult},
-    unistd::{close, dup2, execvp, fork, setsid, ForkResult},
+    unistd::{dup2, execvp, fork, setsid, ForkResult},
 };
 use std::{
     ffi::CString,
