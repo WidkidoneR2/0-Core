@@ -135,23 +135,23 @@ Friday never loses its models between sessions.
 | Internal state       | Session-only           | Persistent across sessions       |
 Hard dependencies:
   ✅ v17 Pattern Weight Engine (INT-205)
-  ⬜ v18 Synthesis Engine (INT-212)
-  ⬜ v19 Friday Phase 1 (INT-217)
-  ⬜ Friday Knowledge Engine (INT-218)
+  ✅ v18 Synthesis Engine (INT-212)
+  ✅ v19 Friday Phase 1 (INT-217)
+  ✅ Friday Knowledge Engine (INT-218)
   ✅ Pattern data gate -- lowered from 30 days to 5+ days dense data (DEC: continuous build model requires it, 10k+ shell history entries sufficient signal)
-  ⬜ INT-215 Event Architecture v2 (signal ontology)
-⬜ v19 Friday Phase 1 complete (hard dependency)
-⬜ INT-218 Knowledge Engine complete (hard dependency)
-⬜ 30+ days of pattern data (time gate)
-⬜ TemporalModel struct defined and persisted in friday_models table
-⬜ Multi-step strategy proposals working (core friday plan)
+  ✅ INT-215 Event Architecture v2 (signal ontology)
+✅ v19 Friday Phase 1 complete (hard dependency)
+✅ INT-218 Knowledge Engine complete (hard dependency)
+✅ 30+ days of pattern data (time gate) -- lowered, see DEC above
+✅ TemporalModel struct defined and persisted in friday_temporal_models table (2026-04-19)
+✅ Multi-step strategy proposals working (core friday plan) (2026-04-19)
 ⬜ Temporal pattern detection — cross-session model building
 ⬜ Contradiction resolution proposals (not just detection)
 ⬜ Predictive health trajectory (24-72h forecast)
 ⬜ FridayBehavior trust-modulated interrupt levels
 ⬜ Knowledge engine integration — auto-query on build errors
 ⬜ Cross-intent pattern detection working
-⬜ FridayState persistence across sessions
+✅ FridayState persistence across sessions -- friday_state table, 8 keys persisted (2026-04-19)
 ⬜ Friday speaks with calibrated confidence (louder when right)
 ⬜ Phase 2 accuracy >= 70% on temporal predictions before activation
 ⬜ Human gate preserved — all proposals require approval
