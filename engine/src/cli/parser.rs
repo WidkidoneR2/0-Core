@@ -444,6 +444,12 @@ pub enum FridayCommands {
     ResolveContradictions,
     /// Predict health trajectory 24-72h ahead
     HealthForecast,
+    /// Show trust-modulated interrupt levels for all models
+    InterruptLevel,
+    /// Detect patterns spanning multiple intents
+    CrossIntentPatterns,
+    /// Show full Phase 2 status
+    Phase2StatusFull,
 }
 
 #[derive(Subcommand)]

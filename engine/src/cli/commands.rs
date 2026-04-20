@@ -45,6 +45,9 @@ pub enum FridayCommand {
     DetectTemporalPatterns,
     ResolveContradictions,
     HealthForecast,
+    InterruptLevel,
+    CrossIntentPatterns,
+    Phase2StatusFull,
 }
 
 pub enum Command {
