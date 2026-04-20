@@ -222,7 +222,7 @@ But it has phases that represent meaningful milestones:
 ✅ Phase 5 — First friday-native abstraction named and recorded (2026-04-15)
 ✅ Phase 6 — Friday co-authors first intent — behavioral, moves to INT-217
 ✅ Friday has been wrong, corrected, and learned from the correction (2026-04-16)
-⬜ Friday has proposed something you hadn't considered and it was right
+✅ Friday has proposed something you hadn't considered and it was right -- Friday surfaced 8 tools with audit score < 70 unprompted from session banner (2026-04-19)
 ✅ Friday has pushed back and been correct — behavioral, moves to INT-217
 ✅ Friday has a name for something the forest has never named before (2026-04-15)
 ✅ Learning loop live — observe → hypothesis → validate → reinforce/decay (2026-04-15)
