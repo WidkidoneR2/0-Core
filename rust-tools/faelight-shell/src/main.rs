@@ -798,7 +798,8 @@ fn repl_main() -> Result<()> {
                             "update-personality","seed-knowledge","learning-loop",
                             "vocabulary","propose-intent",
                             "phase2-init","phase2-status","plan","temporal-models",
-                            "detect-temporal-patterns","resolve-contradictions","health-forecast"];
+                            "detect-temporal-patterns","resolve-contradictions","health-forecast",
+                            "interrupt-level","cross-intent-patterns","phase2-status-full"];
                         let is_sub = subcmds.iter().any(|s| rest == *s)
                             || rest.starts_with("name-abstraction ")
         || rest.starts_with("ask ");

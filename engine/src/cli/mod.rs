@@ -52,6 +52,9 @@ pub fn parse() -> Command {
             FridayCommands::DetectTemporalPatterns => FridayCommand::DetectTemporalPatterns,
             FridayCommands::ResolveContradictions => FridayCommand::ResolveContradictions,
             FridayCommands::HealthForecast => FridayCommand::HealthForecast,
+            FridayCommands::InterruptLevel => FridayCommand::InterruptLevel,
+            FridayCommands::CrossIntentPatterns => FridayCommand::CrossIntentPatterns,
+            FridayCommands::Phase2StatusFull => FridayCommand::Phase2StatusFull,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,
