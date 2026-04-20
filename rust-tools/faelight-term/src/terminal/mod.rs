@@ -1,4 +1,5 @@
-//! faelight-term v2 -- Terminal State (Phase 0 stub)
+//! faelight-term v2 -- Terminal State
+#![allow(dead_code, unused_variables)]
 //! VTE parser, cell grid, 50k line scrollback.
 pub mod grid;
 pub mod scrollback;
