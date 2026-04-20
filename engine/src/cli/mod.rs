@@ -45,6 +45,10 @@ pub fn parse() -> Command {
             FridayCommands::NameAbstraction { name, description } => FridayCommand::NameAbstraction { name, description },
             FridayCommands::Vocabulary => FridayCommand::Vocabulary,
             FridayCommands::ProposeIntent => FridayCommand::ProposeIntent,
+            FridayCommands::Phase2Init => FridayCommand::Phase2Init,
+            FridayCommands::Phase2Status => FridayCommand::Phase2Status,
+            FridayCommands::Plan => FridayCommand::Plan,
+            FridayCommands::TemporalModels => FridayCommand::TemporalModels,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

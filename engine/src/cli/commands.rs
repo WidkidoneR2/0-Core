@@ -37,6 +37,11 @@ pub enum FridayCommand {
     NameAbstraction { name: String, description: String },
     Vocabulary,
     ProposeIntent,
+    // INT-219 Phase 2
+    Phase2Init,
+    Phase2Status,
+    Plan,
+    TemporalModels,
 }
 
 pub enum Command {

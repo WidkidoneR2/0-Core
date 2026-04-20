@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_friday_obs_ts ON friday_observations(timestamp DE
 CREATE INDEX IF NOT EXISTS idx_friday_pat_conf ON friday_patterns(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_friday_know_domain ON friday_knowledge(domain);
 ";
+pub mod phase2;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
