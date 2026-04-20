@@ -791,6 +791,23 @@ fn repl_main() -> Result<()> {
                         }
                         continue 'repl;
                     }
+                    // INT-203 fix -- route friday subcommands to core friday
+                    if line.starts_with("friday ") {
+                        let rest = line[7..].trim();
+                        let subcmds = ["status","suggest","observe","extract-patterns",
+                            "update-personality","seed-knowledge","learning-loop",
+                            "vocabulary","propose-intent"];
+                        let is_sub = subcmds.iter().any(|s| rest == *s)
+                            || rest.starts_with("name-abstraction ");
+                        if is_sub {
+                            let args: Vec<&str> = rest.split_whitespace().collect();
+                            let mut cmd = std::process::Command::new("core");
+                            cmd.arg("friday");
+                            for a in &args { cmd.arg(a); }
+                            let _ = cmd.status();
+                            continue 'repl;
+                        }
+                    }
                     // INT-220 -- friday <question>: ask Friday about the forest
                     if line.starts_with("friday") && (line == "friday" || line.starts_with("friday ")) {
                         let question = if line == "friday" {
