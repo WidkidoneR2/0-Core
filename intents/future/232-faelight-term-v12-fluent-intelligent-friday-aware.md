@@ -1,7 +1,7 @@
 ---
 id: 232
 title: "faelight-term v2 -- The Terminal That Thinks in 2136"
-status: planned
+status: in-progress
 date: 2026-04-19
 tags: [terminal, faelight-term, friday, wgpu, cosmic-text, rendering, intelligence, ux, wayland, v2, overhaul]
 ---
