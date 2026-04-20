@@ -42,6 +42,9 @@ pub enum FridayCommand {
     Phase2Status,
     Plan,
     TemporalModels,
+    DetectTemporalPatterns,
+    ResolveContradictions,
+    HealthForecast,
 }
 
 pub enum Command {
