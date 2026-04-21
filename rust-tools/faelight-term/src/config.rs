@@ -1,5 +1,9 @@
 //! faelight-term v2 -- Configuration
 //! Faelight color palette preserved from v1.
+pub const FONT_REGULAR: &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf";
+pub const FONT_BOLD:    &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Bold.ttf";
+pub const FONT_ITALIC:  &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Italic.ttf";
+pub const FONT_EMOJI:   &str = "/usr/share/fonts/noto/NotoColorEmoji.ttf";
 pub struct Config {
     pub font_size:   f32,
     pub font_family: String,
@@ -10,10 +14,9 @@ pub struct Config {
 }
 impl Config {
     pub fn load() -> Self {
-        // Faelight Forest color palette
         Self {
-            font_size:   12.0,
-            font_family: "JetBrainsMono Nerd Font".to_string(),
+            font_size:   14.0,
+            font_family: "JetBrainsMonoNerdFont".to_string(),
             shell:       std::env::var("SHELL")
                              .unwrap_or_else(|_| "/bin/bash".to_string()),
             bg: [0.059, 0.078, 0.067, 1.0], //
@@ -22,7 +25,6 @@ impl Config {
         }
     }
     fn faelight_palette() -> [[f32; 4]; 16] {
-        // Faelight Forest 16-color palette (matches foot.ini)
         [
             [0.059, 0.078, 0.067, 1.0], // black
             [0.902, 0.494, 0.502, 1.0], // red
