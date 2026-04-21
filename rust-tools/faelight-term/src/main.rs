@@ -72,9 +72,22 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let pty      = Pty::spawn(&config.shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
     let terminal = Terminal::new(INITIAL_COLS, INITIAL_ROWS);
     let pool     = SlotPool::new((INITIAL_WIDTH * INITIAL_HEIGHT * 4) as usize, &shm)?;
-    // cosmic-text setup
+    // cosmic-text setup -- load Nerd Font explicitly
     let mut font_system = FontSystem::new();
-    let swash_cache     = SwashCache::new();
+    // Load JetBrainsMono Nerd Font from disk for full Unicode + icon coverage
+    if std::path::Path::new(config::FONT_REGULAR).exists() {
+        font_system.db_mut().load_font_file(config::FONT_REGULAR).ok();
+        font_system.db_mut().load_font_file(config::FONT_BOLD).ok();
+        font_system.db_mut().load_font_file(config::FONT_ITALIC).ok();
+        eprintln!("faelight-term: Nerd Font loaded from {}", config::FONT_REGULAR);
+
+    } else {
+        eprintln!("faelight-term: WARNING -- Nerd Font not found, falling back to system fonts");
+    }
+    if std::path::Path::new(config::FONT_EMOJI).exists() {
+        font_system.db_mut().load_font_file(config::FONT_EMOJI).ok();
+    }
+    let swash_cache = SwashCache::new();
     let mut app = App {
         config,
         compositor,
@@ -92,7 +105,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         swash_cache,
         width:      INITIAL_WIDTH,
         height:     INITIAL_HEIGHT,
-        cell_w:     9u32,
+        cell_w:     10u32, // will be measured from font metrics on first render
         cell_h:     LINE_HEIGHT as u32,
         configured: false,
         running:    true,
@@ -183,7 +196,7 @@ impl App {
                     );
                     text_buf.set_size(&mut self.font_system,
                         Some(cell_w as f32), Some(cell_h as f32));
-                    let attrs = Attrs::new();
+                    let attrs = Attrs::new().family(cosmic_text::Family::Name("JetBrains Mono"));
                     let text = cell.ch.to_string();
                     text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
                     text_buf.shape_until_scroll(&mut self.font_system, false);
