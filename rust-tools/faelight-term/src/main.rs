@@ -76,17 +76,22 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let mut font_system = FontSystem::new();
     // Load JetBrainsMono Nerd Font from disk for full Unicode + icon coverage
     if std::path::Path::new(config::FONT_REGULAR).exists() {
+        // Load Mono variant FIRST -- it has full Nerd Font icon coverage
+        font_system.db_mut().load_font_file(config::FONT_MONO_REGULAR).ok();
         font_system.db_mut().load_font_file(config::FONT_REGULAR).ok();
         font_system.db_mut().load_font_file(config::FONT_BOLD).ok();
         font_system.db_mut().load_font_file(config::FONT_ITALIC).ok();
+        // Load NotoColorEmoji for tree and other emoji
+        if std::path::Path::new(config::FONT_EMOJI).exists() {
+            font_system.db_mut().load_font_file(config::FONT_EMOJI).ok();
+        }
         eprintln!("faelight-term: Nerd Font loaded from {}", config::FONT_REGULAR);
+
 
     } else {
         eprintln!("faelight-term: WARNING -- Nerd Font not found, falling back to system fonts");
     }
-    if std::path::Path::new(config::FONT_EMOJI).exists() {
-        font_system.db_mut().load_font_file(config::FONT_EMOJI).ok();
-    }
+
     let swash_cache = SwashCache::new();
     let mut app = App {
         config,
@@ -196,7 +201,7 @@ impl App {
                     );
                     text_buf.set_size(&mut self.font_system,
                         Some(cell_w as f32), Some(cell_h as f32));
-                    let attrs = Attrs::new().family(cosmic_text::Family::Name("JetBrains Mono"));
+                    let attrs = Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"));
                     let text = cell.ch.to_string();
                     text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
                     text_buf.shape_until_scroll(&mut self.font_system, false);
@@ -222,12 +227,21 @@ impl App {
                                     if alpha == 0 { return; }
                                     let offset = (py * stride + px * 4) as usize;
                                     if offset + 3 >= canvas.len() { return; }
-                                    let a = alpha as u32;
-                                    let inv = 255 - a;
-                                    canvas[offset]     = ((canvas[offset]     as u32 * inv + color.b() as u32 * a) / 255) as u8;
-                                    canvas[offset + 1] = ((canvas[offset + 1] as u32 * inv + color.g() as u32 * a) / 255) as u8;
-                                    canvas[offset + 2] = ((canvas[offset + 2] as u32 * inv + color.r() as u32 * a) / 255) as u8;
-                                    canvas[offset + 3] = 0xff;
+                                    if alpha == 255 {
+                                        // Fully opaque -- write directly (color emoji, solid glyphs)
+                                        canvas[offset]     = color.b();
+                                        canvas[offset + 1] = color.g();
+                                        canvas[offset + 2] = color.r();
+                                        canvas[offset + 3] = 0xff;
+                                    } else {
+                                        // Alpha blend
+                                        let a = alpha as u32;
+                                        let inv = 255 - a;
+                                        canvas[offset]     = ((canvas[offset]     as u32 * inv + color.b() as u32 * a) / 255) as u8;
+                                        canvas[offset + 1] = ((canvas[offset + 1] as u32 * inv + color.g() as u32 * a) / 255) as u8;
+                                        canvas[offset + 2] = ((canvas[offset + 2] as u32 * inv + color.r() as u32 * a) / 255) as u8;
+                                        canvas[offset + 3] = 0xff;
+                                    }
                                 }
                             );
                         }
