@@ -323,6 +323,22 @@ impl WindowHandler for App {
             if let Err(e) = self.pool.resize(needed) {
                 eprintln!("pool resize error: {}", e);
             }
+            // Recalculate terminal grid dimensions
+            let cell_w = self.cell_w.max(1);
+            let cell_h = self.cell_h.max(1);
+            let new_cols = (self.width / cell_w).max(1) as usize;
+            let new_rows = (self.height / cell_h).max(1) as usize;
+            if new_cols != self.terminal.cols || new_rows != self.terminal.rows {
+                self.terminal.resize(new_cols, new_rows);
+                self.pty.resize(new_cols as u16, new_rows as u16);
+                // Trigger shell to redraw by sending SIGWINCH to PTY process group
+                unsafe {
+                    nix::libc::killpg(
+                        nix::libc::tcgetpgrp(self.pty.master),
+                        nix::libc::SIGWINCH
+                    );
+                }
+            }
         }
         self.configured = true;
         self.render();
