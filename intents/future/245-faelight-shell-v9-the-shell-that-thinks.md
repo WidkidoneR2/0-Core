@@ -222,3 +222,11 @@ at the speed Linux was always capable of
 but no shell ever unlocked.
 This is not a better shell.
 This is what a shell should have always been." 🌲
+
+Issues noticed during INT-232 development session:
+- **fsh-patch argument confusion** -- fsh-patch takes filepath as arg2, not string content. Needs clearer error message or usage hint when wrong args passed.
+- **python3 -c multiline** -- still fails in fsh for complex scripts. Rule: always write to /tmp/script.py first. Should be documented more prominently.
+- **heredoc RSEOF contamination** -- heredoc content leaking into files when delimiter not matched. fsh should warn when RSEOF appears literally in output.
+- **Caret color on deploy** -- deploy exits with warning code causing red caret. Consider exit code 0 for successful deploys with warnings.
+- **File corruption pattern** -- Python writing Rust source via str mode corrupts escape sequences. Binary mode (rb/wb) required for any file containing \x1b, \n in char literals. This pattern should be documented in COMMAND-GUIDE.md.
+- **grep pipe quoting** -- grep with | in pattern requires quoting in fsh. fsh should handle unquoted | in grep patterns without treating as pipe.
