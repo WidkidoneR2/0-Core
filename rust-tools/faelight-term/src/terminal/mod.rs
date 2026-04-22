@@ -70,8 +70,27 @@ impl Terminal {
         self.parser = parser;
     }
     pub fn resize(&mut self, cols: usize, rows: usize) {
-        self.cols = cols; self.rows = rows;
-        self.grid = vec![vec![Cell::default(); cols]; rows];
+        // Preserve existing content -- expand/shrink without wiping
+        let old_rows = self.rows;
+        let old_cols = self.cols;
+        self.cols = cols;
+        self.rows = rows;
+        // Resize each existing row
+        for row in self.grid.iter_mut() {
+            if cols > old_cols {
+                row.resize(cols, Cell::default());
+            } else {
+                row.truncate(cols);
+            }
+        }
+        // Add or remove rows
+        if rows > old_rows {
+            for _ in old_rows..rows {
+                self.grid.push(vec![Cell::default(); cols]);
+            }
+        } else {
+            self.grid.truncate(rows);
+        }
         self.cursor_x = self.cursor_x.min(cols.saturating_sub(1));
         self.cursor_y = self.cursor_y.min(rows.saturating_sub(1));
     }
