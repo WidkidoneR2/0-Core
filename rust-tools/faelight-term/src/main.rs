@@ -110,7 +110,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         swash_cache,
         width:      INITIAL_WIDTH,
         height:     INITIAL_HEIGHT,
-        cell_w:     10u32, // will be measured from font metrics on first render
+        cell_w:     9u32, // JetBrains Mono 14pt = 9px confirmed
         cell_h:     LINE_HEIGHT as u32,
         configured: false,
         running:    true,
@@ -201,13 +201,16 @@ impl App {
                     );
                     text_buf.set_size(&mut self.font_system,
                         Some(cell_w as f32), Some(cell_h as f32));
-                    // Use emoji font for emoji codepoints, Nerd Font Mono for everything else
                     let ch = cell.ch;
-                    let is_emoji = matches!(ch as u32,
-                        0x1F300..=0x1F9FF | // Misc symbols, emoticons
-                        0x2600..=0x27BF  | // Misc symbols
-                        0xFE00..=0xFE0F  | // Variation selectors
-                        0x1F000..=0x1FFFF  // More emoji
+                    let cp = ch as u32;
+                    // Route to emoji font, but exclude single-width symbol chars
+                    // U+276F (❯) is used in fsh prompt and must stay in Nerd Font
+                    let is_emoji = cp != 0x276F && matches!(cp,
+                        0x1F300..=0x1FAFF |
+                        0x1F000..=0x1FFFF |
+                        0x2300..=0x23FF   |
+                        0x2700..=0x27BF   |
+                        0x2600..=0x26FF
                     );
                     let attrs = if is_emoji {
                         Attrs::new().family(cosmic_text::Family::Name("Noto Color Emoji"))
