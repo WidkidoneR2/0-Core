@@ -201,8 +201,20 @@ impl App {
                     );
                     text_buf.set_size(&mut self.font_system,
                         Some(cell_w as f32), Some(cell_h as f32));
-                    let attrs = Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"));
-                    let text = cell.ch.to_string();
+                    // Use emoji font for emoji codepoints, Nerd Font Mono for everything else
+                    let ch = cell.ch;
+                    let is_emoji = matches!(ch as u32,
+                        0x1F300..=0x1F9FF | // Misc symbols, emoticons
+                        0x2600..=0x27BF  | // Misc symbols
+                        0xFE00..=0xFE0F  | // Variation selectors
+                        0x1F000..=0x1FFFF  // More emoji
+                    );
+                    let attrs = if is_emoji {
+                        Attrs::new().family(cosmic_text::Family::Name("Noto Color Emoji"))
+                    } else {
+                        Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
+                    };
+                    let text = ch.to_string();
                     text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
                     text_buf.shape_until_scroll(&mut self.font_system, false);
                     // Rasterize glyphs using layout_runs + physical + with_pixels
