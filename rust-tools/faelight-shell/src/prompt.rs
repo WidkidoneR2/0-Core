@@ -236,10 +236,20 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 // ── readline prompt — no emoji, ANSI wrapped, Tab completion safe ──────────
 // Emoji and wide chars break rustyline cursor position silently.
 
-pub fn render_line(db: &ForestDb) -> String {
+pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     let theme = db.get_theme();
+    // Read exit status from cache file -- written after every command
+    let cache_file = std::env::var("HOME").unwrap_or_default()
+        + "/.cache/faelight/last-exit-status";
+    let last_status = std::fs::read_to_string(&cache_file).unwrap_or_default();
+    let last_status = last_status.trim();
+    let caret = if last_status == "failure" {
+        "❯".bright_red().bold()
+    } else {
+        "❯".bright_green().bold()
+    };
     let raw = match theme.as_str() {
-        "minimal" => format!("  {} ", "❯".bright_green().bold()),
+        "minimal" => format!("  {} ", caret),
         "classic" => {
             let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
             let host = std::fs::read_to_string("/etc/hostname")
@@ -248,7 +258,7 @@ pub fn render_line(db: &ForestDb) -> String {
             let cwd = cwd_str(30);
             format!("  {}@{} {} $ ", user.dimmed(), host.dimmed(), cwd.bright_cyan())
         }
-        _ => format!("  {} ", "fsh ❯".bright_green().bold()), // forest + jarvis use same prompt line
+        _ => format!("  {} {} ", "fsh".bright_green().bold(), caret),
     };
     rl_wrap(&raw)
 }

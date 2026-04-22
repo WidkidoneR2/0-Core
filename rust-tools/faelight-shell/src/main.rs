@@ -484,7 +484,7 @@ fn repl_main() -> Result<()> {
 
     // Phase 17 — prompt context tracking
     let last_duration_ms: Option<u64> = None;
-    let last_exit_code: Option<i32> = None;
+    let mut last_exit_code: Option<i32> = None;
 
     // Phase 10 — shell variable table
     let mut shell_vars: HashMap<String, String> = HashMap::new();
@@ -521,7 +521,7 @@ fn repl_main() -> Result<()> {
         };
         prompt::render_context(&db, &ctx);
 
-        let prompt_str = prompt::render_line(&db);
+        let prompt_str = prompt::render_line(&db, last_exit_code);
 
         match rl.readline(&prompt_str) {
             Ok(line) => {
@@ -1654,10 +1654,11 @@ fn repl_main() -> Result<()> {
                                     Err(_) => Some(out),
                                 }
                             }
-                            commands::CommandResult::Output(out) => Some(out),
-                            commands::CommandResult::Empty => None,
+                            commands::CommandResult::Output(out) => { last_exit_code = Some(0); Some(out) },
+                            commands::CommandResult::Empty => { last_exit_code = Some(0); None },
                             commands::CommandResult::Error(e) => {
                                 eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
+                                last_exit_code = Some(1);
                                 None
                             }
                         };
@@ -1747,9 +1748,17 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-201 — Track last command exit status for faelight-term indicator
                     {
+                        // Update last_exit_code from output content
+                        if let Some(ref out) = cmd_output {
+                            if out.starts_with("✗") || out.contains("error") || out.contains("not found") {
+                                last_exit_code = Some(1);
+                            } else {
+                                last_exit_code = Some(0);
+                            }
+                        }
                         let exit_ok = match &cmd_output {
                             Some(out) => !out.starts_with("✗") && !out.contains("error"),
-                            None => true,
+                            None => last_exit_code.map(|c| c == 0).unwrap_or(true),
                         };
                         let status_val = if exit_ok { "success" } else { "failure" };
                         let cache_dir = std::path::PathBuf::from(
@@ -1825,6 +1834,7 @@ fn repl_main() -> Result<()> {
                             let status = std::fs::read_to_string(cache_dir.join("last-exit-status")).unwrap_or_default();
                             if status.trim() == "success" { 0 } else { 1 }
                         };
+                        last_exit_code = Some(exit_code);
                         let now_ts = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default().as_secs() as i64;
