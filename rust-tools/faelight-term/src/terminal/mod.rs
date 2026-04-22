@@ -90,7 +90,7 @@ impl Terminal {
         if self.cursor_x >= self.cols { self.cursor_x = 0; self.newline(); }
         if self.cursor_y < self.rows && self.cursor_x < self.cols {
             self.grid[self.cursor_y][self.cursor_x] = Cell { ch, fg: self.cur_fg, bg: self.cur_bg, attrs: self.cur_attrs };
-            let is_wide = matches!(cp, 0x1F000..=0x1FFFF | 0x1F300..=0x1FAFF);
+            let is_wide = matches!(cp, 0x1F000..=0x1FFFF);
             if is_wide && self.cursor_x + 1 < self.cols {
                 self.cursor_x += 1;
                 self.grid[self.cursor_y][self.cursor_x] = Cell { ch: '\0', fg: self.cur_fg, bg: self.cur_bg, attrs: self.cur_attrs };
@@ -126,7 +126,7 @@ impl<'a> Perform for VteHandler<'a> {
     }
     fn csi_dispatch(&mut self, params: &Params, _: &[u8], _: bool, action: char) {
         let ps: Vec<u16> = params.iter().map(|p| p.first().copied().unwrap_or(0)).collect();
-        let p0 = ps.get(0).copied().unwrap_or(0) as usize;
+        let p0 = ps.first().copied().unwrap_or(0) as usize;
         let p1 = ps.get(1).copied().unwrap_or(0) as usize;
         match action {
             'A' => { let n=p0.max(1); self.term.cursor_y=self.term.cursor_y.saturating_sub(n); }
