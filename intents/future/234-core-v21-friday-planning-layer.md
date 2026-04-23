@@ -79,9 +79,9 @@ All six documented in COMMAND-GUIDE as they ship.
 // Hard dependency: Core v20 (INT-219) complete -- satisfied 2026-04-19
 IMPLEMENTATION GATES
 ✅ friday_session_context table created with schema and index
-⬜ session lifecycle: session-start / session-end commands auto-triggered on first core friday call (lazy)
-⬜ idle timeout (30 min) detected lazily on every core friday call
-⬜ session summary written to friday_knowledge on session end (top 3 by confidence)
+✅ session lifecycle: session-start / session-end commands auto-triggered on first core friday call (lazy)
+✅ idle timeout (30 min) detected lazily on every core friday call
+✅ session summary written to friday_knowledge on session end (top 3 by confidence)
 ⬜ last 10 exchanges stored and queryable via core friday context
 ⬜ references_id populates when Friday cites a prior exchange
 ⬜ forward-chaining inference: 2 facts derive 1 conclusion, stored with facts_cited
