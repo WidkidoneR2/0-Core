@@ -60,10 +60,9 @@ fn generate_session_id() -> String {
     let pid = std::process::id();
     format!("{:04}{:02}{:02}-{:02}{:02}{:02}-{}", y, m + 1, d + 1, hh, mm, ss, pid)
 }
-/// core friday session-start
-/// Writes current_session_id to friday_state, emits a session_start row.
-pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
-    ensure_tables(ctx)?;
+/// Internal: start a new session. Returns the new session_id.
+/// Does not print -- callers handle messaging.
+fn start_session_internal(ctx: &AppContext) -> CoreResult<String> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let session_id = generate_session_id();
@@ -77,24 +76,13 @@ pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
          VALUES (?1, ?2, 'signal', 'session_start', 1.0)",
         rusqlite::params![session_id, now],
     )?;
-    println!("  🌿 session {} started", session_id);
-    Ok(())
+    Ok(session_id)
 }
-/// core friday session-end
-/// Reads current_session_id, writes a summary to friday_knowledge,
-/// clears current_session_id.
-pub fn session_end(ctx: &AppContext) -> CoreResult<()> {
-    ensure_tables(ctx)?;
+/// Internal: write a summary row for a session to friday_knowledge.
+/// Does not clear current_session_id -- caller decides.
+fn write_session_summary(ctx: &AppContext, sid: &str) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let session_id: Option<String> = db.query_row(
-        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
-        [], |r| r.get(0),
-    ).ok();
-    let Some(sid) = session_id else {
-        println!("  no active session");
-        return Ok(());
-    };
     let mut stmt = db.prepare(
         "SELECT exchange_kind, content, confidence FROM friday_session_context \
          WHERE session_id = ?1 ORDER BY confidence DESC, timestamp DESC LIMIT 3",
@@ -116,6 +104,67 @@ pub fn session_end(ctx: &AppContext) -> CoreResult<()> {
          VALUES ('session_summary', ?1, 0.8, 'planning', ?2, ?2)",
         rusqlite::params![summary, now],
     )?;
+    Ok(())
+}
+/// core friday session-start -- manual session start.
+pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let session_id = start_session_internal(ctx)?;
+    println!("  🌿 session {} started", session_id);
+    Ok(())
+}
+/// Lazy session management: called from friday::ensure_tables on every friday command.
+/// - If no current session: starts one.
+/// - If current session idle > 30 min: writes summary, starts fresh session.
+/// - If session active: silent no-op.
+pub fn maybe_roll_session(ctx: &AppContext) -> CoreResult<()> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    const IDLE_SECS: i64 = 30 * 60;
+    let current: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    match current {
+        None => {
+            // No session. Start one.
+            let sid = start_session_internal(ctx)?;
+            println!("  🌿 session {} started (auto)", sid);
+        }
+        Some(sid) => {
+            // Check last exchange timestamp in this session.
+            let last_ts: i64 = db.query_row(
+                "SELECT COALESCE(MAX(timestamp), 0) FROM friday_session_context WHERE session_id = ?1",
+                rusqlite::params![sid], |r| r.get(0),
+            ).unwrap_or(0);
+            if now - last_ts > IDLE_SECS {
+                // Stale -- summarize and roll.
+                write_session_summary(ctx, &sid)?;
+                db.execute(
+                    "DELETE FROM friday_state WHERE key = 'current_session_id'",
+                    [],
+                )?;
+                let new_sid = start_session_internal(ctx)?;
+                println!("  🌿 session {} ended (idle), session {} started (auto)", sid, new_sid);
+            }
+            // else: active session, silent.
+        }
+    }
+    Ok(())
+}
+/// core friday session-end -- manual session end.
+pub fn session_end(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let session_id: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = session_id else {
+        println!("  no active session");
+        return Ok(());
+    };
+    write_session_summary(ctx, &sid)?;
     db.execute(
         "DELETE FROM friday_state WHERE key = 'current_session_id'",
         [],
