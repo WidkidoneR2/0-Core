@@ -527,6 +527,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::InterruptLevel => crate::domains::friday::phase2::interrupt_level(ctx),
             FridayCommand::CrossIntentPatterns => crate::domains::friday::phase2::cross_intent_patterns(ctx),
             FridayCommand::Phase2StatusFull => crate::domains::friday::phase2::phase2_status_full(ctx),
+            FridayCommand::SessionStart => crate::domains::friday::planning::session_start(ctx),
+            FridayCommand::SessionEnd => crate::domains::friday::planning::session_end(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),

@@ -55,6 +55,8 @@ pub fn parse() -> Command {
             FridayCommands::InterruptLevel => FridayCommand::InterruptLevel,
             FridayCommands::CrossIntentPatterns => FridayCommand::CrossIntentPatterns,
             FridayCommands::Phase2StatusFull => FridayCommand::Phase2StatusFull,
+            FridayCommands::SessionStart => FridayCommand::SessionStart,
+            FridayCommands::SessionEnd => FridayCommand::SessionEnd,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

@@ -450,6 +450,10 @@ pub enum FridayCommands {
     CrossIntentPatterns,
     /// Show full Phase 2 status
     Phase2StatusFull,
+    /// INT-234 -- session lifecycle: start session (fsh launch hook)
+    SessionStart,
+    /// INT-234 -- session lifecycle: end session (fsh exit hook)
+    SessionEnd,
 }
 
 #[derive(Subcommand)]

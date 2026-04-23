@@ -48,6 +48,9 @@ pub enum FridayCommand {
     InterruptLevel,
     CrossIntentPatterns,
     Phase2StatusFull,
+    // INT-234 v21 planning layer
+    SessionStart,
+    SessionEnd,
 }
 
 pub enum Command {
