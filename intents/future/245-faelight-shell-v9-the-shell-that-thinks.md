@@ -221,12 +221,16 @@ Issues discovered during INT-232 development that must be fixed in fsh v9:
 4. Caret red on deploy warnings -- deploy with warnings should exit 0 not 1
 5. grep | in pattern -- unquoted | in grep treated as pipe; fsh should detect grep context
 6. COMMAND-GUIDE.md needs: binary mode rule for Python writing Rust files
+7. >> append redirect -- fsh does not support `cat file >> target`; errors with "No such file or directory". Blocks normal shell idioms.
+8. python3 -c "complex arg" -- fails with "File name too long (os error 36)" when the -c argument contains escaped quotes or exceeds some length. Workaround: write script to /tmp/ and python3 /tmp/script.py. Document in COMMAND-GUIDE.
 Pillar 6 -- Friction Fixes:
 ⬜ fsh-patch: clear usage error when args are wrong type
-⬜ COMMAND-GUIDE.md updated: python3 multiline, binary mode, heredoc rules
+⬜ COMMAND-GUIDE.md updated: python3 multiline, binary mode, heredoc rules, python3 -c arg-size workaround
 ⬜ deploy: exit 0 when successful with warnings only
 ⬜ grep pattern: | inside grep arguments not treated as pipe
 ⬜ heredoc: warn when literal RSEOF/PYEOF appears in output (likely missing delimiter)
+⬜ >> append redirect supported natively in fsh
+⬜ python3 -c handles complex arguments without "File name too long" error
 "Every shell before fsh asked:
 'What command do you want to run?'
 fsh v9 asks:
