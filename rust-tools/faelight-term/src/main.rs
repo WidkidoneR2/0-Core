@@ -70,6 +70,23 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     window.set_app_id("faelight-term");
     window.commit();
     let pty      = Pty::spawn(&config.shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
+    // Session memory -- restore last working directory
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let db_path = format!("{}/0-core/runtime/state.db", home);
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let last_dir: Option<String> = conn.query_row(
+                "SELECT value FROM session_state WHERE key = 'last_dir'",
+                [], |r| r.get(0)
+            ).ok();
+            if let Some(dir) = last_dir {
+                if std::path::Path::new(&dir).exists() {
+                    let cmd = format!("cd {}\n", dir);
+                    pty.write(cmd.as_bytes()).ok();
+                }
+            }
+        }
+    }
     let terminal = Terminal::new(INITIAL_COLS, INITIAL_ROWS);
     let pool     = SlotPool::new((INITIAL_WIDTH * INITIAL_HEIGHT * 4) as usize, &shm)?;
     // cosmic-text setup -- load Nerd Font explicitly
