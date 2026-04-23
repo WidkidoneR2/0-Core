@@ -69,6 +69,7 @@ fn now_ts() -> i64 {
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
     planning::ensure_tables(ctx)?;
+    planning::maybe_roll_session(ctx)?;
     Ok(())
 }
 /// Seed initial Friday knowledge from forest state
