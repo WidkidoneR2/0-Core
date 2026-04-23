@@ -120,6 +120,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         sel_start:  None,
         sel_end:    None,
         show_status:   false,
+        show_friday:   false,
         scroll_offset: 0,
         mouse_down:    false,
         mouse_pos:     (0.0, 0.0),
@@ -171,11 +172,32 @@ struct App {
     sel_start:      Option<(usize, usize)>,
     sel_end:        Option<(usize, usize)>,
     show_status:    bool,
+    show_friday:    bool,
     scroll_offset:  usize,
     mouse_down:     bool,
     mouse_pos:      (f64, f64),
 }
 impl App {
+    fn build_friday_data(&self) -> Vec<(String, String, f64)> {
+        // Returns vec of (domain, fact, confidence)
+        let home = std::env::var("HOME").unwrap_or_default();
+        let db_path = format!("{}/0-core/runtime/state.db", home);
+        let mut entries: Vec<(String, String, f64)> = Vec::new();
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            // Recent knowledge entries excluding abstraction noise
+            let mut stmt = conn.prepare(
+                "SELECT domain, fact, confidence FROM friday_knowledge WHERE domain NOT IN ('abstraction','cross_intent') ORDER BY CASE domain WHEN 'rust' THEN 1 WHEN 'wayland' THEN 2 WHEN 'shell' THEN 3 WHEN 'workflow' THEN 4 WHEN 'philosophy' THEN 5 ELSE 6 END, confidence DESC LIMIT 6"
+            ).unwrap_or_else(|_| conn.prepare("SELECT 1,1,1").unwrap());
+            let rows = stmt.query_map([], |r| {
+                Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
+            });
+            if let Ok(rows) = rows {
+                for row in rows.flatten() { entries.push(row); }
+            }
+        }
+        entries
+    }
+
     fn build_status_text(&self) -> String {
         let home = std::env::var("HOME").unwrap_or_default();
         let db_path = format!("{}/0-core/runtime/state.db", home);
@@ -225,6 +247,7 @@ impl App {
         let height = self.height;
         let stride = width * 4;
         let status_str_cache = if self.show_status { self.build_status_text() } else { String::new() };
+        let friday_data_cache = if self.show_friday { self.build_friday_data() } else { Vec::new() };
         if let Ok((buffer, canvas)) = self.pool.create_buffer(
             width as i32, height as i32, stride as i32,
             wl_shm::Format::Xrgb8888,
@@ -365,6 +388,121 @@ impl App {
                     }
                 }
             }
+            // Friday panel -- slides in from right, 35% width
+            if self.show_friday {
+                let panel_w = (width * 35 / 100).max(200);
+                let panel_x = width - panel_w;
+                // Panel background -- deep forest dark
+                for py in 0..height {
+                    for px in panel_x..width {
+                        let o = (py * stride + px * 4) as usize;
+                        if o + 3 < canvas.len() {
+                            canvas[o] = 0x08; canvas[o+1] = 0x18; canvas[o+2] = 0x10; canvas[o+3] = 0xff;
+                        }
+                    }
+                }
+                // Panel border -- teal left edge
+                for py in 0..height {
+                    let o = (py * stride + panel_x * 4) as usize;
+                    if o + 3 < canvas.len() {
+                        canvas[o] = 0x7f; canvas[o+1] = 0xc8; canvas[o+2] = 0xc8; canvas[o+3] = 0xff;
+                    }
+                }
+                // Render Friday panel content
+                let mut py_off = self.cell_h as i32 / 2;
+                let px_off = panel_x as i32 + 10;
+                let panel_render_w = panel_w.saturating_sub(20) as f32;
+                // Title
+                // Title: "FRIDAY" in green + " // Knowledge" in cyan on one line
+                let title_str = "FRIDAY  //  Knowledge";
+                let mut tb = Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                tb.set_size(&mut self.font_system, Some(panel_render_w), Some(LINE_HEIGHT));
+                let ta = Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")).weight(cosmic_text::Weight::BOLD);
+                tb.set_text(&mut self.font_system, title_str, ta, Shaping::Basic);
+                tb.shape_until_scroll(&mut self.font_system, false);
+                let sc = Color::rgb(107, 227, 163);
+                for run in tb.layout_runs() {
+                    for g in run.glyphs.iter() {
+                        let phys = g.physical((0.0,0.0),1.0);
+                        let gx = px_off + phys.x;
+                        let gy = py_off + run.line_y as i32 + phys.y;
+                        self.swash_cache.with_pixels(&mut self.font_system, phys.cache_key, sc, |dx,dy,color| {
+                            let (px2,py2) = ((gx+dx) as u32, (gy+dy) as u32);
+                            if px2 >= width || py2 >= height { return; }
+                            let al = color.a(); if al == 0 { return; }
+                            let poff = (py2*stride+px2*4) as usize;
+                            if poff+3 >= canvas.len() { return; }
+                            canvas[poff]=color.b(); canvas[poff+1]=color.g(); canvas[poff+2]=color.r(); canvas[poff+3]=0xff;
+                        });
+                    }
+                }
+                py_off += self.cell_h as i32 * 2;
+                // Knowledge entries
+                for (domain, fact, confidence) in &friday_data_cache {
+                    if py_off + self.cell_h as i32 * 2 > height as i32 { break; }
+                    // Domain label color
+                    let dom_col = match domain.as_str() {
+                        "rust"          => [245, 193, 119],
+                        "patterns"      => [107, 227, 163],
+                        "cross_intent"  => [92, 200, 255],
+                        "shell"         => [180, 140, 220],
+                        "wayland"       => [230, 126, 128],
+                        _               => [200, 200, 200],
+                    };
+                    let lines: &[(&str, [u8;3])] = &[
+                        (domain.as_str(), dom_col),
+                    ];
+                    for (txt, col) in lines {
+                        let mut tb = Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                        tb.set_size(&mut self.font_system, Some(panel_render_w), Some(LINE_HEIGHT));
+                        let ta = Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")).weight(cosmic_text::Weight::BOLD);
+                        tb.set_text(&mut self.font_system, txt, ta, Shaping::Basic);
+                        tb.shape_until_scroll(&mut self.font_system, false);
+                        let sc = Color::rgb(col[0], col[1], col[2]);
+                        for run in tb.layout_runs() {
+                            for g in run.glyphs.iter() {
+                                let phys = g.physical((0.0,0.0),1.0);
+                                let gx = px_off + phys.x;
+                                let gy = py_off + run.line_y as i32 + phys.y;
+                                self.swash_cache.with_pixels(&mut self.font_system, phys.cache_key, sc, |dx,dy,color| {
+                                    let (px2,py2) = ((gx+dx) as u32, (gy+dy) as u32);
+                                    if px2 >= width || py2 >= height { return; }
+                                    let al = color.a(); if al == 0 { return; }
+                                    let poff = (py2*stride+px2*4) as usize;
+                                    if poff+3 >= canvas.len() { return; }
+                                    canvas[poff]=color.b(); canvas[poff+1]=color.g(); canvas[poff+2]=color.r(); canvas[poff+3]=0xff;
+                                });
+                            }
+                        }
+                    }
+                    py_off += self.cell_h as i32;
+                    // Fact text -- truncated to fit panel
+                    let fact_short: String = fact.chars().take(38).collect();
+                    let conf_str = format!("{:.0}%  {}", confidence * 100.0, fact_short);
+                    let mut tb = Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                    tb.set_size(&mut self.font_system, Some(panel_render_w), Some(LINE_HEIGHT));
+                    let ta = Attrs::new().family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")).weight(cosmic_text::Weight(300));
+                    tb.set_text(&mut self.font_system, &conf_str, ta, Shaping::Basic);
+                    tb.shape_until_scroll(&mut self.font_system, false);
+                    let sc = Color::rgb(0xb0, 0xc8, 0xb8);
+                    for run in tb.layout_runs() {
+                        for g in run.glyphs.iter() {
+                            let phys = g.physical((0.0,0.0),1.0);
+                            let gx = px_off + phys.x;
+                            let gy = py_off + run.line_y as i32 + phys.y;
+                            self.swash_cache.with_pixels(&mut self.font_system, phys.cache_key, sc, |dx,dy,color| {
+                                let (px2,py2) = ((gx+dx) as u32, (gy+dy) as u32);
+                                if px2 >= width || py2 >= height { return; }
+                                let al = color.a(); if al == 0 { return; }
+                                let poff = (py2*stride+px2*4) as usize;
+                                if poff+3 >= canvas.len() { return; }
+                                canvas[poff]=color.b(); canvas[poff+1]=color.g(); canvas[poff+2]=color.r(); canvas[poff+3]=0xff;
+                            });
+                        }
+                    }
+                    py_off += self.cell_h as i32 + 8;
+                }
+            }
             if self.show_status {
                 let strip_h = self.cell_h;
                 let strip_y = height.saturating_sub(strip_h);
@@ -502,6 +640,12 @@ impl KeyboardHandler for App {
     {
         let ctrl  = self.modifiers.ctrl;
         let shift = self.modifiers.shift;
+
+        if ctrl && shift && (event.keysym == Keysym::f || event.keysym == Keysym::F) {
+            self.show_friday = !self.show_friday;
+            self.render();
+            return;
+        }
 
         if ctrl && shift && (event.keysym == Keysym::s || event.keysym == Keysym::S) {
             self.show_status = !self.show_status;
