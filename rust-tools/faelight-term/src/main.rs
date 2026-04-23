@@ -134,12 +134,31 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         scroll_offset: 0,
         mouse_down:    false,
         mouse_pos:     (0.0, 0.0),
+        terminal2:     None,
+        pty2:          None,
+        active_pane:   0,
+        split_active:  false,
     };
     let mut event_loop: EventLoop<App> = EventLoop::try_new()?;
     WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
     while app.running {
         event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
         let mut _dirty = false;
+        // Read from pty2 if split active
+        if app.split_active {
+            let mut buf2 = [0u8; 4096];
+            if let Some(ref mut pty2) = app.pty2 {
+                match pty2.read(&mut buf2) {
+                    Ok(n) if n > 0 => {
+                        if let Some(ref mut t2) = app.terminal2 {
+                            t2.feed(&buf2[..n]);
+                        }
+                        app.render();
+                    }
+                    _ => {}
+                }
+            }
+        }
         loop {
             let mut buf = [0u8; 4096];
             match app.pty.read(&mut buf) {
@@ -217,6 +236,11 @@ struct App {
     scroll_offset:  usize,
     mouse_down:     bool,
     mouse_pos:      (f64, f64),
+    // Split panes
+    terminal2:      Option<Terminal>,
+    pty2:           Option<Pty>,
+    active_pane:    usize,
+    split_active:   bool,
 }
 
 fn pretty_json(s: &str) -> Option<String> {
@@ -347,6 +371,16 @@ impl App {
                 pixel[0] = 0x11; pixel[1] = 0x14;
                 pixel[2] = 0x0f; pixel[3] = 0xff;
             }
+            // Split pane divider
+            if self.split_active {
+                let mid = width / 2;
+                for py in 0..height {
+                    let o = (py * stride + mid * 4) as usize;
+                    if o + 3 < canvas.len() {
+                        canvas[o]=0x7f; canvas[o+1]=0xc8; canvas[o+2]=0xc8; canvas[o+3]=0xff;
+                    }
+                }
+            }
             // Draw terminal cells -- per-cell rendering (correct cell alignment)
             let rows = self.terminal.rows;
             let cols = self.terminal.cols;
@@ -373,6 +407,8 @@ impl App {
                     if cell.ch == ' ' || cell.ch == '\0' { continue; }
                     let cell_x = (col as u32 * cell_w) as i32;
                     let cell_y = (row as u32 * cell_h) as i32;
+                    let max_x = if self.split_active { (width / 2).saturating_sub(2) as i32 } else { width as i32 };
+                    if cell_x + cell_w as i32 > max_x { continue; }
                     if cell_x + cell_w as i32 > width as i32 { continue; }
                     if cell_y + cell_h as i32 > height as i32 { continue; }
                     let cp = cell.ch as u32;
@@ -431,6 +467,66 @@ impl App {
                 }
             }
 
+            // Draw pane2 content in right half
+            if self.split_active {
+                let pane2_x = (width / 2 + 2) as i32;
+                let pane2_cols = ((width / 2 - 2) / cell_w) as usize;
+                if let Some(ref t2) = self.terminal2 {
+                    for row in 0..rows.min(t2.rows) {
+                        for col in 0..pane2_cols.min(t2.cols) {
+                            let cell = t2.grid[row][col];
+                            if cell.ch == ' ' || cell.ch == '\0' { continue; }
+                            let cell_x = pane2_x + (col as u32 * cell_w) as i32;
+                            let cell_y = (row as u32 * cell_h) as i32;
+                            if cell_x + cell_w as i32 > width as i32 { continue; }
+                            let mut text_buf = Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                            text_buf.set_size(&mut self.font_system, Some(cell_w as f32), Some(cell_h as f32));
+                            let cp = cell.ch as u32;
+                            let is_emoji = cp != 0x276F && matches!(cp, 0x1F300..=0x1FAFF | 0x1F000..=0x1FFFF | 0x2300..=0x23FF | 0x2700..=0x27BF | 0x2600..=0x26FF);
+                            let family = if is_emoji { cosmic_text::Family::Name("Noto Color Emoji") } else { cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono") };
+                            let weight = if cell.attrs.bold { cosmic_text::Weight::BOLD } else { cosmic_text::Weight::NORMAL };
+                            let attrs = Attrs::new().family(family).weight(weight);
+                            let text = cell.ch.to_string();
+                            text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
+                            text_buf.shape_until_scroll(&mut self.font_system, false);
+                            let base_color = Color::rgb(cell.fg.r, cell.fg.g, cell.fg.b);
+                            for run in text_buf.layout_runs() {
+                                for glyph in run.glyphs.iter() {
+                                    let phys = glyph.physical((0.0,0.0),1.0);
+                                    let gx = cell_x + phys.x;
+                                    let gy = cell_y + run.line_y as i32 + phys.y;
+                                    self.swash_cache.with_pixels(&mut self.font_system, phys.cache_key, base_color, |px_off,py_off,color| {
+                                        let px = (gx+px_off) as u32; let py = (gy+py_off) as u32;
+                                        if px>=width||py>=height { return; }
+                                        let al=color.a(); if al==0 { return; }
+                                        let offset=(py*stride+px*4) as usize;
+                                        if offset+3>=canvas.len() { return; }
+                                        canvas[offset]=color.b(); canvas[offset+1]=color.g();
+                                        canvas[offset+2]=color.r(); canvas[offset+3]=0xff;
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    // Pane2 cursor
+                    if self.active_pane == 1 {
+                        let cx = pane2_x + (t2.cursor_x as u32 * cell_w) as i32;
+                        let cy = (t2.cursor_y as u32 * cell_h) as i32;
+                        for dy in 0..cell_h {
+                            for dx in 0..2u32 {
+                                let px = (cx as u32).saturating_add(dx);
+                                let py = cy as u32 + dy;
+                                if px < width && py < height {
+                                    let o = (py*stride+px*4) as usize;
+                                    if o+3 < canvas.len() {
+                                        canvas[o]=0x6b; canvas[o+1]=0xe3; canvas[o+2]=0xa3; canvas[o+3]=0xff;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             // Draw selection highlight
             if let (Some((sr, sc)), Some((er, ec))) = (self.sel_start, self.sel_end) {
                 let (r0, c0, r1, c1) = if (sr, sc) <= (er, ec) { (sr, sc, er, ec) } else { (er, ec, sr, sc) };
@@ -741,6 +837,38 @@ impl KeyboardHandler for App {
             return;
         }
 
+        // Ctrl+Shift+H -- horizontal split (side by side)
+        if ctrl && shift && (event.keysym == Keysym::h || event.keysym == Keysym::H) {
+            if !self.split_active {
+                let cols = (self.terminal.cols / 2).max(40) as u16;
+                let rows = self.terminal.rows as u16;
+                if let Ok(pty2) = Pty::spawn(&self.config.shell, cols, rows) {
+                    self.pty2 = Some(pty2);
+                    self.terminal2 = Some(Terminal::new(cols as usize, rows as usize));
+                    self.split_active = true;
+                    self.active_pane = 0;
+                }
+            } else {
+                // Close split
+                self.split_active = false;
+                self.terminal2 = None;
+                self.pty2 = None;
+                self.active_pane = 0;
+            }
+            self.render();
+            return;
+        }
+
+        // Ctrl+Shift+Left/Right -- switch active pane
+        if ctrl && shift && self.split_active {
+            let raw = event.keysym.raw();
+            if raw == 0xff51 || raw == 0xff53 { // Left=0xff51 Right=0xff53
+                self.active_pane = if self.active_pane == 0 { 1 } else { 0 };
+                self.render();
+                return;
+            }
+        }
+
         if ctrl && shift && (event.keysym == Keysym::s || event.keysym == Keysym::S) {
             self.show_status = !self.show_status;
             self.render();
@@ -775,7 +903,11 @@ impl KeyboardHandler for App {
         }
 
         if let Some(bytes) = keysym_to_bytes(event.keysym, &event.utf8) {
-            self.pty.write(&bytes).ok();
+            if self.split_active && self.active_pane == 1 {
+                if let Some(ref mut pty2) = self.pty2 { pty2.write(&bytes).ok(); }
+            } else {
+                self.pty.write(&bytes).ok();
+            }
         }
     }
     fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
