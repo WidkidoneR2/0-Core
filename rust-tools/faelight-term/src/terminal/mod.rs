@@ -27,6 +27,7 @@ pub struct CellAttrs {
     pub reverse:       bool,
 }
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct Cell {
     pub ch:    char,
     pub fg:    Color,
