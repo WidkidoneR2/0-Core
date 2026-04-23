@@ -456,6 +456,12 @@ pub enum FridayCommands {
     SessionEnd,
     /// INT-234 -- show current session buffer (last 10 exchanges)
     Context,
+    /// INT-234 Gate 6 -- run forward-chaining inference across templates
+    Infer {
+        /// Show all template evaluations, not just fired conclusions
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand)]

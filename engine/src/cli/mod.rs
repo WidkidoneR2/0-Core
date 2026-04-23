@@ -58,6 +58,7 @@ pub fn parse() -> Command {
             FridayCommands::SessionStart => FridayCommand::SessionStart,
             FridayCommands::SessionEnd => FridayCommand::SessionEnd,
             FridayCommands::Context => FridayCommand::Context,
+            FridayCommands::Infer { verbose } => FridayCommand::Infer { verbose },
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

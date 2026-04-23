@@ -52,6 +52,7 @@ pub enum FridayCommand {
     SessionStart,
     SessionEnd,
     Context,
+    Infer { verbose: bool },
 }
 
 pub enum Command {
