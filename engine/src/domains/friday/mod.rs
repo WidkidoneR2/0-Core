@@ -31,12 +31,14 @@ CREATE TABLE IF NOT EXISTS friday_patterns (
 CREATE TABLE IF NOT EXISTS friday_knowledge (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     domain      TEXT NOT NULL,
+    key         TEXT NOT NULL,
     fact        TEXT NOT NULL,
     confidence  REAL NOT NULL DEFAULT 0.7,
     source      TEXT NOT NULL,
     created_at  INTEGER NOT NULL,
     updated_at  INTEGER NOT NULL,
-    times_used  INTEGER NOT NULL DEFAULT 0
+    times_used  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(domain, key)
 );
 CREATE TABLE IF NOT EXISTS friday_hypotheses (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,9 +109,31 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let deploy_count: i64 = db.query_row(
         "SELECT COUNT(*) FROM deploy_patterns", [], |r| r.get(0)
     ).unwrap_or(0);
+    // Time-varying seeds: one row per (domain, stable_key), text updates as counts change.
+    let time_varying: &[(&str, &str, String)] = &[
+        ("forest", "forest_stats",
+            format!("This forest has {} complete intents representing {} commits of deliberate work.", complete_count, commit_count)),
+        ("sessions", "session_stats",
+            format!("{} sessions recorded. {} deploys tracked.", session_count, deploy_count)),
+    ];
+    for (domain, key, fact) in time_varying {
+        let existing_created: Option<i64> = db.query_row(
+            "SELECT created_at FROM friday_knowledge WHERE domain = ?1 AND key = ?2",
+            params![domain, key], |r| r.get(0),
+        ).ok();
+        let created_at = existing_created.unwrap_or(now);
+        let _ = db.execute(
+            "DELETE FROM friday_knowledge WHERE domain = ?1 AND key = ?2",
+            params![domain, key],
+        );
+        let _ = db.execute(
+            "INSERT INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 1.0, 'seed', ?4, ?5)",
+            params![domain, key, fact, created_at, now],
+        );
+    }
+    // Canonical seeds: stable text, one row forever.
     let seeds = vec![
-        ("forest", format!("This forest has {} complete intents representing {} commits of deliberate work.", complete_count, commit_count), 1.0),
-        ("sessions", format!("{} sessions recorded. {} deploys tracked.", session_count, deploy_count), 1.0),
         ("philosophy", "Manual control over automation. Understanding over convenience. Recovery over perfection.".to_string(), 1.0),
         ("tools", "All tools are written in Rust. Every tool is understood completely. Nothing runs without human authorization.".to_string(), 1.0),
         ("shell", "fsh is the daily driver. query, fsearch, patch, edit, run are native builtins. Native pipes work without sh fallback.".to_string(), 1.0),
@@ -119,8 +143,8 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     ];
     for (domain, fact, confidence) in seeds {
         let _ = db.execute(
-            "INSERT OR REPLACE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
-             VALUES (?1, ?2, ?3, 'seed', ?4, ?4)",
+            "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+             VALUES (?1, ?2, ?2, ?3, 'seed', ?4, ?4)",
             params![domain, fact, confidence, now],
         );
     }
@@ -261,33 +285,33 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     observe(ctx)?;
     let db = &ctx.runtime.db;
     let q_lower = question.to_lowercase();
-    // Also search friday_patterns directly
-    let pattern_facts: Vec<(String, String, f64)> = {
+    // Tuple shape: (domain, key, fact, confidence)
+    // key is the stable identity; fact is the display text (may vary over time)
+    let pattern_facts: Vec<(String, String, String, f64)> = {
         let mut s = db.prepare(
             "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 10"
         )?;
-        let x: Vec<(String,String,f64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
+        let x: Vec<(String,String,String,f64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
             ?.filter_map(|r| r.ok())
             .filter(|(t, a, _)| {
                 q_lower.split_whitespace().any(|w| t.to_lowercase().contains(w) || a.to_lowercase().contains(w))
                     || q_lower.contains("pattern")
             })
-            .map(|(t, a, c)| ("pattern".to_string(), format!("When {} → {}", t, a), c))
+            .map(|(t, a, c)| {
+                let key = format!("{}|{}", t, a);
+                ("pattern".to_string(), key, format!("When {} → {}", t, a), c)
+            })
             .collect(); x
     };
-
-    // Search knowledge base
-    let facts: Vec<(String, String, f64)> = {
+    let facts: Vec<(String, String, String, f64)> = {
         let mut s = db.prepare(
-            "SELECT domain, fact, confidence FROM friday_knowledge ORDER BY confidence DESC, ROWID ASC"
+            "SELECT domain, key, fact, confidence FROM friday_knowledge ORDER BY confidence DESC, ROWID ASC"
         )?;
-        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
+        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?, r.get::<_,f64>(3)?)))
             ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
     };
-    // Find relevant facts -- sort by domain specificity first
     let mut all_facts = facts.clone();
     all_facts.extend(pattern_facts);
-    // Detect primary domain from query
     let primary_domain = ["rust","cargo","borrow","lifetime"].iter().any(|w| q_lower.contains(w)).then_some("rust")
         .or(["wayland","niri","compositor"].iter().any(|w| q_lower.contains(w)).then_some("wayland"))
         .or(["pacman","arch","systemctl","aur"].iter().any(|w| q_lower.contains(w)).then_some("arch"))
@@ -303,15 +327,13 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         if !a_exact && b_exact { return std::cmp::Ordering::Greater; }
         if a_generic && !b_generic { return std::cmp::Ordering::Greater; }
         if !a_generic && b_generic { return std::cmp::Ordering::Less; }
-        b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal)
+        b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal)
     });
-    let relevant: Vec<&(String, String, f64)> = all_facts.iter()
-        .filter(|(domain, fact, _)| {
+    let relevant: Vec<&(String, String, String, f64)> = all_facts.iter()
+        .filter(|(domain, _key, fact, _)| {
             let d = domain.to_lowercase();
             let f = fact.to_lowercase();
-            // Skip common words, require meaningful matches
             let stop = ["how", "do", "i", "a", "the", "in", "to", "for", "of", "and", "is", "it", "fix", "get", "use"];
-            // Map query terms to domains
             let domain_map: &[(&str, &str)] = &[
                 ("rust", "rust"), ("cargo", "rust"), ("borrow", "rust"), ("lifetime", "rust"),
                 ("wayland", "wayland"), ("niri", "wayland"), ("compositor", "wayland"),
@@ -324,7 +346,6 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
                 .filter(|w| !stop.contains(w) && w.len() > 2)
                 .collect();
             if keywords.is_empty() { return true; }
-            // Check domain mapping first
             let domain_match = keywords.iter().any(|word|
                 domain_map.iter().any(|(kw, dom)| word.contains(kw) && d.contains(dom))
             );
@@ -332,7 +353,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             keywords.iter().any(|word| d.contains(*word) || f.contains(*word))
         })
         .fold(Vec::new(), |mut acc, item| {
-            if !acc.iter().any(|x: &&(String,String,f64)| x.1 == item.1) { acc.push(item); }
+            if !acc.iter().any(|x: &&(String,String,String,f64)| x.0 == item.0 && x.1 == item.1) { acc.push(item); }
             acc
         })
         .into_iter()
@@ -343,7 +364,6 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     if relevant.is_empty() {
-        // Check for temporal/observation queries
         let is_temporal = q_lower.contains("today") || q_lower.contains("recent")
             || q_lower.contains("observed") || q_lower.contains("seen") || q_lower.contains("latest");
         let obs: Vec<(String, String)> = {
@@ -370,18 +390,17 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
             }
         }
     } else {
-        for (domain, fact, confidence) in &relevant {
+        for (domain, _key, fact, confidence) in &relevant {
             println!("  {} [{}] {}", "→".bright_cyan(), domain.bright_green(), fact.bright_white());
             if *confidence < 0.9 {
                 println!("    {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
             }
         }
     }
-    // Update knowledge usage
-    for (domain, fact, _) in &relevant {
+    for (domain, key, _fact, _) in &relevant {
         let _ = db.execute(
-            "UPDATE friday_knowledge SET times_used = times_used + 1, updated_at = ?1 WHERE domain = ?2 AND fact = ?3",
-            params![now_ts(), domain, fact],
+            "UPDATE friday_knowledge SET times_used = times_used + 1, updated_at = ?1 WHERE domain = ?2 AND key = ?3",
+            params![now_ts(), domain, key],
         );
     }
     println!();
@@ -460,10 +479,20 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
     ).unwrap_or(0);
     let fact = format!("{} behavioral patterns extracted from {} shell commands.", total_patterns, 
         db.query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get::<_,i64>(0)).unwrap_or(0));
+    // Time-varying: preserve created_at if this domain/key already has a row
+    let existing_created: Option<i64> = db.query_row(
+        "SELECT created_at FROM friday_knowledge WHERE domain = 'patterns' AND key = 'global'",
+        [], |r| r.get(0),
+    ).ok();
+    let created_at = existing_created.unwrap_or(now);
     let _ = db.execute(
-        "INSERT OR REPLACE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
-         VALUES ('patterns', ?1, 0.9, 'shell_analysis', ?2, ?2)",
-        params![fact, now],
+        "DELETE FROM friday_knowledge WHERE domain = 'patterns' AND key = 'global'",
+        [],
+    );
+    let _ = db.execute(
+        "INSERT INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+         VALUES ('patterns', 'global', ?1, 0.9, 'shell_analysis', ?2, ?3)",
+        params![fact, created_at, now],
     );
     println!("  {} Pattern extraction complete -- {} new patterns found ({} total)",
         "✅".green(), patterns_found.to_string().bright_white(), total_patterns.to_string().bright_cyan());
@@ -615,8 +644,8 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let mut added = 0;
     for (domain, fact, confidence) in &knowledge {
         let result = db.execute(
-            "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
-             VALUES (?1, ?2, ?3, 'seed_linux', ?4, ?4)",
+            "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+             VALUES (?1, ?2, ?2, ?3, 'seed_linux', ?4, ?4)",
             rusqlite::params![domain, fact, confidence, now],
         );
         if result.is_ok() { added += 1; }
@@ -662,8 +691,8 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
     // Also record in friday_knowledge
     let fact = format!("vocabulary: '{}' = {}", name, description);
     let _ = db.execute(
-        "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
-         VALUES ('language', ?1, 0.9, 'named_abstraction', ?2, ?2)",
+        "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+         VALUES ('language', ?1, ?1, 0.9, 'named_abstraction', ?2, ?2)",
         rusqlite::params![fact, now],
     );
     println!();
@@ -974,10 +1003,19 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
         );
         let fact = format!("abstraction_candidate: '{}' pattern (trigger: {}, action: {}, freq: {})", 
             name_candidate, trigger, action, freq);
+        let existing_created: Option<i64> = db.query_row(
+            "SELECT created_at FROM friday_knowledge WHERE domain = 'abstraction' AND key = ?1",
+            rusqlite::params![name_candidate], |r| r.get(0),
+        ).ok();
+        let created_at = existing_created.unwrap_or(now);
         let _ = db.execute(
-            "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at)
-             VALUES ('abstraction', ?1, 0.7, 'learning_loop', ?2, ?2)",
-            rusqlite::params![fact, now],
+            "DELETE FROM friday_knowledge WHERE domain = 'abstraction' AND key = ?1",
+            rusqlite::params![name_candidate],
+        );
+        let _ = db.execute(
+            "INSERT INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+             VALUES ('abstraction', ?1, ?2, 0.7, 'learning_loop', ?3, ?4)",
+            rusqlite::params![name_candidate, fact, created_at, now],
         );
         abstractions += 1;
     }
@@ -1231,8 +1269,8 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
                 // Record in friday_knowledge permanently
                 let fact = format!("milestone: {} -- {}", key, message);
                 let _ = db.execute(
-                    "INSERT OR IGNORE INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at) VALUES ('milestone', ?1, 1.0, 'easter_egg', ?2, ?2)",
-                    rusqlite::params![fact, now],
+                    "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at) VALUES ('milestone', ?1, ?2, 1.0, 'easter_egg', ?3, ?3)",
+                    rusqlite::params![key, fact, now],
                 );
                 return Some(message.clone());
             }

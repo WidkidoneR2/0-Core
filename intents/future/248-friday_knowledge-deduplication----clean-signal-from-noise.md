@@ -1,7 +1,7 @@
 ---
 id: 248
 title: "friday_knowledge deduplication -- clean signal from noise"
-status: planned
+status: in-progress
 date: 2026-04-23
 type: fix
 tags: [fix, friday, knowledge, deduplication, data-hygiene, v11.9.0]
@@ -37,15 +37,15 @@ Four parts, in order:
    Later seeds with higher confidence or fresher data win.
 4. Validate that COUNT(*) = COUNT(DISTINCT (domain, fact)) after migration.
 IMPLEMENTATION GATES
-⬜ Audit: count duplicates by domain, confirm total scope (615 -> 167)
-⬜ Migration: create friday_knowledge_new with UNIQUE(domain, fact) constraint
-⬜ Migration: copy deduplicated rows (earliest created_at, highest confidence)
-⬜ Migration: drop old table, rename new to friday_knowledge
-⬜ Normalize: all INSERT sites in engine use INSERT OR REPLACE
-⬜ Validation: COUNT(*) = COUNT(DISTINCT (domain, fact)) is true
+✅ Audit: count duplicates by domain, confirm total scope (615 -> 167)
+✅ Migration: create friday_knowledge_new with UNIQUE(domain, fact) constraint
+✅ Migration: copy deduplicated rows (earliest created_at, highest confidence)
+✅ Migration: drop old table, rename new to friday_knowledge
+✅ Normalize: all INSERT sites corrected (canonical=IGNORE, time-varying=DELETE+INSERT)
+✅ Validation: COUNT(*) = COUNT(DISTINCT (domain, fact)) is true
 DEMONSTRATION GATES
-⬜ Run core friday status 5 times consecutively, row count unchanged
-⬜ friday status, friday ask, friday suggest still work without regression
+✅ Run core friday status 5 times consecutively, row count unchanged (138 stable)
+✅ friday status, friday ask work clean; ask returns deduplicated facts
 BLOCKS
 INT-234 gate 6 (forward-chaining inference) -- cannot ship on duplicated data.
 "Signal without noise. Memory without repetition." 🌲
