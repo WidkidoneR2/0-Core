@@ -145,7 +145,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
     while app.running {
         event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
-        let mut dirty = false;
+        let mut _dirty = false;
         loop {
             let mut buf = [0u8; 4096];
             match app.pty.read(&mut buf) {
@@ -159,7 +159,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
                         let json_handled = if (s_trim.starts_with('{') || s_trim.starts_with('[')) && s_trim.len() > 10 {
                             if let Some(pretty) = pretty_json(s_trim) {
                                 app.terminal.feed(pretty.as_bytes());
-                                dirty = true;
+                                _dirty = true;
                                 true
                             } else { false }
                         } else { false };
@@ -178,13 +178,13 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         app.terminal.feed(data);
                     }
-                    dirty = true;
+                    _dirty = true;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(e) => { eprintln!("PTY error: {}", e); app.running = false; break; }
             }
         }
-        if dirty && app.configured {
+        if _dirty && app.configured {
             app.render();
         }
     }
