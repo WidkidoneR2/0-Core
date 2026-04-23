@@ -257,3 +257,179 @@ pub fn context(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+// ─── Forward-Chaining Inference (Gate 6) ─────────────────────────────────
+// Templates combine at least one knowledge fact with at least one live
+// observation to derive a conclusion. Conclusions are stored in
+// friday_session_context with exchange_kind='conclusion' and facts_cited.
+/// Parse "health:N%" out of a friday_observations.content string.
+/// Returns None if not present or not parseable.
+fn parse_health_from_content(content: &str) -> Option<u32> {
+    let marker = "health:";
+    let idx = content.find(marker)?;
+    let rest = &content[idx + marker.len()..];
+    let end = rest.find('%')?;
+    rest[..end].trim().parse::<u32>().ok()
+}
+/// Write a conclusion row to friday_session_context for the current session.
+/// Returns Ok(()) if written or no active session (silent no-op).
+fn write_conclusion(
+    ctx: &AppContext,
+    content: &str,
+    facts_cited: &str,
+    confidence: f64,
+) -> CoreResult<()> {
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = sid else { return Ok(()); };
+    let now = now_ts();
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, facts_cited, confidence) \
+         VALUES (?1, ?2, 'conclusion', ?3, ?4, ?5)",
+        rusqlite::params![sid, now, content, facts_cited, confidence],
+    )?;
+    Ok(())
+}
+/// Template 1: Health Threshold Breach
+fn check_health_threshold(ctx: &AppContext) -> CoreResult<Option<String>> {
+    let db = &ctx.runtime.db;
+    let recent: Option<String> = db.query_row(
+        "SELECT content FROM friday_observations \
+         WHERE kind = 'command' AND content LIKE '%health:%' \
+         ORDER BY timestamp DESC LIMIT 1",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(content) = recent else { return Ok(None); };
+    let Some(health) = parse_health_from_content(&content) else { return Ok(None); };
+    if health < 95 {
+        let msg = format!(
+            "Current health at {}% -- below the 95% ship floor established by facts #77 and #60. Investigate before shipping.",
+            health
+        );
+        return Ok(Some(msg));
+    }
+    Ok(None)
+}
+/// Template 2: Session Velocity
+fn check_session_velocity(ctx: &AppContext) -> CoreResult<Option<String>> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let day_ago = now - 86400;
+    let today_commits: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_observations \
+         WHERE kind = 'commit' AND timestamp > ?1",
+        rusqlite::params![day_ago], |r| r.get(0),
+    ).unwrap_or(0);
+    let total_commits_text: Option<String> = db.query_row(
+        "SELECT fact FROM friday_knowledge WHERE domain = 'forest' AND key = 'forest_stats'",
+        [], |r| r.get(0),
+    ).ok();
+    let total_commits: i64 = total_commits_text
+        .and_then(|s| {
+            let marker = "representing ";
+            let idx = s.find(marker)?;
+            let rest = &s[idx + marker.len()..];
+            let end = rest.find(' ')?;
+            rest[..end].parse::<i64>().ok()
+        })
+        .unwrap_or(0);
+    if today_commits >= 20 {
+        let pct = if total_commits > 0 {
+            (today_commits * 100) / total_commits
+        } else { 0 };
+        let msg = format!(
+            "{} commits today -- high velocity. {}% of total forest commits ({}) in one day. Per facts #255 and #256, this session exceeds sustainable cadence.",
+            today_commits, pct, total_commits
+        );
+        return Ok(Some(msg));
+    } else if today_commits >= 10 {
+        let msg = format!(
+            "{} commits today -- elevated velocity. Per facts #255 and #256, the session is above typical cadence.",
+            today_commits
+        );
+        return Ok(Some(msg));
+    }
+    Ok(None)
+}
+/// Template 3: Intent State Drift
+fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let day_ago = now - 86400;
+    let recent_lifecycle: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history \
+         WHERE timestamp > ?1 \
+         AND (command LIKE 'cistart%' OR command LIKE 'cicomplete%' \
+              OR command LIKE 'dc %' OR command LIKE 'ds %')",
+        rusqlite::params![day_ago], |r| r.get(0),
+    ).unwrap_or(0);
+    if recent_lifecycle > 0 {
+        return Ok(None);
+    }
+    let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join("0-core/intents/future");
+    let in_progress_count = if let Ok(entries) = std::fs::read_dir(&intents_dir) {
+        entries.filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+            .filter(|e| {
+                std::fs::read_to_string(e.path())
+                    .map(|c| c.contains("status: in-progress"))
+                    .unwrap_or(false)
+            })
+            .count()
+    } else {
+        0
+    };
+    if in_progress_count > 0 {
+        let msg = format!(
+            "{} intents marked in-progress but no cistart/cicomplete activity in 24h. Per facts #158 and #159, intent state may be stale -- review intent ledger.",
+            in_progress_count
+        );
+        return Ok(Some(msg));
+    }
+    Ok(None)
+}
+/// core friday infer -- run forward-chaining inference across all templates.
+pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use colored::*;
+    println!();
+    println!("  {} Friday -- Forward-Chaining Inference", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    let templates: Vec<(&str, &str, fn(&AppContext) -> CoreResult<Option<String>>, &str, f64)> = vec![
+        ("health_threshold", "health < 95% breach", check_health_threshold as fn(&AppContext) -> CoreResult<Option<String>>, "77,60", 0.95),
+        ("session_velocity", "elevated/high commit velocity", check_session_velocity as fn(&AppContext) -> CoreResult<Option<String>>, "255,256", 0.9),
+        ("intent_drift",     "stale in-progress intents", check_intent_drift as fn(&AppContext) -> CoreResult<Option<String>>, "158,159", 0.85),
+    ];
+    let mut fired = 0;
+    for (name, desc, check_fn, facts, conf) in &templates {
+        let result = check_fn(ctx)?;
+        match result {
+            Some(conclusion) => {
+                write_conclusion(ctx, &conclusion, facts, *conf)?;
+                println!("  {} {} -- FIRED", "✓".bright_green(), name.bright_white());
+                println!("    {} {}", "→".bright_cyan(), conclusion.white());
+                println!("    {} facts_cited: {}  confidence: {:.0}%", "·".dimmed(), facts.dimmed(), conf * 100.0);
+                println!();
+                fired += 1;
+            }
+            None => {
+                if verbose {
+                    println!("  {} {} -- not fired ({})", "·".dimmed(), name.dimmed(), desc.dimmed());
+                }
+            }
+        }
+    }
+    if fired == 0 && !verbose {
+        println!("  {} No conclusions drawn. Conditions did not meet thresholds.", "💡".dimmed());
+        println!("  {} Run with --verbose to see template evaluations.", "→".dimmed());
+    } else if fired > 0 {
+        println!("  {} {} conclusion(s) written to session context.", "🌲".normal(), fired);
+    }
+    println!();
+    Ok(())
+}
