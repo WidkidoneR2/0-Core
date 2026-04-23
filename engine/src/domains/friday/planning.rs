@@ -3,7 +3,6 @@
 //! v20 predicts across the forest. v21 predicts within the session.
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
-#[allow(dead_code)]
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -29,3 +28,99 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(INIT_TABLES)?;
     Ok(())
 }
+/// Generate a session ID in YYYYMMDD-HHMMSS-pid format.
+/// Sortable, human-readable, unique per fsh launch.
+fn generate_session_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let days = secs / 86400;
+    let secs_of_day = secs % 86400;
+    let hh = secs_of_day / 3600;
+    let mm = (secs_of_day % 3600) / 60;
+    let ss = secs_of_day % 60;
+    let mut y = 1970i64;
+    let mut d = days as i64;
+    loop {
+        let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        let year_len = if leap { 366 } else { 365 };
+        if d < year_len { break; }
+        d -= year_len;
+        y += 1;
+    }
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let months = [31, if leap {29} else {28}, 31,30,31,30,31,31,30,31,30,31];
+    let mut m = 0usize;
+    while m < 12 && d >= months[m] as i64 {
+        d -= months[m] as i64;
+        m += 1;
+    }
+    let pid = std::process::id();
+    format!("{:04}{:02}{:02}-{:02}{:02}{:02}-{}", y, m + 1, d + 1, hh, mm, ss, pid)
+}
+/// core friday session-start
+/// Writes current_session_id to friday_state, emits a session_start row.
+pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let session_id = generate_session_id();
+    db.execute(
+        "INSERT OR REPLACE INTO friday_state (key, value, updated_at) VALUES ('current_session_id', ?1, ?2)",
+        rusqlite::params![session_id, now],
+    )?;
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, confidence) \
+         VALUES (?1, ?2, 'signal', 'session_start', 1.0)",
+        rusqlite::params![session_id, now],
+    )?;
+    println!("  🌿 session {} started", session_id);
+    Ok(())
+}
+/// core friday session-end
+/// Reads current_session_id, writes a summary to friday_knowledge,
+/// clears current_session_id.
+pub fn session_end(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let session_id: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = session_id else {
+        println!("  no active session");
+        return Ok(());
+    };
+    let mut stmt = db.prepare(
+        "SELECT exchange_kind, content, confidence FROM friday_session_context \
+         WHERE session_id = ?1 ORDER BY confidence DESC, timestamp DESC LIMIT 3",
+    )?;
+    let rows: Vec<(String, String, f64)> = stmt
+        .query_map(rusqlite::params![sid], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+    let summary = if rows.is_empty() {
+        format!("session {} ended -- no exchanges", sid)
+    } else {
+        let parts: Vec<String> = rows.iter()
+            .map(|(k, c, conf)| format!("[{}] {} ({:.0}%)", k, c, conf * 100.0))
+            .collect();
+        format!("session {} summary -- {}", sid, parts.join(" | "))
+    };
+    db.execute(
+        "INSERT INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at) \
+         VALUES ('session_summary', ?1, 0.8, 'planning', ?2, ?2)",
+        rusqlite::params![summary, now],
+    )?;
+    db.execute(
+        "DELETE FROM friday_state WHERE key = 'current_session_id'",
+        [],
+    )?;
+    println!("  🌿 session {} ended, summary written", sid);
+    Ok(())
+}
+
