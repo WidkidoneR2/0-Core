@@ -1,7 +1,7 @@
 ---
 id: 248
 title: "friday_knowledge deduplication -- clean signal from noise"
-status: in-progress
+status: complete
 date: 2026-04-23
 type: fix
 tags: [fix, friday, knowledge, deduplication, data-hygiene, v11.9.0]
