@@ -151,7 +151,25 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
             let mut buf = [0u8; 4096];
             match app.pty.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => { app.terminal.feed(&buf[..n]); dirty = true; }
+                Ok(n) => {
+                    let data = &buf[..n];
+                    // Build error highlighting -- inject ANSI around error[E codes
+                    if let Ok(s) = std::str::from_utf8(data) {
+                        if s.contains("error[E") || s.contains("error: ") {
+                            // Replace error[EXXXX with red highlight
+                            let highlighted = s
+                                .replace("error[E", "\x1b[1;31merror\x1b[0m[E")
+                                .replace("error: aborting", "\x1b[1;31merror\x1b[0m: aborting")
+                                .replace("error: could not", "\x1b[1;31merror\x1b[0m: could not");
+                            app.terminal.feed(highlighted.as_bytes());
+                        } else {
+                            app.terminal.feed(data);
+                        }
+                    } else {
+                        app.terminal.feed(data);
+                    }
+                    dirty = true;
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(e) => { eprintln!("PTY error: {}", e); app.running = false; break; }
             }
