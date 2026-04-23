@@ -138,8 +138,8 @@ window-rule {
 // ─── Key Bindings ─────────────────────────────────────────
 binds {
     // ── Apps ──────────────────────────────────────────────
-    Mod+Alt+Return  { spawn "/home/christian/0-core/scripts/faelight-term"; }
-    Mod+Return      { spawn "foot"; }
+    Mod+Return      { spawn "faelight-term"; }
+    Mod+Alt+Return  { spawn "foot"; }
     Mod+b           { spawn "brave"; }
     Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
     Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; }
