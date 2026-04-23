@@ -462,6 +462,11 @@ pub enum FridayCommands {
         #[arg(long)]
         verbose: bool,
     },
+    /// INT-234 Gate 7 -- chain facts to answer a question
+    Reason {
+        /// The question to reason about
+        question: String,
+    },
 }
 
 #[derive(Subcommand)]

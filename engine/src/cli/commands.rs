@@ -53,6 +53,7 @@ pub enum FridayCommand {
     SessionEnd,
     Context,
     Infer { verbose: bool },
+    Reason { question: String },
 }
 
 pub enum Command {

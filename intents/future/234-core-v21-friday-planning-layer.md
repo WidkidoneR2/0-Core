@@ -83,11 +83,11 @@ IMPLEMENTATION GATES
 ✅ idle timeout (30 min) detected lazily on every core friday call
 ✅ session summary written to friday_knowledge on session end (top 3 by confidence)
 ✅ last 10 exchanges stored and queryable via core friday context
-⬜ references_id populates when Friday cites a prior exchange
+✅ references_id populates when Friday cites a prior exchange
 ✅ forward-chaining inference: 2 facts derive 1 conclusion, stored with facts_cited
 ⬜ core friday plan now cites prior session exchanges when relevant
 ✅ core friday context displays current session buffer
-⬜ core friday reason chains facts to answer a question
+✅ core friday reason chains facts to answer a question
 ⬜ core friday anticipate predicts next action using session + temporal models
 ⬜ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit
 ⬜ COMMAND-GUIDE updated with all six new commands
