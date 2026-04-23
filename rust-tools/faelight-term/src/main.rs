@@ -155,6 +155,16 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
                     let data = &buf[..n];
                     // Build error highlighting -- inject ANSI around error[E codes
                     if let Ok(s) = std::str::from_utf8(data) {
+                        // JSON auto pretty-print
+                        let s_trim = s.trim();
+                        let json_handled = if (s_trim.starts_with('{') || s_trim.starts_with('[')) && s_trim.len() > 10 {
+                            if let Some(pretty) = pretty_json(s_trim) {
+                                app.terminal.feed(pretty.as_bytes());
+                                dirty = true;
+                                true
+                            } else { false }
+                        } else { false };
+                        if !json_handled {
                         if s.contains("error[E") || s.contains("error: ") {
                             // Replace error[EXXXX with red highlight
                             let highlighted = s
@@ -165,6 +175,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
                         } else {
                             app.terminal.feed(data);
                         }
+                    } // end if !json_handled
                     } else {
                         app.terminal.feed(data);
                     }
@@ -212,6 +223,35 @@ struct App {
     mouse_down:     bool,
     mouse_pos:      (f64, f64),
 }
+
+fn pretty_json(s: &str) -> Option<String> {
+    let t = s.trim();
+    if !(t.starts_with('{') || t.starts_with('[')) || t.len() < 10 { return None; }
+    let mut out = String::new();
+    let mut depth: usize = 0;
+    let mut in_str = false;
+    let mut prev = ' ';
+    for ch in t.chars() {
+        if in_str {
+            if ch == '"' && prev != '\\' { in_str = false; out.push_str("\x1b[0m"); }
+            out.push(ch);
+        } else {
+            match ch {
+                '{' | '[' => { depth+=1; out.push(ch); out.push_str("\r\n"); out.push_str(&"  ".repeat(depth)); }
+                '}' | ']' => { if depth>0{depth-=1;} out.push_str("\r\n"); out.push_str(&"  ".repeat(depth)); out.push(ch); }
+                ',' => { out.push(ch); out.push_str("\r\n"); out.push_str(&"  ".repeat(depth)); }
+                ':' => { out.push_str("\x1b[36m:\x1b[0m "); }
+                '"' => { in_str=true; out.push_str("\x1b[32m\""); }
+                ' ' => {}
+                _ => { out.push(ch); }
+            }
+        }
+        prev = ch;
+    }
+    out.push_str("\r\n");
+    Some(out)
+}
+
 impl App {
     fn build_friday_data(&self) -> Vec<(String, String, f64)> {
         // Returns vec of (domain, fact, confidence)
