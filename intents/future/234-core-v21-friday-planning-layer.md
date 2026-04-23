@@ -74,7 +74,7 @@ core friday session-end    -- fsh exit hook (writes session summary)
 All six documented in COMMAND-GUIDE as they ship.
 // Hard dependency: Core v20 (INT-219) complete -- satisfied 2026-04-19
 IMPLEMENTATION GATES
-⬜ friday_session_context table created with schema and index
+✅ friday_session_context table created with schema and index
 ⬜ session lifecycle: session-start / session-end commands wired in fsh
 ⬜ idle timeout (30 min) detected lazily on every core friday call
 ⬜ session summary written to friday_knowledge on session end (top 3 by confidence)
