@@ -59,6 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_friday_pat_conf ON friday_patterns(confidence DES
 CREATE INDEX IF NOT EXISTS idx_friday_know_domain ON friday_knowledge(domain);
 ";
 pub mod phase2;
+pub mod planning;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -67,6 +68,7 @@ fn now_ts() -> i64 {
 }
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
+    planning::ensure_tables(ctx)?;
     Ok(())
 }
 /// Seed initial Friday knowledge from forest state
