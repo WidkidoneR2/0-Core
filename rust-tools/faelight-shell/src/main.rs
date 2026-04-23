@@ -1693,6 +1693,15 @@ fn repl_main() -> Result<()> {
                                     );
                                 }
                             }
+                            // Long command notification -- >30s fires faelight-notify
+                            if elapsed_ms > 30_000 {
+                                let secs = elapsed_ms / 1000;
+                                let msg = format!("{} finished in {}s", cmd_key, secs);
+                                std::process::Command::new("faelight-notify")
+                                    .arg("--title").arg("Long command finished")
+                                    .arg("--body").arg(&msg)
+                                    .spawn().ok();
+                            }
                         }
                     }
                     // INT-194 — Prediction-aware suggestions (pattern detection)

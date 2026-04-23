@@ -70,7 +70,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     window.set_app_id("faelight-term");
     window.commit();
     let pty      = Pty::spawn(&config.shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
-    // Session memory -- restore last working directory
+    // Session memory -- restore last working directory via process env
     {
         let home = std::env::var("HOME").unwrap_or_default();
         let db_path = format!("{}/0-core/runtime/state.db", home);
@@ -81,8 +81,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
             ).ok();
             if let Some(dir) = last_dir {
                 if std::path::Path::new(&dir).exists() {
-                    let cmd = format!("cd {}\n", dir);
-                    pty.write(cmd.as_bytes()).ok();
+                    std::env::set_current_dir(&dir).ok();
                 }
             }
         }
@@ -191,6 +190,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+#[allow(dead_code)]
 struct App {
     config:         Config,
     compositor:     CompositorState,
@@ -453,7 +453,7 @@ impl App {
                     let px = cx + dx;
                     let py = cy + dy;
                     if px < width as usize && py < height as usize {
-                        let offset = (py * stride as usize + px * 4);
+                        let offset = py * stride as usize + px * 4;
                         if offset + 3 < canvas.len() {
                             canvas[offset]     = 0xa3;
                             canvas[offset + 1] = 0xe3;
