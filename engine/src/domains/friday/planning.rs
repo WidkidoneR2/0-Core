@@ -433,3 +433,141 @@ pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
     println!();
     Ok(())
 }
+// ─── Reason Command (Gate 7) ─────────────────────────────────────────────
+// core friday reason <q>: chain facts to answer a question.
+// Routes question keywords to relevant templates, fires all matches,
+// writes conclusion rows that cite the originating ask via references_id.
+/// Write an 'ask' exchange to friday_session_context and return its id.
+/// If no active session, returns None (caller handles).
+fn write_ask_exchange(ctx: &AppContext, question: &str) -> CoreResult<Option<i64>> {
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = sid else { return Ok(None); };
+    let now = now_ts();
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, confidence) \
+         VALUES (?1, ?2, 'ask', ?3, 1.0)",
+        rusqlite::params![sid, now, question],
+    )?;
+    let row_id = db.last_insert_rowid();
+    Ok(Some(row_id))
+}
+/// Write a conclusion row that references a prior exchange.
+fn write_conclusion_with_reference(
+    ctx: &AppContext,
+    content: &str,
+    facts_cited: &str,
+    confidence: f64,
+    references_id: i64,
+) -> CoreResult<()> {
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = sid else { return Ok(()); };
+    let now = now_ts();
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, references_id, facts_cited, confidence) \
+         VALUES (?1, ?2, 'conclusion', ?3, ?4, ?5, ?6)",
+        rusqlite::params![sid, now, content, references_id, facts_cited, confidence],
+    )?;
+    Ok(())
+}
+/// Match question keywords to template names.
+/// Returns vector of template names to fire. Empty = no templates relevant.
+fn match_templates_to_question(question: &str) -> Vec<&'static str> {
+    let q = question.to_lowercase();
+    let mut matched: Vec<&'static str> = Vec::new();
+    // Template 1: health
+    let health_keywords = ["health", "status", "ship", "broken", "healthy", "ok"];
+    if health_keywords.iter().any(|k| q.contains(k)) {
+        matched.push("health_threshold");
+    }
+    // Template 2: velocity
+    let velocity_keywords = ["velocity", "commit", "pace", "cadence", "overcommit", "fast", "speed"];
+    if velocity_keywords.iter().any(|k| q.contains(k)) {
+        matched.push("session_velocity");
+    }
+    // Template 3: intent drift
+    let drift_keywords = ["intent", "drift", "stale", "focus", "progress", "stretch", "spread"];
+    if drift_keywords.iter().any(|k| q.contains(k)) {
+        matched.push("intent_drift");
+    }
+    matched
+}
+/// core friday reason <question> -- chain facts to answer a question.
+/// Routes question to relevant templates, fires matches, writes conclusions
+/// that cite the originating ask via references_id.
+pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use colored::*;
+    println!();
+    println!("  {} Friday -- Reasoning", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    println!("  {} {}", "?".bright_yellow(), question.bright_white());
+    println!();
+    // Write the ask row -- every question is remembered
+    let ask_id = write_ask_exchange(ctx, question)?;
+    let Some(ask_id) = ask_id else {
+        println!("  {} No active session. Start one with any core friday command.", "💡".dimmed());
+        println!();
+        return Ok(());
+    };
+    // Route to relevant templates
+    let matched = match_templates_to_question(question);
+    if matched.is_empty() {
+        println!("  {} No inference templates match this question.", "💡".dimmed());
+        println!("  {} Try: core friday ask \"{}\"", "→".dimmed(), question);
+        println!();
+        return Ok(());
+    }
+    // Evaluate each matched template
+    let mut fired = 0;
+    for template_name in &matched {
+        let (conclusion, facts_cited, confidence) = match *template_name {
+            "health_threshold" => {
+                let r = check_health_threshold(ctx)?;
+                (r, "77,60", 0.95)
+            }
+            "session_velocity" => {
+                let r = check_session_velocity(ctx)?;
+                (r, "255,256", 0.9)
+            }
+            "intent_drift" => {
+                let r = check_intent_drift(ctx)?;
+                (r, "158,159", 0.85)
+            }
+            _ => (None, "", 0.0),
+        };
+        match conclusion {
+            Some(text) => {
+                write_conclusion_with_reference(ctx, &text, facts_cited, confidence, ask_id)?;
+                println!("  {} {} -- FIRED", "✓".bright_green(), template_name.bright_white());
+                println!("    {} {}", "→".bright_cyan(), text.white());
+                println!("    {} facts_cited: {}  confidence: {:.0}%  cites ask #{}",
+                    "·".dimmed(), facts_cited.dimmed(), confidence * 100.0, ask_id);
+                println!();
+                fired += 1;
+            }
+            None => {
+                println!("  {} {} -- evaluated, conditions not met", "·".dimmed(), template_name.dimmed());
+            }
+        }
+    }
+    if fired == 0 {
+        println!();
+        println!("  {} No conditions met for matched templates.", "💡".dimmed());
+        println!("  {} Your question was recorded as ask #{} in session context.", "→".dimmed(), ask_id);
+    } else {
+        println!("  {} {} conclusion(s) written, cited ask #{}", "🌲".normal(), fired, ask_id);
+    }
+    println!();
+    Ok(())
+}
