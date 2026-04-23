@@ -454,6 +454,8 @@ pub enum FridayCommands {
     SessionStart,
     /// INT-234 -- session lifecycle: end session (fsh exit hook)
     SessionEnd,
+    /// INT-234 -- show current session buffer (last 10 exchanges)
+    Context,
 }
 
 #[derive(Subcommand)]

@@ -51,6 +51,7 @@ pub enum FridayCommand {
     // INT-234 v21 planning layer
     SessionStart,
     SessionEnd,
+    Context,
 }
 
 pub enum Command {
