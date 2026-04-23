@@ -136,6 +136,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         sel_start:  None,
         sel_end:    None,
         show_status:   false,
+        ctrl_held:     false,
         show_friday:   false,
         scroll_offset: 0,
         mouse_down:    false,
@@ -218,6 +219,7 @@ struct App {
     sel_start:      Option<(usize, usize)>,
     sel_end:        Option<(usize, usize)>,
     show_status:    bool,
+    ctrl_held:      bool,
     show_friday:    bool,
     scroll_offset:  usize,
     mouse_down:     bool,
@@ -294,6 +296,26 @@ impl App {
         // Format: text|r,g,b sections
         format!("{}|107,227,163|  Health: {}%|245,193,119|  {}|92,200,255|  Friday: {} observations|180,140,220",
             lock, health, intent_str, obs)
+    }
+
+    fn word_at(&self, row: usize, col: usize) -> String {
+        if row >= self.terminal.rows || col >= self.terminal.cols { return String::new(); }
+        let grid_row = &self.terminal.grid[row];
+        // Expand left
+        let mut start = col;
+        while start > 0 {
+            let ch = grid_row[start-1].ch;
+            if ch == ' ' || ch == '\0' || ch == '\t' { break; }
+            start -= 1;
+        }
+        // Expand right
+        let mut end = col;
+        while end < self.terminal.cols {
+            let ch = grid_row[end].ch;
+            if ch == ' ' || ch == '\0' || ch == '\t' { break; }
+            end += 1;
+        }
+        grid_row[start..end].iter().map(|c| c.ch).collect()
     }
 
     fn get_selection_text(&self) -> Option<String> {
@@ -715,6 +737,10 @@ impl KeyboardHandler for App {
     {
         let ctrl  = self.modifiers.ctrl;
         let shift = self.modifiers.shift;
+        // Track Ctrl for mouse click detection
+        if event.keysym == Keysym::Control_L || event.keysym == Keysym::Control_R {
+            self.ctrl_held = true;
+        }
 
         if ctrl && shift && (event.keysym == Keysym::f || event.keysym == Keysym::F) {
             self.show_friday = !self.show_friday;
@@ -788,6 +814,23 @@ impl PointerHandler for App {
                     self.render();
                 }
                 PointerEventKind::Press { button, .. } if button == 0x110 => {
+                    if self.ctrl_held {
+                        let col = (event.position.0 / self.cell_w as f64) as usize;
+                        let row = (event.position.1 / self.cell_h as f64) as usize;
+                        let word = self.word_at(row, col);
+                        if !word.is_empty() {
+                            let is_url = word.starts_with("http://") || word.starts_with("https://");
+                            let is_path = word.starts_with("/") || word.starts_with("~/") || std::path::Path::new(&word).exists();
+                            if is_url {
+                                std::process::Command::new("faelight-browser").arg(&word).spawn().ok();
+                                return;
+                            } else if is_path {
+                                let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+                                std::process::Command::new("foot").arg("--").arg(&editor).arg(&word).spawn().ok();
+                                return;
+                            }
+                        }
+                    }
                     self.mouse_down = true;
                     self.mouse_pos = event.position;
                     let col = (event.position.0 / self.cell_w as f64) as usize;
