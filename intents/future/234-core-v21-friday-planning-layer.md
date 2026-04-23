@@ -41,16 +41,20 @@ facts_cited is a comma list of friday_knowledge.id values -- the audit trail for
 approved mirrors friday_plan_history -- the feedback loop so accuracy can be measured later.
 SESSION LIFECYCLE
 Session ID format: YYYYMMDD-HHMMSS-pid (sortable, human-readable, unique per fsh launch).
-Start: fsh launch writes current_session_id to friday_state.
-       First command writes an exchange_kind=signal, content=session_start row.
-End:   fsh clean exit, OR 30 minutes idle since last shell_history entry.
-       On end, Friday writes a session summary to friday_knowledge
-       (domain=session_summary) containing top 3 exchanges by confidence.
-Idle detection: lazy -- every core friday command checks last exchange timestamp.
-                If > 30 min, roll previous session forward, emit new session_start.
-                Friday Daemon v2 (INT-235) replaces this with active monitoring later.
-Ownership:  fsh triggers session-start and session-end.
-            core does the writes. fsh is interface; core is policy. (DEC-005)
+Start: first core friday call auto-creates a session if none exists or
+       if the previous session has been idle > 30 min. Writes current_session_id
+       to friday_state and emits exchange_kind=signal, content=session_start row.
+End:   detected lazily -- when the next core friday call sees an idle timeout
+       on the previous session, Friday writes a summary row to friday_knowledge
+       (domain=session_summary) containing top 3 exchanges by confidence,
+       then starts a new session. Manual core friday session-end still available.
+Ownership:  core owns the session concept entirely. fsh is not coupled. Works
+            from any context -- shell, script, cron -- because triggering lives
+            in core itself. fsh is interface; core is policy. (DEC-005)
+Rationale:  lazy triggering is a better fit than explicit fsh hooks because it
+            does not require fsh to be the caller. Friday Daemon v2 (INT-235)
+            later replaces this with active monitoring, at which point session
+            boundaries become real-time instead of lazy.
 FORWARD-CHAINING INFERENCE
 Given 2+ facts from friday_knowledge, derive a conclusion:
 Fact: "deploy takes 15s for core"
@@ -75,7 +79,7 @@ All six documented in COMMAND-GUIDE as they ship.
 // Hard dependency: Core v20 (INT-219) complete -- satisfied 2026-04-19
 IMPLEMENTATION GATES
 ✅ friday_session_context table created with schema and index
-⬜ session lifecycle: session-start / session-end commands wired in fsh
+⬜ session lifecycle: session-start / session-end commands auto-triggered on first core friday call (lazy)
 ⬜ idle timeout (30 min) detected lazily on every core friday call
 ⬜ session summary written to friday_knowledge on session end (top 3 by confidence)
 ⬜ last 10 exchanges stored and queryable via core friday context
