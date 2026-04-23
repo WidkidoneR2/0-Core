@@ -57,6 +57,7 @@ pub fn parse() -> Command {
             FridayCommands::Phase2StatusFull => FridayCommand::Phase2StatusFull,
             FridayCommands::SessionStart => FridayCommand::SessionStart,
             FridayCommands::SessionEnd => FridayCommand::SessionEnd,
+            FridayCommands::Context => FridayCommand::Context,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

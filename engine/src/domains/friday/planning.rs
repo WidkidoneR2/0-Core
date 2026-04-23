@@ -172,4 +172,88 @@ pub fn session_end(ctx: &AppContext) -> CoreResult<()> {
     println!("  🌿 session {} ended, summary written", sid);
     Ok(())
 }
+/// core friday context -- show current session buffer (last 10 exchanges).
+/// If no active session, say so.
+pub fn context(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use colored::*;
+    let db = &ctx.runtime.db;
+    let session_id: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = session_id else {
+        println!();
+        println!("  {} Friday -- Session Context", "🌲".normal());
+        println!("  {}", "━".repeat(50).dimmed());
+        println!();
+        println!("  {} No active session.", "💡".dimmed());
+        println!("  {} A session will start automatically on the next friday command.", "→".dimmed());
+        println!();
+        return Ok(());
+    };
+    // Pull last 10 exchanges in chronological order (oldest first, so buffer reads top-to-bottom)
+    let rows: Vec<(i64, String, String, f64, Option<i64>, String)> = {
+        let mut stmt = db.prepare(
+            "SELECT id, exchange_kind, content, confidence, references_id, facts_cited \
+             FROM friday_session_context \
+             WHERE session_id = ?1 \
+             ORDER BY timestamp DESC LIMIT 10",
+        )?;
+        let v: Vec<_> = stmt.query_map(rusqlite::params![sid], |r| Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, f64>(3)?,
+            r.get::<_, Option<i64>>(4)?,
+            r.get::<_, String>(5)?,
+        )))?.filter_map(|r| r.ok()).collect();
+        v
+    };
+    println!();
+    println!("  {} Friday -- Session Context", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    println!("  {:<28} {}", "Session:".dimmed(), sid.bright_white());
+    println!("  {:<28} {}", "Exchanges:".dimmed(), rows.len().to_string().bright_white());
+    println!();
+    if rows.is_empty() {
+        println!("  {} No exchanges recorded in this session yet.", "💡".dimmed());
+        println!();
+        return Ok(());
+    }
+    println!("  {} Last {} exchanges (newest first):", "→".bright_cyan(), rows.len());
+    // Iterate newest-first (which is the query order)
+    for (id, kind, content, conf, refs, facts) in &rows {
+        let conf_str = if *conf > 0.0 {
+            format!("{:.0}%", conf * 100.0)
+        } else {
+            "--".to_string()
+        };
+        let kind_colored = match kind.as_str() {
+            "ask"          => kind.bright_yellow(),
+            "observation"  => kind.bright_cyan(),
+            "anticipation" => kind.bright_magenta(),
+            "conclusion"   => kind.bright_green(),
+            "signal"       => kind.dimmed(),
+            _              => kind.white(),
+        };
+        let short = content.chars().take(72).collect::<String>();
+        println!("    {} #{:<4} [{}] {} {}",
+            "·".dimmed(),
+            id.to_string().dimmed(),
+            kind_colored,
+            short.white(),
+            format!("({})", conf_str).dimmed(),
+        );
+        if let Some(r) = refs {
+            println!("         {} cites exchange #{}", "↳".dimmed(), r.to_string().dimmed());
+        }
+        if !facts.is_empty() {
+            println!("         {} facts: {}", "↳".dimmed(), facts.dimmed());
+        }
+    }
+    println!();
+    Ok(())
+}
 
