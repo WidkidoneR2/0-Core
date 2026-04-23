@@ -253,14 +253,14 @@ Phase 2 -- Identity:
 ✅ Welcome screen preserved exactly (2026-04-22)
 ✅ Ctrl+Shift+S status strip -- multi-color, live state.db data (2026-04-22)
 Phase 3 -- Intelligence:
-⬜ state.db connection live -- reads without blocking render
-⬜ Friday panel (Ctrl+Shift+F) -- slides in, shows brief + knowledge
-⬜ Build error auto-triggers Friday panel with knowledge entry
-⬜ File path Ctrl+Click -- opens in $EDITOR
-⬜ URL Ctrl+Click -- opens in faelight-browser
-⬜ JSON auto-detection and pretty-print
-⬜ Session memory -- directory and intent restored on open
-⬜ Long command notification via faelight-notify (>30s)
+✅ state.db connection live -- Friday panel + session memory read state.db (2026-04-22)
+✅ Friday panel (Ctrl+Shift+F) -- slides in, rust-prioritized knowledge entries (2026-04-22)
+✅ Build error detection -- Rust E-codes highlighted red in output (2026-04-22)
+✅ File path Ctrl+Click -- opens in $EDITOR (nvim) (2026-04-22)
+✅ URL Ctrl+Click -- opens in faelight-browser (2026-04-22)
+✅ JSON auto-detection and pretty-print -- colored output (2026-04-22)
+✅ Session memory -- restores last working directory on open (2026-04-22)
+✅ Long command notification -- faelight-notify fires after >30s (2026-04-22)
 Phase 4 -- Power:
 ⬜ Split panes -- Ctrl+Shift+H horizontal, Ctrl+Shift+B vertical
 ⬜ Pane navigation -- Ctrl+Shift+Arrow
