@@ -89,7 +89,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let terminal = Terminal::new(INITIAL_COLS, INITIAL_ROWS);
     let pool     = SlotPool::new((INITIAL_WIDTH * INITIAL_HEIGHT * 4) as usize, &shm)?;
     // cosmic-text setup -- load Nerd Font explicitly
-    let mut font_system = {
+    let font_system = {
         // Fast font init -- empty db, load only our 5 specific fonts
         // Skips full system font scan, cuts startup from ~300ms to ~50ms
         let mut db = cosmic_text::fontdb::Database::new();
