@@ -84,7 +84,7 @@ IMPLEMENTATION GATES
 ✅ session summary written to friday_knowledge on session end (top 3 by confidence)
 ✅ last 10 exchanges stored and queryable via core friday context
 ⬜ references_id populates when Friday cites a prior exchange
-⬜ forward-chaining inference: 2 facts derive 1 conclusion, stored with facts_cited
+✅ forward-chaining inference: 2 facts derive 1 conclusion, stored with facts_cited
 ⬜ core friday plan now cites prior session exchanges when relevant
 ✅ core friday context displays current session buffer
 ⬜ core friday reason chains facts to answer a question
@@ -92,7 +92,7 @@ IMPLEMENTATION GATES
 ⬜ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit
 ⬜ COMMAND-GUIDE updated with all six new commands
 DEMONSTRATION GATES
-⬜ Friday used inference in a real session and the conclusion was correct
+✅ Friday used inference in a real session and the conclusion was correct
     (audited via approved=1 on a conclusion row with non-empty facts_cited)
 ⬜ Friday anticipated the next action and was right
     (audited via approved=1 on an anticipation row)

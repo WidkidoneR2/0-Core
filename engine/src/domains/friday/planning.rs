@@ -319,8 +319,8 @@ fn check_session_velocity(ctx: &AppContext) -> CoreResult<Option<String>> {
     let now = now_ts();
     let day_ago = now - 86400;
     let today_commits: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations \
-         WHERE kind = 'commit' AND timestamp > ?1",
+        "SELECT COUNT(*) FROM events \
+         WHERE domain = 'git' AND action = 'commit' AND timestamp > ?1",
         rusqlite::params![day_ago], |r| r.get(0),
     ).unwrap_or(0);
     let total_commits_text: Option<String> = db.query_row(
