@@ -533,6 +533,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::Infer { verbose } => crate::domains::friday::planning::infer(ctx, verbose),
             FridayCommand::Reason { question } => crate::domains::friday::planning::reason(ctx, &question),
             FridayCommand::Anticipate => crate::domains::friday::planning::anticipate(ctx),
+            FridayCommand::Review => crate::domains::friday::planning::review(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),

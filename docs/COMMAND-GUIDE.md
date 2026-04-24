@@ -569,6 +569,7 @@ Session-aware forward-chaining inference. v20 predicts across the forest; v21 pr
 | core friday infer --verbose | Show all template evaluations, including ones that did not fire |
 | core friday reason "<question>" | Chain facts to answer a question -- writes ask row, fires matching templates, cites prior exchange |
 | core friday anticipate | Predict next action using session history + friday_patterns (strong) or shell_history frequency (weak) |
+| core friday review | Session-aware briefing -- active intents + inference + anticipation, cites prior exchanges, writes plan row |
 **How inference works:** Templates combine live observations (from events/shell_history) with knowledge facts (friday_knowledge) to derive conclusions. Each conclusion cites source ids using prefixes: `knowledge:77,knowledge:60` for fact citations, `pattern:26` for pattern citations.
 **Session lifecycle:** Sessions auto-start on first `core friday` command. Idle > 30 min rolls to a new session and writes a summary row to friday_knowledge. Session ID format: `YYYYMMDD-HHMMSS-pid`.
 **Schema:** Exchanges stored in `friday_session_context` (id, session_id, timestamp, exchange_kind, content, references_id, facts_cited, confidence, approved). exchange_kind values: ask, observation, anticipation, conclusion, signal.

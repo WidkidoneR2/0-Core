@@ -469,6 +469,8 @@ pub enum FridayCommands {
     },
     /// INT-234 Gate 8 -- predict next action using session + temporal models
     Anticipate,
+    /// INT-234 Gate 9 -- session-aware briefing combining inference + anticipation
+    Review,
 }
 
 #[derive(Subcommand)]
