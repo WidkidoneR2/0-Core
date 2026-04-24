@@ -956,15 +956,44 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let pattern = args[0].to_lowercase();
             let mut filter_type: Option<&str> = None;
             let mut filter_file: Option<&str> = None;
+            let mut search_root: Option<std::path::PathBuf> = None;
+            let mut unknown: Vec<String> = Vec::new();
             let mut i = 1;
             while i < args.len() {
                 match args[i] {
                     "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1]); i += 2; }
                     "--file" if i + 1 < args.len() => { filter_file = Some(args[i+1]); i += 2; }
-                    _ => { i += 1; }
+                    arg if !arg.starts_with("--") => {
+                        // Positional: treat as search path if it exists on disk
+                        let expanded = if arg.starts_with("~/") {
+                            let home = std::env::var("HOME").unwrap_or_default();
+                            arg.replacen("~/", &format!("{}/", home), 1)
+                        } else {
+                            arg.to_string()
+                        };
+                        let p = std::path::PathBuf::from(&expanded);
+                        if p.exists() {
+                            if search_root.is_some() {
+                                unknown.push(format!("{} (path already set)", arg));
+                            } else {
+                                search_root = Some(p);
+                            }
+                        } else {
+                            unknown.push(arg.to_string());
+                        }
+                        i += 1;
+                    }
+                    _ => {
+                        unknown.push(args[i].to_string());
+                        i += 1;
+                    }
                 }
             }
-            let cwd = std::env::current_dir().unwrap_or_default();
+            if !unknown.is_empty() {
+                eprintln!("  {} fsearch ignored unknown argument(s): {}",
+                    "⚠️ ".yellow(), unknown.join(", ").bright_yellow());
+            }
+            let cwd = search_root.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
             let mut results: Vec<String> = Vec::new();
             fn walk_dir(
                 dir: &std::path::Path,
@@ -1024,7 +1053,30 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     }
                 }
             }
-            walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
+            if cwd.is_file() {
+                // Single-file target -- scan directly, honor pattern + alternation
+                if let Ok(content) = std::fs::read_to_string(&cwd) {
+                    for (lineno, line) in content.lines().enumerate() {
+                        let line_lower = line.to_lowercase();
+                        let matched = if pattern.contains('|') {
+                            pattern.split('|').any(|alt| line_lower.contains(alt.trim()))
+                        } else {
+                            line_lower.contains(&pattern)
+                        };
+                        if matched {
+                            let rel = cwd.strip_prefix(std::env::current_dir().unwrap_or_default())
+                                .unwrap_or(&cwd)
+                                .display()
+                                .to_string();
+                            results.push(format!("{:30} {:4}  {}", rel.bright_cyan(), (lineno+1).to_string().bright_green(), colorize_line(line.trim())));
+                        }
+                    }
+                } else {
+                    return CommandResult::Error(format!("fsearch: could not read file {}", cwd.display()));
+                }
+            } else {
+                walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
+            }
             if results.is_empty() {
                 CommandResult::Output(format!("  (no matches for '{}')", pattern))
             } else {
