@@ -60,6 +60,7 @@ pub fn parse() -> Command {
             FridayCommands::Context => FridayCommand::Context,
             FridayCommands::Infer { verbose } => FridayCommand::Infer { verbose },
             FridayCommands::Reason { question } => FridayCommand::Reason { question },
+            FridayCommands::Anticipate => FridayCommand::Anticipate,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,
