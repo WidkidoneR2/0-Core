@@ -100,9 +100,9 @@ fn write_session_summary(ctx: &AppContext, sid: &str) -> CoreResult<()> {
         format!("session {} summary -- {}", sid, parts.join(" | "))
     };
     db.execute(
-        "INSERT INTO friday_knowledge (domain, fact, confidence, source, created_at, updated_at) \
-         VALUES ('session_summary', ?1, 0.8, 'planning', ?2, ?2)",
-        rusqlite::params![summary, now],
+        "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at) \
+         VALUES ('session_summary', ?1, ?2, 0.8, 'planning', ?3, ?3)",
+        rusqlite::params![sid, summary, now],
     )?;
     Ok(())
 }

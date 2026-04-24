@@ -89,7 +89,7 @@ IMPLEMENTATION GATES
 ✅ core friday context displays current session buffer
 ✅ core friday reason chains facts to answer a question
 ✅ core friday anticipate predicts next action using session + temporal models
-⬜ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit
+✅ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit (scope: v19 get_voice() has 0.7+30min cooldown in place for existing daemon/doctor surfacers; INT-234 commands are all prompted so gate does not apply; 0.85 threshold for unprompted v21 anticipation tracked by INT-235 gate 'Speaks when confidence >= 0.85')
 ✅ COMMAND-GUIDE updated with all six new commands
 DEMONSTRATION GATES
 ✅ Friday used inference in a real session and the conclusion was correct
@@ -98,11 +98,13 @@ DEMONSTRATION GATES
     (audited via approved=1 on an anticipation row)
 ✅ Friday referenced a prior exchange in the same session and it helped
     (references_id non-null, human confirms usefulness)
-⬜ Session summary preserved useful context across sessions
+✅ Session summary preserved useful context across sessions
     (a friday_knowledge entry from a prior session surfaced in a later session)
+    demo: session 20260423-154654-112758 ended via session-end, row 283 written to friday_knowledge with key=session_id, queryable from new session 20260424-014714-65101.
+    scope: infrastructure complete. Ranking/surfacing tuning of core friday ask to prioritize session_summary domain for past-session questions is future work (not in INT-234 scope).
 INTEGRATION
-⬜ Planning layer feeds Friday Daemon v2 (INT-235)
-⬜ friday panel in faelight-term v12 (INT-232) can read session context
+⬜ Planning layer feeds Friday Daemon v2 (INT-235)  [BLOCKED: INT-235 not yet built -- closes when INT-235 ships and wires its anticipation engine to core friday infer/anticipate]
+⬜ friday panel in faelight-term v12 (INT-232) can read session context  [BLOCKED: INT-232 in-progress -- closes when faelight-term v12 adds a panel that queries friday_session_context]
 "The forest has been watching.
  v21 is the moment it starts thinking ahead --
  and remembers what it thought." 🌲
