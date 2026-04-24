@@ -1731,3 +1731,14 @@ consequences.
 This is the "complete job" Christian committed to. Foundation first.
 Features on foundation. No patching. No routing around.
 -- End of Audit A.
+
+---
+
+## Post-Audit Session Progress (2026-04-24)
+
+**Completed tonight after audit commit:**
+- ✅ Items 2, 6, 8: Python workarounds in COMMAND-GUIDE.md (commit 1671912)
+- ✅ Item 1: fsh-patch usage improved (live, untracked in scripts/)
+- ✅ Item 4: deploy exit code fixed (live, untracked in scripts/)
+
+**Total:** P1-P5 + 5 friction items = 10 items closed tonight
