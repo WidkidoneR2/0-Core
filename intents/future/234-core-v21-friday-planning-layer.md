@@ -90,7 +90,7 @@ IMPLEMENTATION GATES
 ✅ core friday reason chains facts to answer a question
 ✅ core friday anticipate predicts next action using session + temporal models
 ⬜ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit
-⬜ COMMAND-GUIDE updated with all six new commands
+✅ COMMAND-GUIDE updated with all six new commands
 DEMONSTRATION GATES
 ✅ Friday used inference in a real session and the conclusion was correct
     (audited via approved=1 on a conclusion row with non-empty facts_cited)
