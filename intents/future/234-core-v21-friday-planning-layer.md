@@ -85,7 +85,7 @@ IMPLEMENTATION GATES
 ✅ last 10 exchanges stored and queryable via core friday context
 ✅ references_id populates when Friday cites a prior exchange
 ✅ forward-chaining inference: 2 facts derive 1 conclusion, stored with facts_cited
-⬜ core friday plan now cites prior session exchanges when relevant
+✅ core friday plan now cites prior session exchanges when relevant (implemented as core friday review; plan kept as v19 command)
 ✅ core friday context displays current session buffer
 ✅ core friday reason chains facts to answer a question
 ✅ core friday anticipate predicts next action using session + temporal models
@@ -96,7 +96,7 @@ DEMONSTRATION GATES
     (audited via approved=1 on a conclusion row with non-empty facts_cited)
 ✅ Friday anticipated the next action and was right
     (audited via approved=1 on an anticipation row)
-⬜ Friday referenced a prior exchange in the same session and it helped
+✅ Friday referenced a prior exchange in the same session and it helped
     (references_id non-null, human confirms usefulness)
 ⬜ Session summary preserved useful context across sessions
     (a friday_knowledge entry from a prior session surfaced in a later session)

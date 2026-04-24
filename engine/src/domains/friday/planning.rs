@@ -711,3 +711,165 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+// ─── Plan Command (Gate 9) ───────────────────────────────────────────────
+// core friday plan: session-aware briefing combining intent state, inference,
+// anticipation. Cites prior exchanges via references_id. Writes a new
+// exchange_kind='plan' row.
+/// Find intent IDs with status: in-progress in intents/future/*.md
+/// Returns vector of "INT-XXX" style identifiers.
+fn active_intents() -> Vec<String> {
+    let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join("0-core/intents/future");
+    let mut ids = Vec::new();
+    let Ok(entries) = std::fs::read_dir(&intents_dir) else { return ids; };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.extension().map(|x| x != "md").unwrap_or(true) { continue; }
+        let Ok(contents) = std::fs::read_to_string(&path) else { continue; };
+        if !contents.contains("status: in-progress") { continue; }
+        // Extract INT-NNN from filename like "234-core-v21-..."
+        if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+            if let Some(num) = name.split('-').next() {
+                if num.chars().all(|c| c.is_ascii_digit()) {
+                    ids.push(format!("INT-{}", num));
+                }
+            }
+        }
+    }
+    ids.sort();
+    ids
+}
+/// Pick a references_id for a new plan row.
+/// Priority: most recent ask > most recent conclusion > None
+fn pick_plan_reference(ctx: &AppContext, sid: &str) -> Option<i64> {
+    let db = &ctx.runtime.db;
+    // Most recent ask
+    if let Ok(id) = db.query_row(
+        "SELECT id FROM friday_session_context \
+         WHERE session_id = ?1 AND exchange_kind = 'ask' \
+         ORDER BY timestamp DESC LIMIT 1",
+        rusqlite::params![sid], |r| r.get::<_, i64>(0),
+    ) {
+        return Some(id);
+    }
+    // Fall back to most recent conclusion
+    if let Ok(id) = db.query_row(
+        "SELECT id FROM friday_session_context \
+         WHERE session_id = ?1 AND exchange_kind = 'conclusion' \
+         ORDER BY timestamp DESC LIMIT 1",
+        rusqlite::params![sid], |r| r.get::<_, i64>(0),
+    ) {
+        return Some(id);
+    }
+    None
+}
+/// Write a plan row to friday_session_context.
+fn write_plan(
+    ctx: &AppContext,
+    content: &str,
+    references_id: Option<i64>,
+    confidence: f64,
+) -> CoreResult<Option<i64>> {
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = sid else { return Ok(None); };
+    let now = now_ts();
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, references_id, confidence) \
+         VALUES (?1, ?2, 'plan', ?3, ?4, ?5)",
+        rusqlite::params![sid, now, content, references_id, confidence],
+    )?;
+    Ok(Some(db.last_insert_rowid()))
+}
+/// core friday plan -- session-aware briefing.
+/// Combines active intents, inference conclusions, and anticipation
+/// into a narrative with honest section headers.
+pub fn review(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use colored::*;
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    println!();
+    println!("  {} Friday -- Review", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    // ── Context ──
+    let intents = active_intents();
+    let session_exchanges: i64 = match &sid {
+        Some(s) => db.query_row(
+            "SELECT COUNT(*) FROM friday_session_context WHERE session_id = ?1",
+            rusqlite::params![s], |r| r.get(0),
+        ).unwrap_or(0),
+        None => 0,
+    };
+    println!("  {}", "Context:".bright_white());
+    if intents.is_empty() {
+        println!("    {} no active intents", "·".dimmed());
+    } else {
+        println!("    {} active: {}", "·".dimmed(), intents.join(", ").bright_cyan());
+    }
+    if sid.is_some() {
+        println!("    {} {} exchanges in current session", "·".dimmed(), session_exchanges);
+    } else {
+        println!("    {} no active session", "·".dimmed());
+    }
+    println!();
+    // ── What I see (inference) ──
+    println!("  {}", "What I see:".bright_white());
+    let mut any_fired = false;
+    for (name, _desc, check_fn, _facts, _conf) in [
+        ("health_threshold", "", check_health_threshold as fn(&AppContext) -> CoreResult<Option<String>>, "", 0.0),
+        ("session_velocity", "", check_session_velocity as fn(&AppContext) -> CoreResult<Option<String>>, "", 0.0),
+        ("intent_drift",     "", check_intent_drift as fn(&AppContext) -> CoreResult<Option<String>>, "", 0.0),
+    ].iter() {
+        if let Ok(Some(conclusion)) = check_fn(ctx) {
+            println!("    {} [{}] {}", "·".dimmed(), name.dimmed(), conclusion.white());
+            any_fired = true;
+        }
+    }
+    if !any_fired {
+        println!("    {} nothing unusual -- conditions within normal thresholds", "·".dimmed());
+    }
+    println!();
+    // ── What comes next (anticipation) ──
+    println!("  {}", "What comes next:".bright_white());
+    let last_cmd = last_meaningful_command(ctx);
+    let mut anticipated = false;
+    if let Some(cmd) = &last_cmd {
+        if let Some((_pid, action, conf, freq)) = match_trigger_pattern(ctx, cmd) {
+            let first_word = cmd.split_whitespace().next().unwrap_or("that");
+            println!("    {} after {}, you usually {} ({}x, {:.0}%)",
+                "·".dimmed(), first_word.dimmed(), action.bright_cyan(), freq, conf * 100.0);
+            anticipated = true;
+        }
+    }
+    if !anticipated {
+        println!("    {} no strong next-action signal for current context", "·".dimmed());
+    }
+    println!();
+    // ── Write plan row with references_id ──
+    if let Some(s) = &sid {
+        let ref_id = pick_plan_reference(ctx, s);
+        let summary = format!(
+            "plan: intents=[{}] exchanges={} fired={} anticipated={}",
+            intents.join(","), session_exchanges, any_fired, anticipated,
+        );
+        let plan_id = write_plan(ctx, &summary, ref_id, 0.8)?;
+        if let (Some(pid), Some(rid)) = (plan_id, ref_id) {
+            println!("  {} plan #{} written, cites exchange #{}",
+                "·".dimmed(), pid.to_string().dimmed(), rid.to_string().dimmed());
+        } else if let Some(pid) = plan_id {
+            println!("  {} plan #{} written (no prior exchange to cite)",
+                "·".dimmed(), pid.to_string().dimmed());
+        }
+    }
+    println!();
+    Ok(())
+}
