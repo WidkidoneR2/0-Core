@@ -556,6 +556,23 @@ Friday daemon runs silently in background, watching every command, speaking when
 | core friday extract-patterns | Extract patterns from shell history |
 | core friday update-personality | Update personality from interaction data |
 | core friday seed-knowledge | Seed Linux/Rust/Forest knowledge base |
+
+## Core v21 -- Friday Planning Layer (INT-234)
+
+Session-aware forward-chaining inference. v20 predicts across the forest; v21 predicts within the session.
+| Command | What it does |
+|---------|-------------|
+| core friday session-start | Manually start a new session (also auto-starts on first friday command) |
+| core friday session-end | Manually end current session, write summary to friday_knowledge |
+| core friday context | Show current session buffer -- last 10 exchanges (ask/conclusion/anticipation) with citations |
+| core friday infer | Run forward-chaining inference across templates -- writes conclusions with facts_cited |
+| core friday infer --verbose | Show all template evaluations, including ones that did not fire |
+| core friday reason "<question>" | Chain facts to answer a question -- writes ask row, fires matching templates, cites prior exchange |
+| core friday anticipate | Predict next action using session history + friday_patterns (strong) or shell_history frequency (weak) |
+**How inference works:** Templates combine live observations (from events/shell_history) with knowledge facts (friday_knowledge) to derive conclusions. Each conclusion cites source ids using prefixes: `knowledge:77,knowledge:60` for fact citations, `pattern:26` for pattern citations.
+**Session lifecycle:** Sessions auto-start on first `core friday` command. Idle > 30 min rolls to a new session and writes a summary row to friday_knowledge. Session ID format: `YYYYMMDD-HHMMSS-pid`.
+**Schema:** Exchanges stored in `friday_session_context` (id, session_id, timestamp, exchange_kind, content, references_id, facts_cited, confidence, approved). exchange_kind values: ask, observation, anticipation, conclusion, signal.
+
 | core synthesize now | Generate synthesis snapshot -- unified forest brief |
 | core synthesize brief | Show current Friday brief |
 | core synthesize history | Past synthesis snapshots |
