@@ -14,58 +14,68 @@ pub enum SignalKind {
 impl SignalKind {
     pub fn as_str(&self) -> &'static str {
         match self {
-            SignalKind::Observation    => "observation",
+            SignalKind::Observation => "observation",
             SignalKind::Interpretation => "interpretation",
-            SignalKind::Judgment       => "judgment",
-            SignalKind::Decision       => "decision",
-            SignalKind::Proposal       => "proposal",
-            SignalKind::Outcome        => "outcome",
+            SignalKind::Judgment => "judgment",
+            SignalKind::Decision => "decision",
+            SignalKind::Proposal => "proposal",
+            SignalKind::Outcome => "outcome",
         }
     }
     #[allow(dead_code)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "interpretation" => SignalKind::Interpretation,
-            "judgment"       => SignalKind::Judgment,
-            "decision"       => SignalKind::Decision,
-            "proposal"       => SignalKind::Proposal,
-            "outcome"        => SignalKind::Outcome,
-            _                => SignalKind::Observation,
+            "judgment" => SignalKind::Judgment,
+            "decision" => SignalKind::Decision,
+            "proposal" => SignalKind::Proposal,
+            "outcome" => SignalKind::Outcome,
+            _ => SignalKind::Observation,
         }
     }
 }
 /// Signal schema registry -- defines valid payload shapes per type_name
 pub fn validate_payload(type_name: &str, payload: &str) -> Result<(), String> {
     // Parse as JSON first
-    let v: serde_json::Value = serde_json::from_str(payload)
-        .map_err(|e| format!("payload must be valid JSON: {}", e))?;
+    let v: serde_json::Value =
+        serde_json::from_str(payload).map_err(|e| format!("payload must be valid JSON: {}", e))?;
     match type_name {
         "health" => {
-            v.get("health").and_then(|h| h.as_u64())
+            v.get("health")
+                .and_then(|h| h.as_u64())
                 .ok_or_else(|| "health payload requires {\"health\": u32}".to_string())?;
         }
         "git_commit" => {
-            v.get("hash").and_then(|h| h.as_str())
+            v.get("hash")
+                .and_then(|h| h.as_str())
                 .ok_or_else(|| "git_commit payload requires {\"hash\": str, ...}".to_string())?;
         }
         "intent_start" | "intent_complete" => {
-            v.get("id").and_then(|i| i.as_str())
-                .ok_or_else(|| format!("{} payload requires {{\"id\": str, \"title\": str}}", type_name))?;
+            v.get("id").and_then(|i| i.as_str()).ok_or_else(|| {
+                format!(
+                    "{} payload requires {{\"id\": str, \"title\": str}}",
+                    type_name
+                )
+            })?;
         }
         "deploy" => {
-            v.get("tool").and_then(|t| t.as_str())
+            v.get("tool")
+                .and_then(|t| t.as_str())
                 .ok_or_else(|| "deploy payload requires {\"tool\": str, ...}".to_string())?;
         }
         "alignment" => {
-            v.get("score").and_then(|s| s.as_f64())
+            v.get("score")
+                .and_then(|s| s.as_f64())
                 .ok_or_else(|| "alignment payload requires {\"score\": f64}".to_string())?;
         }
         "prediction" => {
-            v.get("suggestion").and_then(|s| s.as_str())
+            v.get("suggestion")
+                .and_then(|s| s.as_str())
                 .ok_or_else(|| "prediction payload requires {\"suggestion\": str}".to_string())?;
         }
         "watchdog_alert" => {
-            v.get("health").and_then(|h| h.as_u64())
+            v.get("health")
+                .and_then(|h| h.as_u64())
                 .ok_or_else(|| "watchdog_alert payload requires {\"health\": u32}".to_string())?;
         }
         // Unknown types allowed but warned
@@ -129,12 +139,15 @@ pub fn emit(
 pub fn causality_chain(db: &rusqlite::Connection, seq: i64) -> Vec<(i64, String, String, String)> {
     let mut chain = Vec::new();
     let mut current = seq;
-    for _ in 0..20 {  // max depth 20 to prevent cycles
-        let row: Option<(i64, String, String, Option<i64>)> = db.query_row(
-            "SELECT seq, type_name, payload, caused_by FROM forest_events_v2 WHERE seq = ?1",
-            rusqlite::params![current],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-        ).ok();
+    for _ in 0..20 {
+        // max depth 20 to prevent cycles
+        let row: Option<(i64, String, String, Option<i64>)> = db
+            .query_row(
+                "SELECT seq, type_name, payload, caused_by FROM forest_events_v2 WHERE seq = ?1",
+                rusqlite::params![current],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .ok();
         match row {
             Some((s, t, p, Some(parent))) => {
                 chain.push((s, t, p, "→".to_string()));

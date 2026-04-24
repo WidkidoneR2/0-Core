@@ -30,7 +30,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     let deps = gather_deps(core_root);
     let mut domain_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    for (tool, _tool_deps) in &deps {
+    for tool in deps.keys() {
         let domain = categorize_tool(tool);
         domain_map.entry(domain).or_default().push(tool.clone());
     }
@@ -42,7 +42,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
         let tools = &domain_map[domain];
         println!(
             "  │  {} {}",
-            domain_icon(&domain),
+            domain_icon(domain),
             domain.bright_white().bold()
         );
         for tool in tools {
@@ -169,10 +169,7 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    println!(
-        "  │  {} High-coupling deps are upgrade risks",
-        "💡".to_string()
-    );
+    println!("  │  {} High-coupling deps are upgrade risks", "💡");
     println!(
         "  │  Run {} before upgrading",
         "core security simulate <dep>".bright_cyan()
@@ -225,7 +222,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
         "colored",
     ];
 
-    println!("  │  {} Key dependency audit:", "🔍".to_string());
+    println!("  │  {} Key dependency audit:", "🔍");
     println!("  │");
 
     for dep in &key_deps {

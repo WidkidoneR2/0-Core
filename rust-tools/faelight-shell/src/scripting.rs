@@ -164,7 +164,6 @@ pub fn run_stmts(stmts: &[Statement], scope: &mut Scope, db: &ForestDb, core_roo
     true
 }
 
-
 // A "literal" expression is a plain value — not a command to execute.
 // Strings, numbers, booleans, and single words that are not known commands.
 fn is_literal(s: &str) -> bool {
@@ -259,7 +258,7 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
             };
             if let Err(e) = db.conn.execute(
                 "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
-                rusqlite::params![domain, action, payload.as_deref().unwrap_or(""), ts]
+                rusqlite::params![domain, action, payload.as_deref().unwrap_or(""), ts],
             ) {
                 eprintln!("  {} failed to emit event: {}", "✗".bright_red(), e);
                 return false;
@@ -366,10 +365,11 @@ fn check_event(event: &str, db: &ForestDb) -> bool {
 /// Execute a .fsh script file
 pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]) -> CommandResult {
     // Parse flags from script_args
-    let trace   = script_args.contains(&"--trace");
+    let trace = script_args.contains(&"--trace");
     let dry_run = script_args.contains(&"--dry-run");
     let verbose = script_args.contains(&"--verbose");
-    let clean_args: Vec<&str> = script_args.iter()
+    let clean_args: Vec<&str> = script_args
+        .iter()
         .filter(|a| !a.starts_with("--"))
         .copied()
         .collect();
@@ -386,7 +386,10 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
             if dry_run {
                 println!();
                 println!("  {} {} (dry run)", "🌿".normal(), path.bright_white());
-                println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+                println!(
+                    "{}",
+                    "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+                );
                 for (i, stmt) in stmts.iter().enumerate() {
                     let label = match stmt {
                         Statement::Run { command } => command.clone(),
@@ -397,19 +400,31 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
                         Statement::If { condition, .. } => format!("if {}", condition),
                         Statement::When { event, .. } => format!("when {}", event),
                     };
-                    println!("  [{:>2}] {} {}", i+1, "○".dimmed(), label.bright_cyan());
+                    println!("  [{:>2}] {} {}", i + 1, "○".dimmed(), label.bright_cyan());
                 }
                 println!();
-                println!("  {} dry run complete — {} steps", "○".dimmed(), stmts.len());
+                println!(
+                    "  {} dry run complete — {} steps",
+                    "○".dimmed(),
+                    stmts.len()
+                );
                 println!();
                 return CommandResult::Empty;
             }
 
             println!("  {} {}", "🌿 running".dimmed(), path.bright_white());
-            if trace { println!("  {} trace mode active", "→".bright_cyan()); }
-            if verbose { println!("  {} verbose mode active", "→".bright_cyan()); }
+            if trace {
+                println!("  {} trace mode active", "→".bright_cyan());
+            }
+            if verbose {
+                println!("  {} verbose mode active", "→".bright_cyan());
+            }
             if !clean_args.is_empty() {
-                println!("  {} args: {}", "→".dimmed(), clean_args.join(" ").bright_white());
+                println!(
+                    "  {} args: {}",
+                    "→".dimmed(),
+                    clean_args.join(" ").bright_white()
+                );
             }
             println!();
 
@@ -432,22 +447,26 @@ pub fn run_file(path: &str, db: &ForestDb, core_root: &str, script_args: &[&str]
                     let elapsed = start.elapsed();
                     let ms = elapsed.as_millis();
                     if ok {
-                        println!("  [{:>2}] {} {}  {} ({}ms)",
-                            i+1,
+                        println!(
+                            "  [{:>2}] {} {}  {} ({}ms)",
+                            i + 1,
                             "✅".normal(),
                             stmt_str.bright_white(),
                             "".dimmed(),
-                            ms);
+                            ms
+                        );
                         if verbose {
                             // Show any vars set in this step
                             println!("       {} scope after step", "→".dimmed());
                         }
                     } else {
-                        println!("  [{:>2}] {} {}  ({}ms)",
-                            i+1,
+                        println!(
+                            "  [{:>2}] {} {}  ({}ms)",
+                            i + 1,
                             "❌".normal(),
                             stmt_str.bright_white(),
-                            ms);
+                            ms
+                        );
                         all_ok = false;
                         break;
                     }

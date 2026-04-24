@@ -8,7 +8,11 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
-#[command(name = "faelight-context", about = "🌲 Deep codebase understanding engine", version = "1.0.0")]
+#[command(
+    name = "faelight-context",
+    about = "🌲 Deep codebase understanding engine",
+    version = "1.0.0"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -68,15 +72,15 @@ struct CodebaseStats {
 
 fn detect_language(path: &Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs")   => "Rust",
+        Some("rs") => "Rust",
         Some("toml") => "TOML",
-        Some("md")   => "Markdown",
-        Some("sh")   => "Shell",
-        Some("zsh")  => "Shell",
-        Some("kdl")  => "KDL",
+        Some("md") => "Markdown",
+        Some("sh") => "Shell",
+        Some("zsh") => "Shell",
+        Some("kdl") => "KDL",
         Some("json") => "JSON",
-        Some("py")   => "Python",
-        _            => "Other",
+        Some("py") => "Python",
+        _ => "Other",
     }
 }
 
@@ -95,9 +99,15 @@ fn detect_domain(path: &str) -> String {
             return format!("tool:{}", tool);
         }
     }
-    if path.contains("intents/") { return "intents".to_string(); }
-    if path.contains("docs/")    { return "docs".to_string(); }
-    if path.contains("scripts/") { return "scripts".to_string(); }
+    if path.contains("intents/") {
+        return "intents".to_string();
+    }
+    if path.contains("docs/") {
+        return "docs".to_string();
+    }
+    if path.contains("scripts/") {
+        return "scripts".to_string();
+    }
     "core".to_string()
 }
 
@@ -115,15 +125,21 @@ fn scan_directory(root: &str, lang_filter: Option<&str>) -> CodebaseStats {
         let path_str = path.to_string_lossy().to_string();
 
         // Skip build artifacts and git
-        if skip_dirs.iter().any(|d| path_str.contains(&format!("/{}/", d)) || path_str.contains(&format!("\\{}", d))) {
+        if skip_dirs.iter().any(|d| {
+            path_str.contains(&format!("/{}/", d)) || path_str.contains(&format!("\\{}", d))
+        }) {
             continue;
         }
 
         let lang = detect_language(path);
         if let Some(filter) = lang_filter {
-            if lang != filter { continue; }
+            if lang != filter {
+                continue;
+            }
         }
-        if lang == "Other" { continue; }
+        if lang == "Other" {
+            continue;
+        }
 
         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
         let lines = std::fs::read_to_string(path)
@@ -144,7 +160,9 @@ fn scan_directory(root: &str, lang_filter: Option<&str>) -> CodebaseStats {
     }
 
     // Find largest files
-    let mut by_lines: Vec<(String, usize)> = stats.files.iter()
+    let mut by_lines: Vec<(String, usize)> = stats
+        .files
+        .iter()
         .filter(|f| f.language == "Rust")
         .map(|f| (f.path.clone(), f.lines))
         .collect();
@@ -156,14 +174,25 @@ fn scan_directory(root: &str, lang_filter: Option<&str>) -> CodebaseStats {
 fn cmd_scan(path: &str) {
     println!();
     println!("  {} Scanning: {}", "🔍".normal(), path.bright_white());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let stats = scan_directory(path, None);
 
     println!();
     println!("  {} Overview", "▶".bright_cyan());
-    println!("    {} {} files indexed", "·".dimmed(), stats.total_files.to_string().bright_white());
-    println!("    {} {} total lines", "·".dimmed(), stats.total_lines.to_string().bright_white());
+    println!(
+        "    {} {} files indexed",
+        "·".dimmed(),
+        stats.total_files.to_string().bright_white()
+    );
+    println!(
+        "    {} {} total lines",
+        "·".dimmed(),
+        stats.total_lines.to_string().bright_white()
+    );
     println!();
 
     println!("  {} By language", "▶".bright_cyan());
@@ -172,15 +201,35 @@ fn cmd_scan(path: &str) {
     for (lang, lines) in &langs {
         let pct = (*lines * 100) / stats.total_lines.max(1);
         let bar = "█".repeat((pct / 5).max(if **lines > 0 { 1 } else { 0 }));
-        println!("    {:<12} {} {:>6} lines ({}%)", lang.bright_white(), bar.green(), lines, pct);
+        println!(
+            "    {:<12} {} {:>6} lines ({}%)",
+            lang.bright_white(),
+            bar.green(),
+            lines,
+            pct
+        );
     }
     println!();
 
     if !stats.largest_files.is_empty() {
         println!("  {} Largest Rust files", "▶".bright_cyan());
         for (path, lines) in stats.largest_files.iter().take(5) {
-            let short = path.split('/').rev().take(3).collect::<Vec<_>>().iter().rev().cloned().collect::<Vec<_>>().join("/");
-            println!("    {} {:>5} lines  {}", "·".dimmed(), lines.to_string().bright_white(), short.dimmed());
+            let short = path
+                .split('/')
+                .rev()
+                .take(3)
+                .collect::<Vec<_>>()
+                .iter()
+                .rev()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("/");
+            println!(
+                "    {} {:>5} lines  {}",
+                "·".dimmed(),
+                lines.to_string().bright_white(),
+                short.dimmed()
+            );
         }
     }
     println!();
@@ -189,7 +238,10 @@ fn cmd_scan(path: &str) {
 fn cmd_map(path: &str) {
     println!();
     println!("  {} Architectural Map", "🗺️ ".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let stats = scan_directory(path, Some("Rust"));
 
@@ -199,15 +251,33 @@ fn cmd_map(path: &str) {
     println!();
     println!("  {} Core Engine Domains", "▶".bright_cyan());
     for (domain, lines) in &domains {
-        if domain.starts_with("tool:") || *domain == "intents" || *domain == "docs" || *domain == "scripts" { continue; }
-        println!("    {} {:<30} {} lines", "·".dimmed(), domain.bright_white(), lines.to_string().dimmed());
+        if domain.starts_with("tool:")
+            || *domain == "intents"
+            || *domain == "docs"
+            || *domain == "scripts"
+        {
+            continue;
+        }
+        println!(
+            "    {} {:<30} {} lines",
+            "·".dimmed(),
+            domain.bright_white(),
+            lines.to_string().dimmed()
+        );
     }
     println!();
     println!("  {} Rust Tools", "▶".bright_cyan());
     for (domain, lines) in &domains {
-        if !domain.starts_with("tool:") { continue; }
+        if !domain.starts_with("tool:") {
+            continue;
+        }
         let tool = domain.trim_start_matches("tool:");
-        println!("    {} {:<30} {} lines", "·".dimmed(), tool.bright_white(), lines.to_string().dimmed());
+        println!(
+            "    {} {:<30} {} lines",
+            "·".dimmed(),
+            tool.bright_white(),
+            lines.to_string().dimmed()
+        );
     }
     println!();
 }
@@ -215,7 +285,10 @@ fn cmd_map(path: &str) {
 fn cmd_patterns(path: &str) {
     println!();
     println!("  {} Codebase Patterns", "🔎".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let stats = scan_directory(path, Some("Rust"));
@@ -228,49 +301,103 @@ fn cmd_patterns(path: &str) {
     let mut result_returns = 0usize;
 
     for file in &stats.files {
-        if file.language != "Rust" { continue; }
+        if file.language != "Rust" {
+            continue;
+        }
         if let Ok(content) = std::fs::read_to_string(&file.path) {
             ensure_tables += content.matches("ensure_tables").count();
-            pub_fn_count  += content.matches("pub fn ").count();
+            pub_fn_count += content.matches("pub fn ").count();
             colored_usage += content.matches("bright_").count();
             result_returns += content.matches("CoreResult").count();
         }
     }
 
     println!("  {} Architectural patterns detected:", "▶".bright_cyan());
-    println!("    {} {} public functions (pub fn)", "·".dimmed(), pub_fn_count.to_string().bright_white());
-    println!("    {} {} CoreResult return types — consistent error handling", "·".dimmed(), result_returns.to_string().bright_white());
-    println!("    {} {} ensure_tables calls — DB init pattern", "·".dimmed(), ensure_tables.to_string().bright_white());
-    println!("    {} {} colored output calls — Faelight Visual Language", "·".dimmed(), colored_usage.to_string().bright_white());
+    println!(
+        "    {} {} public functions (pub fn)",
+        "·".dimmed(),
+        pub_fn_count.to_string().bright_white()
+    );
+    println!(
+        "    {} {} CoreResult return types — consistent error handling",
+        "·".dimmed(),
+        result_returns.to_string().bright_white()
+    );
+    println!(
+        "    {} {} ensure_tables calls — DB init pattern",
+        "·".dimmed(),
+        ensure_tables.to_string().bright_white()
+    );
+    println!(
+        "    {} {} colored output calls — Faelight Visual Language",
+        "·".dimmed(),
+        colored_usage.to_string().bright_white()
+    );
     println!();
     println!("  {} Codebase conventions:", "▶".bright_cyan());
-    println!("    {} Domain-per-directory structure (engine/src/domains/)", "·".dimmed());
-    println!("    {} Each domain owns its DB tables via ensure_tables()", "·".dimmed());
-    println!("    {} CoreResult<()> for all public functions", "·".dimmed());
-    println!("    {} Faelight Visual Language — forest green + colored output", "·".dimmed());
-    println!("    {} {} total Rust lines across {} files", "·".dimmed(),
-        rust_lines.to_string().bright_white(), stats.total_files.to_string().bright_white());
+    println!(
+        "    {} Domain-per-directory structure (engine/src/domains/)",
+        "·".dimmed()
+    );
+    println!(
+        "    {} Each domain owns its DB tables via ensure_tables()",
+        "·".dimmed()
+    );
+    println!(
+        "    {} CoreResult<()> for all public functions",
+        "·".dimmed()
+    );
+    println!(
+        "    {} Faelight Visual Language — forest green + colored output",
+        "·".dimmed()
+    );
+    println!(
+        "    {} {} total Rust lines across {} files",
+        "·".dimmed(),
+        rust_lines.to_string().bright_white(),
+        stats.total_files.to_string().bright_white()
+    );
     println!();
 }
 
 fn cmd_summary(path: &str) {
     let stats = scan_directory(path, None);
     let rust_lines = stats.by_language.get("Rust").copied().unwrap_or(0);
-    let domain_count = stats.by_domain.iter().filter(|(k, _)| !k.starts_with("tool:")).count();
-    let tool_count = stats.by_domain.iter().filter(|(k, _)| k.starts_with("tool:")).count();
+    let domain_count = stats
+        .by_domain
+        .iter()
+        .filter(|(k, _)| !k.starts_with("tool:"))
+        .count();
+    let tool_count = stats
+        .by_domain
+        .iter()
+        .filter(|(k, _)| k.starts_with("tool:"))
+        .count();
 
     println!();
     println!("  {} Codebase Summary", "📝".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
     println!("  Faelight Forest is a custom Arch Linux personal computing environment");
-    println!("  written in {:.0}% Rust across {} files ({} lines).",
+    println!(
+        "  written in {:.0}% Rust across {} files ({} lines).",
         (rust_lines as f64 / stats.total_lines.max(1) as f64 * 100.0),
-        stats.total_files, stats.total_lines);
+        stats.total_files,
+        stats.total_lines
+    );
     println!();
-    println!("  The core engine contains {} domains implementing the intelligence", domain_count);
+    println!(
+        "  The core engine contains {} domains implementing the intelligence",
+        domain_count
+    );
     println!("  stack: Intent → Reaction → Prediction → Strategy → Autonomy.");
-    println!("  {} standalone Rust tools provide the user-facing interface.", tool_count);
+    println!(
+        "  {} standalone Rust tools provide the user-facing interface.",
+        tool_count
+    );
     println!();
     println!("  Architecture: domain-per-directory, SQLite state persistence,");
     println!("  Faelight Visual Language (forest green palette), and a fully");
@@ -284,7 +411,10 @@ fn cmd_decisions(path: &str) {
 
     println!();
     println!("  {} Code ↔ Intent Links", "🔗".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Find recent intents and match to domains
@@ -295,11 +425,18 @@ fn cmd_decisions(path: &str) {
         for entry in intents.iter().rev().take(10) {
             let name = entry.file_name().to_string_lossy().to_string();
             if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                let title = content.lines()
+                let title = content
+                    .lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                    .map(|l| {
+                        l.trim_start_matches("title:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
                     .unwrap_or_else(|| name.clone());
-                let tags: Vec<&str> = content.lines()
+                let tags: Vec<&str> = content
+                    .lines()
                     .find(|l| l.starts_with("tags:"))
                     .map(|l| l.split('[').nth(1).unwrap_or("").trim_end_matches(']'))
                     .unwrap_or("")
@@ -331,10 +468,10 @@ fn main() {
     }
 
     match cli.command {
-        Some(Command::Scan { path })      => cmd_scan(&path),
-        Some(Command::Map { path })       => cmd_map(&path),
-        Some(Command::Patterns { path })  => cmd_patterns(&path),
-        Some(Command::Summary { path })   => cmd_summary(&path),
+        Some(Command::Scan { path }) => cmd_scan(&path),
+        Some(Command::Map { path }) => cmd_map(&path),
+        Some(Command::Patterns { path }) => cmd_patterns(&path),
+        Some(Command::Summary { path }) => cmd_summary(&path),
         Some(Command::Decisions { path }) => cmd_decisions(&path),
         None => {
             println!();

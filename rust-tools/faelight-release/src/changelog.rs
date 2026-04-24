@@ -180,8 +180,8 @@ fn parse_intent_frontmatter(content: &str) -> Option<ShippedIntent> {
         }
         if line.starts_with("title:") {
             title = line
-                .splitn(2, ':')
-                .nth(1)
+                .split_once(':')
+                .map(|x| x.1)
                 .map(|s| s.trim().trim_matches('"').to_string());
         }
     }
@@ -262,8 +262,7 @@ pub fn get_last_tag(core_root: &PathBuf) -> String {
 
 // ─── GROUPED CHANGELOG ───────────────────────────────────────────────────────
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ChangelogData {
     pub version: String,
     pub date: String,
@@ -352,17 +351,31 @@ impl ChangelogData {
         if !self.features.is_empty() {
             out.push_str("### ✨ Features\n");
             // Group by scope
-            let mut scopes: Vec<String> = self.features.iter()
-                .map(|c| if c.scope.is_empty() { "general".to_string() } else { c.scope.clone() })
+            let mut scopes: Vec<String> = self
+                .features
+                .iter()
+                .map(|c| {
+                    if c.scope.is_empty() {
+                        "general".to_string()
+                    } else {
+                        c.scope.clone()
+                    }
+                })
                 .collect::<std::collections::HashSet<_>>()
                 .into_iter()
                 .collect();
             scopes.sort();
             // Show scoped groups first, then general
             for scope in &scopes {
-                let group: Vec<&Commit> = self.features.iter()
+                let group: Vec<&Commit> = self
+                    .features
+                    .iter()
                     .filter(|c| {
-                        let s = if c.scope.is_empty() { "general" } else { &c.scope };
+                        let s = if c.scope.is_empty() {
+                            "general"
+                        } else {
+                            &c.scope
+                        };
                         s == scope.as_str()
                     })
                     .collect();
@@ -417,11 +430,15 @@ impl ChangelogData {
                 self.internal.len()
             ));
             // Group by intent prefix
-            let mut intent_groups: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+            let mut intent_groups: std::collections::BTreeMap<String, Vec<String>> =
+                std::collections::BTreeMap::new();
             let mut ungrouped: Vec<String> = Vec::new();
             for c in &self.internal {
                 if let Some(int_id) = extract_intent_id(&c.message) {
-                    intent_groups.entry(int_id.to_string()).or_default().push(c.message.clone());
+                    intent_groups
+                        .entry(int_id.to_string())
+                        .or_default()
+                        .push(c.message.clone());
                 } else {
                     ungrouped.push(c.message.clone());
                 }
@@ -487,8 +504,9 @@ impl ReleaseStats {
             health: {
                 let cache = std::fs::read_to_string(
                     std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-                        .join(".cache/faelight/health-status")
-                ).unwrap_or_else(|_| "100".to_string());
+                        .join(".cache/faelight/health-status"),
+                )
+                .unwrap_or_else(|_| "100".to_string());
                 cache.trim().parse::<u32>().unwrap_or(100)
             },
             total_commits: commits,
@@ -511,7 +529,9 @@ fn count_tools(core_root: &PathBuf) -> u32 {
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed == "[[tool]]" {
-            if saw_name && !in_retired { count += 1; }
+            if saw_name && !in_retired {
+                count += 1;
+            }
             in_retired = false;
             saw_name = false;
         } else if trimmed == "retired = true" {
@@ -521,7 +541,9 @@ fn count_tools(core_root: &PathBuf) -> u32 {
         }
     }
     // Count last block
-    if saw_name && !in_retired { count += 1; }
+    if saw_name && !in_retired {
+        count += 1;
+    }
     count
 }
 
@@ -540,7 +562,8 @@ fn count_complete_intents(core_root: &PathBuf) -> u32 {
                             if let Ok(content) = std::fs::read_to_string(&p) {
                                 if content.contains("status: complete")
                                     || content.contains("type: complete")
-                                    || content.contains("[complete]") {
+                                    || content.contains("[complete]")
+                                {
                                     count += 1;
                                 }
                             }
@@ -550,13 +573,16 @@ fn count_complete_intents(core_root: &PathBuf) -> u32 {
             }
         }
     }
-    if count > 0 { count } else {
+    if count > 0 {
+        count
+    } else {
         // Hard fallback: just count complete/ dir
         std::fs::read_dir(core_root.join("intents/complete"))
-            .map(|d| d.filter_map(|e| e.ok())
-                .filter(|e| e.path().extension()
-                    .and_then(|x| x.to_str()) == Some("md"))
-                .count() as u32)
+            .map(|d| {
+                d.filter_map(|e| e.ok())
+                    .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
+                    .count() as u32
+            })
             .unwrap_or(0)
     }
 }

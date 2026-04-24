@@ -54,9 +54,7 @@ pub fn check_clippy() -> Result<bool> {
         }
     }
     args.extend(["--".to_string(), "-D".to_string(), "warnings".to_string()]);
-    let check = Command::new("cargo")
-        .args(&args)
-        .output()?;
+    let check = Command::new("cargo").args(&args).output()?;
 
     if !check.status.success() {
         println!("{}", "❌ Clippy check failed".red().bold());

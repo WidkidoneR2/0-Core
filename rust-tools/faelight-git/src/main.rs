@@ -158,10 +158,15 @@ fn main() {
         Commands::HookPreCommit => hook_pre_commit(),
         Commands::HookCommitMsg { file } => hook_commit_msg(&file),
         Commands::HookPrePush => hook_pre_push(),
-        Commands::Rollback { hash, dry_run, list } => {
-            match commands::rollback::run(hash.as_deref(), dry_run, list) {
-                Ok(_) => 0,
-                Err(e) => { eprintln!("{} {}", "Error:".red(), e); 1 }
+        Commands::Rollback {
+            hash,
+            dry_run,
+            list,
+        } => match commands::rollback::run(hash.as_deref(), dry_run, list) {
+            Ok(_) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "Error:".red(), e);
+                1
             }
         },
     };

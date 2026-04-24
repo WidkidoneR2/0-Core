@@ -85,7 +85,12 @@ fn main() -> Result<()> {
                 let readme_path = std::path::PathBuf::from(&root).join("README.md");
                 let today = chrono::Local::now().format("%Y-%m-%d").to_string();
                 if let Err(e) = crate::readme::update_readme(
-                    &readme_path, &version_str, &final_theme, &today, &data, &stats
+                    &readme_path,
+                    &version_str,
+                    &final_theme,
+                    &today,
+                    &data,
+                    &stats,
                 ) {
                     eprintln!("⚠️  README update failed: {}", e);
                 } else {
@@ -146,12 +151,19 @@ fn main() -> Result<()> {
                     }
                 }
                 // Auto-commit the release
-                let commit_msg = format!("release: Faelight Forest {} — {}", version_str, final_theme);
+                let commit_msg =
+                    format!("release: Faelight Forest {} — {}", version_str, final_theme);
                 let _ = std::process::Command::new("git")
                     .args(["-C", root.to_str().unwrap_or("."), "add", "-A"])
                     .status();
                 let commit_status = std::process::Command::new("git")
-                    .args(["-C", root.to_str().unwrap_or("."), "commit", "-m", &commit_msg])
+                    .args([
+                        "-C",
+                        root.to_str().unwrap_or("."),
+                        "commit",
+                        "-m",
+                        &commit_msg,
+                    ])
                     .status();
                 match commit_status {
                     Ok(s) if s.success() => println!("✅ Release committed: {}", commit_msg),
@@ -195,28 +207,31 @@ fn main() -> Result<()> {
             );
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             // v2: synthesize narrative and suggest 3 themes
-        let rich_stats = intelligence::RichStats::load(&root);
-        let theme_history = intelligence::load_theme_history(&root);
-        let narrative = intelligence::synthesize_narrative(&data, &rich_stats, &stats);
-        let themes = intelligence::suggest_themes_v2(&data, &theme_history);
-        println!();
-        println!("\n📖 Release Narrative");
-        println!("{}", "─".repeat(60));
-        println!("{}", narrative);
-        println!();
-        println!("🌿 Suggested Themes");
-        println!("  [1] {}", themes[0]);
-        println!("  [2] {}", themes[1]);
-        println!("  [3] {}", themes[2]);
-        println!();
-        println!("📊 Rich Stats");
-        println!("  Sessions:        {}", rich_stats.sessions);
-        println!("  Commits:         {}", stats.total_commits);
-        println!("  Peak velocity:   {:.1} commits/hour", rich_stats.peak_velocity);
-        println!("  Avg health:      {:.1}%", rich_stats.avg_health);
-        println!("  Deploys:         {}", rich_stats.deploys);
-        println!("  Intents done:    {}", rich_stats.intents_completed);
-        println!("  Health now:      {}%", rich_stats.health_at_release);
+            let rich_stats = intelligence::RichStats::load(&root);
+            let theme_history = intelligence::load_theme_history(&root);
+            let narrative = intelligence::synthesize_narrative(&data, &rich_stats, &stats);
+            let themes = intelligence::suggest_themes_v2(&data, &theme_history);
+            println!();
+            println!("\n📖 Release Narrative");
+            println!("{}", "─".repeat(60));
+            println!("{}", narrative);
+            println!();
+            println!("🌿 Suggested Themes");
+            println!("  [1] {}", themes[0]);
+            println!("  [2] {}", themes[1]);
+            println!("  [3] {}", themes[2]);
+            println!();
+            println!("📊 Rich Stats");
+            println!("  Sessions:        {}", rich_stats.sessions);
+            println!("  Commits:         {}", stats.total_commits);
+            println!(
+                "  Peak velocity:   {:.1} commits/hour",
+                rich_stats.peak_velocity
+            );
+            println!("  Avg health:      {:.1}%", rich_stats.avg_health);
+            println!("  Deploys:         {}", rich_stats.deploys);
+            println!("  Intents done:    {}", rich_stats.intents_completed);
+            println!("  Health now:      {}%", rich_stats.health_at_release);
             println!("📅 Cadence: {}", insights.release_cadence);
             if !insights.anomalies.is_empty() {
                 println!("🔍 Anomalies:");

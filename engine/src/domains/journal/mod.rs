@@ -41,7 +41,10 @@ pub fn today(ctx: &AppContext) -> CoreResult<()> {
     println!();
     if !path.exists() {
         println!("  {} No journal entries yet today.", "○".dimmed());
-        println!("  {} The forest is quiet — entries appear as the day unfolds.", "→".dimmed());
+        println!(
+            "  {} The forest is quiet — entries appear as the day unfolds.",
+            "→".dimmed()
+        );
         println!();
         return Ok(());
     }
@@ -63,7 +66,8 @@ pub fn today(ctx: &AppContext) -> CoreResult<()> {
 /// core journal yesterday
 pub fn yesterday(ctx: &AppContext) -> CoreResult<()> {
     let date = (chrono::Local::now() - chrono::Duration::days(1))
-        .format("%Y-%m-%d").to_string();
+        .format("%Y-%m-%d")
+        .to_string();
     show_date(ctx, &date, "Yesterday")
 }
 /// core journal week
@@ -76,7 +80,8 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     let mut entries: Vec<(String, String)> = Vec::new();
     for i in 0..7 {
         let date = (chrono::Local::now() - chrono::Duration::days(i))
-            .format("%Y-%m-%d").to_string();
+            .format("%Y-%m-%d")
+            .to_string();
         let path = dir.join(format!("{}.md", date));
         if path.exists() {
             let content = std::fs::read_to_string(&path).unwrap_or_default();
@@ -90,12 +95,19 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     }
     for (date, content) in entries.iter().rev() {
         println!("  {}", date.bright_cyan().bold());
-        let entry_count = content.lines()
-            .filter(|l| l.starts_with("**")).count();
-        println!("  {} {} entries", "→".dimmed(), entry_count.to_string().bright_white());
+        let entry_count = content.lines().filter(|l| l.starts_with("**")).count();
+        println!(
+            "  {} {} entries",
+            "→".dimmed(),
+            entry_count.to_string().bright_white()
+        );
         // Show first entry as preview
         if let Some(first) = content.lines().find(|l| l.starts_with("**")) {
-            let preview = if first.len() > 80 { &first[..80] } else { first };
+            let preview = if first.len() > 80 {
+                &first[..80]
+            } else {
+                first
+            };
             println!("  {}", preview.dimmed());
         }
         println!();
@@ -105,7 +117,11 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
 /// core journal search <term>
 pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     println!();
-    println!("{} Searching journal for: {}", "🔍".normal(), term.bright_white().bold());
+    println!(
+        "{} Searching journal for: {}",
+        "🔍".normal(),
+        term.bright_white().bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     let dir = journal_dir(ctx);
@@ -114,13 +130,19 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
         let mut dates: Vec<String> = entries
             .flatten()
             .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-            .map(|e| e.file_name().to_string_lossy().trim_end_matches(".md").to_string())
+            .map(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .trim_end_matches(".md")
+                    .to_string()
+            })
             .collect();
         dates.sort_by(|a, b| b.cmp(a));
         for date in &dates {
             let path = dir.join(format!("{}.md", date));
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            let matches: Vec<&str> = content.lines()
+            let matches: Vec<&str> = content
+                .lines()
                 .filter(|l| l.to_lowercase().contains(&term.to_lowercase()))
                 .collect();
             if !matches.is_empty() {
@@ -136,7 +158,11 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     if found == 0 {
         println!("  {} No entries found for '{}'", "○".dimmed(), term);
     } else {
-        println!("  {} {} matches found", "→".dimmed(), found.to_string().bright_white());
+        println!(
+            "  {} {} matches found",
+            "→".dimmed(),
+            found.to_string().bright_white()
+        );
     }
     println!();
     Ok(())
@@ -148,7 +174,11 @@ pub fn show(ctx: &AppContext, date: &str) -> CoreResult<()> {
 fn show_date(ctx: &AppContext, date: &str, label: &str) -> CoreResult<()> {
     let path = journal_dir(ctx).join(format!("{}.md", date));
     println!();
-    println!("{} {}", "📖 Forest Journal —".cyan().bold(), label.bright_white().bold());
+    println!(
+        "{} {}",
+        "📖 Forest Journal —".cyan().bold(),
+        label.bright_white().bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     if !path.exists() {
@@ -179,41 +209,55 @@ pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
         let now = chrono::Local::now();
         let cutoff = now - chrono::Duration::minutes(30);
         let cutoff_str = cutoff.format("%H:%M").to_string();
-        let recent = content.lines()
+        let recent = content
+            .lines()
             .filter(|l| l.contains("[") && l.contains("] Session started"))
             .any(|l| {
                 if let Some(start) = l.find('[') {
                     if let Some(end) = l.find(']') {
-                        let time_str = &l[start+1..end];
+                        let time_str = &l[start + 1..end];
                         return time_str >= cutoff_str.as_str();
                     }
                 }
                 false
             });
-        if recent { return Ok(()); }
+        if recent {
+            return Ok(());
+        }
     }
     // Count commits today via git log (most accurate)
     let core_root_path = std::path::PathBuf::from(&ctx.core_root);
     let commits_today: i64 = std::process::Command::new("git")
-        .args(["-C", core_root_path.to_str().unwrap_or("."),
-               "log", "--oneline", "--since=midnight"])
+        .args([
+            "-C",
+            core_root_path.to_str().unwrap_or("."),
+            "log",
+            "--oneline",
+            "--since=midnight",
+        ])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout)
-            .lines().count() as i64)
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
         .unwrap_or(0);
     // Count active intents from filesystem
     let active: i64 = std::fs::read_dir(core_root_path.join("intents/future"))
-        .map(|d| d.filter_map(|e| e.ok())
-            .filter(|e| {
-                if let Ok(content) = std::fs::read_to_string(e.path()) {
-                    content.contains("status: in-progress") || content.contains("type: in-progress")
-                } else { false }
-            })
-            .count() as i64)
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    if let Ok(content) = std::fs::read_to_string(e.path()) {
+                        content.contains("status: in-progress")
+                            || content.contains("type: in-progress")
+                    } else {
+                        false
+                    }
+                })
+                .count() as i64
+        })
         .unwrap_or(0);
     let message = if commits_today > 0 {
-        format!("Session started. {} commits today. {} intents in progress. Health 100%.",
-            commits_today, active)
+        format!(
+            "Session started. {} commits today. {} intents in progress. Health 100%.",
+            commits_today, active
+        )
     } else {
         "Session started. Forest is ready.".to_string()
     };
@@ -238,18 +282,26 @@ pub fn health_change(ctx: &AppContext, from: u32, to: u32) -> CoreResult<()> {
 /// Write a daily summary entry
 pub fn daily_summary(ctx: &AppContext) -> CoreResult<()> {
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let commits: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain = 'git' AND action = 'commit'
+    let commits: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain = 'git' AND action = 'commit'
          AND date(datetime(timestamp, 'unixepoch')) = ?1",
-        rusqlite::params![today],
-        |r| r.get(0)
-    ).unwrap_or(0);
-    let deploys: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_events WHERE domain = 'deploy'
+            rusqlite::params![today],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let deploys: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM forest_events WHERE domain = 'deploy'
          AND date(datetime(created_at, 'unixepoch')) = ?1",
-        rusqlite::params![today],
-        |r| r.get(0)
-    ).unwrap_or(0);
+            rusqlite::params![today],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let message = format!(
         "Session ended. {} commits, {} deploys today. Forest health: 100%.",
         commits, deploys

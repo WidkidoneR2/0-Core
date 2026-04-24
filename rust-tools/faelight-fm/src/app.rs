@@ -20,32 +20,30 @@ pub enum YankMode {
     Cut, // dd - move file
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum SortMode {
+    #[default]
     Name,
     SizeDesc,
     Modified,
     Type,
 }
-impl Default for SortMode {
-    fn default() -> Self { SortMode::Name }
-}
 impl SortMode {
     pub fn next(self) -> Self {
         match self {
-            SortMode::Name     => SortMode::SizeDesc,
+            SortMode::Name => SortMode::SizeDesc,
             SortMode::SizeDesc => SortMode::Modified,
             SortMode::Modified => SortMode::Type,
-            SortMode::Type     => SortMode::Name,
+            SortMode::Type => SortMode::Name,
         }
     }
     #[allow(dead_code)]
     pub fn label(&self) -> &'static str {
         match self {
-            SortMode::Name     => "name",
+            SortMode::Name => "name",
             SortMode::SizeDesc => "size",
             SortMode::Modified => "modified",
-            SortMode::Type     => "type",
+            SortMode::Type => "type",
         }
     }
 }
@@ -192,7 +190,11 @@ impl AppState {
                         intent_info,
                         size: daemon_entry.size,
                         modified: None,
-                        permissions: if daemon_entry.is_dir { 0o755u32 } else { 0o644u32 },
+                        permissions: if daemon_entry.is_dir {
+                            0o755u32
+                        } else {
+                            0o644u32
+                        },
                         is_executable: false,
                         is_hidden: false,
                     }
@@ -234,7 +236,8 @@ impl AppState {
                             Err(_) => (0, None, 0o644u32, false),
                         }
                     };
-                    let is_hidden = path.file_name()
+                    let is_hidden = path
+                        .file_name()
                         .and_then(|n| n.to_str())
                         .map(|n| n.starts_with('.'))
                         .unwrap_or(false);
@@ -284,30 +287,24 @@ impl AppState {
     pub fn sort_entries(&mut self) {
         match self.sort_mode {
             SortMode::Name => {
-                self.entries.sort_by(|a, b| {
-                    match (a.is_dir, b.is_dir) {
-                        (true, false) => std::cmp::Ordering::Less,
-                        (false, true) => std::cmp::Ordering::Greater,
-                        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                    }
+                self.entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
                 });
             }
             SortMode::SizeDesc => {
-                self.entries.sort_by(|a, b| {
-                    match (a.is_dir, b.is_dir) {
-                        (true, false) => std::cmp::Ordering::Less,
-                        (false, true) => std::cmp::Ordering::Greater,
-                        _ => b.size.cmp(&a.size),
-                    }
+                self.entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => b.size.cmp(&a.size),
                 });
             }
             SortMode::Modified => {
-                self.entries.sort_by(|a, b| {
-                    match (a.is_dir, b.is_dir) {
-                        (true, false) => std::cmp::Ordering::Less,
-                        (false, true) => std::cmp::Ordering::Greater,
-                        _ => b.modified.cmp(&a.modified),
-                    }
+                self.entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => b.modified.cmp(&a.modified),
                 });
             }
             SortMode::Type => {

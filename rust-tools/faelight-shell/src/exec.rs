@@ -7,10 +7,10 @@
 // Architecture:
 //   line → build_context() → preexec() → dispatch() → postexec() → result
 
-use colored::Colorize;
+use crate::commands::{self, CommandResult};
 use crate::config::{BeforeRunRule, RuleAction};
 use crate::db::ForestDb;
-use crate::commands::{self, CommandResult};
+use colored::Colorize;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -56,29 +56,37 @@ impl ExecContext {
             let mut quote_char = ' ';
             for ch in s.chars() {
                 match ch {
-                    '\"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
-                    c if in_quote && c == quote_char => { in_quote = false; }
+                    '\"' | '\'' if !in_quote => {
+                        in_quote = true;
+                        quote_char = ch;
+                    }
+                    c if in_quote && c == quote_char => {
+                        in_quote = false;
+                    }
                     ' ' if !in_quote => {
-                        if !current.is_empty() { tokens.push(current.clone()); current.clear(); }
+                        if !current.is_empty() {
+                            tokens.push(current.clone());
+                            current.clear();
+                        }
                     }
                     c => current.push(c),
                 }
             }
-            if !current.is_empty() { tokens.push(current); }
+            if !current.is_empty() {
+                tokens.push(current);
+            }
             tokens
         }
         let mut parts = raw.splitn(2, ' ');
         let cmd = parts.next().unwrap_or("").to_lowercase();
-        let args: Vec<String> = parts.next()
-            .map(|s| tokenize(s))
-            .unwrap_or_default();
+        let args: Vec<String> = parts.next().map(|s| tokenize(s)).unwrap_or_default();
 
         // Read active intent from db if available
         let intent = db.get_focus_intent();
 
         ExecContext {
             raw: raw.clone(),
-            expanded: raw,   // will be updated after alias resolution
+            expanded: raw, // will be updated after alias resolution
             cmd,
             args,
             cwd,
@@ -100,7 +108,12 @@ impl ExecContext {
 
 /// Preexec hook — runs before every command
 /// Returns None to allow execution, Some(message) to block
-fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRunRule]) -> Option<String> {
+fn preexec(
+    ctx: &ExecContext,
+    _db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> Option<String> {
     let cmd = ctx.cmd.as_str();
     let raw = ctx.raw.as_str();
 
@@ -113,7 +126,8 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
             let blocked_targets = ["/", "/home", "/etc", "/usr", "/var", "/boot"];
             for target in &blocked_targets {
                 // Match exact path — must be followed by space, end of string, or be standalone
-                let matches = raw.split_whitespace()
+                let matches = raw
+                    .split_whitespace()
                     .any(|token| token == *target || token == &format!("{}/", target));
                 if matches {
                     return Some(format!(
@@ -126,7 +140,11 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
             let core_src = format!("{}/rust-tools", core_root);
             let core_engine = format!("{}/engine", core_root);
             let core_intents = format!("{}/intents", core_root);
-            for protected in &[core_src.as_str(), core_engine.as_str(), core_intents.as_str()] {
+            for protected in &[
+                core_src.as_str(),
+                core_engine.as_str(),
+                core_intents.as_str(),
+            ] {
                 if raw.contains(protected) {
                     return Some(format!(
                         "🛡  Blocked: rm -rf on forest source '{}' — use git to manage removals",
@@ -141,17 +159,19 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
     // Block git and fg operations when core is locked
     let in_core = ctx.cwd.starts_with(core_root);
     if in_core && is_core_locked(core_root) {
-        let blocked_git = cmd == "git" && matches!(
-            ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
-            "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge"
-        );
-        let blocked_fg = cmd == "fg" && matches!(
-            ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
-            "commit" | "push" | "sync"
-        );
+        let blocked_git = cmd == "git"
+            && matches!(
+                ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
+                "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge"
+            );
+        let blocked_fg = cmd == "fg"
+            && matches!(
+                ctx.args.first().map(|s| s.as_str()).unwrap_or(""),
+                "commit" | "push" | "sync"
+            );
         if blocked_git || blocked_fg {
             return Some(
-                "🔒 Core is LOCKED — run unlock-core first, then make your changes".to_string()
+                "🔒 Core is LOCKED — run unlock-core first, then make your changes".to_string(),
             );
         }
     }
@@ -161,7 +181,7 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
         let core_bin = format!("{}/scripts/core", core_root);
         if raw.contains(&core_bin) && !raw.contains("deploy") {
             return Some(
-                "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string()
+                "🛡  Blocked: direct copy to core binary — use deploy script instead".to_string(),
             );
         }
     }
@@ -183,12 +203,13 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
         }
     }
 
-
     // ── Safety Rule 4: Smarter DELETE confirmation for rm -rf (INT-194) ──────
     if cmd == "rm" {
         let raw_lower = raw.to_lowercase();
         if raw_lower.contains("-rf") || raw_lower.contains("-fr") {
-            let target = ctx.args.iter()
+            let target = ctx
+                .args
+                .iter()
                 .find(|a| !a.starts_with('-'))
                 .map(|s| s.as_str())
                 .unwrap_or(".");
@@ -210,8 +231,10 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
                             file_count += 1;
                             total_bytes += meta.len();
                             if let Ok(modified) = meta.modified() {
-                                let secs = modified.duration_since(std::time::UNIX_EPOCH)
-                                    .map(|d| d.as_secs()).unwrap_or(0);
+                                let secs = modified
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .map(|d| d.as_secs())
+                                    .unwrap_or(0);
                                 if secs > newest_time {
                                     newest_time = secs;
                                     newest_file = entry.file_name().to_string_lossy().to_string();
@@ -229,16 +252,31 @@ fn preexec(ctx: &ExecContext, _db: &ForestDb, core_root: &str, rules: &[BeforeRu
                 };
                 println!();
                 println!("  {} {}", "⚠️ ".normal(), raw.bright_red());
-                println!("  {} {} files, {}", "→".bright_yellow(), file_count, size_str.bright_yellow());
+                println!(
+                    "  {} {} files, {}",
+                    "→".bright_yellow(),
+                    file_count,
+                    size_str.bright_yellow()
+                );
                 if !newest_file.is_empty() {
-                    println!("  {} Most recent: {}", "→".bright_yellow(), newest_file.bright_white());
+                    println!(
+                        "  {} Most recent: {}",
+                        "→".bright_yellow(),
+                        newest_file.bright_white()
+                    );
                 }
-                println!("  {} Type {} to confirm, or Ctrl+C to cancel",
-                    "→".bright_yellow(), "DELETE".bright_red().bold());
+                println!(
+                    "  {} Type {} to confirm, or Ctrl+C to cancel",
+                    "→".bright_yellow(),
+                    "DELETE".bright_red().bold()
+                );
                 println!();
                 use std::io::BufRead;
                 let stdin = std::io::stdin();
-                let input = stdin.lock().lines().next()
+                let input = stdin
+                    .lock()
+                    .lines()
+                    .next()
                     .and_then(|l| l.ok())
                     .unwrap_or_default();
                 if input.trim() != "DELETE" {
@@ -309,7 +347,10 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         let error_lower = error_msg.to_lowercase();
         // Tokenize error + command into meaningful keywords
         // Filter noise words, try each token against knowledge base
-        let noise: &[&str] = &["the","a","an","is","in","of","to","with","and","or","not","for","at","by","on","as","it","be","this","that","was","are"];
+        let noise: &[&str] = &[
+            "the", "a", "an", "is", "in", "of", "to", "with", "and", "or", "not", "for", "at",
+            "by", "on", "as", "it", "be", "this", "that", "was", "are",
+        ];
         let full_text = format!("{} {}", cmd_lower, error_lower);
         let tokens: Vec<String> = full_text
             .split(|c: char| !c.is_alphanumeric() && c != '0')
@@ -326,8 +367,10 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         // Try each token against knowledge_entries table (search id + description + resolution)
         let mut lesson: Option<(String, String, f64)> = None;
         for token in &search_tokens {
-            let result = db.conn.query_row(
-                "SELECT id, resolution, confidence FROM knowledge_entries
+            let result = db
+                .conn
+                .query_row(
+                    "SELECT id, resolution, confidence FROM knowledge_entries
                  WHERE (LOWER(COALESCE(error_signature,'')) LIKE ?1
                      OR LOWER(COALESCE(description,'')) LIKE ?1
                      OR LOWER(COALESCE(resolution,'')) LIKE ?1
@@ -335,9 +378,16 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                  AND confidence >= 0.85
                  ORDER BY confidence DESC, success_count DESC
                  LIMIT 1",
-                rusqlite::params![format!("%{}%", token)],
-                |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
-            ).ok();
+                    rusqlite::params![format!("%{}%", token)],
+                    |r| {
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1)?,
+                            r.get::<_, f64>(2)?,
+                        ))
+                    },
+                )
+                .ok();
             if result.is_some() {
                 lesson = result;
                 break;
@@ -345,8 +395,16 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
         }
         if let Some((id, resolution, confidence)) = lesson {
             println!();
-            println!("  {} Friday knows this ({:.0}% confidence):", "🌲".normal(), confidence * 100.0);
-            println!("  {} {}", "->".bright_cyan(), resolution.chars().take(120).collect::<String>());
+            println!(
+                "  {} Friday knows this ({:.0}% confidence):",
+                "🌲".normal(),
+                confidence * 100.0
+            );
+            println!(
+                "  {} {}",
+                "->".bright_cyan(),
+                resolution.chars().take(120).collect::<String>()
+            );
             println!("  {} core knowledge show {}", "·".dimmed(), id.dimmed());
             println!();
         }
@@ -375,8 +433,10 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
             let full_raw = ctx.raw.clone();
 
             // Find the most common next command after this one
-            let next_cmd: Option<String> = db.conn.query_row(
-                "SELECT next_cmd, COUNT(*) as freq FROM (
+            let next_cmd: Option<String> = db
+                .conn
+                .query_row(
+                    "SELECT next_cmd, COUNT(*) as freq FROM (
                     SELECT h2.command as next_cmd
                     FROM shell_history h1
                     JOIN shell_history h2 ON h2.id = h1.id + 1
@@ -384,54 +444,77 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                     AND h2.command != h1.command
                     AND h2.command NOT IN ('q', 'exit', 'clear', 'c', 'pwd')
                 ) GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
-                rusqlite::params![cmd_prefix, format!("{}%", full_raw)],
-                |r| r.get(0)
-            ).ok();
+                    rusqlite::params![cmd_prefix, format!("{}%", full_raw)],
+                    |r| r.get(0),
+                )
+                .ok();
 
             if let Some(next) = next_cmd {
-                let freq: i64 = db.conn.query_row(
-                    "SELECT COUNT(*) FROM (
+                let freq: i64 = db
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM (
                         SELECT h2.command as next_cmd
                         FROM shell_history h1
                         JOIN shell_history h2 ON h2.id = h1.id + 1
                         WHERE (h1.command = ?1 OR h1.command LIKE ?2)
                         AND h2.command = ?3
                     )",
-                    rusqlite::params![cmd_prefix, format!("{}%", ctx.raw), next],
-                    |r| r.get(0)
-                ).unwrap_or(0);
+                        rusqlite::params![cmd_prefix, format!("{}%", ctx.raw), next],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
 
-                let total: i64 = db.conn.query_row(
-                    "SELECT COUNT(*) FROM shell_history WHERE command = ?1 OR command LIKE ?2",
-                    rusqlite::params![cmd_prefix, format!("{}%", ctx.raw)],
-                    |r| r.get(0)
-                ).unwrap_or(1);
+                let total: i64 = db
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM shell_history WHERE command = ?1 OR command LIKE ?2",
+                        rusqlite::params![cmd_prefix, format!("{}%", ctx.raw)],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(1);
 
                 let pct = (freq * 100) / total.max(1);
                 // Phase 28 gate — INT-186: must meet ALL thresholds before firing
                 // Firing on weak patterns trains the user to ignore suggestions
                 let confidence = pct as f64 / 100.0;
                 let occurrences = freq;
-                let accuracy_ok  = pct >= 80;       // >= 80% accuracy
-                let volume_ok    = occurrences >= 30; // >= 30 occurrences
-                let conf_ok      = confidence >= 0.7; // >= 0.7 confidence
-                // Cooldown: no suggestion in last 3 minutes
-                let last_suggest: i64 = db.conn.query_row(
-                    "SELECT MAX(timestamp) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
-                    [], |r| r.get(0)
-                ).ok().flatten().unwrap_or(0);
+                let accuracy_ok = pct >= 80; // >= 80% accuracy
+                let volume_ok = occurrences >= 30; // >= 30 occurrences
+                let conf_ok = confidence >= 0.7; // >= 0.7 confidence
+                                                 // Cooldown: no suggestion in last 3 minutes
+                let last_suggest: i64 = db
+                    .conn
+                    .query_row(
+                        "SELECT MAX(timestamp) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .ok()
+                    .flatten()
+                    .unwrap_or(0);
                 let now_ts = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64).unwrap_or(0);
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
                 let cooldown_ok = (now_ts - last_suggest) > 180; // 3 min cooldown
                 if accuracy_ok && volume_ok && conf_ok && cooldown_ok {
                     // Full judgment credibility output — INT-186
-                    println!("  {} Suggestion: {}",
-                        "💡".normal(), next.bright_white());
-                    println!("     {} Confidence: {:.2}  ·  {} occurrences  ·  {}% accuracy",
-                        "·".dimmed(), confidence, occurrences, pct);
-                    println!("     {} Causality: after '{}' this follows {}% of the time ({} sessions)",
-                        "·".dimmed(), ctx.cmd.dimmed(), pct, occurrences);
+                    println!("  {} Suggestion: {}", "💡".normal(), next.bright_white());
+                    println!(
+                        "     {} Confidence: {:.2}  ·  {} occurrences  ·  {}% accuracy",
+                        "·".dimmed(),
+                        confidence,
+                        occurrences,
+                        pct
+                    );
+                    println!(
+                        "     {} Causality: after '{}' this follows {}% of the time ({} sessions)",
+                        "·".dimmed(),
+                        ctx.cmd.dimmed(),
+                        pct,
+                        occurrences
+                    );
                     // Counterfactual — what would make this wrong
                     let counterfactual = if ctx.cmd == "d" {
                         "already ran d recently"
@@ -442,7 +525,11 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
                     } else {
                         "pattern recently changed or different context"
                     };
-                    println!("     {} Might be wrong if: {}", "·".dimmed(), counterfactual.dimmed());
+                    println!(
+                        "     {} Might be wrong if: {}",
+                        "·".dimmed(),
+                        counterfactual.dimmed()
+                    );
                     // Log suggestion for cooldown tracking
                     let _ = db.conn.execute(
                         "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
@@ -457,7 +544,12 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 /// Main execution pipeline — the single entry point for all command execution
 ///
 /// parse → preexec → dispatch → postexec → result
-pub fn execute_with_context(line: &str, db: &ForestDb, core_root: &str, rules: &[BeforeRunRule]) -> CommandResult {
+pub fn execute_with_context(
+    line: &str,
+    db: &ForestDb,
+    core_root: &str,
+    rules: &[BeforeRunRule],
+) -> CommandResult {
     // Build execution context
     let ctx = ExecContext::from_line(line, db);
 

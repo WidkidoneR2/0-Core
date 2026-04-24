@@ -1,13 +1,16 @@
 use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::cli::commands::{
-    AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DeployCommand, FridayCommand, SynthesizeCommand, FridayArchCommand, KnowledgeCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
-    ValuesCommand,
-    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand,
-    NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
-    DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
-    WhyCommand, WorkspaceCommand,
+    AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
+    BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
+    DelegateCommand, DeployCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand,
+    EventsCommand, EvolutionCommand, FridayArchCommand, FridayCommand, GenealogyCommand,
+    GitCommand, GoalsCommand, IntegrityCommand, IntentCommand, JournalCommand, KnowledgeCommand,
+    LauncherCommand, LedgerCommand, LinkCommand, NotifyCommand, PlanCommand, PluginCommand,
+    PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand, RegistryCommand,
+    ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand, StrategyCommand,
+    StressCommand, SynthesizeCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
+    WeightCommand, WhyCommand, WorkspaceCommand,
 };
 use crate::errors::CoreResult;
 use colored::*;
@@ -23,11 +26,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_name'",
                 [], |r| r.get(0)
             ).unwrap_or_else(|_| "Synthesis Engine".to_string());
-            println!("{} {}  ·  intelligence {} ({})",
+            println!(
+                "{} {}  ·  intelligence {} ({})",
                 "core".bright_cyan().bold(),
                 env!("CARGO_PKG_VERSION").dimmed(),
                 intel_ver.bright_green(),
-                intel_name.dimmed());
+                intel_name.dimmed()
+            );
             println!("{}", "0-Core — single orchestrator binary".dimmed());
             Ok(())
         }
@@ -62,7 +67,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 DoctorCommand::Trend => crate::domains::doctor::trend(ctx),
                 DoctorCommand::Forecast => crate::domains::doctor::forecast(ctx),
                 DoctorCommand::Rebuild => crate::domains::doctor::rebuild(ctx),
-                DoctorCommand::Quick   => crate::domains::doctor::run_quick(ctx),
+                DoctorCommand::Quick => crate::domains::doctor::run_quick(ctx),
                 DoctorCommand::History => crate::domains::doctor::run_history(ctx),
             }
         }
@@ -130,7 +135,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Drift => crate::domains::intent::drift(ctx),
                 IntentCommand::Start { id } => crate::domains::intent::start(ctx, &id),
                 IntentCommand::Complete { id } => crate::domains::intent::complete_intent(ctx, &id),
-                IntentCommand::New { template, title, smart } => {
+                IntentCommand::New {
+                    template,
+                    title,
+                    smart,
+                } => {
                     if smart {
                         crate::domains::intent::new_intent_smart(ctx, &template, &title)
                     } else {
@@ -149,10 +158,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Velocity => crate::domains::intent::velocity(ctx),
                 IntentCommand::Branch { id } => crate::domains::intent::branch(ctx, &id),
                 IntentCommand::Edit { id } => crate::domains::intent::edit(ctx, &id),
-            IntentCommand::Health { stale } => crate::domains::intent::health(ctx, stale),
-            IntentCommand::Predict { id } => crate::domains::intent::predict_completion(ctx, &id),
-            IntentCommand::AutoLink { id } => crate::domains::intent::auto_link(ctx, &id),
-            IntentCommand::Story { id } => crate::domains::intent::story(ctx, &id),
+                IntentCommand::Health { stale } => crate::domains::intent::health(ctx, stale),
+                IntentCommand::Predict { id } => {
+                    crate::domains::intent::predict_completion(ctx, &id)
+                }
+                IntentCommand::AutoLink { id } => crate::domains::intent::auto_link(ctx, &id),
+                IntentCommand::Story { id } => crate::domains::intent::story(ctx, &id),
             }
         }
 
@@ -338,8 +349,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             WeightCommand::Top => crate::domains::weight_engine::top(ctx),
             WeightCommand::Compute => crate::domains::weight_engine::compute(ctx),
             WeightCommand::Explain { id } => crate::domains::weight_engine::explain(ctx, &id),
-            WeightCommand::Calibrate { id, outcome } =>
-                crate::domains::weight_engine::calibrate(ctx, &id, &outcome),
+            WeightCommand::Calibrate { id, outcome } => {
+                crate::domains::weight_engine::calibrate(ctx, &id, &outcome)
+            }
         },
         Command::Daemon(c) => match c {
             DaemonCommand::Status => crate::domains::daemon::status(ctx),
@@ -351,15 +363,21 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Self_(c) => match c {
             SelfCommand::Map => crate::domains::self_transform::map(ctx),
             SelfCommand::Evolve => crate::domains::self_transform::evolve(ctx),
-            SelfCommand::Apply { proposal_id, dry_run, checkpoint } =>
-                crate::domains::self_transform::apply(ctx, proposal_id, dry_run, checkpoint),
+            SelfCommand::Apply {
+                proposal_id,
+                dry_run,
+                checkpoint,
+            } => crate::domains::self_transform::apply(ctx, proposal_id, dry_run, checkpoint),
             SelfCommand::History => crate::domains::self_transform::history(ctx),
-            SelfCommand::Learn { proposal_id, outcome } =>
-                crate::domains::self_transform::learn(ctx, proposal_id, &outcome),
+            SelfCommand::Learn {
+                proposal_id,
+                outcome,
+            } => crate::domains::self_transform::learn(ctx, proposal_id, &outcome),
             SelfCommand::Accuracy => crate::domains::self_transform::accuracy(ctx),
             SelfCommand::Calibrate => crate::domains::self_transform::calibrate(ctx),
-            SelfCommand::Challenge { intent_id } =>
-                crate::domains::self_transform::challenge(ctx, &intent_id),
+            SelfCommand::Challenge { intent_id } => {
+                crate::domains::self_transform::challenge(ctx, &intent_id)
+            }
         },
         Command::Journal(c) => match c {
             JournalCommand::Today => crate::domains::journal::today(ctx),
@@ -376,14 +394,24 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         },
         Command::Values(c) => match c {
             ValuesCommand::List => crate::domains::alignment::values_list(ctx),
-            ValuesCommand::Define { statement, weight, scope } => crate::domains::alignment::values_define(ctx, &statement, weight, &scope),
+            ValuesCommand::Define {
+                statement,
+                weight,
+                scope,
+            } => crate::domains::alignment::values_define(ctx, &statement, weight, &scope),
             ValuesCommand::Remove { id } => crate::domains::alignment::values_remove(ctx, id),
-            ValuesCommand::Weight { id, weight } => crate::domains::alignment::values_weight(ctx, id, weight),
+            ValuesCommand::Weight { id, weight } => {
+                crate::domains::alignment::values_weight(ctx, id, weight)
+            }
         },
         Command::Align(c) => match c {
-            AlignCommand::Check { subject } => crate::domains::alignment::align_check(ctx, &subject),
+            AlignCommand::Check { subject } => {
+                crate::domains::alignment::align_check(ctx, &subject)
+            }
             AlignCommand::Drift => crate::domains::alignment::align_drift(ctx),
-            AlignCommand::Report { weeks_ago } => crate::domains::alignment::align_report(ctx, weeks_ago),
+            AlignCommand::Report { weeks_ago } => {
+                crate::domains::alignment::align_report(ctx, weeks_ago)
+            }
         },
         Command::Engines(c) => match c {
             EnginesCommand::Status => crate::domains::engines::status(ctx),
@@ -396,8 +424,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
         Command::Events(c) => match c {
             EventsCommand::Status => crate::domains::events::status(ctx),
             EventsCommand::Archive => crate::domains::events::archive(ctx),
-            EventsCommand::EmitV2 { type_name, payload, caused_by } => crate::domains::events::emit_v2(ctx, &type_name, &payload, caused_by),
-            EventsCommand::Replay { from_seq, to_seq } => crate::domains::events::replay(ctx, from_seq, to_seq),
+            EventsCommand::EmitV2 {
+                type_name,
+                payload,
+                caused_by,
+            } => crate::domains::events::emit_v2(ctx, &type_name, &payload, caused_by),
+            EventsCommand::Replay { from_seq, to_seq } => {
+                crate::domains::events::replay(ctx, from_seq, to_seq)
+            }
             EventsCommand::Chain { seq } => crate::domains::events::chain(ctx, seq),
             EventsCommand::StatusV2 => crate::domains::events::status_v2(ctx),
             EventsCommand::List => crate::domains::events::list(ctx),
@@ -465,29 +499,48 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         },
         Command::Delegate(cmd) => match cmd {
-            DelegateCommand::Simulate { action } => crate::domains::delegate::simulate(ctx, &action),
+            DelegateCommand::Simulate { action } => {
+                crate::domains::delegate::simulate(ctx, &action)
+            }
             DelegateCommand::Contracts => crate::domains::delegate::contracts(ctx),
             DelegateCommand::History => crate::domains::delegate::history(ctx),
             DelegateCommand::Accuracy => crate::domains::delegate::accuracy(ctx),
             DelegateCommand::Suspend => crate::domains::delegate::suspend(ctx),
             DelegateCommand::Counterfactuals => crate::domains::delegate::counterfactuals(ctx),
-            DelegateCommand::LogCounterfactual { proposed, human, matched, confidence } =>
-                crate::domains::delegate::log_counterfactual(ctx, &proposed, &human, matched, confidence),
+            DelegateCommand::LogCounterfactual {
+                proposed,
+                human,
+                matched,
+                confidence,
+            } => crate::domains::delegate::log_counterfactual(
+                ctx, &proposed, &human, matched, confidence,
+            ),
             DelegateCommand::AccuracyReport => crate::domains::delegate::accuracy_report(ctx),
-            DelegateCommand::Activate { contract } => crate::domains::delegate::activate(ctx, &contract),
+            DelegateCommand::Activate { contract } => {
+                crate::domains::delegate::activate(ctx, &contract)
+            }
         },
 
         Command::Knowledge(c) => match c {
             KnowledgeCommand::Search { term } => crate::domains::knowledge::search(ctx, &term),
-            KnowledgeCommand::Patterns { domain } => crate::domains::knowledge::patterns(ctx, domain.as_deref()),
+            KnowledgeCommand::Patterns { domain } => {
+                crate::domains::knowledge::patterns(ctx, domain.as_deref())
+            }
             KnowledgeCommand::Accuracy => crate::domains::knowledge::accuracy(ctx),
-            KnowledgeCommand::Add { domain, description, resolution } => crate::domains::knowledge::add(ctx, &domain, &description, &resolution),
+            KnowledgeCommand::Add {
+                domain,
+                description,
+                resolution,
+            } => crate::domains::knowledge::add(ctx, &domain, &description, &resolution),
             KnowledgeCommand::Seed => crate::domains::knowledge::seed_forest_lessons(ctx),
             KnowledgeCommand::Show { id } => crate::domains::knowledge::show(ctx, &id),
             KnowledgeCommand::Outcome { id, correct } => {
-                let is_correct = matches!(correct.to_lowercase().as_str(), "yes" | "true" | "y" | "1" | "correct");
+                let is_correct = matches!(
+                    correct.to_lowercase().as_str(),
+                    "yes" | "true" | "y" | "1" | "correct"
+                );
                 crate::domains::knowledge::record_outcome(ctx, &id, is_correct)
-            },
+            }
         },
         Command::FridayArch(c) => match c {
             FridayArchCommand::Run => crate::domains::friday_arch::run(ctx),
@@ -495,10 +548,14 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayArchCommand::Proposals => crate::domains::friday_arch::show_proposals(ctx),
             FridayArchCommand::Contradictions => {
                 let c = crate::domains::friday_arch::detect_contradictions(ctx)?;
-                for (a, b, d) in &c { println!("  {} ↔ {}: {}", a, b, d); }
-                if c.is_empty() { println!("  No active contradictions"); }
+                for (a, b, d) in &c {
+                    println!("  {} ↔ {}: {}", a, b, d);
+                }
+                if c.is_empty() {
+                    println!("  No active contradictions");
+                }
                 Ok(())
-            },
+            }
         },
         Command::Synthesize(c) => match c {
             SynthesizeCommand::Now => crate::domains::synthesis::cmd_now(ctx),
@@ -514,33 +571,56 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::UpdatePersonality => crate::domains::friday::update_personality(ctx),
             FridayCommand::SeedKnowledge => crate::domains::friday::seed_linux_knowledge(ctx),
             FridayCommand::LearningLoop => crate::domains::friday::learning_loop(ctx),
-            FridayCommand::NameAbstraction { name, description } => crate::domains::friday::name_abstraction(ctx, &name, &description),
+            FridayCommand::NameAbstraction { name, description } => {
+                crate::domains::friday::name_abstraction(ctx, &name, &description)
+            }
             FridayCommand::Vocabulary => crate::domains::friday::list_vocabulary(ctx),
             FridayCommand::ProposeIntent => crate::domains::friday::propose_intent(ctx),
             FridayCommand::Phase2Init => crate::domains::friday::phase2::init(ctx),
             FridayCommand::Phase2Status => crate::domains::friday::phase2::phase2_status(ctx),
             FridayCommand::Plan => crate::domains::friday::phase2::plan(ctx),
-            FridayCommand::TemporalModels => crate::domains::friday::phase2::show_temporal_models(ctx),
-            FridayCommand::DetectTemporalPatterns => crate::domains::friday::phase2::detect_temporal_patterns(ctx),
-            FridayCommand::ResolveContradictions => crate::domains::friday::phase2::resolve_contradictions(ctx),
+            FridayCommand::TemporalModels => {
+                crate::domains::friday::phase2::show_temporal_models(ctx)
+            }
+            FridayCommand::DetectTemporalPatterns => {
+                crate::domains::friday::phase2::detect_temporal_patterns(ctx)
+            }
+            FridayCommand::ResolveContradictions => {
+                crate::domains::friday::phase2::resolve_contradictions(ctx)
+            }
             FridayCommand::HealthForecast => crate::domains::friday::phase2::health_forecast(ctx),
             FridayCommand::InterruptLevel => crate::domains::friday::phase2::interrupt_level(ctx),
-            FridayCommand::CrossIntentPatterns => crate::domains::friday::phase2::cross_intent_patterns(ctx),
-            FridayCommand::Phase2StatusFull => crate::domains::friday::phase2::phase2_status_full(ctx),
+            FridayCommand::CrossIntentPatterns => {
+                crate::domains::friday::phase2::cross_intent_patterns(ctx)
+            }
+            FridayCommand::Phase2StatusFull => {
+                crate::domains::friday::phase2::phase2_status_full(ctx)
+            }
             FridayCommand::SessionStart => crate::domains::friday::planning::session_start(ctx),
             FridayCommand::SessionEnd => crate::domains::friday::planning::session_end(ctx),
             FridayCommand::Context => crate::domains::friday::planning::context(ctx),
-            FridayCommand::Infer { verbose } => crate::domains::friday::planning::infer(ctx, verbose),
-            FridayCommand::Reason { question } => crate::domains::friday::planning::reason(ctx, &question),
+            FridayCommand::Infer { verbose } => {
+                crate::domains::friday::planning::infer(ctx, verbose)
+            }
+            FridayCommand::Reason { question } => {
+                crate::domains::friday::planning::reason(ctx, &question)
+            }
             FridayCommand::Anticipate => crate::domains::friday::planning::anticipate(ctx),
             FridayCommand::Review => crate::domains::friday::planning::review(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
-            DeployCommand::Record { tool, version, outcome, duration_ms, intent: _ } =>
-                crate::domains::deploy::record(ctx, &tool, &version, &outcome, duration_ms),
+            DeployCommand::Record {
+                tool,
+                version,
+                outcome,
+                duration_ms,
+                intent: _,
+            } => crate::domains::deploy::record(ctx, &tool, &version, &outcome, duration_ms),
             DeployCommand::Log => crate::domains::deploy::log(ctx),
-            DeployCommand::Rollback { tool, dry_run } => crate::domains::deploy::rollback(ctx, tool.as_deref(), dry_run),
+            DeployCommand::Rollback { tool, dry_run } => {
+                crate::domains::deploy::rollback(ctx, tool.as_deref(), dry_run)
+            }
             DeployCommand::CheckDeps { tool } => crate::domains::deploy::check_deps(&tool),
         },
         Command::Decision(cmd) => match cmd {
@@ -626,9 +706,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             PredictCommand::Coupling => crate::domains::predict::coupling(ctx),
             PredictCommand::Churn => crate::domains::predict::churn(ctx),
             PredictCommand::Accuracy => crate::domains::predict::accuracy(ctx),
-            PredictCommand::Verify { id, correct } => crate::domains::predict::verify(ctx, &id, correct),
+            PredictCommand::Verify { id, correct } => {
+                crate::domains::predict::verify(ctx, &id, correct)
+            }
             PredictCommand::CrossSession => crate::domains::predict::cross_session(ctx),
-            PredictCommand::MemoryDecay { apply } => crate::domains::predict::memory_decay(ctx, apply),
+            PredictCommand::MemoryDecay { apply } => {
+                crate::domains::predict::memory_decay(ctx, apply)
+            }
         },
         Command::React(c) => match c {
             ReactCommand::List => crate::domains::reaction::list(ctx),
@@ -639,8 +723,12 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ReactCommand::Discipline => crate::domains::reaction::discipline(ctx),
             ReactCommand::Enable { id } => crate::domains::reaction::enable(ctx, &id),
             ReactCommand::Disable { id } => crate::domains::reaction::disable(ctx, &id),
-            ReactCommand::Add { id, description, priority, cooldown_m } =>
-                crate::domains::reaction::add(ctx, &id, &description, priority, cooldown_m),
+            ReactCommand::Add {
+                id,
+                description,
+                priority,
+                cooldown_m,
+            } => crate::domains::reaction::add(ctx, &id, &description, priority, cooldown_m),
             ReactCommand::Bounds => crate::domains::reaction::bounds(ctx),
             ReactCommand::Audit => crate::domains::reaction::audit(ctx),
             ReactCommand::Story => crate::domains::reaction::story(ctx),
@@ -660,18 +748,22 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
         },
         Command::Integrity(cmd) => match cmd {
-            IntegrityCommand::Run          => crate::domains::integrity::cmd_run(ctx),
-            IntegrityCommand::Status       => crate::domains::integrity::cmd_status(ctx),
-            IntegrityCommand::Log          => crate::domains::integrity::cmd_log(ctx),
-            IntegrityCommand::Fix          => crate::domains::integrity::cmd_fix(ctx),
+            IntegrityCommand::Run => crate::domains::integrity::cmd_run(ctx),
+            IntegrityCommand::Status => crate::domains::integrity::cmd_status(ctx),
+            IntegrityCommand::Log => crate::domains::integrity::cmd_log(ctx),
+            IntegrityCommand::Fix => crate::domains::integrity::cmd_fix(ctx),
             IntegrityCommand::Apply { id } => crate::domains::integrity::cmd_apply(ctx, &id),
             IntegrityCommand::Heal { dry_run } => crate::domains::integrity::cmd_heal(ctx, dry_run),
             IntegrityCommand::Trend => crate::domains::integrity::cmd_trend(ctx),
         },
         Command::Autonomy(cmd) => match cmd {
             AutonomyCommand::MandateList => crate::domains::autonomy::mandate_list(ctx),
-            AutonomyCommand::MandateSet { rule } => crate::domains::autonomy::mandate_set(ctx, &rule),
-            AutonomyCommand::MandateRevoke { id } => crate::domains::autonomy::mandate_revoke(ctx, &id),
+            AutonomyCommand::MandateSet { rule } => {
+                crate::domains::autonomy::mandate_set(ctx, &rule)
+            }
+            AutonomyCommand::MandateRevoke { id } => {
+                crate::domains::autonomy::mandate_revoke(ctx, &id)
+            }
             AutonomyCommand::MandateRevokeAll => crate::domains::autonomy::mandate_revoke_all(ctx),
             AutonomyCommand::Pending => crate::domains::autonomy::autonomy_pending(ctx),
             AutonomyCommand::Run => crate::domains::autonomy::autonomy_run(ctx),
@@ -693,19 +785,30 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::Now => crate::domains::strategy::now(ctx),
             StrategyCommand::Week => crate::domains::strategy::week(ctx),
             StrategyCommand::Quarter => crate::domains::strategy::quarter(ctx),
-            StrategyCommand::Sequence { goal_id } => crate::domains::strategy::sequence(ctx, &goal_id),
+            StrategyCommand::Sequence { goal_id } => {
+                crate::domains::strategy::sequence(ctx, &goal_id)
+            }
             StrategyCommand::Unblock => crate::domains::strategy::unblock(ctx),
-            StrategyCommand::Tradeoff { action } => crate::domains::strategy::tradeoff(ctx, &action),
+            StrategyCommand::Tradeoff { action } => {
+                crate::domains::strategy::tradeoff(ctx, &action)
+            }
             StrategyCommand::Conflicts => crate::domains::strategy::conflicts(ctx),
             StrategyCommand::Coherence => crate::domains::strategy::coherence(ctx),
-            StrategyCommand::Merge { goal1, goal2 } => crate::domains::strategy::merge(ctx, &goal1, &goal2),
+            StrategyCommand::Merge { goal1, goal2 } => {
+                crate::domains::strategy::merge(ctx, &goal1, &goal2)
+            }
             StrategyCommand::Jarvis => crate::domains::strategy::jarvis(ctx),
             StrategyCommand::Trust => crate::domains::strategy::trust(ctx),
             StrategyCommand::Gap => crate::domains::strategy::gap(ctx),
             StrategyCommand::History => crate::domains::strategy::history(ctx),
-            StrategyCommand::Learn { strategy_id, outcome } => crate::domains::strategy::learn(ctx, &strategy_id, &outcome),
+            StrategyCommand::Learn {
+                strategy_id,
+                outcome,
+            } => crate::domains::strategy::learn(ctx, &strategy_id, &outcome),
             StrategyCommand::Review => crate::domains::strategy::review(ctx),
-            StrategyCommand::Next { list, why } => crate::domains::strategy::next(ctx, list, why.as_deref()),
+            StrategyCommand::Next { list, why } => {
+                crate::domains::strategy::next(ctx, list, why.as_deref())
+            }
             StrategyCommand::Queue => crate::domains::strategy::queue(ctx),
             StrategyCommand::Blockers => crate::domains::strategy::blockers(ctx),
         },

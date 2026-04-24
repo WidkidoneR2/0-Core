@@ -207,7 +207,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    println!("  │  {} NixOS reproduces state.", "💡".to_string());
+    println!("  │  {} NixOS reproduces state.", "💡");
     println!(
         "  │    Faelight Forest reproduces state {} reasoning.",
         "AND".bright_green().bold()
@@ -287,14 +287,23 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let (integrity_pct, int_fixed, int_proposed, int_alerts) =
         crate::domains::integrity::quick_scan(ctx);
 
-    render_cockpit(&checks, &version, health, passed, warnings, failed, integrity_pct);
+    render_cockpit(
+        &checks,
+        &version,
+        health,
+        passed,
+        warnings,
+        failed,
+        integrity_pct,
+    );
 
     // INT-208: Log health pattern to state.db
     {
         let db = &ctx.runtime.db;
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default().as_secs() as i64;
+            .unwrap_or_default()
+            .as_secs() as i64;
         let _ = db.execute_batch(
             "CREATE TABLE IF NOT EXISTS health_patterns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -305,7 +314,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 checks_warned INTEGER NOT NULL,
                 checks_failed INTEGER NOT NULL,
                 trigger_type TEXT NOT NULL DEFAULT 'manual'
-            );"
+            );",
         );
         let _ = db.execute(
             "INSERT INTO health_patterns (timestamp, health_pct, integrity_pct, checks_passed, checks_warned, checks_failed, trigger_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -317,13 +326,25 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     if int_fixed > 0 || int_proposed > 0 || int_alerts > 0 {
         println!();
         if int_fixed > 0 {
-            println!("  {} Auto-fixed {} integrity issue(s)", "✅".green(), int_fixed);
+            println!(
+                "  {} Auto-fixed {} integrity issue(s)",
+                "✅".green(),
+                int_fixed
+            );
         }
         if int_proposed > 0 {
-            println!("  {} {} integrity proposal(s) pending — run: core integrity fix", "⚠️ ".normal(), int_proposed);
+            println!(
+                "  {} {} integrity proposal(s) pending — run: core integrity fix",
+                "⚠️ ".normal(),
+                int_proposed
+            );
         }
         if int_alerts > 0 {
-            println!("  {} {} integrity alert(s) require attention — run: core integrity run", "❌".normal(), int_alerts);
+            println!(
+                "  {} {} integrity alert(s) require attention — run: core integrity run",
+                "❌".normal(),
+                int_alerts
+            );
         }
     }
 
@@ -386,12 +407,17 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 let future_dir = std::path::PathBuf::from(&core_root).join("intents/future");
                 let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
                     .map(|entries| {
-                        entries.flatten()
+                        entries
+                            .flatten()
                             .filter_map(|e| {
                                 let p = e.path();
-                                if p.extension().map(|x| x != "md").unwrap_or(true) { return None; }
+                                if p.extension().map(|x| x != "md").unwrap_or(true) {
+                                    return None;
+                                }
                                 let content = std::fs::read_to_string(&p).ok()?;
-                                if !content.contains("status: in-progress") { return None; }
+                                if !content.contains("status: in-progress") {
+                                    return None;
+                                }
                                 let fname = p.file_stem()?.to_string_lossy().to_string();
                                 let id = fname.split('-').next()?;
                                 Some(format!("INT-{}", id))
@@ -410,7 +436,10 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 );
                 // Predictive health advisory
                 let intent_count = active_intents.len();
-                let advisory: Option<(&str, String)> = if health == 100 && trend.abs() <= 0.5 && intent_count == 0 {
+                let advisory: Option<(&str, String)> = if health == 100
+                    && trend.abs() <= 0.5
+                    && intent_count == 0
+                {
                     Some(("💚", "Forest is stable — no concerns".to_string()))
                 } else if trend < -1.0 && intent_count > 0 {
                     Some(("💡", format!(
@@ -418,7 +447,10 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                         intent_count, if intent_count == 1 { "" } else { "s" }
                     )))
                 } else if trend < -1.0 && intent_count == 0 {
-                    Some(("⚠️ ", "Declining health with no active work — investigate".to_string()))
+                    Some((
+                        "⚠️ ",
+                        "Declining health with no active work — investigate".to_string(),
+                    ))
                 } else if forecast_7d < 90 {
                     Some(("⚠️ ", format!(
                         "7-day forecast shows potential concern ({forecast_7d}%) — review active work"
@@ -457,69 +489,110 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 format!("{}%", pct).bright_red()
             };
             println!("  {}  Alignment: {}", "🧭".normal(), colored);
-    {
-        let iv: String = ctx.runtime.db.query_row(
+            {
+                let iv: String = ctx.runtime.db.query_row(
             "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_version'",
             [], |r| r.get(0)
         ).unwrap_or_else(|_| "v18".to_string());
-        let iname: String = ctx.runtime.db.query_row(
+                let iname: String = ctx.runtime.db.query_row(
             "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_name'",
             [], |r| r.get(0)
         ).unwrap_or_else(|_| "Synthesis Engine".to_string());
-        println!("  {}  Intelligence: {} {} {}", "🧠".normal(), iv.bright_cyan(), "—".dimmed(), iname.dimmed());
-    }
+                println!(
+                    "  {}  Intelligence: {} {} {}",
+                    "🧠".normal(),
+                    iv.bright_cyan(),
+                    "—".dimmed(),
+                    iname.dimmed()
+                );
+            }
         }
     }
     // INT-207 L1 — Engine coordination status inline
     {
-        let pending: i64 = ctx.runtime.db.query_row(
-            "SELECT COUNT(*) FROM engine_upgrade_log WHERE migrated = 0",
-            [], |r| r.get(0)
-        ).unwrap_or(0);
-        let degraded: i64 = ctx.runtime.db.query_row(
-            "SELECT COUNT(*) FROM engine_registry WHERE status = 'degraded'",
-            [], |r| r.get(0)
-        ).unwrap_or(0);
+        let pending: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM engine_upgrade_log WHERE migrated = 0",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let degraded: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM engine_registry WHERE status = 'degraded'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if pending > 0 || degraded > 0 {
-            println!("  {}  Engines: {} unsynced, {} degraded — run: core engines check",
-                "⚠️ ".yellow(), pending, degraded);
+            println!(
+                "  {}  Engines: {} unsynced, {} degraded — run: core engines check",
+                "⚠️ ".yellow(),
+                pending,
+                degraded
+            );
         }
     }
     // INT-217 -- Friday voice: surface brief when thresholds met
     {
-        let pats: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-        let facts: i64 = ctx.runtime.db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
+        let pats: i64 = ctx
+            .runtime
+            .db
+            .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+            .unwrap_or(0);
+        let facts: i64 = ctx
+            .runtime
+            .db
+            .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+            .unwrap_or(0);
         // Write daily journal entry (no-op if already written today)
         let _ = crate::domains::friday::write_journal_entry(ctx);
         // INT-237 -- Friday Easter Eggs: check milestones
         if let Some(celebration) = crate::domains::friday::check_milestones(ctx) {
             println!();
-            println!("  {} {}", "🌲 Friday milestone:".bright_yellow().bold(), celebration.bright_white());
+            println!(
+                "  {} {}",
+                "🌲 Friday milestone:".bright_yellow().bold(),
+                celebration.bright_white()
+            );
             println!();
         }
         match crate::domains::friday::get_voice(ctx) {
             Some((brief, confidence)) => {
-                println!("  {}  Friday: watching · {} patterns · {} facts",
-                    "🌲".to_string(),
+                println!(
+                    "  {}  Friday: watching · {} patterns · {} facts",
+                    "🌲",
                     pats.to_string().bright_cyan(),
-                    facts.to_string().bright_white());
+                    facts.to_string().bright_white()
+                );
                 println!();
-                println!("  {} Friday: {}", "🌲".to_string(), brief.bright_white().bold());
+                println!("  {} Friday: {}", "🌲", brief.bright_white().bold());
                 println!("  {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
             }
             None => {
-                let status: String = ctx.runtime.db.query_row(
-                    "SELECT status FROM engine_registry WHERE name = 'friday'",
-                    [], |r| r.get(0)
-                ).unwrap_or_else(|_| "dormant".to_string());
+                let status: String = ctx
+                    .runtime
+                    .db
+                    .query_row(
+                        "SELECT status FROM engine_registry WHERE name = 'friday'",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or_else(|_| "dormant".to_string());
                 if pats > 0 || facts > 0 {
-                    println!("  {}  Friday: {} · {} patterns · {} facts",
-                        "🌲".to_string(),
+                    println!(
+                        "  {}  Friday: {} · {} patterns · {} facts",
+                        "🌲",
                         status.dimmed(),
                         pats.to_string().bright_cyan(),
-                        facts.to_string().bright_white());
+                        facts.to_string().bright_white()
+                    );
                 } else {
-                    println!("  {}  Friday: {}", "🌲".to_string(), "dormant".dimmed());
+                    println!("  {}  Friday: {}", "🌲", "dormant".dimmed());
                 }
             }
         }
@@ -527,16 +600,23 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-216 -- Friday meta-interpretation brief
     {
         let patterns = crate::domains::friday_arch::detect_patterns(ctx).unwrap_or_default();
-        let contradictions = crate::domains::friday_arch::detect_contradictions(ctx).unwrap_or_default();
+        let contradictions =
+            crate::domains::friday_arch::detect_contradictions(ctx).unwrap_or_default();
         if !contradictions.is_empty() {
             for (a, b, desc) in contradictions.iter().take(1) {
-                println!("  🧠  ⚠ {} ↔ {}: {}",
-                    a.bright_red(), b.bright_red(),
-                    desc.chars().take(55).collect::<String>().bright_yellow());
+                println!(
+                    "  🧠  ⚠ {} ↔ {}: {}",
+                    a.bright_red(),
+                    b.bright_red(),
+                    desc.chars().take(55).collect::<String>().bright_yellow()
+                );
             }
         } else if !patterns.is_empty() {
             if let Some(p) = patterns.first() {
-                println!("  🧠  {}", p.chars().take(70).collect::<String>().bright_white());
+                println!(
+                    "  🧠  {}",
+                    p.chars().take(70).collect::<String>().bright_white()
+                );
             }
         }
     }
@@ -544,7 +624,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64).unwrap_or(0);
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         let _ = ctx.runtime.db.execute(
             "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)
              VALUES ('doctor', 'health', ?1, ?2, ?3)",
@@ -578,18 +659,23 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
              FROM forest_predictions
              WHERE kind='health' AND expires_at <= ?1
              AND id NOT IN (SELECT prediction_id FROM prediction_outcomes)"
-        ).and_then(|mut s| {
+        ).map(|mut s| {
             let rows: Vec<(i64, i64)> = s.query_map(rusqlite::params![now], |r| Ok((r.get(0)?, r.get(1)?)))
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default();
-            Ok(rows)
+            rows
         }).unwrap_or_default();
         for (pred_id, predicted_health) in prev_preds {
             let correct = (predicted_health - health as i64).abs() <= 5;
             let _ = ctx.runtime.db.execute(
                 "INSERT INTO prediction_outcomes (prediction_id, actual, correct, verified_at)
                  VALUES (?1, ?2, ?3, ?4)",
-                rusqlite::params![pred_id, format!("{}%", health), if correct { 1 } else { 0 }, now],
+                rusqlite::params![
+                    pred_id,
+                    format!("{}%", health),
+                    if correct { 1 } else { 0 },
+                    now
+                ],
             );
         }
     }
@@ -1017,15 +1103,35 @@ pub fn run_quick(ctx: &AppContext) -> CoreResult<()> {
             Status::Warn => "⚠️ ".to_string(),
             Status::Fail | Status::Blocked => "❌".to_string(),
         };
-        println!("  {}  {:<28} {}", icon, check.name.bright_white(), check.message.dimmed());
+        println!(
+            "  {}  {:<28} {}",
+            icon,
+            check.name.bright_white(),
+            check.message.dimmed()
+        );
     }
     println!();
-    let health = if failed > 0 { "CRITICAL" } else if warned > 0 { "ADVISORY" } else { "HEALTHY" };
-    let health_color = if failed > 0 { health.bright_red().to_string() }
-        else if warned > 0 { health.bright_yellow().to_string() }
-        else { health.bright_green().to_string() };
-    println!("  {} {}/{} checks  {}",
-        "⚡ Quick check:".bright_cyan(), passed, checks.len(), health_color);
+    let health = if failed > 0 {
+        "CRITICAL"
+    } else if warned > 0 {
+        "ADVISORY"
+    } else {
+        "HEALTHY"
+    };
+    let health_color = if failed > 0 {
+        health.bright_red().to_string()
+    } else if warned > 0 {
+        health.bright_yellow().to_string()
+    } else {
+        health.bright_green().to_string()
+    };
+    println!(
+        "  {} {}/{} checks  {}",
+        "⚡ Quick check:".bright_cyan(),
+        passed,
+        checks.len(),
+        health_color
+    );
     println!();
     Ok(())
 }
@@ -1033,10 +1139,12 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     use colored::*;
     // Read health history from state.db
     let mut stmt = ctx.runtime.db.prepare(
-        "SELECT score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 20"
+        "SELECT score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 20",
     )?;
-    let rows: Vec<(i64, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-        .filter_map(|r| r.ok()).collect();
+    let rows: Vec<(i64, i64)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
     println!();
     println!("  {} Doctor History", "📊".normal());
     println!("  {}", "─".repeat(48).dimmed());
@@ -1045,18 +1153,34 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
         let mut stmt2 = ctx.runtime.db.prepare(
             "SELECT health_score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 10"
         )?;
-        let rows2: Vec<(i64, i64)> = stmt2.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .filter_map(|r| r.ok()).collect();
+        let rows2: Vec<(i64, i64)> = stmt2
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
         if rows2.is_empty() {
-            println!("  {} No health history yet — run d regularly to build history", "○".dimmed());
+            println!(
+                "  {} No health history yet — run d regularly to build history",
+                "○".dimmed()
+            );
         } else {
             for (score, ts) in &rows2 {
                 let dt = chrono::DateTime::from_timestamp(*ts, 0)
                     .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
                     .unwrap_or_default();
                 let bar = "█".repeat((*score / 10) as usize);
-                let color = if *score >= 95 { bar.bright_green() } else if *score >= 80 { bar.bright_yellow() } else { bar.bright_red() };
-                println!("  {} {}%  {}", dt.dimmed(), score.to_string().bright_white(), color);
+                let color = if *score >= 95 {
+                    bar.bright_green()
+                } else if *score >= 80 {
+                    bar.bright_yellow()
+                } else {
+                    bar.bright_red()
+                };
+                println!(
+                    "  {} {}%  {}",
+                    dt.dimmed(),
+                    score.to_string().bright_white(),
+                    color
+                );
             }
         }
     } else {
@@ -1065,8 +1189,19 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
                 .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
                 .unwrap_or_default();
             let bar = "█".repeat((*score / 10) as usize);
-            let color = if *score >= 95 { bar.bright_green() } else if *score >= 80 { bar.bright_yellow() } else { bar.bright_red() };
-            println!("  {} {}%  {}", dt.dimmed(), score.to_string().bright_white(), color);
+            let color = if *score >= 95 {
+                bar.bright_green()
+            } else if *score >= 80 {
+                bar.bright_yellow()
+            } else {
+                bar.bright_red()
+            };
+            println!(
+                "  {} {}%  {}",
+                dt.dimmed(),
+                score.to_string().bright_white(),
+                color
+            );
         }
     }
     println!();

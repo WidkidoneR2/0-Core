@@ -25,17 +25,30 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
     // Read health from cache
     let health_cache = std::fs::read_to_string(
         std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status")
-    ).unwrap_or_else(|_| "100".to_string());
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "100".to_string());
     let health: i64 = health_cache.trim().parse().unwrap_or(100);
     println!();
-    println!("  {} pre-deploy check: {}", "🔍".normal(), tool.bright_cyan());
+    println!(
+        "  {} pre-deploy check: {}",
+        "🔍".normal(),
+        tool.bright_cyan()
+    );
     // Health gate
     if health < 95 {
-        println!("  {} health: {}% -- below 95% threshold", "⚠️ ".yellow(), health.to_string().bright_red());
+        println!(
+            "  {} health: {}% -- below 95% threshold",
+            "⚠️ ".yellow(),
+            health.to_string().bright_red()
+        );
         println!("  {} run d to check before deploying", "→".dimmed());
     } else {
-        println!("  {} health: {}%", "✅".normal(), health.to_string().bright_green());
+        println!(
+            "  {} health: {}%",
+            "✅".normal(),
+            health.to_string().bright_green()
+        );
     }
     // Check for uncommitted changes
     let git_status = std::process::Command::new("git")
@@ -44,7 +57,10 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
     if !git_status.is_empty() {
-        println!("  {} uncommitted changes -- commit before deploying for clean version label", "⚠️ ".yellow());
+        println!(
+            "  {} uncommitted changes -- commit before deploying for clean version label",
+            "⚠️ ".yellow()
+        );
     } else {
         println!("  {} working tree clean", "✅".normal());
     }
@@ -55,18 +71,33 @@ pub fn check(ctx: &AppContext, tool: &str) -> CoreResult<()> {
         |r: &rusqlite::Row| r.get::<_, i64>(0),
     ).unwrap_or(0);
     if recent_failures >= 2 {
-        println!("  {} {} failures in last 24h for {} -- proceed with care", "⚠️ ".yellow(), recent_failures, tool.bright_cyan());
+        println!(
+            "  {} {} failures in last 24h for {} -- proceed with care",
+            "⚠️ ".yellow(),
+            recent_failures,
+            tool.bright_cyan()
+        );
     }
     // Dependency awareness
     let deps = tool_dependencies(tool);
     if !deps.is_empty() {
-        println!("  {} downstream: {}", "→".bright_cyan(), deps.join(", ").dimmed());
+        println!(
+            "  {} downstream: {}",
+            "→".bright_cyan(),
+            deps.join(", ").dimmed()
+        );
     }
     println!();
     Ok(())
 }
 /// core deploy record <tool> <version> <outcome> <duration_ms> -- log to state.db
-pub fn record(ctx: &AppContext, tool: &str, version: &str, outcome: &str, duration_ms: i64) -> CoreResult<()> {
+pub fn record(
+    ctx: &AppContext,
+    tool: &str,
+    version: &str,
+    outcome: &str,
+    duration_ms: i64,
+) -> CoreResult<()> {
     let _intent = std::env::var("DEPLOY_INTENT").unwrap_or_default();
     let db = &ctx.runtime.db;
     db.execute_batch(CREATE_TABLE)?;
@@ -74,15 +105,21 @@ pub fn record(ctx: &AppContext, tool: &str, version: &str, outcome: &str, durati
     // Read health
     let health: i64 = std::fs::read_to_string(
         std::path::Path::new(&std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status")
-    ).unwrap_or_else(|_| "100".to_string())
-    .trim().parse().unwrap_or(100);
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "100".to_string())
+    .trim()
+    .parse()
+    .unwrap_or(100);
     // Read active intents from db
-    let active_intents: String = db.query_row(
-        "SELECT GROUP_CONCAT(id) FROM intents WHERE status = 'in-progress'",
-        [],
-        |r: &rusqlite::Row| r.get::<_, Option<String>>(0),
-    ).unwrap_or(None).unwrap_or_default();
+    let active_intents: String = db
+        .query_row(
+            "SELECT GROUP_CONCAT(id) FROM intents WHERE status = 'in-progress'",
+            [],
+            |r: &rusqlite::Row| r.get::<_, Option<String>>(0),
+        )
+        .unwrap_or(None)
+        .unwrap_or_default();
 
     // Read git hash
     let commit = std::process::Command::new("git")
@@ -98,18 +135,26 @@ pub fn record(ctx: &AppContext, tool: &str, version: &str, outcome: &str, durati
     // Emit engine signal
     let weight: f64 = match outcome {
         "success" => 1.0,
-        "failed"  => 0.3,
-        _         => 0.0,
+        "failed" => 0.3,
+        _ => 0.0,
     };
-    let payload = format!(r#"{{"tool":"{}","version":"{}","outcome":"{}","health":{}}}"#,
-        tool, version, outcome, health);
+    let payload = format!(
+        r#"{{"tool":"{}","version":"{}","outcome":"{}","health":{}}}"#,
+        tool, version, outcome, health
+    );
     let _ = db.execute(
         "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('deploy', 'deploy', ?1, ?2, ?3)",
         rusqlite::params![payload, weight, now],
     );
     let icon = if outcome == "success" { "✅" } else { "❌" };
-    println!("  {} deploy recorded: {} {} ({}) {}ms",
-        icon, tool.bright_cyan(), version.dimmed(), outcome, duration_ms);
+    println!(
+        "  {} deploy recorded: {} {} ({}) {}ms",
+        icon,
+        tool.bright_cyan(),
+        version.dimmed(),
+        outcome,
+        duration_ms
+    );
     // INT-218: on failure, Friday checks knowledge engine for known patterns
     if outcome != "success" {
         let _ = crate::domains::friday_arch::speak_on_error(ctx, &format!("build failed {}", tool));
@@ -122,7 +167,7 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
     db.execute_batch(CREATE_TABLE)?;
     let mut stmt: rusqlite::Statement = match db.prepare(
         "SELECT tool, version, outcome, duration_ms, health_before, timestamp
-         FROM deploy_patterns ORDER BY timestamp DESC LIMIT 20"
+         FROM deploy_patterns ORDER BY timestamp DESC LIMIT 20",
     ) {
         Ok(s) => s,
         Err(_) => {
@@ -131,10 +176,16 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
         }
     };
     let rows: Vec<(String, String, String, i64, i64, i64)> = stmt
-        .query_map([], |r: &rusqlite::Row| Ok((
-            r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?,
-            r.get::<_, i64>(3)?, r.get::<_, i64>(4)?, r.get::<_, i64>(5)?
-        )))
+        .query_map([], |r: &rusqlite::Row| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+            ))
+        })
         .map(|rows: rusqlite::MappedRows<_>| rows.filter_map(|x| x.ok()).collect::<Vec<_>>())
         .unwrap_or_default();
     if rows.is_empty() {
@@ -143,19 +194,28 @@ pub fn log(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
     println!("  {} Recent Deploys", "📦".normal());
-    println!("  {}", "─────────────────────────────────────────────".dimmed());
+    println!(
+        "  {}",
+        "─────────────────────────────────────────────".dimmed()
+    );
     for (tool, version, outcome, duration_ms, health, ts) in rows {
-        let icon = if outcome == "success" { "✅".to_string() } else { "❌".to_string() };
+        let icon = if outcome == "success" {
+            "✅".to_string()
+        } else {
+            "❌".to_string()
+        };
         let time = chrono::DateTime::from_timestamp(ts, 0)
             .map(|t| t.format("%m/%d %H:%M").to_string())
             .unwrap_or_default();
-        println!("  {} {:<20} {:<12} {} {}ms  health:{}%",
+        println!(
+            "  {} {:<20} {:<12} {} {}ms  health:{}%",
             icon,
             tool.bright_cyan(),
             version.dimmed(),
             time.dimmed(),
             duration_ms,
-            health);
+            health
+        );
     }
     println!();
     Ok(())
@@ -175,12 +235,14 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
     };
     let mut stmt = db.prepare(&query)?;
     let rows: Vec<(String, String, String, i64)> = stmt
-        .query_map([], |r: &rusqlite::Row| Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, i64>(3)?,
-        )))
+        .query_map([], |r: &rusqlite::Row| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
+        })
         .map(|rows| rows.filter_map(|x| x.ok()).collect::<Vec<_>>())
         .unwrap_or_default();
     if rows.len() < 2 {
@@ -191,8 +253,16 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
     let previous = &rows[1];
     println!();
     println!("  {} Rollback: {}", "🔄".normal(), current.0.bright_cyan());
-    println!("  current:  {} ({})", current.1.bright_white(), current.2.dimmed());
-    println!("  previous: {} ({})", previous.1.bright_green(), previous.2.dimmed());
+    println!(
+        "  current:  {} ({})",
+        current.1.bright_white(),
+        current.2.dimmed()
+    );
+    println!(
+        "  previous: {} ({})",
+        previous.1.bright_green(),
+        previous.2.dimmed()
+    );
     if dry_run {
         println!("  {} dry-run -- no changes made", "○".dimmed());
         return Ok(());
@@ -201,20 +271,28 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
     let core_root = &ctx.core_root;
     let bin_dir = std::path::PathBuf::from(core_root).join("bin");
     let target = format!("{}@{}", previous.0, previous.1);
-    let versioned = bin_dir.read_dir()?
+    let versioned = bin_dir
+        .read_dir()?
         .filter_map(|e| e.ok())
         .find(|e| e.file_name().to_string_lossy().starts_with(&target));
     match versioned {
         Some(entry) => {
             let scripts_path = std::path::PathBuf::from(core_root)
-                .join("scripts").join(&previous.0);
+                .join("scripts")
+                .join(&previous.0);
             std::fs::copy(entry.path(), &scripts_path)?;
-            println!("  {} rolled back {} to {}", "✅".normal(),
-                previous.0.bright_cyan(), previous.1.bright_green());
+            println!(
+                "  {} rolled back {} to {}",
+                "✅".normal(),
+                previous.0.bright_cyan(),
+                previous.1.bright_green()
+            );
         }
         None => {
-            println!("  {} binary not found in bin/ -- versioned binary may have been cleaned up",
-                "⚠️ ".yellow());
+            println!(
+                "  {} binary not found in bin/ -- versioned binary may have been cleaned up",
+                "⚠️ ".yellow()
+            );
         }
     }
     println!();
@@ -224,20 +302,35 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
 pub fn check_deps(tool: &str) -> CoreResult<()> {
     use colored::*;
     println!();
-    println!("  {} Dependency graph: {}", "🔍".normal(), tool.bright_cyan());
+    println!(
+        "  {} Dependency graph: {}",
+        "🔍".normal(),
+        tool.bright_cyan()
+    );
     println!("  {}", "─────────────────────────────────".dimmed());
     let deps = tool_dependencies(tool);
     if deps.is_empty() {
         println!("  {} No known downstream dependencies", "○".dimmed());
     } else {
-        println!("  {} Downstream (tools that depend on {}):", "→".bright_cyan(), tool);
+        println!(
+            "  {} Downstream (tools that depend on {}):",
+            "→".bright_cyan(),
+            tool
+        );
         for dep in &deps {
             println!("    {} {}", "·".dimmed(), dep.bright_white());
         }
     }
     // Reverse -- what does this tool depend on?
-    let all_tools = ["faelight-shell", "core", "faelight-git", "faelight-term",
-                     "faelight-update", "faelight-link", "faelight-daemon"];
+    let all_tools = [
+        "faelight-shell",
+        "core",
+        "faelight-git",
+        "faelight-term",
+        "faelight-update",
+        "faelight-link",
+        "faelight-daemon",
+    ];
     let mut upstream: Vec<&str> = Vec::new();
     for t in &all_tools {
         if tool_dependencies(t).contains(&tool) {
@@ -257,8 +350,8 @@ pub fn check_deps(tool: &str) -> CoreResult<()> {
 fn tool_dependencies(tool: &str) -> Vec<&'static str> {
     match tool {
         "faelight-shell" => vec!["faelight-term"],
-        "core"           => vec!["all tools using core commands"],
-        "faelight-git"   => vec!["fg alias", "cistart/cicomplete hooks"],
-        _                => vec![],
+        "core" => vec!["all tools using core commands"],
+        "faelight-git" => vec!["fg alias", "cistart/cicomplete hooks"],
+        _ => vec![],
     }
 }

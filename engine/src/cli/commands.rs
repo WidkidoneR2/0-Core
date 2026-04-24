@@ -1,12 +1,25 @@
 #[derive(Debug)]
 pub enum KnowledgeCommand {
-    Search { term: String },
-    Patterns { domain: Option<String> },
+    Search {
+        term: String,
+    },
+    Patterns {
+        domain: Option<String>,
+    },
     Accuracy,
-    Add { domain: String, description: String, resolution: String },
+    Add {
+        domain: String,
+        description: String,
+        resolution: String,
+    },
     Seed,
-    Show { id: String },
-    Outcome { id: String, correct: String },  // "yes"/"no" or "true"/"false"
+    Show {
+        id: String,
+    },
+    Outcome {
+        id: String,
+        correct: String,
+    }, // "yes"/"no" or "true"/"false"
 }
 
 #[derive(Debug)]
@@ -143,11 +156,24 @@ pub enum Command {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum DeployCommand {
-    Check { tool: String },
-    Record { tool: String, version: String, outcome: String, duration_ms: i64, intent: Option<String> },
+    Check {
+        tool: String,
+    },
+    Record {
+        tool: String,
+        version: String,
+        outcome: String,
+        duration_ms: i64,
+        intent: Option<String>,
+    },
     Log,
-    Rollback { tool: Option<String>, dry_run: bool },
-    CheckDeps { tool: String },
+    Rollback {
+        tool: Option<String>,
+        dry_run: bool,
+    },
+    CheckDeps {
+        tool: String,
+    },
 }
 #[derive(Debug)]
 pub enum DecisionCommand {
@@ -277,10 +303,18 @@ pub enum IntentCommand {
     Edit {
         id: String,
     },
-    Health { stale: bool },
-    Predict { id: String },
-    AutoLink { id: String },
-    Story { id: String },
+    Health {
+        stale: bool,
+    },
+    Predict {
+        id: String,
+    },
+    AutoLink {
+        id: String,
+    },
+    Story {
+        id: String,
+    },
 }
 #[derive(Debug)]
 pub enum ProfileCommand {
@@ -389,9 +423,18 @@ pub enum LedgerCommand {
 #[derive(Debug)]
 pub enum ValuesCommand {
     List,
-    Define { statement: String, weight: i64, scope: String },
-    Remove { id: i64 },
-    Weight { id: i64, weight: i64 },
+    Define {
+        statement: String,
+        weight: i64,
+        scope: String,
+    },
+    Remove {
+        id: i64,
+    },
+    Weight {
+        id: i64,
+        weight: i64,
+    },
 }
 
 #[derive(Debug)]
@@ -414,12 +457,21 @@ pub enum DaemonCommand {
 pub enum SelfCommand {
     Map,
     Evolve,
-    Apply { proposal_id: i64, dry_run: bool, checkpoint: bool },
+    Apply {
+        proposal_id: i64,
+        dry_run: bool,
+        checkpoint: bool,
+    },
     History,
-    Learn { proposal_id: i64, outcome: String },
+    Learn {
+        proposal_id: i64,
+        outcome: String,
+    },
     Accuracy,
     Calibrate,
-    Challenge { intent_id: String },
+    Challenge {
+        intent_id: String,
+    },
 }
 #[derive(Debug)]
 pub enum JournalCommand {
@@ -458,12 +510,25 @@ pub enum EventsCommand {
     Status,
     Archive,
     List,
-    Since { duration: String },
-    Filter { domain: String },
+    Since {
+        duration: String,
+    },
+    Filter {
+        domain: String,
+    },
     Watch,
-    EmitV2 { type_name: String, payload: String, caused_by: Option<i64> },
-    Replay { from_seq: i64, to_seq: i64 },
-    Chain { seq: i64 },
+    EmitV2 {
+        type_name: String,
+        payload: String,
+        caused_by: Option<i64>,
+    },
+    Replay {
+        from_seq: i64,
+        to_seq: i64,
+    },
+    Chain {
+        seq: i64,
+    },
     StatusV2,
 }
 
@@ -492,13 +557,23 @@ pub enum SimulateCommand {
 
 #[derive(Debug)]
 pub enum DelegateCommand {
-    Simulate { action: String },
+    Simulate {
+        action: String,
+    },
     Contracts,
     History,
     Accuracy,
     Suspend,
-    Activate { contract: String },    Counterfactuals,
-    LogCounterfactual { proposed: String, human: String, matched: bool, confidence: f64 },
+    Activate {
+        contract: String,
+    },
+    Counterfactuals,
+    LogCounterfactual {
+        proposed: String,
+        human: String,
+        matched: bool,
+        confidence: f64,
+    },
     AccuracyReport,
 }
 #[derive(Debug)]
@@ -604,11 +679,22 @@ pub enum ReactCommand {
     Rules,
     Run,
     History,
-    Explain { id: String },
+    Explain {
+        id: String,
+    },
     Discipline,
-    Enable { id: String },
-    Disable { id: String },
-    Add { id: String, description: String, priority: u8, cooldown_m: i64 },
+    Enable {
+        id: String,
+    },
+    Disable {
+        id: String,
+    },
+    Add {
+        id: String,
+        description: String,
+        priority: u8,
+        cooldown_m: i64,
+    },
     Bounds,
     Audit,
     Story,
@@ -661,19 +747,32 @@ pub enum StrategyCommand {
     Now,
     Week,
     Quarter,
-    Sequence { goal_id: String },
+    Sequence {
+        goal_id: String,
+    },
     Unblock,
-    Tradeoff { action: String },
+    Tradeoff {
+        action: String,
+    },
     Conflicts,
     Coherence,
-    Merge { goal1: String, goal2: String },
+    Merge {
+        goal1: String,
+        goal2: String,
+    },
     Jarvis,
     Trust,
     Gap,
     History,
-    Learn { strategy_id: String, outcome: String },
+    Learn {
+        strategy_id: String,
+        outcome: String,
+    },
     Review,
-    Next { list: bool, why: Option<String> },
+    Next {
+        list: bool,
+        why: Option<String>,
+    },
     Queue,
     Blockers,
 }
@@ -686,7 +785,15 @@ pub enum GenealogyCommand {
 }
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub enum IntegrityCommand { Run, Status, Log, Fix, Apply { id: String }, Heal { dry_run: bool }, Trend }
+pub enum IntegrityCommand {
+    Run,
+    Status,
+    Log,
+    Fix,
+    Apply { id: String },
+    Heal { dry_run: bool },
+    Trend,
+}
 #[derive(Debug, Clone)]
 pub enum AutonomyCommand {
     MandateList,

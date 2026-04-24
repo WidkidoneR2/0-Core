@@ -126,11 +126,14 @@ fn main() -> Result<()> {
 fn emit_signal(signal_type: &str, package: &str) -> anyhow::Result<()> {
     let db_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
         .join("0-core/runtime/state.db");
-    if !db_path.exists() { return Ok(()); }
+    if !db_path.exists() {
+        return Ok(());
+    }
     let conn = rusqlite::Connection::open(&db_path)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let payload = format!("{{\"package\":\"{}\"}}", package);
     let _ = conn.execute(
         "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at)

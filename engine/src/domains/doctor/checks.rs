@@ -631,11 +631,20 @@ pub fn check_security_audit(home: &str) -> CheckResult {
             let now = chrono::Utc::now();
             let scan_time = dt.with_timezone(&chrono::Utc);
             (now - scan_time).num_days()
-        }).unwrap_or(0);
-    let age_note = if days_since == 0 { "today".to_string() }
-        else if days_since == 1 { "1 day ago".to_string() }
-        else { format!("{} days ago", days_since) };
-    let stale_note = if days_since > 7 { " — consider rescan" } else { "" };
+        })
+        .unwrap_or(0);
+    let age_note = if days_since == 0 {
+        "today".to_string()
+    } else if days_since == 1 {
+        "1 day ago".to_string()
+    } else {
+        format!("{} days ago", days_since)
+    };
+    let stale_note = if days_since > 7 {
+        " — consider rescan"
+    } else {
+        ""
+    };
     let message = if patchable_count == 0 {
         format!(
             "{} findings — all upstream pending, none patchable (scanned {}{})",
@@ -787,8 +796,11 @@ pub fn check_tool_installation() -> CheckResult {
             for line in content.lines() {
                 let line = line.trim();
                 if line == "[[tool]]" {
-                    if !name.is_empty() && deployable && !retired
-                        && (expected_usage == "high" || expected_usage == "medium") {
+                    if !name.is_empty()
+                        && deployable
+                        && !retired
+                        && (expected_usage == "high" || expected_usage == "medium")
+                    {
                         tools.push(name.clone());
                     }
                     name.clear();
@@ -805,8 +817,11 @@ pub fn check_tool_installation() -> CheckResult {
                     retired = true;
                 }
             }
-            if !name.is_empty() && deployable && !retired
-                && (expected_usage == "high" || expected_usage == "medium") {
+            if !name.is_empty()
+                && deployable
+                && !retired
+                && (expected_usage == "high" || expected_usage == "medium")
+            {
                 tools.push(name);
             }
             tools
@@ -821,7 +836,7 @@ pub fn check_tool_installation() -> CheckResult {
                 .map(|o| o.status.success())
                 .unwrap_or(false)
         })
-        .map(|t| t.clone())
+        .cloned()
         .collect();
     if missing.is_empty() {
         CheckResult {
@@ -920,7 +935,9 @@ pub fn check_archaeology(core_root: &str) -> CheckResult {
     if let Ok(s) = std::fs::read_to_string(&tools_toml) {
         let mut in_block = false;
         for line in s.lines() {
-            if line.contains("archaeology-0-core") { in_block = true; }
+            if line.contains("archaeology-0-core") {
+                in_block = true;
+            }
             if in_block && line.trim() == "retired = true" {
                 return CheckResult {
                     id: "archaeology".into(),

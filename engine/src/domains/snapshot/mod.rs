@@ -234,10 +234,11 @@ fn render_markdown(d: &SnapshotData) -> String {
     ));
     let mut sorted = d.tools.clone();
     sorted.sort_by(|a, b| b.2.cmp(&a.2));
-    out.push_str(&format!(
-        "  │  Top performers:
+    out.push_str(
+        &"  │  Top performers:
 "
-    ));
+        .to_string(),
+    );
     for (name, ver, score) in sorted.iter().take(3) {
         out.push_str(&format!(
             "  │    {} v{}  score: {}
@@ -247,10 +248,11 @@ fn render_markdown(d: &SnapshotData) -> String {
             score.to_string().bright_green()
         ));
     }
-    out.push_str(&format!(
-        "  │  Needs attention:
+    out.push_str(
+        &"  │  Needs attention:
 "
-    ));
+        .to_string(),
+    );
     for (name, ver, score) in sorted.iter().rev().take(3) {
         if *score < 80 {
             out.push_str(&format!(
@@ -347,14 +349,16 @@ fn render_markdown(d: &SnapshotData) -> String {
 ",
         d.git_remote.bright_cyan()
     ));
-    out.push_str(&format!(
-        "  │  cargo build --release --workspace
+    out.push_str(
+        &"  │  cargo build --release --workspace
 "
-    ));
-    out.push_str(&format!(
-        "  │  Run: core bootstrap plan
+        .to_string(),
+    );
+    out.push_str(
+        &"  │  Run: core bootstrap plan
 "
-    ));
+        .to_string(),
+    );
     out.push_str(
         "  │
 ",
@@ -368,7 +372,7 @@ fn render_markdown(d: &SnapshotData) -> String {
     out.push_str(&format!(
         "  {} Run {} for machine-readable seed
 ",
-        "💡".to_string(),
+        "💡",
         "core snapshot narrative --json".bright_cyan()
     ));
 

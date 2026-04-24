@@ -8,7 +8,8 @@ use rusqlite::params;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 static CREATE_TABLES: &str = "
 CREATE TABLE IF NOT EXISTS synthesis_snapshots (
@@ -37,9 +38,13 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     // 1. Health
     let health: u32 = std::fs::read_to_string(
         std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status")
-    ).unwrap_or_else(|_| "100".into())
-    .trim().trim_end_matches('%').parse().unwrap_or(100);
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "100".into())
+    .trim()
+    .trim_end_matches('%')
+    .parse()
+    .unwrap_or(100);
     // 2. Alignment
     let alignment: f64 = db.query_row(
         "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
@@ -48,52 +53,75 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     // 3. Active intent -- read from filesystem like predict domain
     let active_intent: String = {
         let future_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/future");
-        std::fs::read_dir(&future_dir).ok()
-            .and_then(|d| d.filter_map(|e| e.ok())
-                .filter_map(|e| {
-                    let content = std::fs::read_to_string(e.path()).ok()?;
-                    if content.contains("status: in-progress") {
-                        content.lines()
-                            .find(|l| l.starts_with("title:"))?
-                            .trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                            .into()
-                    } else { None }
-                })
-                .next())
-        .unwrap_or_default()
+        std::fs::read_dir(&future_dir)
+            .ok()
+            .and_then(|d| {
+                d.filter_map(|e| e.ok())
+                    .filter_map(|e| {
+                        let content = std::fs::read_to_string(e.path()).ok()?;
+                        if content.contains("status: in-progress") {
+                            content
+                                .lines()
+                                .find(|l| l.starts_with("title:"))?
+                                .trim_start_matches("title:")
+                                .trim()
+                                .trim_matches('"')
+                                .to_string()
+                                .into()
+                        } else {
+                            None
+                        }
+                    })
+                    .next()
+            })
+            .unwrap_or_default()
     };
     // 4. Session commits today
     let today_start = now - (now % 86400);
-    let session_commits: i64 = db.query_row(
-        "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
-        params![today_start], |r| r.get(0)
-    ).unwrap_or(0);
+    let session_commits: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM commit_patterns WHERE timestamp > ?1",
+            params![today_start],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     // 5. Top pattern from Friday
     let top_pattern: String = {
         let mut s = db.prepare(
             "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 1"
         )?;
-        let x: Vec<(String, String, f64)> = s.query_map([], |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?
-        )))?.filter_map(|r| r.ok()).collect();
-        x.first().map(|(t, a, c)| format!("{} → {} ({:.0}%)", t, a, c * 100.0))
+        let x: Vec<(String, String, f64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, f64>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x.first()
+            .map(|(t, a, c)| format!("{} → {} ({:.0}%)", t, a, c * 100.0))
             .unwrap_or_default()
     };
     // 6. Top weight signal from v17
-    let top_weight: Option<(String, f64)> = db.query_row(
-        "SELECT id, final_weight FROM pattern_weights ORDER BY final_weight DESC LIMIT 1",
-        [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?))
-    ).ok();
+    let top_weight: Option<(String, f64)> = db
+        .query_row(
+            "SELECT id, final_weight FROM pattern_weights ORDER BY final_weight DESC LIMIT 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?)),
+        )
+        .ok();
     // 7. Contradiction detection
     let mut contradictions: Vec<String> = Vec::new();
     // Active intents count vs focus value
-    let active_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM intents WHERE status = 'in-progress'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let active_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM intents WHERE status = 'in-progress'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if active_count > 2 {
         contradictions.push(format!(
             "{} intents in progress -- values declare focus > speed",
@@ -109,8 +137,13 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     }
     // 8. Generate brief
     let (brief, confidence) = generate_brief(
-        health, alignment, &active_intent, session_commits,
-        &top_pattern, &top_weight, &contradictions
+        health,
+        alignment,
+        &active_intent,
+        session_commits,
+        &top_pattern,
+        &top_weight,
+        &contradictions,
     );
     // 9. Store snapshot
     let contradiction_str = contradictions.join("; ");
@@ -120,18 +153,30 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
         params![now, health, alignment, active_intent, session_commits, top_pattern, brief, confidence, contradiction_str],
     );
     // 10. Emit to forest_events_v2
-    let payload = format!(r#"{{"brief":"{}","confidence":{:.2}}}"#,
-        brief.replace('"', "'"), confidence);
+    let payload = format!(
+        r#"{{"brief":"{}","confidence":{:.2}}}"#,
+        brief.replace('"', "'"),
+        confidence
+    );
     let _ = crate::domains::events::signal::emit(
-        db, "synthesis",
+        db,
+        "synthesis",
         crate::domains::events::signal::SignalKind::Interpretation,
         "synthesis",
         &payload,
-        None, None, confidence,
+        None,
+        None,
+        confidence,
     );
     Ok(SynthesisResult {
-        health, alignment, active_intent, session_commits,
-        top_pattern, brief, confidence, contradictions,
+        health,
+        alignment,
+        active_intent,
+        session_commits,
+        top_pattern,
+        brief,
+        confidence,
+        contradictions,
     })
 }
 pub struct SynthesisResult {
@@ -145,9 +190,13 @@ pub struct SynthesisResult {
     pub contradictions: Vec<String>,
 }
 fn generate_brief(
-    health: u32, alignment: f64, active_intent: &str,
-    session_commits: i64, top_pattern: &str,
-    top_weight: &Option<(String, f64)>, contradictions: &[String]
+    health: u32,
+    alignment: f64,
+    active_intent: &str,
+    session_commits: i64,
+    top_pattern: &str,
+    top_weight: &Option<(String, f64)>,
+    contradictions: &[String],
 ) -> (String, f64) {
     let mut parts: Vec<String> = Vec::new();
     let mut confidence: f64 = 0.7;
@@ -159,18 +208,27 @@ fn generate_brief(
     // Intent context
     if !active_intent.is_empty() {
         let short_intent = active_intent.chars().take(50).collect::<String>();
-        let momentum = if session_commits >= 10 { "strong momentum" }
-            else if session_commits >= 5 { "steady progress" }
-            else { "early session" };
-        parts.push(format!("Working on: {} -- {} ({} commits today)",
-            short_intent, momentum, session_commits));
+        let momentum = if session_commits >= 10 {
+            "strong momentum"
+        } else if session_commits >= 5 {
+            "steady progress"
+        } else {
+            "early session"
+        };
+        parts.push(format!(
+            "Working on: {} -- {} ({} commits today)",
+            short_intent, momentum, session_commits
+        ));
         confidence += 0.1;
     }
     // Health and alignment
     if health == 100 && alignment >= 0.99 {
         parts.push("Forest is healthy and aligned. No concerns.".to_string());
     } else if health < 95 {
-        parts.push(format!("Health at {}% -- investigate before continuing.", health));
+        parts.push(format!(
+            "Health at {}% -- investigate before continuing.",
+            health
+        ));
         confidence -= 0.1;
     }
     // Top pattern insight
@@ -203,23 +261,51 @@ pub fn cmd_now(ctx: &AppContext) -> CoreResult<()> {
         }
         println!();
     }
-    println!("  {:<24} {}%", "Health:".dimmed(),
-        if result.health == 100 { result.health.to_string().bright_green() }
-        else { result.health.to_string().bright_yellow() });
+    println!(
+        "  {:<24} {}%",
+        "Health:".dimmed(),
+        if result.health == 100 {
+            result.health.to_string().bright_green()
+        } else {
+            result.health.to_string().bright_yellow()
+        }
+    );
     let align_str = format!("{:.0}%", result.alignment * 100.0);
-    println!("  {:<24} {}", "Alignment:".dimmed(), align_str.bright_white());
-    println!("  {:<24} {}", "Active intent:".dimmed(),
-        result.active_intent.chars().take(45).collect::<String>().bright_cyan());
-    println!("  {:<24} {} today", "Session commits:".dimmed(),
-        result.session_commits.to_string().bright_white());
+    println!(
+        "  {:<24} {}",
+        "Alignment:".dimmed(),
+        align_str.bright_white()
+    );
+    println!(
+        "  {:<24} {}",
+        "Active intent:".dimmed(),
+        result
+            .active_intent
+            .chars()
+            .take(45)
+            .collect::<String>()
+            .bright_cyan()
+    );
+    println!(
+        "  {:<24} {} today",
+        "Session commits:".dimmed(),
+        result.session_commits.to_string().bright_white()
+    );
     if !result.top_pattern.is_empty() {
-        println!("  {:<24} {}", "Top pattern:".dimmed(),
-            result.top_pattern.bright_white());
+        println!(
+            "  {:<24} {}",
+            "Top pattern:".dimmed(),
+            result.top_pattern.bright_white()
+        );
     }
     println!();
     println!("  {} Friday brief:", "💡".normal());
     println!("  {}", result.brief.bright_white().bold());
-    println!("  {} confidence: {:.0}%", "·".dimmed(), result.confidence * 100.0);
+    println!(
+        "  {} confidence: {:.0}%",
+        "·".dimmed(),
+        result.confidence * 100.0
+    );
     println!();
     Ok(())
 }
@@ -234,8 +320,12 @@ pub fn cmd_brief(ctx: &AppContext) -> CoreResult<()> {
         Some((brief, conf, ts)) => {
             let age = (now_ts() - ts) / 60;
             println!();
-            println!("  {} Friday brief ({} min ago, {:.0}% confidence)",
-                "🌲".normal(), age, conf * 100.0);
+            println!(
+                "  {} Friday brief ({} min ago, {:.0}% confidence)",
+                "🌲".normal(),
+                age,
+                conf * 100.0
+            );
             println!("  {}", "─".repeat(55).dimmed());
             println!("  {}", brief.bright_white());
             println!();
@@ -252,11 +342,21 @@ pub fn cmd_history(ctx: &AppContext) -> CoreResult<()> {
     let rows: Vec<(i64, u32, String, i64, String)> = {
         let mut s = ctx.runtime.db.prepare(
             "SELECT timestamp, health, active_intent, session_commits, friday_brief
-             FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 10"
+             FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 10",
         )?;
-        let x: Vec<(i64, u32, String, i64, String)> = s.query_map([], |r| Ok((
-            r.get(0)?, r.get(1)?, r.get::<_,String>(2)?, r.get(3)?, r.get::<_,String>(4)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(i64, u32, String, i64, String)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get(3)?,
+                    r.get::<_, String>(4)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     println!();
     println!("  {} Synthesis History", "🌲".normal());
@@ -267,12 +367,14 @@ pub fn cmd_history(ctx: &AppContext) -> CoreResult<()> {
             .unwrap_or_default();
         let short_intent = intent.chars().take(30).collect::<String>();
         let short_brief = brief.chars().take(60).collect::<String>();
-        println!("  {} {}% {} {}c  {}",
+        println!(
+            "  {} {}% {} {}c  {}",
             time.dimmed(),
             health.to_string().bright_green(),
             short_intent.bright_cyan(),
             commits.to_string().dimmed(),
-            short_brief.white());
+            short_brief.white()
+        );
     }
     println!();
     Ok(())

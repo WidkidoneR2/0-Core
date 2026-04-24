@@ -23,7 +23,10 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     let content = read_registry(ctx)?;
     println!();
     println!("  {} Tool Registry", "📋".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let mut current_name = String::new();
     let mut current_type = String::new();
@@ -34,9 +37,16 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     let mut retired_count = 0;
     let mut not_deployable = 0;
 
-    let flush = |name: &str, typ: &str, dep: bool, ret: bool,
-                 active: &mut i32, retired_c: &mut i32, not_dep: &mut i32| {
-        if name.is_empty() { return; }
+    let flush = |name: &str,
+                 typ: &str,
+                 dep: bool,
+                 ret: bool,
+                 active: &mut i32,
+                 retired_c: &mut i32,
+                 not_dep: &mut i32| {
+        if name.is_empty() {
+            return;
+        }
         let status = if ret {
             *retired_c += 1;
             "🪦".to_string()
@@ -53,8 +63,15 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     for line in content.lines() {
         let line = line.trim();
         if line == "[[tool]]" {
-            flush(&current_name, &current_type, deployable, retired,
-                  &mut active, &mut retired_count, &mut not_deployable);
+            flush(
+                &current_name,
+                &current_type,
+                deployable,
+                retired,
+                &mut active,
+                &mut retired_count,
+                &mut not_deployable,
+            );
             current_name.clear();
             current_type = "rust".to_string();
             deployable = false;
@@ -69,14 +86,23 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
             retired = true;
         }
     }
-    flush(&current_name, &current_type, deployable, retired,
-          &mut active, &mut retired_count, &mut not_deployable);
+    flush(
+        &current_name,
+        &current_type,
+        deployable,
+        retired,
+        &mut active,
+        &mut retired_count,
+        &mut not_deployable,
+    );
 
     println!();
-    println!("  {} active   {} not deployable   {} retired",
+    println!(
+        "  {} active   {} not deployable   {} retired",
         active.to_string().bright_green(),
         not_deployable.to_string().dimmed(),
-        retired_count.to_string().yellow());
+        retired_count.to_string().yellow()
+    );
     println!();
     Ok(())
 }
@@ -89,7 +115,9 @@ pub fn show(ctx: &AppContext, name: &str) -> CoreResult<()> {
 
     for line in content.lines() {
         if line.trim() == "[[tool]]" {
-            if in_block && found { break; }
+            if in_block && found {
+                break;
+            }
             in_block = true;
             block.clear();
             found = false;
@@ -135,10 +163,18 @@ pub fn retire(ctx: &AppContext, name: &str) -> CoreResult<()> {
     write_registry(ctx, &new_content)?;
 
     println!();
-    println!("  {} {} marked as retired", "🪦".normal(), name.bright_white());
+    println!(
+        "  {} {} marked as retired",
+        "🪦".normal(),
+        name.bright_white()
+    );
     println!("  {} deploy all will skip this tool", "→".dimmed());
     println!("  {} doctor path resilience will exclude it", "→".dimmed());
-    println!("  {} To restore: core registry unretire {}", "→".dimmed(), name);
+    println!(
+        "  {} To restore: core registry unretire {}",
+        "→".dimmed(),
+        name
+    );
     println!();
     Ok(())
 }
@@ -156,7 +192,11 @@ pub fn unretire(ctx: &AppContext, name: &str) -> CoreResult<()> {
     write_registry(ctx, &new_content)?;
 
     println!();
-    println!("  {} {} restored to active", "✅".normal(), name.bright_white());
+    println!(
+        "  {} {} restored to active",
+        "✅".normal(),
+        name.bright_white()
+    );
     println!("  {} deploy all will include this tool again", "→".dimmed());
     println!();
     Ok(())
@@ -191,14 +231,18 @@ pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
     // Load tools.toml
     let tools_path = std::path::PathBuf::from(&ctx.core_root).join("01-registry/tools.toml");
     let tools_str = std::fs::read_to_string(&tools_path).unwrap_or_default();
-    let tools_val: toml::Value = toml::from_str(&tools_str).unwrap_or(toml::Value::Table(toml::map::Map::new()));
+    let tools_val: toml::Value =
+        toml::from_str(&tools_str).unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let empty = vec![];
-    let tools = tools_val.get("tool").and_then(|t| t.as_array()).unwrap_or(&empty);
+    let tools = tools_val
+        .get("tool")
+        .and_then(|t| t.as_array())
+        .unwrap_or(&empty);
     // Get actual usage from forest_events (last 7 days)
     let window = chrono::Utc::now().timestamp() - 604800;
     let mut usage_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     if let Ok(mut stmt) = ctx.runtime.db.prepare(
-        "SELECT domain, COUNT(*) as cnt FROM forest_events WHERE timestamp > ?1 GROUP BY domain"
+        "SELECT domain, COUNT(*) as cnt FROM forest_events WHERE timestamp > ?1 GROUP BY domain",
     ) {
         let rows: Vec<(String, i64)> = stmt
             .query_map(rusqlite::params![window], |r| Ok((r.get(0)?, r.get(1)?)))
@@ -209,14 +253,26 @@ pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     println!();
-    println!("  {} Registry Reality Check — actual vs expected usage (7 days)", "🔍".normal());
+    println!(
+        "  {} Registry Reality Check — actual vs expected usage (7 days)",
+        "🔍".normal()
+    );
     println!("  {}", "─".repeat(60).dimmed());
-    println!("  {:<25} {:<10} {:<10} {}", "tool".dimmed(), "expected".dimmed(), "actual".dimmed(), "status".dimmed());
+    println!(
+        "  {:<25} {:<10} {:<10} {}",
+        "tool".dimmed(),
+        "expected".dimmed(),
+        "actual".dimmed(),
+        "status".dimmed()
+    );
     println!("  {}", "─".repeat(60).dimmed());
     let mut drift_count = 0;
     for tool in tools {
         let name = tool.get("name").and_then(|v| v.as_str()).unwrap_or("?");
-        let expected = tool.get("expected_usage").and_then(|v| v.as_str()).unwrap_or("low");
+        let expected = tool
+            .get("expected_usage")
+            .and_then(|v| v.as_str())
+            .unwrap_or("low");
         let actual_count = usage_map.get(name).copied().unwrap_or(0);
         let actual_label = match actual_count {
             0 => "none",
@@ -230,7 +286,8 @@ pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
             drift_count += 1;
             "⚠️ drift".to_string()
         };
-        println!("  {:<25} {:<10} {:<10} {}",
+        println!(
+            "  {:<25} {:<10} {:<10} {}",
             name,
             expected.dimmed(),
             format!("{} ({}x)", actual_label, actual_count).bright_white(),
@@ -239,7 +296,11 @@ pub fn reality_check(ctx: &AppContext) -> CoreResult<()> {
     }
     println!("  {}", "─".repeat(60).dimmed());
     if drift_count > 0 {
-        println!("  {} {} tools show usage drift vs registry expectation", "⚠️".normal(), drift_count.to_string().bright_yellow());
+        println!(
+            "  {} {} tools show usage drift vs registry expectation",
+            "⚠️".normal(),
+            drift_count.to_string().bright_yellow()
+        );
     } else {
         println!("  {} All tools within expected usage range", "✅".normal());
     }

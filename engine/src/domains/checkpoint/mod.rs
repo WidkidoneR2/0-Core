@@ -52,11 +52,11 @@ fn read_git_head() -> String {
     let output = std::process::Command::new("git")
         .args([
             "-C",
-            &dirs::home_dir()
+            dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/root"))
                 .join("0-core")
                 .to_string_lossy()
-                .to_string(),
+                .as_ref(),
             "rev-parse",
             "--short",
             "HEAD",
@@ -168,7 +168,7 @@ pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<(
     )?;
 
     let dir = checkpoints_dir();
-    fs::create_dir_all(&dir).map_err(|e| CoreError::Io(e))?;
+    fs::create_dir_all(&dir).map_err(CoreError::Io)?;
 
     println!("{}", "📸 Creating checkpoint...".bold());
     println!("  {} Collecting system state...", "→".dimmed());
@@ -190,7 +190,7 @@ pub fn create(ctx: &AppContext, name: &str, notes: Option<&str>) -> CoreResult<(
     let toml_content =
         toml::to_string_pretty(&manifest).map_err(|e| CoreError::Runtime(e.to_string()))?;
 
-    fs::write(&filepath, toml_content).map_err(|e| CoreError::Io(e))?;
+    fs::write(&filepath, toml_content).map_err(CoreError::Io)?;
 
     println!("{}", "━".repeat(50).dimmed());
     println!("  {} Checkpoint created", "✅".green());
@@ -235,7 +235,7 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
     }
 
     let mut entries: Vec<_> = fs::read_dir(&dir)
-        .map_err(|e| CoreError::Io(e))?
+        .map_err(CoreError::Io)?
         .flatten()
         .filter(|e| e.path().extension().map(|x| x == "toml").unwrap_or(false))
         .collect();
@@ -296,7 +296,7 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
 
     // Find checkpoint by name (most recent match)
     let mut entries: Vec<_> = fs::read_dir(&dir)
-        .map_err(|e| CoreError::Io(e))?
+        .map_err(CoreError::Io)?
         .flatten()
         .filter(|e| e.file_name().to_string_lossy().contains(name))
         .collect();
@@ -308,7 +308,7 @@ pub fn diff(ctx: &AppContext, name: &str) -> CoreResult<()> {
         .first()
         .ok_or_else(|| CoreError::Runtime(format!("Checkpoint '{}' not found", name)))?;
 
-    let content = fs::read_to_string(entry.path()).map_err(|e| CoreError::Io(e))?;
+    let content = fs::read_to_string(entry.path()).map_err(CoreError::Io)?;
     let manifest = toml::from_str::<CheckpointManifest>(&content)
         .map_err(|e| CoreError::Runtime(e.to_string()))?;
 
@@ -449,7 +449,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
 
     let dir = checkpoints_dir();
     let mut entries: Vec<_> = fs::read_dir(&dir)
-        .map_err(|e| CoreError::Io(e))?
+        .map_err(CoreError::Io)?
         .flatten()
         .filter(|e| e.file_name().to_string_lossy().contains(name))
         .collect();
@@ -461,7 +461,7 @@ pub fn restore(ctx: &AppContext, name: &str) -> CoreResult<()> {
         .first()
         .ok_or_else(|| CoreError::Runtime(format!("Checkpoint '{}' not found", name)))?;
 
-    let content = fs::read_to_string(entry.path()).map_err(|e| CoreError::Io(e))?;
+    let content = fs::read_to_string(entry.path()).map_err(CoreError::Io)?;
     let manifest = toml::from_str::<CheckpointManifest>(&content)
         .map_err(|e| CoreError::Runtime(e.to_string()))?;
 
@@ -602,7 +602,7 @@ pub fn last_good(ctx: &AppContext) -> CoreResult<()> {
     }
 
     let mut entries: Vec<_> = fs::read_dir(&dir)
-        .map_err(|e| CoreError::Io(e))?
+        .map_err(CoreError::Io)?
         .flatten()
         .filter(|e| e.path().extension().map(|x| x == "toml").unwrap_or(false))
         .collect();
@@ -703,7 +703,7 @@ pub fn btrfs_snapshot(ctx: &AppContext, label: &str) -> CoreResult<()> {
     let output = std::process::Command::new("sudo")
         .args(["btrfs", "subvolume", "snapshot", "/home", &snapshot_path])
         .output()
-        .map_err(|e| CoreError::Io(e))?;
+        .map_err(CoreError::Io)?;
 
     if output.status.success() {
         println!(
@@ -734,7 +734,7 @@ pub fn btrfs_snapshots(ctx: &AppContext) -> CoreResult<()> {
     let output = std::process::Command::new("sudo")
         .args(["btrfs", "subvolume", "list", "-s", "/"])
         .output()
-        .map_err(|e| CoreError::Io(e))?;
+        .map_err(CoreError::Io)?;
 
     if output.status.success() {
         let s = String::from_utf8_lossy(&output.stdout);

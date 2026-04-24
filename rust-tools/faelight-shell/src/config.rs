@@ -13,8 +13,8 @@ use colored::*;
 #[derive(Debug, Clone)]
 pub struct BeforeRunRule {
     pub condition: RuleCondition,
-    pub action:    RuleAction,
-    pub message:   String,
+    pub action: RuleAction,
+    pub message: String,
 }
 
 /// What to check before running a command
@@ -38,8 +38,8 @@ impl BeforeRunRule {
     pub fn matches(&self, raw: &str) -> bool {
         let raw_lower = raw.to_lowercase();
         match &self.condition {
-            RuleCondition::CommandEquals(s)     => raw_lower == s.to_lowercase(),
-            RuleCondition::CommandContains(s)   => raw_lower.contains(&s.to_lowercase()),
+            RuleCondition::CommandEquals(s) => raw_lower == s.to_lowercase(),
+            RuleCondition::CommandContains(s) => raw_lower.contains(&s.to_lowercase()),
             RuleCondition::CommandStartsWith(s) => raw_lower.starts_with(&s.to_lowercase()),
         }
     }
@@ -47,16 +47,16 @@ impl BeforeRunRule {
 
 #[derive(Debug)]
 pub struct ShellConfig {
-    pub aliases:      Vec<(String, String)>,
-    pub settings:     Vec<(String, String)>,
+    pub aliases: Vec<(String, String)>,
+    pub settings: Vec<(String, String)>,
     pub before_rules: Vec<BeforeRunRule>,
 }
 
 impl ShellConfig {
     pub fn empty() -> Self {
         Self {
-            aliases:      vec![],
-            settings:     vec![],
+            aliases: vec![],
+            settings: vec![],
             before_rules: vec![],
         }
     }
@@ -76,8 +76,8 @@ pub fn load() -> ShellConfig {
         Err(_) => return ShellConfig::empty(),
     };
 
-    let mut aliases      = vec![];
-    let mut settings     = vec![];
+    let mut aliases = vec![];
+    let mut settings = vec![];
     let mut before_rules = vec![];
 
     // Parse before_run { } blocks
@@ -117,29 +117,36 @@ pub fn load() -> ShellConfig {
                 if let Some(cond_type) = cond {
                     // Extract quoted condition value
                     if let Some(q1) = remainder.find('"') {
-                        if let Some(q2) = remainder[q1+1..].find('"') {
-                            let cond_val = remainder[q1+1..q1+1+q2].to_string();
-                            let after = remainder[q1+1+q2+1..].trim();
+                        if let Some(q2) = remainder[q1 + 1..].find('"') {
+                            let cond_val = remainder[q1 + 1..q1 + 1 + q2].to_string();
+                            let after = remainder[q1 + 1 + q2 + 1..].trim();
                             // Extract action and message: { block "msg" }
-                            if let Some(inner) = after.strip_prefix("{").and_then(|s| s.strip_suffix("}")) {
+                            if let Some(inner) =
+                                after.strip_prefix("{").and_then(|s| s.strip_suffix("}"))
+                            {
                                 let inner = inner.trim();
-                                let (action, msg_rest) = if let Some(r) = inner.strip_prefix("block ") {
-                                    (Some(RuleAction::Block), r)
-                                } else if let Some(r) = inner.strip_prefix("warn ") {
-                                    (Some(RuleAction::Warn), r)
-                                } else if let Some(r) = inner.strip_prefix("suggest ") {
-                                    (Some(RuleAction::Suggest), r)
-                                } else {
-                                    (None, inner)
-                                };
+                                let (action, msg_rest) =
+                                    if let Some(r) = inner.strip_prefix("block ") {
+                                        (Some(RuleAction::Block), r)
+                                    } else if let Some(r) = inner.strip_prefix("warn ") {
+                                        (Some(RuleAction::Warn), r)
+                                    } else if let Some(r) = inner.strip_prefix("suggest ") {
+                                        (Some(RuleAction::Suggest), r)
+                                    } else {
+                                        (None, inner)
+                                    };
                                 if let Some(action) = action {
                                     let message = msg_rest.trim().trim_matches('"').to_string();
                                     let condition = match cond_type {
-                                        "contains"    => RuleCondition::CommandContains(cond_val),
+                                        "contains" => RuleCondition::CommandContains(cond_val),
                                         "starts_with" => RuleCondition::CommandStartsWith(cond_val),
-                                        _             => RuleCondition::CommandEquals(cond_val),
+                                        _ => RuleCondition::CommandEquals(cond_val),
                                     };
-                                    before_rules.push(BeforeRunRule { condition, action, message });
+                                    before_rules.push(BeforeRunRule {
+                                        condition,
+                                        action,
+                                        message,
+                                    });
                                 }
                             }
                         }
@@ -155,8 +162,15 @@ pub fn load() -> ShellConfig {
                 let name = rest[..eq_pos].trim().to_string();
                 let raw_val = rest[eq_pos + 3..].trim();
                 // Strip inline comments:  value  # comment
-                let raw_val = if let Some(idx) = raw_val.find("  #") { &raw_val[..idx] } else { raw_val };
-                let val = raw_val.trim_matches('"').trim_matches("'".chars().next().unwrap()).to_string();
+                let raw_val = if let Some(idx) = raw_val.find("  #") {
+                    &raw_val[..idx]
+                } else {
+                    raw_val
+                };
+                let val = raw_val
+                    .trim_matches('"')
+                    .trim_matches("'".chars().next().unwrap())
+                    .to_string();
                 if !name.is_empty() && !val.is_empty() {
                     aliases.push((name, val));
                 }
@@ -178,7 +192,11 @@ pub fn load() -> ShellConfig {
         // Future: source, export, etc.
     }
 
-    ShellConfig { aliases, settings, before_rules }
+    ShellConfig {
+        aliases,
+        settings,
+        before_rules,
+    }
 }
 /// Validate config.fsh syntax without loading -- returns list of errors
 pub fn validate() -> Vec<String> {
@@ -191,10 +209,20 @@ pub fn validate() -> Vec<String> {
     let mut in_before_run = false;
     for (lineno, raw_line) in text.lines().enumerate() {
         let line = raw_line.trim();
-        if line.is_empty() || line.starts_with('#') { continue; }
-        if line == "before_run {" { in_before_run = true; continue; }
-        if in_before_run && line == "}" { in_before_run = false; continue; }
-        if in_before_run { continue; }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line == "before_run {" {
+            in_before_run = true;
+            continue;
+        }
+        if in_before_run && line == "}" {
+            in_before_run = false;
+            continue;
+        }
+        if in_before_run {
+            continue;
+        }
         if line.starts_with("alias ") {
             if !line.contains(" = ") {
                 errors.push(format!("  line {}: invalid alias -- missing ' = '\n    got: {}\n    fix: alias name = \"command\"", lineno+1, line));

@@ -68,10 +68,6 @@ struct Cli {
     skip: Option<Vec<String>>,
 }
 
-
-
-
-
 /// Generate post-run suggestions
 fn print_suggestions(categories: &[UpdateCategory], total: usize) {
     let mut suggestions: Vec<String> = Vec::new();
@@ -89,9 +85,14 @@ fn print_suggestions(categories: &[UpdateCategory], total: usize) {
         .output()
     {
         let count = String::from_utf8_lossy(&output.stdout)
-            .lines().filter(|l| !l.is_empty()).count();
+            .lines()
+            .filter(|l| !l.is_empty())
+            .count();
         if count > 0 {
-            suggestions.push(format!("{} orphan packages found — run: sudo pacman -Rns $(pacman -Qtdq)", count));
+            suggestions.push(format!(
+                "{} orphan packages found — run: sudo pacman -Rns $(pacman -Qtdq)",
+                count
+            ));
         }
     }
     // Check for pacnew files
@@ -100,7 +101,9 @@ fn print_suggestions(categories: &[UpdateCategory], total: usize) {
         .output()
     {
         let count = String::from_utf8_lossy(&output.stdout)
-            .lines().filter(|l| !l.is_empty()).count();
+            .lines()
+            .filter(|l| !l.is_empty())
+            .count();
         if count > 0 {
             suggestions.push(format!("Run pacdiff to resolve {} config file(s)", count));
         }
@@ -123,10 +126,7 @@ fn print_suggestions(categories: &[UpdateCategory], total: usize) {
 fn run_preflight_checks() {
     let mut warnings: Vec<String> = Vec::new();
     // Check 1: disk space
-    if let Ok(output) = std::process::Command::new("df")
-        .args(["-h", "/"])
-        .output()
-    {
+    if let Ok(output) = std::process::Command::new("df").args(["-h", "/"]).output() {
         let text = String::from_utf8_lossy(&output.stdout);
         if let Some(line) = text.lines().nth(1) {
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -134,9 +134,15 @@ fn run_preflight_checks() {
                 let pct_str = parts[4].trim_end_matches('%');
                 if let Ok(pct) = pct_str.parse::<u32>() {
                     if pct >= 90 {
-                        warnings.push(format!("Disk space critical: {}% used — clean before updating", pct));
+                        warnings.push(format!(
+                            "Disk space critical: {}% used — clean before updating",
+                            pct
+                        ));
                     } else if pct >= 80 {
-                        warnings.push(format!("Disk space: {}% used — consider cleaning first", pct));
+                        warnings.push(format!(
+                            "Disk space: {}% used — consider cleaning first",
+                            pct
+                        ));
                     }
                 }
             }
@@ -150,7 +156,10 @@ fn run_preflight_checks() {
                 if days >= 30 {
                     warnings.push(format!("Mirrorlist is {} days old — run: reflector --save /etc/pacman.d/mirrorlist", days));
                 } else if days >= 14 {
-                    warnings.push(format!("Mirrorlist is {} days old — consider refreshing with reflector", days));
+                    warnings.push(format!(
+                        "Mirrorlist is {} days old — consider refreshing with reflector",
+                        days
+                    ));
                 }
             }
         }
@@ -163,7 +172,10 @@ fn run_preflight_checks() {
         let text = String::from_utf8_lossy(&output.stdout);
         let count = text.lines().filter(|l| !l.is_empty()).count();
         if count > 0 {
-            warnings.push(format!("{} .pacnew config files pending review — run: pacdiff", count));
+            warnings.push(format!(
+                "{} .pacnew config files pending review — run: pacdiff",
+                count
+            ));
         }
     }
     // Check 4: partial upgrade risk
@@ -194,7 +206,7 @@ fn get_drift_score() -> (String, String) {
         .unwrap_or_default()
         .lines()
         .filter(|l| l.contains("starting full system upgrade") || l.contains("upgraded "))
-        .last()
+        .next_back()
         .and_then(|l| {
             // Parse date from [YYYY-MM-DDThh:mm:ss+0000]
             l.get(1..11)
@@ -226,7 +238,6 @@ fn get_drift_score() -> (String, String) {
     label
 }
 
-
 /// Log update run to state.db
 fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: i64, drift: &str) {
     let home = std::env::var("HOME").unwrap_or_default();
@@ -241,7 +252,7 @@ fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: 
                 outcome TEXT NOT NULL,
                 health_after INTEGER,
                 drift_label TEXT
-            );"
+            );",
         );
         let now = chrono::Utc::now().timestamp();
         let _ = conn.execute(
@@ -253,7 +264,11 @@ fn log_update_run(total: usize, duration_ms: u128, outcome: &str, health_after: 
             "{{\"total_updates\":{},\"outcome\":\"{}\",\"health_after\":{},\"drift\":\"{}\"}}",
             total, outcome, health_after, drift
         );
-        let weight = if outcome == "success" { health_after as f64 / 100.0 } else { 0.3 };
+        let weight = if outcome == "success" {
+            health_after as f64 / 100.0
+        } else {
+            0.3
+        };
         let _ = conn.execute(
             "INSERT INTO engine_signals (source, signal_type, payload, weight, created_at) VALUES ('faelight-update', 'update', ?1, ?2, ?3)",
             rusqlite::params![payload, weight, now],
@@ -272,7 +287,10 @@ fn run_maintenance() -> Result<()> {
         .status();
     match status {
         Ok(s) if s.success() => println!("  {} Pacman cache cleaned", "✅".green()),
-        _ => println!("  {} Pacman cache clean failed (sudo required)", "⚠️".yellow()),
+        _ => println!(
+            "  {} Pacman cache clean failed (sudo required)",
+            "⚠️".yellow()
+        ),
     }
     // 2. Remove orphan packages
     println!("  {} Checking orphan packages...", "→".bright_cyan());
@@ -288,9 +306,16 @@ fn run_maintenance() -> Result<()> {
         if pkgs.is_empty() {
             println!("  {} No orphan packages found", "✅".green());
         } else {
-            println!("  {} {} orphan packages: {}", "⚠️".yellow(), pkgs.len(),
-                pkgs.join(", ").dimmed());
-            println!("  {} Run: sudo pacman -Rns $(pacman -Qtdq)", "💡".bright_cyan());
+            println!(
+                "  {} {} orphan packages: {}",
+                "⚠️".yellow(),
+                pkgs.len(),
+                pkgs.join(", ").dimmed()
+            );
+            println!(
+                "  {} Run: sudo pacman -Rns $(pacman -Qtdq)",
+                "💡".bright_cyan()
+            );
         }
     }
     // 3. Clean cargo cache
@@ -300,10 +325,16 @@ fn run_maintenance() -> Result<()> {
         .status();
     match cargo_clean {
         Ok(s) if s.success() => println!("  {} Cargo cache cleaned", "✅".green()),
-        _ => println!("  {} Cargo cache: run cargo cache --autoclean manually", "⚠️".yellow()),
+        _ => println!(
+            "  {} Cargo cache: run cargo cache --autoclean manually",
+            "⚠️".yellow()
+        ),
     }
     // 4. Vacuum systemd journal
-    println!("  {} Vacuuming systemd journal (keep 2 weeks)...", "→".bright_cyan());
+    println!(
+        "  {} Vacuuming systemd journal (keep 2 weeks)...",
+        "→".bright_cyan()
+    );
     let journal = std::process::Command::new("sudo")
         .args(["journalctl", "--vacuum-time=2weeks"])
         .status();
@@ -318,7 +349,9 @@ fn run_maintenance() -> Result<()> {
         .output()
     {
         let count = String::from_utf8_lossy(&out.stdout)
-            .lines().filter(|l| !l.is_empty()).count();
+            .lines()
+            .filter(|l| !l.is_empty())
+            .count();
         if count == 0 {
             println!("  {} No .pacnew files found", "✅".green());
         } else {
@@ -346,20 +379,27 @@ fn print_system_identity() {
     let uptime = Command::new("uptime")
         .arg("-p")
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim()
-            .trim_start_matches("up ").to_string())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .trim_start_matches("up ")
+                .to_string()
+        })
         .unwrap_or_else(|_| "unknown".to_string());
     let wm = std::env::var("XDG_CURRENT_DESKTOP")
         .or_else(|_| std::env::var("WAYLAND_DISPLAY").map(|_| "Wayland".to_string()))
         .unwrap_or_else(|_| "unknown".to_string());
     let shell = std::env::var("SHELL")
-        .map(|s| s.split('/').last().unwrap_or("unknown").to_string())
+        .map(|s| s.split('/').next_back().unwrap_or("unknown").to_string())
         .unwrap_or_else(|_| "unknown".to_string());
     // Get health from cache
     let health = std::fs::read_to_string(
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/faelight/health-status")
-    ).unwrap_or_else(|_| "?".to_string())
-    .trim().to_string();
+        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "?".to_string())
+    .trim()
+    .to_string();
     println!("{}", "🧬 System Profile".cyan().bold());
     println!("{}", "─".repeat(40).dimmed());
     println!("  {:<12} {}", "Host:".dimmed(), hostname.bright_white());
@@ -367,10 +407,16 @@ fn print_system_identity() {
     println!("  {:<12} {}", "Shell:".dimmed(), shell.bright_white());
     println!("  {:<12} {}", "WM:".dimmed(), wm.bright_white());
     println!("  {:<12} {}", "Uptime:".dimmed(), uptime.bright_white());
-    println!("  {:<12} {}%", "Health:".dimmed(),
-        if health == "100" { health.bright_green() }
-        else if health.parse::<u32>().unwrap_or(0) >= 80 { health.bright_yellow() }
-        else { health.bright_red() }
+    println!(
+        "  {:<12} {}%",
+        "Health:".dimmed(),
+        if health == "100" {
+            health.bright_green()
+        } else if health.parse::<u32>().unwrap_or(0) >= 80 {
+            health.bright_yellow()
+        } else {
+            health.bright_red()
+        }
     );
     // Drift score
     let (last_upgrade, drift_label) = get_drift_score();
@@ -380,29 +426,44 @@ fn print_system_identity() {
         "HIGH" | "CRITICAL" => drift_label.bright_red(),
         _ => drift_label.normal(),
     };
-    println!("  {:<12} {} ({})", "Last update:".dimmed(),
-        last_upgrade.bright_white(), drift_colored);
+    println!(
+        "  {:<12} {} ({})",
+        "Last update:".dimmed(),
+        last_upgrade.bright_white(),
+        drift_colored
+    );
     println!("  {:<12} {}", "Drift:".dimmed(), drift_colored);
     // INT-207 L1 — Show active intents
     let core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
     let intents_dir = std::path::PathBuf::from(&core_root).join("intents/future");
     let active_intents: Vec<String> = std::fs::read_dir(&intents_dir)
-        .map(|d| d.filter_map(|e| e.ok())
-            .filter(|e| {
-                if let Ok(c) = std::fs::read_to_string(e.path()) {
-                    c.contains("status: in-progress") || c.contains("type: in-progress")
-                } else { false }
-            })
-            .filter_map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                let num = name.split('-').next().unwrap_or("").to_string();
-                if !num.is_empty() { Some(format!("INT-{}", num)) } else { None }
-            })
-            .collect())
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .filter(|e| {
+                    if let Ok(c) = std::fs::read_to_string(e.path()) {
+                        c.contains("status: in-progress") || c.contains("type: in-progress")
+                    } else {
+                        false
+                    }
+                })
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let num = name.split('-').next().unwrap_or("").to_string();
+                    if !num.is_empty() {
+                        Some(format!("INT-{}", num))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
         .unwrap_or_default();
     if !active_intents.is_empty() {
-        println!("  {:<12} {}", "Active:".dimmed(),
-            active_intents.join(", ").bright_cyan());
+        println!(
+            "  {:<12} {}",
+            "Active:".dimmed(),
+            active_intents.join(", ").bright_cyan()
+        );
     }
     // INT-207 L1 — Show alignment score
     let state_db = std::path::PathBuf::from(&core_root).join("runtime/state.db");
@@ -426,8 +487,11 @@ fn print_system_identity() {
     // Warn if critical update during active development
     if !active_intents.is_empty() {
         println!("{}", "─".repeat(40).dimmed());
-        println!("  {} {} intent(s) in progress — update may interrupt development",
-            "💡".normal(), active_intents.len().to_string().bright_yellow());
+        println!(
+            "  {} {} intent(s) in progress — update may interrupt development",
+            "💡".normal(),
+            active_intents.len().to_string().bright_yellow()
+        );
     } else {
         println!("{}", "─".repeat(40).dimmed());
     }
@@ -471,26 +535,32 @@ fn run() -> Result<()> {
         } else {
             for cat in &updates {
                 if cat.count > 0 {
-                    println!("  {} {} ({} available)",
+                    println!(
+                        "  {} {} ({} available)",
                         cat.emoji.yellow(),
                         cat.name.bold(),
-                        cat.count.to_string().bright_yellow());
+                        cat.count.to_string().bright_yellow()
+                    );
                     for item in &cat.items {
-                        println!("    {} {} {} → {}",
+                        println!(
+                            "    {} {} {} → {}",
                             "+".bright_green(),
                             item.name.bright_white(),
                             item.current.dimmed(),
-                            item.new.bright_green());
+                            item.new.bright_green()
+                        );
                     }
                     println!();
                 }
             }
         }
         println!("{}", "─".repeat(48).dimmed());
-        println!("  {} {} updates available  ({:.1}s)",
+        println!(
+            "  {} {} updates available  ({:.1}s)",
             "→".dimmed(),
             total.to_string().bright_yellow(),
-            total_check_ms as f64 / 1000.0);
+            total_check_ms as f64 / 1000.0
+        );
         println!("  {} Run without --preview to apply", "💡".bright_cyan());
         println!();
         return Ok(());
@@ -560,8 +630,11 @@ fn run() -> Result<()> {
 
     // Performance breakdown
     if !cli.json && !cli.count_only {
-        println!("  {} Check completed in {:.1}s", "⏱️ ".normal(),
-            total_check_ms as f64 / 1000.0);
+        println!(
+            "  {} Check completed in {:.1}s",
+            "⏱️ ".normal(),
+            total_check_ms as f64 / 1000.0
+        );
         println!();
     }
     // Show impact analysis
@@ -1061,20 +1134,37 @@ fn check_paru_updates() -> Result<UpdateCategory> {
 /// Classify update risk level by package name
 fn classify_risk(name: &str) -> &'static str {
     const CRITICAL: &[&str] = &[
-        "linux", "linux-lts", "linux-zen", "linux-hardened",
-        "systemd", "systemd-libs", "glibc", "gcc", "gcc-libs",
-        "binutils", "mesa", "vulkan-radeon", "vulkan-intel",
-        "openssl", "nss", "pacman", "filesystem",
-        "linux-firmware", "grub", "efibootmgr", "wayland",
+        "linux",
+        "linux-lts",
+        "linux-zen",
+        "linux-hardened",
+        "systemd",
+        "systemd-libs",
+        "glibc",
+        "gcc",
+        "gcc-libs",
+        "binutils",
+        "mesa",
+        "vulkan-radeon",
+        "vulkan-intel",
+        "openssl",
+        "nss",
+        "pacman",
+        "filesystem",
+        "linux-firmware",
+        "grub",
+        "efibootmgr",
+        "wayland",
     ];
     const IMPORTANT: &[&str] = &[
-        "git", "neovim", "rust", "rustup", "cargo",
-        "python", "nodejs", "npm", "openssh", "curl",
-        "wget", "bash", "niri", "sway", "ripgrep",
-        "fd", "bat", "eza", "fzf", "zoxide", "paru",
+        "git", "neovim", "rust", "rustup", "cargo", "python", "nodejs", "npm", "openssh", "curl",
+        "wget", "bash", "niri", "sway", "ripgrep", "fd", "bat", "eza", "fzf", "zoxide", "paru",
     ];
     let n = name.to_lowercase();
-    if CRITICAL.iter().any(|c| n == *c || n.starts_with(&format!("{}-", c))) {
+    if CRITICAL
+        .iter()
+        .any(|c| n == *c || n.starts_with(&format!("{}-", c)))
+    {
         "critical"
     } else if IMPORTANT.iter().any(|i| n.contains(i)) {
         "important"
@@ -1098,28 +1188,46 @@ fn show_update_summary(categories: &[UpdateCategory], verbose: bool) {
         for category in categories {
             for item in &category.items {
                 match classify_risk(&item.name) {
-                    "critical" => { critical += 1; if critical_names.len() < 3 { critical_names.push(item.name.clone()); } }
-                    "important" => { important += 1; if important_names.len() < 3 { important_names.push(item.name.clone()); } }
-                    _          => { optional += 1; }
+                    "critical" => {
+                        critical += 1;
+                        if critical_names.len() < 3 {
+                            critical_names.push(item.name.clone());
+                        }
+                    }
+                    "important" => {
+                        important += 1;
+                        if important_names.len() < 3 {
+                            important_names.push(item.name.clone());
+                        }
+                    }
+                    _ => {
+                        optional += 1;
+                    }
                 }
             }
         }
         if critical > 0 {
-            println!("  🔴 {:<10} {} ({})",
+            println!(
+                "  🔴 {:<10} {} ({})",
                 "Critical:".bright_red().bold(),
                 critical.to_string().bright_red(),
-                critical_names.join(", ").dimmed());
+                critical_names.join(", ").dimmed()
+            );
         }
         if important > 0 {
-            println!("  🟡 {:<10} {} ({})",
+            println!(
+                "  🟡 {:<10} {} ({})",
                 "Important:".bright_yellow().bold(),
                 important.to_string().bright_yellow(),
-                important_names.join(", ").dimmed());
+                important_names.join(", ").dimmed()
+            );
         }
         if optional > 0 {
-            println!("  🔵 {:<10} {}",
+            println!(
+                "  🔵 {:<10} {}",
                 "Optional:".bright_blue().bold(),
-                optional.to_string().bright_blue());
+                optional.to_string().bright_blue()
+            );
         }
         println!("{}", "─".repeat(50).dimmed());
         println!();

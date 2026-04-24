@@ -55,7 +55,7 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
                     Style::default().fg(FaelightColors::TEXT_DIM),
                 ));
                 spans.push(Span::styled(
-                    format!("{}", intent.id),
+                    intent.id.to_string(),
                     Style::default().fg(status_color).bold(),
                 ));
                 spans.push(Span::styled(

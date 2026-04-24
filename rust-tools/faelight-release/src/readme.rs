@@ -26,12 +26,20 @@ pub fn update_tool_counts(readme_path: &std::path::Path, core_root: &str) {
         for line in raw.lines() {
             let t = line.trim();
             if t == "[[tool]]" {
-                if saw_name && !in_retired { count += 1; }
-                in_retired = false; saw_name = false;
-            } else if t == "retired = true" { in_retired = true; }
-            else if t.starts_with("name =") { saw_name = true; }
+                if saw_name && !in_retired {
+                    count += 1;
+                }
+                in_retired = false;
+                saw_name = false;
+            } else if t == "retired = true" {
+                in_retired = true;
+            } else if t.starts_with("name =") {
+                saw_name = true;
+            }
         }
-        if saw_name && !in_retired { count += 1; }
+        if saw_name && !in_retired {
+            count += 1;
+        }
         count
     };
 

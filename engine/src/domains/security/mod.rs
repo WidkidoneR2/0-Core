@@ -1087,7 +1087,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
     let _is_pkg = !is_cve;
 
     if is_cve {
-        println!("  │  {} CVE reference detected", "🔍".to_string());
+        println!("  │  {} CVE reference detected", "🔍");
         println!("  │");
         println!("  │  {} Impact Analysis:", "①".bright_white().bold());
         println!("  │    Checking forest tools for affected packages...");
@@ -1096,7 +1096,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
         let lock_path = std::path::PathBuf::from(&ctx.core_root).join("Cargo.lock");
         if lock_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&lock_path) {
-                let pkg_name = patch.split('-').last().unwrap_or("unknown");
+                let pkg_name = patch.split('-').next_back().unwrap_or("unknown");
                 let matches: Vec<&str> = content
                     .lines()
                     .filter(|l| {
@@ -1113,11 +1113,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
             }
         }
     } else {
-        println!(
-            "  │  {} Package/patch: {}",
-            "📦".to_string(),
-            patch.bright_white()
-        );
+        println!("  │  {} Package/patch: {}", "📦", patch.bright_white());
         println!("  │");
         println!("  │  {} Risk Assessment:", "①".bright_white().bold());
 

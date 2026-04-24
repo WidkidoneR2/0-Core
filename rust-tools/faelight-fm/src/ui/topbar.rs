@@ -14,8 +14,9 @@ pub fn render(area: Rect, buf: &mut Buffer, app: &AppState) {
     // v3 — read real health and active intent from cache
     let health_str = std::fs::read_to_string(
         std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join(".cache/faelight/health-status")
-    ).unwrap_or_else(|_| "?".to_string());
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "?".to_string());
     let health_str = health_str.trim();
     let health_color = match health_str.parse::<u32>().unwrap_or(0) {
         100 => FaelightColors::ACCENT_GREEN,

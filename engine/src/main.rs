@@ -13,7 +13,9 @@ mod runtime;
 
 fn main() {
     // INT-233: Ignore SIGPIPE -- prevents broken pipe panic when piped to head/grep/etc
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let cmd = cli::parse();
 
     let ctx = match app::context::AppContext::init() {
@@ -32,15 +34,12 @@ fn main() {
 
     // Emit forest event for contextd to observe
     let cmd_name = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
-    let domain = std::env::args().nth(1).unwrap_or_else(|| "unknown".to_string());
+    let domain = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "unknown".to_string());
     match app::dispatcher::dispatch(cmd, &ctx) {
         Ok(()) => {
-            runtime::emit_forest_event(
-                &ctx.runtime.db,
-                "CommandSucceeded",
-                &domain,
-                &cmd_name,
-            );
+            runtime::emit_forest_event(&ctx.runtime.db, "CommandSucceeded", &domain, &cmd_name);
         }
         Err(e) => {
             runtime::emit_forest_event(

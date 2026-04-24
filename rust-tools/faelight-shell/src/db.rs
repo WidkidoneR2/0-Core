@@ -157,11 +157,10 @@ impl ForestDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.conn
-            .execute(
-                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-                rusqlite::params![command, ts],
-            )?;
+        self.conn.execute(
+            "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+            rusqlite::params![command, ts],
+        )?;
         Ok(())
     }
 
@@ -264,18 +263,18 @@ impl ForestDb {
     }
 
     pub fn get_theme(&self) -> String {
-        self.conn.query_row(
-            "SELECT value FROM shell_state WHERE key='prompt_theme'",
-            [],
-            |r| r.get(0),
-        ).unwrap_or_else(|_| "forest".to_string())
+        self.conn
+            .query_row(
+                "SELECT value FROM shell_state WHERE key='prompt_theme'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or_else(|_| "forest".to_string())
     }
 
     pub fn clear_focus_intent(&self) -> rusqlite::Result<()> {
-        self.conn.execute(
-            "DELETE FROM shell_state WHERE key='focus_intent'",
-            [],
-        )?;
+        self.conn
+            .execute("DELETE FROM shell_state WHERE key='focus_intent'", [])?;
         Ok(())
     }
 

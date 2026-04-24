@@ -165,9 +165,9 @@ pub fn apply_pipeline(value: Value, ops: &[PipeOp]) -> Value {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ProcessRow {
-    pub pid:    u32,
-    pub name:   String,
-    pub cpu:    f32,
+    pub pid: u32,
+    pub name: String,
+    pub cpu: f32,
     pub memory: f32,
     pub status: String,
 }
@@ -176,9 +176,9 @@ pub struct ProcessRow {
 impl ProcessRow {
     pub fn to_row(&self) -> HashMap<String, Value> {
         let mut m = HashMap::new();
-        m.insert("pid".into(),    Value::Int(self.pid as i64));
-        m.insert("name".into(),   Value::Text(self.name.clone()));
-        m.insert("cpu".into(),    Value::Float(self.cpu as f64));
+        m.insert("pid".into(), Value::Int(self.pid as i64));
+        m.insert("name".into(), Value::Text(self.name.clone()));
+        m.insert("cpu".into(), Value::Float(self.cpu as f64));
         m.insert("memory".into(), Value::Float(self.memory as f64));
         m.insert("status".into(), Value::Text(self.status.clone()));
         m
@@ -192,22 +192,22 @@ impl ProcessRow {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CommitRow {
-    pub hash:    String,
+    pub hash: String,
     pub message: String,
-    pub author:  String,
-    pub date:    String,
-    pub domain:  String,
+    pub author: String,
+    pub date: String,
+    pub domain: String,
 }
 
 #[allow(dead_code)]
 impl CommitRow {
     pub fn to_row(&self) -> HashMap<String, Value> {
         let mut m = HashMap::new();
-        m.insert("hash".into(),    Value::Text(self.hash.clone()));
+        m.insert("hash".into(), Value::Text(self.hash.clone()));
         m.insert("message".into(), Value::Text(self.message.clone()));
-        m.insert("author".into(),  Value::Text(self.author.clone()));
-        m.insert("date".into(),    Value::Text(self.date.clone()));
-        m.insert("domain".into(),  Value::Text(self.domain.clone()));
+        m.insert("author".into(), Value::Text(self.author.clone()));
+        m.insert("date".into(), Value::Text(self.date.clone()));
+        m.insert("domain".into(), Value::Text(self.domain.clone()));
         m
     }
     pub fn columns() -> &'static [&'static str] {
@@ -219,8 +219,8 @@ impl CommitRow {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct HealthRow {
-    pub check:   String,
-    pub status:  String,
+    pub check: String,
+    pub status: String,
     pub message: String,
 }
 
@@ -228,8 +228,8 @@ pub struct HealthRow {
 impl HealthRow {
     pub fn to_row(&self) -> HashMap<String, Value> {
         let mut m = HashMap::new();
-        m.insert("check".into(),   Value::Text(self.check.clone()));
-        m.insert("status".into(),  Value::Text(self.status.clone()));
+        m.insert("check".into(), Value::Text(self.check.clone()));
+        m.insert("status".into(), Value::Text(self.status.clone()));
         m.insert("message".into(), Value::Text(self.message.clone()));
         m
     }
@@ -274,9 +274,15 @@ pub enum PipeOp {
         field: String,
     },
     // Phase 3 — INT-162 pipeline operators
-    Map { expr: String },
-    Reduce { expr: String },
-    Unique { field: String },
+    Map {
+        expr: String,
+    },
+    Reduce {
+        expr: String,
+    },
+    Unique {
+        field: String,
+    },
     Flatten,
     ToText,
 }
@@ -422,25 +428,39 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
         // Phase 3 — map: transform each row's field with a simple expression
         (Value::Table(rows), PipeOp::Map { expr }) => {
             let parts: Vec<&str> = expr.splitn(3, ' ').collect();
-            let mapped: Vec<_> = rows.into_iter().map(|mut row| {
-                // Supported: "field * 2", "field + N", "field - N"
-                if parts.len() == 3 {
-                    let field = parts[0];
-                    let op    = parts[1];
-                    let rhs: f64 = parts[2].parse().unwrap_or(0.0);
-                    if let Some(val) = row.get(field).and_then(|v| match v { Value::Float(f) => Some(*f), Value::Int(i) => Some(*i as f64), Value::Text(s) => s.parse::<f64>().ok(), _ => None }) {
-                        let result = match op {
-                            "*" => val * rhs,
-                            "+" => val + rhs,
-                            "-" => val - rhs,
-                            "/" => if rhs != 0.0 { val / rhs } else { val },
-                            _   => val,
-                        };
-                        row.insert(field.to_string(), Value::Float(result));
+            let mapped: Vec<_> = rows
+                .into_iter()
+                .map(|mut row| {
+                    // Supported: "field * 2", "field + N", "field - N"
+                    if parts.len() == 3 {
+                        let field = parts[0];
+                        let op = parts[1];
+                        let rhs: f64 = parts[2].parse().unwrap_or(0.0);
+                        if let Some(val) = row.get(field).and_then(|v| match v {
+                            Value::Float(f) => Some(*f),
+                            Value::Int(i) => Some(*i as f64),
+                            Value::Text(s) => s.parse::<f64>().ok(),
+                            _ => None,
+                        }) {
+                            let result = match op {
+                                "*" => val * rhs,
+                                "+" => val + rhs,
+                                "-" => val - rhs,
+                                "/" => {
+                                    if rhs != 0.0 {
+                                        val / rhs
+                                    } else {
+                                        val
+                                    }
+                                }
+                                _ => val,
+                            };
+                            row.insert(field.to_string(), Value::Float(result));
+                        }
                     }
-                }
-                row
-            }).collect();
+                    row
+                })
+                .collect();
             Value::Table(mapped)
         }
         // Phase 3 — reduce: aggregate a numeric field to a single value
@@ -451,26 +471,37 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             } else {
                 return Value::Nothing;
             };
-            let nums: Vec<f64> = rows.iter()
-                .filter_map(|r| match r.get(field)? { Value::Float(f) => Some(*f), Value::Int(i) => Some(*i as f64), Value::Text(s) => s.parse::<f64>().ok(), _ => None })
+            let nums: Vec<f64> = rows
+                .iter()
+                .filter_map(|r| match r.get(field)? {
+                    Value::Float(f) => Some(*f),
+                    Value::Int(i) => Some(*i as f64),
+                    Value::Text(s) => s.parse::<f64>().ok(),
+                    _ => None,
+                })
                 .collect();
-            if nums.is_empty() { return Value::Nothing; }
+            if nums.is_empty() {
+                return Value::Nothing;
+            }
             let result = match agg {
-                "sum"  => nums.iter().sum(),
-                "avg"  => nums.iter().sum::<f64>() / nums.len() as f64,
-                "min"  => nums.iter().cloned().fold(f64::INFINITY, f64::min),
-                "max"  => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-                _      => return Value::Nothing,
+                "sum" => nums.iter().sum(),
+                "avg" => nums.iter().sum::<f64>() / nums.len() as f64,
+                "min" => nums.iter().cloned().fold(f64::INFINITY, f64::min),
+                "max" => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+                _ => return Value::Nothing,
             };
             Value::Float(result)
         }
         // Phase 3 — unique: deduplicate rows by field value
         (Value::Table(rows), PipeOp::Unique { field }) => {
             let mut seen = std::collections::HashSet::new();
-            let unique: Vec<_> = rows.into_iter().filter(|row| {
-                let key = row.get(field).map(|v| v.as_text()).unwrap_or_default();
-                seen.insert(key)
-            }).collect();
+            let unique: Vec<_> = rows
+                .into_iter()
+                .filter(|row| {
+                    let key = row.get(field).map(|v| v.as_text()).unwrap_or_default();
+                    seen.insert(key)
+                })
+                .collect();
             Value::Table(unique)
         }
         // Phase 3 — flatten: expand Table-of-Tables into a single Table
@@ -485,17 +516,22 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
                         break;
                     }
                 }
-                if !is_nested { flat.push(row); }
+                if !is_nested {
+                    flat.push(row);
+                }
             }
             Value::Table(flat)
         }
         // Phase 3 — to-text: serialize Table to plain text (external boundary)
         (Value::Table(rows), PipeOp::ToText) => {
-            if rows.is_empty() { return Value::Text(String::new()); }
+            if rows.is_empty() {
+                return Value::Text(String::new());
+            }
             let headers: Vec<String> = rows[0].keys().cloned().collect();
             let mut lines = vec![headers.join("\t")];
             for row in &rows {
-                let line: Vec<String> = headers.iter()
+                let line: Vec<String> = headers
+                    .iter()
                     .map(|h| row.get(h).map(|v| v.as_text()).unwrap_or_default())
                     .collect();
                 lines.push(line.join("\t"));

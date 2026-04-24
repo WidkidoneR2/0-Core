@@ -131,23 +131,26 @@ pub fn render_cockpit(
     println!();
     println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!(
-        "  {} {}   {} {}   {} {}   {} {}",
+        "  {} {}   ⚠️  {}   ❌ {}   📊 {}",
         "✅".green(),
         format!("Passed:  {}", passed).bright_white(),
-        "⚠️ ",
         format!("Warnings: {}", warnings).yellow(),
-        "❌",
         format!("Failed: {}", failed).bright_red(),
-        "📊",
         format!("Health: {}%", health).bright_white().bold(),
     );
     // Integrity score
     let int_str = if integrity_pct >= 95 {
-        format!("Integrity: {}%", integrity_pct).bright_green().to_string()
+        format!("Integrity: {}%", integrity_pct)
+            .bright_green()
+            .to_string()
     } else if integrity_pct >= 75 {
-        format!("Integrity: {}%", integrity_pct).yellow().to_string()
+        format!("Integrity: {}%", integrity_pct)
+            .yellow()
+            .to_string()
     } else {
-        format!("Integrity: {}%", integrity_pct).bright_red().to_string()
+        format!("Integrity: {}%", integrity_pct)
+            .bright_red()
+            .to_string()
     };
     println!("  {} {}", "🔍".normal(), int_str);
 }

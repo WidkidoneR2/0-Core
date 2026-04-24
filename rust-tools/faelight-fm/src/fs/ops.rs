@@ -21,7 +21,8 @@ fn log_fm_event(action: &str, path: &str) {
     if let Ok(conn) = rusqlite::Connection::open(&db_path) {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64).unwrap_or(0);
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         let payload = format!("action={} path={}", action, path);
         let _ = conn.execute(
             "INSERT INTO events (domain, action, payload, timestamp) VALUES ('fm', ?1, ?2, ?3)",
