@@ -350,7 +350,7 @@ fn install_dependencies() {
         "base-devel",
         "rustup",
         // Sway desktop
-                                        // Wayland tools
+        // Wayland tools
         "wl-clipboard",
         "grim",
         "slurp",

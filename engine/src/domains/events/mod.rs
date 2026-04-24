@@ -102,7 +102,12 @@ fn query_events(
 }
 
 /// core events emit <type> <payload> [--caused-by SEQ] -- validated signal emission to v2
-pub fn emit_v2(ctx: &AppContext, type_name: &str, payload: &str, caused_by: Option<i64>) -> CoreResult<()> {
+pub fn emit_v2(
+    ctx: &AppContext,
+    type_name: &str,
+    payload: &str,
+    caused_by: Option<i64>,
+) -> CoreResult<()> {
     if let Err(e) = signal::emit(
         &ctx.runtime.db,
         "core",
@@ -116,41 +121,70 @@ pub fn emit_v2(ctx: &AppContext, type_name: &str, payload: &str, caused_by: Opti
         println!("  {} emit failed: {}", "✗".bright_red(), e);
         return Ok(());
     }
-    println!("  {} signal emitted: {} ({})", "✅".green(), type_name.bright_cyan(), payload.dimmed());
+    println!(
+        "  {} signal emitted: {} ({})",
+        "✅".green(),
+        type_name.bright_cyan(),
+        payload.dimmed()
+    );
     Ok(())
 }
 /// core events replay --from SEQ --to SEQ -- show event sequence range
 pub fn replay(ctx: &AppContext, from_seq: i64, to_seq: i64) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(signal::CREATE_TABLE)?;
     println!();
-    println!("  {} Event Replay: seq {} → {}", "🔄".normal(), from_seq, to_seq);
+    println!(
+        "  {} Event Replay: seq {} → {}",
+        "🔄".normal(),
+        from_seq,
+        to_seq
+    );
     println!("  {}", "─".repeat(60).dimmed());
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT seq, timestamp, source, kind, type_name, payload, caused_by, confidence
          FROM forest_events_v2
          WHERE seq >= ?1 AND seq <= ?2
-         ORDER BY seq ASC"
+         ORDER BY seq ASC",
     )?;
     let rows: Vec<(i64, i64, String, String, String, String, Option<i64>, f64)> = stmt
-        .query_map(params![from_seq, to_seq], |r| Ok((
-            r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,
-            r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?
-        )))?.filter_map(|r| r.ok()).collect();
+        .query_map(params![from_seq, to_seq], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     if rows.is_empty() {
-        println!("  {} No events in range {} → {}", "○".dimmed(), from_seq, to_seq);
+        println!(
+            "  {} No events in range {} → {}",
+            "○".dimmed(),
+            from_seq,
+            to_seq
+        );
     }
     for (seq, ts, source, _kind, type_name, payload, caused_by, conf) in &rows {
         let time = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|t| t.format("%H:%M:%S").to_string())
             .unwrap_or_default();
-        let causal = caused_by.map(|c| format!(" ← seq{}", c)).unwrap_or_default();
-        println!("  #{:<6} {} {:<12} {:<20} {:.2}{}",
+        let causal = caused_by
+            .map(|c| format!(" ← seq{}", c))
+            .unwrap_or_default();
+        println!(
+            "  #{:<6} {} {:<12} {:<20} {:.2}{}",
             seq.to_string().bright_cyan(),
             time.dimmed(),
             source.bright_white(),
             type_name.bright_green(),
             conf,
-            causal.dimmed());
+            causal.dimmed()
+        );
         if payload.len() > 2 && payload != "{}" {
             println!("         {}", payload.dimmed());
         }
@@ -163,17 +197,23 @@ pub fn chain(ctx: &AppContext, seq: i64) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(signal::CREATE_TABLE)?;
     let chain = signal::causality_chain(&ctx.runtime.db, seq);
     println!();
-    println!("  {} Causality chain for seq #{}", "🔗".normal(), seq.to_string().bright_cyan());
+    println!(
+        "  {} Causality chain for seq #{}",
+        "🔗".normal(),
+        seq.to_string().bright_cyan()
+    );
     println!("  {}", "─".repeat(50).dimmed());
     if chain.is_empty() {
         println!("  {} No events found at seq {}", "○".dimmed(), seq);
     }
     for (s, t, p, arrow) in &chain {
-        println!("  {} #{:<6} {} {}",
+        println!(
+            "  {} #{:<6} {} {}",
             arrow.bright_cyan(),
             s.to_string().bright_white(),
             t.bright_green(),
-            p.dimmed());
+            p.dimmed()
+        );
     }
     println!();
     Ok(())
@@ -181,31 +221,65 @@ pub fn chain(ctx: &AppContext, seq: i64) -> CoreResult<()> {
 /// core events status -- show forest_events_v2 health and counts
 pub fn status_v2(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(signal::CREATE_TABLE)?;
-    let total: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_events_v2", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM forest_events_v2", [], |r| r.get(0))
+        .unwrap_or(0);
     let by_kind: Vec<(String, i64)> = {
         let mut s = ctx.runtime.db.prepare(
             "SELECT type_name, COUNT(*) FROM forest_events_v2 GROUP BY type_name ORDER BY COUNT(*) DESC LIMIT 10"
         )?;
-        let x: Vec<(String, i64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
-            ?.filter_map(|r| r.ok()).collect();
+        let x: Vec<(String, i64)> = s
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
         x
     };
-    let max_seq: i64 = ctx.runtime.db.query_row(
-        "SELECT COALESCE(MAX(seq), 0) FROM forest_events_v2", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let with_causality: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_events_v2 WHERE caused_by IS NOT NULL", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let max_seq: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COALESCE(MAX(seq), 0) FROM forest_events_v2",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let with_causality: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM forest_events_v2 WHERE caused_by IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     println!();
-    println!("  {} forest_events_v2 -- Canonical Signal Log", "📡".normal());
+    println!(
+        "  {} forest_events_v2 -- Canonical Signal Log",
+        "📡".normal()
+    );
     println!("  {}", "─".repeat(50).dimmed());
-    println!("  {:<25} {}", "Total signals:".dimmed(), total.to_string().bright_white());
-    println!("  {:<25} {}", "Max sequence:".dimmed(), max_seq.to_string().bright_cyan());
-    println!("  {:<25} {} ({:.0}%)", "With causality:".dimmed(),
+    println!(
+        "  {:<25} {}",
+        "Total signals:".dimmed(),
+        total.to_string().bright_white()
+    );
+    println!(
+        "  {:<25} {}",
+        "Max sequence:".dimmed(),
+        max_seq.to_string().bright_cyan()
+    );
+    println!(
+        "  {:<25} {} ({:.0}%)",
+        "With causality:".dimmed(),
         with_causality.to_string().bright_green(),
-        if total > 0 { with_causality as f64 / total as f64 * 100.0 } else { 0.0 });
+        if total > 0 {
+            with_causality as f64 / total as f64 * 100.0
+        } else {
+            0.0
+        }
+    );
     if !by_kind.is_empty() {
         println!();
         println!("  {} Signal types:", "→".dimmed());
@@ -1696,8 +1770,7 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     let latest_cp = std::fs::read_dir(&cp_dir).ok().and_then(|d| {
         d.filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
-            .map(|e| e.metadata().and_then(|m| m.modified()).ok())
-            .flatten()
+            .filter_map(|e| e.metadata().and_then(|m| m.modified()).ok())
             .max()
     });
 
@@ -2016,10 +2089,7 @@ pub fn why_focus(ctx: &AppContext) -> CoreResult<()> {
 
     println!();
     println!("  {}", "Daily focus quality:".dimmed());
-    println!(
-        "  {:8}  {:6}  {:7}  {}",
-        "Date", "Focus", "Switch", "Quality"
-    );
+    println!("  {:8}  {:6}  {:7}  Quality", "Date", "Focus", "Switch");
     println!("  {}", "─".repeat(35).dimmed());
 
     for day in daily_focuses.keys() {

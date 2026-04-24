@@ -679,5 +679,39 @@ impl Highlighter for ForestHelper {
     }
 }
 
-impl Validator for ForestHelper {}
+impl Validator for ForestHelper {
+    fn validate(
+        &self,
+        ctx: &mut rustyline::validate::ValidationContext,
+    ) -> rustyline::Result<rustyline::validate::ValidationResult> {
+        let input = ctx.input();
+
+        // Check for heredoc patterns
+        if input.contains("<<") {
+            // Look for unquoted heredoc delimiter (risky)
+            if let Some(heredoc_start) = input.find("<<") {
+                let after_heredoc = &input[heredoc_start + 2..].trim_start();
+
+                // Check if delimiter is unquoted (no quotes around it)
+                if !after_heredoc.is_empty()
+                    && !after_heredoc.starts_with('\'')
+                    && !after_heredoc.starts_with('"')
+                {
+                    // Extract delimiter (first word)
+                    let delimiter = after_heredoc.split_whitespace().next().unwrap_or("");
+
+                    // Warn about common contamination patterns
+                    if !delimiter.is_empty() && (delimiter.contains("EOF") || delimiter.len() < 10)
+                    {
+                        return Ok(rustyline::validate::ValidationResult::Invalid(
+                            Some(format!("Unquoted heredoc delimiter '{}' - use << '{}' to prevent command substitution", delimiter, delimiter))
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(rustyline::validate::ValidationResult::Valid(None))
+    }
+}
 impl Helper for ForestHelper {}

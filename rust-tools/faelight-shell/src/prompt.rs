@@ -191,8 +191,11 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
                     .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
                     .filter_map(|e| {
                         let content = std::fs::read_to_string(e.path()).ok()?;
-                        if !content.contains("status: in-progress") { return None; }
-                        let id = e.file_name()
+                        if !content.contains("status: in-progress") {
+                            return None;
+                        }
+                        let id = e
+                            .file_name()
                             .to_string_lossy()
                             .split('-')
                             .next()
@@ -207,13 +210,16 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 
         // Read health trend
         let trend_hint = {
-            let cache = std::fs::read_to_string(
-                format!("{}/.cache/faelight/health-status", home)
-            ).unwrap_or_else(|_| "100".to_string());
+            let cache = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
+                .unwrap_or_else(|_| "100".to_string());
             let h: u32 = cache.trim().parse().unwrap_or(100);
-            if h >= 100 { "peak".bright_green().to_string() }
-            else if h >= 95 { "stable".dimmed().to_string() }
-            else { "advisory".yellow().to_string() }
+            if h >= 100 {
+                "peak".bright_green().to_string()
+            } else if h >= 95 {
+                "stable".dimmed().to_string()
+            } else {
+                "advisory".yellow().to_string()
+            }
         };
 
         let jarvis_hint = match next_intent {
@@ -239,8 +245,8 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
 pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
     let theme = db.get_theme();
     // Read exit status from cache file -- written after every command
-    let cache_file = std::env::var("HOME").unwrap_or_default()
-        + "/.cache/faelight/last-exit-status";
+    let cache_file =
+        std::env::var("HOME").unwrap_or_default() + "/.cache/faelight/last-exit-status";
     let last_status = std::fs::read_to_string(&cache_file).unwrap_or_default();
     let last_status = last_status.trim();
     let caret = if last_status == "failure" {
@@ -252,11 +258,16 @@ pub fn render_line(db: &ForestDb, _last_exit: Option<i32>) -> String {
         "minimal" => format!("  {} ", caret),
         "classic" => {
             let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
-            let host = std::fs::read_to_string("/etc/hostname")
-                .unwrap_or_else(|_| "host".to_string());
+            let host =
+                std::fs::read_to_string("/etc/hostname").unwrap_or_else(|_| "host".to_string());
             let host = host.trim();
             let cwd = cwd_str(30);
-            format!("  {}@{} {} $ ", user.dimmed(), host.dimmed(), cwd.bright_cyan())
+            format!(
+                "  {}@{} {} $ ",
+                user.dimmed(),
+                host.dimmed(),
+                cwd.bright_cyan()
+            )
         }
         _ => format!("  {} {} ", "fsh".bright_green().bold(), caret),
     };

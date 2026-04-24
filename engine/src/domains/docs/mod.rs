@@ -4,11 +4,13 @@ use crate::errors::CoreResult;
 use colored::*;
 /// core docs commands — show the core commands guide
 pub fn commands(ctx: &AppContext) -> CoreResult<()> {
-    let docs_path = std::path::PathBuf::from(&ctx.core_root)
-        .join("docs/core-commands.md");
+    let docs_path = std::path::PathBuf::from(&ctx.core_root).join("docs/core-commands.md");
     if !docs_path.exists() {
-        println!("  {} Core commands guide not found at {}",
-            "⚠️ ".yellow(), docs_path.display());
+        println!(
+            "  {} Core commands guide not found at {}",
+            "⚠️ ".yellow(),
+            docs_path.display()
+        );
         println!("  {} Run: core docs generate", "💡".bright_cyan());
         return Ok(());
     }
@@ -58,15 +60,26 @@ pub fn list(ctx: &AppContext) -> CoreResult<()> {
         docs.sort();
         for doc in &docs {
             let name = doc.trim_end_matches(".md");
-            println!("  {} {}  {}",
+            println!(
+                "  {} {}  {}",
                 "📄".normal(),
                 name.bright_white(),
-                format!("core docs {}", name.replace("-", " ").split_whitespace().next().unwrap_or(name)).dimmed()
+                format!(
+                    "core docs {}",
+                    name.replace("-", " ")
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or(name)
+                )
+                .dimmed()
             );
         }
     }
     println!();
-    println!("  {} core docs commands — full command reference", "→".dimmed());
+    println!(
+        "  {} core docs commands — full command reference",
+        "→".dimmed()
+    );
     println!();
     Ok(())
 }

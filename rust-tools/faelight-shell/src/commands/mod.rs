@@ -64,7 +64,6 @@ fn levenshtein(a: &str, b: &str) -> usize {
     dp[la][lb]
 }
 
-
 /// Syntax highlighter for Rust source lines
 pub fn highlight_rust_line(line: &str) -> String {
     use colored::Colorize;
@@ -75,10 +74,11 @@ pub fn highlight_rust_line(line: &str) -> String {
     if trimmed.contains("error") || trimmed.contains("panic") || trimmed.contains("FAILED") {
         return line.bright_red().to_string();
     }
-    let keywords = ["fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ",
-                     "enum ", "trait ", "mod ", "return ", "if ", "else ", "for ", "while ",
-                     "loop ", "async ", "await ", "move ", "ref ", "const ", "static ",
-                     "type ", "where ", "self ", "Self ", "super ", "crate "];
+    let keywords = [
+        "fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ", "enum ", "trait ",
+        "mod ", "return ", "if ", "else ", "for ", "while ", "loop ", "async ", "await ", "move ",
+        "ref ", "const ", "static ", "type ", "where ", "self ", "Self ", "super ", "crate ",
+    ];
     let t = line.trim_start();
     for kw in &keywords {
         if t.starts_with(kw) || t.starts_with(&format!("pub {}", kw.trim())) {
@@ -89,7 +89,10 @@ pub fn highlight_rust_line(line: &str) -> String {
         return line.bright_yellow().to_string();
     }
     let has_number = line.split_whitespace().any(|w| {
-        w.trim_matches(|c: char| !c.is_ascii_digit()).parse::<f64>().is_ok() && !w.is_empty()
+        w.trim_matches(|c: char| !c.is_ascii_digit())
+            .parse::<f64>()
+            .is_ok()
+            && !w.is_empty()
     });
     if has_number && !line.contains("::") {
         return line.bright_magenta().to_string();
@@ -102,7 +105,11 @@ pub fn colorize_line(line: &str) -> String {
     use std::borrow::Cow;
     // Error words -- bright red
     let lower = line.to_lowercase();
-    if lower.contains("error") || lower.contains("failed") || lower.contains("panic") || lower.contains("fatal") {
+    if lower.contains("error")
+        || lower.contains("failed")
+        || lower.contains("panic")
+        || lower.contains("fatal")
+    {
         return line.bright_red().to_string();
     }
     // Success words -- bright green
@@ -119,9 +126,9 @@ pub fn colorize_line(line: &str) -> String {
         let colored_word: Cow<str> = if word.starts_with("INT-") && word.len() > 4 {
             // Intent IDs -- bright magenta
             Cow::Owned(word.bright_magenta().to_string())
-        } else if word.ends_with('%') && word[..word.len()-1].parse::<f64>().is_ok() {
+        } else if word.ends_with('%') && word[..word.len() - 1].parse::<f64>().is_ok() {
             // Percentages -- color by value
-            let val: f64 = word[..word.len()-1].parse().unwrap_or(0.0);
+            let val: f64 = word[..word.len() - 1].parse().unwrap_or(0.0);
             if val >= 95.0 {
                 Cow::Owned(word.bright_green().to_string())
             } else if val >= 70.0 {
@@ -129,8 +136,12 @@ pub fn colorize_line(line: &str) -> String {
             } else {
                 Cow::Owned(word.bright_red().to_string())
             }
-        } else if (word.contains('/') || word.ends_with(".rs") || word.ends_with(".py")
-            || word.ends_with(".md") || word.ends_with(".toml") || word.ends_with(".sh"))
+        } else if (word.contains('/')
+            || word.ends_with(".rs")
+            || word.ends_with(".py")
+            || word.ends_with(".md")
+            || word.ends_with(".toml")
+            || word.ends_with(".sh"))
             && !word.starts_with("//")
         {
             // File paths -- bright cyan
@@ -144,7 +155,9 @@ pub fn colorize_line(line: &str) -> String {
         } else {
             Cow::Borrowed(word)
         };
-        if !result.is_empty() { result.push(' '); }
+        if !result.is_empty() {
+            result.push(' ');
+        }
         result.push_str(&colored_word);
     }
     result
@@ -157,19 +170,33 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         let mut quote_char = ' ';
         for ch in s.chars() {
             match ch {
-                '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; }
-                c if in_quote && c == quote_char => { in_quote = false; }
+                '"' | '\'' if !in_quote => {
+                    in_quote = true;
+                    quote_char = ch;
+                }
+                c if in_quote && c == quote_char => {
+                    in_quote = false;
+                }
                 ' ' if !in_quote => {
-                    if !current.is_empty() { tokens.push(current.clone()); current.clear(); }
+                    if !current.is_empty() {
+                        tokens.push(current.clone());
+                        current.clear();
+                    }
                 }
                 c => current.push(c),
             }
         }
-        if !current.is_empty() { tokens.push(current); }
+        if !current.is_empty() {
+            tokens.push(current);
+        }
         tokens
     }
     let trimmed_line = line.trim();
-    let cmd = trimmed_line.splitn(2, ' ').next().unwrap_or("").to_lowercase();
+    let cmd = trimmed_line
+        .splitn(2, ' ')
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
     let rest_str = trimmed_line.splitn(2, ' ').nth(1).unwrap_or("");
     let owned_args: Vec<String> = tokenize_args(rest_str);
     let args_vec: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
@@ -248,9 +275,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "advise" => advise(db),
         "audit" => audit(db, core_root),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
-        "predict" | "react" | "stress" | "doctor" | "goals"
-        | "evolution" | "security" | "capabilities" | "intent"
-        | "genealogy" | "autonomy" => {
+        "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
+        | "capabilities" | "intent" | "genealogy" | "autonomy" => {
             let sub = args.join(" ");
             let full = if sub.is_empty() {
                 format!("{}/scripts/core {}", core_root, cmd)
@@ -285,22 +311,22 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "git" if args.is_empty() => git_status(core_root),
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
-        "where_old_disabled" => CommandResult::Error("use with pipe: tools | where score < 70".to_string()),
+        "where_old_disabled" => {
+            CommandResult::Error("use with pipe: tools | where score < 70".to_string())
+        }
         "tools-table" | "tt" => tools_table(db, core_root),
         "events-table" | "et" => events_table(db, args),
         "audit-table" | "at" => audit_table(db, core_root),
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
-        "history-table" | "ht" | "history" => {
-            match args.first().copied() {
-                Some("intent") => ht_intent(db),
-                Some("today") => ht_today(db),
-                Some("session") => ht_session(db),
-                Some("slow") => ht_slow(db),
-                Some(search) => history_search_cmd(db, &[search]),
-                None => history_table(db),
-            }
-        }
+        "history-table" | "ht" | "history" => match args.first().copied() {
+            Some("intent") => ht_intent(db),
+            Some("today") => ht_today(db),
+            Some("session") => ht_session(db),
+            Some("slow") => ht_slow(db),
+            Some(search) => history_search_cmd(db, &[search]),
+            None => history_table(db),
+        },
         "history-search" | "hs" | "hsearch" => history_search_cmd(db, args),
         "zsh" | "bash" => shell_handoff_cmd(line),
         "hstats" => history_stats(db),
@@ -322,10 +348,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "realpath" | "rp" => realpath_cmd(args),
         "time" => time_cmd(line, args),
         "reload" => {
-                    let exe = std::env::current_exe().unwrap_or_default();
+            let exe = std::env::current_exe().unwrap_or_default();
             let err = std::process::Command::new(&exe).exec();
             CommandResult::Error(format!("reload: {}", err))
-        },
+        }
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
         "pkgs" | "packages" => sys_packages(),
@@ -348,32 +374,96 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut out = String::new();
 
             // Check forest builtins
-            let builtins = ["cd","pwd","ls","ll","health","events","intents","tools",
-                "version","schema","commits","story","advise","audit","forecast",
-                "sandbox","checkpoint","since","git","gc","gf","gchurn","gbr",
-                "ps","ports","services","files","find","net","pkgs","pkg",
-                "history","ht","hstats","histogram","domains","logs","debug",
-                "usage","z","zi","ya","yazi","fm","flow","let","run","snapshot",
-                "timeline","dashboard","chart","watch","select","search","on",
-                "help","exit","quit","q","?"];
+            let builtins = [
+                "cd",
+                "pwd",
+                "ls",
+                "ll",
+                "health",
+                "events",
+                "intents",
+                "tools",
+                "version",
+                "schema",
+                "commits",
+                "story",
+                "advise",
+                "audit",
+                "forecast",
+                "sandbox",
+                "checkpoint",
+                "since",
+                "git",
+                "gc",
+                "gf",
+                "gchurn",
+                "gbr",
+                "ps",
+                "ports",
+                "services",
+                "files",
+                "find",
+                "net",
+                "pkgs",
+                "pkg",
+                "history",
+                "ht",
+                "hstats",
+                "histogram",
+                "domains",
+                "logs",
+                "debug",
+                "usage",
+                "z",
+                "zi",
+                "ya",
+                "yazi",
+                "fm",
+                "flow",
+                "let",
+                "run",
+                "snapshot",
+                "timeline",
+                "dashboard",
+                "chart",
+                "watch",
+                "select",
+                "search",
+                "on",
+                "help",
+                "exit",
+                "quit",
+                "q",
+                "?",
+            ];
 
             if builtins.contains(&cmd) {
-                out.push_str(&format!("  {} {} — forest builtin\n",
-                    "🌲".normal(), cmd.bright_green()));
+                out.push_str(&format!(
+                    "  {} {} — forest builtin\n",
+                    "🌲".normal(),
+                    cmd.bright_green()
+                ));
             }
 
             // Check aliases
             if let Some(aliased) = db.get_alias(cmd) {
-                out.push_str(&format!("  {} {} → {} — alias\n",
-                    "→".bright_cyan(), cmd.bright_white(), aliased.dimmed()));
+                out.push_str(&format!(
+                    "  {} {} → {} — alias\n",
+                    "→".bright_cyan(),
+                    cmd.bright_white(),
+                    aliased.dimmed()
+                ));
             }
 
             // Check forest scripts
             let home = std::env::var("HOME").unwrap_or_default();
             let script_path = format!("{}/0-core/scripts/{}", home, cmd);
             if std::path::Path::new(&script_path).exists() {
-                out.push_str(&format!("  {} {} — forest script\n",
-                    "🌲".normal(), script_path.bright_white()));
+                out.push_str(&format!(
+                    "  {} {} — forest script\n",
+                    "🌲".normal(),
+                    script_path.bright_white()
+                ));
             }
 
             // Check PATH
@@ -381,13 +471,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 .arg(cmd)
                 .output()
                 .ok()
-                .and_then(|o| if o.status.success() {
-                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-                } else { None });
+                .and_then(|o| {
+                    if o.status.success() {
+                        Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+                    } else {
+                        None
+                    }
+                });
 
             if let Some(path) = path_result {
-                out.push_str(&format!("  {} {} — PATH\n",
-                    "○".dimmed(), path.dimmed()));
+                out.push_str(&format!("  {} {} — PATH\n", "○".dimmed(), path.dimmed()));
             }
 
             if out.is_empty() {
@@ -397,14 +490,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "echo" => {
-            let output = args.iter().map(|a| {
-                let a = a.trim();
-                if a.len() >= 2 && ((a.starts_with('"') && a.ends_with('"')) || (a.starts_with("'") && a.ends_with("'"))) {
-                    a[1..a.len()-1].to_string()
-                } else {
-                    a.to_string()
-                }
-            }).collect::<Vec<_>>().join(" ");
+            let output = args
+                .iter()
+                .map(|a| {
+                    let a = a.trim();
+                    if a.len() >= 2
+                        && ((a.starts_with('"') && a.ends_with('"'))
+                            || (a.starts_with("'") && a.ends_with("'")))
+                    {
+                        a[1..a.len() - 1].to_string()
+                    } else {
+                        a.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
             CommandResult::Output(output)
         }
         "query" => {
@@ -433,8 +533,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 use colored::Colorize;
                 let is_rust = expanded.ends_with(".rs");
                 for (i, l) in file_lines.iter().enumerate() {
-                    let colored = if is_rust { highlight_rust_line(l) } else { colorize_line(l) };
-                    println!("{} {}", format!("{:4}", i+1).dimmed(), colored);
+                    let colored = if is_rust {
+                        highlight_rust_line(l)
+                    } else {
+                        colorize_line(l)
+                    };
+                    println!("{} {}", format!("{:4}", i + 1).dimmed(), colored);
                 }
                 return CommandResult::Empty;
             }
@@ -444,7 +548,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 let parts: Vec<&str> = spec.splitn(2, ':').collect();
                 let start_str = parts[0];
                 let end_str = parts[1];
-                let start = if start_str.is_empty() { 1 } else { start_str.parse::<usize>().unwrap_or(1) };
+                let start = if start_str.is_empty() {
+                    1
+                } else {
+                    start_str.parse::<usize>().unwrap_or(1)
+                };
                 let end = if end_str.is_empty() {
                     total
                 } else if end_str.starts_with('+') {
@@ -457,22 +565,28 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 use colored::Colorize;
                 let is_rust = expanded.ends_with(".rs");
                 for (i, l) in file_lines[start..end].iter().enumerate() {
-                    let colored = if is_rust { highlight_rust_line(l) } else { colorize_line(l) };
-                    println!("{} {}", format!("{:4}", start+i+1).dimmed(), colored);
+                    let colored = if is_rust {
+                        highlight_rust_line(l)
+                    } else {
+                        colorize_line(l)
+                    };
+                    println!("{} {}", format!("{:4}", start + i + 1).dimmed(), colored);
                 }
                 CommandResult::Empty
             } else {
                 // Pattern match
                 let pattern = spec.to_lowercase();
                 use colored::Colorize;
-                let matches: Vec<(usize, &&str)> = file_lines.iter().enumerate()
+                let matches: Vec<(usize, &&str)> = file_lines
+                    .iter()
+                    .enumerate()
                     .filter(|(_, l)| l.to_lowercase().contains(&pattern))
                     .collect();
                 if matches.is_empty() {
                     CommandResult::Output(format!("  (no matches for '{}')", spec))
                 } else {
                     for (i, l) in matches {
-                        println!("{} {}", format!("{:4}", i+1).dimmed(), colorize_line(*l));
+                        println!("{} {}", format!("{:4}", i + 1).dimmed(), colorize_line(*l));
                     }
                     CommandResult::Empty
                 }
@@ -494,12 +608,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 let lineno_str = parts.get(1).unwrap_or(&"1");
                 let lineno = lineno_str.parse::<usize>().unwrap_or(1);
                 let expanded = if filepath.starts_with("~/") {
-                    filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+                    filepath.replacen(
+                        "~/",
+                        &format!("{}/", std::env::var("HOME").unwrap_or_default()),
+                        1,
+                    )
                 } else {
                     filepath.to_string()
                 };
                 use colored::Colorize;
-                println!("  {} {}:{}", "goto".bright_cyan(), filepath.bright_white(), lineno.to_string().bright_yellow());
+                println!(
+                    "  {} {}:{}",
+                    "goto".bright_cyan(),
+                    filepath.bright_white(),
+                    lineno.to_string().bright_yellow()
+                );
                 let status = std::process::Command::new(&editor)
                     .arg(format!("+{}", lineno))
                     .arg(&expanded)
@@ -517,19 +640,33 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let cwd = std::env::current_dir().unwrap_or_default();
             let mut found_file: Option<String> = None;
             let mut found_line: Option<usize> = None;
-            fn search_for_pattern(dir: &std::path::Path, pattern: &str, found_file: &mut Option<String>, found_line: &mut Option<usize>) {
-                let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => return };
+            fn search_for_pattern(
+                dir: &std::path::Path,
+                pattern: &str,
+                found_file: &mut Option<String>,
+                found_line: &mut Option<usize>,
+            ) {
+                let entries = match std::fs::read_dir(dir) {
+                    Ok(e) => e,
+                    Err(_) => return,
+                };
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.starts_with('.') || name == "target" { continue; }
+                        if name.starts_with('.') || name == "target" {
+                            continue;
+                        }
                     }
                     if path.is_dir() {
                         search_for_pattern(&path, pattern, found_file, found_line);
-                        if found_file.is_some() { return; }
+                        if found_file.is_some() {
+                            return;
+                        }
                     } else if path.is_file() {
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                        if !["rs","py","md","toml","sh","fsh"].contains(&ext) { continue; }
+                        if !["rs", "py", "md", "toml", "sh", "fsh"].contains(&ext) {
+                            continue;
+                        }
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             for (i, line) in content.lines().enumerate() {
                                 if line.to_lowercase().contains(pattern) {
@@ -546,7 +683,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             match (found_file, found_line) {
                 (Some(f), Some(l)) => {
                     use colored::Colorize;
-                    println!("  {} {}:{}", "goto".bright_cyan(), f.bright_white(), l.to_string().bright_yellow());
+                    println!(
+                        "  {} {}:{}",
+                        "goto".bright_cyan(),
+                        f.bright_white(),
+                        l.to_string().bright_yellow()
+                    );
                     let status = std::process::Command::new(&editor)
                         .arg(format!("+{}", l))
                         .arg(&f)
@@ -567,7 +709,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             // rename old_name new_name --type rs -- only .rs files
             // rename old_name new_name --dry-run -- preview only
             if args.len() < 2 {
-                return CommandResult::Error("usage: rename <old> <new> [--type ext] [--dry-run]".to_string());
+                return CommandResult::Error(
+                    "usage: rename <old> <new> [--type ext] [--dry-run]".to_string(),
+                );
             }
             let old_name = args[0];
             let new_name = args[1];
@@ -576,27 +720,52 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut i = 2;
             while i < args.len() {
                 match args[i] {
-                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1]); i += 2; }
-                    "--dry-run" => { dry_run = true; i += 1; }
-                    _ => { i += 1; }
+                    "--type" if i + 1 < args.len() => {
+                        filter_type = Some(args[i + 1]);
+                        i += 2;
+                    }
+                    "--dry-run" => {
+                        dry_run = true;
+                        i += 1;
+                    }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
             let cwd = std::env::current_dir().unwrap_or_default();
             let mut matches: Vec<(String, usize)> = Vec::new(); // (filepath, count)
-            fn find_in_dir(dir: &std::path::Path, pattern: &str, filter_type: Option<&str>, matches: &mut Vec<(String, usize)>) {
-                let entries = match std::fs::read_dir(dir) { Ok(e) => e, Err(_) => return };
+            fn find_in_dir(
+                dir: &std::path::Path,
+                pattern: &str,
+                filter_type: Option<&str>,
+                matches: &mut Vec<(String, usize)>,
+            ) {
+                let entries = match std::fs::read_dir(dir) {
+                    Ok(e) => e,
+                    Err(_) => return,
+                };
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.starts_with('.') || name == "target" || name == "node_modules" { continue; }
+                        if name.starts_with('.') || name == "target" || name == "node_modules" {
+                            continue;
+                        }
                     }
-                    if path.is_dir() { find_in_dir(&path, pattern, filter_type, matches); }
-                    else if path.is_file() {
+                    if path.is_dir() {
+                        find_in_dir(&path, pattern, filter_type, matches);
+                    } else if path.is_file() {
                         if let Some(ext) = filter_type {
-                            if path.extension().and_then(|e| e.to_str()) != Some(ext) { continue; }
+                            if path.extension().and_then(|e| e.to_str()) != Some(ext) {
+                                continue;
+                            }
                         } else {
                             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                            if !["rs","py","md","toml","sh","fsh","txt","json"].contains(&ext) { continue; }
+                            if !["rs", "py", "md", "toml", "sh", "fsh", "txt", "json"]
+                                .contains(&ext)
+                            {
+                                continue;
+                            }
                         }
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             let count = content.matches(pattern).count();
@@ -609,14 +778,29 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
             find_in_dir(&cwd, old_name, filter_type, &mut matches);
             if matches.is_empty() {
-                return CommandResult::Output(format!("  (no occurrences of '{}' found)", old_name));
+                return CommandResult::Output(format!(
+                    "  (no occurrences of '{}' found)",
+                    old_name
+                ));
             }
             let total: usize = matches.iter().map(|(_, c)| c).sum();
             use colored::Colorize;
-            println!("  {} occurrences of '{}' in {} files:", total.to_string().bright_yellow(), old_name.bright_white(), matches.len().to_string().bright_cyan());
+            println!(
+                "  {} occurrences of '{}' in {} files:",
+                total.to_string().bright_yellow(),
+                old_name.bright_white(),
+                matches.len().to_string().bright_cyan()
+            );
             for (f, c) in &matches {
-                let rel = std::path::Path::new(f).strip_prefix(&cwd).unwrap_or(std::path::Path::new(f));
-                println!("    {} {} ({})", "→".dimmed(), rel.display().to_string().bright_cyan(), c.to_string().dimmed());
+                let rel = std::path::Path::new(f)
+                    .strip_prefix(&cwd)
+                    .unwrap_or(std::path::Path::new(f));
+                println!(
+                    "    {} {} ({})",
+                    "→".dimmed(),
+                    rel.display().to_string().bright_cyan(),
+                    c.to_string().dimmed()
+                );
             }
             if dry_run {
                 println!("  {} dry-run -- no changes made", "○".dimmed());
@@ -643,7 +827,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     }
                 }
             }
-            CommandResult::Output(format!("  {} renamed {} occurrences in {} files", "✅".to_string(), renamed_count, renamed_files))
+            CommandResult::Output(format!(
+                "  {} renamed {} occurrences in {} files",
+                "✅".to_string(),
+                renamed_count,
+                renamed_files
+            ))
         }
 
         "rspatch" => {
@@ -670,10 +859,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut i = 1;
             while i < args.len() {
                 match args[i] {
-                    "--anchor" if i + 1 < args.len() => { anchor_text = Some(args[i+1].to_string()); i += 2; }
-                    "--new"    if i + 1 < args.len() => { new_text = Some(args[i+1].to_string()); i += 2; }
-                    "--mode"   if i + 1 < args.len() => { mode = args[i+1]; i += 2; }
-                    _ => { i += 1; }
+                    "--anchor" if i + 1 < args.len() => {
+                        anchor_text = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    "--new" if i + 1 < args.len() => {
+                        new_text = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    "--mode" if i + 1 < args.len() => {
+                        mode = args[i + 1];
+                        i += 2;
+                    }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
             let anchor = match anchor_text {
@@ -681,8 +881,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 None => return CommandResult::Error("rspatch: --anchor required".to_string()),
             };
             let new_content = match new_text {
-                Some(t) => t.replace("\\n", "
-"),
+                Some(t) => t.replace(
+                    "\\n", "
+",
+                ),
                 None => return CommandResult::Error("rspatch: --new required".to_string()),
             };
             let content = match std::fs::read_to_string(&expanded) {
@@ -709,14 +911,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             // Apply transformation based on mode
             let patched = match mode {
                 "replace" => content.replacen(&anchor, &new_content, 1),
-                "after"   => content.replacen(&anchor, &format!("{}\n{}", anchor, new_content), 1),
-                "before"  => content.replacen(&anchor, &format!("{}\n{}", new_content, anchor), 1),
-                _ => return CommandResult::Error(format!("rspatch: unknown mode '{}' -- use replace|after|before", mode)),
+                "after" => content.replacen(&anchor, &format!("{}\n{}", anchor, new_content), 1),
+                "before" => content.replacen(&anchor, &format!("{}\n{}", new_content, anchor), 1),
+                _ => {
+                    return CommandResult::Error(format!(
+                        "rspatch: unknown mode '{}' -- use replace|after|before",
+                        mode
+                    ))
+                }
             };
             match std::fs::write(&expanded, &patched) {
                 Ok(_) => CommandResult::Output(format!(
                     "  {} rspatch {} (mode: {}, anchor: {})",
-                    "✅".to_string(), filepath, mode,
+                    "✅".to_string(),
+                    filepath,
+                    mode,
                     &anchor[..anchor.len().min(40)]
                 )),
                 Err(e) => CommandResult::Error(format!("rspatch: write failed: {}", e)),
@@ -728,23 +937,34 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             // old2 -- new2
             // All-or-nothing: if any replacement fails, none are applied
             if args.is_empty() {
-                return CommandResult::Error("usage: patch-multi <file> <old1> -- <new1> [<old2> -- <new2> ...]".to_string());
+                return CommandResult::Error(
+                    "usage: patch-multi <file> <old1> -- <new1> [<old2> -- <new2> ...]".to_string(),
+                );
             }
             let filepath = args[0];
             let expanded = if filepath.starts_with("~/") {
-                filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
+                filepath.replacen(
+                    "~/",
+                    &format!("{}/", std::env::var("HOME").unwrap_or_default()),
+                    1,
+                )
             } else {
                 filepath.to_string()
             };
             // Parse pairs: skip "--" tokens, take alternating old/new
-            let tokens: Vec<&str> = args[1..].iter()
+            let tokens: Vec<&str> = args[1..]
+                .iter()
                 .filter(|a| **a != "--")
                 .map(|a| *a)
                 .collect();
-            let pairs: Vec<(&str, &str)> = tokens.chunks(2)
+            let pairs: Vec<(&str, &str)> = tokens
+                .chunks(2)
                 .filter_map(|chunk| {
-                    if chunk.len() == 2 { Some((chunk[0], chunk[1])) }
-                    else { None }
+                    if chunk.len() == 2 {
+                        Some((chunk[0], chunk[1]))
+                    } else {
+                        None
+                    }
                 })
                 .collect();
             if pairs.is_empty() {
@@ -761,13 +981,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 if count == 0 {
                     errors.push(format!("  not found: '{}'", old));
                 } else if count > 1 {
-                    errors.push(format!("  ambiguous: '{}' ({} matches -- must be unique)", old, count));
+                    errors.push(format!(
+                        "  ambiguous: '{}' ({} matches -- must be unique)",
+                        old, count
+                    ));
                 }
             }
             if !errors.is_empty() {
                 use colored::Colorize;
-                println!("  {} patch-multi aborted -- validation failed:", "✗".bright_red());
-                for e in &errors { println!("{}", e); }
+                println!(
+                    "  {} patch-multi aborted -- validation failed:",
+                    "✗".bright_red()
+                );
+                for e in &errors {
+                    println!("{}", e);
+                }
                 return CommandResult::Empty;
             }
             // Apply all replacements
@@ -776,10 +1004,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 result = result.replacen(old, new, 1);
             }
             match std::fs::write(&expanded, &result) {
-                Ok(_) => {
-                    CommandResult::Output(format!("  {} patched {} ({} replacements)",
-                        "✅".to_string(), filepath, pairs.len()))
-                }
+                Ok(_) => CommandResult::Output(format!(
+                    "  {} patched {} ({} replacements)",
+                    "✅".to_string(),
+                    filepath,
+                    pairs.len()
+                )),
                 Err(e) => CommandResult::Error(format!("patch-multi: write failed: {}", e)),
             }
         }
@@ -795,18 +1025,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut stat_only = false;
             if args.len() > 1 {
                 for arg in &args[1..] {
-                    if *arg == "--stat" { stat_only = true; }
-                    else { git_ref = arg; }
+                    if *arg == "--stat" {
+                        stat_only = true;
+                    } else {
+                        git_ref = arg;
+                    }
                 }
             }
             let mut git_args = vec!["diff", "--color=always"];
-            if stat_only { git_args.push("--stat"); }
+            if stat_only {
+                git_args.push("--stat");
+            }
             git_args.push(git_ref);
             git_args.push("--");
             git_args.push(filepath);
-            let output = std::process::Command::new("git")
-                .args(&git_args)
-                .output();
+            let output = std::process::Command::new("git").args(&git_args).output();
             match output {
                 Ok(o) => {
                     let stdout = String::from_utf8_lossy(&o.stdout);
@@ -816,7 +1049,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     }
                     if stdout.trim().is_empty() {
                         use colored::Colorize;
-                        CommandResult::Output(format!("  {} no changes in {} since {}", "○".dimmed(), filepath, git_ref))
+                        CommandResult::Output(format!(
+                            "  {} no changes in {} since {}",
+                            "○".dimmed(),
+                            filepath,
+                            git_ref
+                        ))
                     } else {
                         print!("{}", stdout);
                         CommandResult::Empty
@@ -837,15 +1075,20 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     return line.dimmed().to_string();
                 }
                 // Error/panic lines
-                if trimmed.contains("error") || trimmed.contains("panic") || trimmed.contains("FAILED") {
+                if trimmed.contains("error")
+                    || trimmed.contains("panic")
+                    || trimmed.contains("FAILED")
+                {
                     return line.bright_red().to_string();
                 }
                 // Simple token-level coloring
                 let result;
-                let keywords = ["fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ",
-                                 "enum ", "trait ", "mod ", "return ", "if ", "else ", "for ", "while ",
-                                 "loop ", "async ", "await ", "move ", "ref ", "const ", "static ",
-                                 "type ", "where ", "self ", "Self ", "super ", "crate "];
+                let keywords = [
+                    "fn ", "let ", "mut ", "pub ", "use ", "struct ", "impl ", "match ", "enum ",
+                    "trait ", "mod ", "return ", "if ", "else ", "for ", "while ", "loop ",
+                    "async ", "await ", "move ", "ref ", "const ", "static ", "type ", "where ",
+                    "self ", "Self ", "super ", "crate ",
+                ];
                 // Check if line starts with a keyword
                 let t = line.trim_start();
                 for kw in &keywords {
@@ -861,7 +1104,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
                 // Numbers stand out
                 let has_number = line.split_whitespace().any(|w| {
-                    w.trim_matches(|c: char| !c.is_ascii_digit()).parse::<f64>().is_ok() && !w.is_empty()
+                    w.trim_matches(|c: char| !c.is_ascii_digit())
+                        .parse::<f64>()
+                        .is_ok()
+                        && !w.is_empty()
                 });
                 if has_number && !line.contains("::") {
                     result = line.bright_magenta().to_string();
@@ -887,14 +1133,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let total = file_lines.len();
             let render = |start: usize, end: usize| -> String {
                 use colored::Colorize;
-                file_lines[start..end].iter().enumerate()
+                file_lines[start..end]
+                    .iter()
+                    .enumerate()
                     .map(|(i, l)| {
-                        let lineno = format!("{:4}", start+i+1).bright_green().to_string();
+                        let lineno = format!("{:4}", start + i + 1).bright_green().to_string();
                         let bar = "│".dimmed().to_string();
                         let highlighted = highlight_rust_line(l);
                         format!("{} {} {}", lineno, bar, highlighted)
                     })
-                    .collect::<Vec<_>>().join("\n")
+                    .collect::<Vec<_>>()
+                    .join("\n")
             };
             if args.len() == 1 {
                 return CommandResult::Output(render(0, total));
@@ -904,7 +1153,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 let parts: Vec<&str> = spec.splitn(2, ':').collect();
                 let start_str = parts[0];
                 let end_str = parts[1];
-                let start = if start_str.is_empty() { 1 } else { start_str.parse::<usize>().unwrap_or(1) };
+                let start = if start_str.is_empty() {
+                    1
+                } else {
+                    start_str.parse::<usize>().unwrap_or(1)
+                };
                 let end = if end_str.is_empty() {
                     total
                 } else if end_str.starts_with('+') {
@@ -924,15 +1177,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     if line.to_lowercase().contains(&pattern) {
                         let ctx_start = i.saturating_sub(2);
                         let ctx_end = (i + 3).min(total);
-                        if !out_lines.is_empty() { out_lines.push("  ...".dimmed().to_string()); }
+                        if !out_lines.is_empty() {
+                            out_lines.push("  ...".dimmed().to_string());
+                        }
                         for j in ctx_start..ctx_end {
-                            let lineno = format!("{:4}", j+1);
+                            let lineno = format!("{:4}", j + 1);
                             let lineno_colored = if j == i {
                                 lineno.bright_green().bold().to_string()
                             } else {
                                 lineno.bright_green().to_string()
                             };
-                            let bar = if j == i { "│".bright_green().to_string() } else { "│".dimmed().to_string() };
+                            let bar = if j == i {
+                                "│".bright_green().to_string()
+                            } else {
+                                "│".dimmed().to_string()
+                            };
                             let highlighted = highlight_rust_line(file_lines[j]);
                             out_lines.push(format!("{} {} {}", lineno_colored, bar, highlighted));
                         }
@@ -951,7 +1210,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             // fsearch "fn expand" --type rs          -- only .rs files
             // fsearch "fn expand" --file main.rs     -- only in specific file
             if args.is_empty() {
-                return CommandResult::Error("usage: search <pattern> [--type ext] [--file name]".to_string());
+                return CommandResult::Error(
+                    "usage: search <pattern> [--type ext] [--file name]".to_string(),
+                );
             }
             let pattern = args[0].to_lowercase();
             let mut filter_type: Option<&str> = None;
@@ -961,8 +1222,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut i = 1;
             while i < args.len() {
                 match args[i] {
-                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1]); i += 2; }
-                    "--file" if i + 1 < args.len() => { filter_file = Some(args[i+1]); i += 2; }
+                    "--type" if i + 1 < args.len() => {
+                        filter_type = Some(args[i + 1]);
+                        i += 2;
+                    }
+                    "--file" if i + 1 < args.len() => {
+                        filter_file = Some(args[i + 1]);
+                        i += 2;
+                    }
                     arg if !arg.starts_with("--") => {
                         // Positional: treat as search path if it exists on disk
                         let expanded = if arg.starts_with("~/") {
@@ -990,8 +1257,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
             if !unknown.is_empty() {
-                eprintln!("  {} fsearch ignored unknown argument(s): {}",
-                    "⚠️ ".yellow(), unknown.join(", ").bright_yellow());
+                eprintln!(
+                    "  {} fsearch ignored unknown argument(s): {}",
+                    "⚠️ ".yellow(),
+                    unknown.join(", ").bright_yellow()
+                );
             }
             let cwd = search_root.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
             let mut results: Vec<String> = Vec::new();
@@ -1031,22 +1301,35 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         }
                         // Only search text files (check extension)
                         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                        let text_exts = ["rs","py","md","toml","sh","fsh","txt","json","yaml","yml","html","css","js","ts"];
-                        if !text_exts.contains(&ext) { continue; }
+                        let text_exts = [
+                            "rs", "py", "md", "toml", "sh", "fsh", "txt", "json", "yaml", "yml",
+                            "html", "css", "js", "ts",
+                        ];
+                        if !text_exts.contains(&ext) {
+                            continue;
+                        }
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             for (lineno, line) in content.lines().enumerate() {
                                 let line_lower = line.to_lowercase();
                                 let matched = if pattern.contains('|') {
-                                    pattern.split('|').any(|alt| line_lower.contains(alt.trim()))
+                                    pattern
+                                        .split('|')
+                                        .any(|alt| line_lower.contains(alt.trim()))
                                 } else {
                                     line_lower.contains(pattern)
                                 };
                                 if matched {
-                                    let rel = path.strip_prefix(std::env::current_dir().unwrap_or_default())
+                                    let rel = path
+                                        .strip_prefix(std::env::current_dir().unwrap_or_default())
                                         .unwrap_or(&path)
                                         .display()
                                         .to_string();
-                                    results.push(format!("{:30} {:4}  {}", rel.bright_cyan(), (lineno+1).to_string().bright_green(), colorize_line(line.trim())));
+                                    results.push(format!(
+                                        "{:30} {:4}  {}",
+                                        rel.bright_cyan(),
+                                        (lineno + 1).to_string().bright_green(),
+                                        colorize_line(line.trim())
+                                    ));
                                 }
                             }
                         }
@@ -1059,20 +1342,31 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     for (lineno, line) in content.lines().enumerate() {
                         let line_lower = line.to_lowercase();
                         let matched = if pattern.contains('|') {
-                            pattern.split('|').any(|alt| line_lower.contains(alt.trim()))
+                            pattern
+                                .split('|')
+                                .any(|alt| line_lower.contains(alt.trim()))
                         } else {
                             line_lower.contains(&pattern)
                         };
                         if matched {
-                            let rel = cwd.strip_prefix(std::env::current_dir().unwrap_or_default())
+                            let rel = cwd
+                                .strip_prefix(std::env::current_dir().unwrap_or_default())
                                 .unwrap_or(&cwd)
                                 .display()
                                 .to_string();
-                            results.push(format!("{:30} {:4}  {}", rel.bright_cyan(), (lineno+1).to_string().bright_green(), colorize_line(line.trim())));
+                            results.push(format!(
+                                "{:30} {:4}  {}",
+                                rel.bright_cyan(),
+                                (lineno + 1).to_string().bright_green(),
+                                colorize_line(line.trim())
+                            ));
                         }
                     }
                 } else {
-                    return CommandResult::Error(format!("fsearch: could not read file {}", cwd.display()));
+                    return CommandResult::Error(format!(
+                        "fsearch: could not read file {}",
+                        cwd.display()
+                    ));
                 }
             } else {
                 walk_dir(&cwd, &pattern, filter_type, filter_file, &mut results);
@@ -1104,9 +1398,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut i = 1;
             while i < args.len() {
                 match args[i] {
-                    "--old" if i + 1 < args.len() => { old_text = Some(args[i+1].to_string()); i += 2; }
-                    "--new" if i + 1 < args.len() => { new_text = Some(args[i+1].to_string()); i += 2; }
-                    _ => { i += 1; }
+                    "--old" if i + 1 < args.len() => {
+                        old_text = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    "--new" if i + 1 < args.len() => {
+                        new_text = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
             let old_text = match old_text {
@@ -1126,11 +1428,18 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 return CommandResult::Error(format!("patch: text not found in {}", filepath));
             }
             if count > 1 {
-                return CommandResult::Error(format!("patch: {} occurrences found -- text must be unique (found {})", count, count));
+                return CommandResult::Error(format!(
+                    "patch: {} occurrences found -- text must be unique (found {})",
+                    count, count
+                ));
             }
             let patched = content_str.replacen(&old_text, &new_text, 1);
             match std::fs::write(&expanded, &patched) {
-                Ok(_) => CommandResult::Output(format!("  {} patched {} (1 replacement)", "✅".to_string(), filepath)),
+                Ok(_) => CommandResult::Output(format!(
+                    "  {} patched {} (1 replacement)",
+                    "✅".to_string(),
+                    filepath
+                )),
                 Err(e) => CommandResult::Error(format!("patch: write failed: {}", e)),
             }
         }
@@ -1140,29 +1449,97 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 return CommandResult::Error("type: missing argument".to_string());
             }
             let mut out = String::new();
-            out.push_str(&format!("{}\n\n", format!("🌲 type: {}", cmd).cyan().bold()));
+            out.push_str(&format!(
+                "{}\n\n",
+                format!("🌲 type: {}", cmd).cyan().bold()
+            ));
 
             // 1. Check forest builtins
-            let builtins = ["cd","pwd","ls","ll","clear","echo","env","type","which",
-                "health","events","intents","tools","version","schema","commits",
-                "story","advise","audit","forecast","sandbox","checkpoint","since",
-                "git","gc","gf","gchurn","gbr","ps","ports","services","files",
-                "find","net","pkgs","pkg","history","ht","hstats","histogram",
-                "domains","logs","debug","usage","z","zi","ya","yazi","fm","flow",
-                "let","run","snapshot","timeline","dashboard","chart","watch",
-                "select","search","on","help","exit","quit","q","?"];
+            let builtins = [
+                "cd",
+                "pwd",
+                "ls",
+                "ll",
+                "clear",
+                "echo",
+                "env",
+                "type",
+                "which",
+                "health",
+                "events",
+                "intents",
+                "tools",
+                "version",
+                "schema",
+                "commits",
+                "story",
+                "advise",
+                "audit",
+                "forecast",
+                "sandbox",
+                "checkpoint",
+                "since",
+                "git",
+                "gc",
+                "gf",
+                "gchurn",
+                "gbr",
+                "ps",
+                "ports",
+                "services",
+                "files",
+                "find",
+                "net",
+                "pkgs",
+                "pkg",
+                "history",
+                "ht",
+                "hstats",
+                "histogram",
+                "domains",
+                "logs",
+                "debug",
+                "usage",
+                "z",
+                "zi",
+                "ya",
+                "yazi",
+                "fm",
+                "flow",
+                "let",
+                "run",
+                "snapshot",
+                "timeline",
+                "dashboard",
+                "chart",
+                "watch",
+                "select",
+                "search",
+                "on",
+                "help",
+                "exit",
+                "quit",
+                "q",
+                "?",
+            ];
 
             if builtins.contains(&cmd) {
                 out.push_str(&format!("  {} forest builtin\n", "▶".bright_green()));
-                out.push_str(&format!("    {} handled natively by fsh — no PATH lookup\n",
-                    "·".dimmed()));
+                out.push_str(&format!(
+                    "    {} handled natively by fsh — no PATH lookup\n",
+                    "·".dimmed()
+                ));
             }
 
             // 2. Check aliases
             if let Some(aliased) = db.get_alias(cmd) {
                 out.push_str(&format!("  {} alias\n", "▶".bright_cyan()));
-                out.push_str(&format!("    {} {} → {}\n",
-                    "·".dimmed(), cmd.bright_white(), aliased.bright_cyan()));
+                out.push_str(&format!(
+                    "    {} {} → {}\n",
+                    "·".dimmed(),
+                    cmd.bright_white(),
+                    aliased.bright_cyan()
+                ));
             }
 
             // 3. Check config.fsh aliases
@@ -1176,9 +1553,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                             let alias_name = parts[0].trim().trim_start_matches("alias ").trim();
                             if alias_name == cmd {
                                 let target = parts[1].trim();
-                                out.push_str(&format!("  {} config.fsh alias\n", "▶".bright_cyan()));
-                                out.push_str(&format!("    {} {} → {}\n",
-                                    "·".dimmed(), cmd.bright_white(), target.bright_cyan()));
+                                out.push_str(&format!(
+                                    "  {} config.fsh alias\n",
+                                    "▶".bright_cyan()
+                                ));
+                                out.push_str(&format!(
+                                    "    {} {} → {}\n",
+                                    "·".dimmed(),
+                                    cmd.bright_white(),
+                                    target.bright_cyan()
+                                ));
                             }
                         }
                     }
@@ -1195,7 +1579,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             // 5. PATH lookup
             if let Ok(out_bytes) = std::process::Command::new("which").arg(cmd).output() {
                 if out_bytes.status.success() {
-                    let path = String::from_utf8_lossy(&out_bytes.stdout).trim().to_string();
+                    let path = String::from_utf8_lossy(&out_bytes.stdout)
+                        .trim()
+                        .to_string();
                     out.push_str(&format!("  {} PATH binary\n", "▶".yellow()));
                     out.push_str(&format!("    {} {}\n", "·".dimmed(), path.dimmed()));
                 }
@@ -1225,12 +1611,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         .extension()
                         .and_then(|e| e.to_str())
                         .unwrap_or("");
-                    let code_exts = ["rs","py","js","ts","toml","yaml","yml","sh","zsh","kdl","md"];
+                    let code_exts = [
+                        "rs", "py", "js", "ts", "toml", "yaml", "yml", "sh", "zsh", "kdl", "md",
+                    ];
                     if code_exts.contains(&ext) {
-                        let numbered: String = content.lines().enumerate()
-                            .map(|(i, line)| format!("  {}  {}",
-                                format!("{:4}", i + 1).dimmed(),
-                                line))
+                        let numbered: String = content
+                            .lines()
+                            .enumerate()
+                            .map(|(i, line)| {
+                                format!("  {}  {}", format!("{:4}", i + 1).dimmed(), line)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n");
                         CommandResult::Output(numbered)
@@ -1246,8 +1636,16 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             out.push_str(&format!("{}\n", "🌲 Shell Environment".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             let vars = [
-                "HOME", "USER", "SHELL", "PATH", "EDITOR", "WAYLAND_DISPLAY",
-                "XDG_CURRENT_DESKTOP", "XDG_RUNTIME_DIR", "LANG", "TERM",
+                "HOME",
+                "USER",
+                "SHELL",
+                "PATH",
+                "EDITOR",
+                "WAYLAND_DISPLAY",
+                "XDG_CURRENT_DESKTOP",
+                "XDG_RUNTIME_DIR",
+                "LANG",
+                "TERM",
             ];
             for var in &vars {
                 if let Ok(val) = std::env::var(var) {
@@ -1256,15 +1654,17 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     } else {
                         val
                     };
-                    out.push_str(&format!("  {:25} {}\n",
-                        var.bright_cyan(), display.white()));
+                    out.push_str(&format!("  {:25} {}\n", var.bright_cyan(), display.white()));
                 }
             }
             // Also show fsh-specific vars
             out.push_str(&format!("\n  {}\n", "fsh vars:".dimmed()));
             if let Some(focus) = db.get_focus_intent() {
-                out.push_str(&format!("  {:25} {}\n",
-                    "FSH_FOCUS".bright_cyan(), focus.bright_green()));
+                out.push_str(&format!(
+                    "  {:25} {}\n",
+                    "FSH_FOCUS".bright_cyan(),
+                    focus.bright_green()
+                ));
             }
             out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
             CommandResult::Output(out)
@@ -1285,7 +1685,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 // Try last stored output first
                 if let Ok(out) = c.query_row(
                     "SELECT value FROM shell_state WHERE key = 'last_output'",
-                    [], |r| r.get::<_, String>(0)
+                    [],
+                    |r| r.get::<_, String>(0),
                 ) {
                     return CommandResult::Output(out);
                 }
@@ -1308,10 +1709,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let db_path = format!("{}/0-core/runtime/state.db", home);
             let result = rusqlite::Connection::open(&db_path).and_then(|c| {
                 // Only save if last_output has real content
-                let last: String = c.query_row(
-                    "SELECT value FROM shell_state WHERE key = 'last_output'",
-                    [], |r| r.get(0)
-                ).unwrap_or_default();
+                let last: String = c
+                    .query_row(
+                        "SELECT value FROM shell_state WHERE key = 'last_output'",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or_default();
                 if last.is_empty() || last.contains("No last output stored yet") {
                     return Err(rusqlite::Error::QueryReturnedNoRows);
                 }
@@ -1322,10 +1726,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Ok(last.len())
             });
             match result {
-                Ok(len) => CommandResult::Output(format!("  ✅ Saved {} bytes to slot '{}'", len, name)),
+                Ok(len) => {
+                    CommandResult::Output(format!("  ✅ Saved {} bytes to slot '{}'", len, name))
+                }
                 Err(_) => CommandResult::Output(
                     "  ○ Nothing to save — save works with native fsh commands
-  → Try: core strategy now | save <name>".to_string()
+  → Try: core strategy now | save <name>"
+                        .to_string(),
                 ),
             }
         }
@@ -1337,9 +1744,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 let slots: Vec<String> = rusqlite::Connection::open(&db_path)
                     .and_then(|c| {
                         let mut stmt = c.prepare(
-                            "SELECT key FROM shell_state WHERE key LIKE 'saved_%' ORDER BY key"
+                            "SELECT key FROM shell_state WHERE key LIKE 'saved_%' ORDER BY key",
                         )?;
-                        let rows: Vec<String> = stmt.query_map([], |r| r.get(0))?
+                        let rows: Vec<String> = stmt
+                            .query_map([], |r| r.get(0))?
                             .filter_map(|r| r.ok())
                             .map(|k: String| k.trim_start_matches("saved_").to_string())
                             .collect();
@@ -1347,19 +1755,22 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     })
                     .unwrap_or_default();
                 if slots.is_empty() {
-                    return CommandResult::Output("  ○ No saved slots — use: save <name>".to_string());
+                    return CommandResult::Output(
+                        "  ○ No saved slots — use: save <name>".to_string(),
+                    );
                 }
                 return CommandResult::Output(format!("  Saved slots: {}", slots.join(", ")));
             }
             let name = args[0];
             let home = std::env::var("HOME").unwrap_or_default();
             let db_path = format!("{}/0-core/runtime/state.db", home);
-            let result = rusqlite::Connection::open(&db_path)
-                .and_then(|c| c.query_row(
+            let result = rusqlite::Connection::open(&db_path).and_then(|c| {
+                c.query_row(
                     "SELECT value FROM shell_state WHERE key = ?1",
                     rusqlite::params![format!("saved_{}", name)],
-                    |r| r.get::<_, String>(0)
-                ));
+                    |r| r.get::<_, String>(0),
+                )
+            });
             match result {
                 Ok(out) => CommandResult::Output(out),
                 Err(_) => CommandResult::Error(format!("No saved slot named '{}'", name)),
@@ -1389,42 +1800,71 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 let tmp = "/tmp/fsh-edit.sh";
                 let _ = std::fs::write(tmp, format!("{}\n", last_cmd));
                 let status = std::process::Command::new(&editor)
-                    .arg(tmp).stdin(std::process::Stdio::inherit())
+                    .arg(tmp)
+                    .stdin(std::process::Stdio::inherit())
                     .stdout(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit()).status();
+                    .stderr(std::process::Stdio::inherit())
+                    .status();
                 return match status {
                     Ok(_) => {
-                        let edited = std::fs::read_to_string(tmp).unwrap_or_default().trim().to_string();
+                        let edited = std::fs::read_to_string(tmp)
+                            .unwrap_or_default()
+                            .trim()
+                            .to_string();
                         let _ = std::fs::remove_file(tmp);
-                        if edited.is_empty() { CommandResult::Empty }
-                        else { println!("  {} {}", "→".bright_cyan(), edited.dimmed()); execute(&edited, db, core_root) }
+                        if edited.is_empty() {
+                            CommandResult::Empty
+                        } else {
+                            println!("  {} {}", "→".bright_cyan(), edited.dimmed());
+                            execute(&edited, db, core_root)
+                        }
                     }
                     Err(e) => CommandResult::Error(format!("edit: {}", e)),
                 };
             }
             let spec: String = args.join(" ");
-            let (filepath, line_or_pattern): (&str, Option<&str>) = if let Some(colon) = spec.rfind(':') {
-                let f = &spec[..colon]; let lp = &spec[colon+1..];
-                if !lp.is_empty() { (f, Some(lp)) } else { (spec.as_str(), None) }
-            } else { (spec.as_str(), None) };
+            let (filepath, line_or_pattern): (&str, Option<&str>) =
+                if let Some(colon) = spec.rfind(':') {
+                    let f = &spec[..colon];
+                    let lp = &spec[colon + 1..];
+                    if !lp.is_empty() {
+                        (f, Some(lp))
+                    } else {
+                        (spec.as_str(), None)
+                    }
+                } else {
+                    (spec.as_str(), None)
+                };
             let expanded = if filepath.starts_with("~/") {
-                filepath.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
-            } else { filepath.to_string() };
+                filepath.replacen(
+                    "~/",
+                    &format!("{}/", std::env::var("HOME").unwrap_or_default()),
+                    1,
+                )
+            } else {
+                filepath.to_string()
+            };
             let mut editor_args: Vec<String> = Vec::new();
             if let Some(lp) = line_or_pattern {
                 if let Ok(lineno) = lp.parse::<usize>() {
                     editor_args.push(format!("+{}", lineno));
                 } else if let Ok(content_str) = std::fs::read_to_string(&expanded) {
-                    if let Some((i, _)) = content_str.lines().enumerate().find(|(_, l)| l.to_lowercase().contains(&lp.to_lowercase())) {
+                    if let Some((i, _)) = content_str
+                        .lines()
+                        .enumerate()
+                        .find(|(_, l)| l.to_lowercase().contains(&lp.to_lowercase()))
+                    {
                         editor_args.push(format!("+{}", i + 1));
                     }
                 }
             }
             editor_args.push(expanded);
             let status = std::process::Command::new(&editor)
-                .args(&editor_args).stdin(std::process::Stdio::inherit())
+                .args(&editor_args)
+                .stdin(std::process::Stdio::inherit())
                 .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit()).status();
+                .stderr(std::process::Stdio::inherit())
+                .status();
             match status {
                 Ok(_) => CommandResult::Empty,
                 Err(e) => CommandResult::Error(format!("edit: {}", e)),
@@ -1680,79 +2120,111 @@ fn open_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let path = if file.starts_with("~/") {
         file.replacen("~/", &format!("{}/", home), 1)
-    } else { file.to_string() };
+    } else {
+        file.to_string()
+    };
     let ext = std::path::Path::new(&path)
-        .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => return CommandResult::Error(format!("open: {}: {}", file, e)),
     };
     match ext.as_str() {
-        "json" => {
-            match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(serde_json::Value::Array(arr)) => {
-                    let rows: Vec<std::collections::HashMap<String, Value>> = arr.iter()
-                        .filter_map(|v| v.as_object())
-                        .map(|obj| obj.iter().map(|(k, v)| {
-                            let val = match v {
-                                serde_json::Value::String(s) => Value::Text(s.clone()),
-                                serde_json::Value::Number(n) => Value::Int(n.as_i64().unwrap_or(0)),
-                                serde_json::Value::Bool(b) => Value::Text(b.to_string()),
-                                _ => Value::Text(v.to_string()),
-                            };
-                            (k.clone(), val)
-                        }).collect())
-                        .collect();
-                    CommandResult::Value(Value::Table(rows))
-                }
-                Ok(serde_json::Value::Object(obj)) => {
-                    let rows: Vec<std::collections::HashMap<String, Value>> = obj.iter().map(|(k, v)| {
+        "json" => match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(serde_json::Value::Array(arr)) => {
+                let rows: Vec<std::collections::HashMap<String, Value>> = arr
+                    .iter()
+                    .filter_map(|v| v.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .map(|(k, v)| {
+                                let val = match v {
+                                    serde_json::Value::String(s) => Value::Text(s.clone()),
+                                    serde_json::Value::Number(n) => {
+                                        Value::Int(n.as_i64().unwrap_or(0))
+                                    }
+                                    serde_json::Value::Bool(b) => Value::Text(b.to_string()),
+                                    _ => Value::Text(v.to_string()),
+                                };
+                                (k.clone(), val)
+                            })
+                            .collect()
+                    })
+                    .collect();
+                CommandResult::Value(Value::Table(rows))
+            }
+            Ok(serde_json::Value::Object(obj)) => {
+                let rows: Vec<std::collections::HashMap<String, Value>> = obj
+                    .iter()
+                    .map(|(k, v)| {
                         let mut row = std::collections::HashMap::new();
                         row.insert("key".to_string(), Value::Text(k.clone()));
-                        row.insert("value".to_string(), Value::Text(v.to_string().trim_matches('"').to_string()));
+                        row.insert(
+                            "value".to_string(),
+                            Value::Text(v.to_string().trim_matches('"').to_string()),
+                        );
                         row
-                    }).collect();
-                    CommandResult::Value(Value::Table(rows))
-                }
-                _ => CommandResult::Output(content),
+                    })
+                    .collect();
+                CommandResult::Value(Value::Table(rows))
             }
-        }
-        "toml" => {
-            match toml::from_str::<toml::Value>(&content) {
-                Ok(toml::Value::Table(table)) => {
-                    let rows: Vec<std::collections::HashMap<String, Value>> = table.iter().map(|(k, v)| {
+            _ => CommandResult::Output(content),
+        },
+        "toml" => match toml::from_str::<toml::Value>(&content) {
+            Ok(toml::Value::Table(table)) => {
+                let rows: Vec<std::collections::HashMap<String, Value>> = table
+                    .iter()
+                    .map(|(k, v)| {
                         let mut row = std::collections::HashMap::new();
                         row.insert("key".to_string(), Value::Text(k.clone()));
-                        row.insert("value".to_string(), Value::Text(v.to_string().trim_matches('"').to_string()));
+                        row.insert(
+                            "value".to_string(),
+                            Value::Text(v.to_string().trim_matches('"').to_string()),
+                        );
                         row
-                    }).collect();
-                    CommandResult::Value(Value::Table(rows))
-                }
-                _ => CommandResult::Output(content),
+                    })
+                    .collect();
+                CommandResult::Value(Value::Table(rows))
             }
-        }
+            _ => CommandResult::Output(content),
+        },
         "csv" => {
             let mut lines = content.lines();
-            let headers: Vec<String> = lines.next()
+            let headers: Vec<String> = lines
+                .next()
                 .map(|h| h.split(',').map(|s| s.trim().to_string()).collect())
                 .unwrap_or_default();
-            let rows: Vec<std::collections::HashMap<String, Value>> = lines.map(|line| {
-                let vals: Vec<&str> = line.split(',').collect();
-                headers.iter().enumerate().map(|(i, h)| {
-                    (h.clone(), Value::Text(vals.get(i).copied().unwrap_or("").trim().to_string()))
-                }).collect()
-            }).collect();
+            let rows: Vec<std::collections::HashMap<String, Value>> = lines
+                .map(|line| {
+                    let vals: Vec<&str> = line.split(',').collect();
+                    headers
+                        .iter()
+                        .enumerate()
+                        .map(|(i, h)| {
+                            (
+                                h.clone(),
+                                Value::Text(vals.get(i).copied().unwrap_or("").trim().to_string()),
+                            )
+                        })
+                        .collect()
+                })
+                .collect();
             CommandResult::Value(Value::Table(rows))
         }
         _ => {
-            let rows: Vec<std::collections::HashMap<String, Value>> = content.lines()
+            let rows: Vec<std::collections::HashMap<String, Value>> = content
+                .lines()
                 .enumerate()
                 .map(|(i, line)| {
                     let mut row = std::collections::HashMap::new();
                     row.insert("n".to_string(), Value::Int(i as i64 + 1));
                     row.insert("line".to_string(), Value::Text(line.to_string()));
                     row
-                }).collect();
+                })
+                .collect();
             CommandResult::Value(Value::Table(rows))
         }
     }
@@ -1914,34 +2386,48 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
         Err(e) => return CommandResult::Error(e.to_string()),
     };
     let results: Vec<(String, i64, i64)> = stmt
-        .query_map(rusqlite::params![&like], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?)))
+        .query_map(rusqlite::params![&like], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
     if results.is_empty() {
         return CommandResult::Output(format!(
-            "  {} no history matches for '{}'", "○".dimmed(), pattern
+            "  {} no history matches for '{}'",
+            "○".dimmed(),
+            pattern
         ));
     }
     let mut out = String::new();
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
   {} {}
 ",
         "🔍 History search:".bright_cyan().bold(),
         pattern.bright_white()
     ));
-    out.push_str(&format!("  {}
-", "─".repeat(52).dimmed()));
+    out.push_str(&format!(
+        "  {}
+",
+        "─".repeat(52).dimmed()
+    ));
     for (i, (cmd, ts, freq)) in results.iter().enumerate() {
         let time = chrono::DateTime::from_timestamp(*ts, 0)
             .map(|t| t.format("%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "?".to_string());
         // Highlight the matching pattern in the command
-        let highlighted = cmd.replace(
-            &pattern,
-            &format!("[1;33m{}[0m", pattern)
-        );
-        let freq_label = if *freq > 1 { format!(" ({}x)", freq) } else { String::new() };
-        out.push_str(&format!("  {} {}{}  {}
+        let highlighted = cmd.replace(&pattern, &format!("[1;33m{}[0m", pattern));
+        let freq_label = if *freq > 1 {
+            format!(" ({}x)", freq)
+        } else {
+            String::new()
+        };
+        out.push_str(&format!(
+            "  {} {}{}  {}
 ",
             format!("{:3}", i + 1).dimmed(),
             time.dimmed(),
@@ -1949,14 +2435,16 @@ fn history_search_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             highlighted
         ));
     }
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
   {} {} match{}
 ",
         "→".dimmed(),
         results.len().to_string().bright_green(),
         if results.len() == 1 { "" } else { "es" }
     ));
-    out.push_str(&format!("  {} run with {}
+    out.push_str(&format!(
+        "  {} run with {}
 ",
         "tip:".dimmed(),
         format!("!{}", pattern).bright_cyan()
@@ -1967,11 +2455,13 @@ fn shell_handoff_cmd(line: &str) -> CommandResult {
     let shell = line.trim().split_whitespace().next().unwrap_or("zsh");
     println!();
     println!("  {} Stepping out of the forest...", "🌲".to_string());
-    println!("  {} You are entering {}",
+    println!(
+        "  {} You are entering {}",
         "→".bright_cyan(),
         shell.bright_yellow().bold()
     );
-    println!("  {} Type {} to return to fsh",
+    println!(
+        "  {} Type {} to return to fsh",
         "→".dimmed(),
         "exit".bright_green()
     );
@@ -2027,7 +2517,6 @@ fn history_table(db: &ForestDb) -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-
 fn ht_intent(db: &ForestDb) -> CommandResult {
     // Group history by active intent at time of command
     use colored::Colorize;
@@ -2036,31 +2525,42 @@ fn ht_intent(db: &ForestDb) -> CommandResult {
          FROM shell_history h
          LEFT JOIN events e ON e.domain = 'intent' AND e.action = 'started'
              AND e.timestamp <= h.timestamp
-         ORDER BY h.timestamp DESC LIMIT 200"
+         ORDER BY h.timestamp DESC LIMIT 200",
     ) {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
     let rows: Vec<(String, i64, String)> = stmt
-        .query_map([], |r| Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, i64>(1)?,
-            r.get::<_, String>(2).unwrap_or_default(),
-        )))
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, String>(2).unwrap_or_default(),
+            ))
+        })
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No history yet", "○".dimmed()));
     }
     // Group by intent
-    let mut groups: std::collections::BTreeMap<String, Vec<(String, i64)>> = std::collections::BTreeMap::new();
+    let mut groups: std::collections::BTreeMap<String, Vec<(String, i64)>> =
+        std::collections::BTreeMap::new();
     for (cmd, ts, intent) in &rows {
-        let key = if intent.is_empty() { "no intent".to_string() } else { intent.clone() };
+        let key = if intent.is_empty() {
+            "no intent".to_string()
+        } else {
+            intent.clone()
+        };
         groups.entry(key).or_default().push((cmd.clone(), *ts));
     }
     let mut out = String::new();
     for (intent, cmds) in groups.iter().rev() {
-        out.push_str(&format!("\n  {} {}\n", "▸".bright_cyan(), intent.bright_white()));
+        out.push_str(&format!(
+            "\n  {} {}\n",
+            "▸".bright_cyan(),
+            intent.bright_white()
+        ));
         for (cmd, _ts) in cmds.iter().take(10) {
             out.push_str(&format!("    {}\n", cmd.dimmed()));
         }
@@ -2082,13 +2582,19 @@ fn ht_today(db: &ForestDb) -> CommandResult {
         Err(_) => return CommandResult::Output(format!("  {} No history today", "○".dimmed())),
     };
     let rows: Vec<(String, i64)> = stmt
-        .query_map([today_start], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .query_map([today_start], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        })
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No commands today yet", "○".dimmed()));
     }
-    let mut out = format!("  {} Today -- {} commands\n", "▸".bright_cyan(), rows.len().to_string().bright_yellow());
+    let mut out = format!(
+        "  {} Today -- {} commands\n",
+        "▸".bright_cyan(),
+        rows.len().to_string().bright_yellow()
+    );
     for (cmd, ts) in &rows {
         let time = crate::commands::fmt_time(*ts, "%H:%M");
         out.push_str(&format!("  {} {}\n", time.dimmed(), cmd));
@@ -2100,23 +2606,30 @@ fn ht_session(db: &ForestDb) -> CommandResult {
     let session_start = {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64).unwrap_or(0);
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         now - 3600 * 4 // last 4 hours as session approximation
     };
     let mut stmt = match db.conn.prepare(
-        "SELECT command, timestamp FROM shell_history WHERE timestamp >= ?1 ORDER BY timestamp ASC"
+        "SELECT command, timestamp FROM shell_history WHERE timestamp >= ?1 ORDER BY timestamp ASC",
     ) {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No session history", "○".dimmed())),
     };
     let rows: Vec<(String, i64)> = stmt
-        .query_map([session_start], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .query_map([session_start], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        })
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     if rows.is_empty() {
         return CommandResult::Output(format!("  {} No commands this session", "○".dimmed()));
     }
-    let mut out = format!("  {} Session -- {} commands\n", "▸".bright_cyan(), rows.len().to_string().bright_yellow());
+    let mut out = format!(
+        "  {} Session -- {} commands\n",
+        "▸".bright_cyan(),
+        rows.len().to_string().bright_yellow()
+    );
     for (cmd, ts) in &rows {
         let time = crate::commands::fmt_time(*ts, "%H:%M:%S");
         out.push_str(&format!("  {} {}\n", time.dimmed(), cmd));
@@ -2125,9 +2638,10 @@ fn ht_session(db: &ForestDb) -> CommandResult {
 }
 fn ht_slow(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
-    let mut stmt = match db.conn.prepare(
-        "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 500"
-    ) {
+    let mut stmt = match db
+        .conn
+        .prepare("SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 500")
+    {
         Ok(s) => s,
         Err(_) => return CommandResult::Output(format!("  {} No history yet", "○".dimmed())),
     };
@@ -2136,9 +2650,15 @@ fn ht_slow(db: &ForestDb) -> CommandResult {
         .map(|r| r.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
     // Compute durations
-    let mut with_duration: Vec<(String, i64)> = raw.iter().enumerate()
+    let mut with_duration: Vec<(String, i64)> = raw
+        .iter()
+        .enumerate()
         .map(|(i, (cmd, ts))| {
-            let dur = if i + 1 < raw.len() { (ts - raw[i+1].1).max(0) } else { 0 };
+            let dur = if i + 1 < raw.len() {
+                (ts - raw[i + 1].1).max(0)
+            } else {
+                0
+            };
             (cmd.clone(), dur)
         })
         .filter(|(_, d)| *d > 5) // only commands that took > 5 seconds
@@ -2146,12 +2666,15 @@ fn ht_slow(db: &ForestDb) -> CommandResult {
     with_duration.sort_by(|a, b| b.1.cmp(&a.1));
     with_duration.truncate(20);
     if with_duration.is_empty() {
-        return CommandResult::Output(format!("  {} No slow commands found (>5s threshold)", "○".dimmed()));
+        return CommandResult::Output(format!(
+            "  {} No slow commands found (>5s threshold)",
+            "○".dimmed()
+        ));
     }
     let mut out = format!("  {} Slow commands (>5s)\n", "▸".bright_cyan());
     for (cmd, dur) in &with_duration {
         let dur_str = if *dur >= 60 {
-            format!("{}m{}s", dur/60, dur%60)
+            format!("{}m{}s", dur / 60, dur % 60)
         } else {
             format!("{}s", dur)
         };
@@ -2163,49 +2686,84 @@ fn ht_slow(db: &ForestDb) -> CommandResult {
 fn fsh_diag(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
     // Session count
-    let sessions: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM session_patterns", [],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let sessions: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM session_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
     // Total commands
-    let total_cmds: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history", [],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let total_cmds: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get(0))
+        .unwrap_or(0);
     // Average focus score
-    let avg_focus: f64 = db.conn.query_row(
-        "SELECT AVG(focus_score) FROM session_patterns", [],
-        |r| r.get::<_, Option<f64>>(0)
-    ).unwrap_or(None).unwrap_or(1.0);
+    let avg_focus: f64 = db
+        .conn
+        .query_row("SELECT AVG(focus_score) FROM session_patterns", [], |r| {
+            r.get::<_, Option<f64>>(0)
+        })
+        .unwrap_or(None)
+        .unwrap_or(1.0);
     // Peak velocity
-    let peak_vel: f64 = db.conn.query_row(
-        "SELECT MAX(velocity_per_hour) FROM commit_patterns", [],
-        |r| r.get::<_, Option<f64>>(0)
-    ).unwrap_or(None).unwrap_or(0.0);
+    let peak_vel: f64 = db
+        .conn
+        .query_row(
+            "SELECT MAX(velocity_per_hour) FROM commit_patterns",
+            [],
+            |r| r.get::<_, Option<f64>>(0),
+        )
+        .unwrap_or(None)
+        .unwrap_or(0.0);
     // Error rate (commands with TIMING: that ran long)
-    let slow_cmds: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'TIMING:%'", [],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let slow_cmds: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'TIMING:%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let mut out = String::new();
     out.push_str(&format!("\n  {} Shell Diagnostics\n", "🔍".normal()));
     out.push_str(&format!("  {}\n", "─".repeat(40).dimmed()));
-    out.push_str(&format!("  {:<22} {}\n", "Sessions recorded:".dimmed(), sessions.to_string().bright_white()));
-    out.push_str(&format!("  {:<22} {}\n", "Total commands:".dimmed(), total_cmds.to_string().bright_white()));
-    out.push_str(&format!("  {:<22} {:.2}\n", "Avg focus score:".dimmed(), avg_focus));
-    out.push_str(&format!("  {:<22} {:.1} commits/hr\n", "Peak velocity:".dimmed(), peak_vel));
-    out.push_str(&format!("  {:<22} {}\n", "Long-running cmds:".dimmed(), slow_cmds.to_string().bright_yellow()));
+    out.push_str(&format!(
+        "  {:<22} {}\n",
+        "Sessions recorded:".dimmed(),
+        sessions.to_string().bright_white()
+    ));
+    out.push_str(&format!(
+        "  {:<22} {}\n",
+        "Total commands:".dimmed(),
+        total_cmds.to_string().bright_white()
+    ));
+    out.push_str(&format!(
+        "  {:<22} {:.2}\n",
+        "Avg focus score:".dimmed(),
+        avg_focus
+    ));
+    out.push_str(&format!(
+        "  {:<22} {:.1} commits/hr\n",
+        "Peak velocity:".dimmed(),
+        peak_vel
+    ));
+    out.push_str(&format!(
+        "  {:<22} {}\n",
+        "Long-running cmds:".dimmed(),
+        slow_cmds.to_string().bright_yellow()
+    ));
     out.push_str("\n");
     CommandResult::Output(out)
 }
 fn fsh_gaps(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
     // Find commands that could have used fsh builtins
-    let grep_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'grep %' AND timestamp > ?1",
-        rusqlite::params![chrono::Utc::now().timestamp() - 604800],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let grep_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'grep %' AND timestamp > ?1",
+            rusqlite::params![chrono::Utc::now().timestamp() - 604800],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let head_count: i64 = db.conn.query_row(
         "SELECT COUNT(*) FROM shell_history WHERE (command LIKE 'head %' OR command LIKE 'tail %') AND timestamp > ?1",
         rusqlite::params![chrono::Utc::now().timestamp() - 604800],
@@ -2226,27 +2784,39 @@ fn fsh_gaps(db: &ForestDb) -> CommandResult {
     out.push_str(&format!("  {}\n", "─".repeat(45).dimmed()));
     let mut any_gaps = false;
     if grep_count > 2 {
-        out.push_str(&format!("  {} {} x grep  →  try: {}\n",
-            "⚡".yellow(), grep_count.to_string().bright_yellow(),
-            "query file.rs pattern  or  fsearch 'pattern' --type rs".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x grep  →  try: {}\n",
+            "⚡".yellow(),
+            grep_count.to_string().bright_yellow(),
+            "query file.rs pattern  or  fsearch 'pattern' --type rs".bright_cyan()
+        ));
         any_gaps = true;
     }
     if head_count > 2 {
-        out.push_str(&format!("  {} {} x head/tail  →  try: {}\n",
-            "⚡".yellow(), head_count.to_string().bright_yellow(),
-            "query file.rs :50  or  query file.rs 45:60".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x head/tail  →  try: {}\n",
+            "⚡".yellow(),
+            head_count.to_string().bright_yellow(),
+            "query file.rs :50  or  query file.rs 45:60".bright_cyan()
+        ));
         any_gaps = true;
     }
     if python_tmp > 2 {
-        out.push_str(&format!("  {} {} x python3 /tmp/  →  try: {}\n",
-            "⚡".yellow(), python_tmp.to_string().bright_yellow(),
-            "run script.py  (fsh runs .py natively)".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x python3 /tmp/  →  try: {}\n",
+            "⚡".yellow(),
+            python_tmp.to_string().bright_yellow(),
+            "run script.py  (fsh runs .py natively)".bright_cyan()
+        ));
         any_gaps = true;
     }
     if cat_grep > 1 {
-        out.push_str(&format!("  {} {} x cat|grep  →  try: {}\n",
-            "⚡".yellow(), cat_grep.to_string().bright_yellow(),
-            "cat file | grep pattern  (native pipe, no sh)".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x cat|grep  →  try: {}\n",
+            "⚡".yellow(),
+            cat_grep.to_string().bright_yellow(),
+            "cat file | grep pattern  (native pipe, no sh)".bright_cyan()
+        ));
         any_gaps = true;
     }
     // INT-233 -- new builtin alternatives
@@ -2261,19 +2831,28 @@ fn fsh_gaps(db: &ForestDb) -> CommandResult {
         |r| r.get(0)
     ).unwrap_or(0);
     if sed_count > 2 {
-        out.push_str(&format!("  {} {} x sed  ->  try: {}\n",
-            "⚡".yellow(), sed_count.to_string().bright_yellow(),
-            "rspatch file.rs --anchor 'text' --new 'replacement'".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x sed  ->  try: {}\n",
+            "⚡".yellow(),
+            sed_count.to_string().bright_yellow(),
+            "rspatch file.rs --anchor 'text' --new 'replacement'".bright_cyan()
+        ));
         any_gaps = true;
     }
     if py_patch > 1 {
-        out.push_str(&format!("  {} {} x python patch  ->  try: {}\n",
-            "⚡".yellow(), py_patch.to_string().bright_yellow(),
-            "fsh-patch target old.rs new.rs  (no unicode escape issues)".bright_cyan()));
+        out.push_str(&format!(
+            "  {} {} x python patch  ->  try: {}\n",
+            "⚡".yellow(),
+            py_patch.to_string().bright_yellow(),
+            "fsh-patch target old.rs new.rs  (no unicode escape issues)".bright_cyan()
+        ));
         any_gaps = true;
     }
     if !any_gaps {
-        out.push_str(&format!("  {} No gaps detected -- you are using the forest well\n", "✅".green()));
+        out.push_str(&format!(
+            "  {} No gaps detected -- you are using the forest well\n",
+            "✅".green()
+        ));
     }
     out.push_str("\n");
     CommandResult::Output(out)
@@ -3032,7 +3611,6 @@ fn sys_network() -> CommandResult {
     CommandResult::Value(Value::Table(rows))
 }
 
-
 // ── Phase 12 — pkg — forest-native package interface ─────────────────────────
 // Wraps paru/pacman with structured table output.
 // pkg list installed   → Value::Table (pipeable)
@@ -3089,9 +3667,7 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
         "install" | "add" => {
             let name = match args.get(1) {
                 Some(n) => n,
-                None => return CommandResult::Error(
-                    "  usage: pkg install <package>".to_string()
-                ),
+                None => return CommandResult::Error("  usage: pkg install <package>".to_string()),
             };
             println!(
                 "  {} installing {} via paru...",
@@ -3106,10 +3682,13 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
                 .status();
             match status {
                 Ok(s) if s.success() => CommandResult::Output(format!(
-                    "  {} {} installed", "✅".normal(), name.bright_green()
+                    "  {} {} installed",
+                    "✅".normal(),
+                    name.bright_green()
                 )),
                 Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}", s.code().unwrap_or(-1)
+                    "  paru exited with code {}",
+                    s.code().unwrap_or(-1)
                 )),
                 Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
             }
@@ -3119,15 +3698,9 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
         "remove" | "uninstall" | "rm" => {
             let name = match args.get(1) {
                 Some(n) => n,
-                None => return CommandResult::Error(
-                    "  usage: pkg remove <package>".to_string()
-                ),
+                None => return CommandResult::Error("  usage: pkg remove <package>".to_string()),
             };
-            println!(
-                "  {} removing {} ...",
-                "🗑".normal(),
-                name.bright_red()
-            );
+            println!("  {} removing {} ...", "🗑".normal(), name.bright_red());
             let status = std::process::Command::new("paru")
                 .args(["-Rns", name])
                 .stdin(std::process::Stdio::inherit())
@@ -3136,10 +3709,13 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
                 .status();
             match status {
                 Ok(s) if s.success() => CommandResult::Output(format!(
-                    "  {} {} removed", "✅".normal(), name.bright_green()
+                    "  {} {} removed",
+                    "✅".normal(),
+                    name.bright_green()
                 )),
                 Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}", s.code().unwrap_or(-1)
+                    "  paru exited with code {}",
+                    s.code().unwrap_or(-1)
                 )),
                 Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
             }
@@ -3155,11 +3731,10 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
                 .stderr(std::process::Stdio::inherit())
                 .status();
             match status {
-                Ok(s) if s.success() => CommandResult::Output(
-                    "  ✅ system updated".to_string()
-                ),
+                Ok(s) if s.success() => CommandResult::Output("  ✅ system updated".to_string()),
                 Ok(s) => CommandResult::Error(format!(
-                    "  paru exited with code {}", s.code().unwrap_or(-1)
+                    "  paru exited with code {}",
+                    s.code().unwrap_or(-1)
                 )),
                 Err(e) => CommandResult::Error(format!("  failed to run paru: {}", e)),
             }
@@ -3176,11 +3751,16 @@ fn pkg_cmd(args: &[&str]) -> CommandResult {
              {}  {}",
             "📦".normal(),
             "  ─────────────────────────────────────".dimmed(),
-            "  pkg list installed".bright_cyan(),     "list installed packages as table".dimmed(),
-            "  pkg search <term>".bright_cyan(),      "search repos and AUR".dimmed(),
-            "  pkg install <name>".bright_cyan(),     "install via paru".dimmed(),
-            "  pkg remove <name>".bright_cyan(),      "remove package".dimmed(),
-            "  pkg update".bright_cyan(),             "update all packages".dimmed(),
+            "  pkg list installed".bright_cyan(),
+            "list installed packages as table".dimmed(),
+            "  pkg search <term>".bright_cyan(),
+            "search repos and AUR".dimmed(),
+            "  pkg install <name>".bright_cyan(),
+            "install via paru".dimmed(),
+            "  pkg remove <name>".bright_cyan(),
+            "remove package".dimmed(),
+            "  pkg update".bright_cyan(),
+            "update all packages".dimmed(),
         )),
     }
 }
@@ -3434,8 +4014,12 @@ fn parse_since_time(arg: &str) -> i64 {
     let now = chrono::Local::now().timestamp();
     let arg_lower = arg.to_lowercase();
     match arg_lower.as_str() {
-        "today" => chrono::Local::now().date_naive()
-            .and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp(),
+        "today" => chrono::Local::now()
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp(),
         "yesterday" => now - 86400,
         "week" | "this week" => now - 7 * 86400,
         _ => {
@@ -3460,21 +4044,35 @@ fn parse_since_time(arg: &str) -> i64 {
 fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     let _ = core_root;
     let arg = args.join(" ");
-    let arg = if arg.is_empty() { "yesterday".to_string() } else { arg };
+    let arg = if arg.is_empty() {
+        "yesterday".to_string()
+    } else {
+        arg
+    };
     let since_ts = parse_since_time(&arg);
     let now = chrono::Local::now().timestamp();
 
     let fmt_ts = |ts: i64| -> String {
         chrono::DateTime::from_timestamp(ts, 0)
-            .map(|d| d.with_timezone(&chrono::Local).format("%m-%d %H:%M").to_string())
+            .map(|d| {
+                d.with_timezone(&chrono::Local)
+                    .format("%m-%d %H:%M")
+                    .to_string()
+            })
             .unwrap_or_default()
     };
 
     let mut out = String::new();
-    out.push_str(&format!("{}\n", "\u{1f332} Since \u{2014} Forest Timeline".cyan().bold()));
+    out.push_str(&format!(
+        "{}\n",
+        "\u{1f332} Since \u{2014} Forest Timeline".cyan().bold()
+    ));
     out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
-    out.push_str(&format!("  {} {} \u{2192} now\n\n",
-        "Period:".dimmed(), fmt_ts(since_ts).bright_white()));
+    out.push_str(&format!(
+        "  {} {} \u{2192} now\n\n",
+        "Period:".dimmed(),
+        fmt_ts(since_ts).bright_white()
+    ));
 
     // Git commits
     if let Ok(mut stmt) = db.conn.prepare(
@@ -3561,8 +4159,10 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         rusqlite::params![since_ts], |r| r.get(0)
     ).unwrap_or(0);
     if cmd_count > 0 {
-        out.push_str(&format!("  \u{2328}\u{fe0f}  {} external command(s) run\n\n",
-            cmd_count.to_string().bright_white()));
+        out.push_str(&format!(
+            "  \u{2328}\u{fe0f}  {} external command(s) run\n\n",
+            cmd_count.to_string().bright_white()
+        ));
     }
 
     // Idle sessions
@@ -3571,14 +4171,18 @@ fn since_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
         rusqlite::params![since_ts], |r| r.get(0)
     ).unwrap_or(0);
     if idle_count > 0 {
-        out.push_str(&format!("  \u{1f4a4} {} idle session(s)\n\n",
-            idle_count.to_string().dimmed()));
+        out.push_str(&format!(
+            "  \u{1f4a4} {} idle session(s)\n\n",
+            idle_count.to_string().dimmed()
+        ));
     }
 
     let elapsed_h = (now - since_ts) / 3600;
     out.push_str(&format!("{}\n", "\u{2501}".repeat(52).dimmed()));
-    out.push_str(&format!("  \u{23f1}\u{fe0f}  {}h of forest history\n",
-        elapsed_h.to_string().bright_white()));
+    out.push_str(&format!(
+        "  \u{23f1}\u{fe0f}  {}h of forest history\n",
+        elapsed_h.to_string().bright_white()
+    ));
 
     CommandResult::Output(out)
 }
@@ -3587,10 +4191,14 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let sub = args.first().copied().unwrap_or("last");
     match sub {
         "last" => {
-            let last: Option<(String, i64)> = db.conn.query_row(
-                "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 1",
-                [], |r| Ok((r.get(0)?, r.get(1)?))
-            ).ok();
+            let last: Option<(String, i64)> = db
+                .conn
+                .query_row(
+                    "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 1",
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .ok();
             let last_ext: Option<(String, i64)> = db.conn.query_row(
                 "SELECT payload, timestamp FROM events WHERE domain='external' AND action='run' ORDER BY timestamp DESC LIMIT 1",
                 [], |r| Ok((r.get(0)?, r.get(1)?))
@@ -3600,7 +4208,11 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             if let Some((cmd, ts)) = &last {
                 let dt = chrono::DateTime::from_timestamp(*ts, 0)
-                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .map(|d| {
+                        d.with_timezone(&chrono::Local)
+                            .format("%H:%M:%S")
+                            .to_string()
+                    })
                     .unwrap_or_default();
                 out.push_str(&format!("  {} Last shell command\n", "▶".bright_cyan()));
                 out.push_str(&format!("    {} {}\n", "cmd:".dimmed(), cmd.bright_white()));
@@ -3610,20 +4222,28 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     "alias expanded"
                 } else {
                     match first_tok {
-                        "cd"|"ls"|"pwd"|"health"|"events"|"intents"|"since"|"gc"|
-                        "ps"|"forecast"|"checkpoint"|"git"|"commits"|"story"|
-                        "advise"|"debug"|"usage" => "forest builtin",
-                        "q"|"exit"|"quit" => "shell control",
+                        "cd" | "ls" | "pwd" | "health" | "events" | "intents" | "since" | "gc"
+                        | "ps" | "forecast" | "checkpoint" | "git" | "commits" | "story"
+                        | "advise" | "debug" | "usage" => "forest builtin",
+                        "q" | "exit" | "quit" => "shell control",
                         "flow" => "flow mode",
-                        _ => "external PATH"
+                        _ => "external PATH",
                     }
                 };
-                out.push_str(&format!("    {} {}\n", "type:".dimmed(), classification.bright_green()));
+                out.push_str(&format!(
+                    "    {} {}\n",
+                    "type:".dimmed(),
+                    classification.bright_green()
+                ));
             }
             out.push('\n');
             if let Some((payload, ts)) = &last_ext {
                 let dt = chrono::DateTime::from_timestamp(*ts, 0)
-                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .map(|d| {
+                        d.with_timezone(&chrono::Local)
+                            .format("%H:%M:%S")
+                            .to_string()
+                    })
                     .unwrap_or_default();
                 out.push_str(&format!("  {} Last external run\n", "▶".yellow()));
                 out.push_str(&format!("    {} {}\n", "event:".dimmed(), payload.white()));
@@ -3636,7 +4256,11 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             ).ok();
             if let Some((rule, msg, ts)) = last_reaction {
                 let dt = chrono::DateTime::from_timestamp(ts, 0)
-                    .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+                    .map(|d| {
+                        d.with_timezone(&chrono::Local)
+                            .format("%H:%M:%S")
+                            .to_string()
+                    })
                     .unwrap_or_default();
                 out.push_str(&format!("  {} Last reaction fired\n", "▶".yellow()));
                 out.push_str(&format!("    {} {}\n", "rule:".dimmed(), rule.cyan()));
@@ -3646,7 +4270,10 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 out.push_str(&format!("  {} No reactions fired recently\n", "▶".dimmed()));
             }
             out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
-            out.push_str(&format!("  {} Run: debug reactions  debug preexec\n", "hint:".dimmed()));
+            out.push_str(&format!(
+                "  {} Run: debug reactions  debug preexec\n",
+                "hint:".dimmed()
+            ));
             CommandResult::Output(out)
         }
         "reactions" => {
@@ -3654,29 +4281,50 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             out.push_str(&format!("{}\n", "🌲 Debug — Reaction State".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             let now = chrono::Local::now().timestamp();
-            let rules = ["health.advisory","health.stale","security.aging",
-                         "checkpoint.stale","intent.overflow","forecast.declining"];
+            let rules = [
+                "health.advisory",
+                "health.stale",
+                "security.aging",
+                "checkpoint.stale",
+                "intent.overflow",
+                "forecast.declining",
+            ];
             for rule in &rules {
-                let cooldown: Option<i64> = db.conn.query_row(
-                    "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
-                    rusqlite::params![rule], |r| r.get(0)
-                ).ok();
+                let cooldown: Option<i64> = db
+                    .conn
+                    .query_row(
+                        "SELECT last_fired FROM reaction_cooldowns WHERE rule_id = ?1",
+                        rusqlite::params![rule],
+                        |r| r.get(0),
+                    )
+                    .ok();
                 let state = match cooldown {
                     Some(ts) => {
                         let elapsed = now - ts;
                         if elapsed < 3600 {
-                            format!("on cooldown ({}m ago)", elapsed / 60).yellow().to_string()
+                            format!("on cooldown ({}m ago)", elapsed / 60)
+                                .yellow()
+                                .to_string()
                         } else {
-                            format!("ready ({}h ago)", elapsed / 3600).green().to_string()
+                            format!("ready ({}h ago)", elapsed / 3600)
+                                .green()
+                                .to_string()
                         }
                     }
-                    None => "never fired - ready".green().to_string()
+                    None => "never fired - ready".green().to_string(),
                 };
-                out.push_str(&format!("  {} {}\n    {}\n\n",
-                    "▶".bright_cyan(), rule.bright_white(), state));
+                out.push_str(&format!(
+                    "  {} {}\n    {}\n\n",
+                    "▶".bright_cyan(),
+                    rule.bright_white(),
+                    state
+                ));
             }
             out.push_str(&format!("{}\n", "━".repeat(52).dimmed()));
-            out.push_str(&format!("  {} Edit: runtime/reaction-discipline.toml\n", "hint:".dimmed()));
+            out.push_str(&format!(
+                "  {} Edit: runtime/reaction-discipline.toml\n",
+                "hint:".dimmed()
+            ));
             CommandResult::Output(out)
         }
         "preexec" => {
@@ -3684,51 +4332,97 @@ fn debug_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             out.push_str(&format!("{}\n", "🌲 Debug — Pre-exec Hooks".cyan().bold()));
             out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
             out.push_str(&format!("  {} Active guards\n", "▶".bright_cyan()));
-            out.push_str(&format!("    {} git guardrail - blocks commit/push when locked\n", "✅".normal()));
-            out.push_str(&format!("    {} flow mode - intent focus when set\n", "✅".normal()));
-            out.push_str(&format!("    {} intent-guard hook - planned Phase 20b\n", "⬜".normal()));
-            out.push_str(&format!("\n  {} All guards EXPLICIT and OBSERVABLE\n", "info:".dimmed()));
-            out.push_str(&format!("  {} No implicit mutations - every block shows reason\n", "info:".dimmed()));
+            out.push_str(&format!(
+                "    {} git guardrail - blocks commit/push when locked\n",
+                "✅".normal()
+            ));
+            out.push_str(&format!(
+                "    {} flow mode - intent focus when set\n",
+                "✅".normal()
+            ));
+            out.push_str(&format!(
+                "    {} intent-guard hook - planned Phase 20b\n",
+                "⬜".normal()
+            ));
+            out.push_str(&format!(
+                "\n  {} All guards EXPLICIT and OBSERVABLE\n",
+                "info:".dimmed()
+            ));
+            out.push_str(&format!(
+                "  {} No implicit mutations - every block shows reason\n",
+                "info:".dimmed()
+            ));
             out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
             CommandResult::Output(out)
         }
         _ => CommandResult::Error(format!(
-            "  debug: unknown '{}'\n  usage: debug last | debug reactions | debug preexec", sub
-        ))
+            "  debug: unknown '{}'\n  usage: debug last | debug reactions | debug preexec",
+            sub
+        )),
     }
 }
 
 fn usage_report(db: &ForestDb) -> CommandResult {
     let mut out = String::new();
-    out.push_str(&format!("{}\n", "🌲 Usage Report — faelight-shell".cyan().bold()));
+    out.push_str(&format!(
+        "{}\n",
+        "🌲 Usage Report — faelight-shell".cyan().bold()
+    ));
     out.push_str(&format!("{}\n\n", "━".repeat(52).dimmed()));
-    let total_shell: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let total_external: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain='external' AND action='run'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total_shell: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get(0))
+        .unwrap_or(0);
+    let total_external: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='external' AND action='run'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let total = total_shell + total_external;
-    let native_pct = if total > 0 { (total_shell * 100) / total } else { 0 };
+    let native_pct = if total > 0 {
+        (total_shell * 100) / total
+    } else {
+        0
+    };
     let ext_pct = 100 - native_pct;
     out.push_str(&format!("  {} Command Coverage\n", "▶".bright_cyan()));
-    out.push_str(&format!("    · {} total commands tracked\n", total.to_string().bright_white()));
-    out.push_str(&format!("    · {}% handled natively ({} cmds)\n", native_pct.to_string().bright_green(), total_shell));
-    out.push_str(&format!("    · {}% forwarded to PATH ({} cmds)\n", ext_pct.to_string().yellow(), total_external));
+    out.push_str(&format!(
+        "    · {} total commands tracked\n",
+        total.to_string().bright_white()
+    ));
+    out.push_str(&format!(
+        "    · {}% handled natively ({} cmds)\n",
+        native_pct.to_string().bright_green(),
+        total_shell
+    ));
+    out.push_str(&format!(
+        "    · {}% forwarded to PATH ({} cmds)\n",
+        ext_pct.to_string().yellow(),
+        total_external
+    ));
     out.push('\n');
     if let Ok(mut stmt) = db.conn.prepare(
-        "SELECT command, COUNT(*) as n FROM shell_history GROUP BY command ORDER BY n DESC LIMIT 8"
+        "SELECT command, COUNT(*) as n FROM shell_history GROUP BY command ORDER BY n DESC LIMIT 8",
     ) {
-        let rows: Vec<(String, i64)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-            .unwrap().filter_map(|r| r.ok()).collect();
+        let rows: Vec<(String, i64)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         if !rows.is_empty() {
             out.push_str(&format!("  {} Top native commands\n", "▶".bright_cyan()));
             let max = rows[0].1.max(1);
             for (cmd, count) in &rows {
                 let bar = "█".repeat(((count * 20) / max).max(1) as usize);
-                out.push_str(&format!("    {:20} {} {}\n",
-                    cmd.bright_white(), bar.bright_green(), count.to_string().dimmed()));
+                out.push_str(&format!(
+                    "    {:20} {} {}\n",
+                    cmd.bright_white(),
+                    bar.bright_green(),
+                    count.to_string().dimmed()
+                ));
             }
             out.push('\n');
         }
@@ -3747,21 +4441,30 @@ fn usage_report(db: &ForestDb) -> CommandResult {
             out.push('\n');
         }
     }
-    let confidence = if native_pct >= 90 { "🟢 HIGH — ready for login shell" }
-        else if native_pct >= 75 { "🟡 MEDIUM — daily driver territory" }
-        else { "🔴 LOW — still building" };
-    out.push_str(&format!("  {} Migration Confidence: {}\n", "▶".bright_cyan(), confidence));
+    let confidence = if native_pct >= 90 {
+        "🟢 HIGH — ready for login shell"
+    } else if native_pct >= 75 {
+        "🟡 MEDIUM — daily driver territory"
+    } else {
+        "🔴 LOW — still building"
+    };
+    out.push_str(&format!(
+        "  {} Migration Confidence: {}\n",
+        "▶".bright_cyan(),
+        confidence
+    ));
     out.push_str(&format!("\n{}\n", "━".repeat(52).dimmed()));
     CommandResult::Output(out)
 }
-
 
 fn z_jump(args: &[&str]) -> CommandResult {
     if args.is_empty() {
         let home = std::env::var("HOME").unwrap_or_default();
         return match std::env::set_current_dir(&home) {
             Ok(_) => {
-                let _ = std::process::Command::new("zoxide").args(["add", &home]).status();
+                let _ = std::process::Command::new("zoxide")
+                    .args(["add", &home])
+                    .status();
                 CommandResult::Empty
             }
             Err(e) => CommandResult::Error(format!("z: {}", e)),
@@ -3779,7 +4482,9 @@ fn z_jump(args: &[&str]) -> CommandResult {
             }
             match std::env::set_current_dir(&path) {
                 Ok(_) => {
-                    let _ = std::process::Command::new("zoxide").args(["add", &path]).status();
+                    let _ = std::process::Command::new("zoxide")
+                        .args(["add", &path])
+                        .status();
                     CommandResult::Empty
                 }
                 Err(e) => CommandResult::Error(format!("z: {}: {}", path, e)),
@@ -3787,11 +4492,11 @@ fn z_jump(args: &[&str]) -> CommandResult {
         }
         _ => CommandResult::Error(format!(
             "  z: no match for '{}'
-  hint: use cd first — zoxide will learn it", query
-        ))
+  hint: use cd first — zoxide will learn it",
+            query
+        )),
     }
 }
-
 
 fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let themes = ["forest", "minimal", "jarvis", "classic"];
@@ -3802,24 +4507,34 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             out.push_str(&format!("{}\n\n", "🌲 Prompt Themes".cyan().bold()));
             for t in &themes {
                 let marker = if *t == current.as_str() { "▶" } else { " " };
-                out.push_str(&format!("  {} {}\n", marker.bright_green(), t.bright_white()));
+                out.push_str(&format!(
+                    "  {} {}\n",
+                    marker.bright_green(),
+                    t.bright_white()
+                ));
             }
-            out.push_str(&format!("\n  {} theme <name> to switch\n", "hint:".dimmed()));
+            out.push_str(&format!(
+                "\n  {} theme <name> to switch\n",
+                "hint:".dimmed()
+            ));
             CommandResult::Output(out)
         }
         Some(name) if themes.contains(&name) => {
             if let Err(e) = db.set_theme(name) {
                 eprintln!("warning: failed to set theme: {}", e);
             }
-            CommandResult::Output(format!("  {} prompt theme set to {}",
-                "✅".normal(), name.bright_green()))
+            CommandResult::Output(format!(
+                "  {} prompt theme set to {}",
+                "✅".normal(),
+                name.bright_green()
+            ))
         }
         Some(name) => CommandResult::Error(format!(
-            "  theme: unknown theme '{}'\n  available: forest, minimal, jarvis, classic", name
-        ))
+            "  theme: unknown theme '{}'\n  available: forest, minimal, jarvis, classic",
+            name
+        )),
     }
 }
-
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     let status = std::process::Command::new("sh")
@@ -3831,23 +4546,45 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
         .status();
     match status {
         Ok(s) => {
-            if s.success() { CommandResult::Empty }
-            else {
+            if s.success() {
+                CommandResult::Empty
+            } else {
                 let code = s.code().unwrap_or(1);
                 // INT-233 -- command not found: suggest nearest known alternative
                 if code == 127 {
                     let typed_cmd = line.split_whitespace().next().unwrap_or("").to_lowercase();
                     if !typed_cmd.is_empty() {
                         let known: &[&str] = &[
-                            "deploy", "cistart", "cicomplete", "intent", "fsearch", "query",
-                            "rspatch", "patch", "edit", "run", "friday", "d", "gc", "gp",
-                            "unlock-core", "lock-core", "core", "faelight-git", "fg",
-                            "faelight-daemon", "faelight-shell", "faelight-term",
+                            "deploy",
+                            "cistart",
+                            "cicomplete",
+                            "intent",
+                            "fsearch",
+                            "query",
+                            "rspatch",
+                            "patch",
+                            "edit",
+                            "run",
+                            "friday",
+                            "d",
+                            "gc",
+                            "gp",
+                            "unlock-core",
+                            "lock-core",
+                            "core",
+                            "faelight-git",
+                            "fg",
+                            "faelight-daemon",
+                            "faelight-shell",
+                            "faelight-term",
                         ];
                         let prefix_len = typed_cmd.len().min(3);
                         let prefix = &typed_cmd[..prefix_len];
-                        let suggestion = known.iter()
-                            .filter(|&&k| k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str())
+                        let suggestion = known
+                            .iter()
+                            .filter(|&&k| {
+                                k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str()
+                            })
                             .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
                             .copied();
                         let alias_suggestion: Option<String> = db.conn.query_row(
@@ -3856,10 +4593,18 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             |r| r.get(0)
                         ).ok();
                         if let Some(s) = suggestion {
-                            println!("  {} command not found: {}", "x".bright_red(), typed_cmd.bright_red());
+                            println!(
+                                "  {} command not found: {}",
+                                "x".bright_red(),
+                                typed_cmd.bright_red()
+                            );
                             println!("  {} did you mean: {}", "->".bright_cyan(), s.bright_cyan());
                         } else if let Some(a) = alias_suggestion {
-                            println!("  {} command not found: {}", "x".bright_red(), typed_cmd.bright_red());
+                            println!(
+                                "  {} command not found: {}",
+                                "x".bright_red(),
+                                typed_cmd.bright_red()
+                            );
                             println!("  {} did you mean: {}", "->".bright_cyan(), a.bright_cyan());
                         } else {
                             return CommandResult::Error(format!("  exited with code {}", code));
@@ -3874,7 +4619,6 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
     }
 }
 
-
 // ── INT-177: Shell Observability ────────────────────────────────────────────────
 
 fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
@@ -3882,11 +4626,11 @@ fn observe_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     match sub {
         "session" => observe_session(db),
         "commands" => observe_commands(db),
-        "diff"     => observe_diff(db),
-        "anomalies"=> observe_anomalies(db),
-        "patterns"  => observe_patterns(db),
+        "diff" => observe_diff(db),
+        "anomalies" => observe_anomalies(db),
+        "patterns" => observe_patterns(db),
         "causality" => observe_causality(db),
-        "phase"     => observe_phase(db),
+        "phase" => observe_phase(db),
         _ => CommandResult::Output(format!(
             "  Usage: observe [session|commands|diff|anomalies|patterns|causality|phase]"
         )),
@@ -3901,15 +4645,20 @@ fn observe_session(db: &ForestDb) -> CommandResult {
     ).unwrap_or(0);
 
     // Count failures
-    let failures: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let failures: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     // Count commits this session
     let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
         .unwrap_or_else(|_| "0".to_string())
-        .trim().to_string();
+        .trim()
+        .to_string();
 
     // Active intent
     let intent = db.get_focus_intent().unwrap_or_else(|| "none".to_string());
@@ -3917,23 +4666,51 @@ fn observe_session(db: &ForestDb) -> CommandResult {
     // Success rate
     let success_rate = if total_cmds > 0 {
         ((total_cmds - failures) * 100 / total_cmds) as u64
-    } else { 100 };
+    } else {
+        100
+    };
 
     let mut out = String::new();
-    out.push_str("
-");
-    out.push_str(&format!("  {} Session Summary
-", "🌲".normal()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
-    out.push_str(&format!("  {:<16} {}
-", "Commands:".dimmed(), format!("{} total, {} failed ({}% success)", total_cmds, failures, success_rate).bright_white()));
-    out.push_str(&format!("  {:<16} {}
-", "Commits:".dimmed(), commits.bright_white()));
-    out.push_str(&format!("  {:<16} {}
-", "Active intent:".dimmed(), intent.bright_green()));
-    out.push_str("
-");
+    out.push_str(
+        "
+",
+    );
+    out.push_str(&format!(
+        "  {} Session Summary
+",
+        "🌲".normal()
+    ));
+    out.push_str(&format!(
+        "{}
+",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    ));
+    out.push_str(&format!(
+        "  {:<16} {}
+",
+        "Commands:".dimmed(),
+        format!(
+            "{} total, {} failed ({}% success)",
+            total_cmds, failures, success_rate
+        )
+        .bright_white()
+    ));
+    out.push_str(&format!(
+        "  {:<16} {}
+",
+        "Commits:".dimmed(),
+        commits.bright_white()
+    ));
+    out.push_str(&format!(
+        "  {:<16} {}
+",
+        "Active intent:".dimmed(),
+        intent.bright_green()
+    ));
+    out.push_str(
+        "
+",
+    );
     CommandResult::Output(out)
 }
 
@@ -3943,18 +4720,18 @@ fn observe_commands(db: &ForestDb) -> CommandResult {
 
     if let Ok(mut stmt) = db.conn.prepare(
         "SELECT command, COUNT(*) as count FROM shell_history
-         GROUP BY command ORDER BY count DESC LIMIT 10"
+         GROUP BY command ORDER BY count DESC LIMIT 10",
     ) {
-        let _ = stmt.query_map([], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-        }).map(|iter| {
-            for row in iter.flatten() {
-                let mut m = std::collections::HashMap::new();
-                m.insert("command".to_string(), crate::value::Value::Text(row.0));
-                m.insert("count".to_string(),   crate::value::Value::Int(row.1));
-                rows.push(m);
-            }
-        });
+        let _ = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+            .map(|iter| {
+                for row in iter.flatten() {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("command".to_string(), crate::value::Value::Text(row.0));
+                    m.insert("count".to_string(), crate::value::Value::Int(row.1));
+                    rows.push(m);
+                }
+            });
     }
 
     if rows.is_empty() {
@@ -3966,50 +4743,93 @@ fn observe_commands(db: &ForestDb) -> CommandResult {
 
 fn observe_diff(db: &ForestDb) -> CommandResult {
     let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_else(|_| "0".to_string()).trim().to_string();
+        .unwrap_or_else(|_| "0".to_string())
+        .trim()
+        .to_string();
 
-    let failures: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let failures: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let errors: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'error_log_%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let errors: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'error_log_%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let mut out = String::new();
-    out.push_str("
-");
-    out.push_str(&format!("  {} Session Delta
-", "🔄".normal()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
-    out.push_str(&format!("  {:<16} {} commits total
-", "Commits:".dimmed(), commits.bright_white()));
-    out.push_str(&format!("  {:<16} {} this session
-", "Failures:".dimmed(),
-        if failures == 0 { "0 ✅".bright_green().to_string() } else { failures.to_string().yellow().to_string() }
+    out.push_str(
+        "
+",
+    );
+    out.push_str(&format!(
+        "  {} Session Delta
+",
+        "🔄".normal()
     ));
-    out.push_str(&format!("  {:<16} {} this session
-", "Errors:".dimmed(),
-        if errors == 0 { "0 ✅".bright_green().to_string() } else { errors.to_string().yellow().to_string() }
+    out.push_str(&format!(
+        "{}
+",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     ));
-    out.push_str("
-");
+    out.push_str(&format!(
+        "  {:<16} {} commits total
+",
+        "Commits:".dimmed(),
+        commits.bright_white()
+    ));
+    out.push_str(&format!(
+        "  {:<16} {} this session
+",
+        "Failures:".dimmed(),
+        if failures == 0 {
+            "0 ✅".bright_green().to_string()
+        } else {
+            failures.to_string().yellow().to_string()
+        }
+    ));
+    out.push_str(&format!(
+        "  {:<16} {} this session
+",
+        "Errors:".dimmed(),
+        if errors == 0 {
+            "0 ✅".bright_green().to_string()
+        } else {
+            errors.to_string().yellow().to_string()
+        }
+    ));
+    out.push_str(
+        "
+",
+    );
     CommandResult::Output(out)
 }
 
 fn observe_anomalies(db: &ForestDb) -> CommandResult {
-    let failures: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let failures: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_state WHERE key LIKE 'failure_log_%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let mut anomalies: Vec<String> = vec![];
 
     if failures >= 3 {
-        anomalies.push(format!("{} failures this session — investigate with: failures", failures));
+        anomalies.push(format!(
+            "{} failures this session — investigate with: failures",
+            failures
+        ));
     }
 
     let perm_errors: i64 = db.conn.query_row(
@@ -4018,27 +4838,46 @@ fn observe_anomalies(db: &ForestDb) -> CommandResult {
     ).unwrap_or(0);
 
     if perm_errors > 0 {
-        anomalies.push(format!("{} permission errors — core locked during work?", perm_errors));
+        anomalies.push(format!(
+            "{} permission errors — core locked during work?",
+            perm_errors
+        ));
     }
 
     let mut out = String::new();
-    out.push_str("
-");
-    out.push_str(&format!("  {} Anomalies
-", "⚠️ ".normal()));
-    out.push_str(&format!("{}
-", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()));
+    out.push_str(
+        "
+",
+    );
+    out.push_str(&format!(
+        "  {} Anomalies
+",
+        "⚠️ ".normal()
+    ));
+    out.push_str(&format!(
+        "{}
+",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    ));
     if anomalies.is_empty() {
-        out.push_str("  ✅ No anomalies detected — session looks normal
-");
+        out.push_str(
+            "  ✅ No anomalies detected — session looks normal
+",
+        );
     } else {
         for a in &anomalies {
-            out.push_str(&format!("  {} {}
-", "⚠️ ".normal(), a.yellow()));
+            out.push_str(&format!(
+                "  {} {}
+",
+                "⚠️ ".normal(),
+                a.yellow()
+            ));
         }
     }
-    out.push_str("
-");
+    out.push_str(
+        "
+",
+    );
     CommandResult::Output(out)
 }
 
@@ -4048,18 +4887,18 @@ fn observe_patterns(db: &ForestDb) -> CommandResult {
 
     if let Ok(mut stmt) = db.conn.prepare(
         "SELECT command, COUNT(*) as count FROM shell_history
-         GROUP BY command ORDER BY count DESC LIMIT 5"
+         GROUP BY command ORDER BY count DESC LIMIT 5",
     ) {
-        let _ = stmt.query_map([], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-        }).map(|iter| {
-            for row in iter.flatten() {
-                let mut m = std::collections::HashMap::new();
-                m.insert("pattern".to_string(), crate::value::Value::Text(row.0));
-                m.insert("frequency".to_string(), crate::value::Value::Int(row.1));
-                rows.push(m);
-            }
-        });
+        let _ = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+            .map(|iter| {
+                for row in iter.flatten() {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert("pattern".to_string(), crate::value::Value::Text(row.0));
+                    m.insert("frequency".to_string(), crate::value::Value::Int(row.1));
+                    rows.push(m);
+                }
+            });
     }
 
     if rows.is_empty() {
@@ -4075,15 +4914,20 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
     output.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
 
     // Commit frequency causality
-    let recent_commits: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
-        rusqlite::params![{
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64).unwrap_or(0) - 86400
-        }],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let recent_commits: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
+            rusqlite::params![{
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+                    - 86400
+            }],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let prev_commits: i64 = db.conn.query_row(
         "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp BETWEEN ?1 AND ?2",
@@ -4100,11 +4944,17 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
 
     if recent_commits > prev_commits {
         let diff = recent_commits - prev_commits;
-        output.push_str(&format!("  → Commit frequency increased (+{} today vs yesterday)\n", diff));
+        output.push_str(&format!(
+            "  → Commit frequency increased (+{} today vs yesterday)\n",
+            diff
+        ));
         output.push_str("     Cause: higher intent completion rate or active build session\n\n");
     } else if recent_commits < prev_commits {
         let diff = prev_commits - recent_commits;
-        output.push_str(&format!("  → Commit frequency decreased (-{} today vs yesterday)\n", diff));
+        output.push_str(&format!(
+            "  → Commit frequency decreased (-{} today vs yesterday)\n",
+            diff
+        ));
         output.push_str("     Cause: planning/reading session or blocked on dependency\n\n");
     } else {
         output.push_str("  → Commit frequency stable\n\n");
@@ -4128,28 +4978,41 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
     }
 
     // Deploy causality
-    let deploy_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
-        rusqlite::params![
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64).unwrap_or(0) - 3600
-        ],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let deploy_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
+            rusqlite::params![
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+                    - 3600
+            ],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let health_after_deploy: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
-        rusqlite::params![
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64).unwrap_or(0) - 3600
-        ],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let health_after_deploy: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
+            rusqlite::params![
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+                    - 3600
+            ],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     if deploy_count > 0 && health_after_deploy == 0 {
-        output.push_str(&format!("  → {} deploy(s) in last hour with no health check\n", deploy_count));
+        output.push_str(&format!(
+            "  → {} deploy(s) in last hour with no health check\n",
+            deploy_count
+        ));
         output.push_str("     Cause: health unchecked after deploy — run d\n\n");
     }
 
@@ -4165,7 +5028,8 @@ fn observe_causality(db: &ForestDb) -> CommandResult {
 fn observe_phase(db: &ForestDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
 
     // Detect time of day
     let hour = {
@@ -4187,47 +5051,90 @@ fn observe_phase(db: &ForestDb) -> CommandResult {
     };
 
     // Detect session phase from recent command patterns
-    let deploy_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
-        rusqlite::params![now - 3600], |r| r.get(0)
-    ).unwrap_or(0);
+    let deploy_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'deploy %' AND timestamp > ?1",
+            rusqlite::params![now - 3600],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let commit_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
-        rusqlite::params![now - 3600], |r| r.get(0)
-    ).unwrap_or(0);
+    let commit_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'fg commit%' AND timestamp > ?1",
+            rusqlite::params![now - 3600],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let intent_count: i64 = db.conn.query_row(
         "SELECT COUNT(*) FROM shell_history WHERE (command LIKE 'cistart%' OR command LIKE 'cicomplete%') AND timestamp > ?1",
         rusqlite::params![now - 3600], |r| r.get(0)
     ).unwrap_or(0);
 
-    let health_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
-        rusqlite::params![now - 3600], |r| r.get(0)
-    ).unwrap_or(0);
+    let health_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command = 'd' AND timestamp > ?1",
+            rusqlite::params![now - 3600],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let phase = if deploy_count >= 3 {
-        ("Build/Deploy Phase", "Focus: building and deploying tools", "Expect: deploy errors, version bumps, health checks")
+        (
+            "Build/Deploy Phase",
+            "Focus: building and deploying tools",
+            "Expect: deploy errors, version bumps, health checks",
+        )
     } else if commit_count >= 3 {
-        ("Commit Phase", "Focus: wrapping up changes", "Expect: fg commit, gp, d in sequence")
+        (
+            "Commit Phase",
+            "Focus: wrapping up changes",
+            "Expect: fg commit, gp, d in sequence",
+        )
     } else if intent_count >= 1 {
-        ("Intent Phase", "Focus: starting or completing an intent", "Expect: cistart/cicomplete, focused work")
+        (
+            "Intent Phase",
+            "Focus: starting or completing an intent",
+            "Expect: cistart/cicomplete, focused work",
+        )
     } else if health_count >= 2 {
-        ("Monitoring Phase", "Focus: verifying system health", "Expect: d, core integrity run, core strategy jarvis")
+        (
+            "Monitoring Phase",
+            "Focus: verifying system health",
+            "Expect: d, core integrity run, core strategy jarvis",
+        )
     } else {
-        ("Exploration Phase", "Focus: general navigation and investigation", "Expect: varied command patterns")
+        (
+            "Exploration Phase",
+            "Focus: general navigation and investigation",
+            "Expect: varied command patterns",
+        )
     };
 
     let mut out = String::new();
     out.push_str("\n  Session Phase Detection\n");
     out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
-    out.push_str(&format!("  {} Time context:  {} — {}\n", "·".dimmed(), time_context.0, time_context.1));
-    out.push_str(&format!("  {} Session phase: {}\n", "▶".bright_cyan(), phase.0));
+    out.push_str(&format!(
+        "  {} Time context:  {} — {}\n",
+        "·".dimmed(),
+        time_context.0,
+        time_context.1
+    ));
+    out.push_str(&format!(
+        "  {} Session phase: {}\n",
+        "▶".bright_cyan(),
+        phase.0
+    ));
     out.push_str(&format!("  {} {}\n", "·".dimmed(), phase.1));
     out.push_str(&format!("  {} {}\n\n", "·".dimmed(), phase.2));
-    out.push_str(&format!("  Last hour: {} deploys  ·  {} commits  ·  {} intent ops  ·  {} health checks\n\n",
-        deploy_count, commit_count, intent_count, health_count));
+    out.push_str(&format!(
+        "  Last hour: {} deploys  ·  {} commits  ·  {} intent ops  ·  {} health checks\n\n",
+        deploy_count, commit_count, intent_count, health_count
+    ));
     CommandResult::Output(out)
 }
 
@@ -4236,122 +5143,161 @@ fn observe_phase(db: &ForestDb) -> CommandResult {
 fn last_command_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let sub = args.first().copied().unwrap_or("show");
 
-    let last_failed = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='last_failed_command'",
-        [],
-        |r| r.get::<_, String>(0),
-    ).ok();
+    let last_failed = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='last_failed_command'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok();
 
     match last_failed {
         None => CommandResult::Output("  ○ No failed commands recorded this session".to_string()),
-        Some(cmd) => {
-            match sub {
-                "retry" => {
-                    println!("  {} Retrying: {}", "↺".bright_cyan(), cmd.bright_white());
-                    println!();
-                    CommandResult::Output(format!("__retry__{}", cmd))
-                }
-                "explain" => {
-                    let last_err = db.conn.query_row(
+        Some(cmd) => match sub {
+            "retry" => {
+                println!("  {} Retrying: {}", "↺".bright_cyan(), cmd.bright_white());
+                println!();
+                CommandResult::Output(format!("__retry__{}", cmd))
+            }
+            "explain" => {
+                let last_err = db
+                    .conn
+                    .query_row(
                         "SELECT value FROM shell_state WHERE key='last_error'",
                         [],
                         |r| r.get::<_, String>(0),
-                    ).ok();
-                    let mut out = String::new();
-                    out.push_str(&format!("
+                    )
+                    .ok();
+                let mut out = String::new();
+                out.push_str(&format!(
+                    "
   {} Last failed command: {}
-", "✗".bright_red(), cmd.bright_white()));
-                    if let Some(err) = last_err {
-                        if let Some(e) = crate::error::ShellError::from_storage(&err) {
-                            out.push_str(&format!("  {} {}: {}
-", "❌".normal(), e.code, e.message));
-                            if !e.suggestion.is_empty() {
-                                out.push_str(&format!("  {} {}
-", "💡".normal(), e.suggestion));
-                            }
+",
+                    "✗".bright_red(),
+                    cmd.bright_white()
+                ));
+                if let Some(err) = last_err {
+                    if let Some(e) = crate::error::ShellError::from_storage(&err) {
+                        out.push_str(&format!(
+                            "  {} {}: {}
+",
+                            "❌".normal(),
+                            e.code,
+                            e.message
+                        ));
+                        if !e.suggestion.is_empty() {
+                            out.push_str(&format!(
+                                "  {} {}
+",
+                                "💡".normal(),
+                                e.suggestion
+                            ));
                         }
                     }
-                    CommandResult::Output(out)
                 }
-                "fix" => {
-                    let last_err = db.conn.query_row(
+                CommandResult::Output(out)
+            }
+            "fix" => {
+                let last_err = db
+                    .conn
+                    .query_row(
                         "SELECT value FROM shell_state WHERE key='last_error'",
                         [],
                         |r| r.get::<_, String>(0),
-                    ).ok();
-                    let fix = if let Some(err) = last_err {
-                        if let Some(e) = crate::error::ShellError::from_storage(&err) {
-                            match e.code {
-                                "E_CORE_LOCKED" => Some(format!("unlock-core && {}", cmd)),
-                                "E_NOT_GIT_REPO" => Some(format!("cd ~/0-core && {}", cmd)),
-                                "E_PERMISSION"   => Some(format!("sudo {}", cmd)),
-                                "E_CMD_NOT_FOUND" => Some(format!("# Install the tool first, then: {}", cmd)),
-                                _ => None,
+                    )
+                    .ok();
+                let fix = if let Some(err) = last_err {
+                    if let Some(e) = crate::error::ShellError::from_storage(&err) {
+                        match e.code {
+                            "E_CORE_LOCKED" => Some(format!("unlock-core && {}", cmd)),
+                            "E_NOT_GIT_REPO" => Some(format!("cd ~/0-core && {}", cmd)),
+                            "E_PERMISSION" => Some(format!("sudo {}", cmd)),
+                            "E_CMD_NOT_FOUND" => {
+                                Some(format!("# Install the tool first, then: {}", cmd))
                             }
-                        } else { None }
-                    } else { None };
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-                    match fix {
-                        Some(f) => CommandResult::Output(format!("
+                match fix {
+                    Some(f) => CommandResult::Output(format!(
+                        "
   {} Suggested fix:
   {}
-", "💡".normal(), f.bright_cyan())),
-                        None => CommandResult::Output(format!("
+",
+                        "💡".normal(),
+                        f.bright_cyan()
+                    )),
+                    None => CommandResult::Output(format!(
+                        "
   {} No automatic fix available for: {}
   Check the error with: last_command explain
-", "○".dimmed(), cmd.dimmed())),
-                    }
-                }
-                "options" => {
-                    let cmd_lower = cmd.to_lowercase();
-                    let opts: Vec<(&str, &str)> = if cmd_lower.contains("deploy") {
-                        vec![
-                            ("Retry deploy",          "deploy <tool>"),
-                            ("Check build errors",    "cargo build 2>&1 | tail -20"),
-                            ("Verify registry",       "core registry show <tool>"),
-                            ("Check disk space",      "df -h ~/0-core/target"),
-                        ]
-                    } else if cmd_lower.starts_with("fg") || cmd_lower.contains("git") || cmd_lower.starts_with("gp") {
-                        vec![
-                            ("Check git status",      "gst"),
-                            ("Retry push",            "gp"),
-                            ("Check remote",          "git remote -v"),
-                            ("Inspect recent commits","glog"),
-                        ]
-                    } else if cmd_lower.contains("cargo") || cmd_lower.contains("build") {
-                        vec![
-                            ("Check compile errors",  "cargo build 2>&1 | grep error"),
-                            ("Clean and rebuild",     "cargo clean && cargo build"),
-                            ("Check Cargo.toml",      "cat Cargo.toml | head -20"),
-                        ]
-                    } else if cmd_lower.starts_with("core ") {
-                        vec![
-                            ("Run health check",      "d"),
-                            ("Redeploy core",         "deploy core"),
-                            ("Verify core binary",    "core --version"),
-                            ("Check integrity",       "core integrity run"),
-                        ]
-                    } else {
-                        vec![
-                            ("Retry last command",    "last_command retry"),
-                            ("Explain error",         "last_command explain"),
-                            ("Run health check",      "d"),
-                        ]
-                    };
-                    let mut out = format!("\n  Recovery Options for: {}\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n", cmd);
-                    for (i, (label, hint)) in opts.iter().enumerate() {
-                        out.push_str(&format!("  {}. {}\n     → {}\n\n", i + 1, label, hint));
-                    }
-                    CommandResult::Output(out)
-                }
-                _ => {
-                    CommandResult::Output(format!("
-  {} Last failed: {}
-  → retry | explain | fix | options
-", "✗".bright_red(), cmd.bright_white()))
+",
+                        "○".dimmed(),
+                        cmd.dimmed()
+                    )),
                 }
             }
-        }
+            "options" => {
+                let cmd_lower = cmd.to_lowercase();
+                let opts: Vec<(&str, &str)> = if cmd_lower.contains("deploy") {
+                    vec![
+                        ("Retry deploy", "deploy <tool>"),
+                        ("Check build errors", "cargo build 2>&1 | tail -20"),
+                        ("Verify registry", "core registry show <tool>"),
+                        ("Check disk space", "df -h ~/0-core/target"),
+                    ]
+                } else if cmd_lower.starts_with("fg")
+                    || cmd_lower.contains("git")
+                    || cmd_lower.starts_with("gp")
+                {
+                    vec![
+                        ("Check git status", "gst"),
+                        ("Retry push", "gp"),
+                        ("Check remote", "git remote -v"),
+                        ("Inspect recent commits", "glog"),
+                    ]
+                } else if cmd_lower.contains("cargo") || cmd_lower.contains("build") {
+                    vec![
+                        ("Check compile errors", "cargo build 2>&1 | grep error"),
+                        ("Clean and rebuild", "cargo clean && cargo build"),
+                        ("Check Cargo.toml", "cat Cargo.toml | head -20"),
+                    ]
+                } else if cmd_lower.starts_with("core ") {
+                    vec![
+                        ("Run health check", "d"),
+                        ("Redeploy core", "deploy core"),
+                        ("Verify core binary", "core --version"),
+                        ("Check integrity", "core integrity run"),
+                    ]
+                } else {
+                    vec![
+                        ("Retry last command", "last_command retry"),
+                        ("Explain error", "last_command explain"),
+                        ("Run health check", "d"),
+                    ]
+                };
+                let mut out = format!("\n  Recovery Options for: {}\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n", cmd);
+                for (i, (label, hint)) in opts.iter().enumerate() {
+                    out.push_str(&format!("  {}. {}\n     → {}\n\n", i + 1, label, hint));
+                }
+                CommandResult::Output(out)
+            }
+            _ => CommandResult::Output(format!(
+                "
+  {} Last failed: {}
+  → retry | explain | fix | options
+",
+                "✗".bright_red(),
+                cmd.bright_white()
+            )),
+        },
     }
 }
 
@@ -4392,67 +5338,148 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     }
     let home = std::env::var("HOME").unwrap_or_default();
     let mut out = String::new();
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
   {} {}
 ",
         "🌲 explain:".bright_green().bold(),
         cmd.bright_white().bold()
     ));
-    out.push_str(&format!("  {}
-", "─".repeat(48).dimmed()));
+    out.push_str(&format!(
+        "  {}
+",
+        "─".repeat(48).dimmed()
+    ));
     // 1. Alias resolution
     if let Some(aliased) = db.get_alias(cmd) {
-        out.push_str(&format!("  {:<14} {}
-", "alias:".dimmed(), format!("{} → {}", cmd, aliased).bright_cyan()));
+        out.push_str(&format!(
+            "  {:<14} {}
+",
+            "alias:".dimmed(),
+            format!("{} → {}", cmd, aliased).bright_cyan()
+        ));
         // Recurse one level to show what the alias points to
         let target_cmd = aliased.split_whitespace().next().unwrap_or("");
         if !target_cmd.is_empty() && target_cmd != cmd {
-            out.push_str(&format!("  {:<14} {}
-", "resolves to:".dimmed(), target_cmd.bright_white()));
+            out.push_str(&format!(
+                "  {:<14} {}
+",
+                "resolves to:".dimmed(),
+                target_cmd.bright_white()
+            ));
         }
     }
     // 2. Registry description
     let mut reg = crate::registry::Registry::new();
     reg.populate(db, core_root);
     if let Some(entry) = reg.get(cmd) {
-        out.push_str(&format!("  {:<14} {}
-", "kind:".dimmed(), entry.kind.label().bright_cyan()));
+        out.push_str(&format!(
+            "  {:<14} {}
+",
+            "kind:".dimmed(),
+            entry.kind.label().bright_cyan()
+        ));
         if !entry.description.is_empty() {
-            out.push_str(&format!("  {:<14} {}
-", "description:".dimmed(), entry.description.bright_white()));
+            out.push_str(&format!(
+                "  {:<14} {}
+",
+                "description:".dimmed(),
+                entry.description.bright_white()
+            ));
         }
         if !entry.usage.is_empty() {
-            out.push_str(&format!("  {:<14} {}
-", "usage:".dimmed(), entry.usage.dimmed()));
+            out.push_str(&format!(
+                "  {:<14} {}
+",
+                "usage:".dimmed(),
+                entry.usage.dimmed()
+            ));
         }
         if !entry.source.is_empty() {
-            out.push_str(&format!("  {:<14} {}
-", "source:".dimmed(), entry.source.dimmed()));
+            out.push_str(&format!(
+                "  {:<14} {}
+",
+                "source:".dimmed(),
+                entry.source.dimmed()
+            ));
         }
     }
     // 3. Forest builtins list
-    let builtins = ["cd","pwd","ls","ll","clear","echo","env","type","which",
-        "health","events","intents","tools","version","schema","commits",
-        "grep","find","tree","fstat","peek","realpath","rp","time","exec",
-        "reload","source","fsh","explain","where","hs","history-search",
-        "alias","unalias","export","unset","let","run","help","exit","quit",
-        "forest-stats","fstats","memory","fsh-gaps"];
+    let builtins = [
+        "cd",
+        "pwd",
+        "ls",
+        "ll",
+        "clear",
+        "echo",
+        "env",
+        "type",
+        "which",
+        "health",
+        "events",
+        "intents",
+        "tools",
+        "version",
+        "schema",
+        "commits",
+        "grep",
+        "find",
+        "tree",
+        "fstat",
+        "peek",
+        "realpath",
+        "rp",
+        "time",
+        "exec",
+        "reload",
+        "source",
+        "fsh",
+        "explain",
+        "where",
+        "hs",
+        "history-search",
+        "alias",
+        "unalias",
+        "export",
+        "unset",
+        "let",
+        "run",
+        "help",
+        "exit",
+        "quit",
+        "forest-stats",
+        "fstats",
+        "memory",
+        "fsh-gaps",
+    ];
     if builtins.contains(&cmd) {
-        out.push_str(&format!("  {:<14} {}
-", "builtin:".dimmed(), "native fsh command — no PATH lookup".bright_green()));
+        out.push_str(&format!(
+            "  {:<14} {}
+",
+            "builtin:".dimmed(),
+            "native fsh command — no PATH lookup".bright_green()
+        ));
     }
     // 4. Forest script
     let script_path = format!("{}/0-core/scripts/{}", home, cmd);
     if std::path::Path::new(&script_path).exists() {
-        out.push_str(&format!("  {:<14} {}
-", "script:".dimmed(), script_path.dimmed()));
+        out.push_str(&format!(
+            "  {:<14} {}
+",
+            "script:".dimmed(),
+            script_path.dimmed()
+        ));
     }
     // 5. PATH binary
     if let Ok(o) = std::process::Command::new("which").arg(cmd).output() {
         if o.status.success() {
             let path = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            out.push_str(&format!("  {:<14} {}
-", "binary:".dimmed(), path.dimmed()));
+            out.push_str(&format!(
+                "  {:<14} {}
+",
+                "binary:".dimmed(),
+                path.dimmed()
+            ));
         }
     }
     // 6. Reverse alias lookup — who points to this?
@@ -4475,16 +5502,28 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     // 7. Audit score
     if let Ok(score) = db.conn.query_row(
         "SELECT score FROM audit_scores WHERE tool_name = ?1 ORDER BY timestamp DESC LIMIT 1",
-        rusqlite::params![cmd], |r| r.get::<_, i64>(0)
+        rusqlite::params![cmd],
+        |r| r.get::<_, i64>(0),
     ) {
-        let color = if score >= 80 { format!("{}/100", score).bright_green().to_string() }
-                    else if score >= 60 { format!("{}/100", score).yellow().to_string() }
-                    else { format!("{}/100", score).bright_red().to_string() };
-        out.push_str(&format!("  {:<14} {}
-", "audit score:".dimmed(), color));
+        let color = if score >= 80 {
+            format!("{}/100", score).bright_green().to_string()
+        } else if score >= 60 {
+            format!("{}/100", score).yellow().to_string()
+        } else {
+            format!("{}/100", score).bright_red().to_string()
+        };
+        out.push_str(&format!(
+            "  {:<14} {}
+",
+            "audit score:".dimmed(),
+            color
+        ));
     }
-    out.push_str(&format!("  {}
-", "─".repeat(48).dimmed()));
+    out.push_str(&format!(
+        "  {}
+",
+        "─".repeat(48).dimmed()
+    ));
     CommandResult::Output(out)
 }
 fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
@@ -4497,39 +5536,60 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
     let mut found = false;
     // Alias
     if let Some(aliased) = db.get_alias(cmd) {
-        out.push_str(&format!("  {} alias       {} → {}
+        out.push_str(&format!(
+            "  {} alias       {} → {}
 ",
-            "▶".bright_cyan(), cmd.bright_white(), aliased.bright_cyan()));
+            "▶".bright_cyan(),
+            cmd.bright_white(),
+            aliased.bright_cyan()
+        ));
         found = true;
     }
     // Forest script
     let script_path = format!("{}/0-core/scripts/{}", home, cmd);
     if std::path::Path::new(&script_path).exists() {
-        out.push_str(&format!("  {} script      {}
-", "▶".bright_green(), script_path.dimmed()));
+        out.push_str(&format!(
+            "  {} script      {}
+",
+            "▶".bright_green(),
+            script_path.dimmed()
+        ));
         found = true;
     }
     // PATH
     if let Ok(o) = std::process::Command::new("which").arg(cmd).output() {
         if o.status.success() {
             let path = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            out.push_str(&format!("  {} binary      {}
-", "▶".yellow(), path.dimmed()));
+            out.push_str(&format!(
+                "  {} binary      {}
+",
+                "▶".yellow(),
+                path.dimmed()
+            ));
             found = true;
         }
     }
     // Builtin
-    let builtins = ["cd","pwd","ls","echo","env","type","which","grep","find",
-        "tree","fstat","peek","realpath","time","exec","reload","source",
-        "fsh","explain","where","hs","alias","unalias","export","unset","let","run"];
+    let builtins = [
+        "cd", "pwd", "ls", "echo", "env", "type", "which", "grep", "find", "tree", "fstat", "peek",
+        "realpath", "time", "exec", "reload", "source", "fsh", "explain", "where", "hs", "alias",
+        "unalias", "export", "unset", "let", "run",
+    ];
     if builtins.contains(&cmd) {
-        out.push_str(&format!("  {} builtin     native fsh
-", "▶".bright_green()));
+        out.push_str(&format!(
+            "  {} builtin     native fsh
+",
+            "▶".bright_green()
+        ));
         found = true;
     }
     if !found {
-        out.push_str(&format!("  {} not found: {}
-", "✗".bright_red(), cmd));
+        out.push_str(&format!(
+            "  {} not found: {}
+",
+            "✗".bright_red(),
+            cmd
+        ));
     }
     CommandResult::Output(out.trim_end().to_string())
 }
@@ -4544,14 +5604,34 @@ fn describe_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult 
         None => CommandResult::Output(format!("  ○ {} — not in registry", name)),
         Some(entry) => {
             let mut out = String::new();
-            out.push_str(&format!("\n  {} {}\n", "🌲".normal(), entry.name.bright_white().bold()));
-            out.push_str(&format!("  {:<12} {}\n", "kind:".dimmed(), entry.kind.label().bright_cyan()));
-            out.push_str(&format!("  {:<12} {}\n", "source:".dimmed(), entry.source.dimmed()));
+            out.push_str(&format!(
+                "\n  {} {}\n",
+                "🌲".normal(),
+                entry.name.bright_white().bold()
+            ));
+            out.push_str(&format!(
+                "  {:<12} {}\n",
+                "kind:".dimmed(),
+                entry.kind.label().bright_cyan()
+            ));
+            out.push_str(&format!(
+                "  {:<12} {}\n",
+                "source:".dimmed(),
+                entry.source.dimmed()
+            ));
             if !entry.description.is_empty() {
-                out.push_str(&format!("  {:<12} {}\n", "description:".dimmed(), entry.description.bright_white()));
+                out.push_str(&format!(
+                    "  {:<12} {}\n",
+                    "description:".dimmed(),
+                    entry.description.bright_white()
+                ));
             }
             if !entry.usage.is_empty() {
-                out.push_str(&format!("  {:<12} {}\n", "usage:".dimmed(), entry.usage.dimmed()));
+                out.push_str(&format!(
+                    "  {:<12} {}\n",
+                    "usage:".dimmed(),
+                    entry.usage.dimmed()
+                ));
             }
             CommandResult::Output(out.trim_end().to_string())
         }
@@ -4569,12 +5649,23 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
             let entries = reg.all_sorted();
             let rows: Vec<std::collections::HashMap<String, crate::value::Value>> = entries
                 .iter()
-                .filter(|e| filter.is_empty() || e.kind.label() == filter || e.name.contains(filter))
+                .filter(|e| {
+                    filter.is_empty() || e.kind.label() == filter || e.name.contains(filter)
+                })
                 .map(|e| {
                     let mut m = std::collections::HashMap::new();
-                    m.insert("name".to_string(),   crate::value::Value::Text(e.name.clone()));
-                    m.insert("kind".to_string(),   crate::value::Value::Text(e.kind.label().to_string()));
-                    m.insert("description".to_string(), crate::value::Value::Text(e.description.clone()));
+                    m.insert(
+                        "name".to_string(),
+                        crate::value::Value::Text(e.name.clone()),
+                    );
+                    m.insert(
+                        "kind".to_string(),
+                        crate::value::Value::Text(e.kind.label().to_string()),
+                    );
+                    m.insert(
+                        "description".to_string(),
+                        crate::value::Value::Text(e.description.clone()),
+                    );
                     m
                 })
                 .collect();
@@ -4593,7 +5684,10 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
         }
         "count" => {
             let count = reg.entries.len();
-            CommandResult::Output(format!("  {} commands in registry", count.to_string().bright_white()))
+            CommandResult::Output(format!(
+                "  {} commands in registry",
+                count.to_string().bright_white()
+            ))
         }
         _ => CommandResult::Error(format!("command: unknown subcommand '{}'", sub)),
     }
@@ -4603,11 +5697,14 @@ fn command_cmd(db: &ForestDb, args: &[&str], core_root: &str) -> CommandResult {
 
 fn last_error_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     let subcommand = args.first().copied().unwrap_or("");
-    let stored = db.conn.query_row(
-        "SELECT value FROM shell_state WHERE key='last_error'",
-        [],
-        |r| r.get::<_, String>(0),
-    ).ok();
+    let stored = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key='last_error'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok();
 
     match stored {
         None => CommandResult::Output("  ○ No errors recorded this session".to_string()),
@@ -4632,9 +5729,7 @@ fn last_error_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
-    let limit: usize = args.first()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
+    let limit: usize = args.first().and_then(|s| s.parse().ok()).unwrap_or(10);
 
     let mut rows: Vec<std::collections::HashMap<String, crate::value::Value>> = vec![];
 
@@ -4666,14 +5761,22 @@ fn error_history_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 #[allow(dead_code)]
 fn suggest_after_external(line: &str, cmd_lower: &str) {
     let suggestion: Option<&str> = match cmd_lower {
-        "cicomplete"  => Some("💡 Next: fg commit — record the completion"),
-        "cistart"     => Some("💡 Next: read the intent carefully before writing any code"),
-        "lock-core" | "core-protect" if line.contains("lock") && !line.contains("unlock") => Some("💡 Forest is protected — remember to unlock-core before editing"),
-        "unlock-core" | "core-protect" if line.contains("unlock") => Some("💡 Reminder: run lock-core before shutdown"),
-        "deploy"      => Some("💡 Suggestion: run d — verify health after deploy"),
+        "cicomplete" => Some("💡 Next: fg commit — record the completion"),
+        "cistart" => Some("💡 Next: read the intent carefully before writing any code"),
+        "lock-core" | "core-protect" if line.contains("lock") && !line.contains("unlock") => {
+            Some("💡 Forest is protected — remember to unlock-core before editing")
+        }
+        "unlock-core" | "core-protect" if line.contains("unlock") => {
+            Some("💡 Reminder: run lock-core before shutdown")
+        }
+        "deploy" => Some("💡 Suggestion: run d — verify health after deploy"),
         "paru" | "pacman" => Some("💡 Suggestion: run d — verify system health after update"),
-        "core" if line.contains("intent complete") => Some("💡 Next: fg commit — record the completion"),
-        "core" if line.contains("intent start")   => Some("💡 Next: read the intent carefully before writing any code"),
+        "core" if line.contains("intent complete") => {
+            Some("💡 Next: fg commit — record the completion")
+        }
+        "core" if line.contains("intent start") => {
+            Some("💡 Next: read the intent carefully before writing any code")
+        }
         _ => None,
     };
     if let Some(msg) = suggestion {
@@ -5106,11 +6209,15 @@ fn schema(args: &[&str]) -> CommandResult {
 
 fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     if args.is_empty() {
-        return CommandResult::Error("usage: grep <pattern> [file]  or  grep [-i] <pattern> [file]".to_string());
+        return CommandResult::Error(
+            "usage: grep <pattern> [file]  or  grep [-i] <pattern> [file]".to_string(),
+        );
     }
     // If any unrecognized flags present — fall through to system grep
     let known_flags = ["-i"];
-    let has_unknown_flags = args.iter().any(|a| a.starts_with('-') && !known_flags.contains(a));
+    let has_unknown_flags = args
+        .iter()
+        .any(|a| a.starts_with('-') && !known_flags.contains(a));
     if has_unknown_flags {
         // Call grep directly — no sh wrapper needed (INT-194)
         let status = std::process::Command::new("sh")
@@ -5122,7 +6229,9 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
             .status();
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1))),
+            Ok(s) => {
+                CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1)))
+            }
             Err(e) => CommandResult::Error(format!("grep: {}", e)),
         };
     }
@@ -5149,26 +6258,36 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
             Err(e) => return CommandResult::Error(format!("grep: {}: {}", expanded, e)),
         }
     } else {
-        return CommandResult::Error("grep: pipe support coming — use grep <pattern> <file> for now".to_string());
+        return CommandResult::Error(
+            "grep: pipe support coming — use grep <pattern> <file> for now".to_string(),
+        );
     };
 
-    let matched: Vec<String> = lines.into_iter().enumerate().filter_map(|(i, line)| {
-        let matches = if case_insensitive {
-            line.to_lowercase().contains(&pattern.to_lowercase())
-        } else {
-            line.contains(pattern)
-        };
-        if matches {
-            let highlighted = if case_insensitive {
-                line.clone()
+    let matched: Vec<String> = lines
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            let matches = if case_insensitive {
+                line.to_lowercase().contains(&pattern.to_lowercase())
             } else {
-                line.replace(pattern, &format!("[1;31m{}[0m", pattern))
+                line.contains(pattern)
             };
-            Some(format!("  {}  {}", format!("{:4}", i + 1).dimmed(), highlighted))
-        } else {
-            None
-        }
-    }).collect();
+            if matches {
+                let highlighted = if case_insensitive {
+                    line.clone()
+                } else {
+                    line.replace(pattern, &format!("[1;31m{}[0m", pattern))
+                };
+                Some(format!(
+                    "  {}  {}",
+                    format!("{:4}", i + 1).dimmed(),
+                    highlighted
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
 
     if matched.is_empty() {
         CommandResult::Output(format!("  {} no matches for '{}'", "○".dimmed(), pattern))
@@ -5176,8 +6295,10 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         CommandResult::Output(format!(
             "{}
   {} {} match{}",
-            matched.join("
-"),
+            matched.join(
+                "
+"
+            ),
             "✅".green(),
             matched.len().to_string().bright_green(),
             if matched.len() == 1 { "" } else { "es" }
@@ -5191,22 +6312,25 @@ fn fsh_identity_cmd() -> CommandResult {
     let db_path = format!("{}/0-core/runtime/state.db", home);
     // Load stats from DB
     let (alias_count, version) = if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-        let aliases: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0)
-        ).unwrap_or(0);
-        let ver: String = conn.query_row(
-            "SELECT value FROM shell_state WHERE key = 'shell_version' LIMIT 1", [],
-            |r| r.get(0)
-        ).unwrap_or_else(|_| "0.6.0".to_string());
+        let aliases: i64 = conn
+            .query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0))
+            .unwrap_or(0);
+        let ver: String = conn
+            .query_row(
+                "SELECT value FROM shell_state WHERE key = 'shell_version' LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or_else(|_| "0.6.0".to_string());
         (aliases, ver)
     } else {
         (0, "0.6.0".to_string())
     };
     // Load health from cache
-    let health: String = std::fs::read_to_string(
-        format!("{}/.cache/faelight/health-status", home))
+    let health: String = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
         .unwrap_or_else(|_| "100%".to_string())
-        .trim().to_string();
+        .trim()
+        .to_string();
     // Load Jarvis score from core strategy
     let jarvis = "90/100";
     // Get login shell date
@@ -5219,48 +6343,72 @@ fn fsh_identity_cmd() -> CommandResult {
         (today - start).num_days()
     };
     let mut out = String::new();
-    out.push_str("
-");
-    out.push_str(&format!("  {} {}
+    out.push_str(
+        "
+",
+    );
+    out.push_str(&format!(
+        "  {} {}
 ",
         "🌲 Faelight Shell".bright_green().bold(),
         format!("v{}", version).dimmed()
     ));
-    out.push_str(&format!("  {}
-", "━".repeat(42).dimmed()));
-    out.push_str(&format!("  {:<16} {}
+    out.push_str(&format!(
+        "  {}
+",
+        "━".repeat(42).dimmed()
+    ));
+    out.push_str(&format!(
+        "  {:<16} {}
 ",
         "Login shell".dimmed(),
         format!("✅ since {}", login_since).bright_green()
     ));
-    out.push_str(&format!("  {:<16} {}
+    out.push_str(&format!(
+        "  {:<16} {}
 ",
         "Daily driver".dimmed(),
         format!("✅ day {} of 30", days).bright_green()
     ));
-    out.push_str(&format!("  {:<16} {}
+    out.push_str(&format!(
+        "  {:<16} {}
 ",
         "Aliases".dimmed(),
         alias_count.to_string().bright_white()
     ));
-    out.push_str(&format!("  {:<16} {}
+    out.push_str(&format!(
+        "  {:<16} {}
 ",
         "Health".dimmed(),
         health.bright_green()
     ));
-    out.push_str(&format!("  {:<16} {}
+    out.push_str(&format!(
+        "  {:<16} {}
 ",
         "Jarvis".dimmed(),
         format!("{} — Strategic Advisor", jarvis).bright_cyan()
     ));
-    out.push_str(&format!("  {}
-", "━".repeat(42).dimmed()));
-    out.push_str(&format!("  {}
-", "The forest thinks in Rust.".dimmed().italic()));
-    out.push_str(&format!("  {}
-", "Every command understood. Nothing installed blindly.".dimmed().italic()));
-    out.push_str("
-");
+    out.push_str(&format!(
+        "  {}
+",
+        "━".repeat(42).dimmed()
+    ));
+    out.push_str(&format!(
+        "  {}
+",
+        "The forest thinks in Rust.".dimmed().italic()
+    ));
+    out.push_str(&format!(
+        "  {}
+",
+        "Every command understood. Nothing installed blindly."
+            .dimmed()
+            .italic()
+    ));
+    out.push_str(
+        "
+",
+    );
     CommandResult::Output(out)
 }
 fn realpath_cmd(args: &[&str]) -> CommandResult {
@@ -5320,7 +6468,8 @@ fn time_cmd(line: &str, args: &[&str]) -> CommandResult {
         Ok(status) => {
             let code = status.code().unwrap_or(0);
             println!();
-            println!("  {} {} (exit {})",
+            println!(
+                "  {} {} (exit {})",
                 "⏱".to_string(),
                 display.bright_cyan().bold(),
                 code.to_string().dimmed()
@@ -5347,7 +6496,8 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     } else {
         // Search PATH manually
         let path_env = std::env::var("PATH").unwrap_or_default();
-        let found = path_env.split(':')
+        let found = path_env
+            .split(':')
             .map(|dir| format!("{}/{}", dir, cmd))
             .find(|p| std::path::Path::new(p).exists());
         match found {
@@ -5382,7 +6532,8 @@ fn source_cmd(args: &[&str]) -> CommandResult {
     };
     match std::fs::read_to_string(&path) {
         Ok(content) => {
-            let lines: Vec<String> = content.lines()
+            let lines: Vec<String> = content
+                .lines()
                 .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
                 .map(|l| l.to_string())
                 .collect();
@@ -5398,8 +6549,13 @@ fn source_cmd(args: &[&str]) -> CommandResult {
 }
 fn tree_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
-    let dir_arg = args.iter().find(|a| !a.starts_with('-')).copied().unwrap_or(".");
-    let max_depth: usize = args.windows(2)
+    let dir_arg = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .copied()
+        .unwrap_or(".");
+    let max_depth: usize = args
+        .windows(2)
         .find(|w| w[0] == "-d" || w[0] == "--depth")
         .and_then(|w| w[1].parse().ok())
         .unwrap_or(3);
@@ -5409,18 +6565,43 @@ fn tree_cmd(args: &[&str]) -> CommandResult {
         dir_arg.to_string()
     };
     let mut out = String::new();
-    out.push_str(&format!("{}
-", path.bright_cyan().bold()));
+    out.push_str(&format!(
+        "{}
+",
+        path.bright_cyan().bold()
+    ));
     let mut count = (0usize, 0usize); // (dirs, files)
-    tree_walk(std::path::Path::new(&path), "", 0, max_depth, &mut out, &mut count);
-    out.push_str(&format!("
+    tree_walk(
+        std::path::Path::new(&path),
+        "",
+        0,
+        max_depth,
+        &mut out,
+        &mut count,
+    );
+    out.push_str(&format!(
+        "
   {} {} directories, {} files",
-        "─".dimmed(), count.0.to_string().bright_white(), count.1.to_string().bright_white()));
+        "─".dimmed(),
+        count.0.to_string().bright_white(),
+        count.1.to_string().bright_white()
+    ));
     CommandResult::Output(out)
 }
-fn tree_walk(path: &std::path::Path, prefix: &str, depth: usize, max_depth: usize, out: &mut String, count: &mut (usize, usize)) {
-    if depth >= max_depth { return; }
-    let Ok(entries) = std::fs::read_dir(path) else { return };
+fn tree_walk(
+    path: &std::path::Path,
+    prefix: &str,
+    depth: usize,
+    max_depth: usize,
+    out: &mut String,
+    count: &mut (usize, usize),
+) {
+    if depth >= max_depth {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return;
+    };
     let mut items: Vec<std::fs::DirEntry> = entries.flatten().collect();
     items.sort_by_key(|e| e.file_name());
     // Filter hidden files
@@ -5431,9 +6612,16 @@ fn tree_walk(path: &std::path::Path, prefix: &str, depth: usize, max_depth: usiz
         let connector = if is_last { "└── " } else { "├── " };
         let name = entry.file_name().to_string_lossy().to_string();
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-        let display = if is_dir { name.bright_cyan().to_string() } else { name.normal().to_string() };
-        out.push_str(&format!("{}{}{}
-", prefix, connector, display));
+        let display = if is_dir {
+            name.bright_cyan().to_string()
+        } else {
+            name.normal().to_string()
+        };
+        out.push_str(&format!(
+            "{}{}{}
+",
+            prefix, connector, display
+        ));
         if is_dir {
             count.0 += 1;
             let new_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
@@ -5459,12 +6647,22 @@ fn stat_cmd(args: &[&str]) -> CommandResult {
         Err(e) => return CommandResult::Error(format!("stat: {}: {}", file, e)),
     };
     let size = meta.len();
-    let kind = if meta.is_dir() { "directory" } else if meta.is_symlink() { "symlink" } else { "file" };
-    let modified = meta.modified().ok()
+    let kind = if meta.is_dir() {
+        "directory"
+    } else if meta.is_symlink() {
+        "symlink"
+    } else {
+        "file"
+    };
+    let modified = meta
+        .modified()
+        .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
-            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
-            .unwrap_or_else(|| "?".to_string()))
+        .map(|d| {
+            chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_else(|| "?".to_string())
+        })
         .unwrap_or_else(|| "?".to_string());
     let size_display = if size > 1_048_576 {
         format!("{:.1} MB", size as f64 / 1_048_576.0)
@@ -5477,17 +6675,36 @@ fn stat_cmd(args: &[&str]) -> CommandResult {
     use std::os::unix::fs::PermissionsExt;
     let mode = format!("{:o}", perms.mode() & 0o777);
     let mut out = String::new();
-    out.push_str(&format!("
+    out.push_str(&format!(
+        "
   {}
-", path.bright_cyan().bold()));
-    out.push_str(&format!("  {}  {}
-", "Type:    ".dimmed(), kind.bright_white()));
-    out.push_str(&format!("  {}  {}
-", "Size:    ".dimmed(), size_display.bright_green()));
-    out.push_str(&format!("  {}  {}
-", "Mode:    ".dimmed(), mode.yellow()));
-    out.push_str(&format!("  {}  {}
-", "Modified:".dimmed(), modified.dimmed()));
+",
+        path.bright_cyan().bold()
+    ));
+    out.push_str(&format!(
+        "  {}  {}
+",
+        "Type:    ".dimmed(),
+        kind.bright_white()
+    ));
+    out.push_str(&format!(
+        "  {}  {}
+",
+        "Size:    ".dimmed(),
+        size_display.bright_green()
+    ));
+    out.push_str(&format!(
+        "  {}  {}
+",
+        "Mode:    ".dimmed(),
+        mode.yellow()
+    ));
+    out.push_str(&format!(
+        "  {}  {}
+",
+        "Modified:".dimmed(),
+        modified.dimmed()
+    ));
     CommandResult::Output(out)
 }
 fn preview_cmd(args: &[&str]) -> CommandResult {
@@ -5511,7 +6728,10 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    let text_exts = ["rs","py","js","ts","toml","yaml","yml","sh","zsh","kdl","md","txt","json","html","css","ron","conf","ini","env"];
+    let text_exts = [
+        "rs", "py", "js", "ts", "toml", "yaml", "yml", "sh", "zsh", "kdl", "md", "txt", "json",
+        "html", "css", "ron", "conf", "ini", "env",
+    ];
     if text_exts.contains(&ext.as_str()) {
         // Show first 30 lines via bat
         let output = std::process::Command::new("bat")
@@ -5526,12 +6746,16 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
                 // fallback to native read
                 match std::fs::read_to_string(&path) {
                     Ok(content) => {
-                        let preview: String = content.lines().take(30)
+                        let preview: String = content
+                            .lines()
+                            .take(30)
                             .enumerate()
-                            .map(|(i, l)| format!("  {}  {}", format!("{:4}", i+1).dimmed(), l))
+                            .map(|(i, l)| format!("  {}  {}", format!("{:4}", i + 1).dimmed(), l))
                             .collect::<Vec<_>>()
-                            .join("
-");
+                            .join(
+                                "
+",
+                            );
                         CommandResult::Output(preview)
                     }
                     Err(e) => CommandResult::Error(format!("preview: {}", e)),
@@ -5549,7 +6773,9 @@ fn preview_cmd(args: &[&str]) -> CommandResult {
         };
         CommandResult::Output(format!(
             "  {} Binary file — {} ({} bytes)",
-            "○".dimmed(), size_display.bright_white(), size.to_string().dimmed()
+            "○".dimmed(),
+            size_display.bright_white(),
+            size.to_string().dimmed()
         ))
     }
 }
@@ -6718,7 +7944,9 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let path = if file.starts_with("~/") {
         file.replacen("~/", &format!("{}/", home), 1)
-    } else { file.to_string() };
+    } else {
+        file.to_string()
+    };
     let p = std::path::Path::new(&path);
     if !p.exists() {
         return CommandResult::Error(format!("pv: {}: not found", file));
@@ -6726,17 +7954,29 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     // Directory — show tree
     if p.is_dir() {
         let mut out = String::new();
-        out.push_str(&format!("  {} {}
-", "📁".to_string(), path.bright_cyan().bold()));
+        out.push_str(&format!(
+            "  {} {}
+",
+            "📁".to_string(),
+            path.bright_cyan().bold()
+        ));
         let mut count = (0usize, 0usize);
         tree_walk(p, "  ", 0, 2, &mut out, &mut count);
-        out.push_str(&format!("
+        out.push_str(&format!(
+            "
   {} {} dirs, {} files
 ",
-            "─".dimmed(), count.0, count.1));
+            "─".dimmed(),
+            count.0,
+            count.1
+        ));
         return CommandResult::Output(out);
     }
-    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     let meta = std::fs::metadata(&path).ok();
     let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
     let size_str = if size > 1_048_576 {
@@ -6748,9 +7988,15 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
     };
     match ext.as_str() {
         // Text files — bat preview
-        "rs"|"py"|"js"|"ts"|"toml"|"yaml"|"yml"|"sh"|"zsh"|"kdl"|"md"|"txt"|"json"|"html"|"css"|"ron"|"conf"|"ini"|"env"|"fsh" => {
+        "rs" | "py" | "js" | "ts" | "toml" | "yaml" | "yml" | "sh" | "zsh" | "kdl" | "md"
+        | "txt" | "json" | "html" | "css" | "ron" | "conf" | "ini" | "env" | "fsh" => {
             let output = std::process::Command::new("bat")
-                .args(["--paging=never", "--line-range=1:50", "--color=always", &path])
+                .args([
+                    "--paging=never",
+                    "--line-range=1:50",
+                    "--color=always",
+                    &path,
+                ])
                 .output();
             match output {
                 Ok(o) if o.status.success() => {
@@ -6758,17 +8004,22 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
                 }
                 _ => {
                     let content = std::fs::read_to_string(&path).unwrap_or_default();
-                    let preview: String = content.lines().take(50)
+                    let preview: String = content
+                        .lines()
+                        .take(50)
                         .enumerate()
-                        .map(|(i, l)| format!("  {}  {}", format!("{:4}", i+1).dimmed(), l))
-                        .collect::<Vec<_>>().join("
-");
+                        .map(|(i, l)| format!("  {}  {}", format!("{:4}", i + 1).dimmed(), l))
+                        .collect::<Vec<_>>()
+                        .join(
+                            "
+",
+                        );
                     CommandResult::Output(preview)
                 }
             }
         }
         // Archives — list contents
-        "zip"|"tar"|"gz"|"tgz"|"xz"|"bz2"|"zst" => {
+        "zip" | "tar" | "gz" | "tgz" | "xz" | "bz2" | "zst" => {
             // Call unzip/tar directly — no sh wrapper needed (INT-194)
             let output = if ext == "zip" {
                 std::process::Command::new("unzip")
@@ -6779,26 +8030,36 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
                     .args(["-tf", &path])
                     .output()
             };
-            let listing = output.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            let listing = output
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_default();
             CommandResult::Output(format!(
                 "  {} Archive: {} ({})
-{}", "📦".to_string(),
-                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
-                size_str.dimmed(), listing
+{}",
+                "📦".to_string(),
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .bright_white(),
+                size_str.dimmed(),
+                listing
             ))
         }
         // Images — show dimensions via file command
-        "png"|"jpg"|"jpeg"|"gif"|"webp"|"svg"|"bmp" => {
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" => {
             let info = std::process::Command::new("file")
-                .arg(&path).output()
+                .arg(&path)
+                .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_default();
             CommandResult::Output(format!(
                 "  {} Image: {} ({})
   {}",
                 "🖼".to_string(),
-                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .bright_white(),
                 size_str.dimmed(),
                 info.dimmed()
             ))
@@ -6806,14 +8067,18 @@ fn smart_preview_cmd(args: &[&str]) -> CommandResult {
         // Binaries / executables
         _ => {
             let file_info = std::process::Command::new("file")
-                .arg(&path).output()
+                .arg(&path)
+                .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_default();
             CommandResult::Output(format!(
                 "  {} {} ({})
   {}",
                 "○".dimmed(),
-                p.file_name().unwrap_or_default().to_string_lossy().bright_white(),
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .bright_white(),
                 size_str.bright_white(),
                 file_info.dimmed()
             ))
@@ -6864,18 +8129,30 @@ fn run_python_cmd(args: &[&str]) -> CommandResult {
             if !stderr.is_empty() {
                 eprintln!("  {}", stderr.bright_red());
             }
-            if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout) }
+            if stdout.is_empty() {
+                CommandResult::Empty
+            } else {
+                CommandResult::Output(stdout)
+            }
         }
         Err(e) => CommandResult::Error(format!("python: {}", e)),
     }
 }
 fn run_js_cmd(args: &[&str]) -> CommandResult {
     // Check for node/deno
-    let runtime = if std::process::Command::new("node").arg("--version")
-        .output().map(|o| o.status.success()).unwrap_or(false) {
+    let runtime = if std::process::Command::new("node")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
         "node"
-    } else if std::process::Command::new("deno").arg("--version")
-        .output().map(|o| o.status.success()).unwrap_or(false) {
+    } else if std::process::Command::new("deno")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
         "deno"
     } else {
         return CommandResult::Error("js: node or deno not found in PATH".to_string());
@@ -6892,8 +8169,13 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
     let home = std::env::var("HOME").unwrap_or_default();
     let expanded = if first.starts_with("~/") {
         first.replacen("~/", &format!("{}/", home), 1)
-    } else { first.to_string() };
-    if expanded.ends_with(".js") || expanded.ends_with(".ts") || std::path::Path::new(&expanded).exists() {
+    } else {
+        first.to_string()
+    };
+    if expanded.ends_with(".js")
+        || expanded.ends_with(".ts")
+        || std::path::Path::new(&expanded).exists()
+    {
         let _ = std::process::Command::new(runtime)
             .arg(&expanded)
             .args(&args[1..])
@@ -6906,13 +8188,21 @@ fn run_js_cmd(args: &[&str]) -> CommandResult {
     // Inline code
     let code = args.join(" ");
     let flag = if runtime == "deno" { "eval" } else { "-e" };
-    let output = std::process::Command::new(runtime).args([flag, &code]).output();
+    let output = std::process::Command::new(runtime)
+        .args([flag, &code])
+        .output();
     match output {
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
             let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
-            if !stderr.is_empty() { eprintln!("  {}", stderr.bright_red()); }
-            if stdout.is_empty() { CommandResult::Empty } else { CommandResult::Output(stdout) }
+            if !stderr.is_empty() {
+                eprintln!("  {}", stderr.bright_red());
+            }
+            if stdout.is_empty() {
+                CommandResult::Empty
+            } else {
+                CommandResult::Output(stdout)
+            }
         }
         Err(e) => CommandResult::Error(format!("js: {}", e)),
     }
@@ -6925,7 +8215,7 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     match sub {
         "list" | "ls" => {
             let mut stmt = match db.conn.prepare(
-                "SELECT value FROM shell_state WHERE key LIKE 'undo_%' ORDER BY key DESC LIMIT 10"
+                "SELECT value FROM shell_state WHERE key LIKE 'undo_%' ORDER BY key DESC LIMIT 10",
             ) {
                 Ok(s) => s,
                 Err(_) => return CommandResult::Output("  ○ No undo history".to_string()),
@@ -6935,15 +8225,23 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default();
             if entries.is_empty() {
-                return CommandResult::Output("  ○ No undo history — operations tracked after mv/cp/rm".to_string());
+                return CommandResult::Output(
+                    "  ○ No undo history — operations tracked after mv/cp/rm".to_string(),
+                );
             }
             let mut out = String::new();
-            out.push_str(&format!("
+            out.push_str(&format!(
+                "
   {} Undo history
-", "↩".bright_cyan()));
+",
+                "↩".bright_cyan()
+            ));
             for entry in &entries {
-                out.push_str(&format!("  · {}
-", entry.dimmed()));
+                out.push_str(&format!(
+                    "  · {}
+",
+                    entry.dimmed()
+                ));
             }
             CommandResult::Output(out)
         }
@@ -6958,14 +8256,13 @@ fn undo_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
                     "  {} Nothing to undo — use mv/cp/rm to track operations",
                     "○".dimmed()
                 )),
-                Some(op) => {
-                    CommandResult::Output(format!(
-                        "  {} Last operation: {}
+                Some(op) => CommandResult::Output(format!(
+                    "  {} Last operation: {}
   {} Use shell to manually revert — undo tracking is advisory",
-                        "↩".bright_cyan(), op.bright_white(),
-                        "→".dimmed()
-                    ))
-                }
+                    "↩".bright_cyan(),
+                    op.bright_white(),
+                    "→".dimmed()
+                )),
             }
         }
         _ => CommandResult::Error(format!("undo: unknown subcommand '{}' — try: list", sub)),
@@ -7013,11 +8310,19 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
         }
         Some(path) => {
             // INT-223 Phase 3 -- run .py, .sh, .fsh files natively
-            let ext = std::path::Path::new(path).extension()
-                .and_then(|e| e.to_str()).unwrap_or("");
+            let ext = std::path::Path::new(path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("");
             let expanded = if path.starts_with("~/") {
-                path.replacen("~/", &format!("{}/", std::env::var("HOME").unwrap_or_default()), 1)
-            } else { path.to_string() };
+                path.replacen(
+                    "~/",
+                    &format!("{}/", std::env::var("HOME").unwrap_or_default()),
+                    1,
+                )
+            } else {
+                path.to_string()
+            };
             // Handle .py and .sh directly
             match ext {
                 "py" => {
@@ -7067,12 +8372,15 @@ fn scripting_run_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandRe
                 format!("{}/scripts/fsh/{}", core_root, resolved),
                 std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
                     .join(format!(".config/faelight-shell/scripts/{}", resolved))
-                    .to_string_lossy().to_string(),
+                    .to_string_lossy()
+                    .to_string(),
             ];
             for candidate in &candidates {
                 if std::path::Path::new(candidate).exists() {
-                    let script_args: Vec<&str> = args[1..].iter()
-                        .flat_map(|s| s.split_whitespace()).collect();
+                    let script_args: Vec<&str> = args[1..]
+                        .iter()
+                        .flat_map(|s| s.split_whitespace())
+                        .collect();
                     return crate::scripting::run_file(candidate, db, core_root, &script_args);
                 }
             }
@@ -7223,18 +8531,20 @@ pub fn render_chart(data: crate::value::Value, field: &str) -> CommandResult {
     CommandResult::Empty
 }
 
-
 // INT-238 -- forest-stats: The Forest Visualizes Its Own Growth
 fn forest_stats_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     let subcmd = args.first().copied().unwrap_or("all");
     match subcmd {
         "commits" => forest_stats_commits(db),
         "intents" => forest_stats_intents(core_root),
-        "friday"  => forest_stats_friday(db),
-        "day"     => forest_stats_day(db),
+        "friday" => forest_stats_friday(db),
+        "day" => forest_stats_day(db),
         "all" | _ => {
             let mut out = String::new();
-            out.push_str(&format!("\n  {} The Forest Visualizes Its Own Growth\n", "🌲".normal()));
+            out.push_str(&format!(
+                "\n  {} The Forest Visualizes Its Own Growth\n",
+                "🌲".normal()
+            ));
             out.push_str(&format!("  {}\n\n", "━".repeat(55).dimmed()));
             out.push_str(&extract_output(forest_stats_commits(db)));
             out.push_str("\n");
@@ -7257,14 +8567,15 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     // Build 52-week commit velocity bar chart
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let week_secs: i64 = 604800;
     let mut out = String::new();
     out.push_str(&format!("  {} Commit Velocity (52 weeks)\n", "📊".normal()));
     let mut weeks: Vec<i64> = Vec::new();
     for w in (0..52).rev() {
         let start = now - (w + 1) * week_secs;
-        let end   = now - w * week_secs;
+        let end = now - w * week_secs;
         let count: i64 = db.conn.query_row(
             "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp >= ?1 AND timestamp < ?2",
             rusqlite::params![start, end],
@@ -7273,18 +8584,28 @@ fn forest_stats_commits(db: &ForestDb) -> CommandResult {
         weeks.push(count);
     }
     let max = *weeks.iter().max().unwrap_or(&1).max(&1);
-    let bars = ["░","▂","▃","▄","▅","▆","▇","█"];
-    let bar_str: String = weeks.iter().map(|&c| {
-        let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
-        bars[idx.min(7)]
-    }).collect();
+    let bars = ["░", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+    let bar_str: String = weeks
+        .iter()
+        .map(|&c| {
+            let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
+            bars[idx.min(7)]
+        })
+        .collect();
     out.push_str(&format!("  {}\n", bar_str.bright_green()));
     // Month labels every ~4 weeks
-    let total: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
-    out.push_str(&format!("  {} total commits\n", total.to_string().bright_white()));
+    let total: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    out.push_str(&format!(
+        "  {} total commits\n",
+        total.to_string().bright_white()
+    ));
     CommandResult::Output(out)
 }
 fn forest_stats_intents(core_root: &str) -> CommandResult {
@@ -7294,21 +8615,27 @@ fn forest_stats_intents(core_root: &str) -> CommandResult {
     let entries = std::fs::read_dir(&complete_dir).ok();
     let mut count = 0i32;
     if let Some(entries) = entries {
-        for _ in entries.flatten() { count += 1; }
+        for _ in entries.flatten() {
+            count += 1;
+        }
     }
     // Build a growing tree visualization
     let _tree_width = count.min(60) as usize;
     let _trunk = "│";
     let branch = "├─";
-    let last   = "└─";
+    let last = "└─";
     // Simple: show last 20 intents as branches
     let complete_path = std::path::Path::new(&complete_dir);
-    let mut files: Vec<_> = std::fs::read_dir(complete_path).ok()
+    let mut files: Vec<_> = std::fs::read_dir(complete_path)
+        .ok()
         .map(|rd| rd.flatten().collect::<Vec<_>>())
         .unwrap_or_default();
     files.sort_by_key(|e| e.file_name());
     let recent: Vec<_> = files.iter().rev().take(10).collect();
-    out.push_str(&format!("  🌲 {} intents complete\n", count.to_string().bright_white()));
+    out.push_str(&format!(
+        "  🌲 {} intents complete\n",
+        count.to_string().bright_white()
+    ));
     for (i, entry) in recent.iter().enumerate() {
         let name = entry.file_name();
         let s = name.to_string_lossy();
@@ -7321,19 +8648,28 @@ fn forest_stats_intents(core_root: &str) -> CommandResult {
 fn forest_stats_friday(db: &ForestDb) -> CommandResult {
     let mut out = String::new();
     out.push_str(&format!("  {} Friday's Growth\n", "🌲".normal()));
-    let facts: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let patterns: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let knowledge: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM knowledge_entries", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let vocab: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM friday_language WHERE source='named_abstraction'", [], |r| r.get(0)
-    ).unwrap_or(0);
-    out.push_str(&format!("  {} facts  {} patterns  {} lessons  {} named abstractions\n",
+    let facts: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+        .unwrap_or(0);
+    let patterns: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let knowledge: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM knowledge_entries", [], |r| r.get(0))
+        .unwrap_or(0);
+    let vocab: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM friday_language WHERE source='named_abstraction'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    out.push_str(&format!(
+        "  {} facts  {} patterns  {} lessons  {} named abstractions\n",
         facts.to_string().bright_cyan(),
         patterns.to_string().bright_cyan(),
         knowledge.to_string().bright_cyan(),
@@ -7342,31 +8678,42 @@ fn forest_stats_friday(db: &ForestDb) -> CommandResult {
     // Sparkline of friday_knowledge growth -- count by created_at week
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
-    let bars = ["░","▂","▃","▄","▅","▆","▇","█"];
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let bars = ["░", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
     let mut weeks: Vec<i64> = Vec::new();
     for w in (0..12).rev() {
         let start = now - (w + 1) * 604800;
-        let end   = now - w * 604800;
-        let count: i64 = db.conn.query_row(
-            "SELECT COUNT(*) FROM friday_knowledge WHERE created_at >= ?1 AND created_at < ?2",
-            rusqlite::params![start, end],
-            |r| r.get(0)
-        ).unwrap_or(0);
+        let end = now - w * 604800;
+        let count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM friday_knowledge WHERE created_at >= ?1 AND created_at < ?2",
+                rusqlite::params![start, end],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         weeks.push(count);
     }
     let max = *weeks.iter().max().unwrap_or(&1).max(&1);
-    let spark: String = weeks.iter().map(|&c| {
-        let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
-        bars[idx.min(7)]
-    }).collect();
-    out.push_str(&format!("  Knowledge growth (12w): {}\n", spark.bright_cyan()));
+    let spark: String = weeks
+        .iter()
+        .map(|&c| {
+            let idx = ((c as f64 / max as f64) * 7.0).round() as usize;
+            bars[idx.min(7)]
+        })
+        .collect();
+    out.push_str(&format!(
+        "  Knowledge growth (12w): {}\n",
+        spark.bright_cyan()
+    ));
     CommandResult::Output(out)
 }
 fn forest_stats_day(db: &ForestDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let day_start = now - 86400;
     let mut out = String::new();
     out.push_str(&format!("  {} Today's Session\n", "⚡".normal()));
@@ -7374,15 +8721,24 @@ fn forest_stats_day(db: &ForestDb) -> CommandResult {
         "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp >= ?1",
         rusqlite::params![day_start], |r| r.get(0)
     ).unwrap_or(0);
-    let deploys: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp >= ?1",
-        rusqlite::params![day_start], |r| r.get(0)
-    ).unwrap_or(0);
-    let commands: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE timestamp >= ?1",
-        rusqlite::params![day_start], |r| r.get(0)
-    ).unwrap_or(0);
-    out.push_str(&format!("  {} commits  {} deploys  {} commands\n",
+    let deploys: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp >= ?1",
+            rusqlite::params![day_start],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let commands: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE timestamp >= ?1",
+            rusqlite::params![day_start],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    out.push_str(&format!(
+        "  {} commits  {} deploys  {} commands\n",
         commits.to_string().bright_yellow(),
         deploys.to_string().bright_yellow(),
         commands.to_string().bright_yellow(),
@@ -7402,30 +8758,50 @@ fn memory_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn memory_stats(db: &ForestDb) -> CommandResult {
-    let total: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let week_old: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE timestamp < ?1",
-        rusqlite::params![
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64).unwrap_or(0) - 604800
-        ], |r| r.get(0)
-    ).unwrap_or(0);
-    let suggest_count: i64 = db.conn.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get(0))
+        .unwrap_or(0);
+    let week_old: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE timestamp < ?1",
+            rusqlite::params![
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+                    - 604800
+            ],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let suggest_count: i64 = db
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'SUGGEST:%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let mut out = String::new();
     out.push_str("\n  Memory Stats\n");
     out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
     out.push_str(&format!("  · Total history entries:  {}\n", total));
-    out.push_str(&format!("  · Entries > 7 days old:   {} ({:.0}% eligible for decay)\n",
-        week_old, if total > 0 { week_old as f64 / total as f64 * 100.0 } else { 0.0 }));
+    out.push_str(&format!(
+        "  · Entries > 7 days old:   {} ({:.0}% eligible for decay)\n",
+        week_old,
+        if total > 0 {
+            week_old as f64 / total as f64 * 100.0
+        } else {
+            0.0
+        }
+    ));
     out.push_str(&format!("  · Suggestion log entries: {}\n", suggest_count));
-    out.push_str(&format!("  · Active patterns:        {} unique commands\n",
-        total - week_old - suggest_count));
+    out.push_str(&format!(
+        "  · Active patterns:        {} unique commands\n",
+        total - week_old - suggest_count
+    ));
     out.push_str("\n  Run: memory distill — to compress old history\n\n");
     CommandResult::Output(out)
 }
@@ -7433,7 +8809,8 @@ fn memory_stats(db: &ForestDb) -> CommandResult {
 fn memory_decay(db: &ForestDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     // Find commands not seen in 30 days
     let stale: Vec<(String, i64)> = {
         let mut stmt = match db.conn.prepare(
@@ -7441,14 +8818,16 @@ fn memory_decay(db: &ForestDb) -> CommandResult {
              WHERE timestamp < ?1
              AND command NOT LIKE 'SUGGEST:%'
              GROUP BY command
-             ORDER BY freq ASC LIMIT 15"
+             ORDER BY freq ASC LIMIT 15",
         ) {
             Ok(s) => s,
             Err(_) => return CommandResult::Output("  No decay data available\n".to_string()),
         };
         stmt.query_map(rusqlite::params![now - 2592000], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-        }).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default()
+        })
+        .map(|r| r.flatten().collect::<Vec<_>>())
+        .unwrap_or_default()
     };
     let mut out = String::new();
     out.push_str("\n  Pattern Decay Analysis (30+ days old)\n");
@@ -7469,28 +8848,40 @@ fn memory_decay(db: &ForestDb) -> CommandResult {
 fn memory_distill(db: &ForestDb) -> CommandResult {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     // Prune: remove suggestion log entries older than 7 days
-    let suggest_pruned = db.conn.execute(
-        "DELETE FROM shell_history WHERE command LIKE 'SUGGEST:%' AND timestamp < ?1",
-        rusqlite::params![now - 604800]
-    ).unwrap_or(0);
+    let suggest_pruned = db
+        .conn
+        .execute(
+            "DELETE FROM shell_history WHERE command LIKE 'SUGGEST:%' AND timestamp < ?1",
+            rusqlite::params![now - 604800],
+        )
+        .unwrap_or(0);
     // Prune: remove single-occurrence commands older than 60 days
-    let stale_pruned = db.conn.execute(
-        "DELETE FROM shell_history WHERE timestamp < ?1 AND command IN (
+    let stale_pruned = db
+        .conn
+        .execute(
+            "DELETE FROM shell_history WHERE timestamp < ?1 AND command IN (
             SELECT command FROM shell_history
             WHERE timestamp < ?1
             GROUP BY command HAVING COUNT(*) = 1
         )",
-        rusqlite::params![now - 5184000]
-    ).unwrap_or(0);
+            rusqlite::params![now - 5184000],
+        )
+        .unwrap_or(0);
     let mut out = String::new();
     out.push_str("\n  Memory Distillation\n");
     out.push_str("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
-    out.push_str(&format!("  ✅ Pruned {} stale suggestion log entries\n", suggest_pruned));
-    out.push_str(&format!("  ✅ Pruned {} single-occurrence commands > 60 days old\n", stale_pruned));
+    out.push_str(&format!(
+        "  ✅ Pruned {} stale suggestion log entries\n",
+        suggest_pruned
+    ));
+    out.push_str(&format!(
+        "  ✅ Pruned {} single-occurrence commands > 60 days old\n",
+        stale_pruned
+    ));
     out.push_str("  · High-frequency patterns preserved\n");
     out.push_str("  · Run: memory stats — to see updated counts\n\n");
     CommandResult::Output(out)
 }
-

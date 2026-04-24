@@ -7,12 +7,12 @@
 
 mod commands;
 mod db;
-#[cfg(test)]
-mod tests;
 mod error;
-mod registry;
 mod exec;
 mod output;
+mod registry;
+#[cfg(test)]
+mod tests;
 use colored::Colorize;
 mod completion;
 mod config;
@@ -35,37 +35,48 @@ use std::collections::HashMap;
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
 fn normalize_input(s: &str) -> String {
     s.replace("‘", "'")
-     .replace("’", "'")
-     .replace("“", "\"")
-     .replace("”", "\"")
-     .replace("–", "-")
-     .replace("—", "--")
+        .replace("’", "'")
+        .replace("“", "\"")
+        .replace("”", "\"")
+        .replace("–", "-")
+        .replace("—", "--")
 }
-
 
 fn expand_subshells(line: &str) -> String {
     let trigger: &str = &('$'.to_string() + "(");
-    if !line.contains(trigger) { return line.to_string(); }
+    if !line.contains(trigger) {
+        return line.to_string();
+    }
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i+1] == '(' {
+        if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
             i += 2;
             let mut depth = 1usize;
             let mut inner = String::new();
             while i < chars.len() && depth > 0 {
-                if chars[i] == '(' { depth += 1; }
-                else if chars[i] == ')' { depth -= 1; }
-                if depth > 0 { inner.push(chars[i]); }
+                if chars[i] == '(' {
+                    depth += 1;
+                } else if chars[i] == ')' {
+                    depth -= 1;
+                }
+                if depth > 0 {
+                    inner.push(chars[i]);
+                }
                 i += 1;
             }
             let output = std::process::Command::new("sh")
-                .arg("-c").arg(&inner).output()
+                .arg("-c")
+                .arg(&inner)
+                .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_default();
             result.push_str(&output);
-        } else { result.push(chars[i]); i += 1; }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
     }
     result
 }
@@ -106,7 +117,6 @@ fn split_semicolons(line: &str) -> Vec<String> {
     segments
 }
 
-
 /// Split a line on && and || operators (respecting quotes)
 /// Returns Vec<(cmd, operator)> where operator is None for last cmd,
 /// Some(true) for && (run next if success), Some(false) for || (run next if fail)
@@ -120,18 +130,29 @@ fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
     while i < chars.len() {
         let ch = chars[i];
         match ch {
-            '"' | '\'' if !in_quote => { in_quote = true; quote_char = ch; current.push(ch); }
-            c if in_quote && c == quote_char => { in_quote = false; current.push(ch); }
-            '&' if !in_quote && i + 1 < chars.len() && chars[i+1] == '&' => {
+            '"' | '\'' if !in_quote => {
+                in_quote = true;
+                quote_char = ch;
+                current.push(ch);
+            }
+            c if in_quote && c == quote_char => {
+                in_quote = false;
+                current.push(ch);
+            }
+            '&' if !in_quote && i + 1 < chars.len() && chars[i + 1] == '&' => {
                 let seg = current.trim().to_string();
-                if !seg.is_empty() { result.push((seg, Some(true))); }
+                if !seg.is_empty() {
+                    result.push((seg, Some(true)));
+                }
                 current.clear();
                 i += 2; // skip &&
                 continue;
             }
-            '|' if !in_quote && i + 1 < chars.len() && chars[i+1] == '|' => {
+            '|' if !in_quote && i + 1 < chars.len() && chars[i + 1] == '|' => {
                 let seg = current.trim().to_string();
-                if !seg.is_empty() { result.push((seg, Some(false))); }
+                if !seg.is_empty() {
+                    result.push((seg, Some(false)));
+                }
                 current.clear();
                 i += 2; // skip ||
                 continue;
@@ -141,8 +162,12 @@ fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
         i += 1;
     }
     let seg = current.trim().to_string();
-    if !seg.is_empty() { result.push((seg, None)); }
-    if result.is_empty() { result.push((line.trim().to_string(), None)); }
+    if !seg.is_empty() {
+        result.push((seg, None));
+    }
+    if result.is_empty() {
+        result.push((line.trim().to_string(), None));
+    }
     result
 }
 
@@ -150,8 +175,10 @@ fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
 fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     // Match 2>/dev/null and 2>file FIRST
-    if line.contains(" 2>/dev/null") || line.contains(" 2>&1") || 
-       (line.contains(" 2>") && !line.contains(" 2>=")) {
+    if line.contains(" 2>/dev/null")
+        || line.contains(" 2>&1")
+        || (line.contains(" 2>") && !line.contains(" 2>="))
+    {
         // Return the line as-is but signal that it needs special handling
         // The caller will handle 2> patterns natively
         return (line.to_string(), Some(("__stderr__".to_string(), false)));
@@ -160,7 +187,13 @@ fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     if let Some(idx) = line.rfind(" >> ") {
         let path = line[idx + 4..].trim().to_string();
         // Only treat as redirect if path looks like a file (not a number/comparison)
-        if !path.is_empty() && !path.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+        if !path.is_empty()
+            && !path
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+        {
             let cmd = line[..idx].trim().to_string();
             return (cmd, Some((path, true)));
         }
@@ -173,7 +206,9 @@ fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
         // - path does not start with = (>= comparison)
         // - it is not inside a pipe segment before a command
         let first_char = path.chars().next();
-        let is_comparison = first_char.map(|c| c.is_ascii_digit() || c == '=').unwrap_or(false);
+        let is_comparison = first_char
+            .map(|c| c.is_ascii_digit() || c == '=')
+            .unwrap_or(false);
         if !path.is_empty() && !is_comparison {
             let cmd = line[..idx].trim().to_string();
             return (cmd, Some((path, false)));
@@ -193,8 +228,9 @@ fn expand_globs(line: &str) -> String {
     let parts: Vec<&str> = line.split_whitespace().collect();
     for part in parts {
         // Check if part is quoted
-        if (part.starts_with('"') && part.ends_with('"')) ||
-           (part.starts_with('\'') && part.ends_with('\'')) {
+        if (part.starts_with('"') && part.ends_with('"'))
+            || (part.starts_with('\'') && part.ends_with('\''))
+        {
             result_parts.push(part.to_string());
             continue;
         }
@@ -208,8 +244,16 @@ fn expand_globs(line: &str) -> String {
             };
             // Use glob crate pattern matching via std::fs
             let pattern_path = std::path::Path::new(&expanded);
-            let parent = { let p = pattern_path.parent().unwrap_or(std::path::Path::new(".")); if p.as_os_str().is_empty() { std::path::Path::new(".") } else { p } };
-            let file_pattern = pattern_path.file_name()
+            let parent = {
+                let p = pattern_path.parent().unwrap_or(std::path::Path::new("."));
+                if p.as_os_str().is_empty() {
+                    std::path::Path::new(".")
+                } else {
+                    p
+                }
+            };
+            let file_pattern = pattern_path
+                .file_name()
                 .and_then(|f| f.to_str())
                 .unwrap_or(part);
             let mut matches: Vec<String> = vec![];
@@ -328,35 +372,37 @@ fn is_core_locked(core_root: &str) -> bool {
 
 // Strip # comments — only at start of line or after whitespace, never inside strings
 fn strip_comments(input: &str) -> String {
-    input.lines().map(|line| {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with('#') {
-            return String::new();
-        }
-        let mut in_single = false;
-        let mut in_double = false;
-        let mut comment_pos = None;
-        for (i, ch) in line.char_indices() {
-            match ch {
-                '\'' if !in_double => in_single = !in_single,
-                '"'  if !in_single => in_double = !in_double,
-                '#'  if !in_single && !in_double => {
-                    if i == 0 || line[..i].ends_with(|c: char| c.is_whitespace()) {
-                        comment_pos = Some(i);
-                        break;
-                    }
-                }
-                _ => {}
+    input
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with('#') {
+                return String::new();
             }
-        }
-        match comment_pos {
-            Some(pos) => line[..pos].trim_end().to_string(),
-            None => line.to_string(),
-        }
-    })
-    .filter(|l| !l.is_empty())
-    .collect::<Vec<_>>()
-    .join("\n")
+            let mut in_single = false;
+            let mut in_double = false;
+            let mut comment_pos = None;
+            for (i, ch) in line.char_indices() {
+                match ch {
+                    '\'' if !in_double => in_single = !in_single,
+                    '"' if !in_single => in_double = !in_double,
+                    '#' if !in_single && !in_double => {
+                        if i == 0 || line[..i].ends_with(|c: char| c.is_whitespace()) {
+                            comment_pos = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            match comment_pos {
+                Some(pos) => line[..pos].trim_end().to_string(),
+                None => line.to_string(),
+            }
+        })
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn main() -> Result<()> {
@@ -406,7 +452,10 @@ fn repl_main() -> Result<()> {
             let profile = std::path::PathBuf::from(&home).join(".profile");
             if profile.exists() {
                 let _ = std::process::Command::new("sh")
-                    .args(["-c", &format!("source {} 2>/dev/null || true", profile.display())])
+                    .args([
+                        "-c",
+                        &format!("source {} 2>/dev/null || true", profile.display()),
+                    ])
                     .status();
             }
         }
@@ -416,7 +465,10 @@ fn repl_main() -> Result<()> {
             let cargo_bin = format!("{}/.cargo/bin", home);
             let current_path = std::env::var("PATH").unwrap_or_default();
             if !current_path.contains(&scripts) {
-                std::env::set_var("PATH", format!("{}:{}:{}", scripts, cargo_bin, current_path));
+                std::env::set_var(
+                    "PATH",
+                    format!("{}:{}:{}", scripts, cargo_bin, current_path),
+                );
             }
         }
     }
@@ -496,9 +548,10 @@ fn repl_main() -> Result<()> {
                 "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             );
             if let Ok(mut stmt) = conn.prepare("SELECT key, value FROM shell_persist") {
-                let rows: Vec<(String, String)> = stmt.query_map([], |r| {
-                    Ok((r.get(0)?, r.get(1)?))
-                }).map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+                let rows: Vec<(String, String)> = stmt
+                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    .unwrap_or_default();
                 for (k, v) in rows {
                     std::env::set_var(&k, &v);
                     shell_vars.insert(k, v);
@@ -511,7 +564,6 @@ fn repl_main() -> Result<()> {
     'repl: loop {
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
-
 
         // Phase 17 — render two-line context above input
         let ctx = prompt::PromptContext {
@@ -528,7 +580,10 @@ fn repl_main() -> Result<()> {
                 // Check reload signal at TOP of loop — before any processing
                 if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
                     let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
-                    println!("  {} New fsh version detected — reloading...", "🔄".to_string());
+                    println!(
+                        "  {} New fsh version detected — reloading...",
+                        "🔄".to_string()
+                    );
                     use std::os::unix::process::CommandExt;
                     // Try known deploy paths in order
                     let home = std::env::var("HOME").unwrap_or_default();
@@ -569,7 +624,10 @@ fn repl_main() -> Result<()> {
                             continue;
                         }
                     }
-                } else if line.trim().starts_with('!') && line.trim().len() > 1 && !line.trim().starts_with("!!") {
+                } else if line.trim().starts_with('!')
+                    && line.trim().len() > 1
+                    && !line.trim().starts_with("!!")
+                {
                     let pattern = &line.trim()[1..];
                     match db.get_command_matching(pattern) {
                         Some(found) => {
@@ -587,16 +645,29 @@ fn repl_main() -> Result<()> {
                 // Save to history
                 let _ = rl.add_history_entry(&line);
                 _session_commands += 1;
-                if line.starts_with("deploy") { _session_deploys += 1; }
-                if line.starts_with("fg commit") { _session_commits += 1; }
+                if line.starts_with("deploy") {
+                    _session_deploys += 1;
+                }
+                if line.starts_with("fg commit") {
+                    _session_commits += 1;
+                }
                 if line.contains(" | ") {
                     _session_pipelines += 1;
                 }
                 // INT-229: abbreviation expansion
                 let line = match line.trim() {
-                    "gc"  => { println!("  {} fg commit", "→".bright_cyan()); "fg commit".to_string() }
-                    "gp"  => { println!("  {} git push", "→".bright_cyan()); "git push".to_string() }
-                    "dep" => { println!("  {} deploy",    "→".bright_cyan()); "deploy".to_string() }
+                    "gc" => {
+                        println!("  {} fg commit", "→".bright_cyan());
+                        "fg commit".to_string()
+                    }
+                    "gp" => {
+                        println!("  {} git push", "→".bright_cyan());
+                        "git push".to_string()
+                    }
+                    "dep" => {
+                        println!("  {} deploy", "→".bright_cyan());
+                        "deploy".to_string()
+                    }
                     s if s.starts_with("ds ") => {
                         let rest = &s[3..];
                         let expanded = format!("cistart {}", rest);
@@ -609,7 +680,7 @@ fn repl_main() -> Result<()> {
                         println!("  {} {}", "→".bright_cyan(), expanded);
                         expanded
                     }
-                    _ => line
+                    _ => line,
                 };
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
@@ -620,12 +691,21 @@ fn repl_main() -> Result<()> {
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
                     // Warn if delimiter is unquoted -- sh will expand backticks
-                    let delimiter = line.split(" << ").nth(1).unwrap_or("").split_whitespace().next().unwrap_or("").trim();
-                    let is_quoted = delimiter.starts_with('\'')
-                        || delimiter.starts_with('"');
+                    let delimiter = line
+                        .split(" << ")
+                        .nth(1)
+                        .unwrap_or("")
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    let is_quoted = delimiter.starts_with('\'') || delimiter.starts_with('"');
                     if !is_quoted && !delimiter.is_empty() {
-                        println!("  {} heredoc tip: use << '{}'  to prevent backtick expansion",
-                            "💡".normal(), delimiter);
+                        println!(
+                            "  {} heredoc tip: use << '{}'  to prevent backtick expansion",
+                            "💡".normal(),
+                            delimiter
+                        );
                     }
                     let status = std::process::Command::new("sh")
                         .arg("-c")
@@ -637,7 +717,9 @@ fn repl_main() -> Result<()> {
                     let _ = status;
                     heredoc_handled = true;
                 }
-                if heredoc_handled { continue 'repl; }
+                if heredoc_handled {
+                    continue 'repl;
+                }
                 // Phase 14 — multi-command: split on ; before execution
                 let segments = split_semicolons(&line);
                 let segment_count = segments.len();
@@ -672,8 +754,12 @@ fn repl_main() -> Result<()> {
                             _last_success = status.map(|s| s.success()).unwrap_or(false);
                             // Check if we should continue
                             if let Some(is_and) = op {
-                                if *is_and && !_last_success { break; }  // && stops on failure
-                                if !is_and && _last_success { break; }   // || stops on success
+                                if *is_and && !_last_success {
+                                    break;
+                                } // && stops on failure
+                                if !is_and && _last_success {
+                                    break;
+                                } // || stops on success
                             }
                         }
                         continue;
@@ -689,19 +775,35 @@ fn repl_main() -> Result<()> {
                                 match sub {
                                     "focus" => {
                                         if arg.is_empty() {
-                                            println!("  {} usage: flow focus INT-NNN", "\u{2717}".bright_red());
+                                            println!(
+                                                "  {} usage: flow focus INT-NNN",
+                                                "\u{2717}".bright_red()
+                                            );
                                         } else if !arg.starts_with("INT-") {
-                                            println!("  {} must be INT-NNN format", "\u{2717}".bright_red());
+                                            println!(
+                                                "  {} must be INT-NNN format",
+                                                "\u{2717}".bright_red()
+                                            );
                                         } else {
                                             if let Err(e) = fdb.set_focus_intent(arg) {
-                                                eprintln!("warning: failed to set focus intent: {}", e);
+                                                eprintln!(
+                                                    "warning: failed to set focus intent: {}",
+                                                    e
+                                                );
                                             }
-                                            println!("  {} focus set -> {}", "\u{1f332}".normal(), arg.bright_green().bold());
+                                            println!(
+                                                "  {} focus set -> {}",
+                                                "\u{1f332}".normal(),
+                                                arg.bright_green().bold()
+                                            );
                                         }
                                     }
                                     "clear" => {
                                         if let Err(e) = fdb.clear_focus_intent() {
-                                            eprintln!("warning: failed to clear focus intent: {}", e);
+                                            eprintln!(
+                                                "warning: failed to clear focus intent: {}",
+                                                e
+                                            );
                                         }
                                         println!("  {} focus cleared", "\u{25cb}".dimmed());
                                     }
@@ -709,8 +811,15 @@ fn repl_main() -> Result<()> {
                                         match fdb.get_focus_intent() {
                                             Some(intent) => {
                                                 println!();
-                                                println!("  {} {}", "Active focus:".dimmed(), intent.bright_green().bold());
-                                                println!("  {} flow clear  to release", "hint:".dimmed());
+                                                println!(
+                                                    "  {} {}",
+                                                    "Active focus:".dimmed(),
+                                                    intent.bright_green().bold()
+                                                );
+                                                println!(
+                                                    "  {} flow clear  to release",
+                                                    "hint:".dimmed()
+                                                );
                                                 println!();
                                             }
                                             None => {
@@ -719,7 +828,11 @@ fn repl_main() -> Result<()> {
                                         }
                                     }
                                     _ => {
-                                        println!("  {} unknown subcommand: {}", "\u{2717}".bright_red(), sub);
+                                        println!(
+                                            "  {} unknown subcommand: {}",
+                                            "\u{2717}".bright_red(),
+                                            sub
+                                        );
                                         println!("  usage: flow | flow focus INT-NNN | flow clear");
                                     }
                                 }
@@ -739,9 +852,18 @@ fn repl_main() -> Result<()> {
                             match stok {
                                 "commit" | "push" | "add" | "rm" | "reset" | "rebase" | "merge" => {
                                     println!();
-                                    println!("  {} Core is LOCKED — editing blocked", "🔒".normal());
-                                    println!("  {} No commits, pushes or changes allowed while locked", "✗".bright_red());
-                                    println!("  {} Run: unlock-core  — then make your changes", "→".bright_cyan());
+                                    println!(
+                                        "  {} Core is LOCKED — editing blocked",
+                                        "🔒".normal()
+                                    );
+                                    println!(
+                                        "  {} No commits, pushes or changes allowed while locked",
+                                        "✗".bright_red()
+                                    );
+                                    println!(
+                                        "  {} Run: unlock-core  — then make your changes",
+                                        "→".bright_cyan()
+                                    );
                                     println!();
                                     continue 'repl;
                                 }
@@ -753,8 +875,14 @@ fn repl_main() -> Result<()> {
                             match stok {
                                 "commit" | "push" | "sync" => {
                                     println!();
-                                    println!("  {} Core is LOCKED — editing blocked", "🔒".normal());
-                                    println!("  {} Run: unlock-core  — then commit", "→".bright_cyan());
+                                    println!(
+                                        "  {} Core is LOCKED — editing blocked",
+                                        "🔒".normal()
+                                    );
+                                    println!(
+                                        "  {} Run: unlock-core  — then commit",
+                                        "→".bright_cyan()
+                                    );
                                     println!();
                                     continue 'repl;
                                 }
@@ -776,15 +904,23 @@ fn repl_main() -> Result<()> {
                             trigger
                         );
                         if std::path::Path::new(&sock_path).exists() {
-                            use std::io::{Write, BufRead, BufReader};
-                            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&sock_path) {
-                                stream.set_write_timeout(Some(std::time::Duration::from_millis(200))).ok();
-                                stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).ok();
+                            use std::io::{BufRead, BufReader, Write};
+                            if let Ok(mut stream) =
+                                std::os::unix::net::UnixStream::connect(&sock_path)
+                            {
+                                stream
+                                    .set_write_timeout(Some(std::time::Duration::from_millis(200)))
+                                    .ok();
+                                stream
+                                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                                    .ok();
                                 let _ = stream.write_all(dismiss_json.as_bytes());
                                 let _ = stream.write_all(b"\n");
                                 let mut reader = BufReader::new(&stream);
                                 let mut resp = String::new();
-                                if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
+                                if reader.read_line(&mut resp).is_ok()
+                                    && resp.contains("FridaySpeak")
+                                {
                                     if let Some(msg) = resp.split("\"message\":\"").nth(1) {
                                         if let Some(msg) = msg.split('"').next() {
                                             if !msg.is_empty() && msg != "null" {
@@ -800,15 +936,30 @@ fn repl_main() -> Result<()> {
                     // INT-203 fix -- route friday subcommands to core friday
                     if line.starts_with("friday ") {
                         let rest = line[7..].trim();
-                        let subcmds = ["status","suggest","observe","extract-patterns",
-                            "update-personality","seed-knowledge","learning-loop",
-                            "vocabulary","propose-intent",
-                            "phase2-init","phase2-status","plan","temporal-models",
-                            "detect-temporal-patterns","resolve-contradictions","health-forecast",
-                            "interrupt-level","cross-intent-patterns","phase2-status-full"];
+                        let subcmds = [
+                            "status",
+                            "suggest",
+                            "observe",
+                            "extract-patterns",
+                            "update-personality",
+                            "seed-knowledge",
+                            "learning-loop",
+                            "vocabulary",
+                            "propose-intent",
+                            "phase2-init",
+                            "phase2-status",
+                            "plan",
+                            "temporal-models",
+                            "detect-temporal-patterns",
+                            "resolve-contradictions",
+                            "health-forecast",
+                            "interrupt-level",
+                            "cross-intent-patterns",
+                            "phase2-status-full",
+                        ];
                         let is_sub = subcmds.iter().any(|s| rest == *s)
                             || rest.starts_with("name-abstraction ")
-        || rest.starts_with("ask ");
+                            || rest.starts_with("ask ");
                         if is_sub {
                             let mut cmd = std::process::Command::new("core");
                             cmd.arg("friday");
@@ -816,14 +967,18 @@ fn repl_main() -> Result<()> {
                                 cmd.arg("ask");
                                 cmd.arg(rest[4..].trim());
                             } else {
-                                for a in rest.split_whitespace() { cmd.arg(a); }
+                                for a in rest.split_whitespace() {
+                                    cmd.arg(a);
+                                }
                             }
                             let _ = cmd.status();
                             continue 'repl;
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
-                    if line.starts_with("friday") && (line == "friday" || line.starts_with("friday ")) {
+                    if line.starts_with("friday")
+                        && (line == "friday" || line.starts_with("friday "))
+                    {
                         let question = if line == "friday" {
                             "what should I work on next?".to_string()
                         } else {
@@ -838,10 +993,16 @@ fn repl_main() -> Result<()> {
                             q_escaped
                         );
                         if std::path::Path::new(&sock_path).exists() {
-                            use std::io::{Write, BufRead, BufReader};
-                            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&sock_path) {
-                                stream.set_write_timeout(Some(std::time::Duration::from_millis(500))).ok();
-                                stream.set_read_timeout(Some(std::time::Duration::from_secs(3))).ok();
+                            use std::io::{BufRead, BufReader, Write};
+                            if let Ok(mut stream) =
+                                std::os::unix::net::UnixStream::connect(&sock_path)
+                            {
+                                stream
+                                    .set_write_timeout(Some(std::time::Duration::from_millis(500)))
+                                    .ok();
+                                stream
+                                    .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                                    .ok();
                                 let _ = stream.write_all(query_json.as_bytes());
                                 let _ = stream.write_all(b"\n");
                                 let mut reader = BufReader::new(&stream);
@@ -849,7 +1010,8 @@ fn repl_main() -> Result<()> {
                                 if reader.read_line(&mut resp).is_ok() && !resp.is_empty() {
                                     if resp.contains("FridayAnswer") {
                                         if let Some(ans) = resp.split(r#""answer":""#).nth(1) {
-                                            let ans = ans.split('"').next().unwrap_or("").to_string();
+                                            let ans =
+                                                ans.split('"').next().unwrap_or("").to_string();
                                             println!();
                                             println!("  \u{1f332} Friday: {}", ans.bright_white());
                                             println!();
@@ -862,7 +1024,6 @@ fn repl_main() -> Result<()> {
                         }
                         continue 'repl;
                     }
-
 
                     // Natural language ?prefix
                     if line.starts_with('?') && line.len() > 1 {
@@ -972,9 +1133,10 @@ fn repl_main() -> Result<()> {
                     let is_standalone_assign = trimmed.contains('=') && {
                         let eq_pos = trimmed.find('=').unwrap_or(0);
                         let before_eq = &trimmed[..eq_pos];
-                        let after_eq = trimmed[eq_pos+1..].trim();
+                        let after_eq = trimmed[eq_pos + 1..].trim();
                         let no_space_before = !before_eq.contains(' ');
-                        let value_is_quoted = (after_eq.starts_with('"') && after_eq.ends_with('"'))
+                        let value_is_quoted = (after_eq.starts_with('"')
+                            && after_eq.ends_with('"'))
                             || (after_eq.starts_with('\'') && after_eq.ends_with('\''));
                         let no_space_after = !after_eq.contains(' ');
                         no_space_before && (no_space_after || value_is_quoted)
@@ -984,14 +1146,24 @@ fn repl_main() -> Result<()> {
                         if parts.len() == 2 {
                             let name = parts[0];
                             let valid = !name.is_empty()
-                                && name.chars().next().map(|c| c.is_ascii_uppercase() || c == '_').unwrap_or(false)
+                                && name
+                                    .chars()
+                                    .next()
+                                    .map(|c| c.is_ascii_uppercase() || c == '_')
+                                    .unwrap_or(false)
                                 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                             if valid {
-                                let val = parts[1].trim_matches('\"').trim_matches('\'').to_string();
+                                let val =
+                                    parts[1].trim_matches('\"').trim_matches('\'').to_string();
                                 let expanded = expand_vars(&val, &shell_vars);
                                 std::env::set_var(name, &expanded);
                                 shell_vars.insert(name.to_string(), expanded.clone());
-                                println!("  {} {} = {}", "→".bright_cyan(), name.bright_white(), expanded.dimmed());
+                                println!(
+                                    "  {} {} = {}",
+                                    "→".bright_cyan(),
+                                    name.bright_white(),
+                                    expanded.dimmed()
+                                );
                                 continue 'repl;
                             }
                         }
@@ -1005,11 +1177,18 @@ fn repl_main() -> Result<()> {
                             let maybe_var = rest.split_whitespace().next().unwrap_or("");
                             if let Some(eq) = maybe_var.find('=') {
                                 let name = &maybe_var[..eq];
-                                let valid = !name.is_empty() &&
-                                    name.chars().next().map(|c| c.is_ascii_uppercase() || c == '_').unwrap_or(false) &&
-                                    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                                let valid = !name.is_empty()
+                                    && name
+                                        .chars()
+                                        .next()
+                                        .map(|c| c.is_ascii_uppercase() || c == '_')
+                                        .unwrap_or(false)
+                                    && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                                 if valid {
-                                    let val = maybe_var[eq+1..].trim_matches('\"').trim_matches('\'').to_string();
+                                    let val = maybe_var[eq + 1..]
+                                        .trim_matches('\"')
+                                        .trim_matches('\'')
+                                        .to_string();
                                     let expanded = expand_vars(&val, &shell_vars);
                                     temp_vars.push((name.to_string(), expanded));
                                     rest = rest[maybe_var.len()..].trim_start();
@@ -1027,7 +1206,8 @@ fn repl_main() -> Result<()> {
                             if rest.is_empty() {
                                 // Standalone VAR=value — just set and confirm
                                 for (k, v) in &temp_vars {
-                                    println!("  {} {} = {}",
+                                    println!(
+                                        "  {} {} = {}",
                                         "→".bright_cyan(),
                                         k.bright_white(),
                                         v.dimmed()
@@ -1036,7 +1216,12 @@ fn repl_main() -> Result<()> {
                                 continue 'repl;
                             }
                             let rest = expand_vars(rest, &shell_vars);
-                            let result = exec::execute_with_context(&rest, &db, &core_root, &cfg.before_rules);
+                            let result = exec::execute_with_context(
+                                &rest,
+                                &db,
+                                &core_root,
+                                &cfg.before_rules,
+                            );
                             match result {
                                 commands::CommandResult::Exit => break 'repl,
                                 commands::CommandResult::Error(e) => {
@@ -1097,28 +1282,40 @@ fn repl_main() -> Result<()> {
                         let name = rest.trim();
                         shell_vars.remove(name);
                         std::env::remove_var(name);
-                        println!(
-                            "  {} unset {}",
-                            "→".bright_cyan(),
-                            name.bright_white(),
-                        );
+                        println!("  {} unset {}", "→".bright_cyan(), name.bright_white(),);
                         continue;
                     }
                     // persist VAR — save variable to state.db for cross-session persistence
                     if let Some(rest) = trimmed.strip_prefix("persist ") {
                         let name = rest.trim();
                         let env_val = std::env::var(name).ok();
-                        if let Some(val) = shell_vars.get(name).or_else(|| env_val.as_deref().map(|v| shell_vars.get(v)).flatten()).or(env_val.as_ref()) {
+                        if let Some(val) = shell_vars
+                            .get(name)
+                            .or_else(|| env_val.as_deref().map(|v| shell_vars.get(v)).flatten())
+                            .or(env_val.as_ref())
+                        {
                             let val = val.clone();
-                            if let Ok(conn) = rusqlite::Connection::open(std::path::PathBuf::from(core_root.as_str()).join("runtime/state.db")) {
+                            if let Ok(conn) = rusqlite::Connection::open(
+                                std::path::PathBuf::from(core_root.as_str())
+                                    .join("runtime/state.db"),
+                            ) {
                                 let _ = conn.execute(
                                     "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
                                     rusqlite::params![name, &val],
                                 );
-                                println!("  {} {} persisted across sessions", "→".bright_cyan(), name.bright_white());
+                                println!(
+                                    "  {} {} persisted across sessions",
+                                    "→".bright_cyan(),
+                                    name.bright_white()
+                                );
                             }
                         } else {
-                            println!("  {} variable '{}' not set — use: export {}=value first", "⚠️ ".yellow(), name, name);
+                            println!(
+                                "  {} variable '{}' not set — use: export {}=value first",
+                                "⚠️ ".yellow(),
+                                name,
+                                name
+                            );
                         }
                         continue;
                     }
@@ -1147,36 +1344,50 @@ fn repl_main() -> Result<()> {
                     let line = line.as_str();
 
                     // Parse pipeline — only split on | when NOT inside quotes
-                    let in_quotes = line.contains('"') && {
+                    // Helper: check if ANY pipe is outside quotes
+                    let has_unquoted_pipe = || -> bool {
                         let mut inside = false;
-                        let mut last_pipe_in_quotes = false;
-                        for ch in line.chars() {
-                            if ch == '"' {
+                        let bytes = line.as_bytes();
+                        for i in 0..bytes.len().saturating_sub(2) {
+                            if bytes[i] == b'"' {
                                 inside = !inside;
                             }
-                            if ch == '|' && inside {
-                                last_pipe_in_quotes = true;
+                            if !inside
+                                && bytes[i] == b' '
+                                && bytes[i + 1] == b'|'
+                                && bytes.get(i + 2) == Some(&b' ')
+                            {
+                                return true;
                             }
                         }
-                        last_pipe_in_quotes
+                        false
                     };
+                    let in_quotes = !has_unquoted_pipe();
                     // Save original line (with quotes) before redirect stripping
                     let original_line = line;
                     // Handle redirects natively — no sh delegation
                     let (line_stripped, redirect_info) = detect_redirect(line);
                     if let Some((ref redirect_target, is_append)) = redirect_info {
                         // Check for stderr redirect (2> or 2>&1) — use original line
-                        let working_line = if redirect_target == "__stderr__" { line } else { line_stripped.as_str() };
-                        let (cmd_part, stderr_to_stdout, stderr_file) = 
+                        let working_line = if redirect_target == "__stderr__" {
+                            line
+                        } else {
+                            line_stripped.as_str()
+                        };
+                        let (cmd_part, stderr_to_stdout, stderr_file) =
                             if working_line.contains(" 2>&1") {
                                 let cleaned = working_line.replace(" 2>&1", "").trim().to_string();
                                 // Also strip any stdout redirect
                                 let (c2, _) = detect_redirect(&cleaned);
                                 (c2, true, None)
                             } else if let Some(idx) = working_line.find(" 2>/dev/null") {
-                                (working_line[..idx].trim().to_string(), false, Some("/dev/null".to_string()))
+                                (
+                                    working_line[..idx].trim().to_string(),
+                                    false,
+                                    Some("/dev/null".to_string()),
+                                )
                             } else if let Some(idx) = working_line.find(" 2>") {
-                                let after = working_line[idx+3..].trim().to_string();
+                                let after = working_line[idx + 3..].trim().to_string();
                                 (working_line[..idx].trim().to_string(), false, Some(after))
                             } else {
                                 (line_stripped.clone(), false, None)
@@ -1190,7 +1401,9 @@ fn repl_main() -> Result<()> {
                                 std::fs::File::create(sf_path)
                                     .map(std::process::Stdio::from)
                                     .unwrap_or(std::process::Stdio::inherit())
-                            } else { std::process::Stdio::inherit() };
+                            } else {
+                                std::process::Stdio::inherit()
+                            };
                             let _ = std::process::Command::new("sh")
                                 .arg("-c")
                                 .arg(&cmd_part)
@@ -1202,14 +1415,21 @@ fn repl_main() -> Result<()> {
                             continue 'repl;
                         }
                         let file = if is_append {
-                            std::fs::OpenOptions::new().append(true).create(true).open(redirect_target)
+                            std::fs::OpenOptions::new()
+                                .append(true)
+                                .create(true)
+                                .open(redirect_target)
                         } else {
-                            std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(redirect_target)
+                            std::fs::OpenOptions::new()
+                                .write(true)
+                                .create(true)
+                                .truncate(true)
+                                .open(redirect_target)
                         };
                         match file {
                             Ok(f) => {
-                                use std::os::unix::io::IntoRawFd;
                                 use std::os::fd::FromRawFd;
+                                use std::os::unix::io::IntoRawFd;
                                 // Try fsh builtins first
                                 let builtin_result = commands::execute(&cmd_part, &db, &core_root);
                                 let builtin_out = match builtin_result {
@@ -1220,51 +1440,73 @@ fn repl_main() -> Result<()> {
                                 if let Some(out) = builtin_out {
                                     use std::io::Write;
                                     if is_append {
-                                        if let Ok(mut f2) = std::fs::OpenOptions::new().append(true).create(true).open(redirect_target) {
+                                        if let Ok(mut f2) = std::fs::OpenOptions::new()
+                                            .append(true)
+                                            .create(true)
+                                            .open(redirect_target)
+                                        {
                                             let _ = f2.write_all(out.as_bytes());
                                             let _ = f2.write_all(b"\n");
                                         }
                                     } else {
-                                        if let Ok(mut f2) = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(redirect_target) {
+                                        if let Ok(mut f2) = std::fs::OpenOptions::new()
+                                            .write(true)
+                                            .create(true)
+                                            .truncate(true)
+                                            .open(redirect_target)
+                                        {
                                             let _ = f2.write_all(out.as_bytes());
                                             let _ = f2.write_all(b"\n");
                                         }
                                     }
                                 } else {
-                                let parts: Vec<&str> = cmd_part.trim().splitn(2, ' ').collect();
-                                if !parts.is_empty() {
-                                    let mut cmd = std::process::Command::new(parts[0]);
-                                    if parts.len() > 1 {
-                                        cmd.args(parts[1].split_whitespace());
-                                    }
-                                    if stderr_to_stdout {
-                                        // 2>&1: open file twice for both stdout and stderr
-                                        let fd = f.into_raw_fd();
-                                        let stdout_f = unsafe { std::fs::File::from_raw_fd(fd) };
-                                        // Reopen same file for stderr
-                                        let stderr_f = if is_append {
-                                            std::fs::OpenOptions::new().append(true).create(true).open(redirect_target)
+                                    let parts: Vec<&str> = cmd_part.trim().splitn(2, ' ').collect();
+                                    if !parts.is_empty() {
+                                        let mut cmd = std::process::Command::new(parts[0]);
+                                        if parts.len() > 1 {
+                                            cmd.args(parts[1].split_whitespace());
+                                        }
+                                        if stderr_to_stdout {
+                                            // 2>&1: open file twice for both stdout and stderr
+                                            let fd = f.into_raw_fd();
+                                            let stdout_f =
+                                                unsafe { std::fs::File::from_raw_fd(fd) };
+                                            // Reopen same file for stderr
+                                            let stderr_f = if is_append {
+                                                std::fs::OpenOptions::new()
+                                                    .append(true)
+                                                    .create(true)
+                                                    .open(redirect_target)
+                                            } else {
+                                                std::fs::OpenOptions::new()
+                                                    .write(true)
+                                                    .create(true)
+                                                    .open(redirect_target)
+                                            };
+                                            if let Ok(sf) = stderr_f {
+                                                let _ = cmd
+                                                    .stdout(std::process::Stdio::from(stdout_f))
+                                                    .stderr(std::process::Stdio::from(sf))
+                                                    .status();
+                                            }
+                                        } else if let Some(ref sf_path) = stderr_file {
+                                            // 2>file: stderr to different file
+                                            let sf = std::fs::File::create(sf_path).ok();
+                                            let _ = cmd
+                                                .stdout(std::process::Stdio::from(f))
+                                                .stderr(
+                                                    sf.map(std::process::Stdio::from)
+                                                        .unwrap_or(std::process::Stdio::inherit()),
+                                                )
+                                                .status();
                                         } else {
-                                            std::fs::OpenOptions::new().write(true).create(true).open(redirect_target)
-                                        };
-                                        if let Ok(sf) = stderr_f {
-                                            let _ = cmd.stdout(std::process::Stdio::from(stdout_f))
-                                                .stderr(std::process::Stdio::from(sf))
+                                            // Normal stdout redirect
+                                            let _ = cmd
+                                                .stdout(std::process::Stdio::from(f))
+                                                .stderr(std::process::Stdio::inherit())
                                                 .status();
                                         }
-                                    } else if let Some(ref sf_path) = stderr_file {
-                                        // 2>file: stderr to different file
-                                        let sf = std::fs::File::create(sf_path).ok();
-                                        let _ = cmd.stdout(std::process::Stdio::from(f))
-                                            .stderr(sf.map(std::process::Stdio::from).unwrap_or(std::process::Stdio::inherit()))
-                                            .status();
-                                    } else {
-                                        // Normal stdout redirect
-                                        let _ = cmd.stdout(std::process::Stdio::from(f))
-                                            .stderr(std::process::Stdio::inherit())
-                                            .status();
                                     }
-                                }
                                 } // end else external
                             }
                             Err(e) => eprintln!("fsh: redirect error: {}", e),
@@ -1280,9 +1522,9 @@ fn repl_main() -> Result<()> {
                     };
                     // If any pipeline op is external (e.g. head, tail, wc),
                     // pass the entire command to sh instead of handling natively
-                    let has_external_op = pipeline_ops.iter().any(|op| {
-                        matches!(op, value::PipeOp::External(_))
-                    });
+                    let has_external_op = pipeline_ops
+                        .iter()
+                        .any(|op| matches!(op, value::PipeOp::External(_)));
                     // Native pipe execution -- no sh fallback for external pipe chains
                     if has_external_op {
                         let pipe_parts: Vec<&str> = original_line.split(" | ").collect();
@@ -1301,18 +1543,33 @@ fn repl_main() -> Result<()> {
                                     let mut qc = ' ';
                                     for ch in part.chars() {
                                         match ch {
-                                            '"' | '\'' if !in_q => { in_q = true; qc = ch; }
-                                            c if in_q && c == qc => { in_q = false; }
-                                            ' ' if !in_q => { if !cur.is_empty() { toks.push(cur.clone()); cur.clear(); } }
+                                            '"' | '\'' if !in_q => {
+                                                in_q = true;
+                                                qc = ch;
+                                            }
+                                            c if in_q && c == qc => {
+                                                in_q = false;
+                                            }
+                                            ' ' if !in_q => {
+                                                if !cur.is_empty() {
+                                                    toks.push(cur.clone());
+                                                    cur.clear();
+                                                }
+                                            }
                                             c => cur.push(c),
                                         }
                                     }
-                                    if !cur.is_empty() { toks.push(cur); }
+                                    if !cur.is_empty() {
+                                        toks.push(cur);
+                                    }
                                     toks
                                 };
                                 let raw_cmd = match tokens.first() {
                                     Some(c) => c.clone(),
-                                    None => { pipe_ok = false; break; }
+                                    None => {
+                                        pipe_ok = false;
+                                        break;
+                                    }
                                 };
                                 // Expand tilde in command path
                                 let expanded_cmd = if raw_cmd.starts_with("~/") {
@@ -1323,7 +1580,8 @@ fn repl_main() -> Result<()> {
                                 };
                                 let cmd_name = expanded_cmd.as_str();
                                 let owned_args: Vec<String> = tokens[1..].to_vec();
-                                let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
+                                let args: Vec<&str> =
+                                    owned_args.iter().map(|s| s.as_str()).collect();
                                 let is_last = idx == pipe_parts.len() - 1;
                                 let stdin_src = match prev_stdout.take() {
                                     Some(stdout) => std::process::Stdio::from(stdout),
@@ -1347,17 +1605,21 @@ fn repl_main() -> Result<()> {
                                 } else {
                                     format!("{} {}", builtin_name, args.join(" "))
                                 };
-                                let builtin_out = if try_builtin { match commands::execute(&builtin_line, &db, &core_root) {
-                                    commands::CommandResult::Output(o) => Some(o),
-                                    commands::CommandResult::Value(v) => Some(v.render()),
-                                    _ => None,
-                                }} else { None };
+                                let builtin_out = if try_builtin {
+                                    match commands::execute(&builtin_line, &db, &core_root) {
+                                        commands::CommandResult::Output(o) => Some(o),
+                                        commands::CommandResult::Value(v) => Some(v.render()),
+                                        _ => None,
+                                    }
+                                } else {
+                                    None
+                                };
                                 if let Some(out) = builtin_out {
                                     if is_last {
                                         println!("{}", out);
                                     } else {
                                         // Pipe builtin output to remaining external pipeline stages
-                                        let remaining = pipe_parts[idx+1..].join(" | ");
+                                        let remaining = pipe_parts[idx + 1..].join(" | ");
                                         use std::io::Write;
                                         let mut child = std::process::Command::new("sh")
                                             .arg("-c")
@@ -1374,7 +1636,9 @@ fn repl_main() -> Result<()> {
                                             let _ = c.wait();
                                         }
                                         // Already handled -- skip sh fallback
-                                        for mut child in children { let _ = child.wait(); }
+                                        for mut child in children {
+                                            let _ = child.wait();
+                                        }
                                         continue 'repl;
                                     }
                                 } else {
@@ -1392,8 +1656,17 @@ fn repl_main() -> Result<()> {
                                             children.push(child);
                                         }
                                         Err(e) => {
-                                            eprintln!("  {} pipe stage '{}' failed: {}", "✗".bright_red(), cmd_name, e);
-                                            eprintln!("  {} check: is '{}' a valid command?", "·".dimmed(), cmd_name);
+                                            eprintln!(
+                                                "  {} pipe stage '{}' failed: {}",
+                                                "✗".bright_red(),
+                                                cmd_name,
+                                                e
+                                            );
+                                            eprintln!(
+                                                "  {} check: is '{}' a valid command?",
+                                                "·".dimmed(),
+                                                cmd_name
+                                            );
                                             pipe_ok = false;
                                             break;
                                         }
@@ -1401,7 +1674,9 @@ fn repl_main() -> Result<()> {
                                 }
                             }
                             if pipe_ok {
-                                for mut child in children { let _ = child.wait(); }
+                                for mut child in children {
+                                    let _ = child.wait();
+                                }
                                 continue 'repl;
                             }
                         }
@@ -1549,19 +1824,25 @@ fn repl_main() -> Result<()> {
                     let line = line;
                     let redirect = redirect_info;
                     // Re-parse pipeline after stripping redirect
-                    let in_quotes2 = line.contains('"') && {
+                    // Helper: check if ANY pipe is outside quotes
+                    let has_unquoted_pipe2 = || -> bool {
                         let mut inside = false;
-                        let mut last_pipe_in_quotes = false;
-                        for ch in line.chars() {
-                            if ch == '"' {
+                        let bytes = line.as_bytes();
+                        for i in 0..bytes.len().saturating_sub(2) {
+                            if bytes[i] == b'"' {
                                 inside = !inside;
                             }
-                            if ch == '|' && inside {
-                                last_pipe_in_quotes = true;
+                            if !inside
+                                && bytes[i] == b' '
+                                && bytes[i + 1] == b'|'
+                                && bytes.get(i + 2) == Some(&b' ')
+                            {
+                                return true;
                             }
                         }
-                        last_pipe_in_quotes
+                        false
                     };
+                    let in_quotes2 = !has_unquoted_pipe2();
                     let has_pipe2 = !in_quotes2 && line.contains(" | ");
                     let pipeline_ops = if has_pipe2 {
                         value::parse_pipeline(line)
@@ -1597,7 +1878,11 @@ fn repl_main() -> Result<()> {
                     // Phase 20b: inject --cwd-file for yazi/fm before execute
                     let fm_cwd_file = std::env::temp_dir().join("fsh-cwd.tmp");
                     let is_fm_cmd = {
-                        let fc = base_cmd.split_whitespace().next().unwrap_or("").to_lowercase();
+                        let fc = base_cmd
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or("")
+                            .to_lowercase();
                         fc == "yazi" || fc == "faelight-fm"
                     };
                     let base_cmd = if is_fm_cmd {
@@ -1618,56 +1903,70 @@ fn repl_main() -> Result<()> {
                         continue 'repl;
                     }
                     let _cmd_timer_start = std::time::Instant::now();
-                    let cmd_output: Option<String> =
-                        match exec::execute_with_context(&base_cmd, &db, &core_root, &cfg.before_rules) {
-                            commands::CommandResult::Exit => break 'repl,
-                            commands::CommandResult::Value(v) if !pipeline_ops.is_empty() && !has_external_op => {
-                                let result = value::apply_pipeline(v, &pipeline_ops);
-                                Some(result.render())
-                            }
-                            commands::CommandResult::Value(_) if has_external_op => {
-                                // Pipeline contains external commands — pass full line to sh
-                                let sh_output = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(original_line)
-                                    .output();
-                                match sh_output {
-                                    Ok(o) => {
-                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                        if !stderr.is_empty() { eprint!("{}", stderr); }
-                                        Some(stdout)
+                    let cmd_output: Option<String> = match exec::execute_with_context(
+                        &base_cmd,
+                        &db,
+                        &core_root,
+                        &cfg.before_rules,
+                    ) {
+                        commands::CommandResult::Exit => break 'repl,
+                        commands::CommandResult::Value(v)
+                            if !pipeline_ops.is_empty() && !has_external_op =>
+                        {
+                            let result = value::apply_pipeline(v, &pipeline_ops);
+                            Some(result.render())
+                        }
+                        commands::CommandResult::Value(_) if has_external_op => {
+                            // Pipeline contains external commands — pass full line to sh
+                            let sh_output = std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg(original_line)
+                                .output();
+                            match sh_output {
+                                Ok(o) => {
+                                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                    if !stderr.is_empty() {
+                                        eprint!("{}", stderr);
                                     }
-                                    Err(_) => None,
+                                    Some(stdout)
                                 }
+                                Err(_) => None,
                             }
-                            commands::CommandResult::Value(v) => Some(v.render()),
-                            commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
-                                // External command with pipe — reconstruct full pipeline and run via sh
-                                let sh_output = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(original_line)
-                                    .output();
-                                match sh_output {
-                                    Ok(o) => {
-                                        let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-                                        let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-                                        if !stderr.is_empty() {
-                                            eprint!("{}", stderr);
-                                        }
-                                        Some(stdout)
+                        }
+                        commands::CommandResult::Value(v) => Some(v.render()),
+                        commands::CommandResult::Output(out) if !pipeline_ops.is_empty() => {
+                            // External command with pipe — reconstruct full pipeline and run via sh
+                            let sh_output = std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg(original_line)
+                                .output();
+                            match sh_output {
+                                Ok(o) => {
+                                    let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                                    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                                    if !stderr.is_empty() {
+                                        eprint!("{}", stderr);
                                     }
-                                    Err(_) => Some(out),
+                                    Some(stdout)
                                 }
+                                Err(_) => Some(out),
                             }
-                            commands::CommandResult::Output(out) => { last_exit_code = Some(0); Some(out) },
-                            commands::CommandResult::Empty => { last_exit_code = Some(0); None },
-                            commands::CommandResult::Error(e) => {
-                                eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
-                                last_exit_code = Some(1);
-                                None
-                            }
-                        };
+                        }
+                        commands::CommandResult::Output(out) => {
+                            last_exit_code = Some(0);
+                            Some(out)
+                        }
+                        commands::CommandResult::Empty => {
+                            last_exit_code = Some(0);
+                            None
+                        }
+                        commands::CommandResult::Error(e) => {
+                            eprintln!("{} {}", colored::Colorize::bright_red("✗"), e);
+                            last_exit_code = Some(1);
+                            None
+                        }
+                    };
                     // Command timing intelligence — warn if command is unusually slow (INT-194)
                     {
                         let elapsed_ms = _cmd_timer_start.elapsed().as_millis() as i64;
@@ -1679,7 +1978,8 @@ fn repl_main() -> Result<()> {
                                     format!("TIMING:{}:{}", cmd_key, elapsed_ms),
                                     std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
-                                        .map(|d| d.as_secs() as i64).unwrap_or(0)
+                                        .map(|d| d.as_secs() as i64)
+                                        .unwrap_or(0)
                                 ],
                             );
                             let avg_ms: Option<f64> = db.conn.query_row(
@@ -1704,24 +2004,34 @@ fn repl_main() -> Result<()> {
                                 let secs = elapsed_ms / 1000;
                                 let msg = format!("{} finished in {}s", cmd_key, secs);
                                 std::process::Command::new("faelight-notify")
-                                    .arg("--title").arg("Long command finished")
-                                    .arg("--body").arg(&msg)
-                                    .spawn().ok();
+                                    .arg("--title")
+                                    .arg("Long command finished")
+                                    .arg("--body")
+                                    .arg(&msg)
+                                    .spawn()
+                                    .ok();
                             }
                         }
                     }
                     // INT-194 — Prediction-aware suggestions (pattern detection)
                     // After each command, check if there is a strong "next command" pattern
                     {
-                        let cmd_key = base_cmd.split_whitespace().next().unwrap_or(&base_cmd).to_string();
+                        let cmd_key = base_cmd
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or(&base_cmd)
+                            .to_string();
                         // Only suggest for meaningful commands, not builtins
-                        let skip_suggest = matches!(cmd_key.as_str(),
+                        let skip_suggest = matches!(
+                            cmd_key.as_str(),
                             "d" | "ls" | "cd" | "echo" | "cat" | "help" | "exit" | "q" | "clear"
                         );
                         if !skip_suggest {
                             // Find what command most often follows this one
-                            let next_cmd: Option<String> = db.conn.query_row(
-                                "SELECT next_cmd, COUNT(*) as freq
+                            let next_cmd: Option<String> = db
+                                .conn
+                                .query_row(
+                                    "SELECT next_cmd, COUNT(*) as freq
                                  FROM (
                                    SELECT h2.command as next_cmd
                                    FROM shell_history h1
@@ -1731,20 +2041,25 @@ fn repl_main() -> Result<()> {
                                    AND length(h2.command) > 2
                                  )
                                  GROUP BY next_cmd ORDER BY freq DESC LIMIT 1",
-                                rusqlite::params![format!("{}%", cmd_key)],
-                                |r| r.get(0)
-                            ).ok();
+                                    rusqlite::params![format!("{}%", cmd_key)],
+                                    |r| r.get(0),
+                                )
+                                .ok();
                             if let Some(suggestion) = next_cmd {
                                 // Only show if it appears often (check count >= 3)
-                                let freq: i64 = db.conn.query_row(
-                                    "SELECT COUNT(*) FROM shell_history h1
+                                let freq: i64 = db
+                                    .conn
+                                    .query_row(
+                                        "SELECT COUNT(*) FROM shell_history h1
                                      JOIN shell_history h2 ON h2.id = h1.id + 1
                                      WHERE h1.command LIKE ?1 AND h2.command = ?2",
-                                    rusqlite::params![format!("{}%", cmd_key), &suggestion],
-                                    |r| r.get(0)
-                                ).unwrap_or(0);
+                                        rusqlite::params![format!("{}%", cmd_key), &suggestion],
+                                        |r| r.get(0),
+                                    )
+                                    .unwrap_or(0);
                                 if freq >= 3 {
-                                    println!("  {} you usually run {} next",
+                                    println!(
+                                        "  {} you usually run {} next",
                                         "💡".normal(),
                                         suggestion.bright_cyan()
                                     );
@@ -1765,7 +2080,10 @@ fn repl_main() -> Result<()> {
                     {
                         // Update last_exit_code from output content
                         if let Some(ref out) = cmd_output {
-                            if out.starts_with("✗") || out.contains("error") || out.contains("not found") {
+                            if out.starts_with("✗")
+                                || out.contains("error")
+                                || out.contains("not found")
+                            {
                                 last_exit_code = Some(1);
                             } else {
                                 last_exit_code = Some(0);
@@ -1776,9 +2094,9 @@ fn repl_main() -> Result<()> {
                             None => last_exit_code.map(|c| c == 0).unwrap_or(true),
                         };
                         let status_val = if exit_ok { "success" } else { "failure" };
-                        let cache_dir = std::path::PathBuf::from(
-                            std::env::var("HOME").unwrap_or_default()
-                        ).join(".cache/faelight");
+                        let cache_dir =
+                            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                                .join(".cache/faelight");
                         let _ = std::fs::create_dir_all(&cache_dir);
                         let _ = std::fs::write(cache_dir.join("last-exit-status"), status_val);
                     }
@@ -1843,16 +2161,23 @@ fn repl_main() -> Result<()> {
                         let cmd_str = base_cmd.clone();
                         // Read exit status from cache file written above
                         let exit_code: i32 = {
-                            let cache_dir = std::path::PathBuf::from(
-                                std::env::var("HOME").unwrap_or_default()
-                            ).join(".cache/faelight");
-                            let status = std::fs::read_to_string(cache_dir.join("last-exit-status")).unwrap_or_default();
-                            if status.trim() == "success" { 0 } else { 1 }
+                            let cache_dir =
+                                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                                    .join(".cache/faelight");
+                            let status =
+                                std::fs::read_to_string(cache_dir.join("last-exit-status"))
+                                    .unwrap_or_default();
+                            if status.trim() == "success" {
+                                0
+                            } else {
+                                1
+                            }
                         };
                         last_exit_code = Some(exit_code);
                         let now_ts = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default().as_secs() as i64;
+                            .unwrap_or_default()
+                            .as_secs() as i64;
                         let home_dir = std::env::var("HOME").unwrap_or_default();
                         let sock_path_buf = format!("{}/.local/state/0-core/daemon.sock", home_dir);
                         let sock_path = sock_path_buf.as_str();
@@ -1868,18 +2193,29 @@ fn repl_main() -> Result<()> {
                             exit_code, health.unwrap_or(100), now_ts
                         );
                         if std::path::Path::new(sock_path).exists() {
-                            use std::io::{Write, BufRead, BufReader};
-                            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(sock_path) {
-                                stream.set_write_timeout(Some(std::time::Duration::from_millis(100))).ok();
-                                stream.set_read_timeout(Some(std::time::Duration::from_millis(1000))).ok();
+                            use std::io::{BufRead, BufReader, Write};
+                            if let Ok(mut stream) =
+                                std::os::unix::net::UnixStream::connect(sock_path)
+                            {
+                                stream
+                                    .set_write_timeout(Some(std::time::Duration::from_millis(100)))
+                                    .ok();
+                                stream
+                                    .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
+                                    .ok();
                                 let _ = stream.write_all(event_json.as_bytes());
                                 let _ = stream.write_all(b"\n");
                                 // Gate 7 -- read FridaySpeak response inline
                                 let mut reader = BufReader::new(&stream);
                                 let mut resp = String::new();
-                                if reader.read_line(&mut resp).is_ok() && resp.contains("FridaySpeak") {
-                                    if (resp.contains("\"low\"") || resp.contains("\"medium\"") || resp.contains("\"high\""))
-                                        && resp.contains("\"message\":\"") {
+                                if reader.read_line(&mut resp).is_ok()
+                                    && resp.contains("FridaySpeak")
+                                {
+                                    if (resp.contains("\"low\"")
+                                        || resp.contains("\"medium\"")
+                                        || resp.contains("\"high\""))
+                                        && resp.contains("\"message\":\"")
+                                    {
                                         if let Some(msg) = resp.split("\"message\":\"").nth(1) {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
@@ -1894,40 +2230,55 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // 🌲 Forest speaks — surface contextd insights after every command
-                    if let Ok(conn) = rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root)) {
-                        let insight: Option<(i64, String, String, f64)> = conn.query_row(
-                            "SELECT id, signal, detail, importance FROM forest_insights
+                    if let Ok(conn) =
+                        rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root))
+                    {
+                        let insight: Option<(i64, String, String, f64)> = conn
+                            .query_row(
+                                "SELECT id, signal, detail, importance FROM forest_insights
                              WHERE shown = 0 AND importance >= 0.65
                              ORDER BY importance DESC, created_at DESC LIMIT 1",
-                            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-                        ).ok();
+                                [],
+                                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+                            )
+                            .ok();
                         if let Some((id, _signal, detail, importance)) = insight {
                             use colored::Colorize;
                             let icon = if importance >= 0.85 { "⚡" } else { "💬" };
                             println!();
-                            println!("  {} {} {}", icon,
+                            println!(
+                                "  {} {} {}",
+                                icon,
                                 "forest:".bright_cyan().dimmed(),
-                                detail.bright_white());
+                                detail.bright_white()
+                            );
                             let _ = conn.execute(
                                 "UPDATE forest_insights SET shown = 1 WHERE id = ?1",
                                 rusqlite::params![id],
                             );
                         }
                     }
-                // INT-203 Phase 2: Friday proactive message
-                if _session_commands % 10 == 0 && _session_commands > 0 {
-                    if let Ok(conn) = rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root)) {
-                        let pattern: Option<(String, String, f64)> = conn.query_row(
+                    // INT-203 Phase 2: Friday proactive message
+                    if _session_commands % 10 == 0 && _session_commands > 0 {
+                        if let Ok(conn) =
+                            rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root))
+                        {
+                            let pattern: Option<(String, String, f64)> = conn.query_row(
                             "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.7 ORDER BY confidence DESC LIMIT 1",
                             [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
                         ).ok();
-                        if let Some((trigger, action, conf)) = pattern {
-                            use colored::Colorize;
-                            println!();
-                            println!("  🌲 Friday: When {} → {} ({:.0}%)", trigger.bright_cyan(), action.bright_white(), conf * 100.0);
+                            if let Some((trigger, action, conf)) = pattern {
+                                use colored::Colorize;
+                                println!();
+                                println!(
+                                    "  🌲 Friday: When {} → {} ({:.0}%)",
+                                    trigger.bright_cyan(),
+                                    action.bright_white(),
+                                    conf * 100.0
+                                );
+                            }
                         }
                     }
-                }
                 } // end 'segments loop
             }
             Err(ReadlineError::Interrupted) => {
@@ -1955,7 +2306,8 @@ fn repl_main() -> Result<()> {
     let _session_duration = _session_start.elapsed().as_secs() / 60;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let dow = chrono::Local::now().weekday().num_days_from_monday() as i64;
     let hour = chrono::Local::now().hour() as i64;
     // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
@@ -1965,7 +2317,11 @@ fn repl_main() -> Result<()> {
         rusqlite::params![session_start_ts],
         |r| r.get(0),
     ).unwrap_or(1);
-    let focus_score: f64 = if distinct_intents <= 1 { 1.0 } else { 1.0 / distinct_intents as f64 };
+    let focus_score: f64 = if distinct_intents <= 1 {
+        1.0
+    } else {
+        1.0 / distinct_intents as f64
+    };
     let _ = db.conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS session_patterns (
             id TEXT PRIMARY KEY,
@@ -1978,7 +2334,7 @@ fn repl_main() -> Result<()> {
             deploy_count INTEGER,
             command_count INTEGER,
             duration_minutes INTEGER
-        );"
+        );",
     );
     let _ = db.conn.execute(
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1988,30 +2344,46 @@ fn repl_main() -> Result<()> {
     {
         use colored::Colorize;
         let dur_str = if _session_duration >= 60 {
-            format!("{}h{}m", _session_duration/60, _session_duration%60)
-        } else { format!("{}m", _session_duration) };
-        let active_intent: String = std::fs::read_dir(
-            std::path::PathBuf::from(&core_root).join("intents/future")
-        ).map(|d| d.filter_map(|e| e.ok())
-            .filter(|e| std::fs::read_to_string(e.path())
-                .map(|c| c.contains("status: in-progress")).unwrap_or(false))
-            .filter_map(|e| {
-                let n = e.file_name().to_string_lossy().to_string();
-                let num = n.split('-').next()?.to_string();
-                Some(format!("INT-{}", num))
-            }).collect::<Vec<_>>().join(", "))
-        .unwrap_or_default();
+            format!("{}h{}m", _session_duration / 60, _session_duration % 60)
+        } else {
+            format!("{}m", _session_duration)
+        };
+        let active_intent: String =
+            std::fs::read_dir(std::path::PathBuf::from(&core_root).join("intents/future"))
+                .map(|d| {
+                    d.filter_map(|e| e.ok())
+                        .filter(|e| {
+                            std::fs::read_to_string(e.path())
+                                .map(|c| c.contains("status: in-progress"))
+                                .unwrap_or(false)
+                        })
+                        .filter_map(|e| {
+                            let n = e.file_name().to_string_lossy().to_string();
+                            let num = n.split('-').next()?.to_string();
+                            Some(format!("INT-{}", num))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default();
         println!();
         println!("  🌲 Session complete");
-        println!("  {} commands  ·  {} deploys  ·  {} commits  ·  {}",
-            _session_commands, _session_deploys, _session_commits,
-            dur_str.bright_green());
+        println!(
+            "  {} commands  ·  {} deploys  ·  {} commits  ·  {}",
+            _session_commands,
+            _session_deploys,
+            _session_commits,
+            dur_str.bright_green()
+        );
         if !active_intent.is_empty() {
             println!("  Active: {}", active_intent.bright_cyan());
         }
         println!();
     }
-    println!("{}", colored::Colorize::dimmed("  🌲 The forest remembers."));
+    println!(
+        "{}",
+        colored::Colorize::dimmed("  🌲 The forest remembers.")
+    );
     Ok(())
 }
 
@@ -2044,13 +2416,14 @@ fn print_welcome(core_root: &str) {
         .unwrap_or_else(|| "?".to_string());
 
     let health_num: u32 = std::fs::read_to_string(
-            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                .join(".cache/faelight/health-status"))
-        .unwrap_or_else(|_| "95".into())
-        .trim()
-        .trim_end_matches('%')
-        .parse()
-        .unwrap_or(95);
+        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".cache/faelight/health-status"),
+    )
+    .unwrap_or_else(|_| "95".into())
+    .trim()
+    .trim_end_matches('%')
+    .parse()
+    .unwrap_or(95);
 
     let health_display = if health_num >= 95 {
         format!("{}% ✅", health_num).bright_green().to_string()
@@ -2063,8 +2436,17 @@ fn print_welcome(core_root: &str) {
     // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
     let (complete_count, planned_count) = {
         let intent_dir = root.join("intents");
-        let categories = ["complete", "decisions", "experiments", "philosophy",
-                          "future", "cancelled", "deferred", "incidents", "active"];
+        let categories = [
+            "complete",
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "cancelled",
+            "deferred",
+            "incidents",
+            "active",
+        ];
         let mut complete = 0usize;
         let mut planned = 0usize;
         for cat in &categories {
@@ -2072,8 +2454,11 @@ fn print_welcome(core_root: &str) {
                 for entry in entries.flatten() {
                     if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("status: complete") { complete += 1; }
-                            else if content.contains("status: planned") { planned += 1; }
+                            if content.contains("status: complete") {
+                                complete += 1;
+                            } else if content.contains("status: planned") {
+                                planned += 1;
+                            }
                         }
                     }
                 }
@@ -2083,9 +2468,7 @@ fn print_welcome(core_root: &str) {
     };
     // Count tools from registry — mirrors doctor check_path_resilience logic exactly
     let tool_count = std::fs::read_to_string(root.join("01-registry/tools.toml"))
-        .map(|t| t.lines()
-            .filter(|l| l.starts_with("name = "))
-            .count())
+        .map(|t| t.lines().filter(|l| l.starts_with("name = ")).count())
         .unwrap_or(0);
 
     let quotes = [
@@ -2182,17 +2565,23 @@ fn print_welcome(core_root: &str) {
                 .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
                 .filter_map(|e| {
                     let content = std::fs::read_to_string(e.path()).ok()?;
-                    if !content.contains("status: in-progress") { return None; }
-                    Some(e.file_name()
-                        .to_string_lossy()
-                        .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
-                        .trim_end_matches(".md")
-                        .replace('-', " ")
-                        .to_string())
+                    if !content.contains("status: in-progress") {
+                        return None;
+                    }
+                    Some(
+                        e.file_name()
+                            .to_string_lossy()
+                            .trim_start_matches(|c: char| c.is_ascii_digit() || c == '-')
+                            .trim_end_matches(".md")
+                            .replace('-', " ")
+                            .to_string(),
+                    )
                 })
                 .collect();
             in_progress.sort();
-            if in_progress.is_empty() { None } else {
+            if in_progress.is_empty() {
+                None
+            } else {
                 Some(in_progress.join(", "))
             }
         });
@@ -2222,7 +2611,11 @@ fn print_welcome(core_root: &str) {
         if let Some(ref last_dir) = mem.last_dir {
             let path = std::path::Path::new(last_dir);
             // Always restore to core_root — keep work in forest home
-            let restore_path = if path.exists() && path.is_dir() && !last_dir.contains("/engine/src") && !last_dir.contains("/rust-tools/") {
+            let restore_path = if path.exists()
+                && path.is_dir()
+                && !last_dir.contains("/engine/src")
+                && !last_dir.contains("/rust-tools/")
+            {
                 path
             } else {
                 std::path::Path::new(core_root)

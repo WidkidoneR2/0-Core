@@ -151,7 +151,6 @@ impl SystemSnapshot {
             .output()
             .map(|o| {
                 String::from_utf8_lossy(&o.stdout)
-                    .trim()
                     .split_whitespace()
                     .nth(1)
                     .unwrap_or("?")
@@ -389,9 +388,7 @@ fn run_presentation(snap: &SystemSnapshot) {
         match input.trim() {
             "q" | "quit" => break,
             "p" | "prev" => {
-                if i > 0 {
-                    i -= 1;
-                }
+                i = i.saturating_sub(1);
             }
             _ => {
                 if i < slides.len() - 1 {
@@ -1372,7 +1369,7 @@ fn run_lesson(lesson: &Lesson) {
             let input = input.trim();
 
             if input == "hint" || input == "?" {
-                println!("  {} {}", "💡".to_string(), step.hint.yellow());
+                println!("  {} {}", "💡", step.hint.yellow());
                 continue;
             }
             if input == "skip" {
@@ -1380,7 +1377,7 @@ fn run_lesson(lesson: &Lesson) {
                 break;
             }
             if input == step.expected {
-                println!("  {} {}", "✅".to_string(), step.success.green());
+                println!("  {} {}", "✅", step.success.green());
                 println!();
                 break;
             } else {
@@ -1397,7 +1394,7 @@ fn run_lesson(lesson: &Lesson) {
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
-    println!("  {} Lesson complete!", "🎉".to_string());
+    println!("  {} Lesson complete!", "🎉");
     println!(
         "  Next: {} or {} to see all lessons",
         "teach shell".bright_cyan(),
@@ -1454,7 +1451,7 @@ fn main() {
 
     // faelight-shell tutorial module (INT-131)
     if args.iter().any(|a| a == "shell") {
-        run_shell_tutorial(&args[1..].to_vec());
+        run_shell_tutorial(&args[1..]);
         return;
     }
     // Expert sub-commands (no progress needed)
@@ -1462,7 +1459,7 @@ fn main() {
         .iter()
         .any(|a| a == "tool" || a == "list" || a == "why")
     {
-        run_expert(&args[1..].to_vec(), &snap);
+        run_expert(&args[1..], &snap);
         return;
     }
 
@@ -1496,7 +1493,7 @@ fn main() {
     }
 
     match persona {
-        Persona::Expert => run_expert(&args[1..].to_vec(), &snap),
+        Persona::Expert => run_expert(&args[1..], &snap),
         Persona::Newcomer | Persona::Learner => run_newcomer(&mut progress, &snap),
     }
 }

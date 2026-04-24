@@ -229,7 +229,6 @@ fn cmd_pick() -> Result<()> {
     if output.status.success() {
         let line = String::from_utf8_lossy(&output.stdout);
         let idx: usize = line
-            .trim()
             .split_whitespace()
             .next()
             .and_then(|s| s.parse().ok())

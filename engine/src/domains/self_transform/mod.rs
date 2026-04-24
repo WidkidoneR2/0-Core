@@ -11,7 +11,8 @@ use colored::*;
 use rusqlite::params;
 /// Ensure self-transformation tables exist
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
-    ctx.runtime.db.execute_batch("
+    ctx.runtime.db.execute_batch(
+        "
         CREATE TABLE IF NOT EXISTS self_proposals (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             kind        TEXT NOT NULL,
@@ -42,36 +43,58 @@ fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
             failed          INTEGER DEFAULT 0,
             updated_at      INTEGER NOT NULL
         );
-    ")?;
+    ",
+    )?;
     Ok(())
 }
 /// core self map — architecture coupling analysis
 pub fn map(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     println!();
-    println!("{}", "🗺️  Architecture Map — Forest Self-Analysis".cyan().bold());
+    println!(
+        "{}",
+        "🗺️  Architecture Map — Forest Self-Analysis".cyan().bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     // Analyze domain coupling via event co-occurrence
-    let domain_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(DISTINCT domain) FROM events", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let domain_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(DISTINCT domain) FROM events", [], |r| {
+            r.get(0)
+        })
+        .unwrap_or(0);
     // Count events per domain (last 30 days)
     let month_ago = now_ts() - 2592000;
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT domain, COUNT(*) as cnt FROM events
          WHERE timestamp > ?1
-         GROUP BY domain ORDER BY cnt DESC LIMIT 20"
+         GROUP BY domain ORDER BY cnt DESC LIMIT 20",
     )?;
-    let domains: Vec<(String, i64)> = stmt.query_map(params![month_ago], |r| {
-        Ok((r.get(0)?, r.get(1)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let domains: Vec<(String, i64)> = stmt
+        .query_map(params![month_ago], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
     // Total events
     let total_events: i64 = domains.iter().map(|(_, c)| c).sum();
-    println!("  {} Active domains: {}", "→".dimmed(), domain_count.to_string().bright_white());
-    println!("  {} Events (30d): {}", "→".dimmed(), total_events.to_string().bright_white());
+    println!(
+        "  {} Active domains: {}",
+        "→".dimmed(),
+        domain_count.to_string().bright_white()
+    );
+    println!(
+        "  {} Events (30d): {}",
+        "→".dimmed(),
+        total_events.to_string().bright_white()
+    );
     println!();
-    println!("  {:<20} {:<12} {}", "Domain".dimmed(), "Events (30d)".dimmed(), "Activity".dimmed());
+    println!(
+        "  {:<20} {:<12} {}",
+        "Domain".dimmed(),
+        "Events (30d)".dimmed(),
+        "Activity".dimmed()
+    );
     println!("  {}", "─".repeat(50).dimmed());
     let max_cnt = domains.first().map(|(_, c)| *c).unwrap_or(1);
     for (domain, cnt) in &domains {
@@ -80,10 +103,11 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
         let bar = "█".repeat(bar_len);
         let activity = match pct {
             80..=100 => "HIGH".bright_green(),
-            40..=79  => "MED".bright_yellow(),
-            _        => "LOW".dimmed(),
+            40..=79 => "MED".bright_yellow(),
+            _ => "LOW".dimmed(),
         };
-        println!("  {:<20} {:<12} {} {}",
+        println!(
+            "  {:<20} {:<12} {} {}",
             domain.bright_white(),
             cnt.to_string().cyan(),
             bar.bright_cyan(),
@@ -92,7 +116,8 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
     }
     println!();
     // Detect underutilized domains
-    let underutilized: Vec<&(String, i64)> = domains.iter()
+    let underutilized: Vec<&(String, i64)> = domains
+        .iter()
         .filter(|(_, c)| *c < total_events / (domain_count.max(1) * 3))
         .collect();
     if !underutilized.is_empty() {
@@ -103,61 +128,99 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
     // Engine health
-    let mut engine_stmt = ctx.runtime.db.prepare(
-        "SELECT name, version, status, last_active FROM engine_registry ORDER BY name"
-    )?;
-    let engines: Vec<(String, String, String, i64)> = engine_stmt.query_map([], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let mut engine_stmt = ctx
+        .runtime
+        .db
+        .prepare("SELECT name, version, status, last_active FROM engine_registry ORDER BY name")?;
+    let engines: Vec<(String, String, String, i64)> = engine_stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
     println!("  {}", "Engine Health".bright_white().bold());
     println!("  {}", "─".repeat(50).dimmed());
     for (name, version, status, _last) in &engines {
         let status_colored = match status.as_str() {
-            "active"  => status.bright_green(),
+            "active" => status.bright_green(),
             "dormant" => status.bright_yellow(),
             "planned" => status.dimmed(),
-            _         => status.normal(),
+            _ => status.normal(),
         };
-        println!("  {:<22} {:<10} {}", name.bright_white(), version.dimmed(), status_colored);
+        println!(
+            "  {:<22} {:<10} {}",
+            name.bright_white(),
+            version.dimmed(),
+            status_colored
+        );
     }
     // Signal flow health
-    let signals_today: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM engine_signals WHERE created_at > ?1",
-        params![now_ts() - 86400], |r| r.get(0)
-    ).unwrap_or(0);
+    let signals_today: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM engine_signals WHERE created_at > ?1",
+            params![now_ts() - 86400],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     println!();
-    println!("  {} Signal flow (24h): {} signals", "📡".normal(), signals_today.to_string().bright_white());
+    println!(
+        "  {} Signal flow (24h): {} signals",
+        "📡".normal(),
+        signals_today.to_string().bright_white()
+    );
     // Alignment score
-    let align_score: Option<f64> = ctx.runtime.db.query_row(
-        "SELECT AVG(score) FROM alignment_checks WHERE checked_at > ?1",
-        params![now_ts() - 604800], |r| r.get(0)
-    ).ok().flatten();
+    let align_score: Option<f64> = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT AVG(score) FROM alignment_checks WHERE checked_at > ?1",
+            params![now_ts() - 604800],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
     if let Some(score) = align_score {
         let pct = (score * 100.0) as i64;
-        println!("  {} Alignment (v15): {}%", "🧭".normal(),
-            if pct >= 80 { pct.to_string().bright_green() }
-            else { pct.to_string().bright_yellow() }
+        println!(
+            "  {} Alignment (v15): {}%",
+            "🧭".normal(),
+            if pct >= 80 {
+                pct.to_string().bright_green()
+            } else {
+                pct.to_string().bright_yellow()
+            }
         );
     }
     println!();
-    println!("  {} Run: core self evolve — to see proposals based on this map", "→".bright_cyan());
+    println!(
+        "  {} Run: core self evolve — to see proposals based on this map",
+        "→".bright_cyan()
+    );
     println!();
     Ok(())
 }
 /// Generate structural proposals from architecture analysis
-fn generate_proposals(ctx: &AppContext) -> Vec<(String, String, String, String, f64, String, String)> {
+fn generate_proposals(
+    ctx: &AppContext,
+) -> Vec<(String, String, String, String, f64, String, String)> {
     // (kind, title, description, evidence, confidence, risk, impact)
     let mut proposals = Vec::new();
     let month_ago = now_ts() - 2592000;
     // Check for high intent load
-    let active_intents: i64 = std::fs::read_dir(
-        std::path::PathBuf::from(&ctx.core_root).join("intents/future")
-    ).map(|d| d.filter_map(|e| e.ok())
-        .filter(|e| std::fs::read_to_string(e.path())
-            .map(|c| c.contains("status: in-progress") || c.contains("type: in-progress"))
-            .unwrap_or(false))
-        .count() as i64)
-    .unwrap_or(0);
+    let active_intents: i64 =
+        std::fs::read_dir(std::path::PathBuf::from(&ctx.core_root).join("intents/future"))
+            .map(|d| {
+                d.filter_map(|e| e.ok())
+                    .filter(|e| {
+                        std::fs::read_to_string(e.path())
+                            .map(|c| {
+                                c.contains("status: in-progress") || c.contains("type: in-progress")
+                            })
+                            .unwrap_or(false)
+                    })
+                    .count() as i64
+            })
+            .unwrap_or(0);
     if active_intents > 4 {
         proposals.push((
             "workflow".to_string(),
@@ -170,10 +233,15 @@ fn generate_proposals(ctx: &AppContext) -> Vec<(String, String, String, String, 
         ));
     }
     // Check signal flow
-    let signals: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM engine_signals WHERE created_at > ?1",
-        params![month_ago], |r| r.get(0)
-    ).unwrap_or(0);
+    let signals: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM engine_signals WHERE created_at > ?1",
+            params![month_ago],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if signals < 10 {
         proposals.push((
             "architecture".to_string(),
@@ -186,10 +254,15 @@ fn generate_proposals(ctx: &AppContext) -> Vec<(String, String, String, String, 
         ));
     }
     // Check for dormant engines
-    let dormant: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM engine_registry WHERE status = 'planned'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let dormant: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM engine_registry WHERE status = 'planned'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if dormant > 3 {
         proposals.push((
             "intelligence".to_string(),
@@ -235,12 +308,16 @@ pub fn evolve(ctx: &AppContext) -> CoreResult<()> {
     let proposals = generate_proposals(ctx);
     if proposals.is_empty() {
         println!("  {} No structural proposals at this time.", "○".dimmed());
-        println!("  {} Forest architecture is healthy — no changes suggested.", "→".dimmed());
+        println!(
+            "  {} Forest architecture is healthy — no changes suggested.",
+            "→".dimmed()
+        );
         println!();
         return Ok(());
     }
     let now = now_ts();
-    for (i, (kind, title, desc, evidence, confidence, risk, impact)) in proposals.iter().enumerate() {
+    for (i, (kind, title, desc, evidence, confidence, risk, impact)) in proposals.iter().enumerate()
+    {
         let conf_pct = (confidence * 100.0) as i64;
         let conf_colored = if conf_pct >= 80 {
             format!("{}%", conf_pct).bright_green()
@@ -251,18 +328,27 @@ pub fn evolve(ctx: &AppContext) -> CoreResult<()> {
         };
         let risk_colored = match risk.as_str() {
             "NONE" => risk.bright_green(),
-            "LOW"  => risk.bright_cyan(),
+            "LOW" => risk.bright_cyan(),
             "MEDIUM" => risk.bright_yellow(),
             "HIGH" => risk.bright_red(),
             _ => risk.normal(),
         };
-        println!("  {} {} — {}", format!("#{}", i+1).bright_white().bold(), kind.bright_cyan(), title.bright_white().bold());
+        println!(
+            "  {} {} — {}",
+            format!("#{}", i + 1).bright_white().bold(),
+            kind.bright_cyan(),
+            title.bright_white().bold()
+        );
         println!("  {} {}", "Description:".dimmed(), desc);
         println!("  {} {}", "Evidence:".dimmed(), evidence.bright_white());
-        println!("  {} {}  {} {}  {} {}", 
-            "Confidence:".dimmed(), conf_colored,
-            "Risk:".dimmed(), risk_colored,
-            "Impact:".dimmed(), impact.bright_white()
+        println!(
+            "  {} {}  {} {}  {} {}",
+            "Confidence:".dimmed(),
+            conf_colored,
+            "Risk:".dimmed(),
+            risk_colored,
+            "Impact:".dimmed(),
+            impact.bright_white()
         );
         println!();
         // Store proposal
@@ -273,13 +359,21 @@ pub fn evolve(ctx: &AppContext) -> CoreResult<()> {
             params![kind, title, desc, evidence, confidence, risk, impact, now],
         );
     }
-    println!("  {} To accept: core self apply <proposal-number>", "→".bright_cyan());
+    println!(
+        "  {} To accept: core self apply <proposal-number>",
+        "→".bright_cyan()
+    );
     println!("  {} To see history: core self history", "→".bright_cyan());
     println!();
     Ok(())
 }
 /// core self apply <id> [--dry-run] [--checkpoint]
-pub fn apply(ctx: &AppContext, proposal_id: i64, dry_run: bool, checkpoint: bool) -> CoreResult<()> {
+pub fn apply(
+    ctx: &AppContext,
+    proposal_id: i64,
+    dry_run: bool,
+    checkpoint: bool,
+) -> CoreResult<()> {
     ensure_tables(ctx)?;
     // Get proposal
     let proposal: Option<(String, String, String, f64, String)> = ctx.runtime.db.query_row(
@@ -290,19 +384,34 @@ pub fn apply(ctx: &AppContext, proposal_id: i64, dry_run: bool, checkpoint: bool
     let (title, desc, risk, confidence, kind) = match proposal {
         Some(p) => p,
         None => {
-            println!("  {} Proposal #{} not found or already decided", "⚠️ ".yellow(), proposal_id);
-            println!("  {} Run: core self evolve to see current proposals", "→".dimmed());
+            println!(
+                "  {} Proposal #{} not found or already decided",
+                "⚠️ ".yellow(),
+                proposal_id
+            );
+            println!(
+                "  {} Run: core self evolve to see current proposals",
+                "→".dimmed()
+            );
             return Ok(());
         }
     };
     println!();
-    println!("{} Proposal #{}: {}", "🔄".normal(), proposal_id, title.bright_white().bold());
+    println!(
+        "{} Proposal #{}: {}",
+        "🔄".normal(),
+        proposal_id,
+        title.bright_white().bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     println!("  {} {}", "Description:".dimmed(), desc);
-    println!("  {} {}  {} {}",
-        "Risk:".dimmed(), risk.bright_yellow(),
-        "Confidence:".dimmed(), format!("{}%", (confidence * 100.0) as i64).bright_cyan()
+    println!(
+        "  {} {}  {} {}",
+        "Risk:".dimmed(),
+        risk.bright_yellow(),
+        "Confidence:".dimmed(),
+        format!("{}%", (confidence * 100.0) as i64).bright_cyan()
     );
     println!();
     if dry_run {
@@ -325,8 +434,14 @@ pub fn apply(ctx: &AppContext, proposal_id: i64, dry_run: bool, checkpoint: bool
     // This is correct: the Prime Directive says defer to human
     // The system records the decision and learns from it
     println!("  {} Proposal accepted and recorded", "✅".green().bold());
-    println!("  {} The forest will factor this into future proposals", "→".dimmed());
-    println!("  {} Action required: implement the suggestion manually", "→".bright_cyan());
+    println!(
+        "  {} The forest will factor this into future proposals",
+        "→".dimmed()
+    );
+    println!(
+        "  {} Action required: implement the suggestion manually",
+        "→".bright_cyan()
+    );
     println!();
     // Record decision
     let now = now_ts();
@@ -357,13 +472,28 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     println!();
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT p.id, p.kind, p.title, p.confidence, p.risk, p.status, p.created_at, p.decided_at
-         FROM self_proposals p ORDER BY p.created_at DESC LIMIT 20"
+         FROM self_proposals p ORDER BY p.created_at DESC LIMIT 20",
     )?;
-    let proposals: Vec<(i64, String, String, f64, String, String, i64, Option<i64>)> = stmt.query_map([], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let proposals: Vec<(i64, String, String, f64, String, String, i64, Option<i64>)> = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     if proposals.is_empty() {
-        println!("  {} No proposals yet — run: core self evolve", "○".dimmed());
+        println!(
+            "  {} No proposals yet — run: core self evolve",
+            "○".dimmed()
+        );
         println!();
         return Ok(());
     }
@@ -371,16 +501,21 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
         let status_colored = match status.as_str() {
             "accepted" => status.bright_green(),
             "rejected" => status.bright_red(),
-            "pending"  => status.bright_yellow(),
-            _          => status.normal(),
+            "pending" => status.bright_yellow(),
+            _ => status.normal(),
         };
         let date = chrono::DateTime::from_timestamp(*created_at, 0)
             .map(|t| t.format("%Y-%m-%d").to_string())
             .unwrap_or_default();
-        println!("  {} #{} [{}] {} — {} ({:.0}% conf, {} risk)",
-            status_colored, id, kind.bright_cyan(),
-            title.bright_white(), date.dimmed(),
-            confidence * 100.0, risk
+        println!(
+            "  {} #{} [{}] {} — {} ({:.0}% conf, {} risk)",
+            status_colored,
+            id,
+            kind.bright_cyan(),
+            title.bright_white(),
+            date.dimmed(),
+            confidence * 100.0,
+            risk
         );
     }
     println!();
@@ -389,17 +524,30 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
 /// core self learn — record outcome of a past proposal
 pub fn learn(ctx: &AppContext, proposal_id: i64, outcome: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    let success = matches!(outcome.to_lowercase().as_str(), "success" | "succeeded" | "yes" | "good");
+    let success = matches!(
+        outcome.to_lowercase().as_str(),
+        "success" | "succeeded" | "yes" | "good"
+    );
     let now = now_ts();
     let affected = ctx.runtime.db.execute(
         "UPDATE self_proposals SET status = ?1, outcome = ?2, decided_at = ?3 WHERE id = ?4",
-        params![if success { "succeeded" } else { "failed" }, outcome, now, proposal_id],
+        params![
+            if success { "succeeded" } else { "failed" },
+            outcome,
+            now,
+            proposal_id
+        ],
     )?;
     if affected > 0 {
         let _ = ctx.runtime.db.execute(
             "INSERT INTO self_evolution_log (proposal_id, event, detail, logged_at)
              VALUES (?1, ?2, ?3, ?4)",
-            params![proposal_id, if success { "succeeded" } else { "failed" }, outcome, now],
+            params![
+                proposal_id,
+                if success { "succeeded" } else { "failed" },
+                outcome,
+                now
+            ],
         );
         let _ = ctx.runtime.db.execute(
             "INSERT INTO self_accuracy (proposals_made, accepted, rejected, succeeded, failed, updated_at)
@@ -410,11 +558,22 @@ pub fn learn(ctx: &AppContext, proposal_id: i64, outcome: &str) -> CoreResult<()
                updated_at = ?3",
             params![if success { 1i64 } else { 0i64 }, if success { 0i64 } else { 1i64 }, now],
         );
-        println!("  {} Proposal #{} outcome recorded: {}", "✅".green(), proposal_id, outcome);
+        println!(
+            "  {} Proposal #{} outcome recorded: {}",
+            "✅".green(),
+            proposal_id,
+            outcome
+        );
         if success {
-            println!("  {} Success increases confidence in similar proposals", "→".dimmed());
+            println!(
+                "  {} Success increases confidence in similar proposals",
+                "→".dimmed()
+            );
         } else {
-            println!("  {} Failure penalizes similar proposals — the forest learns", "→".dimmed());
+            println!(
+                "  {} Failure penalizes similar proposals — the forest learns",
+                "→".dimmed()
+            );
         }
     } else {
         println!("  {} Proposal #{} not found", "⚠️ ".yellow(), proposal_id);
@@ -428,45 +587,106 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "📊 Self-Transformation Accuracy".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let total: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM self_proposals", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM self_proposals", [], |r| r.get(0))
+        .unwrap_or(0);
     let accepted: i64 = ctx.runtime.db.query_row(
         "SELECT COUNT(*) FROM self_proposals WHERE status IN ('accepted', 'succeeded', 'failed')",
         [], |r| r.get(0)
     ).unwrap_or(0);
-    let rejected: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM self_proposals WHERE status = 'rejected'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
-    let succeeded: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM self_proposals WHERE status = 'succeeded'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
-    let failed: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM self_proposals WHERE status = 'failed'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
-    let acceptance_rate = if total > 0 { (accepted * 100 / total) as f64 } else { 0.0 };
-    let success_rate = if accepted > 0 { (succeeded * 100 / accepted) as f64 } else { 0.0 };
-    println!("  {:<28} {}", "Total proposals:".dimmed(), total.to_string().bright_white());
-    println!("  {:<28} {}", "Accepted:".dimmed(), accepted.to_string().bright_green());
-    println!("  {:<28} {}", "Rejected:".dimmed(), rejected.to_string().bright_red());
-    println!("  {:<28} {}", "Succeeded:".dimmed(), succeeded.to_string().bright_green());
-    println!("  {:<28} {}", "Failed:".dimmed(), failed.to_string().bright_red());
+    let rejected: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM self_proposals WHERE status = 'rejected'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let succeeded: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM self_proposals WHERE status = 'succeeded'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let failed: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM self_proposals WHERE status = 'failed'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let acceptance_rate = if total > 0 {
+        (accepted * 100 / total) as f64
+    } else {
+        0.0
+    };
+    let success_rate = if accepted > 0 {
+        (succeeded * 100 / accepted) as f64
+    } else {
+        0.0
+    };
+    println!(
+        "  {:<28} {}",
+        "Total proposals:".dimmed(),
+        total.to_string().bright_white()
+    );
+    println!(
+        "  {:<28} {}",
+        "Accepted:".dimmed(),
+        accepted.to_string().bright_green()
+    );
+    println!(
+        "  {:<28} {}",
+        "Rejected:".dimmed(),
+        rejected.to_string().bright_red()
+    );
+    println!(
+        "  {:<28} {}",
+        "Succeeded:".dimmed(),
+        succeeded.to_string().bright_green()
+    );
+    println!(
+        "  {:<28} {}",
+        "Failed:".dimmed(),
+        failed.to_string().bright_red()
+    );
     println!();
-    println!("  {:<28} {:.0}%", "Acceptance rate:".dimmed(), acceptance_rate);
+    println!(
+        "  {:<28} {:.0}%",
+        "Acceptance rate:".dimmed(),
+        acceptance_rate
+    );
     println!("  {:<28} {:.0}%", "Success rate:".dimmed(), success_rate);
     println!();
     if total < 5 {
-        println!("  {} {} proposals needed for meaningful calibration", "💡".bright_cyan(),
-            (5 - total).to_string().bright_yellow());
+        println!(
+            "  {} {} proposals needed for meaningful calibration",
+            "💡".bright_cyan(),
+            (5 - total).to_string().bright_yellow()
+        );
     } else if success_rate >= 80.0 {
-        println!("  {} Proposal quality is HIGH — the forest is learning well", "✅".green());
+        println!(
+            "  {} Proposal quality is HIGH — the forest is learning well",
+            "✅".green()
+        );
     } else if success_rate >= 60.0 {
-        println!("  {} Proposal quality is MODERATE — calibration ongoing", "💡".bright_cyan());
+        println!(
+            "  {} Proposal quality is MODERATE — calibration ongoing",
+            "💡".bright_cyan()
+        );
     } else {
-        println!("  {} Proposal quality needs improvement — the forest is still learning", "⚠️ ".yellow());
+        println!(
+            "  {} Proposal quality needs improvement — the forest is still learning",
+            "⚠️ ".yellow()
+        );
     }
     println!();
     Ok(())
@@ -478,13 +698,21 @@ pub fn calibrate(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "🔧 Self-Calibration".cyan().bold());
     println!("{}", "━".repeat(60).dimmed());
     println!();
-    let total: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM self_proposals", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM self_proposals", [], |r| r.get(0))
+        .unwrap_or(0);
     if total < 5 {
-        println!("  {} Need at least 5 proposals before calibrating", "○".dimmed());
-        println!("  {} Currently have {} — run: core self evolve to generate more", 
-            "→".dimmed(), total);
+        println!(
+            "  {} Need at least 5 proposals before calibrating",
+            "○".dimmed()
+        );
+        println!(
+            "  {} Currently have {} — run: core self evolve to generate more",
+            "→".dimmed(),
+            total
+        );
         println!();
         return Ok(());
     }
@@ -492,15 +720,20 @@ pub fn calibrate(ctx: &AppContext) -> CoreResult<()> {
     let mut stmt = ctx.runtime.db.prepare(
         "SELECT kind, COUNT(*) as total,
                 SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected
-         FROM self_proposals GROUP BY kind"
+         FROM self_proposals GROUP BY kind",
     )?;
-    let kinds: Vec<(String, i64, i64)> = stmt.query_map([], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let kinds: Vec<(String, i64, i64)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
     println!("  {} Calibration analysis:", "🔍".bright_cyan());
     println!();
     for (kind, total_k, rejected_k) in &kinds {
-        let rejection_rate = if *total_k > 0 { (rejected_k * 100 / total_k) as f64 } else { 0.0 };
+        let rejection_rate = if *total_k > 0 {
+            (rejected_k * 100 / total_k) as f64
+        } else {
+            0.0
+        };
         let assessment = if rejection_rate > 60.0 {
             "reduce confidence threshold".bright_red().to_string()
         } else if rejection_rate < 20.0 {
@@ -508,10 +741,19 @@ pub fn calibrate(ctx: &AppContext) -> CoreResult<()> {
         } else {
             "within normal range".normal().to_string()
         };
-        println!("  {} {}: {:.0}% rejection → {}", "→".dimmed(), kind.bright_white(), rejection_rate, assessment);
+        println!(
+            "  {} {}: {:.0}% rejection → {}",
+            "→".dimmed(),
+            kind.bright_white(),
+            rejection_rate,
+            assessment
+        );
     }
     println!();
-    println!("  {} Calibration logged — proposals will adjust confidence over time", "✅".green());
+    println!(
+        "  {} Calibration logged — proposals will adjust confidence over time",
+        "✅".green()
+    );
     println!();
     let now = now_ts();
     let _ = ctx.runtime.db.execute(
@@ -524,11 +766,18 @@ pub fn calibrate(ctx: &AppContext) -> CoreResult<()> {
 /// core partner challenge <intent_id> — prove me wrong mode
 pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     println!();
-    println!("{} Challenging: {}", "🎯".normal(), intent_id.bright_white().bold());
+    println!(
+        "{} Challenging: {}",
+        "🎯".normal(),
+        intent_id.bright_white().bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     println!("  {}", "Prove Me Wrong Mode".bright_white().bold());
-    println!("  {} The forest stress-tests your current plan.", "→".dimmed());
+    println!(
+        "  {} The forest stress-tests your current plan.",
+        "→".dimmed()
+    );
     println!();
     // Look for the intent
     let core_root = std::path::PathBuf::from(&ctx.core_root);
@@ -539,13 +788,18 @@ pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 let search_id = intent_id.trim_start_matches("INT-");
-        if name.starts_with(search_id) || name.starts_with(&format!("INT-{}", search_id)) || name.contains(intent_id) {
+                if name.starts_with(search_id)
+                    || name.starts_with(&format!("INT-{}", search_id))
+                    || name.contains(intent_id)
+                {
                     found_path = Some(entry.path());
                     break;
                 }
             }
         }
-        if found_path.is_some() { break; }
+        if found_path.is_some() {
+            break;
+        }
     }
     match found_path {
         Some(path) => {
@@ -553,18 +807,40 @@ pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
             let gate_count = content.matches('⬜').count();
             let complete_count = content.matches('✅').count();
             let total = gate_count + complete_count;
-            println!("  {} Intent found: {}", "✅".green(), path.file_name().unwrap_or_default().to_string_lossy().bright_white());
-            println!("  {} Gates: {}/{} complete", "→".dimmed(), complete_count, total);
+            println!(
+                "  {} Intent found: {}",
+                "✅".green(),
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .bright_white()
+            );
+            println!(
+                "  {} Gates: {}/{} complete",
+                "→".dimmed(),
+                complete_count,
+                total
+            );
             println!();
             println!("  {}", "Potential risks:".bright_yellow().bold());
             if gate_count > 10 {
-                println!("  {} {} remaining gates — high complexity, consider phasing", "⚠️ ".yellow(), gate_count);
+                println!(
+                    "  {} {} remaining gates — high complexity, consider phasing",
+                    "⚠️ ".yellow(),
+                    gate_count
+                );
             }
             if gate_count > 0 && complete_count == 0 {
-                println!("  {} No gates complete yet — validate first gate before proceeding", "⚠️ ".yellow());
+                println!(
+                    "  {} No gates complete yet — validate first gate before proceeding",
+                    "⚠️ ".yellow()
+                );
             }
             if gate_count == 0 {
-                println!("  {} All gates complete — intent is fully validated", "✅".green());
+                println!(
+                    "  {} All gates complete — intent is fully validated",
+                    "✅".green()
+                );
             }
             // Check for similar past intents that struggled
             let similar: i64 = ctx.runtime.db.query_row(
@@ -572,19 +848,39 @@ pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
                 [], |r| r.get(0)
             ).unwrap_or(0);
             if similar > 0 {
-                println!("  {} {} similar proposals failed in the past — review history", "⚠️ ".yellow(), similar);
+                println!(
+                    "  {} {} similar proposals failed in the past — review history",
+                    "⚠️ ".yellow(),
+                    similar
+                );
             }
             println!();
             println!("  {}", "Counter-paths to consider:".bright_white().bold());
-            println!("  {} Break into smaller intents if > 15 gates", "·".dimmed());
-            println!("  {} Validate first gate before writing full implementation", "·".dimmed());
-            println!("  {} Check: does this conflict with any active intent?", "·".dimmed());
+            println!(
+                "  {} Break into smaller intents if > 15 gates",
+                "·".dimmed()
+            );
+            println!(
+                "  {} Validate first gate before writing full implementation",
+                "·".dimmed()
+            );
+            println!(
+                "  {} Check: does this conflict with any active intent?",
+                "·".dimmed()
+            );
             println!();
-            println!("  {} Confidence in critique: {}%", "→".dimmed(), "72".bright_yellow());
+            println!(
+                "  {} Confidence in critique: {}%",
+                "→".dimmed(),
+                "72".bright_yellow()
+            );
         }
         None => {
             println!("  {} Intent '{}' not found", "⚠️ ".yellow(), intent_id);
-            println!("  {} Use: core intent list to see available intents", "→".dimmed());
+            println!(
+                "  {} Use: core intent list to see available intents",
+                "→".dimmed()
+            );
         }
     }
     println!();

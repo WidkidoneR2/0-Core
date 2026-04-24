@@ -41,13 +41,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Banner logged to friday.log, not stdout
-    let _ = std::fs::OpenOptions::new().append(true).create(true)
-        .open(format!("{}/.cache/faelight/friday.log", std::env::var("HOME").unwrap_or_default()))
-        .map(|mut f| { use std::io::Write; let _ = f.write_all(format!("[friday] daemon started on {}\n", socket_path).as_bytes()); });
+    let _ = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(format!(
+            "{}/.cache/faelight/friday.log",
+            std::env::var("HOME").unwrap_or_default()
+        ))
+        .map(|mut f| {
+            use std::io::Write;
+            let _ = f.write_all(format!("[friday] daemon started on {}\n", socket_path).as_bytes());
+        });
 
     let daemon = Daemon::new(socket_path);
     daemon.run().await?;
 
     Ok(())
 }
-

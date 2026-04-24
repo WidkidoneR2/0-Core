@@ -538,11 +538,11 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
     let output = std::process::Command::new("git")
         .args([
             "-C",
-            &dirs::home_dir()
+            dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/root"))
                 .join("0-core")
                 .to_string_lossy()
-                .to_string(),
+                .as_ref(),
             "log",
             "--oneline",
             "-10",
@@ -1035,7 +1035,7 @@ pub fn burndown(ctx: &AppContext) -> CoreResult<()> {
     println!("  {} Completion milestones:", "→".dimmed());
     for (month, count) in &monthly {
         running += count;
-        if running % 10 == 0 || running == complete {
+        if running.is_multiple_of(10) || running == complete {
             println!(
                 "    {} {} — {} total",
                 "●".bright_cyan(),
@@ -1151,9 +1151,9 @@ pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
 pub fn edit(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let all = load_all(ctx);
     let id_norm = id.trim_start_matches("INT-").trim_start_matches("int-");
-    let intent = all.iter().find(|i| {
-        i.id.trim_start_matches("INT-").trim_start_matches("int-") == id_norm
-    });
+    let intent = all
+        .iter()
+        .find(|i| i.id.trim_start_matches("INT-").trim_start_matches("int-") == id_norm);
     match intent {
         Some(i) => {
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
@@ -1161,9 +1161,9 @@ pub fn edit(ctx: &AppContext, id: &str) -> CoreResult<()> {
             let status = std::process::Command::new(&editor)
                 .arg(&path)
                 .status()
-                .map_err(|e| crate::errors::CoreError::Io(e))?;
+                .map_err(crate::errors::CoreError::Io)?;
             if status.success() {
-                println!("  {} INT-{} saved", "✅".to_string(), i.id);
+                println!("  {} INT-{} saved", "✅", i.id);
             }
             Ok(())
         }
@@ -1223,26 +1223,58 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     if let Ok(entries) = std::fs::read_dir(&future_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") { continue; }
+            if !name.ends_with(".md") {
+                continue;
+            }
             let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            if !content.contains("status: in-progress") { continue; }
+            if !content.contains("status: in-progress") {
+                continue;
+            }
             let id = name.split('-').next().unwrap_or("?").to_string();
-            let title = content.lines()
+            let title = content
+                .lines()
                 .find(|l| l.starts_with("title:"))
-                .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                .map(|l| {
+                    l.trim_start_matches("title:")
+                        .trim()
+                        .trim_matches('"')
+                        .to_string()
+                })
                 .unwrap_or_else(|| name.clone());
             let total_gates = content.matches("⬜").count() + content.matches("✅").count();
             let done_gates = content.matches("✅").count();
-            let gate_pct = if total_gates > 0 { (done_gates * 100) / total_gates } else { 0 };
+            let gate_pct = if total_gates > 0 {
+                (done_gates * 100) / total_gates
+            } else {
+                0
+            };
             let days_since: i64 = {
                 let out = std::process::Command::new("git")
-                    .args(["-C", &ctx.core_root, "log", "-1", "--format=%ct",
-                           "--", &format!("intents/future/{}", name)])
-                    .output().ok();
-                let ts = out.as_ref()
-                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<i64>().unwrap_or(0))
+                    .args([
+                        "-C",
+                        &ctx.core_root,
+                        "log",
+                        "-1",
+                        "--format=%ct",
+                        "--",
+                        &format!("intents/future/{}", name),
+                    ])
+                    .output()
+                    .ok();
+                let ts = out
+                    .as_ref()
+                    .map(|o| {
+                        String::from_utf8_lossy(&o.stdout)
+                            .trim()
+                            .parse::<i64>()
+                            .unwrap_or(0)
+                    })
                     .unwrap_or(0);
-                if ts > 0 { (now - ts) / 86400 } else { 0 }
+                if ts > 0 {
+                    (now - ts) / 86400
+                } else {
+                    0
+                }
             };
             let mut score = gate_pct as f64;
             let mut issues: Vec<String> = Vec::new();
@@ -1252,24 +1284,40 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
             }
             score = score.max(0.0).min(100.0);
             if !stale_only || days_since > 14 {
-                intents.push((id, title, format!("{}/{}", done_gates, total_gates), score, issues));
+                intents.push((
+                    id,
+                    title,
+                    format!("{}/{}", done_gates, total_gates),
+                    score,
+                    issues,
+                ));
             }
         }
     }
     println!();
-    println!("  {} Intent Health", "💊");
+    println!("  💊 Intent Health");
     println!("  {}", "─".repeat(56).dimmed());
     if intents.is_empty() {
-        println!("  {} All active intents healthy", "✅");
+        println!("  ✅ All active intents healthy");
         println!();
         return Ok(());
     }
     intents.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal));
     for (id, title, gates, score, issues) in &intents {
-        let s = if *score >= 70.0 { format!("{:.0}%", score).bright_green().to_string() }
-                else if *score >= 40.0 { format!("{:.0}%", score).yellow().to_string() }
-                else { format!("{:.0}%", score).bright_red().to_string() };
-        println!("  INT-{:<6} {:<36} {} gates  {}", id.bright_white(), title.dimmed(), gates, s);
+        let s = if *score >= 70.0 {
+            format!("{:.0}%", score).bright_green().to_string()
+        } else if *score >= 40.0 {
+            format!("{:.0}%", score).yellow().to_string()
+        } else {
+            format!("{:.0}%", score).bright_red().to_string()
+        };
+        println!(
+            "  INT-{:<6} {:<36} {} gates  {}",
+            id.bright_white(),
+            title.dimmed(),
+            gates,
+            s
+        );
         for issue in issues {
             println!("    ⚠  {}", issue.bright_yellow());
         }
@@ -1281,7 +1329,7 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
 pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
     let root = std::path::PathBuf::from(&ctx.core_root);
-    
+
     // Find the intent file
     let mut intent_content = None;
     let mut intent_name = String::new();
@@ -1296,15 +1344,26 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 }
             }
         }
-        if intent_content.is_some() { break; }
+        if intent_content.is_some() {
+            break;
+        }
     }
     let content = match intent_content {
-        None => { println!("  {} Intent {} not found", "✗".bright_red(), id); return Ok(()); }
+        None => {
+            println!("  {} Intent {} not found", "✗".bright_red(), id);
+            return Ok(());
+        }
         Some(c) => c,
     };
-    let title = content.lines()
+    let title = content
+        .lines()
         .find(|l| l.starts_with("title:"))
-        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+        .map(|l| {
+            l.trim_start_matches("title:")
+                .trim()
+                .trim_matches('"')
+                .to_string()
+        })
         .unwrap_or_else(|| intent_name.clone());
     let total_gates = content.matches("⬜").count() + content.matches("✅").count();
     let done_gates = content.matches("✅").count();
@@ -1316,32 +1375,68 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
         for entry in entries.flatten().take(10) {
             let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
             let total = c.matches("✅").count();
-            if total > 0 { gates_per_session.push(total as f64 / 2.0); } // assume ~2 sessions avg
+            if total > 0 {
+                gates_per_session.push(total as f64 / 2.0);
+            } // assume ~2 sessions avg
         }
     }
-    let avg_gates_per_session = if gates_per_session.is_empty() { 3.0 }
-        else { gates_per_session.iter().sum::<f64>() / gates_per_session.len() as f64 };
+    let avg_gates_per_session = if gates_per_session.is_empty() {
+        3.0
+    } else {
+        gates_per_session.iter().sum::<f64>() / gates_per_session.len() as f64
+    };
     let sessions_needed = if avg_gates_per_session > 0.0 {
         (remaining as f64 / avg_gates_per_session).ceil() as usize
-    } else { remaining };
+    } else {
+        remaining
+    };
     println!();
     println!("  {} Completion Prediction: INT-{}", "🎯".normal(), id);
     println!("  {}", "─".repeat(56).dimmed());
     println!("  {:<24} {}", "Intent:".dimmed(), title.bright_white());
-    println!("  {:<24} {}/{} gates done ({}%)",
-        "Gates:".dimmed(), done_gates, total_gates,
-        if total_gates > 0 { (done_gates * 100) / total_gates } else { 0 });
-    println!("  {:<24} {} gates remaining", "Remaining:".dimmed(), remaining.to_string().bright_yellow());
-    println!("  {:<24} {:.1} gates/session (from {} recent intents)",
-        "Velocity:".dimmed(), avg_gates_per_session, gates_per_session.len());
-    println!("  {:<24} ~{} session(s)",
-        "Estimated:".dimmed(), sessions_needed.to_string().bright_cyan());
+    println!(
+        "  {:<24} {}/{} gates done ({}%)",
+        "Gates:".dimmed(),
+        done_gates,
+        total_gates,
+        if total_gates > 0 {
+            (done_gates * 100) / total_gates
+        } else {
+            0
+        }
+    );
+    println!(
+        "  {:<24} {} gates remaining",
+        "Remaining:".dimmed(),
+        remaining.to_string().bright_yellow()
+    );
+    println!(
+        "  {:<24} {:.1} gates/session (from {} recent intents)",
+        "Velocity:".dimmed(),
+        avg_gates_per_session,
+        gates_per_session.len()
+    );
+    println!(
+        "  {:<24} ~{} session(s)",
+        "Estimated:".dimmed(),
+        sessions_needed.to_string().bright_cyan()
+    );
     if sessions_needed == 0 {
-        println!("  {} All gates satisfied — ready to cicomplete!", "✅".normal());
+        println!(
+            "  {} All gates satisfied — ready to cicomplete!",
+            "✅".normal()
+        );
     } else if sessions_needed == 1 {
-        println!("  {} One focused session should complete this intent", "→".bright_cyan());
+        println!(
+            "  {} One focused session should complete this intent",
+            "→".bright_cyan()
+        );
     } else {
-        println!("  {} {} sessions estimated at current velocity", "→".bright_cyan(), sessions_needed);
+        println!(
+            "  {} {} sessions estimated at current velocity",
+            "→".bright_cyan(),
+            sessions_needed
+        );
     }
     println!();
     Ok(())
@@ -1358,9 +1453,15 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if name.starts_with(id) && name.ends_with(".md") {
                     source_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                    source_title = source_content.lines()
+                    source_title = source_content
+                        .lines()
                         .find(|l| l.starts_with("title:"))
-                        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                        .map(|l| {
+                            l.trim_start_matches("title:")
+                                .trim()
+                                .trim_matches('"')
+                                .to_string()
+                        })
                         .unwrap_or_default();
                     break;
                 }
@@ -1372,12 +1473,19 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
         return Ok(());
     }
     // Extract tags from source
-    let source_tags: Vec<String> = source_content.lines()
+    let source_tags: Vec<String> = source_content
+        .lines()
         .find(|l| l.starts_with("tags:"))
         .map(|l| l.to_lowercase())
         .unwrap_or_default()
         .split(',')
-        .map(|t| t.trim().trim_matches('[').trim_matches(']').trim_matches('"').to_string())
+        .map(|t| {
+            t.trim()
+                .trim_matches('[')
+                .trim_matches(']')
+                .trim_matches('"')
+                .to_string()
+        })
         .filter(|t| !t.is_empty())
         .collect();
     // Find related intents by tag overlap
@@ -1386,22 +1494,40 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".md") || name.starts_with(id) { continue; }
+                if !name.ends_with(".md") || name.starts_with(id) {
+                    continue;
+                }
                 let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                let other_tags: Vec<String> = c.lines()
+                let other_tags: Vec<String> = c
+                    .lines()
                     .find(|l| l.starts_with("tags:"))
                     .map(|l| l.to_lowercase())
                     .unwrap_or_default()
                     .split(',')
-                    .map(|t| t.trim().trim_matches('[').trim_matches(']').trim_matches('"').to_string())
+                    .map(|t| {
+                        t.trim()
+                            .trim_matches('[')
+                            .trim_matches(']')
+                            .trim_matches('"')
+                            .to_string()
+                    })
                     .filter(|t| !t.is_empty())
                     .collect();
-                let overlap = source_tags.iter().filter(|t| other_tags.contains(t)).count();
+                let overlap = source_tags
+                    .iter()
+                    .filter(|t| other_tags.contains(t))
+                    .count();
                 if overlap >= 2 {
                     let other_id = name.split('-').next().unwrap_or("?").to_string();
-                    let other_title = c.lines()
+                    let other_title = c
+                        .lines()
                         .find(|l| l.starts_with("title:"))
-                        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                        .map(|l| {
+                            l.trim_start_matches("title:")
+                                .trim()
+                                .trim_matches('"')
+                                .to_string()
+                        })
                         .unwrap_or_default();
                     related.push((other_id, other_title, overlap));
                 }
@@ -1420,8 +1546,13 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
     } else {
         println!("  {} Related intents (by tag overlap):", "▶".bright_cyan());
         for (rid, rtitle, overlap) in related.iter().take(5) {
-            println!("    {} INT-{:<6} {} ({} shared tags)",
-                "·".dimmed(), rid.bright_white(), rtitle.dimmed(), overlap.to_string().bright_cyan());
+            println!(
+                "    {} INT-{:<6} {} ({} shared tags)",
+                "·".dimmed(),
+                rid.bright_white(),
+                rtitle.dimmed(),
+                overlap.to_string().bright_cyan()
+            );
         }
     }
     println!();
@@ -1446,40 +1577,65 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 }
             }
         }
-        if intent_content.is_some() { break; }
+        if intent_content.is_some() {
+            break;
+        }
     }
     let content = match intent_content {
-        None => { println!("  {} Intent {} not found", "✗".bright_red(), id); return Ok(()); }
+        None => {
+            println!("  {} Intent {} not found", "✗".bright_red(), id);
+            return Ok(());
+        }
         Some(c) => c,
     };
-    let title = content.lines()
+    let title = content
+        .lines()
         .find(|l| l.starts_with("title:"))
-        .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+        .map(|l| {
+            l.trim_start_matches("title:")
+                .trim()
+                .trim_matches('"')
+                .to_string()
+        })
         .unwrap_or_default();
-    let date = content.lines()
+    let date = content
+        .lines()
         .find(|l| l.starts_with("date:"))
         .map(|l| l.trim_start_matches("date:").trim().to_string())
         .unwrap_or_default();
-    let status = content.lines()
+    let status = content
+        .lines()
         .find(|l| l.starts_with("status:"))
         .map(|l| l.trim_start_matches("status:").trim().to_string())
         .unwrap_or_default();
-    let tags: Vec<String> = content.lines()
+    let tags: Vec<String> = content
+        .lines()
         .find(|l| l.starts_with("tags:"))
-        .map(|l| l.trim_start_matches("tags:").trim()
-            .trim_matches('[').trim_matches(']')
-            .split(',')
-            .map(|t| t.trim().trim_matches('"').to_string())
-            .filter(|t| !t.is_empty())
-            .collect())
+        .map(|l| {
+            l.trim_start_matches("tags:")
+                .trim()
+                .trim_matches('[')
+                .trim_matches(']')
+                .split(',')
+                .map(|t| t.trim().trim_matches('"').to_string())
+                .filter(|t| !t.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
     let total_gates = content.matches("⬜").count() + content.matches("✅").count();
     let done_gates = content.matches("✅").count();
     // Get git commits touching this intent
     let commit_log = std::process::Command::new("git")
-        .args(["-C", &ctx.core_root, "log", "--oneline",
-               "--", &format!("intents/**/*{}*", id)])
-        .output().ok()
+        .args([
+            "-C",
+            &ctx.core_root,
+            "log",
+            "--oneline",
+            "--",
+            &format!("intents/**/*{}*", id),
+        ])
+        .output()
+        .ok()
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
     let commit_count = commit_log.lines().count();
@@ -1489,7 +1645,9 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".md") || name.starts_with(id) { continue; }
+                if !name.ends_with(".md") || name.starts_with(id) {
+                    continue;
+                }
                 let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
                 // Check if this intent references our id
                 if c.contains(&format!("INT-{}", id)) {
@@ -1500,22 +1658,43 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
         }
     }
     println!();
-    println!("  {} INT-{} — {}", "📖".normal(), id.bright_white(), title.bright_white());
+    println!(
+        "  {} INT-{} — {}",
+        "📖".normal(),
+        id.bright_white(),
+        title.bright_white()
+    );
     println!("  {}", "═".repeat(60).dimmed());
     println!();
     println!("  {:<16} {}", "Date:".dimmed(), date.bright_cyan());
-    println!("  {:<16} {}", "Status:".dimmed(),
-        if status == "complete" { "✅ complete".bright_green().to_string() }
-        else { status.bright_yellow().to_string() });
-    println!("  {:<16} {}/{} gates", "Gates:".dimmed(), done_gates, total_gates);
+    println!(
+        "  {:<16} {}",
+        "Status:".dimmed(),
+        if status == "complete" {
+            "✅ complete".bright_green().to_string()
+        } else {
+            status.bright_yellow().to_string()
+        }
+    );
+    println!(
+        "  {:<16} {}/{} gates",
+        "Gates:".dimmed(),
+        done_gates,
+        total_gates
+    );
     println!("  {:<16} {}", "Tags:".dimmed(), tags.join(", ").dimmed());
     if commit_count > 0 {
-        println!("  {:<16} {} commits touch this intent", "History:".dimmed(), commit_count.to_string().bright_cyan());
+        println!(
+            "  {:<16} {} commits touch this intent",
+            "History:".dimmed(),
+            commit_count.to_string().bright_cyan()
+        );
     }
     println!();
     println!("  {} What this intent built:", "▶".bright_cyan());
     // Extract completed gates as the story
-    let completed: Vec<String> = content.lines()
+    let completed: Vec<String> = content
+        .lines()
         .filter(|l| l.contains("✅"))
         .map(|l| l.trim().trim_start_matches("✅").trim().to_string())
         .filter(|l| !l.is_empty())
@@ -1532,10 +1711,11 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
     // Show the phrase if it exists
     if let Some(phrase_start) = content.find("**\"") {
-        let phrase_end = content[phrase_start+3..].find("\"**")
+        let phrase_end = content[phrase_start + 3..]
+            .find("\"**")
             .map(|i| phrase_start + 3 + i)
             .unwrap_or(content.len());
-        let phrase = &content[phrase_start+3..phrase_end];
+        let phrase = &content[phrase_start + 3..phrase_end];
         if phrase.len() < 300 {
             println!();
             println!("  {}", "─".repeat(60).dimmed());
@@ -1552,11 +1732,15 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
-        &[Capability::FilesystemReadHome, Capability::FilesystemWriteHome],
+        &[
+            Capability::FilesystemReadHome,
+            Capability::FilesystemWriteHome,
+        ],
     )?;
     let intents = load_all(ctx);
     // Gather active intent context
-    let active: Vec<&Intent> = intents.iter()
+    let active: Vec<&Intent> = intents
+        .iter()
         .filter(|i| i.status == "in-progress")
         .collect();
     // Collect tags from active intents for suggestions
@@ -1566,7 +1750,8 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
             *tag_freq.entry(tag.trim().to_string()).or_insert(0) += 1;
         }
     }
-    let mut suggested_tags: Vec<String> = tag_freq.iter()
+    let mut suggested_tags: Vec<String> = tag_freq
+        .iter()
         .filter(|(_, &count)| count >= 1)
         .map(|(tag, _)| tag.clone())
         .collect();
@@ -1575,14 +1760,22 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     suggested_tags.truncate(5);
     // Get recent commit context
     let recent_commits = std::process::Command::new("git")
-        .args(["-C", &ctx.core_root, "log", "--oneline", "-5", "--pretty=format:%s"])
+        .args([
+            "-C",
+            &ctx.core_root,
+            "log",
+            "--oneline",
+            "-5",
+            "--pretty=format:%s",
+        ])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
     // Find related intents by title similarity to the new title
     let title_lower = title.to_lowercase();
     let title_words: Vec<&str> = title_lower.split_whitespace().collect();
-    let related: Vec<(String, String)> = intents.iter()
+    let related: Vec<(String, String)> = intents
+        .iter()
         .filter(|i| {
             let t = i.title.to_lowercase();
             title_words.iter().any(|w| w.len() > 3 && t.contains(*w))
@@ -1597,13 +1790,26 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     println!();
     println!("  {} Context analysis:", "▶".bright_cyan());
     if !active.is_empty() {
-        println!("    {} {} intents currently in progress:", "·".dimmed(), active.len());
+        println!(
+            "    {} {} intents currently in progress:",
+            "·".dimmed(),
+            active.len()
+        );
         for a in &active {
-            println!("      {} INT-{} — {}", "◦".dimmed(), a.id.bright_white(), a.title.dimmed());
+            println!(
+                "      {} INT-{} — {}",
+                "◦".dimmed(),
+                a.id.bright_white(),
+                a.title.dimmed()
+            );
         }
     }
     if !suggested_tags.is_empty() {
-        println!("    {} Suggested tags: {}", "·".dimmed(), suggested_tags.join(", ").bright_yellow());
+        println!(
+            "    {} Suggested tags: {}",
+            "·".dimmed(),
+            suggested_tags.join(", ").bright_yellow()
+        );
     }
     if !recent_commits.is_empty() {
         println!("    {} Recent work:", "·".dimmed());
@@ -1614,17 +1820,22 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     if !related.is_empty() {
         println!("    {} Related intents found:", "·".dimmed());
         for (id, t) in &related {
-            println!("      {} INT-{} — {}", "◦".dimmed(), id.bright_white(), t.dimmed());
+            println!(
+                "      {} INT-{} — {}",
+                "◦".dimmed(),
+                id.bright_white(),
+                t.dimmed()
+            );
         }
     }
     println!();
     // Build smart tags — merge template defaults with suggested
     let base_tags = match template {
         "feature" => "feature, rust, faelight",
-        "fix"     => "fix, bugfix",
-        "arch"    => "architecture, rust, design",
-        "study"   => "study, research, learning",
-        _         => "faelight",
+        "fix" => "fix, bugfix",
+        "arch" => "architecture, rust, design",
+        "study" => "study, research, learning",
+        _ => "faelight",
     };
     let smart_tags = if !suggested_tags.is_empty() {
         format!("{}, {}", base_tags, suggested_tags.join(", "))
@@ -1634,13 +1845,17 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
     // Build relates_to section from related intents
     let relates_section = if !related.is_empty() {
         let ids: Vec<String> = related.iter().map(|(id, _)| id.clone()).collect();
-        format!("relates_to: [{}]
-", ids.join(", "))
+        format!(
+            "relates_to: [{}]
+",
+            ids.join(", ")
+        )
     } else {
         String::new()
     };
     // Find next ID
-    let max_id = intents.iter()
+    let max_id = intents
+        .iter()
         .filter_map(|i| i.id.parse::<u32>().ok())
         .max()
         .unwrap_or(0);
@@ -1652,10 +1867,10 @@ pub fn new_intent_smart(ctx: &AppContext, template: &str, title: &str) -> CoreRe
         .unwrap_or_else(|_| "2026-01-01".to_string());
     let type_tag = match template {
         "feature" => "feature",
-        "fix"     => "fix",
-        "arch"    => "arch",
-        "study"   => "study",
-        _         => "future",
+        "fix" => "fix",
+        "arch" => "arch",
+        "study" => "study",
+        _ => "future",
     };
     let slug = title.to_lowercase().replace(' ', "-");
     let filename = format!("{:0>3}-{}.md", next_id, slug);
@@ -1694,7 +1909,13 @@ tags: [{}]
 
 *\"The forest grows with intention.\"* 🌲
 ",
-        next_id, today, type_tag, title, smart_tags, relates_section, active.len()
+        next_id,
+        today,
+        type_tag,
+        title,
+        smart_tags,
+        relates_section,
+        active.len()
     );
     fs::write(&filepath, &content).map_err(crate::errors::CoreError::Io)?;
     println!("  {} Intent created with forest context", "✅".normal());
@@ -1716,7 +1937,8 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     println!();
     // Find in-progress and planned intents
-    let active: Vec<&Intent> = intents.iter()
+    let active: Vec<&Intent> = intents
+        .iter()
         .filter(|i| i.status == "in-progress" || i.status == "planned")
         .collect();
     if active.is_empty() {
@@ -1732,20 +1954,26 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
         let mut visited = std::collections::HashSet::new();
         visited.insert(intent.id.clone());
         loop {
-            let unmet: Vec<String> = current_deps.iter()
+            let unmet: Vec<String> = current_deps
+                .iter()
                 .filter(|dep_id| {
-                    !visited.contains(*dep_id) &&
-                    intents.iter().find(|i| &i.id == *dep_id)
-                        .map(|i| i.status != "complete")
-                        .unwrap_or(false)
+                    !visited.contains(*dep_id)
+                        && intents
+                            .iter()
+                            .find(|i| &i.id == *dep_id)
+                            .map(|i| i.status != "complete")
+                            .unwrap_or(false)
                 })
                 .cloned()
                 .collect();
-            if unmet.is_empty() { break; }
+            if unmet.is_empty() {
+                break;
+            }
             let next = unmet[0].clone();
             visited.insert(next.clone());
             chain.push(next.clone());
-            current_deps = intents.iter()
+            current_deps = intents
+                .iter()
                 .find(|i| i.id == next)
                 .map(|i| i.depends_on.clone())
                 .unwrap_or_default();
@@ -1757,16 +1985,31 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
     // Find the longest chain — that's the critical path
     chains.sort_by(|a, b| b.len().cmp(&a.len()));
     if chains.is_empty() {
-        println!("  {} No dependency chains found in active intents", "○".dimmed());
-        println!("  {} Add depends_on: [INT-NNN] to intent frontmatter to build the graph", "→".dimmed());
+        println!(
+            "  {} No dependency chains found in active intents",
+            "○".dimmed()
+        );
+        println!(
+            "  {} Add depends_on: [INT-NNN] to intent frontmatter to build the graph",
+            "→".dimmed()
+        );
     } else {
-        println!("  {} Critical path ({} steps):", "🔴".normal(), chains[0].len());
+        println!(
+            "  {} Critical path ({} steps):",
+            "🔴".normal(),
+            chains[0].len()
+        );
         for (i, id) in chains[0].iter().enumerate() {
             if let Some(intent) = intents.iter().find(|x| &x.id == id) {
-                let arrow = if i == 0 { "▶".bright_red().to_string() }
-                    else if i == chains[0].len() - 1 { "🏁".to_string() }
-                    else { "→".bright_yellow().to_string() };
-                println!("    {} INT-{} — {} [{}]",
+                let arrow = if i == 0 {
+                    "▶".bright_red().to_string()
+                } else if i == chains[0].len() - 1 {
+                    "🏁".to_string()
+                } else {
+                    "→".bright_yellow().to_string()
+                };
+                println!(
+                    "    {} INT-{} — {} [{}]",
                     arrow,
                     intent.id.bright_white(),
                     intent.title.normal(),
@@ -1778,10 +2021,13 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
         if chains.len() > 1 {
             println!("  {} Other dependency chains:", "▶".bright_cyan());
             for chain in chains.iter().skip(1).take(3) {
-                let chain_str: Vec<String> = chain.iter()
-                    .map(|id| format!("INT-{}", id))
-                    .collect();
-                println!("    {} {} ({} steps)", "·".dimmed(), chain_str.join(" → ").dimmed(), chain.len());
+                let chain_str: Vec<String> = chain.iter().map(|id| format!("INT-{}", id)).collect();
+                println!(
+                    "    {} {} ({} steps)",
+                    "·".dimmed(),
+                    chain_str.join(" → ").dimmed(),
+                    chain.len()
+                );
             }
             println!();
         }
@@ -1789,9 +2035,13 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
     // Show all active intents with their blocker status
     println!("  {} Active intent status:", "▶".bright_cyan());
     for intent in &active {
-        let unmet_deps: Vec<String> = intent.depends_on.iter()
+        let unmet_deps: Vec<String> = intent
+            .depends_on
+            .iter()
             .filter(|dep_id| {
-                intents.iter().find(|i| &i.id == *dep_id)
+                intents
+                    .iter()
+                    .find(|i| &i.id == *dep_id)
                     .map(|i| i.status != "complete")
                     .unwrap_or(false)
             })
@@ -1802,13 +2052,18 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
         } else {
             "⏳".to_string()
         };
-        println!("    {} INT-{} — {}",
+        println!(
+            "    {} INT-{} — {}",
             status_icon,
             intent.id.bright_white(),
             intent.title.dimmed()
         );
         if !unmet_deps.is_empty() {
-            println!("       {} waiting on: {}", "⬆".bright_yellow(), unmet_deps.join(", ").bright_red());
+            println!(
+                "       {} waiting on: {}",
+                "⬆".bright_yellow(),
+                unmet_deps.join(", ").bright_red()
+            );
         }
     }
     println!();

@@ -375,7 +375,11 @@ pub enum KnowledgeCommands {
     /// Show accuracy by domain
     Accuracy,
     /// Add a lesson manually
-    Add { domain: String, description: String, resolution: String },
+    Add {
+        domain: String,
+        description: String,
+        resolution: String,
+    },
     /// Seed forest lessons
     Seed,
     /// Show full entry detail
@@ -614,12 +618,18 @@ pub enum IntentCommands {
     Stats,
     Validate,
     /// Predict completion date based on gate velocity
-    Predict { id: String },
+    Predict {
+        id: String,
+    },
     /// Show rich narrative autobiography of an intent
-    Story { id: String },
+    Story {
+        id: String,
+    },
     /// Find related intents by tag overlap
     #[command(name = "auto-link")]
-    AutoLink { id: String },
+    AutoLink {
+        id: String,
+    },
     /// Show health scores for active intents
     Health {
         /// Show only stalled intents
@@ -1047,7 +1057,8 @@ pub enum DelegateCommands {
     Activate {
         /// Contract name to activate
         contract: String,
-    },    /// Show counterfactual comparison log
+    },
+    /// Show counterfactual comparison log
     Counterfactuals,
     /// Log a counterfactual (proposed vs actual action)
     LogCounterfactual {
@@ -1303,7 +1314,9 @@ pub enum PredictCommands {
         correct: bool,
     },
     /// Explain why an intent is or is not predicted
-    Why { id: String },
+    Why {
+        id: String,
+    },
     /// Cross-session pattern analysis
     #[command(name = "cross-session")]
     CrossSession,

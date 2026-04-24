@@ -52,8 +52,8 @@ fn score_bar(score: f64) -> String {
     let empty = 10usize.saturating_sub(filled);
     format!(
         "[{}{}] {:.0}%",
-        "█".repeat(filled).bright_green().to_string(),
-        "░".repeat(empty).dimmed().to_string(),
+        "█".repeat(filled).bright_green(),
+        "░".repeat(empty).dimmed(),
         score * 100.0
     )
 }
@@ -485,7 +485,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     );
     println!();
 
-    println!("  {} {}", "Stability ↔ Evolution".bright_white().bold(), "");
+    println!("  {} ", "Stability ↔ Evolution".bright_white().bold());
     println!("    Stability  {}", score_bar(stability));
     println!("    Evolution  {}", score_bar(evolution));
     let se_state = if stability > 0.85 && evolution < 0.5 {
@@ -498,11 +498,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!("    State: {}", se_state);
     println!();
 
-    println!(
-        "  {} {}",
-        "Complexity ↔ Capability".bright_white().bold(),
-        ""
-    );
+    println!("  {} ", "Complexity ↔ Capability".bright_white().bold());
     println!("    Complexity {}", score_bar(complexity));
     println!("    Capability {}", score_bar(capability));
     let cc_state = if complexity > 0.7 {
@@ -513,7 +509,7 @@ pub fn balance(ctx: &AppContext) -> CoreResult<()> {
     println!("    State: {}", cc_state);
     println!();
 
-    println!("  {} {}", "Privacy ↔ Utility".bright_white().bold(), "");
+    println!("  {} ", "Privacy ↔ Utility".bright_white().bold());
     println!("    Privacy    {}", score_bar(privacy));
     println!("    Utility    {}", score_bar(utility));
     let pu_state = if security_findings > 5 {

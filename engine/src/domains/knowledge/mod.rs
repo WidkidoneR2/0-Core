@@ -9,7 +9,8 @@ use rusqlite::params;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 static INIT_TABLES: &str = "
 CREATE TABLE IF NOT EXISTS knowledge_entries (
@@ -60,7 +61,12 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
         None => println!("  No entry found: {}", id),
         Some((id, domain, sig, desc, resolution, conf, count, success, failure)) => {
             println!();
-            println!("  {} [{}] {}", "🌲".normal(), domain.bright_cyan(), id.dimmed());
+            println!(
+                "  {} [{}] {}",
+                "🌲".normal(),
+                domain.bright_cyan(),
+                id.dimmed()
+            );
             println!("  {}", "─".repeat(55).dimmed());
             println!("  {} {}", "Problem:".dimmed(), desc.bright_white());
             if let Some(s) = sig {
@@ -69,26 +75,41 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
             println!();
             println!("  {} {}", "Resolution:".bright_green(), resolution.white());
             println!();
-            println!("  {} {:.0}%  {} seen  {} correct  {} incorrect",
-                "Confidence:".dimmed(), conf*100.0,
+            println!(
+                "  {} {:.0}%  {} seen  {} correct  {} incorrect",
+                "Confidence:".dimmed(),
+                conf * 100.0,
                 count.to_string().bright_white(),
                 success.to_string().bright_green(),
-                failure.to_string().bright_red());
+                failure.to_string().bright_red()
+            );
             // Show outcome history
             let outcomes: Vec<(String, i64, i64)> = {
                 let mut s = db.prepare(
                     "SELECT outcome, was_correct, recorded_at FROM knowledge_outcomes
-                     WHERE entry_id = ?1 ORDER BY recorded_at DESC LIMIT 5"
+                     WHERE entry_id = ?1 ORDER BY recorded_at DESC LIMIT 5",
                 )?;
-                let x: Vec<(String, i64, i64)> = s.query_map(params![&id], |r| Ok((
-                    r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,i64>(2)?
-                )))?.filter_map(|r| r.ok()).collect(); x
+                let x: Vec<(String, i64, i64)> = s
+                    .query_map(params![&id], |r| {
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, i64>(1)?,
+                            r.get::<_, i64>(2)?,
+                        ))
+                    })?
+                    .filter_map(|r| r.ok())
+                    .collect();
+                x
             };
             if !outcomes.is_empty() {
                 println!();
                 println!("  {} Outcome history:", "→".dimmed());
                 for (outcome, correct, ts) in &outcomes {
-                    let icon = if *correct == 1 { "✅".to_string() } else { "❌".to_string() };
+                    let icon = if *correct == 1 {
+                        "✅".to_string()
+                    } else {
+                        "❌".to_string()
+                    };
                     let time = chrono::DateTime::from_timestamp(*ts, 0)
                         .map(|t| t.format("%m/%d %H:%M").to_string())
                         .unwrap_or_default();
@@ -106,10 +127,13 @@ pub fn record_outcome(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<(
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Check entry exists
-    let exists: i64 = db.query_row(
-        "SELECT COUNT(*) FROM knowledge_entries WHERE id = ?1",
-        params![id], |r| r.get(0)
-    ).unwrap_or(0);
+    let exists: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_entries WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if exists == 0 {
         println!("  {} Entry not found: {}", "✗".bright_red(), id);
         return Ok(());
@@ -118,7 +142,12 @@ pub fn record_outcome(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<(
     db.execute(
         "INSERT INTO knowledge_outcomes (entry_id, outcome, was_correct, recorded_at)
          VALUES (?1, ?2, ?3, ?4)",
-        params![id, if correct { "correct" } else { "incorrect" }, if correct { 1 } else { 0 }, now],
+        params![
+            id,
+            if correct { "correct" } else { "incorrect" },
+            if correct { 1 } else { 0 },
+            now
+        ],
     )?;
     // Update confidence and counts
     if correct {
@@ -128,7 +157,10 @@ pub fn record_outcome(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<(
              last_seen = ?1 WHERE id = ?2",
             params![now, id],
         )?;
-        println!("  {} Outcome recorded -- confidence increased", "✅".green());
+        println!(
+            "  {} Outcome recorded -- confidence increased",
+            "✅".green()
+        );
     } else {
         db.execute(
             "UPDATE knowledge_entries SET failure_count = failure_count + 1,
@@ -136,7 +168,10 @@ pub fn record_outcome(ctx: &AppContext, id: &str, correct: bool) -> CoreResult<(
              last_seen = ?1 WHERE id = ?2",
             params![now, id],
         )?;
-        println!("  {} Outcome recorded -- confidence reduced (learning from failure)", "⚠️ ".yellow());
+        println!(
+            "  {} Outcome recorded -- confidence reduced (learning from failure)",
+            "⚠️ ".yellow()
+        );
     }
     Ok(())
 }
@@ -146,19 +181,22 @@ pub fn normalize_signature(error: &str) -> String {
     // Strip file paths
     while let Some(start) = s.find("-->") {
         if let Some(end) = s[start..].find('\n') {
-            s.replace_range(start..start+end, "");
-        } else { break; }
+            s.replace_range(start..start + end, "");
+        } else {
+            break;
+        }
     }
     // Strip line:col references
     let re_like = |s: &str| -> String {
         s.split_whitespace()
             .filter(|w| !w.contains(':') || w.starts_with("error") || w.starts_with("warning"))
-            .collect::<Vec<_>>().join(" ")
+            .collect::<Vec<_>>()
+            .join(" ")
     };
     // Keep error code and message, strip specifics
     if let Some(bracket_end) = s.find("]: ") {
-        let code = &s[..bracket_end+3];
-        let msg = &s[bracket_end+3..];
+        let code = &s[..bracket_end + 3];
+        let msg = &s[bracket_end + 3..];
         // Normalize variable/type names in backticks
         let mut normalized_msg = String::new();
         let mut in_backtick = false;
@@ -291,10 +329,13 @@ pub fn seed_forest_lessons(ctx: &AppContext) -> CoreResult<()> {
     ];
     let mut seeded = 0;
     for (id, domain, error_sig, description, resolution, confidence) in &lessons {
-        let exists: i64 = db.query_row(
-            "SELECT COUNT(*) FROM knowledge_entries WHERE id = ?1",
-            params![id], |r| r.get(0)
-        ).unwrap_or(0);
+        let exists: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM knowledge_entries WHERE id = ?1",
+                params![id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if exists == 0 {
             let _ = db.execute(
                 "INSERT INTO knowledge_entries
@@ -305,7 +346,11 @@ pub fn seed_forest_lessons(ctx: &AppContext) -> CoreResult<()> {
             seeded += 1;
         }
     }
-    println!("  {} Knowledge engine seeded -- {} lessons loaded", "✅".green(), seeded);
+    println!(
+        "  {} Knowledge engine seeded -- {} lessons loaded",
+        "✅".green(),
+        seeded
+    );
     Ok(())
 }
 /// Search knowledge base by term
@@ -319,30 +364,52 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
              FROM knowledge_entries
              WHERE LOWER(description) LIKE ?1 OR LOWER(resolution) LIKE ?1
                 OR LOWER(domain) LIKE ?1 OR LOWER(error_signature) LIKE ?1
-             ORDER BY confidence DESC LIMIT 5"
+             ORDER BY confidence DESC LIMIT 5",
         )?;
-        let x: Vec<(String, String, String, String, f64, i64)> = s.query_map(params![pattern], |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,String>(1)?,
-            r.get::<_,String>(2)?, r.get::<_,String>(3)?,
-            r.get::<_,f64>(4)?, r.get::<_,i64>(5)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(String, String, String, String, f64, i64)> = s
+            .query_map(params![pattern], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, f64>(4)?,
+                    r.get::<_, i64>(5)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     println!();
-    println!("  {} Knowledge Search: {}", "🌲".normal(), term.bright_cyan());
+    println!(
+        "  {} Knowledge Search: {}",
+        "🌲".normal(),
+        term.bright_cyan()
+    );
     println!("  {}", "─".repeat(55).dimmed());
     if rows.is_empty() {
         println!("  {} No known lessons for '{}'", "→".dimmed(), term);
-        println!("  {} This may be a new pattern -- consider: core knowledge add", "💡".dimmed());
+        println!(
+            "  {} This may be a new pattern -- consider: core knowledge add",
+            "💡".dimmed()
+        );
     } else {
         for (_id, domain, desc, resolution, conf, count) in &rows {
             println!();
-            println!("  {} [{}] {} ({:.0}% · seen {}x)",
+            println!(
+                "  {} [{}] {} ({:.0}% · seen {}x)",
                 "→".bright_green(),
                 domain.bright_cyan(),
                 desc.chars().take(60).collect::<String>().bright_white(),
                 conf * 100.0,
-                count);
-            println!("  {} {}", "fix:".dimmed(), resolution.chars().take(120).collect::<String>().white());
+                count
+            );
+            println!(
+                "  {} {}",
+                "fix:".dimmed(),
+                resolution.chars().take(120).collect::<String>().white()
+            );
         }
     }
     println!();
@@ -356,22 +423,38 @@ pub fn patterns(ctx: &AppContext, domain: Option<&str>) -> CoreResult<()> {
         let mut s = if let Some(d) = domain {
             db.prepare(&format!(
                 "SELECT id, domain, description, confidence, occurrence_count
-                 FROM knowledge_entries WHERE domain = '{}' ORDER BY confidence DESC", d
+                 FROM knowledge_entries WHERE domain = '{}' ORDER BY confidence DESC",
+                d
             ))?
         } else {
             db.prepare(
                 "SELECT id, domain, description, confidence, occurrence_count
-                 FROM knowledge_entries ORDER BY domain, confidence DESC"
+                 FROM knowledge_entries ORDER BY domain, confidence DESC",
             )?
         };
-        let x: Vec<(String, String, String, f64, i64)> = s.query_map([], |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,String>(1)?,
-            r.get::<_,String>(2)?, r.get::<_,f64>(3)?, r.get::<_,i64>(4)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(String, String, String, f64, i64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, f64>(3)?,
+                    r.get::<_, i64>(4)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     println!();
-    println!("  {} Knowledge Patterns{}", "🌲".normal(),
-        domain.map(|d| format!(" -- {}", d)).unwrap_or_default().bright_cyan().to_string());
+    println!(
+        "  {} Knowledge Patterns{}",
+        "🌲".normal(),
+        domain
+            .map(|d| format!(" -- {}", d))
+            .unwrap_or_default()
+            .bright_cyan()
+    );
     println!("  {}", "─".repeat(55).dimmed());
     let mut current_domain = String::new();
     for (id, dom, desc, conf, count) in &rows {
@@ -380,11 +463,13 @@ pub fn patterns(ctx: &AppContext, domain: Option<&str>) -> CoreResult<()> {
             println!();
             println!("  {} {}", "▸".bright_green(), dom.bright_white().bold());
         }
-        println!("    [{}] {} ({:.0}% · {}x)",
+        println!(
+            "    [{}] {} ({:.0}% · {}x)",
             id.chars().take(20).collect::<String>().dimmed(),
             desc.chars().take(55).collect::<String>().white(),
             conf * 100.0,
-            count);
+            count
+        );
     }
     println!();
     Ok(())
@@ -396,11 +481,19 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     let rows: Vec<(String, i64, f64)> = {
         let mut s = db.prepare(
             "SELECT domain, COUNT(*) as entries, AVG(confidence) as avg_conf
-             FROM knowledge_entries GROUP BY domain ORDER BY avg_conf DESC"
+             FROM knowledge_entries GROUP BY domain ORDER BY avg_conf DESC",
         )?;
-        let x: Vec<(String, i64, f64)> = s.query_map([], |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,i64>(1)?, r.get::<_,f64>(2)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(String, i64, f64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, f64>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     println!();
     println!("  {} Knowledge Accuracy by Domain", "🌲".normal());
@@ -408,11 +501,20 @@ pub fn accuracy(ctx: &AppContext) -> CoreResult<()> {
     for (domain, count, conf) in &rows {
         let bar_len = (*conf * 20.0) as usize;
         let bar = "█".repeat(bar_len) + &"░".repeat(20 - bar_len);
-        let colored = if *conf >= 0.9 { bar.bright_green().to_string() }
-            else if *conf >= 0.7 { bar.bright_yellow().to_string() }
-            else { bar.bright_red().to_string() };
-        println!("  {:<12} {} {:.0}% ({} entries)",
-            domain.bright_white(), colored, conf * 100.0, count);
+        let colored = if *conf >= 0.9 {
+            bar.bright_green().to_string()
+        } else if *conf >= 0.7 {
+            bar.bright_yellow().to_string()
+        } else {
+            bar.bright_red().to_string()
+        };
+        println!(
+            "  {:<12} {} {:.0}% ({} entries)",
+            domain.bright_white(),
+            colored,
+            conf * 100.0,
+            count
+        );
     }
     println!();
     Ok(())
@@ -429,7 +531,12 @@ pub fn add(ctx: &AppContext, domain: &str, description: &str, resolution: &str) 
          VALUES (?1, 'manual', ?2, ?3, ?4, 0.8, 1, ?5, ?5)",
         params![id, domain, description, resolution, now],
     )?;
-    println!("  {} Lesson recorded: [{}] {}", "✅".green(), domain.bright_cyan(), description.white());
+    println!(
+        "  {} Lesson recorded: [{}] {}",
+        "✅".green(),
+        domain.bright_cyan(),
+        description.white()
+    );
     Ok(())
 }
 /// Query knowledge for a specific error -- used by build pipeline
@@ -442,7 +549,17 @@ pub fn query_for_error(ctx: &AppContext, error: &str) -> Option<(String, String,
         "SELECT description, resolution, confidence FROM knowledge_entries
          WHERE error_signature LIKE ?1 OR LOWER(description) LIKE ?2
          ORDER BY confidence DESC LIMIT 1",
-        params![pattern, format!("%{}%", &error[..error.len().min(30)].to_lowercase())],
-        |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
-    ).ok()
+        params![
+            pattern,
+            format!("%{}%", &error[..error.len().min(30)].to_lowercase())
+        ],
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, f64>(2)?,
+            ))
+        },
+    )
+    .ok()
 }

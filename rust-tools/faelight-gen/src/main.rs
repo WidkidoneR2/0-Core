@@ -126,7 +126,7 @@ fn display_result(label: &str, secret: &str, kind: &str) {
             }
             println!();
             println!();
-            println!("  {} letters  {} numbers  {} symbols", "🟢", "🔴", "🟡");
+            println!("  🟢 letters  🔴 numbers  🟡 symbols");
         }
         "pin" => {
             print!("  ");

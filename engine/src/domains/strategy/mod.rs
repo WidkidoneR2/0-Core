@@ -59,26 +59,33 @@ fn get_health(_ctx: &AppContext) -> u32 {
 fn get_in_progress_intents(ctx: &AppContext) -> Vec<String> {
     let root = std::path::PathBuf::from(&ctx.core_root);
     std::fs::read_dir(root.join("intents/future"))
-        .map(|entries| entries.flatten()
-            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-            .filter_map(|e| {
-                let content = std::fs::read_to_string(e.path()).ok()?;
-                if !content.contains("status: in-progress") { return None; }
-                let title = content.lines()
-                    .find(|l| l.starts_with("title:"))?
-                    .trim_start_matches("title:")
-                    .trim()
-                    .trim_matches('"')
-                    .to_string();
-                let id = e.file_name()
-                    .to_string_lossy()
-                    .split('-')
-                    .next()
-                    .unwrap_or("?")
-                    .to_string();
-                Some(format!("INT-{}: {}", id, title))
-            })
-            .collect())
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                .filter_map(|e| {
+                    let content = std::fs::read_to_string(e.path()).ok()?;
+                    if !content.contains("status: in-progress") {
+                        return None;
+                    }
+                    let title = content
+                        .lines()
+                        .find(|l| l.starts_with("title:"))?
+                        .trim_start_matches("title:")
+                        .trim()
+                        .trim_matches('"')
+                        .to_string();
+                    let id = e
+                        .file_name()
+                        .to_string_lossy()
+                        .split('-')
+                        .next()
+                        .unwrap_or("?")
+                        .to_string();
+                    Some(format!("INT-{}: {}", id, title))
+                })
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -95,26 +102,33 @@ fn get_recent_commits(ctx: &AppContext) -> u64 {
 fn get_planned_intents(ctx: &AppContext) -> Vec<String> {
     let root = std::path::PathBuf::from(&ctx.core_root);
     std::fs::read_dir(root.join("intents/future"))
-        .map(|entries| entries.flatten()
-            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-            .filter_map(|e| {
-                let content = std::fs::read_to_string(e.path()).ok()?;
-                if !content.contains("status: planned") { return None; }
-                let title = content.lines()
-                    .find(|l| l.starts_with("title:"))?
-                    .trim_start_matches("title:")
-                    .trim()
-                    .trim_matches('"')
-                    .to_string();
-                let id = e.file_name()
-                    .to_string_lossy()
-                    .split('-')
-                    .next()
-                    .unwrap_or("?")
-                    .to_string();
-                Some(format!("INT-{}: {}", id, title))
-            })
-            .collect())
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                .filter_map(|e| {
+                    let content = std::fs::read_to_string(e.path()).ok()?;
+                    if !content.contains("status: planned") {
+                        return None;
+                    }
+                    let title = content
+                        .lines()
+                        .find(|l| l.starts_with("title:"))?
+                        .trim_start_matches("title:")
+                        .trim()
+                        .trim_matches('"')
+                        .to_string();
+                    let id = e
+                        .file_name()
+                        .to_string_lossy()
+                        .split('-')
+                        .next()
+                        .unwrap_or("?")
+                        .to_string();
+                    Some(format!("INT-{}: {}", id, title))
+                })
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -130,26 +144,41 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — Now".bright_green().bold());
     println!("  {}", "What needs attention this session?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Health signal
     if health < 80 {
-        println!("  {} {} Health is at {}% — address before new work",
+        println!(
+            "  {} {} Health is at {}% — address before new work",
             "⚠".bright_yellow(),
             "URGENT:".bright_yellow().bold(),
-            health);
+            health
+        );
         println!();
     } else if health < 95 {
-        println!("  {} Health at {}% — run d to investigate warnings",
-            "·".dimmed(), health);
+        println!(
+            "  {} Health at {}% — run d to investigate warnings",
+            "·".dimmed(),
+            health
+        );
         println!();
     }
 
     // Active intents
-    println!("  {} {}", "▶".bright_cyan(), "Active intents in flight:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Active intents in flight:".bright_white().bold()
+    );
     if in_progress.is_empty() {
-        println!("    {} No intents in progress — pick one and cistart it", "·".dimmed());
+        println!(
+            "    {} No intents in progress — pick one and cistart it",
+            "·".dimmed()
+        );
     } else {
         for intent in &in_progress {
             println!("    {} {}", "·".dimmed(), intent.bright_white());
@@ -158,20 +187,46 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Session focus recommendation
-    println!("  {} {}", "▶".bright_cyan(), "Recommended session focus:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Recommended session focus:".bright_white().bold()
+    );
     if in_progress.is_empty() {
-        println!("    {} Start a new intent — run: predict next", "·".dimmed());
+        println!(
+            "    {} Start a new intent — run: predict next",
+            "·".dimmed()
+        );
     } else if in_progress.len() == 1 {
-        println!("    {} Complete your active intent before starting another", "·".dimmed());
-        println!("    {} {}", "→".bright_green(), in_progress[0].bright_white());
+        println!(
+            "    {} Complete your active intent before starting another",
+            "·".dimmed()
+        );
+        println!(
+            "    {} {}",
+            "→".bright_green(),
+            in_progress[0].bright_white()
+        );
     } else {
-        println!("    {} {} intents in flight — consider focusing on one", "·".dimmed(), in_progress.len());
-        println!("    {} Finish: {}", "→".bright_green(), in_progress[0].bright_white());
+        println!(
+            "    {} {} intents in flight — consider focusing on one",
+            "·".dimmed(),
+            in_progress.len()
+        );
+        println!(
+            "    {} Finish: {}",
+            "→".bright_green(),
+            in_progress[0].bright_white()
+        );
     }
     println!();
 
     // Quick stats
-    println!("  {} {}", "▶".bright_cyan(), "Session context:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Session context:".bright_white().bold()
+    );
     println!("    {} Health:  {}%", "·".dimmed(), health);
     println!("    {} Commits: {}", "·".dimmed(), commits);
     println!("    {} Active:  {}", "·".dimmed(), in_progress.len());
@@ -180,7 +235,9 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     // Save snapshot
     let snapshot = format!(
         "health={} in_progress={} commits={}",
-        health, in_progress.len(), commits
+        health,
+        in_progress.len(),
+        commits
     );
     ctx.runtime.db.execute(
         "INSERT INTO horizon_snapshots (horizon, snapshot, created_at) VALUES (?1, ?2, ?3)",
@@ -201,47 +258,85 @@ pub fn week(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — Week".bright_green().bold());
     println!("  {}", "What should the next 7 days focus on?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Current momentum
-    println!("  {} {}", "▶".bright_cyan(), "Current momentum:".bright_white().bold());
-    println!("    {} {} intents in progress", "·".dimmed(), in_progress.len());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Current momentum:".bright_white().bold()
+    );
+    println!(
+        "    {} {} intents in progress",
+        "·".dimmed(),
+        in_progress.len()
+    );
     println!("    {} {} intents planned", "·".dimmed(), planned.len());
     println!("    {} {} total commits", "·".dimmed(), commits);
     println!();
 
     // This week's priority
-    println!("  {} {}", "▶".bright_cyan(), "This week — complete in order:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "This week — complete in order:".bright_white().bold()
+    );
     if in_progress.is_empty() && planned.is_empty() {
-        println!("    {} Intent ledger is clear — define next goals", "·".dimmed());
+        println!(
+            "    {} Intent ledger is clear — define next goals",
+            "·".dimmed()
+        );
     } else {
         // Show in-progress first
         for (i, intent) in in_progress.iter().take(3).enumerate() {
-            println!("    {} [{}] {}", "→".bright_green(), i + 1, intent.bright_white());
+            println!(
+                "    {} [{}] {}",
+                "→".bright_green(),
+                i + 1,
+                intent.bright_white()
+            );
         }
         // Then top planned
         let remaining = 3usize.saturating_sub(in_progress.len());
         for (i, intent) in planned.iter().take(remaining).enumerate() {
-            println!("    {} [{}] {}", "·".dimmed(), in_progress.len() + i + 1, intent);
+            println!(
+                "    {} [{}] {}",
+                "·".dimmed(),
+                in_progress.len() + i + 1,
+                intent
+            );
         }
     }
     println!();
 
     // Weekly health target
-    println!("  {} {}", "▶".bright_cyan(), "Weekly targets:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Weekly targets:".bright_white().bold()
+    );
     println!("    {} Maintain health ≥ 95%", "·".dimmed());
     println!("    {} Complete all in-progress intents", "·".dimmed());
     if !planned.is_empty() {
-        println!("    {} Start {} planned intent(s)", "·".dimmed(),
-            planned.len().min(2));
+        println!(
+            "    {} Start {} planned intent(s)",
+            "·".dimmed(),
+            planned.len().min(2)
+        );
     }
     println!();
 
     // Save snapshot
     let snapshot = format!(
         "health={} in_progress={} planned={} commits={}",
-        health, in_progress.len(), planned.len(), commits
+        health,
+        in_progress.len(),
+        planned.len(),
+        commits
     );
     ctx.runtime.db.execute(
         "INSERT INTO horizon_snapshots (horizon, snapshot, created_at) VALUES (?1, ?2, ?3)",
@@ -259,15 +354,26 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     // Count complete intents — scan all categories by status: complete (mirrors doctor)
     let complete_count = {
         let intent_dir = root.join("intents");
-        let categories = ["complete", "decisions", "experiments", "philosophy",
-                          "future", "cancelled", "deferred", "incidents", "active"];
+        let categories = [
+            "complete",
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "cancelled",
+            "deferred",
+            "incidents",
+            "active",
+        ];
         let mut count = 0usize;
         for cat in &categories {
             if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
                 for entry in entries.flatten() {
                     if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                         if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") { count += 1; }
+                            if c.contains("status: complete") {
+                                count += 1;
+                            }
                         }
                     }
                 }
@@ -282,40 +388,96 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — Quarter".bright_green().bold());
     println!("  {}", "The 90-day arc toward Jarvis.".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Jarvis readiness
-    println!("  {} {}", "▶".bright_cyan(), "Jarvis Readiness:".bright_white().bold());
-    println!("    {} Current score: {} / 100", "·".dimmed(), "65".bright_yellow());
-    println!("    {} Target (v12):  {} / 100", "·".dimmed(), "85".bright_green());
-    println!("    {} Destination:   {} / 100 (v13 Autonomy)", "·".dimmed(), "95");
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Jarvis Readiness:".bright_white().bold()
+    );
+    println!(
+        "    {} Current score: {} / 100",
+        "·".dimmed(),
+        "65".bright_yellow()
+    );
+    println!(
+        "    {} Target (v12):  {} / 100",
+        "·".dimmed(),
+        "85".bright_green()
+    );
+    println!(
+        "    {} Destination:   95 / 100 (v13 Autonomy)",
+        "·".dimmed()
+    );
     println!();
 
     // Core timeline
-    println!("  {} {}", "▶".bright_cyan(), "Core intelligence timeline:".bright_white().bold());
-    println!("    {} v9  Intent     {} the forest chooses where to grow",
-        "·".dimmed(), "✅".bright_green());
-    println!("    {} v10 Reaction   {} the forest responds without being asked",
-        "·".dimmed(), "✅".bright_green());
-    println!("    {} v11 Prediction {} the forest anticipates before it happens",
-        "·".dimmed(), "✅".bright_green());
-    println!("    {} v12 Strategy   {} the forest plans across horizons  ← NOW",
-        "·".dimmed(), "🔄".bright_yellow());
-    println!("    {} v13 Autonomy   {} the forest chooses its own purpose",
-        "·".dimmed(), "⬜");
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Core intelligence timeline:".bright_white().bold()
+    );
+    println!(
+        "    {} v9  Intent     {} the forest chooses where to grow",
+        "·".dimmed(),
+        "✅".bright_green()
+    );
+    println!(
+        "    {} v10 Reaction   {} the forest responds without being asked",
+        "·".dimmed(),
+        "✅".bright_green()
+    );
+    println!(
+        "    {} v11 Prediction {} the forest anticipates before it happens",
+        "·".dimmed(),
+        "✅".bright_green()
+    );
+    println!(
+        "    {} v12 Strategy   {} the forest plans across horizons  ← NOW",
+        "·".dimmed(),
+        "🔄".bright_yellow()
+    );
+    println!(
+        "    {} v13 Autonomy   ⬜ the forest chooses its own purpose",
+        "·".dimmed()
+    );
     println!();
 
     // 90-day focus areas
-    println!("  {} {}", "▶".bright_cyan(), "90-day focus areas:".bright_white().bold());
-    println!("    {} Complete Core v12 Strategy (INT-151)", "→".bright_green());
-    println!("    {} Shell Architecture Hardening (INT-162)", "→".bright_green());
-    println!("    {} faelight-shell daily driver (INT-146)", "→".bright_green());
-    println!("    {} faelight-context + memory (INT-159, INT-160)", "→".bright_green());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "90-day focus areas:".bright_white().bold()
+    );
+    println!(
+        "    {} Complete Core v12 Strategy (INT-151)",
+        "→".bright_green()
+    );
+    println!(
+        "    {} Shell Architecture Hardening (INT-162)",
+        "→".bright_green()
+    );
+    println!(
+        "    {} faelight-shell daily driver (INT-146)",
+        "→".bright_green()
+    );
+    println!(
+        "    {} faelight-context + memory (INT-159, INT-160)",
+        "→".bright_green()
+    );
     println!();
 
     // Forest stats
-    println!("  {} {}", "▶".bright_cyan(), "Forest health:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Forest health:".bright_white().bold()
+    );
     println!("    {} {} intents complete", "·".dimmed(), complete_count);
     println!("    {} {} intents planned", "·".dimmed(), planned.len());
     println!("    {} {} total commits", "·".dimmed(), commits);
@@ -324,7 +486,9 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     // Save snapshot
     let snapshot = format!(
         "complete={} planned={} commits={} jarvis=65",
-        complete_count, planned.len(), commits
+        complete_count,
+        planned.len(),
+        commits
     );
     ctx.runtime.db.execute(
         "INSERT INTO horizon_snapshots (horizon, snapshot, created_at) VALUES (?1, ?2, ?3)",
@@ -341,32 +505,47 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     // Look up the goal
-    let goal: Option<(String, String, String, String)> = ctx.runtime.db
+    let goal: Option<(String, String, String, String)> = ctx
+        .runtime
+        .db
         .query_row(
             "SELECT id, title, plan, status FROM forest_goals WHERE id = ?1",
             rusqlite::params![goal_id],
-            |r| Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, String>(3)?,
-            )),
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            },
         )
         .ok();
 
     println!();
     println!("  {}", "🌲 Strategy — Sequence".bright_green().bold());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     match goal {
         None => {
-            println!("  {} Goal {} not found", "❌".bright_red(), goal_id.bright_white());
+            println!(
+                "  {} Goal {} not found",
+                "❌".bright_red(),
+                goal_id.bright_white()
+            );
             println!("  {} Run: core goals list", "·".dimmed());
         }
         Some((id, title, plan, status)) => {
-            println!("  {} {} — {}", "▶".bright_cyan(),
-                id.bright_white().bold(), title.bright_white());
+            println!(
+                "  {} {} — {}",
+                "▶".bright_cyan(),
+                id.bright_white().bold(),
+                title.bright_white()
+            );
             println!("  {} Status: {}", "·".dimmed(), status.bright_yellow());
             println!();
 
@@ -384,12 +563,17 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
                 .ok();
 
             if let Some((steps, risk, sessions)) = plan_steps {
-                println!("  {} {}", "▶".bright_cyan(), "Execution sequence:".bright_white().bold());
+                println!(
+                    "  {} {}",
+                    "▶".bright_cyan(),
+                    "Execution sequence:".bright_white().bold()
+                );
                 // Steps may be JSON array or newline-separated text
                 let parsed: Vec<String> = if steps.trim_start().starts_with('[') {
                     serde_json::from_str(&steps).unwrap_or_else(|_| vec![steps.clone()])
                 } else {
-                    steps.lines()
+                    steps
+                        .lines()
                         .map(|l| l.trim().trim_start_matches('-').trim().to_string())
                         .filter(|l| !l.is_empty())
                         .collect()
@@ -398,11 +582,19 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
                     println!("    {} [{}] {}", "→".bright_green(), i + 1, step);
                 }
                 println!();
-                println!("  {} {}", "▶".bright_cyan(), "Execution profile:".bright_white().bold());
+                println!(
+                    "  {} {}",
+                    "▶".bright_cyan(),
+                    "Execution profile:".bright_white().bold()
+                );
                 println!("    {} Estimated sessions: {}", "·".dimmed(), sessions);
                 println!("    {} Risk level: {}", "·".dimmed(), risk.bright_yellow());
             } else {
-                println!("  {} {}", "▶".bright_cyan(), "Recommended sequence:".bright_white().bold());
+                println!(
+                    "  {} {}",
+                    "▶".bright_cyan(),
+                    "Recommended sequence:".bright_white().bold()
+                );
                 // Fall back to the goal's own plan field
                 for (i, step) in plan.lines().enumerate().take(8) {
                     let step = step.trim().trim_start_matches('-').trim();
@@ -411,38 +603,52 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
                     }
                 }
                 println!();
-                println!("  {} Run: core plan generate {} — to build a detailed plan",
-                    "💡".bright_yellow(), id);
+                println!(
+                    "  {} Run: core plan generate {} — to build a detailed plan",
+                    "💡".bright_yellow(),
+                    id
+                );
             }
 
             // Check for related intents
             let root = std::path::PathBuf::from(&ctx.core_root);
             let related: Vec<String> = std::fs::read_dir(root.join("intents/future"))
-                .map(|entries| entries.flatten()
-                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                    .filter_map(|e| {
-                        let c = std::fs::read_to_string(e.path()).ok()?;
-                        if !c.contains("status: in-progress") { return None; }
-                        let t = c.lines()
-                            .find(|l| l.starts_with("title:"))?
-                            .trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string();
-                        let id = e.file_name()
-                            .to_string_lossy()
-                            .split('-')
-                            .next()
-                            .unwrap_or("?")
-                            .to_string();
-                        Some(format!("INT-{}: {}", id, t))
-                    })
-                    .collect())
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+                        .filter_map(|e| {
+                            let c = std::fs::read_to_string(e.path()).ok()?;
+                            if !c.contains("status: in-progress") {
+                                return None;
+                            }
+                            let t = c
+                                .lines()
+                                .find(|l| l.starts_with("title:"))?
+                                .trim_start_matches("title:")
+                                .trim()
+                                .trim_matches('"')
+                                .to_string();
+                            let id = e
+                                .file_name()
+                                .to_string_lossy()
+                                .split('-')
+                                .next()
+                                .unwrap_or("?")
+                                .to_string();
+                            Some(format!("INT-{}: {}", id, t))
+                        })
+                        .collect()
+                })
                 .unwrap_or_default();
 
             if !related.is_empty() {
                 println!();
-                println!("  {} {}", "▶".bright_cyan(), "Active intents supporting this goal:".bright_white().bold());
+                println!(
+                    "  {} {}",
+                    "▶".bright_cyan(),
+                    "Active intents supporting this goal:".bright_white().bold()
+                );
                 for intent in &related {
                     println!("    {} {}", "·".dimmed(), intent);
                 }
@@ -463,21 +669,36 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — Unblock".bright_green().bold());
     println!("  {}", "What is blocking the most progress?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let mut blockers: Vec<(u8, String, String)> = Vec::new(); // (priority, blocker, action)
 
     // Health blocker
     if health < 80 {
-        blockers.push((10, format!("Health at {}% — system needs attention", health),
-            "Run: d — investigate and fix warnings".to_string()));
+        blockers.push((
+            10,
+            format!("Health at {}% — system needs attention", health),
+            "Run: d — investigate and fix warnings".to_string(),
+        ));
     }
 
     // Too many intents in flight
     if in_progress.len() > 3 {
-        blockers.push((20, format!("{} intents in flight — cognitive overload", in_progress.len()),
-            format!("Focus on one: {}", in_progress.first().cloned().unwrap_or_default())));
+        blockers.push((
+            20,
+            format!(
+                "{} intents in flight — cognitive overload",
+                in_progress.len()
+            ),
+            format!(
+                "Focus on one: {}",
+                in_progress.first().cloned().unwrap_or_default()
+            ),
+        ));
     }
 
     // Check for stale in-progress intents (no recent commits)
@@ -489,42 +710,83 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
         let mut stmt = ctx.runtime.db.prepare(
             "SELECT id, title FROM forest_goals WHERE status = 'accepted' AND id NOT IN (SELECT goal_id FROM forest_plans)"
         )?;
-        stmt.query_map([], |r| Ok(format!("{}: {}", r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect()
+        stmt.query_map([], |r| {
+            Ok(format!(
+                "{}: {}",
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?
+            ))
+        })
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect()
     };
 
     if !goals_no_plan.is_empty() {
         for goal in &goals_no_plan {
-            blockers.push((30, format!("Goal {} has no execution plan", goal),
-                format!("Run: core plan generate {}", goal.split(':').next().unwrap_or(""))));
+            blockers.push((
+                30,
+                format!("Goal {} has no execution plan", goal),
+                format!(
+                    "Run: core plan generate {}",
+                    goal.split(':').next().unwrap_or("")
+                ),
+            ));
         }
     }
 
     // No accepted goals
-    let goal_count: i64 = ctx.runtime.db
-        .query_row("SELECT COUNT(*) FROM forest_goals WHERE status = 'accepted'", [], |r| r.get(0))
+    let goal_count: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM forest_goals WHERE status = 'accepted'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap_or(0);
 
     if goal_count == 0 {
-        blockers.push((40, "No accepted goals — forest has no direction".to_string(),
-            "Run: core goals generate — to create goals from evidence".to_string()));
+        blockers.push((
+            40,
+            "No accepted goals — forest has no direction".to_string(),
+            "Run: core goals generate — to create goals from evidence".to_string(),
+        ));
     }
 
     if blockers.is_empty() {
-        println!("  {} No blockers detected — the forest is clear to build", "✅".bright_green());
+        println!(
+            "  {} No blockers detected — the forest is clear to build",
+            "✅".bright_green()
+        );
         println!();
-        println!("  {} {}", "▶".bright_cyan(), "Current state:".bright_white().bold());
+        println!(
+            "  {} {}",
+            "▶".bright_cyan(),
+            "Current state:".bright_white().bold()
+        );
         println!("    {} Health:  {}%", "·".dimmed(), health);
-        println!("    {} Active:  {} intents", "·".dimmed(), in_progress.len());
+        println!(
+            "    {} Active:  {} intents",
+            "·".dimmed(),
+            in_progress.len()
+        );
         println!("    {} Goals:   {} accepted", "·".dimmed(), goal_count);
     } else {
         blockers.sort_by_key(|b| b.0);
-        println!("  {} {} blocker(s) detected:", "⚠".bright_yellow(), blockers.len());
+        println!(
+            "  {} {} blocker(s) detected:",
+            "⚠".bright_yellow(),
+            blockers.len()
+        );
         println!();
         for (i, (_, blocker, action)) in blockers.iter().enumerate() {
-            println!("  {} [{}] {}", "🔴".bright_red(), i + 1, blocker.bright_white());
+            println!(
+                "  {} [{}] {}",
+                "🔴".bright_red(),
+                i + 1,
+                blocker.bright_white()
+            );
             println!("       {} {}", "→".bright_green(), action);
             println!();
         }
@@ -541,19 +803,36 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
 
     println!();
     println!("  {}", "🌲 Strategy — Tradeoff".bright_green().bold());
-    println!("  {}", format!("What do we give up to do \"{}\" now?", action).dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        format!("What do we give up to do \"{}\" now?", action).dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "Proposed action:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Proposed action:".bright_white().bold()
+    );
     println!("    {} {}", "→".bright_green(), action.bright_white());
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "What you give up:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "What you give up:".bright_white().bold()
+    );
 
     // Currently in progress — these get delayed
     if in_progress.is_empty() {
-        println!("    {} Nothing currently in flight — clean slate", "·".dimmed());
+        println!(
+            "    {} Nothing currently in flight — clean slate",
+            "·".dimmed()
+        );
     } else {
         println!("    {} Delays these in-progress intents:", "·".dimmed());
         for intent in &in_progress {
@@ -563,18 +842,37 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
     println!();
 
     // Health risk
-    println!("  {} {}", "▶".bright_cyan(), "Risk assessment:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Risk assessment:".bright_white().bold()
+    );
     if health < 95 {
-        println!("    {} Health at {}% — adding work increases risk", "⚠".bright_yellow(), health);
+        println!(
+            "    {} Health at {}% — adding work increases risk",
+            "⚠".bright_yellow(),
+            health
+        );
     } else {
-        println!("    {} Health at {}% — safe to take on new work", "✅".bright_green(), health);
+        println!(
+            "    {} Health at {}% — safe to take on new work",
+            "✅".bright_green(),
+            health
+        );
     }
 
     if in_progress.len() > 2 {
-        println!("    {} {} intents already in flight — high context-switch cost",
-            "⚠".bright_yellow(), in_progress.len());
+        println!(
+            "    {} {} intents already in flight — high context-switch cost",
+            "⚠".bright_yellow(),
+            in_progress.len()
+        );
     } else {
-        println!("    {} {} intents in flight — manageable", "✅".bright_green(), in_progress.len());
+        println!(
+            "    {} {} intents in flight — manageable",
+            "✅".bright_green(),
+            in_progress.len()
+        );
     }
     println!();
 
@@ -588,13 +886,20 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
         .ok();
 
     if let Some((desc, rec)) = similar {
-        println!("  {} {}", "▶".bright_cyan(), "Most recent tradeoff analysis:".bright_white().bold());
+        println!(
+            "  {} {}",
+            "▶".bright_cyan(),
+            "Most recent tradeoff analysis:".bright_white().bold()
+        );
         println!("    {} {}", "·".dimmed(), desc);
         println!("    {} {}", "→".bright_green(), rec);
         println!();
     }
 
-    println!("  {} Run: core tradeoff analyze — for a full tradeoff analysis", "💡".bright_yellow());
+    println!(
+        "  {} Run: core tradeoff analyze — for a full tradeoff analysis",
+        "💡".bright_yellow()
+    );
     println!();
 
     Ok(())
@@ -620,51 +925,79 @@ fn load_intent_meta(core_root: &str) -> Vec<IntentMeta> {
     for dir in &["future", "complete"] {
         if let Ok(entries) = std::fs::read_dir(root.join("intents").join(dir)) {
             for entry in entries.flatten() {
-                if !entry.path().extension().map(|e| e == "md").unwrap_or(false) { continue; }
-                let Ok(content) = std::fs::read_to_string(entry.path()) else { continue };
-                let id = content.lines()
+                if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                    continue;
+                }
+                let Ok(content) = std::fs::read_to_string(entry.path()) else {
+                    continue;
+                };
+                let id = content
+                    .lines()
                     .find(|l| l.starts_with("id:"))
                     .map(|l| l.trim_start_matches("id:").trim().to_string())
                     .unwrap_or_default();
-                let title = content.lines()
+                let title = content
+                    .lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                    .map(|l| {
+                        l.trim_start_matches("title:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
                     .unwrap_or_default();
-                let status = content.lines()
+                let status = content
+                    .lines()
                     .find(|l| l.starts_with("status:"))
                     .map(|l| l.trim_start_matches("status:").trim().to_string())
                     .unwrap_or_default();
-                let priority = content.lines()
+                let priority = content
+                    .lines()
                     .find(|l| l.starts_with("priority:"))
                     .map(|l| l.trim_start_matches("priority:").trim().to_string())
                     .unwrap_or_default();
-                let version = content.lines()
+                let version = content
+                    .lines()
                     .find(|l| l.starts_with("version:"))
                     .map(|l| l.trim_start_matches("version:").trim().to_string())
                     .unwrap_or_default();
-                let tags: Vec<String> = content.lines()
+                let tags: Vec<String> = content
+                    .lines()
                     .find(|l| l.starts_with("tags:"))
-                    .map(|l| l.trim_start_matches("tags:")
-                        .trim()
-                        .trim_start_matches('[')
-                        .trim_end_matches(']')
-                        .split(',')
-                        .map(|t| t.trim().to_string())
-                        .collect())
+                    .map(|l| {
+                        l.trim_start_matches("tags:")
+                            .trim()
+                            .trim_start_matches('[')
+                            .trim_end_matches(']')
+                            .split(',')
+                            .map(|t| t.trim().to_string())
+                            .collect()
+                    })
                     .unwrap_or_default();
-                let depends_on: Vec<String> = content.lines()
+                let depends_on: Vec<String> = content
+                    .lines()
                     .find(|l| l.starts_with("depends_on:"))
-                    .map(|l| l.trim_start_matches("depends_on:")
-                        .trim()
-                        .trim_start_matches('[')
-                        .trim_end_matches(']')
-                        .split(',')
-                        .map(|t| t.trim().to_string())
-                        .filter(|t| !t.is_empty())
-                        .collect())
+                    .map(|l| {
+                        l.trim_start_matches("depends_on:")
+                            .trim()
+                            .trim_start_matches('[')
+                            .trim_end_matches(']')
+                            .split(',')
+                            .map(|t| t.trim().to_string())
+                            .filter(|t| !t.is_empty())
+                            .collect()
+                    })
                     .unwrap_or_default();
                 if !id.is_empty() {
-                    intents.push(IntentMeta { id, title, status, tags, priority, version, depends_on });
+                    intents.push(IntentMeta {
+                        id,
+                        title,
+                        status,
+                        tags,
+                        priority,
+                        version,
+                        depends_on,
+                    });
                 }
             }
         }
@@ -676,34 +1009,47 @@ fn load_intent_meta(core_root: &str) -> Vec<IntentMeta> {
 pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let intents = load_intent_meta(&ctx.core_root);
-    let in_progress: Vec<&IntentMeta> = intents.iter()
+    let in_progress: Vec<&IntentMeta> = intents
+        .iter()
         .filter(|i| i.status == "in-progress")
         .collect();
 
     println!();
     println!("  {}", "🌲 Strategy — Conflicts".bright_green().bold());
-    println!("  {}", "Which intents are pulling in opposite directions?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "Which intents are pulling in opposite directions?".dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let mut conflict_found = false;
 
     // Check 1: Dependency violations — in-progress intent depends on planned intent
-    println!("  {} {}", "▶".bright_cyan(), "Dependency check:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Dependency check:".bright_white().bold()
+    );
     let mut dep_issues = 0;
     for intent in &in_progress {
         for dep in &intent.depends_on {
             // Find the dependency
-            let dep_status = intents.iter()
-                .find(|i| i.id.to_string() == dep.as_str() ||
-                    format!("{}", i.id).contains(dep.as_str()))
+            let dep_status = intents
+                .iter()
+                .find(|i| i.id == dep.as_str() || i.id.to_string().contains(dep.as_str()))
                 .map(|i| i.status.as_str())
                 .unwrap_or("unknown");
             if dep_status == "planned" {
-                println!("    {} {} depends on {} which is still planned",
+                println!(
+                    "    {} {} depends on {} which is still planned",
                     "⚠".bright_yellow(),
                     intent.id.bright_white(),
-                    dep.bright_yellow());
+                    dep.bright_yellow()
+                );
                 dep_issues += 1;
                 conflict_found = true;
             }
@@ -715,20 +1061,30 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Check 2: Tag overlap — multiple in-progress intents touching same domain
-    println!("  {} {}", "▶".bright_cyan(), "Domain overlap:".bright_white().bold());
-    let mut tag_counts: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Domain overlap:".bright_white().bold()
+    );
+    let mut tag_counts: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
     for intent in &in_progress {
         for tag in &intent.tags {
-            tag_counts.entry(tag.clone()).or_default().push(intent.id.clone());
+            tag_counts
+                .entry(tag.clone())
+                .or_default()
+                .push(intent.id.clone());
         }
     }
     let mut overlap_found = false;
     for (tag, ids) in &tag_counts {
         if ids.len() > 1 && !["shell", "fsh", "core"].contains(&tag.as_str()) {
-            println!("    {} [{}] touched by: {}",
+            println!(
+                "    {} [{}] touched by: {}",
                 "⚠".bright_yellow(),
                 tag.bright_yellow(),
-                ids.join(", ").bright_white());
+                ids.join(", ").bright_white()
+            );
             overlap_found = true;
             conflict_found = true;
         }
@@ -739,22 +1095,40 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Check 3: Too many in-progress
-    println!("  {} {}", "▶".bright_cyan(), "Focus check:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Focus check:".bright_white().bold()
+    );
     if in_progress.len() > 3 {
-        println!("    {} {} intents in flight — recommended max is 3",
-            "⚠".bright_yellow(), in_progress.len());
+        println!(
+            "    {} {} intents in flight — recommended max is 3",
+            "⚠".bright_yellow(),
+            in_progress.len()
+        );
         for i in &in_progress {
-            println!("      {} {}: {}", "·".dimmed(), i.id.bright_white(), i.title);
+            println!(
+                "      {} {}: {}",
+                "·".dimmed(),
+                i.id.bright_white(),
+                i.title
+            );
         }
         conflict_found = true;
     } else {
-        println!("    {} {} intents in flight — within focus limit",
-            "✅".bright_green(), in_progress.len());
+        println!(
+            "    {} {} intents in flight — within focus limit",
+            "✅".bright_green(),
+            in_progress.len()
+        );
     }
     println!();
 
     if !conflict_found {
-        println!("  {} No conflicts detected — the forest is coherent", "✅".bright_green());
+        println!(
+            "  {} No conflicts detected — the forest is coherent",
+            "✅".bright_green()
+        );
     }
 
     Ok(())
@@ -764,17 +1138,22 @@ pub fn conflicts(ctx: &AppContext) -> CoreResult<()> {
 pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let intents = load_intent_meta(&ctx.core_root);
-    let in_progress: Vec<&IntentMeta> = intents.iter()
+    let in_progress: Vec<&IntentMeta> = intents
+        .iter()
         .filter(|i| i.status == "in-progress")
         .collect();
-    let planned: Vec<&IntentMeta> = intents.iter()
-        .filter(|i| i.status == "planned")
-        .collect();
+    let planned: Vec<&IntentMeta> = intents.iter().filter(|i| i.status == "planned").collect();
 
     println!();
     println!("  {}", "🌲 Strategy — Coherence".bright_green().bold());
-    println!("  {}", "Is the current work plan internally consistent?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "Is the current work plan internally consistent?".dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let health = get_health(ctx);
@@ -782,28 +1161,41 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     let mut issues: Vec<String> = Vec::new();
 
     // Factor 1: Health
-    if health < 95 { score -= 10; issues.push(format!("Health at {}% (target ≥ 95%)", health)); }
+    if health < 95 {
+        score -= 10;
+        issues.push(format!("Health at {}% (target ≥ 95%)", health));
+    }
 
     // Factor 2: Focus
     if in_progress.len() > 3 {
         score -= 20;
-        issues.push(format!("{} intents in flight (recommended ≤ 3)", in_progress.len()));
+        issues.push(format!(
+            "{} intents in flight (recommended ≤ 3)",
+            in_progress.len()
+        ));
     }
 
     // Factor 3: All in-progress have high/critical priority
-    let low_priority_active: Vec<&str> = in_progress.iter()
+    let low_priority_active: Vec<&str> = in_progress
+        .iter()
         .filter(|i| i.priority == "low" || i.priority == "medium")
         .map(|i| i.id.as_str())
         .collect();
     if !low_priority_active.is_empty() {
         score -= 10;
-        issues.push(format!("Low priority intents in flight: {}", low_priority_active.join(", ")));
+        issues.push(format!(
+            "Low priority intents in flight: {}",
+            low_priority_active.join(", ")
+        ));
     }
 
     // Factor 4: Planned count reasonable
     if planned.len() > 20 {
         score -= 5;
-        issues.push(format!("{} planned intents — backlog growing", planned.len()));
+        issues.push(format!(
+            "{} planned intents — backlog growing",
+            planned.len()
+        ));
     }
 
     let score_display = if score >= 85 {
@@ -820,7 +1212,11 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     if issues.is_empty() {
         println!("  {} Work plan is fully coherent", "✅".bright_green());
     } else {
-        println!("  {} {} issue(s) affecting coherence:", "⚠".bright_yellow(), issues.len());
+        println!(
+            "  {} {} issue(s) affecting coherence:",
+            "⚠".bright_yellow(),
+            issues.len()
+        );
         println!();
         for issue in &issues {
             println!("    {} {}", "·".dimmed(), issue.bright_white());
@@ -829,15 +1225,24 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Show active intents summary
-    println!("  {} {}", "▶".bright_cyan(), "Active intents:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Active intents:".bright_white().bold()
+    );
     for intent in &in_progress {
         let pri_color = match intent.priority.as_str() {
             "critical" => intent.priority.bright_red().to_string(),
             "high" => intent.priority.bright_yellow().to_string(),
             _ => intent.priority.dimmed().to_string(),
         };
-        println!("    {} {}: {} [{}]",
-            "·".dimmed(), intent.id.bright_white(), intent.title, pri_color);
+        println!(
+            "    {} {}: {} [{}]",
+            "·".dimmed(),
+            intent.id.bright_white(),
+            intent.title,
+            pri_color
+        );
     }
     println!();
 
@@ -849,68 +1254,134 @@ pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     let get_goal = |id: &str| -> Option<(String, String, String, String)> {
-        ctx.runtime.db.query_row(
-            "SELECT id, title, reason, priority FROM forest_goals WHERE id = ?1",
-            rusqlite::params![id],
-            |r| Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, String>(3)?,
-            )),
-        ).ok()
+        ctx.runtime
+            .db
+            .query_row(
+                "SELECT id, title, reason, priority FROM forest_goals WHERE id = ?1",
+                rusqlite::params![id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                    ))
+                },
+            )
+            .ok()
     };
 
     println!();
     println!("  {}", "🌲 Strategy — Merge".bright_green().bold());
-    println!("  {}", format!("Can {} and {} be pursued together?", goal1, goal2).dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        format!("Can {} and {} be pursued together?", goal1, goal2).dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let g1 = get_goal(goal1);
     let g2 = get_goal(goal2);
 
     match (g1, g2) {
-        (None, _) => println!("  {} Goal {} not found — run: core goals list", "❌".bright_red(), goal1),
-        (_, None) => println!("  {} Goal {} not found — run: core goals list", "❌".bright_red(), goal2),
+        (None, _) => println!(
+            "  {} Goal {} not found — run: core goals list",
+            "❌".bright_red(),
+            goal1
+        ),
+        (_, None) => println!(
+            "  {} Goal {} not found — run: core goals list",
+            "❌".bright_red(),
+            goal2
+        ),
         (Some((id1, title1, reason1, pri1)), Some((id2, title2, reason2, pri2))) => {
-            println!("  {} {} — {}", "▶".bright_cyan(), id1.bright_white().bold(), title1);
-            println!("  {} {} — {}", "▶".bright_cyan(), id2.bright_white().bold(), title2);
+            println!(
+                "  {} {} — {}",
+                "▶".bright_cyan(),
+                id1.bright_white().bold(),
+                title1
+            );
+            println!(
+                "  {} {} — {}",
+                "▶".bright_cyan(),
+                id2.bright_white().bold(),
+                title2
+            );
             println!();
 
             // Check for shared keywords in reasons
             let words1: std::collections::HashSet<&str> = reason1.split_whitespace().collect();
             let words2: std::collections::HashSet<&str> = reason2.split_whitespace().collect();
-            let shared: Vec<&&str> = words1.intersection(&words2)
+            let shared: Vec<&&str> = words1
+                .intersection(&words2)
                 .filter(|w| w.len() > 4)
                 .collect();
 
-            println!("  {} {}", "▶".bright_cyan(), "Compatibility analysis:".bright_white().bold());
+            println!(
+                "  {} {}",
+                "▶".bright_cyan(),
+                "Compatibility analysis:".bright_white().bold()
+            );
 
             if !shared.is_empty() {
-                println!("    {} Shared concepts: {}", "✅".bright_green(),
-                    shared.iter().take(5).map(|w| **w).collect::<Vec<_>>().join(", "));
+                println!(
+                    "    {} Shared concepts: {}",
+                    "✅".bright_green(),
+                    shared
+                        .iter()
+                        .take(5)
+                        .map(|w| **w)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
             }
 
             // Priority compatibility
             let compatible = (pri1.as_str(), pri2.as_str());
             match compatible {
-                ("low", "low") | ("medium", "medium") =>
-                    println!("    {} Both {} priority — can share sessions", "✅".bright_green(), pri1),
-                ("high", "high") | ("critical", "critical") =>
-                    println!("    {} Both {} priority — may compete for focus", "⚠".bright_yellow(), pri1),
-                _ =>
-                    println!("    {} Different priorities ({} vs {}) — sequence instead of parallel",
-                        "⚠".bright_yellow(), pri1, pri2),
+                ("low", "low") | ("medium", "medium") => println!(
+                    "    {} Both {} priority — can share sessions",
+                    "✅".bright_green(),
+                    pri1
+                ),
+                ("high", "high") | ("critical", "critical") => println!(
+                    "    {} Both {} priority — may compete for focus",
+                    "⚠".bright_yellow(),
+                    pri1
+                ),
+                _ => println!(
+                    "    {} Different priorities ({} vs {}) — sequence instead of parallel",
+                    "⚠".bright_yellow(),
+                    pri1,
+                    pri2
+                ),
             }
             println!();
 
-            println!("  {} {}", "▶".bright_cyan(), "Recommendation:".bright_white().bold());
+            println!(
+                "  {} {}",
+                "▶".bright_cyan(),
+                "Recommendation:".bright_white().bold()
+            );
             if pri1 == "high" && pri2 == "high" {
-                println!("    {} Pursue sequentially — complete {} first", "→".bright_green(), id1);
+                println!(
+                    "    {} Pursue sequentially — complete {} first",
+                    "→".bright_green(),
+                    id1
+                );
             } else {
-                println!("    {} These goals can be pursued in parallel", "→".bright_green());
-                println!("    {} Consider creating a combined plan: core plan generate {}", "→".bright_green(), id1);
+                println!(
+                    "    {} These goals can be pursued in parallel",
+                    "→".bright_green()
+                );
+                println!(
+                    "    {} Consider creating a combined plan: core plan generate {}",
+                    "→".bright_green(),
+                    id1
+                );
             }
         }
     }
@@ -928,61 +1399,107 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     // v9-v12 — check intent ledger for actual completion status
     let complete_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/complete");
     let completed_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
-        .map(|d| d.flatten()
-            .filter_map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                name.split('-').next().map(|s| s.to_string())
-            })
-            .collect())
+        .map(|d| {
+            d.flatten()
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    name.split('-').next().map(|s| s.to_string())
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     // v9 — INT-133, v10 — INT-134, v11 — INT-148 — read from ledger
-    let v9_done  = completed_ids.contains("133");
+    let v9_done = completed_ids.contains("133");
     let v10_done = completed_ids.contains("134");
     let v11_done = completed_ids.contains("148");
-    let v9_score  = if v9_done  { 10 } else { 0 };
+    let v9_score = if v9_done { 10 } else { 0 };
     let v10_score = if v10_done { 10 } else { 0 };
     let v11_score = if v11_done { 10 } else { 0 };
-    factors.push(("v9 Intent Engine".to_string(), v9_score,
-        if v9_done { "Complete — goals/planning/prioritization".to_string() }
-        else { "Incomplete — INT-133 not in complete ledger".to_string() }));
-    factors.push(("v10 Reaction Engine".to_string(), v10_score,
-        if v10_done { "Complete — rules/signals/narrative".to_string() }
-        else { "Incomplete — INT-134 not in complete ledger".to_string() }));
-    factors.push(("v11 Prediction Engine".to_string(), v11_score,
-        if v11_done { "Complete — 9 predict commands, predictions now stored".to_string() }
-        else { "Incomplete — INT-148 not in complete ledger".to_string() }));
+    factors.push((
+        "v9 Intent Engine".to_string(),
+        v9_score,
+        if v9_done {
+            "Complete — goals/planning/prioritization".to_string()
+        } else {
+            "Incomplete — INT-133 not in complete ledger".to_string()
+        },
+    ));
+    factors.push((
+        "v10 Reaction Engine".to_string(),
+        v10_score,
+        if v10_done {
+            "Complete — rules/signals/narrative".to_string()
+        } else {
+            "Incomplete — INT-134 not in complete ledger".to_string()
+        },
+    ));
+    factors.push((
+        "v11 Prediction Engine".to_string(),
+        v11_score,
+        if v11_done {
+            "Complete — 9 predict commands, predictions now stored".to_string()
+        } else {
+            "Incomplete — INT-148 not in complete ledger".to_string()
+        },
+    ));
     total += v9_score + v10_score + v11_score;
 
     // v12 — check if INT-151 is complete
     let (v12_score, v12_note) = if completed_ids.contains("151") {
-        (10, "Complete — horizon/sequence/coherence/jarvis/trust (INT-151)".to_string())
+        (
+            10,
+            "Complete — horizon/sequence/coherence/jarvis/trust (INT-151)".to_string(),
+        )
     } else {
-        (5, "In progress — horizon/sequence/coherence built".to_string())
+        (
+            5,
+            "In progress — horizon/sequence/coherence built".to_string(),
+        )
     };
     factors.push(("v12 Strategy Engine".to_string(), v12_score, v12_note));
     total += v12_score;
 
     // Factor 2: Health stability (max 10)
     let health = get_health(ctx);
-    let health_score = if health >= 95 { 10 } else if health >= 80 { 5 } else { 0 };
-    factors.push(("System Health".to_string(), health_score,
-        format!("{}% health (target ≥ 95%)", health)));
+    let health_score = if health >= 95 {
+        10
+    } else if health >= 80 {
+        5
+    } else {
+        0
+    };
+    factors.push((
+        "System Health".to_string(),
+        health_score,
+        format!("{}% health (target ≥ 95%)", health),
+    ));
     total += health_score;
 
     // Factor 3: Intent velocity (max 10)
     let root = std::path::PathBuf::from(&ctx.core_root);
     let complete_count = {
         let intent_dir = root.join("intents");
-        let categories = ["complete", "decisions", "experiments", "philosophy",
-                          "future", "cancelled", "deferred", "incidents", "active"];
+        let categories = [
+            "complete",
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "cancelled",
+            "deferred",
+            "incidents",
+            "active",
+        ];
         let mut count = 0usize;
         for cat in &categories {
             if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
                 for entry in entries.flatten() {
                     if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                         if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") { count += 1; }
+                            if c.contains("status: complete") {
+                                count += 1;
+                            }
                         }
                     }
                 }
@@ -990,16 +1507,34 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         }
         count
     };
-    let velocity_score = if complete_count >= 100 { 10 } else if complete_count >= 50 { 7 } else { 3 };
-    factors.push(("Intent Velocity".to_string(), velocity_score,
-        format!("{} intents complete", complete_count)));
+    let velocity_score = if complete_count >= 100 {
+        10
+    } else if complete_count >= 50 {
+        7
+    } else {
+        3
+    };
+    factors.push((
+        "Intent Velocity".to_string(),
+        velocity_score,
+        format!("{} intents complete", complete_count),
+    ));
     total += velocity_score;
 
     // Factor 4: Commit cadence (max 10)
     let commits = get_recent_commits(ctx);
-    let commit_score = if commits >= 1000 { 10 } else if commits >= 500 { 7 } else { 3 };
-    factors.push(("Commit Cadence".to_string(), commit_score,
-        format!("{} total commits", commits)));
+    let commit_score = if commits >= 1000 {
+        10
+    } else if commits >= 500 {
+        7
+    } else {
+        3
+    };
+    factors.push((
+        "Commit Cadence".to_string(),
+        commit_score,
+        format!("{} total commits", commits),
+    ));
     total += commit_score;
 
     // Factor 5: Shell intelligence (max 10) — date-aware after 30 days
@@ -1007,16 +1542,26 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         let login_date = chrono::NaiveDate::from_ymd_opt(2026, 4, 3).unwrap();
         let today = chrono::Local::now().date_naive();
         let days = (today - login_date).num_days();
-        if days >= 30 { 10 } else { 5 }
+        if days >= 30 {
+            10
+        } else {
+            5
+        }
     };
     let shell_note = {
         let login_date = chrono::NaiveDate::from_ymd_opt(2026, 4, 3).unwrap();
         let today = chrono::Local::now().date_naive();
         let days = (today - login_date).num_days();
         if days >= 30 {
-            format!("faelight-shell daily driver for {} days — gate passed", days)
+            format!(
+                "faelight-shell daily driver for {} days — gate passed",
+                days
+            )
         } else {
-            format!("faelight-shell login shell since 2026-04-03 — {} of 30 days (gate: May 3)", days)
+            format!(
+                "faelight-shell login shell since 2026-04-03 — {} of 30 days (gate: May 3)",
+                days
+            )
         }
     };
     factors.push(("Shell Intelligence".to_string(), shell_score, shell_note));
@@ -1024,30 +1569,61 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     // Factor 8: Nervous System (+5) — faelight-contextd operational
     let contextd_running = std::process::Command::new("systemctl")
         .args(["--user", "is-active", "faelight-contextd"])
-        .output().map(|o| o.status.success()).unwrap_or(false);
-    let events_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_events", [], |r| r.get(0)
-    ).unwrap_or(0);
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    let events_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM forest_events", [], |r| r.get(0))
+        .unwrap_or(0);
     let (nervous_score, nervous_note) = if contextd_running && events_count > 0 {
-        (5, format!("faelight-contextd active -- {} events observed", events_count))
+        (
+            5,
+            format!(
+                "faelight-contextd active -- {} events observed",
+                events_count
+            ),
+        )
     } else if events_count > 0 {
-        (3, format!("forest_events active ({} events) -- contextd not running", events_count))
+        (
+            3,
+            format!(
+                "forest_events active ({} events) -- contextd not running",
+                events_count
+            ),
+        )
     } else {
         (0, "Nervous system not operational".to_string())
     };
     factors.push(("Nervous System".to_string(), nervous_score, nervous_note));
     total += nervous_score;
     // Factor 9: Delegation Engine (+3) — trust contracts simulating
-    let contract_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM delegate_contracts", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let sim_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM delegate_simulations", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let contract_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM delegate_contracts", [], |r| r.get(0))
+        .unwrap_or(0);
+    let sim_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM delegate_simulations", [], |r| {
+            r.get(0)
+        })
+        .unwrap_or(0);
     let (deleg_score, deleg_note) = if contract_count >= 5 && sim_count > 0 {
-        (3, format!("{} contracts, {} simulations -- delegation active", contract_count, sim_count))
+        (
+            3,
+            format!(
+                "{} contracts, {} simulations -- delegation active",
+                contract_count, sim_count
+            ),
+        )
     } else if contract_count > 0 {
-        (1, format!("{} contracts defined -- simulation pending", contract_count))
+        (
+            1,
+            format!("{} contracts defined -- simulation pending", contract_count),
+        )
     } else {
         (0, "Delegation engine not configured".to_string())
     };
@@ -1056,13 +1632,21 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
 
     // Factor 7: Context awareness (max 7) — faelight-context + faelight-memory
     let context_exists = std::path::PathBuf::from(&ctx.core_root)
-        .join("scripts/faelight-context").exists();
+        .join("scripts/faelight-context")
+        .exists();
     let memory_exists = std::path::PathBuf::from(&ctx.core_root)
-        .join("scripts/faelight-memory").exists();
+        .join("scripts/faelight-memory")
+        .exists();
     let (ctx_score, ctx_note) = match (context_exists, memory_exists) {
-        (true, true)  => (7, "faelight-context + faelight-memory both operational".to_string()),
-        (true, false) => (4, "faelight-context operational, faelight-memory pending INT-160".to_string()),
-        _             => (0, "Neither context nor memory built yet".to_string()),
+        (true, true) => (
+            7,
+            "faelight-context + faelight-memory both operational".to_string(),
+        ),
+        (true, false) => (
+            4,
+            "faelight-context operational, faelight-memory pending INT-160".to_string(),
+        ),
+        _ => (0, "Neither context nor memory built yet".to_string()),
     };
     factors.push(("Context & Memory".to_string(), ctx_score, ctx_note));
     total += ctx_score;
@@ -1070,39 +1654,86 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     // Factor 0: Integrity score (max 5) — reads from integrity engine (INT-184)
     let (integrity_pct, _, _, _) = crate::domains::integrity::quick_scan(ctx);
     let (int_score, int_note) = if integrity_pct >= 95 {
-        (5, format!("{}% — system state verified and consistent", integrity_pct))
+        (
+            5,
+            format!("{}% — system state verified and consistent", integrity_pct),
+        )
     } else if integrity_pct >= 75 {
-        (3, format!("{}% — some inconsistencies detected (run: core integrity run)", integrity_pct))
+        (
+            3,
+            format!(
+                "{}% — some inconsistencies detected (run: core integrity run)",
+                integrity_pct
+            ),
+        )
     } else {
-        (0, format!("{}% — integrity issues require attention before autonomy", integrity_pct))
+        (
+            0,
+            format!(
+                "{}% — integrity issues require attention before autonomy",
+                integrity_pct
+            ),
+        )
     };
     factors.push(("Integrity Score".to_string(), int_score, int_note));
     total += int_score;
 
     // Factor 6: Prediction accuracy (max 10) — reads from forest_predictions (INT-167)
-    let pred_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let outcome_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let correct_count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM prediction_outcomes WHERE correct=1", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let pred_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM forest_predictions", [], |r| r.get(0))
+        .unwrap_or(0);
+    let outcome_count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM prediction_outcomes", [], |r| r.get(0))
+        .unwrap_or(0);
+    let correct_count: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM prediction_outcomes WHERE correct=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     let (pred_score, pred_note) = if pred_count == 0 {
-        (0, "No predictions stored yet — run: core predict sessions".to_string())
+        (
+            0,
+            "No predictions stored yet — run: core predict sessions".to_string(),
+        )
     } else if outcome_count == 0 {
-        (3, format!("{} predictions stored, awaiting verification (7-day window)", pred_count))
+        (
+            3,
+            format!(
+                "{} predictions stored, awaiting verification (7-day window)",
+                pred_count
+            ),
+        )
     } else {
         let accuracy = (correct_count * 100) / outcome_count.max(1);
-        let score = if accuracy >= 80 { 10 } else if accuracy >= 65 { 7 } else { 4 };
-        (score, format!("{}% accuracy ({}/{} correct), {} predictions stored", accuracy, correct_count, outcome_count, pred_count))
+        let score = if accuracy >= 80 {
+            10
+        } else if accuracy >= 65 {
+            7
+        } else {
+            4
+        };
+        (
+            score,
+            format!(
+                "{}% accuracy ({}/{} correct), {} predictions stored",
+                accuracy, correct_count, outcome_count, pred_count
+            ),
+        )
     };
     factors.push(("Prediction Accuracy".to_string(), pred_score, pred_note));
     total += pred_score;
 
     // Log this score to DB
-    let factors_json = factors.iter()
+    let factors_json = factors
+        .iter()
         .map(|(n, s, note)| format!("{}:{}/{}", n, s, note))
         .collect::<Vec<_>>()
         .join("|");
@@ -1120,66 +1751,126 @@ pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
     let (score, factors) = compute_jarvis_score(ctx);
 
     println!();
-    println!("  {}", "🌲 Strategy — Jarvis Readiness".bright_green().bold());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "🌲 Strategy — Jarvis Readiness".bright_green().bold()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Score display
     let score_bar = {
         let filled = (score as usize) / 5;
         let empty = 20usize.saturating_sub(filled);
-        format!("[{}{}]", "█".repeat(filled).bright_green(), "░".repeat(empty).dimmed())
+        format!(
+            "[{}{}]",
+            "█".repeat(filled).bright_green(),
+            "░".repeat(empty).dimmed()
+        )
     };
     let display_score = score.min(100);
     let bonus = score - display_score;
-    let score_color = if score >= 80 { format!("{}/100", display_score).bright_green().to_string() }
-        else if score >= 60 { format!("{}/100", display_score).bright_yellow().to_string() }
-        else { format!("{}/100", score).bright_red().to_string() };
+    let score_color = if score >= 80 {
+        format!("{}/100", display_score).bright_green().to_string()
+    } else if score >= 60 {
+        format!("{}/100", display_score).bright_yellow().to_string()
+    } else {
+        format!("{}/100", score).bright_red().to_string()
+    };
 
     let score_display = if bonus > 0 {
         format!("{} (+{} bonus)", score_color, bonus)
     } else {
         score_color.clone()
     };
-    println!("  {} Jarvis Score: {} {}", "▶".bright_cyan(), score_display, score_bar);
+    println!(
+        "  {} Jarvis Score: {} {}",
+        "▶".bright_cyan(),
+        score_display,
+        score_bar
+    );
     println!();
 
     // Level description
     let level = match score {
         s if s > 100 => "Jarvis — the forest thinks alongside you",
         98..=100 => "Autonomous Agent — v14 Partnership ACTIVE",
-        80..=97  => "Strategic Advisor — approaching Jarvis",
-        60..=79  => "Anticipatory Partner — forest sees ahead",
-        40..=59  => "Reactive Assistant — forest responds",
-        20..=39  => "Aware System — forest observes",
-        _        => "Basic Tool — forest executes",
+        80..=97 => "Strategic Advisor — approaching Jarvis",
+        60..=79 => "Anticipatory Partner — forest sees ahead",
+        40..=59 => "Reactive Assistant — forest responds",
+        20..=39 => "Aware System — forest observes",
+        _ => "Basic Tool — forest executes",
     };
     println!("  {} Level: {}", "·".dimmed(), level.bright_white());
     println!();
 
     // Factor breakdown
-    println!("  {} {}", "▶".bright_cyan(), "Score breakdown:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Score breakdown:".bright_white().bold()
+    );
     for (name, pts, note) in &factors {
         let pts_str = if *pts > 0 {
             format!("+{}", pts).bright_green().to_string()
         } else {
             "+0".dimmed().to_string()
         };
-        println!("    {} {} {}  {}", "·".dimmed(), pts_str, name.bright_white(), note.dimmed());
+        println!(
+            "    {} {} {}  {}",
+            "·".dimmed(),
+            pts_str,
+            name.bright_white(),
+            note.dimmed()
+        );
     }
     println!();
 
     // Milestone targets
-    println!("  {} {}", "▶".bright_cyan(), "Milestones:".bright_white().bold());
-    println!("    {} 65/100 — Anticipatory partner  {}",
-        if score >= 65 { "✅" } else { "⬜" }, if score < 80 { "← (current)".bright_yellow().to_string() } else { "".to_string() });
-    let v12_status = if std::path::PathBuf::from(&ctx.core_root).join("intents/complete").read_dir().map(|d| d.flatten().any(|e| e.file_name().to_string_lossy().starts_with("151"))).unwrap_or(false) { "✅ v12 complete" } else { "complete v12" };
-    println!("    {} 80/100 — Strategic advisor     {} {}",
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Milestones:".bright_white().bold()
+    );
+    println!(
+        "    {} 65/100 — Anticipatory partner  {}",
+        if score >= 65 { "✅" } else { "⬜" },
+        if score < 80 {
+            "← (current)".bright_yellow().to_string()
+        } else {
+            "".to_string()
+        }
+    );
+    let v12_status = if std::path::PathBuf::from(&ctx.core_root)
+        .join("intents/complete")
+        .read_dir()
+        .map(|d| {
+            d.flatten()
+                .any(|e| e.file_name().to_string_lossy().starts_with("151"))
+        })
+        .unwrap_or(false)
+    {
+        "✅ v12 complete"
+    } else {
+        "complete v12"
+    };
+    println!(
+        "    {} 80/100 — Strategic advisor     {} {}",
         if score >= 80 { "✅" } else { "⬜" },
         v12_status,
-        if score >= 80 && score < 95 { "← (current)".bright_yellow().to_string() } else { "".to_string() });
-    println!("    {} 95/100 — Autonomous agent      (complete v13)",
-        if score >= 95 { "✅" } else { "⬜" });
+        if (80..95).contains(&score) {
+            "← (current)".bright_yellow().to_string()
+        } else {
+            "".to_string()
+        }
+    );
+    println!(
+        "    {} 95/100 — Autonomous agent      (complete v13)",
+        if score >= 95 { "✅" } else { "⬜" }
+    );
     println!();
 
     Ok(())
@@ -1192,38 +1883,79 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
 
     println!();
     println!("  {}", "🌲 Strategy — Trust".bright_green().bold());
-    println!("  {}", "What evidence would justify more autonomy?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "What evidence would justify more autonomy?".dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "Current trust level:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Current trust level:".bright_white().bold()
+    );
     println!("    {} Jarvis score: {}/100", "·".dimmed(), score);
     println!("    {} v13 Autonomy requires: 95/100", "·".dimmed());
     println!("    {} Gap: {} points", "·".dimmed(), (95 - score).max(0));
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "Evidence required for more autonomy:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Evidence required for more autonomy:".bright_white().bold()
+    );
 
     // Trust gates
     let gates = vec![
-        (score >= 80, "Complete Core v12 Strategy — all 5 phases", "core strategy gap"),
-        (false, "Prediction accuracy > 75% measured over 30 days", "core predict accuracy"),
-        (false, "faelight-shell as primary daily driver", "intent show 146"),
-        (false, "faelight-context + memory operational", "intent show 159"),
-        (false, "Zero critical health failures in 30 days", "core doctor run"),
+        (
+            score >= 80,
+            "Complete Core v12 Strategy — all 5 phases",
+            "core strategy gap",
+        ),
+        (
+            false,
+            "Prediction accuracy > 75% measured over 30 days",
+            "core predict accuracy",
+        ),
+        (
+            false,
+            "faelight-shell as primary daily driver",
+            "intent show 146",
+        ),
+        (
+            false,
+            "faelight-context + memory operational",
+            "intent show 159",
+        ),
+        (
+            false,
+            "Zero critical health failures in 30 days",
+            "core doctor run",
+        ),
     ];
 
     for (met, requirement, command) in &gates {
         let icon = if *met { "✅" } else { "⬜" };
         println!("    {} {}", icon, requirement.bright_white());
         if !met {
-            println!("       {} Next step: {}", "→".bright_green(), command.dimmed());
+            println!(
+                "       {} Next step: {}",
+                "→".bright_green(),
+                command.dimmed()
+            );
         }
     }
     println!();
 
     println!("  {} v13 Autonomy is earned, not given.", "·".dimmed());
-    println!("  {} The forest must demonstrate it is right more often than wrong.", "·".dimmed());
+    println!(
+        "  {} The forest must demonstrate it is right more often than wrong.",
+        "·".dimmed()
+    );
     println!();
 
     Ok(())
@@ -1236,40 +1968,113 @@ pub fn gap(ctx: &AppContext) -> CoreResult<()> {
 
     println!();
     println!("  {}", "🌲 Strategy — Gap Analysis".bright_green().bold());
-    println!("  {}", "What capabilities are missing for full Jarvis?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "What capabilities are missing for full Jarvis?".dimmed()
+    );
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
-    println!("  {} Current: {}/100 → Target: 95/100", "▶".bright_cyan(), score);
+    println!(
+        "  {} Current: {}/100 → Target: 95/100",
+        "▶".bright_cyan(),
+        score
+    );
     println!();
 
     let gaps = vec![
-        (true,  "HIGH",   "Prediction Accuracy Feedback Loop",  "INT-167", "Predictions now stored and tracked — accuracy accumulating"),
-        (false, "HIGH",   "faelight-shell Daily Driver",        "INT-146", "Shell not yet primary interface"),
-        (false, "HIGH",   "Core v12 Strategy — Phases 4+5",     "INT-151", "Jarvis tracking + strategy memory incomplete"),
-        (false, "MEDIUM", "faelight-context",                   "INT-159", "No deep codebase understanding"),
-        (false, "MEDIUM", "faelight-memory",                    "INT-160", "No persistent project knowledge"),
-        (false, "MEDIUM", "Shell Architecture Hardening",       "INT-162", "ExecContext + layer separation needed"),
-        (false, "LOW",    "Core v13 Autonomy",                  "INT-156", "The destination — requires all above"),
+        (
+            true,
+            "HIGH",
+            "Prediction Accuracy Feedback Loop",
+            "INT-167",
+            "Predictions now stored and tracked — accuracy accumulating",
+        ),
+        (
+            false,
+            "HIGH",
+            "faelight-shell Daily Driver",
+            "INT-146",
+            "Shell not yet primary interface",
+        ),
+        (
+            false,
+            "HIGH",
+            "Core v12 Strategy — Phases 4+5",
+            "INT-151",
+            "Jarvis tracking + strategy memory incomplete",
+        ),
+        (
+            false,
+            "MEDIUM",
+            "faelight-context",
+            "INT-159",
+            "No deep codebase understanding",
+        ),
+        (
+            false,
+            "MEDIUM",
+            "faelight-memory",
+            "INT-160",
+            "No persistent project knowledge",
+        ),
+        (
+            false,
+            "MEDIUM",
+            "Shell Architecture Hardening",
+            "INT-162",
+            "ExecContext + layer separation needed",
+        ),
+        (
+            false,
+            "LOW",
+            "Core v13 Autonomy",
+            "INT-156",
+            "The destination — requires all above",
+        ),
     ];
 
-    println!("  {} {}", "▶".bright_cyan(), "Capability gaps (ordered by impact):".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Capability gaps (ordered by impact):".bright_white().bold()
+    );
     for (done, priority, capability, intent, reason) in &gaps {
         let icon = if *done { "✅" } else { "⬜" };
         let pri_color = match *priority {
-            "HIGH"   => priority.bright_red().to_string(),
+            "HIGH" => priority.bright_red().to_string(),
             "MEDIUM" => priority.bright_yellow().to_string(),
-            _        => priority.dimmed().to_string(),
+            _ => priority.dimmed().to_string(),
         };
-        println!("    {} [{}] {} ({})", icon, pri_color, capability.bright_white(), intent);
+        println!(
+            "    {} [{}] {} ({})",
+            icon,
+            pri_color,
+            capability.bright_white(),
+            intent
+        );
         println!("       {} {}", "·".dimmed(), reason.dimmed());
     }
     println!();
 
     let remaining = 95 - score;
-    println!("  {} {} points needed to reach v13 Autonomy", "·".dimmed(), remaining);
-    println!("  {} Estimated sessions: {}", "·".dimmed(),
-        if remaining > 20 { "10-15 focused sessions" } else { "5-10 focused sessions" });
+    println!(
+        "  {} {} points needed to reach v13 Autonomy",
+        "·".dimmed(),
+        remaining
+    );
+    println!(
+        "  {} Estimated sessions: {}",
+        "·".dimmed(),
+        if remaining > 20 {
+            "10-15 focused sessions"
+        } else {
+            "5-10 focused sessions"
+        }
+    );
     println!();
 
     Ok(())
@@ -1284,7 +2089,10 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — History".bright_green().bold());
     println!("  {}", "Past strategies and did they help?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     // Horizon snapshots
@@ -1303,7 +2111,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     let mut scores: Vec<(i32, i64)> = Vec::new();
     {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT score, recorded_at FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 5"
+            "SELECT score, recorded_at FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 5",
         )?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
@@ -1324,38 +2132,66 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Jarvis score trend
-    println!("  {} {}", "▶".bright_cyan(), "Jarvis readiness trend:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Jarvis readiness trend:".bright_white().bold()
+    );
     if scores.is_empty() {
-        println!("    {} No score history yet — run: core strategy jarvis", "·".dimmed());
+        println!(
+            "    {} No score history yet — run: core strategy jarvis",
+            "·".dimmed()
+        );
     } else {
         for (score, ts) in &scores {
             let dt = chrono::DateTime::from_timestamp(*ts, 0)
                 .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
                 .unwrap_or_else(|| ts.to_string());
             let bar = "█".repeat((*score as usize) / 10);
-            println!("    {} {} [{}] {}", "·".dimmed(), dt.dimmed(),
-                bar.bright_green(), format!("{}/100", score).bright_white());
+            println!(
+                "    {} {} [{}] {}",
+                "·".dimmed(),
+                dt.dimmed(),
+                bar.bright_green(),
+                format!("{}/100", score).bright_white()
+            );
         }
     }
     println!();
 
     // Horizon snapshots
-    println!("  {} {}", "▶".bright_cyan(), "Recent horizon snapshots:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Recent horizon snapshots:".bright_white().bold()
+    );
     if snapshots.is_empty() {
-        println!("    {} No snapshots yet — run: core strategy now/week/quarter", "·".dimmed());
+        println!(
+            "    {} No snapshots yet — run: core strategy now/week/quarter",
+            "·".dimmed()
+        );
     } else {
         for (horizon, snapshot, ts) in &snapshots {
             let dt = chrono::DateTime::from_timestamp(*ts, 0)
                 .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
                 .unwrap_or_else(|| ts.to_string());
-            println!("    {} [{}] {} — {}", "·".dimmed(),
-                horizon.bright_cyan(), dt.dimmed(), snapshot.dimmed());
+            println!(
+                "    {} [{}] {} — {}",
+                "·".dimmed(),
+                horizon.bright_cyan(),
+                dt.dimmed(),
+                snapshot.dimmed()
+            );
         }
     }
     println!();
 
     // Strategy proposals
-    println!("  {} {}", "▶".bright_cyan(), "Strategy proposals:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Strategy proposals:".bright_white().bold()
+    );
     if strategies.is_empty() {
         println!("    {} No strategies recorded yet", "·".dimmed());
     } else {
@@ -1363,11 +2199,19 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
             let dt = chrono::DateTime::from_timestamp(*ts, 0)
                 .map(|d| d.format("%Y-%m-%d").to_string())
                 .unwrap_or_else(|| ts.to_string());
-            let status = if *acted_on == 1 { "✅ acted".bright_green().to_string() }
-                else { "⬜ pending".dimmed().to_string() };
-            println!("    {} [{}] {} — {} — {}",
-                "·".dimmed(), horizon.bright_cyan(),
-                dt.dimmed(), proposal.bright_white(), status);
+            let status = if *acted_on == 1 {
+                "✅ acted".bright_green().to_string()
+            } else {
+                "⬜ pending".dimmed().to_string()
+            };
+            println!(
+                "    {} [{}] {} — {} — {}",
+                "·".dimmed(),
+                horizon.bright_cyan(),
+                dt.dimmed(),
+                proposal.bright_white(),
+                status
+            );
         }
     }
     println!();
@@ -1392,7 +2236,10 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
 
     println!();
     println!("  {}", "🌲 Strategy — Learn".bright_green().bold());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     if updated > 0 {
@@ -1401,8 +2248,12 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
         } else {
             "❌ did not work".bright_red().to_string()
         };
-        println!("  {} Strategy {} recorded as: {}", "✅".bright_green(),
-            strategy_id.bright_white(), outcome_display);
+        println!(
+            "  {} Strategy {} recorded as: {}",
+            "✅".bright_green(),
+            strategy_id.bright_white(),
+            outcome_display
+        );
         println!("  {} The forest remembers.", "·".dimmed());
     } else {
         // Insert as a new learned outcome
@@ -1410,7 +2261,11 @@ pub fn learn(ctx: &AppContext, strategy_id: &str, outcome: &str) -> CoreResult<(
             "INSERT INTO forest_strategies (horizon, proposal, priority, created_at, acted_on) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params!["learned", strategy_id, 50, now_ts(), acted],
         )?;
-        println!("  {} Outcome recorded for: {}", "✅".bright_green(), strategy_id.bright_white());
+        println!(
+            "  {} Outcome recorded for: {}",
+            "✅".bright_green(),
+            strategy_id.bright_white()
+        );
     }
     println!();
 
@@ -1424,7 +2279,10 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     println!();
     println!("  {}", "🌲 Strategy — Review".bright_green().bold());
     println!("  {}", "What worked? What didn't?".dimmed());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 
     let mut worked: Vec<(String, String, i64)> = Vec::new();
@@ -1451,68 +2309,110 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
 
     // Score trajectory
     let scores: Vec<i32> = {
-        let mut stmt = ctx.runtime.db.prepare(
-            "SELECT score FROM jarvis_readiness_log ORDER BY recorded_at ASC"
-        )?;
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT score FROM jarvis_readiness_log ORDER BY recorded_at ASC")?;
         stmt.query_map([], |r| r.get::<_, i32>(0))
             .unwrap()
             .filter_map(|r| r.ok())
             .collect()
     };
 
-    println!("  {} {}", "▶".bright_cyan(), "Jarvis score trajectory:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Jarvis score trajectory:".bright_white().bold()
+    );
     if scores.len() < 2 {
-        println!("    {} Not enough data yet — run core strategy jarvis over time", "·".dimmed());
+        println!(
+            "    {} Not enough data yet — run core strategy jarvis over time",
+            "·".dimmed()
+        );
     } else {
         let first = scores.first().copied().unwrap_or(0);
         let last = scores.last().copied().unwrap_or(0);
         let delta = last - first;
-        let trend = if delta > 0 { format!("↑ +{}", delta).bright_green().to_string() }
-            else if delta < 0 { format!("↓ {}", delta).bright_red().to_string() }
-            else { "→ stable".dimmed().to_string() };
+        let trend = if delta > 0 {
+            format!("↑ +{}", delta).bright_green().to_string()
+        } else if delta < 0 {
+            format!("↓ {}", delta).bright_red().to_string()
+        } else {
+            "→ stable".dimmed().to_string()
+        };
         println!("    {} {} → {} ({})", "·".dimmed(), first, last, trend);
     }
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "What worked:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "What worked:".bright_white().bold()
+    );
     if worked.is_empty() {
-        println!("    {} No outcomes recorded yet — run: core strategy learn <id> yes", "·".dimmed());
+        println!(
+            "    {} No outcomes recorded yet — run: core strategy learn <id> yes",
+            "·".dimmed()
+        );
     } else {
         for (horizon, proposal, _) in &worked {
-            println!("    {} [{}] {}", "✅".bright_green(), horizon.bright_cyan(), proposal);
+            println!(
+                "    {} [{}] {}",
+                "✅".bright_green(),
+                horizon.bright_cyan(),
+                proposal
+            );
         }
     }
     println!();
 
-    println!("  {} {}", "▶".bright_cyan(), "What didn't work:".bright_white().bold());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "What didn't work:".bright_white().bold()
+    );
     if did_not_work.is_empty() {
         println!("    {} No negative outcomes recorded", "·".dimmed());
     } else {
         for (horizon, proposal, _) in &did_not_work {
-            println!("    {} [{}] {}", "❌".bright_red(), horizon.bright_cyan(), proposal);
+            println!(
+                "    {} [{}] {}",
+                "❌".bright_red(),
+                horizon.bright_cyan(),
+                proposal
+            );
         }
     }
     println!();
 
     // Key insight
-    println!("  {} {}", "▶".bright_cyan(), "Key insight:".bright_white().bold());
-    println!("    {} The forest learns by recording outcomes.", "·".dimmed());
-    println!("    {} Run: core strategy learn <id> yes/no — after acting on a strategy", "→".bright_green());
+    println!(
+        "  {} {}",
+        "▶".bright_cyan(),
+        "Key insight:".bright_white().bold()
+    );
+    println!(
+        "    {} The forest learns by recording outcomes.",
+        "·".dimmed()
+    );
+    println!(
+        "    {} Run: core strategy learn <id> yes/no — after acting on a strategy",
+        "→".bright_green()
+    );
     println!();
 
     Ok(())
 }
 
-
 // ── INT-181: Forest Next Intent Engine ───────────────────────────────────────
 
 #[derive(Debug, Clone)]
 struct ScoredIntent {
-    id:          String,
-    title:       String,
-    score:       f64,
-    reasons:     Vec<String>,
-    blockers:    Vec<String>,
+    id: String,
+    title: String,
+    score: f64,
+    reasons: Vec<String>,
+    blockers: Vec<String>,
 }
 
 fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
@@ -1522,13 +2422,19 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
 
     // Collect complete intent IDs for dependency checking
     let complete_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
-        .map(|d| d.flatten()
-            .filter_map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                let id = name.split('-').next().unwrap_or("").to_string();
-                if id.chars().all(|c| c.is_ascii_digit()) { Some(id) } else { None }
-            })
-            .collect())
+        .map(|d| {
+            d.flatten()
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let id = name.split('-').next().unwrap_or("").to_string();
+                    if id.chars().all(|c| c.is_ascii_digit()) {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     let health = get_health(ctx);
@@ -1543,7 +2449,9 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().map(|e| e != "md").unwrap_or(true) { continue; }
+        if path.extension().map(|e| e != "md").unwrap_or(true) {
+            continue;
+        }
 
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
@@ -1551,45 +2459,78 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
         };
 
         // Only planned intents — skip deferred
-        if !content.contains("status: planned") || content.contains("status: deferred") { continue; }
+        if !content.contains("status: planned") || content.contains("status: deferred") {
+            continue;
+        }
 
         // Extract ID and title
         let fname = entry.file_name().to_string_lossy().to_string();
         let id = fname.split('-').next().unwrap_or("0").to_string();
-        let title = content.lines()
+        let title = content
+            .lines()
             .find(|l| l.starts_with("title:"))
-            .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+            .map(|l| {
+                l.trim_start_matches("title:")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string()
+            })
             .unwrap_or_else(|| fname.clone());
 
         // Factor 1: Dependency readiness (0.35)
         let dep_refs: Vec<String> = {
             let re = regex_find_ints(&content);
-            re.iter().filter(|dep| dep != &&id && !complete_ids.contains(*dep)).cloned().collect()
+            re.iter()
+                .filter(|dep| dep != &&id && !complete_ids.contains(*dep))
+                .cloned()
+                .collect()
         };
         let open_deps = dep_refs.len();
-        let dep_score = if open_deps == 0 { 1.0 } else { 1.0 / (1.0 + open_deps as f64) };
+        let dep_score = if open_deps == 0 {
+            1.0
+        } else {
+            1.0 / (1.0 + open_deps as f64)
+        };
 
         // Factor 2: Health impact (0.25) — lower health = higher urgency for infra intents
-        let tags = content.lines()
+        let tags = content
+            .lines()
             .find(|l| l.starts_with("tags:"))
             .unwrap_or("")
             .to_string();
-        let is_infra = tags.contains("security") || tags.contains("health") || tags.contains("integrity");
+        let is_infra =
+            tags.contains("security") || tags.contains("health") || tags.contains("integrity");
         let health_score = if health < 90 && is_infra { 1.0 } else { 0.5 };
 
         // Factor 3: Velocity alignment (0.20) — matches current in-progress domain
-        let in_progress_tags: Vec<String> = in_progress.iter()
+        let in_progress_tags: Vec<String> = in_progress
+            .iter()
             .flat_map(|_| vec!["shell".to_string(), "core".to_string()])
             .collect();
-        let velocity_score = if in_progress_tags.iter().any(|t| tags.contains(t.as_str())) { 1.0 } else { 0.4 };
+        let velocity_score = if in_progress_tags.iter().any(|t| tags.contains(t.as_str())) {
+            1.0
+        } else {
+            0.4
+        };
 
         // Factor 4: Presentation proximity (0.15) — summer 2026 presentation
         let presentation_keywords = ["voice", "jarvis", "shell", "demo", "partner", "autonomy"];
-        let pres_score = if presentation_keywords.iter().any(|k| content.to_lowercase().contains(k)) { 0.9 } else { 0.4 };
+        let pres_score = if presentation_keywords
+            .iter()
+            .any(|k| content.to_lowercase().contains(k))
+        {
+            0.9
+        } else {
+            0.4
+        };
 
         // Factor 5: Complexity fit (0.05) — prefer medium complexity
         let line_count = content.lines().count();
-        let complexity_score = if line_count > 50 && line_count < 200 { 1.0 } else { 0.5 };
+        let complexity_score = if line_count > 50 && line_count < 200 {
+            1.0
+        } else {
+            0.5
+        };
 
         let total = dep_score * 0.35
             + health_score * 0.25
@@ -1603,16 +2544,36 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
         if open_deps == 0 {
             reasons.push("All dependencies complete".to_string());
         } else {
-            blockers.push(format!("{} open dependencies: {}", open_deps, dep_refs.join(", ")));
+            blockers.push(format!(
+                "{} open dependencies: {}",
+                open_deps,
+                dep_refs.join(", ")
+            ));
         }
-        if is_infra && health < 90 { reasons.push(format!("Health at {}% — infra work needed", health)); }
-        if velocity_score > 0.5 { reasons.push("Matches current work momentum".to_string()); }
-        if pres_score > 0.5 { reasons.push("Relevant to summer presentation".to_string()); }
+        if is_infra && health < 90 {
+            reasons.push(format!("Health at {}% — infra work needed", health));
+        }
+        if velocity_score > 0.5 {
+            reasons.push("Matches current work momentum".to_string());
+        }
+        if pres_score > 0.5 {
+            reasons.push("Relevant to summer presentation".to_string());
+        }
 
-        scored.push(ScoredIntent { id, title, score: total, reasons, blockers });
+        scored.push(ScoredIntent {
+            id,
+            title,
+            score: total,
+            reasons,
+            blockers,
+        });
     }
 
-    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     scored
 }
 
@@ -1622,15 +2583,21 @@ fn regex_find_ints(text: &str) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
     while i < chars.len() {
         if i + 4 < chars.len()
-            && chars[i] == 'I' && chars[i+1] == 'N' && chars[i+2] == 'T'
-            && chars[i+3] == '-'
-            && chars[i+4].is_ascii_digit()
+            && chars[i] == 'I'
+            && chars[i + 1] == 'N'
+            && chars[i + 2] == 'T'
+            && chars[i + 3] == '-'
+            && chars[i + 4].is_ascii_digit()
         {
             let start = i + 4;
             let mut end = start;
-            while end < chars.len() && chars[end].is_ascii_digit() { end += 1; }
+            while end < chars.len() && chars[end].is_ascii_digit() {
+                end += 1;
+            }
             let id: String = chars[start..end].iter().collect();
-            if !ids.contains(&id) { ids.push(id); }
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
             i = end;
         } else {
             i += 1;
@@ -1650,14 +2617,26 @@ pub fn next(ctx: &AppContext, list: bool, why: Option<&str>) -> CoreResult<()> {
         // Explain specific intent ranking
         if let Some(s) = scored.iter().find(|s| s.id == intent_id) {
             println!();
-            println!("  {} Why INT-{} is ranked here:", "🎯".normal(), s.id.bright_white());
+            println!(
+                "  {} Why INT-{} is ranked here:",
+                "🎯".normal(),
+                s.id.bright_white()
+            );
             println!("  {} Score: {:.0}%", "→".bright_cyan(), s.score * 100.0);
             println!();
-            for r in &s.reasons  { println!("  {} {}", "✅".normal(), r.bright_white()); }
-            for b in &s.blockers { println!("  {} {}", "⛔".normal(), b.yellow()); }
+            for r in &s.reasons {
+                println!("  {} {}", "✅".normal(), r.bright_white());
+            }
+            for b in &s.blockers {
+                println!("  {} {}", "⛔".normal(), b.yellow());
+            }
             println!();
         } else {
-            println!("  {} INT-{} not found in planned intents", "✗".bright_red(), intent_id);
+            println!(
+                "  {} INT-{} not found in planned intents",
+                "✗".bright_red(),
+                intent_id
+            );
         }
         return Ok(());
     }
@@ -1667,8 +2646,13 @@ pub fn next(ctx: &AppContext, list: bool, why: Option<&str>) -> CoreResult<()> {
         println!("  {} Ranked Intent Queue", "📋".normal());
         println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         for (i, s) in scored.iter().enumerate() {
-            let marker = if i == 0 { "→".bright_green().to_string() } else { format!("{}", i + 1).dimmed().to_string() };
-            println!("  {} INT-{:<4} {:<50} {:.0}%",
+            let marker = if i == 0 {
+                "→".bright_green().to_string()
+            } else {
+                format!("{}", i + 1).dimmed().to_string()
+            };
+            println!(
+                "  {} INT-{:<4} {:<50} {:.0}%",
                 marker,
                 s.id.bright_white(),
                 s.title.chars().take(48).collect::<String>(),
@@ -1687,18 +2671,37 @@ pub fn next(ctx: &AppContext, list: bool, why: Option<&str>) -> CoreResult<()> {
     println!("  {} Forest Recommendation", "🎯".normal());
     println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!();
-    println!("  {} INT-{} — {}", "→".bright_green().bold(), top.id.bright_white().bold(), top.title.bright_white());
+    println!(
+        "  {} INT-{} — {}",
+        "→".bright_green().bold(),
+        top.id.bright_white().bold(),
+        top.title.bright_white()
+    );
     println!("  {} Confidence: {:.0}%", " ".normal(), top.score * 100.0);
     println!();
     if !top.reasons.is_empty() {
-        println!("  {} {}", "Why:".bright_cyan(), top.reasons.join(" · ").dimmed());
+        println!(
+            "  {} {}",
+            "Why:".bright_cyan(),
+            top.reasons.join(" · ").dimmed()
+        );
     }
     if !top.blockers.is_empty() {
-        println!("  {} {}", "Note:".yellow(), top.blockers.join(" · ").dimmed());
+        println!(
+            "  {} {}",
+            "Note:".yellow(),
+            top.blockers.join(" · ").dimmed()
+        );
     }
     if let Some(alt) = alt {
         println!();
-        println!("  {} Alternative: INT-{} — {} ({:.0}%)", "○".dimmed(), alt.id, alt.title.chars().take(40).collect::<String>(), alt.score * 100.0);
+        println!(
+            "  {} Alternative: INT-{} — {} ({:.0}%)",
+            "○".dimmed(),
+            alt.id,
+            alt.title.chars().take(40).collect::<String>(),
+            alt.score * 100.0
+        );
     }
     println!();
     println!("  {} cistart {}", "→".bright_cyan(), top.id.bright_green());
@@ -1713,7 +2716,12 @@ pub fn queue(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!();
     for (i, s) in scored.iter().take(5).enumerate() {
-        println!("  Session {} → INT-{} — {}", (i + 1).to_string().bright_cyan(), s.id.bright_white(), s.title);
+        println!(
+            "  Session {} → INT-{} — {}",
+            (i + 1).to_string().bright_cyan(),
+            s.id.bright_white(),
+            s.title
+        );
         if !s.reasons.is_empty() {
             println!("            {} {}", "·".dimmed(), s.reasons[0].dimmed());
         }
@@ -1730,7 +2738,10 @@ pub fn blockers(ctx: &AppContext) -> CoreResult<()> {
     println!();
     let blocked: Vec<&ScoredIntent> = scored.iter().filter(|s| !s.blockers.is_empty()).collect();
     if blocked.is_empty() {
-        println!("  {} No blockers found — all planned intents are ready to start", "✅".normal());
+        println!(
+            "  {} No blockers found — all planned intents are ready to start",
+            "✅".normal()
+        );
     } else {
         for s in blocked {
             println!("  INT-{} — {}", s.id.bright_white(), s.title.dimmed());

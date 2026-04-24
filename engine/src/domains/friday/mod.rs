@@ -81,15 +81,25 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     // Seed from intent completions
     let complete_count = {
         let intent_dir = std::path::PathBuf::from(&ctx.core_root).join("intents");
-        let categories = ["complete", "decisions", "experiments", "philosophy",
-                          "future", "cancelled", "deferred", "incidents"];
+        let categories = [
+            "complete",
+            "decisions",
+            "experiments",
+            "philosophy",
+            "future",
+            "cancelled",
+            "deferred",
+            "incidents",
+        ];
         let mut count = 0i64;
         for cat in &categories {
             if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
                 for entry in entries.flatten() {
                     if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
                         if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") { count += 1; }
+                            if c.contains("status: complete") {
+                                count += 1;
+                            }
                         }
                     }
                 }
@@ -98,29 +108,44 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
         count
     };
     // Seed from commit patterns
-    let commit_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let commit_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
     // Seed from session patterns
-    let session_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM session_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let session_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM session_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
     // Seed from deploy patterns
-    let deploy_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM deploy_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let deploy_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM deploy_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
     // Time-varying seeds: one row per (domain, stable_key), text updates as counts change.
     let time_varying: &[(&str, &str, String)] = &[
-        ("forest", "forest_stats",
-            format!("This forest has {} complete intents representing {} commits of deliberate work.", complete_count, commit_count)),
-        ("sessions", "session_stats",
-            format!("{} sessions recorded. {} deploys tracked.", session_count, deploy_count)),
+        (
+            "forest",
+            "forest_stats",
+            format!(
+                "This forest has {} complete intents representing {} commits of deliberate work.",
+                complete_count, commit_count
+            ),
+        ),
+        (
+            "sessions",
+            "session_stats",
+            format!(
+                "{} sessions recorded. {} deploys tracked.",
+                session_count, deploy_count
+            ),
+        ),
     ];
     for (domain, key, fact) in time_varying {
-        let existing_created: Option<i64> = db.query_row(
-            "SELECT created_at FROM friday_knowledge WHERE domain = ?1 AND key = ?2",
-            params![domain, key], |r| r.get(0),
-        ).ok();
+        let existing_created: Option<i64> = db
+            .query_row(
+                "SELECT created_at FROM friday_knowledge WHERE domain = ?1 AND key = ?2",
+                params![domain, key],
+                |r| r.get(0),
+            )
+            .ok();
         let created_at = existing_created.unwrap_or(now);
         let _ = db.execute(
             "DELETE FROM friday_knowledge WHERE domain = ?1 AND key = ?2",
@@ -176,8 +201,13 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
         let mut s = db.prepare(
             "SELECT hash, message, timestamp FROM commit_patterns WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 10"
         )?;
-        let x = s.query_map(params![one_hour_ago], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map(params![one_hour_ago], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     for (hash, msg, ts) in &commits {
         let content = format!("commit: {} -- {}", hash, msg);
@@ -191,8 +221,13 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
         let mut s = db.prepare(
             "SELECT tool, version, timestamp FROM deploy_patterns WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 5"
         )?;
-        let x = s.query_map(params![one_hour_ago], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map(params![one_hour_ago], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     for (tool, version, ts) in &deploys {
         let content = format!("deployed {} v{}", tool, version);
@@ -206,8 +241,13 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
         let mut s = db.prepare(
             "SELECT type_name, payload, timestamp FROM forest_events_v2 WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 10"
         )?;
-        let x = s.query_map(params![one_hour_ago], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map(params![one_hour_ago], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     for (type_name, payload, ts) in &signals {
         let content = format!("signal: {} -- {}", type_name, payload);
@@ -217,9 +257,9 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
         );
     }
     // Update observation count
-    let obs_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
     let _ = db.execute(
         "UPDATE friday_personality SET value = ?1, updated_at = ?2 WHERE key = 'observations_since_birth'",
         params![obs_count.to_string(), now],
@@ -232,38 +272,84 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     seed_knowledge(ctx)?;
     observe(ctx)?;
     let db = &ctx.runtime.db;
-    let obs_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
-    let knowledge_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)).unwrap_or(0);
-    let pattern_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-    let phase: String = db.query_row(
-        "SELECT value FROM friday_personality WHERE key = 'phase'", [],
-        |r| r.get(0)
-    ).unwrap_or_else(|_| "0".to_string());
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
+    let knowledge_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
+        .unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let phase: String = db
+        .query_row(
+            "SELECT value FROM friday_personality WHERE key = 'phase'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "0".to_string());
     // Use friday_personality born_at if set, else fall back to first observation
-    let born_at: i64 = db.query_row(
-        "SELECT value FROM friday_personality WHERE key = 'born_at'", [],
-        |r| r.get::<_, String>(0)
-    ).unwrap_or_default().parse().unwrap_or(0);
-    let born_at = if born_at > 0 { born_at } else {
-        db.query_row("SELECT MIN(timestamp) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0)
+    let born_at: i64 = db
+        .query_row(
+            "SELECT value FROM friday_personality WHERE key = 'born_at'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or(0);
+    let born_at = if born_at > 0 {
+        born_at
+    } else {
+        db.query_row("SELECT MIN(timestamp) FROM friday_observations", [], |r| {
+            r.get(0)
+        })
+        .unwrap_or(0)
     };
-    let age_hours = if born_at > 0 { (now_ts() - born_at) / 3600 } else { 0 };
+    let age_hours = if born_at > 0 {
+        (now_ts() - born_at) / 3600
+    } else {
+        0
+    };
     println!();
-    println!("  {} Friday -- Phase {}", "🌲".normal(), phase.bright_cyan().bold());
+    println!(
+        "  {} Friday -- Phase {}",
+        "🌲".normal(),
+        phase.bright_cyan().bold()
+    );
     println!("  {}", "━".repeat(50).dimmed());
     println!();
-    println!("  {:<28} {}", "Age:".dimmed(), format!("{}h", age_hours).bright_white());
-    println!("  {:<28} {}", "Observations:".dimmed(), obs_count.to_string().bright_white());
-    println!("  {:<28} {}", "Knowledge facts:".dimmed(), knowledge_count.to_string().bright_white());
-    println!("  {:<28} {}", "Patterns learned:".dimmed(), pattern_count.to_string().bright_white());
+    println!(
+        "  {:<28} {}",
+        "Age:".dimmed(),
+        format!("{}h", age_hours).bright_white()
+    );
+    println!(
+        "  {:<28} {}",
+        "Observations:".dimmed(),
+        obs_count.to_string().bright_white()
+    );
+    println!(
+        "  {:<28} {}",
+        "Knowledge facts:".dimmed(),
+        knowledge_count.to_string().bright_white()
+    );
+    println!(
+        "  {:<28} {}",
+        "Patterns learned:".dimmed(),
+        pattern_count.to_string().bright_white()
+    );
     println!();
     // Show recent observations
     let recent: Vec<(String, String)> = {
         let mut s = db.prepare(
-            "SELECT kind, content FROM friday_observations ORDER BY timestamp DESC LIMIT 5"
+            "SELECT kind, content FROM friday_observations ORDER BY timestamp DESC LIMIT 5",
         )?;
-        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     if !recent.is_empty() {
         println!("  {} Recent observations:", "→".bright_cyan());
@@ -273,7 +359,10 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         }
         println!();
     }
-    println!("  {} Friday is in Phase 0 -- watching, not yet speaking freely.", "💡".dimmed());
+    println!(
+        "  {} Friday is in Phase 0 -- watching, not yet speaking freely.",
+        "💡".dimmed()
+    );
     println!("  {} Use: core friday ask <question>", "→".dimmed());
     println!();
     Ok(())
@@ -291,69 +380,147 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         let mut s = db.prepare(
             "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 10"
         )?;
-        let x: Vec<(String,String,String,f64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
-            ?.filter_map(|r| r.ok())
+        let x: Vec<(String, String, String, f64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, f64>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
             .filter(|(t, a, _)| {
-                q_lower.split_whitespace().any(|w| t.to_lowercase().contains(w) || a.to_lowercase().contains(w))
+                q_lower
+                    .split_whitespace()
+                    .any(|w| t.to_lowercase().contains(w) || a.to_lowercase().contains(w))
                     || q_lower.contains("pattern")
             })
             .map(|(t, a, c)| {
                 let key = format!("{}|{}", t, a);
                 ("pattern".to_string(), key, format!("When {} → {}", t, a), c)
             })
-            .collect(); x
+            .collect();
+        x
     };
     let facts: Vec<(String, String, String, f64)> = {
         let mut s = db.prepare(
             "SELECT domain, key, fact, confidence FROM friday_knowledge ORDER BY confidence DESC, ROWID ASC"
         )?;
-        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?, r.get::<_,f64>(3)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, f64>(3)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     let mut all_facts = facts.clone();
     all_facts.extend(pattern_facts);
-    let primary_domain = ["rust","cargo","borrow","lifetime"].iter().any(|w| q_lower.contains(w)).then_some("rust")
-        .or(["wayland","niri","compositor"].iter().any(|w| q_lower.contains(w)).then_some("wayland"))
-        .or(["pacman","arch","systemctl","aur"].iter().any(|w| q_lower.contains(w)).then_some("arch"))
-        .or(["dbus","zbus"].iter().any(|w| q_lower.contains(w)).then_some("dbus"))
-        .or(["deploy","intent","fsh","state.db"].iter().any(|w| q_lower.contains(w)).then_some("forest"))
-        .or(["build","compile","error","failed"].iter().any(|w| q_lower.contains(w)).then_some("build"));
+    let primary_domain = ["rust", "cargo", "borrow", "lifetime"]
+        .iter()
+        .any(|w| q_lower.contains(w))
+        .then_some("rust")
+        .or(["wayland", "niri", "compositor"]
+            .iter()
+            .any(|w| q_lower.contains(w))
+            .then_some("wayland"))
+        .or(["pacman", "arch", "systemctl", "aur"]
+            .iter()
+            .any(|w| q_lower.contains(w))
+            .then_some("arch"))
+        .or(["dbus", "zbus"]
+            .iter()
+            .any(|w| q_lower.contains(w))
+            .then_some("dbus"))
+        .or(["deploy", "intent", "fsh", "state.db"]
+            .iter()
+            .any(|w| q_lower.contains(w))
+            .then_some("forest"))
+        .or(["build", "compile", "error", "failed"]
+            .iter()
+            .any(|w| q_lower.contains(w))
+            .then_some("build"));
     all_facts.sort_by(|a, b| {
         let a_exact = primary_domain.map(|d| a.0 == d).unwrap_or(false);
         let b_exact = primary_domain.map(|d| b.0 == d).unwrap_or(false);
         let a_generic = a.0 == "tools" || a.0 == "forest" || a.0 == "sessions";
         let b_generic = b.0 == "tools" || b.0 == "forest" || b.0 == "sessions";
-        if a_exact && !b_exact { return std::cmp::Ordering::Less; }
-        if !a_exact && b_exact { return std::cmp::Ordering::Greater; }
-        if a_generic && !b_generic { return std::cmp::Ordering::Greater; }
-        if !a_generic && b_generic { return std::cmp::Ordering::Less; }
+        if a_exact && !b_exact {
+            return std::cmp::Ordering::Less;
+        }
+        if !a_exact && b_exact {
+            return std::cmp::Ordering::Greater;
+        }
+        if a_generic && !b_generic {
+            return std::cmp::Ordering::Greater;
+        }
+        if !a_generic && b_generic {
+            return std::cmp::Ordering::Less;
+        }
         b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal)
     });
-    let relevant: Vec<&(String, String, String, f64)> = all_facts.iter()
+    let relevant: Vec<&(String, String, String, f64)> = all_facts
+        .iter()
         .filter(|(domain, _key, fact, _)| {
             let d = domain.to_lowercase();
             let f = fact.to_lowercase();
-            let stop = ["how", "do", "i", "a", "the", "in", "to", "for", "of", "and", "is", "it", "fix", "get", "use"];
-            let domain_map: &[(&str, &str)] = &[
-                ("rust", "rust"), ("cargo", "rust"), ("borrow", "rust"), ("lifetime", "rust"),
-                ("wayland", "wayland"), ("niri", "wayland"), ("compositor", "wayland"),
-                ("pacman", "arch"), ("arch", "arch"), ("systemctl", "arch"), ("aur", "arch"),
-                ("dbus", "dbus"), ("zbus", "dbus"),
-                ("forest", "forest"), ("fsh", "forest"), ("deploy", "forest"), ("intent", "forest"),
-                ("build", "build"), ("error", "build"), ("compile", "build"),
+            let stop = [
+                "how", "do", "i", "a", "the", "in", "to", "for", "of", "and", "is", "it", "fix",
+                "get", "use",
             ];
-            let keywords: Vec<&str> = q_lower.split_whitespace()
+            let domain_map: &[(&str, &str)] = &[
+                ("rust", "rust"),
+                ("cargo", "rust"),
+                ("borrow", "rust"),
+                ("lifetime", "rust"),
+                ("wayland", "wayland"),
+                ("niri", "wayland"),
+                ("compositor", "wayland"),
+                ("pacman", "arch"),
+                ("arch", "arch"),
+                ("systemctl", "arch"),
+                ("aur", "arch"),
+                ("dbus", "dbus"),
+                ("zbus", "dbus"),
+                ("forest", "forest"),
+                ("fsh", "forest"),
+                ("deploy", "forest"),
+                ("intent", "forest"),
+                ("build", "build"),
+                ("error", "build"),
+                ("compile", "build"),
+            ];
+            let keywords: Vec<&str> = q_lower
+                .split_whitespace()
                 .filter(|w| !stop.contains(w) && w.len() > 2)
                 .collect();
-            if keywords.is_empty() { return true; }
-            let domain_match = keywords.iter().any(|word|
-                domain_map.iter().any(|(kw, dom)| word.contains(kw) && d.contains(dom))
-            );
-            if domain_match { return true; }
-            keywords.iter().any(|word| d.contains(*word) || f.contains(*word))
+            if keywords.is_empty() {
+                return true;
+            }
+            let domain_match = keywords.iter().any(|word| {
+                domain_map
+                    .iter()
+                    .any(|(kw, dom)| word.contains(kw) && d.contains(dom))
+            });
+            if domain_match {
+                return true;
+            }
+            keywords
+                .iter()
+                .any(|word| d.contains(*word) || f.contains(*word))
         })
         .fold(Vec::new(), |mut acc, item| {
-            if !acc.iter().any(|x: &&(String,String,String,f64)| x.0 == item.0 && x.1 == item.1) { acc.push(item); }
+            if !acc
+                .iter()
+                .any(|x: &&(String, String, String, f64)| x.0 == item.0 && x.1 == item.1)
+            {
+                acc.push(item);
+            }
             acc
         })
         .into_iter()
@@ -364,36 +531,64 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     if relevant.is_empty() {
-        let is_temporal = q_lower.contains("today") || q_lower.contains("recent")
-            || q_lower.contains("observed") || q_lower.contains("seen") || q_lower.contains("latest");
+        let is_temporal = q_lower.contains("today")
+            || q_lower.contains("recent")
+            || q_lower.contains("observed")
+            || q_lower.contains("seen")
+            || q_lower.contains("latest");
         let obs: Vec<(String, String)> = {
             let mut s = db.prepare(
-                "SELECT kind, content FROM friday_observations ORDER BY timestamp DESC LIMIT 20"
+                "SELECT kind, content FROM friday_observations ORDER BY timestamp DESC LIMIT 20",
             )?;
-            let x: Vec<(String,String)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
-                ?.filter_map(|r| r.ok())
+            let x: Vec<(String, String)> = s
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+                .filter_map(|r| r.ok())
                 .filter(|(_k, c)| {
-                    if is_temporal { true }
-                    else { q_lower.split_whitespace().any(|word| c.to_lowercase().contains(word)) }
+                    if is_temporal {
+                        true
+                    } else {
+                        q_lower
+                            .split_whitespace()
+                            .any(|word| c.to_lowercase().contains(word))
+                    }
                 })
-                .take(5).collect(); x
+                .take(5)
+                .collect();
+            x
         };
         if obs.is_empty() {
-            println!("  I do not have enough knowledge about \"{}\" yet.", question.bright_white());
+            println!(
+                "  I do not have enough knowledge about \"{}\" yet.",
+                question.bright_white()
+            );
             println!("  I am still in Phase 0 -- watching and learning.");
             println!("  Ask me again as sessions accumulate.");
         } else {
             println!("  From recent observations:");
             for (kind, content) in &obs {
                 let short = content.chars().take(80).collect::<String>();
-                println!("  {} [{}] {}", "→".bright_cyan(), kind.bright_green(), short.bright_white());
+                println!(
+                    "  {} [{}] {}",
+                    "→".bright_cyan(),
+                    kind.bright_green(),
+                    short.bright_white()
+                );
             }
         }
     } else {
         for (domain, _key, fact, confidence) in &relevant {
-            println!("  {} [{}] {}", "→".bright_cyan(), domain.bright_green(), fact.bright_white());
+            println!(
+                "  {} [{}] {}",
+                "→".bright_cyan(),
+                domain.bright_green(),
+                fact.bright_white()
+            );
             if *confidence < 0.9 {
-                println!("    {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
+                println!(
+                    "    {} confidence: {:.0}%",
+                    "·".dimmed(),
+                    confidence * 100.0
+                );
             }
         }
     }
@@ -415,8 +610,9 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
     let mut patterns_new = 0;
     let mut patterns_updated = 0;
     // Pattern 1: deploy after cicomplete
-    let deploy_after_complete: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history h1
+    let deploy_after_complete: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history h1
          WHERE h1.command LIKE 'deploy%'
          AND EXISTS (
              SELECT 1 FROM shell_history h2
@@ -424,8 +620,10 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
              AND h2.timestamp < h1.timestamp
              AND h2.timestamp > h1.timestamp - 300
          )",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if deploy_after_complete > 2 {
         let exists: bool = db.query_row(
             "SELECT 1 FROM friday_patterns WHERE trigger = 'cicomplete runs' AND action = 'deploy tool'",
@@ -436,11 +634,16 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
              VALUES ('cicomplete runs', '[\"deploy\", \"workflow\"]', 'deploy tool', 'success', ?1, ?2, ?3, 'shell_history')",
             params![deploy_after_complete, (deploy_after_complete as f64 / 10.0).min(0.95), now],
         );
-        if exists { patterns_updated += 1; } else { patterns_new += 1; }
+        if exists {
+            patterns_updated += 1;
+        } else {
+            patterns_new += 1;
+        }
     }
     // Pattern 2: fg commit after deploy
-    let commit_after_deploy: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history h1
+    let commit_after_deploy: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history h1
          WHERE h1.command LIKE 'fg commit%'
          AND EXISTS (
              SELECT 1 FROM shell_history h2
@@ -448,8 +651,10 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
              AND h2.timestamp < h1.timestamp
              AND h2.timestamp > h1.timestamp - 300
          )",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if commit_after_deploy > 2 {
         let exists: bool = db.query_row(
             "SELECT 1 FROM friday_patterns WHERE trigger = 'deploy completes' AND action = 'fg commit'",
@@ -460,17 +665,24 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
              VALUES ('deploy completes', '[\"commit\", \"workflow\"]', 'fg commit', 'success', ?1, ?2, ?3, 'shell_history')",
             params![commit_after_deploy, (commit_after_deploy as f64 / 10.0).min(0.95), now],
         );
-        if exists { patterns_updated += 1; } else { patterns_new += 1; }
+        if exists {
+            patterns_updated += 1;
+        } else {
+            patterns_new += 1;
+        }
     }
     // Pattern 3: Most frequent commands
     let top_commands: Vec<(String, i64)> = {
         let mut s = db.prepare(
             "SELECT command, COUNT(*) as cnt FROM shell_history
              WHERE command NOT IN ('d', 'ls', 'pwd', 'clear')
-             GROUP BY command ORDER BY cnt DESC LIMIT 10"
+             GROUP BY command ORDER BY cnt DESC LIMIT 10",
         )?;
-        let x: Vec<(String, i64)> = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)))
-            ?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(String, i64)> = s
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     for (cmd, cnt) in &top_commands {
         if *cnt > 2 {
@@ -483,20 +695,32 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
                  VALUES ('frequent command', '[\"habit\"]', ?1, 'observed', ?2, 0.8, ?3, 'shell_history')",
                 params![cmd, cnt, now],
             );
-            if exists { patterns_updated += 1; } else { patterns_new += 1; }
+            if exists {
+                patterns_updated += 1;
+            } else {
+                patterns_new += 1;
+            }
         }
     }
     // Update knowledge with pattern count
-    let total_patterns: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let fact = format!("{} behavioral patterns extracted from {} shell commands.", total_patterns, 
-        db.query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get::<_,i64>(0)).unwrap_or(0));
+    let total_patterns: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let fact = format!(
+        "{} behavioral patterns extracted from {} shell commands.",
+        total_patterns,
+        db.query_row("SELECT COUNT(*) FROM shell_history", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap_or(0)
+    );
     // Time-varying: preserve created_at if this domain/key already has a row
-    let existing_created: Option<i64> = db.query_row(
-        "SELECT created_at FROM friday_knowledge WHERE domain = 'patterns' AND key = 'global'",
-        [], |r| r.get(0),
-    ).ok();
+    let existing_created: Option<i64> = db
+        .query_row(
+            "SELECT created_at FROM friday_knowledge WHERE domain = 'patterns' AND key = 'global'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
     let created_at = existing_created.unwrap_or(now);
     let _ = db.execute(
         "DELETE FROM friday_knowledge WHERE domain = 'patterns' AND key = 'global'",
@@ -507,11 +731,13 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
          VALUES ('patterns', 'global', ?1, 0.9, 'shell_analysis', ?2, ?3)",
         params![fact, created_at, now],
     );
-    println!("  {} Pattern extraction complete -- {} new, {} updated ({} total)",
+    println!(
+        "  {} Pattern extraction complete -- {} new, {} updated ({} total)",
         "✅".green(),
         patterns_new.to_string().bright_white(),
         patterns_updated.to_string().bright_cyan(),
-        total_patterns.to_string().dimmed());
+        total_patterns.to_string().dimmed()
+    );
     Ok(())
 }
 
@@ -526,10 +752,13 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     // Check predict next from core
-    let _top_intent: Option<String> = db.query_row(
-        "SELECT title FROM intents WHERE status = 'planned' LIMIT 1",
-        [], |r| r.get(0)
-    ).ok();
+    let _top_intent: Option<String> = db
+        .query_row(
+            "SELECT title FROM intents WHERE status = 'planned' LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
     // Get top pattern
     let top_pattern: Option<(String, String, f64)> = {
         let mut s = db.prepare(
@@ -539,34 +768,66 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
             ?.filter_map(|r| r.ok()).collect(); x
     }.into_iter().next();
     // Get recent health
-    let health: i64 = db.query_row(
-        "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
-        [], |r| r.get::<_,String>(0)
-    ).ok().and_then(|s| s.parse().ok()).unwrap_or(100);
+    let health: i64 = db
+        .query_row(
+            "SELECT COALESCE(value, '100') FROM domain_state WHERE key = 'last_health' LIMIT 1",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(100);
     let mut suggestions: Vec<String> = Vec::new();
     if health < 95 {
-        suggestions.push(format!("Health is at {}% -- run d and investigate before continuing.", health));
+        suggestions.push(format!(
+            "Health is at {}% -- run d and investigate before continuing.",
+            health
+        ));
     }
     if let Some((trigger, action, conf)) = top_pattern {
-        suggestions.push(format!("Pattern detected ({:.0}% confidence): when {} \u{2192} {}", conf * 100.0, trigger, action));
+        suggestions.push(format!(
+            "Pattern detected ({:.0}% confidence): when {} \u{2192} {}",
+            conf * 100.0,
+            trigger,
+            action
+        ));
     }
-    let session_cmds: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
-        rusqlite::params![now_ts() - 3600],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let session_cmds: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
+            rusqlite::params![now_ts() - 3600],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if session_cmds > 50 {
-        suggestions.push(format!("{} commands this hour \u{2014} consider committing and taking a break.", session_cmds));
+        suggestions.push(format!(
+            "{} commands this hour \u{2014} consider committing and taking a break.",
+            session_cmds
+        ));
     }
-    let obs_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
-    let pattern_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-    suggestions.push(format!("Friday has {} observations and {} patterns. I am still learning.", obs_count, pattern_count));
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    suggestions.push(format!(
+        "Friday has {} observations and {} patterns. I am still learning.",
+        obs_count, pattern_count
+    ));
     for (i, s) in suggestions.iter().enumerate() {
-        let icon = if i == 0 { "●".bright_cyan() } else { "○".dimmed() };
+        let icon = if i == 0 {
+            "●".bright_cyan()
+        } else {
+            "○".dimmed()
+        };
         println!("  {} {}", icon, s.bright_white());
     }
     println!();
-    println!("  {} Phase 0 \u{2014} I observe more than I speak. Ask me again as I learn more.", "💡".normal().dimmed());
+    println!(
+        "  {} Phase 0 \u{2014} I observe more than I speak. Ask me again as I learn more.",
+        "💡".normal().dimmed()
+    );
     println!();
     Ok(())
 }
@@ -577,28 +838,47 @@ pub fn update_personality(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Count interactions
-    let ask_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_knowledge WHERE times_used > 0", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let pattern_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let obs_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let ask_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_knowledge WHERE times_used > 0",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
     // Determine phase based on data richness
-    let phase = if pattern_count >= 20 && obs_count >= 10 { "2" }
-                else if obs_count >= 5 { "1" }
-                else { "0" };
+    let phase = if pattern_count >= 20 && obs_count >= 10 {
+        "2"
+    } else if obs_count >= 5 {
+        "1"
+    } else {
+        "0"
+    };
     // Update personality traits based on data
     let traits = vec![
         ("phase", phase.to_string()),
         ("observations_since_birth", obs_count.to_string()),
         ("patterns_learned", pattern_count.to_string()),
         ("knowledge_consulted", ask_count.to_string()),
-        ("voice_confidence", if pattern_count >= 10 { "growing" } else { "nascent" }.to_string()),
+        (
+            "voice_confidence",
+            if pattern_count >= 10 {
+                "growing"
+            } else {
+                "nascent"
+            }
+            .to_string(),
+        ),
         ("dominant_domain", "forest_operations".to_string()),
-        ("communication_style", "direct, evidence-based, concise".to_string()),
+        (
+            "communication_style",
+            "direct, evidence-based, concise".to_string(),
+        ),
         ("updated_at", now.to_string()),
     ];
     for (key, value) in &traits {
@@ -607,10 +887,13 @@ pub fn update_personality(ctx: &AppContext) -> CoreResult<()> {
             rusqlite::params![key, value, now],
         );
     }
-    println!("  {} Personality updated -- phase {}, {} patterns, {} observations",
-        "✅".green(), phase.bright_cyan(),
+    println!(
+        "  {} Personality updated -- phase {}, {} patterns, {} observations",
+        "✅".green(),
+        phase.bright_cyan(),
         pattern_count.to_string().bright_white(),
-        obs_count.to_string().bright_white());
+        obs_count.to_string().bright_white()
+    );
     Ok(())
 }
 /// Phase 4: Seed Linux/Rust/Forest knowledge base
@@ -664,13 +947,17 @@ pub fn seed_linux_knowledge(ctx: &AppContext) -> CoreResult<()> {
              VALUES (?1, ?2, ?2, ?3, 'seed_linux', ?4, ?4)",
             rusqlite::params![domain, fact, confidence, now],
         );
-        if result.is_ok() { added += 1; }
+        if result.is_ok() {
+            added += 1;
+        }
     }
-    println!("  {} Linux/Rust/Forest knowledge seeded -- {} facts added",
-        "✅".green(), added.to_string().bright_white());
+    println!(
+        "  {} Linux/Rust/Forest knowledge seeded -- {} facts added",
+        "✅".green(),
+        added.to_string().bright_white()
+    );
     Ok(())
 }
-
 
 /// Phase 5: Name an abstraction -- confirm a candidate and record it in friday_language
 pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> CoreResult<()> {
@@ -678,7 +965,8 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Create friday_language table if not exists
-    let _ = db.execute_batch("
+    let _ = db.execute_batch(
+        "
         CREATE TABLE IF NOT EXISTS friday_language (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT NOT NULL UNIQUE,
@@ -689,14 +977,22 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
             created_at  INTEGER NOT NULL,
             used_count  INTEGER NOT NULL DEFAULT 0
         );
-    ");
+    ",
+    );
     // Check if already exists
-    let exists: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_language WHERE name = ?1",
-        rusqlite::params![name], |r| r.get(0)
-    ).unwrap_or(0);
+    let exists: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_language WHERE name = ?1",
+            rusqlite::params![name],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if exists > 0 {
-        println!("  {} '{}' already in Friday's vocabulary", "⚠️ ".yellow(), name.bright_white());
+        println!(
+            "  {} '{}' already in Friday's vocabulary",
+            "⚠️ ".yellow(),
+            name.bright_white()
+        );
         return Ok(());
     }
     db.execute(
@@ -713,7 +1009,11 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
     );
     println!();
     println!("  {} Friday's vocabulary grows:", "🌲".normal());
-    println!("  {} '{}' named and recorded", "✅".green(), name.bright_cyan().bold());
+    println!(
+        "  {} '{}' named and recorded",
+        "✅".green(),
+        name.bright_cyan().bold()
+    );
     println!("  {} {}", "→".dimmed(), description.bright_white());
     println!();
     println!("  {} This is how a language is born.", "💡".dimmed());
@@ -723,7 +1023,8 @@ pub fn name_abstraction(ctx: &AppContext, name: &str, description: &str) -> Core
 pub fn list_vocabulary(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
-    let _ = db.execute_batch("
+    let _ = db.execute_batch(
+        "
         CREATE TABLE IF NOT EXISTS friday_language (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
@@ -734,27 +1035,42 @@ pub fn list_vocabulary(ctx: &AppContext) -> CoreResult<()> {
             created_at INTEGER NOT NULL,
             used_count INTEGER NOT NULL DEFAULT 0
         );
-    ");
+    ",
+    );
     let rows: Vec<(String, String, f64)> = {
         let mut s = db.prepare(
-            "SELECT name, description, confidence FROM friday_language ORDER BY created_at ASC"
+            "SELECT name, description, confidence FROM friday_language ORDER BY created_at ASC",
         )?;
-        let x = s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?)))
-            ?.filter_map(|r| r.ok()).collect::<Vec<_>>(); x
+        let x = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, f64>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        x
     };
     println!();
     println!("  {} Friday's Vocabulary", "🌲".normal());
     println!("  {}", "─".repeat(50).dimmed());
     if rows.is_empty() {
         println!("  {} No abstractions named yet.", "→".dimmed());
-        println!("  {} Use: core friday name-abstraction <name> <description>", "💡".dimmed());
+        println!(
+            "  {} Use: core friday name-abstraction <name> <description>",
+            "💡".dimmed()
+        );
     } else {
         for (name, desc, conf) in &rows {
-            println!("  {} {} -- {} ({:.0}%)",
+            println!(
+                "  {} {} -- {} ({:.0}%)",
                 "→".bright_green(),
                 name.bright_cyan().bold(),
                 desc.white(),
-                conf * 100.0);
+                conf * 100.0
+            );
         }
     }
     println!();
@@ -767,40 +1083,49 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Gather forest signals to ground the proposal
-    let pattern_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let obs_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
     let top_pattern: Option<(String, String, f64, i64)> = db.query_row(
         "SELECT trigger, action, confidence, frequency FROM friday_patterns ORDER BY frequency DESC LIMIT 1",
         [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?, r.get::<_,i64>(3)?))
     ).ok();
-    let top_gap: Option<String> = db.query_row(
-        "SELECT command FROM shell_history WHERE command LIKE 'python3 /tmp/%'
+    let top_gap: Option<String> = db
+        .query_row(
+            "SELECT command FROM shell_history WHERE command LIKE 'python3 /tmp/%'
          GROUP BY command ORDER BY COUNT(*) DESC LIMIT 1",
-        [], |r| r.get(0)
-    ).ok();
-    let vocab_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_language", [], |r| r.get(0)
-    ).unwrap_or(0);
+            [],
+            |r| r.get(0),
+        )
+        .ok();
+    let vocab_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_language", [], |r| r.get(0))
+        .unwrap_or(0);
     // Determine what to propose based on what Friday sees
     let (title, tags, rationale, proposal) = if vocab_count < 3 {
         (
             "Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats",
             "friday, vocabulary, abstraction, language, patterns",
-            format!("Friday has observed {} patterns and named {} abstractions. \
+            format!(
+                "Friday has observed {} patterns and named {} abstractions. \
                 The forest repeats behaviors that deserve names. \
-                Naming them gives Friday vocabulary to reason with.", pattern_count, vocab_count),
-            format!("Friday has identified {} patterns from {} observations. \
+                Naming them gives Friday vocabulary to reason with.",
+                pattern_count, vocab_count
+            ),
+            format!(
+                "Friday has identified {} patterns from {} observations. \
                 The top pattern occurs {} times. \
                 This intent establishes the vocabulary expansion practice: \
                 weekly review of abstraction candidates, confirmation of names, \
                 and recording in friday_language. \
                 A language built from what the forest actually does.",
-                pattern_count, obs_count,
-                top_pattern.as_ref().map(|p| p.3).unwrap_or(0))
+                pattern_count,
+                obs_count,
+                top_pattern.as_ref().map(|p| p.3).unwrap_or(0)
+            ),
         )
     } else if top_gap.is_some() {
         (
@@ -808,40 +1133,52 @@ pub fn propose_intent(ctx: &AppContext) -> CoreResult<()> {
             "fsh, shell, workflow, scripting, friction",
             "Friday has observed hundreds of python3 /tmp/ invocations. \
                 Every one is friction. The run builtin exists but the habit persists. \
-                The forest needs a first-class script mode that makes python3 /tmp/ obsolete.".to_string(),
+                The forest needs a first-class script mode that makes python3 /tmp/ obsolete."
+                .to_string(),
             "Friday observes that the single largest workflow friction point is the \
                 python3 /tmp/script.py pattern. The run builtin handles .py files but \
                 lacks the ergonomics needed to replace the habit: no argument passing, \
                 no stdin support, no script templates. \
                 This intent builds fsh script mode: fsh new script.py (template), \
                 run script.py arg1 arg2 (with args), run - (from stdin). \
-                Friday proposes this because it has watched the pattern 845 times.".to_string()
+                Friday proposes this because it has watched the pattern 845 times."
+                .to_string(),
         )
     } else {
         (
             "Friday Session Intelligence -- Know the Session Before It Starts",
             "friday, intelligence, session, context, awareness",
             "Friday has observed patterns across sessions but cannot yet orient itself \
-                at session start. The forest deserves a morning briefing.".to_string(),
-            format!("Friday has {} facts and {} patterns. \
+                at session start. The forest deserves a morning briefing."
+                .to_string(),
+            format!(
+                "Friday has {} facts and {} patterns. \
                 At session start, Friday should synthesize: what was left incomplete, \
                 what the predictions say comes next, what the health trajectory shows, \
                 and what the dominant pattern suggests. \
                 This intent builds core friday morning-brief -- called automatically \
                 at fsh startup, showing a 3-line situational summary. \
                 Friday already has the data. It just needs to speak first.",
-                pattern_count + obs_count, pattern_count)
+                pattern_count + obs_count,
+                pattern_count
+            ),
         )
     };
     // Generate intent ID suggestion
     let max_id: i64 = 230; // approximate next available
     let intent_id = max_id + 1;
-    let slug = title.to_lowercase()
-        .chars().map(|c| if c.is_alphanumeric() { c } else { '-' })
+    let slug = title
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
-        .split('-').filter(|s| !s.is_empty()).collect::<Vec<_>>().join("-");
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
     let filename = format!("{}-{}.md", intent_id, &slug[..slug.len().min(60)]);
-    let intent_content = format!(r#"---
+    let intent_content = format!(
+        r#"---
 id: {intent_id}
 title: "{title}"
 status: planned
@@ -881,13 +1218,20 @@ Friday's confidence: 80%
         println!("    {}", line.white());
     }
     println!();
-    println!("  {} File: intents/future/{}", "📄".normal(), filename.bright_white());
+    println!(
+        "  {} File: intents/future/{}",
+        "📄".normal(),
+        filename.bright_white()
+    );
     println!();
     print!("  Save this intent? (y/n): ");
     use std::io::{self, BufRead, Write};
     io::stdout().flush().ok();
     let stdin = io::stdin();
-    let line = stdin.lock().lines().next()
+    let line = stdin
+        .lock()
+        .lines()
+        .next()
         .and_then(|l| l.ok())
         .unwrap_or_default();
     if line.trim().to_lowercase() == "y" {
@@ -915,19 +1259,31 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     let patterns: Vec<(i64, String, String, f64)> = {
         let mut s = db.prepare(
             "SELECT id, trigger, action, confidence FROM friday_patterns
-             WHERE confidence >= 0.6 ORDER BY confidence DESC LIMIT 5"
+             WHERE confidence >= 0.6 ORDER BY confidence DESC LIMIT 5",
         )?;
-        let x: Vec<(i64, String, String, f64)> = s.query_map([], |r| Ok((
-            r.get(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?, r.get::<_,f64>(3)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(i64, String, String, f64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, f64>(3)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     let mut hypotheses_created = 0;
     for (pat_id, trigger, action, confidence) in &patterns {
         let prediction = format!("When '{}' occurs, '{}' will follow", trigger, action);
-        let exists: i64 = db.query_row(
-            "SELECT COUNT(*) FROM friday_hypotheses WHERE prediction = ?1 AND outcome IS NULL",
-            rusqlite::params![prediction], |r| r.get(0)
-        ).unwrap_or(0);
+        let exists: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_hypotheses WHERE prediction = ?1 AND outcome IS NULL",
+                rusqlite::params![prediction],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if exists == 0 {
             let _ = db.execute(
                 "INSERT INTO friday_hypotheses (prediction, context, confidence, created_at, expires_at)
@@ -947,11 +1303,15 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     let pending: Vec<(i64, String, f64)> = {
         let mut s = db.prepare(
             "SELECT id, prediction, confidence FROM friday_hypotheses
-             WHERE outcome IS NULL AND expires_at < ?1 LIMIT 10"
+             WHERE outcome IS NULL AND expires_at < ?1 LIMIT 10",
         )?;
-        let x: Vec<(i64, String, f64)> = s.query_map(rusqlite::params![now], |r| Ok((
-            r.get(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(i64, String, f64)> = s
+            .query_map(rusqlite::params![now], |r| {
+                Ok((r.get(0)?, r.get::<_, String>(1)?, r.get::<_, f64>(2)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     let mut validated = 0;
     let mut reinforced = 0;
@@ -959,28 +1319,35 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     for (hyp_id, prediction, confidence) in &pending {
         // Simple validation: check if the predicted action appeared in shell_history
         // after the hypothesis was created
-        let hyp_created: i64 = db.query_row(
-            "SELECT created_at FROM friday_hypotheses WHERE id = ?1",
-            rusqlite::params![hyp_id], |r| r.get(0)
-        ).unwrap_or(0);
+        let hyp_created: i64 = db
+            .query_row(
+                "SELECT created_at FROM friday_hypotheses WHERE id = ?1",
+                rusqlite::params![hyp_id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         // Extract action from prediction text (handles both quoted and unquoted formats)
         let action_part = if prediction.contains("'") {
             prediction.split("'").nth(3).unwrap_or("").to_string()
         } else {
             // "When X occurs, Y will follow" -- extract after last comma
-            prediction.split(", ").last()
+            prediction
+                .split(", ")
+                .last()
                 .unwrap_or("")
                 .trim_end_matches(" will follow")
                 .to_string()
         };
         let action_part = action_part.trim();
-        let found: i64 = db.query_row(
-            "SELECT COUNT(*) FROM shell_history WHERE command LIKE ?1 AND timestamp > ?2",
-            rusqlite::params![format!("%{}%", action_part), hyp_created],
-            |r| r.get(0)
-        ).unwrap_or(0);
+        let found: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM shell_history WHERE command LIKE ?1 AND timestamp > ?2",
+                rusqlite::params![format!("%{}%", action_part), hyp_created],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         let (outcome, delta) = if found > 0 {
-            ("correct", 0.05f64)  // reinforce
+            ("correct", 0.05f64) // reinforce
         } else {
             ("incorrect", -0.10f64) // penalize
         };
@@ -988,7 +1355,12 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
         let _ = db.execute(
             "UPDATE friday_hypotheses SET outcome = ?1, resolved_at = ?2, correct = ?3
              WHERE id = ?4",
-            rusqlite::params![outcome, now, if outcome == "correct" { 1 } else { 0 }, hyp_id],
+            rusqlite::params![
+                outcome,
+                now,
+                if outcome == "correct" { 1 } else { 0 },
+                hyp_id
+            ],
         );
         // Update pattern confidence (reinforce or decay)
         if !action_part.is_empty() {
@@ -997,7 +1369,11 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
                 "UPDATE friday_patterns SET confidence = ?1 WHERE action LIKE ?2",
                 rusqlite::params![new_conf, format!("%{}%", action_part)],
             );
-            if delta > 0.0 { reinforced += 1; } else { penalized += 1; }
+            if delta > 0.0 {
+                reinforced += 1;
+            } else {
+                penalized += 1;
+            }
         }
         validated += 1;
     }
@@ -1005,24 +1381,38 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
     let high_freq: Vec<(String, String, i64)> = {
         let mut s = db.prepare(
             "SELECT trigger, action, frequency FROM friday_patterns
-             WHERE frequency >= 5 AND confidence >= 0.7 ORDER BY frequency DESC LIMIT 3"
+             WHERE frequency >= 5 AND confidence >= 0.7 ORDER BY frequency DESC LIMIT 3",
         )?;
-        let x: Vec<(String, String, i64)> = s.query_map([], |r| Ok((
-            r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,i64>(2)?
-        )))?.filter_map(|r| r.ok()).collect(); x
+        let x: Vec<(String, String, i64)> = s
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        x
     };
     let mut abstractions = 0;
     for (trigger, action, freq) in &high_freq {
-        let name_candidate = format!("{}_then_{}", 
+        let name_candidate = format!(
+            "{}_then_{}",
             trigger.split_whitespace().last().unwrap_or("event"),
             action.split_whitespace().last().unwrap_or("action")
         );
-        let fact = format!("abstraction_candidate: '{}' pattern (trigger: {}, action: {}, freq: {})", 
-            name_candidate, trigger, action, freq);
-        let existing_created: Option<i64> = db.query_row(
-            "SELECT created_at FROM friday_knowledge WHERE domain = 'abstraction' AND key = ?1",
-            rusqlite::params![name_candidate], |r| r.get(0),
-        ).ok();
+        let fact = format!(
+            "abstraction_candidate: '{}' pattern (trigger: {}, action: {}, freq: {})",
+            name_candidate, trigger, action, freq
+        );
+        let existing_created: Option<i64> = db
+            .query_row(
+                "SELECT created_at FROM friday_knowledge WHERE domain = 'abstraction' AND key = ?1",
+                rusqlite::params![name_candidate],
+                |r| r.get(0),
+            )
+            .ok();
         let created_at = existing_created.unwrap_or(now);
         let _ = db.execute(
             "DELETE FROM friday_knowledge WHERE domain = 'abstraction' AND key = ?1",
@@ -1036,22 +1426,36 @@ pub fn learning_loop(ctx: &AppContext) -> CoreResult<()> {
         abstractions += 1;
     }
     println!("  {} Learning loop complete:", "🌲".normal());
-    println!("    {} hypotheses created", hypotheses_created.to_string().bright_white());
-    println!("    {} hypotheses validated ({} reinforced, {} penalized)", 
+    println!(
+        "    {} hypotheses created",
+        hypotheses_created.to_string().bright_white()
+    );
+    println!(
+        "    {} hypotheses validated ({} reinforced, {} penalized)",
         validated.to_string().bright_white(),
         reinforced.to_string().bright_green(),
-        penalized.to_string().bright_yellow());
-    println!("    {} abstraction candidates generated", abstractions.to_string().bright_cyan());
+        penalized.to_string().bright_yellow()
+    );
+    println!(
+        "    {} abstraction candidates generated",
+        abstractions.to_string().bright_cyan()
+    );
     Ok(())
 }
 /// core friday observe -- manually trigger observation cycle
 pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     observe(ctx)?;
-    let count: i64 = ctx.runtime.db.query_row(
-        "SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)
-    ).unwrap_or(0);
-    println!("  {} Friday observed. Total observations: {}", "✅".green(), count.to_string().bright_white());
+    let count: i64 = ctx
+        .runtime
+        .db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
+    println!(
+        "  {} Friday observed. Total observations: {}",
+        "✅".green(),
+        count.to_string().bright_white()
+    );
     Ok(())
 }
 
@@ -1077,10 +1481,11 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
     };
     // Gate 2: at least 3 days of pattern data (259200 seconds)
     // DEC: lowered from 7 days -- system has 10k+ history entries, 4 days is real signal
-    let oldest_pattern: i64 = db.query_row(
-        "SELECT MIN(last_seen) FROM friday_patterns",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let oldest_pattern: i64 = db
+        .query_row("SELECT MIN(last_seen) FROM friday_patterns", [], |r| {
+            r.get(0)
+        })
+        .unwrap_or(0);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -1090,19 +1495,21 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         return None;
     }
     // Gate 3: at least 50 shell_history entries
-    let history_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM shell_history",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let history_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM shell_history", [], |r| r.get(0))
+        .unwrap_or(0);
     if history_count < 50 {
         let _ = set_friday_status(ctx, "observing");
         return None;
     }
     // Gate 4: rate limit -- max once per 30 minutes
-    let last_spoken: i64 = db.query_row(
-        "SELECT value FROM friday_personality WHERE key = 'last_spoken_ts'",
-        [], |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0))
-    ).unwrap_or(0);
+    let last_spoken: i64 = db
+        .query_row(
+            "SELECT value FROM friday_personality WHERE key = 'last_spoken_ts'",
+            [],
+            |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0)),
+        )
+        .unwrap_or(0);
     if now - last_spoken < 1800 {
         // Rate limited -- still active, just silent
         let _ = set_friday_status(ctx, "active");
@@ -1116,10 +1523,13 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         rusqlite::params![now.to_string(), now],
     );
     // Log first speech event if this is the first time
-    let speech_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_personality WHERE key = 'has_spoken'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let speech_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_personality WHERE key = 'has_spoken'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if speech_count == 0 {
         let _ = db.execute(
             "INSERT OR IGNORE INTO friday_personality (key, value, updated_at) VALUES ('has_spoken', 'true', ?1)",
@@ -1151,12 +1561,16 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     // Get pattern count and top pattern for context
-    let pattern_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let complete_count: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations WHERE kind = 'deploy'", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let complete_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_observations WHERE kind = 'deploy'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     // Build a 1-sentence observation from what Friday knows
     let observation = if pattern_count > 20 && complete_count > 10 {
         format!(
@@ -1169,7 +1583,7 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
             intent_title
         )
     };
-    println!("  {} Friday: {}", "🌲".to_string(), observation.bright_white());
+    println!("  {} Friday: {}", "🌲", observation.bright_white());
     // Store this as an observation
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1191,16 +1605,23 @@ pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or_default()
         .as_secs() as i64;
     // Check if already written today (86400 seconds = 1 day)
-    let last_journal: i64 = db.query_row(
-        "SELECT value FROM friday_personality WHERE key = 'last_journal_ts'",
-        [], |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0))
-    ).unwrap_or(0);
+    let last_journal: i64 = db
+        .query_row(
+            "SELECT value FROM friday_personality WHERE key = 'last_journal_ts'",
+            [],
+            |r| r.get::<_, String>(0).map(|s| s.parse::<i64>().unwrap_or(0)),
+        )
+        .unwrap_or(0);
     if now - last_journal < 86400 {
         return Ok(());
     }
     // Gather data for the entry
-    let pattern_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)).unwrap_or(0);
-    let obs_count: i64 = db.query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0)).unwrap_or(0);
+    let pattern_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let obs_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
+        .unwrap_or(0);
     let top_pattern: Option<(String, String, f64)> = db.query_row(
         "SELECT trigger, action, confidence FROM friday_patterns ORDER BY confidence DESC LIMIT 1",
         [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
@@ -1243,20 +1664,28 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
             milestone TEXT NOT NULL UNIQUE,
             triggered_at INTEGER NOT NULL,
             message TEXT NOT NULL
-        );"
+        );",
     );
     // Get live stats
-    let total_commits: i64 = db.query_row(
-        "SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
-    let complete_intents: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_observations WHERE kind='intent_complete'", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total_commits: i64 = db
+        .query_row("SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
+    let complete_intents: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM friday_observations WHERE kind='intent_complete'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     // Fallback: read from friday_knowledge forest fact
-    let complete_intents = if complete_intents == 0 { 186 } else { complete_intents };
-    let _patterns: i64 = db.query_row(
-        "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let complete_intents = if complete_intents == 0 {
+        186
+    } else {
+        complete_intents
+    };
+    let _patterns: i64 = db
+        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
+        .unwrap_or(0);
     // Define milestones
     let milestones: Vec<(&str, i64, &str, String)> = vec![
         ("commits_500",  500,  "commit",  "500 commits. The forest is no longer an experiment. It is a system.".to_string()),
@@ -1270,13 +1699,20 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. The forest built its own intelligence.", total_commits)),
     ];
     for (key, threshold, kind, message) in &milestones {
-        let count = if *kind == "commit" { total_commits } else { complete_intents };
+        let count = if *kind == "commit" {
+            total_commits
+        } else {
+            complete_intents
+        };
         if count >= *threshold {
             // Check if already triggered
-            let already: i64 = db.query_row(
-                "SELECT COUNT(*) FROM friday_milestones WHERE milestone = ?1",
-                rusqlite::params![key], |r| r.get(0)
-            ).unwrap_or(0);
+            let already: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM friday_milestones WHERE milestone = ?1",
+                    rusqlite::params![key],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
             if already == 0 {
                 let _ = db.execute(
                     "INSERT OR IGNORE INTO friday_milestones (milestone, triggered_at, message) VALUES (?1, ?2, ?3)",

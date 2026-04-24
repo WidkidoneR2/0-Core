@@ -34,16 +34,25 @@ impl PackageMeta {
                 last_linked = v.trim_end_matches('"').to_string();
             }
         }
-        Some(PackageMeta { intent, description, critical, _last_linked: last_linked })
+        Some(PackageMeta {
+            intent,
+            description,
+            critical,
+            _last_linked: last_linked,
+        })
     }
 }
 fn count_symlinks(package: &str) -> usize {
     let pkg_dir = stow_dir().join(package);
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
-    if !pkg_dir.exists() { return 0; }
+    if !pkg_dir.exists() {
+        return 0;
+    }
     let mut count = 0usize;
     fn walk(dir: &Path, pkg_root: &Path, home: &Path, count: &mut usize) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             let rel = path.strip_prefix(pkg_root).unwrap_or(&path);
@@ -63,9 +72,13 @@ fn check_broken_symlinks(package: &str) -> Vec<String> {
     let pkg_dir = stow_dir().join(package);
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
     let mut broken = Vec::new();
-    if !pkg_dir.exists() { return broken; }
+    if !pkg_dir.exists() {
+        return broken;
+    }
     fn walk(dir: &Path, pkg_root: &Path, home: &Path, broken: &mut Vec<String>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             let rel = path.strip_prefix(pkg_root).unwrap_or(&path);
@@ -86,7 +99,12 @@ fn check_broken_symlinks(package: &str) -> Vec<String> {
 /// faelight-link status v3 -- per-package health with intent tracing
 pub fn status_v3() -> Result<()> {
     println!();
-    println!("{}", "🔗 faelight-link v3 -- Forest-Aware Dotfile Intelligence".bright_cyan().bold());
+    println!(
+        "{}",
+        "🔗 faelight-link v3 -- Forest-Aware Dotfile Intelligence"
+            .bright_cyan()
+            .bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     let stow = stow_dir();
@@ -94,7 +112,8 @@ pub fn status_v3() -> Result<()> {
         println!("  {} Stow directory not found", "✗".bright_red());
         return Ok(());
     };
-    let mut packages: Vec<String> = entries.flatten()
+    let mut packages: Vec<String> = entries
+        .flatten()
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
         .filter(|n| !n.starts_with('.'))
@@ -109,36 +128,62 @@ pub fn status_v3() -> Result<()> {
         let meta = PackageMeta::load(pkg);
         total_links += links;
         total_broken += broken.len();
-        let status_icon = if broken.is_empty() { "✅".to_string() } else { "⚠️ ".to_string() };
+        let status_icon = if broken.is_empty() {
+            "✅".to_string()
+        } else {
+            "⚠️ ".to_string()
+        };
         let critical_marker = if meta.as_ref().map(|m| m.critical).unwrap_or(false) {
             " [CRITICAL]".bright_red().to_string()
-        } else { String::new() };
+        } else {
+            String::new()
+        };
         if meta.as_ref().map(|m| m.critical).unwrap_or(false) && !broken.is_empty() {
             critical_issues += 1;
         }
-        let intent_str = meta.as_ref()
+        let intent_str = meta
+            .as_ref()
             .map(|m| format!(" → {}", m.intent.dimmed()))
             .unwrap_or_default();
-        println!("  {} {:<25} {:>3} links{}{}",
+        println!(
+            "  {} {:<25} {:>3} links{}{}",
             status_icon,
             pkg.bright_white(),
             links.to_string().bright_green(),
             intent_str,
-            critical_marker);
+            critical_marker
+        );
         if !broken.is_empty() {
             for b in &broken {
-                println!("    {} {} (broken symlink)", "✗".bright_red(), b.bright_red());
+                println!(
+                    "    {} {} (broken symlink)",
+                    "✗".bright_red(),
+                    b.bright_red()
+                );
             }
         }
     }
     println!();
-    println!("  {}", "─────────────────────────────────────────────────────".dimmed());
-    println!("  {} packages   {} symlinks   {} broken",
+    println!(
+        "  {}",
+        "─────────────────────────────────────────────────────".dimmed()
+    );
+    println!(
+        "  {} packages   {} symlinks   {} broken",
         packages.len().to_string().bright_cyan(),
         total_links.to_string().bright_green(),
-        if total_broken > 0 { total_broken.to_string().bright_red() } else { total_broken.to_string().bright_green() });
+        if total_broken > 0 {
+            total_broken.to_string().bright_red()
+        } else {
+            total_broken.to_string().bright_green()
+        }
+    );
     if critical_issues > 0 {
-        println!("  {} {} critical package(s) have broken links!", "⚠️ ".yellow(), critical_issues);
+        println!(
+            "  {} {} critical package(s) have broken links!",
+            "⚠️ ".yellow(),
+            critical_issues
+        );
     } else {
         println!("  {} All packages healthy", "✅".green());
     }
@@ -148,12 +193,20 @@ pub fn status_v3() -> Result<()> {
 /// faelight-link audit v3 -- intent traceability per package
 pub fn audit_v3() -> Result<()> {
     println!();
-    println!("{}", "🔍 faelight-link audit -- Intent Traceability".bright_cyan().bold());
+    println!(
+        "{}",
+        "🔍 faelight-link audit -- Intent Traceability"
+            .bright_cyan()
+            .bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     let stow = stow_dir();
-    let Ok(entries) = std::fs::read_dir(&stow) else { return Ok(()); };
-    let mut packages: Vec<String> = entries.flatten()
+    let Ok(entries) = std::fs::read_dir(&stow) else {
+        return Ok(());
+    };
+    let mut packages: Vec<String> = entries
+        .flatten()
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
         .filter(|n| !n.starts_with('.'))
@@ -164,32 +217,53 @@ pub fn audit_v3() -> Result<()> {
         let meta = PackageMeta::load(pkg);
         match meta {
             Some(m) => {
-                let critical = if m.critical { " [CRITICAL]".bright_red().to_string() } else { String::new() };
+                let critical = if m.critical {
+                    " [CRITICAL]".bright_red().to_string()
+                } else {
+                    String::new()
+                };
                 let intent = if m.intent == "INT-000" {
                     m.intent.bright_yellow().to_string()
                 } else {
                     m.intent.bright_green().to_string()
                 };
-                println!("  {} {:<25} → {} -- {}{}",
-                    "✅".normal(), pkg.bright_white(), intent, m.description.dimmed(), critical);
+                println!(
+                    "  {} {:<25} → {} -- {}{}",
+                    "✅".normal(),
+                    pkg.bright_white(),
+                    intent,
+                    m.description.dimmed(),
+                    critical
+                );
                 if m.intent == "INT-000" {
                     orphaned.push(pkg.clone());
                 }
             }
             None => {
-                println!("  {} {:<25} → {} (no meta file)", "⚠️ ".yellow(), pkg.bright_white(), "untraced".bright_red());
+                println!(
+                    "  {} {:<25} → {} (no meta file)",
+                    "⚠️ ".yellow(),
+                    pkg.bright_white(),
+                    "untraced".bright_red()
+                );
                 orphaned.push(pkg.clone());
             }
         }
     }
     println!();
     if !orphaned.is_empty() {
-        println!("  {} {} package(s) have no intent -- orphaned config is a liability:",
-            "⚠️ ".yellow(), orphaned.len());
+        println!(
+            "  {} {} package(s) have no intent -- orphaned config is a liability:",
+            "⚠️ ".yellow(),
+            orphaned.len()
+        );
         for o in &orphaned {
             println!("    {} {}", "→".dimmed(), o.bright_yellow());
         }
-        println!("  {} Update 03-interfaces/link-meta/<pkg>.toml to assign intent", "💡".normal());
+        println!(
+            "  {} Update 03-interfaces/link-meta/<pkg>.toml to assign intent",
+            "💡".normal()
+        );
     } else {
         println!("  {} All packages traceable to an intent", "✅".green());
     }
@@ -207,18 +281,29 @@ pub fn why(file: &str) -> Result<()> {
         home.join(file)
     };
     println!();
-    println!("  {} Looking up: {}", "🔍".normal(), target.display().to_string().bright_cyan());
+    println!(
+        "  {} Looking up: {}",
+        "🔍".normal(),
+        target.display().to_string().bright_cyan()
+    );
     // Check if it's a symlink
     if !target.is_symlink() {
-        println!("  {} {} is not a symlink -- not managed by faelight-link", "○".dimmed(), file);
+        println!(
+            "  {} {} is not a symlink -- not managed by faelight-link",
+            "○".dimmed(),
+            file
+        );
         println!();
         return Ok(());
     }
     // Find which package owns it
     let stow = stow_dir();
     let rel = target.strip_prefix(&home).unwrap_or(&target);
-    let Ok(entries) = std::fs::read_dir(&stow) else { return Ok(()); };
-    let packages: Vec<String> = entries.flatten()
+    let Ok(entries) = std::fs::read_dir(&stow) else {
+        return Ok(());
+    };
+    let packages: Vec<String> = entries
+        .flatten()
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
         .filter(|n| !n.starts_with('.'))
@@ -231,27 +316,51 @@ pub fn why(file: &str) -> Result<()> {
             if let Some(m) = meta {
                 println!("  {} Intent:   {}", "→".dimmed(), m.intent.bright_green());
                 println!("  {} Purpose:  {}", "→".dimmed(), m.description.dimmed());
-                println!("  {} Critical: {}", "→".dimmed(), if m.critical { "yes".bright_red() } else { "no".dimmed() });
+                println!(
+                    "  {} Critical: {}",
+                    "→".dimmed(),
+                    if m.critical {
+                        "yes".bright_red()
+                    } else {
+                        "no".dimmed()
+                    }
+                );
             }
-            println!("  {} Source:   {}", "→".dimmed(), source.display().to_string().dimmed());
+            println!(
+                "  {} Source:   {}",
+                "→".dimmed(),
+                source.display().to_string().dimmed()
+            );
             println!();
             return Ok(());
         }
     }
-    println!("  {} No package found owning {}", "○".dimmed(), file.bright_yellow());
+    println!(
+        "  {} No package found owning {}",
+        "○".dimmed(),
+        file.bright_yellow()
+    );
     println!();
     Ok(())
 }
 /// faelight-link verify -- deep validation of all symlinks
 pub fn verify() -> Result<()> {
     println!();
-    println!("{}", "🔎 faelight-link verify -- Deep Validation".bright_cyan().bold());
+    println!(
+        "{}",
+        "🔎 faelight-link verify -- Deep Validation"
+            .bright_cyan()
+            .bold()
+    );
     println!("{}", "━".repeat(60).dimmed());
     println!();
     let stow = stow_dir();
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
-    let Ok(entries) = std::fs::read_dir(&stow) else { return Ok(()); };
-    let mut packages: Vec<String> = entries.flatten()
+    let Ok(entries) = std::fs::read_dir(&stow) else {
+        return Ok(());
+    };
+    let mut packages: Vec<String> = entries
+        .flatten()
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
         .filter(|n| !n.starts_with('.'))
@@ -268,21 +377,36 @@ pub fn verify() -> Result<()> {
         let critical = meta.map(|m| m.critical).unwrap_or(false);
         if broken.is_empty() {
             total_valid += links;
-            println!("  {} {:<25} {}/{} valid",
-                "✅".normal(), pkg.bright_white(), links, links);
+            println!(
+                "  {} {:<25} {}/{} valid",
+                "✅".normal(),
+                pkg.bright_white(),
+                links,
+                links
+            );
         } else {
             total_broken += broken.len();
             total_valid += links - broken.len();
-            let crit = if critical { " [CRITICAL]".bright_red().to_string() } else { String::new() };
-            println!("  {} {:<25} {}/{} valid -- {} broken{}",
-                "⚠️ ".yellow(), pkg.bright_white(),
-                (links - broken.len()), links,
+            let crit = if critical {
+                " [CRITICAL]".bright_red().to_string()
+            } else {
+                String::new()
+            };
+            println!(
+                "  {} {:<25} {}/{} valid -- {} broken{}",
+                "⚠️ ".yellow(),
+                pkg.bright_white(),
+                (links - broken.len()),
+                links,
                 broken.len().to_string().bright_red(),
-                crit);
+                crit
+            );
         }
         // Check for files in package that have no symlink
         fn count_missing(dir: &Path, pkg_root: &Path, home: &Path) -> usize {
-            let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return 0;
+            };
             let mut count = 0;
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -301,15 +425,33 @@ pub fn verify() -> Result<()> {
         let missing = count_missing(&pkg_dir, &pkg_dir, &home);
         total_missing += missing;
         if missing > 0 {
-            println!("    {} {} file(s) not linked -- run: faelight-link stow {}", "💡".normal(), missing, pkg);
+            println!(
+                "    {} {} file(s) not linked -- run: faelight-link stow {}",
+                "💡".normal(),
+                missing,
+                pkg
+            );
         }
     }
     println!();
-    println!("  {}", "─────────────────────────────────────────────────────".dimmed());
-    println!("  {} valid   {} broken   {} unlinked",
+    println!(
+        "  {}",
+        "─────────────────────────────────────────────────────".dimmed()
+    );
+    println!(
+        "  {} valid   {} broken   {} unlinked",
         total_valid.to_string().bright_green(),
-        if total_broken > 0 { total_broken.to_string().bright_red() } else { "0".bright_green() },
-        if total_missing > 0 { total_missing.to_string().bright_yellow() } else { "0".bright_green() });
+        if total_broken > 0 {
+            total_broken.to_string().bright_red()
+        } else {
+            "0".bright_green()
+        },
+        if total_missing > 0 {
+            total_missing.to_string().bright_yellow()
+        } else {
+            "0".bright_green()
+        }
+    );
     println!();
     Ok(())
 }

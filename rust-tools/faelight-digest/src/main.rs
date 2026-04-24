@@ -28,10 +28,10 @@ fn print_system_panel() {
         .trim()
         .to_string();
     let theme = {
-        let changelog = std::fs::read_to_string(
-            format!("{}/0-core/00-meta/CHANGELOG.md", home)
-        ).unwrap_or_default();
-        changelog.lines()
+        let changelog = std::fs::read_to_string(format!("{}/0-core/00-meta/CHANGELOG.md", home))
+            .unwrap_or_default();
+        changelog
+            .lines()
             .find(|l| l.contains(&format!("[{}]", version)))
             .and_then(|l| l.split(" — ").nth(1))
             .and_then(|s| s.split('(').next())
@@ -48,7 +48,7 @@ fn print_system_panel() {
         .to_string();
 
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "zsh".into());
-    let shell_name = shell.split('/').last().unwrap_or("zsh");
+    let shell_name = shell.split('/').next_back().unwrap_or("zsh");
 
     let kernel = std::process::Command::new("uname")
         .arg("-r")
@@ -69,8 +69,11 @@ fn print_system_panel() {
         .unwrap_or_else(|_| "unknown".into());
 
     let uptime_raw = std::fs::read_to_string("/proc/uptime").unwrap_or_default();
-    let secs: f64 = uptime_raw.split_whitespace().next()
-        .and_then(|s| s.parse().ok()).unwrap_or(0.0);
+    let secs: f64 = uptime_raw
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.0);
     let mins = (secs / 60.0) as u64;
     let uptime = if mins >= 1440 {
         format!("{}d {}h", mins / 1440, (mins % 1440) / 60)
@@ -88,29 +91,40 @@ fn print_system_panel() {
         format!("{}M", used_mem_mb)
     };
 
-    let cpu: f32 = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>()
-        / sys.cpus().len().max(1) as f32;
+    let cpu: f32 =
+        sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / sys.cpus().len().max(1) as f32;
 
-    let health_num: u32 = std::fs::read_to_string(
-        format!("{}/0-core/runtime/cache/health.txt", home)
-    )
-    .unwrap_or_else(|_| "95".into())
-    .trim()
-    .trim_end_matches('%')
-    .parse()
-    .unwrap_or(95);
+    let health_num: u32 =
+        std::fs::read_to_string(format!("{}/0-core/runtime/cache/health.txt", home))
+            .unwrap_or_else(|_| "95".into())
+            .trim()
+            .trim_end_matches('%')
+            .parse()
+            .unwrap_or(95);
 
-    let health_icon = if health_num >= 95 { "🟢" } else if health_num >= 80 { "🟡" } else { "🔴" };
+    let health_icon = if health_num >= 95 {
+        "🟢"
+    } else if health_num >= 80 {
+        "🟡"
+    } else {
+        "🔴"
+    };
 
     let lock_status = std::process::Command::new("lsattr")
         .args(["-d", &format!("{}/0-core", home)])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).contains("----i"))
         .unwrap_or(false);
-    let lock_icon = if lock_status { "🔒 locked" } else { "🔓 unlocked" };
+    let lock_icon = if lock_status {
+        "🔒 locked"
+    } else {
+        "🔓 unlocked"
+    };
 
     let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default().trim().to_string();
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     let tools = std::fs::read_dir(format!("{}/0-core/scripts", home))
         .map(|d| d.flatten().filter(|e| e.path().is_file()).count())
         .unwrap_or(0);
@@ -120,24 +134,49 @@ fn print_system_panel() {
         .unwrap_or_else(|_| "niri".into());
 
     println!();
-    println!("  {}", format!("╭─ 🌲 Faelight Forest {} ─╮", version).bright_green().bold());
-    println!("  {}    {}", "system".dimmed(),        "");
-    println!("  {:>14}  {}", "host".dimmed(),        hostname.bright_white());
-    println!("  {:>14}  {}", "health".dimmed(),      format!("{} {}%", health_icon, health_num));
-    println!("  {:>14}  {}", "core".dimmed(),        lock_icon.dimmed());
-    println!("  {}    {}", "env".dimmed(),            "");
-    println!("  {:>14}  {}", "wm".dimmed(),           wm.bright_white());
-    println!("  {:>14}  {}", "shell".dimmed(),        shell_name.bright_white());
-    println!("  {:>14}  {}", "kernel".dimmed(),       kernel.bright_white());
-    println!("  {:>14}  {}", "rust".dimmed(),         rust_ver.bright_white());
-    println!("  {:>14}  {}", "uptime".dimmed(),       uptime.bright_white());
-    println!("  {}    {}", "resources".dimmed(),      "");
-    println!("  {:>14}  {}", "cpu".dimmed(),          format!("{:.0}%", cpu).bright_white());
-    println!("  {:>14}  {}", "memory".dimmed(),       format!("{} / {}G", used_mem, total_mem).bright_white());
-    println!("  {}    {}", "0-core".dimmed(),         "");
-    println!("  {:>14}  {}", "version".dimmed(),      format!("{} — {}", version, theme).bright_green());
-    println!("  {:>14}  {}", "commits".dimmed(),      commits.bright_white());
-    println!("  {:>14}  {}", "tools".dimmed(),        tools.to_string().bright_white());
+    println!(
+        "  {}",
+        format!("╭─ 🌲 Faelight Forest {} ─╮", version)
+            .bright_green()
+            .bold()
+    );
+    println!("  {}    ", "system".dimmed());
+    println!("  {:>14}  {}", "host".dimmed(), hostname.bright_white());
+    println!(
+        "  {:>14}  {}",
+        "health".dimmed(),
+        format!("{} {}%", health_icon, health_num)
+    );
+    println!("  {:>14}  {}", "core".dimmed(), lock_icon.dimmed());
+    println!("  {}    ", "env".dimmed());
+    println!("  {:>14}  {}", "wm".dimmed(), wm.bright_white());
+    println!("  {:>14}  {}", "shell".dimmed(), shell_name.bright_white());
+    println!("  {:>14}  {}", "kernel".dimmed(), kernel.bright_white());
+    println!("  {:>14}  {}", "rust".dimmed(), rust_ver.bright_white());
+    println!("  {:>14}  {}", "uptime".dimmed(), uptime.bright_white());
+    println!("  {}    ", "resources".dimmed());
+    println!(
+        "  {:>14}  {}",
+        "cpu".dimmed(),
+        format!("{:.0}%", cpu).bright_white()
+    );
+    println!(
+        "  {:>14}  {}",
+        "memory".dimmed(),
+        format!("{} / {}G", used_mem, total_mem).bright_white()
+    );
+    println!("  {}    ", "0-core".dimmed());
+    println!(
+        "  {:>14}  {}",
+        "version".dimmed(),
+        format!("{} — {}", version, theme).bright_green()
+    );
+    println!("  {:>14}  {}", "commits".dimmed(), commits.bright_white());
+    println!(
+        "  {:>14}  {}",
+        "tools".dimmed(),
+        tools.to_string().bright_white()
+    );
     println!();
 }
 
@@ -146,7 +185,9 @@ fn print_forest_context() {
     let db_path = format!("{}/0-core/runtime/state.db", home);
     let core_root = format!("{}/0-core", home);
 
-    let Ok(conn) = rusqlite::Connection::open(&db_path) else { return };
+    let Ok(conn) = rusqlite::Connection::open(&db_path) else {
+        return;
+    };
 
     let hour = chrono::Local::now().hour();
     use chrono::Timelike;
@@ -161,18 +202,26 @@ fn print_forest_context() {
     println!();
 
     // Last session gap
-    let last_session: Option<i64> = conn.query_row(
-        "SELECT value FROM session_state WHERE key='last_session_ts'",
-        [], |r| r.get(0)
-    ).ok();
+    let last_session: Option<i64> = conn
+        .query_row(
+            "SELECT value FROM session_state WHERE key='last_session_ts'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
 
     if let Some(ts) = last_session {
         let now = chrono::Local::now().timestamp();
         let gap_h = (now - ts) / 3600;
         if gap_h > 0 {
-            println!("  {} Since {} ago:", "→".bright_cyan(),
-                if gap_h >= 24 { format!("{}d", gap_h / 24) }
-                else { format!("{}h", gap_h) }
+            println!(
+                "  {} Since {} ago:",
+                "→".bright_cyan(),
+                if gap_h >= 24 {
+                    format!("{}d", gap_h / 24)
+                } else {
+                    format!("{}h", gap_h)
+                }
             );
         }
     } else {
@@ -180,13 +229,18 @@ fn print_forest_context() {
     }
 
     // Health
-    let health_num: u32 = std::fs::read_to_string(
-        format!("{}/runtime/cache/health.txt", core_root)
-    ).unwrap_or_else(|_| "95".into())
-    .trim().trim_end_matches('%').parse().unwrap_or(95);
+    let health_num: u32 =
+        std::fs::read_to_string(format!("{}/runtime/cache/health.txt", core_root))
+            .unwrap_or_else(|_| "95".into())
+            .trim()
+            .trim_end_matches('%')
+            .parse()
+            .unwrap_or(95);
 
     let health_str = if health_num >= 95 {
-        format!("{}% healthy", health_num).bright_green().to_string()
+        format!("{}% healthy", health_num)
+            .bright_green()
+            .to_string()
     } else {
         format!("{}% advisory", health_num).yellow().to_string()
     };
@@ -194,9 +248,16 @@ fn print_forest_context() {
 
     // Commits
     let commits = std::fs::read_to_string("/etc/faelight/COMMITS")
-        .unwrap_or_default().trim().parse::<u64>().unwrap_or(0);
+        .unwrap_or_default()
+        .trim()
+        .parse::<u64>()
+        .unwrap_or(0);
     if commits > 0 {
-        println!("    {} {} commits total", "·".dimmed(), commits.to_string().bright_white());
+        println!(
+            "    {} {} commits total",
+            "·".dimmed(),
+            commits.to_string().bright_white()
+        );
     }
 
     // Active intents
@@ -206,8 +267,13 @@ fn print_forest_context() {
         for e in entries.flatten() {
             if let Ok(content) = std::fs::read_to_string(e.path()) {
                 if content.contains("status: in-progress") {
-                    if let Some(num) = e.file_name().to_string_lossy()
-                        .split('-').next().map(|s| s.to_string()) {
+                    if let Some(num) = e
+                        .file_name()
+                        .to_string_lossy()
+                        .split('-')
+                        .next()
+                        .map(|s| s.to_string())
+                    {
                         active.push(format!("INT-{}", num));
                     }
                 }
@@ -215,7 +281,11 @@ fn print_forest_context() {
         }
     }
     if !active.is_empty() {
-        println!("    {} Working on: {}", "·".dimmed(), active.join(", ").bright_cyan());
+        println!(
+            "    {} Working on: {}",
+            "·".dimmed(),
+            active.join(", ").bright_cyan()
+        );
     }
 
     // Recently modified files (top 3 from file_index)
@@ -230,31 +300,52 @@ fn print_forest_context() {
     }
 
     // Reactions fired today
-    let today = chrono::Local::now().date_naive()
-        .and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
-    let reactions: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM reaction_log WHERE triggered_at >= ?1",
-        rusqlite::params![today], |r| r.get(0)
-    ).unwrap_or(0);
+    let today = chrono::Local::now()
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+        .timestamp();
+    let reactions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM reaction_log WHERE triggered_at >= ?1",
+            rusqlite::params![today],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if reactions > 0 {
-        println!("    {} {} reaction{} fired today", "·".yellow(),
+        println!(
+            "    {} {} reaction{} fired today",
+            "·".yellow(),
             reactions.to_string().yellow(),
-            if reactions == 1 { "" } else { "s" });
+            if reactions == 1 { "" } else { "s" }
+        );
     }
 
     // Pending decisions
-    let old_decisions: i64 = conn.query_row(
-        &format!("SELECT COUNT(*) FROM decisions WHERE outcome='pending' AND timestamp < {}",
-            chrono::Utc::now().timestamp() - 7 * 86400),
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let old_decisions: i64 = conn
+        .query_row(
+            &format!(
+                "SELECT COUNT(*) FROM decisions WHERE outcome='pending' AND timestamp < {}",
+                chrono::Utc::now().timestamp() - 7 * 86400
+            ),
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if old_decisions > 0 {
-        println!("    {} {} pending decision{} older than 7 days", "·".yellow(),
+        println!(
+            "    {} {} pending decision{} older than 7 days",
+            "·".yellow(),
             old_decisions.to_string().yellow(),
-            if old_decisions == 1 { "" } else { "s" });
+            if old_decisions == 1 { "" } else { "s" }
+        );
     }
 
     println!();
-    println!("  {}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "  {}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     println!();
 }

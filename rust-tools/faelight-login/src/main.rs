@@ -28,7 +28,10 @@ const GOLD: Color = Color::Rgb(200, 180, 80);
 // ASCII forest tree -- rendered line by line during boot animation
 
 #[derive(Clone, PartialEq)]
-enum Field { Username, Password }
+enum Field {
+    Username,
+    Password,
+}
 
 struct LoginState {
     username: String,
@@ -56,7 +59,11 @@ impl LoginState {
             active_intent: {
                 let s = read_active_intent();
                 let truncated: String = s.chars().take(45).collect();
-                if s.chars().count() > 45 { format!("{}...", truncated) } else { truncated }
+                if s.chars().count() > 45 {
+                    format!("{}...", truncated)
+                } else {
+                    truncated
+                }
             },
             friday_brief: read_friday_brief(),
             boot_time: Instant::now(),
@@ -76,29 +83,37 @@ fn read_active_intent() -> String {
 fn read_friday_brief() -> String {
     let s = read_file("/etc/faelight/FRIDAY", "");
     // Filter out daemon noise -- only show Friday synthesis briefs
-    if s.contains("contradiction") || s.contains("cross-layer") || s.contains("CONTRADICTION") || s.contains("signal(s)") {
+    if s.contains("contradiction")
+        || s.contains("cross-layer")
+        || s.contains("CONTRADICTION")
+        || s.contains("signal(s)")
+    {
         return String::new();
     }
     s.chars().take(65).collect()
 }
 // INT-242: data read from /etc/faelight/ files
 fn greet(state: &mut LoginState) -> Result<bool, String> {
-    let sock_path = std::env::var("GREETD_SOCK")
-        .map_err(|_| "GREETD_SOCK not set".to_string())?;
-    let mut stream = UnixStream::connect(&sock_path)
-        .map_err(|e| format!("Socket error: {}", e))?;
-    Request::CreateSession { username: state.username.clone() }
-        .write_to(&mut stream).map_err(|e| e.to_string())?;
+    let sock_path = std::env::var("GREETD_SOCK").map_err(|_| "GREETD_SOCK not set".to_string())?;
+    let mut stream = UnixStream::connect(&sock_path).map_err(|e| format!("Socket error: {}", e))?;
+    Request::CreateSession {
+        username: state.username.clone(),
+    }
+    .write_to(&mut stream)
+    .map_err(|e| e.to_string())?;
     loop {
         match Response::read_from(&mut stream).map_err(|e| e.to_string())? {
-            Response::AuthMessage { auth_message_type, .. } => {
+            Response::AuthMessage {
+                auth_message_type, ..
+            } => {
                 let resp = match auth_message_type {
                     AuthMessageType::Secret => Some(state.password.clone()),
                     AuthMessageType::Visible => Some(state.username.clone()),
                     _ => None,
                 };
                 Request::PostAuthMessageResponse { response: resp }
-                    .write_to(&mut stream).map_err(|e| e.to_string())?;
+                    .write_to(&mut stream)
+                    .map_err(|e| e.to_string())?;
             }
             Response::Success => {
                 Request::StartSession {
@@ -107,7 +122,9 @@ fn greet(state: &mut LoginState) -> Result<bool, String> {
                         "XDG_SESSION_TYPE=wayland".to_string(),
                         "XDG_CURRENT_DESKTOP=niri".to_string(),
                     ],
-                }.write_to(&mut stream).map_err(|e| e.to_string())?;
+                }
+                .write_to(&mut stream)
+                .map_err(|e| e.to_string())?;
                 let _ = Response::read_from(&mut stream);
                 return Ok(true);
             }
@@ -129,7 +146,10 @@ fn draw_login(
         // Center vertically by calculating padding
         let box_height = 22u16;
         let top_pad = area.height.saturating_sub(box_height) / 2;
-        let bot_pad = area.height.saturating_sub(box_height).saturating_sub(top_pad);
+        let bot_pad = area
+            .height
+            .saturating_sub(box_height)
+            .saturating_sub(top_pad);
         let outer = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -163,12 +183,26 @@ fn draw_login(
             ])
             .split(col);
         // Title
-        let pulse_color = if state.pulse % 2 == 0 { ACCENT } else { ACCENT2 };
+        let pulse_color = if state.pulse.is_multiple_of(2) {
+            ACCENT
+        } else {
+            ACCENT2
+        };
         let version_str = format!("v{}", state.version);
         let title = Paragraph::new(Line::from(vec![
-            Span::styled("  * Faelight Forest  ", Style::default().fg(pulse_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  * Faelight Forest  ",
+                Style::default()
+                    .fg(pulse_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(&version_str, Style::default().fg(DIM)),
-        ])).block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(DIM)));
+        ]))
+        .block(
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(DIM)),
+        );
         f.render_widget(title, rows[0]);
         // Username
         let user_style = if state.focused == Field::Username {
@@ -185,7 +219,12 @@ fn draw_login(
         } else {
             state.username.clone()
         };
-        f.render_widget(Paragraph::new(user_display).style(Style::default().fg(FG)).block(user_block), rows[2]);
+        f.render_widget(
+            Paragraph::new(user_display)
+                .style(Style::default().fg(FG))
+                .block(user_block),
+            rows[2],
+        );
         // Password
         let pass_style = if state.focused == Field::Password {
             Style::default().fg(ACCENT)
@@ -201,13 +240,27 @@ fn draw_login(
         } else {
             "•".repeat(state.password.len())
         };
-        f.render_widget(Paragraph::new(pass_display).style(Style::default().fg(FG)).block(pass_block), rows[4]);
+        f.render_widget(
+            Paragraph::new(pass_display)
+                .style(Style::default().fg(FG))
+                .block(pass_block),
+            rows[4],
+        );
         // Status panel
-        let health_color = if state.health.starts_with("100") { ACCENT } else { GOLD };
+        let health_color = if state.health.starts_with("100") {
+            ACCENT
+        } else {
+            GOLD
+        };
         let status_lines = vec![
             Line::from(vec![
                 Span::styled("  Health  ", Style::default().fg(DIM)),
-                Span::styled(&state.health, Style::default().fg(health_color).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &state.health,
+                    Style::default()
+                        .fg(health_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled("   Commits  ", Style::default().fg(DIM)),
                 Span::styled(&state.commits, Style::default().fg(FG)),
             ]),
@@ -220,16 +273,21 @@ fn draw_login(
                 vec![Span::styled("  No active intent", Style::default().fg(DIM))]
             }),
             Line::from(if let Some(ref err) = state.error {
-                vec![Span::styled(format!("  ✗ {}", err), Style::default().fg(ERR))]
+                vec![Span::styled(
+                    format!("  ✗ {}", err),
+                    Style::default().fg(ERR),
+                )]
             } else {
                 vec![Span::styled("", Style::default())]
             }),
         ];
         f.render_widget(
-            Paragraph::new(status_lines)
-                .block(Block::default().borders(Borders::TOP | Borders::BOTTOM)
-                    .border_style(Style::default().fg(DIM))),
-            rows[6]
+            Paragraph::new(status_lines).block(
+                Block::default()
+                    .borders(Borders::TOP | Borders::BOTTOM)
+                    .border_style(Style::default().fg(DIM)),
+            ),
+            rows[6],
         );
         // Friday brief
         if !state.friday_brief.is_empty() {
@@ -238,7 +296,7 @@ fn draw_login(
                     Span::styled("  * ", Style::default().fg(ACCENT)),
                     Span::styled(&state.friday_brief, Style::default().fg(DIM)),
                 ])),
-                rows[7]
+                rows[7],
             );
         }
         // Hint
@@ -250,8 +308,9 @@ fn draw_login(
                 Span::styled(" switch field   ", Style::default().fg(DIM)),
                 Span::styled("Esc", Style::default().fg(ACCENT)),
                 Span::styled(" clear  ", Style::default().fg(DIM)),
-            ])).alignment(Alignment::Left),
-            rows[9]
+            ]))
+            .alignment(Alignment::Left),
+            rows[9],
         );
     })?;
     Ok(())
@@ -264,7 +323,10 @@ fn read_system_version() -> String {
 fn main() -> io::Result<()> {
     // Redirect stderr to /dev/null -- suppress daemon output bleeding into TUI
     unsafe {
-        let devnull = libc::open(b"/dev/null ".as_ptr() as *const libc::c_char, libc::O_WRONLY);
+        let devnull = libc::open(
+            b"/dev/null ".as_ptr() as *const libc::c_char,
+            libc::O_WRONLY,
+        );
         if devnull >= 0 {
             libc::dup2(devnull, 2); // redirect stderr
             libc::close(devnull);
@@ -292,7 +354,9 @@ fn main() -> io::Result<()> {
         // Events
         if event::poll(Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press { continue; }
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
                 match key.code {
                     KeyCode::Tab => {
                         state.focused = match state.focused {
@@ -307,30 +371,32 @@ fn main() -> io::Result<()> {
                         state.error = None;
                         state.focused = Field::Username;
                     }
-                    KeyCode::Backspace => {
-                        match state.focused {
-                            Field::Username => { state.username.pop(); }
-                            Field::Password => { state.password.pop(); }
+                    KeyCode::Backspace => match state.focused {
+                        Field::Username => {
+                            state.username.pop();
                         }
-                    }
-                    KeyCode::Enter => {
-                        match state.focused {
-                            Field::Username => { state.focused = Field::Password; }
-                            Field::Password => {
-                                state.error = None;
-                                draw_login(&mut terminal, &state)?;
-                                match greet(&mut state) {
-                                    Ok(true) => break,
-                                    Ok(false) => {}
-                                    Err(e) => {
-                                        state.error = Some(e);
-                                        state.password.clear();
-                                        state.focused = Field::Password;
-                                    }
+                        Field::Password => {
+                            state.password.pop();
+                        }
+                    },
+                    KeyCode::Enter => match state.focused {
+                        Field::Username => {
+                            state.focused = Field::Password;
+                        }
+                        Field::Password => {
+                            state.error = None;
+                            draw_login(&mut terminal, &state)?;
+                            match greet(&mut state) {
+                                Ok(true) => break,
+                                Ok(false) => {}
+                                Err(e) => {
+                                    state.error = Some(e);
+                                    state.password.clear();
+                                    state.focused = Field::Password;
                                 }
                             }
                         }
-                    }
+                    },
                     KeyCode::Char(c) => {
                         match state.focused {
                             Field::Username => state.username.push(c),
@@ -344,6 +410,10 @@ fn main() -> io::Result<()> {
         }
     }
     terminal::disable_raw_mode()?;
-    execute!(terminal.backend_mut(), terminal::LeaveAlternateScreen, cursor::Show)?;
+    execute!(
+        terminal.backend_mut(),
+        terminal::LeaveAlternateScreen,
+        cursor::Show
+    )?;
     Ok(())
 }

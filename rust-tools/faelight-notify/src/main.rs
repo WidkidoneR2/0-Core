@@ -304,10 +304,7 @@ fn main() {
                     n.urgency.timeout_ms()
                 };
                 // Expire from display_start if set, else from created
-                let elapsed = n.display_start
-                    .unwrap_or(n.created)
-                    .elapsed()
-                    .as_millis();
+                let elapsed = n.display_start.unwrap_or(n.created).elapsed().as_millis();
                 elapsed < ms as u128
             });
         }

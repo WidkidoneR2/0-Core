@@ -19,7 +19,7 @@ const FONT_SIZE_BASE: f32 = 13.5;
 
 use std::cell::Cell;
 thread_local! {
-    static RENDER_SCALE: Cell<f32> = Cell::new(1.0);
+    static RENDER_SCALE: Cell<f32> = const { Cell::new(1.0) };
 }
 
 fn set_render_scale(scale: f32) {
@@ -217,7 +217,7 @@ fn get_active_window() -> String {
             let key = "\"title\":\"";
             let pos = json.find(key)?;
             let after = &json[pos + key.len()..];
-            let end = after.find('\"')  ?;
+            let end = after.find('\"')?;
             let title = &after[..end];
             if title.len() > 40 {
                 Some(format!("{}...", &title[..37]))

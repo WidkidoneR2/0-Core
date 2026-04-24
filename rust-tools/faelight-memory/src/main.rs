@@ -3,12 +3,16 @@
 
 use clap::{Parser, Subcommand};
 use colored::*;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Parser)]
-#[command(name = "faelight-memory", about = "🌲 Persistent knowledge layer", version = "1.0.0")]
+#[command(
+    name = "faelight-memory",
+    about = "🌲 Persistent knowledge layer",
+    version = "1.0.0"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -29,13 +33,9 @@ enum Command {
         fact: String,
     },
     /// Remove outdated knowledge by ID
-    Forget {
-        id: i64,
-    },
+    Forget { id: i64 },
     /// Query knowledge by topic keyword
-    Query {
-        topic: String,
-    },
+    Query { topic: String },
     /// Show confidence scores for stored memories
     Confidence,
     /// Auto-extract insights from session history
@@ -60,7 +60,7 @@ fn open_db() -> rusqlite::Result<Connection> {
             created_at  INTEGER NOT NULL,
             accessed_at INTEGER,
             reinforced  INTEGER NOT NULL DEFAULT 0
-        );"
+        );",
     )?;
     Ok(conn)
 }
@@ -75,12 +75,18 @@ fn now_ts() -> i64 {
 fn cmd_show() {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
 
     println!();
     println!("  {} Forest Memory", "🧠".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
     let categories = ["preference", "convention", "wisdom", "failure"];
     let mut total = 0;
@@ -93,27 +99,42 @@ fn cmd_show() {
             Err(_) => continue,
         };
 
-        let rows: Vec<(i64, String, i64, String)> = stmt.query_map(params![cat], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-        }).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default();
+        let rows: Vec<(i64, String, i64, String)> = stmt
+            .query_map(params![cat], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+            })
+            .map(|r| r.flatten().collect::<Vec<_>>())
+            .unwrap_or_default();
 
-        if rows.is_empty() { continue; }
+        if rows.is_empty() {
+            continue;
+        }
 
         let cat_label = match *cat {
             "preference" => "Preferences",
             "convention" => "Conventions",
-            "wisdom"     => "Wisdom",
-            "failure"    => "Failures to avoid",
-            _            => cat,
+            "wisdom" => "Wisdom",
+            "failure" => "Failures to avoid",
+            _ => cat,
         };
 
         println!();
         println!("  {} {}", "▶".bright_cyan(), cat_label.bright_white());
         for (id, fact, confidence, source) in &rows {
-            let conf_str = if *confidence >= 80 { format!("{}%", confidence).bright_green().to_string() }
-                else if *confidence >= 60 { format!("{}%", confidence).yellow().to_string() }
-                else { format!("{}%", confidence).dimmed().to_string() };
-            println!("    #{} [{}] {} {}", id.to_string().dimmed(), conf_str, fact, format!("({})", source).dimmed());
+            let conf_str = if *confidence >= 80 {
+                format!("{}%", confidence).bright_green().to_string()
+            } else if *confidence >= 60 {
+                format!("{}%", confidence).yellow().to_string()
+            } else {
+                format!("{}%", confidence).dimmed().to_string()
+            };
+            println!(
+                "    #{} [{}] {} {}",
+                id.to_string().dimmed(),
+                conf_str,
+                fact,
+                format!("({})", source).dimmed()
+            );
             total += 1;
         }
     }
@@ -122,21 +143,35 @@ fn cmd_show() {
         println!();
         println!("  {} No knowledge stored yet", "○".dimmed());
         println!("  {} Run: faelight-memory add <fact>", "→".dimmed());
-        println!("  {} Run: faelight-memory extract  — auto-extract from session history", "→".dimmed());
+        println!(
+            "  {} Run: faelight-memory extract  — auto-extract from session history",
+            "→".dimmed()
+        );
     }
     println!();
-    println!("  {} {} memories stored", "·".dimmed(), total.to_string().bright_white());
+    println!(
+        "  {} {} memories stored",
+        "·".dimmed(),
+        total.to_string().bright_white()
+    );
     println!();
 }
 
 fn cmd_add(category: &str, fact: &str) {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
 
     let valid_categories = ["preference", "convention", "wisdom", "failure"];
-    let cat = if valid_categories.contains(&category) { category } else { "wisdom" };
+    let cat = if valid_categories.contains(&category) {
+        category
+    } else {
+        "wisdom"
+    };
 
     conn.execute(
         "INSERT INTO forest_memory (category, fact, confidence, source, created_at) VALUES (?1, ?2, 80, 'manual', ?3)",
@@ -144,7 +179,12 @@ fn cmd_add(category: &str, fact: &str) {
     ).ok();
 
     println!();
-    println!("  {} Memory stored [{}/{}]", "✅".normal(), cat.bright_cyan(), 80.to_string().bright_green());
+    println!(
+        "  {} Memory stored [{}/{}]",
+        "✅".normal(),
+        cat.bright_cyan(),
+        80.to_string().bright_green()
+    );
     println!("  {} {}", "→".dimmed(), fact.bright_white());
     println!();
 }
@@ -152,9 +192,14 @@ fn cmd_add(category: &str, fact: &str) {
 fn cmd_forget(id: i64) {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
-    let affected = conn.execute("DELETE FROM forest_memory WHERE id=?1", params![id]).unwrap_or(0);
+    let affected = conn
+        .execute("DELETE FROM forest_memory WHERE id=?1", params![id])
+        .unwrap_or(0);
     if affected > 0 {
         println!("  {} Memory #{} forgotten", "✅".normal(), id);
     } else {
@@ -165,7 +210,10 @@ fn cmd_forget(id: i64) {
 fn cmd_query(topic: &str) {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
 
     let pattern = format!("%{}%", topic.to_lowercase());
@@ -176,18 +224,30 @@ fn cmd_query(topic: &str) {
         Err(_) => return,
     };
 
-    let rows: Vec<(i64, String, String, i64)> = stmt.query_map(params![pattern], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-    }).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default();
+    let rows: Vec<(i64, String, String, i64)> = stmt
+        .query_map(params![pattern], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })
+        .map(|r| r.flatten().collect::<Vec<_>>())
+        .unwrap_or_default();
 
     println!();
     println!("  {} Query: {}", "🔍".normal(), topic.bright_white());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
     if rows.is_empty() {
         println!("  {} No memories found for: {}", "○".dimmed(), topic);
     } else {
         for (id, cat, fact, confidence) in &rows {
-            println!("  #{} [{}] [{}%] {}", id.to_string().dimmed(), cat.bright_cyan(), confidence, fact.bright_white());
+            println!(
+                "  #{} [{}] [{}%] {}",
+                id.to_string().dimmed(),
+                cat.bright_cyan(),
+                confidence,
+                fact.bright_white()
+            );
         }
     }
     println!();
@@ -196,34 +256,82 @@ fn cmd_query(topic: &str) {
 fn cmd_confidence() {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
 
     println!();
     println!("  {} Memory Confidence Distribution", "📊".normal());
-    println!("{}", "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    println!(
+        "{}",
+        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+    );
 
-    let total: i64 = conn.query_row("SELECT COUNT(*) FROM forest_memory", [], |r| r.get(0)).unwrap_or(0);
-    let high: i64  = conn.query_row("SELECT COUNT(*) FROM forest_memory WHERE confidence >= 80", [], |r| r.get(0)).unwrap_or(0);
-    let med: i64   = conn.query_row("SELECT COUNT(*) FROM forest_memory WHERE confidence >= 60 AND confidence < 80", [], |r| r.get(0)).unwrap_or(0);
-    let low: i64   = conn.query_row("SELECT COUNT(*) FROM forest_memory WHERE confidence < 60", [], |r| r.get(0)).unwrap_or(0);
+    let total: i64 = conn
+        .query_row("SELECT COUNT(*) FROM forest_memory", [], |r| r.get(0))
+        .unwrap_or(0);
+    let high: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM forest_memory WHERE confidence >= 80",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let med: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM forest_memory WHERE confidence >= 60 AND confidence < 80",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let low: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM forest_memory WHERE confidence < 60",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     println!();
-    println!("  {} High confidence (≥80%):   {}", "·".dimmed(), high.to_string().bright_green());
-    println!("  {} Medium confidence (60-79%): {}", "·".dimmed(), med.to_string().yellow());
-    println!("  {} Low confidence (<60%):    {}", "·".dimmed(), low.to_string().dimmed());
-    println!("  {} Total memories:           {}", "·".dimmed(), total.to_string().bright_white());
+    println!(
+        "  {} High confidence (≥80%):   {}",
+        "·".dimmed(),
+        high.to_string().bright_green()
+    );
+    println!(
+        "  {} Medium confidence (60-79%): {}",
+        "·".dimmed(),
+        med.to_string().yellow()
+    );
+    println!(
+        "  {} Low confidence (<60%):    {}",
+        "·".dimmed(),
+        low.to_string().dimmed()
+    );
+    println!(
+        "  {} Total memories:           {}",
+        "·".dimmed(),
+        total.to_string().bright_white()
+    );
     println!();
 }
 
 fn cmd_extract() {
     let conn = match open_db() {
         Ok(c) => c,
-        Err(e) => { eprintln!("DB error: {}", e); return; }
+        Err(e) => {
+            eprintln!("DB error: {}", e);
+            return;
+        }
     };
 
     println!();
-    println!("  {} Extracting insights from session history...", "🔍".normal());
+    println!(
+        "  {} Extracting insights from session history...",
+        "🔍".normal()
+    );
     println!();
 
     let mut extracted = 0;
@@ -241,10 +349,13 @@ fn cmd_extract() {
 
     if let Some(day) = best_day {
         let fact = format!("Most productive commit day is {}", day);
-        let exists: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%productive commit day%'",
-            [], |r| r.get(0)
-        ).unwrap_or(0);
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%productive commit day%'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if exists == 0 {
             conn.execute(
                 "INSERT INTO forest_memory (category, fact, confidence, source, created_at) VALUES ('preference', ?1, 75, 'auto-extract', ?2)",
@@ -256,17 +367,26 @@ fn cmd_extract() {
     }
 
     // Extract: health pattern
-    let health_stable: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM events WHERE domain='doctor' AND action='run'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let health_stable: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE domain='doctor' AND action='run'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     if health_stable > 100 {
-        let fact = format!("System has completed {} health checks — stable foundation", health_stable);
-        let exists: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%health checks%'",
-            [], |r| r.get(0)
-        ).unwrap_or(0);
+        let fact = format!(
+            "System has completed {} health checks — stable foundation",
+            health_stable
+        );
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%health checks%'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         if exists == 0 {
             conn.execute(
                 "INSERT INTO forest_memory (category, fact, confidence, source, created_at) VALUES ('wisdom', ?1, 70, 'auto-extract', ?2)",
@@ -279,10 +399,13 @@ fn cmd_extract() {
 
     // Extract: primary language convention
     let fact = "Primary language is Rust — 60%+ of codebase, domain-per-directory convention";
-    let exists: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%Primary language is Rust%'",
-        [], |r| r.get(0)
-    ).unwrap_or(0);
+    let exists: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM forest_memory WHERE fact LIKE '%Primary language is Rust%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
     if exists == 0 {
         conn.execute(
             "INSERT INTO forest_memory (category, fact, confidence, source, created_at) VALUES ('convention', ?1, 95, 'auto-extract', ?2)",
@@ -296,7 +419,11 @@ fn cmd_extract() {
         println!("  {} No new insights to extract", "○".dimmed());
     } else {
         println!();
-        println!("  {} {} insights extracted", "✅".normal(), extracted.to_string().bright_green());
+        println!(
+            "  {} {} insights extracted",
+            "✅".normal(),
+            extracted.to_string().bright_green()
+        );
     }
     println!();
 }
@@ -310,12 +437,12 @@ fn main() {
     }
 
     match cli.command {
-        Some(Command::Show)                     => cmd_show(),
-        Some(Command::Add { category, fact })   => cmd_add(&category, &fact),
-        Some(Command::Forget { id })            => cmd_forget(id),
-        Some(Command::Query { topic })          => cmd_query(&topic),
-        Some(Command::Confidence)               => cmd_confidence(),
-        Some(Command::Extract)                  => cmd_extract(),
+        Some(Command::Show) => cmd_show(),
+        Some(Command::Add { category, fact }) => cmd_add(&category, &fact),
+        Some(Command::Forget { id }) => cmd_forget(id),
+        Some(Command::Query { topic }) => cmd_query(&topic),
+        Some(Command::Confidence) => cmd_confidence(),
+        Some(Command::Extract) => cmd_extract(),
         None => {
             println!();
             println!("  {} faelight-memory v1.0.0", "🌲".normal());

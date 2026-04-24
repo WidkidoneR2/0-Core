@@ -3,23 +3,27 @@ pub mod parser;
 
 use clap::Parser;
 use commands::{
-    AnomalyCommand, AuditCommand, AutobiographyCommand, BootstrapCommand, CheckpointCommand,
-    AlignCommand, Command, DaemonCommand, DocsCommand, JournalCommand, SelfCommand, WeightCommand, DecisionCommand, DepsCommand, DoctorCommand, EnginesCommand, EventsCommand, EvolutionCommand,
-    ValuesCommand,
-    DbCommand, GitCommand, AutonomyCommand, GenealogyCommand, IntegrityCommand, RegistryCommand, GoalsCommand, PredictCommand, ReactCommand, StrategyCommand, StressCommand, IntentCommand, LauncherCommand, LedgerCommand, LinkCommand, PartnerCommand,
-    NotifyCommand, PlanCommand, PluginCommand, PrioritizeCommand, ProfileCommand, ReleaseCommand,
-    DelegateCommand, SandboxCommand, SecurityCommand, SimulateCommand, TraceCommand, TradeoffCommand, UpdateCommand,
-    WhyCommand, WorkspaceCommand,
+    AlignCommand, AnomalyCommand, AuditCommand, AutobiographyCommand, AutonomyCommand,
+    BootstrapCommand, CheckpointCommand, Command, DaemonCommand, DbCommand, DecisionCommand,
+    DelegateCommand, DepsCommand, DocsCommand, DoctorCommand, EnginesCommand, EventsCommand,
+    EvolutionCommand, GenealogyCommand, GitCommand, GoalsCommand, IntegrityCommand, IntentCommand,
+    JournalCommand, LauncherCommand, LedgerCommand, LinkCommand, NotifyCommand, PartnerCommand,
+    PlanCommand, PluginCommand, PredictCommand, PrioritizeCommand, ProfileCommand, ReactCommand,
+    RegistryCommand, ReleaseCommand, SandboxCommand, SecurityCommand, SelfCommand, SimulateCommand,
+    StrategyCommand, StressCommand, TraceCommand, TradeoffCommand, UpdateCommand, ValuesCommand,
+    WeightCommand, WhyCommand, WorkspaceCommand,
 };
 use parser::{
-    AnomalyCommands, AuditCommands, AutobiographyCommands, BootstrapCommands, CheckpointCommands,
-    DelegateCommands,
-    AlignCommands, Cli, DaemonCommands, DocsCommands, JournalCommands, SelfCommands, WeightCommands, Commands, DecisionCommands, DepsCommands, DoctorCommands, EnginesCommands, EventsCommands,
-    ValuesCommands,
-    DbCommands, EvolutionCommands, AutonomyCommands, GenealogyCommands, IntegrityCommands, RegistryCommands, GitCommands, GoalsCommands, PredictCommands, ReactCommands, StrategyCommands, StressCommands, IntentCommands, LauncherCommands, PartnerCommands,
-    LedgerCommands, LinkCommands, NotifyCommands, PlanCommands, PluginCommands, PrioritizeCommands,
-    ProfileCommands, ReleaseCommands, SandboxCommands, SecurityCommands, SimulateCommands,
-    TraceCommands, TradeoffCommands, UpdateCommands, WhyCommands, WorkspaceCommands,
+    AlignCommands, AnomalyCommands, AuditCommands, AutobiographyCommands, AutonomyCommands,
+    BootstrapCommands, CheckpointCommands, Cli, Commands, DaemonCommands, DbCommands,
+    DecisionCommands, DelegateCommands, DepsCommands, DocsCommands, DoctorCommands,
+    EnginesCommands, EventsCommands, EvolutionCommands, GenealogyCommands, GitCommands,
+    GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands, LauncherCommands,
+    LedgerCommands, LinkCommands, NotifyCommands, PartnerCommands, PlanCommands, PluginCommands,
+    PredictCommands, PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands,
+    ReleaseCommands, SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands,
+    StrategyCommands, StressCommands, TraceCommands, TradeoffCommands, UpdateCommands,
+    ValuesCommands, WeightCommands, WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -27,8 +31,19 @@ pub fn parse() -> Command {
     match cli.command {
         Commands::Deploy { command } => Command::Deploy(match command {
             DeployCommands::Check { tool } => DeployCommand::Check { tool },
-            DeployCommands::Record { tool, version, outcome, duration_ms, intent } =>
-                DeployCommand::Record { tool, version, outcome, duration_ms, intent },
+            DeployCommands::Record {
+                tool,
+                version,
+                outcome,
+                duration_ms,
+                intent,
+            } => DeployCommand::Record {
+                tool,
+                version,
+                outcome,
+                duration_ms,
+                intent,
+            },
             DeployCommands::Log => DeployCommand::Log,
             DeployCommands::Rollback { tool, dry_run } => DeployCommand::Rollback { tool, dry_run },
             DeployCommands::CheckDeps { tool } => DeployCommand::CheckDeps { tool },
@@ -42,7 +57,9 @@ pub fn parse() -> Command {
             FridayCommands::UpdatePersonality => FridayCommand::UpdatePersonality,
             FridayCommands::SeedKnowledge => FridayCommand::SeedKnowledge,
             FridayCommands::LearningLoop => FridayCommand::LearningLoop,
-            FridayCommands::NameAbstraction { name, description } => FridayCommand::NameAbstraction { name, description },
+            FridayCommands::NameAbstraction { name, description } => {
+                FridayCommand::NameAbstraction { name, description }
+            }
             FridayCommands::Vocabulary => FridayCommand::Vocabulary,
             FridayCommands::ProposeIntent => FridayCommand::ProposeIntent,
             FridayCommands::Phase2Init => FridayCommand::Phase2Init,
@@ -72,7 +89,15 @@ pub fn parse() -> Command {
             KnowledgeCommands::Search { term } => KnowledgeCommand::Search { term },
             KnowledgeCommands::Patterns { domain } => KnowledgeCommand::Patterns { domain },
             KnowledgeCommands::Accuracy => KnowledgeCommand::Accuracy,
-            KnowledgeCommands::Add { domain, description, resolution } => KnowledgeCommand::Add { domain, description, resolution },
+            KnowledgeCommands::Add {
+                domain,
+                description,
+                resolution,
+            } => KnowledgeCommand::Add {
+                domain,
+                description,
+                resolution,
+            },
             KnowledgeCommands::Seed => KnowledgeCommand::Seed,
             KnowledgeCommands::Show { id } => KnowledgeCommand::Show { id },
             KnowledgeCommands::Outcome { id, correct } => KnowledgeCommand::Outcome { id, correct },
@@ -159,7 +184,15 @@ pub fn parse() -> Command {
             IntentCommands::Drift => IntentCommand::Drift,
             IntentCommands::Start { id } => IntentCommand::Start { id },
             IntentCommands::Complete { id } => IntentCommand::Complete { id },
-            IntentCommands::New { template, title, smart } => IntentCommand::New { template, title, smart },
+            IntentCommands::New {
+                template,
+                title,
+                smart,
+            } => IntentCommand::New {
+                template,
+                title,
+                smart,
+            },
             IntentCommands::Deps { id, critical_path } => IntentCommand::Deps { id, critical_path },
             IntentCommands::Burndown => IntentCommand::Burndown,
             IntentCommands::Velocity => IntentCommand::Velocity,
@@ -177,8 +210,17 @@ pub fn parse() -> Command {
             DelegateCommands::Accuracy => DelegateCommand::Accuracy,
             DelegateCommands::Suspend => DelegateCommand::Suspend,
             DelegateCommands::Counterfactuals => DelegateCommand::Counterfactuals,
-            DelegateCommands::LogCounterfactual { proposed, human, matched, confidence } =>
-                DelegateCommand::LogCounterfactual { proposed, human, matched, confidence },
+            DelegateCommands::LogCounterfactual {
+                proposed,
+                human,
+                matched,
+                confidence,
+            } => DelegateCommand::LogCounterfactual {
+                proposed,
+                human,
+                matched,
+                confidence,
+            },
             DelegateCommands::AccuracyReport => DelegateCommand::AccuracyReport,
             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
         }),
@@ -314,11 +356,23 @@ pub fn parse() -> Command {
         Commands::Self_ { command } => Command::Self_(match command {
             SelfCommands::Map => SelfCommand::Map,
             SelfCommands::Evolve => SelfCommand::Evolve,
-            SelfCommands::Apply { proposal_id, dry_run, checkpoint } =>
-                SelfCommand::Apply { proposal_id, dry_run, checkpoint },
+            SelfCommands::Apply {
+                proposal_id,
+                dry_run,
+                checkpoint,
+            } => SelfCommand::Apply {
+                proposal_id,
+                dry_run,
+                checkpoint,
+            },
             SelfCommands::History => SelfCommand::History,
-            SelfCommands::Learn { proposal_id, outcome } =>
-                SelfCommand::Learn { proposal_id, outcome },
+            SelfCommands::Learn {
+                proposal_id,
+                outcome,
+            } => SelfCommand::Learn {
+                proposal_id,
+                outcome,
+            },
             SelfCommands::Accuracy => SelfCommand::Accuracy,
             SelfCommands::Calibrate => SelfCommand::Calibrate,
             SelfCommands::Challenge { intent_id } => SelfCommand::Challenge { intent_id },
@@ -338,7 +392,15 @@ pub fn parse() -> Command {
         }),
         Commands::Values { command } => Command::Values(match command {
             ValuesCommands::List => ValuesCommand::List,
-            ValuesCommands::Define { statement, weight, scope } => ValuesCommand::Define { statement, weight, scope },
+            ValuesCommands::Define {
+                statement,
+                weight,
+                scope,
+            } => ValuesCommand::Define {
+                statement,
+                weight,
+                scope,
+            },
             ValuesCommands::Remove { id } => ValuesCommand::Remove { id },
             ValuesCommands::Weight { id, weight } => ValuesCommand::Weight { id, weight },
         }),
@@ -362,8 +424,18 @@ pub fn parse() -> Command {
             EventsCommands::Since { duration } => EventsCommand::Since { duration },
             EventsCommands::Filter { domain } => EventsCommand::Filter { domain },
             EventsCommands::Watch => EventsCommand::Watch,
-                    EventsCommands::EmitV2 { type_name, payload, caused_by } => EventsCommand::EmitV2 { type_name, payload, caused_by },
-            EventsCommands::Replay { from_seq, to_seq } => EventsCommand::Replay { from_seq, to_seq },
+            EventsCommands::EmitV2 {
+                type_name,
+                payload,
+                caused_by,
+            } => EventsCommand::EmitV2 {
+                type_name,
+                payload,
+                caused_by,
+            },
+            EventsCommands::Replay { from_seq, to_seq } => {
+                EventsCommand::Replay { from_seq, to_seq }
+            }
             EventsCommands::Chain { seq } => EventsCommand::Chain { seq },
             EventsCommands::StatusV2 => EventsCommand::StatusV2,
         }),
@@ -428,7 +500,7 @@ pub fn parse() -> Command {
             PredictCommands::Verify { id, correct } => PredictCommand::Verify { id, correct },
             PredictCommands::CrossSession => PredictCommand::CrossSession,
             PredictCommands::MemoryDecay { apply } => PredictCommand::MemoryDecay { apply },
-                    PredictCommands::Why { id } => PredictCommand::Why { id },
+            PredictCommands::Why { id } => PredictCommand::Why { id },
         }),
         Commands::React { command } => Command::React(match command {
             ReactCommands::List => ReactCommand::List,
@@ -439,8 +511,17 @@ pub fn parse() -> Command {
             ReactCommands::Discipline => ReactCommand::Discipline,
             ReactCommands::Enable { id } => ReactCommand::Enable { id },
             ReactCommands::Disable { id } => ReactCommand::Disable { id },
-            ReactCommands::Add { id, description, priority, cooldown_m } =>
-                ReactCommand::Add { id, description, priority, cooldown_m },
+            ReactCommands::Add {
+                id,
+                description,
+                priority,
+                cooldown_m,
+            } => ReactCommand::Add {
+                id,
+                description,
+                priority,
+                cooldown_m,
+            },
             ReactCommands::Bounds => ReactCommand::Bounds,
             ReactCommands::Audit => ReactCommand::Audit,
             ReactCommands::Story => ReactCommand::Story,
@@ -460,10 +541,10 @@ pub fn parse() -> Command {
             GenealogyCommands::Roots => GenealogyCommand::Roots,
         }),
         Commands::Integrity { command } => Command::Integrity(match command {
-            IntegrityCommands::Run          => IntegrityCommand::Run,
-            IntegrityCommands::Status       => IntegrityCommand::Status,
-            IntegrityCommands::Log          => IntegrityCommand::Log,
-            IntegrityCommands::Fix          => IntegrityCommand::Fix,
+            IntegrityCommands::Run => IntegrityCommand::Run,
+            IntegrityCommands::Status => IntegrityCommand::Status,
+            IntegrityCommands::Log => IntegrityCommand::Log,
+            IntegrityCommands::Fix => IntegrityCommand::Fix,
             IntegrityCommands::Apply { id } => IntegrityCommand::Apply { id },
             IntegrityCommands::Heal { dry_run } => IntegrityCommand::Heal { dry_run },
             IntegrityCommands::Trend => IntegrityCommand::Trend,
@@ -516,7 +597,13 @@ pub fn parse() -> Command {
             StrategyCommands::Trust => StrategyCommand::Trust,
             StrategyCommands::Gap => StrategyCommand::Gap,
             StrategyCommands::History => StrategyCommand::History,
-            StrategyCommands::Learn { strategy_id, outcome } => StrategyCommand::Learn { strategy_id, outcome },
+            StrategyCommands::Learn {
+                strategy_id,
+                outcome,
+            } => StrategyCommand::Learn {
+                strategy_id,
+                outcome,
+            },
             StrategyCommands::Review => StrategyCommand::Review,
             StrategyCommands::Next { list, why } => StrategyCommand::Next { list, why },
             StrategyCommands::Queue => StrategyCommand::Queue,
@@ -629,7 +716,9 @@ pub fn parse() -> Command {
         Commands::Capabilities { json, domain } => Command::Capabilities { json, domain },
     }
 }
-use crate::cli::parser::DeployCommands;
-use crate::cli::parser::{FridayCommands, SynthesizeCommands, FridayArchCommands, KnowledgeCommands};
-use crate::cli::commands::{FridayCommand, SynthesizeCommand, FridayArchCommand, KnowledgeCommand};
 use crate::cli::commands::DeployCommand;
+use crate::cli::commands::{FridayArchCommand, FridayCommand, KnowledgeCommand, SynthesizeCommand};
+use crate::cli::parser::DeployCommands;
+use crate::cli::parser::{
+    FridayArchCommands, FridayCommands, KnowledgeCommands, SynthesizeCommands,
+};

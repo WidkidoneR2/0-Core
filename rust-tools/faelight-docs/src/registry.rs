@@ -6,7 +6,7 @@ pub struct DocEntry {
     pub path: &'static str,
     pub owner_intent: &'static str,
     pub description: &'static str,
-    pub auto_update: bool,  // can fdocs sync touch this?
+    pub auto_update: bool, // can fdocs sync touch this?
 }
 pub const REGISTRY: &[DocEntry] = &[
     DocEntry {
@@ -14,14 +14,14 @@ pub const REGISTRY: &[DocEntry] = &[
         path: "00-meta/README.md",
         owner_intent: "INT-228",
         description: "Primary GitHub README -- forest identity and status",
-        auto_update: false,  // DYNAMIC section only -- faelight-release owns that
+        auto_update: false, // DYNAMIC section only -- faelight-release owns that
     },
     DocEntry {
         name: "COMMAND-GUIDE.md",
         path: "docs/COMMAND-GUIDE.md",
         owner_intent: "INT-202",
         description: "Muscle memory reference -- all commands that work today",
-        auto_update: false,  // manual updates required for new commands
+        auto_update: false, // manual updates required for new commands
     },
     DocEntry {
         name: "CHANGELOG.md",
@@ -39,15 +39,20 @@ pub const REGISTRY: &[DocEntry] = &[
     },
 ];
 pub fn db_path() -> PathBuf {
-    dirs::home_dir().unwrap_or_default()
+    dirs::home_dir()
+        .unwrap_or_default()
         .join("0-core/runtime/state.db")
 }
 pub fn core_root() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join("0-core")
 }
 pub fn ensure_tables() {
-    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) { Ok(c) => c, Err(_) => return };
-    let _ = conn.execute_batch("
+    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let _ = conn.execute_batch(
+        "
         CREATE TABLE IF NOT EXISTS doc_registry (
             name        TEXT PRIMARY KEY,
             path        TEXT NOT NULL,
@@ -65,7 +70,8 @@ pub fn ensure_tables() {
             by          TEXT NOT NULL DEFAULT 'manual',
             note        TEXT NOT NULL DEFAULT ''
         );
-    ");
+    ",
+    );
 }
 pub fn now_ts() -> i64 {
     std::time::SystemTime::now()
@@ -75,19 +81,26 @@ pub fn now_ts() -> i64 {
 }
 pub fn file_checksum(path: &Path) -> String {
     std::fs::read_to_string(path)
-        .map(|c| format!("{:x}", c.len()))  // simple length-based checksum
+        .map(|c| format!("{:x}", c.len())) // simple length-based checksum
         .unwrap_or_default()
 }
 #[allow(dead_code)]
 pub fn last_modified(path: &Path) -> i64 {
     path.metadata()
         .and_then(|m| m.modified())
-        .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64)
+        .map(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64
+        })
         .unwrap_or(0)
 }
 pub fn record_update(name: &str, action: &str, by: &str, note: &str) {
     ensure_tables();
-    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) { Ok(c) => c, Err(_) => return };
+    let conn: rusqlite::Connection = match rusqlite::Connection::open(db_path()) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
     let now = now_ts();
     let _ = conn.execute(
         "INSERT INTO doc_history (name, action, timestamp, by, note) VALUES (?1, ?2, ?3, ?4, ?5)",

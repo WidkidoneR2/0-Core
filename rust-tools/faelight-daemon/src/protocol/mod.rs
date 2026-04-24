@@ -28,9 +28,7 @@ pub enum Command {
         timestamp: i64,
     },
     /// INT-220 -- Friday: dismiss last suggestion (negative learning)
-    FridayDismiss {
-        pattern_trigger: Option<String>,
-    },
+    FridayDismiss { pattern_trigger: Option<String> },
     /// INT-220 -- Friday: ask a question about the forest
     FridayQuery {
         question: String,
@@ -121,9 +119,7 @@ pub enum Response {
         alerts_today: i64,
     },
     /// Engine signals
-    EngineSignals {
-        signals: Vec<SignalEntry>,
-    },
+    EngineSignals { signals: Vec<SignalEntry> },
     /// Neovim context for a file
     NeovimContext {
         file_path: String,
