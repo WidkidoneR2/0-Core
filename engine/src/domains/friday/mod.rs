@@ -412,7 +412,8 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let db = &ctx.runtime.db;
     let now = now_ts();
-    let mut patterns_found = 0;
+    let mut patterns_new = 0;
+    let mut patterns_updated = 0;
     // Pattern 1: deploy after cicomplete
     let deploy_after_complete: i64 = db.query_row(
         "SELECT COUNT(*) FROM shell_history h1
@@ -426,12 +427,16 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
         [], |r| r.get(0)
     ).unwrap_or(0);
     if deploy_after_complete > 2 {
+        let exists: bool = db.query_row(
+            "SELECT 1 FROM friday_patterns WHERE trigger = 'cicomplete runs' AND action = 'deploy tool'",
+            [], |_| Ok(true),
+        ).unwrap_or(false);
         let _ = db.execute(
             "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
              VALUES ('cicomplete runs', '[\"deploy\", \"workflow\"]', 'deploy tool', 'success', ?1, ?2, ?3, 'shell_history')",
             params![deploy_after_complete, (deploy_after_complete as f64 / 10.0).min(0.95), now],
         );
-        patterns_found += 1;
+        if exists { patterns_updated += 1; } else { patterns_new += 1; }
     }
     // Pattern 2: fg commit after deploy
     let commit_after_deploy: i64 = db.query_row(
@@ -446,12 +451,16 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
         [], |r| r.get(0)
     ).unwrap_or(0);
     if commit_after_deploy > 2 {
+        let exists: bool = db.query_row(
+            "SELECT 1 FROM friday_patterns WHERE trigger = 'deploy completes' AND action = 'fg commit'",
+            [], |_| Ok(true),
+        ).unwrap_or(false);
         let _ = db.execute(
             "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
              VALUES ('deploy completes', '[\"commit\", \"workflow\"]', 'fg commit', 'success', ?1, ?2, ?3, 'shell_history')",
             params![commit_after_deploy, (commit_after_deploy as f64 / 10.0).min(0.95), now],
         );
-        patterns_found += 1;
+        if exists { patterns_updated += 1; } else { patterns_new += 1; }
     }
     // Pattern 3: Most frequent commands
     let top_commands: Vec<(String, i64)> = {
@@ -465,12 +474,16 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
     };
     for (cmd, cnt) in &top_commands {
         if *cnt > 2 {
+            let exists: bool = db.query_row(
+                "SELECT 1 FROM friday_patterns WHERE trigger = 'frequent command' AND action = ?1",
+                params![cmd], |_| Ok(true),
+            ).unwrap_or(false);
             let _ = db.execute(
                 "INSERT OR REPLACE INTO friday_patterns (trigger, context, action, outcome, frequency, confidence, last_seen, source)
                  VALUES ('frequent command', '[\"habit\"]', ?1, 'observed', ?2, 0.8, ?3, 'shell_history')",
                 params![cmd, cnt, now],
             );
-            patterns_found += 1;
+            if exists { patterns_updated += 1; } else { patterns_new += 1; }
         }
     }
     // Update knowledge with pattern count
@@ -494,8 +507,11 @@ pub fn extract_patterns(ctx: &AppContext) -> CoreResult<()> {
          VALUES ('patterns', 'global', ?1, 0.9, 'shell_analysis', ?2, ?3)",
         params![fact, created_at, now],
     );
-    println!("  {} Pattern extraction complete -- {} new patterns found ({} total)",
-        "✅".green(), patterns_found.to_string().bright_white(), total_patterns.to_string().bright_cyan());
+    println!("  {} Pattern extraction complete -- {} new, {} updated ({} total)",
+        "✅".green(),
+        patterns_new.to_string().bright_white(),
+        patterns_updated.to_string().bright_cyan(),
+        total_patterns.to_string().dimmed());
     Ok(())
 }
 
