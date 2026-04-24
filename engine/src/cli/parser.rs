@@ -467,6 +467,8 @@ pub enum FridayCommands {
         /// The question to reason about
         question: String,
     },
+    /// INT-234 Gate 8 -- predict next action using session + temporal models
+    Anticipate,
 }
 
 #[derive(Subcommand)]

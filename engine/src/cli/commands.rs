@@ -54,6 +54,7 @@ pub enum FridayCommand {
     Context,
     Infer { verbose: bool },
     Reason { question: String },
+    Anticipate,
 }
 
 pub enum Command {

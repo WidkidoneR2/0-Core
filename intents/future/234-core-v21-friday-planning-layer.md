@@ -88,13 +88,13 @@ IMPLEMENTATION GATES
 ⬜ core friday plan now cites prior session exchanges when relevant
 ✅ core friday context displays current session buffer
 ✅ core friday reason chains facts to answer a question
-⬜ core friday anticipate predicts next action using session + temporal models
+✅ core friday anticipate predicts next action using session + temporal models
 ⬜ unprompted speech gated by confidence >= 0.85 AND anticipation enabled AND rate limit
 ⬜ COMMAND-GUIDE updated with all six new commands
 DEMONSTRATION GATES
 ✅ Friday used inference in a real session and the conclusion was correct
     (audited via approved=1 on a conclusion row with non-empty facts_cited)
-⬜ Friday anticipated the next action and was right
+✅ Friday anticipated the next action and was right
     (audited via approved=1 on an anticipation row)
 ⬜ Friday referenced a prior exchange in the same session and it helped
     (references_id non-null, human confirms usefulness)

@@ -401,9 +401,9 @@ pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
     println!("  {}", "━".repeat(50).dimmed());
     println!();
     let templates: Vec<(&str, &str, fn(&AppContext) -> CoreResult<Option<String>>, &str, f64)> = vec![
-        ("health_threshold", "health < 95% breach", check_health_threshold as fn(&AppContext) -> CoreResult<Option<String>>, "77,60", 0.95),
-        ("session_velocity", "elevated/high commit velocity", check_session_velocity as fn(&AppContext) -> CoreResult<Option<String>>, "255,256", 0.9),
-        ("intent_drift",     "stale in-progress intents", check_intent_drift as fn(&AppContext) -> CoreResult<Option<String>>, "158,159", 0.85),
+        ("health_threshold", "health < 95% breach", check_health_threshold as fn(&AppContext) -> CoreResult<Option<String>>, "knowledge:77,knowledge:60", 0.95),
+        ("session_velocity", "elevated/high commit velocity", check_session_velocity as fn(&AppContext) -> CoreResult<Option<String>>, "knowledge:255,knowledge:256", 0.9),
+        ("intent_drift",     "stale in-progress intents", check_intent_drift as fn(&AppContext) -> CoreResult<Option<String>>, "knowledge:158,knowledge:159", 0.85),
     ];
     let mut fired = 0;
     for (name, desc, check_fn, facts, conf) in &templates {
@@ -534,15 +534,15 @@ pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {
         let (conclusion, facts_cited, confidence) = match *template_name {
             "health_threshold" => {
                 let r = check_health_threshold(ctx)?;
-                (r, "77,60", 0.95)
+                (r, "knowledge:77,knowledge:60", 0.95)
             }
             "session_velocity" => {
                 let r = check_session_velocity(ctx)?;
-                (r, "255,256", 0.9)
+                (r, "knowledge:255,knowledge:256", 0.9)
             }
             "intent_drift" => {
                 let r = check_intent_drift(ctx)?;
-                (r, "158,159", 0.85)
+                (r, "knowledge:158,knowledge:159", 0.85)
             }
             _ => (None, "", 0.0),
         };
@@ -568,6 +568,146 @@ pub fn reason(ctx: &AppContext, question: &str) -> CoreResult<()> {
     } else {
         println!("  {} {} conclusion(s) written, cited ask #{}", "🌲".normal(), fired, ask_id);
     }
+    println!();
+    Ok(())
+}
+// ─── Anticipate Command (Gate 8) ─────────────────────────────────────────
+// core friday anticipate: predict next action using session + temporal models.
+// Session: last meaningful command from shell_history.
+// Temporal: friday_patterns (explicit triggers) + shell_history frequency (fallback).
+/// Get the last meaningful command from shell_history.
+/// Skips filler: c, clear, cd, ls, pwd, q, exit, SUGGEST: rows.
+fn last_meaningful_command(ctx: &AppContext) -> Option<String> {
+    let db = &ctx.runtime.db;
+    let cmd: Option<String> = db.query_row(
+        "SELECT command FROM shell_history \
+         WHERE command NOT IN ('c', 'clear', 'cd', 'ls', 'pwd', 'q', 'exit') \
+         AND command NOT LIKE 'SUGGEST:%' \
+         AND command NOT LIKE 'TIMING:%' \
+         AND command NOT LIKE 'core friday anticipate%' \
+         ORDER BY id DESC LIMIT 1",
+        [], |r| r.get(0),
+    ).ok();
+    cmd
+}
+/// Write an anticipation row to friday_session_context.
+/// Cites a friday_patterns row via facts_cited using pattern: prefix.
+fn write_anticipation(
+    ctx: &AppContext,
+    content: &str,
+    pattern_id: Option<i64>,
+    confidence: f64,
+) -> CoreResult<()> {
+    let db = &ctx.runtime.db;
+    let sid: Option<String> = db.query_row(
+        "SELECT value FROM friday_state WHERE key = 'current_session_id'",
+        [], |r| r.get(0),
+    ).ok();
+    let Some(sid) = sid else { return Ok(()); };
+    let now = now_ts();
+    let cites = match pattern_id {
+        Some(id) => format!("pattern:{}", id),
+        None => String::new(),
+    };
+    db.execute(
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, facts_cited, confidence) \
+         VALUES (?1, ?2, 'anticipation', ?3, ?4, ?5)",
+        rusqlite::params![sid, now, content, cites, confidence],
+    )?;
+    Ok(())
+}
+/// Look up a pattern with matching trigger semantics for a given command.
+/// Returns (pattern_id, action, confidence, frequency) if a strong match exists.
+fn match_trigger_pattern(ctx: &AppContext, last_cmd: &str) -> Option<(i64, String, f64, i64)> {
+    let db = &ctx.runtime.db;
+    // Map command prefix to trigger text in friday_patterns
+    let trigger = if last_cmd.starts_with("deploy") || last_cmd.contains("/deploy ") {
+        "deploy completes"
+    } else if last_cmd.starts_with("cicomplete") || last_cmd.starts_with("dc ") {
+        "cicomplete runs"
+    } else {
+        return None;
+    };
+    db.query_row(
+        "SELECT id, action, confidence, frequency FROM friday_patterns \
+         WHERE trigger = ?1 AND confidence >= 0.85 \
+         ORDER BY confidence DESC, frequency DESC LIMIT 1",
+        rusqlite::params![trigger],
+        |r| Ok((r.get::<_,i64>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?, r.get::<_,i64>(3)?)),
+    ).ok()
+}
+/// Frequency-fallback: find the most common command that followed last_cmd
+/// in shell_history. Returns (action, frequency) if signal is strong enough.
+fn match_frequency_followup(ctx: &AppContext, last_cmd: &str) -> Option<(String, i64)> {
+    let db = &ctx.runtime.db;
+    // First word of last_cmd for a lenient match
+    let first_word = last_cmd.split_whitespace().next().unwrap_or("");
+    if first_word.is_empty() { return None; }
+    db.query_row(
+        "SELECT h2.command, COUNT(*) as freq FROM shell_history h1 \
+         JOIN shell_history h2 ON h2.id = h1.id + 1 \
+         WHERE h1.command LIKE ?1 \
+           AND h2.command NOT IN ('c', 'clear', 'cd', 'ls', 'pwd', 'q', 'exit') \
+           AND h2.command NOT LIKE 'SUGGEST:%' \
+         GROUP BY h2.command \
+         ORDER BY freq DESC LIMIT 1",
+        rusqlite::params![format!("{}%", first_word)],
+        |r| Ok((r.get::<_,String>(0)?, r.get::<_,i64>(1)?)),
+    ).ok().filter(|(_, freq)| *freq >= 10)
+}
+/// core friday anticipate -- predict next action using session + temporal models.
+/// Strong match: explicit trigger pattern with confidence >= 0.85.
+/// Weak match: frequency-based follow-up with >= 10 occurrences.
+/// Silent: neither signal strong enough.
+pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    use colored::*;
+    println!();
+    println!("  {} Friday -- Anticipation", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    let last_cmd = match last_meaningful_command(ctx) {
+        Some(c) => c,
+        None => {
+            println!("  {} No recent commands. Run something first.", "💡".dimmed());
+            println!();
+            return Ok(());
+        }
+    };
+    println!("  {} last: {}", "·".dimmed(), last_cmd.bright_white());
+    println!();
+    // Try explicit trigger pattern first
+    if let Some((pid, action, conf, freq)) = match_trigger_pattern(ctx, &last_cmd) {
+        let content = format!(
+            "After {}, you usually {} ({}x, {:.0}% confidence)",
+            last_cmd.split_whitespace().next().unwrap_or("that"),
+            action, freq, conf * 100.0
+        );
+        write_anticipation(ctx, &content, Some(pid), conf)?;
+        println!("  {} {} -- STRONG MATCH", "→".bright_green(), action.bright_cyan());
+        println!("    {} {}", "·".dimmed(), content.dimmed());
+        println!("    {} facts_cited: pattern:{}", "·".dimmed(), pid.to_string().dimmed());
+        println!();
+        return Ok(());
+    }
+    // Fallback: frequency-based
+    if let Some((action, freq)) = match_frequency_followup(ctx, &last_cmd) {
+        let content = format!(
+            "You usually run {} after {} (frequency: {}x, not a causal pattern)",
+            action, last_cmd.split_whitespace().next().unwrap_or("that"), freq
+        );
+        // Lower confidence for frequency-only
+        let confidence = (freq as f64 / 100.0).min(0.7);
+        write_anticipation(ctx, &content, None, confidence)?;
+        println!("  {} {} -- frequency match", "→".bright_yellow(), action.bright_white());
+        println!("    {} {}", "·".dimmed(), content.dimmed());
+        println!("    {} confidence: {:.0}% (frequency-based, not causal)", "·".dimmed(), confidence * 100.0);
+        println!();
+        return Ok(());
+    }
+    println!("  {} No strong next-action signal.", "💡".dimmed());
+    println!("  {} Not enough pattern data for this context yet.", "→".dimmed());
     println!();
     Ok(())
 }
