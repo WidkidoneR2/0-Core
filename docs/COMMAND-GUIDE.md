@@ -1,5 +1,5 @@
 # 🌲 Faelight Forest — Command Guide
-**Version:** v11.8.0 | **Updated:** 2026-04-13 | **Intents:** 176 complete
+**Version:** v11.9.0 | **Updated:** 2026-04-13 | **Intents:** 176 complete
 > Muscle memory reference. Only commands that work today.
 > Health: 100% | Integrity: 100% | Jarvis: 105/100
 
@@ -627,3 +627,36 @@ cat << RUSTEOF > /tmp/new.rs
 <new rust content>
 RUSTEOF
 fsh-patch ~/0-core/rust-tools/tool/src/file.rs /tmp/old.rs /tmp/new.rs
+
+---
+**Issue:** Multi-line Python code passed via `python3 -c "..."` fails in fsh.
+**Workaround:** Always write multi-line Python to `/tmp/script.py`:
+```bash
+cat > /tmp/script.py << 'EOF'
+import os
+print(os.getcwd())
+EOF
+python3 /tmp/script.py
+```
+**Critical rule:** When Python writes Rust source files, ALWAYS use binary mode (`wb` + `b"..."`).
+**Wrong:**
+```python
+with open('file.rs', 'w') as f:
+    f.write('let x = "\x1b[32m";')
+```
+**Correct:**
+```python
+with open('file.rs', 'wb') as f:
+    f.write(b'let x = "\x1b[32m";')
+```
+**Why:** Text mode corrupts escape sequences (`\x1b`, `\n` in char literals, unicode). Binary mode preserves bytes exactly.
+**Issue:** Very long arguments or complex escaped quotes can fail with "File name too long (os error 36)".
+**Workaround:** Same as multi-line -- write to `/tmp/script.py` and execute:
+```bash
+cat > /tmp/script.py << 'EOF'
+EOF
+python3 /tmp/script.py
+```
+**Threshold:** Avoid `-c` arguments >200 chars or with nested quotes.
+---
+*Last updated: 2026-04-24 -- friction items 2, 6, 8 from INT-245*
