@@ -1,7 +1,7 @@
 ---
 id: 245
 title: "faelight-shell v9 -- The Shell That Thinks"
-status: planned
+status: in-progress
 date: 2026-04-20
 tags: [shell, fsh, v9, parallel, intelligence, execution, linux, innovation, friday]
 ---
