@@ -223,6 +223,9 @@ Issues discovered during INT-232 development that must be fixed in fsh v9:
 6. COMMAND-GUIDE.md needs: binary mode rule for Python writing Rust files
 7. >> append redirect -- fsh does not support `cat file >> target`; errors with "No such file or directory". Blocks normal shell idioms.
 8. python3 -c "complex arg" -- fails with "File name too long (os error 36)" when the -c argument contains escaped quotes or exceeds some length. Workaround: write script to /tmp/ and python3 /tmp/script.py. Document in COMMAND-GUIDE.
+9. fsh silent DB connection failure -- `save_history_entry` in rust-tools/faelight-shell/src/db.rs:155 uses `.ok()`, dropping all INSERT errors. When connection goes stale (e.g. after schema migrations on state.db), shell_history writes silently stop for the entire fsh lifetime. Discovered during INT-234 gate 8: rows stopped at id 19748 for ~1 hour with no error indication. Recovery requires fsh restart.
+10. fsh redirect failures create junk files -- when `>` or `>>` fails to parse, fsh creates a file named after the broken argument instead of erroring. Discovered files in repo root: `=68`, `=69`, `=257`, `(strftime('%s','now') - 86400) GROUP BY ...`. Cleanup required Python os.remove() for special-char filenames. Should emit parse error to stderr, not touch filesystem.
+11. fsh multi-line paste splits wrong -- multi-line commands pasted into fsh often fail or split incorrectly. Example: `echo "X" > /tmp/q.sql\nsqlite3 db < /tmp/q.sql` pasted together fails second command with redirect error. Workaround: one command at a time, or write script to /tmp/.
 Pillar 6 -- Friction Fixes:
 ⬜ fsh-patch: clear usage error when args are wrong type
 ⬜ COMMAND-GUIDE.md updated: python3 multiline, binary mode, heredoc rules, python3 -c arg-size workaround
@@ -231,6 +234,9 @@ Pillar 6 -- Friction Fixes:
 ⬜ heredoc: warn when literal RSEOF/PYEOF appears in output (likely missing delimiter)
 ⬜ >> append redirect supported natively in fsh
 ⬜ python3 -c handles complex arguments without "File name too long" error
+⬜ fsh DB writer logs INSERT errors instead of silent .ok() -- stale connections should surface, not hide
+⬜ fsh redirect parse failures emit error to stderr without creating filesystem artifacts
+⬜ fsh handles multi-line paste as single input when appropriate (heuristic: detect clipboard origin or bracketed paste mode)
 "Every shell before fsh asked:
 'What command do you want to run?'
 fsh v9 asks:
