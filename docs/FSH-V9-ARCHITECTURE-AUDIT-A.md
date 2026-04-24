@@ -1610,15 +1610,21 @@ if the Job subsystem's synchronous model hits limits.
 These are the small patches Christian explicitly asked to collect for
 post-audit execution:
 - **P1:** completion.rs line 68/76 duplicate `theme` -- remove one entry
+  ✅ COMPLETE 2026-04-24 commit 81474c29
 - **P2:** completion.rs line 82/98 duplicate `q` -- remove one entry
+  ✅ COMPLETE 2026-04-24 commit 8c2e3452
 - **P3:** db.rs four silent-drop sites -- convert to error-returning mutations
   uniformly (save_history_entry, set_focus_intent, set_theme, clear_focus_intent)
+  ✅ COMPLETE 2026-04-24 commit 8c2e3452 (6 call sites fixed)
 - **P4:** scripting.rs line 263 silent-drop on Emit event INSERT --
   convert to error-returning or record to shell_friction on failure
+  ✅ COMPLETE 2026-04-24 commit 558ce241
 - **P5:** Any additional duplicates found in other audits (Section 5
   recommended a scan of all hardcoded arrays in future audits)
-**Status:** Queued for execution after audit document commits. Each is
-a small cohesive patch. No architectural dependencies between them.
+  ✅ COMPLETE 2026-04-24 scan confirmed no additional duplicates
+**Status:** ALL PATCHES SHIPPED 2026-04-24. Thread B (silent-drop pattern)
+resolution: 5 of 5 confirmed bugs fixed across db.rs and scripting.rs.
+commands/mod.rs candidates (Section 5.5.7) deferred to Phase 0 verification.
 - 5 decisions LOCKED, ready for implementation
 - 2 decisions PROPOSED, non-blocking
 - 4 open questions require future data or phase-context decisions
@@ -1644,6 +1650,12 @@ of implementation decisions before any v9 code is written.
   execute_with_context call sites, detect_redirect, redirect handling
 - commands/mod.rs -- dispatch signature, recursive call sites, .ok() surface
 **Total source lines inspected:** approximately 3,400 lines across 7 files.
+**Post-audit patches -- SHIPPED 2026-04-24 (same session as audit).**
+All five patches (P1-P5) executed and pushed to main:
+- commit 81474c29: P1 (duplicate theme removed)
+- commit 8c2e3452: P2+P3 (duplicate q + 4 db.rs silent-drops + 6 call sites)
+- commit 558ce241: P4 (scripting.rs Emit silent-drop)
+- P5: scan confirmed clean
 **v9 Phase 0 -- Foundation (infrastructure only, no user-visible features).**
 All blockers resolved:
 - D1 locked -- ctx threading approach committed
