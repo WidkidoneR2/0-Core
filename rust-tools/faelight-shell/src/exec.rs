@@ -272,7 +272,9 @@ fn postexec(ctx: &ExecContext, result: &CommandResult, db: &ForestDb) {
 
     // Log to shell_history
     if status != "exit" {
-        db.save_history_entry(&ctx.raw);
+        if let Err(e) = db.save_history_entry(&ctx.raw) {
+            eprintln!("warning: failed to save history: {}", e);
+        }
     }
 
     // ── Failure Memory — INT-176 ──────────────────────────────────────────────

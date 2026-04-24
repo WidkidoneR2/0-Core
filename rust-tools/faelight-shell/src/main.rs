@@ -613,7 +613,9 @@ fn repl_main() -> Result<()> {
                 };
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
-                db.save_history_entry(&line);
+                if let Err(e) = db.save_history_entry(&line) {
+                    eprintln!("warning: failed to save history: {}", e);
+                }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
                 if line.contains(" << ") {
@@ -691,12 +693,16 @@ fn repl_main() -> Result<()> {
                                         } else if !arg.starts_with("INT-") {
                                             println!("  {} must be INT-NNN format", "\u{2717}".bright_red());
                                         } else {
-                                            fdb.set_focus_intent(arg);
+                                            if let Err(e) = fdb.set_focus_intent(arg) {
+                                                eprintln!("warning: failed to set focus intent: {}", e);
+                                            }
                                             println!("  {} focus set -> {}", "\u{1f332}".normal(), arg.bright_green().bold());
                                         }
                                     }
                                     "clear" => {
-                                        fdb.clear_focus_intent();
+                                        if let Err(e) = fdb.clear_focus_intent() {
+                                            eprintln!("warning: failed to clear focus intent: {}", e);
+                                        }
                                         println!("  {} focus cleared", "\u{25cb}".dimmed());
                                     }
                                     "status" | "" => {
@@ -2201,7 +2207,9 @@ fn print_welcome(core_root: &str) {
                 if let Some(int_id) = focus.split_whitespace().next() {
                     if int_id.chars().all(|c| c.is_ascii_digit()) {
                         let intent_key = format!("INT-{}", int_id);
-                        db.set_focus_intent(&intent_key);
+                        if let Err(e) = db.set_focus_intent(&intent_key) {
+                            eprintln!("warning: failed to set focus intent: {}", e);
+                        }
                     }
                 }
             }

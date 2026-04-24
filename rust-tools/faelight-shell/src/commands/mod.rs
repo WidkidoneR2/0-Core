@@ -3808,7 +3808,9 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             CommandResult::Output(out)
         }
         Some(name) if themes.contains(&name) => {
-            db.set_theme(name);
+            if let Err(e) = db.set_theme(name) {
+                eprintln!("warning: failed to set theme: {}", e);
+            }
             CommandResult::Output(format!("  {} prompt theme set to {}",
                 "✅".normal(), name.bright_green()))
         }

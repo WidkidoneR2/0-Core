@@ -152,7 +152,7 @@ impl ForestDb {
         commands
     }
 
-    pub fn save_history_entry(&self, command: &str) {
+    pub fn save_history_entry(&self, command: &str) -> rusqlite::Result<()> {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
@@ -161,8 +161,8 @@ impl ForestDb {
             .execute(
                 "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
                 rusqlite::params![command, ts],
-            )
-            .ok();
+            )?;
+        Ok(())
     }
 
     pub fn get_last_command(&self) -> Option<String> {
@@ -237,11 +237,12 @@ impl ForestDb {
         .unwrap_or_default()
     }
 
-    pub fn set_focus_intent(&self, intent: &str) {
-        let _ = self.conn.execute(
+    pub fn set_focus_intent(&self, intent: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
             "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('focus_intent', ?1)",
             rusqlite::params![intent],
-        );
+        )?;
+        Ok(())
     }
 
     pub fn get_focus_intent(&self) -> Option<String> {
@@ -254,11 +255,12 @@ impl ForestDb {
             .ok()
     }
 
-    pub fn set_theme(&self, theme: &str) {
-        let _ = self.conn.execute(
+    pub fn set_theme(&self, theme: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
             "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('prompt_theme', ?1)",
             rusqlite::params![theme],
-        );
+        )?;
+        Ok(())
     }
 
     pub fn get_theme(&self) -> String {
@@ -269,11 +271,12 @@ impl ForestDb {
         ).unwrap_or_else(|_| "forest".to_string())
     }
 
-    pub fn clear_focus_intent(&self) {
-        let _ = self.conn.execute(
+    pub fn clear_focus_intent(&self) -> rusqlite::Result<()> {
+        self.conn.execute(
             "DELETE FROM shell_state WHERE key='focus_intent'",
             [],
-        );
+        )?;
+        Ok(())
     }
 
     pub fn health_score(&self) -> Option<i64> {
