@@ -257,10 +257,13 @@ fn run_stmt(stmt: &Statement, scope: &mut Scope, db: &ForestDb, core_root: &str)
             } else {
                 ("shell", event.as_str())
             };
-            db.conn.execute(
+            if let Err(e) = db.conn.execute(
                 "INSERT INTO events (domain, action, payload, timestamp) VALUES (?1, ?2, ?3, ?4)",
                 rusqlite::params![domain, action, payload.as_deref().unwrap_or(""), ts]
-            ).ok();
+            ) {
+                eprintln!("  {} failed to emit event: {}", "✗".bright_red(), e);
+                return false;
+            }
             println!("  {} emit {}", "→".dimmed(), event.bright_cyan());
             true
         }
