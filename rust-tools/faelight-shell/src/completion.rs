@@ -73,7 +73,6 @@ const COMMANDS: &[&str] = &[
     "fm",
     "flow",
     "usage",
-    "theme",
     "debug",
     "since",
     "d",
@@ -424,11 +423,14 @@ impl ForestHelper {
         }
 
         // ── Case 2d: dynamic intent ID completion ──────────────────────────
-        if line.starts_with("intent show ") || line.starts_with("cistart ")
-            || line.starts_with("cicomplete ") {
-            let cmd_len = line.find(' ').map(|i| {
-                line[i+1..].find(' ').map(|j| i+j+2).unwrap_or(i+1)
-            }).unwrap_or(line.len());
+        if line.starts_with("intent show ")
+            || line.starts_with("cistart ")
+            || line.starts_with("cicomplete ")
+        {
+            let cmd_len = line
+                .find(' ')
+                .map(|i| line[i + 1..].find(' ').map(|j| i + j + 2).unwrap_or(i + 1))
+                .unwrap_or(line.len());
             let partial = &line[cmd_len..];
             let home = std::env::var("HOME").unwrap_or_default();
             let mut ids: Vec<String> = Vec::new();
@@ -436,9 +438,12 @@ impl ForestHelper {
                 let path = format!("{}/0-core/{}", home, dir);
                 if let Ok(entries) = std::fs::read_dir(&path) {
                     for e in entries.flatten() {
-                        if let Some(name) = e.path().file_stem()
+                        if let Some(name) = e
+                            .path()
+                            .file_stem()
                             .and_then(|s| s.to_str())
-                            .map(|s| s.to_string()) {
+                            .map(|s| s.to_string())
+                        {
                             if let Some(id) = name.split('-').next() {
                                 if id.chars().all(|c| c.is_ascii_digit()) {
                                     if partial.is_empty() || id.starts_with(partial) {
@@ -498,9 +503,9 @@ impl ForestHelper {
             let db_path = format!("{}/0-core/runtime/state.db", home);
             let mut alias_names: Vec<String> = Vec::new();
             if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                if let Ok(mut stmt) = conn.prepare(
-                    "SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name"
-                ) {
+                if let Ok(mut stmt) =
+                    conn.prepare("SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name")
+                {
                     let pattern = format!("{}%", line);
                     if let Ok(rows) = stmt.query_map([&pattern], |r| r.get::<_, String>(0)) {
                         for row in rows.flatten() {
@@ -509,7 +514,8 @@ impl ForestHelper {
                     }
                 }
             }
-            let mut cands: Vec<String> = COMMANDS.iter()
+            let mut cands: Vec<String> = COMMANDS
+                .iter()
                 .filter(|c| c.starts_with(line))
                 .map(|s| s.to_string())
                 .collect();
