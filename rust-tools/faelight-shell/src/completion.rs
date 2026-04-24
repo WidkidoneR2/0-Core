@@ -94,7 +94,6 @@ const COMMANDS: &[&str] = &[
     "?",
     "exit",
     "quit",
-    "q",
 ];
 
 const PIPE_OPS: &[&str] = &[
