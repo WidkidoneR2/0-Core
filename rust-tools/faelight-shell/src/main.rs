@@ -506,8 +506,8 @@ fn repl_main() -> Result<()> {
         .completion_type(CompletionType::List)
         .edit_mode(EditMode::Emacs)
         .build();
-    let helper = completion::ForestHelper::new();
-    let mut rl: Editor<completion::ForestHelper, _> = Editor::with_config(rl_config)?;
+    let helper = completion::ForestHelper::new(&db);
+    let mut rl: Editor<completion::ForestHelper<'_>, _> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(helper));
     // Ctrl+L handled in REPL loop via clear command
 

@@ -100,14 +100,16 @@ const PIPE_OPS: &[&str] = &[
     "where", "sort", "select", "first", "last", "count", "get", "watch", "join", "group",
 ];
 
-pub struct ForestHelper {
+pub struct ForestHelper<'a> {
     registry: SchemaRegistry,
+    db: &'a crate::db::ForestDb,
 }
 
-impl ForestHelper {
-    pub fn new() -> Self {
+impl<'a> ForestHelper<'a> {
+    pub fn new(db: &'a crate::db::ForestDb) -> Self {
         ForestHelper {
             registry: SchemaRegistry::build(),
+            db,
         }
     }
 
@@ -498,18 +500,14 @@ impl ForestHelper {
         }
         // ── Case 2e: alias completion from state.db ─────────────────────────
         if !line.contains(' ') && !line.is_empty() {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let db_path = format!("{}/0-core/runtime/state.db", home);
             let mut alias_names: Vec<String> = Vec::new();
-            if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-                if let Ok(mut stmt) =
-                    conn.prepare("SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name")
-                {
-                    let pattern = format!("{}%", line);
-                    if let Ok(rows) = stmt.query_map([&pattern], |r| r.get::<_, String>(0)) {
-                        for row in rows.flatten() {
-                            alias_names.push(row);
-                        }
+            if let Ok(mut stmt) = self.db.conn
+                .prepare("SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name")
+            {
+                let pattern = format!("{}%", line);
+                if let Ok(rows) = stmt.query_map([&pattern], |r| r.get::<_, String>(0)) {
+                    for row in rows.flatten() {
+                        alias_names.push(row);
                     }
                 }
             }
@@ -639,7 +637,7 @@ fn binary_completions(partial: &str) -> Vec<String> {
     results
 }
 
-impl Completer for ForestHelper {
+impl<'a> Completer for ForestHelper<'a> {
     type Candidate = Pair;
     fn complete(
         &self,
@@ -661,11 +659,11 @@ impl Completer for ForestHelper {
     }
 }
 
-impl Hinter for ForestHelper {
+impl<'a> Hinter for ForestHelper<'a> {
     type Hint = String;
 }
 
-impl Highlighter for ForestHelper {
+impl<'a> Highlighter for ForestHelper<'a> {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         Cow::Borrowed(line)
     }
@@ -679,7 +677,7 @@ impl Highlighter for ForestHelper {
     }
 }
 
-impl Validator for ForestHelper {
+impl<'a> Validator for ForestHelper<'a> {
     fn validate(
         &self,
         ctx: &mut rustyline::validate::ValidationContext,
@@ -714,4 +712,4 @@ impl Validator for ForestHelper {
         Ok(rustyline::validate::ValidationResult::Valid(None))
     }
 }
-impl Helper for ForestHelper {}
+impl<'a> Helper for ForestHelper<'a> {}
