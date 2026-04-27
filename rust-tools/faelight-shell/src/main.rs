@@ -770,7 +770,8 @@ fn repl_main() -> Result<()> {
                         if ftok == "flow" {
                             let sub = line.split_whitespace().nth(1).unwrap_or("");
                             let arg = line.split_whitespace().nth(2).unwrap_or("");
-                            if let Ok(fdb) = crate::db::ForestDb::open() {
+                            {
+                                let fdb = &db;
                                 match sub {
                                     "focus" => {
                                         if arg.is_empty() {
@@ -2572,7 +2573,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     if let Some(ref focus) = focus_intent {
         println!("  {} {}", "Today:".dimmed(), focus.bright_white());
         // Auto-persist detected intent so prompt.rs can read it
-        if let Ok(db) = crate::db::ForestDb::open() {
+        {
             // Only write if no conscious focus already set
             if db.get_focus_intent().is_none() {
                 // Extract INT-NNN from filename — only if first token is numeric
@@ -2611,9 +2612,8 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
         }
         // INT-143 Phase 1 — forest digest on long gaps
         if digest::should_show(&mem) {
-            let _db_path = root.join("runtime/state.db");
-            if let Ok(db) = crate::db::ForestDb::open() {
-                let d = digest::render(&mem, &db, core_root);
+            {
+                let d = digest::render(&mem, db, core_root);
                 if !d.is_empty() {
                     println!("{}", d);
                 }
