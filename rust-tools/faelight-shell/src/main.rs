@@ -1294,20 +1294,15 @@ fn repl_main() -> Result<()> {
                             .or(env_val.as_ref())
                         {
                             let val = val.clone();
-                            if let Ok(conn) = rusqlite::Connection::open(
-                                std::path::PathBuf::from(core_root.as_str())
-                                    .join("runtime/state.db"),
-                            ) {
-                                let _ = conn.execute(
-                                    "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
-                                    rusqlite::params![name, &val],
-                                );
-                                println!(
-                                    "  {} {} persisted across sessions",
-                                    "→".bright_cyan(),
-                                    name.bright_white()
-                                );
-                            }
+                            let _ = db.conn.execute(
+                                "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
+                                rusqlite::params![name, &val],
+                            );
+                            println!(
+                                "  {} {} persisted across sessions",
+                                "→".bright_cyan(),
+                                name.bright_white()
+                            );
                         } else {
                             println!(
                                 "  {} variable '{}' not set — use: export {}=value first",
