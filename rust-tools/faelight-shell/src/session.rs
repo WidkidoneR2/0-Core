@@ -20,9 +20,8 @@ pub struct SessionMemory {
 }
 
 impl SessionMemory {
-    pub fn load(core_root: &str) -> Option<Self> {
-        let db_path = std::path::Path::new(core_root).join("runtime/state.db");
-        let conn = rusqlite::Connection::open(&db_path).ok()?;
+    pub fn load(core_root: &str, db: &crate::db::ForestDb) -> Option<Self> {
+        let conn = &db.conn;
 
         // Ensure session_state table exists
         conn.execute_batch(
@@ -89,9 +88,9 @@ impl SessionMemory {
         })
     }
 
-    pub fn save(core_root: &str, current_intent: Option<&str>) {
-        let db_path = std::path::Path::new(core_root).join("runtime/state.db");
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+    pub fn save(core_root: &str, current_intent: Option<&str>, db: &crate::db::ForestDb) {
+        {
+            let conn = &db.conn;
             let _ = conn.execute_batch(
                 "
                 CREATE TABLE IF NOT EXISTS session_state (
@@ -199,22 +198,16 @@ pub enum ShellMode {
     Focused,   // normal, active work session
 }
 
-pub fn detect_mode(mem: &SessionMemory, core_root: &str, active_count: usize) -> ShellMode {
-    // Read health from events table (same as db.health_score())
-    let health: u32 = {
-        let db_path = std::path::Path::new(core_root).join("runtime/state.db");
-        rusqlite::Connection::open(&db_path)
-            .ok()
-            .and_then(|conn| {
-                conn.query_row(
-                "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-                [], |r| r.get::<_, String>(0)
-            ).ok()
-            })
-            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-            .and_then(|v| v["detail"]["health"].as_i64())
-            .unwrap_or(100) as u32
-    };
+pub fn detect_mode(mem: &SessionMemory, core_root: &str, active_count: usize, db: &crate::db::ForestDb) -> ShellMode {
+    let _ = core_root;
+    let health: u32 = db.conn
+        .query_row(
+            "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+            [], |r| r.get::<_, String>(0)
+        ).ok()
+        .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+        .and_then(|v| v["detail"]["health"].as_i64())
+        .unwrap_or(100) as u32;
 
     // Recovery — health degraded
     if health < 95 {
@@ -241,10 +234,10 @@ pub fn detect_mode(mem: &SessionMemory, core_root: &str, active_count: usize) ->
     ShellMode::Focused
 }
 
-pub fn render(mem: &SessionMemory, core_root: &str) -> String {
+pub fn render(mem: &SessionMemory, core_root: &str, db: &crate::db::ForestDb) -> String {
     let mut lines: Vec<String> = vec![];
     let intents = active_intents(core_root);
-    let mode = detect_mode(mem, core_root, intents.len());
+    let mode = detect_mode(mem, core_root, intents.len(), db);
 
     // Mode-aware welcome message
     let welcome = match &mode {
