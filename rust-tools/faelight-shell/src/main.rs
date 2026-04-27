@@ -2224,10 +2224,9 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // 🌲 Forest speaks — surface contextd insights after every command
-                    if let Ok(conn) =
-                        rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root))
                     {
-                        let insight: Option<(i64, String, String, f64)> = conn
+                        let insight: Option<(i64, String, String, f64)> = db
+                            .conn
                             .query_row(
                                 "SELECT id, signal, detail, importance FROM forest_insights
                              WHERE shown = 0 AND importance >= 0.65
@@ -2246,7 +2245,7 @@ fn repl_main() -> Result<()> {
                                 "forest:".bright_cyan().dimmed(),
                                 detail.bright_white()
                             );
-                            let _ = conn.execute(
+                            let _ = db.conn.execute(
                                 "UPDATE forest_insights SET shown = 1 WHERE id = ?1",
                                 rusqlite::params![id],
                             );
