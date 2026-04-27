@@ -706,14 +706,35 @@ fn repl_main() -> Result<()> {
                             delimiter
                         );
                     }
-                    let status = std::process::Command::new("sh")
+                    use std::io::{BufRead, BufReader, Write};
+                    let mut child = std::process::Command::new("sh")
                         .arg("-c")
                         .arg(&line)
                         .stdin(std::process::Stdio::inherit())
-                        .stdout(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::piped())
                         .stderr(std::process::Stdio::inherit())
-                        .status();
-                    let _ = status;
+                        .spawn();
+                    if let Ok(ref mut child) = child {
+                        if let Some(stdout) = child.stdout.take() {
+                            let reader = BufReader::new(stdout);
+                            for line_result in reader.lines() {
+                                if let Ok(out_line) = line_result {
+                                    println!("{}", out_line);
+                                    let trimmed = out_line.trim();
+                                    let is_heredoc_leak = trimmed.len() >= 4
+                                        && trimmed.ends_with("EOF")
+                                        && trimmed[..trimmed.len()-3].len() >= 1
+                                        && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
+                                    if is_heredoc_leak {
+                                        eprintln!("  {} possible unclosed heredoc -- {:?} appeared as standalone output line",
+                                            "\u{26A0}".bright_yellow(), out_line.trim());
+                                    }
+                                    let _ = std::io::stdout().flush();
+                                }
+                            }
+                        }
+                        let _ = child.wait();
+                    }
                     heredoc_handled = true;
                 }
                 if heredoc_handled {
@@ -1675,14 +1696,8 @@ fn repl_main() -> Result<()> {
                                 continue 'repl;
                             }
                         }
-                        // Fallback to sh for complex cases
-                        let sh_output = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(original_line)
-                            .stdin(std::process::Stdio::inherit())
-                            .stdout(std::process::Stdio::inherit())
-                            .stderr(std::process::Stdio::inherit())
-                            .status();
+                        // Fallback to sh (INT-249)
+                        let sh_output = crate::db::spawn_sh_with_leak_check(original_line);
                         if let Err(e) = sh_output {
                             eprintln!("fsh: pipe error: {}", e);
                         }
@@ -1888,13 +1903,7 @@ fn repl_main() -> Result<()> {
                     // Raw shell pipe (not forest pipe ops) — run entire line via sh
                     // This prevents E_EXIT_NONZERO noise when left side of pipe fails
                     if has_pipe2 && pipeline_ops.is_empty() {
-                        let sh_output = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(line)
-                            .stdout(std::process::Stdio::inherit())
-                            .stderr(std::process::Stdio::inherit())
-                            .status();
-                        let _ = sh_output;
+                        let _ = crate::db::spawn_sh_with_leak_check(line);
                         continue 'repl;
                     }
                     let _cmd_timer_start = std::time::Instant::now();

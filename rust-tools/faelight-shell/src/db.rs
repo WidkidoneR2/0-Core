@@ -290,3 +290,33 @@ impl ForestDb {
             .and_then(|v| v["detail"]["health"].as_i64())
     }
 }
+
+// INT-249: shared spawn + heredoc-leak detection for sh -c invocations
+pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::ExitStatus> {
+    use std::io::{BufRead, BufReader, Write};
+    let mut child = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()?;
+    if let Some(stdout) = child.stdout.take() {
+        let reader = BufReader::new(stdout);
+        for line_result in reader.lines() {
+            if let Ok(out_line) = line_result {
+                println!("{}", out_line);
+                let trimmed = out_line.trim();
+                let is_leak = trimmed.len() >= 4
+                    && trimmed.ends_with("EOF")
+                    && trimmed[..trimmed.len()-3].len() >= 1
+                    && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
+                if is_leak {
+                    eprintln!("  WARN possible unclosed heredoc -- {:?} appeared as standalone output line", trimmed);
+                }
+                let _ = std::io::stdout().flush();
+            }
+        }
+    }
+    child.wait()
+}

@@ -4529,13 +4529,36 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
-    let status = std::process::Command::new("sh")
+    use std::io::{BufRead, BufReader, Write};
+    let mut child = match std::process::Command::new("sh")
         .arg("-c")
         .arg(line)
         .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::inherit())
-        .status();
+        .spawn() {
+        Ok(c) => c,
+        Err(e) => return CommandResult::Error(format!("spawn failed: {}", e)),
+    };
+    if let Some(stdout) = child.stdout.take() {
+        let reader = BufReader::new(stdout);
+        for line_result in reader.lines() {
+            if let Ok(out_line) = line_result {
+                println!("{}", out_line);
+                let trimmed = out_line.trim();
+                let is_heredoc_leak = trimmed.len() >= 4
+                    && trimmed.ends_with("EOF")
+                    && trimmed[..trimmed.len()-3].len() >= 1
+                    && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
+                if is_heredoc_leak {
+                    eprintln!("  {} possible unclosed heredoc -- {:?} appeared as standalone output line",
+                        "\u{26A0}".bright_yellow(), out_line.trim());
+                }
+                let _ = std::io::stdout().flush();
+            }
+        }
+    }
+    let status = child.wait();
     match status {
         Ok(s) => {
             if s.success() {
@@ -6211,14 +6234,8 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         .iter()
         .any(|a| a.starts_with('-') && !known_flags.contains(a));
     if has_unknown_flags {
-        // Call grep directly — no sh wrapper needed (INT-194)
-        let status = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(line)
-            .stdin(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .status();
+        // Call grep via shared helper (INT-249)
+        let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
             Ok(s) => {
@@ -6440,12 +6457,7 @@ fn time_cmd(line: &str, args: &[&str]) -> CommandResult {
     // Reconstruct the command without "time " prefix
     let cmd_line = line.trim().trim_start_matches("time").trim().to_string();
     let start = std::time::Instant::now();
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&cmd_line)
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status();
+    let output = crate::db::spawn_sh_with_leak_check(&cmd_line);
     let elapsed = start.elapsed();
     let ms = elapsed.as_millis();
     let display = if ms >= 1000 {
