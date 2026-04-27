@@ -2623,23 +2623,20 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
 
     // INT-207 L1 — Show alignment score on session start
     {
-        let db_path = root.join("runtime/state.db");
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            let align: Option<f64> = conn.query_row(
-                "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
-                [], |r| r.get(0)
-            ).ok().flatten();
-            if let Some(score) = align {
-                let pct = (score * 100.0) as i64;
-                let colored = if pct >= 80 {
-                    format!("{}%", pct).bright_green()
-                } else if pct >= 60 {
-                    format!("{}%", pct).bright_yellow()
-                } else {
-                    format!("{}%", pct).bright_red()
-                };
-                println!("  {} alignment: {}", "🧭".normal(), colored);
-            }
+        let align: Option<f64> = db.conn.query_row(
+            "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
+            [], |r| r.get(0)
+        ).ok().flatten();
+        if let Some(score) = align {
+            let pct = (score * 100.0) as i64;
+            let colored = if pct >= 80 {
+                format!("{}%", pct).bright_green()
+            } else if pct >= 60 {
+                format!("{}%", pct).bright_yellow()
+            } else {
+                format!("{}%", pct).bright_red()
+            };
+            println!("  {} alignment: {}", "🧭".normal(), colored);
         }
     }
     println!(
