@@ -1731,19 +1731,23 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "recall" => {
             if args.is_empty() {
                 // List all saved slots
-                let home = std::env::var("HOME").unwrap_or_default();
-                let db_path = format!("{}/0-core/runtime/state.db", home);
-                let slots: Vec<String> = rusqlite::Connection::open(&db_path)
-                    .and_then(|c| {
-                        let mut stmt = c.prepare(
-                            "SELECT key FROM shell_state WHERE key LIKE 'saved_%' ORDER BY key",
-                        )?;
-                        let rows: Vec<String> = stmt
-                            .query_map([], |r| r.get(0))?
-                            .filter_map(|r| r.ok())
+                let mut stmt = match db
+                    .conn
+                    .prepare("SELECT key FROM shell_state WHERE key LIKE 'saved_%' ORDER BY key")
+                {
+                    Ok(s) => s,
+                    Err(_) => {
+                        return CommandResult::Output(
+                            "  ○ No saved slots — use: save <name>".to_string(),
+                        )
+                    }
+                };
+                let slots: Vec<String> = stmt
+                    .query_map([], |r| r.get::<_, String>(0))
+                    .map(|rows| {
+                        rows.filter_map(|r| r.ok())
                             .map(|k: String| k.trim_start_matches("saved_").to_string())
-                            .collect();
-                        Ok(rows)
+                            .collect()
                     })
                     .unwrap_or_default();
                 if slots.is_empty() {
@@ -1754,15 +1758,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 return CommandResult::Output(format!("  Saved slots: {}", slots.join(", ")));
             }
             let name = args[0];
-            let home = std::env::var("HOME").unwrap_or_default();
-            let db_path = format!("{}/0-core/runtime/state.db", home);
-            let result = rusqlite::Connection::open(&db_path).and_then(|c| {
-                c.query_row(
-                    "SELECT value FROM shell_state WHERE key = ?1",
-                    rusqlite::params![format!("saved_{}", name)],
-                    |r| r.get::<_, String>(0),
-                )
-            });
+            let result = db.conn.query_row(
+                "SELECT value FROM shell_state WHERE key = ?1",
+                rusqlite::params![format!("saved_{}", name)],
+                |r| r.get::<_, String>(0),
+            );
             match result {
                 Ok(out) => CommandResult::Output(out),
                 Err(_) => CommandResult::Error(format!("No saved slot named '{}'", name)),
