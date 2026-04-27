@@ -2253,23 +2253,19 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-203 Phase 2: Friday proactive message
                     if _session_commands % 10 == 0 && _session_commands > 0 {
-                        if let Ok(conn) =
-                            rusqlite::Connection::open(&format!("{}/runtime/state.db", core_root))
-                        {
-                            let pattern: Option<(String, String, f64)> = conn.query_row(
+                        let pattern: Option<(String, String, f64)> = db.conn.query_row(
                             "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.7 ORDER BY confidence DESC LIMIT 1",
                             [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
                         ).ok();
-                            if let Some((trigger, action, conf)) = pattern {
-                                use colored::Colorize;
-                                println!();
-                                println!(
-                                    "  🌲 Friday: When {} → {} ({:.0}%)",
-                                    trigger.bright_cyan(),
-                                    action.bright_white(),
-                                    conf * 100.0
-                                );
-                            }
+                        if let Some((trigger, action, conf)) = pattern {
+                            use colored::Colorize;
+                            println!();
+                            println!(
+                                "  🌲 Friday: When {} → {} ({:.0}%)",
+                                trigger.bright_cyan(),
+                                action.bright_white(),
+                                conf * 100.0
+                            );
                         }
                     }
                 } // end 'segments loop
