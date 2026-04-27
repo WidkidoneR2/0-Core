@@ -1,11 +1,11 @@
 ---
 id: 252
 date: 2026-04-27
-type: future
+type: complete
 title: "fsh connection unification"
-status: in-progress
+status: complete
 tags: [faelight, shell, refactor, stabilization]
-version: TBD
+version: 11.9.0
 ---
 Eliminate every rogue `Connection::open` call in faelight-shell. All SQLite access flows through the single connection owned by `ForestDb`. The visible payoff is the disappearance of the "attempt to write a readonly database" warning that fires every prompt. The structural payoff is that fsh stops fighting itself for WAL locks, and future builtins have one obvious way to talk to state.db.
 This is gate zero of fsh stabilization week. The read-only warning is hitting Christian on every prompt right now, and yesterday's failed audit traced the root cause to multi-handle contention on state.db. Every other shell bug (heredoc, fsearch narrowing, rspatch escapes, pipeline issues) sits on top of this foundation. Fix the foundation first.
@@ -59,3 +59,48 @@ where main.rs is touched.
 Phase A user-visible win: read-only WAL warning eliminated from interactive 
 sessions. 5 of 16 connection sites unified. 5 clean commits.
 *The forest grows with intention.*
+
+
+## INT-252 COMPLETE (2026-04-27)
+
+All 19 gates closed. 13 commits today. Zero read-only warnings across full session.
+
+### Final tally
+- 16 of 16 connection sites unified
+- 3 bonus ForestDb::open rogue calls eliminated (G17 audit)
+- Only 2 legitimate connection sites remain: db.rs:18 and main.rs:476
+
+### Phase A (morning)
+G1 last builtin, G2 save builtin, G3+G4 recall, G5 fsh_identity_cmd
+
+### Phase B (evening)
+G7 shell_persist init, G8 persist VAR, G9 forest_insights, G10 friday_patterns,
+G11 print_welcome quote rotation (added db parameter), G12 alignment readout
+
+### Phase C (late evening)
+G13 SessionMemory::load, G14 SessionMemory::save, G15 detect_mode + render
+(all gained db parameter, all callers updated)
+
+### G6 (the architecturally hard one)
+ForestHelper got lifetime parameter `<'a>`. rustyline accepted it without
+'static bound issues. No Arc needed. Tab completion works through db.conn.
+
+### G17 (audit found 3 missed sites)
+After verification, grep for ForestDb::open found 3 calls bypassing the
+unified db. Fixed: flow builtin (line 773), focus intent persist in
+print_welcome (line 2575), digest render (line 2615). All used db that
+was already in scope.
+
+### Method that worked
+Python script with binary-mode find/replace, count-verified single matches,
+atomic temp-rename. Run from zsh because fsh's path-mangling bug prevented
+heredoc redirects to /tmp/*.py paths.
+
+### Findings spawned
+- INT-253 candidate: fsh path-mangling bug (transforms .rs and .py paths
+  into markdown link syntax during command parsing)
+- alignment_checks table only has 1 row from April 8 (separate bug,
+  feature not firing as designed)
+- .gitignore line 138 needs fix (bare faelight-shell pattern matches source dir)
+
+*The forest now speaks through one voice.*
