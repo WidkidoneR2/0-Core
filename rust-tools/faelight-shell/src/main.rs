@@ -484,7 +484,7 @@ fn repl_main() -> Result<()> {
     let cfg = config::load();
 
     // Print welcome
-    print_welcome(&core_root);
+    print_welcome(&core_root, &db);
     // Write journal session-start entry
     let _ = std::process::Command::new("core")
         .args(["journal", "session-start"])
@@ -2376,7 +2376,7 @@ fn repl_main() -> Result<()> {
     Ok(())
 }
 
-fn print_welcome(core_root: &str) {
+fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     use colored::Colorize;
     use std::path::PathBuf;
 
@@ -2475,14 +2475,13 @@ fn print_welcome(core_root: &str) {
         "Not text streams. Not configuration. Structured wisdom.",
     ];
     // Rotate quotes via state.db — never repeat consecutively
-    let db_path = root.join("runtime/state.db");
-    let quote = if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-        // Get last shown index
-        let _ = conn.execute(
+    let quote = {
+        let _ = db.conn.execute(
             "CREATE TABLE IF NOT EXISTS shell_state (key TEXT PRIMARY KEY, value TEXT)",
             [],
         );
-        let last_idx: usize = conn
+        let last_idx: usize = db
+            .conn
             .query_row(
                 "SELECT value FROM shell_state WHERE key='last_quote_idx'",
                 [],
@@ -2491,7 +2490,6 @@ fn print_welcome(core_root: &str) {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(999);
-
         // Pick next quote (skip last shown)
         let next_idx = {
             let mut idx = (last_idx + 1) % quotes.len();
@@ -2500,16 +2498,12 @@ fn print_welcome(core_root: &str) {
             }
             idx
         };
-        let _ = conn.execute(
+        let _ = db.conn.execute(
             "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('last_quote_idx', ?1)",
             rusqlite::params![next_idx.to_string()],
         );
         quotes[next_idx]
-    } else {
-        let commit_num: usize = commits.trim().parse().unwrap_or(0);
-        quotes[commit_num % quotes.len()]
     };
-
     println!();
     println!("  {}", "🌲 The forest stirs...".bright_green().dimmed());
     println!();
