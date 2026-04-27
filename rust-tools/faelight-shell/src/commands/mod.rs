@@ -1678,26 +1678,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         // ── last / save / recall — output memory (INT-194) ──────────────────
         "last" => {
             // Show last command output if available, otherwise show last command from history
-            let home = std::env::var("HOME").unwrap_or_default();
-            let db_path = format!("{}/0-core/runtime/state.db", home);
-            let conn = rusqlite::Connection::open(&db_path).ok();
-            if let Some(ref c) = conn {
-                // Try last stored output first
-                if let Ok(out) = c.query_row(
-                    "SELECT value FROM shell_state WHERE key = 'last_output'",
-                    [],
-                    |r| r.get::<_, String>(0),
-                ) {
-                    return CommandResult::Output(out);
-                }
-                // Fall back to last history entry
-                if let Ok(cmd) = c.query_row(
-                    "SELECT command FROM shell_history WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' ORDER BY id DESC LIMIT 1",
-                    [], |r| r.get::<_, String>(0)
-                ) {
-                    return CommandResult::Output(format!("  Last command: {}", cmd));
-                }
+            // Try last stored output first
+            if let Ok(out) = db.conn.query_row(
+                "SELECT value FROM shell_state WHERE key = 'last_output'",
+                [],
+                |r| r.get::<_, String>(0),
+            ) {
+                return CommandResult::Output(out);
             }
+            // Fall back to last history entry
+            if let Ok(cmd) = db.conn.query_row(
+        "SELECT command FROM shell_history WHERE command NOT LIKE 'TIMING:%' AND command NOT LIKE 'SUGGEST:%' ORDER BY id DESC LIMIT 1",
+        [], |r| r.get::<_, String>(0)
+    ) {
+        return CommandResult::Output(format!("  Last command: {}", cmd));
+    }
             CommandResult::Output("  ○ No output history yet".to_string())
         }
         "save" => {
