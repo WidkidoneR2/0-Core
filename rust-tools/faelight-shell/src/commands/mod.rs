@@ -1700,35 +1700,32 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 return CommandResult::Error("usage: save <name>".to_string());
             }
             let name = args[0];
-            let home = std::env::var("HOME").unwrap_or_default();
-            let db_path = format!("{}/0-core/runtime/state.db", home);
-            let result = rusqlite::Connection::open(&db_path).and_then(|c| {
-                // Only save if last_output has real content
-                let last: String = c
-                    .query_row(
-                        "SELECT value FROM shell_state WHERE key = 'last_output'",
-                        [],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or_default();
-                if last.is_empty() || last.contains("No last output stored yet") {
-                    return Err(rusqlite::Error::QueryReturnedNoRows);
-                }
-                c.execute(
-                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
-                    rusqlite::params![format!("saved_{}", name), last.clone()],
-                )?;
-                Ok(last.len())
-            });
-            match result {
-                Ok(len) => {
-                    CommandResult::Output(format!("  ✅ Saved {} bytes to slot '{}'", len, name))
-                }
-                Err(_) => CommandResult::Output(
-                    "  ○ Nothing to save — save works with native fsh commands
-  → Try: core strategy now | save <name>"
+            // Only save if last_output has real content
+            let last: String = db
+                .conn
+                .query_row(
+                    "SELECT value FROM shell_state WHERE key = 'last_output'",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap_or_default();
+            if last.is_empty() || last.contains("No last output stored yet") {
+                return CommandResult::Output(
+                    "  ○ Nothing to save — save works with native fsh commands\n  → Try: core strategy now | save <name>"
                         .to_string(),
-                ),
+                );
+            }
+            let result = db.conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+                rusqlite::params![format!("saved_{}", name), last.clone()],
+            );
+            match result {
+                Ok(_) => CommandResult::Output(format!(
+                    "  ✅ Saved {} bytes to slot '{}'",
+                    last.len(),
+                    name
+                )),
+                Err(e) => CommandResult::Error(format!("save: {}", e)),
             }
         }
         "recall" => {
