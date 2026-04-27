@@ -2290,7 +2290,7 @@ fn repl_main() -> Result<()> {
         .args(["journal", "daily-summary"])
         .output();
     // Save session state on exit
-    session::SessionMemory::save(&core_root, None);
+    session::SessionMemory::save(&core_root, None, &db);
     // INT-208: Log session pattern with focus_score
     let _session_duration = _session_start.elapsed().as_secs() / 60;
     let now = std::time::SystemTime::now()
@@ -2589,7 +2589,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     }
     println!();
     // Session memory + digest
-    if let Some(mem) = session::SessionMemory::load(core_root) {
+    if let Some(mem) = session::SessionMemory::load(core_root, &db) {
         // Phase 23 — restore last working directory
         if let Some(ref last_dir) = mem.last_dir {
             let path = std::path::Path::new(last_dir);
@@ -2605,7 +2605,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
             };
             let _ = std::env::set_current_dir(restore_path);
         }
-        let msg = session::render(&mem, core_root);
+        let msg = session::render(&mem, core_root, &db);
         if !msg.is_empty() {
             println!("{}", msg);
         }
