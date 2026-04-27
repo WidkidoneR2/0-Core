@@ -296,7 +296,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "fsh" | "faelight-shell" => match args.first().copied() {
             Some("diag") => fsh_diag(db),
             Some("gaps") => fsh_gaps(db),
-            _ => fsh_identity_cmd(),
+            _ => fsh_identity_cmd(db),
         },
         "snapshot" => snapshot_cmd(db, args),
         "debug" => debug_cmd(db, args),
@@ -6298,26 +6298,23 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
 }
 
-fn fsh_identity_cmd() -> CommandResult {
+fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     use colored::*;
     let home = std::env::var("HOME").unwrap_or_default();
-    let db_path = format!("{}/0-core/runtime/state.db", home);
     // Load stats from DB
-    let (alias_count, version) = if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-        let aliases: i64 = conn
-            .query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0))
-            .unwrap_or(0);
-        let ver: String = conn
-            .query_row(
-                "SELECT value FROM shell_state WHERE key = 'shell_version' LIMIT 1",
-                [],
-                |r| r.get(0),
-            )
-            .unwrap_or_else(|_| "0.6.0".to_string());
-        (aliases, ver)
-    } else {
-        (0, "0.6.0".to_string())
-    };
+    let aliases: i64 = db
+        .conn
+        .query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0))
+        .unwrap_or(0);
+    let version: String = db
+        .conn
+        .query_row(
+            "SELECT value FROM shell_state WHERE key = 'shell_version' LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "0.6.0".to_string());
+    let alias_count = aliases;
     // Load health from cache
     let health: String = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
         .unwrap_or_else(|_| "100%".to_string())
