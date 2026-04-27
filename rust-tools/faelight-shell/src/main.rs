@@ -542,12 +542,11 @@ fn repl_main() -> Result<()> {
     let mut shell_vars: HashMap<String, String> = HashMap::new();
     // Restore persisted variables from state.db
     {
-        let db_path = std::path::PathBuf::from(core_root.clone()).join("runtime/state.db");
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-            );
-            if let Ok(mut stmt) = conn.prepare("SELECT key, value FROM shell_persist") {
+        {
+            let _ = db.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        );
+            if let Ok(mut stmt) = db.conn.prepare("SELECT key, value FROM shell_persist") {
                 let rows: Vec<(String, String)> = stmt
                     .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
                     .map(|rows| rows.filter_map(|r| r.ok()).collect())
