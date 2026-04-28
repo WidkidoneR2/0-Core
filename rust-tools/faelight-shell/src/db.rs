@@ -47,7 +47,7 @@ impl ForestDb {
     pub fn load_history<H: Helper>(&self, rl: &mut Editor<H, FileHistory>) {
         if let Ok(mut stmt) = self
             .conn
-            .prepare("SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 100")
+            .prepare("SELECT command FROM shell_history ORDER BY timestamp DESC LIMIT 10000")
         {
             let history: Vec<String> = stmt
                 .query_map([], |r| r.get(0))
