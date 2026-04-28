@@ -120,17 +120,13 @@ fn get_zone() -> (String, [u8; 4]) {
 }
 
 fn get_lock() -> (&'static str, [u8; 4]) {
-    let output = Command::new("lsattr")
-        .args(["-d"])
-        .arg(faelight_core::paths::core_dir())
-        .output();
-    let locked = match output {
-        Ok(r) if r.status.success() => String::from_utf8_lossy(&r.stdout)
-            .split_whitespace()
-            .next()
-            .is_some_and(|a| a.contains('i')),
-        _ => false,
-    };
+    // INT-251b: read authoritative lock state from runtime/.core-locked.
+    // Written by core-protect on lock/unlock. Faster than lsattr subprocess
+    // and survives our INT-251 chattr-skip-runtime/ refactor.
+    let locked = faelight_core::paths::core_dir()
+        .join("runtime")
+        .join(".core-locked")
+        .exists();
     if locked {
         ("\u{F033E}", GREEN) //  nerd font lock icon - green = protected
     } else {
