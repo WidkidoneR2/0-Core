@@ -1,7 +1,7 @@
 ---
 id: 234
 title: "Core v21 -- Friday Planning Layer: From Reaction to Anticipation"
-status: in-progress
+status: complete
 date: 2026-04-16
 tags: [core, v21, friday, planning, anticipation, conversation, context, reasoning]
 ---
