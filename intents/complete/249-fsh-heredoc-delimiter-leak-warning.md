@@ -1,7 +1,7 @@
 ---
 id: 249
 title: "fsh heredoc delimiter leak warning"
-status: planned
+status: complete
 date: 2026-04-23
 type: fix
 tags: [fix, fsh, heredoc, safety, friction]
