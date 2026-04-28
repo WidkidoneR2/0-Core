@@ -12,6 +12,7 @@ mod exec;
 mod output;
 mod registry;
 mod history_tui;
+mod pty_exec;
 #[cfg(test)]
 mod tests;
 use colored::Colorize;
@@ -920,18 +921,12 @@ fn repl_main() -> Result<()> {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
                 }
-                // INT-249b: multi-line buffer (heredoc, control structure, backslash continuation)
-                // Short-circuit to sh -c which handles all shell syntax. Skips fsh per-construct
-                // dispatch since the buffer represents one logical command, not many.
+                // INT-249b/Path-3: multi-line buffer (heredoc, control structure, backslash
+                // continuation). Route through pty_exec so we get colored output AND
+                // line-by-line scanning for INT-249 delimiter-leak warnings.
                 if line.contains('\n') {
-                    let status = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&line)
-                        .stdin(std::process::Stdio::inherit())
-                        .stdout(std::process::Stdio::inherit())
-                        .stderr(std::process::Stdio::inherit())
-                        .status();
-                    last_exit_code = status.ok().and_then(|s| s.code());
+                    let exit = pty_exec::run_with_capture_and_scan(&line);
+                    last_exit_code = Some(exit);
                     match db.save_history_entry(&line) {
                         Ok(id) => { last_history_id = Some(id); }
                         Err(e) => eprintln!("warning: failed to save history: {}", e),
@@ -958,35 +953,10 @@ fn repl_main() -> Result<()> {
                             delimiter
                         );
                     }
-                    use std::io::{BufRead, BufReader, Write};
-                    let mut child = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&line)
-                        .stdin(std::process::Stdio::inherit())
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::inherit())
-                        .spawn();
-                    if let Ok(ref mut child) = child {
-                        if let Some(stdout) = child.stdout.take() {
-                            let reader = BufReader::new(stdout);
-                            for line_result in reader.lines() {
-                                if let Ok(out_line) = line_result {
-                                    println!("{}", out_line);
-                                    let trimmed = out_line.trim();
-                                    let is_heredoc_leak = trimmed.len() >= 4
-                                        && trimmed.ends_with("EOF")
-                                        && trimmed[..trimmed.len()-3].len() >= 1
-                                        && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
-                                    if is_heredoc_leak {
-                                        eprintln!("  {} possible unclosed heredoc -- {:?} appeared as standalone output line",
-                                            "\u{26A0}".bright_yellow(), out_line.trim());
-                                    }
-                                    let _ = std::io::stdout().flush();
-                                }
-                            }
-                        }
-                        let _ = child.wait();
-                    }
+                    // INT-249b/Path-3: run the heredoc via PTY so we get colored output
+                    // AND the chance to scan each line for delimiter-leak warnings.
+                    let exit = pty_exec::run_with_capture_and_scan(&line);
+                    last_exit_code = Some(exit);
                     heredoc_handled = true;
                 }
                 if heredoc_handled {
