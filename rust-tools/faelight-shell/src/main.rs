@@ -397,6 +397,35 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
         .collect::<Vec<_>>()
         .join("\n");
 
+    // Heredoc check FIRST. If unclosed, return incomplete. If closed, strip body so
+    // other checkers do not parse heredoc content as shell syntax.
+    let cleaned = if let Some(delim) = find_heredoc_delimiter(&cleaned) {
+        let mut out = String::new();
+        let mut in_heredoc = false;
+        let mut found_close = false;
+        for line in cleaned.lines() {
+            if !in_heredoc {
+                out.push_str(line);
+                out.push('\n');
+                if line.contains("<<") {
+                    in_heredoc = true;
+                }
+            } else {
+                if line.trim() == delim {
+                    in_heredoc = false;
+                    found_close = true;
+                    out.push_str(line);
+                    out.push('\n');
+                }
+                // skip body lines entirely
+            }
+        }
+        if !found_close { return (false, "unclosed heredoc"); }
+        out
+    } else {
+        cleaned
+    };
+
     let last_meaningful = cleaned.lines().rev().find(|l| !l.trim().is_empty());
     if let Some(l) = last_meaningful {
         if l.trim_end().ends_with('\\') {
@@ -443,11 +472,6 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
     if depth_paren > 0 { return (false, "unclosed paren"); }
     if depth_brace > 0 { return (false, "unclosed brace"); }
     if depth_brack > 0 { return (false, "unclosed bracket"); }
-
-    if let Some(delim) = find_heredoc_delimiter(&cleaned) {
-        let has_close = cleaned.lines().any(|l| l.trim() == delim);
-        if !has_close { return (false, "unclosed heredoc"); }
-    }
 
     let closer_map: &[(&str, &str)] = &[
         ("for", "done"),
