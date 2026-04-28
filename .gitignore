@@ -134,5 +134,8 @@ runtime/state.db-wal
 runtime/state.db-shm
 
 # Accidentally committed empty files -- prevent recurrence
-deploy
-faelight-shell
+/deploy
+/faelight-shell
+
+# Versioned binaries from deploy system (e.g. bin/intent@3.0.0-7fea9157)
+bin/*@*
