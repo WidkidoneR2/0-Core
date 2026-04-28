@@ -379,13 +379,29 @@ fn glob_match(pattern: &str, name: &str) -> bool {
     pi == p.len()
 }
 
-fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>) -> String {
+fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>, last_exit: Option<i32>) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == '$' && i + 1 < chars.len() {
             i += 1;
+            // INT-245: special vars $? (exit code), $$ (pid). These are not alphanumeric
+            // so they would otherwise fall into the empty-name branch and print literally.
+            match chars[i] {
+                '?' => {
+                    let code = last_exit.unwrap_or(0);
+                    result.push_str(&code.to_string());
+                    i += 1;
+                    continue;
+                }
+                '$' => {
+                    result.push_str(&std::process::id().to_string());
+                    i += 1;
+                    continue;
+                }
+                _ => {}
+            }
             // ${VAR} form
             if chars[i] == '{' {
                 i += 1;
@@ -1464,7 +1480,7 @@ fn repl_main() -> Result<()> {
                             if valid {
                                 let val =
                                     parts[1].trim_matches('\"').trim_matches('\'').to_string();
-                                let expanded = expand_vars(&val, &shell_vars);
+                                let expanded = expand_vars(&val, &shell_vars, last_exit_code);
                                 std::env::set_var(name, &expanded);
                                 shell_vars.insert(name.to_string(), expanded.clone());
                                 println!(
@@ -1498,7 +1514,7 @@ fn repl_main() -> Result<()> {
                                         .trim_matches('\"')
                                         .trim_matches('\'')
                                         .to_string();
-                                    let expanded = expand_vars(&val, &shell_vars);
+                                    let expanded = expand_vars(&val, &shell_vars, last_exit_code);
                                     temp_vars.push((name.to_string(), expanded));
                                     rest = rest[maybe_var.len()..].trim_start();
                                     continue;
@@ -1524,7 +1540,7 @@ fn repl_main() -> Result<()> {
                                 }
                                 continue 'repl;
                             }
-                            let rest = expand_vars(rest, &shell_vars);
+                            let rest = expand_vars(rest, &shell_vars, last_exit_code);
                             let result = exec::execute_with_context(
                                 &rest,
                                 &db,
@@ -1552,7 +1568,7 @@ fn repl_main() -> Result<()> {
                                 .trim_matches('"')
                                 .trim_matches('\'')
                                 .to_string();
-                            let expanded = expand_vars(&val, &shell_vars);
+                            let expanded = expand_vars(&val, &shell_vars, last_exit_code);
                             println!(
                                 "  {} {} = {}",
                                 "→".bright_cyan(),
@@ -1575,7 +1591,7 @@ fn repl_main() -> Result<()> {
                         } else {
                             (rest.trim(), "")
                         };
-                        let expanded = expand_vars(val, &shell_vars);
+                        let expanded = expand_vars(val, &shell_vars, last_exit_code);
                         std::env::set_var(name, &expanded);
                         shell_vars.insert(name.to_string(), expanded.clone());
                         println!(
@@ -1624,7 +1640,7 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     // Phase 10 — expand $VARS before alias resolution
-                    let line = expand_vars(line, &shell_vars);
+                    let line = expand_vars(line, &shell_vars, last_exit_code);
                     // Subshell expansion
                     let line = expand_subshells(&line);
                     // Subshell expansion
