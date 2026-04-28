@@ -19,6 +19,24 @@ const GRAY: &str = "\x1b[0;90m";
 const NC: &str = "\x1b[0m";
 
 fn main() {
+    // INT-249b: SIGPIPE handling -- exit silently when piped to head/grep/etc.
+    // Combine SIG_DFL with panic hook because Rust stdio panics on EPIPE before
+    // SIGPIPE fires.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+    std::panic::set_hook(Box::new(|info| {
+        let msg = info.payload().downcast_ref::<String>()
+            .map(|s| s.as_str())
+            .or_else(|| info.payload().downcast_ref::<&str>().copied())
+            .unwrap_or("");
+        if msg.contains("Broken pipe") || msg.contains("os error 32") {
+            std::process::exit(0);
+        }
+        eprintln!("{}", info);
+        std::process::exit(101);
+    }));
+
     let args: Vec<String> = env::args().collect();
     let command = args.get(1).map(|s| s.as_str()).unwrap_or("help");
 

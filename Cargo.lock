@@ -3096,6 +3096,7 @@ dependencies = [
  "chrono",
  "colored",
  "faelight-core",
+ "libc",
  "serde_yaml",
 ]
 
