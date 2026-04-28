@@ -176,6 +176,15 @@ fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
 /// Detect and strip redirection from a command line.
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
 fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
+    // INT-245 #10: detect malformed redirects BEFORE permissive pattern matching.
+    // A bare `>` or `>>` with no target file is a parse error, not a literal `>`.
+    // We signal the error via a sentinel target name; the caller emits the error
+    // to stderr without touching the filesystem.
+    let trimmed = line.trim_end();
+    if trimmed.ends_with(">") || trimmed.ends_with(">>") {
+        return (line.to_string(), Some(("__redirect_error_no_target__".to_string(), false)));
+    }
+
     // Match 2>/dev/null and 2>file FIRST
     if line.contains(" 2>/dev/null")
         || line.contains(" 2>&1")
@@ -1630,6 +1639,12 @@ fn repl_main() -> Result<()> {
                             } else {
                                 (line_stripped.clone(), false, None)
                             };
+                        // INT-245 #10: caught by detect_redirect — no target after > or >>
+                        if redirect_target == "__redirect_error_no_target__" {
+                            eprintln!("fsh: parse error: redirect missing target file");
+                            last_exit_code = Some(2);
+                            continue 'repl;
+                        }
                         // If it's a pure stderr redirect, handle separately
                         let is_stderr_only = redirect_target == "__stderr__";
                         // Open output file
