@@ -293,8 +293,15 @@ fn main() {
         Cmd::Start => {
             println!("  🧠 faelight-contextd starting (30s poll interval)...");
             let conn = open_db().expect("db error");
+            // INT-249b: WAL checkpoint every 10 iterations (5 minutes) to keep
+            // WAL trimmed and prevent morning-after-suspend SQLITE_READONLY warnings.
+            let mut tick: u64 = 0;
             loop {
                 run_once(&conn);
+                tick += 1;
+                if tick % 10 == 0 {
+                    let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE)");
+                }
                 std::thread::sleep(std::time::Duration::from_secs(30));
             }
         }
