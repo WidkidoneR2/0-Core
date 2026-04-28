@@ -504,6 +504,7 @@ fn repl_main() -> Result<()> {
         .history_ignore_dups(true)?
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
+        .completion_show_all_if_ambiguous(true)
         .edit_mode(EditMode::Emacs)
         .build();
     let helper = completion::ForestHelper::new(&db);
