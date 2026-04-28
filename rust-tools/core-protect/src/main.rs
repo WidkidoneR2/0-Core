@@ -154,6 +154,7 @@ fn cmd_lock(core_dir: &Path) {
     audit::log_event("LOCK");
 
     lock_recursive(core_dir, "+i");
+    write_lock_state(core_dir, true);
 
     println!(
         "{}",
@@ -166,8 +167,25 @@ fn cmd_unlock(core_dir: &Path) {
     audit::log_event("UNLOCK");
 
     lock_recursive(core_dir, "-i");
+    write_lock_state(core_dir, false);
 
     println!("{}", "✅ Core unlocked! You can now edit.".green());
+}
+
+// INT-251b: write/remove lock state file. Authoritative source for tools that
+// need to display lock state (faelight-bar lock widget). Faster and more reliable
+// than parsing lsattr output.
+fn write_lock_state(core_dir: &Path, locked: bool) {
+    let state_file = core_dir.join("runtime").join(".core-locked");
+    if locked {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs().to_string())
+            .unwrap_or_else(|_| String::from("0"));
+        let _ = fs::write(&state_file, ts);
+    } else {
+        let _ = fs::remove_file(&state_file);
+    }
 }
 
 fn lock_recursive(dir: &Path, flag: &str) {

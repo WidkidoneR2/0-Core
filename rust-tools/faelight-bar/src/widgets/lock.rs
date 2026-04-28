@@ -4,7 +4,6 @@
 use super::{RenderContext, Widget, WidgetError, WidgetOutput};
 use crate::render::colors;
 use faelight_core::paths;
-use std::process::Command;
 
 pub struct LockWidget {
     locked: bool,
@@ -15,21 +14,11 @@ impl LockWidget {
         Self { locked: false }
     }
 
+    /// INT-251b: read authoritative lock state from runtime/.core-locked.
+    /// Written by core-protect on lock/unlock. Faster and more reliable
+    /// than parsing lsattr output, no subprocess needed.
     fn check_locked() -> bool {
-        let output = Command::new("lsattr")
-            .args(["-d"])
-            .arg(paths::core_dir())
-            .output();
-        match output {
-            Ok(result) if result.status.success() => {
-                let stdout = String::from_utf8_lossy(&result.stdout);
-                stdout
-                    .split_whitespace()
-                    .next()
-                    .is_some_and(|attrs| attrs.contains('i'))
-            }
-            _ => false,
-        }
+        paths::core_dir().join("runtime").join(".core-locked").exists()
     }
 }
 
