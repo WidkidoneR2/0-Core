@@ -371,6 +371,155 @@ fn is_core_locked(core_root: &str) -> bool {
 }
 
 // Strip # comments — only at start of line or after whitespace, never inside strings
+/// INT-249b: detect if a multi-line buffer is a complete shell command.
+#[allow(dead_code)]
+fn is_complete_command(buf: &str) -> (bool, &'static str) {
+    let cleaned: String = buf.lines()
+        .map(|l| {
+            let mut in_s = false;
+            let mut in_d = false;
+            let mut in_b = false;
+            let mut prev = '\0';
+            let mut idx = None;
+            for (i, ch) in l.char_indices() {
+                if prev == '\\' { prev = ch; continue; }
+                match ch {
+                    '\'' if !in_d && !in_b => in_s = !in_s,
+                    '"' if !in_s && !in_b => in_d = !in_d,
+                    '`' if !in_s && !in_d => in_b = !in_b,
+                    '#' if !in_s && !in_d && !in_b => { idx = Some(i); break; }
+                    _ => {}
+                }
+                prev = ch;
+            }
+            if let Some(i) = idx { l[..i].to_string() } else { l.to_string() }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let last_meaningful = cleaned.lines().rev().find(|l| !l.trim().is_empty());
+    if let Some(l) = last_meaningful {
+        if l.trim_end().ends_with('\\') {
+            return (false, "trailing backslash continuation");
+        }
+    }
+
+    let mut in_s = false;
+    let mut in_d = false;
+    let mut prev = '\0';
+    for ch in cleaned.chars() {
+        if prev == '\\' { prev = ch; continue; }
+        match ch {
+            '\'' if !in_d => in_s = !in_s,
+            '"' if !in_s => in_d = !in_d,
+            _ => {}
+        }
+        prev = ch;
+    }
+    if in_s { return (false, "unclosed single quote"); }
+    if in_d { return (false, "unclosed double quote"); }
+
+    let mut depth_paren: i32 = 0;
+    let mut depth_brace: i32 = 0;
+    let mut depth_brack: i32 = 0;
+    let mut in_s2 = false;
+    let mut in_d2 = false;
+    let mut prev2 = '\0';
+    for ch in cleaned.chars() {
+        if prev2 == '\\' { prev2 = ch; continue; }
+        match ch {
+            '\'' if !in_d2 => in_s2 = !in_s2,
+            '"' if !in_s2 => in_d2 = !in_d2,
+            '(' if !in_s2 && !in_d2 => depth_paren += 1,
+            ')' if !in_s2 && !in_d2 => depth_paren -= 1,
+            '{' if !in_s2 && !in_d2 => depth_brace += 1,
+            '}' if !in_s2 && !in_d2 => depth_brace -= 1,
+            '[' if !in_s2 && !in_d2 => depth_brack += 1,
+            ']' if !in_s2 && !in_d2 => depth_brack -= 1,
+            _ => {}
+        }
+        prev2 = ch;
+    }
+    if depth_paren > 0 { return (false, "unclosed paren"); }
+    if depth_brace > 0 { return (false, "unclosed brace"); }
+    if depth_brack > 0 { return (false, "unclosed bracket"); }
+
+    if let Some(delim) = find_heredoc_delimiter(&cleaned) {
+        let has_close = cleaned.lines().any(|l| l.trim() == delim);
+        if !has_close { return (false, "unclosed heredoc"); }
+    }
+
+    let closer_map: &[(&str, &str)] = &[
+        ("for", "done"),
+        ("while", "done"),
+        ("until", "done"),
+        ("if", "fi"),
+        ("case", "esac"),
+    ];
+    for (open_kw, close_kw) in closer_map {
+        let opens = count_keyword_starts(&cleaned, open_kw);
+        let closes = count_keyword_starts(&cleaned, close_kw);
+        if opens > closes {
+            return (false, "unclosed control structure");
+        }
+    }
+
+    (true, "")
+}
+
+#[allow(dead_code)]
+fn find_heredoc_delimiter(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'<' && bytes[i+1] == b'<' && (i == 0 || bytes[i-1] != b'<') {
+            let mut j = i + 2;
+            if j < bytes.len() && bytes[j] == b'-' { j += 1; }
+            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let quote = if j < bytes.len() && (bytes[j] == b'\'' || bytes[j] == b'"') {
+                let q = bytes[j];
+                j += 1;
+                Some(q)
+            } else {
+                None
+            };
+            let start = j;
+            while j < bytes.len() {
+                let b = bytes[j];
+                if let Some(q) = quote {
+                    if b == q { break; }
+                } else if !b.is_ascii_alphanumeric() && b != b'_' {
+                    break;
+                }
+                j += 1;
+            }
+            if j > start {
+                let delim = std::str::from_utf8(&bytes[start..j]).ok()?.to_string();
+                return Some(delim);
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+#[allow(dead_code)]
+fn count_keyword_starts(s: &str, kw: &str) -> usize {
+    let mut count = 0;
+    for line in s.lines() {
+        let trimmed = line.trim();
+        let words: Vec<&str> = trimmed.split_whitespace().collect();
+        for w in words.iter() {
+            if *w == kw {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
 fn strip_comments(input: &str) -> String {
     input
         .lines()
@@ -575,7 +724,25 @@ fn repl_main() -> Result<()> {
 
         let prompt_str = prompt::render_line(&db, last_exit_code);
 
-        match rl.readline(&prompt_str) {
+        // INT-249b: multi-line aware read - accumulates until command is complete
+        let read_result = {
+            let mut buffer = String::new();
+            let mut first = true;
+            loop {
+                let p = if first { prompt_str.as_str() } else { "  ... " };
+                match rl.readline(p) {
+                    Ok(line) => {
+                        if !buffer.is_empty() { buffer.push('\n'); }
+                        buffer.push_str(&line);
+                        let (complete, _reason) = is_complete_command(&buffer);
+                        if complete { break Ok(buffer); }
+                        first = false;
+                    }
+                    Err(e) => break Err(e),
+                }
+            }
+        };
+        match read_result {
             Ok(line) => {
                 // Check reload signal at TOP of loop — before any processing
                 if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
@@ -686,6 +853,23 @@ fn repl_main() -> Result<()> {
                 let line = normalize_input(&line);
                 if let Err(e) = db.save_history_entry(&line) {
                     eprintln!("warning: failed to save history: {}", e);
+                }
+                // INT-249b: multi-line buffer (heredoc, control structure, backslash continuation)
+                // Short-circuit to sh -c which handles all shell syntax. Skips fsh per-construct
+                // dispatch since the buffer represents one logical command, not many.
+                if line.contains('\n') {
+                    let status = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(&line)
+                        .stdin(std::process::Stdio::inherit())
+                        .stdout(std::process::Stdio::inherit())
+                        .stderr(std::process::Stdio::inherit())
+                        .status();
+                    last_exit_code = status.ok().and_then(|s| s.code());
+                    if let Err(e) = db.save_history_entry(&line) {
+                        eprintln!("warning: failed to save history: {}", e);
+                    }
+                    continue 'repl;
                 }
                 let mut heredoc_handled = false;
                 // Heredoc: detect << and delegate to sh with inherited stdin
@@ -1842,16 +2026,13 @@ fn repl_main() -> Result<()> {
                     };
                     let in_quotes2 = !has_unquoted_pipe2();
                     let has_pipe2 = !in_quotes2 && line.contains(" | ");
-                    if has_pipe2 { eprintln!("DBG pipe-site2 reached has_pipe2=true line={:?}", line); }
                     let pipeline_ops = if has_pipe2 {
                         value::parse_pipeline(line)
                     } else {
                         pipeline_ops
                     };
                     let base_cmd = if has_pipe2 {
-                        let bc = line.split(" | ").next().unwrap_or(line).to_string();
-                        eprintln!("DBG pipe-site2 base_cmd={:?} (only first stage, will execute)", bc);
-                        bc
+                        line.split(" | ").next().unwrap_or(line).to_string()
                     } else {
                         // Use redirect-stripped line as base_cmd
                         line.to_string()
