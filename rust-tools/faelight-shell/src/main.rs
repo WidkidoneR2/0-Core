@@ -876,7 +876,7 @@ fn repl_main() -> Result<()> {
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 if let Err(e) = db.save_history_entry(&line) {
-                    eprintln!("warning: failed to save history: {}", e);
+                    eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e);
                 }
                 // INT-249b: multi-line buffer (heredoc, control structure, backslash continuation)
                 // Short-circuit to sh -c which handles all shell syntax. Skips fsh per-construct

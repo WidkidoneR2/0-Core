@@ -157,11 +157,35 @@ impl ForestDb {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.conn.execute(
-            "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-            rusqlite::params![command, ts],
-        )?;
-        Ok(())
+        // INT-249b: retry on transient SQLite errors (BUSY, LOCKED) with backoff.
+        // Avoids noisy warnings during WAL contention (e.g. just after boot, while
+        // multiple forest processes are checkpointing).
+        let max_attempts = 3;
+        let mut last_err: Option<rusqlite::Error> = None;
+        for attempt in 0..max_attempts {
+            match self.conn.execute(
+                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
+                rusqlite::params![command, ts],
+            ) {
+                Ok(_) => return Ok(()),
+                Err(e) => {
+                    let transient = matches!(
+                        &e,
+                        rusqlite::Error::SqliteFailure(err, _)
+                            if err.code == rusqlite::ErrorCode::DatabaseBusy
+                                || err.code == rusqlite::ErrorCode::DatabaseLocked
+                                || err.code == rusqlite::ErrorCode::ReadOnly
+                    );
+                    if transient && attempt + 1 < max_attempts {
+                        std::thread::sleep(std::time::Duration::from_millis(50 * (attempt as u64 + 1)));
+                        last_err = Some(e);
+                        continue;
+                    }
+                    return Err(e);
+                }
+            }
+        }
+        Err(last_err.unwrap_or(rusqlite::Error::ExecuteReturnedResults))
     }
 
     pub fn get_last_command(&self) -> Option<String> {
