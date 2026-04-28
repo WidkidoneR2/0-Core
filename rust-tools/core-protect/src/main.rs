@@ -171,14 +171,26 @@ fn cmd_unlock(core_dir: &Path) {
 }
 
 fn lock_recursive(dir: &Path, flag: &str) {
-    // Use chattr -R for speed — one call instead of 46,000
-    Command::new("sudo")
-        .args(["chattr", "-R", flag])
-        .arg(dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .ok();
+    // INT-251: lock only source dirs. SKIP runtime/, bin/, scripts/, target/, BACKUPS/, .git/
+    // because these are working directories that need continuous write access from daemons.
+    // Locking runtime/state.db caused readonly warnings every time lock-core was used.
+    let lockable = [
+        "00-meta", "01-registry", "02-rules", "03-interfaces", "04-schema",
+        "docs", "engine", "intents", "rust-tools", "status-blocks",
+        "Cargo.lock", "Cargo.toml", "README.md", "TOOLS.md", "VERSION",
+    ];
+    for entry in &lockable {
+        let path = dir.join(entry);
+        if path.exists() {
+            Command::new("sudo")
+                .args(["chattr", "-R", flag])
+                .arg(&path)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .ok();
+        }
+    }
 }
 
 fn cmd_verify(core_dir: &Path) -> Result<()> {
