@@ -4529,36 +4529,13 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
 }
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
-    use std::io::{BufRead, BufReader, Write};
-    let mut child = match std::process::Command::new("sh")
+    let status = std::process::Command::new("sh")
         .arg("-c")
         .arg(line)
         .stdin(std::process::Stdio::inherit())
-        .stdout(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
-        .spawn() {
-        Ok(c) => c,
-        Err(e) => return CommandResult::Error(format!("spawn failed: {}", e)),
-    };
-    if let Some(stdout) = child.stdout.take() {
-        let reader = BufReader::new(stdout);
-        for line_result in reader.lines() {
-            if let Ok(out_line) = line_result {
-                println!("{}", out_line);
-                let trimmed = out_line.trim();
-                let is_heredoc_leak = trimmed.len() >= 4
-                    && trimmed.ends_with("EOF")
-                    && trimmed[..trimmed.len()-3].len() >= 1
-                    && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
-                if is_heredoc_leak {
-                    eprintln!("  {} possible unclosed heredoc -- {:?} appeared as standalone output line",
-                        "\u{26A0}".bright_yellow(), out_line.trim());
-                }
-                let _ = std::io::stdout().flush();
-            }
-        }
-    }
-    let status = child.wait();
+        .status();
     match status {
         Ok(s) => {
             if s.success() {
