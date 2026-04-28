@@ -17,6 +17,10 @@ impl ForestDb {
 
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Cannot open state.db at {:?}", db_path))?;
+        // INT-249b: checkpoint WAL on startup so morning-after-suspend doesn't
+        // hit SQLITE_READONLY from accumulated WAL frames. Errors ignored - if
+        // checkpoint fails, normal operation continues; retry logic handles transients.
+        let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
 
         // Ensure shell tables exist
         conn.execute_batch(
