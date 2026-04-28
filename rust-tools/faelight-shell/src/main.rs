@@ -383,7 +383,30 @@ fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>, las
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
+    let mut in_single = false;
+    let mut in_double = false;
     while i < chars.len() {
+        // INT-245: track quote state so single-quoted regions suppress $-expansion
+        // (matching POSIX). Double-quoted regions DO expand variables. Outside any
+        // quotes also expands.
+        if chars[i] == '\'' && !in_double {
+            in_single = !in_single;
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if chars[i] == '"' && !in_single {
+            in_double = !in_double;
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if in_single {
+            // Inside single quotes: no expansion at all, even $? and $$.
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
         if chars[i] == '$' && i + 1 < chars.len() {
             i += 1;
             // INT-245: special vars $? (exit code), $$ (pid). These are not alphanumeric
