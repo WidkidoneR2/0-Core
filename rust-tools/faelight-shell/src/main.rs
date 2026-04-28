@@ -235,16 +235,73 @@ fn expand_globs(line: &str) -> String {
     if !line.contains('*') && !line.contains('?') {
         return line.to_string();
     }
+    // INT-245 #8: track quote state across the whole line so multi-word quoted
+    // strings (e.g. python3 -c "code with * inside") don't get glob-expanded.
+    // We segment the line into runs of (in_quotes, text) and only expand globs
+    // in unquoted runs.
+    let mut segments: Vec<(bool, String)> = vec![];
+    let mut current = String::new();
+    let mut in_double = false;
+    let mut in_single = false;
+    for ch in line.chars() {
+        let was_in_quote = in_double || in_single;
+        match ch {
+            '"' if !in_single => { in_double = !in_double; current.push(ch); }
+            '\'' if !in_double => { in_single = !in_single; current.push(ch); }
+            _ => current.push(ch),
+        }
+        let now_in_quote = in_double || in_single;
+        // Quote state just changed -- flush the prior segment with its prior quote state
+        if now_in_quote != was_in_quote {
+            // The character we just pushed is the boundary marker. The push includes it
+            // in the segment STARTED by this transition (the new state), so we need to
+            // pop it back if it should belong to the prior segment.
+            // Simpler: at a transition, split AT THIS CHAR. The boundary char (quote)
+            // belongs to the segment with quotes around it. Convention: include the opening
+            // quote in the quoted segment, the closing quote in the quoted segment too.
+            //
+            // Since we already pushed the boundary char to `current`, and it should belong
+            // to the new state's segment, we pop it, push current as old-state, then push
+            // the boundary char into a fresh current with new state.
+            let boundary = current.pop();
+            if !current.is_empty() {
+                segments.push((was_in_quote, std::mem::take(&mut current)));
+            }
+            if let Some(c) = boundary {
+                current.push(c);
+            }
+        }
+    }
+    let final_in_quote = in_double || in_single;
+    if !current.is_empty() {
+        segments.push((final_in_quote, current));
+    }
+    let mut out = String::new();
+    for (quoted, segment) in &segments {
+        if *quoted {
+            out.push_str(segment);
+            continue;
+        }
+        // Apply glob expansion only to this unquoted segment.
+        let expanded = expand_globs_in_segment(segment);
+        out.push_str(&expanded);
+    }
+    out
+}
+
+/// INT-245 #8: token-level glob expansion within an unquoted segment.
+/// Extracted from the original expand_globs body; logic unchanged for parts
+/// that lack quotes.
+fn expand_globs_in_segment(line: &str) -> String {
+    if !line.contains('*') && !line.contains('?') {
+        return line.to_string();
+    }
+    // Preserve original whitespace by splitting on whitespace runs but tracking them.
+    // Simpler: split_whitespace + rejoin with a single space. The quote-aware caller
+    // has already preserved leading/trailing spacing in adjacent quoted segments.
     let mut result_parts: Vec<String> = vec![];
     let parts: Vec<&str> = line.split_whitespace().collect();
     for part in parts {
-        // Check if part is quoted
-        if (part.starts_with('"') && part.ends_with('"'))
-            || (part.starts_with('\'') && part.ends_with('\''))
-        {
-            result_parts.push(part.to_string());
-            continue;
-        }
         if part.contains('*') || part.contains('?') {
             // Expand tilde
             let expanded = if part.starts_with("~/") {
