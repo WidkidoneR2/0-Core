@@ -1214,12 +1214,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     "usage: search <pattern> [--type ext] [--file name]".to_string(),
                 );
             }
-            let pattern = args[0].to_lowercase();
+            // INT-249b: collect all positional args before flags as pattern phrase
             let mut filter_type: Option<&str> = None;
             let mut filter_file: Option<&str> = None;
             let mut search_root: Option<std::path::PathBuf> = None;
             let mut unknown: Vec<String> = Vec::new();
-            let mut i = 1;
+            let mut pattern_parts: Vec<String> = Vec::new();
+            let mut i = 0;
             while i < args.len() {
                 match args[i] {
                     "--type" if i + 1 < args.len() => {
@@ -1231,7 +1232,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         i += 2;
                     }
                     arg if !arg.starts_with("--") => {
-                        // Positional: treat as search path if it exists on disk
+                        // First check if it's an existing path (search root)
                         let expanded = if arg.starts_with("~/") {
                             let home = std::env::var("HOME").unwrap_or_default();
                             arg.replacen("~/", &format!("{}/", home), 1)
@@ -1239,14 +1240,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                             arg.to_string()
                         };
                         let p = std::path::PathBuf::from(&expanded);
-                        if p.exists() {
-                            if search_root.is_some() {
-                                unknown.push(format!("{} (path already set)", arg));
-                            } else {
-                                search_root = Some(p);
-                            }
+                        if p.exists() && p.is_dir() && search_root.is_none() && !pattern_parts.is_empty() {
+                            // Only treat as path if it's a directory AND we already have a pattern
+                            search_root = Some(p);
                         } else {
-                            unknown.push(arg.to_string());
+                            pattern_parts.push(arg.to_string());
                         }
                         i += 1;
                     }
@@ -1256,6 +1254,12 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     }
                 }
             }
+            if pattern_parts.is_empty() {
+                return CommandResult::Error(
+                    "usage: fsearch <pattern> [--type ext] [--file name]".to_string(),
+                );
+            }
+            let pattern = pattern_parts.join(" ").to_lowercase();
             if !unknown.is_empty() {
                 eprintln!(
                     "  {} fsearch ignored unknown argument(s): {}",
