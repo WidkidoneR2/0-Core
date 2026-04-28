@@ -22,6 +22,12 @@ impl ForestDb {
         // checkpoint fails, normal operation continues; retry logic handles transients.
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
 
+        // INT-250: enrich shell_history with cwd, exit_code, duration_ms columns.
+        // Idempotent ALTER TABLE -- ignored if columns already exist.
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN cwd TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
+
         // Ensure shell tables exist
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS shell_history (
@@ -156,11 +162,14 @@ impl ForestDb {
         commands
     }
 
-    pub fn save_history_entry(&self, command: &str) -> rusqlite::Result<()> {
+    pub fn save_history_entry(&self, command: &str) -> rusqlite::Result<i64> {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
+        let cwd = std::env::current_dir()
+            .ok()
+            .and_then(|p| p.to_str().map(String::from));
         // INT-249b: retry on transient SQLite errors (BUSY, LOCKED) with backoff.
         // Avoids noisy warnings during WAL contention (e.g. just after boot, while
         // multiple forest processes are checkpointing).
@@ -168,10 +177,10 @@ impl ForestDb {
         let mut last_err: Option<rusqlite::Error> = None;
         for attempt in 0..max_attempts {
             match self.conn.execute(
-                "INSERT INTO shell_history (command, timestamp) VALUES (?1, ?2)",
-                rusqlite::params![command, ts],
+                "INSERT INTO shell_history (command, timestamp, cwd) VALUES (?1, ?2, ?3)",
+                rusqlite::params![command, ts, cwd],
             ) {
-                Ok(_) => return Ok(()),
+                Ok(_) => return Ok(self.conn.last_insert_rowid()),
                 Err(e) => {
                     let transient = matches!(
                         &e,
@@ -190,6 +199,16 @@ impl ForestDb {
             }
         }
         Err(last_err.unwrap_or(rusqlite::Error::ExecuteReturnedResults))
+    }
+
+    /// INT-250: backfill completion data (exit_code, duration_ms) for an existing
+    /// history row. Called AFTER command execution. Errors silently ignored --
+    /// completion data is best-effort.
+    pub fn update_history_completion(&self, id: i64, exit_code: Option<i32>, duration_ms: Option<u64>) {
+        let _ = self.conn.execute(
+            "UPDATE shell_history SET exit_code = ?1, duration_ms = ?2 WHERE id = ?3",
+            rusqlite::params![exit_code, duration_ms.map(|d| d as i64), id],
+        );
     }
 
     pub fn get_last_command(&self) -> Option<String> {

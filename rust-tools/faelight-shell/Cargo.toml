@@ -16,3 +16,5 @@ toml = "0.8"
 faelight-git = { path = "../faelight-git" }
 git2 = "0.18"
 libc = "0.2"
+ratatui = "0.28"
+crossterm = "0.28"
