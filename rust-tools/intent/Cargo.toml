@@ -18,6 +18,9 @@ colored = "2.1"
 # Proper error handling
 anyhow = "1.0"
 
+# SIGPIPE handling
+libc = "0.2"
+
 [[bin]]
 name = "intent"
 path = "src/main.rs"

@@ -12,10 +12,24 @@ mod logging;
 mod runtime;
 
 fn main() {
-    // INT-233: Ignore SIGPIPE -- prevents broken pipe panic when piped to head/grep/etc
+    // INT-249b: SIGPIPE handling -- exit silently when piped to head/grep/etc
+    // SIG_DFL alone is insufficient because Rust stdio panics on EPIPE before SIGPIPE fires.
+    // Combine: signal handler + panic hook for broken-pipe writes.
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
+    std::panic::set_hook(Box::new(|info| {
+        let msg = info.payload().downcast_ref::<String>()
+            .map(|s| s.as_str())
+            .or_else(|| info.payload().downcast_ref::<&str>().copied())
+            .unwrap_or("");
+        if msg.contains("Broken pipe") || msg.contains("os error 32") {
+            std::process::exit(0);
+        }
+        // Other panics: print and exit non-zero like default
+        eprintln!("{}", info);
+        std::process::exit(101);
+    }));
     let cmd = cli::parse();
 
     let ctx = match app::context::AppContext::init() {
