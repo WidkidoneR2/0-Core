@@ -881,10 +881,27 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 None => return CommandResult::Error("rspatch: --anchor required".to_string()),
             };
             let new_content = match new_text {
-                Some(t) => t.replace(
-                    "\\n", "
-",
-                ),
+                Some(t) => {
+                    // INT-249b: interpret common escape sequences in --new
+                    let mut out = String::with_capacity(t.len());
+                    let mut chars = t.chars().peekable();
+                    while let Some(c) = chars.next() {
+                        if c == '\\' {
+                            match chars.peek() {
+                                Some('n') => { chars.next(); out.push('\n'); }
+                                Some('t') => { chars.next(); out.push('\t'); }
+                                Some('r') => { chars.next(); out.push('\r'); }
+                                Some('\\') => { chars.next(); out.push('\\'); }
+                                Some('\'') => { chars.next(); out.push('\''); }
+                                Some('"') => { chars.next(); out.push('"'); }
+                                _ => out.push('\\'),
+                            }
+                        } else {
+                            out.push(c);
+                        }
+                    }
+                    out
+                }
                 None => return CommandResult::Error("rspatch: --new required".to_string()),
             };
             let content = match std::fs::read_to_string(&expanded) {
