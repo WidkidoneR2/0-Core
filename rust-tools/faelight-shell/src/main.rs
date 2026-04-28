@@ -1609,81 +1609,68 @@ fn repl_main() -> Result<()> {
                                 } else {
                                     std::process::Stdio::piped()
                                 };
-                                // INT-233: try fsh builtin first -- only if first stage, not a path
-                                let builtin_name = if raw_cmd.contains('/') {
-                                    raw_cmd.split('/').last().unwrap_or(&raw_cmd).to_string()
-                                } else {
-                                    raw_cmd.clone()
-                                };
-                                // Only attempt builtin path on first stage and non-path commands
-                                let try_builtin = idx == 0 && !raw_cmd.contains('/');
-                                let builtin_line = if args.is_empty() {
-                                    builtin_name.clone()
-                                } else {
-                                    format!("{} {}", builtin_name, args.join(" "))
-                                };
-                                let builtin_out = if try_builtin {
-                                    match commands::execute(&builtin_line, &db, &core_root) {
-                                        commands::CommandResult::Output(o) => Some(o),
-                                        commands::CommandResult::Value(v) => Some(v.render()),
-                                        _ => None,
+                                // INT-249b: external-first dispatch.
+                                // Try spawning as external process. If that fails (cmd not in PATH),
+                                // try as fsh builtin via commands::execute. Never run both.
+                                let spawn_result = std::process::Command::new(cmd_name)
+                                    .args(&args)
+                                    .stdin(stdin_src)
+                                    .stdout(stdout_dst)
+                                    .stderr(std::process::Stdio::inherit())
+                                    .spawn();
+                                match spawn_result {
+                                    Ok(mut child) => {
+                                        if !is_last {
+                                            prev_stdout = child.stdout.take();
+                                        }
+                                        children.push(child);
                                     }
-                                } else {
-                                    None
-                                };
-                                if let Some(out) = builtin_out {
-                                    if is_last {
-                                        println!("{}", out);
-                                    } else {
-                                        // Pipe builtin output to remaining external pipeline stages
-                                        let remaining = pipe_parts[idx + 1..].join(" | ");
-                                        use std::io::Write;
-                                        let mut child = std::process::Command::new("sh")
-                                            .arg("-c")
-                                            .arg(&remaining)
-                                            .stdin(std::process::Stdio::piped())
-                                            .stdout(std::process::Stdio::inherit())
-                                            .stderr(std::process::Stdio::inherit())
-                                            .spawn()
-                                            .ok();
-                                        if let Some(ref mut c) = child {
-                                            if let Some(ref mut stdin) = c.stdin.take() {
-                                                let _ = stdin.write_all(out.as_bytes());
+                                    Err(_) => {
+                                        // Not on PATH -- try as fsh builtin (idx==0 only, since
+                                        // builtins can't accept piped stdin from prev stage in this design)
+                                        if idx == 0 && !raw_cmd.contains('/') {
+                                            let builtin_line = if args.is_empty() {
+                                                raw_cmd.clone()
+                                            } else {
+                                                format!("{} {}", raw_cmd, args.join(" "))
+                                            };
+                                            let builtin_out = match commands::execute(&builtin_line, &db, &core_root) {
+                                                commands::CommandResult::Output(o) => Some(o),
+                                                commands::CommandResult::Value(v) => Some(v.render()),
+                                                _ => None,
+                                            };
+                                            if let Some(out) = builtin_out {
+                                                if is_last {
+                                                    println!("{}", out);
+                                                } else {
+                                                    let remaining = pipe_parts[idx + 1..].join(" | ");
+                                                    use std::io::Write;
+                                                    let mut child = std::process::Command::new("sh")
+                                                        .arg("-c")
+                                                        .arg(&remaining)
+                                                        .stdin(std::process::Stdio::piped())
+                                                        .stdout(std::process::Stdio::inherit())
+                                                        .stderr(std::process::Stdio::inherit())
+                                                        .spawn()
+                                                        .ok();
+                                                    if let Some(ref mut c) = child {
+                                                        if let Some(ref mut stdin) = c.stdin.take() {
+                                                            let _ = stdin.write_all(out.as_bytes());
+                                                        }
+                                                        let _ = c.wait();
+                                                    }
+                                                    for mut child in children {
+                                                        let _ = child.wait();
+                                                    }
+                                                    continue 'repl;
+                                                }
+                                            } else {
+                                                eprintln!("  pipe stage '{}' failed: not found in PATH or fsh builtins", cmd_name);
+                                                pipe_ok = false;
+                                                break;
                                             }
-                                            let _ = c.wait();
-                                        }
-                                        // Already handled -- skip sh fallback
-                                        for mut child in children {
-                                            let _ = child.wait();
-                                        }
-                                        continue 'repl;
-                                    }
-                                } else {
-                                    match std::process::Command::new(cmd_name)
-                                        .args(&args)
-                                        .stdin(stdin_src)
-                                        .stdout(stdout_dst)
-                                        .stderr(std::process::Stdio::inherit())
-                                        .spawn()
-                                    {
-                                        Ok(mut child) => {
-                                            if !is_last {
-                                                prev_stdout = child.stdout.take();
-                                            }
-                                            children.push(child);
-                                        }
-                                        Err(e) => {
-                                            eprintln!(
-                                                "  {} pipe stage '{}' failed: {}",
-                                                "✗".bright_red(),
-                                                cmd_name,
-                                                e
-                                            );
-                                            eprintln!(
-                                                "  {} check: is '{}' a valid command?",
-                                                "·".dimmed(),
-                                                cmd_name
-                                            );
+                                        } else {
+                                            eprintln!("  pipe stage '{}' failed: not found", cmd_name);
                                             pipe_ok = false;
                                             break;
                                         }
@@ -1855,13 +1842,16 @@ fn repl_main() -> Result<()> {
                     };
                     let in_quotes2 = !has_unquoted_pipe2();
                     let has_pipe2 = !in_quotes2 && line.contains(" | ");
+                    if has_pipe2 { eprintln!("DBG pipe-site2 reached has_pipe2=true line={:?}", line); }
                     let pipeline_ops = if has_pipe2 {
                         value::parse_pipeline(line)
                     } else {
                         pipeline_ops
                     };
                     let base_cmd = if has_pipe2 {
-                        line.split(" | ").next().unwrap_or(line).to_string()
+                        let bc = line.split(" | ").next().unwrap_or(line).to_string();
+                        eprintln!("DBG pipe-site2 base_cmd={:?} (only first stage, will execute)", bc);
+                        bc
                     } else {
                         // Use redirect-stripped line as base_cmd
                         line.to_string()
