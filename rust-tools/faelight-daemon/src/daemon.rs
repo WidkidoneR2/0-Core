@@ -73,6 +73,13 @@ impl Daemon {
             friday_learning_loop().await;
         });
 
+        // INT-249b -- WAL checkpoint loop (every 5 minutes)
+        // Prevents WAL bloat that causes morning-after-suspend SQLITE_READONLY warnings.
+        let checkpoint_db = db_path.clone();
+        tokio::spawn(async move {
+            wal_checkpoint_loop(checkpoint_db).await;
+        });
+
         // Bind to Unix socket
         let listener = UnixListener::bind(&self.socket_path)?;
         let mut connection_count = 0;
@@ -421,6 +428,16 @@ async fn health_watchdog(db_path: String) {
             println!("✅ WATCHDOG: Health restored to {}%", health);
         }
         last_health = health;
+    }
+}
+// INT-249b: periodic WAL checkpoint -- runs every 5 minutes to keep the
+// shared WAL trimmed, preventing morning-after-suspend SQLITE_READONLY warnings.
+async fn wal_checkpoint_loop(db_path: String) {
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+            let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE)");
+        }
     }
 }
 /// Prediction pre-compute — runs every 30 seconds
