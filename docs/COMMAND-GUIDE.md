@@ -483,6 +483,51 @@
 
 ---
 
+## Working with fsh — Known Gotchas
+
+### Python writing Rust files
+
+When using Python to edit .rs files, always use binary mode (rb/wb) and
+byte literals (b"..." or .encode("utf-8") for non-ASCII content). Text
+mode mangles escape sequences and produces files that look correct but
+won't compile.
+
+```python
+from pathlib import Path
+p = Path("src/main.rs")
+c = p.read_bytes()
+c = c.replace(b"old", b"new")
+p.write_bytes(c)
+```
+
+Never use \u{XXXX} in Python strings generating Rust. Use literal UTF-8.
+
+### Multi-line Python via heredoc
+
+fsh supports heredocs natively. Multi-line python3 -c "..." can hit
+"File name too long" with large or quote-heavy args. Workaround: write
+the script to /tmp/ and run it.
+
+### Heredoc delimiter discipline
+
+Always quote the heredoc delimiter to prevent backtick/variable expansion:
+use single quotes around the delimiter (e.g. << 'EOF' rather than << EOF).
+
+If you see your delimiter appearing literally in output, fsh emits a
+warning — the heredoc didn't close correctly.
+
+Choose unique delimiter names (PYEOF, RSEOF, GOTCHAS_EOF) so nested
+heredocs in scripts don't collide.
+
+### Redirects
+
+> and >> work as expected. fsh's redirect parser is permissive about
+malformed redirects — echo foo > (no target) prints literally instead
+of erroring. Check your output; don't rely on shell errors for malformed
+redirect syntax.
+
+---
+
 ## Prompt Themes
 
 | Theme | What it shows |
