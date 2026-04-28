@@ -11,6 +11,7 @@ mod error;
 mod exec;
 mod output;
 mod registry;
+mod history_tui;
 #[cfg(test)]
 mod tests;
 use colored::Colorize;
@@ -704,13 +705,36 @@ fn repl_main() -> Result<()> {
 
     // Load history from state.db
     db.load_history(&mut rl);
+    // INT-250: bind Ctrl+R to a custom ConditionalEventHandler that sets a flag
+    // and accepts the line. After readline returns, we check the flag and run TUI.
+    use rustyline::{Cmd, KeyCode as RKeyCode, KeyEvent as RKeyEvent, Modifiers};
+    use rustyline::{ConditionalEventHandler, Event, EventContext, EventHandler, RepeatCount};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct HSearchHandler { triggered: Arc<AtomicBool> }
+    impl ConditionalEventHandler for HSearchHandler {
+        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+            self.triggered.store(true, Ordering::SeqCst);
+            Some(Cmd::AcceptLine)
+        }
+    }
+
+    let hsearch_triggered = Arc::new(AtomicBool::new(false));
+    rl.bind_sequence(
+        RKeyEvent(RKeyCode::Char('r'), Modifiers::CTRL),
+        EventHandler::Conditional(Box::new(HSearchHandler { triggered: hsearch_triggered.clone() })),
+    );
 
     // Phase 8 — job table
     let mut job_table = jobs::JobTable::new();
 
     // Phase 17 — prompt context tracking
-    let last_duration_ms: Option<u64> = None;
+    #[allow(unused_assignments)]
+    let mut last_duration_ms: Option<u64> = None;
     let mut last_exit_code: Option<i32> = None;
+    let mut last_history_id: Option<i64> = None;
+    let mut last_command_start: Option<std::time::Instant> = None;
 
     // Phase 10 — shell variable table
     let mut shell_vars: HashMap<String, String> = HashMap::new();
@@ -735,6 +759,13 @@ fn repl_main() -> Result<()> {
 
     // REPL loop
     'repl: loop {
+        // INT-250: backfill completion data for the prior command.
+        // Compute duration from start time captured at submit.
+        let elapsed = last_command_start.take().map(|t| t.elapsed().as_millis() as u64);
+        if let Some(id) = last_history_id.take() {
+            db.update_history_completion(id, last_exit_code, elapsed);
+        }
+        last_duration_ms = elapsed;
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
 
@@ -756,6 +787,16 @@ fn repl_main() -> Result<()> {
                 let p = if first { prompt_str.as_str() } else { "  ... " };
                 match rl.readline(p) {
                     Ok(line) => {
+                        // INT-250: check Ctrl+R flag set by HSearchHandler
+                        if hsearch_triggered.swap(false, Ordering::SeqCst) {
+                            // line contains whatever user had typed before Ctrl+R - use as initial query
+                            if let Some(selected) = history_tui::run_history_search(&line) {
+                                break Ok(selected);
+                            } else {
+                                // Cancelled - return empty to skip dispatch, fresh prompt next iteration
+                                break Ok(String::new());
+                            }
+                        }
                         if !buffer.is_empty() { buffer.push('\n'); }
                         buffer.push_str(&line);
                         let (complete, _reason) = is_complete_command(&buffer);
@@ -875,8 +916,9 @@ fn repl_main() -> Result<()> {
                 };
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
-                if let Err(e) = db.save_history_entry(&line) {
-                    eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e);
+                match db.save_history_entry(&line) {
+                    Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
+                    Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
                 }
                 // INT-249b: multi-line buffer (heredoc, control structure, backslash continuation)
                 // Short-circuit to sh -c which handles all shell syntax. Skips fsh per-construct
@@ -890,8 +932,9 @@ fn repl_main() -> Result<()> {
                         .stderr(std::process::Stdio::inherit())
                         .status();
                     last_exit_code = status.ok().and_then(|s| s.code());
-                    if let Err(e) = db.save_history_entry(&line) {
-                        eprintln!("warning: failed to save history: {}", e);
+                    match db.save_history_entry(&line) {
+                        Ok(id) => { last_history_id = Some(id); }
+                        Err(e) => eprintln!("warning: failed to save history: {}", e),
                     }
                     continue 'repl;
                 }
