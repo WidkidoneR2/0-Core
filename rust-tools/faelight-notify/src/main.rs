@@ -235,6 +235,32 @@ fn main() {
         return;
     }
 
+    // INT-245 #14: check whether another faelight-notify is already on the bus.
+    // Without this, every git_commit signal that triggers a respawn produces a
+    // loud "name already taken" error before the new process exits. Probe first,
+    // exit quietly if a peer is already serving notifications.
+    {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let already_running = rt.block_on(async {
+            let conn = match zbus::Connection::session().await {
+                Ok(c) => c,
+                Err(_) => return false,
+            };
+            let proxy = match zbus::fdo::DBusProxy::new(&conn).await {
+                Ok(p) => p,
+                Err(_) => return false,
+            };
+            proxy
+                .name_has_owner("org.freedesktop.Notifications".try_into().unwrap())
+                .await
+                .unwrap_or(false)
+        });
+        if already_running {
+            eprintln!("🔌 faelight-notify already running — exiting silently");
+            return;
+        }
+    }
+
     let queue: NotifQueue = Arc::new(Mutex::new(Vec::new()));
 
     // D-Bus server on separate thread
