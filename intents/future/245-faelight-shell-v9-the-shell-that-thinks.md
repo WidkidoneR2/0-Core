@@ -231,16 +231,16 @@ Issues discovered during INT-232 development that must be fixed in fsh v9:
 14. faelight-notify D-Bus collision on git_commit signal -- when fsh emits git_commit signal, faelight-notify tries to start a new instance ("name already taken on the bus") even though one is already running. Resolves itself, but emits noisy error. Likely missing "is already running" check in faelight-notify startup. Discovered: 2026-04-28.
 15. fsh git-commit -m with special chars -- combining factors (single quotes, em-dashes, $ chars, parentheses) routinely break fsh's parser when crafting `git commit -m '...'` lines. Use `git commit` (no -m, opens editor) until INT-245 #12-13 are fixed. Track separately even though it overlaps #12 and #13 because git-commit is the most common workflow that exercises these gaps.
 Pillar 6 -- Friction Fixes:
-⬜ fsh-patch: clear usage error when args are wrong type
-⬜ COMMAND-GUIDE.md updated: python3 multiline, binary mode, heredoc rules, python3 -c arg-size workaround
-⬜ deploy: exit 0 when successful with warnings only
-⬜ grep pattern: | inside grep arguments not treated as pipe
-⬜ heredoc: warn when literal RSEOF/PYEOF appears in output (likely missing delimiter)
-⬜ >> append redirect supported natively in fsh
-⬜ python3 -c handles complex arguments without "File name too long" error
-⬜ fsh DB writer logs INSERT errors instead of silent .ok() -- stale connections should surface, not hide
-⬜ fsh redirect parse failures emit error to stderr without creating filesystem artifacts
-⬜ fsh handles multi-line paste as single input when appropriate (heuristic: detect clipboard origin or bracketed paste mode)
+✅ fsh-patch: clear usage error when args are wrong type (2026-04-28)
+✅ COMMAND-GUIDE.md updated: python3 multiline, binary mode, heredoc rules, python3 -c arg-size workaround (2026-04-28, da61e52e + b757847b)
+✅ deploy: exit 0 when successful with warnings only (verified 2026-04-28; deploy was already correct, friction misdiagnosed)
+✅ grep pattern: | inside grep arguments not treated as pipe (verified 2026-04-28; not a fsh bug — fsh handles quoted | correctly. Original report was confusion between grep basic regex (default, | is literal) vs extended regex (-E, | is alternation). No code change needed; documented in COMMAND-GUIDE)
+✅ heredoc: warn when literal RSEOF/PYEOF appears in output (INT-249 closed 2026-04-28, commits 473f7702 + 53a44ce8 — PTY-based output scanning)
+✅ >> append redirect supported natively in fsh (verified 2026-04-28; was already working, friction misdiagnosed)
+✅ python3 -c handles complex arguments without "File name too long" error (2026-04-28, 6c2bf84d — root cause was glob expansion bleeding into quoted strings; fix: quote-aware expand_globs)
+✅ fsh DB writer logs INSERT errors instead of silent .ok() (2026-04-27, 176adf82 — retry+diagnostic with WAL checkpoint suggestion)
+✅ fsh redirect parse failures emit error to stderr without creating filesystem artifacts (2026-04-28, bbcf6fa5 — bare > or >> emit clean parse error, exit 2)
+✅ fsh handles multi-line paste as single input when appropriate (2026-04-27, 52cc4af6 — multi-line accumulator with is_complete_command)
 "Every shell before fsh asked:
 'What command do you want to run?'
 fsh v9 asks:
