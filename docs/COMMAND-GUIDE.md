@@ -521,10 +521,20 @@ heredocs in scripts don't collide.
 
 ### Redirects
 
-> and >> work as expected. fsh's redirect parser is permissive about
-malformed redirects — echo foo > (no target) prints literally instead
-of erroring. Check your output; don't rely on shell errors for malformed
-redirect syntax.
+> and >> work as expected. Bare `>` or `>>` with no target now emits a
+clean parse error and exits 2 (no file artifacts created).
+
+### Variable expansion in quotes
+
+Single quotes (`'...'`) suppress all variable expansion, including `$?`
+and `$$`. Use single quotes when you want a literal `$`.
+
+Double quotes (`"..."`) expand variables. To embed a literal `$` inside
+double quotes, escape with backslash: `"\$5.00"` produces `$5.00`.
+
+Backslash escapes for `\"` and `\\` inside double quotes are not yet
+fully handled — use single quotes for content with literal quote chars
+or backslashes.
 
 ---
 
