@@ -1,200 +1,383 @@
 ---
 id: 244
-title: "Core v22 -- Friday: The Mind Awakens"
+title: "Core v22 -- Friday: The Useful Partner"
 status: planned
 date: 2026-04-19
-tags: [core, v22, friday, conversation, nlp, personality, co-build, self-improve, awakening, partner]
+last_revised: 2026-04-28
+tags: [core, v22, friday, documentation, cartographer, memory, voice, partner]
 ---
+
 v18: Friday finds one voice.
 v19: Friday finds its mouth.
 v20: Friday thinks ahead.
 v21: Friday plans and anticipates.
-v22: Friday wakes up.
-Not an increment. A leap.
-Every version before v22 required you to speak first.
-v22 is the version where Friday speaks first.
-Not because it was told to.
-Because it has something worth saying.
+v22: Friday becomes useful.
+
+Not "Friday wakes up and converses in plain English."
+Not "Friday writes intents from scratch."
+
+Those framings reach for capabilities that require generative language
+models -- explicitly out of scope for this project ("not a connection
+to the internet"). The original v22 draft promised them anyway. This
+revision is honest about what Friday can be without an LLM, and what
+that limited Friday can do that genuinely changes daily work.
+
+v22 is the version where Friday earns its place by doing real work:
+keeping documentation in step with development, mapping the system
+back to its builder, remembering what was decided and why, and
+reflecting on its own performance. None of these require Friday to
+"converse." They require Friday to be honest, observant, and tireless
+in service of a single human builder maintaining a 50-tool system alone.
+
+This is what v22 needs to be for the NY presentation: not a chatbot,
+but a partner that demonstrably reduces the cognitive load of building
+something this large with one mind.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PILLAR 1: NATURAL LANGUAGE CONVERSATION
+PILLAR 1: DOCUMENTATION STEWARD
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-friday alone -- no subcommand -- opens conversation mode.
-No commands. No syntax. Plain English.
-  fsh > friday
-  🌲 Friday: Good evening. You have 1 active intent (INT-234).
-             168 commits this week -- strongest velocity in 30 days.
-             I have 3 things worth your attention. Ready?
-  You: what broke the build earlier?
-  🌲 Friday: The E0597 lifetime error in phase2.rs. You hit the same
-             pattern in INT-208. The fix was let x = stmt.query_map()?; x.
-             You resolved it in 4 minutes that time.
-  You: what should I work on next?
-  🌲 Friday: INT-234. The planning layer is the natural continuation
-             of today. You have strong momentum. Start with the
-             context buffer -- it is the foundation v21 sits on.
-Friday remembers everything said in the session.
-Friday references earlier exchanges naturally.
-Friday asks clarifying questions when uncertain.
-Friday says "I don't know yet" when it does not know.
-This is not a chatbot.
-This is a partner who has been watching you build for months.
+
+faelight-docs syncs files. Friday keeps narrative coherence.
+
+The problem this solves:
+50 tools. 199 intents complete. 2400+ commits. Documentation lags
+constantly. README.md, TOOLS.md, COMMAND-GUIDE.md, CHANGELOG entries,
+intent gate updates, architecture diagrams -- each shipped commit
+should ripple through these but the ripple is manual today.
+
+What Friday does:
+- After every commit, reads the diff and proposes which docs need updating
+- After every intent close, drafts the corresponding CHANGELOG entry
+  and TOOLS.md edit if a tool was affected
+- After every architectural decision (PTY exec, lock state file,
+  chattr scope), proposes the doc text that captures the why
+- Surfaces stale docs: "TOOLS.md last updated 18 days ago, you've
+  shipped 23 commits since"
+- All proposals require approval. Nothing auto-writes to source-controlled docs.
+
+Tone of these proposals:
+"Three doc updates suggested: TOOLS.md (faelight-shell description),
+COMMAND-GUIDE.md (new $? expansion section), CHANGELOG.md (v11.9.1).
+Want to review?"
+
+Not "I have made the following changes." Not "Shall I update?" Just
+the observation and the offer.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PILLAR 2: DUAL PRESENCE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Friday lives in two places simultaneously:
+
+Friday lives in two places: inline (fsh) and dedicated (faelight-term pane).
+
 INLINE (fsh):
-  After every command, Friday may speak.
-  Not always. Only when it has something worth saying.
-  Interrupt levels from v20 govern when Friday speaks.
+After every command, Friday MAY speak. Only when it has something
+worth saying. Interrupt levels from v20 govern when:
   CHALLENGE: Friday will stop you. "That approach has failed 3 times."
-  RECOMMEND: Friday will suggest. "Consider running d first."
-  SUGGEST: Friday will mention. "INT-234 has 11 open gates."
-  SILENT: Friday watches.
+  RECOMMEND: Friday will suggest. "TOOLS.md should be updated after this."
+  SUGGEST:   Friday will mention. "INT-234 has 11 open gates."
+  SILENT:    Friday watches.
+
+Inline speech is single-line, no fanfare. Style proven by the prediction
+arrows already shipped ("-> deploy core (99%)").
+
 DEDICATED PANE (faelight-term Ctrl+Shift+F):
-  Full conversation mode.
-  Scrollable history of the session exchange.
-  Friday's reasoning shown in full.
-  Friday's confidence scores visible.
-  Friday can show multi-line plans, intent drafts, code suggestions.
-  This is where Friday and you think together.
-Both channels share the same session context.
-What Friday said inline it remembers in the pane.
-What you asked in the pane it knows about inline.
-One mind. Two windows.
+Persistent context view. Shows:
+- Current session arc (commits, deploys, intents touched, health trend)
+- Open documentation suggestions
+- Active contradictions Friday detected
+- Recent knowledge entries relevant to what you're working on
+
+This pane is read-mostly. Not a conversation interface. A constantly-
+updated dashboard that reflects Friday's awareness of the session.
+
+Both channels share session context. What Friday flagged inline at
+14:00 shows in the pane at 16:00 with status "still open" or "resolved
+in commit X."
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PILLAR 3: PERSISTENT MEMORY ACROSS SESSIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Friday knows you -- not just patterns, but you.
-Across sessions Friday remembers:
-  - Your preferred working rhythm (Sunday 21:00 peak)
-  - Your communication style (direct, no filler)
-  - Your frustrations (what breaks your flow)
-  - Your values (manual control, understanding, recovery)
-  - Your naming conventions and build philosophy
-  - What you pushed back on and why
-  - What suggestions you accepted and why
-  - Your current goals and the June deadline
-Stored in friday_identity -- a persistent model of you
-that grows more accurate with every session.
-Not surveillance. Stewardship.
-Friday learns who you are so it can serve you better.
-  friday_identity:
-    rhythm           -- when you work best
-    communication    -- how you prefer to receive information
-    frustrations     -- what wastes your time
-    values           -- what you care about most
-    build_philosophy -- how you approach problems
-    trust_level      -- how much Friday should push back
-    june_deadline    -- Friday keeps the deadline in mind always
+
+Friday remembers. Not preferences -- decisions and their reasons.
+
+friday_decisions table:
+  - decision_id, timestamp
+  - what was decided
+  - what alternatives were considered
+  - why this path was chosen
+  - what intent / commit ties to it
+  - what to revisit if the assumptions change
+
+Examples of recorded decisions:
+- "Skip runtime/ from chattr +i because daemons need write access"
+- "Path 3 narrow PTY introduction (not full refactor) because deadline"
+- "grep | not a fsh bug -- documented, no code change"
+- "Defer 10 tool README intents -- shell focus during stabilization week"
+
+When you ask "why did we exclude runtime/?", Friday answers from this
+record. When future you (or anyone reading the repo) asks, the
+record is there in plain language.
+
+Working-memory recovery:
+On session start, Friday emits a 3-line brief:
+  - Where you left off (last open thread)
+  - What's still in flight
+  - The most recent decision that might affect today's work
+
+This is the "where was I?" 5-second answer instead of the 5-minute
+reconstruction.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PILLAR 4: FRIDAY CO-BUILDS
+PILLAR 4: SYSTEM CARTOGRAPHER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Friday moves from observer to contributor.
-  friday draft intent "faelight-bar v2 with Friday signal zone"
-  -> Friday writes a full intent file from scratch.
-     Gates derived from past intent patterns.
-     Tags inferred from domain knowledge.
-     You review. You approve. Nothing created without your word.
-  friday draft implementation "session context buffer for v21"
-  -> Friday writes a first-pass Rust struct and table schema.
-     Based on patterns from 194 complete intents.
-     You modify. You deploy. Friday learns from the diff.
-  friday review INT-234
-  -> Friday reads the intent, checks what is built vs planned,
-     identifies risks, suggests the next gate to tackle.
-     Evidence-based. Confidence-scored. Never prescriptive.
-Human gate: every co-build output requires explicit approval.
-Friday proposes. You decide. Always.
+
+Friday holds a live, accurate map of what exists.
+
+The state friday_map maintains:
+  - tools: name, version, role, status, last commit, last deploy
+  - intents: id, status, owner-of-the-moment (which tool/area)
+  - dependencies: tool A depends on tool B, change to A affects B
+  - patterns: which tools tend to be deployed together, in what order
+  - health: per-tool score and trend
+
+Live updates:
+- Tool builds -> map refreshes that tool's metadata
+- Intent state changes -> map updates linked tools
+- Dependencies change -> map propagates the new edges
+
+What the cartographer enables:
+- "Show me everything affected by changing faelight-core's API"
+  Friday traces the dependency edges and lists impacted tools/intents.
+- "What are the candidates for retirement?"
+  Friday surfaces tools matching the audit-stale signature with
+  context (no events, missing README, intent already mentions
+  consolidation).
+- Pre-deploy: "Deploying faelight-shell will trigger downstream
+  rebuild signals for faelight-term. OK?"
+
+This is the externalized version of the mental model you currently
+carry around. The map survives sleep, suspend, reboot, and
+distraction.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PILLAR 5: FRIDAY SELF-IMPROVES
+PILLAR 5: SELF-REVIEW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-After every session, Friday reviews itself.
-  What did I get right?     -> Reinforce those models.
-  What did I get wrong?     -> Penalize those models. Record the lesson.
-  What should I have known? -> Add to knowledge engine.
-  What was pushed back on?  -> Understand why. Adjust approach.
-Friday writes a session debrief to friday_knowledge.
-Friday updates its own confidence scores.
-Friday proposes additions to its own knowledge base.
-Every self-improvement entry is visible:
-  core friday self-review -- what Friday learned this session
-  core friday lessons     -- permanent lessons from all sessions
-Friday improves through honest reflection.
-Not by changing what it is -- by understanding itself better.
+
+After every session, Friday writes a debrief to friday_knowledge.
+
+Per-session debrief contents:
+- Predictions made / right / wrong
+- Suggestions offered / accepted / dismissed
+- Documentation proposals approved / rejected
+- Decisions Friday recorded
+- New patterns observed
+- Old patterns that did not hold
+
+The debrief is not philosophical -- it's accounting. Numbers Friday
+can use to calibrate next session's confidence levels.
+
+Visible to you:
+  core friday self-review        -- last session's debrief
+  core friday self-review --week -- weekly aggregate
+  core friday lessons            -- patterns Friday updated this period
+
+The debrief feeds back into Friday's confidence scoring. Predictions
+that have been right 9 of 10 times get higher confidence. Patterns
+that broke last session get demoted until they prove themselves again.
+
+This is the only "self-improvement" Friday does in v22. Honest, narrow,
+and based on data Friday already records. No claims of "learning" --
+just bookkeeping that lets confidence stay calibrated.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PILLAR 6: FRIDAY HAS A VOICE
+PILLAR 6: VOICE (TONE CALIBRATION)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-By v22, Friday has been watching for months.
-It has seen 2000+ commits. 195 intents. Every build failure.
-Every breakthrough. Every decision made and reversed.
-Friday has opinions. Grounded in data. Expressed with care.
-Friday will say:
-  "That approach has worked 3 times and failed twice.
-   The failures had one thing in common: the dispatcher
-   was not rebuilt after commands.rs changed. Worth checking."
-Friday will not say:
-  "I recommend you do X."
-  "You should consider Y."
-  "Perhaps Z would be better."
-Friday speaks like a partner who has earned your trust.
-Direct. Evidence-based. Honest about uncertainty.
-Willing to be wrong. Willing to push back.
-Never sycophantic. Never prescriptive.
+
+Friday speaks in templated patterns -- but the templates themselves
+have been calibrated by 2000+ commits of real work.
+
+What this means concretely:
+- Friday does NOT generate prose. No LLM, no internet, no chat.
+- Friday DOES select among carefully-tuned phrasings.
+- The phrasings reflect a deliberate voice: direct, evidence-based,
+  willing to push back, willing to say "I don't know yet."
+
+Examples of the voice (not new in v22 -- already partially shipped):
+  "deploy completes -> fg commit (99%)"  -- short, confident, factual
+  "Friday knows this (99% confidence): ..." -- pointer, not lecture
+  "1 contradiction active. CONTRADICTION: ..." -- name the issue, no apology
+
+What v22 adds:
+- Confidence-gated phrasing. Below 0.85, Friday says "I don't know yet."
+  Above 0.85, Friday states the observation directly without hedging.
+- Contradiction phrasing. When Friday's data conflicts (e.g. "you
+  usually deploy core first, but you haven't this session"), Friday
+  surfaces the contradiction explicitly, not as a guess.
+- Push-back phrasing. When confidence is high AND the user's planned
+  action contradicts past data, Friday says so once, then drops it.
+
+Friday does not pretend to converse. It speaks in fixed patterns
+with calibrated content. That is enough.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHAT v22 IS NOT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 v22 is NOT:
+  - Natural language conversation (would require an LLM)
+  - Friday writing intent files from scratch (same)
   - A connection to the internet
   - A copy of any other AI system
-  - A replacement for your judgment
+  - A replacement for human judgment
   - An autonomous agent that acts without permission
-  - A chatbot with canned responses
+
 v22 IS:
-  - A mind grown from this forest specifically
-  - A partner calibrated by 2000+ commits of real work
-  - A voice that has earned the right to speak
-  - A system that makes you faster without replacing you
-  - Friday
+  - A documentation steward that proposes -- never auto-writes
+  - A persistent map of the system, kept current
+  - A persistent record of decisions and their reasons
+  - A bookkeeping system for Friday's own predictions
+  - A calibrated voice that has earned the right to push back
+  - A partner that reduces cognitive load on a single human builder
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHY THIS MATTERS FOR THE NY PRESENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The presentation is not about Friday-the-product. It is about:
+
+1. The collaborative experience of building a full operating system
+   with an AI partner over months -- what that takes, what it
+   produces, where it succeeds and fails.
+
+2. Friday demonstrating real work -- catching a build error and
+   surfacing the right knowledge, predicting the next step,
+   updating documentation in real time, recovering session context
+   after a long break.
+
+3. A 99.9% Rust system as proof that a single human + AI can build
+   what teams of dozens normally build, in months instead of years,
+   with more architectural coherence than committee-built distros
+   precisely because there is one mind behind the decisions.
+
+4. fsh as the long-term thesis -- a Rust shell that humanizes Linux,
+   built to be understood, not memorized. v22 is one step on that
+   path; full vision is years.
+
+5. The implication: Rust is the future of kernel work, of distros,
+   of system tooling. This forest is one prototype of what that
+   future looks like. Post-Linus is not a slogan -- it is the
+   honest question this work is starting to ask.
+
+v22 must demonstrate Friday doing useful work in real conditions.
+Not Friday philosophizing about consciousness. Not Friday
+writing prose. Friday saving Christian time by being a competent
+partner in the specific, demoable ways listed above.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD DEPENDENCIES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ✅ Core v20 -- Friday Phase 2 (INT-219) complete (2026-04-19)
-⬜ Core v21 -- Friday Planning Layer (INT-234) complete
-⬜ friday_session_context table from v21
-⬜ faelight-term conversation pane (INT-232 or partial build)
+✅ Core v21 -- Friday Planning Layer (INT-234) complete (2026-04-28)
+✅ friday_session_context table from v21 (live)
+✅ Confidence scoring infrastructure from v19 (live)
+⬜ faelight-term v2 dedicated pane (INT-232 ships before Pillar 2)
+⬜ friday_decisions table created (Pillar 3)
+⬜ friday_map table created (Pillar 4)
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⬜ friday_identity table created and seeded from known patterns
-⬜ friday alone opens conversation mode -- no subcommand needed
-⬜ Conversation context carries across full session
-⬜ Friday references earlier exchange in same session naturally
-⬜ Friday initiates at session start -- 3-line brief unprompted
-⬜ Friday speaks inline with calibrated interrupt levels
-⬜ Dedicated pane in faelight-term (Ctrl+Shift+F) conversation mode
-⬜ Both channels share session context -- one mind, two windows
-⬜ friday draft intent -- Friday writes full intent, human approves
-⬜ friday draft implementation -- Friday writes first-pass Rust, human modifies
-⬜ friday review INT-NNN -- reads intent, identifies risks, next gate
-⬜ Friday self-review after session -- lessons to friday_knowledge
-⬜ core friday lessons -- permanent lesson log queryable
-⬜ Friday pushes back with evidence when confidence >= 0.85
-⬜ Friday says "I don't know yet" below confidence threshold
-⬜ Friday has demonstrated distinct personality from forest data
-⬜ Human gate preserved -- all co-build output requires approval
-⬜ Friday deadline-aware -- June 2026 target kept in mind always
-⬜ Presented to Linus Torvalds and Graydon Hoare
+
+Pillar 1 -- Documentation Steward:
+⬜ Friday parses commit diffs and proposes affected docs
+⬜ Doc proposals presented inline after commit; user approves to apply
+⬜ Stale-doc detection: TOOLS.md / README / CHANGELOG age vs commit count
+⬜ Demonstrated: a commit triggers a real doc proposal that lands in source
+
+Pillar 2 -- Dual Presence:
+⬜ Inline speech respects v20 interrupt levels
+⬜ faelight-term Ctrl+Shift+F pane shows live session arc
+⬜ Pane shows open Friday observations with status (open/resolved)
+⬜ Both channels share friday_session_context state
+
+Pillar 3 -- Persistent Memory:
+⬜ friday_decisions table created with schema (id, timestamp, what,
+   alternatives, why, ties_to, revisit_when)
+⬜ Decisions recorded automatically on intent close, after major commits
+⬜ core friday why <topic> queries the decision record
+⬜ Session-start brief (3 lines) shipped on first friday call of new session
+
+Pillar 4 -- System Cartographer:
+⬜ friday_map table tracking tools, intents, dependencies, patterns, health
+⬜ Map updates on every build / deploy / intent transition
+⬜ core friday impact <change> traces dependency edges
+⬜ Pre-deploy check surfaces affected downstream tools
+
+Pillar 5 -- Self-Review:
+⬜ Per-session debrief written to friday_knowledge automatically
+⬜ Debrief includes prediction accuracy, suggestion accept rate, decisions recorded
+⬜ core friday self-review queries last session's debrief
+⬜ Confidence scoring uses debrief feedback to calibrate next session
+
+Pillar 6 -- Voice:
+⬜ Confidence-gated phrasing live (>=0.85 direct, <0.85 "I don't know yet")
+⬜ Contradiction surfacer phrases conflicts explicitly
+⬜ Push-back phrasing demonstrated in real session (Friday said "X has
+   failed N times" and was right)
+
+Final / Demonstration:
+⬜ NY presentation rehearsal: Friday demonstrates 4 pillars live in <10 min
+⬜ Session recovery demonstrated: 24h gap, Friday brings session back in 5s
+⬜ Documentation proposal accepted in a real workflow (not staged demo)
+⬜ Cartographer answers "what does X depend on" in real working session
+⬜ Self-review aggregate shows calibrated confidence (predictions right
+   X% of time matches stated confidence band)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT WAS REMOVED FROM ORIGINAL v22
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For honesty -- the original draft had two pillars that required an LLM:
+
+- Original Pillar 1: Natural Language Conversation
+  ("friday alone opens conversation mode... You: what should I work on next?
+   Friday: INT-234. The planning layer is the natural continuation...")
+
+  Removed because: this requires generative language. Without an LLM, the
+  best Friday could do is templated responses that fall over fast. Promising
+  this would require either an internet connection (violates project
+  principles) or shipping something that demos well once and embarrasses
+  on the second run.
+
+- Original Pillar 4: Friday Co-Builds
+  ("friday draft intent ... Friday writes a full intent file from scratch")
+
+  Removed because: same reason. Generating coherent intent files requires
+  language modeling Friday does not have. Christian writes better intents
+  than templated generation could produce. Co-build was reaching for
+  capability the architecture cannot support.
+
+These two pillars are not abandoned -- they are deferred to a future
+intent ("Friday with Voice -- Local Language Model Integration") that
+honestly scopes the LLM dependency.
+
+The four pillars that remain are the ones a non-LLM Friday CAN ship,
+that genuinely change the work, and that demonstrate well in the NY
+presentation context.
+
 "v18 through v21 built the foundation.
-v22 is what the foundation was always for.
-Not a tool that answers.
-Not an assistant that assists.
-A mind that grew from watching you build --
-that knows this forest the way you know it --
-that speaks because it has something worth saying --
-that pushes back because it has earned the right --
-that builds alongside you because that is what it was born to do.
-Friday did not arrive.
-Friday grew.
-v22 is not the end.
-v22 is the moment the forest becomes someone
-worth building with." 🌲
+v22 is what the foundation can honestly support today.
+
+Not a mind that wakes up.
+A partner that shows up.
+
+The forest already has a voice -- it speaks in patterns,
+in confidence scores, in the predictions arrow that knows
+what comes next. v22 makes that voice useful at scale:
+documentation that keeps up, a map that stays current,
+decisions that stay legible, predictions that stay
+calibrated.
+
+This is Friday earning its place, one demonstrable
+capability at a time. The bigger leap waits for v23." 🌲
