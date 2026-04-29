@@ -407,6 +407,15 @@ fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>, las
             i += 1;
             continue;
         }
+        // INT-245 #12: POSIX backslash escape inside double quotes — only handle \$
+        // here because expand_vars is the only thing that expands $. The other escapes
+        // (\" \\ \`) are left alone for sh to handle, since pre-expanding them here
+        // would cause double-parsing problems (sh would re-interpret unescaped quotes).
+        if in_double && chars[i] == '\\' && i + 1 < chars.len() && chars[i + 1] == '$' {
+            result.push('$');
+            i += 2;
+            continue;
+        }
         if chars[i] == '$' && i + 1 < chars.len() {
             i += 1;
             // INT-245: special vars $? (exit code), $$ (pid). These are not alphanumeric
