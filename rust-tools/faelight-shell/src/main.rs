@@ -596,15 +596,46 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
         ("if", "fi"),
         ("case", "esac"),
     ];
+    // INT-245 #13: only count control-structure keywords OUTSIDE of quoted strings.
+    // Otherwise messages like "files for deploy" trip the for/done balance check
+    // and fsh waits forever for a non-existent `done` to close the loop.
+    let unquoted_for_keywords = strip_quoted_regions(&cleaned);
     for (open_kw, close_kw) in closer_map {
-        let opens = count_keyword_starts(&cleaned, open_kw);
-        let closes = count_keyword_starts(&cleaned, close_kw);
+        let opens = count_keyword_starts(&unquoted_for_keywords, open_kw);
+        let closes = count_keyword_starts(&unquoted_for_keywords, close_kw);
         if opens > closes {
             return (false, "unclosed control structure");
         }
     }
 
     (true, "")
+}
+
+/// INT-245 #13: replace single- and double-quoted regions with spaces so they
+/// don't contribute to keyword counting in is_complete_command. Caller uses this
+/// to avoid sentences like "files for deploy" tripping the for/done balance
+/// check and hanging fsh in continuation mode.
+fn strip_quoted_regions(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut in_s = false;
+    let mut in_d = false;
+    let mut prev = '\0';
+    for ch in s.chars() {
+        if prev == '\\' {
+            if in_s || in_d { out.push(' '); } else { out.push(ch); }
+            prev = ch;
+            continue;
+        }
+        match ch {
+            '\'' if !in_d => { in_s = !in_s; out.push(' '); }
+            '"' if !in_s => { in_d = !in_d; out.push(' '); }
+            _ => {
+                if in_s || in_d { out.push(' '); } else { out.push(ch); }
+            }
+        }
+        prev = ch;
+    }
+    out
 }
 
 #[allow(dead_code)]
