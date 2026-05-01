@@ -415,8 +415,8 @@ impl App {
             let col_end = if row == r1 { c1 } else { self.terminal.cols };
             for col in col_start..col_end.min(self.terminal.cols) {
                 let ch = self.terminal.grid[row][col].ch;
-                if ch != ' ' && ch != ' ' || col + 1 < col_end {
-                    text.push(if ch == ' ' { ' ' } else { ch });
+                if ch != '\0' && ch != ' ' || col + 1 < col_end {
+                    text.push(if ch == '\0' { ' ' } else { ch });
                 }
             }
             if row < r1 {
