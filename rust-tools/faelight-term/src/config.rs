@@ -5,6 +5,7 @@ pub const FONT_MONO_REGULAR: &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFontM
 pub const FONT_BOLD: &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Bold.ttf";
 pub const FONT_ITALIC: &str = "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Italic.ttf";
 pub const FONT_EMOJI: &str = "/usr/share/fonts/noto/NotoColorEmoji.ttf";
+pub const FONT_SYMBOL: &str = "/usr/share/fonts/TTF/DejaVuSans.ttf";
 #[allow(dead_code)]
 pub struct Config {
     pub font_size: f32,
