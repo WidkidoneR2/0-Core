@@ -97,6 +97,7 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         db.load_font_file(config::FONT_BOLD).ok();
         db.load_font_file(config::FONT_ITALIC).ok();
         db.load_font_file(config::FONT_EMOJI).ok();
+        db.load_font_file(config::FONT_SYMBOL).ok();
         cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_string(), db)
     };
 
@@ -556,8 +557,11 @@ impl App {
                             0x1F300..=0x1FAFF | 0x1F000..=0x1FFFF |
                             0x2300..=0x23FF | 0x2700..=0x27BF | 0x2600..=0x26FF
                         );
+                    let is_symbol = matches!(cp, 0x2000..=0x22FF | 0x2B00..=0x2BFF);
                     let base_family = if is_emoji {
                         cosmic_text::Family::Name("Noto Color Emoji")
+                    } else if is_symbol {
+                        cosmic_text::Family::Name("DejaVu Sans")
                     } else {
                         cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")
                     };
