@@ -142,6 +142,21 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
     while app.running {
         event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
+        // Auto-scroll during drag selection
+        if app.mouse_down {
+            let edge = app.cell_h as f64;
+            let bottom_edge = app.height as f64 - edge;
+            let y = app.mouse_pos.1;
+            if y < edge && app.scroll_offset < app.terminal.scrollback.len() {
+                app.scroll_offset += 1;
+                // Absolute coords don't change -- viewport moves, not selection
+                app.render();
+            } else if y > bottom_edge && app.scroll_offset > 0 {
+                app.scroll_offset = app.scroll_offset.saturating_sub(1);
+                // Absolute coords don't change -- viewport moves, not selection
+                app.render();
+            }
+        }
         let mut _dirty = false;
         // Read from pty2 if split active
         if app.split_active {
@@ -406,21 +421,40 @@ impl App {
         } else {
             (er, ec, sr, sc)
         };
+        let sb_len = self.terminal.scrollback.len();
         let mut text = String::new();
-        for row in r0..=r1 {
-            if row >= self.terminal.rows {
-                break;
-            }
-            let col_start = if row == r0 { c0 } else { 0 };
-            let col_end = if row == r1 { c1 } else { self.terminal.cols };
-            for col in col_start..col_end.min(self.terminal.cols) {
-                let ch = self.terminal.grid[row][col].ch;
-                if ch != '\0' && ch != ' ' || col + 1 < col_end {
-                    text.push(if ch == '\0' { ' ' } else { ch });
+        for abs_row in r0..=r1 {
+            let col_start = if abs_row == r0 { c0 } else { 0 };
+            let col_end = if abs_row == r1 { c1 } else { self.terminal.cols };
+            // abs_row < sb_len = scrollback, >= sb_len = grid
+            let cells: Option<&Vec<crate::terminal::Cell>> = if abs_row < sb_len {
+                self.terminal.scrollback.get(abs_row)
+            } else {
+                let grid_row = abs_row - sb_len;
+                if grid_row < self.terminal.rows {
+                    Some(&self.terminal.grid[grid_row])
+                } else {
+                    None
                 }
-            }
-            if row < r1 {
-                text.push('\n');
+            };
+            if let Some(cells) = cells {
+                for col in col_start..col_end.min(cells.len()) {
+                    let ch = cells[col].ch;
+                    if ch != '\0' && ch != ' ' || col + 1 < col_end {
+                        text.push(if ch == '\0' { ' ' } else { ch });
+                    }
+                }
+                if abs_row < r1 {
+                    let is_sw = if abs_row < sb_len {
+                        self.terminal.scrollback.is_soft_wrapped(abs_row)
+                    } else {
+                        let grid_row = abs_row - sb_len;
+                        self.terminal.soft_wrapped.get(grid_row).copied().unwrap_or(false)
+                    };
+                    if !is_sw {
+                        text.push('\n');
+                    }
+                }
             }
         }
         if text.trim().is_empty() {
@@ -712,24 +746,37 @@ impl App {
                     }
                 }
             }
-            // Draw selection highlight
+            // Draw selection highlight -- sel coords are absolute (sb index)
             if let (Some((sr, sc)), Some((er, ec))) = (self.sel_start, self.sel_end) {
                 let (r0, c0, r1, c1) = if (sr, sc) <= (er, ec) {
                     (sr, sc, er, ec)
                 } else {
                     (er, ec, sr, sc)
                 };
-                for row in r0..=r1.min(rows - 1) {
-                    let col_start = if row == r0 { c0 } else { 0 };
-                    let col_end = if row == r1 { c1 } else { cols };
-                    let real_end = (col_start..col_end.min(cols))
-                        .rev()
-                        .find(|&c| {
-                            let ch = self.terminal.grid[row][c].ch;
-                            ch != ' ' && ch != '\0'
-                        })
-                        .map(|c| c + 1)
-                        .unwrap_or(col_start);
+                let sb_len = self.terminal.scrollback.len();
+                let scroll_off = self.scroll_offset.min(sb_len);
+                // Visible abs range: [sb_len - scroll_off, sb_len - scroll_off + rows)
+                let vis_start = sb_len.saturating_sub(scroll_off);
+                let vis_end = vis_start + self.terminal.rows;
+                for abs_row in r0..=r1 {
+                    // Only draw if this abs_row is visible
+                    if abs_row < vis_start || abs_row >= vis_end { continue; }
+                    let screen_row = abs_row - vis_start;
+                    let col_start = if abs_row == r0 { c0 } else { 0 };
+                    let col_end = if abs_row == r1 { c1 } else { cols };
+                    let row_cells: Option<&Vec<crate::terminal::Cell>> = if abs_row < sb_len {
+                        self.terminal.scrollback.get(abs_row)
+                    } else {
+                        let grid_row = abs_row - sb_len;
+                        if grid_row < self.terminal.rows { Some(&self.terminal.grid[grid_row]) } else { None }
+                    };
+                    let real_end = row_cells.and_then(|cells| {
+                        (col_start..col_end.min(cells.len()))
+                            .rev()
+                            .find(|&c| cells[c].ch != ' ' && cells[c].ch != '\0')
+                            .map(|c| c + 1)
+                    }).unwrap_or(col_start);
+                    let row = screen_row; // alias for pixel math below
                     for col in col_start..real_end {
                         let hx = (col as u32 * cell_w) as usize;
                         let hy = (row as u32 * cell_h) as usize;
@@ -1379,21 +1426,21 @@ impl PointerHandler for App {
                     self.mouse_down = true;
                     self.mouse_pos = event.position;
                     let col = (event.position.0 / self.cell_w as f64) as usize;
-                    let row = (event.position.1 / self.cell_h as f64) as usize;
-                    self.sel_start = Some((
-                        row.min(self.terminal.rows - 1),
-                        col.min(self.terminal.cols - 1),
-                    ));
+                    let screen_row = (event.position.1 / self.cell_h as f64) as usize;
+                    let sb_len = self.terminal.scrollback.len();
+                    let abs_row = (sb_len.saturating_sub(self.scroll_offset) + screen_row)
+                        .min(sb_len + self.terminal.rows - 1);
+                    self.sel_start = Some((abs_row, col.min(self.terminal.cols - 1)));
                     self.sel_end = None;
                 }
                 PointerEventKind::Motion { .. } if self.mouse_down => {
                     self.mouse_pos = event.position;
                     let col = (event.position.0 / self.cell_w as f64) as usize;
-                    let row = (event.position.1 / self.cell_h as f64) as usize;
-                    self.sel_end = Some((
-                        row.min(self.terminal.rows - 1),
-                        col.min(self.terminal.cols - 1),
-                    ));
+                    let screen_row = (event.position.1 / self.cell_h as f64) as usize;
+                    let sb_len = self.terminal.scrollback.len();
+                    let abs_row = (sb_len.saturating_sub(self.scroll_offset) + screen_row)
+                        .min(sb_len + self.terminal.rows - 1);
+                    self.sel_end = Some((abs_row, col.min(self.terminal.cols - 1)));
                     self.render();
                 }
                 PointerEventKind::Release { button, .. } if button == 0x110 => {

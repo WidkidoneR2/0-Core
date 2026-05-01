@@ -59,6 +59,7 @@ pub struct Terminal {
     pub cur_bg: Color,
     cur_attrs: CellAttrs,
     parser: Parser,
+    pub soft_wrapped: Vec<bool>,
 }
 impl Terminal {
     pub fn new(cols: usize, rows: usize) -> Self {
@@ -73,6 +74,7 @@ impl Terminal {
             cur_bg: Color::DEFAULT_BG,
             cur_attrs: CellAttrs::default(),
             parser: Parser::new(),
+            soft_wrapped: vec![false; rows],
         }
     }
     pub fn feed(&mut self, data: &[u8]) {
@@ -112,8 +114,11 @@ impl Terminal {
     }
     fn scroll_up(&mut self) {
         let row = self.grid.remove(0);
-        self.scrollback.push(row);
+        let was_soft = self.soft_wrapped.first().copied().unwrap_or(false);
+        if !self.soft_wrapped.is_empty() { self.soft_wrapped.remove(0); }
+        self.scrollback.push(row, was_soft);
         self.grid.push(vec![Cell::default(); self.cols]);
+        self.soft_wrapped.push(false);
     }
     fn newline(&mut self) {
         self.cursor_y += 1;
@@ -129,6 +134,9 @@ impl Terminal {
         }
         if self.cursor_x >= self.cols {
             self.cursor_x = 0;
+            if self.cursor_y < self.soft_wrapped.len() {
+                self.soft_wrapped[self.cursor_y] = true;
+            }
             self.newline();
         }
         if self.cursor_y < self.rows && self.cursor_x < self.cols {
