@@ -339,7 +339,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "ports" => sys_ports(),
         "services" | "svc" => sys_services(),
         "files" | "ls" => sys_files(core_root, args),
-        "find" | "fd" => find_cmd(db, core_root, args),
+        "fd" => find_cmd(db, core_root, args),
         "grep" => grep_cmd(line, args),
         "tree" => tree_cmd(args),
         "fstat" | "stat" => stat_cmd(args),
@@ -1219,6 +1219,244 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     CommandResult::Output(format!("  (no matches for '{}')", spec))
                 } else {
                     CommandResult::Output(out_lines.join("\n"))
+                }
+            }
+        }
+        "delete" | "del" => {
+            // delete <path> [--force]
+            // Forest vocabulary: human-readable rm with safety checks
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: delete <path> [--force]\n  delete moves to ~/.local/share/forest-trash/ by default\n  --force skips trash for permanent delete".to_string()
+                );
+            }
+            let force = args.contains(&"--force");
+            let target_arg = args.iter().find(|a| !a.starts_with("--")).copied().unwrap_or("");
+            if target_arg.is_empty() {
+                return CommandResult::Error("delete: no path specified".to_string());
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expanded = if target_arg.starts_with("~/") {
+                target_arg.replacen("~/", &format!("{}/", home), 1)
+            } else {
+                target_arg.to_string()
+            };
+            let target = std::path::PathBuf::from(&expanded);
+            if !target.exists() {
+                return CommandResult::Error(format!("delete: path not found: {}", expanded));
+            }
+            // Lock check
+            let lock_file = format!("{}/runtime/.core-locked", core_root);
+            if std::path::Path::new(&lock_file).exists() {
+                if target.starts_with(core_root) {
+                    return CommandResult::Error(format!(
+                        "delete: {} is inside a locked forest area\n  run unlock-core first",
+                        expanded
+                    ));
+                }
+            }
+            // Source-tree warning
+            let source_dirs = ["rust-tools", "intents", "scripts", "docs", "engine", "00-meta"];
+            let in_source = source_dirs.iter().any(|d| {
+                target.starts_with(format!("{}/{}", core_root, d))
+            });
+            if in_source && !force {
+                eprintln!("  ⚠️  delete: {} is inside a source-controlled directory", expanded);
+                eprint!("  Confirm delete? (y/N): ");
+                use std::io::BufRead;
+                let stdin = std::io::stdin();
+                let answer = stdin.lock().lines().next()
+                    .and_then(|l| l.ok())
+                    .unwrap_or_default();
+                if answer.trim().to_lowercase() != "y" {
+                    return CommandResult::Output("  delete cancelled".to_string());
+                }
+            }
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            if force {
+                let result = if target.is_dir() {
+                    std::fs::remove_dir_all(&target)
+                } else {
+                    std::fs::remove_file(&target)
+                };
+                match result {
+                    Ok(_) => {
+                        let _ = db.conn.execute(
+                            "INSERT INTO events (timestamp, kind, source, payload) VALUES (?1, ?2, ?3, ?4)",
+                            rusqlite::params![
+                                timestamp as i64, "file_deleted", "fsh::delete",
+                                format!("{{\"path\":\"{}\",\"force\":true}}", expanded)
+                            ],
+                        );
+                        CommandResult::Output(format!("  deleted: {}", expanded))
+                    }
+                    Err(e) => CommandResult::Error(format!("delete: {}", e)),
+                }
+            } else {
+                let trash_dir = format!("{}/.local/share/forest-trash", home);
+                let _ = std::fs::create_dir_all(&trash_dir);
+                let file_name = target.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                let trash_name = format!("{}/{}_{}", trash_dir, timestamp, file_name);
+                match std::fs::rename(&target, &trash_name) {
+                    Ok(_) => {
+                        let _ = db.conn.execute(
+                            "INSERT INTO events (timestamp, kind, source, payload) VALUES (?1, ?2, ?3, ?4)",
+                            rusqlite::params![
+                                timestamp as i64, "file_deleted", "fsh::delete",
+                                format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name)
+                            ],
+                        );
+                        CommandResult::Output(format!("  moved to trash: {}\n  use delete --force to skip trash", file_name))
+                    }
+                    Err(_) => {
+                        // rename fails across filesystems (e.g. /tmp) -- copy then delete
+                        let copy_result = if target.is_dir() {
+                            std::process::Command::new("cp")
+                                .args(["-r", &expanded, &trash_name])
+                                .status()
+                                .map(|s| if s.success() { Ok(()) } else { Err(std::io::Error::new(std::io::ErrorKind::Other, "cp failed")) })
+                                .unwrap_or(Err(std::io::Error::new(std::io::ErrorKind::Other, "cp failed")))
+                        } else {
+                            std::fs::copy(&target, &trash_name).map(|_| ())
+                        };
+                        match copy_result {
+                            Ok(_) => {
+                                let _ = if target.is_dir() {
+                                    std::fs::remove_dir_all(&target)
+                                } else {
+                                    std::fs::remove_file(&target)
+                                };
+                                let _ = db.conn.execute(
+                                    "INSERT INTO events (timestamp, kind, source, payload) VALUES (?1, ?2, ?3, ?4)",
+                                    rusqlite::params![
+                                        timestamp as i64, "file_deleted", "fsh::delete",
+                                        format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name)
+                                    ],
+                                );
+                                CommandResult::Output(format!("  moved to trash: {}\n  use delete --force to skip trash", file_name))
+                            }
+                            Err(e) => CommandResult::Error(format!("delete: could not move to trash: {}\n  try delete --force", e))
+                        }
+                    }
+                }
+            }
+        }
+        "find" => {
+            // find <pattern> [path|@shortcut] [--type f|d] [--ext rs]
+            // Forest vocabulary: human-readable fd wrapper with git awareness
+            // @rust=rust-tools/, @intents=intents/, @scripts=scripts/, @docs=docs/
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: find <pattern> [@rust|@intents|@scripts|@docs|path] [--type f|d] [--ext ext]".to_string()
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let mut pattern = String::new();
+            let mut search_root = std::path::PathBuf::from(core_root);
+            let mut filter_type: Option<String> = None;
+            let mut filter_ext: Option<String> = None;
+            let mut i = 0;
+            while i < args.len() {
+                match args[i] {
+                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1].to_string()); i += 2; }
+                    "--ext" if i + 1 < args.len() => { filter_ext = Some(args[i+1].to_string()); i += 2; }
+                    "@rust" => { search_root = std::path::PathBuf::from(format!("{}/rust-tools", core_root)); i += 1; }
+                    "@intents" => { search_root = std::path::PathBuf::from(format!("{}/intents", core_root)); i += 1; }
+                    "@scripts" => { search_root = std::path::PathBuf::from(format!("{}/scripts", core_root)); i += 1; }
+                    "@docs" => { search_root = std::path::PathBuf::from(format!("{}/docs", core_root)); i += 1; }
+                    arg if arg.starts_with("@") => {
+                        // Unknown shortcut -- treat as literal path
+                        search_root = std::path::PathBuf::from(format!("{}/{}", core_root, &arg[1..]));
+                        i += 1;
+                    }
+                    arg if !arg.starts_with("--") && pattern.is_empty() => {
+                        pattern = arg.to_string(); i += 1;
+                    }
+                    arg if !arg.starts_with("--") => {
+                        // Second positional = path
+                        let expanded = if arg.starts_with("~/") {
+                            arg.replacen("~/", &format!("{}/", home), 1)
+                        } else { arg.to_string() };
+                        search_root = std::path::PathBuf::from(expanded);
+                        i += 1;
+                    }
+                    _ => { i += 1; }
+                }
+            }
+            if pattern.is_empty() {
+                return CommandResult::Error("find: pattern required".to_string());
+            }
+            // Check if fd is available
+            let fd_path = std::process::Command::new("which")
+                .arg("fd")
+                .output()
+                .ok()
+                .and_then(|o| if o.status.success() { Some("fd".to_string()) } else { None })
+                .unwrap_or_else(|| "fdfind".to_string());
+            let mut cmd = std::process::Command::new(&fd_path);
+            cmd.arg(&pattern);
+            cmd.arg(&search_root);
+            if let Some(ref t) = filter_type {
+                cmd.args(["--type", t]);
+            }
+            if let Some(ref e) = filter_ext {
+                cmd.args(["--extension", e]);
+            }
+            let output = cmd.output();
+            match output {
+                Err(_) => {
+                    // fd not available -- fall back to find
+                    let mut fallback = std::process::Command::new("find");
+                    fallback.arg(&search_root).arg("-name").arg(format!("*{}*", pattern));
+                    let fb_out = fallback.output().unwrap_or_else(|_| {
+                        return std::process::Command::new("true").output().unwrap();
+                    });
+                    let results: Vec<&str> = std::str::from_utf8(&fb_out.stdout)
+                        .unwrap_or("")
+                        .lines()
+                        .filter(|l| !l.is_empty())
+                        .collect();
+                    if results.is_empty() {
+                        return CommandResult::Output(format!("  (no results for '{}')", pattern));
+                    }
+                    let out = results.iter()
+                        .map(|p| format!("  {}", p))
+                        .collect::<Vec<_>>()
+                        .join("
+");
+                    CommandResult::Output(out)
+                }
+                Ok(fd_out) => {
+                    let results: Vec<&str> = std::str::from_utf8(&fd_out.stdout)
+                        .unwrap_or("")
+                        .lines()
+                        .filter(|l| !l.is_empty())
+                        .collect();
+                    if results.is_empty() {
+                        return CommandResult::Output(format!("  (no results for '{}')", pattern));
+                    }
+                    // Get git tracked files for badge
+                    let git_tracked: std::collections::HashSet<String> = std::process::Command::new("git")
+                        .args(["-C", core_root, "ls-files"])
+                        .output()
+                        .ok()
+                        .map(|o| std::str::from_utf8(&o.stdout).unwrap_or("").lines()
+                            .map(|l| format!("{}/{}", core_root, l))
+                            .collect())
+                        .unwrap_or_default();
+                    let mut out = format!("  {} results for '{}'
+", results.len(), pattern);
+                    for path in &results {
+                        let badge = if git_tracked.contains(*path) { "✓" } else { "•" };
+                        out.push_str(&format!("  {} {}
+", badge, path));
+                    }
+                    CommandResult::Output(out.trim_end().to_string())
                 }
             }
         }
@@ -4572,6 +4810,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "cistart",
                             "cicomplete",
                             "intent",
+                            "delete",
+                            "del",
                             "fsearch",
                             "query",
                             "rspatch",
