@@ -191,7 +191,9 @@ impl ForestDb {
                                 || err.code == rusqlite::ErrorCode::ReadOnly
                     );
                     if transient && attempt + 1 < max_attempts {
-                        std::thread::sleep(std::time::Duration::from_millis(50 * (attempt as u64 + 1)));
+                        std::thread::sleep(std::time::Duration::from_millis(
+                            50 * (attempt as u64 + 1),
+                        ));
                         last_err = Some(e);
                         continue;
                     }
@@ -205,7 +207,12 @@ impl ForestDb {
     /// INT-250: backfill completion data (exit_code, duration_ms) for an existing
     /// history row. Called AFTER command execution. Errors silently ignored --
     /// completion data is best-effort.
-    pub fn update_history_completion(&self, id: i64, exit_code: Option<i32>, duration_ms: Option<u64>) {
+    pub fn update_history_completion(
+        &self,
+        id: i64,
+        exit_code: Option<i32>,
+        duration_ms: Option<u64>,
+    ) {
         let _ = self.conn.execute(
             "UPDATE shell_history SET exit_code = ?1, duration_ms = ?2 WHERE id = ?3",
             rusqlite::params![exit_code, duration_ms.map(|d| d as i64), id],
@@ -357,8 +364,10 @@ pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::Exit
                 let trimmed = out_line.trim();
                 let is_leak = trimmed.len() >= 4
                     && trimmed.ends_with("EOF")
-                    && trimmed[..trimmed.len()-3].len() >= 1
-                    && trimmed[..trimmed.len()-3].chars().all(|c| c.is_ascii_uppercase() || c == '_');
+                    && trimmed[..trimmed.len() - 3].len() >= 1
+                    && trimmed[..trimmed.len() - 3]
+                        .chars()
+                        .all(|c| c.is_ascii_uppercase() || c == '_');
                 if is_leak {
                     eprintln!("  WARN possible unclosed heredoc -- {:?} appeared as standalone output line", trimmed);
                 }

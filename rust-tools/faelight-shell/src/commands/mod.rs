@@ -889,12 +889,30 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     while let Some(c) = chars.next() {
                         if c == '\\' {
                             match chars.peek() {
-                                Some('n') => { chars.next(); out.push('\n'); }
-                                Some('t') => { chars.next(); out.push('\t'); }
-                                Some('r') => { chars.next(); out.push('\r'); }
-                                Some('\\') => { chars.next(); out.push('\\'); }
-                                Some('\'') => { chars.next(); out.push('\''); }
-                                Some('"') => { chars.next(); out.push('"'); }
+                                Some('n') => {
+                                    chars.next();
+                                    out.push('\n');
+                                }
+                                Some('t') => {
+                                    chars.next();
+                                    out.push('\t');
+                                }
+                                Some('r') => {
+                                    chars.next();
+                                    out.push('\r');
+                                }
+                                Some('\\') => {
+                                    chars.next();
+                                    out.push('\\');
+                                }
+                                Some('\'') => {
+                                    chars.next();
+                                    out.push('\'');
+                                }
+                                Some('"') => {
+                                    chars.next();
+                                    out.push('"');
+                                }
                                 _ => out.push('\\'),
                             }
                         } else {
@@ -1241,7 +1259,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     "  usage: db <table|sql> [flags]
   tables: events, history, friday, predictions, patterns
   flags:  --domain X  --action X  --today  --failed  --limit N  --count
-  raw sql: db SELECT...".to_string()
+  raw sql: db SELECT..."
+                        .to_string(),
                 );
             }
             let is_raw_sql = args[0].to_uppercase().starts_with("SELECT")
@@ -1258,32 +1277,41 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             while i < args.len() {
                 match args[i] {
                     "--limit" if i + 1 < args.len() => {
-                        limit = args[i+1].parse().unwrap_or(20);
+                        limit = args[i + 1].parse().unwrap_or(20);
                         i += 2;
                     }
                     "--domain" if i + 1 < args.len() => {
-                        filter_domain = Some(args[i+1]);
+                        filter_domain = Some(args[i + 1]);
                         i += 2;
                     }
                     "--action" if i + 1 < args.len() => {
-                        filter_action = Some(args[i+1]);
+                        filter_action = Some(args[i + 1]);
                         i += 2;
                     }
-                    _ => { i += 1; }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
             let midnight = {
                 use std::time::{SystemTime, UNIX_EPOCH};
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
                 (now - (now % 86400)) as i64
             };
             if is_raw_sql {
                 // Raw SQL passthrough -- read only
                 let sql_upper = args[0].to_uppercase();
-                if sql_upper.contains("DROP") || sql_upper.contains("DELETE")
-                    || sql_upper.contains("UPDATE") || sql_upper.contains("INSERT") {
+                if sql_upper.contains("DROP")
+                    || sql_upper.contains("DELETE")
+                    || sql_upper.contains("UPDATE")
+                    || sql_upper.contains("INSERT")
+                {
                     return CommandResult::Error(
-                        "db: write operations require --write flag (not yet implemented)".to_string()
+                        "db: write operations require --write flag (not yet implemented)"
+                            .to_string(),
                     );
                 }
                 match db.conn.prepare(args[0]) {
@@ -1294,22 +1322,32 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                             .map(|i| stmt.column_name(i).unwrap_or("?").to_string())
                             .collect();
                         let mut rows_out: Vec<Vec<String>> = Vec::new();
-                        let _ = stmt.query_map([], |row| {
-                            let vals: Vec<String> = (0..col_count)
-                                .map(|i| row.get::<_, rusqlite::types::Value>(i)
-                                    .map(|v| match v {
-                                        rusqlite::types::Value::Null => "NULL".to_string(),
-                                        rusqlite::types::Value::Integer(n) => n.to_string(),
-                                        rusqlite::types::Value::Real(f) => format!("{:.2}", f),
-                                        rusqlite::types::Value::Text(s) => s,
-                                        rusqlite::types::Value::Blob(_) => "<blob>".to_string(),
+                        let _ = stmt
+                            .query_map([], |row| {
+                                let vals: Vec<String> = (0..col_count)
+                                    .map(|i| {
+                                        row.get::<_, rusqlite::types::Value>(i)
+                                            .map(|v| match v {
+                                                rusqlite::types::Value::Null => "NULL".to_string(),
+                                                rusqlite::types::Value::Integer(n) => n.to_string(),
+                                                rusqlite::types::Value::Real(f) => {
+                                                    format!("{:.2}", f)
+                                                }
+                                                rusqlite::types::Value::Text(s) => s,
+                                                rusqlite::types::Value::Blob(_) => {
+                                                    "<blob>".to_string()
+                                                }
+                                            })
+                                            .unwrap_or_default()
                                     })
-                                    .unwrap_or_default())
-                                .collect();
-                            Ok(vals)
-                        }).map(|rows| {
-                            for r in rows.flatten() { rows_out.push(r); }
-                        });
+                                    .collect();
+                                Ok(vals)
+                            })
+                            .map(|rows| {
+                                for r in rows.flatten() {
+                                    rows_out.push(r);
+                                }
+                            });
                         if count_only {
                             return CommandResult::Output(format!("  {}", rows_out.len()));
                         }
@@ -1324,47 +1362,116 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let result = match table {
                 "events" => {
                     let mut sql = "SELECT id, domain, action, substr(payload,1,50), datetime(timestamp,'unixepoch','localtime') as time FROM events WHERE 1=1".to_string();
-                    if let Some(d) = filter_domain { sql.push_str(&format!(" AND domain='{}' ", d)); }
-                    if let Some(a) = filter_action { sql.push_str(&format!(" AND action='{}' ", a)); }
-                    if today_only { sql.push_str(&format!(" AND timestamp >= {} ", midnight)); }
+                    if let Some(d) = filter_domain {
+                        sql.push_str(&format!(" AND domain='{}' ", d));
+                    }
+                    if let Some(a) = filter_action {
+                        sql.push_str(&format!(" AND action='{}' ", a));
+                    }
+                    if today_only {
+                        sql.push_str(&format!(" AND timestamp >= {} ", midnight));
+                    }
                     sql.push_str(&format!(" ORDER BY timestamp DESC LIMIT {}", limit));
-                    let headers = vec!["id".to_string(), "domain".to_string(), "action".to_string(), "payload".to_string(), "time".to_string()];
+                    let headers = vec![
+                        "id".to_string(),
+                        "domain".to_string(),
+                        "action".to_string(),
+                        "payload".to_string(),
+                        "time".to_string(),
+                    ];
                     query_to_table(&db.conn, &sql, &headers)
                 }
                 "history" | "hist" => {
                     let mut sql = "SELECT id, substr(command,1,50) as cmd, exit_code, substr(cwd,length(cwd)-20) as cwd, datetime(timestamp,'unixepoch','localtime') as time FROM shell_history WHERE 1=1".to_string();
-                    if failed_only { sql.push_str(" AND exit_code != 0"); }
-                    if today_only { sql.push_str(&format!(" AND timestamp >= {}", midnight)); }
+                    if failed_only {
+                        sql.push_str(" AND exit_code != 0");
+                    }
+                    if today_only {
+                        sql.push_str(&format!(" AND timestamp >= {}", midnight));
+                    }
                     sql.push_str(&format!(" ORDER BY timestamp DESC LIMIT {}", limit));
-                    let headers = vec!["id".to_string(), "command".to_string(), "exit".to_string(), "cwd".to_string(), "time".to_string()];
+                    let headers = vec![
+                        "id".to_string(),
+                        "command".to_string(),
+                        "exit".to_string(),
+                        "cwd".to_string(),
+                        "time".to_string(),
+                    ];
                     query_to_table(&db.conn, &sql, &headers)
                 }
                 "friday" | "knowledge" => {
                     let sql = format!("SELECT id, domain, substr(fact,1,60) as fact, confidence, datetime(created_at,'unixepoch','localtime') as time FROM friday_knowledge ORDER BY confidence DESC LIMIT {}", limit);
-                    let headers = vec!["id".to_string(), "domain".to_string(), "fact".to_string(), "conf".to_string(), "time".to_string()];
+                    let headers = vec![
+                        "id".to_string(),
+                        "domain".to_string(),
+                        "fact".to_string(),
+                        "conf".to_string(),
+                        "time".to_string(),
+                    ];
                     query_to_table(&db.conn, &sql, &headers)
                 }
                 "predictions" | "predict" => {
                     let sql = format!("SELECT id, substr(pattern,1,40) as pattern, substr(prediction,1,40) as prediction, confidence FROM forest_predictions ORDER BY confidence DESC LIMIT {}", limit);
-                    let headers = vec!["id".to_string(), "pattern".to_string(), "prediction".to_string(), "conf".to_string()];
+                    let headers = vec![
+                        "id".to_string(),
+                        "pattern".to_string(),
+                        "prediction".to_string(),
+                        "conf".to_string(),
+                    ];
                     query_to_table(&db.conn, &sql, &headers)
                 }
                 "patterns" | "session" => {
                     let sql = format!("SELECT id, substr(pattern,1,50) as pattern, weight, datetime(last_seen,'unixepoch','localtime') as last_seen FROM session_patterns ORDER BY weight DESC LIMIT {}", limit);
-                    let headers = vec!["id".to_string(), "pattern".to_string(), "weight".to_string(), "last_seen".to_string()];
+                    let headers = vec![
+                        "id".to_string(),
+                        "pattern".to_string(),
+                        "weight".to_string(),
+                        "last_seen".to_string(),
+                    ];
                     query_to_table(&db.conn, &sql, &headers)
                 }
-                _ => Err(format!("db: unknown table '{}'. Try: events, history, friday, predictions, patterns", table))
+                _ => Err(format!(
+                    "db: unknown table '{}'. Try: events, history, friday, predictions, patterns",
+                    table
+                )),
             };
             match result {
                 Ok(rows) if count_only => CommandResult::Output(format!("  {}", rows.len())),
                 Ok(rows) => {
                     let headers = match table {
-                        "events" => vec!["id".to_string(), "domain".to_string(), "action".to_string(), "payload".to_string(), "time".to_string()],
-                        "history" | "hist" => vec!["id".to_string(), "command".to_string(), "exit".to_string(), "cwd".to_string(), "time".to_string()],
-                        "friday" | "knowledge" => vec!["id".to_string(), "domain".to_string(), "fact".to_string(), "conf".to_string(), "time".to_string()],
-                        "predictions" | "predict" => vec!["id".to_string(), "pattern".to_string(), "prediction".to_string(), "conf".to_string()],
-                        _ => vec!["id".to_string(), "pattern".to_string(), "weight".to_string(), "last_seen".to_string()],
+                        "events" => vec![
+                            "id".to_string(),
+                            "domain".to_string(),
+                            "action".to_string(),
+                            "payload".to_string(),
+                            "time".to_string(),
+                        ],
+                        "history" | "hist" => vec![
+                            "id".to_string(),
+                            "command".to_string(),
+                            "exit".to_string(),
+                            "cwd".to_string(),
+                            "time".to_string(),
+                        ],
+                        "friday" | "knowledge" => vec![
+                            "id".to_string(),
+                            "domain".to_string(),
+                            "fact".to_string(),
+                            "conf".to_string(),
+                            "time".to_string(),
+                        ],
+                        "predictions" | "predict" => vec![
+                            "id".to_string(),
+                            "pattern".to_string(),
+                            "prediction".to_string(),
+                            "conf".to_string(),
+                        ],
+                        _ => vec![
+                            "id".to_string(),
+                            "pattern".to_string(),
+                            "weight".to_string(),
+                            "last_seen".to_string(),
+                        ],
                     };
                     CommandResult::Output(format_table(&headers, &rows))
                 }
@@ -1380,7 +1487,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 );
             }
             let force = args.contains(&"--force");
-            let target_arg = args.iter().find(|a| !a.starts_with("--")).copied().unwrap_or("");
+            let target_arg = args
+                .iter()
+                .find(|a| !a.starts_with("--"))
+                .copied()
+                .unwrap_or("");
             if target_arg.is_empty() {
                 return CommandResult::Error("delete: no path specified".to_string());
             }
@@ -1405,16 +1516,29 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
             // Source-tree warning
-            let source_dirs = ["rust-tools", "intents", "scripts", "docs", "engine", "00-meta"];
-            let in_source = source_dirs.iter().any(|d| {
-                target.starts_with(format!("{}/{}", core_root, d))
-            });
+            let source_dirs = [
+                "rust-tools",
+                "intents",
+                "scripts",
+                "docs",
+                "engine",
+                "00-meta",
+            ];
+            let in_source = source_dirs
+                .iter()
+                .any(|d| target.starts_with(format!("{}/{}", core_root, d)));
             if in_source && !force {
-                eprintln!("  ⚠️  delete: {} is inside a source-controlled directory", expanded);
+                eprintln!(
+                    "  ⚠️  delete: {} is inside a source-controlled directory",
+                    expanded
+                );
                 eprint!("  Confirm delete? (y/N): ");
                 use std::io::BufRead;
                 let stdin = std::io::stdin();
-                let answer = stdin.lock().lines().next()
+                let answer = stdin
+                    .lock()
+                    .lines()
+                    .next()
                     .and_then(|l| l.ok())
                     .unwrap_or_default();
                 if answer.trim().to_lowercase() != "y" {
@@ -1447,7 +1571,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             } else {
                 let trash_dir = format!("{}/.local/share/forest-trash", home);
                 let _ = std::fs::create_dir_all(&trash_dir);
-                let file_name = target.file_name()
+                let file_name = target
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "unknown".to_string());
                 let trash_name = format!("{}/{}_{}", trash_dir, timestamp, file_name);
@@ -1460,7 +1585,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                                 format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name)
                             ],
                         );
-                        CommandResult::Output(format!("  moved to trash: {}\n  use delete --force to skip trash", file_name))
+                        CommandResult::Output(format!(
+                            "  moved to trash: {}\n  use delete --force to skip trash",
+                            file_name
+                        ))
                     }
                     Err(_) => {
                         // rename fails across filesystems (e.g. /tmp) -- copy then delete
@@ -1468,8 +1596,20 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                             std::process::Command::new("cp")
                                 .args(["-r", &expanded, &trash_name])
                                 .status()
-                                .map(|s| if s.success() { Ok(()) } else { Err(std::io::Error::new(std::io::ErrorKind::Other, "cp failed")) })
-                                .unwrap_or(Err(std::io::Error::new(std::io::ErrorKind::Other, "cp failed")))
+                                .map(|s| {
+                                    if s.success() {
+                                        Ok(())
+                                    } else {
+                                        Err(std::io::Error::new(
+                                            std::io::ErrorKind::Other,
+                                            "cp failed",
+                                        ))
+                                    }
+                                })
+                                .unwrap_or(Err(std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    "cp failed",
+                                )))
                         } else {
                             std::fs::copy(&target, &trash_name).map(|_| ())
                         };
@@ -1487,9 +1627,15 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                                         format!("{{\"path\":\"{}\",\"trash\":\"{}\",\"force\":false}}", expanded, trash_name)
                                     ],
                                 );
-                                CommandResult::Output(format!("  moved to trash: {}\n  use delete --force to skip trash", file_name))
+                                CommandResult::Output(format!(
+                                    "  moved to trash: {}\n  use delete --force to skip trash",
+                                    file_name
+                                ))
                             }
-                            Err(e) => CommandResult::Error(format!("delete: could not move to trash: {}\n  try delete --force", e))
+                            Err(e) => CommandResult::Error(format!(
+                                "delete: could not move to trash: {}\n  try delete --force",
+                                e
+                            )),
                         }
                     }
                 }
@@ -1512,29 +1658,53 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             let mut i = 0;
             while i < args.len() {
                 match args[i] {
-                    "--type" if i + 1 < args.len() => { filter_type = Some(args[i+1].to_string()); i += 2; }
-                    "--ext" if i + 1 < args.len() => { filter_ext = Some(args[i+1].to_string()); i += 2; }
-                    "@rust" => { search_root = std::path::PathBuf::from(format!("{}/rust-tools", core_root)); i += 1; }
-                    "@intents" => { search_root = std::path::PathBuf::from(format!("{}/intents", core_root)); i += 1; }
-                    "@scripts" => { search_root = std::path::PathBuf::from(format!("{}/scripts", core_root)); i += 1; }
-                    "@docs" => { search_root = std::path::PathBuf::from(format!("{}/docs", core_root)); i += 1; }
+                    "--type" if i + 1 < args.len() => {
+                        filter_type = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    "--ext" if i + 1 < args.len() => {
+                        filter_ext = Some(args[i + 1].to_string());
+                        i += 2;
+                    }
+                    "@rust" => {
+                        search_root = std::path::PathBuf::from(format!("{}/rust-tools", core_root));
+                        i += 1;
+                    }
+                    "@intents" => {
+                        search_root = std::path::PathBuf::from(format!("{}/intents", core_root));
+                        i += 1;
+                    }
+                    "@scripts" => {
+                        search_root = std::path::PathBuf::from(format!("{}/scripts", core_root));
+                        i += 1;
+                    }
+                    "@docs" => {
+                        search_root = std::path::PathBuf::from(format!("{}/docs", core_root));
+                        i += 1;
+                    }
                     arg if arg.starts_with("@") => {
                         // Unknown shortcut -- treat as literal path
-                        search_root = std::path::PathBuf::from(format!("{}/{}", core_root, &arg[1..]));
+                        search_root =
+                            std::path::PathBuf::from(format!("{}/{}", core_root, &arg[1..]));
                         i += 1;
                     }
                     arg if !arg.starts_with("--") && pattern.is_empty() => {
-                        pattern = arg.to_string(); i += 1;
+                        pattern = arg.to_string();
+                        i += 1;
                     }
                     arg if !arg.starts_with("--") => {
                         // Second positional = path
                         let expanded = if arg.starts_with("~/") {
                             arg.replacen("~/", &format!("{}/", home), 1)
-                        } else { arg.to_string() };
+                        } else {
+                            arg.to_string()
+                        };
                         search_root = std::path::PathBuf::from(expanded);
                         i += 1;
                     }
-                    _ => { i += 1; }
+                    _ => {
+                        i += 1;
+                    }
                 }
             }
             if pattern.is_empty() {
@@ -1545,7 +1715,13 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 .arg("fd")
                 .output()
                 .ok()
-                .and_then(|o| if o.status.success() { Some("fd".to_string()) } else { None })
+                .and_then(|o| {
+                    if o.status.success() {
+                        Some("fd".to_string())
+                    } else {
+                        None
+                    }
+                })
                 .unwrap_or_else(|| "fdfind".to_string());
             let mut cmd = std::process::Command::new(&fd_path);
             cmd.arg(&pattern);
@@ -1561,7 +1737,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Err(_) => {
                     // fd not available -- fall back to find
                     let mut fallback = std::process::Command::new("find");
-                    fallback.arg(&search_root).arg("-name").arg(format!("*{}*", pattern));
+                    fallback
+                        .arg(&search_root)
+                        .arg("-name")
+                        .arg(format!("*{}*", pattern));
                     let fb_out = fallback.output().unwrap_or_else(|_| {
                         return std::process::Command::new("true").output().unwrap();
                     });
@@ -1573,11 +1752,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     if results.is_empty() {
                         return CommandResult::Output(format!("  (no results for '{}')", pattern));
                     }
-                    let out = results.iter()
+                    let out = results
+                        .iter()
                         .map(|p| format!("  {}", p))
                         .collect::<Vec<_>>()
-                        .join("
-");
+                        .join(
+                            "
+",
+                        );
                     CommandResult::Output(out)
                 }
                 Ok(fd_out) => {
@@ -1590,20 +1772,36 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         return CommandResult::Output(format!("  (no results for '{}')", pattern));
                     }
                     // Get git tracked files for badge
-                    let git_tracked: std::collections::HashSet<String> = std::process::Command::new("git")
-                        .args(["-C", core_root, "ls-files"])
-                        .output()
-                        .ok()
-                        .map(|o| std::str::from_utf8(&o.stdout).unwrap_or("").lines()
-                            .map(|l| format!("{}/{}", core_root, l))
-                            .collect())
-                        .unwrap_or_default();
-                    let mut out = format!("  {} results for '{}'
-", results.len(), pattern);
+                    let git_tracked: std::collections::HashSet<String> =
+                        std::process::Command::new("git")
+                            .args(["-C", core_root, "ls-files"])
+                            .output()
+                            .ok()
+                            .map(|o| {
+                                std::str::from_utf8(&o.stdout)
+                                    .unwrap_or("")
+                                    .lines()
+                                    .map(|l| format!("{}/{}", core_root, l))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                    let mut out = format!(
+                        "  {} results for '{}'
+",
+                        results.len(),
+                        pattern
+                    );
                     for path in &results {
-                        let badge = if git_tracked.contains(*path) { "✓" } else { "•" };
-                        out.push_str(&format!("  {} {}
-", badge, path));
+                        let badge = if git_tracked.contains(*path) {
+                            "✓"
+                        } else {
+                            "•"
+                        };
+                        out.push_str(&format!(
+                            "  {} {}
+",
+                            badge, path
+                        ));
                     }
                     CommandResult::Output(out.trim_end().to_string())
                 }
@@ -1644,7 +1842,11 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                             arg.to_string()
                         };
                         let p = std::path::PathBuf::from(&expanded);
-                        if p.exists() && p.is_dir() && search_root.is_none() && !pattern_parts.is_empty() {
+                        if p.exists()
+                            && p.is_dir()
+                            && search_root.is_none()
+                            && !pattern_parts.is_empty()
+                        {
                             // Only treat as path if it's a directory AND we already have a pattern
                             search_root = Some(p);
                         } else {
@@ -8951,24 +9153,31 @@ fn extract_output(r: CommandResult) -> String {
         _ => String::new(),
     }
 }
-fn query_to_table(conn: &rusqlite::Connection, sql: &str, _headers: &[String]) -> Result<Vec<Vec<String>>, String> {
+fn query_to_table(
+    conn: &rusqlite::Connection,
+    sql: &str,
+    _headers: &[String],
+) -> Result<Vec<Vec<String>>, String> {
     let mut stmt = conn.prepare(sql).map_err(|e| format!("db: {}", e))?;
     let col_count = stmt.column_count();
     let mut rows_out: Vec<Vec<String>> = Vec::new();
     stmt.query_map([], |row| {
         let vals: Vec<String> = (0..col_count)
-            .map(|i| row.get::<_, rusqlite::types::Value>(i)
-                .map(|v| match v {
-                    rusqlite::types::Value::Null => String::new(),
-                    rusqlite::types::Value::Integer(n) => n.to_string(),
-                    rusqlite::types::Value::Real(f) => format!("{:.2}", f),
-                    rusqlite::types::Value::Text(s) => s,
-                    rusqlite::types::Value::Blob(_) => "<blob>".to_string(),
-                })
-                .unwrap_or_default())
+            .map(|i| {
+                row.get::<_, rusqlite::types::Value>(i)
+                    .map(|v| match v {
+                        rusqlite::types::Value::Null => String::new(),
+                        rusqlite::types::Value::Integer(n) => n.to_string(),
+                        rusqlite::types::Value::Real(f) => format!("{:.2}", f),
+                        rusqlite::types::Value::Text(s) => s,
+                        rusqlite::types::Value::Blob(_) => "<blob>".to_string(),
+                    })
+                    .unwrap_or_default()
+            })
             .collect();
         Ok(vals)
-    }).map_err(|e| format!("db: {}", e))?
+    })
+    .map_err(|e| format!("db: {}", e))?
     .filter_map(|r| r.ok())
     .for_each(|r| rows_out.push(r));
     Ok(rows_out)
@@ -8991,7 +9200,11 @@ fn format_table(headers: &[String], rows: &[Vec<String>]) -> String {
     // Header
     out.push_str("  ");
     for (i, h) in headers.iter().enumerate() {
-        out.push_str(&format!("{:<width$}  ", h.bright_green(), width = widths[i]));
+        out.push_str(&format!(
+            "{:<width$}  ",
+            h.bright_green(),
+            width = widths[i]
+        ));
     }
     out.push('\n');
     // Separator

@@ -502,7 +502,9 @@ impl<'a> ForestHelper<'a> {
         // ── Case 2e: alias completion from state.db ─────────────────────────
         if !line.contains(' ') && !line.is_empty() {
             let mut alias_names: Vec<String> = Vec::new();
-            if let Ok(mut stmt) = self.db.conn
+            if let Ok(mut stmt) = self
+                .db
+                .conn
                 .prepare("SELECT name FROM shell_aliases WHERE name LIKE ?1 ORDER BY name")
             {
                 let pattern = format!("{}%", line);

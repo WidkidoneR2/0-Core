@@ -74,7 +74,10 @@ fn run_loop(
         let _ = terminal.draw(|f| draw_ui(f, &query, &entries, &mut list_state));
 
         if let Ok(event) = event::read() {
-            if let Event::Key(KeyEvent { code, modifiers, .. }) = event {
+            if let Event::Key(KeyEvent {
+                code, modifiers, ..
+            }) = event
+            {
                 match (code, modifiers) {
                     (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => return None,
                     (KeyCode::Enter, _) => {
@@ -166,15 +169,25 @@ fn draw_ui(
         .split(f.area());
 
     let search_box = Paragraph::new(vec![Line::from(vec![
-        Span::styled("search: ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "search: ",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(format!("{}_", query), Style::default().fg(Color::White)),
     ])])
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green))
-                .title(Span::styled(" 🌲 history ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)))
-        );
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green))
+            .title(Span::styled(
+                " 🌲 history ",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )),
+    );
     f.render_widget(search_box, chunks[0]);
 
     let now = std::time::SystemTime::now()
@@ -196,14 +209,13 @@ fn draw_ui(
                 Some(d) => format!("{}.{}s", d / 1000, (d % 1000) / 100),
                 None => String::new(),
             };
-            let cwd_short = e
-                .cwd
-                .as_ref()
-                .map(|c| shorten_cwd(c))
-                .unwrap_or_default();
+            let cwd_short = e.cwd.as_ref().map(|c| shorten_cwd(c)).unwrap_or_default();
             let line = Line::from(vec![
                 Span::raw(format!("{:50}  ", truncate(&e.command, 50))),
-                Span::styled(format!("{:>10}  ", age), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{:>10}  ", age),
+                    Style::default().fg(Color::DarkGray),
+                ),
                 exit_marker,
                 Span::raw(format!(" {:>8}  ", dur)),
                 Span::styled(cwd_short, Style::default().fg(Color::Blue)),
@@ -217,31 +229,51 @@ fn draw_ui(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Green))
-                .title(Span::styled(" results ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)))
+                .title(Span::styled(
+                    " results ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )),
         )
         .highlight_style(
             Style::default()
                 .bg(Color::Rgb(40, 80, 40))
                 .fg(Color::White)
-                .add_modifier(Modifier::BOLD)
+                .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(" ▶ ");
     f.render_stateful_widget(list, chunks[1], list_state);
 
     let footer = Paragraph::new(Line::from(vec![
-        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Enter",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(": run  "),
-        Span::styled("Esc", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Esc",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(": cancel  "),
-        Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "↑↓",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(": navigate"),
     ]))
-        .style(Style::default().fg(Color::DarkGray))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-        );
+    .style(Style::default().fg(Color::DarkGray))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::DarkGray)),
+    );
     f.render_widget(footer, chunks[2]);
 }
 
