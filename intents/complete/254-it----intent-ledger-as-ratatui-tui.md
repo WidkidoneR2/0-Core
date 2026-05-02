@@ -3,7 +3,7 @@ id: 254
 date: 2026-04-28
 type: feature
 title: "it -- Intent Ledger as Ratatui TUI"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight, tui, ratatui, intent, fsh, ux]
 version: TBD
 ---
