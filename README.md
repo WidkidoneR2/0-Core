@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 11.9.0
+# 🌲 Faelight Forest 12.0.0
 
-![Version](https://img.shields.io/badge/version-11.9.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-12.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,29 +11,43 @@
 
 ## 🎊 Latest Release
 
-### 11.9.0 - 🌲 The Forest That Speaks Back (2026-04-19)
+### 12.0.0 - 🌲 The Forest Speaks Human (2026-05-02)
 
-- 201 — faelight-term v11 — The Terminal That Thinks
-- 212 — Core v18 — Synthesis Engine: The Forest Speaks With One Voice
-- 215 — Event Architecture v2 — Append-Only Log and Signal Ontology
-- 216 — Friday Formal Architecture — Meta-Interpretation Engine
-- 217 — Core v19 — Friday Phase 1: The Forest Finds Its Voice
-- 218 — Friday Knowledge Engine — Situated Learning and Conflict Resolution
-- 220 — Friday Daemon — The Forest Finds Its Voice
-- 227 — Prediction Intelligence v2 -- Dependency-Aware Ordering and Strategic Sequencing
-- 228 — faelight-docs v2 -- Deploy Intelligence for All Documents
-- 229 — fsh v6 -- The Shell That Grows With You
-- 237 — Friday Easter Eggs -- The Forest Celebrates
-- INT-217 Friday Phase 1 — Friday finds her voice, speaks in d with confidence threshold
-- INT-217 complete — Core v19 Friday Phase 1, Friday finds her voice
-- INT-201 Phase 2 — forest status strip with multi-color segments, Ctrl+Shift+S toggle
-- INT-201 Phase 1 — URL click fixed, resize verified, scan_urls every 250ms
-- INT-201 Phase 3 — long command notification, URL click fix, scan_urls every 250ms
+- 180 — Sway Removal — Full Niri Commitment
+- 203 — Friday: The Living Intelligence
+- 219 — Core v20 — Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy
+- 231 — Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats
+- 232 — faelight-term v2 -- The Terminal That Thinks in 2136
+- 233 — fsh v8 -- Structured Shell: Data, Syntax, Intelligence
+- 234 — Core v21 -- Friday Planning Layer: From Reaction to Anticipation
+- 238 — forest-stats -- The Forest Visualizes Its Own Growth
+- 241 — Integrity Engine Audit -- No Phantom Fixes, No Silent Failures
+- 242 — faelight-login v2 -- The Forest Greets You First
+- 248 — friday_knowledge deduplication -- clean signal from noise
+- 249 — fsh heredoc delimiter leak warning
+- 250 — Release tool intelligence layer -- faelight-release and faelight-docs translate, not just account
+- 252 — fsh connection unification
+- 253 — gt -- Git Workflow as Ratatui TUI
+- 254 — it -- Intent Ledger as Ratatui TUI
+- 257 — Strip Tracked Versioned Binaries from Git History via filter-repo
+- 258 — Ctrl+D Health Display as Ratatui TUI
+- 259 — Command and Keybind Registry -- Universal Source of Truth
+- 260 — Cheatsheet TUI -- Live Reference for Commands and Keybinds
+- 261 — fsh Vocabulary -- A Human-Readable Language for the Forest
+- 262 — \"faelight-term Dead Code Audit and Renderer Decision\
+- 263 — \"db -- native state.db query builtin for fsh\
+- 264 — \"faelight-synthesis -- Semantic Translation Layer for Release Intelligence\
+- 266 — \"fsh vocabulary -- copy move list read write as forest-native commands\
+- INT-231 complete — Friday vocabulary: 6 abstractions named, language born from real patterns
+- INT-233 gp fixed, clippy scoped to staged packages, echo redirect verified
+- INT-233 rspatch \n newline fix — world\nextra now becomes two lines
+- INT-233 command not found suggests alternative, fsh-patch helper added
+- INT-233 startup 4ms verified, em dash handled, echo gate marked
 
-- Commits: 2206
+- Commits: 2421
 - Tools: 50 deployed
 - Health: 100%
-- Intents: 187 complete
+- Intents: 212 complete
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
