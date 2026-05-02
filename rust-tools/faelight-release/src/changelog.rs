@@ -247,17 +247,22 @@ pub fn get_commits_since(core_root: &PathBuf, since_tag: &str) -> Result<Vec<Com
 }
 
 pub fn get_last_tag(core_root: &PathBuf) -> String {
-    Command::new("git")
+    // Get all tags sorted by version, filter to only vX.Y.Z release tags
+    let out = Command::new("git")
         .args([
             "-C",
             core_root.to_str().unwrap_or("."),
-            "describe",
-            "--tags",
-            "--abbrev=0",
+            "tag",
+            "--sort=-version:refname",
         ])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "HEAD~50".to_string())
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    // Return the most recent vX.Y.Z tag
+    out.lines()
+        .find(|t| t.starts_with('v') && t.chars().nth(1).map(|c| c.is_ascii_digit()).unwrap_or(false))
+        .unwrap_or("HEAD~50")
+        .to_string()
 }
 
 // ─── GROUPED CHANGELOG ───────────────────────────────────────────────────────
