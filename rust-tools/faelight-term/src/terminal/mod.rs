@@ -262,6 +262,7 @@ impl<'a> Perform for VteHandler<'a> {
                 }
                 2 | 3 => {
                     self.term.grid = vec![vec![Cell::default(); self.term.cols]; self.term.rows];
+                    self.term.soft_wrapped = vec![false; self.term.rows];
                     self.term.cursor_x = 0;
                     self.term.cursor_y = 0;
                 }

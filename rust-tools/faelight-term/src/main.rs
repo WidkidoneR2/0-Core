@@ -217,6 +217,10 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         app.terminal.feed(data);
                     }
+                    // Reset scroll on clear (cursor returns to 0,0)
+                    if app.terminal.cursor_x == 0 && app.terminal.cursor_y == 0 {
+                        app.scroll_offset = 0;
+                    }
                     _dirty = true;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
