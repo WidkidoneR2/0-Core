@@ -3,7 +3,7 @@ id: 263
 date: 2026-05-01
 type: feature
 title: \"db -- native state.db query builtin for fsh\"
-status: in-progress
+status: complete
 tags: [feature, rust, faelight]
 version: TBD
 ---
