@@ -149,10 +149,17 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &s
                             mode = Mode::CommitInput;
                         }
                         (KeyCode::Char('p'), KeyModifiers::NONE) => {
-                            match do_push(core_root) {
-                                Ok(out) => { status_msg = out; files = load_git_status(core_root); }
-                                Err(e) => { status_msg = format!("Push failed: {}", e); }
-                            }
+                            // Exit TUI first so git push credential prompt renders cleanly
+                            let mut stdout = io::stdout();
+                            let _ = execute!(stdout, LeaveAlternateScreen);
+                            let _ = disable_raw_mode();
+                            let _ = std::process::Command::new("git")
+                                .args(["-C", core_root, "push"])
+                                .status();
+                            let _ = enable_raw_mode();
+                            let _ = execute!(io::stdout(), EnterAlternateScreen);
+                            files = load_git_status(core_root);
+                            status_msg = "Pushed".to_string();
                         }
                         (KeyCode::Char('r'), KeyModifiers::NONE) => {
                             files = load_git_status(core_root);
@@ -411,14 +418,4 @@ fn do_commit(core_root: &str, msg: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     if status.success() { Ok(()) } else { Err("git commit failed".to_string()) }
 }
-fn do_push(core_root: &str) -> Result<String, String> {
-    let out = std::process::Command::new("git")
-        .args(["-C", core_root, "push"])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if out.status.success() {
-        Ok("Pushed to origin".to_string())
-    } else {
-        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-    }
-}
+
