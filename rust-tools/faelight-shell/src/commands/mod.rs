@@ -1222,6 +1222,154 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 }
             }
         }
+        "db" => {
+            // db -- native state.db query builtin (INT-263)
+            // db "SELECT ..."              -- raw SQL passthrough
+            // db events                   -- last 20 events
+            // db events --domain git      -- filter by domain
+            // db events --today           -- filter to today
+            // db history                  -- last 20 shell commands
+            // db history --failed         -- only failed commands
+            // db history --limit N        -- last N commands
+            // db friday                   -- friday_knowledge summary
+            // db predictions              -- pending predictions
+            // db patterns                 -- session patterns
+            // --count                     -- return count only
+            if args.is_empty() {
+                return CommandResult::Output(
+                    "  usage: db <table|sql> [flags]
+  tables: events, history, friday, predictions, patterns
+  flags:  --domain X  --action X  --today  --failed  --limit N  --count
+  raw sql: db SELECT...".to_string()
+                );
+            }
+            let is_raw_sql = args[0].to_uppercase().starts_with("SELECT")
+                || args[0].to_uppercase().starts_with("WITH")
+                || args[0].contains("FROM ");
+            // Parse flags
+            let count_only = args.contains(&"--count");
+            let failed_only = args.contains(&"--failed");
+            let today_only = args.contains(&"--today");
+            let mut limit: usize = 20;
+            let mut filter_domain: Option<&str> = None;
+            let mut filter_action: Option<&str> = None;
+            let mut i = 0;
+            while i < args.len() {
+                match args[i] {
+                    "--limit" if i + 1 < args.len() => {
+                        limit = args[i+1].parse().unwrap_or(20);
+                        i += 2;
+                    }
+                    "--domain" if i + 1 < args.len() => {
+                        filter_domain = Some(args[i+1]);
+                        i += 2;
+                    }
+                    "--action" if i + 1 < args.len() => {
+                        filter_action = Some(args[i+1]);
+                        i += 2;
+                    }
+                    _ => { i += 1; }
+                }
+            }
+            let midnight = {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                (now - (now % 86400)) as i64
+            };
+            if is_raw_sql {
+                // Raw SQL passthrough -- read only
+                let sql_upper = args[0].to_uppercase();
+                if sql_upper.contains("DROP") || sql_upper.contains("DELETE")
+                    || sql_upper.contains("UPDATE") || sql_upper.contains("INSERT") {
+                    return CommandResult::Error(
+                        "db: write operations require --write flag (not yet implemented)".to_string()
+                    );
+                }
+                match db.conn.prepare(args[0]) {
+                    Err(e) => return CommandResult::Error(format!("db: SQL error: {}", e)),
+                    Ok(mut stmt) => {
+                        let col_count = stmt.column_count();
+                        let col_names: Vec<String> = (0..col_count)
+                            .map(|i| stmt.column_name(i).unwrap_or("?").to_string())
+                            .collect();
+                        let mut rows_out: Vec<Vec<String>> = Vec::new();
+                        let _ = stmt.query_map([], |row| {
+                            let vals: Vec<String> = (0..col_count)
+                                .map(|i| row.get::<_, rusqlite::types::Value>(i)
+                                    .map(|v| match v {
+                                        rusqlite::types::Value::Null => "NULL".to_string(),
+                                        rusqlite::types::Value::Integer(n) => n.to_string(),
+                                        rusqlite::types::Value::Real(f) => format!("{:.2}", f),
+                                        rusqlite::types::Value::Text(s) => s,
+                                        rusqlite::types::Value::Blob(_) => "<blob>".to_string(),
+                                    })
+                                    .unwrap_or_default())
+                                .collect();
+                            Ok(vals)
+                        }).map(|rows| {
+                            for r in rows.flatten() { rows_out.push(r); }
+                        });
+                        if count_only {
+                            return CommandResult::Output(format!("  {}", rows_out.len()));
+                        }
+                        // Format as table
+                        let out = format_table(&col_names, &rows_out);
+                        return CommandResult::Output(out);
+                    }
+                }
+            }
+            // Forest vocabulary mode
+            let table = args[0];
+            let result = match table {
+                "events" => {
+                    let mut sql = "SELECT id, domain, action, substr(payload,1,50), datetime(timestamp,'unixepoch','localtime') as time FROM events WHERE 1=1".to_string();
+                    if let Some(d) = filter_domain { sql.push_str(&format!(" AND domain='{}' ", d)); }
+                    if let Some(a) = filter_action { sql.push_str(&format!(" AND action='{}' ", a)); }
+                    if today_only { sql.push_str(&format!(" AND timestamp >= {} ", midnight)); }
+                    sql.push_str(&format!(" ORDER BY timestamp DESC LIMIT {}", limit));
+                    let headers = vec!["id".to_string(), "domain".to_string(), "action".to_string(), "payload".to_string(), "time".to_string()];
+                    query_to_table(&db.conn, &sql, &headers)
+                }
+                "history" | "hist" => {
+                    let mut sql = "SELECT id, substr(command,1,50) as cmd, exit_code, substr(cwd,length(cwd)-20) as cwd, datetime(timestamp,'unixepoch','localtime') as time FROM shell_history WHERE 1=1".to_string();
+                    if failed_only { sql.push_str(" AND exit_code != 0"); }
+                    if today_only { sql.push_str(&format!(" AND timestamp >= {}", midnight)); }
+                    sql.push_str(&format!(" ORDER BY timestamp DESC LIMIT {}", limit));
+                    let headers = vec!["id".to_string(), "command".to_string(), "exit".to_string(), "cwd".to_string(), "time".to_string()];
+                    query_to_table(&db.conn, &sql, &headers)
+                }
+                "friday" | "knowledge" => {
+                    let sql = format!("SELECT id, domain, substr(fact,1,60) as fact, confidence, datetime(created_at,'unixepoch','localtime') as time FROM friday_knowledge ORDER BY confidence DESC LIMIT {}", limit);
+                    let headers = vec!["id".to_string(), "domain".to_string(), "fact".to_string(), "conf".to_string(), "time".to_string()];
+                    query_to_table(&db.conn, &sql, &headers)
+                }
+                "predictions" | "predict" => {
+                    let sql = format!("SELECT id, substr(pattern,1,40) as pattern, substr(prediction,1,40) as prediction, confidence FROM forest_predictions ORDER BY confidence DESC LIMIT {}", limit);
+                    let headers = vec!["id".to_string(), "pattern".to_string(), "prediction".to_string(), "conf".to_string()];
+                    query_to_table(&db.conn, &sql, &headers)
+                }
+                "patterns" | "session" => {
+                    let sql = format!("SELECT id, substr(pattern,1,50) as pattern, weight, datetime(last_seen,'unixepoch','localtime') as last_seen FROM session_patterns ORDER BY weight DESC LIMIT {}", limit);
+                    let headers = vec!["id".to_string(), "pattern".to_string(), "weight".to_string(), "last_seen".to_string()];
+                    query_to_table(&db.conn, &sql, &headers)
+                }
+                _ => Err(format!("db: unknown table '{}'. Try: events, history, friday, predictions, patterns", table))
+            };
+            match result {
+                Ok(rows) if count_only => CommandResult::Output(format!("  {}", rows.len())),
+                Ok(rows) => {
+                    let headers = match table {
+                        "events" => vec!["id".to_string(), "domain".to_string(), "action".to_string(), "payload".to_string(), "time".to_string()],
+                        "history" | "hist" => vec!["id".to_string(), "command".to_string(), "exit".to_string(), "cwd".to_string(), "time".to_string()],
+                        "friday" | "knowledge" => vec!["id".to_string(), "domain".to_string(), "fact".to_string(), "conf".to_string(), "time".to_string()],
+                        "predictions" | "predict" => vec!["id".to_string(), "pattern".to_string(), "prediction".to_string(), "conf".to_string()],
+                        _ => vec!["id".to_string(), "pattern".to_string(), "weight".to_string(), "last_seen".to_string()],
+                    };
+                    CommandResult::Output(format_table(&headers, &rows))
+                }
+                Err(e) => CommandResult::Error(e),
+            }
+        }
         "delete" | "del" => {
             // delete <path> [--force]
             // Forest vocabulary: human-readable rm with safety checks
@@ -8801,6 +8949,69 @@ fn extract_output(r: CommandResult) -> String {
         CommandResult::Output(s) => s,
         _ => String::new(),
     }
+}
+fn query_to_table(conn: &rusqlite::Connection, sql: &str, _headers: &[String]) -> Result<Vec<Vec<String>>, String> {
+    let mut stmt = conn.prepare(sql).map_err(|e| format!("db: {}", e))?;
+    let col_count = stmt.column_count();
+    let mut rows_out: Vec<Vec<String>> = Vec::new();
+    stmt.query_map([], |row| {
+        let vals: Vec<String> = (0..col_count)
+            .map(|i| row.get::<_, rusqlite::types::Value>(i)
+                .map(|v| match v {
+                    rusqlite::types::Value::Null => String::new(),
+                    rusqlite::types::Value::Integer(n) => n.to_string(),
+                    rusqlite::types::Value::Real(f) => format!("{:.2}", f),
+                    rusqlite::types::Value::Text(s) => s,
+                    rusqlite::types::Value::Blob(_) => "<blob>".to_string(),
+                })
+                .unwrap_or_default())
+            .collect();
+        Ok(vals)
+    }).map_err(|e| format!("db: {}", e))?
+    .filter_map(|r| r.ok())
+    .for_each(|r| rows_out.push(r));
+    Ok(rows_out)
+}
+fn format_table(headers: &[String], rows: &[Vec<String>]) -> String {
+    use colored::Colorize;
+    if rows.is_empty() {
+        return "  (no results)".to_string();
+    }
+    let col_count = headers.len();
+    let mut widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+    for row in rows {
+        for (i, cell) in row.iter().enumerate() {
+            if i < col_count {
+                widths[i] = widths[i].max(cell.len().min(60));
+            }
+        }
+    }
+    let mut out = String::new();
+    // Header
+    out.push_str("  ");
+    for (i, h) in headers.iter().enumerate() {
+        out.push_str(&format!("{:<width$}  ", h.bright_green(), width = widths[i]));
+    }
+    out.push('\n');
+    // Separator
+    out.push_str("  ");
+    for w in &widths {
+        out.push_str(&"─".repeat(*w));
+        out.push_str("  ");
+    }
+    out.push('\n');
+    // Rows
+    for row in rows {
+        out.push_str("  ");
+        for (i, cell) in row.iter().enumerate() {
+            if i < col_count {
+                let truncated = if cell.len() > 60 { &cell[..57] } else { cell };
+                out.push_str(&format!("{:<width$}  ", truncated, width = widths[i]));
+            }
+        }
+        out.push('\n');
+    }
+    out.trim_end().to_string()
 }
 fn forest_stats_commits(db: &ForestDb) -> CommandResult {
     // Build 52-week commit velocity bar chart
