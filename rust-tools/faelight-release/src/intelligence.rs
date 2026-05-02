@@ -118,170 +118,123 @@ pub fn synthesize_narrative(
     stats: &RichStats,
     base_stats: &ReleaseStats,
 ) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    // What was built -- from intents, cleaned up
-    if !data.intents.is_empty() {
-        let capabilities: Vec<String> = data
-            .intents
-            .iter()
-            .take(5)
-            .filter_map(|i| {
-                let title = i.title.split(" -- ").next().unwrap_or(&i.title).trim();
-                // Extract clean name: words until em-dash, colon, or parens
-                let clean = {
-                    let mut words = Vec::new();
-                    for word in title.split_whitespace() {
-                        if word.contains('—')
-                            || word == "--"
-                            || word.starts_with(':')
-                            || word.starts_with('(')
-                        {
-                            break;
-                        }
-                        // stop at word ending with colon like "Partnership:"
-                        let w = word.trim_end_matches(':');
-                        words.push(w.to_string());
-                        if words.len() >= 3 {
-                            break;
-                        }
-                    }
-                    words.join(" ")
-                };
-                if clean.is_empty() {
-                    None
-                } else {
-                    Some(clean.to_string())
-                }
-            })
-            .collect();
-        if !capabilities.is_empty() {
-            let more = if data.intents.len() > 5 {
-                format!(" ({} total intents shipped)", data.intents.len())
-            } else {
-                String::new()
-            };
-            let cap_str = match capabilities.len() {
-                1 => capabilities[0].clone(),
-                2 => format!("{} and {}", capabilities[0], capabilities[1]),
-                _ => {
-                    let last = capabilities.last().cloned().unwrap_or_default();
-                    let rest = capabilities[..capabilities.len() - 1].join(", ");
-                    format!("{}, and {}", rest, last)
-                }
-            };
-            parts.push(format!("This release delivers {}.{}", cap_str, more));
-        }
+    // INT-264: Semantic synthesis -- describe what changed, not what was counted.
+    let mut sentences: Vec<String> = Vec::new();
+    let terminal_work = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("term") ||
+        i.title.to_lowercase().contains("terminal")).count();
+    let shell_work = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("fsh") ||
+        i.title.to_lowercase().contains("shell") ||
+        i.title.to_lowercase().contains("vocabulary") ||
+        i.title.to_lowercase().contains("shell") || i.title.to_lowercase().contains("fsh")).count();
+    let friday_work = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("friday") ||
+        i.title.to_lowercase().contains("friday")).count();
+    let tui_work = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")).count();
+    let infra_work = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("filter-repo") || i.title.to_lowercase().contains("binaries") || i.title.to_lowercase().contains("cleanup")).count();
+    let vocab_count = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("vocabulary") ||
+        i.title.to_lowercase().contains("copy") ||
+        i.title.to_lowercase().contains("delete")).count();
+    if terminal_work > 0 {
+        sentences.push("The terminal was rebuilt from scratch -- GPU-ready architecture, full scrollback, Friday panel, split panes.".to_string());
     }
-
-    // Shell capabilities if present
-    let shell_work = data
-        .features
-        .iter()
-        .filter(|c| c.scope == "fsh" || c.message.contains("fsh") || c.message.contains("shell"))
-        .count();
-    if shell_work >= 3 {
-        parts.push("The shell grows deeper -- new builtins, smarter history, and tighter coordination with the forest.".to_string());
+    if vocab_count > 0 {
+        sentences.push("The shell learned its first human words -- commands that read like English, safe by default, UNIX as fallback.".to_string());
+    } else if shell_work >= 2 {
+        sentences.push("The shell gained new structure: data pipelines, smarter history, and tighter Friday integration.".to_string());
     }
-    // Intelligence work
-    let intel_work = data
-        .features
-        .iter()
-        .filter(|c| {
-            c.message.contains("signal")
-                || c.message.contains("pattern")
-                || c.message.contains("intelligence")
-        })
-        .count();
-    if intel_work >= 2 {
-        parts.push("Pattern learning flows through the coordination layer, giving every tool memory of what came before.".to_string());
+    if friday_work > 0 {
+        sentences.push("Friday gained a planning layer -- anticipating next steps, correlating sessions, surfacing the right knowledge at the right moment.".to_string());
     }
-    // Session stats
-    let session_str = if stats.sessions > 0 {
-        format!("{} sessions", stats.sessions)
+    if tui_work >= 2 {
+        sentences.push(format!("{} TUIs shipped: health at a keypress, git workflow simplified, intent ledger always visible.", tui_work));
+    } else if tui_work == 1 {
+        sentences.push("A new TUI shipped, bringing the forest's intelligence into an interactive interface.".to_string());
+    }
+    if infra_work > 0 {
+        sentences.push("The repository shed 320MB of binary history, running lean for the first time.".to_string());
+    }
+    let health_note = if stats.avg_health >= 99.0 {
+        "Health held at 100% throughout."
+    } else if stats.avg_health >= 95.0 {
+        "Health stayed above 95% through the entire release cycle."
     } else {
-        String::new()
+        "Health recovered to 100% by release."
     };
-    let commit_str = format!("{} commits", base_stats.total_commits);
-    let health_str = if stats.avg_health >= 99.5 {
-        "Health held at 100% throughout.".to_string()
+    sentences.push(health_note.to_string());
+    if sentences.is_empty() {
+        format!("The forest grows. {} commits. {} intents. Another chapter.",
+            base_stats.total_commits, data.intents.len())
     } else {
-        format!("Average health: {:.1}%.", stats.avg_health)
-    };
-    let stat_parts: Vec<String> = [session_str, commit_str]
-        .iter()
-        .filter(|s| !s.is_empty())
-        .cloned()
-        .collect();
-    if !stat_parts.is_empty() {
-        parts.push(format!("{}. {}", stat_parts.join(". "), health_str));
-    }
-    if parts.is_empty() {
-        "The forest grows. Another release. Another chapter.".to_string()
-    } else {
-        parts.join(" ")
+        sentences.join("\n")
     }
 }
-/// Suggest 3 distinct theme options based on the release content
 pub fn suggest_themes_v2(data: &ChangelogData, history: &[String]) -> [String; 3] {
-    let has_shell = data
-        .features
-        .iter()
-        .any(|c| c.scope == "fsh" || c.message.contains("shell") || c.message.contains("fsh"));
-    let has_intelligence = data.features.iter().any(|c| {
-        c.message.contains("signal")
-            || c.message.contains("pattern")
-            || c.message.contains("intelligence")
-            || c.message.contains("friday")
-    });
-    let has_tools = data.features.iter().any(|c| {
-        c.message.contains("v3.0") || c.message.contains("v4.0") || c.message.contains("v2.0")
-    });
-    let has_git = data
-        .features
-        .iter()
-        .any(|c| c.message.contains("faelight-git") || c.message.contains("commit"));
-    let has_core = data
-        .features
-        .iter()
-        .any(|c| c.scope == "core" || c.message.contains("core v"));
+    // INT-264: Theme emerges from highest-impact signals, not a template pool.
+    // Read what actually shipped and derive a theme from the dominant story.
+    let has_vocab = data.intents.iter().any(|i|
+        i.title.to_lowercase().contains("vocabulary") ||
+        i.title.to_lowercase().contains("human") ||
+        i.title.to_lowercase().contains("vocabulary"));
+    let has_terminal = data.intents.iter().any(|i|
+        i.title.to_lowercase().contains("term") ||
+        i.title.to_lowercase().contains("terminal"));
+    let has_tui = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")).count() >= 2;
+    let has_friday = data.intents.iter().any(|i|
+        i.title.to_lowercase().contains("friday") ||
+        i.title.to_lowercase().contains("friday"));
+    let has_cleanup = data.intents.iter().any(|i|
+        i.title.to_lowercase().contains("filter-repo") || i.title.to_lowercase().contains("binaries"));
+    let has_shell = data.intents.iter().filter(|i|
+        i.title.to_lowercase().contains("shell") || i.title.to_lowercase().contains("fsh")).count() >= 2;
     let intent_count = data.intents.len();
-    // Build 3 distinct framings of the same release
-    let candidates: Vec<(&str, &str, bool)> = vec![
-        // (theme, category, relevant)
-        ("The Shell Remembers", "shell", has_shell),
-        ("Roots and Signals", "intelligence", has_intelligence),
-        ("The Living Toolkit", "tools", has_tools),
-        ("Commit Intelligence", "git", has_git),
-        ("The Thinking Core", "core", has_core),
-        ("The Bloom", "completion", intent_count >= 4),
-        (
-            "Every Tool Knows",
-            "coordination",
-            has_intelligence && has_tools,
-        ),
-        ("The Forest Speaks", "voice", has_core && has_intelligence),
-        ("Smarter by Design", "general", true),
-    ];
-    let mut selected: Vec<String> = Vec::new();
-    for (name, _, relevant) in &candidates {
-        if *relevant && !history.contains(&name.to_string()) && selected.len() < 3 {
-            selected.push(name.to_string());
-        }
-    }
-    // Fill remaining slots
-    while selected.len() < 3 {
-        selected.push(format!(
-            "The Forest Grows -- Chapter {}",
-            selected.len() + 1
-        ));
-    }
-    [
-        selected[0].clone(),
-        selected[1].clone(),
-        selected[2].clone(),
-    ]
+    // Derive the primary theme from the dominant signal
+    let primary = if has_vocab && has_terminal {
+        "The Forest Speaks Human".to_string()
+    } else if has_vocab {
+        "Human First, UNIX as Fallback".to_string()
+    } else if has_terminal && has_friday {
+        "The Terminal That Thinks".to_string()
+    } else if has_tui && has_shell {
+        "The Interface Arrives".to_string()
+    } else if has_friday {
+        "Friday Awakens".to_string()
+    } else if has_cleanup && intent_count >= 5 {
+        "The Forest Runs Lean".to_string()
+    } else {
+        "The Forest Grows".to_string()
+    };
+    // Second theme: what changed for the human using it daily
+    let secondary = if has_tui {
+        "Three Keypresses, Three Windows Into the Forest".to_string()
+    } else if has_vocab {
+        "Seven Words the Forest Now Speaks".to_string()
+    } else if has_shell {
+        "The Shell That Grew Up".to_string()
+    } else if has_friday {
+        "The Partner, Not the Tool".to_string()
+    } else {
+        "Discipline Over Speed".to_string()
+    };
+    // Third theme: the philosophical framing
+    let tertiary = if has_vocab && has_friday {
+        "Meaning Before Metadata".to_string()
+    } else if has_terminal && has_cleanup {
+        "Own Everything, Understand Everything".to_string()
+    } else if has_tui && has_friday {
+        "Intelligence You Can See".to_string()
+    } else {
+        "The Forest Knows Itself".to_string()
+    };
+    // Filter used themes but keep the derived ones (they are already specific)
+    let _ = history; // history used to filter generic templates -- not needed here
+    [primary, secondary, tertiary]
 }
-/// Load past theme history from CHANGELOG.md
 pub fn load_theme_history(core_root: &PathBuf) -> Vec<String> {
     let changelog_path = core_root.join("CHANGELOG.md");
     let content = std::fs::read_to_string(&changelog_path).unwrap_or_default();

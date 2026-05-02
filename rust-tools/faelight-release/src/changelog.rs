@@ -285,6 +285,31 @@ pub struct ChangelogData {
     pub last_tag: String,
 }
 
+
+// INT-264: Strip internal references from public-facing commit messages
+fn clean_commit_message(msg: &str) -> String {
+    // Remove trailing malformed "... && gp &&..." artifacts
+    let msg = if let Some(pos) = msg.find(" && gp") {
+        &msg[..pos]
+    } else {
+        msg
+    };
+    // Strip leading INT-NNN: prefix
+    let mut result = msg.trim().to_string();
+    loop {
+        let upper = result.to_uppercase();
+        if upper.starts_with("INT-") {
+            let rest = &result[4..];
+            let digit_end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+            let after = result[4 + digit_end..].trim_start_matches(|c| c == ':' || c == ' ' || c == '-').trim();
+            if after.is_empty() { break; }
+            result = after.to_string();
+        } else {
+            break;
+        }
+    }
+    result.trim_matches('"').trim().to_string()
+}
 impl ChangelogData {
     pub fn build(core_root: &PathBuf, version: &str, theme: &str) -> Result<Self> {
         let last_tag = get_last_tag(core_root);
@@ -347,7 +372,12 @@ impl ChangelogData {
         if !self.intents.is_empty() {
             out.push_str("### 🎯 Completed Intents\n");
             for intent in &self.intents {
-                out.push_str(&format!("- **INT-{}** — {}\n", intent.id, intent.title));
+                // INT-264: human title only, no INT-NNN in public output
+                let clean_title = intent.title.trim_matches(|c| c == '"' || c == '\\')
+                    .trim_matches(|c| c == '"' || c == ' ')
+                    .replace(" -- ", " -- ");
+                let clean_title = clean_title.as_str();
+                out.push_str(&format!("- {}\n", clean_title));
             }
             out.push('\n');
         }
@@ -385,11 +415,11 @@ impl ChangelogData {
                     })
                     .collect();
                 if !group.is_empty() {
-                    if scope != "general" {
+                    if scope != "general" && !scope.to_uppercase().starts_with("INT-") {
                         out.push_str(&format!("\n**{}**\n", scope));
                     }
                     for c in group {
-                        out.push_str(&format!("- {}\n", c.message));
+                        out.push_str(&format!("- {}\n", clean_commit_message(&c.message)));
                     }
                 }
             }
@@ -400,12 +430,12 @@ impl ChangelogData {
         if !self.fixes.is_empty() {
             out.push_str("### 🔧 Fixes\n");
             for c in &self.fixes {
-                let scope = if c.scope.is_empty() {
+                let _scope = if c.scope.is_empty() {
                     String::new()
                 } else {
                     format!("({}) ", c.scope)
                 };
-                out.push_str(&format!("- {}{}\n", scope, c.message));
+                out.push_str(&format!("- {}\n", clean_commit_message(&c.message)));
             }
             out.push('\n');
         }
@@ -414,7 +444,7 @@ impl ChangelogData {
         if !self.docs.is_empty() {
             out.push_str("### 📚 Documentation\n");
             for c in &self.docs {
-                out.push_str(&format!("- {}\n", c.message));
+                out.push_str(&format!("- {}\n", clean_commit_message(&c.message)));
             }
             out.push('\n');
         }
@@ -423,7 +453,7 @@ impl ChangelogData {
         if !self.performance.is_empty() {
             out.push_str("### ⚡ Performance\n");
             for c in &self.performance {
-                out.push_str(&format!("- {}\n", c.message));
+                out.push_str(&format!("- {}\n", clean_commit_message(&c.message)));
             }
             out.push('\n');
         }
@@ -450,7 +480,7 @@ impl ChangelogData {
             }
             for (intent, messages) in &intent_groups {
                 if messages.len() == 1 {
-                    out.push_str(&format!("- {}\n", messages[0]));
+                    out.push_str(&format!("- {}\n", clean_commit_message(&messages[0])));
                 } else {
                     out.push_str(&format!("- **{}** ({} commits)\n", intent, messages.len()));
                     for msg in messages {
@@ -459,7 +489,7 @@ impl ChangelogData {
                 }
             }
             for msg in &ungrouped {
-                out.push_str(&format!("- {}\n", msg));
+                out.push_str(&format!("- {}\n", clean_commit_message(msg)));
             }
             out.push('\n');
         }
