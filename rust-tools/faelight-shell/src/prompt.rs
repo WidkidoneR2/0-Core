@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell — prompt and status line
 // render_line    — single-line readline prompt (no emoji, Tab completion safe)
 // render_context — two-line forest context printed BEFORE the input line

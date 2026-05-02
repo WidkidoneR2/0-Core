@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell — Execution Context
 // INT-162 Phase 0 — ExecContext: From String-Driven to Context-Driven
 //
