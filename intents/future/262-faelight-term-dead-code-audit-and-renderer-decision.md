@@ -3,7 +3,7 @@ id: 262
 date: 2026-05-01
 type: arch
 title: \"faelight-term Dead Code Audit and Renderer Decision\"
-status: planned
+status: in-progress
 tags: [architecture, rust, design]
 version: TBD
 ---
