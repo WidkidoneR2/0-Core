@@ -160,6 +160,8 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &s
                             let _ = execute!(io::stdout(), EnterAlternateScreen);
                             files = load_git_status(core_root);
                             status_msg = "Pushed".to_string();
+                            // Auto-quit if working tree clean after push
+                            if files.is_empty() { return; }
                         }
                         (KeyCode::Char('r'), KeyModifiers::NONE) => {
                             files = load_git_status(core_root);
