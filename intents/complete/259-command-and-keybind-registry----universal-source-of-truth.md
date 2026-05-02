@@ -3,7 +3,7 @@ id: 259
 date: 2026-05-01
 type: arch
 title: "Command and Keybind Registry -- Universal Source of Truth"
-status: planned
+status: complete
 tags: [arch, registry, infrastructure, commands, keybinds, single-source-of-truth, foundation]
 version: TBD
 ---
