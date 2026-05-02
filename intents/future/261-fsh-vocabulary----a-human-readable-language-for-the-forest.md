@@ -3,7 +3,7 @@ id: 261
 date: 2026-05-01
 type: arch
 title: "fsh Vocabulary -- A Human-Readable Language for the Forest"
-status: planned
+status: in-progress
 tags: [arch, vocabulary, language, ux, philosophy, fsh, human-readable, post-unix, thesis]
 version: TBD
 ---
