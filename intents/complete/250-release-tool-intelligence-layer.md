@@ -1,11 +1,17 @@
 ---
 id: 250
 title: "Release tool intelligence layer -- faelight-release and faelight-docs translate, not just account"
-status: planned
+status: complete
+superseded_by: INT-264
 date: 2026-04-24
 type: infrastructure
 tags: [release, docs, translation, public-voice, faelight-release, faelight-docs]
 version: unplanned
+---
+## Status
+This intent has been merged into INT-264 (faelight-synthesis).
+INT-264 fully defines the solution this intent identified.
+All gates and context absorbed into INT-264.
 ---
 faelight-release and faelight-docs currently do accounting. They count commits,
 list intents by number, generate sections, and produce technically-correct

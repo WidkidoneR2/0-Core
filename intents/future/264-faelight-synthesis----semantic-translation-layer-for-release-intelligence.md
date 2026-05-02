@@ -4,7 +4,8 @@ date: 2026-05-02
 type: arch
 title: \"faelight-synthesis -- Semantic Translation Layer for Release Intelligence\"
 status: planned
-tags: [architecture, rust, design]
+tags: [architecture, rust, design, release, docs, translation, public-voice, faelight-release, faelight-docs]
+supersedes: INT-250
 version: TBD
 ---
 
