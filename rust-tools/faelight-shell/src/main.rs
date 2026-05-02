@@ -12,6 +12,7 @@ mod exec;
 mod output;
 mod registry;
 mod history_tui;
+mod health_tui;
 mod pty_exec;
 #[cfg(test)]
 mod tests;
@@ -871,6 +872,19 @@ fn repl_main() -> Result<()> {
         RKeyEvent(RKeyCode::Char('r'), Modifiers::CTRL),
         EventHandler::Conditional(Box::new(HSearchHandler { triggered: hsearch_triggered.clone() })),
     );
+    // INT-258: Ctrl+D opens health TUI
+    struct HHealthHandler { triggered: Arc<AtomicBool> }
+    impl ConditionalEventHandler for HHealthHandler {
+        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+            self.triggered.store(true, Ordering::SeqCst);
+            Some(Cmd::AcceptLine)
+        }
+    }
+    let hhealth_triggered = Arc::new(AtomicBool::new(false));
+    rl.bind_sequence(
+        RKeyEvent(RKeyCode::Char('d'), Modifiers::CTRL),
+        EventHandler::Conditional(Box::new(HHealthHandler { triggered: hhealth_triggered.clone() })),
+    );
 
     // Phase 8 — job table
     let mut job_table = jobs::JobTable::new();
@@ -942,6 +956,11 @@ fn repl_main() -> Result<()> {
                                 // Cancelled - return empty to skip dispatch, fresh prompt next iteration
                                 break Ok(String::new());
                             }
+                        }
+                        // INT-258: Ctrl+D opens health TUI
+                        if hhealth_triggered.swap(false, Ordering::SeqCst) {
+                            health_tui::run_health_tui(&core_root);
+                            break Ok(String::new());
                         }
                         if !buffer.is_empty() { buffer.push('\n'); }
                         buffer.push_str(&line);

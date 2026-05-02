@@ -3,7 +3,7 @@ id: 258
 date: 2026-04-28
 type: feature
 title: "Ctrl+D Health Display as Ratatui TUI"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight, tui, ratatui, health, doctor, fsh, ux, condensation]
 version: TBD
 ---
