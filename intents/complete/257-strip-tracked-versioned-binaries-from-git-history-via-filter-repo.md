@@ -3,7 +3,7 @@ id: 257
 date: 2026-04-28
 type: fix
 title: "Strip Tracked Versioned Binaries from Git History via filter-repo"
-status: planned
+status: complete
 tags: [fix, git, hygiene, repo-size, filter-repo, history-rewrite, infrastructure]
 version: TBD
 ---
