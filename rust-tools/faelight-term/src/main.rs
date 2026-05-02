@@ -128,6 +128,8 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         modifiers: Modifiers::default(),
         sel_start: None,
         sel_end: None,
+        font_size: FONT_SIZE,
+        line_height: LINE_HEIGHT,
         show_status: false,
         ctrl_held: false,
         show_friday: false,
@@ -258,6 +260,8 @@ struct App {
     modifiers: Modifiers,
     sel_start: Option<(usize, usize)>,
     sel_end: Option<(usize, usize)>,
+    font_size: f32,
+    line_height: f32,
     show_status: bool,
     ctrl_held: bool,
     show_friday: bool,
@@ -586,7 +590,7 @@ impl App {
                     let attrs = Attrs::new().family(base_family).weight(weight).style(style);
                     let text = cell.ch.to_string();
                     let mut text_buf =
-                        Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                        Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
                     text_buf.set_size(
                         &mut self.font_system,
                         Some(cell_w as f32),
@@ -670,7 +674,7 @@ impl App {
                             }
                             let mut text_buf = Buffer::new(
                                 &mut self.font_system,
-                                Metrics::new(FONT_SIZE, LINE_HEIGHT),
+                                Metrics::new(self.font_size, self.line_height),
                             );
                             text_buf.set_size(
                                 &mut self.font_system,
@@ -859,11 +863,11 @@ impl App {
                 // Title: "FRIDAY" in green + " // Knowledge" in cyan on one line
                 let title_str = "FRIDAY  //  Knowledge";
                 let mut tb =
-                    Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                    Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
                 tb.set_size(
                     &mut self.font_system,
                     Some(panel_render_w),
-                    Some(LINE_HEIGHT),
+                    Some(self.line_height),
                 );
                 let ta = Attrs::new()
                     .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
@@ -920,12 +924,12 @@ impl App {
                     for (txt, col) in lines {
                         let mut tb = Buffer::new(
                             &mut self.font_system,
-                            Metrics::new(FONT_SIZE, LINE_HEIGHT),
+                            Metrics::new(self.font_size, self.line_height),
                         );
                         tb.set_size(
                             &mut self.font_system,
                             Some(panel_render_w),
-                            Some(LINE_HEIGHT),
+                            Some(self.line_height),
                         );
                         let ta = Attrs::new()
                             .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
@@ -969,11 +973,11 @@ impl App {
                     let fact_short: String = fact.chars().take(38).collect();
                     let conf_str = format!("{:.0}%  {}", confidence * 100.0, fact_short);
                     let mut tb =
-                        Buffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                        Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
                     tb.set_size(
                         &mut self.font_system,
                         Some(panel_render_w),
-                        Some(LINE_HEIGHT),
+                        Some(self.line_height),
                     );
                     let ta = Attrs::new()
                         .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
@@ -1296,6 +1300,21 @@ impl KeyboardHandler for App {
 
         if ctrl && shift && (event.keysym == Keysym::s || event.keysym == Keysym::S) {
             self.show_status = !self.show_status;
+            self.render();
+            return;
+        }
+        // Ctrl+= zoom in, Ctrl+- zoom out
+        if ctrl && !shift && event.keysym == Keysym::equal {
+            self.font_size = (self.font_size + 1.0).min(32.0);
+            self.line_height = (self.font_size * 1.4).round();
+            self.cell_h = self.line_height as u32;
+            self.render();
+            return;
+        }
+        if ctrl && !shift && event.keysym == Keysym::minus {
+            self.font_size = (self.font_size - 1.0).max(8.0);
+            self.line_height = (self.font_size * 1.4).round();
+            self.cell_h = self.line_height as u32;
             self.render();
             return;
         }
