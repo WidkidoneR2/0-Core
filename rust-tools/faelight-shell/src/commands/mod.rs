@@ -1478,6 +1478,358 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Err(e) => CommandResult::Error(e),
             }
         }
+        "copy" | "cp-forest" => {
+            // copy <source> to <destination> [overwrite] (INT-266)
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: copy <source> to <destination> [overwrite]".to_string(),
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expand = |p: &str| {
+                if p.starts_with("~/") {
+                    format!("{}/{}", home, &p[2..])
+                } else {
+                    p.to_string()
+                }
+            };
+            // Parse: copy <src> to <dst> [overwrite]
+            let to_pos = args.iter().position(|a| *a == "to");
+            let (src_arg, dst_arg, overwrite) = if let Some(pos) = to_pos {
+                let s = args[..pos].join(" ");
+                let rest = &args[pos + 1..];
+                let ow = rest.contains(&"overwrite");
+                let d = rest
+                    .iter()
+                    .filter(|a| **a != "overwrite")
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                (s, d, ow)
+            } else {
+                if args.len() < 2 {
+                    return CommandResult::Error(
+                        "usage: copy <source> to <destination> [overwrite]".to_string(),
+                    );
+                }
+                (
+                    args[0].to_string(),
+                    args[1].to_string(),
+                    args.contains(&"overwrite"),
+                )
+            };
+            let src_path = expand(&src_arg);
+            let dst_path = expand(&dst_arg);
+            let protected = ["rust-tools/", "intents/", "scripts/", "docs/", "engine/"];
+            let is_protected = protected.iter().any(|p| dst_path.contains(p));
+            if is_protected {
+                return CommandResult::Error(format!(
+                    "copy: {} is a protected path. Use cp directly if you are sure.",
+                    dst_path
+                ));
+            }
+            if std::path::Path::new(&dst_path).exists() && !overwrite {
+                return CommandResult::Error(format!(
+                    "copy: {} already exists. Add 'overwrite' to replace it.",
+                    dst_path
+                ));
+            }
+            match std::fs::copy(&src_path, &dst_path) {
+                Ok(_) => {
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_copied', ?1, strftime('%s','now'))",
+                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path)]
+                    );
+                    CommandResult::Output(format!("  ✅ copied {} → {}", src_path, dst_path))
+                }
+                Err(e) => CommandResult::Error(format!("copy: {}", e)),
+            }
+        }
+        "move" | "mv-forest" => {
+            // move <source> to <destination> [overwrite] (INT-266)
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: move <source> to <destination> [overwrite]".to_string(),
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expand = |p: &str| {
+                if p.starts_with("~/") {
+                    format!("{}/{}", home, &p[2..])
+                } else {
+                    p.to_string()
+                }
+            };
+            let to_pos = args.iter().position(|a| *a == "to");
+            let (src_arg, dst_arg, overwrite) = if let Some(pos) = to_pos {
+                let s = args[..pos].join(" ");
+                let rest = &args[pos + 1..];
+                let ow = rest.contains(&"overwrite");
+                let d = rest
+                    .iter()
+                    .filter(|a| **a != "overwrite")
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                (s, d, ow)
+            } else {
+                if args.len() < 2 {
+                    return CommandResult::Error(
+                        "usage: move <source> to <destination> [overwrite]".to_string(),
+                    );
+                }
+                (
+                    args[0].to_string(),
+                    args[1].to_string(),
+                    args.contains(&"overwrite"),
+                )
+            };
+            let src_path = expand(&src_arg);
+            let dst_path = expand(&dst_arg);
+            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            let is_protected = protected
+                .iter()
+                .any(|p| src_path.contains(p) || dst_path.contains(p));
+            if is_protected {
+                return CommandResult::Error(format!(
+                    "move: protected path involved. Use mv directly if you are sure."
+                ));
+            }
+            if std::path::Path::new(&dst_path).exists() && !overwrite {
+                return CommandResult::Error(format!(
+                    "move: {} already exists. Add 'overwrite' to replace it.",
+                    dst_path
+                ));
+            }
+            match std::fs::rename(&src_path, &dst_path) {
+                Ok(_) => {
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_moved', ?1, strftime('%s','now'))",
+                        rusqlite::params![format!("{{\"src\":\"{}\",\"dst\":\"{}\"}}", src_path, dst_path)]
+                    );
+                    CommandResult::Output(format!("  ✅ moved {} → {}", src_path, dst_path))
+                }
+                Err(e) => CommandResult::Error(format!("move: {}", e)),
+            }
+        }
+        "list" => {
+            // list [files|directories] [in <path>] (INT-266)
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expand_path = |p: &str| -> String {
+                match p {
+                    "@rust" => format!("{}/0-core/rust-tools", home),
+                    "@intents" => format!("{}/0-core/intents", home),
+                    "@scripts" => format!("{}/0-core/scripts", home),
+                    "@docs" => format!("{}/0-core/docs", home),
+                    p if p.starts_with("~/") => format!("{}/{}", home, &p[2..]),
+                    p => p.to_string(),
+                }
+            };
+            let dirs_only = args.contains(&"directories");
+            let in_pos = args.iter().position(|a| *a == "in");
+            let target = if let Some(pos) = in_pos {
+                if pos + 1 < args.len() {
+                    expand_path(args[pos + 1])
+                } else {
+                    ".".to_string()
+                }
+            } else {
+                ".".to_string()
+            };
+            let path = std::path::Path::new(&target);
+            if !path.exists() {
+                return CommandResult::Error(format!("list: {} does not exist", target));
+            }
+            let entries = match std::fs::read_dir(path) {
+                Ok(e) => e,
+                Err(e) => return CommandResult::Error(format!("list: {}", e)),
+            };
+            let mut rows: Vec<String> = Vec::new();
+            let mut items: Vec<std::path::PathBuf> =
+                entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+            items.sort();
+            rows.push(format!("  {:<40} {:>8}  {}", "name", "size", "type"));
+            rows.push(format!("  {}", "─".repeat(60)));
+            for item in &items {
+                let is_dir = item.is_dir();
+                if dirs_only && !is_dir {
+                    continue;
+                }
+                if !dirs_only && !args.contains(&"directories") && is_dir {
+                    continue;
+                }
+                let name = item
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let size = if is_dir {
+                    "--".to_string()
+                } else {
+                    std::fs::metadata(item)
+                        .map(|m| {
+                            let s = m.len();
+                            if s > 1_048_576 {
+                                format!("{:.1}MB", s as f64 / 1_048_576.0)
+                            } else if s > 1024 {
+                                format!("{:.1}KB", s as f64 / 1024.0)
+                            } else {
+                                format!("{}B", s)
+                            }
+                        })
+                        .unwrap_or_default()
+                };
+                let kind = if is_dir { "dir" } else { "file" };
+                rows.push(format!("  {:<40} {:>8}  {}", name, size, kind));
+            }
+            CommandResult::Output(rows.join(
+                "
+",
+            ))
+        }
+        "read" => {
+            // read <file> (INT-266)
+            if args.is_empty() {
+                return CommandResult::Error("usage: read <file>".to_string());
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let filepath = if args[0].starts_with("~/") {
+                format!("{}/{}", home, &args[0][2..])
+            } else {
+                args[0].to_string()
+            };
+            let meta = std::fs::metadata(&filepath);
+            let content = match std::fs::read_to_string(&filepath) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("read: {}: {}", filepath, e)),
+            };
+            let mut out = String::new();
+            // Metadata header
+            if let Ok(m) = meta {
+                let size = m.len();
+                let size_str = if size > 1_048_576 {
+                    format!("{:.1}MB", size as f64 / 1_048_576.0)
+                } else if size > 1024 {
+                    format!("{:.1}KB", size as f64 / 1024.0)
+                } else {
+                    format!("{}B", size)
+                };
+                let lines_count = content.lines().count();
+                out.push_str(&format!(
+                    "  📄 {}  ({}, {} lines)
+",
+                    filepath, size_str, lines_count
+                ));
+                out.push_str(&format!(
+                    "  {}
+",
+                    "─".repeat(50)
+                ));
+            }
+            let is_rust = filepath.ends_with(".rs");
+            let limit = 100usize;
+            let lines: Vec<&str> = content.lines().collect();
+            let show = lines.len().min(limit);
+            for (i, line) in lines[..show].iter().enumerate() {
+                use colored::Colorize;
+                let num = format!("{:4}", i + 1).dimmed();
+                let colored = if is_rust {
+                    highlight_rust_line(line)
+                } else {
+                    colorize_line(line)
+                };
+                out.push_str(&format!(
+                    "  {} {}
+",
+                    num, colored
+                ));
+            }
+            if lines.len() > limit {
+                out.push_str(&format!(
+                    "
+  … {} more lines. Use cat or query for full file.",
+                    lines.len() - limit
+                ));
+            }
+            let _ = db.conn.execute(
+                "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_read', ?1, strftime('%s','now'))",
+                rusqlite::params![format!("{{\"path\":\"{}\"}}", filepath)]
+            );
+            CommandResult::Output(out.trim_end().to_string())
+        }
+        "write" => {
+            // write <content> to <file> [overwrite|append] (INT-266)
+            if args.len() < 3 {
+                return CommandResult::Error(
+                    "usage: write <content> to <file> [overwrite|append]".to_string(),
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let to_pos = args.iter().position(|a| *a == "to");
+            if to_pos.is_none() {
+                return CommandResult::Error(
+                    "usage: write <content> to <file> [overwrite|append]".to_string(),
+                );
+            }
+            let pos = to_pos.unwrap();
+            let content = args[..pos].join(" ").trim_matches('"').to_string();
+            let rest = &args[pos + 1..];
+            let overwrite = rest.contains(&"overwrite");
+            let append = rest.contains(&"append");
+            let dst = rest
+                .iter()
+                .filter(|a| **a != "overwrite" && **a != "append")
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+            let dst_path = if dst.starts_with("~/") {
+                format!("{}/{}", home, &dst[2..])
+            } else {
+                dst.clone()
+            };
+            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            if protected.iter().any(|p| dst_path.contains(p)) {
+                return CommandResult::Error(format!("write: {} is a protected path.", dst_path));
+            }
+            if std::path::Path::new(&dst_path).exists() && !overwrite && !append {
+                return CommandResult::Error(format!(
+                    "write: {} already exists. Add 'overwrite' or 'append'.",
+                    dst_path
+                ));
+            }
+            let result = if append {
+                use std::io::Write;
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&dst_path)
+                    .and_then(|mut f| {
+                        writeln!(f, "{}", content)?;
+                        Ok(())
+                    })
+            } else {
+                std::fs::write(
+                    &dst_path,
+                    format!(
+                        "{}
+",
+                        content
+                    ),
+                )
+                .map_err(|e| e)
+            };
+            match result {
+                Ok(_) => {
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_written', ?1, strftime('%s','now'))",
+                        rusqlite::params![format!("{{\"path\":\"{}\",\"append\":{}}}", dst_path, append)]
+                    );
+                    let action = if append { "appended to" } else { "wrote" };
+                    CommandResult::Output(format!("  ✅ {} {}", action, dst_path))
+                }
+                Err(e) => CommandResult::Error(format!("write: {}", e)),
+            }
+        }
         "delete" | "del" => {
             // delete <path> [--force]
             // Forest vocabulary: human-readable rm with safety checks

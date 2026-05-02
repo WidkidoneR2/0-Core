@@ -3,7 +3,7 @@ id: 266
 date: 2026-05-02
 type: feature
 title: \"fsh vocabulary -- copy move list read write as forest-native commands\"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight]
 version: TBD
 ---

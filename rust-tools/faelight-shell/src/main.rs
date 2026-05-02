@@ -12,8 +12,8 @@ mod error;
 mod exec;
 mod git_tui;
 mod health_tui;
-mod intent_tui;
 mod history_tui;
+mod intent_tui;
 mod output;
 mod pty_exec;
 mod registry;
@@ -2134,6 +2134,25 @@ fn repl_main() -> Result<()> {
                                     std::process::Stdio::piped()
                                 };
                                 // INT-249b: external-first dispatch.
+                                // Vocabulary words always route to fsh builtin first (INT-266).
+                                let vocab_builtins = [
+                                    "write", "read", "list", "copy", "move", "delete", "find",
+                                    "db", "gt", "it",
+                                ];
+                                if vocab_builtins.contains(&cmd_name) && idx == 0 {
+                                    let cmd_str = raw_cmd.trim().to_string();
+                                    let builtin_result =
+                                        commands::execute(&cmd_str, &db, &core_root);
+                                    match builtin_result {
+                                        commands::CommandResult::Output(out) => println!("{}", out),
+                                        commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
+                                        commands::CommandResult::Value(v) => {
+                                            println!("{}", v.render())
+                                        }
+                                        _ => {}
+                                    }
+                                    continue;
+                                }
                                 // Try spawning as external process. If that fails (cmd not in PATH),
                                 // try as fsh builtin via commands::execute. Never run both.
                                 let spawn_result = std::process::Command::new(cmd_name)
