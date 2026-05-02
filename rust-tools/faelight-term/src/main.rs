@@ -184,6 +184,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         let s_trim = s.trim();
                         let json_handled = if (s_trim.starts_with('{') || s_trim.starts_with('['))
                             && s_trim.len() > 10
+                            && (s_trim.ends_with('}') || s_trim.ends_with(']'))
                         {
                             if let Some(pretty) = pretty_json(s_trim) {
                                 app.terminal.feed(pretty.as_bytes());
