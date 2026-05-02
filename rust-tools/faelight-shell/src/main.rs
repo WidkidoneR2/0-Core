@@ -13,6 +13,7 @@ mod output;
 mod registry;
 mod history_tui;
 mod health_tui;
+mod git_tui;
 mod pty_exec;
 #[cfg(test)]
 mod tests;
@@ -885,6 +886,19 @@ fn repl_main() -> Result<()> {
         RKeyEvent(RKeyCode::Char('d'), Modifiers::CTRL),
         EventHandler::Conditional(Box::new(HHealthHandler { triggered: hhealth_triggered.clone() })),
     );
+    // INT-253: Ctrl+G opens git TUI
+    struct HGitHandler { triggered: Arc<AtomicBool> }
+    impl ConditionalEventHandler for HGitHandler {
+        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+            self.triggered.store(true, Ordering::SeqCst);
+            Some(Cmd::AcceptLine)
+        }
+    }
+    let hgit_triggered = Arc::new(AtomicBool::new(false));
+    rl.bind_sequence(
+        RKeyEvent(RKeyCode::Char('g'), Modifiers::CTRL),
+        EventHandler::Conditional(Box::new(HGitHandler { triggered: hgit_triggered.clone() })),
+    );
 
     // Phase 8 — job table
     let mut job_table = jobs::JobTable::new();
@@ -960,6 +974,12 @@ fn repl_main() -> Result<()> {
                         // INT-258: Ctrl+D opens health TUI
                         if hhealth_triggered.swap(false, Ordering::SeqCst) {
                             health_tui::run_health_tui(&core_root);
+                            break Ok(String::new());
+                        }
+                        // INT-253: Ctrl+G opens git TUI
+                        if hgit_triggered.swap(false, Ordering::SeqCst) {
+                            let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
+                            git_tui::run_git_tui(&core_root, active.as_deref());
                             break Ok(String::new());
                         }
                         if !buffer.is_empty() { buffer.push('\n'); }
@@ -1052,6 +1072,12 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 // INT-229: abbreviation expansion
+                // INT-253: gt opens git TUI
+                if line.trim() == "gt" {
+                    let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
+                    git_tui::run_git_tui(&core_root, active.as_deref());
+                    continue 'repl;
+                }
                 let line = match line.trim() {
                     "gc" => {
                         println!("  {} fg commit", "→".bright_cyan());
@@ -2978,7 +3004,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     }
     println!();
     // Session memory + digest
-    if let Some(mem) = session::SessionMemory::load(core_root, &db) {
+    if let Some(mem) = session::SessionMemory::load(core_root, db) {
         // Phase 23 — restore last working directory
         if let Some(ref last_dir) = mem.last_dir {
             let path = std::path::Path::new(last_dir);
@@ -2994,7 +3020,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
             };
             let _ = std::env::set_current_dir(restore_path);
         }
-        let msg = session::render(&mem, core_root, &db);
+        let msg = session::render(&mem, core_root, db);
         if !msg.is_empty() {
             println!("{}", msg);
         }

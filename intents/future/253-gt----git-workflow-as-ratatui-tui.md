@@ -3,7 +3,7 @@ id: 253
 date: 2026-04-28
 type: feature
 title: "gt -- Git Workflow as Ratatui TUI"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight, tui, ratatui, git, fsh, ux]
 version: TBD
 ---
