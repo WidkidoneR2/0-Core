@@ -3,7 +3,7 @@ id: 260
 date: 2026-05-01
 type: feature
 title: "Cheatsheet TUI -- Live Reference for Commands and Keybinds"
-status: planned
+status: in-progress
 tags: [feature, rust, faelight, tui, ratatui, cheatsheet, reference, commands, keybinds, fsh, ux]
 version: TBD
 ---

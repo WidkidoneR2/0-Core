@@ -6,6 +6,7 @@
 // "A forest deserves a shell that knows it is a forest."
 // "Not text streams. Not configuration. Structured wisdom."
 
+mod cheatsheet_tui;
 mod commands;
 mod db;
 mod error;
@@ -1172,6 +1173,11 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 // INT-229: abbreviation expansion
+                // INT-260: cheat opens cheatsheet TUI
+                if line.trim() == "cheat" {
+                    cheatsheet_tui::run_cheatsheet_tui(&core_root);
+                    continue 'repl;
+                }
                 // INT-254: it opens intent ledger TUI
                 if line.trim() == "it" {
                     intent_tui::run_intent_tui(&core_root);
