@@ -198,13 +198,21 @@ pub enum ShellMode {
     Focused,   // normal, active work session
 }
 
-pub fn detect_mode(mem: &SessionMemory, core_root: &str, active_count: usize, db: &crate::db::ForestDb) -> ShellMode {
+pub fn detect_mode(
+    mem: &SessionMemory,
+    core_root: &str,
+    active_count: usize,
+    db: &crate::db::ForestDb,
+) -> ShellMode {
     let _ = core_root;
-    let health: u32 = db.conn
+    let health: u32 = db
+        .conn
         .query_row(
             "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-            [], |r| r.get::<_, String>(0)
-        ).ok()
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
         .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
         .and_then(|v| v["detail"]["health"].as_i64())
         .unwrap_or(100) as u32;

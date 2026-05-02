@@ -10,12 +10,12 @@ mod commands;
 mod db;
 mod error;
 mod exec;
-mod output;
-mod registry;
-mod history_tui;
-mod health_tui;
 mod git_tui;
+mod health_tui;
+mod history_tui;
+mod output;
 mod pty_exec;
+mod registry;
 #[cfg(test)]
 mod tests;
 use colored::Colorize;
@@ -185,7 +185,10 @@ fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
     // to stderr without touching the filesystem.
     let trimmed = line.trim_end();
     if trimmed.ends_with(">") || trimmed.ends_with(">>") {
-        return (line.to_string(), Some(("__redirect_error_no_target__".to_string(), false)));
+        return (
+            line.to_string(),
+            Some(("__redirect_error_no_target__".to_string(), false)),
+        );
     }
 
     // Match 2>/dev/null and 2>file FIRST
@@ -249,8 +252,14 @@ fn expand_globs(line: &str) -> String {
     for ch in line.chars() {
         let was_in_quote = in_double || in_single;
         match ch {
-            '"' if !in_single => { in_double = !in_double; current.push(ch); }
-            '\'' if !in_double => { in_single = !in_single; current.push(ch); }
+            '"' if !in_single => {
+                in_double = !in_double;
+                current.push(ch);
+            }
+            '\'' if !in_double => {
+                in_single = !in_single;
+                current.push(ch);
+            }
             _ => current.push(ch),
         }
         let now_in_quote = in_double || in_single;
@@ -382,7 +391,11 @@ fn glob_match(pattern: &str, name: &str) -> bool {
     pi == p.len()
 }
 
-fn expand_vars(line: &str, vars: &std::collections::HashMap<String, String>, last_exit: Option<i32>) -> String {
+fn expand_vars(
+    line: &str,
+    vars: &std::collections::HashMap<String, String>,
+    last_exit: Option<i32>,
+) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
@@ -493,7 +506,8 @@ fn is_core_locked(core_root: &str) -> bool {
 /// INT-249b: detect if a multi-line buffer is a complete shell command.
 #[allow(dead_code)]
 fn is_complete_command(buf: &str) -> (bool, &'static str) {
-    let cleaned: String = buf.lines()
+    let cleaned: String = buf
+        .lines()
         .map(|l| {
             let mut in_s = false;
             let mut in_d = false;
@@ -501,17 +515,27 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
             let mut prev = '\0';
             let mut idx = None;
             for (i, ch) in l.char_indices() {
-                if prev == '\\' { prev = ch; continue; }
+                if prev == '\\' {
+                    prev = ch;
+                    continue;
+                }
                 match ch {
                     '\'' if !in_d && !in_b => in_s = !in_s,
                     '"' if !in_s && !in_b => in_d = !in_d,
                     '`' if !in_s && !in_d => in_b = !in_b,
-                    '#' if !in_s && !in_d && !in_b => { idx = Some(i); break; }
+                    '#' if !in_s && !in_d && !in_b => {
+                        idx = Some(i);
+                        break;
+                    }
                     _ => {}
                 }
                 prev = ch;
             }
-            if let Some(i) = idx { l[..i].to_string() } else { l.to_string() }
+            if let Some(i) = idx {
+                l[..i].to_string()
+            } else {
+                l.to_string()
+            }
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -539,7 +563,9 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
                 // skip body lines entirely
             }
         }
-        if !found_close { return (false, "unclosed heredoc"); }
+        if !found_close {
+            return (false, "unclosed heredoc");
+        }
         out
     } else {
         cleaned
@@ -556,7 +582,10 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
     let mut in_d = false;
     let mut prev = '\0';
     for ch in cleaned.chars() {
-        if prev == '\\' { prev = ch; continue; }
+        if prev == '\\' {
+            prev = ch;
+            continue;
+        }
         match ch {
             '\'' if !in_d => in_s = !in_s,
             '"' if !in_s => in_d = !in_d,
@@ -564,8 +593,12 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
         }
         prev = ch;
     }
-    if in_s { return (false, "unclosed single quote"); }
-    if in_d { return (false, "unclosed double quote"); }
+    if in_s {
+        return (false, "unclosed single quote");
+    }
+    if in_d {
+        return (false, "unclosed double quote");
+    }
 
     let mut depth_paren: i32 = 0;
     let mut depth_brace: i32 = 0;
@@ -574,7 +607,10 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
     let mut in_d2 = false;
     let mut prev2 = '\0';
     for ch in cleaned.chars() {
-        if prev2 == '\\' { prev2 = ch; continue; }
+        if prev2 == '\\' {
+            prev2 = ch;
+            continue;
+        }
         match ch {
             '\'' if !in_d2 => in_s2 = !in_s2,
             '"' if !in_s2 => in_d2 = !in_d2,
@@ -588,9 +624,15 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
         }
         prev2 = ch;
     }
-    if depth_paren > 0 { return (false, "unclosed paren"); }
-    if depth_brace > 0 { return (false, "unclosed brace"); }
-    if depth_brack > 0 { return (false, "unclosed bracket"); }
+    if depth_paren > 0 {
+        return (false, "unclosed paren");
+    }
+    if depth_brace > 0 {
+        return (false, "unclosed brace");
+    }
+    if depth_brack > 0 {
+        return (false, "unclosed bracket");
+    }
 
     let closer_map: &[(&str, &str)] = &[
         ("for", "done"),
@@ -625,15 +667,29 @@ fn strip_quoted_regions(s: &str) -> String {
     let mut prev = '\0';
     for ch in s.chars() {
         if prev == '\\' {
-            if in_s || in_d { out.push(' '); } else { out.push(ch); }
+            if in_s || in_d {
+                out.push(' ');
+            } else {
+                out.push(ch);
+            }
             prev = ch;
             continue;
         }
         match ch {
-            '\'' if !in_d => { in_s = !in_s; out.push(' '); }
-            '"' if !in_s => { in_d = !in_d; out.push(' '); }
+            '\'' if !in_d => {
+                in_s = !in_s;
+                out.push(' ');
+            }
+            '"' if !in_s => {
+                in_d = !in_d;
+                out.push(' ');
+            }
             _ => {
-                if in_s || in_d { out.push(' '); } else { out.push(ch); }
+                if in_s || in_d {
+                    out.push(' ');
+                } else {
+                    out.push(ch);
+                }
             }
         }
         prev = ch;
@@ -646,10 +702,14 @@ fn find_heredoc_delimiter(s: &str) -> Option<String> {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i + 1 < bytes.len() {
-        if bytes[i] == b'<' && bytes[i+1] == b'<' && (i == 0 || bytes[i-1] != b'<') {
+        if bytes[i] == b'<' && bytes[i + 1] == b'<' && (i == 0 || bytes[i - 1] != b'<') {
             let mut j = i + 2;
-            if j < bytes.len() && bytes[j] == b'-' { j += 1; }
-            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            if j < bytes.len() && bytes[j] == b'-' {
+                j += 1;
+            }
+            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                j += 1;
+            }
             let quote = if j < bytes.len() && (bytes[j] == b'\'' || bytes[j] == b'"') {
                 let q = bytes[j];
                 j += 1;
@@ -661,7 +721,9 @@ fn find_heredoc_delimiter(s: &str) -> Option<String> {
             while j < bytes.len() {
                 let b = bytes[j];
                 if let Some(q) = quote {
-                    if b == q { break; }
+                    if b == q {
+                        break;
+                    }
                 } else if !b.is_ascii_alphanumeric() && b != b'_' {
                     break;
                 }
@@ -858,12 +920,20 @@ fn repl_main() -> Result<()> {
     // and accepts the line. After readline returns, we check the flag and run TUI.
     use rustyline::{Cmd, KeyCode as RKeyCode, KeyEvent as RKeyEvent, Modifiers};
     use rustyline::{ConditionalEventHandler, Event, EventContext, EventHandler, RepeatCount};
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
-    struct HSearchHandler { triggered: Arc<AtomicBool> }
+    struct HSearchHandler {
+        triggered: Arc<AtomicBool>,
+    }
     impl ConditionalEventHandler for HSearchHandler {
-        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+        fn handle(
+            &self,
+            _evt: &Event,
+            _n: RepeatCount,
+            _positive: bool,
+            _ctx: &EventContext,
+        ) -> Option<Cmd> {
             self.triggered.store(true, Ordering::SeqCst);
             Some(Cmd::AcceptLine)
         }
@@ -872,12 +942,22 @@ fn repl_main() -> Result<()> {
     let hsearch_triggered = Arc::new(AtomicBool::new(false));
     rl.bind_sequence(
         RKeyEvent(RKeyCode::Char('r'), Modifiers::CTRL),
-        EventHandler::Conditional(Box::new(HSearchHandler { triggered: hsearch_triggered.clone() })),
+        EventHandler::Conditional(Box::new(HSearchHandler {
+            triggered: hsearch_triggered.clone(),
+        })),
     );
     // INT-258: Ctrl+D opens health TUI
-    struct HHealthHandler { triggered: Arc<AtomicBool> }
+    struct HHealthHandler {
+        triggered: Arc<AtomicBool>,
+    }
     impl ConditionalEventHandler for HHealthHandler {
-        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+        fn handle(
+            &self,
+            _evt: &Event,
+            _n: RepeatCount,
+            _positive: bool,
+            _ctx: &EventContext,
+        ) -> Option<Cmd> {
             self.triggered.store(true, Ordering::SeqCst);
             Some(Cmd::AcceptLine)
         }
@@ -885,12 +965,22 @@ fn repl_main() -> Result<()> {
     let hhealth_triggered = Arc::new(AtomicBool::new(false));
     rl.bind_sequence(
         RKeyEvent(RKeyCode::Char('d'), Modifiers::CTRL),
-        EventHandler::Conditional(Box::new(HHealthHandler { triggered: hhealth_triggered.clone() })),
+        EventHandler::Conditional(Box::new(HHealthHandler {
+            triggered: hhealth_triggered.clone(),
+        })),
     );
     // INT-253: Ctrl+G opens git TUI
-    struct HGitHandler { triggered: Arc<AtomicBool> }
+    struct HGitHandler {
+        triggered: Arc<AtomicBool>,
+    }
     impl ConditionalEventHandler for HGitHandler {
-        fn handle(&self, _evt: &Event, _n: RepeatCount, _positive: bool, _ctx: &EventContext) -> Option<Cmd> {
+        fn handle(
+            &self,
+            _evt: &Event,
+            _n: RepeatCount,
+            _positive: bool,
+            _ctx: &EventContext,
+        ) -> Option<Cmd> {
             self.triggered.store(true, Ordering::SeqCst);
             Some(Cmd::AcceptLine)
         }
@@ -898,7 +988,9 @@ fn repl_main() -> Result<()> {
     let hgit_triggered = Arc::new(AtomicBool::new(false));
     rl.bind_sequence(
         RKeyEvent(RKeyCode::Char('g'), Modifiers::CTRL),
-        EventHandler::Conditional(Box::new(HGitHandler { triggered: hgit_triggered.clone() })),
+        EventHandler::Conditional(Box::new(HGitHandler {
+            triggered: hgit_triggered.clone(),
+        })),
     );
 
     // Phase 8 — job table
@@ -936,7 +1028,9 @@ fn repl_main() -> Result<()> {
     'repl: loop {
         // INT-250: backfill completion data for the prior command.
         // Compute duration from start time captured at submit.
-        let elapsed = last_command_start.take().map(|t| t.elapsed().as_millis() as u64);
+        let elapsed = last_command_start
+            .take()
+            .map(|t| t.elapsed().as_millis() as u64);
         if let Some(id) = last_history_id.take() {
             db.update_history_completion(id, last_exit_code, elapsed);
         }
@@ -983,10 +1077,14 @@ fn repl_main() -> Result<()> {
                             git_tui::run_git_tui(&core_root, active.as_deref());
                             break Ok(String::new());
                         }
-                        if !buffer.is_empty() { buffer.push('\n'); }
+                        if !buffer.is_empty() {
+                            buffer.push('\n');
+                        }
                         buffer.push_str(&line);
                         let (complete, _reason) = is_complete_command(&buffer);
-                        if complete { break Ok(buffer); }
+                        if complete {
+                            break Ok(buffer);
+                        }
                         first = false;
                     }
                     Err(e) => break Err(e),
@@ -1119,7 +1217,9 @@ fn repl_main() -> Result<()> {
                     let exit = pty_exec::run_with_capture_and_scan(&line);
                     last_exit_code = Some(exit);
                     match db.save_history_entry(&line) {
-                        Ok(id) => { last_history_id = Some(id); }
+                        Ok(id) => {
+                            last_history_id = Some(id);
+                        }
                         Err(e) => eprintln!("warning: failed to save history: {}", e),
                     }
                     continue 'repl;
@@ -2052,27 +2152,36 @@ fn repl_main() -> Result<()> {
                                             } else {
                                                 format!("{} {}", raw_cmd, args.join(" "))
                                             };
-                                            let builtin_out = match commands::execute(&builtin_line, &db, &core_root) {
+                                            let builtin_out = match commands::execute(
+                                                &builtin_line,
+                                                &db,
+                                                &core_root,
+                                            ) {
                                                 commands::CommandResult::Output(o) => Some(o),
-                                                commands::CommandResult::Value(v) => Some(v.render()),
+                                                commands::CommandResult::Value(v) => {
+                                                    Some(v.render())
+                                                }
                                                 _ => None,
                                             };
                                             if let Some(out) = builtin_out {
                                                 if is_last {
                                                     println!("{}", out);
                                                 } else {
-                                                    let remaining = pipe_parts[idx + 1..].join(" | ");
+                                                    let remaining =
+                                                        pipe_parts[idx + 1..].join(" | ");
                                                     use std::io::Write;
-                                                    let mut child = std::process::Command::new("sh")
-                                                        .arg("-c")
-                                                        .arg(&remaining)
-                                                        .stdin(std::process::Stdio::piped())
-                                                        .stdout(std::process::Stdio::inherit())
-                                                        .stderr(std::process::Stdio::inherit())
-                                                        .spawn()
-                                                        .ok();
+                                                    let mut child =
+                                                        std::process::Command::new("sh")
+                                                            .arg("-c")
+                                                            .arg(&remaining)
+                                                            .stdin(std::process::Stdio::piped())
+                                                            .stdout(std::process::Stdio::inherit())
+                                                            .stderr(std::process::Stdio::inherit())
+                                                            .spawn()
+                                                            .ok();
                                                     if let Some(ref mut c) = child {
-                                                        if let Some(ref mut stdin) = c.stdin.take() {
+                                                        if let Some(ref mut stdin) = c.stdin.take()
+                                                        {
                                                             let _ = stdin.write_all(out.as_bytes());
                                                         }
                                                         let _ = c.wait();
@@ -2088,7 +2197,10 @@ fn repl_main() -> Result<()> {
                                                 break;
                                             }
                                         } else {
-                                            eprintln!("  pipe stage '{}' failed: not found", cmd_name);
+                                            eprintln!(
+                                                "  pipe stage '{}' failed: not found",
+                                                cmd_name
+                                            );
                                             pipe_ok = false;
                                             break;
                                         }
