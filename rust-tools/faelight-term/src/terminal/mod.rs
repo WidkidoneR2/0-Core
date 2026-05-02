@@ -1,5 +1,4 @@
 //! faelight-term v2 -- Terminal State
-pub mod grid;
 pub mod scrollback;
 use vte::{Params, Parser, Perform};
 #[derive(Debug, Clone, Copy)]
@@ -31,10 +30,10 @@ pub struct CellAttrs {
     pub reverse: bool,
 }
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub struct Cell {
     pub ch: char,
     pub fg: Color,
+    #[allow(dead_code)] // reserved for background color rendering
     pub bg: Color,
     pub attrs: CellAttrs,
 }

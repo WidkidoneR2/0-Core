@@ -1,10 +1,7 @@
 //! faelight-term v2 -- Phase 0: Foundation
 mod config;
-mod input;
 mod pty;
-mod renderer;
 mod terminal;
-use config::Config;
 use cosmic_text::{Attrs, Buffer, Color, FontSystem, Metrics, Shaping, SwashCache};
 use pty::Pty;
 use smithay_client_toolkit::{
@@ -43,14 +40,13 @@ const INITIAL_HEIGHT: u32 = 900;
 const FONT_SIZE: f32 = 14.0;
 const LINE_HEIGHT: f32 = 20.0;
 fn main() {
-    let config = Config::load();
     eprintln!("faelight-term v2 -- starting");
-    if let Err(e) = run(config) {
+    if let Err(e) = run() {
         eprintln!("fatal: {}", e);
         std::process::exit(1);
     }
 }
-fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::connect_to_env()?;
     let (globals, event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
@@ -65,7 +61,8 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     window.set_title("faelight-term");
     window.set_app_id("faelight-term");
     window.commit();
-    let pty = Pty::spawn(&config.shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let pty = Pty::spawn(&shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
     // Session memory -- restore last working directory via process env
     {
         let home = std::env::var("HOME").unwrap_or_default();
@@ -103,7 +100,6 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
 
     let swash_cache = SwashCache::new();
     let mut app = App {
-        config,
         compositor,
         xdg_shell,
         seat_state,
@@ -237,9 +233,8 @@ fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
-#[allow(dead_code)]
+#[allow(dead_code)] // Wayland state fields held for event loop lifetime
 struct App {
-    config: Config,
     compositor: CompositorState,
     xdg_shell: XdgShell,
     seat_state: SeatState,
@@ -1274,7 +1269,8 @@ impl KeyboardHandler for App {
             if !self.split_active {
                 let cols = (self.terminal.cols / 2).max(40) as u16;
                 let rows = self.terminal.rows as u16;
-                if let Ok(pty2) = Pty::spawn(&self.config.shell, cols, rows) {
+                let shell2 = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+                if let Ok(pty2) = Pty::spawn(&shell2, cols, rows) {
                     self.pty2 = Some(pty2);
                     self.terminal2 = Some(Terminal::new(cols as usize, rows as usize));
                     self.split_active = true;
