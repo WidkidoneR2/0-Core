@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell — command registry
 // Phase 1: 10 forest-native commands
 

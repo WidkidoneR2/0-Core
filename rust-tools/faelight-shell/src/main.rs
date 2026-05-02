@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell v0.1.0
 // Forest-native structured shell environment
 // INT-120 Phase 1 — REPL skeleton

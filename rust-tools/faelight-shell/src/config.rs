@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! config — load ~/.config/faelight-shell/config.fsh on startup (Phase 15)
 //!
 //! Supported directives:

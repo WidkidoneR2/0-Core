@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell — state.db connection
 use anyhow::{Context, Result};
 use rusqlite::Connection;

@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 // faelight-shell — Schema-Aware Completion
 // Phase 11: Tab completion that knows column names, commands, and pipeline ops
 

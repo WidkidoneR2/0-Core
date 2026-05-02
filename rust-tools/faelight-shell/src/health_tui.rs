@@ -233,6 +233,7 @@ pub fn run_health_tui(core_root: &str) {
     let _ = execute!(stdout, LeaveAlternateScreen);
     let _ = disable_raw_mode();
 }
+#[allow(clippy::too_many_arguments)]
 fn draw_health_ui(
     f: &mut Frame,
     sections: &[Section],
@@ -299,6 +300,7 @@ fn draw_health_ui(
         .border_style(Style::default().fg(Color::Rgb(50, 70, 55))));
     f.render_widget(footer, chunks[2]);
 }
+#[allow(clippy::too_many_arguments)]
 fn draw_info_panel(f: &mut Frame, area: Rect, friday_line: &str, forecast_line: &str, sections: &[Section], health_pct: u8, commits_today: i64, active_intents: i64) {
     let mut lines: Vec<Line> = Vec::new();
     lines.push(Line::from(""));
@@ -373,7 +375,7 @@ fn draw_info_panel(f: &mut Frame, area: Rect, friday_line: &str, forecast_line: 
     f.render_widget(panel, area);
 }
 fn draw_compact(f: &mut Frame, area: Rect, sections: &[Section], list_state: &mut ListState) {
-    let items: Vec<ListItem> = sections.iter().enumerate().map(|(_i, sec)| {
+    let items: Vec<ListItem> = sections.iter().map(|sec| {
         let pass = sec.checks.iter().filter(|c| c.severity == Severity::Healthy).count();
         let total = sec.checks.len();
         let worst_color = severity_color(sec.worst());
