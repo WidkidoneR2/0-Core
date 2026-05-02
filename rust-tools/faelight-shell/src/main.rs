@@ -12,6 +12,7 @@ mod error;
 mod exec;
 mod git_tui;
 mod health_tui;
+mod intent_tui;
 mod history_tui;
 mod output;
 mod pty_exec;
@@ -1171,6 +1172,11 @@ fn repl_main() -> Result<()> {
                     _session_pipelines += 1;
                 }
                 // INT-229: abbreviation expansion
+                // INT-254: it opens intent ledger TUI
+                if line.trim() == "it" {
+                    intent_tui::run_intent_tui(&core_root);
+                    continue 'repl;
+                }
                 // INT-253: gt opens git TUI
                 if line.trim() == "gt" {
                     let active = db.get_focus_intent().map(|i| format!("INT-{}", i));
