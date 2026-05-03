@@ -3,7 +3,7 @@ id: 255
 date: 2026-04-28
 type: arch
 title: "Deploy Intelligence -- Smarter, Parallel-Aware, Conflict-Detecting Pipeline"
-status: in-progress
+status: complete
 tags: [arch, deploy, parallel, intelligence, performance, fsh, infrastructure]
 version: TBD
 ---
