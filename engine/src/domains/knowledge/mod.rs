@@ -42,7 +42,7 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 /// Normalize an error signature -- strip file paths, line numbers, variable names
-
+///
 /// Show full entry with resolution history
 pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ensure_tables(ctx)?;

@@ -49,7 +49,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
     let alignment: f64 = db.query_row(
         "SELECT AVG(score) FROM alignment_checks WHERE checked_at > (strftime('%s','now') - 604800)",
         [], |r| r.get::<_, Option<f64>>(0)
-    ).unwrap_or(None).unwrap_or(1.0).min(1.0).max(0.0);
+    ).unwrap_or(None).unwrap_or(1.0).clamp(0.0, 1.0);
     // 3. Active intent -- read from filesystem like predict domain
     let active_intent: String = {
         let future_dir = std::path::PathBuf::from(&ctx.core_root).join("intents/future");

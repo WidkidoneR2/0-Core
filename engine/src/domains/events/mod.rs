@@ -700,7 +700,6 @@ fn extract_field(payload: &str, field: &str) -> String {
             let rest = &payload[i + needle.len()..].trim_start();
             if let Some(inner) = rest.strip_prefix('"') {
                 // String value
-                let inner = inner;
                 inner[..inner.find('"').unwrap_or(inner.len())].to_string()
             } else {
                 // Numeric value

@@ -1087,7 +1087,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
     let _is_pkg = !is_cve;
 
     if is_cve {
-        println!("  │  {} CVE reference detected", "🔍");
+        println!("  │  🔍 CVE reference detected");
         println!("  │");
         println!("  │  {} Impact Analysis:", "①".bright_white().bold());
         println!("  │    Checking forest tools for affected packages...");
@@ -1113,7 +1113,7 @@ pub fn simulate(ctx: &AppContext, patch: &str) -> CoreResult<()> {
             }
         }
     } else {
-        println!("  │  {} Package/patch: {}", "📦", patch.bright_white());
+        println!("  │  📦 Package/patch: {}", patch.bright_white());
         println!("  │");
         println!("  │  {} Risk Assessment:", "①".bright_white().bold());
 

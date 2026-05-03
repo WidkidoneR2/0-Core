@@ -301,7 +301,7 @@ fn clean_commit_message(msg: &str) -> String {
         if upper.starts_with("INT-") {
             let rest = &result[4..];
             let digit_end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
-            let after = result[4 + digit_end..].trim_start_matches(|c| c == ':' || c == ' ' || c == '-').trim();
+            let after = result[4 + digit_end..].trim_start_matches([':', ' ', '-']).trim();
             if after.is_empty() { break; }
             result = after.to_string();
         } else {
@@ -375,7 +375,7 @@ impl ChangelogData {
                 // INT-264: human title only, no INT-NNN in public output
                 let clean_title = intent.title.trim_matches(|c| c == '"' || c == '\\')
                     .trim_matches(|c| c == '"' || c == ' ')
-                    .replace(" -- ", " -- ");
+                    .replace(" -- ", " — ");
                 let clean_title = clean_title.as_str();
                 out.push_str(&format!("- {}\n", clean_title));
             }

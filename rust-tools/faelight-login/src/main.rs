@@ -324,7 +324,7 @@ fn main() -> io::Result<()> {
     // Redirect stderr to /dev/null -- suppress daemon output bleeding into TUI
     unsafe {
         let devnull = libc::open(
-            b"/dev/null ".as_ptr() as *const libc::c_char,
+            c"/dev/null".as_ptr(),
             libc::O_WRONLY,
         );
         if devnull >= 0 {

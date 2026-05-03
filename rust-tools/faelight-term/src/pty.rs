@@ -33,7 +33,7 @@ impl Pty {
                 dup2(slave_raw, 2).ok();
                 drop(slave);
                 let shell_c = CString::new(shell).unwrap();
-                execvp(&shell_c, &[shell_c.clone()]).ok();
+                execvp(&shell_c, std::slice::from_ref(&shell_c)).ok();
                 std::process::exit(1);
             }
             ForkResult::Parent { .. } => {

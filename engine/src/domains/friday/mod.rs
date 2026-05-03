@@ -1583,7 +1583,7 @@ pub fn speak_on_complete(ctx: &AppContext, intent_title: &str) -> CoreResult<()>
             intent_title
         )
     };
-    println!("  {} Friday: {}", "🌲", observation.bright_white());
+    println!("  🌲 Friday: {}", observation.bright_white());
     // Store this as an observation
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

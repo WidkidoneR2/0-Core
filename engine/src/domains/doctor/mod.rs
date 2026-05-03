@@ -207,7 +207,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    println!("  │  {} NixOS reproduces state.", "💡");
+    println!("  │  💡 NixOS reproduces state.");
     println!(
         "  │    Faelight Forest reproduces state {} reasoning.",
         "AND".bright_green().bold()
@@ -369,7 +369,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
                 Err(_) => vec![],
             };
-            let points = points;
+            // points already bound above
 
             if points.len() >= 3 {
                 // Compute trend slope
@@ -384,8 +384,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
 
                 let forecast_24h = (health as f64 + trend * 0.5).round() as i64;
                 let forecast_7d = (health as f64 + trend * 2.0).round() as i64;
-                let forecast_24h = forecast_24h.max(0).min(100);
-                let forecast_7d = forecast_7d.max(0).min(100);
+                let forecast_24h = forecast_24h.clamp(0, 100);
+                let forecast_7d = forecast_7d.clamp(0, 100);
 
                 let trend_icon = if trend > 1.0 {
                     "📈"
@@ -564,13 +564,12 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         match crate::domains::friday::get_voice(ctx) {
             Some((brief, confidence)) => {
                 println!(
-                    "  {}  Friday: watching · {} patterns · {} facts",
-                    "🌲",
+                    "  🌲  Friday: watching · {} patterns · {} facts",
                     pats.to_string().bright_cyan(),
                     facts.to_string().bright_white()
                 );
                 println!();
-                println!("  {} Friday: {}", "🌲", brief.bright_white().bold());
+                println!("  🌲 Friday: {}", brief.bright_white().bold());
                 println!("  {} confidence: {:.0}%", "·".dimmed(), confidence * 100.0);
             }
             None => {
@@ -585,14 +584,13 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                     .unwrap_or_else(|_| "dormant".to_string());
                 if pats > 0 || facts > 0 {
                     println!(
-                        "  {}  Friday: {} · {} patterns · {} facts",
-                        "🌲",
+                        "  🌲  Friday: {} · {} patterns · {} facts",
                         status.dimmed(),
                         pats.to_string().bright_cyan(),
                         facts.to_string().bright_white()
                     );
                 } else {
-                    println!("  {}  Friday: {}", "🌲", "dormant".dimmed());
+                    println!("  🌲  Friday: {}", "dormant".dimmed());
                 }
             }
         }

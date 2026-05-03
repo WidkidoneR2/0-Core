@@ -50,8 +50,8 @@ pub fn today(ctx: &AppContext) -> CoreResult<()> {
     }
     let content = std::fs::read_to_string(&path)?;
     for line in content.lines() {
-        if line.starts_with("# ") {
-            println!("  {}", line[2..].bright_white().bold());
+        if let Some(stripped) = line.strip_prefix("# ") {
+            println!("  {}", stripped.bright_white().bold());
         } else if line.starts_with("**") {
             // Parse entry line: **date** — [time] message
             println!("  {}", line.bright_white());
@@ -188,8 +188,8 @@ fn show_date(ctx: &AppContext, date: &str, label: &str) -> CoreResult<()> {
     }
     let content = std::fs::read_to_string(&path)?;
     for line in content.lines() {
-        if line.starts_with("# ") {
-            println!("  {}", line[2..].bright_white().bold());
+        if let Some(stripped) = line.strip_prefix("# ") {
+            println!("  {}", stripped.bright_white().bold());
         } else if line.starts_with("**") {
             println!("  {}", line.bright_white());
         } else if !line.is_empty() {

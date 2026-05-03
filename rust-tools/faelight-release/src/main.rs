@@ -1,3 +1,4 @@
+#![allow(clippy::ptr_arg)]
 //! faelight-release v0.1.0
 //! 🌲 Intelligent release and generation manager
 

@@ -235,9 +235,8 @@ fn render_markdown(d: &SnapshotData) -> String {
     let mut sorted = d.tools.clone();
     sorted.sort_by(|a, b| b.2.cmp(&a.2));
     out.push_str(
-        &"  │  Top performers:
-"
-        .to_string(),
+        "  │  Top performers:
+",
     );
     for (name, ver, score) in sorted.iter().take(3) {
         out.push_str(&format!(
@@ -249,9 +248,8 @@ fn render_markdown(d: &SnapshotData) -> String {
         ));
     }
     out.push_str(
-        &"  │  Needs attention:
-"
-        .to_string(),
+        "  │  Needs attention:
+",
     );
     for (name, ver, score) in sorted.iter().rev().take(3) {
         if *score < 80 {
@@ -350,14 +348,12 @@ fn render_markdown(d: &SnapshotData) -> String {
         d.git_remote.bright_cyan()
     ));
     out.push_str(
-        &"  │  cargo build --release --workspace
-"
-        .to_string(),
+        "  │  cargo build --release --workspace
+",
     );
     out.push_str(
-        &"  │  Run: core bootstrap plan
-"
-        .to_string(),
+        "  │  Run: core bootstrap plan
+",
     );
     out.push_str(
         "  │

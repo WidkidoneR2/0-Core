@@ -1720,12 +1720,7 @@ pub fn friction(ctx: &AppContext) -> CoreResult<()> {
             } else {
                 outcome.yellow().to_string()
             };
-            println!(
-                "  {} {} {}",
-                dec_id.bright_white().bold(),
-                format!("[{}]", outcome_colored),
-                domain.dimmed()
-            );
+            println!("  {} [{}] {}", dec_id.bright_white().bold(), outcome_colored, domain.dimmed());
             println!("    {}", desc.dimmed());
             if let Some(n) = notes {
                 if !n.is_empty() {

@@ -204,9 +204,7 @@ fn get_drift_score() -> (String, String) {
     let log_path = "/var/log/pacman.log";
     let last_upgrade = std::fs::read_to_string(log_path)
         .unwrap_or_default()
-        .lines()
-        .filter(|l| l.contains("starting full system upgrade") || l.contains("upgraded "))
-        .next_back()
+        .lines().rfind(|l| l.contains("starting full system upgrade") || l.contains("upgraded "))
         .and_then(|l| {
             // Parse date from [YYYY-MM-DDThh:mm:ss+0000]
             l.get(1..11)

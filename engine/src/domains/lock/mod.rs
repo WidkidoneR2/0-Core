@@ -9,11 +9,7 @@ pub fn lock(_ctx: &AppContext) -> CoreResult<()> {
     _ctx.capabilities
         .require("lock", &[Capability::ControlWM])?;
     // Detect compositor and use appropriate locker
-    let locker = if std::env::var("NIRI_SOCKET").is_ok() {
-        "swaylock" // INT-180: swaylock works on Niri via ext-session-lock
-    } else {
-        "swaylock" // Sway removed -- same binary
-    };
+    let locker = "swaylock"; // Niri via ext-session-lock (INT-180)
     let status = Command::new(locker).status()?;
     if !status.success() {
         println!("  {} {} failed", "✗".bright_red(), locker);

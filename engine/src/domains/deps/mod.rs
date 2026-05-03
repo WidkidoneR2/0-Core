@@ -169,7 +169,7 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
         "{}",
         "  ├────────────────────────────────────────────────────".dimmed()
     );
-    println!("  │  {} High-coupling deps are upgrade risks", "💡");
+    println!("  │  💡 High-coupling deps are upgrade risks");
     println!(
         "  │  Run {} before upgrading",
         "core security simulate <dep>".bright_cyan()
@@ -222,7 +222,7 @@ pub fn audit(ctx: &AppContext) -> CoreResult<()> {
         "colored",
     ];
 
-    println!("  │  {} Key dependency audit:", "🔍");
+    println!("  │  🔍 Key dependency audit:");
     println!("  │");
 
     for dep in &key_deps {

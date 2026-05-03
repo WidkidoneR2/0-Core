@@ -1,3 +1,7 @@
+#![allow(clippy::type_complexity)]
+#![allow(clippy::unnecessary_filter_map)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::too_many_arguments)]
 //! core — 0-Core v2 single orchestrator binary
 //! Philosophy: One binary. Five layers. Zero ambiguity.
 

@@ -1163,7 +1163,7 @@ pub fn edit(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 .status()
                 .map_err(crate::errors::CoreError::Io)?;
             if status.success() {
-                println!("  {} INT-{} saved", "✅", i.id);
+                println!("  ✅ INT-{} saved", i.id);
             }
             Ok(())
         }
@@ -1282,7 +1282,7 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
                 score -= 20.0;
                 issues.push(format!("stalled {} days", days_since));
             }
-            score = score.max(0.0).min(100.0);
+            score = score.clamp(0.0, 100.0);
             if !stale_only || days_since > 14 {
                 intents.push((
                     id,
@@ -1983,7 +1983,7 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     // Find the longest chain — that's the critical path
-    chains.sort_by(|a, b| b.len().cmp(&a.len()));
+    chains.sort_by_key(|b| std::cmp::Reverse(b.len()));
     if chains.is_empty() {
         println!(
             "  {} No dependency chains found in active intents",

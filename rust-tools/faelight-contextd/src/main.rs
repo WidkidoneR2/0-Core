@@ -299,7 +299,7 @@ fn main() {
             loop {
                 run_once(&conn);
                 tick += 1;
-                if tick % 10 == 0 {
+                if tick.is_multiple_of(10) {
                     let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE)");
                 }
                 std::thread::sleep(std::time::Duration::from_secs(30));

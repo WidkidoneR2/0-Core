@@ -710,12 +710,7 @@ pub fn evolve_list(ctx: &AppContext) -> CoreResult<()> {
                 "rejected" => status.bright_red().to_string(),
                 _ => status.yellow().to_string(),
             };
-            println!(
-                "  {} {} {}",
-                id.bright_white().bold(),
-                format!("[{}]", status_colored),
-                title.bright_white()
-            );
+            println!("  {} [{}] {}", id.bright_white().bold(), status_colored, title.bright_white());
             println!("  {}  {}", "Evidence:".dimmed(), evidence.dimmed());
             println!("  {}  {}", "Confidence:".dimmed(), confidence.bright_cyan());
             println!();

@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 //! faelight-term v2 -- Phase 0: Foundation
 mod config;
 mod pty;
@@ -1417,7 +1418,7 @@ impl PointerHandler for App {
                     }
                     self.render();
                 }
-                PointerEventKind::Press { button, .. } if button == 0x110 => {
+                PointerEventKind::Press { button: 0x110, .. } => {
                     if self.ctrl_held {
                         let col = (event.position.0 / self.cell_w as f64) as usize;
                         let row = (event.position.1 / self.cell_h as f64) as usize;
@@ -1467,7 +1468,7 @@ impl PointerHandler for App {
                     self.sel_end = Some((abs_row, col.min(self.terminal.cols - 1)));
                     self.render();
                 }
-                PointerEventKind::Release { button, .. } if button == 0x110 => {
+                PointerEventKind::Release { button: 0x110, .. } => {
                     self.mouse_down = false;
                     // Auto-copy selection to clipboard
                     if let Some(text) = self.get_selection_text() {

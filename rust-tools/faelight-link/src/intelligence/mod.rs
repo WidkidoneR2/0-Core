@@ -275,8 +275,8 @@ pub fn why(file: &str) -> Result<()> {
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
     let target = if file.starts_with('/') {
         PathBuf::from(file)
-    } else if file.starts_with("~/") {
-        home.join(&file[2..])
+    } else if let Some(stripped) = file.strip_prefix("~/") {
+        home.join(stripped)
     } else {
         home.join(file)
     };

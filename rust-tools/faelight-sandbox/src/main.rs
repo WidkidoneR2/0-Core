@@ -991,10 +991,10 @@ fn main() -> Result<()> {
                 return Ok(());
             }
             let conn = rusqlite::Connection::open(&db_path)?;
-            let query = if tool.is_some() {
+            let query = if let Some(tool_name) = &tool {
                 format!(
                     "SELECT payload, timestamp FROM events WHERE domain='sandbox' AND action='run' AND payload LIKE '%{}%' ORDER BY timestamp DESC LIMIT {}",
-                    tool.as_ref().unwrap(), limit
+                    tool_name, limit
                 )
             } else {
                 format!(

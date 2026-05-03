@@ -358,9 +358,7 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
         for p in &patterns {
             let colored = if p.starts_with("CONTRADICTION") {
                 p.bright_red().to_string()
-            } else if p.starts_with("SIGNAL") {
-                p.bright_yellow().to_string()
-            } else if p.starts_with("TREND") {
+            } else if p.starts_with("SIGNAL") || p.starts_with("TREND") {
                 p.bright_yellow().to_string()
             } else {
                 p.bright_white().to_string()

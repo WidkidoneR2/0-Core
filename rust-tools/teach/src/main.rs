@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 //! teach v4.0.0 — Live System Narrator for 0-Core
 //! Adapts to newcomer or expert. Reads the real system. No static content.
 
@@ -1369,7 +1370,7 @@ fn run_lesson(lesson: &Lesson) {
             let input = input.trim();
 
             if input == "hint" || input == "?" {
-                println!("  {} {}", "💡", step.hint.yellow());
+                println!("  💡 {}", step.hint.yellow());
                 continue;
             }
             if input == "skip" {
@@ -1377,7 +1378,7 @@ fn run_lesson(lesson: &Lesson) {
                 break;
             }
             if input == step.expected {
-                println!("  {} {}", "✅", step.success.green());
+                println!("  ✅ {}", step.success.green());
                 println!();
                 break;
             } else {
@@ -1394,7 +1395,7 @@ fn run_lesson(lesson: &Lesson) {
         "{}",
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
-    println!("  {} Lesson complete!", "🎉");
+    println!("  🎉 Lesson complete!");
     println!(
         "  Next: {} or {} to see all lessons",
         "teach shell".bright_cyan(),

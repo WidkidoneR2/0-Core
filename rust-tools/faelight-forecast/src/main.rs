@@ -213,7 +213,7 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
     } else {
         0.0
     };
-    let stability_score = (100.0 - variance.sqrt() * 10.0).max(0.0).min(100.0);
+    let stability_score = (100.0 - variance.sqrt() * 10.0).clamp(0.0, 100.0);
 
     // Drop frequency (drops per day)
     let time_span_days = if n >= 2 {
@@ -244,7 +244,7 @@ fn analyze(health: &[HealthPoint], security: &[SecurityPoint], days: u32) -> Ana
         let date = (chrono::Local::now() + Duration::days(d as i64))
             .format("%m/%d")
             .to_string();
-        let proj = (current + trend_slope * d as f64).max(0.0).min(100.0);
+        let proj = (current + trend_slope * d as f64).clamp(0.0, 100.0);
         // Security aging signal
         let age = security_age_days + d as f64;
         let signal = if current_high > 0 && age > 90.0 {

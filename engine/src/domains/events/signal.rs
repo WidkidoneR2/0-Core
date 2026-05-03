@@ -105,6 +105,7 @@ CREATE INDEX IF NOT EXISTS idx_fev2_source ON forest_events_v2(source);
 CREATE INDEX IF NOT EXISTS idx_fev2_caused_by ON forest_events_v2(caused_by);
 ";
 /// Emit a validated signal to forest_events_v2
+#[allow(clippy::too_many_arguments)]
 pub fn emit(
     db: &rusqlite::Connection,
     source: &str,

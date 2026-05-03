@@ -142,11 +142,7 @@ fn print_system_panel() {
     );
     println!("  {}    ", "system".dimmed());
     println!("  {:>14}  {}", "host".dimmed(), hostname.bright_white());
-    println!(
-        "  {:>14}  {}",
-        "health".dimmed(),
-        format!("{} {}%", health_icon, health_num)
-    );
+    println!("  {:>14}  {} {}%", "health".dimmed(), health_icon, health_num);
     println!("  {:>14}  {}", "core".dimmed(), lock_icon.dimmed());
     println!("  {}    ", "env".dimmed());
     println!("  {:>14}  {}", "wm".dimmed(), wm.bright_white());
