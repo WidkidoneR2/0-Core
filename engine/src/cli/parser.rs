@@ -475,6 +475,28 @@ pub enum FridayCommands {
     Anticipate,
     /// INT-234 Gate 9 -- session-aware briefing combining inference + anticipation
     Review,
+    /// INT-244 v22 -- query the decision record ("why did we do X?")
+    Why {
+        /// Topic to look up in the decision record
+        topic: String,
+    },
+    /// INT-244 v22 -- record an architectural decision
+    Decide {
+        /// What was decided
+        what: String,
+        /// Why this path was chosen
+        why: String,
+        /// Intent or commit this ties to (optional)
+        ties_to: String,
+    },
+    /// INT-244 v22 -- list all recorded decisions
+    Decisions,
+    /// INT-244 v22 -- show the system map (tools, deps, health)
+    MapShow,
+    /// INT-244 v22 -- update the system map from current state
+    MapUpdate,
+    /// INT-244 v22 -- show Friday self-review for last session
+    SelfReview,
 }
 
 #[derive(Subcommand)]

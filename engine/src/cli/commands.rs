@@ -69,6 +69,13 @@ pub enum FridayCommand {
     Reason { question: String },
     Anticipate,
     Review,
+    // INT-244 v22 -- Useful Partner
+    Why { topic: String },
+    Decide { what: String, why: String, ties_to: String },
+    Decisions,
+    MapShow,
+    MapUpdate,
+    SelfReview,
 }
 
 pub enum Command {

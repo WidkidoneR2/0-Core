@@ -79,6 +79,13 @@ pub fn parse() -> Command {
             FridayCommands::Reason { question } => FridayCommand::Reason { question },
             FridayCommands::Anticipate => FridayCommand::Anticipate,
             FridayCommands::Review => FridayCommand::Review,
+            // INT-244 v22
+            FridayCommands::Why { topic } => FridayCommand::Why { topic },
+            FridayCommands::Decide { what, why, ties_to } => FridayCommand::Decide { what, why, ties_to },
+            FridayCommands::Decisions => FridayCommand::Decisions,
+            FridayCommands::MapShow => FridayCommand::MapShow,
+            FridayCommands::MapUpdate => FridayCommand::MapUpdate,
+            FridayCommands::SelfReview => FridayCommand::SelfReview,
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

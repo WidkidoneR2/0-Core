@@ -59,9 +59,39 @@ CREATE TABLE IF NOT EXISTS friday_personality (
 CREATE INDEX IF NOT EXISTS idx_friday_obs_ts ON friday_observations(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_friday_pat_conf ON friday_patterns(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_friday_know_domain ON friday_knowledge(domain);
+CREATE TABLE IF NOT EXISTS friday_decisions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp    INTEGER NOT NULL,
+    what         TEXT NOT NULL,
+    alternatives TEXT NOT NULL DEFAULT '',
+    why          TEXT NOT NULL,
+    ties_to      TEXT NOT NULL DEFAULT '',
+    revisit_when TEXT NOT NULL DEFAULT '',
+    session_id   TEXT,
+    intent_id    TEXT
+);
+CREATE TABLE IF NOT EXISTS friday_map (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type  TEXT NOT NULL,
+    entity_name  TEXT NOT NULL,
+    version      TEXT NOT NULL DEFAULT '',
+    role         TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'active',
+    depends_on   TEXT NOT NULL DEFAULT '[]',
+    health       REAL NOT NULL DEFAULT 100.0,
+    last_commit  TEXT NOT NULL DEFAULT '',
+    last_deploy  INTEGER NOT NULL DEFAULT 0,
+    updated_at   INTEGER NOT NULL,
+    UNIQUE(entity_type, entity_name)
+);
+CREATE INDEX IF NOT EXISTS idx_friday_dec_ts ON friday_decisions(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_friday_map_type ON friday_map(entity_type);
 ";
+pub mod decisions;
+pub mod map;
 pub mod phase2;
 pub mod planning;
+pub mod self_review;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -607,6 +607,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
             FridayCommand::Anticipate => crate::domains::friday::planning::anticipate(ctx),
             FridayCommand::Review => crate::domains::friday::planning::review(ctx),
+            // INT-244 v22
+            FridayCommand::Why { topic } => crate::domains::friday::decisions::why(ctx, &topic),
+            FridayCommand::Decide { what, why, ties_to } => {
+                crate::domains::friday::decisions::decide(ctx, &what, &why, &ties_to)
+            }
+            FridayCommand::Decisions => crate::domains::friday::decisions::list_decisions(ctx),
+            FridayCommand::MapShow => crate::domains::friday::map::show(ctx),
+            FridayCommand::MapUpdate => crate::domains::friday::map::update(ctx),
+            FridayCommand::SelfReview => crate::domains::friday::self_review::run(ctx),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
