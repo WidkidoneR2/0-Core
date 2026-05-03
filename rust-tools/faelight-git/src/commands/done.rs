@@ -4,19 +4,30 @@ use crate::git::GitRepo;
 use crate::is_locked;
 use anyhow::{bail, Result};
 use colored::*;
-fn get_active_intent() -> Option<String> {
+fn get_active_intent() -> Option<(String, String)> {
     // Scan intents/future/ for in-progress intents -- same as fsh prompt
     let home = std::env::var("HOME").ok()?;
     let future_dir = format!("{}/0-core/intents/future", home);
-    let entries = std::fs::read_dir(&future_dir).ok()?;
-    for entry in entries.flatten() {
+    let mut entries: Vec<_> = std::fs::read_dir(&future_dir).ok()?.flatten().collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
         let name = entry.file_name().to_string_lossy().to_string();
         if !name.ends_with(".md") { continue; }
         let content = std::fs::read_to_string(entry.path()).ok()?;
         if content.contains("status: in-progress") {
-            // Extract ID from filename like "256-faelight-git..."
             let id = name.split('-').next().unwrap_or("").to_string();
-            return Some(format!("INT-{}", id));
+            // Extract title from frontmatter
+            let title = content.lines()
+                .find(|l| l.starts_with("title:"))
+                .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string())
+                .unwrap_or_else(|| format!("INT-{}", id));
+            let short = title.split(" -- ").next()
+                .unwrap_or(&title)
+                .split(" -- ").next()
+                .unwrap_or(&title)
+                .trim()
+                .to_string();
+            return Some((id, short));
         }
     }
     None
@@ -39,13 +50,11 @@ pub fn run(extra: Option<&str>) -> Result<()> {
     }
     println!();
     // Build commit message from active intent
-    let message = if let Some(focus) = get_active_intent() {
-        // focus is like "INT-245" or "245"
-        let id_part = focus.trim_start_matches("INT-").split_whitespace().next().unwrap_or(&focus);
+    let message = if let Some((id, title)) = get_active_intent() {
         if let Some(extra) = extra {
-            format!("INT-{}: {}", id_part, extra)
+            format!("INT-{}: {} -- {}", id, title, extra)
         } else {
-            format!("INT-{}: progress", id_part)
+            format!("INT-{}: {}", id, title)
         }
     } else if let Some(extra) = extra {
         extra.to_string()
