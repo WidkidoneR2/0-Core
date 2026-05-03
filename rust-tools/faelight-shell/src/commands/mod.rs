@@ -7293,7 +7293,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
             [],
             |r| r.get(0),
         )
-        .unwrap_or_else(|_| "0.6.0".to_string());
+        .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
     let alias_count = aliases;
     // Load health from cache
     let health: String = std::fs::read_to_string(format!("{}/.cache/faelight/health-status", home))
