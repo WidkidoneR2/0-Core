@@ -7216,6 +7216,15 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
         return CommandResult::Error("usage: grep <pattern> [file]".to_string());
     }
     let pattern = rest[0].trim_matches('"').trim_matches('\'');
+    // If pattern contains alternation (\|) or regex metacharacters, fall through to system grep
+    if pattern.contains("\\|") || pattern.contains("\\(") || pattern.contains("\\)") || pattern.contains("\\+") {
+        let status = crate::db::spawn_sh_with_leak_check(line);
+        return match status {
+            Ok(s) if s.success() => CommandResult::Empty,
+            Ok(s) => CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1))),
+            Err(e) => CommandResult::Error(format!("grep: {}", e)),
+        };
+    }
     let file_arg = rest.get(1).copied();
 
     let lines: Vec<String> = if let Some(path) = file_arg {
