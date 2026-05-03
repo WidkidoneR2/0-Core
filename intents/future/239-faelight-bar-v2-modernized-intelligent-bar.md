@@ -60,3 +60,8 @@ Friday signal animations require the Elm message model -- iced maps naturally.
 If iced works: bar becomes Friday's face on the desktop.
 If iced doesn't work: current bar gets zone upgrade without framework switch.
 **Rule: forest philosophy wins over framework appeal.**
+faelight-bar drops during session changes and shell reloads. The bar process
+is not being kept alive by a supervisor. INT-239 must include either:
+- A systemd user service for faelight-bar (auto-restart on crash)
+- Or a watchdog in faelight-daemon that monitors and restarts the bar
+This is the race condition noted in the original architecture decision.
