@@ -86,8 +86,20 @@ CREATE TABLE IF NOT EXISTS friday_map (
 );
 CREATE INDEX IF NOT EXISTS idx_friday_dec_ts ON friday_decisions(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_friday_map_type ON friday_map(entity_type);
+CREATE TABLE IF NOT EXISTS friday_doc_proposals (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp    INTEGER NOT NULL,
+    commit_hash  TEXT NOT NULL DEFAULT '',
+    doc_file     TEXT NOT NULL,
+    reason       TEXT NOT NULL,
+    proposed_text TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS idx_friday_doc_status ON friday_doc_proposals(status);
+
 ";
 pub mod decisions;
+pub mod doc_steward;
 pub mod map;
 pub mod phase2;
 pub mod planning;

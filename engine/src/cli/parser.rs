@@ -497,6 +497,20 @@ pub enum FridayCommands {
     MapUpdate,
     /// INT-244 v22 -- show Friday self-review for last session
     SelfReview,
+    /// INT-244 v22 Pillar 1 -- show pending doc proposals
+    Docs,
+    /// INT-244 v22 Pillar 1 -- analyze last commit for doc proposals
+    DocsAnalyze,
+    /// INT-244 v22 Pillar 1 -- approve a doc proposal
+    DocsApprove {
+        /// Proposal ID to approve
+        id: i64,
+    },
+    /// INT-244 v22 Pillar 1 -- dismiss a doc proposal
+    DocsDismiss {
+        /// Proposal ID to dismiss
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]

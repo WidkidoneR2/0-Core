@@ -86,6 +86,10 @@ pub fn parse() -> Command {
             FridayCommands::MapShow => FridayCommand::MapShow,
             FridayCommands::MapUpdate => FridayCommand::MapUpdate,
             FridayCommands::SelfReview => FridayCommand::SelfReview,
+            FridayCommands::Docs => FridayCommand::Docs,
+            FridayCommands::DocsAnalyze => FridayCommand::DocsAnalyze,
+            FridayCommands::DocsApprove { id } => FridayCommand::DocsApprove { id },
+            FridayCommands::DocsDismiss { id } => FridayCommand::DocsDismiss { id },
         }),
         Commands::Synthesize { command } => Command::Synthesize(match command {
             SynthesizeCommands::Now => SynthesizeCommand::Now,

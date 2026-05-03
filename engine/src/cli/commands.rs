@@ -76,6 +76,11 @@ pub enum FridayCommand {
     MapShow,
     MapUpdate,
     SelfReview,
+    // Pillar 1 -- Doc Steward
+    Docs,
+    DocsAnalyze,
+    DocsApprove { id: i64 },
+    DocsDismiss { id: i64 },
 }
 
 pub enum Command {

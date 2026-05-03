@@ -616,6 +616,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::MapShow => crate::domains::friday::map::show(ctx),
             FridayCommand::MapUpdate => crate::domains::friday::map::update(ctx),
             FridayCommand::SelfReview => crate::domains::friday::self_review::run(ctx),
+            FridayCommand::Docs => crate::domains::friday::doc_steward::show_proposals(ctx),
+            FridayCommand::DocsAnalyze => crate::domains::friday::doc_steward::analyze_commit(ctx),
+            FridayCommand::DocsApprove { id } => crate::domains::friday::doc_steward::resolve_proposal(ctx, id, true),
+            FridayCommand::DocsDismiss { id } => crate::domains::friday::doc_steward::resolve_proposal(ctx, id, false),
         },
         Command::Deploy(c) => match c {
             DeployCommand::Check { tool } => crate::domains::deploy::check(ctx, &tool),
