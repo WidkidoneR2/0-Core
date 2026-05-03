@@ -65,3 +65,4 @@ before_run {
     if command contains "sudo rm" { block "Use rm directly — sudo rm is too dangerous" }
 }
 
+alias gd="GIT_EXTERNAL_DIFF=difft git diff"
