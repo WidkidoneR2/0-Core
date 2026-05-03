@@ -10,47 +10,21 @@
 > **A self-aware, path-resilient personal computing environment built from first principles.**
 
 ## 🎊 Latest Release
-
-### 12.0.0 - 🌲 The Forest Speaks Human (2026-05-02)
-
-- 180 — Sway Removal — Full Niri Commitment
-- 203 — Friday: The Living Intelligence
-- 219 — Core v20 — Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy
-- 231 — Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats
-- 232 — faelight-term v2 -- The Terminal That Thinks in 2136
-- 233 — fsh v8 -- Structured Shell: Data, Syntax, Intelligence
-- 234 — Core v21 -- Friday Planning Layer: From Reaction to Anticipation
-- 238 — forest-stats -- The Forest Visualizes Its Own Growth
-- 241 — Integrity Engine Audit -- No Phantom Fixes, No Silent Failures
-- 242 — faelight-login v2 -- The Forest Greets You First
-- 248 — friday_knowledge deduplication -- clean signal from noise
-- 249 — fsh heredoc delimiter leak warning
-- 250 — Release tool intelligence layer -- faelight-release and faelight-docs translate, not just account
-- 252 — fsh connection unification
-- 253 — gt -- Git Workflow as Ratatui TUI
-- 254 — it -- Intent Ledger as Ratatui TUI
-- 257 — Strip Tracked Versioned Binaries from Git History via filter-repo
-- 258 — Ctrl+D Health Display as Ratatui TUI
-- 259 — Command and Keybind Registry -- Universal Source of Truth
-- 260 — Cheatsheet TUI -- Live Reference for Commands and Keybinds
-- 261 — fsh Vocabulary -- A Human-Readable Language for the Forest
-- 262 — \"faelight-term Dead Code Audit and Renderer Decision\
-- 263 — \"db -- native state.db query builtin for fsh\
-- 264 — \"faelight-synthesis -- Semantic Translation Layer for Release Intelligence\
-- 266 — \"fsh vocabulary -- copy move list read write as forest-native commands\
-- INT-231 complete — Friday vocabulary: 6 abstractions named, language born from real patterns
-- INT-233 gp fixed, clippy scoped to staged packages, echo redirect verified
-- INT-233 rspatch \n newline fix — world\nextra now becomes two lines
-- INT-233 command not found suggests alternative, fsh-patch helper added
-- INT-233 startup 4ms verified, em dash handled, echo gate marked
-
-- Commits: 2421
-- Tools: 50 deployed
-- Health: 100%
-- Intents: 212 complete
-
+The terminal was rebuilt from scratch. The shell learned its first human words. Friday gained a planning layer. Three TUIs shipped. The repository shed 320MB of history.
+**What shipped:**
+- faelight-term v2 -- rebuilt terminal: scrollback, Friday panel, split panes, 14MB idle
+- Human vocabulary -- `delete`, `find`, `copy`, `move`, `list`, `read`, `write`, `db`
+- Friday planning layer -- anticipation, session correlation, inline knowledge
+- `gt` -- linear git workflow (stage → commit → push in one flow)
+- `it` -- intent ledger TUI with fuzzy search and tab filtering
+- `cheat` -- live cheatsheet for all 118 commands and keybinds
+- Ctrl+D health TUI -- system status at a keypress
+- fsh v8 -- pipelines, smarter history, tight Friday integration
+- faelight-login v2 -- animated forest boot screen
+- Git history cleaned -- 388MB → 68MB packed
+- faelight-synthesis -- release notes now speak human, no INT numbers
+**Stats:** 212 intents complete · 2423 commits · 51 tools · 100% health
 [Full Changelog →](00-meta/CHANGELOG.md)
-
 ---
 
 <!-- END DYNAMIC SECTION -->
@@ -156,6 +130,7 @@ Preview mode, maintenance mode, pre-flight warnings, drift score, risk categoriz
 ---
 | Version | Theme | Milestone |
 |---------|-------|-----------|
+| v12.0.0 | **The Forest Speaks Human** | Terminal rebuilt, 7 human words, 3 TUIs, Friday planning layer, 25 intents |
 | v11.9.0 | **The Forest That Speaks Back** | Friday Daemon live, inline suggestions, milestone Easter Eggs, 11 intents |
 | v11.8.0 | **The Self-Making Forest** | Core v19 Friday Phase 1, Friday speaks in d, faelight-term v11 |
 | v11.7.0 | **The Intelligence Arc** | Core v15 Alignment, Engine Coordination, 15 intents, Jarvis 105/100 |

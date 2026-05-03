@@ -1,12 +1,16 @@
 # Changelog
 
-## [12.0.0] — The Forest Speaks Human (2026-05-02)
-
-### 🎯 Completed Intents
-- Sway Removal — Full Niri Commitment
-- Friday: The Living Intelligence
-- Core v20 — Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy
-- Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats
+## [12.0.0] -- The Forest Speaks Human (2026-05-02)
+The terminal was rebuilt from scratch -- GPU-ready architecture, full scrollback, Friday panel, split panes.
+The shell learned its first human words -- commands that read like English, safe by default, UNIX as fallback:
+`delete`, `find`, `copy`, `move`, `list`, `read`, `write`, `db`.
+Friday gained a planning layer -- anticipating next steps, correlating sessions, surfacing the right knowledge at the right moment.
+Three TUIs shipped: health at a keypress (Ctrl+D), git workflow simplified (`gt`), intent ledger always visible (`it`). A cheatsheet TUI (`cheat`) puts every command and keybind one keystroke away.
+The repository shed 320MB of binary history, running lean for the first time. Health held at 100% throughout.
+- Sway Removal -- Full Niri Commitment
+- Friday -- The Living Intelligence
+- Core v20 -- Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy
+- Friday Vocabulary Expansion
 - faelight-term v2 -- The Terminal That Thinks in 2136
 - fsh v8 -- Structured Shell: Data, Syntax, Intelligence
 - Core v21 -- Friday Planning Layer: From Reaction to Anticipation
@@ -15,256 +19,27 @@
 - faelight-login v2 -- The Forest Greets You First
 - friday_knowledge deduplication -- clean signal from noise
 - fsh heredoc delimiter leak warning
-- Release tool intelligence layer -- faelight-release and faelight-docs translate, not just account
 - fsh connection unification
-- gt -- Git Workflow as Ratatui TUI
+- gt -- Git Workflow linear flow
 - it -- Intent Ledger as Ratatui TUI
-- Strip Tracked Versioned Binaries from Git History via filter-repo
+- Git history cleanup -- 388MB → 68MB packed
 - Ctrl+D Health Display as Ratatui TUI
 - Command and Keybind Registry -- Universal Source of Truth
 - Cheatsheet TUI -- Live Reference for Commands and Keybinds
-- fsh Vocabulary -- A Human-Readable Language for the Forest
-- faelight-term Dead Code Audit and Renderer Decision
-- db -- native state.db query builtin for fsh
+- fsh Vocabulary -- Human-readable file operations
+- faelight-term Dead Code Audit
+- db -- Native state.db query builtin
 - faelight-synthesis -- Semantic Translation Layer for Release Intelligence
-- fsh vocabulary -- copy move list read write as forest-native commands
-
-### ✨ Features
-- gt git TUI -- file list, diff preview, stage/commit/push, Ctrl+G
-- it intent ledger TUI — two-pane, fuzzy search, tab filter, 218 intents
-- Ctrl+D health TUI — sections, drill-down, forecast, commits, intents
-- command_registry schema live — 118 entries, builtins + niri keybinds
-- cheatsheet TUI — 118 entries, fuzzy search, tab filter, live registry
-- delete + find — first forest vocabulary words
-- dead code audit — remove stubs, wgpu, Config struct, backup files
-- db builtin — native state.db query with forest vocabulary + raw SQL
-- faelight-synthesis — semantic narrative, human themes, no INT numbers in public output
-- fsh vocabulary — copy move list read write all working
-- complete — Friday vocabulary: 6 abstractions named, language born from real patterns
-- gp fixed, clippy scoped to staged packages, echo redirect verified
-- rspatch \n newline fix — world\nextra now becomes two lines
-- command not found suggests alternative, fsh-patch helper added
-- startup 4ms verified, em dash handled, echo gate marked
-- fsearch regex alternation, fsh gaps updated, fsh-patch fixed, unicode guide added
-- error messages — what/why/fix for rspatch and deploy failures
-- config.fsh syntax validation on load — errors shown with line/fix
-- knowledge engine fires on failure — Friday surfaces known fix inline
-- pipeline fix — fsh builtins pipe to external commands, error recovery with clear message
-- pipeline, table display, filter syntax — fsh builtins compose with external tools
-- SIGPIPE fix in core — no broken pipe panic when piped to head/grep
-- Friday rate limit, term gates deferred — fsh v8 complete
-- forest-stats — commit velocity, intent timeline, Friday growth, session stats
-- complete — forest-stats visualizes commit velocity, intents, Friday growth
-- integrity dedup — no phantom auto-fix logging, session cooldown gate
-- integrity audit complete — dedup, stale proposals cleared, all checks verified
-- Phase 2+3 — Sway removed from all active Rust code, Niri-only committed
-- complete — Sway fully removed, Niri-only committed, 7 packages removed
-- create INT-242 faelight-login v2, INT-243 faelight-lock v2 — forest security layer rebuilt
-- faelight-login v2.0.0 — animated forest boot, Friday brief, status panel, Niri-only
-- login v2 polish — tree upgraded, emoji->ASCII, animation 150ms, deploy auto-syncs greetd
-- login v2 polish — 300ms animation, wider login box, auto greetd sync on deploy
-- login v2 — /etc/faelight export, active intent on screen, fsh auto-exports on start
-- login v2 — intent truncated, export on fsh start, polish complete
-- login v2 — manual centering, friday brief filtered, sudoers passwordless export
-- login v2 — animation removed, centering fixed, passwordless deploy/export
-- complete — faelight-login v2 working perfectly on real hardware
-
-### 🔧 Fixes
-- extract-patterns now reports honest counts -- distinguishes new vs updated patterns via existence check before INSERT OR REPLACE. removes cosmetic lie where all writes were called 'new'. satisfies FSH-PHILOSOPHY invariant #2 (every suggestion cites its source).
-- fsearch honors path argument -- positional path arg now scopes search to directory or file. unknown arguments produce a warning instead of silent drop. fixes case where `fsearch pattern path/` searched entire forest. satisfies FSH-PHILOSOPHY invariant #2 (every suggestion cites its source) and invariant #4 (data that looks stored is actually stored -- applied to args that look honored).
-- P1 - remove duplicate 'theme' in completion.rs COMMANDS array
-- P2+P3 - remove duplicate 'q', fix 4 silent-drop bugs in db.rs P2: Removed duplicate 'q' from COMMANDS completion array P3: Converted 4 db.rs methods to return Result<()> with proper error handling:   - save_history_entry (2 call sites in main.rs, exec.rs)   - set_focus_intent (2 call sites in main.rs)   - clear_focus_intent (1 call site in main.rs)   - set_theme (1 call site in commands/mod.rs) All 6 call sites now handle errors with eprintln warnings instead of silent drops. Thread B (silent-drop pattern) from audit - 4 of 5 confirmed bugs fixed.
-- P4 - fix scripting.rs Emit silent-drop Converted Statement::Emit event insertion to handle errors properly. The function returns bool, so error is logged and returns false on failure instead of silently dropping. Thread B (silent-drop pattern) from audit - 5 of 5 confirmed bugs fixed.
-- friction items 3,5 from audit (partial)
-- replace stray NUL bytes in faelight-term main.rs char literals
-- scrollback copy — absolute coords, soft-wrap tracking, auto-scroll on drag
-- emoji/symbol rendering — DejaVu Sans fallback for U+2000-22FF symbols
-- font zoom Ctrl+/-/=, brighter text, revert bg
-- clear resets scroll_offset and soft_wrapped — c/clear now works in term
-- sudo prompt no longer mangled by JSON detector
-- push exits TUI cleanly, auto-quit on clean tree, clippy fixed
-- gt rewritten as linear workflow — no TUI, clean like fg sync
-- anchor to vX.Y.Z tags only, skip pre-filter-repo backup tags
-
-### 📚 Documentation
-- README updated — Friday active, 187 intents, 11.8.0+11.9.0 in release table
-- README — core intelligence v18+v19 added to table, Friday speaking noted
-- — 6 shell friction gates added from session pain points
-- fsearch regex and fsh gaps gates marked complete
-- config.fsh validation gate marked complete
-- knowledge engine gates marked — fsh queries on failure, fix shown inline
-- JSON/table/filter gates marked — all pipeline gates complete
-- shell friction audit complete — 10 pain points documented
-- rewritten — faelight-term v2 "The Terminal That Thinks in 2136
-- FSH-PHILOSOPHY.md -- foundational document establishing what Faelight Shell is, its invariants, and the rule I do not break. disambiguates fsh as Faelight Shell (not fish).
-- fsh v9 architecture audit A -- execution layer 1721-line architectural read of fsh's execution, stdio, dispatch, and extension-point layers before any v9 implementation begins. Documents what the shell does today, maps where v9 pillars plug in, and commits to five foundational decisions (D1-D4, D7). Major findings: - Observation gap: 4 of 5 execution paths bypass execute_with_context;   most non-trivial shell activity (pipelines, redirects, sh fallbacks)   runs unobserved by the intelligence layer - Silent-drop pattern: friction item 9 is one of 5 confirmed sites   across db.rs and scripting.rs, with up to 15 more candidates in   commands/mod.rs -- systemic, not localized - Context loss: ExecContext is built at exec_with_context but discarded   at dispatch; typed data becomes raw string at the layer boundary - Parser duplication: tokenizer implemented twice (exec.rs and   commands/mod.rs); unification is a v9 Phase 0 task - Extension points unwired: Hinter, Highlighter, Validator trait impls   exist but are empty -- exact plug points for Pillars 2 and 5 - Block parser already exists: scripting.rs::collect_block needs   only a ~15-line extension for parallel { } syntax Key decisions locked: - D1: thread ExecContext through commands::execute (option A) - D2: spawn subsystem via builder pattern + hybrid jobs storage +   hybrid observation + policy-per-block failure - D3: replace current jobs.rs::Job with new builder, rename legacy   to BgJob (Path II -- long-term over incremental) - D4: shell_jobs migration lives in db.rs - D7: REPL supports both continuation prompt (default) and explicit   :block mode for multi-line input Six architectural threads (A-F, Section 7) collapse INT-245 Pillar 6's 10 friction items into ~4-5 architectural corrections. v9 ships the corrections; friction items close as consequences. Post-audit patch queue (P1-P5) recorded for separate execution. This audit is v9 Phase 0 work. No code changes in this commit.
-- mark P1-P5 post-audit patches complete
-- friction items 2,6,8 - Python workarounds from audit
-- post-audit session progress 2026-04-24
-- add 'Working with fsh — Known Gotchas' section to COMMAND-GUIDE — Python writing Rust must use binary mode, multi-line python3 -c workaround, heredoc delimiter discipline, redirect parser permissiveness; addresses INT-245 friction items 2 and 6
-
-### 🔩 Internal (144 commits)
-- **219** (3 commits)
-  - "INT-219: update gates -- all hard dependencies verified complete"
-  - INT-219: all gates complete
-  - INT-219: all gates complete
-- **232** (34 commits)
-  - INT-232: full rebuild plan -- wgpu + cosmic-text architecture locked, 5 phases, 27 gates
-  - gc "INT-232: Phase 0 foundation -- module structure compiles clean, wgpu+cosmic-text+vte+nix dependencies resolved"
-  - gc "INT-232: mark Phase 0 gates 1+2 complete -- Cargo.toml and module structure"
-  - INT-232: Phase 0 Gate 3 complete -- Wayland window opens, #0f1411 background renders, Niri sees faelight-term
-  - "INT-232: Phase 0 Gates 3+4 complete -- window opens, PTY spawns correctly, stays alive"
-  - INT-232: Phase 0 complete -- all 6 gates done, shell prompt renders, keyboard input works
-  - INT-232: update intent -- Phase 0 all 6 gates marked complete
-  - INT-232: Phase 1 -- JetBrains Mono Nerd Font loading correctly, glyphs rendering
-  - INT-232: Phase 1 -- JetBrainsMono Nerd Font Mono loading, font rendering improved, boxes/emoji pending
-  - INT-232: Phase 1 -- emoji rendering fixed, Nerd Font icons working, trees visible
-  - INT-232: Phase 1 -- resize PTY dimensions working, grid redraw pending scrollback implementation
-  - "INT-232: Phase 1 progress -- paste infrastructure in place, cleanup needed next session
-  - INT-232: Phase 1 -- paste working via wl-paste subprocess, keysym shift fix
-  - INT-232: Phase 1 -- RGB colors, 256-color + truecolor, mouse scroll with scrollback
-  - INT-232: Phase 1 -- mouse selection, copy to clipboard, selection highlight working
-  - INT-232: Phase 1 -- selection highlight teal, trims trailing space, matches foot behavior
-  - INT-232: Phase 1 complete -- per-cell render restored, ligatures deferred to future intent
-  - INT-232: Phase 2 -- caret color shifts red/green by exit code, fsh prompt aware
-  - INT-232: Phase 2 -- Ctrl+Shift+S status strip, multi-color sections, caret color by exit code
-  - INT-232: update gates Phase 1+2 complete, move to active/, add friction notes to INT-245
-  - INT-232: update INT-245 with friction fix gates, clean up notes section
-  - INT-232: Phase 3 -- Friday panel Ctrl+Shift+F, rust-prioritized knowledge, clean font
-  - INT-232: Phase 3 -- session memory, restores last working directory on open
-  - INT-232: Phase 3 -- build error detection, Rust E-codes highlighted red
-  - INT-232: Phase 3 -- JSON auto pretty-print with colors, build error highlighting
-  - INT-232: Phase 3 -- long command notification >30s, session dir fix no echo
-  - INT-232: Phase 3 -- zero warnings, dead code suppressed, dirty renamed
-  - INT-232: Phase 3 COMPLETE -- Ctrl+Click file->nvim, URL->browser, all gates done
-  - INT-232: Phase 3 gates all marked complete in intent file
-  - INT-232: Phase 4 -- fast font init, skip system scan, 14MB RSS (was 44MB), instant startup
-  - INT-232: Phase 4 -- split panes Ctrl+Shift+H, pane navigation, emoji fallback, left clip fixed
-  - INT-232: Phase 4 complete -- zero warnings, all gates updated
-  - INT-232: Phase 5 -- faelight-term primary terminal Super+Enter, foot on Super+Alt+Enter
-  - complete: INT-232 — faelight-term v2 all gates verified, 14 days primary terminal
-- **234** (2 commits)
-  - intent: patch INT-234 -- schema, session lifecycle, rate limit, demonstration gates
-  - INT-234 complete: Core v21 Friday Planning Layer -- session context, forward-chaining inference, anticipation; all 13 implementation + 4 demo gates closed; 2 integration gates remain blocked on INT-235 and INT-232 by design
-- Core v22 -- Friday The Mind Awakens -- 19 gates, 6 pillars, the leap
-- **245** (11 commits)
-  - INT-245: faelight-shell v9 -- parallel execution, intelligent shell, Friday deep integration
-  - INT-245: +2 friction items from gate 6 session (>> redirect, python3 -c arg size)
-  - INT-245: +3 friction items from INT-234 gate 8 (silent DB writer, redirect junk files, multi-line paste)
-  - fsh: detect_redirect now flags bare > or >> with no target as parse error (INT-245 #10) — emits 'fsh: parse error: redirect missing target file' to stderr, exit code 2, no file artifact created; previously fell through to sh which echoed the literal > or returned its own less-clear syntax error
-  - fsh: quote-aware glob expansion (INT-245 #8) -- expand_globs now segments input by quote-state transitions, only expands * and ? in unquoted runs; previously split on whitespace first which shredded multi-word quoted strings (e.g. python3 -c "...'a' * 5...") and let interior glob chars escape into filesystem expansion; bug surfaced as 'File name too long' when the expanded command exceeded ARG_MAX in directories with many files
-  - INT-245: document 4 new friction items (12-15) discovered during 2026-04-28 fix session — backslash escape in double quotes, multi-line accumulator hang on long quoted strings, faelight-notify D-Bus collision on git_commit signal, git-commit -m parser gaps as composite friction
-  - INT-245 #12: \$ escape inside double quotes now produces literal $
-  - fsh: is_complete_command no longer hangs on quoted text containing control keywords (INT-245 #13)
-  - faelight-notify: probe D-Bus before claiming name to avoid loud collision (INT-245 #14)
-  - INT-245: mark Pillar 6 (friction fixes) gates as ✅ with factual evidence
-  - update: INT-245 — mark completed gates, Pillars 1-4 remain for future sessions
-- Friday Architecture v2 -- The Voice That Thinks -- formal system, simulation layer, event bus, usefulness metrics
-- Intent Ledger v2 -- The Forest That Knows Itself (8 pillars, 7 phases)
-- **248** (4 commits)
-  - INT-248 created: friday_knowledge deduplication plan
-  - INT-248: rewrite for visual consistency with INT-234 style
-  - INT-248 complete: moved to intents/complete
-  - gate 4 demo + session-summary bug fix -- write_session_summary missed key column from INT-248 v2 schema. fixed with key=session_id + INSERT OR REPLACE. demo: session 20260423-154654-112758 ended cleanly, summary (row 283) queryable from new session. integration gates marked BLOCKED on INT-235/INT-232 per honest cross-intent dependency.
-- **249** (5 commits)
-  - INT-249 created: fsh heredoc delimiter leak warning
-  - INT-249: heredoc bare-delimiter warning - scans run_external + helper paths for [A-Z_]+EOF leaks
-  - fsh: revert run_external to inherit stdout — restore color in child commands (INT-249 leak detection still fires via heredoc handler and helper paths)
-  - fsh: PTY-based output scanning for INT-249 heredoc leak detection (Path-3 narrow scope) — multi-line short-circuit now routes through new pty_exec module preserving colors AND scanning each output line for ^[A-Z_]{3,}EOF$ delimiter-leak pattern; portable-pty=0.8 added; foundation for future broader output-intelligence work (INT-245 Pillar 5)
-  - INT-249 complete: fsh heredoc delimiter leak warning — PTY-based output scanning fires on standalone delimiter-shaped lines in command output (^[A-Z_]{3,}EOF$), substring case correctly excluded, colors preserved; built on new pty_exec module, foundation for broader output-intelligence work
-- **250** (2 commits)
-  - intent: +INT-250 release tool intelligence layer, +INT-251 core post-v22 reassessment. both stubs from v11.9.0 preview session -- release tool translation gaps and architectural pause before v22 implementation.
-  - fsh: native Ctrl+R history TUI (INT-250) — ratatui + crossterm; schema enriched with cwd/exit_code/duration_ms; searches across full shell_history (19k+ entries) with metadata visible; ConditionalEventHandler intercepts Ctrl+R cleanly; forest-themed colors
-- lock state file: core-protect writes runtime/.core-locked on lock/unlock; faelight-bar reads it instead of lsattr — fixes lock indicator broken by INT-251 (chattr now skips top-level dir, lsattr -d wasn't seeing 'i' flag); also updates dead-code LockWidget for consistency
-- **252** (15 commits)
-  - G1: last builtin uses db.conn (INT-252)
-  - G2: save builtin uses db.conn (INT-252)
-  - G3+G4: recall builtin uses db.conn (INT-252)
-  - G5: fsh_identity_cmd uses db.conn (INT-252)
-  - INT-252 Phase A notes: 5/6 sites unified, G6 deferred
-  - G7: shell_persist startup read uses db.conn (INT-252)
-  - G8: persist builtin uses db.conn (INT-252)
-  - G9: forest_insights post-command read+update uses db.conn (INT-252)
-  - G10: friday_patterns periodic read uses db.conn (INT-252)
-  - G11: print_welcome quote rotation uses db.conn (INT-252)
-  - G12: alignment score read uses db.conn (INT-252)
-  - G13-G15: session.rs (load/save/detect_mode/render) uses db.conn (INT-252)
-  - G6: completion.rs alias completion uses db.conn via ForestHelper<'a> (INT-252 complete)
-  - G17: 3 ForestDb::open rogue calls eliminated (flow/focus/digest) - INT-252 truly complete
-  - INT-252 closed: 16 sites unified, 19 gates, 13 commits
-- complete: INT-253 — gt git TUI fully working
-- complete: INT-254 — it TUI shipped and legendary
-- complete: INT-257 — filter-repo stripped 205 binary blobs, 388MB to 68MB
-- **258** (2 commits)
-  - intents: create INT-258 — Ctrl+D health display as ratatui TUI
-  - complete: INT-258 — Ctrl+D health TUI shipped
-- complete: INT-260 — cheatsheet TUI shipped
-- complete: INT-261 — fsh vocabulary, delete + find shipped
-- complete: INT-262 — faelight-term dead code audit done
-- **263** (2 commits)
-  - intent: create INT-263 — db native state.db query builtin for fsh
-  - complete: INT-263 — db builtin shipped
-- **264** (2 commits)
-  - intent: create INT-264 (synthesis), INT-265 (pipelines), INT-266 (vocabulary expansion)
-  - complete: INT-264 — faelight-synthesis shipped
-- release: Faelight Forest 11.9.0 — The Forest That Speaks Back
-- fix friday subcommand routing in fsh -- status/suggest/observe now reach core friday
-- fix friday subcommand routing -- status/suggest/observe/ask all reach core friday
-- fix friday seed_knowledge -- filesystem intent count, INSERT OR REPLACE, ask routed to core
-- lower 30-day pattern gate -- 5+ days dense data sufficient, continuous build model requires it
-- Friday Phase 2 foundation -- phase2.rs, temporal models, plan, persistent state
-- wire phase2 subcommands into fsh -- plan/temporal-models/phase2-init/phase2-status live
-- final gate complete -- Friday proposed audit finding unprompted and was right
-- Friday: The Living Intelligence. All gates demonstrated. Friday speaks, learns, proposes, and was right.
-- temporal detection, contradiction resolution, health forecast -- all demonstrated
-- gates complete -- temporal detection, contradiction resolution, health forecast demonstrated
-- interrupt levels, cross-intent detection, phase2-status-full -- all capabilities demonstrated
-- update
-- Phase 1 -- font rendering, emoji routing, cursor position all working
-- gate 1: friday_session_context schema live
-- mark gate 1 complete in intent doc
-- gate 2 (core side): session-start/session-end commands live
-- amend gate 2 to lazy auto-trigger (path 2 architecture)
-- lazy session auto-trigger live (gate 2 + gate 3 foundation)
-- close gates 2, 3, 4 — lazy session lifecycle demonstrated
-- gate 5 complete -- core friday context live
-- complete -- schema v2 with key column, idempotent seeds, 138 rows stable
-- gate 6 complete -- forward-chaining inference live, 3 templates firing on real data
-- gate 6 demonstrated on real data -- 31 commits observed + forest_stats fact -> 13% velocity conclusion, facts_cited=255,256, row 7 in friday_session_context
-- gate 7: core friday reason live + references_id chain -- ask #8 → conclusion #9 cites facts 255,256
-- gate 8: core friday anticipate live -- pattern:26 trigger "deploy completes" fires fg commit (171x, 95%) -- friday_patterns dedup 48→13, repo root cleanup, knowledge:/pattern: prefixed citations
-- gate 9: COMMAND-GUIDE.md updated with 7 new v21 planning commands (session-start/end, context, infer, reason, anticipate) + inference mechanics and session lifecycle docs
-- gate 9: core friday review live -- session-aware briefing with intents + inference + anticipation, cites prior exchanges (plan #11/#12 -> ask #8). named 'review' to avoid collision with v19's core friday plan. COMMAND-GUIDE updated.
-- fsh: tab completion shows list on first press (completion_show_all_if_ambiguous)
-- fsh fsearch: accept multi-word patterns without requiring quotes — pattern-parts collected from positional args
-- fsh rspatch: expanded escape handling — \n \t \r \\ \' \" all interpreted in --new
-- fsh pipeline: external-first dispatch -- try PATH spawn first, fall back to fsh builtin only if cmd not found, eliminates double-execute on cmds like seq/ls/head
-- fsh: multi-line command support — heredocs, control structures (for/while/if/case), backslash continuation, unclosed quotes/braces all detected via is_complete_command parser; multi-line buffers dispatched to sh -c
-- fsh: load 10000 history entries (was 100) so Ctrl+R reverse search reaches real commands
-- fsh is_complete_command: heredoc body now opaque to control-structure parser — multi-line python/script heredocs no longer trigger false 'unclosed if' for python's own if statements
-- intent + core: SIGPIPE handling — combine signal SIG_DFL with panic hook for broken-pipe writes (Rust stdio panics on EPIPE before SIGPIPE fires); intent_list | head no longer panics
-- .gitignore: anchor /deploy and /faelight-shell to root, add bin/*@* to ignore versioned binaries from deploy system
-- fsh history save: retry transient SQLite errors (BUSY/LOCKED/ReadOnly) with backoff; warning suggests wal_checkpoint when retry exhausts — addresses morning-readonly bug from WAL bloat overnight
-- niri: remove spawn-at-startup for faelight-daemon — systemd manages it via faelight-daemon.service; eliminates duplicate process spawn at session start
-- fsh: checkpoint WAL on db open — eliminates morning-after-suspend ReadOnly warning at root cause
-- faelight-daemon + contextd: periodic WAL checkpoint every 5 minutes (PASSIVE) — keeps state.db WAL trimmed continuously, prevents morning-after-suspend ReadOnly warnings at root
-- core-protect: lock only source dirs (rust-tools, engine, intents, etc.) — skip runtime/, bin/, scripts/, target/, BACKUPS/, .git/ — these need continuous write access from daemons; root cause of morning readonly database warnings
-- fsh: special variables 0 and 69016 now expand -- 0 returns last command exit code, 69016 returns process id; previously fell through to empty-name branch and printed literally; expand_vars now takes Option<i32> last_exit threaded through 6 callsites
-- fsh: expand_vars now respects single quotes (POSIX) — single-quoted regions suppress all variable expansion including special vars; double quotes still expand; previously single quotes were ignored, causing literal $? in commit messages and similar contexts to expand surprisingly; backslash escape in double quotes still not handled (use single quotes for literal $)
-- intents: create 5 new planned intents (253-257)
-- Core v22 + v23: reframe based on NY presentation reality (post-Linus thesis)
-- intents: create 259-261 — registry, cheatsheet TUI, and fsh vocabulary thesis
-- intent: create 262 -- faelight-term dead code audit
-- testing gt commit
-- fixing gt
-- 266
-- 250
-
-### 📊 Stats
-- Health: 100%  ·  Commits: 2421  ·  Tools: 50 deployed  ·  Intents: 212 complete
-
----
-
+- Terminal scrollback copy fixed -- full selection across scrollback
+- Emoji and symbol rendering -- DejaVu Sans fallback for U+2000-22FF
+- Font zoom via Ctrl+/-/=
+- Shell: `$` escape in double quotes now works correctly
+- Shell: multi-line accumulator no longer hangs on long quoted strings
+- faelight-notify D-Bus collision resolved
+- Silent database drop bugs fixed across 6 call sites
+- Redirect parse failures no longer create junk files
+- faelight-release now anchors to vX.Y.Z tags only
+- Health: 100% · Commits: 2423 · Tools: 51 deployed · Intents: 212 complete
 ## [11.9.0] — The Forest That Speaks Back (2026-04-19)
 
 ### 🎯 Completed Intents
