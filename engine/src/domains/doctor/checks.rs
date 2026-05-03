@@ -1018,36 +1018,26 @@ pub fn check_core_protect(core_root: &str) -> CheckResult {
             fix: Some("Build: cargo build --release -p core-protect".into()),
         };
     }
-    let output = Command::new("lsattr").arg("-d").arg(core_root).output();
-    match output {
-        Ok(o) => {
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            let flags: String = stdout.chars().take(20).collect();
-            if flags.contains('i') {
-                CheckResult {
-                    id: "core_protect".into(),
-                    name: "Core Protection".into(),
-                    status: Status::Pass,
-                    message: "🔒 Core is LOCKED (immutable)".into(),
-                    fix: None,
-                }
-            } else {
-                CheckResult {
-                    id: "core_protect".into(),
-                    name: "Core Protection".into(),
-                    status: Status::Warn,
-                    message: "🔓 Core is UNLOCKED — remember to lock before shutdown".into(),
-                    fix: Some("Run: core-protect lock".into()),
-                }
-            }
+    // INT-251: read runtime/.core-locked file (lsattr -d unreliable on top-level dir)
+    let lock_file = std::path::Path::new(core_root).join("runtime/.core-locked");
+    if lock_file.exists() {
+        let contents = std::fs::read_to_string(&lock_file).unwrap_or_default();
+        if contents.trim() == "locked" {
+            return CheckResult {
+                id: "core_protect".into(),
+                name: "Core Protection".into(),
+                status: Status::Pass,
+                message: "🔒 Core is LOCKED (immutable)".into(),
+                fix: None,
+            };
         }
-        Err(_) => CheckResult {
-            id: "core_protect".into(),
-            name: "Core Protection".into(),
-            status: Status::Warn,
-            message: "Could not determine protection status".into(),
-            fix: Some("Check: core-protect status".into()),
-        },
+    }
+    CheckResult {
+        id: "core_protect".into(),
+        name: "Core Protection".into(),
+        status: Status::Warn,
+        message: "🔓 Core is UNLOCKED -- remember to lock before shutdown".into(),
+        fix: Some("Run: lock-core".into()),
     }
 }
 
