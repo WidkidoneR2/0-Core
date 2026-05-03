@@ -3,7 +3,7 @@ id: 256
 date: 2026-04-28
 type: arch
 title: "faelight-git Productivity -- Smarter Commits, Friday-Aware, Workflow-Tuned"
-status: planned
+status: in-progress
 tags: [arch, faelight-git, friday, workflow, productivity, intent, pre-push]
 version: TBD
 ---

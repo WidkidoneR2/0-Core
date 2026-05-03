@@ -45,6 +45,11 @@ enum Commands {
         /// Commit message
         message: String,
     },
+    /// Stage all, commit with active intent prefix, push -- no prompts
+    Done {
+        /// Optional extra context appended to commit message
+        message: Option<String>,
+    },
 
     /// Branch management (switch, create, delete)
     Branch,
@@ -127,6 +132,13 @@ fn main() {
             }
         },
 
+        Commands::Done { message } => match commands::done::run(message.as_deref()) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("{} {}", "  ✗".red(), e);
+                1
+            }
+        },
         Commands::Quick { message } => match commands::quick::run(&message) {
             Ok(_) => 0,
             Err(e) => {
