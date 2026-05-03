@@ -1282,30 +1282,21 @@ fn repl_main() -> Result<()> {
                     // Handle && and || logical operators
                     let logical_parts = split_logical(segment);
                     if logical_parts.len() > 1 {
-                        let mut _last_success = true;
+                        let mut last_success = true;
+                        // fsh builtins that cannot run via sh -c
                         for (lcmd, op) in &logical_parts {
-                            // Decide whether to run this command
-                            let should_run = match op {
-                                _ => true, // Always run first cmd
-                            };
-                            // For subsequent cmds, check previous result
-                            let _ = should_run;
-                            // Run via sh -c for now to handle complex cases
+                            // Check if we should run based on previous result
+                            if let Some(is_and) = op {
+                                if *is_and && !last_success { break; }
+                                if !*is_and && last_success { break; }
+                            }
+                            // NOTE: && with fsh builtins requires INT-267 execution refactor
                             let status = std::process::Command::new("sh")
                                 .arg("-c")
                                 .arg(lcmd)
                                 .envs(std::env::vars())
                                 .status();
-                            _last_success = status.map(|s| s.success()).unwrap_or(false);
-                            // Check if we should continue
-                            if let Some(is_and) = op {
-                                if *is_and && !_last_success {
-                                    break;
-                                } // && stops on failure
-                                if !is_and && _last_success {
-                                    break;
-                                } // || stops on success
-                            }
+                            last_success = status.map(|s| s.success()).unwrap_or(false);
                         }
                         continue;
                     }
