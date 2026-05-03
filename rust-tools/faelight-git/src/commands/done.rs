@@ -5,17 +5,21 @@ use crate::is_locked;
 use anyhow::{bail, Result};
 use colored::*;
 fn get_active_intent() -> Option<String> {
+    // Scan intents/future/ for in-progress intents -- same as fsh prompt
     let home = std::env::var("HOME").ok()?;
-    let db_path = format!("{}/0-core/runtime/state.db", home);
-    let conn = rusqlite::Connection::open(&db_path).ok()?;
-    // focus_intent stores "INT-245" or "245 -- title" format
-    let val: String = conn.query_row(
-        "SELECT value FROM shell_state WHERE key='focus_intent'",
-        [],
-        |r| r.get(0),
-    ).ok()?;
-    if val.is_empty() { return None; }
-    Some(val)
+    let future_dir = format!("{}/0-core/intents/future", home);
+    let entries = std::fs::read_dir(&future_dir).ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".md") { continue; }
+        let content = std::fs::read_to_string(entry.path()).ok()?;
+        if content.contains("status: in-progress") {
+            // Extract ID from filename like "256-faelight-git..."
+            let id = name.split('-').next().unwrap_or("").to_string();
+            return Some(format!("INT-{}", id));
+        }
+    }
+    None
 }
 pub fn run(extra: Option<&str>) -> Result<()> {
     if is_locked() {
