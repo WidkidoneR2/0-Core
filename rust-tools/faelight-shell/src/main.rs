@@ -2977,7 +2977,7 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     let theme = changelog
         .lines()
         .find(|l| l.starts_with(&format!("## [{}]", version)))
-        .and_then(|l| l.split(" — ").nth(1))
+        .and_then(|l| if l.contains(" — ") { l.split(" — ").nth(1) } else { l.split(" -- ").nth(1) })
         .and_then(|s| s.split('(').next())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "The Living Forest".to_string());
