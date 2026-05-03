@@ -474,3 +474,12 @@ It knows what it has learned.
 It knows what comes next.
 Intent Ledger v2.
 The forest that knows itself." 🌲
+
+- Velocity Intelligence -- calculable from state.db commit history
+- Dependency mapping between intents -- parse intent frontmatter depends: fields
+- Session briefs -- partially live, needs polish
+- Health correlation -- events + health% already in state.db
+- Contradiction Detection -- requires trust scoring and confidence gates
+- Automated Retrospectives -- requires Friday's causal attribution
+- Priority Scoring -- requires Friday's world model
+**Plan: build the data-only pillars first, leave Friday-dependent pillars for after INT-246.**

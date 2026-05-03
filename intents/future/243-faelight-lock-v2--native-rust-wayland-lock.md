@@ -84,3 +84,10 @@ It shows you what it knows.
 And when you return,
 it welcomes you back
 with a flash of green. 🌲
+
+Evaluate **slint** for the lock screen UI. Slint's declarative DSL compiles to
+Rust and forces clean separation of UI and business logic. Good fit for a
+one-shot declarative UI like a lock screen.
+Same time-box rule as INT-239: if slint + Wayland/greetd handoff proves painful,
+keep current ratatui approach and upgrade it instead.
+**Rule: if you don't understand every line, it doesn't ship.**

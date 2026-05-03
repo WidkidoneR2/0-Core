@@ -127,3 +127,16 @@ generalization (across all fsh commands) lives in INT-245 Pillar 1.
 
 *"The deploy system orchestrates -- it does not replace the work itself.
 Smarter scheduling makes the same work finish faster, with clearer signal."* 🌲
+
+1. **dry-run / plan command** -- `faelight-release plan 12.1.0` shows exactly what
+   will happen before committing. Inspired by cargo-release's dry-run-first philosophy.
+2. **SIGPIPE fix** -- faelight-release panics on broken pipe when piped to head.
+   Same fix as fsh: combine SIG_DFL with panic hook.
+3. **Workspace version sync** -- when faelight-shell bumps major, surface which
+   downstream tools (faelight-term, faelight-login) should bump minor.
+   Friday will eventually make this judgment; for now use intent tag heuristic:
+   innovation/architecture/parallel → suggest major
+   feature/shell → suggest minor
+   fix/chore → suggest patch
+faelight-release does more: forest narrative, health at release, Friday insights,
+synthesis layer. Borrow dry-run concept only.

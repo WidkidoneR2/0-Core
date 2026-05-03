@@ -205,3 +205,8 @@ and has earned the right through demonstrated accuracy.
 The voice of the forest
 is not loud.
 It is precise." 🌲
+
+INT-246 must come AFTER Core v22 (INT-244). The trust score decay, simulation
+layer, and event bus defined here are the foundational pieces Core v22 builds on.
+Do not start INT-246 until INT-244 is complete.
+Dependency chain: INT-244 (Core v22) → INT-246 (Friday Architecture v2) → INT-235 (Friday Daemon v2)

@@ -48,3 +48,15 @@ Wayland layer-shell protocol via smithay-client-toolkit
 ⬜ Replaces current faelight-bar as primary bar
 "The bar is Friday's face on the desktop.
 Three zones. Forest intelligence made visible." 🌲
+
+Prototype with **iced** (Elm architecture, wgpu backend, Wayland layer-shell).
+Time-box: one week. If iced + iced-layershell on Niri proves painful, upgrade
+current bar instead. The goal is not the framework -- it is the capability.
+Three zones:
+- Left: core protection status (lock icon, red/green)
+- Center: active intent + Friday signal (shifts when Friday has high-confidence signal)
+- Right: date/time
+Friday signal animations require the Elm message model -- iced maps naturally.
+If iced works: bar becomes Friday's face on the desktop.
+If iced doesn't work: current bar gets zone upgrade without framework switch.
+**Rule: forest philosophy wins over framework appeal.**
