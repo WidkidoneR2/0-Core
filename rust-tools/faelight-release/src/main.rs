@@ -35,6 +35,11 @@ enum Command {
         #[arg(short, long, default_value = "")]
         theme: String,
     },
+    /// Plan a release -- dry-run showing exactly what will happen (INT-255)
+    Plan {
+        /// New version number (e.g. 12.1.0)
+        version: String,
+    },
     /// Preview the auto-generated changelog for a new version
     Preview {
         /// New version number (e.g. 10.5.0)
@@ -66,6 +71,11 @@ fn core_root() -> PathBuf {
 }
 
 fn main() -> Result<()> {
+    // Handle broken pipe gracefully (e.g. when piped to head)
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     let cli = Cli::parse();
     let root = core_root();
 
@@ -174,6 +184,55 @@ fn main() -> Result<()> {
             } else {
                 println!("Release aborted.");
             }
+        }
+        Command::Plan { version } => {
+            // INT-255: dry-run -- show what publish would do
+            println!("🌲 faelight-release -- release plan for {}", version);
+            println!("{}", "━".repeat(42));
+            println!();
+            // cargo audit check
+            print!("  🦀 cargo audit... ");
+            let audit_ok = std::process::Command::new("cargo")
+                .args(["audit", "-q"])
+                .current_dir(&root)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            println!("{}", if audit_ok { "✅ clean" } else { "⚠️  vulnerabilities found" });
+            // git status
+            let dirty = std::process::Command::new("git")
+                .args(["status", "--porcelain"])
+                .current_dir(&root)
+                .output()
+                .map(|o| !o.stdout.is_empty())
+                .unwrap_or(false);
+            println!("  🌿 working tree... {}", if dirty { "⚠️  uncommitted changes" } else { "✅ clean" });
+            // changelog summary
+            println!();
+            let theme = String::new();
+            let data = changelog::ChangelogData::build(&root, &version, &theme)?;
+            let stats = changelog::ReleaseStats::gather(&root);
+            println!("  📋 Intents shipping:          {}", data.intents.len());
+            println!("  📊 Commits since last release: {}", data.total_commits);
+            println!("  🏥 Health:                     {}%", stats.health);
+            println!();
+            for intent in data.intents.iter().take(5) {
+                let clean = intent.title.trim_matches('"').split(" -- ").next().unwrap_or(&intent.title).trim();
+                println!("  ✓ {}", clean);
+            }
+            if data.intents.len() > 5 {
+                println!("  → ... and {} more", data.intents.len() - 5);
+            }
+            println!();
+            let has_major = data.intents.iter().any(|i|
+                i.title.to_lowercase().contains("parallel") ||
+                i.title.to_lowercase().contains("architecture") ||
+                i.title.to_lowercase().contains("innovation")
+            );
+            let bump = if has_major { "MAJOR" } else if !data.features.is_empty() { "MINOR" } else { "PATCH" };
+            println!("  💡 Suggested version bump: {}", bump);
+            println!();
+            println!("  -> To publish: faelight-release publish {} --theme \"<theme>\"", version);
         }
         Command::Preview { version, theme } => {
             let theme = if theme.is_empty() {
