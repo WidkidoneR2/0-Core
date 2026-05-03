@@ -341,19 +341,60 @@ fn run_maintenance() -> Result<()> {
         _ => println!("  {} Journal vacuum failed (sudo required)", "⚠️".yellow()),
     }
     // 5. Check pacnew files
-    println!("  {} Checking .pacnew files...", "→".bright_cyan());
+    println!("  {} Checking .pacnew files...", "\u{2192}".bright_cyan());
     if let Ok(out) = std::process::Command::new("find")
         .args(["/etc", "-name", "*.pacnew", "-type", "f"])
         .output()
     {
-        let count = String::from_utf8_lossy(&out.stdout)
+        let pacnew_files: Vec<String> = String::from_utf8_lossy(&out.stdout)
             .lines()
             .filter(|l| !l.is_empty())
-            .count();
-        if count == 0 {
-            println!("  {} No .pacnew files found", "✅".green());
+            .map(|l| l.to_string())
+            .collect();
+        if pacnew_files.is_empty() {
+            println!("  {} No .pacnew files found", "\u{2705}".green());
         } else {
-            println!("  {} {} .pacnew files — run: pacdiff", "⚠️".yellow(), count);
+            println!("  {} Found {} .pacnew config file(s):", "\u{26a0}\u{fe0f} ".yellow(), pacnew_files.len());
+            for f in &pacnew_files {
+                let original = f.trim_end_matches(".pacnew");
+                println!("    {} {}", "\u{2192}".dimmed(), f.bright_yellow());
+                println!("      review: sudo vimdiff {} {}", f, original);
+            }
+            println!();
+            print!("  {} Run pacdiff now? (y/N): ", "\u{1f4a1}".cyan());
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
+            let answer = input.trim().to_lowercase();
+            let db_path = std::path::PathBuf::from(
+                std::env::var("HOME").unwrap_or_default()
+            ).join("0-core/runtime/state.db");
+            if answer == "y" || answer == "yes" {
+                println!("  {} Running pacdiff...", "\u{2192}".bright_cyan());
+                let status = std::process::Command::new("sudo")
+                    .arg("pacdiff").status();
+                match status {
+                    Ok(s) if s.success() => {
+                        println!("  {} pacdiff complete", "\u{2705}".green());
+                        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                            let _ = conn.execute(
+                                "INSERT INTO events (domain, action, payload, timestamp) VALUES ('updater', 'pacnew_resolved', ?1, strftime('%s','now'))",
+                                rusqlite::params![format!("files={}", pacnew_files.len())]
+                            );
+                        }
+                    }
+                    _ => println!("  {} pacdiff failed", "\u{26a0}\u{fe0f} ".yellow()),
+                }
+            } else {
+                println!("  {} Skipped -- review manually: sudo pacdiff", "\u{2192}".dimmed());
+                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                    let _ = conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('updater', 'pacnew_skipped', ?1, strftime('%s','now'))",
+                        rusqlite::params![format!("files={}", pacnew_files.len())]
+                    );
+                }
+            }
         }
     }
     println!();
