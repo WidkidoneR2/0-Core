@@ -7337,7 +7337,11 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         "  {:<16} {}
 ",
         "Daily driver".dimmed(),
-        format!("✅ day {} of 30", days).bright_green()
+        if days >= 30 {
+            "established (30+ days)".bright_green()
+        } else {
+            format!("day {} of 30", days).bright_green()
+        }
     ));
     out.push_str(&format!(
         "  {:<16} {}
