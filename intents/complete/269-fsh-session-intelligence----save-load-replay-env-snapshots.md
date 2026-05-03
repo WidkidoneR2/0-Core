@@ -3,7 +3,7 @@ id: 269
 date: 2026-05-03
 type: feature
 title: "fsh session intelligence -- save load replay env snapshots"
-status: in-progress
+status: complete
 tags: [shell, fsh, sessions, history, intelligence]
 version: TBD
 ---
