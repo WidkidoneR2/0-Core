@@ -1,7 +1,7 @@
 ---
 id: 244
 title: "Core v22 -- Friday: The Useful Partner"
-status: in-progress
+status: complete
 date: 2026-04-19
 last_revised: 2026-04-28
 tags: [core, v22, friday, documentation, cartographer, memory, voice, partner]
