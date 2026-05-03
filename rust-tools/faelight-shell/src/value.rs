@@ -77,8 +77,24 @@ pub fn render_table(rows: &[HashMap<String, Value>]) -> String {
         return format!("  {}", "No results.".dimmed());
     }
 
-    // Collect all column names from first row
-    let headers: Vec<String> = rows[0].keys().cloned().collect();
+    // Collect column names -- name/line first, then sorted rest, hide size_bytes
+    let raw_keys: Vec<String> = rows[0].keys().cloned().collect();
+    let priority = [
+        "name", "line", "n", "size", "type", "kind", "domain", "action",
+    ];
+    let mut headers: Vec<String> = priority
+        .iter()
+        .filter(|p| raw_keys.contains(&p.to_string()))
+        .map(|p| p.to_string())
+        .collect();
+    for k in &raw_keys {
+        if k == "size_bytes" {
+            continue;
+        } // internal column, skip display
+        if !headers.contains(k) {
+            headers.push(k.clone());
+        }
+    }
 
     // Calculate column widths
     let mut widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
@@ -285,6 +301,9 @@ pub enum PipeOp {
     },
     Flatten,
     ToText,
+    Skip(usize),
+    AsJson,
+    UniqueAll, // deduplicate rows by all fields combined
 }
 
 fn apply_op(value: Value, op: &PipeOp) -> Value {
@@ -300,7 +319,15 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             let filtered: Vec<_> = rows
                 .into_iter()
                 .filter(|row| {
-                    let cell = row.get(field).map(|v| v.as_text()).unwrap_or_default();
+                    // _any = search all fields
+                    let cell = if field == "_any" {
+                        row.values()
+                            .map(|v| v.as_text())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    } else {
+                        row.get(field).map(|v| v.as_text()).unwrap_or_default()
+                    };
                     match op.as_str() {
                         "==" | "=" => cell == *filter_val,
                         "!=" => cell != *filter_val,
@@ -329,8 +356,19 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
         }
         (Value::Table(mut rows), PipeOp::Sort { field, desc }) => {
             rows.sort_by(|a, b| {
-                let av = a.get(field).map(|v| v.as_text()).unwrap_or_default();
-                let bv = b.get(field).map(|v| v.as_text()).unwrap_or_default();
+                let effective_field = if field == "_first" {
+                    a.keys().next().cloned().unwrap_or_default()
+                } else {
+                    field.clone()
+                };
+                let av = a
+                    .get(&effective_field)
+                    .map(|v| v.as_text())
+                    .unwrap_or_default();
+                let bv = b
+                    .get(&effective_field)
+                    .map(|v| v.as_text())
+                    .unwrap_or_default();
                 // Try numeric sort first
                 let cmp = if let (Ok(an), Ok(bn)) = (av.parse::<f64>(), bv.parse::<f64>()) {
                     an.partial_cmp(&bn).unwrap_or(std::cmp::Ordering::Equal)
@@ -538,6 +576,36 @@ fn apply_op(value: Value, op: &PipeOp) -> Value {
             }
             Value::Text(lines.join("\n"))
         }
+        (Value::Table(rows), PipeOp::Skip(n)) => Value::Table(rows.into_iter().skip(*n).collect()),
+        (Value::Table(rows), PipeOp::AsJson) => {
+            let mut out = vec![];
+            for row in &rows {
+                let mut obj = String::from("{");
+                let pairs: Vec<String> = row
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\":\"{}\"", k, v.as_text()))
+                    .collect();
+                obj.push_str(&pairs.join(","));
+                obj.push('}');
+                out.push(obj);
+            }
+            Value::Text(format!("[{}]", out.join(",")))
+        }
+        (Value::Table(rows), PipeOp::UniqueAll) => {
+            let mut seen = std::collections::HashSet::new();
+            let unique: Vec<_> = rows
+                .into_iter()
+                .filter(|row| {
+                    let mut keys: Vec<String> = row
+                        .iter()
+                        .map(|(k, v)| format!("{}={}", k, v.as_text()))
+                        .collect();
+                    keys.sort();
+                    seen.insert(keys.join("|"))
+                })
+                .collect();
+            Value::Table(unique)
+        }
         (v, _) => v, // passthrough for non-table values
     }
 }
@@ -578,6 +646,38 @@ fn parse_pipe_op(s: &str) -> Option<PipeOp> {
         ["first", n] => n.parse().ok().map(PipeOp::First),
         ["last", n] => n.parse().ok().map(PipeOp::Last),
         ["count"] => Some(PipeOp::Count),
+        // INT-265: human-readable aliases
+        ["take", n] => n.parse().ok().map(PipeOp::First),
+        ["skip", n] => n.parse().ok().map(PipeOp::Skip),
+        ["unique"] => Some(PipeOp::UniqueAll),
+        ["as", "json"] => Some(PipeOp::AsJson),
+        // filter contains "x" → where any-field contains x
+        ["filter", "contains", val] => Some(PipeOp::Where {
+            field: "_any".to_string(),
+            op: "contains".to_string(),
+            value: val.trim_matches('"').to_string(),
+        }),
+        // filter <col> <op> <val>
+        ["filter", field, op, val] => Some(PipeOp::Where {
+            field: field.to_string(),
+            op: op.to_string(),
+            value: val.trim_matches('"').to_string(),
+        }),
+        // sort by <col> descending
+        ["sort", "by", field, "descending"] => Some(PipeOp::Sort {
+            field: field.to_string(),
+            desc: true,
+        }),
+        // sort by <col>
+        ["sort", "by", field] => Some(PipeOp::Sort {
+            field: field.to_string(),
+            desc: false,
+        }),
+        // sort (no field -- sort by first column, handled at runtime)
+        ["sort"] => Some(PipeOp::Sort {
+            field: "_first".to_string(),
+            desc: false,
+        }),
         ["get", field] => Some(PipeOp::Get(field.to_string())),
         ["watch"] => Some(PipeOp::Watch { interval: 2 }),
         ["watch", n] => n.parse().ok().map(|i| PipeOp::Watch { interval: i }),

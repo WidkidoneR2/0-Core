@@ -1613,7 +1613,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "list" => {
-            // list [files|directories] [in <path>] (INT-266)
+            // list [files|directories] [in <path>] (INT-265/266) -- returns Value::Table
+            use crate::value::Value;
+            use std::collections::HashMap;
             let home = std::env::var("HOME").unwrap_or_default();
             let expand_path = |p: &str| -> String {
                 match p {
@@ -1644,12 +1646,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 Ok(e) => e,
                 Err(e) => return CommandResult::Error(format!("list: {}", e)),
             };
-            let mut rows: Vec<String> = Vec::new();
             let mut items: Vec<std::path::PathBuf> =
                 entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
             items.sort();
-            rows.push(format!("  {:<40} {:>8}  {}", "name", "size", "type"));
-            rows.push(format!("  {}", "─".repeat(60)));
+            let mut rows: Vec<HashMap<String, Value>> = Vec::new();
             for item in &items {
                 let is_dir = item.is_dir();
                 if dirs_only && !is_dir {
@@ -1663,29 +1663,29 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_string();
-                let size = if is_dir {
-                    "--".to_string()
+                let size_bytes = if is_dir {
+                    0u64
                 } else {
-                    std::fs::metadata(item)
-                        .map(|m| {
-                            let s = m.len();
-                            if s > 1_048_576 {
-                                format!("{:.1}MB", s as f64 / 1_048_576.0)
-                            } else if s > 1024 {
-                                format!("{:.1}KB", s as f64 / 1024.0)
-                            } else {
-                                format!("{}B", s)
-                            }
-                        })
-                        .unwrap_or_default()
+                    std::fs::metadata(item).map(|m| m.len()).unwrap_or(0)
+                };
+                let size_str = if is_dir {
+                    "--".to_string()
+                } else if size_bytes > 1_048_576 {
+                    format!("{:.1}MB", size_bytes as f64 / 1_048_576.0)
+                } else if size_bytes > 1024 {
+                    format!("{:.1}KB", size_bytes as f64 / 1024.0)
+                } else {
+                    format!("{}B", size_bytes)
                 };
                 let kind = if is_dir { "dir" } else { "file" };
-                rows.push(format!("  {:<40} {:>8}  {}", name, size, kind));
+                let mut row = HashMap::new();
+                row.insert("name".to_string(), Value::Text(name));
+                row.insert("size".to_string(), Value::Text(size_str));
+                row.insert("size_bytes".to_string(), Value::Int(size_bytes as i64));
+                row.insert("type".to_string(), Value::Text(kind.to_string()));
+                rows.push(row);
             }
-            CommandResult::Output(rows.join(
-                "
-",
-            ))
+            CommandResult::Value(Value::Table(rows))
         }
         "read" => {
             // read <file> (INT-266)
@@ -3184,12 +3184,34 @@ fn open_cmd(args: &[&str]) -> CommandResult {
     }
 }
 fn from_cmd(args: &[&str]) -> CommandResult {
-    let fmt = args.first().copied().unwrap_or("");
-    CommandResult::Error(format!(
-        "from: use open instead — e.g. {} or {}",
-        format!("open file.{}", if fmt.is_empty() { "json" } else { fmt }).bright_cyan(),
-        "open data.csv | select name".bright_cyan()
-    ))
+    // INT-265: from <file> reads file as Value::Table (one row per line)
+    use crate::value::Value;
+    use std::collections::HashMap;
+    if args.is_empty() {
+        return CommandResult::Error("usage: from <file>".to_string());
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let filepath = if args[0].starts_with("~/") {
+        format!("{}/{}", home, &args[0][2..])
+    } else {
+        args[0].to_string()
+    };
+    match std::fs::read_to_string(&filepath) {
+        Ok(content) => {
+            let rows: Vec<HashMap<String, Value>> = content
+                .lines()
+                .enumerate()
+                .map(|(i, line)| {
+                    let mut row = HashMap::new();
+                    row.insert("n".to_string(), Value::Int(i as i64 + 1));
+                    row.insert("line".to_string(), Value::Text(line.to_string()));
+                    row
+                })
+                .collect();
+            CommandResult::Value(Value::Table(rows))
+        }
+        Err(e) => CommandResult::Error(format!("from: {}: {}", filepath, e)),
+    }
 }
 fn to_cmd(args: &[&str]) -> CommandResult {
     match args.first().copied().unwrap_or("") {

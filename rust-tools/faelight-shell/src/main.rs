@@ -1883,6 +1883,33 @@ fn repl_main() -> Result<()> {
                         line.to_string()
                     };
                     let line = line.as_str();
+                    // INT-265: Forest pipeline detection
+                    {
+                        let first = line.split_whitespace().next().unwrap_or("");
+                        let forest_sources = ["from", "list", "find", "db"];
+                        let has_pipe = line.contains(" | ");
+                        if forest_sources.contains(&first) && has_pipe {
+                            let parts: Vec<&str> = line.splitn(2, " | ").collect();
+                            let source_cmd = parts[0].trim();
+                            let pipe_rest = if parts.len() > 1 {
+                                format!("_source | {}", parts[1])
+                            } else {
+                                "_source".to_string()
+                            };
+                            let source_result = commands::execute(source_cmd, &db, &core_root);
+                            match source_result {
+                                commands::CommandResult::Value(v) => {
+                                    let ops = value::parse_pipeline(&pipe_rest);
+                                    let result = value::apply_pipeline(v, &ops);
+                                    println!("{}", result.render());
+                                }
+                                commands::CommandResult::Output(out) => println!("{}", out),
+                                commands::CommandResult::Error(e) => eprintln!("  x {}", e),
+                                _ => {}
+                            }
+                            continue 'repl;
+                        }
+                    }
 
                     // Parse pipeline — only split on | when NOT inside quotes
                     // Helper: check if ANY pipe is outside quotes

@@ -3,7 +3,7 @@ id: 265
 date: 2026-05-02
 type: arch
 title: \"fsh human-readable pipelines -- from filter sort as composable English\"
-status: planned
+status: in-progress
 tags: [architecture, rust, design]
 version: TBD
 ---
