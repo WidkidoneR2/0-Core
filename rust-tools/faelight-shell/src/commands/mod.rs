@@ -705,13 +705,191 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 _ => CommandResult::Error(format!("goto: '{}' not found", spec)),
             }
         }
+        "make" => {
+            // make <directory> [in <path>] (INT-270)
+            // Human word for mkdir -p -- create directory with full path
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: make directory <name> [in <path>]".to_string(),
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            // Strip leading "directory" keyword if present
+            let rest: Vec<&str> = if args[0] == "directory" || args[0] == "dir" {
+                args[1..].to_vec()
+            } else {
+                args.to_vec()
+            };
+            if rest.is_empty() {
+                return CommandResult::Error("usage: make directory <name>".to_string());
+            }
+            // Handle "make directory <name> in <path>"
+            let in_pos = rest.iter().position(|a| *a == "in");
+            let dir_name = if let Some(pos) = in_pos {
+                let base = if pos + 1 < rest.len() {
+                    let b = rest[pos + 1];
+                    if b.starts_with("~/") {
+                        format!("{}/{}", home, &b[2..])
+                    } else {
+                        b.to_string()
+                    }
+                } else {
+                    ".".to_string()
+                };
+                format!("{}/{}", base, rest[..pos].join("/"))
+            } else {
+                let name = rest.join("/");
+                if name.starts_with("~/") {
+                    format!("{}/{}", home, &name[2..])
+                } else {
+                    name
+                }
+            };
+            match std::fs::create_dir_all(&dir_name) {
+                Ok(_) => {
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'dir_created', ?1, strftime('%s','now'))",
+                        rusqlite::params![dir_name.clone()]
+                    );
+                    CommandResult::Output(format!("  ✅ created {}", dir_name))
+                }
+                Err(e) => CommandResult::Error(format!("make: {}", e)),
+            }
+        }
+        "launch" => {
+            // open <file|url> (INT-270)
+            // Human word for xdg-open -- opens file in default application
+            // Forest-aware: .rs/.py files open in $EDITOR, URLs open browser
+            if args.is_empty() {
+                return CommandResult::Error("usage: launch <file|url>".to_string());
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let target = if args[0].starts_with("~/") {
+                format!("{}/{}", home, &args[0][2..])
+            } else {
+                args[0].to_string()
+            };
+            // Detect type and choose handler
+            let handler = if target.starts_with("http://") || target.starts_with("https://") {
+                // URL -- use browser
+                "xdg-open".to_string()
+            } else {
+                let ext = std::path::Path::new(&target)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                match ext {
+                    "rs" | "py" | "sh" | "fsh" | "toml" | "md" | "json" | "txt" => {
+                        // Code/text files -- use $EDITOR
+                        std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string())
+                    }
+                    _ => "xdg-open".to_string(),
+                }
+            };
+            let status = std::process::Command::new(&handler).arg(&target).status();
+            match status {
+                Ok(s) if s.success() => {
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_opened', ?1, strftime('%s','now'))",
+                        rusqlite::params![target]
+                    );
+                    CommandResult::Empty
+                }
+                Ok(_) => CommandResult::Error(format!("launch: {} failed", handler)),
+                Err(e) => CommandResult::Error(format!("launch: {}: {}", handler, e)),
+            }
+        }
         "rename" => {
-            // rename old_name new_name           -- rename across all files
+            // rename <file> <new-name> [overwrite] (INT-270)
+            // Forest-aware file rename -- detects same-dir vs cross-dir,
+            // warns on overwrite, notes if file in recent commits
+            if args.len() < 2 {
+                return CommandResult::Error(
+                    "usage: rename <file> <new-name> [overwrite]".to_string(),
+                );
+            }
+            let home = std::env::var("HOME").unwrap_or_default();
+            let expand = |p: &str| -> String {
+                if p.starts_with("~/") {
+                    format!("{}/{}", home, &p[2..])
+                } else {
+                    p.to_string()
+                }
+            };
+            let overwrite = args.contains(&"overwrite");
+            let real_args: Vec<&str> = args
+                .iter()
+                .filter(|a| **a != "overwrite")
+                .cloned()
+                .collect();
+            let src_path = expand(real_args[0]);
+            let new_name = real_args[1];
+            let src = std::path::Path::new(&src_path);
+            // Detect same-dir rename vs cross-dir move
+            let dst_path = if new_name.contains('/') {
+                expand(new_name)
+            } else {
+                let parent = src.parent().unwrap_or(std::path::Path::new("."));
+                parent.join(new_name).to_string_lossy().to_string()
+            };
+            let is_same_dir = std::path::Path::new(&dst_path).parent() == src.parent();
+            // Protected path check
+            let protected = ["rust-tools/", "intents/", "scripts/", "docs/"];
+            if protected
+                .iter()
+                .any(|p| src_path.contains(p) || dst_path.contains(p))
+            {
+                return CommandResult::Error(
+                    "rename: protected path involved. Use mv directly if you are sure.".to_string(),
+                );
+            }
+            // Overwrite protection
+            if std::path::Path::new(&dst_path).exists() && !overwrite {
+                return CommandResult::Error(format!(
+                    "rename: {} already exists. Add 'overwrite' to replace it.",
+                    dst_path
+                ));
+            }
+            // Warn if file referenced in recent commits
+            let src_filename = src
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let recent = std::process::Command::new("git")
+                .args([
+                    "-C",
+                    &format!("{}/0-core", home),
+                    "diff",
+                    "--name-only",
+                    "HEAD~3..HEAD",
+                ])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+            if recent.contains(&src_filename) {
+                eprintln!("  ⚠️  {} was referenced in recent commits", src_filename);
+            }
+            match std::fs::rename(&src_path, &dst_path) {
+                Ok(_) => {
+                    let payload = format!("src={},dst={}", src_path, dst_path);
+                    let _ = db.conn.execute(
+                        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('shell', 'file_renamed', ?1, strftime('%s','now'))",
+                        rusqlite::params![payload]
+                    );
+                    let verb = if is_same_dir { "renamed" } else { "moved" };
+                    CommandResult::Output(format!("  ✅ {} {} → {}", verb, src_path, dst_path))
+                }
+                Err(e) => CommandResult::Error(format!("rename: {}", e)),
+            }
+        }
+        "replace" => {
+            // replace old_name new_name           -- replace text across all files
             // rename old_name new_name --type rs -- only .rs files
             // rename old_name new_name --dry-run -- preview only
             if args.len() < 2 {
                 return CommandResult::Error(
-                    "usage: rename <old> <new> [--type ext] [--dry-run]".to_string(),
+                    "usage: replace <old> <new> [--type ext] [--dry-run]".to_string(),
                 );
             }
             let old_name = args[0];
@@ -7217,11 +7395,17 @@ fn grep_cmd(line: &str, args: &[&str]) -> CommandResult {
     }
     let pattern = rest[0].trim_matches('"').trim_matches('\'');
     // If pattern contains alternation (\|) or regex metacharacters, fall through to system grep
-    if pattern.contains("\\|") || pattern.contains("\\(") || pattern.contains("\\)") || pattern.contains("\\+") {
+    if pattern.contains("\\|")
+        || pattern.contains("\\(")
+        || pattern.contains("\\)")
+        || pattern.contains("\\+")
+    {
         let status = crate::db::spawn_sh_with_leak_check(line);
         return match status {
             Ok(s) if s.success() => CommandResult::Empty,
-            Ok(s) => CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1))),
+            Ok(s) => {
+                CommandResult::Error(format!("grep: exited with code {}", s.code().unwrap_or(1)))
+            }
             Err(e) => CommandResult::Error(format!("grep: {}", e)),
         };
     }
