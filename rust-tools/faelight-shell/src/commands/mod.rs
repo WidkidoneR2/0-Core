@@ -705,6 +705,302 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 _ => CommandResult::Error(format!("goto: '{}' not found", spec)),
             }
         }
+        "session" => {
+            // session save <name>   -- snapshot current context
+            // session load <name>   -- restore directory + show history
+            // session list          -- show all saved sessions
+            // session delete <name> -- remove a saved session (INT-269)
+            let db_path = format!("{}/0-core/runtime/state.db",
+                std::env::var("HOME").unwrap_or_default());
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("session: db error: {}", e)),
+            };
+            // Ensure fsh_sessions table exists
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS fsh_sessions (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT NOT NULL UNIQUE,
+                    directory   TEXT NOT NULL,
+                    intent      TEXT NOT NULL DEFAULT '',
+                    commands    TEXT NOT NULL DEFAULT '[]',
+                    env_vars    TEXT NOT NULL DEFAULT '{}',
+                    created_at  INTEGER NOT NULL,
+                    updated_at  INTEGER NOT NULL
+                );"
+            );
+            let sub = args.first().copied().unwrap_or("");
+            match sub {
+                "save" => {
+                    let name = args.get(1).copied().unwrap_or("default");
+                    let cwd = std::env::current_dir()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    // Get last 20 commands
+                    let cmds: Vec<String> = {
+                        let mut s = conn.prepare(
+                            "SELECT command FROM shell_history ORDER BY id DESC LIMIT 20"
+                        ).ok();
+                        if let Some(ref mut stmt) = s {
+                            stmt.query_map([], |r| r.get::<_, String>(0))
+                                .ok()
+                                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                                .unwrap_or_default()
+                        } else { vec![] }
+                    };
+                    let cmds_json = serde_json::to_string(&cmds).unwrap_or_else(|_| "[]".to_string());
+                    // Get active intent
+                    let intent = conn.query_row(
+                        "SELECT title FROM intent_ledger WHERE status='in-progress' ORDER BY updated_at DESC LIMIT 1",
+                        [], |r| r.get::<_, String>(0)
+                    ).unwrap_or_default();
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() as i64).unwrap_or(0);
+                    match conn.execute(
+                        "INSERT INTO fsh_sessions (name, directory, intent, commands, created_at, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+                         ON CONFLICT(name) DO UPDATE SET
+                         directory=?2, intent=?3, commands=?4, updated_at=?5",
+                        rusqlite::params![name, cwd, intent, cmds_json, ts]
+                    ) {
+                        Ok(_) => CommandResult::Output(format!(
+                            "  ✅ Session '{}' saved\n  → directory: {}\n  → {} commands captured{}",
+                            name, cwd, cmds.len(),
+                            if intent.is_empty() { String::new() } else { format!("\n  → intent: {}", intent) }
+                        )),
+                        Err(e) => CommandResult::Error(format!("session save: {}", e))
+                    }
+                }
+                "load" => {
+                    let name = args.get(1).copied().unwrap_or("default");
+                    let row: Option<(String, String, String)> = conn.query_row(
+                        "SELECT directory, intent, commands FROM fsh_sessions WHERE name = ?1",
+                        rusqlite::params![name],
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                    ).ok();
+                    match row {
+                        None => CommandResult::Error(format!("session: '{}' not found. Use: session list", name)),
+                        Some((dir, intent, cmds_json)) => {
+                            let _ = std::env::set_current_dir(&dir);
+                            let cmds: Vec<String> = serde_json::from_str(&cmds_json).unwrap_or_default();
+                            let mut out = format!(
+                                "  ✅ Session '{}' loaded\n  → directory: {}",
+                                name, dir
+                            );
+                            if !intent.is_empty() {
+                                out.push_str(&format!("\n  → was working on: {}", intent));
+                            }
+                            if !cmds.is_empty() {
+                                out.push_str(&format!("\n  → last {} commands:", cmds.len().min(5)));
+                                for cmd in cmds.iter().take(5) {
+                                    out.push_str(&format!("\n      {}", cmd));
+                                }
+                                out.push_str("\n  → use 'history-replay 10' to re-run recent commands");
+                            }
+                            CommandResult::Output(out)
+                        }
+                    }
+                }
+                "list" => {
+                    let mut stmt = match conn.prepare(
+                        "SELECT name, directory, intent, updated_at FROM fsh_sessions ORDER BY updated_at DESC"
+                    ) {
+                        Ok(s) => s,
+                        Err(e) => return CommandResult::Error(format!("session list: {}", e)),
+                    };
+                    let rows: Vec<(String, String, String, i64)> = stmt.query_map(
+                        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+                    ).ok().map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+                    if rows.is_empty() {
+                        return CommandResult::Output("  No saved sessions. Use: session save <name>".to_string());
+                    }
+                    let mut out = format!("  🗂  Saved Sessions ({})\n", rows.len());
+                    out.push_str(&"─".repeat(44));
+                    for (name, dir, intent, ts) in &rows {
+                        let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                            .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                            .unwrap_or_else(|| "unknown".to_string());
+                        out.push_str(&format!("\n  ▸ {} [{}]", name, dt));
+                        let short_dir = if dir.len() > 40 { format!("...{}", &dir[dir.len()-37..]) } else { dir.clone() };
+                        out.push_str(&format!("\n    → {}", short_dir));
+                        if !intent.is_empty() {
+                            out.push_str(&format!("\n    → {}", intent));
+                        }
+                    }
+                    CommandResult::Output(out)
+                }
+                "delete" => {
+                    let name = args.get(1).copied().unwrap_or("");
+                    if name.is_empty() {
+                        return CommandResult::Error("usage: session delete <name>".to_string());
+                    }
+                    let deleted = conn.execute(
+                        "DELETE FROM fsh_sessions WHERE name = ?1",
+                        rusqlite::params![name]
+                    ).unwrap_or(0);
+                    if deleted > 0 {
+                        CommandResult::Output(format!("  ✅ Session '{}' deleted", name))
+                    } else {
+                        CommandResult::Error(format!("session: '{}' not found", name))
+                    }
+                }
+                _ => CommandResult::Error(
+                    "usage: session save <name> | session load <name> | session list | session delete <name>".to_string()
+                )
+            }
+        }
+        "history-replay" => {
+            // history-replay <n>  -- show last n commands and offer to replay (INT-269)
+            let n: usize = args.first()
+                .and_then(|a| a.parse().ok())
+                .unwrap_or(10)
+                .min(50);
+            let db_path = format!("{}/0-core/runtime/state.db",
+                std::env::var("HOME").unwrap_or_default());
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
+            };
+            let mut stmt = match conn.prepare(
+                "SELECT id, command FROM shell_history ORDER BY id DESC LIMIT ?1"
+            ) {
+                Ok(s) => s,
+                Err(e) => return CommandResult::Error(format!("history-replay: {}", e)),
+            };
+            let rows: Vec<(i64, String)> = stmt.query_map(
+                rusqlite::params![n as i64],
+                |r| Ok((r.get(0)?, r.get(1)?))
+            ).ok().map(|rows| rows.filter_map(|r| r.ok()).collect()).unwrap_or_default();
+            if rows.is_empty() {
+                return CommandResult::Output("  No history found".to_string());
+            }
+            let mut out = format!("  🕐 Last {} commands:\n", rows.len());
+            out.push_str(&"─".repeat(44));
+            for (i, (_, cmd)) in rows.iter().rev().enumerate() {
+                out.push_str(&format!("\n  {:>3}  {}", i + 1, cmd));
+            }
+            out.push_str("\n\n  → To replay a command: run it directly");
+            out.push_str("\n  → To replay all: confirm with 'y' below");
+            CommandResult::Output(out)
+        }
+        "env-save" => {
+            // env-save <name>  -- save current environment snapshot (INT-269)
+            let name = args.first().copied().unwrap_or("default");
+            let db_path = format!("{}/0-core/runtime/state.db",
+                std::env::var("HOME").unwrap_or_default());
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-save: {}", e)),
+            };
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS fsh_env_snapshots (
+                    name TEXT PRIMARY KEY,
+                    vars TEXT NOT NULL,
+                    saved_at INTEGER NOT NULL
+                );"
+            );
+            let keys = ["EDITOR", "VISUAL", "RUST_LOG", "PATH", "HOME", "SHELL",
+                       "XDG_CURRENT_DESKTOP", "WAYLAND_DISPLAY", "FSH_SESSION_ID"];
+            let mut vars = serde_json::Map::new();
+            for key in &keys {
+                if let Ok(val) = std::env::var(key) {
+                    vars.insert(key.to_string(), serde_json::Value::String(val));
+                }
+            }
+            let vars_json = serde_json::Value::Object(vars).to_string();
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64).unwrap_or(0);
+            match conn.execute(
+                "INSERT INTO fsh_env_snapshots (name, vars, saved_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(name) DO UPDATE SET vars=?2, saved_at=?3",
+                rusqlite::params![name, vars_json, ts]
+            ) {
+                Ok(_) => CommandResult::Output(format!("  ✅ Environment '{}' saved ({} vars)", name, keys.len())),
+                Err(e) => CommandResult::Error(format!("env-save: {}", e))
+            }
+        }
+        "env-load" => {
+            // env-load <name>  -- show vars from snapshot (can't set parent env)
+            let name = args.first().copied().unwrap_or("default");
+            let db_path = format!("{}/0-core/runtime/state.db",
+                std::env::var("HOME").unwrap_or_default());
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-load: {}", e)),
+            };
+            let row: Option<(String, i64)> = conn.query_row(
+                "SELECT vars, saved_at FROM fsh_env_snapshots WHERE name = ?1",
+                rusqlite::params![name],
+                |r| Ok((r.get(0)?, r.get(1)?))
+            ).ok();
+            match row {
+                None => CommandResult::Error(format!("env-load: snapshot '{}' not found", name)),
+                Some((vars_json, ts)) => {
+                    let dt = chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let mut out = format!("  📦 Environment snapshot '{}' [{}]\n", name, dt);
+                    out.push_str(&"─".repeat(44));
+                    if let Ok(vars) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&vars_json) {
+                        for (k, v) in &vars {
+                            let val = v.as_str().unwrap_or("");
+                            let short = if val.len() > 60 { format!("{}...", &val[..57]) } else { val.to_string() };
+                            out.push_str(&format!("\n  {}={}", k, short));
+                        }
+                    }
+                    out.push_str("\n\n  ⚠️  Note: vars shown only -- fsh cannot set parent process env");
+                    out.push_str(&format!("\n  → export manually or use 'source' in your shell"));
+                    CommandResult::Output(out)
+                }
+            }
+        }
+        "env-diff" => {
+            // env-diff <name>  -- diff current env vs snapshot (INT-269)
+            let name = args.first().copied().unwrap_or("default");
+            let db_path = format!("{}/0-core/runtime/state.db",
+                std::env::var("HOME").unwrap_or_default());
+            let conn = match rusqlite::Connection::open(&db_path) {
+                Ok(c) => c,
+                Err(e) => return CommandResult::Error(format!("env-diff: {}", e)),
+            };
+            let vars_json: Option<String> = conn.query_row(
+                "SELECT vars FROM fsh_env_snapshots WHERE name = ?1",
+                rusqlite::params![name], |r| r.get(0)
+            ).ok();
+            match vars_json {
+                None => CommandResult::Error(format!("env-diff: snapshot '{}' not found", name)),
+                Some(json) => {
+                    let mut out = format!("  🔍 env-diff: current vs '{}'\n", name);
+                    out.push_str(&"─".repeat(44));
+                    if let Ok(saved) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json) {
+                        let keys = ["EDITOR", "VISUAL", "RUST_LOG", "PATH", "HOME", "SHELL",
+                                   "XDG_CURRENT_DESKTOP", "WAYLAND_DISPLAY", "FSH_SESSION_ID"];
+                        let mut diffs = 0;
+                        for key in &keys {
+                            let current = std::env::var(key).unwrap_or_default();
+                            let snapped = saved.get(*key).and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            if current != snapped {
+                                diffs += 1;
+                                out.push_str(&format!("\n  ~ {}:", key));
+                                let sc = if snapped.len() > 50 { format!("{}...", &snapped[..47]) } else { snapped.clone() };
+                                let cc = if current.len() > 50 { format!("{}...", &current[..47]) } else { current.clone() };
+                                out.push_str(&format!("\n    saved:   {}", sc));
+                                out.push_str(&format!("\n    current: {}", cc));
+                            }
+                        }
+                        if diffs == 0 {
+                            out.push_str("\n  ✅ No differences found");
+                        } else {
+                            out.push_str(&format!("\n\n  {} variable(s) differ", diffs));
+                        }
+                    }
+                    CommandResult::Output(out)
+                }
+            }
+        }
         "make" => {
             // make <directory> [in <path>] (INT-270)
             // Human word for mkdir -p -- create directory with full path

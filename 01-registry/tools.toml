@@ -185,7 +185,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-shell"
-version = "1.0.0"
+version = "2.2.0"
 category = "shell"
 description = "Forest-native structured shell environment — beyond NixOS"
 expected_usage = "high"
