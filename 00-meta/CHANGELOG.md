@@ -1,5 +1,70 @@
 # Changelog
 
+## [13.0.0] — Intelligence in the Shell (2026-05-03)
+
+### 🎯 Completed Intents
+- Core v22 — Friday: The Useful Partner
+- faelight-shell v9 — The Shell That Thinks
+- Deploy Intelligence — Smarter, Parallel-Aware, Conflict-Detecting Pipeline
+- faelight-git Productivity — Smarter Commits, Friday-Aware, Workflow-Tuned
+- fsh human-readable pipelines — from filter sort as composable English
+- fsh parallel execution — parallel { } block and ||| operator
+- fsh natural language — Friday interrupt levels and ? prefix
+- fsh session intelligence — save load replay env snapshots
+
+### ✨ Features
+- human-readable pipelines — from filter sort take skip unique as json all working
+- vocabulary expanded -- rename, make, launch, replace -- forest now speaks 11 human words
+- faelight-updater pacnew handling -- list files, offer pacdiff, log decision to state.db
+
+### 🔧 Fixes
+- lock-core detection -- doctor now reads runtime/.core-locked instead of lsattr, wrapper scripts write state file
+- lock-core detection complete, cargo audit installed, quinn+rustls updated, aws-lc-sys vulns noted as upstream-pending in faelight-browser (WIP)
+- && with fsh builtins deferred to INT-267 -- documents limitation
+
+### 📚 Documentation
+- clean CHANGELOG and README for v12.0.0 — human narrative, no INT numbers, release table updated
+
+### 🔩 Internal (27 commits)
+- All 6 pillars of INT-244 are now complete
+- note: faelight-bar race condition documented in INT-239, && limitation deferred to INT-267
+- **244** (4 commits)
+  - INT-244: Core v22 -- feat(INT-244): Core v22 Pillars 3+4+5 -- friday_decisions, friday_map, self-review, 4 architectural decisions recorded
+  - INT-244: Core v22 -- fix: v12.0.0 theme display (-- vs em dash), gd alias syntax, remove stray 0 file
+  - INT-244: Core v22 -- feat(INT-244): Pillar 1 -- doc steward, friday_doc_proposals, analyze/show/approve/dismiss
+  - INT-244: Core v22 -- feat(INT-244): Pillar 6 -- confidence-gated voice, active status, below 0.85 hedges
+- **245** (4 commits)
+  - INT-245: progress
+  - INT-245: faelight-shell v9
+  - INT-245: faelight-shell v9 -- INT-256 complete -- fg done, pre-push detection, smarter commits
+  - close INT-245, create INT-267/268/269, daily driver display update
+- **255** (3 commits)
+  - INT-255: Deploy Intelligence -- feat(INT-255): faelight-release plan command, SIGPIPE fix, cargo audit integrated
+  - INT-255: Deploy Intelligence -- fix: grep alternation now falls through to system grep, INT-255 deploy intelligence shipped
+  - complete: INT-255 -- deploy intelligence shipped
+- complete: INT-265 — forest pipelines ship
+- **267** (2 commits)
+  - INT-267: fsh parallel execution -- feat(INT-267): parallel execution -- parallel block, pipe-pipe-pipe operator, fsh v2.0.0
+  - complete: INT-267 -- fsh parallel execution, fsh v2.0.0
+- **268** (2 commits)
+  - INT-268: fsh natural language -- feat(INT-268): natural language ? prefix, 30+ translation rules, fsh v2.1.0
+  - complete: INT-268 -- fsh natural language, fsh v2.1.0
+- **269** (2 commits)
+  - INT-269: fsh session intelligence -- feat(INT-269): session intelligence -- save/load/list/delete, history-replay, env-save/load/diff, fsh v2.2.0
+  - complete: INT-269 -- fsh session intelligence
+- plan: INT-270 faelight-login v2 slint greeter
+- release: Faelight Forest 12.0.0 — The Forest Speaks Human
+- bump faelight-shell to v1.0.0 — earned it
+- fg done command working
+- update intents: 239 (iced), 243 (slint), 246 (sequence), 247 (split buildable/friday), 255 (dry-run, SIGPIPE, workspace sync)
+- clippy fixes across workspace -- zero warnings, mechanical fixes + architectural allows for Core v22
+- difftastic installed, gd alias added, git diff.external configured
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 2456  ·  Tools: 50 deployed  ·  Intents: 220 complete
+
+---
+
 ## [12.0.0] -- The Forest Speaks Human (2026-05-02)
 The terminal was rebuilt from scratch -- GPU-ready architecture, full scrollback, Friday panel, split panes.
 The shell learned its first human words -- commands that read like English, safe by default, UNIX as fallback:

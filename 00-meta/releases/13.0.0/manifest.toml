@@ -1,0 +1,9 @@
+version = "13.0.0"
+date = "2026-05-03"
+theme = "Intelligence in the Shell"
+health_at_release = 100
+commits_since_last = 34
+
+[stats]
+tools_total = 50
+intents_complete = 220

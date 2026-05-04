@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 12.0.0
+# 🌲 Faelight Forest 13.0.0
 
-![Version](https://img.shields.io/badge/version-12.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-13.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -10,21 +10,28 @@
 > **A self-aware, path-resilient personal computing environment built from first principles.**
 
 ## 🎊 Latest Release
-The terminal was rebuilt from scratch. The shell learned its first human words. Friday gained a planning layer. Three TUIs shipped. The repository shed 320MB of history.
-**What shipped:**
-- faelight-term v2 -- rebuilt terminal: scrollback, Friday panel, split panes, 14MB idle
-- Human vocabulary -- `delete`, `find`, `copy`, `move`, `list`, `read`, `write`, `db`
-- Friday planning layer -- anticipation, session correlation, inline knowledge
-- `gt` -- linear git workflow (stage → commit → push in one flow)
-- `it` -- intent ledger TUI with fuzzy search and tab filtering
-- `cheat` -- live cheatsheet for all 118 commands and keybinds
-- Ctrl+D health TUI -- system status at a keypress
-- fsh v8 -- pipelines, smarter history, tight Friday integration
-- faelight-login v2 -- animated forest boot screen
-- Git history cleaned -- 388MB → 68MB packed
-- faelight-synthesis -- release notes now speak human, no INT numbers
-**Stats:** 212 intents complete · 2423 commits · 51 tools · 100% health
+
+### 13.0.0 - 🌲 Intelligence in the Shell (2026-05-03)
+
+- 244 — Core v22 -- Friday: The Useful Partner
+- 245 — faelight-shell v9 -- The Shell That Thinks
+- 255 — Deploy Intelligence -- Smarter, Parallel-Aware, Conflict-Detecting Pipeline
+- 256 — faelight-git Productivity -- Smarter Commits, Friday-Aware, Workflow-Tuned
+- 265 — \"fsh human-readable pipelines -- from filter sort as composable English\
+- 267 — fsh parallel execution -- parallel { } block and ||| operator
+- 268 — fsh natural language -- Friday interrupt levels and ? prefix
+- 269 — fsh session intelligence -- save load replay env snapshots
+- INT-265: human-readable pipelines — from filter sort take skip unique as json all working
+- vocabulary expanded -- rename, make, launch, replace -- forest now speaks 11 human words
+- faelight-updater pacnew handling -- list files, offer pacdiff, log decision to state.db
+
+- Commits: 2456
+- Tools: 50 deployed
+- Health: 100%
+- Intents: 220 complete
+
 [Full Changelog →](00-meta/CHANGELOG.md)
+
 ---
 
 <!-- END DYNAMIC SECTION -->

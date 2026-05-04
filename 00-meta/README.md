@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 12.0.0
+# 🌲 Faelight Forest 13.0.0
 
-![Version](https://img.shields.io/badge/version-12.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-13.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,43 +11,24 @@
 
 ## 🎊 Latest Release
 
-### 12.0.0 - 🌲 The Forest Speaks Human (2026-05-02)
+### 13.0.0 - 🌲 Intelligence in the Shell (2026-05-03)
 
-- 180 — Sway Removal — Full Niri Commitment
-- 203 — Friday: The Living Intelligence
-- 219 — Core v20 — Friday Phase 2: Deep Pattern Synthesis and Predictive Strategy
-- 231 — Friday Vocabulary Expansion -- Name the Patterns the Forest Repeats
-- 232 — faelight-term v2 -- The Terminal That Thinks in 2136
-- 233 — fsh v8 -- Structured Shell: Data, Syntax, Intelligence
-- 234 — Core v21 -- Friday Planning Layer: From Reaction to Anticipation
-- 238 — forest-stats -- The Forest Visualizes Its Own Growth
-- 241 — Integrity Engine Audit -- No Phantom Fixes, No Silent Failures
-- 242 — faelight-login v2 -- The Forest Greets You First
-- 248 — friday_knowledge deduplication -- clean signal from noise
-- 249 — fsh heredoc delimiter leak warning
-- 250 — Release tool intelligence layer -- faelight-release and faelight-docs translate, not just account
-- 252 — fsh connection unification
-- 253 — gt -- Git Workflow as Ratatui TUI
-- 254 — it -- Intent Ledger as Ratatui TUI
-- 257 — Strip Tracked Versioned Binaries from Git History via filter-repo
-- 258 — Ctrl+D Health Display as Ratatui TUI
-- 259 — Command and Keybind Registry -- Universal Source of Truth
-- 260 — Cheatsheet TUI -- Live Reference for Commands and Keybinds
-- 261 — fsh Vocabulary -- A Human-Readable Language for the Forest
-- 262 — \"faelight-term Dead Code Audit and Renderer Decision\
-- 263 — \"db -- native state.db query builtin for fsh\
-- 264 — \"faelight-synthesis -- Semantic Translation Layer for Release Intelligence\
-- 266 — \"fsh vocabulary -- copy move list read write as forest-native commands\
-- INT-231 complete — Friday vocabulary: 6 abstractions named, language born from real patterns
-- INT-233 gp fixed, clippy scoped to staged packages, echo redirect verified
-- INT-233 rspatch \n newline fix — world\nextra now becomes two lines
-- INT-233 command not found suggests alternative, fsh-patch helper added
-- INT-233 startup 4ms verified, em dash handled, echo gate marked
+- 244 — Core v22 -- Friday: The Useful Partner
+- 245 — faelight-shell v9 -- The Shell That Thinks
+- 255 — Deploy Intelligence -- Smarter, Parallel-Aware, Conflict-Detecting Pipeline
+- 256 — faelight-git Productivity -- Smarter Commits, Friday-Aware, Workflow-Tuned
+- 265 — \"fsh human-readable pipelines -- from filter sort as composable English\
+- 267 — fsh parallel execution -- parallel { } block and ||| operator
+- 268 — fsh natural language -- Friday interrupt levels and ? prefix
+- 269 — fsh session intelligence -- save load replay env snapshots
+- INT-265: human-readable pipelines — from filter sort take skip unique as json all working
+- vocabulary expanded -- rename, make, launch, replace -- forest now speaks 11 human words
+- faelight-updater pacnew handling -- list files, offer pacdiff, log decision to state.db
 
-- Commits: 2421
+- Commits: 2456
 - Tools: 50 deployed
 - Health: 100%
-- Intents: 212 complete
+- Intents: 220 complete
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
