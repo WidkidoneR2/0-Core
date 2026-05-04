@@ -171,10 +171,11 @@ fn build_dynamic_section(
     s.push('\n');
 
     // Stats line
-    s.push_str(&format!("- Commits: {}\n", stats.total_commits));
-    s.push_str(&format!("- Tools: {} deployed\n", stats.tools_deployed));
-    s.push_str(&format!("- Health: {}%\n", stats.health));
-    s.push_str(&format!("- Intents: {} complete\n", stats.intents_complete));
+    s.push_str("| Stat | Value |\n|------|-------|\n");
+    s.push_str(&format!("| Commits | {} |\n", stats.total_commits));
+    s.push_str(&format!("| Tools | {} deployed |\n", stats.tools_deployed));
+    s.push_str(&format!("| Health | {}% |\n", stats.health));
+    s.push_str(&format!("| Intents | {} complete |\n", stats.intents_complete));
     s.push('\n');
 
     s.push_str("[Full Changelog →](00-meta/CHANGELOG.md)\n\n");
