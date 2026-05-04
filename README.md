@@ -32,7 +32,7 @@ The forest gained a mind. Friday is no longer a goal -- Friday is active.
 
 <!-- END DYNAMIC SECTION -->
 <!-- STATIC SECTION -->
-A fully custom Arch Linux + Niri personal computing environment built from first principles in ~97.8% Rust. Every tool is written or fully understood. No mystery packages. No magic.
+A fully custom Arch Linux + Niri personal computing environment built from first principles in ~96.4% Rust. Every tool is written or fully understood. No mystery packages. No magic.
 POSIX shells:      text | text | text
 Nu shell:          table | filter | transform
 Faelight Forest:   forest_data | judgment | wisdom | anticipation | alignment
