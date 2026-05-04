@@ -38,6 +38,11 @@ mod widgets;
 const BAR_HEIGHT: u32 = 32;
 const UPDATE_INTERVAL: Duration = Duration::from_secs(1);
 
+#[allow(dead_code)]
+enum CenterState {
+    Intent,
+    FridaySignal(String, Instant),
+}
 struct FaelightBar {
     registry_state: RegistryState,
     output_state: OutputState,
@@ -49,6 +54,8 @@ struct FaelightBar {
     last_update: Instant,
     scale_120: u32, // fractional scale × 120 (e.g. 180 = 1.5x)
     viewport: Option<WpViewport>,
+    center_state: CenterState,
+    last_signal_check: Instant,
 }
 
 impl FaelightBar {
@@ -291,6 +298,8 @@ fn main() {
         width: 1920,
         first_configure: false,
         last_update: Instant::now(),
+        center_state: CenterState::Intent,
+        last_signal_check: Instant::now(),
     };
 
     let _frac_scale = frac_scale; // keep alive
@@ -316,6 +325,22 @@ fn main() {
             let _ = event_queue.dispatch_pending(&mut app);
         }
 
+        // Check Friday signal every 5s
+        if app.first_configure && app.last_signal_check.elapsed() >= Duration::from_secs(5) {
+            app.last_signal_check = Instant::now();
+            if let Some(signal) = render::bar::get_friday_signal() {
+                app.center_state = CenterState::FridaySignal(signal, Instant::now());
+            }
+        }
+        // Return to intent after 10s
+        let should_reset = if let CenterState::FridaySignal(_, ref since) = app.center_state {
+            since.elapsed() >= Duration::from_secs(10)
+        } else {
+            false
+        };
+        if should_reset {
+            app.center_state = CenterState::Intent;
+        }
         std::thread::sleep(Duration::from_millis(100));
     }
 }

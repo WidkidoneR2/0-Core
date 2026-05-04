@@ -358,8 +358,7 @@ fn get_active_intent() -> Option<(u32, String)> {
     }
     None
 }
-#[allow(dead_code)]
-fn get_friday_signal() -> Option<String> {
+pub fn get_friday_signal() -> Option<String> {
     let db_path = faelight_core::paths::core_dir()
         .join("runtime")
         .join("state.db");
