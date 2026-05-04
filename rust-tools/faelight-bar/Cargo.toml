@@ -18,6 +18,8 @@ dirs = "5.0"
 faelight-core = { path = "../faelight-core" }
 wayland-protocols = { workspace = true }
 
+rusqlite = { version = "0.31", features = ["bundled"] }
+
 # Font rendering
 fontdue = "0.9"
 lazy_static = "1.4"

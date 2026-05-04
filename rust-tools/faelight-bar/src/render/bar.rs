@@ -2,6 +2,7 @@
 
 use chrono::Local;
 use faelight_core::GlyphCache;
+use rusqlite;
 use std::fs;
 use std::process::Command;
 
@@ -356,6 +357,33 @@ fn get_active_intent() -> Option<(u32, String)> {
         return Some((id, short));
     }
     None
+}
+#[allow(dead_code)]
+fn get_friday_signal() -> Option<String> {
+    let db_path = faelight_core::paths::core_dir()
+        .join("runtime")
+        .join("state.db");
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .ok()?;
+    let result: rusqlite::Result<(String, f64)> = conn.query_row(
+        "SELECT friday_brief, brief_confidence FROM synthesis_snapshots          ORDER BY id DESC LIMIT 1",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    );
+    match result {
+        Ok((brief, confidence)) if confidence >= 0.85 && !brief.is_empty() => {
+            let short = if brief.len() > 38 {
+                format!("{}…", &brief[..38])
+            } else {
+                brief
+            };
+            Some(short)
+        }
+        _ => None,
+    }
 }
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 
