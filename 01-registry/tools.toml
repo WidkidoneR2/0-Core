@@ -59,7 +59,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-bar"
-version = "5.0.0"
+version = "6.0.0"
 category = "ui"
 description = "Wayland status bar — health subscriber"
 expected_usage = "low"
