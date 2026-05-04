@@ -1,7 +1,7 @@
 ---
 id: 239
 title: "faelight-bar v2 -- Modernized, Intelligent, Friday-Aware"
-status: planned
+status: in-progress
 date: 2026-04-18
 tags: [faelight-bar, bar, modernize, friday, intelligence, ui, wayland, v2]
 ---

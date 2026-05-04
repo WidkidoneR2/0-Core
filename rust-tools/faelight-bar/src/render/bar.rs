@@ -323,6 +323,40 @@ fn get_volume() -> (String, [u8; 4]) {
     ("VOL:??".to_string(), DIM)
 }
 
+#[allow(dead_code)]
+fn get_active_intent() -> Option<(u32, String)> {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
+    let entries = fs::read_dir(&intents_dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        let content = fs::read_to_string(&path).ok()?;
+        if !content.contains("status: in-progress") {
+            continue;
+        }
+        let id = content.lines()
+            .find(|l| l.starts_with("id:"))
+            .and_then(|l| l.trim_start_matches("id:").trim().parse::<u32>().ok())?;
+        let title = content.lines()
+            .find(|l| l.starts_with("title:"))
+            .map(|l| {
+                l.trim_start_matches("title:")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string()
+            })?;
+        let short = if title.len() > 32 {
+            format!("{}…", &title[..32])
+        } else {
+            title
+        };
+        return Some((id, short));
+    }
+    None
+}
 // ─── Drawing ─────────────────────────────────────────────────────────────────
 
 fn draw_text(
