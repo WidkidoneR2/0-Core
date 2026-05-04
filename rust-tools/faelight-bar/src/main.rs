@@ -86,8 +86,30 @@ impl FaelightBar {
             pixel.copy_from_slice(&bg);
         }
 
+        // Compute center text from CenterState
+        let center_text = match &self.center_state {
+            CenterState::Intent => {
+                match render::bar::get_active_intent() {
+                    Some((id, title)) => format!("INT-{} · {}", id, title),
+                    None => {
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        let hp = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
+                        let health = std::fs::read_to_string(&hp)
+                            .ok()
+                            .and_then(|s| s.trim().parse::<u8>().ok())
+                            .unwrap_or(0);
+                        if health > 0 {
+                            format!("Forest 13.0.0  ·  {}%", health)
+                        } else {
+                            "Faelight Forest 13.0.0".to_string()
+                        }
+                    }
+                }
+            }
+            CenterState::FridaySignal(signal, _) => format!("Friday: {}", signal),
+        };
         // Delegate all drawing to render/bar.rs
-        render::bar::render(canvas, phys_w, phys_h, self.scale_120 as f32 / 120.0);
+        render::bar::render(canvas, phys_w, phys_h, self.scale_120 as f32 / 120.0, &center_text);
 
         self.layer
             .wl_surface()
