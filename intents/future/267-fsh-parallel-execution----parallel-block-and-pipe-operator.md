@@ -3,7 +3,7 @@ id: 267
 date: 2026-05-03
 type: feature
 title: "fsh parallel execution -- parallel { } block and ||| operator"
-status: planned
+status: in-progress
 tags: [shell, fsh, parallel, performance, innovation]
 version: TBD
 ---

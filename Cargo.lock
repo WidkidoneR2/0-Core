@@ -1851,7 +1851,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-shell"
-version = "2.2.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "chrono",

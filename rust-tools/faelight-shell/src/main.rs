@@ -178,6 +178,76 @@ fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
     result
 }
 
+/// INT-267: Execute commands in parallel, return labeled output
+fn run_parallel(commands: &[String]) -> bool {
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    if commands.is_empty() { return true; }
+    println!("  ∴ Running {} commands in parallel...", commands.len());
+    let results: Arc<Mutex<Vec<(String, bool, String)>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut handles = vec![];
+    for cmd in commands {
+        let cmd = cmd.trim().to_string();
+        if cmd.is_empty() { continue; }
+        let results = Arc::clone(&results);
+        let label = cmd.split_whitespace().take(2).collect::<Vec<_>>().join(" ");
+        let handle = thread::spawn(move || {
+            let output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(&cmd)
+                .envs(std::env::vars())
+                .output();
+            match output {
+                Ok(o) => {
+                    let success = o.status.success();
+                    let mut out = String::from_utf8_lossy(&o.stdout).to_string();
+                    let err = String::from_utf8_lossy(&o.stderr).to_string();
+                    if !err.is_empty() { out.push_str(&err); }
+                    results.lock().unwrap().push((label, success, out));
+                }
+                Err(e) => {
+                    results.lock().unwrap().push((label, false, format!("error: {}", e)));
+                }
+            }
+        });
+        handles.push(handle);
+    }
+    for handle in handles { let _ = handle.join(); }
+    let results = results.lock().unwrap();
+    let mut all_success = true;
+    for (label, success, output) in results.iter() {
+        let icon = if *success { "✅" } else { "❌" };
+        println!("  {} [{}]", icon, label);
+        for line in output.lines() { println!("    {}", line); }
+        if !success { all_success = false; }
+    }
+    all_success
+}
+/// INT-267: Parse parallel { } block -- handles both multiline and single-line
+fn parse_parallel_block(input: &str) -> Option<Vec<String>> {
+    let trimmed = input.trim();
+    if !trimmed.starts_with("parallel") { return None; }
+    let rest = trimmed["parallel".len()..].trim();
+    if !rest.starts_with('{') { return None; }
+    let inner = rest.trim_start_matches('{');
+    let inner = if let Some(pos) = inner.rfind('}') { &inner[..pos] } else { return None; };
+    // Split by newlines first, then by semicolons for single-line usage
+    let cmds: Vec<String> = if inner.contains('\n') {
+        inner.lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    } else {
+        // Single line: parallel {cmd1; cmd2; cmd3}
+        inner.split(';')
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    };
+    if cmds.is_empty() { None } else { Some(cmds) }
+}
+
+
 /// Detect and strip redirection from a command line.
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
 fn detect_redirect(line: &str) -> (String, Option<(String, bool)>) {
@@ -1264,6 +1334,24 @@ fn repl_main() -> Result<()> {
                 }
                 if heredoc_handled {
                     continue 'repl;
+                }
+                // INT-267: parallel { } block detection
+                if line.trim_start().starts_with("parallel") {
+                    if let Some(cmds) = parse_parallel_block(&line) {
+                        run_parallel(&cmds);
+                        continue 'repl;
+                    }
+                }
+                // INT-267: ||| parallel operator
+                if line.contains("|||") {
+                    let parts: Vec<String> = line.split("|||")
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if parts.len() >= 2 {
+                        run_parallel(&parts);
+                        continue 'repl;
+                    }
                 }
                 // Phase 14 — multi-command: split on ; before execution
                 let segments = split_semicolons(&line);
