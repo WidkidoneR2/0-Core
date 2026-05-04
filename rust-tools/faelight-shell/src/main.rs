@@ -247,6 +247,78 @@ fn parse_parallel_block(input: &str) -> Option<Vec<String>> {
     if cmds.is_empty() { None } else { Some(cmds) }
 }
 
+/// INT-268: Natural language translation for ? prefix
+/// Pattern-based translation without LLM -- forest-specific rules
+fn translate_natural_language(input: &str) -> Option<(String, f64)> {
+    let q = input.trim().to_lowercase();
+    // Rule table: (pattern_words, command, confidence)
+    let rules: &[(&[&str], &str, f64)] = &[
+        // Build rules
+        (&["build", "core"], "cargo build -p core", 0.95),
+        (&["build", "shell"], "cargo build -p faelight-shell", 0.95),
+        (&["build", "everything"], "cargo build --workspace", 0.90),
+        (&["build", "workspace"], "cargo build --workspace", 0.90),
+        // Deploy rules
+        (&["deploy", "core"], "deploy core", 0.95),
+        (&["deploy", "shell"], "deploy faelight-shell", 0.95),
+        (&["deploy", "everything"], "parallel {deploy core; deploy faelight-shell; deploy faelight-term}", 0.85),
+        // Git rules
+        (&["what", "changed", "today"], "git log --since=today --oneline", 0.90),
+        (&["show", "changed", "today"], "git log --since=today --oneline", 0.90),
+        (&["recent", "commits"], "git log --oneline -10", 0.88),
+        (&["last", "commit"], "git log --oneline -1", 0.92),
+        // Health/status
+        (&["show", "health"], "d", 0.95),
+        (&["check", "health"], "d", 0.95),
+        (&["system", "status"], "d", 0.90),
+        (&["how", "healthy"], "d", 0.88),
+        // Intent
+        (&["working", "on"], "intent show --active", 0.90),
+        (&["active", "intent"], "intent show --active", 0.92),
+        (&["what", "intents"], "intent list --status in-progress", 0.88),
+        // File operations
+        (&["find", "rust", "file"], "fsearch", 0.80),
+        (&["list", "files"], "list files in .", 0.85),
+        (&["show", "files"], "list files in .", 0.85),
+        // Friday
+        (&["friday", "status"], "core friday status", 0.95),
+        (&["friday", "decisions"], "core friday decisions", 0.95),
+        (&["friday", "self", "review"], "core friday self-review", 0.92),
+        // Sessions
+        (&["saved", "sessions"], "session list", 0.92),
+        (&["show", "sessions"], "session list", 0.90),
+        // Security
+        (&["security", "scan"], "core security scan", 0.92),
+        (&["audit"], "cargo audit", 0.88),
+        // Misc
+        (&["shell", "info"], "fsh", 0.90),
+        (&["fsh", "info"], "fsh", 0.90),
+        (&["cheatsheet"], "cheat", 0.95),
+        (&["help"], "cheat", 0.88),
+        (&["parallel", "deploy"], "parallel {deploy core; deploy faelight-shell}", 0.85),
+    ];
+    // Score each rule by how many pattern words appear in the query
+    let mut best_cmd = None;
+    let mut best_score: f64 = 0.0;
+    let mut best_conf: f64 = 0.0;
+    for (patterns, cmd, conf) in rules {
+        let matches = patterns.iter().filter(|p| q.contains(**p)).count();
+        if matches == 0 { continue; }
+        let score = (matches as f64 / patterns.len() as f64) * conf;
+        if score > best_score {
+            best_score = score;
+            best_conf = *conf;
+            best_cmd = Some(*cmd);
+        }
+    }
+    if best_score >= 0.6 {
+        Some((best_cmd.unwrap().to_string(), best_conf))
+    } else {
+        None
+    }
+}
+
+
 
 /// Detect and strip redirection from a command line.
 /// Returns (cleaned_line, Some((path, append))) or (line, None)
@@ -1333,6 +1405,45 @@ fn repl_main() -> Result<()> {
                     heredoc_handled = true;
                 }
                 if heredoc_handled {
+                    continue 'repl;
+                }
+                // INT-268: natural language ? prefix
+                if line.trim_start().starts_with('?') {
+                    let query = line.trim_start().trim_start_matches('?').trim();
+                    if query.is_empty() {
+                        println!("  usage: ? <natural language query>");
+                        println!("  examples: ? show health | ? what changed today | ? deploy everything");
+                        continue 'repl;
+                    }
+                    match translate_natural_language(query) {
+                        Some((cmd, confidence)) => {
+                            println!("  Friday translates ({:.0}% confidence):", confidence * 100.0);
+                            println!("    -> {}", cmd);
+                            print!("  Run this? (y/N): ");
+                            use std::io::Write;
+                            let _ = std::io::stdout().flush();
+                            let mut answer = String::new();
+                            let _ = std::io::stdin().read_line(&mut answer);
+                            if answer.trim().to_lowercase() == "y" {
+                                let _ = db.conn.execute(
+                                    "INSERT INTO shell_history (command, timestamp) VALUES (?1, strftime('%s','now'))",
+                                    rusqlite::params![cmd]
+                                );
+                                let result = commands::execute(&cmd, &db, &core_root);
+                                match result {
+                                    commands::CommandResult::Output(s) => println!("{}", s),
+                                    commands::CommandResult::Error(e) => eprintln!("  x {}", e),
+                                    _ => {}
+                                }
+                            } else {
+                                println!("  Cancelled");
+                            }
+                        }
+                        None => {
+                            println!("  Friday doesn't know how to translate: {}", query);
+                            println!("  Try: core friday ask \"{}\"", query);
+                        }
+                    }
                     continue 'repl;
                 }
                 // INT-267: parallel { } block detection

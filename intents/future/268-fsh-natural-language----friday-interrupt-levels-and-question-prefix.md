@@ -3,7 +3,7 @@ id: 268
 date: 2026-05-03
 type: feature
 title: "fsh natural language -- Friday interrupt levels and ? prefix"
-status: planned
+status: in-progress
 tags: [shell, fsh, friday, intelligence, natural-language]
 version: TBD
 ---
