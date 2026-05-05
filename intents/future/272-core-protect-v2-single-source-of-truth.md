@@ -81,6 +81,54 @@ GATES
 [ ] Presentation scenario tested: lock, update, unlock, commit, relock
 [ ] bar, status, and fg commit always agree
 [ ] Health check verifies .lock-state integrity on every d
+---
+ENHANCED MESSAGING
+Every lock state message tells you what to do next:
+  Blocked by lock:
+    "Core is locked. Run unlock-core to proceed.
+     Lock again with lock-core when finished."
+  Not just a wall -- a door with instructions.
+Bar left zone enhanced:
+  Locked:   green   "LOCKED"   -- calm, protected
+  Unlocked: amber   "OPEN"     -- working, intentional
+  Unlocked + uncommitted changes: red "OPEN*" -- urgent, act soon
+  The * means: you have changes and the core is open. Finish and relock.
+---
+GRACE PERIOD WARNING
+If core has been unlocked for more than 10 minutes:
+  Friday surfaces once: "Core has been unlocked for 10 minutes.
+  Uncommitted changes detected. Commit and relock when ready."
+  Once only. Not every minute. Not nagging.
+  Friday respects your flow. It just makes sure you know.
+If core has been unlocked for more than 30 minutes with no commits:
+  Bar changes: red "OPEN!" -- escalated urgency
+  One faelight-notify notification: "Core still open -- 30 minutes"
+  After that: silence. You know. The choice is yours.
+---
+CORE-PROTECT HISTORY
+Every lock and unlock recorded in state.db:
+  Table: core_protect_log
+    action: TEXT (locked / unlocked)
+    timestamp: INTEGER
+    duration_unlocked: INTEGER (seconds, on relock)
+    had_uncommitted: BOOLEAN (were there changes when unlocked?)
+    triggered_by: TEXT (manual / cistart / cicomplete)
+Commands:
+  core-protect log          -- full lock/unlock history
+  core-protect log --today  -- today only
+  core-protect last         -- last lock/unlock with duration
+Example output:
+  core-protect log --today
+  09:14  locked    (session start)
+  11:32  unlocked  (manual)
+  11:38  locked    (manual -- 6 minutes open, 2 commits)
+  14:15  unlocked  (manual)
+  14:47  locked    (manual -- 32 minutes open, 5 commits)  ⚠️
+The ⚠️ means: open for more than 20 minutes.
+Not a failure. Just a flag for review.
+The history does not judge. It records.
+"You think you locked it. The log knows." 🌲
+
 "The lock either holds or it does not.
 There is no middle ground.
 The forest knows which." 🌲
