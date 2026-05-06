@@ -256,7 +256,9 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32, scale: f32, center_te
 
     // ââ LEFT: lock icon only ââââââââââââââââââââââââââââââââ
     let lock_x = draw_text(&mut cache, canvas, width, lock_icon, 14, lock_color);
-    draw_separator(canvas, width, lock_x + 8);
+    let lock_label = if lock_color == GREEN { " LOCKED" } else { " OPEN" };
+    let label_x = draw_text(&mut cache, canvas, width, lock_label, lock_x + 4, lock_color);
+    draw_separator(canvas, width, label_x + 8);
 
     // ââ CENTER: intent or Friday signal âââââââââââââââââââââââ
     if !center_text.is_empty() {
