@@ -639,11 +639,12 @@ fn expand_vars(
 
 // Check if 0-core is locked (immutable flag set)
 fn is_core_locked(core_root: &str) -> bool {
-    std::process::Command::new("lsattr")
-        .args(["-d", core_root])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("----i"))
-        .unwrap_or(false)
+    // INT-272: read sentinel file -- single source of truth.
+    // Bar, doctor, and fsh all agree on the same file.
+    std::path::Path::new(core_root)
+        .join("runtime")
+        .join(".core-locked")
+        .exists()
 }
 
 // Strip # comments — only at start of line or after whitespace, never inside strings
