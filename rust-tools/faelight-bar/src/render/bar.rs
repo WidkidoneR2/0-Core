@@ -256,8 +256,19 @@ pub fn render(canvas: &mut [u8], width: u32, _height: u32, scale: f32, center_te
 
     // ââ LEFT: lock icon only ââââââââââââââââââââââââââââââââ
     let lock_x = draw_text(&mut cache, canvas, width, lock_icon, 14, lock_color);
-    let lock_label = if lock_color == GREEN { " LOCKED" } else { " OPEN" };
-    let label_x = draw_text(&mut cache, canvas, width, lock_label, lock_x + 4, lock_color);
+    let has_changes = std::process::Command::new("git")
+        .args(["-C", &faelight_core::paths::core_dir().to_string_lossy().to_string(), "status", "--porcelain"])
+        .output()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false);
+    let (lock_label, label_color) = if lock_color == GREEN {
+        (" LOCKED", GREEN)
+    } else if has_changes {
+        (" OPEN*", RED)
+    } else {
+        (" OPEN", AMBER)
+    };
+    let label_x = draw_text(&mut cache, canvas, width, lock_label, lock_x + 4, label_color);
     draw_separator(canvas, width, label_x + 8);
 
     // ââ CENTER: intent or Friday signal âââââââââââââââââââââââ
