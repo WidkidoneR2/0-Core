@@ -152,6 +152,13 @@ Phase 5 -- Immediate debt resolution:
 [ ] wl-clipboard-rs bumped to clear future-incompat warning
 [ ] All critical advisories resolved or documented
 [ ] Forest builds clean with zero future-incompat warnings
+Presentation Gate -- MUST PASS before summer presentation:
+[ ] Every tool in rust-tools/ builds with zero warnings
+[ ] cargo build --workspace shows Finished with nothing above it
+[ ] No dead code warnings anywhere in the forest
+[ ] No future-incompat warnings anywhere in the forest
+[ ] wl-clipboard-rs warning resolved
+[ ] Build is clean and silent -- Graydon sees only the result
 Final Validation:
 [ ] faelight-maintain scan shows complete dependency picture
 [ ] wl-clipboard-rs warning is gone from every cargo build
