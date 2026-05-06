@@ -1,7 +1,7 @@
 ---
 id: 272
 title: "core-protect v2 -- Single Source of Truth"
-status: in-progress
+status: complete
 date: 2026-05-05
 tags: [core-protect, security, lock, integrity, reliability, v2]
 ---
