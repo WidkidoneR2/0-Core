@@ -79,6 +79,11 @@ impl Daemon {
         tokio::spawn(async move {
             wal_checkpoint_loop(checkpoint_db).await;
         });
+        // INT-235 Gate 2 -- Contradiction detection loop (every 60 seconds)
+        let contradiction_db = db_path.clone();
+        tokio::spawn(async move {
+            contradiction_detection_loop(contradiction_db).await;
+        });
 
         // Bind to Unix socket
         let listener = UnixListener::bind(&self.socket_path)?;
@@ -945,6 +950,68 @@ async fn friday_answer_query(
     }
 }
 
+// INT-235 Gate 2 -- Contradiction detection loop
+async fn contradiction_detection_loop(db_path: String) {
+    // Start from current max id -- do not notify old contradictions on startup
+    let last_id: i64 = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .ok()
+    .and_then(|c| {
+        c.query_row(
+            "SELECT COALESCE(MAX(id), 0) FROM friday_contradictions",
+            [],
+            |r| r.get(0),
+        )
+        .ok()
+    })
+    .unwrap_or(0);
+    let mut last_seen_id = last_id;
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        let Ok(conn) = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        ) else {
+            continue;
+        };
+        let Ok(mut stmt) = conn.prepare(
+            "SELECT id, description, severity FROM friday_contradictions
+             WHERE resolved = 0 AND id > ?1
+             ORDER BY id ASC LIMIT 5",
+        ) else {
+            continue;
+        };
+        let rows: Vec<(i64, String, String)> = stmt
+            .query_map(rusqlite::params![last_seen_id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2).unwrap_or_else(|_| "low".to_string())))
+            })
+            .map(|r| r.filter_map(|x| x.ok()).collect())
+            .unwrap_or_default();
+        for (id, description, severity) in rows {
+            last_seen_id = last_seen_id.max(id);
+            // Only notify high and critical -- skip low noise
+            if severity == "low" {
+                continue;
+            }
+            let urgency = if severity == "critical" { "critical" } else { "normal" };
+            let short = if description.len() > 80 {
+                format!("{}...", &description[..80])
+            } else {
+                description.clone()
+            };
+            let _ = std::process::Command::new("notify-send")
+                .args([
+                    &format!("--urgency={}", urgency),
+                    "--app-name=Friday",
+                    "🌲 Friday: Contradiction Detected",
+                    &short,
+                ])
+                .spawn();
+        }
+    }
+}
 // INT-220 Gate 6 -- Friday learning loop background task
 async fn friday_learning_loop() {
     loop {
