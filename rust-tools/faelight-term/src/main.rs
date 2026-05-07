@@ -219,6 +219,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if app.terminal.cursor_x == 0 && app.terminal.cursor_y == 0 {
                         app.scroll_offset = 0;
                     }
+                    // DSR response -- write cursor position back to PTY (ESC[row;colR)
+                    if app.terminal.pending_dsr {
+                        app.terminal.pending_dsr = false;
+                        let response = app.terminal.cursor_position_report();
+                        app.pty.write(&response).ok();
+                    }
                     _dirty = true;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
@@ -537,9 +543,6 @@ impl App {
                     } else {
                         self.terminal.grid[row][col]
                     };
-                    if cell.ch == ' ' || cell.ch == '\0' {
-                        continue;
-                    }
                     let cell_x = (col as u32 * cell_w) as i32;
                     let cell_y = (row as u32 * cell_h) as i32;
                     let max_x = if self.split_active {
@@ -554,6 +557,29 @@ impl App {
                         continue;
                     }
                     if cell_y + cell_h as i32 > height as i32 {
+                        continue;
+                    }
+                    // Paint background color for non-default bg cells (including spaces)
+                    let bg_def = crate::terminal::Color::DEFAULT_BG;
+                    if cell.bg.r != bg_def.r || cell.bg.g != bg_def.g || cell.bg.b != bg_def.b {
+                        for py in 0..cell_h as i32 {
+                            for px in 0..cell_w as i32 {
+                                let bx = (cell_x + px) as u32;
+                                let by = (cell_y + py) as u32;
+                                if bx < width && by < height {
+                                    let offset = (by * stride + bx * 4) as usize;
+                                    if offset + 3 < canvas.len() {
+                                        canvas[offset] = cell.bg.b;
+                                        canvas[offset + 1] = cell.bg.g;
+                                        canvas[offset + 2] = cell.bg.r;
+                                        canvas[offset + 3] = 0xff;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Skip glyph rendering for spaces and nulls
+                    if cell.ch == ' ' || cell.ch == '\0' {
                         continue;
                     }
                     let cp = cell.ch as u32;
@@ -597,7 +623,7 @@ impl App {
                         Some(cell_w as f32),
                         Some(cell_h as f32),
                     );
-                    text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
+                    text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
                     text_buf.shape_until_scroll(&mut self.font_system, false);
                     let base_color = Color::rgb(fr, fg_c, fb);
                     for run in text_buf.layout_runs() {
@@ -697,7 +723,7 @@ impl App {
                             };
                             let attrs = Attrs::new().family(family).weight(weight);
                             let text = cell.ch.to_string();
-                            text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Basic);
+                            text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
                             text_buf.shape_until_scroll(&mut self.font_system, false);
                             let base_color = Color::rgb(cell.fg.r, cell.fg.g, cell.fg.b);
                             for run in text_buf.layout_runs() {

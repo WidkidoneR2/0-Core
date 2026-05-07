@@ -59,6 +59,14 @@ pub struct Terminal {
     cur_attrs: CellAttrs,
     parser: Parser,
     pub soft_wrapped: Vec<bool>,
+    // Pending DSR response (ESC[6n cursor position query)
+    pub pending_dsr: bool,
+    // Alternate screen buffer (ESC[?1049h/l)
+    pub alt_screen: bool,
+    alt_grid: Vec<Vec<Cell>>,
+    alt_soft_wrapped: Vec<bool>,
+    saved_cursor_x: usize,
+    saved_cursor_y: usize,
 }
 impl Terminal {
     pub fn new(cols: usize, rows: usize) -> Self {
@@ -74,6 +82,12 @@ impl Terminal {
             cur_attrs: CellAttrs::default(),
             parser: Parser::new(),
             soft_wrapped: vec![false; rows],
+            pending_dsr: false,
+            alt_screen: false,
+            alt_grid: vec![vec![Cell::default(); cols]; rows],
+            alt_soft_wrapped: vec![false; rows],
+            saved_cursor_x: 0,
+            saved_cursor_y: 0,
         }
     }
     pub fn feed(&mut self, data: &[u8]) {
@@ -85,6 +99,12 @@ impl Terminal {
             }
         }
         self.parser = parser;
+    }
+    /// Generate DSR cursor position response -- ESC[row;colR
+    /// Called when child sends ESC[6n (cursor position query)
+    pub fn cursor_position_report(&self) -> Vec<u8> {
+        format!("[{};{}R", self.cursor_y + 1, self.cursor_x + 1)
+            .into_bytes()
     }
     pub fn resize(&mut self, cols: usize, rows: usize) {
         // Preserve existing content -- expand/shrink without wiping
@@ -214,7 +234,7 @@ impl<'a> Perform for VteHandler<'a> {
             _ => {}
         }
     }
-    fn csi_dispatch(&mut self, params: &Params, _: &[u8], _: bool, action: char) {
+    fn csi_dispatch(&mut self, params: &Params, intermediates: &[u8], _: bool, action: char) {
         let ps: Vec<u16> = params
             .iter()
             .map(|p| p.first().copied().unwrap_or(0))
@@ -414,7 +434,50 @@ impl<'a> Perform for VteHandler<'a> {
                     i += 1;
                 }
             }
-            'l' | 'h' | 'r' => {}
+            'h' | 'l' => {
+                let enable = action == 'h';
+                if intermediates.contains(&b'?') {
+                    match p0 {
+                        // Alternate screen buffer
+                        1049 => {
+                            if enable {
+                                // Save main screen, switch to alternate
+                                self.term.alt_grid = self.term.grid.clone();
+                                self.term.alt_soft_wrapped = self.term.soft_wrapped.clone();
+                                self.term.saved_cursor_x = self.term.cursor_x;
+                                self.term.saved_cursor_y = self.term.cursor_y;
+                                self.term.grid = vec![vec![Cell::default(); self.term.cols]; self.term.rows];
+                                self.term.soft_wrapped = vec![false; self.term.rows];
+                                self.term.cursor_x = 0;
+                                self.term.cursor_y = 0;
+                                self.term.alt_screen = true;
+                            } else {
+                                // Restore main screen
+                                self.term.grid = self.term.alt_grid.clone();
+                                self.term.soft_wrapped = self.term.alt_soft_wrapped.clone();
+                                self.term.cursor_x = self.term.saved_cursor_x;
+                                self.term.cursor_y = self.term.saved_cursor_y;
+                                self.term.alt_screen = false;
+                            }
+                        }
+                        // Cursor visibility -- ignore silently for now
+                        25 => {}
+                        // Bracketed paste -- ignore silently for now
+                        2004 => {}
+                        // Application cursor keys -- ignore silently
+                        1 => {}
+                        _ => {}
+                    }
+                }
+            }
+            'r' => {}
+            // DSR -- cursor position report (ESC[6n)
+            // Response is written back to PTY by the caller via pending_response
+            'n' => {
+                if p0 == 6 {
+                    self.term.pending_dsr = true;
+                }
+            }
             _ => {}
         }
     }
