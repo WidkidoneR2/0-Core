@@ -140,7 +140,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "faelight-lock"
-version = "2.1.0"
+version = "2.0.0"
 category = "security"
 description = "File and directory locking"
 expected_usage = "medium"

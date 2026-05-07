@@ -1,16 +1,20 @@
 [package]
 name = "faelight-lock"
-version = "2.1.0"
+version = "2.0.0"
 edition = "2021"
-description = "Screen locker with Faelight Forest theming - path-resilient!"
-
+description = "Native Rust Wayland screen locker -- ext-session-lock-v1"
+[[bin]]
+name = "faelight-lock"
+path = "src/main.rs"
+[[bin]]
+name = "faelight-lock-auth"
+path = "src/bin/auth.rs"
 [dependencies]
-# Core infrastructure
+pam = "0.8"
+smithay-client-toolkit = "0.20"
+wayland-client = "0.31"
+wayland-protocols = { workspace = true }
+fontdue = "0.9"
+chrono = "0.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
 faelight-core = { path = "../faelight-core" }
-
-# Modern CLI
-clap = { version = "4.5", features = ["derive"] }
-
-# Beautiful output
-colored = "2.1"
-
