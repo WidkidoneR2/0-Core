@@ -1,5 +1,21 @@
 # Changelog
 
+## [13.1.0] — The Forest That Knows Itself (2026-05-07)
+
+Friday Architecture v2 foundation is live. The Intent Ledger now has eyes.
+
+### What shipped
+- **Intent Ledger v2** — blocked, next, brief, graph commands. Dependency enforcement in cistart. Retrospective on cicomplete. Session brief on startup. The ledger now has an opinion.
+- **faelight-lock v2** — native Rust Wayland lock via ext-session-lock-v1. PAM authentication, forest colors, fontdue rendering. Super+Ctrl+Escape.
+- **Friday Architecture v2 foundation** — confidence tiers (OBSERVE/SUGGEST/RECOMMEND/CHALLENGE), trust decay, friday_usefulness table live.
+- **Zero warnings** — wl-clipboard-rs bumped 0.8.1 → 0.9.3. Entire workspace builds clean.
+- **faelight-term improvements** — alternate screen, TERM env, DSR, background color rendering. All TUIs work inside faelight-term.
+
+### Forest state
+Health: 100% · Commits: 2505+ · Tools: 51 · Intents: 229 complete
+
+---
+
 ## [13.0.0] — Intelligence in the Shell (2026-05-03)
 
 ### 🎯 Completed Intents
