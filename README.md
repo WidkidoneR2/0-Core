@@ -1,4 +1,6 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
+# 🌲 Faelight Forest 13.0.0
+
 ![Version](https://img.shields.io/badge/version-13.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
