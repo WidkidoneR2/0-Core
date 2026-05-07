@@ -451,7 +451,7 @@ async fn health_watchdog(db_path: String) {
                 .args([
                     "--urgency=critical",
                     "--app-name=Friday",
-                    "🏥 Forest Health Alert",
+                    "[Friday] Forest Health Alert",
                     &format!("Health dropped to {}% (was {}%). Run: d", health, last_health),
                 ])
                 .spawn();
@@ -462,7 +462,7 @@ async fn health_watchdog(db_path: String) {
                 .args([
                     "--urgency=normal",
                     "--app-name=Friday",
-                    "✅ Forest Health Restored",
+                    "[Friday] Forest Health Restored",
                     &format!("Health back to {}%. All systems nominal.", health),
                 ])
                 .spawn();
@@ -1022,7 +1022,7 @@ async fn contradiction_detection_loop(db_path: String) {
                 .args([
                     &format!("--urgency={}", urgency),
                     "--app-name=Friday",
-                    "🌲 Friday: Contradiction Detected",
+                    "[Friday] Contradiction Detected",
                     &short,
                 ])
                 .spawn();
