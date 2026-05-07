@@ -327,6 +327,10 @@ pub enum IntentCommand {
     Story {
         id: String,
     },
+    Blocked,
+    Next,
+    Brief,
+    Graph,
 }
 #[derive(Debug)]
 pub enum ProfileCommand {

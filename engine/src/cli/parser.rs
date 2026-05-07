@@ -676,6 +676,14 @@ pub enum IntentCommands {
     Edit {
         id: String,
     },
+    /// Show blocked intents and what is blocking them
+    Blocked,
+    /// Recommend next intent with explanation
+    Next,
+    /// Session brief -- active intent, velocity, what to do
+    Brief,
+    /// ASCII dependency graph of all intents
+    Graph,
 }
 
 #[derive(Subcommand)]

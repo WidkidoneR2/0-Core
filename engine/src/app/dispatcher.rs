@@ -164,6 +164,10 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 }
                 IntentCommand::AutoLink { id } => crate::domains::intent::auto_link(ctx, &id),
                 IntentCommand::Story { id } => crate::domains::intent::story(ctx, &id),
+                IntentCommand::Blocked => crate::domains::intent::blocked(ctx),
+                IntentCommand::Next => crate::domains::intent::next_intent(ctx),
+                IntentCommand::Brief => crate::domains::intent::brief(ctx),
+                IntentCommand::Graph => crate::domains::intent::graph(ctx),
             }
         }
 

@@ -2070,3 +2070,200 @@ pub fn deps_critical_path(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(56).dimmed());
     Ok(())
 }
+
+// ── INT-247: Intent Ledger v2 -- New commands ─────────────────────────────
+/// Show all blocked intents and exactly what is blocking them
+pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    let intents = load_all(ctx);
+    let complete_ids: std::collections::HashSet<String> =
+        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    let mut blocked_list: Vec<(&Intent, Vec<String>)> = Vec::new();
+    for intent in intents.iter().filter(|i| i.status == "planned" || i.status == "in-progress") {
+        let unmet: Vec<String> = intent.depends_on.iter()
+            .filter(|dep| !complete_ids.contains(*dep))
+            .map(|dep| {
+                intents.iter().find(|i| &i.id == dep)
+                    .map(|i| format!("INT-{} ({})", i.id, i.status))
+                    .unwrap_or_else(|| format!("INT-{} (not found)", dep))
+            })
+            .collect();
+        if !unmet.is_empty() {
+            blocked_list.push((intent, unmet));
+        }
+    }
+    println!("{}", "🔒 Blocked Intents".bold());
+    println!("{}", "━".repeat(60).dimmed());
+    if blocked_list.is_empty() {
+        println!("  {} No blocked intents -- all dependencies satisfied", "✅".green());
+        return Ok(());
+    }
+    println!("  {} {} intents blocked by incomplete dependencies", "⚠".bright_yellow(), blocked_list.len());
+    println!();
+    for (intent, blockers) in &blocked_list {
+        println!("  {} INT-{} -- {}", "🔒".dimmed(), intent.id.bright_white(), intent.title.bright_white());
+        for blocker in blockers {
+            println!("       {} waiting on: {}", "⬆".bright_yellow(), blocker.bright_red());
+        }
+    }
+    println!("{}", "━".repeat(60).dimmed());
+    Ok(())
+}
+/// Recommend the next intent with explanation
+pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    let intents = load_all(ctx);
+    let complete_ids: std::collections::HashSet<String> =
+        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    // Score each planned intent
+    let mut scored: Vec<(&Intent, u32, Vec<String>)> = Vec::new();
+    for intent in intents.iter().filter(|i| i.status == "planned") {
+        // Check if all deps are complete
+        let unmet: Vec<String> = intent.depends_on.iter()
+            .filter(|dep| !complete_ids.contains(*dep))
+            .cloned().collect();
+        if !unmet.is_empty() { continue; } // skip blocked
+        let mut score = 0u32;
+        let mut reasons = Vec::new();
+        // How many intents does this unblock?
+        let unblocks: usize = intents.iter().filter(|other| {
+            other.status == "planned" && other.depends_on.contains(&intent.id)
+        }).count();
+        if unblocks > 0 {
+            score += (unblocks as u32 * 15).min(30);
+            reasons.push(format!("unblocks {} other intent(s)", unblocks));
+        }
+        // Tag-based scoring
+        let tags_str = intent.tags.join(",").to_lowercase();
+        if tags_str.contains("intelligence") || tags_str.contains("friday") {
+            score += 15;
+            reasons.push("high intelligence value".to_string());
+        }
+        if tags_str.contains("security") || tags_str.contains("critical") {
+            score += 20;
+            reasons.push("security/critical priority".to_string());
+        }
+        if tags_str.contains("v2") {
+            score += 10;
+            reasons.push("v2 upgrade pattern".to_string());
+        }
+        // Base score for being unblocked
+        score += 10;
+        reasons.push("no blocking dependencies".to_string());
+        scored.push((intent, score, reasons));
+    }
+    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    println!("{}", "🌲 Next Intent Recommendation".bold());
+    println!("{}", "━".repeat(60).dimmed());
+    if scored.is_empty() {
+        println!("  {} No unblocked planned intents found", "○".dimmed());
+        return Ok(());
+    }
+    let (top, score, reasons) = &scored[0];
+    println!("  {} Recommended: INT-{}", "→".bright_green(), top.id.bright_white());
+    println!("  {} {}", "  ".dimmed(), top.title.bright_white());
+    println!("  {} Priority score: {}/100", "  ".dimmed(), score.to_string().bright_green());
+    println!();
+    println!("  {} Why this intent:", "→".dimmed());
+    for reason in reasons {
+        println!("    {} {}", "◦".dimmed(), reason.bright_white());
+    }
+    if scored.len() > 1 {
+        println!();
+        println!("{}", "  Other ready intents:".dimmed());
+        for (intent, score, _) in scored.iter().skip(1).take(3) {
+            println!("    {} INT-{} -- {} (score: {})",
+                "◦".dimmed(),
+                intent.id.dimmed(),
+                intent.title.dimmed(),
+                score.to_string().dimmed());
+        }
+    }
+    println!("{}", "━".repeat(60).dimmed());
+    Ok(())
+}
+/// Session brief -- what to work on, context from last session
+pub fn brief(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    let intents = load_all(ctx);
+    let complete_ids: std::collections::HashSet<String> =
+        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    let active: Vec<&Intent> = intents.iter().filter(|i| i.status == "in-progress").collect();
+    let planned_count = intents.iter().filter(|i| i.status == "planned").count();
+    let complete_count = complete_ids.len();
+    println!("{}", "🌲 Session Brief".bold());
+    println!("{}", "━".repeat(60).dimmed());
+    // Active intents
+    if active.is_empty() {
+        println!("  {} No active intents", "○".dimmed());
+    } else {
+        println!("  {} Active:", "▸".bright_cyan());
+        for intent in &active {
+            println!("    {} INT-{} -- {}", "→".bright_green(), intent.id.bright_white(), intent.title.bright_white());
+        }
+    }
+    println!();
+    // Forest state
+    println!("  {} Forest state:", "→".dimmed());
+    println!("    {} {} complete  {} planned",
+        "◦".dimmed(),
+        complete_count.to_string().bright_green(),
+        planned_count.to_string().bright_white());
+    // What's ready to start
+    let ready: Vec<&Intent> = intents.iter()
+        .filter(|i| i.status == "planned")
+        .filter(|i| i.depends_on.iter().all(|dep| complete_ids.contains(dep)))
+        .collect();
+    println!();
+    println!("  {} Ready to start ({}):", "✅".green(), ready.len());
+    for intent in ready.iter().take(5) {
+        println!("    {} INT-{} -- {}", "◦".dimmed(), intent.id.bright_white(), intent.title.dimmed());
+    }
+    if ready.len() > 5 {
+        println!("    {} ...and {} more", "◦".dimmed(), ready.len() - 5);
+    }
+    println!();
+    println!("  {} Run: core intent next -- for priority recommendation", "→".dimmed());
+    println!("{}", "━".repeat(60).dimmed());
+    Ok(())
+}
+/// ASCII dependency graph of planned intents
+pub fn graph(ctx: &AppContext) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    let intents = load_all(ctx);
+    let complete_ids: std::collections::HashSet<String> =
+        intents.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+    let planned: Vec<&Intent> = intents.iter()
+        .filter(|i| i.status == "planned" || i.status == "in-progress")
+        .collect();
+    println!("{}", "🌲 Intent Dependency Graph".bold());
+    println!("{}", "━".repeat(60).dimmed());
+    println!("  {} complete  {} in-progress  {} planned  {} blocked",
+        "✅".green(), "▸".bright_cyan(), "○".bright_white(), "🔒".dimmed());
+    println!("{}", "━".repeat(60).dimmed());
+    for intent in &planned {
+        let status_icon = match intent.status.as_str() {
+            "in-progress" => "▸".bright_cyan().to_string(),
+            "complete"    => "✅".to_string(),
+            _             => {
+                let blocked = intent.depends_on.iter().any(|dep| !complete_ids.contains(dep));
+                if blocked { "🔒".to_string() } else { "○".bright_white().to_string() }
+            }
+        };
+        println!("  {} INT-{} -- {}", status_icon, intent.id.bright_white(), intent.title.dimmed());
+        for dep in &intent.depends_on {
+            if !complete_ids.contains(dep) {
+                if let Some(d) = intents.iter().find(|i| &i.id == dep) {
+                    println!("       {} needs: INT-{} [{}]",
+                        "⬆".bright_yellow(), d.id.bright_red(), d.status.dimmed());
+                }
+            }
+        }
+    }
+    println!("{}", "━".repeat(60).dimmed());
+    Ok(())
+}

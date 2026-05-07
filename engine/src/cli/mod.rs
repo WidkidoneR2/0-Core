@@ -213,6 +213,10 @@ pub fn parse() -> Command {
             IntentCommands::Predict { id } => IntentCommand::Predict { id },
             IntentCommands::AutoLink { id } => IntentCommand::AutoLink { id },
             IntentCommands::Story { id } => IntentCommand::Story { id },
+            IntentCommands::Blocked => IntentCommand::Blocked,
+            IntentCommands::Next => IntentCommand::Next,
+            IntentCommands::Brief => IntentCommand::Brief,
+            IntentCommands::Graph => IntentCommand::Graph,
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },
