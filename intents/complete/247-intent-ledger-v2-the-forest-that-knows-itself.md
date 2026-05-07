@@ -1,7 +1,7 @@
 ---
 id: 247
 title: "Intent Ledger v2 -- The Forest That Knows Itself"
-status: in-progress
+status: complete
 date: 2026-04-22
 tags: [intelligence, intent-ledger, friday, core, planning, velocity, dependency, retrospective, awareness, v2]
 ---
