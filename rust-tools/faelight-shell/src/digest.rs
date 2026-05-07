@@ -89,6 +89,55 @@ pub fn render(mem: &SessionMemory, db: &ForestDb, core_root: &str) -> String {
         ));
     }
 
+    // INT-247 Phase 5: blocked + ready counts in session brief
+    {
+        let intents_future = std::path::Path::new(core_root).join("intents/future");
+        let intents_complete = std::path::Path::new(core_root).join("intents/complete");
+        let mut complete_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        if let Ok(entries) = std::fs::read_dir(&intents_complete) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Some(num) = name.split('-').next() {
+                    complete_ids.insert(num.to_string());
+                }
+            }
+        }
+        let mut blocked_count = 0usize;
+        let mut ready_count = 0usize;
+        if let Ok(entries) = std::fs::read_dir(&intents_future) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.extension().and_then(|e| e.to_str()) != Some("md") { continue; }
+                if let Ok(text) = std::fs::read_to_string(&p) {
+                    if !text.contains("status: planned") { continue; }
+                    let deps: Vec<String> = text.lines()
+                        .find(|l| l.trim_start().starts_with("depends_on:"))
+                        .and_then(|l| {
+                            let v = l.splitn(2, ':').nth(1)?.trim()
+                                .trim_start_matches('[').trim_end_matches(']').to_string();
+                            if v.is_empty() { return Some(vec![]); }
+                            Some(v.split(',').map(|s| s.trim().to_string()).collect())
+                        })
+                        .unwrap_or_default();
+                    let has_unmet = deps.iter().any(|d| {
+                        let d = d.trim();
+                        !d.is_empty() && !complete_ids.contains(d)
+                    });
+                    if has_unmet { blocked_count += 1; } else { ready_count += 1; }
+                }
+            }
+        }
+        if blocked_count > 0 {
+            lines.push(format!("    · {} intent{} blocked",
+                blocked_count.to_string().bright_red(),
+                if blocked_count == 1 { "" } else { "s" }));
+        }
+        if ready_count > 0 {
+            lines.push(format!("    · {} intent{} ready -- run: core intent next",
+                ready_count.to_string().bright_green(),
+                if ready_count == 1 { "" } else { "s" }));
+        }
+    }
     // Pending decisions older than 7 days
     let old_pending: i64 = db
         .conn
