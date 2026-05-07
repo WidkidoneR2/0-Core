@@ -7789,17 +7789,33 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         .unwrap_or_else(|_| "100%".to_string())
         .trim()
         .to_string();
-    // Load Jarvis score from core strategy
-    let jarvis = "90/100";
+    // Load Friday live data from state.db
+    let (friday_patterns, friday_facts) = {
+        let db_path = format!("{}/0-core/runtime/state.db", home);
+        let conn = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        );
+        match conn {
+            Ok(c) => {
+                let patterns: i64 = c.query_row(
+                    "SELECT COUNT(*) FROM friday_patterns WHERE confidence >= 0.7",
+                    [],
+                    |r| r.get(0),
+                ).unwrap_or(0);
+                let facts: i64 = c.query_row(
+                    "SELECT COUNT(*) FROM friday_knowledge",
+                    [],
+                    |r| r.get(0),
+                ).unwrap_or(0);
+                (patterns, facts)
+            }
+            Err(_) => (0, 0),
+        }
+    };
     // Get login shell date
     let login_since = "2026-04-03";
-    // Count days as daily driver
-    let days = {
-        let start = chrono::NaiveDate::parse_from_str(login_since, "%Y-%m-%d")
-            .unwrap_or_else(|_| chrono::Local::now().date_naive());
-        let today = chrono::Local::now().date_naive();
-        (today - start).num_days()
-    };
+
     let mut out = String::new();
     out.push_str(
         "
@@ -7825,12 +7841,8 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     out.push_str(&format!(
         "  {:<16} {}
 ",
-        "Daily driver".dimmed(),
-        if days >= 30 {
-            "established (30+ days)".bright_green()
-        } else {
-            format!("day {} of 30", days).bright_green()
-        }
+        "Forest".dimmed(),
+        "Faelight Forest 13.0.0".bright_green()
     ));
     out.push_str(&format!(
         "  {:<16} {}
@@ -7847,8 +7859,8 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
     out.push_str(&format!(
         "  {:<16} {}
 ",
-        "Jarvis".dimmed(),
-        format!("{} — Strategic Advisor", jarvis).bright_cyan()
+        "Friday".dimmed(),
+        format!("active · {} patterns · {} facts", friday_patterns, friday_facts).bright_cyan()
     ));
     out.push_str(&format!(
         "  {}
