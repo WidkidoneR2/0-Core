@@ -364,7 +364,7 @@ fn install_dependencies() {
         "eza",
         "bat",
         "fd",
-        "fzf",
+        "skim",
         "ripgrep",
         "yazi",
         "lazygit",

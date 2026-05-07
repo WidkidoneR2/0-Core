@@ -216,12 +216,12 @@ fn cmd_pick() -> Result<()> {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let mut child = Command::new("fzf")
+    let mut child = Command::new("sk")
         .args(["--prompt=📋 clipboard> ", "--height=40%", "--reverse"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .context("fzf not found")?;
+        .context("sk not found")?;
 
     child.stdin.as_mut().unwrap().write_all(input.as_bytes())?;
     let output = child.wait_with_output()?;

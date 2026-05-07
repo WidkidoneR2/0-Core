@@ -1,7 +1,7 @@
 ---
 id: 274
 title: "faelight-pick -- Fuzzy Selection Everywhere"
-status: planned
+status: in-progress
 date: 2026-05-06
 tags: [skim, fuzzy, picker, fzf, rust, fsh, navigation, intent, history, files, vocabulary]
 ---

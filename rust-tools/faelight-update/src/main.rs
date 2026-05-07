@@ -1197,7 +1197,7 @@ fn classify_risk(name: &str) -> &'static str {
     ];
     const IMPORTANT: &[&str] = &[
         "git", "neovim", "rust", "rustup", "cargo", "python", "nodejs", "npm", "openssh", "curl",
-        "wget", "bash", "niri", "sway", "ripgrep", "fd", "bat", "eza", "fzf", "zoxide", "paru",
+        "wget", "bash", "niri", "sway", "ripgrep", "fd", "bat", "eza", "skim", "zoxide", "paru",
     ];
     let n = name.to_lowercase();
     if CRITICAL
