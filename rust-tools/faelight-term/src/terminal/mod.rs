@@ -126,7 +126,15 @@ impl Terminal {
                 self.grid.push(vec![Cell::default(); cols]);
             }
         } else {
-            self.grid.truncate(rows);
+            // Drop from TOP not BOTTOM -- preserve the active area where prompt lives
+            let drop = old_rows - rows;
+            self.grid.drain(0..drop);
+            if self.soft_wrapped.len() > drop {
+                self.soft_wrapped.drain(0..drop);
+            } else {
+                self.soft_wrapped.clear();
+            }
+            self.cursor_y = self.cursor_y.saturating_sub(drop);
         }
         self.cursor_x = self.cursor_x.min(cols.saturating_sub(1));
         self.cursor_y = self.cursor_y.min(rows.saturating_sub(1));
