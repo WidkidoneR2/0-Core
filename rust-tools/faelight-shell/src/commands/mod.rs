@@ -312,6 +312,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "git" if args.is_empty() => git_status(core_root),
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
+        "pick" => pick_cmd(db, core_root, args),
         "where_old_disabled" => {
             CommandResult::Error("use with pipe: tools | where score < 70".to_string())
         }
@@ -5436,6 +5437,156 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
             .to_string(),
     );
     CommandResult::Output(out)
+}
+
+fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let subcommand = args.first().copied().unwrap_or("");
+    let extra = if args.len() > 1 { args[1] } else { "" };
+    match subcommand {
+        "intent" | "intents" => {
+            // Collect all intent files
+            let mut items = String::new();
+            for dir in &["future", "complete", "in-progress"] {
+                let path = format!("{}/intents/{}", core_root, dir);
+                if let Ok(entries) = std::fs::read_dir(&path) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if !name.ends_with(".md") { continue; }
+                        let num = name.split('-').next().unwrap_or("").to_string();
+                        let title = name.trim_end_matches(".md")
+                            .splitn(3, '-')
+                            .nth(2)
+                            .unwrap_or("")
+                            .replace('-', " ");
+                        let status = *dir;
+                        if extra == "--active" && status != "future" { continue; }
+                        items.push_str(&format!("INT-{}  [{}]  {}
+", num, status, title));
+                    }
+                }
+            }
+            if items.is_empty() {
+                return CommandResult::Output("  No intents found".to_string());
+            }
+            let mut child = match Command::new("sk")
+                .args(["--prompt=pick intent> ", "--height=50%", "--reverse", "--ansi"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn() {
+                    Ok(c) => c,
+                    Err(_) => return CommandResult::Error("sk not found -- install skim".to_string()),
+                };
+            if let Some(stdin) = child.stdin.as_mut() {
+                let _ = stdin.write_all(items.as_bytes());
+            }
+            let output = child.wait_with_output().unwrap_or_else(|_| {
+                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
+            });
+            if output.status.success() {
+                let line = String::from_utf8_lossy(&output.stdout);
+                let line = line.trim();
+                if !line.is_empty() {
+                    let id = line.split_whitespace().next().unwrap_or("").replace("INT-", "");
+                    if !id.is_empty() {
+                        return CommandResult::Output(format!("intent show {}", id));
+                    }
+                }
+            }
+            CommandResult::Output(String::new())
+        }
+        "history" | "hist" => {
+            let rows: Vec<(String, i64)> = {
+                let mut stmt = match db.conn.prepare(
+                    "SELECT command, timestamp FROM shell_history ORDER BY timestamp DESC LIMIT 500"
+                ) {
+                    Ok(s) => s,
+                    Err(_) => return CommandResult::Error("Cannot read history".to_string()),
+                };
+                stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    .unwrap_or_default()
+            };
+            let mut items = String::new();
+            for (cmd, ts) in &rows {
+                let time = fmt_time(*ts, "%H:%M");
+                items.push_str(&format!("{}  {}
+", time, cmd));
+            }
+            let mut child = match Command::new("sk")
+                .args(["--prompt=pick history> ", "--height=50%", "--reverse"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn() {
+                    Ok(c) => c,
+                    Err(_) => return CommandResult::Error("sk not found".to_string()),
+                };
+            if let Some(stdin) = child.stdin.as_mut() {
+                let _ = stdin.write_all(items.as_bytes());
+            }
+            let output = child.wait_with_output().unwrap_or_else(|_| {
+                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
+            });
+            if output.status.success() {
+                let line = String::from_utf8_lossy(&output.stdout);
+                let cmd = line.trim().splitn(2, "  ").nth(1).unwrap_or("").trim();
+                if !cmd.is_empty() {
+                    return CommandResult::Output(format!("  Selected: {}", cmd));
+                }
+            }
+            CommandResult::Output(String::new())
+        }
+        "file" | "files" => {
+            let search_dir = if extra == "--core" {
+                core_root.to_string()
+            } else {
+                std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| ".".to_string())
+            };
+            let rg_out = Command::new("rg")
+                .args(["--files", &search_dir])
+                .output();
+            let items = match rg_out {
+                Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+                Err(_) => return CommandResult::Error("rg not found".to_string()),
+            };
+            let mut child = match Command::new("sk")
+                .args(["--prompt=pick file> ", "--height=50%", "--reverse"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn() {
+                    Ok(c) => c,
+                    Err(_) => return CommandResult::Error("sk not found".to_string()),
+                };
+            if let Some(stdin) = child.stdin.as_mut() {
+                let _ = stdin.write_all(items.as_bytes());
+            }
+            let output = child.wait_with_output().unwrap_or_else(|_| {
+                std::process::Output { status: std::process::ExitStatus::default(), stdout: vec![], stderr: vec![] }
+            });
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return CommandResult::Output(format!("  {}", path));
+                }
+            }
+            CommandResult::Output(String::new())
+        }
+        _ => CommandResult::Output(format!(
+            "  {}  pick -- fuzzy selection
+  {}
+  {}
+  {}
+  {}",
+            "🌲".to_string(),
+            "  pick intent          fuzzy search all intents".dimmed(),
+            "  pick intent --active in-progress intents only".dimmed(),
+            "  pick history         fuzzy command history".dimmed(),
+            "  pick file [--core]   fuzzy file search".dimmed(),
+        )),
+    }
 }
 
 fn cd(args: &[&str]) -> CommandResult {
