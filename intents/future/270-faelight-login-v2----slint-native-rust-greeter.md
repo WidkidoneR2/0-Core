@@ -3,7 +3,7 @@ id: 270
 date: 2026-05-03
 type: feature
 title: "faelight-login v2 -- slint native Rust greeter"
-status: planned
+status: in-progress
 tags: [login, faelight-login, slint, wayland, greetd, ui, rust]
 ---
 

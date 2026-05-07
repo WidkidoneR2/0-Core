@@ -24,7 +24,6 @@ const DIM: Color = Color::Rgb(90, 110, 95);
 const BG: Color = Color::Rgb(15, 20, 17);
 const FG: Color = Color::Rgb(215, 224, 218);
 const ERR: Color = Color::Rgb(227, 107, 107);
-const GOLD: Color = Color::Rgb(200, 180, 80);
 // ASCII forest tree -- rendered line by line during boot animation
 
 #[derive(Clone, PartialEq)]
@@ -38,7 +37,6 @@ struct LoginState {
     password: String,
     focused: Field,
     error: Option<String>,
-    health: String,
     commits: String,
     version: String,
     active_intent: String,
@@ -53,9 +51,8 @@ impl LoginState {
             password: String::new(),
             focused: Field::Username,
             error: None,
-            health: read_file("/etc/faelight/HEALTH", "100%"),
             commits: read_file("/etc/faelight/COMMITS", "?"),
-            version: read_file("/etc/faelight/VERSION", "11.9.0"),
+            version: read_file("/etc/faelight/VERSION", "13.0.0"),
             active_intent: {
                 let s = read_active_intent();
                 let truncated: String = s.chars().take(45).collect();
@@ -162,7 +159,7 @@ fn draw_login(
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(70),
+                Constraint::Length(76),
                 Constraint::Fill(1),
             ])
             .split(outer[1]);
@@ -191,7 +188,7 @@ fn draw_login(
         let version_str = format!("v{}", state.version);
         let title = Paragraph::new(Line::from(vec![
             Span::styled(
-                "  * Faelight Forest  ",
+                "  🌲 Faelight Forest  ",
                 Style::default()
                     .fg(pulse_color)
                     .add_modifier(Modifier::BOLD),
@@ -247,22 +244,12 @@ fn draw_login(
             rows[4],
         );
         // Status panel
-        let health_color = if state.health.starts_with("100") {
-            ACCENT
-        } else {
-            GOLD
-        };
         let status_lines = vec![
             Line::from(vec![
-                Span::styled("  Health  ", Style::default().fg(DIM)),
-                Span::styled(
-                    &state.health,
-                    Style::default()
-                        .fg(health_color)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled("   Commits  ", Style::default().fg(DIM)),
-                Span::styled(&state.commits, Style::default().fg(FG)),
+                Span::styled("  Commits  ", Style::default().fg(DIM)),
+                Span::styled(&state.commits, Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                Span::styled("   ·   Faelight Forest ", Style::default().fg(DIM)),
+                Span::styled(&state.version, Style::default().fg(FG)),
             ]),
             Line::from(if !state.active_intent.is_empty() {
                 vec![
@@ -318,7 +305,7 @@ fn draw_login(
 fn read_system_version() -> String {
     std::fs::read_to_string("/etc/faelight/VERSION")
         .map(|s| s.trim().to_string())
-        .unwrap_or_else(|_| "11.9.0".to_string())
+        .unwrap_or_else(|_| "13.0.0".to_string())
 }
 fn main() -> io::Result<()> {
     // Redirect stderr to /dev/null -- suppress daemon output bleeding into TUI
