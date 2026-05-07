@@ -1,7 +1,7 @@
 ---
 id: 246
 title: "Friday Architecture v2 -- The Voice That Thinks"
-status: planned
+status: in-progress
 date: 2026-04-22
 tags: [friday, architecture, voice, simulation, event-bus, confidence, intelligence, v2]
 depends: [216, 219, 234]

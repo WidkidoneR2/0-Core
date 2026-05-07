@@ -28,6 +28,8 @@ pub enum FridayArchCommand {
     Models,
     Proposals,
     Contradictions,
+    TrustDecay,
+    Usefulness,
 }
 
 #[derive(Debug)]

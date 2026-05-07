@@ -118,6 +118,8 @@ pub fn parse() -> Command {
             FridayArchCommands::Models => FridayArchCommand::Models,
             FridayArchCommands::Proposals => FridayArchCommand::Proposals,
             FridayArchCommands::Contradictions => FridayArchCommand::Contradictions,
+            FridayArchCommands::TrustDecay => FridayArchCommand::TrustDecay,
+            FridayArchCommands::Usefulness => FridayArchCommand::Usefulness,
         }),
         Commands::Version => Command::Version,
         Commands::Plugin { command } => Command::Plugin(match command {

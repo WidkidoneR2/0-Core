@@ -560,6 +560,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 }
                 Ok(())
             }
+            FridayArchCommand::TrustDecay => crate::domains::friday_arch::decay_trust(ctx),
+            FridayArchCommand::Usefulness => crate::domains::friday_arch::show_usefulness(ctx),
         },
         Command::Synthesize(c) => match c {
             SynthesizeCommand::Now => crate::domains::synthesis::cmd_now(ctx),

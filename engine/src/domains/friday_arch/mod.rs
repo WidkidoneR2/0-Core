@@ -467,3 +467,196 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+// ── INT-246: Friday Architecture v2 ──────────────────────────────────────
+/// Confidence tiers -- formalized from INT-246 Pillar 1
+pub enum ConfidenceTier {
+    Observe,    // 0.0 - 0.4  -- collect data, say nothing
+    Suggest,    // 0.4 - 0.7  -- surface insight, no interruption
+    Recommend,  // 0.7 - 0.9  -- interrupt with specific suggestion
+    Challenge,  // 0.9+       -- block and require explicit approval
+}
+impl ConfidenceTier {
+    pub fn from_confidence(c: f64) -> Self {
+        if c >= 0.9 { Self::Challenge }
+        else if c >= 0.7 { Self::Recommend }
+        else if c >= 0.4 { Self::Suggest }
+        else { Self::Observe }
+    }
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Observe   => "OBSERVE",
+            Self::Suggest   => "SUGGEST",
+            Self::Recommend => "RECOMMEND",
+            Self::Challenge => "CHALLENGE",
+        }
+    }
+    #[allow(dead_code)]
+    pub fn should_speak(&self) -> bool {
+        !matches!(self, Self::Observe)
+    }
+}
+/// Create friday_usefulness table -- INT-246 Pillar 4
+static USEFULNESS_TABLE: &str = "
+CREATE TABLE IF NOT EXISTS friday_usefulness (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion  TEXT NOT NULL,
+    context     TEXT NOT NULL DEFAULT '',
+    confidence  REAL NOT NULL DEFAULT 0.5,
+    tier        TEXT NOT NULL DEFAULT 'suggest',
+    accepted    INTEGER NOT NULL DEFAULT 0,
+    recorded_at INTEGER NOT NULL
+);
+";
+pub fn ensure_usefulness_table(ctx: &AppContext) -> CoreResult<()> {
+    ctx.runtime.db.execute_batch(USEFULNESS_TABLE)?;
+    Ok(())
+}
+/// Record a Friday suggestion outcome (accepted=1 or accepted=0)
+#[allow(dead_code)]
+pub fn record_usefulness(
+    ctx: &AppContext,
+    suggestion: &str,
+    context: &str,
+    confidence: f64,
+    accepted: bool,
+) -> CoreResult<()> {
+    ensure_usefulness_table(ctx)?;
+    let tier = ConfidenceTier::from_confidence(confidence);
+    ctx.runtime.db.execute(
+        "INSERT INTO friday_usefulness (suggestion, context, confidence, tier, accepted, recorded_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            suggestion, context, confidence,
+            tier.label(),
+            if accepted { 1i64 } else { 0i64 },
+            now_ts()
+        ],
+    )?;
+    Ok(())
+}
+/// Show Friday usefulness metrics -- INT-246 Pillar 4
+pub fn show_usefulness(ctx: &AppContext) -> CoreResult<()> {
+    ensure_usefulness_table(ctx)?;
+    let db = &ctx.runtime.db;
+    println!("{}", "📊 Friday Usefulness Metrics".bold());
+    println!("{}", "━".repeat(55).dimmed());
+    let total: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_usefulness", [], |r| r.get(0)
+    ).unwrap_or(0);
+    let accepted: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1", [], |r| r.get(0)
+    ).unwrap_or(0);
+    if total == 0 {
+        println!("  {} No suggestions tracked yet", "○".dimmed());
+        println!("  {} Suggestions are tracked as you accept or reject Friday proposals", "→".dimmed());
+        return Ok(());
+    }
+    let rate = accepted as f64 / total as f64 * 100.0;
+    let rate_str = if rate >= 75.0 {
+        format!("{:.1}%", rate).bright_green().to_string()
+    } else if rate >= 50.0 {
+        format!("{:.1}%", rate).bright_yellow().to_string()
+    } else {
+        format!("{:.1}%", rate).bright_red().to_string()
+    };
+    println!("  {} Total suggestions: {}", "→".dimmed(), total.to_string().bright_white());
+    println!("  {} Accepted: {}", "→".dimmed(), accepted.to_string().bright_green());
+    println!("  {} Rejected: {}", "→".dimmed(), (total - accepted).to_string().bright_red());
+    println!("  {} Acceptance rate: {} (target: >75%)", "→".dimmed(), rate_str);
+    // By tier
+    println!();
+    println!("  {} By confidence tier:", "→".dimmed());
+    for tier in &["OBSERVE", "SUGGEST", "RECOMMEND", "CHALLENGE"] {
+        let t: i64 = db.query_row(
+            "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1",
+            params![tier], |r| r.get(0)
+        ).unwrap_or(0);
+        let a: i64 = db.query_row(
+            "SELECT COUNT(*) FROM friday_usefulness WHERE tier = ?1 AND accepted = 1",
+            params![tier], |r| r.get(0)
+        ).unwrap_or(0);
+        if t > 0 {
+            println!("    {} {}: {}/{} accepted", "◦".dimmed(), tier.bright_white(), a, t);
+        }
+    }
+    println!("{}", "━".repeat(55).dimmed());
+    Ok(())
+}
+/// Trust decay -- INT-246 Pillar 1 (deferred from INT-216)
+/// Models that are consistently wrong lose weight over time.
+/// Models below 0.3 trust are silenced automatically.
+pub fn decay_trust(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Get all active models with trust data
+    let mut stmt = db.prepare(
+        "SELECT m.id, m.confidence, t.predictions, t.correct
+         FROM friday_models m
+         JOIN friday_trust t ON t.model_id = m.id
+         WHERE m.active = 1 AND t.predictions > 0"
+    )?;
+    let models: Vec<(i64, f64, i64, i64)> = stmt.query_map([], |r| {
+        Ok((r.get::<_, i64>(0)?, r.get::<_, f64>(1)?,
+            r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
+    })?.filter_map(|r| r.ok()).collect();
+    if models.is_empty() {
+        println!("  {} No models with prediction data yet", "○".dimmed());
+        return Ok(());
+    }
+    println!("{}", "🔄 Friday Trust Decay".bold());
+    println!("{}", "━".repeat(55).dimmed());
+    let mut silenced = 0;
+    let mut decayed = 0;
+    let mut gained = 0;
+    for (model_id, confidence, predictions, correct) in &models {
+        let accuracy = *correct as f64 / *predictions as f64;
+        let new_confidence = if accuracy < 0.5 {
+            // Wrong more than half the time -- decay
+            (confidence - 0.1).max(0.0)
+        } else if accuracy > 0.8 {
+            // Reliably correct -- gain trust
+            (confidence + 0.05).min(1.0)
+        } else {
+            *confidence
+        };
+        let tier = ConfidenceTier::from_confidence(new_confidence);
+        let still_active = new_confidence >= 0.3;
+        if (new_confidence - confidence).abs() > 0.001 {
+            db.execute(
+                "UPDATE friday_models SET confidence = ?1, active = ?2 WHERE id = ?3",
+                params![new_confidence, if still_active { 1 } else { 0 }, model_id],
+            )?;
+            db.execute(
+                "UPDATE friday_trust SET accuracy = ?1, updated_at = ?2 WHERE model_id = ?3",
+                params![accuracy, now, model_id],
+            )?;
+            if !still_active {
+                println!("  {} Model {} silenced (accuracy: {:.0}%, confidence: {:.2} → {:.2})",
+                    "🔇".dimmed(), model_id,
+                    accuracy * 100.0, confidence, new_confidence);
+                silenced += 1;
+            } else if new_confidence < *confidence {
+                println!("  {} Model {} decayed to {} (accuracy: {:.0}%)",
+                    "📉".bright_yellow(), model_id, tier.label(),
+                    accuracy * 100.0);
+                decayed += 1;
+            } else {
+                println!("  {} Model {} gained trust → {} (accuracy: {:.0}%)",
+                    "📈".bright_green(), model_id, tier.label(),
+                    accuracy * 100.0);
+                gained += 1;
+            }
+        }
+    }
+    if silenced == 0 && decayed == 0 && gained == 0 {
+        println!("  {} All models stable -- no decay needed", "✅".green());
+    } else {
+        println!();
+        println!("  {} {} silenced  {} decayed  {} gained trust",
+            "→".dimmed(), silenced, decayed, gained);
+    }
+    println!("{}", "━".repeat(55).dimmed());
+    Ok(())
+}

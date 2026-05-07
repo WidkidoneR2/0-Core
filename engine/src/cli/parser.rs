@@ -398,6 +398,10 @@ pub enum FridayArchCommands {
     Proposals,
     /// Show active contradictions
     Contradictions,
+    /// Run trust decay on all Friday models
+    TrustDecay,
+    /// Show Friday usefulness metrics
+    Usefulness,
 }
 
 #[derive(Subcommand, Clone)]
