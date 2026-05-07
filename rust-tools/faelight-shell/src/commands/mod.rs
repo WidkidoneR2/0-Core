@@ -313,6 +313,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "git" => run_external(line, db),
         "search" | "s" => search(db, args),
         "pick" => pick_cmd(db, core_root, args),
+        "compare" => compare_cmd(core_root, args),
         "where_old_disabled" => {
             CommandResult::Error("use with pipe: tools | where score < 70".to_string())
         }
@@ -5439,6 +5440,24 @@ fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
     CommandResult::Output(out)
 }
 
+fn compare_cmd(core_root: &str, args: &[&str]) -> CommandResult {
+    use std::process::Command;
+    let bin = format!("{}/scripts/faelight-diff", core_root);
+    let mut cmd_args: Vec<String> = Vec::new();
+    for a in args {
+        cmd_args.push(a.to_string());
+    }
+    // Default: git diff if in repo with no args
+    if args.is_empty() {
+        cmd_args.push("--git".to_string());
+    }
+    match Command::new(&bin).args(&cmd_args).status() {
+        Ok(_) => CommandResult::Output(String::new()),
+        Err(_) => CommandResult::Error(
+            "faelight-diff not found -- run: deploy faelight-diff".to_string()
+        ),
+    }
+}
 fn pick_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     use std::io::Write;
     use std::process::{Command, Stdio};

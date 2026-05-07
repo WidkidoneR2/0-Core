@@ -1592,6 +1592,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "faelight-diff"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "crossterm 0.28.1",
+ "faelight-core",
+ "ratatui 0.28.1",
+]
+
+[[package]]
 name = "faelight-digest"
 version = "1.0.0"
 dependencies = [

@@ -1,0 +1,12 @@
+[package]
+name = "faelight-diff"
+version = "1.0.0"
+edition = "2021"
+[[bin]]
+name = "faelight-diff"
+path = "src/main.rs"
+[dependencies]
+ratatui = "0.28"
+crossterm = "0.28"
+anyhow = "1.0"
+faelight-core = { path = "../faelight-core" }

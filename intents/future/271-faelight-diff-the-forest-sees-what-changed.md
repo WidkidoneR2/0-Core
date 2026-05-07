@@ -1,7 +1,7 @@
 ---
 id: 271
 title: "faelight-diff -- The Forest Sees What Changed"
-status: planned
+status: in-progress
 date: 2026-05-05
 tags: [faelight-diff, diff, compare, ratatui, tui, rust, friday, intelligence, files, directories, git]
 ---
