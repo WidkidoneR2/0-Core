@@ -1,7 +1,7 @@
 ---
 id: 243
 title: faelight-lock v2 -- Native Rust Wayland Lock
-status: in-progress
+status: complete
 date: 2026-04-19
 tags: [faelight-lock, wayland, ext-session-lock, niri, security, clock, friday, pam, v2]
 ---
