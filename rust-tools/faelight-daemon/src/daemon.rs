@@ -424,8 +424,26 @@ async fn health_watchdog(db_path: String) {
                     ],
                 );
             }
+            // INT-235: surface health drop via desktop notification
+            let _ = std::process::Command::new("notify-send")
+                .args([
+                    "--urgency=critical",
+                    "--app-name=Friday",
+                    "🏥 Forest Health Alert",
+                    &format!("Health dropped to {}% (was {}%). Run: d", health, last_health),
+                ])
+                .spawn();
         } else if health >= 100 && last_health < 95 {
             println!("✅ WATCHDOG: Health restored to {}%", health);
+            // INT-235: notify health restored
+            let _ = std::process::Command::new("notify-send")
+                .args([
+                    "--urgency=normal",
+                    "--app-name=Friday",
+                    "✅ Forest Health Restored",
+                    &format!("Health back to {}%. All systems nominal.", health),
+                ])
+                .spawn();
         }
         last_health = health;
     }

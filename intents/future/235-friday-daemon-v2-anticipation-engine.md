@@ -1,7 +1,7 @@
 ---
 id: 235
 title: "Friday Daemon v2 -- Anticipation Engine: Always Watching, Always Ready"
-status: planned
+status: in-progress
 date: 2026-04-16
 tags: [friday, daemon, anticipation, continuous, v2, background, intelligence]
 ---
