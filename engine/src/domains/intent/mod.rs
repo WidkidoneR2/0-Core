@@ -801,12 +801,41 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     println!("  {} Moved to intents/complete/", "📁".dimmed());
     println!("{}", "━".repeat(50).dimmed());
 
+    // INT-247 Phase 4: show newly unblocked intents + simple retrospective
+    {
+        let all = load_all(ctx);
+        let newly_unblocked: Vec<String> = all.iter()
+            .filter(|i| i.status == "planned")
+            .filter(|i| i.depends_on.contains(&intent.id) &&
+                i.depends_on.iter().all(|dep| {
+                    dep == id || all.iter().any(|x| &x.id == dep && x.status == "complete")
+                }))
+            .map(|i| format!("INT-{} -- {}", i.id, i.title))
+            .collect();
+        if !newly_unblocked.is_empty() {
+            println!();
+            println!("  {} Newly unblocked:", "🔓".green());
+            for u in &newly_unblocked {
+                println!("    {} {} is now ready to start", "◦".bright_green(), u);
+            }
+        }
+        let commits = std::process::Command::new("git")
+            .args(["-C", &ctx.core_root, "log", "--oneline",
+                   &format!("--grep=INT-{}", id), "--since=30 days ago"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
+            .unwrap_or(0);
+        println!();
+        println!("  {} Retrospective:", "📋".dimmed());
+        if commits > 0 {
+            println!("    {} ~{} commits referencing INT-{}", "◦".dimmed(), commits, id);
+        }
+        println!("    {} Run: core intent next", "◦".dimmed());
+    }
     // INT-217 -- Friday speaks on cicomplete
     let _ = crate::domains::friday::speak_on_complete(ctx, &intent.title);
-
     Ok(())
 }
-
 pub fn new_intent(ctx: &AppContext, template: &str, title: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
