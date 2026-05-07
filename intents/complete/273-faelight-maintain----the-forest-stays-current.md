@@ -1,7 +1,7 @@
 ---
 id: 273
 title: "faelight-maintain -- The Forest Stays Current"
-status: in-progress
+status: complete
 date: 2026-05-06
 tags: [maintenance, dependencies, rust, updates, health, longevity, audit, technical-debt]
 ---
