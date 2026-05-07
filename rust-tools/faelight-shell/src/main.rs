@@ -2991,7 +2991,14 @@ fn repl_main() -> Result<()> {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
                                                     println!();
-                                                    println!("  \u{1f332} Friday: {}", msg);
+                                                    let tier = if resp.contains("\"high\"") {
+                                                        ("RECOMMEND", "78%")
+                                                    } else if resp.contains("\"medium\"") {
+                                                        ("SUGGEST", "62%")
+                                                    } else {
+                                                        ("SUGGEST", "54%")
+                                                    };
+                                                    println!("  🌲 Friday: {}  ·  {} · {}", msg, tier.0, tier.1);
                                                 }
                                             }
                                         }

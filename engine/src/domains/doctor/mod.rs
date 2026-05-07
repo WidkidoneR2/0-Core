@@ -600,6 +600,30 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             }
         }
     }
+    // INT-246 -- Friday usefulness score in d output
+    {
+        let _ = crate::domains::friday_arch::ensure_usefulness_table(ctx);
+        let total: i64 = ctx.runtime.db
+            .query_row("SELECT COUNT(*) FROM friday_usefulness", [], |r| r.get(0))
+            .unwrap_or(0);
+        if total > 0 {
+            let accepted: i64 = ctx.runtime.db
+                .query_row("SELECT COUNT(*) FROM friday_usefulness WHERE accepted = 1", [], |r| r.get(0))
+                .unwrap_or(0);
+            let rate = accepted as f64 / total as f64 * 100.0;
+            let rate_str = if rate >= 75.0 {
+                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_green().to_string()
+            } else if rate >= 50.0 {
+                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_yellow().to_string()
+            } else {
+                format!("{:.0}% useful ({}/{})", rate, accepted, total).bright_red().to_string()
+            };
+            let calibration = if rate >= 75.0 { "trust well-calibrated" }
+                else if rate >= 50.0 { "trust building" }
+                else { "trust needs improvement" };
+            println!("  🌲  Friday: {} · {}", rate_str, calibration.dimmed());
+        }
+    }
     // INT-216 -- Friday meta-interpretation brief
     {
         let patterns = crate::domains::friday_arch::detect_patterns(ctx).unwrap_or_default();
