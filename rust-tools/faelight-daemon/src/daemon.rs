@@ -39,6 +39,23 @@ impl Daemon {
             std::fs::create_dir_all(parent)?;
         }
 
+        // INT-235 Gate 3: ensure friday_daemon_messages table exists
+        let _init_db = {
+            let home = std::env::var("HOME").unwrap_or_default();
+            let p = format!("{}/0-core/runtime/state.db", home);
+            p
+        };
+        if let Ok(conn) = rusqlite::Connection::open(&_init_db) {
+            let _ = conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS friday_daemon_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message TEXT NOT NULL,
+                    priority TEXT NOT NULL DEFAULT 'low',
+                    created_at INTEGER NOT NULL,
+                    read INTEGER NOT NULL DEFAULT 0
+                );",
+            );
+        }
         // Event broadcast channel
         let (tx, _) = broadcast::channel::<EventBroadcast>(BROADCAST_CAP);
         let tx = Arc::new(tx);

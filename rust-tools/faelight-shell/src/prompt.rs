@@ -228,6 +228,26 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             None => format!("▸ {}", trend_hint),
         };
         parts.push(jarvis_hint);
+        // INT-235 Gate 3: Friday message indicator
+        let db_path = format!("{}/0-core/runtime/state.db", home);
+        let has_friday_msg = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .ok()
+        .and_then(|c| {
+            c.query_row(
+                "SELECT COUNT(*) FROM friday_daemon_messages WHERE read = 0",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .ok()
+        })
+        .unwrap_or(0)
+            > 0;
+        if has_friday_msg {
+            parts.push("🌲".to_string());
+        }
     }
 
     let line2 = format!(
