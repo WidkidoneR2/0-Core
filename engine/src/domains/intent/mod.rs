@@ -622,6 +622,33 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
         return Ok(());
     }
 
+    // INT-247 Phase 3: dependency check before starting
+    {
+        let intents_all = load_all(ctx);
+        let complete_ids: std::collections::HashSet<String> =
+            intents_all.iter().filter(|i| i.status == "complete").map(|i| i.id.clone()).collect();
+        let unmet: Vec<String> = intent.depends_on.iter()
+            .filter(|dep| !complete_ids.contains(*dep))
+            .map(|dep| {
+                intents_all.iter().find(|i| &i.id == dep)
+                    .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
+                    .unwrap_or_else(|| format!("INT-{} (not found)", dep))
+            })
+            .collect();
+        if !unmet.is_empty() {
+            println!("{}", "⚠️  Dependency Check Failed".bold().bright_yellow());
+            println!("{}", "━".repeat(55).dimmed());
+            println!("  {} INT-{} has unmet dependencies:", "🔒".dimmed(), id);
+            for dep in &unmet {
+                println!("    {} {}", "⬆".bright_yellow(), dep.bright_red());
+            }
+            println!();
+            println!("  {} Complete dependencies first, or override:", "→".dimmed());
+            println!("  {} cistart {} --override", "  ".dimmed(), id);
+            println!("{}", "━".repeat(55).dimmed());
+            return Ok(());
+        }
+    }
     // Auto-checkpoint before transition
     println!("  {} Auto-checkpointing before transition...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-start", id))?;
