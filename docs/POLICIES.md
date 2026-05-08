@@ -2,9 +2,9 @@
 
 Self-enforcing rules learned from pain. These policies prevent future-you from repeating past-you's mistakes.
 
-**Last Updated:** 2026-01-27  
-**Version:** 8.4.0  
-**System:** Arch Linux + Sway + 0-Core
+**Last Updated:** 2026-05-08  
+**Version:** 13.1.0  
+**System:** Arch Linux + Niri + Faelight Forest
 
 ---
 

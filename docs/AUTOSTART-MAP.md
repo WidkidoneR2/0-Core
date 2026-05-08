@@ -1,6 +1,6 @@
 # Faelight Forest — Autostart Map
-Last updated: 2026-03-31 (v11.5.0)
-Audited by: INT-169
+Last updated: 2026-05-08 (v13.1.0)
+Audited by: INT-169, INT-180, INT-272
 
 ## Niri Compositor Spawns (config.kdl)
 
@@ -10,7 +10,7 @@ Audited by: INT-169
 | faelight-niri-bridge | ✅ Running | Daemon mode, no --health |
 | launch-bar | ✅ Running | Spawns faelight-bar |
 | faelight-idle | ✅ Running | Needs --health flag |
-| faelight-clipboard watch | ❌ DISABLED | Panics: zwlr_data_control_device_v1 Wayland error |
+| faelight-clipboard watch | ⚠️ MONITOR | wl-clipboard-rs bumped to 0.9.3 -- verify status |
 
 ## Systemd User Services
 

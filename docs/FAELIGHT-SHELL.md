@@ -2,9 +2,9 @@
 
 > *"A forest deserves a shell that knows it is a forest."*
 
-**Version:** v0.6.0 (Faelight Forest 11.3.0 — The Forest Grows) | Last verified: 2026-03-26  
-**Status:** Active daily driver development — INT-146  
-**Last updated:** 2026-03-25
+**Version:** v2.1.0 (Faelight Forest 13.1.0) | Last verified: 2026-05-08  
+**Status:** Login shell since 2026-04-03. Daily driver.  
+**Last updated:** 2026-05-08
 
 ---
 
@@ -20,7 +20,7 @@ that tracks its own health, goals, decisions, and history.
 ```
 Unix shells:       text | text | text
 Nushell:           table | filter | transform
-faelight-shell:    forest_data | judgment | wisdom
+faelight-shell:    forest_data | judgment | wisdom | anticipation | alignment
 ```
 
 ### The Compatibility Contract
@@ -39,7 +39,7 @@ sh {
 
 ### Launch
 ```bash
-fs          # alias for faelight-shell
+fsh         # the shell
 faelight-shell
 ```
 

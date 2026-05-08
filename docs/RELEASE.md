@@ -1,140 +1,61 @@
-# 🌲 Faelight Forest Release Process
-
-## Version Numbering
-
+# Faelight Forest Release Process
+**Version:** 13.1.0
+**Updated:** 2026-05-08
+The release process is intentional. Nothing is automated.
+Every release is a checkpoint -- the forest at a moment in time.
+---
 | Type | Example | When |
 |------|---------|------|
-| Major | 7.0.0 | Breaking changes, major features |
-| Minor | 6.8.0 | New features, new tools |
-| Patch | 6.7.1 | Bug fixes, polish, typography |
-
-## Release Checklist
-
-### 1. Pre-Release
-```bash
-# Verify health
-dot-doctor
-
-# Check for uncommitted changes
-git status
-
-# Run tests if applicable
-faelight-stow
-```
-
-### 2. Bump Version
-```bash
-bump-system-version X.Y.Z
-```
-
-This updates:
-- `VERSION` file
-- `shell-zsh/.zshrc` (welcome message)
-- `README.md` (badges, milestone)
-
-### 3. Update CHANGELOG.md
-
-Add entry at top (after header):
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
-
-### 🚀 New Features
-- Feature description
-
-### 🔧 Fixes
-- Fix description
-
-### 📦 Tool Updates
-- tool-name vX.Y - changes
-
-> "Quote for this release" 🌲
-
+| Major | 14.0.0 | Architectural leap, Friday becomes central |
+| Minor | 13.1.0 | Significant features, new intents complete |
+| Patch | 13.0.1 | Bug fixes, doc updates, minor polish |
 ---
-```
-
-### 4. Update README.md
-
-#### Milestone Line
-```bash
-sed -i 's/vX.Y.Z Milestone:.*/vX.Y.Z Milestone:** Description here. 🌲🦀/' ~/0-core/README.md
-```
-
-#### Version History Table
-Add new row at top of table:
-```markdown
-| vX.Y.Z | YYYY-MM-DD | Brief description |
-```
-
-### 5. Mark Intents Complete (if applicable)
-```bash
-sed -i 's/status: planned/status: complete/' ~/0-core/INTENT/future/XXX-intent-name.md
-```
-
-Update success criteria checkboxes:
-```bash
-sed -i 's/- \[ \] Task/- [x] Task/' ~/0-core/INTENT/future/XXX-intent-name.md
-```
-
-### 6. Commit & Push
-```bash
-git add -A
-git commit -m "🌲 Release vX.Y.Z - Brief Description
-
-- Feature 1
-- Feature 2
-- Fix 1
-
-Health: 100%"
-
-git push
-```
-
-### 7. Verify Release
-```bash
-dot-doctor
-cat ~/0-core/VERSION
-```
-
-## Quick Release Commands
-
-### Patch Release (fixes only)
-```bash
-bump-system-version 6.7.2
-# Update CHANGELOG.md manually
-git add -A && git commit -m "🌲 Release v6.7.2 - Fixes" && git push
-```
-
-### Minor Release (new features)
-```bash
-bump-system-version 6.8.0
-# Update CHANGELOG.md manually
-# Update README milestone
-# Mark intents complete
-git add -A && git commit -m "🌲 Release v6.8.0 - Feature Name" && git push
-```
-
-## Tool Version Bumping
-
-When updating individual tools, update the version in the source:
-```bash
-# In the tool's main.rs, update the comment:
-sed -i 's/faelight-tool vX.Y/faelight-tool vX.Z/' src/main.rs
-
-# Rebuild
-cargo build --release
-cp target/release/faelight-tool ~/0-core/scripts/
-```
-
-## Changelog Format
-
-Use these emoji prefixes:
-- 🚀 New features
-- 🔧 Fixes
-- 📦 Tool updates
-- 🔒 Security
-- 📐 Typography/UI
-- 🦀 Rust improvements
-- 📜 Documentation
-
+Before bumping any version number, all of these must be true:
+    d
+    git status
+    cargo build --workspace
+    core integrity run
+If any of these fail, fix them first. The version number means nothing if the forest is not healthy.
 ---
-_The forest grows with intention._ 🌲
+    d
+    core integrity run
+    core intent list --active
+    cicomplete NNN
+    deploy core
+    deploy faelight-shell
+    deploy faelight-bar
+    release 13.1.0
+    Or manually:
+    bump-system-version 13.1.0
+    This updates:
+    - VERSION file
+    - README.md (version badge, title)
+    - fsh welcome screen (reads VERSION at runtime)
+Add entry at the top (after the header).
+Write what changed in plain language -- no intent numbers.
+Format:
+    What shipped (2-3 sentences)
+    What shipped:
+    - Tool name -- what it does now
+    - Feature -- why it matters
+    Forest state:
+    Health: 100% x Commits: NNNN x Tools: 51 x Intents: NNN complete
+    fg done "release: Faelight Forest 13.1.0 -- The Forest That Knows Itself"
+    lock-core
+---
+- A release is not a deadline.
+- A release is not a promise to anyone.
+- A release does not happen until the work is genuinely done.
+- A release does not require every planned intent to be complete.
+A release captures what the forest is at this moment.
+The next release captures what it becomes.
+---
+After the release is tagged and pushed:
+- Update any external docs or presentations that reference the version
+- Run d one more time to confirm 100% health
+- Note what the next release will contain in the active intents
+The forest does not rest after a release. It continues growing.
+"Every release is a checkpoint.
+The work continues.
+The version number is a name for what was.
+The forest is always becoming." 🌲
