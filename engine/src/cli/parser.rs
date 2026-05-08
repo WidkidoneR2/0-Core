@@ -402,6 +402,10 @@ pub enum FridayArchCommands {
     TrustDecay,
     /// Show Friday usefulness metrics
     Usefulness,
+    /// Approve a pending Friday proposal
+    Approve { id: String },
+    /// Reject a pending Friday proposal
+    Reject { id: String },
 }
 
 #[derive(Subcommand, Clone)]

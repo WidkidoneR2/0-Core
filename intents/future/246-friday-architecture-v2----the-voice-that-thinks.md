@@ -159,8 +159,8 @@ HARD DEPENDENCIES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ INT-216 Friday Formal Architecture -- foundation complete
 ✅ INT-219 Core v20 Friday Phase 2 -- temporal models active
-⬜ INT-234 Core v21 Friday Planning Layer -- anticipation engine
-⬜ INT-232 faelight-term v2 -- terminal layer for voice output
+✅ INT-234 Core v21 Friday Planning Layer -- anticipation engine
+✅ INT-232 faelight-term v2 -- terminal layer for voice output
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

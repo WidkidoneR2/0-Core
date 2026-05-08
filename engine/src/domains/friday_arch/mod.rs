@@ -660,3 +660,65 @@ pub fn decay_trust(ctx: &AppContext) -> CoreResult<()> {
     println!("{}", "━".repeat(55).dimmed());
     Ok(())
 }
+
+/// Approve a pending Friday proposal -- INT-246 human approval gate
+pub fn approve_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    ensure_usefulness_table(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let proposal: Option<(String, String, f64)> = db.query_row(
+        "SELECT description, action, confidence FROM friday_proposals WHERE id = ?1 AND status = 'pending'",
+        rusqlite::params![id],
+        |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
+    ).ok();
+    match proposal {
+        None => {
+            println!("  {} Proposal {} not found or not pending", "⚠".bright_yellow(), id);
+        }
+        Some((desc, action, confidence)) => {
+            db.execute(
+                "UPDATE friday_proposals SET status = 'approved', reviewed_at = ?1, outcome = 'accepted' WHERE id = ?2",
+                rusqlite::params![now, id],
+            )?;
+            let _ = record_usefulness(ctx, &desc, &action, confidence, true);
+            println!("{}", "✅ Proposal Approved".bold().bright_green());
+            println!("{}", "━".repeat(55).dimmed());
+            println!("  {} {}", "Proposal:".dimmed(), desc.bright_white());
+            println!("  {} {}", "Action:   ".dimmed(), action.bright_cyan());
+            println!("  {} Trust +0.05 for this model", "→".dimmed());
+            println!("{}", "━".repeat(55).dimmed());
+        }
+    }
+    Ok(())
+}
+/// Reject a pending Friday proposal -- feeds trust decay
+pub fn reject_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    ensure_usefulness_table(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let proposal: Option<(String, String, f64)> = db.query_row(
+        "SELECT description, action, confidence FROM friday_proposals WHERE id = ?1 AND status = 'pending'",
+        rusqlite::params![id],
+        |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
+    ).ok();
+    match proposal {
+        None => {
+            println!("  {} Proposal {} not found or not pending", "⚠".bright_yellow(), id);
+        }
+        Some((desc, action, confidence)) => {
+            db.execute(
+                "UPDATE friday_proposals SET status = 'rejected', reviewed_at = ?1, outcome = 'rejected' WHERE id = ?2",
+                rusqlite::params![now, id],
+            )?;
+            let _ = record_usefulness(ctx, &desc, &action, confidence, false);
+            println!("{}", "⬜ Proposal Rejected".bold().bright_red());
+            println!("{}", "━".repeat(55).dimmed());
+            println!("  {} {}", "Proposal:".dimmed(), desc.bright_white());
+            println!("  {} Trust -0.1 applied via next trust-decay run", "→".dimmed());
+            println!("{}", "━".repeat(55).dimmed());
+        }
+    }
+    Ok(())
+}

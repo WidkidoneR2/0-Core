@@ -30,6 +30,8 @@ pub enum FridayArchCommand {
     Contradictions,
     TrustDecay,
     Usefulness,
+    Approve { id: String },
+    Reject { id: String },
 }
 
 #[derive(Debug)]
