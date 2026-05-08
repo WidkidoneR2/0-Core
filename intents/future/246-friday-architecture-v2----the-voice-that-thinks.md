@@ -165,10 +165,10 @@ HARD DEPENDENCIES
 GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Deferred from INT-216:
-⬜ Trust score decay implemented -- models decay on incorrect predictions
+✅ Trust score decay implemented -- models decay on incorrect predictions
 ⬜ friday.strategy.proposed verified end-to-end with human approval gate
 Pillar 1 -- Formal System:
-⬜ Confidence model formalized in code -- 4 tiers with thresholds
+✅ Confidence model formalized in code -- 4 tiers with thresholds
 ⬜ Friday inputs defined as typed structs -- no more loose signals
 ⬜ Friday outputs defined as typed structs -- Observation/Suggestion/Plan/Warning
 ⬜ Allowed actions per confidence tier enforced in safety_guard
@@ -183,9 +183,9 @@ Pillar 3 -- Event Bus:
 ⬜ Assistant system separated: context_collector, intent_parser, planner, executor, safety_guard
 ⬜ All inter-component communication goes through event bus
 Pillar 4 -- Usefulness Metrics:
-⬜ friday_usefulness table created in state.db
-⬜ Acceptance/rejection tracked per suggestion
-⬜ usefulness_score calculated and shown in d output
+✅ friday_usefulness table created in state.db
+✅ Acceptance/rejection tracked per suggestion
+✅ usefulness_score calculated and shown in d output
 ⬜ accuracy_rate visible in friday status
 Pillar 5 -- Voice:
 ⬜ Friday speaks at most once per context switch
