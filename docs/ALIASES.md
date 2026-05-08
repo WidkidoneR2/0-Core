@@ -1,7 +1,7 @@
-# Alias Reference — Faelight Forest v10.3.0
-**Total Aliases:** 356  
+# Alias Reference — Faelight Forest 13.1.0
+**Total Aliases:** 368  
 **Philosophy:** Intentional, organized, documented  
-**Updated:** 2026-02-27
+**Updated:** 2026-05-07
 
 ---
 
@@ -400,3 +400,20 @@ envrc-inspect        # bat .envrc && echo "" && echo "⚠️  INSPECT CAREFULLY 
 auth-health          # ~/0-core/scripts/check-auth-health
 reset-auth           # ~/0-core/scripts/reset-auth
 ```
+
+## New in 13.x -- Tools and Workflow
+    compare
+    pick
+    cheat
+    cistart NNN
+    cicomplete NNN
+    gc
+    gp
+    dep
+## fsh Vocabulary (human language first)
+    delete / del
+    find
+    rename
+    make
+    launch
+    replace
