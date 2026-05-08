@@ -1,7 +1,7 @@
 ---
 id: 282
 title: "Docs Audit and Refresh -- Philosophy, Aliases, Workflows updated to 13.x reality"
-status: in-progress
+status: complete
 date: 2026-05-07
 tags: [docs, audit, philosophy, aliases, workflows, cleanup, maintenance]
 ---
