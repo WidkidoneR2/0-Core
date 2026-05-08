@@ -1,8 +1,8 @@
 # 0-Core Workflows
 
-Practical usage patterns for real-world scenarios with v8.4.0 tools.
+Practical usage patterns for real-world scenarios with 13.x tools.
 
-**Version:** 8.4.0  
+**Version:** 13.1.0
 **Philosophy:** Manual control, intentional decisions, observable changes
 
 ---
@@ -12,10 +12,12 @@ Practical usage patterns for real-world scenarios with v8.4.0 tools.
 ### Morning System Check
 **Goal:** Know your system's state before starting work
 ```bash
-# 1. Check system health (14 checks)
-doctor
+# 1. Check system health (23 checks)
+d
 
-# 2. Check git status
+# 2. What should I work on?
+core intent next
+# 3. Check git status
 fg status
 
 # 3. Check for updates
@@ -42,14 +44,14 @@ profile list
 unlock-core
 
 # 2. Edit config files
-nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
+nvim ~/.config/niri/config.kdl
 
 # 3. Test changes
-sway -C                    # Validate Sway config
-swaymsg reload             # Apply changes
+niri validate --config ~/.config/niri/config.kdl  # Validate
+niri msg action load-config-file              # Apply
 
 # 4. Verify health
-doctor
+d
 
 # 5. Review changes
 cd ~/0-core
@@ -57,7 +59,7 @@ git status
 git diff
 
 # 6. Commit with intent
-git add stow/wm-sway/
+git add stow/niri/
 git commit -m "fix(sway): Update keybinding for launcher"
 
 # 7. Push (hooks validate automatically)
@@ -110,7 +112,7 @@ faelight-snapshot create --tag pre-update
 faelight-update
 
 # 5. Verify system health
-doctor
+d
 
 # 6. Check for .pacnew files
 find /etc -name "*.pacnew"
@@ -250,6 +252,61 @@ lock-core
 
 ---
 
+
+**Goal:** Know exactly what to work on and where the forest stands
+```bash
+d
+core intent next
+core intent blocked
+core intent graph
+cistart NNN
+```
+**Why:** The ledger knows your dependencies, velocity, and what unblocks the most. Trust it.
+---
+**Goal:** Every piece of work is tracked, gated, and closed properly
+```bash
+cistart 247
+fg done "description of what shipped"
+cicomplete 247
+```
+**Expected on cicomplete:**
+- Auto-checkpoint created
+- Retrospective shown (commits, what was built)
+- Newly unblocked intents surfaced
+- core intent next suggestion
+---
+**Goal:** One-glance understanding of where everything stands
+```bash
+core intent brief
+core intent blocked
+core intent graph
+core intent next
+`---
+## Intent Workflows
+
+### Starting a Session
+**Goal:** Know exactly what to work on and where the forest stands
+
+    d                    # health check
+    core intent next     # what to work on
+    core intent blocked  # what is blocked
+    cistart NNN          # start recommended intent
+
+
+### The Intent Lifecycle
+**Goal:** Every piece of work tracked, gated, and closed properly
+
+
+
+### Checking Forest State
+
+    core intent brief    # active intent, health, what is ready
+    core intent blocked  # what cannot start and why
+    core intent graph    # full dependency picture
+    core intent next     # recommendation with explanation
+
+
+
 ## Development Workflows
 
 ### Adding New Rust Tool
@@ -322,7 +379,7 @@ cp target/release/intent scripts/
 git log $(git describe --tags --abbrev=0)..HEAD --oneline
 
 # 2. Verify 100% health
-doctor
+d
 
 # 3. Run full test suite
 ~/0-core/scripts/test-all-tools
@@ -467,7 +524,7 @@ profile switch gaming
 ### "Quick config edit"
 ```bash
 unlock-core
-nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
+nvim ~/.config/niri/config.kdl
 swaymsg reload
 lock-core
 ```
