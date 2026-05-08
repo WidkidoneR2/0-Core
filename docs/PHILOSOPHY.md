@@ -1,8 +1,8 @@
 # The 0-Core Philosophy
 
-**Version:** 8.4.0  
-**Last Updated:** 2026-01-27  
-**System:** Arch Linux + Sway + 0-Core
+**Version:** 13.1.0  
+**Last Updated:** 2026-05-07  
+**System:** Arch Linux + Niri + Faelight Forest
 
 *A position on how computers should behave when used by real humans.*
 
@@ -212,7 +212,7 @@ A system that cannot be recovered under pressure is not robust.
 Freedom without structure decays into entropy.
 
 **0-Core uses:**
-- Semantic naming (`wm-sway`, not `hypr`)
+- Semantic naming (`faelight-shell`, not `sh`; `faelight-lock`, not `swaylock`)
 - Numbered priority (`~/0-core`, `~/1-src`, `~/2-projects`)
 - Immutable boundaries (`lock-core`, `unlock-core`)
 
@@ -284,7 +284,7 @@ A healthy system requires **stewardship**. A neglected system will fail — even
 These principles are not theoretical. They manifest in concrete design decisions:
 
 ### Intent Ledger
-Every major decision is documented in `INTENT/`. Not just *what* changed, but *why*.
+Every major decision is documented in `intents/`. Not just *what* changed, but *why*.
 
 **Example:** Intent 035 documents the Sway migration after the Omarchy catastrophe. Not to shame the past, but to learn from it.
 
@@ -313,8 +313,30 @@ No cron jobs. No systemd timers at boot. Everything runs **when you decide**.
 
 **Principle:** Manual control over automation.
 
+**Friday Intelligence** -- Friday earns trust through accuracy. Never acts without approval. Confidence shown explicitly on every suggestion. Trust decays on wrong predictions.
+
+Principle: Trust is earned, not granted.
+
+**Human Vocabulary** -- fsh speaks your language first. delete, find, rename, make, launch before their UNIX equivalents. The shell learns you.
+
+Principle: The forest speaks human first.
+
 ---
 
+### XI. The Forest Speaks Human First
+Human language is the primary interface. UNIX is the fallback.
+`delete` before `rm`. `find` before `grep -r`. `rename` before `mv`.
+The human should not have to translate their intent into machine syntax before the machine will listen. **The shell learns the human. Not the other way around.**
+### XII. Trust Is Earned, Not Granted
+
+Intelligence without accountability is noise.
+**Friday speaks when it:**
+- Has something worth saying
+- Has confidence to stand behind it
+- Has earned the right through demonstrated accuracy
+Confidence shown explicitly. Trust decays on wrong predictions. Silence when uncertain. One signal per context -- never a stream.
+**A partner that earns its voice is more valuable than one that always speaks.**
+---
 ## Closing Statement
 
 0-Core is a refusal to accept:
@@ -336,7 +358,7 @@ But because it can be.
 
 - **Theory of Operation:** `docs/THEORY_OF_OPERATION.md`
 - **Policies:** `docs/POLICIES.md`
-- **Intent Ledger:** `INTENT/`
+- **Intent Ledger:** `intents/`
 - **Architecture:** `docs/ARCHITECTURE.md`
 
 ---
