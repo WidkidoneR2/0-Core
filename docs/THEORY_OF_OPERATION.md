@@ -2,8 +2,8 @@
 
 > How the system is SUPPOSED to work, what must ALWAYS be true, and what NEVER happens automatically.
 
-**Version:** 8.0.0  
-**Last Updated:** 2026-01-22  
+**Version:** 13.1.0  
+**Last Updated:** 2026-05-08  
 **Status:** Production - Philosophy Proven
 
 ---
@@ -37,7 +37,7 @@ This document explains:
 - **You document** why decisions were made
 - **You recover** when things fail
 
-This isn't ideology. It's **proven through 30 production-ready tools** that embody these principles.
+This isn't ideology. It's **proven through 51 production-ready tools** that embody these principles.
 
 ---
 
@@ -47,7 +47,7 @@ This isn't ideology. It's **proven through 30 production-ready tools** that embo
 
 **Principle:** YOU decide when things happen, the system doesn't decide for you.
 
-**Why:** The 12-hour password incident (Intent 001) proved automation at boot is unpredictable and dangerous. Systems that "just work" fail silently and catastrophically.
+**Why:** The 12-hour password incident (the 2025-12-14 password incident) proved automation at boot is unpredictable and dangerous. Systems that "just work" fail silently and catastrophically.
 
 **Implementation:**
 - No systemd timers at boot
@@ -94,7 +94,7 @@ This isn't ideology. It's **proven through 30 production-ready tools** that embo
 - Category organization (decisions/experiments/philosophy/future)
 - `intent v2.0.0` - Intent management system
 
-**Evidence:** Intent 001 (Rust migration), Intent 059 (Monorepo), Intent 066 (faelight-bar v2.0) - each documents the *journey* not just the destination.
+**Evidence:** the 2025-12-14 password incident (Rust migration), Intent 059 (Monorepo), Intent 066 (faelight-bar v2.0) - each documents the *journey* not just the destination.
 
 **Tools:** `intent`, `intent-guard`
 
@@ -241,7 +241,7 @@ After 8 weeks of intensive work:
 
 **Key Milestones:**
 - **v1.0.0:** First Omarchy system (chaos)
-- **v5.0.0:** Rust migration begins (Intent 001)
+- **v5.0.0:** Rust migration begins (the 2025-12-14 password incident)
 - **v7.0.0:** Sway migration (Omarchy→Arch)
 - **v8.0.0:** Complete audit, philosophy proven
 
@@ -372,7 +372,7 @@ reboot
 ### The Journey
 
 1. **Incident 001:** 12-hour password disaster → Manual control principle
-2. **Intent 001:** Rust migration → Better tooling
+2. **the 2025-12-14 password incident:** Rust migration → Better tooling
 3. **v7.0.0:** Omarchy→Arch migration → Recovery validation
 4. **v8.0.0:** Complete audit → Philosophy proof
 
@@ -422,7 +422,7 @@ Personal computing should be:
 
 **The Evidence:**
 
-30 production-ready tools that embody these principles.
+51 production-ready tools that embody these principles.
 
 **The Result:**
 

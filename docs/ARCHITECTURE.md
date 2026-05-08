@@ -2,22 +2,23 @@
 > **Philosophy:** Understanding over convenience. Manual control over automation.
 > **Version:** 0-Core v2 — single orchestrator, five layers, zero ambiguity.
 
-This document explains the complete structure of 0-Core v2 and how each component interacts.
+This document explains the complete structure of Faelight Forest and how each component interacts.
 
 ---
 
 ## Layer Model
 ```
 LAYER 0 — Substrate (Untouched)
-  Kernel, systemd, Wayland, Sway, Network, Filesystem
+  Kernel, systemd, Wayland, Niri, Network, Filesystem
   Treated as external environment. Never owned. Never modified directly.
 
 LAYER 1 — Core Engine (Single Binary)
   engine/               ← Rust source
   Binary: core
   Interface: core <domain> <command> [flags]
-  15 domains: intent, profile, security, doctor, update, sandbox,
-              link, zone, fetch, git, workspace, release, notify, lock, launcher
+  56+ domains: intent, profile, security, doctor, friday, friday_arch,
+              genealogy, knowledge, predict, deploy, git, release, and more.
+              Run: core --help for full domain list
 
 LAYER 2 — Declarative Registry (Zero Logic)
   registry/
@@ -75,7 +76,7 @@ LAYER 5 — Adapters (Thin Translation Only)
     faelight-term/      ← Terminal emulator (WIP)
     faelight-browser/   ← TUI browser (WIP)
     faelight-core/      ← Shared library (config, paths, health)
-    [30+ more tools]
+    [51 total tools]
   03-interfaces/
     stow/               ← ALL dotfile packages (GNU Stow managed)
       wm-sway/          ← Sway window manager config
@@ -117,6 +118,10 @@ LAYER 5 — Adapters (Thin Translation Only)
 | notify    | notifications                     | faelight-notify                   |
 | lock      | screen locking                    | faelight-lock                     |
 | launcher  | app launching                     | faelight-palette                  |
+| friday    | intelligence layer                | cross-domain intelligence         |
+| genealogy | intent family tree                | core genealogy tree/show/roots    |
+| predict   | prediction engine                 | pattern-based anticipation        |
+| ...       | 56+ domains total                 | run: core --help for full list    |
 
 ---
 
