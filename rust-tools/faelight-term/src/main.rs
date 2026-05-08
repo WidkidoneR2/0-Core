@@ -215,10 +215,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         app.terminal.feed(data);
                     }
-                    // Reset scroll on clear (cursor returns to 0,0)
-                    if app.terminal.cursor_x == 0 && app.terminal.cursor_y == 0 {
-                        app.scroll_offset = 0;
-                    }
+                    // Note: scroll reset removed -- was causing view to jump to top
                     // DSR response -- write cursor position back to PTY (ESC[row;colR)
                     if app.terminal.pending_dsr {
                         app.terminal.pending_dsr = false;
@@ -249,6 +246,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         if _dirty && app.configured {
+            // Always follow output -- reset to current grid view
+            app.scroll_offset = 0;
             app.render();
         }
     }
