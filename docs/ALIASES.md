@@ -170,7 +170,6 @@ secrets              # cd ~/secrets
 .....                # cd ../../../..
 cdp                  # cd -
 nvimconf             # cd ~/.config/nvim
-swayconf             # cd ~/.config/sway
 zshconf              # cd ~/.config/zsh
 ```
 
@@ -228,7 +227,6 @@ cdrel                # core-diff since $(git describe --tags --abbrev=0 2>/dev/n
 cdcheck              # cdiff && dot-doctor
 cdreview             # cdv && cdh
 cdbar                # core-diff faelight-bar
-cdsway               # core-diff wm-sway
 cdzsh                # core-diff shell-zsh
 cdnvim               # core-diff editor-nvim
 scan-secrets         # gitleaks detect --no-git -v
@@ -280,7 +278,6 @@ sr                   # reboot
 ssn                  # shutdown now
 suspend              # systemctl suspend
 hibernate            # systemctl hibernate
-logout               # swaymsg exit
 psa                  # ps auxf
 psg                  # ps aux | grep -v grep | grep -i -e VSZ -e
 cpu                  # ps auxf | sort -nr -k 3 | head -10
@@ -298,8 +295,6 @@ full-audit           # dot-doctor && entropy-check && security-check
 system-health        # dot-doctor && lynis audit system --quick
 jail-status          # sudo fail2ban-client status
 ban-list             # sudo fail2ban-client status sshd
-sway-reload          # swaymsg reload
-sway-info            # swaymsg -t get_tree
 bar-restart          # ~/0-core/scripts/launch-bar
 df                   # df -h
 du                   # du -h
@@ -344,7 +339,6 @@ chad                 # NVIM_APPNAME=nvchad nvim
 lazyvim-update       # nvim --headless "+Lazy! sync" +qa
 lazyvim-clean        # nvim --headless "+Lazy! clean" +qa
 nzsh                 # nvim ~/.config/zsh/.zshrc
-nsway                # nvim ~/.config/sway/config
 nbar                 # nvim ~/0-core/rust-tools/faelight-bar/src/main.rs
 ```
 

@@ -44,7 +44,7 @@ LAYER 4 — Runtime (All Mutable State)
 
 LAYER 5 — Adapters (Thin Translation Only)
   03-interfaces/stow/   ← dotfile packages (GNU Stow managed)
-  adapters/             ← systemd, sway config generation
+  adapters/             ← systemd, niri config generation
   Rule: No business logic. Only translation between core and external systems.
 ```
 
@@ -79,7 +79,7 @@ LAYER 5 — Adapters (Thin Translation Only)
     [51 total tools]
   03-interfaces/
     stow/               ← ALL dotfile packages (GNU Stow managed)
-      wm-sway/          ← Sway window manager config
+      niri/             ← Niri compositor config
       shell-zsh/        ← Zsh + 318+ aliases
       editor-nvim/      ← Neovim + Faelight theme
       term-foot/        ← Foot terminal emulator

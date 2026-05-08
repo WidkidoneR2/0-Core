@@ -60,7 +60,7 @@ git diff
 
 # 6. Commit with intent
 git add stow/niri/
-git commit -m "fix(sway): Update keybinding for launcher"
+git commit -m "fix(niri): Update keybinding for launcher"
 
 # 7. Push (hooks validate automatically)
 git push
@@ -525,7 +525,7 @@ profile switch gaming
 ```bash
 unlock-core
 nvim ~/.config/niri/config.kdl
-swaymsg reload
+niri msg action load-config-file
 lock-core
 ```
 

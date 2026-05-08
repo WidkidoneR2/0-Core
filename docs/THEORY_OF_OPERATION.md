@@ -144,13 +144,13 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 
 **Foundation:**
 - Arch Linux (vanilla, not Omarchy)
-- Sway 1.11 (Wayland compositor)
+- Niri (Wayland compositor)
 - Btrfs filesystem (snapshots)
 
 **Desktop Environment:**
 - 7 custom Rust tools (bar, launcher, menu, notify, lock, dashboard, CLI)
 - Faelight Forest theme (cohesive visual identity)
-- 98 Sway keybindings (zero conflicts)
+- 114 Niri keybindings (zero conflicts)
 
 **Infrastructure:**
 - 10 core tools (health, protection, updates, diff, stow, snapshots)
@@ -196,7 +196,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 **Structure:**
 ```
 stow/
-├── wm-sway/        # Window manager
+├── niri/        # Window manager
 ├── shell-zsh/      # Shell config
 ├── editor-nvim/    # Editor
 └── [9 more packages]

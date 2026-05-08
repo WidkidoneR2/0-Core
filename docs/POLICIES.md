@@ -243,7 +243,7 @@ fg status
 
 ### Classification
 
-- 🔴 **Critical:** System unusable if broken (`wm-sway`)
+- 🔴 **Critical:** System unusable if broken (`niri`)
 - 🟠 **High:** Major functionality lost (`shell-zsh`, `faelight-bar`)
 - 🔵 **Medium:** Important but not essential (`editor-nvim`)
 - 🟢 **Low:** Optional features (`browser-qutebrowser`)
@@ -257,10 +257,10 @@ dotctl status
 unlock-core
 
 # Edit with awareness
-nvim ~/0-core/03-interfaces/stow/wm-sway/.config/sway/config
+nvim ~/.config/niri/config.kdl
 
 # Test changes
-sway -C
+niri validate --config ~/.config/niri/config.kdl
 
 # Lock again
 lock-core
@@ -318,7 +318,7 @@ doctor --explain  # Shows security check
 `<category>-<application>`
 
 **Examples:**
-- ✅ `wm-sway` (window manager - sway)
+- ✅ `niri` (window manager)
 - ✅ `shell-zsh` (shell - zsh)
 - ✅ `editor-nvim` (editor - neovim)
 - ✅ `term-foot` (terminal - foot)

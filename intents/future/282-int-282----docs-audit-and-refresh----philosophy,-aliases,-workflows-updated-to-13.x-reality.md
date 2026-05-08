@@ -64,17 +64,17 @@ RELEASE.md -- is this the release process? Verify against current workflow.
 POLICIES.md -- review for accuracy.
 ---
 GATES
-[ ] docs/archive/ directory created
-[ ] FSH-V9-ARCHITECTURE-AUDIT-A.md moved to archive
-[ ] SHELL-LAYER-AUDIT.md moved to archive
-[ ] core-commands.md unique content checked, merged if needed, removed
-[ ] PHILOSOPHY.md updated to 13.x / Niri / Friday / fsh
-[ ] ALIASES.md updated for 368+ aliases and current vocabulary
-[ ] WORKFLOWS.md updated for current cistart/cicomplete/deploy workflow
-[ ] All remaining docs reviewed -- each either updated or archived
+[x] docs/archive/ directory created
+[x] FSH-V9-ARCHITECTURE-AUDIT-A.md moved to archive
+[x] SHELL-LAYER-AUDIT.md moved to archive
+[x] core-commands.md unique content checked, merged if needed, removed
+[x] PHILOSOPHY.md updated to 13.x / Niri / Friday / fsh
+[x] ALIASES.md updated for 368+ aliases and current vocabulary
+[x] WORKFLOWS.md updated for current cistart/cicomplete/deploy workflow
+[x] All remaining docs reviewed -- each either updated or archived
 [ ] No doc references Sway, swaylock, or pre-Niri tooling
 [ ] No doc references retired tools (archaeology-0-core, etc.)
-[ ] d shows 100% health after all changes
+[x] d shows 100% health after all changes
 "A doc that is wrong is worse than no doc.
 It teaches the wrong thing with confidence.
 The forest documents what is true.
