@@ -174,7 +174,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         loop {
-            let mut buf = [0u8; 4096];
+            let mut buf = [0u8; 32768]; // larger buffer for burst output
             match app.pty.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
@@ -227,7 +227,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     _dirty = true;
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // Poll PTY for 3ms -- catches burst output where shell writes in chunks
+                    let ready = unsafe {
+                        let mut pfd = nix::libc::pollfd {
+                            fd: app.pty.master,
+                            events: nix::libc::POLLIN,
+                            revents: 0,
+                        };
+                        nix::libc::poll(&mut pfd as *mut _, 1, 3) > 0
+                            && pfd.revents & nix::libc::POLLIN != 0
+                    };
+                    if ready { continue; }
+                    break;
+                }
                 Err(e) => {
                     eprintln!("PTY error: {}", e);
                     app.running = false;
