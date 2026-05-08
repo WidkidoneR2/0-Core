@@ -1,7 +1,7 @@
 ---
 id: 283
 title: "faelight-docs generates COMMAND-GUIDE -- auto-generated from core domains, never stale"
-status: planned
+status: complete
 date: 2026-05-07
 tags: [faelight-docs, command-guide, automation, docs, core, generation]
 depends_on: [282]
