@@ -286,3 +286,20 @@ command = "faelight-gen"
 primary = "gen"
 aliases = ["fg-gen", "passgen", "secretgen"]
 description = "Secret generator"
+
+[lla]
+command = "lla"
+description = "Better ls -- git-aware, tree view, Rust-native"
+tags = ["files", "listing", "rust"]
+[llt]
+command = "lla --tree"
+description = "lla in tree mode"
+tags = ["files", "tree"]
+[cw]
+command = "cargo watch"
+description = "cargo-watch -- rebuild on file changes"
+tags = ["cargo", "rust", "watch", "dev"]
+[cwc]
+command = "cargo watch -x check"
+description = "cargo-watch check loop"
+tags = ["cargo", "rust", "watch"]
