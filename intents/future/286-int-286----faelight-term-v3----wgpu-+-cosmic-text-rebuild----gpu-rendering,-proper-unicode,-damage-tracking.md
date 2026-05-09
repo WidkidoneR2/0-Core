@@ -46,6 +46,10 @@ New in v3:
   fractional scaling -- correct for Niri HiDPI
   proper emoji -- 2-cell width, color emoji, no extra space
 ---
+DEPENDS ON
+  INT-287 -- Faelight Forest COSMIC Direction -- study cosmic-term first
+  Phase 0 of this intent is reading cosmic-term source before writing a line.
+---
 STUDY BEFORE WRITING CODE
 Rio terminal (highest priority):
   Wayland-first, wgpu renderer, simpler than WezTerm
@@ -72,6 +76,12 @@ Keep:
   calloop + calloop-wayland-source
 ---
 BUILD PHASES
+Phase 0 -- cosmic-term source study (INT-287 Phase 3)
+  Read cosmic-term wgpu integration
+  Read cosmic-term cosmic-text usage
+  Read cosmic-term PTY handling
+  Document: 3 key patterns to apply to faelight-term v3
+  Gate: study notes written, patterns identified
 Phase 1 -- Renderer foundation (study + spike)
   Read Rio renderer source
   Read glyphon examples

@@ -87,3 +87,12 @@ not just where files are
 but what they mean
 and what the forest was doing
 when they were last touched." 🌲
+
+
+ARCHITECTURE NOTE (2026-05-08)
+UI layer: ratatui -- TUI running inside faelight-term
+Not a standalone Wayland surface.
+faelight-fm v2 is a terminal application, not a compositor client.
+ratatui gives: keyboard-driven UI, forest colors, file operations,
+semantic search display -- all inside the terminal.
+Libcosmic considered for future graphical layer only.
