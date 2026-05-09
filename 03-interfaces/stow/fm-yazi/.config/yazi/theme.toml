@@ -55,85 +55,83 @@ rules = [
     # ──────────────────────────────────────────────
     # 🌟 CRITICAL FILES - NEON RED
     # ──────────────────────────────────────────────
-    { name = "PHILOSOPHY.md", fg = "#ff3366", bold = true },
-    { name = "COMPLETE_GUIDE.md", fg = "#ff3366", bold = true },
-    { name = ".envrc", fg = "#ff3366", bold = true },
-    { name = ".gitleaks.toml", fg = "#ff3366", bold = true },
+    { mime = "text/markdown", fg = "#ff3366", bold = true },
+    { mime = "text/x-shellscript", fg = "#ff3366", bold = true },
     
     # ──────────────────────────────────────────────
     # 📦 STOW PACKAGES - NEON CYAN (BRIGHT!)
     # ──────────────────────────────────────────────
-    { name = "shell-zsh/", fg = "#00ffff", bold = true },
-    { name = "editor-nvim/", fg = "#00ffff", bold = true },
-    { name = "term-foot/", fg = "#00ffff", bold = true },
-    { name = "fm-yazi/", fg = "#00ffff", bold = true },
-    { name = "browser-qutebrowser/", fg = "#00ffff", bold = true },
-    { name = "shell-nushell/", fg = "#00ffff", bold = true },
-    { name = "config-faelight/", fg = "#00ffff", bold = true },
-    { name = "prompt-starship/", fg = "#00ffff", bold = true },
-    { name = "tools-topgrade/", fg = "#00ffff", bold = true },
-    { name = "tools-gitleaks/", fg = "#00ffff", bold = true },
-    { name = "tools-direnv/", fg = "#00ffff", bold = true },
+    { url = "shell-zsh/", fg = "#00ffff", bold = true },
+    { url = "editor-nvim/", fg = "#00ffff", bold = true },
+    { url = "term-foot/", fg = "#00ffff", bold = true },
+    { url = "fm-yazi/", fg = "#00ffff", bold = true },
+    { url = "browser-qutebrowser/", fg = "#00ffff", bold = true },
+    { url = "shell-nushell/", fg = "#00ffff", bold = true },
+    { url = "config-faelight/", fg = "#00ffff", bold = true },
+    { url = "prompt-starship/", fg = "#00ffff", bold = true },
+    { url = "tools-topgrade/", fg = "#00ffff", bold = true },
+    { url = "tools-gitleaks/", fg = "#00ffff", bold = true },
+    { url = "tools-direnv/", fg = "#00ffff", bold = true },
     
     # ──────────────────────────────────────────────
     # 📚 IMPORTANT DOCS - NEON MAGENTA
     # ──────────────────────────────────────────────
-    { name = "README.md", fg = "#ff00ff", bold = true },
-    { name = "CHANGELOG*.md", fg = "#ff00ff", bold = true },
-    { name = "THEORY_OF_OPERATION.md", fg = "#ff00ff", bold = true },
-    { name = "INTENT/", fg = "#ff00ff", bold = true },
+    { url = "README.md", fg = "#ff00ff", bold = true },
+    { url = "CHANGELOG*.md", fg = "#ff00ff", bold = true },
+    { url = "THEORY_OF_OPERATION.md", fg = "#ff00ff", bold = true },
+    { url = "INTENT/", fg = "#ff00ff", bold = true },
     
     # ──────────────────────────────────────────────
     # 🔧 SCRIPTS & TOOLS - NEON ORANGE
     # ──────────────────────────────────────────────
-    { name = "scripts/", fg = "#ff9933", bold = true },
-    { name = "rust-tools/", fg = "#ff9933", bold = true },
-    { name = "*.sh", fg = "#ff9933", bold = true },
+    { url = "scripts/", fg = "#ff9933", bold = true },
+    { url = "rust-tools/", fg = "#ff9933", bold = true },
+    { url = "*.sh", fg = "#ff9933", bold = true },
     
     # ──────────────────────────────────────────────
     # ⚙️  CONFIG FILES - NEON YELLOW
     # ──────────────────────────────────────────────
-    { name = "*.toml", fg = "#ffff00", bold = true },
-    { name = "*.yaml", fg = "#ffff00", bold = true },
-    { name = "*.yml", fg = "#ffff00", bold = true },
-    { name = "*.conf", fg = "#ffff00", bold = true },
-    { name = "Cargo.toml", fg = "#ffff00", bold = true },
+    { url = "*.toml", fg = "#ffff00", bold = true },
+    { url = "*.yaml", fg = "#ffff00", bold = true },
+    { url = "*.yml", fg = "#ffff00", bold = true },
+    { url = "*.conf", fg = "#ffff00", bold = true },
+    { url = "Cargo.toml", fg = "#ffff00", bold = true },
     
     # ──────────────────────────────────────────────
     # 🔗 SYMLINKS - BRIGHT MAGENTA
     # ──────────────────────────────────────────────
-    { name = "*", is = "link", fg = "#ff66ff", bold = true },
+    { url = "*", is = "link", fg = "#ff66ff", bold = true },
     
     # ──────────────────────────────────────────────
     # 🎯 RUST CODE - NEON GREEN
     # ──────────────────────────────────────────────
-    { name = "*.rs", fg = "#00ff00" },
-    { name = "Cargo.lock", fg = "#00ff00" },
+    { url = "*.rs", fg = "#00ff00" },
+    { url = "Cargo.lock", fg = "#00ff00" },
     
     # ──────────────────────────────────────────────
     # 📄 MARKDOWN - SOFT GREEN
     # ──────────────────────────────────────────────
-    { name = "*.md", fg = "#8ed1a3" },
+    { url = "*.md", fg = "#8ed1a3" },
     
     # ──────────────────────────────────────────────
     # 📁 DIRECTORIES - STANDARD GREEN
     # ──────────────────────────────────────────────
-    { name = "*/", fg = "#8ed1a3" },
+    { url = "*/", fg = "#8ed1a3" },
     
     # ──────────────────────────────────────────────
     # 🔒 HIDDEN/DOTFILES - YELLOW
     # ──────────────────────────────────────────────
-    { name = ".*", fg = "#c7df63", bold = true },
+    { url = ".*", fg = "#c7df63", bold = true },
     
     # ──────────────────────────────────────────────
     # ⚡ EXECUTABLES - TEAL
     # ──────────────────────────────────────────────
-    { name = "*", is = "exec", fg = "#5bb7a5" },
+    { url = "*", is = "exec", fg = "#5bb7a5" },
     
     # ──────────────────────────────────────────────
     # 📄 DEFAULT FILES - STANDARD
     # ──────────────────────────────────────────────
-    { name = "*", fg = "#e8f5d5" }
+    { url = "*", fg = "#e8f5d5" }
 ]
 
 # ═══════════════════════════════════════════════════════════
@@ -144,51 +142,51 @@ rules = [
     # ──────────────────────────────────────────────
     # 🌟 CRITICAL FILES
     # ──────────────────────────────────────────────
-    { name = "PHILOSOPHY.md", text = "📜" },
-    { name = "COMPLETE_GUIDE.md", text = "📖" },
-    { name = ".envrc", text = "🔐" },
-    { name = ".gitleaks.toml", text = "🛡️" },
+    { url = "PHILOSOPHY.md", text = "📜" },
+    { url = "COMPLETE_GUIDE.md", text = "📖" },
+    { url = ".envrc", text = "🔐" },
+    { url = ".gitleaks.toml", text = "🛡️" },
     
     # ──────────────────────────────────────────────
     # 📦 STOW PACKAGES
     # ──────────────────────────────────────────────
-    { name = "shell-zsh/", text = "🐚" },
-    { name = "editor-nvim/", text = "📝" },
-    { name = "term-foot/", text = "💻" },
-    { name = "fm-yazi/", text = "📁" },
-    { name = "browser-qutebrowser/", text = "🌐" },
-    { name = "config-faelight/", text = "⚙️" },
+    { url = "shell-zsh/", text = "🐚" },
+    { url = "editor-nvim/", text = "📝" },
+    { url = "term-foot/", text = "💻" },
+    { url = "fm-yazi/", text = "📁" },
+    { url = "browser-qutebrowser/", text = "🌐" },
+    { url = "config-faelight/", text = "⚙️" },
     
     # ──────────────────────────────────────────────
     # 📚 IMPORTANT DOCS
     # ──────────────────────────────────────────────
-    { name = "README.md", text = "📘" },
-    { name = "CHANGELOG*.md", text = "📋" },
-    { name = "THEORY_OF_OPERATION.md", text = "🧠" },
-    { name = "INTENT/", text = "🎯" },
+    { url = "README.md", text = "📘" },
+    { url = "CHANGELOG*.md", text = "📋" },
+    { url = "THEORY_OF_OPERATION.md", text = "🧠" },
+    { url = "INTENT/", text = "🎯" },
     
     # ──────────────────────────────────────────────
     # 🔧 SCRIPTS & TOOLS
     # ──────────────────────────────────────────────
-    { name = "scripts/", text = "🔧" },
-    { name = "rust-tools/", text = "🦀" },
-    { name = "*.sh", text = "📜" },
+    { url = "scripts/", text = "🔧" },
+    { url = "rust-tools/", text = "🦀" },
+    { url = "*.sh", text = "📜" },
     
     # ──────────────────────────────────────────────
     # ⚙️  CONFIG FILES
     # ──────────────────────────────────────────────
-    { name = "*.toml", text = "⚙️" },
-    { name = "*.yaml", text = "⚙️" },
-    { name = "*.yml", text = "⚙️" },
-    { name = "Cargo.toml", text = "📦" },
+    { url = "*.toml", text = "⚙️" },
+    { url = "*.yaml", text = "⚙️" },
+    { url = "*.yml", text = "⚙️" },
+    { url = "Cargo.toml", text = "📦" },
     
     # ──────────────────────────────────────────────
     # 🔗 SYMLINKS
     # ──────────────────────────────────────────────
-    { name = "*", is = "link", text = "🔗" },
+    { url = "*", is = "link", text = "🔗" },
     
     # ──────────────────────────────────────────────
     # 📁 DIRECTORIES
     # ──────────────────────────────────────────────
-    { name = "*/", text = "📁" }
+    { url = "*/", text = "📁" }
 ]
