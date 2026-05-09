@@ -137,3 +137,34 @@ Faelight Forest asks: what do you want to happen?
 COSMIC becomes the surface where the answer appears.
 The shell already knows the answer.
 It always did." 🌲
+
+---
+ZBUS INTEGRATION (added 2026-05-09)
+zbus is the Rust-native D-Bus library.
+D-Bus is how Linux desktop services communicate.
+Adding zbus enables:
+  faelight-notify to integrate with desktop notification standards
+  faelight-palette to register as a proper launcher service
+  shelld services to communicate via standard IPC
+  COSMIC app integration when the time comes
+  portal support (file chooser, screen share, etc.)
+Why zbus specifically:
+  Pure Rust -- no C bindings
+  async-first -- tokio compatible
+  Already used by COSMIC components
+  Clean API, well maintained
+Where it fits in the architecture:
+  fsh + core + Friday (state authority)
+      down
+  state.db (single source of truth)
+      down
+  zbus service bus (desktop integration layer)  <- NEW
+      down
+  COSMIC visual layer / faelight tools
+This is the missing IPC layer between the forest and the desktop.
+GATES (zbus):
+[ ] zbus added as dependency to faelight-notify
+[ ] faelight-notify registers on D-Bus correctly
+[ ] One forest tool communicates via zbus successfully
+[ ] Portal integration verified (at least file chooser)
+[ ] shelld concept prototyped with zbus as transport
