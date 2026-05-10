@@ -146,3 +146,38 @@ It should speak clearly.
 It should render truthfully.
 It should never drop a line.
 v3 builds the mouth the forest deserves." 🌲
+
+---
+COSMIC TERMINAL PATTERNS (added 2026-05-09, from Pop_OS email)
+These patterns from COSMIC Terminal apply directly to faelight-term v3:
+Shell-aware UI (not AI gimmicks -- real context):
+  git state visible in terminal chrome
+  command duration tracked and displayed
+  task grouping -- related commands visually connected
+  scrollback indexing -- search by intent, not just text
+  semantic prompts -- fsh context surfaces in the terminal UI
+GPU text pipeline for Niri specifically:
+  fractional scaling handled correctly (Niri HiDPI)
+  smooth scroll animation -- the terminal scrolls like the compositor
+  low-latency glyph caching -- glyphs uploaded once, reused
+  frame pacing at display refresh rate -- no tearing on Niri
+  Target: outperform portable terminals on Niri specifically
+Wayland-native clipboard + drag model:
+  Most terminals still feel X11-era for clipboard
+  wl-clipboard-rs already in the stack (wl-clipboard-rs 0.9.3)
+  Drag and drop between terminal and file manager
+  Primary selection works correctly
+  No X11 clipboard assumptions anywhere
+Compositor awareness:
+  Terminal knows it is running inside Niri
+  Responds to compositor events correctly
+  Fractional scale changes handled at runtime
+  Explicit sync when available
+Pane semantics (future, post-v3):
+  Terminal panes persist spatially (INT-289 scroll-native UX)
+  Each pane remembers its scroll position
+  Panes are spatial anchors, not just tabs
+STUDY ALSO (added from Pop_OS email):
+  cosmic-term source: github.com/pop-os/cosmic-term
+  Focus on: pane/workspace semantics, PTY handling, compositor awareness
+  This is now Phase 0 alongside Rio study

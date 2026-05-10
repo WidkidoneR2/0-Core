@@ -96,3 +96,36 @@ faelight-fm v2 is a terminal application, not a compositor client.
 ratatui gives: keyboard-driven UI, forest colors, file operations,
 semantic search display -- all inside the terminal.
 Libcosmic considered for future graphical layer only.
+
+---
+COSMIC FILES PATTERNS (added 2026-05-09, from Pop_OS email)
+These patterns from COSMIC Files apply directly to faelight-fm v2:
+async directory loading
+  Directory contents load without blocking the UI
+  Large directories (node_modules, target/) never freeze the interface
+  Background task channels handle all IO
+thumbnail pipeline isolation
+  Preview rendering runs in a separate async task
+  Never blocks navigation or search
+  Cached aggressively in state.db
+search indexing separation
+  Search does not block browsing
+  skim integration runs independently of directory view
+  Results stream in as found
+filesystem watcher abstraction
+  faelight-fm watches for changes while open
+  New files appear without manual refresh
+  State.db notified of filesystem events
+progressive rendering for large directories
+  First 50 entries render immediately
+  Rest load progressively
+  No spinner -- content appears as fast as it is ready
+immutable UI state snapshots
+  Navigation state is a snapshot, not mutable
+  Undo/redo navigation is natural
+  Session restore is trivial
+TARGET: Ranger speed + Finder preview UX + COSMIC async model
+AVOID:
+  GNOME-like abstraction overload
+  Too much shell coupling
+  Synchronous IO anywhere in the hot path
