@@ -17,6 +17,7 @@ mod history_tui;
 mod intent_tui;
 mod output;
 mod pty_exec;
+mod safety_guard;
 mod registry;
 #[cfg(test)]
 mod tests;
@@ -1399,6 +1400,13 @@ fn repl_main() -> Result<()> {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
                 }
+                // INT-246: safety_guard -- check BEFORE any execution path
+                if let Some(warning) = safety_guard::check(&line) {
+                    if !safety_guard::challenge_gate(&warning) {
+                        last_exit_code = Some(1);
+                        continue 'repl;
+                    }
+                }
                 // INT-249b/Path-3: multi-line buffer (heredoc, control structure, backslash
                 // continuation). Route through pty_exec so we get colored output AND
                 // line-by-line scanning for INT-249 delimiter-leak warnings.
@@ -1435,6 +1443,12 @@ fn repl_main() -> Result<()> {
                     }
                     // INT-249b/Path-3: run the heredoc via PTY so we get colored output
                     // AND the chance to scan each line for delimiter-leak warnings.
+                    if let Some(warning) = safety_guard::check(&line) {
+                        if !safety_guard::challenge_gate(&warning) {
+                            last_exit_code = Some(1);
+                            continue 'repl;
+                        }
+                    }
                     let exit = pty_exec::run_with_capture_and_scan(&line);
                     last_exit_code = Some(exit);
                     heredoc_handled = true;
