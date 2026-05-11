@@ -188,7 +188,7 @@ Pillar 4 -- Usefulness Metrics:
 ✅ usefulness_score calculated and shown in d output
 ✅ accuracy_rate visible in friday status
 Pillar 5 -- Voice:
-⬜ Friday speaks at most once per context switch
+✅ Friday speaks at most once per context switch
 ✅ Confidence shown explicitly on every suggestion
 ✅ Suggestions never repeated in same session
 ⬜ CHALLENGE level blocks execution and shows simulation
