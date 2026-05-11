@@ -196,7 +196,7 @@ Pillar 5 -- Voice:
 Final:
 ⬜ Friday usefulness_score > 75% over 7 days of real use
 ⬜ Trust decay working -- at least one model silenced by low accuracy
-⬜ Simulation correct on 3+ consecutive predictions
+✅ Simulation correct on 4/4 consecutive predictions -- 100% accuracy, deploy core and faelight-shell both verified
 "Friday does not speak because it can.
 Friday speaks because it has something worth saying,
 has simulated the outcome,
