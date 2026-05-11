@@ -532,10 +532,15 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
             KnowledgeCommand::Accuracy => crate::domains::knowledge::accuracy(ctx),
             KnowledgeCommand::Add {
-                domain,
                 description,
+                domain,
                 resolution,
-            } => crate::domains::knowledge::add(ctx, &domain, &description, &resolution),
+            } => crate::domains::knowledge::add(
+                ctx,
+                &domain.unwrap_or_else(|| "general".to_string()),
+                &description,
+                &resolution.unwrap_or_default(),
+            ),
             KnowledgeCommand::Seed => crate::domains::knowledge::seed_forest_lessons(ctx),
             KnowledgeCommand::Show { id } => crate::domains::knowledge::show(ctx, &id),
             KnowledgeCommand::Outcome { id, correct } => {

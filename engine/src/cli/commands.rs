@@ -8,9 +8,9 @@ pub enum KnowledgeCommand {
     },
     Accuracy,
     Add {
-        domain: String,
         description: String,
-        resolution: String,
+        domain: Option<String>,
+        resolution: Option<String>,
     },
     Seed,
     Show {

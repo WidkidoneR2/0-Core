@@ -105,8 +105,8 @@ pub fn parse() -> Command {
                 description,
                 resolution,
             } => KnowledgeCommand::Add {
-                domain,
                 description,
+                domain,
                 resolution,
             },
             KnowledgeCommands::Seed => KnowledgeCommand::Seed,

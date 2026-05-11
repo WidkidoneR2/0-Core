@@ -374,11 +374,14 @@ pub enum KnowledgeCommands {
     Patterns { domain: Option<String> },
     /// Show accuracy by domain
     Accuracy,
-    /// Add a lesson manually
+    /// Add a lesson manually -- core knowledge add "fact" [domain] [resolution]
     Add {
-        domain: String,
+        /// The fact/description to record
         description: String,
-        resolution: String,
+        /// Domain (default: general)
+        domain: Option<String>,
+        /// Resolution or context (default: empty)
+        resolution: Option<String>,
     },
     /// Seed forest lessons
     Seed,
