@@ -405,6 +405,8 @@ pub enum FridayArchCommands {
     TrustDecay,
     /// Show Friday usefulness metrics
     Usefulness,
+    /// Simulate a command -- predict outcome before execution
+    Simulate { command: String },
     /// Generate a new Friday proposal from current forest context
     Propose,
     /// Approve a pending Friday proposal

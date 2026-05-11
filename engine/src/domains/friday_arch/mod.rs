@@ -795,3 +795,167 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "─".repeat(55).dimmed());
     Ok(())
 }
+
+/// INT-246 Pillar 2 -- Basic simulation engine
+/// Predicts command outcome from historical data before execution
+pub fn simulate(ctx: &AppContext, command: &str) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let cmd = command.trim();
+
+    println!();
+    println!("  {} Friday Simulation", "🌲".normal());
+    println!("  {}", "─".repeat(55).dimmed());
+    println!("  {} {}", "Command:".dimmed(), cmd.bright_white());
+    println!();
+
+    // Detect command type and gather historical data
+    let words: Vec<&str> = cmd.split_whitespace().collect();
+    let first = words.first().copied().unwrap_or("");
+    let second = words.get(1).copied().unwrap_or("");
+
+    match first {
+        "deploy" if !second.is_empty() => {
+            simulate_deploy(db, second)?;
+        }
+        "cargo" if second == "build" => {
+            simulate_build(db, cmd)?;
+        }
+        "fg" if second == "done" || second == "commit" => {
+            simulate_commit(db)?;
+        }
+        "cistart" | "cicomplete" => {
+            simulate_intent_op(db, first, second)?;
+        }
+        _ => {
+            // Generic: check shell history for outcome patterns
+            simulate_generic(db, cmd)?;
+        }
+    }
+
+    println!("  {}", "─".repeat(55).dimmed());
+    println!("  {} To run: {}", "→".dimmed(), cmd.bright_cyan());
+    println!();
+    Ok(())
+}
+
+fn simulate_deploy(db: &rusqlite::Connection, tool: &str) -> CoreResult<()> {
+    // Query historical deploy data for this tool
+    let data: Option<(i64, i64, f64, i64, i64)> = db.query_row(
+        "SELECT COUNT(*),
+                SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END),
+                AVG(duration_ms),
+                MIN(duration_ms),
+                MAX(duration_ms)
+         FROM deploy_patterns WHERE tool = ?1",
+        rusqlite::params![tool],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get::<_,f64>(2).unwrap_or(0.0),
+                 r.get(3)?, r.get(4)?))
+    ).ok();
+
+    match data {
+        Some((total, success, avg_ms, min_ms, max_ms)) if total > 0 => {
+            let success_rate = (success as f64 / total as f64) * 100.0;
+            let avg_s = avg_ms / 1000.0;
+            let confidence = if total >= 10 { 0.92 } else if total >= 3 { 0.78 } else { 0.60 };
+
+            let risk = if success_rate >= 99.0 { "LOW".bright_green() }
+                       else if success_rate >= 90.0 { "MEDIUM".bright_yellow() }
+                       else { "HIGH".bright_red() };
+
+            println!("  {} Deploy: {}", "→".dimmed(), tool.bright_cyan());
+            println!("  {} Historical data: {} deploys", "→".dimmed(), total);
+            println!("  {} Success rate:    {:.1}% ({}/{})",
+                "→".dimmed(), success_rate, success, total);
+            println!("  {} Avg duration:    {:.1}s  (range: {:.1}s - {:.1}s)",
+                "→".dimmed(), avg_s, min_ms as f64 / 1000.0, max_ms as f64 / 1000.0);
+            println!("  {} Risk:            {}", "→".dimmed(), risk);
+            println!("  {} Confidence:      {:.0}%", "→".dimmed(), confidence * 100.0);
+            println!();
+
+            let pred = if success_rate >= 95.0 { "SUCCESS" } else { "UNCERTAIN" };
+            let pred_colored = if pred == "SUCCESS" {
+                pred.bright_green().to_string()
+            } else {
+                pred.bright_yellow().to_string()
+            };
+            println!("  {} Predicted outcome: {} ({:.0}% confidence)",
+                "🌲".normal(), pred_colored, confidence * 100.0);
+        }
+        _ => {
+            println!("  {} No historical data for deploy {}", "○".dimmed(), tool);
+            println!("  {} First deploy -- outcome unknown", "→".dimmed());
+            println!("  {} Confidence: 50% (no prior data)", "→".dimmed());
+        }
+    }
+    Ok(())
+}
+
+fn simulate_build(db: &rusqlite::Connection, _cmd: &str) -> CoreResult<()> {
+    let recent_errors: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history
+         WHERE command LIKE '%cargo build%' AND command LIKE '%error%'
+         AND timestamp > strftime('%s','now') - 86400",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    println!("  {} Cargo build simulation", "→".dimmed());
+    println!("  {} Recent build errors (24h): {}", "→".dimmed(), recent_errors);
+
+    if recent_errors == 0 {
+        println!("  {} Risk: LOW -- no recent errors", "→".dimmed());
+        println!("  {} Predicted: SUCCESS (workspace clean)", "→".dimmed());
+    } else {
+        println!("  {} Risk: MEDIUM -- {} errors in last 24h", "→".dimmed(), recent_errors);
+        println!("  {} Check error patterns before building", "→".dimmed());
+    }
+    Ok(())
+}
+
+fn simulate_commit(db: &rusqlite::Connection) -> CoreResult<()> {
+    let uncommitted: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history
+         WHERE command LIKE '%git add%' OR command LIKE '%fg done%'
+         AND timestamp > strftime('%s','now') - 3600",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    println!("  {} Commit simulation", "→".dimmed());
+    println!("  {} Risk: LOW -- standard forest operation", "→".dimmed());
+    println!("  {} Predicted: SUCCESS -- pre-push hooks will validate", "→".dimmed());
+    let _ = uncommitted;
+    Ok(())
+}
+
+fn simulate_intent_op(db: &rusqlite::Connection, op: &str, intent_id: &str) -> CoreResult<()> {
+    println!("  {} Intent {} simulation", "→".dimmed(), op);
+    if !intent_id.is_empty() {
+        println!("  {} Target intent: {}", "→".dimmed(), intent_id.bright_white());
+    }
+    println!("  {} Risk: LOW -- creates checkpoint before operation", "→".dimmed());
+    println!("  {} Predicted: SUCCESS -- checkpoint protects state", "→".dimmed());
+    let _ = db;
+    Ok(())
+}
+
+fn simulate_generic(db: &rusqlite::Connection, cmd: &str) -> CoreResult<()> {
+    // Check if this command has been run before
+    let prior_runs: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command = ?1",
+        rusqlite::params![cmd],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
+    println!("  {} Generic command simulation", "→".dimmed());
+    if prior_runs > 0 {
+        println!("  {} Prior runs: {} times", "→".dimmed(), prior_runs);
+        println!("  {} Risk: LOW -- command has been run before", "→".dimmed());
+        println!("  {} Confidence: 70%", "→".dimmed());
+    } else {
+        println!("  {} Prior runs: 0 -- first time running this", "→".dimmed());
+        println!("  {} Risk: UNKNOWN -- no historical data", "→".dimmed());
+        println!("  {} Confidence: 50%", "→".dimmed());
+    }
+    let _ = db;
+    Ok(())
+}

@@ -30,6 +30,7 @@ pub enum FridayArchCommand {
     Contradictions,
     TrustDecay,
     Usefulness,
+    Simulate { command: String },
     Propose,
     Approve { id: String },
     Reject { id: String },
