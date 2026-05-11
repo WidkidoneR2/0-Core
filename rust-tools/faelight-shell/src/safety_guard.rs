@@ -8,9 +8,16 @@
 pub fn check(cmd: &str) -> Option<String> {
     let lower = cmd.to_lowercase();
     let trimmed = cmd.trim();
+    // Check first word only -- never match on arguments or paths
+    let first_word = trimmed.split_whitespace().next().unwrap_or("");
+    // Safe commands -- fsh builtins and forest tools never trigger guard
+    let safe = ["fg", "core", "python3", "python", "cargo", "git", "deploy",
+                "cistart", "cicomplete", "intent", "faelight-docs", "docs",
+                "cat", "echo", "grep", "sed", "awk", "curl", "ls", "cd"];
+    if safe.contains(&first_word) { return None; }
 
     // rm -rf on non-temp paths -- high risk
-    if lower.contains("rm") && (lower.contains("-rf") || lower.contains("-fr")) {
+    if first_word == "rm" && (lower.contains("-rf") || lower.contains("-fr")) {
         let safe_targets = ["/tmp/", "/tmp ", "target/", "./target"];
         let is_safe_target = safe_targets.iter().any(|t| cmd.contains(t));
         if !is_safe_target {
@@ -21,16 +28,16 @@ pub fn check(cmd: &str) -> Option<String> {
         }
     }
 
-    // SQL DROP TABLE or DELETE FROM critical tables
-    if lower.contains("drop table") || lower.contains("drop database") {
+    // SQL DROP TABLE -- only trigger when running sqlite3 directly
+    if (first_word == "sqlite3") && (lower.contains("drop table") || lower.contains("drop database")) {
         return Some(format!(
             "Destructive SQL: {}",
             trimmed.chars().take(60).collect::<String>()
         ));
     }
 
-    // Direct state.db manipulation with DELETE
-    if lower.contains("state.db") && lower.contains("delete from") {
+    // Direct state.db DELETE -- only sqlite3 direct calls
+    if first_word == "sqlite3" && lower.contains("state.db") && lower.contains("delete from") {
         return Some(format!(
             "Deleting from state.db: {}",
             trimmed.chars().take(60).collect::<String>()
@@ -38,7 +45,7 @@ pub fn check(cmd: &str) -> Option<String> {
     }
 
     // dd -- low level disk operations
-    if trimmed.starts_with("dd ") || lower.contains(" dd if=") {
+    if first_word == "dd" {
         return Some(format!(
             "Low-level disk operation: {}",
             trimmed.chars().take(60).collect::<String>()
@@ -46,15 +53,15 @@ pub fn check(cmd: &str) -> Option<String> {
     }
 
     // mkfs -- filesystem formatting
-    if trimmed.starts_with("mkfs") {
+    if first_word.starts_with("mkfs") {
         return Some(format!(
             "Filesystem format: {}",
             trimmed.chars().take(60).collect::<String>()
         ));
     }
 
-    // git reset --hard without being in a safe state
-    if lower.contains("git reset") && lower.contains("--hard") {
+    // git reset --hard
+    if first_word == "git" && lower.contains("reset") && lower.contains("--hard") {
         return Some(format!(
             "Destructive git reset: {}",
             trimmed.chars().take(60).collect::<String>()
@@ -62,7 +69,7 @@ pub fn check(cmd: &str) -> Option<String> {
     }
 
     // chmod -R on sensitive paths
-    if lower.contains("chmod") && lower.contains("-r") && lower.contains("/etc") {
+    if first_word == "chmod" && lower.contains("-r") && lower.contains("/etc") {
         return Some(format!(
             "Recursive chmod on /etc: {}",
             trimmed.chars().take(60).collect::<String>()

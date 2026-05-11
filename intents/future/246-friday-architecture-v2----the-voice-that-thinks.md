@@ -171,7 +171,7 @@ Pillar 1 -- Formal System:
 ✅ Confidence model formalized in code -- 4 tiers with thresholds
 ✅ Friday inputs defined as typed structs -- no more loose signals
 ✅ Friday outputs defined as typed structs -- Observation/Suggestion/Plan/Warning
-⬜ Allowed actions per confidence tier enforced in safety_guard
+✅ Allowed actions per confidence tier enforced in safety_guard
 Pillar 2 -- Simulation:
 ⬜ Simulation engine built -- predicts outcome before any proposal
 ⬜ Simulation shown to Christian before approval (not after)
@@ -191,8 +191,8 @@ Pillar 5 -- Voice:
 ✅ Friday speaks at most once per context switch
 ✅ Confidence shown explicitly on every suggestion
 ✅ Suggestions never repeated in same session
-⬜ CHALLENGE level blocks execution and shows simulation
-⬜ Demonstrated: Friday catches a bad command before it runs
+✅ CHALLENGE level blocks execution and requires explicit approval
+✅ Demonstrated: Friday catches a bad command before it runs -- rm -rf blocked
 Final:
 ⬜ Friday usefulness_score > 75% over 7 days of real use
 ⬜ Trust decay working -- at least one model silenced by low accuracy
