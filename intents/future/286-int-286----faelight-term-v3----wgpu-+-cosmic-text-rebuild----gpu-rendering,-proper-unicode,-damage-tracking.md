@@ -1,7 +1,7 @@
 ---
 id: 286
 title: "faelight-term v3 -- wgpu + cosmic-text rebuild"
-status: planned
+status: in-progress
 date: 2026-05-08
 tags: [faelight-term, wgpu, cosmic-text, gpu, rendering, unicode, wayland, rebuild]
 ---
