@@ -1,7 +1,7 @@
 ---
 id: 285
 title: "fsh shell friction -- heredoc hash stripping, for loops, knowledge add hang, command chains"
-status: planned
+status: in-progress
 date: 2026-05-08
 tags: [fsh, shell, bugfix, heredoc, friction, loops, commands]
 ---
