@@ -175,7 +175,7 @@ Pillar 1 -- Formal System:
 Pillar 2 -- Simulation:
 ✅ Simulation engine built -- query-based, real historical data from deploy_patterns
 ✅ Simulation shown to Christian before approval -- embedded in proposals view
-⬜ Simulation accuracy tracked -- feeds trust decay
+✅ Simulation accuracy tracked -- friday_simulations table, resolve/stats commands, 1/1 correct on first run
 ✅ Demonstrated: Friday proposes, shows simulation, human approves or rejects
 Pillar 3 -- Event Bus:
 ⬜ Event bus implemented -- async, typed, persisted to state.db
