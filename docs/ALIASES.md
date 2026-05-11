@@ -234,12 +234,6 @@ scan-staged          # gitleaks protect --staged -v
 pre-commit           # echo "🔍 Pre-commit checks..." && gitleaks protect --staged -v && dot-doctor && echo "✅ Safe to commit!"
 secrets-mount        # gocryptfs ~/secrets.encrypted ~/secrets && echo "🔓 Secrets mounted"
 secrets-unmount      # fusermount -u ~/secrets && echo "🔒 Secrets locked"
-arch                 # archaeology-0-core
-arch0                # archaeology-0-core
-archint              # archaeology-0-core --by-intent
-archsince            # archaeology-0-core --since
-archtime             # archaeology-0-core --timeline
-archwk               # archaeology-0-core --this-week
 ```
 
 ## System package installation and maintenance

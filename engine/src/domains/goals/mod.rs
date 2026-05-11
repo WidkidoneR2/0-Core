@@ -119,7 +119,7 @@ pub fn generate(ctx: &AppContext) -> CoreResult<()> {
     }
     proposed.push((
         "Retire redundant tools absorbed by core/shell".to_string(),
-        "archaeology-0-core, workspace-view replaced by shell pipelines".to_string(),
+        "workspace-view replaced by shell pipelines".to_string(),
         "Run: core evolution tools — review dormant tools".to_string(),
         "LOW".to_string(),
     ));

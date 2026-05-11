@@ -28,7 +28,6 @@ const EXPECTED_TOOLS: &[&str] = &[
     "faelight-term",
     // Development
     "intent",
-    "archaeology-0-core",
     "workspace-view",
     "faelight-git",
     "faelight-hooks",

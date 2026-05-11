@@ -225,19 +225,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "archaeology-0-core"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "faelight-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -34,7 +34,6 @@ Tool → deprecated (aliased to core/shell equivalent)
 ### Current Retirement Candidates (when ready)
 | Tool | Replaced by | When |
 |------|-------------|------|
-| archaeology-0-core | `gc` + `gchurn` (shell) | v11.2.0 |
 | faelight-search | `?` NL queries (shell) | v11.2.0 |
 | bin-doctor | `core evolution tools` | v12.0.0 |
 | alias-audit | `core evolution tools` | v12.0.0 |

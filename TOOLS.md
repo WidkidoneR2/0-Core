@@ -83,7 +83,6 @@
 | **alias-audit** | v9.1.0 | ✅ Production | Alias coverage and conflict detection |
 | **bin-doctor** | v2.0.0 | ✅ Production | Binary manifest and drift detection |
 | **entropy-check** | v2.0.0 | ✅ Production | Configuration drift detection |
-| **archaeology-0-core** | v3.0.0 | ✅ Production | Git history analysis |
 
 ---
 

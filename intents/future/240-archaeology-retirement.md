@@ -1,7 +1,7 @@
 ---
 id: 240
 title: "archaeology-0-core Retirement -- Clean Removal of a Legacy Tool"
-status: planned
+status: in-progress
 date: 2026-04-18
 tags: [archaeology, retirement, cleanup, legacy, doctor, aliases, registry]
 ---

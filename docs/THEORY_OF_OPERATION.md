@@ -115,7 +115,7 @@ This isn't ideology. It's **proven through 51 production-ready tools** that embo
 
 **Evidence:** Complete tool audit achieved 100% documentation. Every tool has `--help`, `--health`, comprehensive README.
 
-**Tools:** `teach`, `dot-doctor`, `archaeology-0-core`
+**Tools:** `teach`, `dot-doctor`
 
 ---
 

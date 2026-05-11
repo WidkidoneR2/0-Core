@@ -12,10 +12,6 @@ aliases = ["aa"]
 category = "development"
 
 [[alias]]
-command = "archaeology-0-core"
-aliases = ["arch"]
-category = "development"
-
 [[alias]]
 command = "bump-system-version"
 aliases = ["bsv", "bump"]
