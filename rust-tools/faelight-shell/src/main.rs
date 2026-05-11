@@ -2894,11 +2894,16 @@ fn repl_main() -> Result<()> {
                                     )
                                     .unwrap_or(0);
                                 if freq >= 3 {
-                                    println!(
-                                        "  {} you usually run {} next",
-                                        "💡".normal(),
-                                        suggestion.bright_cyan()
-                                    );
+                                    // INT-246: deduplicate hints -- only show once per session
+                                    let hint_key = format!("hint_{}", suggestion);
+                                    if !shown_friday_suggestions.contains(&hint_key) {
+                                        shown_friday_suggestions.insert(hint_key);
+                                        println!(
+                                            "  {} you usually run {} next",
+                                            "💡".normal(),
+                                            suggestion.bright_cyan()
+                                        );
+                                    }
                                 }
                             }
                         }
