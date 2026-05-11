@@ -407,6 +407,10 @@ pub enum FridayArchCommands {
     Usefulness,
     /// Simulate a command -- predict outcome before execution
     Simulate { command: String },
+    /// Resolve simulation predictions against actual outcomes
+    SimulateAccuracy,
+    /// Show simulation accuracy stats
+    SimulateStats,
     /// Generate a new Friday proposal from current forest context
     Propose,
     /// Approve a pending Friday proposal

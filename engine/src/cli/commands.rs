@@ -31,6 +31,8 @@ pub enum FridayArchCommand {
     TrustDecay,
     Usefulness,
     Simulate { command: String },
+    SimulateAccuracy,
+    SimulateStats,
     Propose,
     Approve { id: String },
     Reject { id: String },

@@ -34,6 +34,17 @@ CREATE TABLE IF NOT EXISTS friday_trust (
     updated_at  INTEGER NOT NULL,
     FOREIGN KEY (model_id) REFERENCES friday_models(id)
 );
+CREATE TABLE IF NOT EXISTS friday_simulations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    command     TEXT NOT NULL,
+    predicted   TEXT NOT NULL,
+    confidence  REAL NOT NULL,
+    actual      TEXT,
+    correct     INTEGER,
+    created_at  INTEGER NOT NULL,
+    resolved_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_fsim_command ON friday_simulations(command);
 CREATE TABLE IF NOT EXISTS friday_proposals (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     signal_type TEXT NOT NULL,
@@ -884,6 +895,14 @@ fn simulate_deploy(db: &rusqlite::Connection, tool: &str) -> CoreResult<()> {
             };
             println!("  {} Predicted outcome: {} ({:.0}% confidence)",
                 "🌲".normal(), pred_colored, confidence * 100.0);
+            // Record simulation for accuracy tracking
+            let now = now_ts();
+            let cmd_key = format!("deploy {}", tool);
+            let _ = db.execute(
+                "INSERT INTO friday_simulations (command, predicted, confidence, created_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![cmd_key, pred, confidence, now],
+            );
         }
         _ => {
             println!("  {} No historical data for deploy {}", "○".dimmed(), tool);
@@ -960,5 +979,107 @@ fn simulate_generic(db: &rusqlite::Connection, cmd: &str) -> CoreResult<()> {
         println!("  {} Confidence: 50%", "→".dimmed());
     }
     let _ = db;
+    Ok(())
+}
+
+/// Resolve simulation predictions against actual outcomes -- feeds trust decay
+/// Matches pending simulations against deploy_patterns to mark correct/incorrect
+pub fn resolve_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+
+    // Find unresolved simulations older than 60 seconds (command has had time to run)
+    let pending: Vec<(i64, String, String)> = {
+        let mut stmt = db.prepare(
+            "SELECT id, command, predicted FROM friday_simulations
+             WHERE correct IS NULL AND created_at < ?1"
+        )?;
+        let x: Vec<(i64, String, String)> = stmt.query_map(rusqlite::params![now - 60], |r| {
+            Ok((r.get::<_,i64>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
+        })?.filter_map(|r| r.ok()).collect();
+        x
+    };
+
+    let mut resolved = 0;
+    let mut correct_count = 0;
+
+    for (sim_id, command, predicted) in &pending {
+        // For deploy commands, check deploy_patterns for actual outcome
+        if command.starts_with("deploy ") {
+            let tool = command.trim_start_matches("deploy ").trim();
+            let actual: Option<String> = db.query_row(
+                "SELECT outcome FROM deploy_patterns WHERE tool = ?1
+                 ORDER BY timestamp DESC LIMIT 1",
+                rusqlite::params![tool],
+                |r| r.get(0)
+            ).ok();
+
+            if let Some(ref outcome) = actual {
+                let is_correct = (predicted == "SUCCESS" && outcome == "success")
+                    || (predicted != "SUCCESS" && outcome != "success");
+                let correct_val = if is_correct { 1i32 } else { 0i32 };
+
+                db.execute(
+                    "UPDATE friday_simulations SET actual = ?1, correct = ?2, resolved_at = ?3
+                     WHERE id = ?4",
+                    rusqlite::params![outcome, correct_val, now, sim_id],
+                )?;
+                resolved += 1;
+                if is_correct { correct_count += 1; }
+            }
+        }
+    }
+
+    if resolved > 0 {
+        println!("  {} Resolved {} simulations -- {}/{} correct",
+            "→".dimmed(), resolved, correct_count, resolved);
+    }
+    Ok(())
+}
+
+/// Show simulation accuracy stats
+pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    let db = &ctx.runtime.db;
+
+    let total: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NOT NULL",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let correct: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_simulations WHERE correct = 1",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    let pending: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_simulations WHERE correct IS NULL",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+
+    println!();
+    println!("  {} Friday Simulation Accuracy", "🌲".normal());
+    println!("  {}", "─".repeat(55).dimmed());
+
+    if total == 0 {
+        println!("  {} No resolved simulations yet", "○".dimmed());
+        println!("  {} Run: core friday-arch simulate-accuracy to resolve pending",
+            "→".dimmed());
+    } else {
+        let rate = correct as f64 / total as f64 * 100.0;
+        let rate_str = if rate >= 80.0 {
+            format!("{:.1}%", rate).bright_green().to_string()
+        } else if rate >= 60.0 {
+            format!("{:.1}%", rate).bright_yellow().to_string()
+        } else {
+            format!("{:.1}%", rate).bright_red().to_string()
+        };
+        println!("  {} Resolved: {}", "→".dimmed(), total);
+        println!("  {} Correct:  {} ({}/{})", "→".dimmed(), rate_str, correct, total);
+        println!("  {} Pending:  {}", "→".dimmed(), pending);
+        println!("  {} Target:   80%+ for CHALLENGE tier", "→".dimmed());
+    }
+    println!("  {}", "─".repeat(55).dimmed());
     Ok(())
 }

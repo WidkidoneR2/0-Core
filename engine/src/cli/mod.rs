@@ -121,6 +121,8 @@ pub fn parse() -> Command {
             FridayArchCommands::TrustDecay => FridayArchCommand::TrustDecay,
             FridayArchCommands::Usefulness => FridayArchCommand::Usefulness,
             FridayArchCommands::Simulate { command } => FridayArchCommand::Simulate { command },
+            FridayArchCommands::SimulateAccuracy => FridayArchCommand::SimulateAccuracy,
+            FridayArchCommands::SimulateStats => FridayArchCommand::SimulateStats,
             FridayArchCommands::Propose => FridayArchCommand::Propose,
             FridayArchCommands::Approve { id } => FridayArchCommand::Approve { id },
             FridayArchCommands::Reject { id } => FridayArchCommand::Reject { id },
