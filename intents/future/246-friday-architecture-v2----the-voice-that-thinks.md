@@ -190,7 +190,7 @@ Pillar 4 -- Usefulness Metrics:
 Pillar 5 -- Voice:
 ⬜ Friday speaks at most once per context switch
 ✅ Confidence shown explicitly on every suggestion
-⬜ Suggestions never repeated in same session
+✅ Suggestions never repeated in same session
 ⬜ CHALLENGE level blocks execution and shows simulation
 ⬜ Demonstrated: Friday catches a bad command before it runs
 Final:

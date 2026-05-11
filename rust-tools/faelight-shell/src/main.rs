@@ -1056,6 +1056,8 @@ fn repl_main() -> Result<()> {
     let mut _session_pipelines: usize = 0;
     // INT-246: session deduplication -- suggestions never repeated in same session
     let mut shown_friday_suggestions: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // INT-246: once per context switch -- Friday speaks when intent changes, not every command
+    let mut last_friday_intent: Option<String> = None;
     let mut _session_deploys: usize = 0;
     let mut _session_commits: usize = 0;
     let mut _session_failed: usize = 0;
@@ -3039,9 +3041,15 @@ fn repl_main() -> Result<()> {
                                         if let Some(msg) = resp.split("\"message\":\"").nth(1) {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
+                                                    // INT-246: once per intent -- only speak when intent changed
+                                                    let current_intent = db.get_focus_intent().map(|i| format!("{}", i));
+                                                    if current_intent == last_friday_intent && last_friday_intent.is_some() {
+                                                        continue;
+                                                    }
                                                     // INT-246: never repeat same suggestion in a session
                                                     if shown_friday_suggestions.contains(msg) { continue; }
                                                     shown_friday_suggestions.insert(msg.to_string());
+                                                    last_friday_intent = current_intent;
                                                     println!();
                                                     let tier = if resp.contains("\"high\"") {
                                                         ("RECOMMEND", "78%")
