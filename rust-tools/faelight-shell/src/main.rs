@@ -1054,6 +1054,8 @@ fn repl_main() -> Result<()> {
     let _session_start = std::time::Instant::now();
     let mut _session_commands: usize = 0;
     let mut _session_pipelines: usize = 0;
+    // INT-246: session deduplication -- suggestions never repeated in same session
+    let mut shown_friday_suggestions: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut _session_deploys: usize = 0;
     let mut _session_commits: usize = 0;
     let mut _session_failed: usize = 0;
@@ -3037,6 +3039,9 @@ fn repl_main() -> Result<()> {
                                         if let Some(msg) = resp.split("\"message\":\"").nth(1) {
                                             if let Some(msg) = msg.split('"').next() {
                                                 if !msg.is_empty() && msg != "null" {
+                                                    // INT-246: never repeat same suggestion in a session
+                                                    if shown_friday_suggestions.contains(msg) { continue; }
+                                                    shown_friday_suggestions.insert(msg.to_string());
                                                     println!();
                                                     let tier = if resp.contains("\"high\"") {
                                                         ("RECOMMEND", "78%")
