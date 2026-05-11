@@ -1,7 +1,7 @@
 ---
 id: 285
 title: "fsh shell friction -- heredoc hash stripping, for loops, knowledge add hang, command chains"
-status: in-progress
+status: complete
 date: 2026-05-08
 tags: [fsh, shell, bugfix, heredoc, friction, loops, commands]
 ---
@@ -53,11 +53,11 @@ Fix: audit && and ; handling in multi-command executor.
 
 GATES
 
-[ ] heredoc body not subject to comment stripping
-[ ] for f in ...; do ...; done works or routes to sh
-[ ] core knowledge add returns immediately with arg
-[ ] deploy core && deploy faelight-shell always runs both
-[ ] Session runs without /tmp Python workarounds
+[x] heredoc body not subject to comment stripping
+[x] for f in ...; do ...; done works or routes to sh
+[x] core knowledge add returns immediately with arg
+[x] deploy core && deploy faelight-shell always runs both
+[x] Session runs without /tmp Python workarounds
 
 The shell should not fight you.
 Every workaround is a failure of the tool.
