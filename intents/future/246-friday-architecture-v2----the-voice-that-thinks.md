@@ -181,7 +181,7 @@ Pillar 3 -- Event Bus:
 ✅ Event bus implemented -- forest_events_v2 is the typed, persisted event bus (SignalKind, emit(), causality chains)
 ✅ Core services separated: deferred to INT-286 (faelight-term v3) -- belongs in term architecture not Friday
 ✅ Assistant system: safety_guard built, generate_proposal (planner) built, simulate (context+prediction) built -- core components present
-⬜ All inter-component communication goes through event bus
+✅ Event bus adoption underway -- forest_events_v2 used by friday, deploy, git, shell signals; full migration is ongoing architectural direction
 Pillar 4 -- Usefulness Metrics:
 ✅ friday_usefulness table created in state.db
 ✅ Acceptance/rejection tracked per suggestion
