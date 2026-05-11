@@ -462,6 +462,9 @@ pub fn show_proposals(ctx: &AppContext) -> CoreResult<()> {
                 conf * 100.0
             );
             println!("      → {}", action.bright_cyan());
+            println!("      Simulation preview:");
+            let _ = simulate(ctx, action);
+            println!("      approve: core friday-arch approve {}  |  reject: {}", id, id);
         }
     }
     println!();
