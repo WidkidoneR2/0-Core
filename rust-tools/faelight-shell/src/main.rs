@@ -89,6 +89,14 @@ fn expand_subshells(line: &str) -> String {
 }
 
 fn split_semicolons(line: &str) -> Vec<String> {
+    // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
+    // The entire construct is passed to sh for execution as one unit
+    let trimmed = line.trim();
+    let is_loop = trimmed.starts_with("for ") || trimmed.starts_with("while ") || trimmed.starts_with("until ");
+    if is_loop && (trimmed.contains("; do") || trimmed.contains(";do") || trimmed.contains("
+do")) {
+        return vec![trimmed.to_string()];
+    }
     let mut segments = vec![];
     let mut current = String::new();
     let mut in_quote = false;
@@ -2074,6 +2082,23 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     // Phase 10 — expand $VARS before alias resolution
+                    // INT-285 BUG 2 FIX: shell control structures bypass fsh expansion
+                    // for/while/until/if/case go to sh with variables unexpanded
+                    let shell_construct = matches!(
+                        line.split_whitespace().next().unwrap_or(""),
+                        "for" | "while" | "until" | "if" | "case"
+                    );
+                    if shell_construct {
+                        let status = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(line)
+                            .status();
+                        last_exit_code = match status {
+                            Ok(s) => s.code(),
+                            Err(_) => Some(1),
+                        };
+                        continue;
+                    }
                     let line = expand_vars(line, &shell_vars, last_exit_code);
                     // Subshell expansion
                     let line = expand_subshells(&line);
