@@ -169,8 +169,8 @@ Deferred from INT-216:
 ✅ friday.strategy.proposed verified end-to-end with human approval gate
 Pillar 1 -- Formal System:
 ✅ Confidence model formalized in code -- 4 tiers with thresholds
-⬜ Friday inputs defined as typed structs -- no more loose signals
-⬜ Friday outputs defined as typed structs -- Observation/Suggestion/Plan/Warning
+✅ Friday inputs defined as typed structs -- no more loose signals
+✅ Friday outputs defined as typed structs -- Observation/Suggestion/Plan/Warning
 ⬜ Allowed actions per confidence tier enforced in safety_guard
 Pillar 2 -- Simulation:
 ⬜ Simulation engine built -- predicts outcome before any proposal
