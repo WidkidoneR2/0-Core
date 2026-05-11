@@ -166,7 +166,7 @@ GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Deferred from INT-216:
 ✅ Trust score decay implemented -- models decay on incorrect predictions
-⬜ friday.strategy.proposed verified end-to-end with human approval gate
+✅ friday.strategy.proposed verified end-to-end with human approval gate
 Pillar 1 -- Formal System:
 ✅ Confidence model formalized in code -- 4 tiers with thresholds
 ⬜ Friday inputs defined as typed structs -- no more loose signals
@@ -186,10 +186,10 @@ Pillar 4 -- Usefulness Metrics:
 ✅ friday_usefulness table created in state.db
 ✅ Acceptance/rejection tracked per suggestion
 ✅ usefulness_score calculated and shown in d output
-⬜ accuracy_rate visible in friday status
+✅ accuracy_rate visible in friday status
 Pillar 5 -- Voice:
 ⬜ Friday speaks at most once per context switch
-⬜ Confidence shown explicitly on every suggestion
+✅ Confidence shown explicitly on every suggestion
 ⬜ Suggestions never repeated in same session
 ⬜ CHALLENGE level blocks execution and shows simulation
 ⬜ Demonstrated: Friday catches a bad command before it runs
