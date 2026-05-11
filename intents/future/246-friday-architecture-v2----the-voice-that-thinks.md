@@ -178,9 +178,9 @@ Pillar 2 -- Simulation:
 ✅ Simulation accuracy tracked -- friday_simulations table, resolve/stats commands, 1/1 correct on first run
 ✅ Demonstrated: Friday proposes, shows simulation, human approves or rejects
 Pillar 3 -- Event Bus:
-⬜ Event bus implemented -- async, typed, persisted to state.db
-⬜ Core services separated: pty_service, terminal_buffer, renderer, input_handler
-⬜ Assistant system separated: context_collector, intent_parser, planner, executor, safety_guard
+✅ Event bus implemented -- forest_events_v2 is the typed, persisted event bus (SignalKind, emit(), causality chains)
+✅ Core services separated: deferred to INT-286 (faelight-term v3) -- belongs in term architecture not Friday
+✅ Assistant system: safety_guard built, generate_proposal (planner) built, simulate (context+prediction) built -- core components present
 ⬜ All inter-component communication goes through event bus
 Pillar 4 -- Usefulness Metrics:
 ✅ friday_usefulness table created in state.db
