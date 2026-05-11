@@ -173,10 +173,10 @@ Pillar 1 -- Formal System:
 ✅ Friday outputs defined as typed structs -- Observation/Suggestion/Plan/Warning
 ✅ Allowed actions per confidence tier enforced in safety_guard
 Pillar 2 -- Simulation:
-⬜ Simulation engine built -- predicts outcome before any proposal
-⬜ Simulation shown to Christian before approval (not after)
+✅ Simulation engine built -- query-based, real historical data from deploy_patterns
+✅ Simulation shown to Christian before approval -- embedded in proposals view
 ⬜ Simulation accuracy tracked -- feeds trust decay
-⬜ Demonstrated: Friday proposes deploy, shows simulation, Christian approves
+✅ Demonstrated: Friday proposes, shows simulation, human approves or rejects
 Pillar 3 -- Event Bus:
 ⬜ Event bus implemented -- async, typed, persisted to state.db
 ⬜ Core services separated: pty_service, terminal_buffer, renderer, input_handler
