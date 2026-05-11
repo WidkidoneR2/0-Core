@@ -722,3 +722,76 @@ pub fn reject_proposal(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
     Ok(())
 }
+
+pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+    ensure_usefulness_table(ctx)?;
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let health: i64 = db.query_row(
+        "SELECT COALESCE(AVG(score), 100) FROM health_history ORDER BY checked_at DESC LIMIT 5",
+        [], |r| r.get(0)
+    ).unwrap_or(100);
+    let active_intent: Option<(i64, String)> = db.query_row(
+        "SELECT id, title FROM intents WHERE status = 'in-progress' LIMIT 1",
+        [], |r| Ok((r.get(0)?, r.get(1)?))
+    ).ok();
+    let recent_deploys: i64 = db.query_row(
+        "SELECT COUNT(*) FROM deploy_history WHERE deployed_at > ?1",
+        params![now - 3600], |r| r.get(0)
+    ).unwrap_or(0);
+    let pattern_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM friday_patterns WHERE confidence > 0.7",
+        [], |r| r.get(0)
+    ).unwrap_or(0);
+    let (description, action, confidence, rationale) = if recent_deploys > 0 && health < 95 {
+        (
+            "Health check after recent deploys -- verify nothing degraded".to_string(),
+            "core doctor run".to_string(),
+            0.88f64,
+            format!("{} deploy(s) in last hour, health at {}%", recent_deploys, health)
+        )
+    } else if let Some((id, ref title)) = active_intent {
+        (
+            format!("Checkpoint -- commit progress on INT-{}", id),
+            "fg done \"progress checkpoint\"".to_string(),
+            0.75f64,
+            format!("Working on: {} -- regular commits improve recovery", title)
+        )
+    } else if pattern_count > 10 {
+        (
+            "Review Friday patterns -- high-confidence patterns ready".to_string(),
+            "core friday-arch models".to_string(),
+            0.72f64,
+            format!("{} patterns above 0.7 confidence ready for review", pattern_count)
+        )
+    } else {
+        (
+            "Forest health check -- routine verification".to_string(),
+            "core doctor run".to_string(),
+            0.65f64,
+            "Regular verification keeps the forest coherent".to_string()
+        )
+    };
+    db.execute(
+        "INSERT INTO friday_proposals (signal_type, description, action, confidence, status, created_at)
+         VALUES ('context', ?1, ?2, ?3, 'pending', ?4)",
+        params![description, action, confidence, now],
+    )?;
+    let proposal_id: i64 = db.query_row(
+        "SELECT id FROM friday_proposals ORDER BY id DESC LIMIT 1",
+        [], |r| r.get(0)
+    )?;
+    println!();
+    println!("  {} Friday Proposal [{}]", "🌲".normal(), proposal_id);
+    println!("  {}", "─".repeat(55).dimmed());
+    println!("  {} {}", "Proposal:  ".dimmed(), description.bright_white());
+    println!("  {} {}", "Action:    ".dimmed(), action.bright_cyan());
+    println!("  {} {:.0}%", "Confidence:".dimmed(), confidence * 100.0);
+    println!("  {} {}", "Rationale: ".dimmed(), rationale.dimmed());
+    println!();
+    println!("  {} approve: core friday-arch approve {}", "→".dimmed(), proposal_id);
+    println!("  {} reject:  core friday-arch reject {}", "→".dimmed(), proposal_id);
+    println!("  {}", "─".repeat(55).dimmed());
+    Ok(())
+}

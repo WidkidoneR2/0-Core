@@ -120,6 +120,7 @@ pub fn parse() -> Command {
             FridayArchCommands::Contradictions => FridayArchCommand::Contradictions,
             FridayArchCommands::TrustDecay => FridayArchCommand::TrustDecay,
             FridayArchCommands::Usefulness => FridayArchCommand::Usefulness,
+            FridayArchCommands::Propose => FridayArchCommand::Propose,
             FridayArchCommands::Approve { id } => FridayArchCommand::Approve { id },
             FridayArchCommands::Reject { id } => FridayArchCommand::Reject { id },
         }),

@@ -405,6 +405,8 @@ pub enum FridayArchCommands {
     TrustDecay,
     /// Show Friday usefulness metrics
     Usefulness,
+    /// Generate a new Friday proposal from current forest context
+    Propose,
     /// Approve a pending Friday proposal
     Approve { id: String },
     /// Reject a pending Friday proposal
