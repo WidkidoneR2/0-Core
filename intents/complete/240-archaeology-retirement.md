@@ -1,7 +1,7 @@
 ---
 id: 240
 title: "archaeology-0-core Retirement -- Clean Removal of a Legacy Tool"
-status: in-progress
+status: complete
 date: 2026-04-18
 tags: [archaeology, retirement, cleanup, legacy, doctor, aliases, registry]
 ---
@@ -28,16 +28,16 @@ Remove or replace with a check that confirms core commands work instead
 Remove from TOOLS.md, QUICK_REFERENCE.md, TOOL_REFERENCE.md
 Update ARCHITECTURE-FUTURE.md
 Remove archaeology-0-core references
-⬜ All archaeology-0-core use cases verified covered by core commands
-⬜ rust-tools/archaeology-0-core removed
-⬜ Registry aliases removed
-⬜ Doctor checks updated -- no more archaeology binary checks
-⬜ TOOLS.md updated
-⬜ QUICK_REFERENCE.md updated
-⬜ TOOL_REFERENCE.md updated
-⬜ ARCHITECTURE-FUTURE.md updated
-⬜ COMMAND-GUIDE updated
-⬜ No broken references remain in any file
-⬜ d shows 100% health after removal
+✅ All archaeology-0-core use cases verified covered by core commands
+✅ rust-tools/archaeology-0-core removed
+✅ Registry aliases removed
+✅ Doctor checks updated -- no more archaeology binary checks
+✅ TOOLS.md updated
+✅ QUICK_REFERENCE.md updated
+✅ TOOL_REFERENCE.md updated
+✅ ARCHITECTURE-FUTURE.md updated
+✅ COMMAND-GUIDE updated
+✅ No broken references remain in any file
+✅ d shows 100% health after removal
 "A tool that served its purpose.
 Retired with respect, not neglect." 🌲
