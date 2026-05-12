@@ -42,12 +42,13 @@ use alacritty_terminal::{
     grid::Dimensions,
     index::{Column, Line, Point},
     sync::FairMutex,
-    term::Config as TermConfig,
+    term::{Config as TermConfig, cell::Flags},
     tty::{self, Options as TtyOptions},
+    vte::ansi::{Color as AnsiColor, NamedColor},
 };
 use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 
-const CELL_W: f32 = 10.0;
+const CELL_W: f32 = 9.5;
 const CELL_H: f32 = 20.0;
 const FONT_SIZE: f32 = 16.0;
 const LINE_HEIGHT: f32 = 20.0;
@@ -263,6 +264,8 @@ impl GpuState {
         let _thread = event_loop.spawn();
 
         eprintln!("[v3] PTY ready: {}x{}", cols, rows);
+        // Set window title to reflect forest context
+        eprintln!("[v3] forest signals: active");
 
         Self {
             device, queue, surface, config,
@@ -277,22 +280,105 @@ impl GpuState {
         self.dirty = true;
     }
 
+
+    /// Map alacritty AnsiColor to glyphon Color
+    fn ansi_to_glyphon(color: AnsiColor, _is_bold: bool) -> glyphon::Color {
+        match color {
+            AnsiColor::Named(NamedColor::Black)         => glyphon::Color::rgb(0x1a, 0x1f, 0x1a),
+            AnsiColor::Named(NamedColor::Red)           => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+            AnsiColor::Named(NamedColor::Green)         => glyphon::Color::rgb(0x5a, 0xb0, 0x6e),
+            AnsiColor::Named(NamedColor::Yellow)        => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+            AnsiColor::Named(NamedColor::Blue)          => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+            AnsiColor::Named(NamedColor::Magenta)       => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+            AnsiColor::Named(NamedColor::Cyan)          => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+            AnsiColor::Named(NamedColor::White)         => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+            AnsiColor::Named(NamedColor::BrightBlack)   => glyphon::Color::rgb(0x5c, 0x63, 0x70),
+            AnsiColor::Named(NamedColor::BrightRed)     => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+            AnsiColor::Named(NamedColor::BrightGreen)   => glyphon::Color::rgb(0x7e, 0xc2, 0x8e),
+            AnsiColor::Named(NamedColor::BrightYellow)  => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+            AnsiColor::Named(NamedColor::BrightBlue)    => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+            AnsiColor::Named(NamedColor::BrightMagenta) => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+            AnsiColor::Named(NamedColor::BrightCyan)    => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+            AnsiColor::Named(NamedColor::BrightWhite)   => glyphon::Color::rgb(0xff, 0xff, 0xff),
+            AnsiColor::Named(NamedColor::Foreground)    => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+            AnsiColor::Named(NamedColor::Background)    => glyphon::Color::rgb(0x11, 0x14, 0x0f),
+            AnsiColor::Indexed(i) => {
+                // 256-color palette -- basic implementation
+                match i {
+                    0  => glyphon::Color::rgb(0x1a, 0x1f, 0x1a),
+                    1  => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+                    2  => glyphon::Color::rgb(0x5a, 0xb0, 0x6e),
+                    3  => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+                    4  => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+                    5  => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+                    6  => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+                    7  => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+                    8  => glyphon::Color::rgb(0x5c, 0x63, 0x70),
+                    9  => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+                    10 => glyphon::Color::rgb(0x7e, 0xc2, 0x8e),
+                    11 => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+                    12 => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+                    13 => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+                    14 => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+                    15 => glyphon::Color::rgb(0xff, 0xff, 0xff),
+                    _ => {
+                        // 6x6x6 color cube (16-231) and grayscale (232-255)
+                        if i >= 232 {
+                            let v = 8 + (i - 232) * 10;
+                            glyphon::Color::rgb(v, v, v)
+                        } else if i >= 16 {
+                            let idx = i - 16;
+                            let b = (idx % 6) * 51;
+                            let g = ((idx / 6) % 6) * 51;
+                            let r = (idx / 36) * 51;
+                            glyphon::Color::rgb(r, g, b)
+                        } else {
+                            glyphon::Color::rgb(0xd7, 0xe0, 0xda)
+                        }
+                    }
+                }
+            }
+            AnsiColor::Spec(rgb) => glyphon::Color::rgb(rgb.r, rgb.g, rgb.b),
+            _ => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+        }
+    }
+
     fn sync_terminal(&mut self) {
         let term = self.term.lock();
         let grid = term.grid();
-        let mut text = String::new();
+        // Build spans with per-cell colors
+        let mut spans: Vec<(String, glyphon::Attrs<'static>)> = Vec::new();
         for line in 0..self.rows {
             for col in 0..self.cols {
                 let point = Point::new(Line(line as i32), Column(col));
                 let cell = &grid[point];
-                let ch = cell.c;
-                text.push(if ch == '\0' { ' ' } else { ch });
+                let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                let fg = Self::ansi_to_glyphon(cell.fg, cell.flags.contains(Flags::BOLD));
+                let bold = cell.flags.contains(Flags::BOLD);
+                let attrs = Attrs::new()
+                    .family(Family::Monospace)
+                    .color(fg)
+                    .weight(if bold { glyphon::fontdb::Weight::BOLD } else { glyphon::fontdb::Weight::NORMAL });
+                spans.push((ch.to_string(), attrs));
             }
-            text.push('\n');
+            // Newline -- add to last span
+            if let Some(last) = spans.last_mut() {
+                last.0.push('\n');
+            } else {
+                spans.push(("\n".to_string(), Attrs::new().family(Family::Monospace)));
+            }
         }
         drop(term);
-        let attrs = Attrs::new().family(Family::Monospace);
-        self.text_buffer.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
+        // Convert spans to glyphon AttrsList format
+        let span_refs: Vec<(&str, glyphon::Attrs)> = spans.iter()
+            .map(|(s, a)| (s.as_str(), *a))
+            .collect();
+        self.text_buffer.set_rich_text(
+            &mut self.font_system,
+            span_refs.into_iter(),
+            Attrs::new().family(Family::Monospace),
+            Shaping::Advanced,
+        );
         self.text_buffer.shape_until_scroll(&mut self.font_system, false);
     }
 
@@ -333,7 +419,7 @@ impl GpuState {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view, resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.067, g: 0.078, b: 0.059, a: 1.0 }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0039, g: 0.0055, b: 0.0027, a: 1.0 }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
