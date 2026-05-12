@@ -1,5 +1,5 @@
 [package]
-name = "faelight-term"
+name = "faelight-term-v2"
 version = "2.0.0"
 edition = "2021"
 [dependencies]
@@ -17,5 +17,5 @@ toml = "0.8"
 bytemuck = { version = "1.14", features = ["derive"] }
 pollster = "0.3"
 [[bin]]
-name = "faelight-term"
+name = "faelight-term-v2"
 path = "src/main.rs"

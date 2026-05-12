@@ -1,8 +1,8 @@
 [package]
-name = "faelight-term-v3"
-version = "0.1.0"
+name = "faelight-term"
+version = "3.0.0"
 edition = "2021"
-description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal"
+description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal -- GPU-native Wayland terminal"
 
 [dependencies]
 # GPU renderer

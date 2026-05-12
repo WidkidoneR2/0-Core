@@ -131,7 +131,7 @@ Phase 4:
 [x] Scrollback works -- alacritty_terminal ring buffer handles large output
 Phase 5:
 [x] fsh is default shell in v3 -- uses $SHELL env var, fsh spawns correctly
-[ ] Forest signals emit correctly
+[x] Forest signals emit correctly -- ANSI color pipeline active, per-cell colors via glyphon spans
 [ ] Friday voice appears in terminal
 Phase 6:
 [ ] No mouse drag flashing (INT-284 Bug 3 fixed)

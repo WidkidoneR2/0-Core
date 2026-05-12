@@ -2064,6 +2064,25 @@ dependencies = [
 
 [[package]]
 name = "faelight-term"
+version = "3.0.0"
+dependencies = [
+ "alacritty_terminal",
+ "calloop 0.12.4",
+ "calloop-wayland-source 0.2.0",
+ "cosmic-text",
+ "env_logger",
+ "futures",
+ "glyphon",
+ "log",
+ "raw-window-handle",
+ "smithay-client-toolkit 0.18.1",
+ "wayland-backend",
+ "wayland-client",
+ "wgpu",
+]
+
+[[package]]
+name = "faelight-term-v2"
 version = "2.0.0"
 dependencies = [
  "bytemuck",
@@ -2079,25 +2098,6 @@ dependencies = [
  "vte",
  "wayland-client",
  "wl-clipboard-rs",
-]
-
-[[package]]
-name = "faelight-term-v3"
-version = "0.1.0"
-dependencies = [
- "alacritty_terminal",
- "calloop 0.12.4",
- "calloop-wayland-source 0.2.0",
- "cosmic-text",
- "env_logger",
- "futures",
- "glyphon",
- "log",
- "raw-window-handle",
- "smithay-client-toolkit 0.18.1",
- "wayland-backend",
- "wayland-client",
- "wgpu",
 ]
 
 [[package]]
