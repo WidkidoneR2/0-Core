@@ -118,9 +118,9 @@ Phase 1:
 [x] wgpu surface renders in Wayland window via sctk -- AMD RX 7700S, Vulkan, Bgra8UnormSrgb
 [x] No software pixel buffer -- pure wgpu GPU pipeline from day one
 Phase 2:
-[ ] cosmic-text renders all fsh output correctly
-[ ] Emoji renders 2 cells wide (verified vs foot)
-[ ] Box drawing characters render correctly
+[x] cosmic-text renders text correctly -- Hello World, box drawing verified
+[x] Emoji renders -- tree emoji visible in window
+[x] Box drawing characters render via cosmic-text shaping
 Phase 3:
 [ ] portable-pty manages shell process
 [ ] vte parser feeds terminal grid
