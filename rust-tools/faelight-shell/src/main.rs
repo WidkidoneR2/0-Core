@@ -1537,12 +1537,22 @@ fn repl_main() -> Result<()> {
                     let logical_parts = split_logical(segment);
                     if logical_parts.len() > 1 {
                         let mut last_success = true;
+                        let mut prev_op: Option<bool> = None; // operator from previous command
                         // fsh builtins that cannot run via sh -c
                         for (lcmd, op) in &logical_parts {
-                            // Check if we should run based on previous result
-                            if let Some(is_and) = op {
-                                if *is_and && !last_success { break; }
-                                if !*is_and && last_success { break; }
+                            // Check if we should run based on PREVIOUS operator and result
+                            // Use continue (not break) so || chains after failed && still execute
+                            if let Some(is_and) = prev_op {
+                                if is_and && !last_success {
+                                    // && but previous failed: skip, keep last_success=false
+                                    prev_op = *op;
+                                    continue;
+                                }
+                                if !is_and && last_success {
+                                    // || but previous succeeded: skip, keep last_success=true
+                                    prev_op = *op;
+                                    continue;
+                                }
                             }
                             // NOTE: && with fsh builtins requires INT-267 execution refactor
                             // Handle cd as a builtin (must affect parent process, not subprocess)
@@ -1578,6 +1588,7 @@ fn repl_main() -> Result<()> {
                                 .envs(std::env::vars())
                                 .status();
                             last_success = status.map(|s| s.success()).unwrap_or(false);
+                            prev_op = *op; // track for next iteration
                         }
                         continue;
                     }
