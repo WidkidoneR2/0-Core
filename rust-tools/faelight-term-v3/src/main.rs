@@ -307,6 +307,40 @@ impl GpuState {
         self.dirty = true;
     }
 
+    fn resize(&mut self, width: u32, height: u32) {
+        let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
+        let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
+        let cols = cols.max(10);
+        let rows = rows.max(3);
+        if cols == self.cols && rows == self.rows { return; }
+        // Resize wgpu surface
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
+        // Resize glyphon text buffer
+        self.text_buffer.set_size(&mut self.font_system, Some(width as f32), Some(height as f32));
+        // Resize alacritty terminal grid
+        {
+            let mut term = self.term.lock();
+            term.resize(TermDimensions { cols, rows });
+        }
+        // Send SIGWINCH to PTY via notifier
+        {
+            use alacritty_terminal::event_loop::Msg;
+            use alacritty_terminal::event::WindowSize;
+            let window_size = WindowSize {
+                num_cols: cols as u16,
+                num_lines: rows as u16,
+                cell_width: CELL_W as u16,
+                cell_height: CELL_H as u16,
+            };
+            let _ = self.notifier.0.send(Msg::Resize(window_size));
+        }
+        self.cols = cols;
+        self.rows = rows;
+        self.dirty = true;
+    }
+
 
     /// Map alacritty AnsiColor to glyphon Color
     fn ansi_to_glyphon(color: AnsiColor, _is_bold: bool) -> glyphon::Color {
@@ -631,6 +665,11 @@ impl WindowHandler for AppState {
             // Create pointer now that we have a configured window
             if let Some(ref seat) = self.wl_seat.clone() {
                 let _ = self.seat_state.get_pointer(_qh, seat);
+            }
+        } else {
+            // Subsequent configure = window resize
+            if let Some(ref mut gpu) = self.gpu {
+                gpu.resize(self.width, self.height);
             }
         }
     }
