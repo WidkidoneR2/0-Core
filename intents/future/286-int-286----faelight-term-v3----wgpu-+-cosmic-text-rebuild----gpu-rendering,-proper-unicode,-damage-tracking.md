@@ -115,8 +115,8 @@ Phase 6 -- Polish
 ---
 GATES
 Phase 1:
-[ ] wgpu surface renders in Wayland window via sctk
-[ ] No software pixel buffer anywhere in renderer
+[x] wgpu surface renders in Wayland window via sctk -- AMD RX 7700S, Vulkan, Bgra8UnormSrgb
+[x] No software pixel buffer -- pure wgpu GPU pipeline from day one
 Phase 2:
 [ ] cosmic-text renders all fsh output correctly
 [ ] Emoji renders 2 cells wide (verified vs foot)
