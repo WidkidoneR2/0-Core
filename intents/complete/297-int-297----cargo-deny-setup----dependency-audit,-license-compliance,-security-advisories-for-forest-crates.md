@@ -1,7 +1,7 @@
 ---
 id: 297
 title: "cargo-deny setup -- dependency audit, license compliance, security advisories"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [cargo-deny, security, audit, license, dependencies, rust, forest]
 ---
