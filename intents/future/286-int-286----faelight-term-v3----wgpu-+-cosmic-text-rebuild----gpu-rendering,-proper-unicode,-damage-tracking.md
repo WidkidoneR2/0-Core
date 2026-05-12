@@ -122,9 +122,9 @@ Phase 2:
 [x] Emoji renders -- tree emoji visible in window
 [x] Box drawing characters render via cosmic-text shaping
 Phase 3:
-[ ] portable-pty manages shell process
-[ ] vte parser feeds terminal grid
-[ ] fsh runs and output appears
+[x] alacritty_terminal::tty manages shell process -- fsh spawned
+[x] vte parser feeds terminal grid -- built into alacritty_terminal
+[x] fsh runs and output appears -- forest welcome screen visible in v3 window
 Phase 4:
 [ ] Scrollback ring buffer holds 10000 lines
 [ ] Per-cell dirty tracking implemented
