@@ -1,5 +1,6 @@
 [package]
 name = "safe-update"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "Safe system updater - snapshot before updating"

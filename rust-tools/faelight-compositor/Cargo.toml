@@ -1,5 +1,6 @@
 [package]
 name = "faelight-compositor"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 description = "faelight-compositor — The compositor that joins the family"

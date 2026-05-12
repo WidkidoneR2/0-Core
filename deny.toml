@@ -1,0 +1,97 @@
+# Faelight Forest -- cargo-deny configuration
+[graph]
+targets = ["x86_64-unknown-linux-gnu"]
+[advisories]
+unmaintained = "workspace"
+unsound = "workspace"
+ignore = [
+    "RUSTSEC-2021-0145",
+    "RUSTSEC-2024-0375",
+    "RUSTSEC-2025-0040",
+    "RUSTSEC-2026-0044",
+    "RUSTSEC-2026-0045",
+    "RUSTSEC-2026-0046",
+    "RUSTSEC-2026-0047",
+    "RUSTSEC-2026-0048",
+    "RUSTSEC-2026-0008",
+]
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+    "CDLA-Permissive-2.0",
+]
+exceptions = [
+    { allow = ["MIT"], name = "core" },
+    { allow = ["MIT"], name = "core-diff" },
+    { allow = ["MIT"], name = "core-protect" },
+    { allow = ["MIT"], name = "dotctl" },
+    { allow = ["MIT"], name = "faelight" },
+    { allow = ["MIT"], name = "faelight-bar" },
+    { allow = ["MIT"], name = "faelight-bootstrap" },
+    { allow = ["MIT"], name = "faelight-browser" },
+    { allow = ["MIT"], name = "faelight-cleanup" },
+    { allow = ["MIT"], name = "faelight-compositor" },
+    { allow = ["MIT"], name = "faelight-context" },
+    { allow = ["MIT"], name = "faelight-contextd" },
+    { allow = ["MIT"], name = "faelight-core" },
+    { allow = ["MIT"], name = "faelight-daemon" },
+    { allow = ["MIT"], name = "faelight-diff" },
+    { allow = ["MIT"], name = "faelight-digest" },
+    { allow = ["MIT"], name = "faelight-docs" },
+    { allow = ["MIT"], name = "faelight-fm" },
+    { allow = ["MIT"], name = "faelight-gen" },
+    { allow = ["MIT"], name = "faelight-git" },
+    { allow = ["MIT"], name = "faelight-hooks" },
+    { allow = ["MIT"], name = "faelight-idle" },
+    { allow = ["MIT"], name = "faelight-link" },
+    { allow = ["MIT"], name = "faelight-lock" },
+    { allow = ["MIT"], name = "faelight-login" },
+    { allow = ["MIT"], name = "faelight-memory" },
+    { allow = ["MIT"], name = "faelight-menu" },
+    { allow = ["MIT"], name = "faelight-niri-bridge" },
+    { allow = ["MIT"], name = "faelight-notify" },
+    { allow = ["MIT"], name = "faelight-palette" },
+    { allow = ["MIT"], name = "faelight-pulse" },
+    { allow = ["MIT"], name = "faelight-release" },
+    { allow = ["MIT"], name = "faelight-sandbox" },
+    { allow = ["MIT"], name = "faelight-shell" },
+    { allow = ["MIT"], name = "faelight-term" },
+    { allow = ["MIT"], name = "faelight-term-v2" },
+    { allow = ["MIT"], name = "faelight-update" },
+    { allow = ["MIT"], name = "faelight-vault" },
+    { allow = ["MIT"], name = "faelight-wallpaper" },
+    { allow = ["MIT"], name = "faelight-zone" },
+    { allow = ["MIT"], name = "faelight-clipboard" },
+    { allow = ["MIT"], name = "faelight-forecast" },
+    { allow = ["MIT"], name = "get-version" },
+    { allow = ["MIT"], name = "intent" },
+    { allow = ["MIT"], name = "intent-guard" },
+    { allow = ["MIT"], name = "keyscan" },
+    { allow = ["MIT"], name = "latest-update" },
+    { allow = ["MIT"], name = "profile" },
+    { allow = ["MIT"], name = "safe-update" },
+    { allow = ["MIT"], name = "teach" },
+    { allow = ["MIT"], name = "verify-bootstrap" },
+    { allow = ["MIT"], name = "alias-audit" },
+    { allow = ["GPL-3.0-only"], name = "greetd_ipc" },
+]
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"
+deny = []
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = ["https://github.com/Smithay/smithay.git"]

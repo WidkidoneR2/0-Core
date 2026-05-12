@@ -1,5 +1,6 @@
 [package]
 name = "faelight-sandbox"
+license = "MIT"
 version = "3.0.0"
 edition = "2021"
 description = "Controlled experimentation environment for Faelight Forest"

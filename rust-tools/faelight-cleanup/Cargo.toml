@@ -1,5 +1,6 @@
 [package]
 name = "faelight-cleanup"
+license = "MIT"
 version = "1.0.0"
 edition = "2021"
 description = "Faelight Forest Cleanup - System hygiene scanner and cleaner"

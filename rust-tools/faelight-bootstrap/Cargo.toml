@@ -1,5 +1,6 @@
 [package]
 name = "faelight-bootstrap"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "One-command 0-Core setup for Arch Linux - path-resilient!"

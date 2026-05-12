@@ -1,5 +1,6 @@
 [package]
 name = "dotctl"
+license = "MIT"
 version = "3.1.0"
 edition = "2021"
 description = "Dotfile control center - manage stow packages and versions"

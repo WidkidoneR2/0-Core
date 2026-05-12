@@ -1,5 +1,6 @@
 [package]
 name = "faelight-shell"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "Forest-native structured shell environment — beyond NixOS"

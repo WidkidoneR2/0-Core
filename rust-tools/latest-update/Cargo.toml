@@ -1,5 +1,6 @@
 [package]
 name = "latest-update"
+license = "MIT"
 version = "4.0.0"
 edition = "2021"
 description = "Show latest package updates from .dotmeta files"

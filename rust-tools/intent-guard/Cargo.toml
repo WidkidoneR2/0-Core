@@ -1,5 +1,6 @@
 [package]
 name = "intent-guard"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "Command safety guard - protecting your system 🛡️"

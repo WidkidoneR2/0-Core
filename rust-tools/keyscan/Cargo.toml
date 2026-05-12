@@ -1,5 +1,6 @@
 [package]
 name = "keyscan"
+license = "MIT"
 version = "3.0.0"
 edition = "2021"
 description = "Sway keybinding analyzer - find conflicts and duplicates"

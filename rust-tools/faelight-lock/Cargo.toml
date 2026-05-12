@@ -1,5 +1,6 @@
 [package]
 name = "faelight-lock"
+license = "MIT"
 version = "2.0.0"
 edition = "2021"
 description = "Native Rust Wayland screen locker -- ext-session-lock-v1"

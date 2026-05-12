@@ -1,5 +1,6 @@
 [package]
 name = "get-version"
+license = "MIT"
 version = "4.0.0"
 edition = "2021"
 description = "Get system version from VERSION file"

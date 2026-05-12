@@ -1,5 +1,6 @@
 [package]
 name = "faelight-link"
+license = "MIT"
 version = "3.0.0"
 edition = "2021"
 authors = ["Christian"]

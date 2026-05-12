@@ -1,5 +1,6 @@
 [package]
 name = "faelight-docs"
+license = "MIT"
 version = "2.0.0"
 edition = "2021"
 description = "Living documentation engine — keeps README and welcome in sync with forest state"

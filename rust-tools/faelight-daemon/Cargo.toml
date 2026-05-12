@@ -1,5 +1,6 @@
 [package]
 name = "faelight-daemon"
+license = "MIT"
 version = "4.0.0"
 edition = "2021"
 description = "Background daemon for Faelight Forest operations"

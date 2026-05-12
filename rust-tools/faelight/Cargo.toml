@@ -1,5 +1,6 @@
 [package]
 name = "faelight"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "Unified CLI for Faelight Forest"

@@ -1,5 +1,6 @@
 [package]
 name = "core-protect"
+license = "MIT"
 version = "2.3.0"
 edition = "2021"
 description = "System guardian - immutable protection for 0-core"

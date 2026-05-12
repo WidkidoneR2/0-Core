@@ -1,5 +1,6 @@
 [package]
 name = "faelight-contextd"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 description = "Background awareness daemon — the nervous system of Faelight Forest"

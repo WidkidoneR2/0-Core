@@ -1,5 +1,6 @@
 [package]
 name = "profile"
+license = "MIT"
 version = "2.1.0"
 edition = "2021"
 description = "Profile management - switch between system configurations"

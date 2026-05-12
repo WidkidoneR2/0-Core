@@ -1,5 +1,6 @@
 [package]
 name = "intent"
+license = "MIT"
 version = "3.0.0"
 edition = "2021"
 description = "Intent Ledger - The heart of intentional computing 🎯"
