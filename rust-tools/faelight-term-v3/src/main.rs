@@ -51,7 +51,7 @@ use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
 use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
-const CELL_W: f32 = 9.5;
+const CELL_W: f32 = 10.5;
 const CELL_H: f32 = 20.0;
 const FONT_SIZE: f32 = 16.0;
 const LINE_HEIGHT: f32 = 20.0;
@@ -128,6 +128,7 @@ fn main() {
 
     eprintln!("[v3] entering event loop with keyboard support");
     while !state.exit {
+        // Render if dirty
         if let Some(ref mut gpu) = state.gpu {
             if gpu.dirty {
                 gpu.sync_terminal(state.selection_start, state.selection_end);
@@ -135,9 +136,17 @@ fn main() {
                 gpu.dirty = false;
             }
         }
-        match event_queue.blocking_dispatch(&mut state) {
-            Ok(_) => { if let Some(ref mut gpu) = state.gpu { gpu.dirty = true; } }
+        // Non-blocking dispatch -- catches keyboard/mouse events
+        match event_queue.dispatch_pending(&mut state) {
+            Ok(_) => {}
             Err(e) => { eprintln!("[v3] dispatch error: {:?}", e); break; }
+        }
+        event_queue.flush().ok();
+        // Poll at ~60fps so PTY output renders promptly
+        std::thread::sleep(std::time::Duration::from_millis(16));
+        // Mark dirty every frame so PTY output is always rendered
+        if let Some(ref mut gpu) = state.gpu {
+            gpu.dirty = true;
         }
     }
 }
@@ -369,11 +378,15 @@ impl GpuState {
     fn sync_terminal(&mut self, sel_start: Option<(usize,usize)>, sel_end: Option<(usize,usize)>) {
         let term = self.term.lock();
         let grid = term.grid();
+        // Account for scroll position -- display_offset shifts the visible window
+        let display_offset = grid.display_offset() as i32;
         // Build spans with per-cell colors
         let mut spans: Vec<(String, glyphon::Attrs<'static>)> = Vec::new();
         for line in 0..self.rows {
             for col in 0..self.cols {
-                let point = Point::new(Line(line as i32), Column(col));
+                // Adjust line by display_offset: positive offset = scrolled up into history
+                let grid_line = line as i32 - display_offset;
+                let point = Point::new(Line(grid_line), Column(col));
                 let cell = &grid[point];
                 let ch = if cell.c == '\0' { ' ' } else { cell.c };
                 let fg = Self::ansi_to_glyphon(cell.fg, cell.flags.contains(Flags::BOLD));
@@ -393,7 +406,9 @@ impl GpuState {
         }
                 // Capture cursor position before drop
         self.cursor_col = grid.cursor.point.column.0;
-        self.cursor_row = grid.cursor.point.line.0.max(0) as usize;
+        // Cursor position adjusted for scroll -- hide cursor when scrolled
+        let cursor_line = grid.cursor.point.line.0 + display_offset;
+        self.cursor_row = if cursor_line >= 0 && cursor_line < self.rows as i32 { cursor_line as usize } else { usize::MAX };
         drop(term);
         // Convert spans to glyphon AttrsList format
         // Mark cursor cell -- bright green highlight
@@ -648,6 +663,8 @@ impl PointerHandler for AppState {
                         if let Some(ref gpu) = self.gpu {
                             let term = gpu.term.lock();
                             let grid = term.grid();
+                            // Account for scroll position when copying
+                            let display_offset = grid.display_offset() as i32;
                             let mut text = String::new();
                             let (start_col, start_row) = start;
                             let (end_col, end_row) = end;
@@ -661,7 +678,9 @@ impl PointerHandler for AppState {
                                 let col_end = if row == r2 { c2 } else { gpu.cols.saturating_sub(1) };
                                 for col in col_start..=col_end {
                                     use alacritty_terminal::index::{Column, Line, Point};
-                                    let point = Point::new(Line(row as i32), Column(col));
+                                    // Adjust for scroll -- viewport row maps to grid line
+                                    let grid_line = row as i32 - display_offset;
+                                    let point = Point::new(Line(grid_line), Column(col));
                                     let cell = &grid[point];
                                     let ch = if cell.c == '\0' { ' ' } else { cell.c };
                                     text.push(ch);
@@ -696,6 +715,24 @@ impl PointerHandler for AppState {
                         if let Some(ref mut gpu) = self.gpu {
                             gpu.dirty = true;
                         }
+                    }
+                }
+                PointerEventKind::Axis { horizontal: _, vertical, .. } => {
+                    // Scroll -- scroll the terminal viewport via alacritty_terminal
+                    if let Some(ref mut gpu) = self.gpu {
+                        use alacritty_terminal::grid::Scroll;
+                        let lines = (vertical.absolute.abs() / 3.0).ceil() as usize;
+                        let lines = lines.max(1).min(5);
+                        if vertical.absolute < 0.0 {
+                            // Scroll up -- show history
+                            let mut term = gpu.term.lock();
+                            term.scroll_display(Scroll::Delta(lines as i32));
+                        } else if vertical.absolute > 0.0 {
+                            // Scroll down -- back to bottom
+                            let mut term = gpu.term.lock();
+                            term.scroll_display(Scroll::Delta(-(lines as i32)));
+                        }
+                        gpu.dirty = true;
                     }
                 }
                 _ => {}
