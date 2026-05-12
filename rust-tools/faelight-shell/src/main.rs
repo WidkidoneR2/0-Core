@@ -41,13 +41,58 @@ use std::collections::HashMap;
 
 /// Split a line on `;` separators, respecting quoted strings.
 /// "cmd1; cmd2; cmd3" → ["cmd1", "cmd2", "cmd3"]
+fn expand_braces(s: &str) -> String {
+    // Expand {N..M} and {a..z} sequences without regex
+    if !s.contains('{') { return s.to_string(); }
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '{' {
+            if let Some(close) = chars[i+1..].iter().position(|&c| c == '}') {
+                let inner: String = chars[i+1..i+1+close].iter().collect();
+                if let Some(dotdot) = inner.find("..") {
+                    let left = &inner[..dotdot];
+                    let right = &inner[dotdot+2..];
+                    if let (Ok(start_n), Ok(end_n)) = (left.parse::<i64>(), right.parse::<i64>()) {
+                        let expanded: Vec<String> = if start_n <= end_n {
+                            (start_n..=end_n).map(|n| n.to_string()).collect()
+                        } else {
+                            (end_n..=start_n).rev().map(|n| n.to_string()).collect()
+                        };
+                        result.push_str(&expanded.join(" "));
+                        i += close + 2;
+                        continue;
+                    }
+                    let lc: Vec<char> = left.chars().collect();
+                    let rc: Vec<char> = right.chars().collect();
+                    if lc.len() == 1 && rc.len() == 1 {
+                        let ls = lc[0] as u8;
+                        let rs = rc[0] as u8;
+                        let expanded: Vec<String> = if ls <= rs {
+                            (ls..=rs).map(|c| (c as char).to_string()).collect()
+                        } else {
+                            (rs..=ls).rev().map(|c| (c as char).to_string()).collect()
+                        };
+                        result.push_str(&expanded.join(" "));
+                        i += close + 2;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+    result
+}
 fn normalize_input(s: &str) -> String {
-    s.replace("‘", "'")
-        .replace("’", "'")
-        .replace("“", "\"")
-        .replace("”", "\"")
-        .replace("–", "-")
-        .replace("—", "--")
+    s.replace('‘', "'")
+        .replace('’', "'")
+        .replace('“', "\"")
+        .replace('”', "\"")
+        .replace('–', "-")
+        .replace('—', "--")
 }
 
 fn expand_subshells(line: &str) -> String {
@@ -101,6 +146,11 @@ do")) {
     // if/then/else/fi constructs are atomic -- never split at semicolons
     let is_if = trimmed.starts_with("if ");
     if is_if && (trimmed.contains("; then") || trimmed.contains(";then")) && trimmed.ends_with("fi") {
+        return vec![trimmed.to_string()];
+    }
+    // piped while loops are atomic: "cmd | while ...; do ...; done"
+    let has_piped_while = trimmed.contains("| while ") && trimmed.contains("; do") && trimmed.ends_with("done");
+    if has_piped_while {
         return vec![trimmed.to_string()];
     }
     let mut segments = vec![];
@@ -1401,6 +1451,7 @@ fn repl_main() -> Result<()> {
                 };
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
+                let line = expand_braces(&line);
                 match db.save_history_entry(&line) {
                     Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
                     Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
@@ -1666,7 +1717,7 @@ fn repl_main() -> Result<()> {
                                     }
                                 }
                             }
-                            continue 'repl;
+                            continue 'segments;
                         }
                     }
 
@@ -1694,7 +1745,7 @@ fn repl_main() -> Result<()> {
                                         "→".bright_cyan()
                                     );
                                     println!();
-                                    continue 'repl;
+                                    continue 'segments;
                                 }
                                 _ => {}
                             }
@@ -1713,7 +1764,7 @@ fn repl_main() -> Result<()> {
                                         "→".bright_cyan()
                                     );
                                     println!();
-                                    continue 'repl;
+                                    continue 'segments;
                                 }
                                 _ => {}
                             }
@@ -1760,7 +1811,7 @@ fn repl_main() -> Result<()> {
                                 }
                             }
                         }
-                        continue 'repl;
+                        continue 'segments;
                     }
                     // INT-203 fix -- route friday subcommands to core friday
                     if line.starts_with("friday ") {
@@ -1801,7 +1852,7 @@ fn repl_main() -> Result<()> {
                                 }
                             }
                             let _ = cmd.status();
-                            continue 'repl;
+                            continue 'segments;
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
@@ -1851,7 +1902,7 @@ fn repl_main() -> Result<()> {
                         } else {
                             println!("  \u{26a0}  Friday daemon not running -- start with: faelight-daemon &");
                         }
-                        continue 'repl;
+                        continue 'segments;
                     }
 
                     // Natural language ?prefix
@@ -1978,7 +2029,7 @@ fn repl_main() -> Result<()> {
                                 && name
                                     .chars()
                                     .next()
-                                    .map(|c| c.is_ascii_uppercase() || c == '_')
+                                    .map(|c| c.is_ascii_alphabetic() || c == '_')
                                     .unwrap_or(false)
                                 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                             if valid {
@@ -1993,7 +2044,7 @@ fn repl_main() -> Result<()> {
                                     name.bright_white(),
                                     expanded.dimmed()
                                 );
-                                continue 'repl;
+                                continue 'segments;
                             }
                         }
                     }
@@ -2010,7 +2061,7 @@ fn repl_main() -> Result<()> {
                                     && name
                                         .chars()
                                         .next()
-                                        .map(|c| c.is_ascii_uppercase() || c == '_')
+                                        .map(|c| c.is_ascii_alphabetic() || c == '_')
                                         .unwrap_or(false)
                                     && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                                 if valid {
@@ -2042,7 +2093,7 @@ fn repl_main() -> Result<()> {
                                         v.dimmed()
                                     );
                                 }
-                                continue 'repl;
+                                continue 'segments;
                             }
                             let rest = expand_vars(rest, &shell_vars, last_exit_code);
                             let result = exec::execute_with_context(
@@ -2059,7 +2110,7 @@ fn repl_main() -> Result<()> {
                                 commands::CommandResult::Output(out) => println!("{}", out),
                                 _ => {}
                             }
-                            continue 'repl;
+                            continue 'segments;
                         }
                     }
 
@@ -2400,6 +2451,24 @@ fn repl_main() -> Result<()> {
                         .iter()
                         .any(|op| matches!(op, value::PipeOp::External(_)));
                     // Native pipe execution -- no sh fallback for external pipe chains
+                    // If any pipe stage is a shell construct (while/for/if/until), pass to sh
+                    let has_shell_construct = has_pipe && original_line.split(" | ").skip(1)
+                        .any(|stage| {
+                            let s = stage.trim();
+                            s.starts_with("while ") || s.starts_with("for ") ||
+                            s.starts_with("if ") || s.starts_with("until ")
+                        });
+                    if has_shell_construct {
+                        let _ = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(segment.as_str())  // use raw unexpanded segment
+                            .stdin(std::process::Stdio::inherit())
+                            .stdout(std::process::Stdio::inherit())
+                            .stderr(std::process::Stdio::inherit())
+                            .envs(std::env::vars())
+                            .status();
+                        continue 'segments;
+                    }
                     if has_external_op {
                         let pipe_parts: Vec<&str> = original_line.split(" | ").collect();
                         if pipe_parts.len() >= 2 {
