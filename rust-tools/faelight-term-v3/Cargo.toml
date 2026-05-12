@@ -6,7 +6,7 @@ description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal"
 
 [dependencies]
 # GPU renderer
-wgpu = "22"
+wgpu = "24"
 
 # Wayland surface management
 smithay-client-toolkit = { version = "0.18", features = ["calloop"] }
