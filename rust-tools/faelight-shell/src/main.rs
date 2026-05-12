@@ -98,6 +98,11 @@ fn split_semicolons(line: &str) -> Vec<String> {
 do")) {
         return vec![trimmed.to_string()];
     }
+    // if/then/else/fi constructs are atomic -- never split at semicolons
+    let is_if = trimmed.starts_with("if ");
+    if is_if && (trimmed.contains("; then") || trimmed.contains(";then")) && trimmed.ends_with("fi") {
+        return vec![trimmed.to_string()];
+    }
     let mut segments = vec![];
     let mut current = String::new();
     let mut in_quote = false;
@@ -1540,6 +1545,33 @@ fn repl_main() -> Result<()> {
                                 if !*is_and && last_success { break; }
                             }
                             // NOTE: && with fsh builtins requires INT-267 execution refactor
+                            // Handle cd as a builtin (must affect parent process, not subprocess)
+                            let lcmd_trim = lcmd.trim();
+                            if lcmd_trim == "cd" || lcmd_trim.starts_with("cd ") {
+                                let target = lcmd_trim.strip_prefix("cd").unwrap_or("").trim();
+                                let home = std::env::var("HOME").unwrap_or_default();
+                                let path = if target.is_empty() || target == "~" {
+                                    std::path::PathBuf::from(&home)
+                                } else if target.starts_with("~/") {
+                                    std::path::PathBuf::from(format!("{}/{}", home, &target[2..]))
+                                } else if target == "-" {
+                                    std::path::PathBuf::from(
+                                        std::env::var("OLDPWD").unwrap_or(home)
+                                    )
+                                } else {
+                                    std::path::PathBuf::from(target)
+                                };
+                                if let Ok(()) = std::env::set_current_dir(&path) {
+                                    last_success = true;
+                                } else {
+                                    last_success = false;
+                                }
+                                if let Some(is_and) = op {
+                                    if *is_and && !last_success { break; }
+                                    if !*is_and && last_success { break; }
+                                }
+                                continue;
+                            }
                             let status = std::process::Command::new("sh")
                                 .arg("-c")
                                 .arg(lcmd)
