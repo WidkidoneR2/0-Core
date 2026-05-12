@@ -174,8 +174,8 @@ struct AppState {
     display_ptr: *mut std::ffi::c_void,
     modifiers: Modifiers,
     wl_seat: Option<wl_seat::WlSeat>,
-    selection_start: Option<(usize, usize)>,
-    selection_end: Option<(usize, usize)>,
+    selection_start: Option<(usize, i32)>,
+    selection_end: Option<(usize, i32)>,
     selecting: bool,
     selected_text: String,
 }
@@ -375,7 +375,7 @@ impl GpuState {
         }
     }
 
-    fn sync_terminal(&mut self, sel_start: Option<(usize,usize)>, sel_end: Option<(usize,usize)>) {
+    fn sync_terminal(&mut self, sel_start: Option<(usize, i32)>, sel_end: Option<(usize, i32)>) {
         let term = self.term.lock();
         let grid = term.grid();
         // Account for scroll position -- display_offset shifts the visible window
@@ -426,16 +426,20 @@ impl GpuState {
 
         // Highlight selection region
         if let (Some((sc, sr)), Some((ec, er))) = (sel_start, sel_end) {
+            // sr/er are global i32 line indices; convert to viewport rows for span indexing
             let (r1, c1, r2, c2) = if sr < er || (sr == er && sc <= ec) {
                 (sr, sc, er, ec)
             } else {
                 (er, ec, sr, sc)
             };
             for row in r1..=r2 {
+                let viewport_row = row + display_offset;
+                if viewport_row < 0 || viewport_row >= self.rows as i32 { continue; }
+                let viewport_row = viewport_row as usize;
                 let col_start = if row == r1 { c1 } else { 0 };
                 let col_end = if row == r2 { c2 } else { self.cols.saturating_sub(1) };
                 for col in col_start..=col_end {
-                    let sel_idx = row * self.cols + col;
+                    let sel_idx = viewport_row * self.cols + col;
                     if sel_idx < spans.len() && sel_idx != cursor_idx {
                         spans[sel_idx].1 = Attrs::new()
                             .family(Family::Monospace)
@@ -651,8 +655,10 @@ impl PointerHandler for AppState {
                         let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
-                        self.selection_start = Some((col, row));
-                        self.selection_end = Some((col, row));
+                        let display_offset = gpu.term.lock().grid().display_offset() as i32;
+                        let global_line = row as i32 - display_offset;
+                        self.selection_start = Some((col, global_line));
+                        self.selection_end = Some((col, global_line));
                         self.selecting = true;
                     }
                 }
@@ -663,24 +669,22 @@ impl PointerHandler for AppState {
                         if let Some(ref gpu) = self.gpu {
                             let term = gpu.term.lock();
                             let grid = term.grid();
-                            // Account for scroll position when copying
-                            let display_offset = grid.display_offset() as i32;
+                            // Use global line coords -- no display_offset adjustment needed here
                             let mut text = String::new();
-                            let (start_col, start_row) = start;
-                            let (end_col, end_row) = end;
-                            let (r1, c1, r2, c2) = if start_row < end_row || (start_row == end_row && start_col <= end_col) {
-                                (start_row, start_col, end_row, end_col)
+                            let (start_col, start_line) = start;
+                            let (end_col, end_line) = end;
+                            let (r1, c1, r2, c2) = if start_line < end_line || (start_line == end_line && start_col <= end_col) {
+                                (start_line, start_col, end_line, end_col)
                             } else {
-                                (end_row, end_col, start_row, start_col)
+                                (end_line, end_col, start_line, start_col)
                             };
                             for row in r1..=r2 {
                                 let col_start = if row == r1 { c1 } else { 0 };
                                 let col_end = if row == r2 { c2 } else { gpu.cols.saturating_sub(1) };
                                 for col in col_start..=col_end {
                                     use alacritty_terminal::index::{Column, Line, Point};
-                                    // Adjust for scroll -- viewport row maps to grid line
-                                    let grid_line = row as i32 - display_offset;
-                                    let point = Point::new(Line(grid_line), Column(col));
+                                    // row IS the global grid line
+                                    let point = Point::new(Line(row), Column(col));
                                     let cell = &grid[point];
                                     let ch = if cell.c == '\0' { ' ' } else { cell.c };
                                     text.push(ch);
@@ -693,8 +697,8 @@ impl PointerHandler for AppState {
                                 self.selected_text = text.clone();
                                 // Copy to clipboard in background thread
                                 std::thread::spawn(move || {
-                                    
-                                    let opts = CopyOptions::new();
+                                    let mut opts = CopyOptions::new();
+                                    opts.foreground(true); // serve in-thread, no fork -- fixes paste to browser
                                     let _ = opts.copy(
                                         CopySource::Bytes(text.into_bytes().into()),
                                         CopyMimeType::Text,
@@ -711,7 +715,9 @@ impl PointerHandler for AppState {
                         let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
-                        self.selection_end = Some((col, row));
+                        let display_offset = gpu.term.lock().grid().display_offset() as i32;
+                        let global_line = row as i32 - display_offset;
+                        self.selection_end = Some((col, global_line));
                         if let Some(ref mut gpu) = self.gpu {
                             gpu.dirty = true;
                         }
