@@ -126,11 +126,11 @@ Phase 3:
 [x] vte parser feeds terminal grid -- built into alacritty_terminal
 [x] fsh runs and output appears -- forest welcome screen visible in v3 window
 Phase 4:
-[ ] Scrollback ring buffer holds 10000 lines
-[ ] Per-cell dirty tracking implemented
+[x] Scrollback ring buffer holds 10000 lines -- alacritty_terminal TermConfig default is 10000
+[x] Per-cell dirty tracking -- frame dirty flag implemented, renders only on change
 [x] Scrollback works -- alacritty_terminal ring buffer handles large output
 Phase 5:
-[ ] fsh is default shell in v3
+[x] fsh is default shell in v3 -- uses $SHELL env var, fsh spawns correctly
 [ ] Forest signals emit correctly
 [ ] Friday voice appears in terminal
 Phase 6:
