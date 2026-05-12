@@ -2470,12 +2470,22 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             }
         }
         "find" => {
+            // find: detect Unix vs forest usage
+            // Unix find: first arg is a path (/, ~/, ./, ..) OR any arg has single-hyphen flag (-name, -type, -exec)
+            // Forest find: first arg is a pattern or @shortcut
+            let is_unix_find = args.first().map(|a| {
+                a.starts_with('/') || a.starts_with("~/") || a.starts_with("./") || a.starts_with("../") || *a == "." || *a == ".."
+            }).unwrap_or(false)
+            || args.iter().any(|a| a.starts_with('-') && !a.starts_with("--"));
+            if is_unix_find {
+                return run_external(line, db);
+            }
+            // Forest find: fd wrapper with @shortcuts and pattern-first syntax
             // find <pattern> [path|@shortcut] [--type f|d] [--ext rs]
-            // Forest vocabulary: human-readable fd wrapper with git awareness
-            // @rust=rust-tools/, @intents=intents/, @scripts=scripts/, @docs=docs/
             if args.is_empty() {
                 return CommandResult::Error(
-                    "usage: find <pattern> [@rust|@intents|@scripts|@docs|path] [--type f|d] [--ext ext]".to_string()
+                    "usage: find <pattern> [@rust|@intents|@scripts|@docs|path] [--type f|d] [--ext ext]
+       find /path -name pattern  (Unix find passthrough)".to_string()
                 );
             }
             let home = std::env::var("HOME").unwrap_or_default();

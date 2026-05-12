@@ -1,7 +1,7 @@
 ---
 id: 291
 title: "fsh friction for systems work -- semicolon splitting, find paths, background Wayland processes"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [fsh, shell, bug, friction, wayland, find, semicolon, background]
 ---
