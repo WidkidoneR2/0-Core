@@ -2079,6 +2079,7 @@ dependencies = [
  "wayland-backend",
  "wayland-client",
  "wgpu",
+ "wl-clipboard-rs",
 ]
 
 [[package]]

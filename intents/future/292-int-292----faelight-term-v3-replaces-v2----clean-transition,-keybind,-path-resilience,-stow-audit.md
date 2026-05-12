@@ -1,7 +1,7 @@
 ---
 id: 292
 title: "faelight-term v3 replaces v2 -- clean transition, clipboard, cursor, resize, path resilience"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [faelight-term, v3, transition, clipboard, cursor, resize, doctor, path-resilience]
 ---

@@ -32,6 +32,9 @@ futures = { version = "0.3", default-features = false, features = ["executor"] }
 wayland-client = "0.31"
 wayland-backend = { version = "0.3", features = ["client_system"] }
 
+# Clipboard
+wl-clipboard-rs = "0.9"
+
 # Logging
 log = "0.4"
 env_logger = "0.11"

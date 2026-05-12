@@ -47,6 +47,7 @@ use alacritty_terminal::{
     vte::ansi::{Color as AnsiColor, NamedColor},
 };
 use std::{ptr::NonNull, sync::Arc, collections::HashMap};
+use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
 
 const CELL_W: f32 = 9.5;
 const CELL_H: f32 = 20.0;
@@ -456,6 +457,26 @@ impl KeyboardHandler for AppState {
         _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
         if let Some(ref mut gpu) = self.gpu {
             let mods = &self.modifiers;
+            let ctrl = mods.ctrl;
+            let shift = mods.shift;
+            // Ctrl+Shift+V -- paste from Wayland clipboard (threaded to avoid deadlock)
+            if ctrl && shift && (event.keysym == Keysym::v || event.keysym == Keysym::V) {
+                use alacritty_terminal::event_loop::Msg;
+                let notifier = gpu.notifier.0.clone();
+                std::thread::spawn(move || {
+                    use std::io::Read;
+                    match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::TextWithPriority("text/plain;charset=utf-8")) {
+                        Ok((mut reader, _)) => {
+                            let mut text = String::new();
+                            if reader.read_to_string(&mut text).is_ok() && !text.is_empty() {
+                                let _ = notifier.send(Msg::Input(text.into_bytes().into()));
+                            }
+                        }
+                        Err(e) => eprintln!("[v3] paste error: {:?}", e),
+                    }
+                });
+                return;
+            }
             let ctrl = mods.ctrl;
 
             // Convert keysym to PTY input bytes
