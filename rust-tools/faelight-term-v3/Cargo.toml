@@ -1,0 +1,37 @@
+[package]
+name = "faelight-term-v3"
+version = "0.1.0"
+edition = "2021"
+description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal"
+
+[dependencies]
+# GPU renderer
+wgpu = "22"
+
+# Wayland surface management
+smithay-client-toolkit = { version = "0.18", features = ["calloop"] }
+calloop = "0.12"
+calloop-wayland-source = "0.2"
+
+# Wayland -> wgpu bridge
+raw-window-handle = "0.6"
+
+# Terminal model + PTY + VTE parsing
+alacritty_terminal = "0.24"
+
+# Text shaping + Unicode + emoji
+cosmic-text = "0.12"
+
+# wgpu text rendering (wraps cosmic-text)
+glyphon = "0.8"
+
+# Async block_on for wgpu init
+futures = { version = "0.3", default-features = false, features = ["executor"] }
+
+# Wayland client (direct access)
+wayland-client = "0.31"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
