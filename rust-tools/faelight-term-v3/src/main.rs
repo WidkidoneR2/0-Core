@@ -59,7 +59,6 @@ const PADDING: f32 = 4.0;
 
 fn main() {
     env_logger::init();
-    eprintln!("[v3] Phase 4: keyboard + scrollback");
 
     let conn = Connection::connect_to_env().expect("wayland connection");
     let (globals, mut event_queue) = registry_queue_init::<AppState>(&conn).expect("registry");
@@ -112,7 +111,6 @@ fn main() {
     // Grab pointer from all seats after roundtrips
     let seats: Vec<_> = state.seat_state.seats().collect();
     for seat in seats {
-        eprintln!("[v3] grabbing pointer from seat");
         let _ = state.seat_state.get_pointer(&qh, &seat);
     }
     event_queue.roundtrip(&mut state).expect("roundtrip 3");
@@ -126,7 +124,6 @@ fn main() {
     }
     event_queue.flush().expect("flush");
 
-    eprintln!("[v3] entering event loop with keyboard support");
     while !state.exit {
         // Render if dirty
         if let Some(ref mut gpu) = state.gpu {
@@ -295,9 +292,7 @@ impl GpuState {
         let notifier = Notifier(event_loop.channel());
         let _thread = event_loop.spawn();
 
-        eprintln!("[v3] PTY ready: {}x{}", cols, rows);
         // Set window title to reflect forest context
-        eprintln!("[v3] forest signals: active");
 
         Self {
             device, queue, surface, config,
@@ -635,7 +630,6 @@ impl WindowHandler for AppState {
             self.gpu = Some(GpuState::new(fw, self.width, self.height));
             // Create pointer now that we have a configured window
             if let Some(ref seat) = self.wl_seat.clone() {
-                eprintln!("[v3] creating pointer from seat in configure");
                 let _ = self.seat_state.get_pointer(_qh, seat);
             }
         }
@@ -704,7 +698,6 @@ impl PointerHandler for AppState {
                                         CopyMimeType::Text,
                                     );
                                 });
-                                eprintln!("[v3] copied {} chars to clipboard", self.selected_text.len());
                             }
                         }
                     }
@@ -750,12 +743,10 @@ impl PointerHandler for AppState {
 impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
-        eprintln!("[v3] new_seat fired");
         self.wl_seat = Some(seat);
     }
     fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>,
         seat: wl_seat::WlSeat, capability: Capability) {
-        eprintln!("[v3] new_capability: {:?}", capability);
         match capability {
             Capability::Keyboard => {
                 self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
