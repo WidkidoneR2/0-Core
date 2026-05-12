@@ -133,12 +133,12 @@ fn main() {
                 gpu.dirty = false;
             }
         }
-        // Non-blocking dispatch -- catches keyboard/mouse events
-        match event_queue.dispatch_pending(&mut state) {
-            Ok(_) => {}
-            Err(e) => { eprintln!("[v3] dispatch error: {:?}", e); break; }
-        }
+        // Read from Wayland socket then dispatch -- required for resize/configure events
         event_queue.flush().ok();
+        if let Some(guard) = event_queue.prepare_read() {
+            guard.read().ok(); // non-blocking: reads available events from compositor
+        }
+        if let Err(_) = event_queue.dispatch_pending(&mut state) { break; }
         // Poll at ~60fps so PTY output renders promptly
         std::thread::sleep(std::time::Duration::from_millis(16));
         // Mark dirty every frame so PTY output is always rendered
