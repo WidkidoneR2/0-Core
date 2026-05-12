@@ -120,7 +120,7 @@ fn main() {
     // Initial render to break Wayland deadlock
     if state.configured {
         if let Some(ref mut gpu) = state.gpu {
-            gpu.sync_terminal();
+            gpu.sync_terminal(state.selection_start, state.selection_end);
             gpu.render();
         }
     }
@@ -130,7 +130,7 @@ fn main() {
     while !state.exit {
         if let Some(ref mut gpu) = state.gpu {
             if gpu.dirty {
-                gpu.sync_terminal();
+                gpu.sync_terminal(state.selection_start, state.selection_end);
                 gpu.render();
                 gpu.dirty = false;
             }
@@ -366,7 +366,7 @@ impl GpuState {
         }
     }
 
-    fn sync_terminal(&mut self) {
+    fn sync_terminal(&mut self, sel_start: Option<(usize,usize)>, sel_end: Option<(usize,usize)>) {
         let term = self.term.lock();
         let grid = term.grid();
         // Build spans with per-cell colors
@@ -407,6 +407,33 @@ impl GpuState {
             spans[cursor_idx].1 = Attrs::new()
                 .family(Family::Monospace)
                 .color(glyphon::Color::rgb(0x5a, 0xb0, 0x6e));
+        }
+
+        // Highlight selection region
+        if let (Some((sc, sr)), Some((ec, er))) = (sel_start, sel_end) {
+            let (r1, c1, r2, c2) = if sr < er || (sr == er && sc <= ec) {
+                (sr, sc, er, ec)
+            } else {
+                (er, ec, sr, sc)
+            };
+            for row in r1..=r2 {
+                let col_start = if row == r1 { c1 } else { 0 };
+                let col_end = if row == r2 { c2 } else { self.cols.saturating_sub(1) };
+                for col in col_start..=col_end {
+                    let sel_idx = row * self.cols + col;
+                    if sel_idx < spans.len() && sel_idx != cursor_idx {
+                        spans[sel_idx].1 = Attrs::new()
+                            .family(Family::Monospace)
+                            .color(glyphon::Color::rgb(0x11, 0x14, 0x0f)) // dark text on highlight
+                            ;
+                        // We can't set background via glyphon spans directly
+                        // Use a bright color to indicate selection
+                        spans[sel_idx].1 = Attrs::new()
+                            .family(Family::Monospace)
+                            .color(glyphon::Color::rgb(0xff, 0xd7, 0x00)); // gold selection
+                    }
+                }
+            }
         }
 
         let span_refs: Vec<(&str, glyphon::Attrs)> = spans.iter()
