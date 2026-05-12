@@ -196,6 +196,8 @@ struct GpuState {
     cols: usize,
     rows: usize,
     dirty: bool,
+    cursor_col: usize,
+    cursor_row: usize,
 }
 
 impl GpuState {
@@ -281,7 +283,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, cols, rows, dirty: true,
+            term, notifier, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
         }
     }
 
@@ -379,8 +381,24 @@ impl GpuState {
                 spans.push(("\n".to_string(), Attrs::new().family(Family::Monospace)));
             }
         }
+                // Capture cursor position before drop
+        self.cursor_col = grid.cursor.point.column.0;
+        self.cursor_row = grid.cursor.point.line.0.max(0) as usize;
         drop(term);
         // Convert spans to glyphon AttrsList format
+        // Mark cursor cell -- bright green highlight
+        let cursor_idx = self.cursor_row * self.cols + self.cursor_col;
+        if cursor_idx < spans.len() {
+            // Replace space with block cursor character
+            let cursor_char = spans[cursor_idx].0.chars().next().unwrap_or(' ');
+            if cursor_char == ' ' || cursor_char == '\0' {
+                spans[cursor_idx].0 = "█".to_string(); // full block
+            }
+            spans[cursor_idx].1 = Attrs::new()
+                .family(Family::Monospace)
+                .color(glyphon::Color::rgb(0x5a, 0xb0, 0x6e));
+        }
+
         let span_refs: Vec<(&str, glyphon::Attrs)> = spans.iter()
             .map(|(s, a)| (s.as_str(), *a))
             .collect();
