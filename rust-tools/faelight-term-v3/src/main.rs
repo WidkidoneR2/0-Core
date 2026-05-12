@@ -99,6 +99,7 @@ fn main() {
         gpu: None,
         display_ptr,
         modifiers: Modifiers::default(),
+        wl_seat: None,
         selection_start: None,
         selection_end: None,
         selecting: false,
@@ -107,6 +108,14 @@ fn main() {
 
     event_queue.roundtrip(&mut state).expect("roundtrip");
     event_queue.roundtrip(&mut state).expect("roundtrip 2");
+
+    // Grab pointer from all seats after roundtrips
+    let seats: Vec<_> = state.seat_state.seats().collect();
+    for seat in seats {
+        eprintln!("[v3] grabbing pointer from seat");
+        let _ = state.seat_state.get_pointer(&qh, &seat);
+    }
+    event_queue.roundtrip(&mut state).expect("roundtrip 3");
 
     // Initial render to break Wayland deadlock
     if state.configured {
@@ -155,6 +164,7 @@ struct AppState {
     gpu: Option<GpuState>,
     display_ptr: *mut std::ffi::c_void,
     modifiers: Modifiers,
+    wl_seat: Option<wl_seat::WlSeat>,
     selection_start: Option<(usize, usize)>,
     selection_end: Option<(usize, usize)>,
     selecting: bool,
@@ -567,7 +577,7 @@ impl WindowHandler for AppState {
     fn request_close(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &Window) {
         self.exit = true;
     }
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>,
+    fn configure(&mut self, _: &Connection, _qh: &QueueHandle<Self>,
         _: &Window, configure: WindowConfigure, _: u32) {
         let (w, h) = configure.new_size;
         if let Some(w) = w { self.width = w.get(); }
@@ -577,6 +587,11 @@ impl WindowHandler for AppState {
             let window_ptr = self.surface.id().as_ptr() as *mut _;
             let fw = FaelightWindow { window_ptr, display_ptr: self.display_ptr };
             self.gpu = Some(GpuState::new(fw, self.width, self.height));
+            // Create pointer now that we have a configured window
+            if let Some(ref seat) = self.wl_seat.clone() {
+                eprintln!("[v3] creating pointer from seat in configure");
+                let _ = self.seat_state.get_pointer(_qh, seat);
+            }
         }
     }
 }
@@ -664,14 +679,21 @@ impl PointerHandler for AppState {
 
 impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
+    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
+        eprintln!("[v3] new_seat fired");
+        self.wl_seat = Some(seat);
+    }
     fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>,
         seat: wl_seat::WlSeat, capability: Capability) {
-        if capability == Capability::Keyboard {
-            self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
-        }
-        if capability == Capability::Pointer {
-            self.seat_state.get_pointer(qh, &seat).expect("pointer");
+        eprintln!("[v3] new_capability: {:?}", capability);
+        match capability {
+            Capability::Keyboard => {
+                self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
+            }
+            Capability::Pointer => {
+                // handled at startup
+            }
+            _ => {}
         }
     }
     fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>,
