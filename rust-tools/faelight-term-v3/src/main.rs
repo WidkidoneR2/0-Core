@@ -1,15 +1,17 @@
-//! faelight-term v3 -- Phase 3: PTY + grid
-//! Goal: fsh runs in the terminal, output appears correctly
-//! alacritty_terminal handles PTY, VTE parsing, and grid state
+//! faelight-term v3 -- Phase 4: keyboard input + scrollback
+//! Goal: type into fsh, scrollback works, dirty tracking
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_output, delegate_registry, delegate_seat,
-    delegate_xdg_shell, delegate_xdg_window,
+    delegate_compositor, delegate_keyboard, delegate_output, delegate_registry,
+    delegate_seat, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
-    seat::{Capability, SeatHandler, SeatState},
+    seat::{
+        Capability, SeatHandler, SeatState,
+        keyboard::{KeyboardHandler, KeyEvent, Keysym, Modifiers, RepeatInfo},
+    },
     shell::{
         WaylandSurface,
         xdg::{
@@ -21,7 +23,7 @@ use smithay_client_toolkit::{
 use wayland_client::{
     Connection, Proxy, QueueHandle,
     globals::registry_queue_init,
-    protocol::{wl_output, wl_seat, wl_surface},
+    protocol::{wl_keyboard, wl_output, wl_seat, wl_surface},
 };
 use raw_window_handle::{
     HasDisplayHandle, HasWindowHandle,
@@ -43,12 +45,8 @@ use alacritty_terminal::{
     term::Config as TermConfig,
     tty::{self, Options as TtyOptions},
 };
-use std::{
-    ptr::NonNull,
-    sync::Arc,
-};
+use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 
-// Cell size in pixels
 const CELL_W: f32 = 10.0;
 const CELL_H: f32 = 20.0;
 const FONT_SIZE: f32 = 16.0;
@@ -57,7 +55,7 @@ const PADDING: f32 = 4.0;
 
 fn main() {
     env_logger::init();
-    eprintln!("[v3] Phase 3: PTY + grid starting");
+    eprintln!("[v3] Phase 4: keyboard + scrollback");
 
     let conn = Connection::connect_to_env().expect("wayland connection");
     let (globals, mut event_queue) = registry_queue_init::<AppState>(&conn).expect("registry");
@@ -96,44 +94,34 @@ fn main() {
         exit: false,
         gpu: None,
         display_ptr,
+        modifiers: Modifiers::default(),
     };
 
     event_queue.roundtrip(&mut state).expect("roundtrip");
     event_queue.roundtrip(&mut state).expect("roundtrip 2");
 
-    eprintln!("[v3] configured={}", state.configured);
-
     // Initial render to break Wayland deadlock
     if state.configured {
         if let Some(ref mut gpu) = state.gpu {
+            gpu.sync_terminal();
             gpu.render();
         }
     }
     event_queue.flush().expect("flush");
 
-    eprintln!("[v3] entering event loop");
+    eprintln!("[v3] entering event loop with keyboard support");
     while !state.exit {
-        // Sync terminal output to GPU text buffer
         if let Some(ref mut gpu) = state.gpu {
             gpu.sync_terminal();
+            gpu.render();
         }
-
         match event_queue.blocking_dispatch(&mut state) {
             Ok(_) => {}
             Err(e) => { eprintln!("[v3] dispatch error: {:?}", e); break; }
         }
-
-        if state.configured {
-            if let Some(ref mut gpu) = state.gpu {
-                gpu.render();
-            }
-        }
     }
-
-    eprintln!("[v3] exiting");
 }
 
-// Event listener for alacritty_terminal
 #[derive(Clone)]
 struct FaelightListener;
 impl EventListener for FaelightListener {
@@ -155,6 +143,7 @@ struct AppState {
     exit: bool,
     gpu: Option<GpuState>,
     display_ptr: *mut std::ffi::c_void,
+    modifiers: Modifiers,
 }
 
 struct FaelightWindow {
@@ -182,22 +171,19 @@ struct GpuState {
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
-    // Text
     font_system: FontSystem,
     swash_cache: SwashCache,
     text_atlas: TextAtlas,
     text_renderer: TextRenderer,
     text_buffer: Buffer,
-    // Terminal
     term: Arc<FairMutex<Term<FaelightListener>>>,
-    _notifier: Notifier,
+    notifier: Notifier,
     cols: usize,
     rows: usize,
 }
 
 impl GpuState {
     fn new(window: FaelightWindow, width: u32, height: u32) -> Self {
-        // wgpu setup
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
             ..Default::default()
@@ -227,9 +213,7 @@ impl GpuState {
             desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
-        eprintln!("[v3] wgpu: {}x{} {:?}", width, height, format);
 
-        // glyphon setup
         let mut font_system = FontSystem::new();
         let swash_cache = SwashCache::new();
         let cache = glyphon::Cache::new(&device);
@@ -240,33 +224,26 @@ impl GpuState {
         );
         let mut text_buffer = Buffer::new(&mut font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
         text_buffer.set_size(&mut font_system, Some(width as f32), Some(height as f32));
-        text_buffer.set_text(&mut font_system, "faelight-term v3 starting...", Attrs::new().family(Family::Monospace), Shaping::Advanced);
+        text_buffer.set_text(&mut font_system, "starting...", Attrs::new().family(Family::Monospace), Shaping::Advanced);
         text_buffer.shape_until_scroll(&mut font_system, false);
 
-        // Terminal setup
         let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
         let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
         let cols = cols.max(10);
         let rows = rows.max(3);
 
-        eprintln!("[v3] terminal grid: {}x{} (cols x rows)", cols, rows);
-
         let term_config = TermConfig::default();
         let listener = FaelightListener;
-
-        // Spawn PTY with fsh
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        eprintln!("[v3] spawning shell: {}", shell);
 
         let pty_options = TtyOptions {
             shell: Some(alacritty_terminal::tty::Shell::new(shell, vec![])),
             working_directory: Some(std::path::PathBuf::from(
                 std::env::var("HOME").unwrap_or_else(|_| "/".to_string())
             )),
-            env: std::collections::HashMap::new(),
+            env: HashMap::new(),
             hold: false,
         };
-
         let window_size = alacritty_terminal::event::WindowSize {
             num_cols: cols as u16,
             num_lines: rows as u16,
@@ -276,29 +253,29 @@ impl GpuState {
 
         let term = Term::new(term_config, &TermDimensions { cols, rows }, listener.clone());
         let term = Arc::new(FairMutex::new(term));
-
         let pty = tty::new(&pty_options, window_size, 0u64).expect("PTY");
         let event_loop = EventLoop::new(term.clone(), listener, pty, false, false).expect("event loop");
         let notifier = Notifier(event_loop.channel());
-        let _event_loop_thread = event_loop.spawn();
+        let _thread = event_loop.spawn();
 
-        eprintln!("[v3] PTY spawned, shell running");
+        eprintln!("[v3] PTY ready: {}x{}", cols, rows);
 
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term,
-            _notifier: notifier,
-            cols,
-            rows,
+            term, notifier, cols, rows,
         }
+    }
+
+    fn write_to_pty(&self, data: &[u8]) {
+        use alacritty_terminal::event_loop::Msg;
+        let _ = self.notifier.0.send(Msg::Input(data.to_vec().into()));
     }
 
     fn sync_terminal(&mut self) {
         let term = self.term.lock();
         let grid = term.grid();
         let mut text = String::new();
-
         for line in 0..self.rows {
             for col in 0..self.cols {
                 let point = Point::new(Line(line as i32), Column(col));
@@ -309,7 +286,6 @@ impl GpuState {
             text.push('\n');
         }
         drop(term);
-
         let attrs = Attrs::new().family(Family::Monospace);
         self.text_buffer.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
         self.text_buffer.shape_until_scroll(&mut self.font_system, false);
@@ -318,27 +294,21 @@ impl GpuState {
     fn render(&mut self) {
         let output = match self.surface.get_current_texture() {
             Ok(t) => t,
-            Err(e) => { eprintln!("[v3] surface error: {:?}", e); return; }
+            Err(_) => return,
         };
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-
         let cache = glyphon::Cache::new(&self.device);
         let mut viewport = glyphon::Viewport::new(&self.device, &cache);
         viewport.update(&self.queue, Resolution {
             width: self.config.width,
             height: self.config.height,
         });
-
-        if let Err(e) = self.text_renderer.prepare(
+        let _ = self.text_renderer.prepare(
             &self.device, &self.queue,
-            &mut self.font_system,
-            &mut self.text_atlas,
-            &viewport,
+            &mut self.font_system, &mut self.text_atlas, &viewport,
             [TextArea {
                 buffer: &self.text_buffer,
-                left: PADDING,
-                top: PADDING,
-                scale: 1.0,
+                left: PADDING, top: PADDING, scale: 1.0,
                 bounds: TextBounds {
                     left: 0, top: 0,
                     right: self.config.width as i32,
@@ -348,11 +318,7 @@ impl GpuState {
                 custom_glyphs: &[],
             }],
             &mut self.swash_cache,
-        ) {
-            eprintln!("[v3] text prepare error: {:?}", e);
-            return;
-        }
-
+        );
         let mut encoder = self.device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor { label: Some("frame") }
         );
@@ -360,12 +326,9 @@ impl GpuState {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
+                    view: &view, resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.067, g: 0.078, b: 0.059, a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.067, g: 0.078, b: 0.059, a: 1.0 }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -373,24 +336,80 @@ impl GpuState {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            if let Err(e) = self.text_renderer.render(&self.text_atlas, &viewport, &mut pass) {
-                eprintln!("[v3] text render error: {:?}", e);
-            }
+            let _ = self.text_renderer.render(&self.text_atlas, &viewport, &mut pass);
         }
-
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         self.text_atlas.trim();
     }
 }
 
-// Terminal dimensions adapter
 struct TermDimensions { cols: usize, rows: usize }
 impl Dimensions for TermDimensions {
     fn total_lines(&self) -> usize { self.rows }
     fn screen_lines(&self) -> usize { self.rows }
     fn columns(&self) -> usize { self.cols }
     fn last_column(&self) -> Column { Column(self.cols - 1) }
+}
+
+// Keyboard handling -- wire keypresses to PTY
+impl KeyboardHandler for AppState {
+    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32,
+        _: &[u32], _: &[Keysym]) {}
+
+    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
+
+    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+        if let Some(ref mut gpu) = self.gpu {
+            let mods = &self.modifiers;
+            let ctrl = mods.ctrl;
+
+            // Convert keysym to PTY input bytes
+            let bytes: Option<Vec<u8>> = match event.keysym {
+                Keysym::Return | Keysym::KP_Enter => Some(b"\r".to_vec()),
+                Keysym::BackSpace => Some(b"\x7f".to_vec()),
+                Keysym::Tab => Some(b"\t".to_vec()),
+                Keysym::Escape => Some(b"\x1b".to_vec()),
+                Keysym::Up    => Some(b"\x1b[A".to_vec()),
+                Keysym::Down  => Some(b"\x1b[B".to_vec()),
+                Keysym::Right => Some(b"\x1b[C".to_vec()),
+                Keysym::Left  => Some(b"\x1b[D".to_vec()),
+                Keysym::Home  => Some(b"\x1b[H".to_vec()),
+                Keysym::End   => Some(b"\x1b[F".to_vec()),
+                Keysym::Delete => Some(b"\x1b[3~".to_vec()),
+                _ => {
+                    if let Some(s) = event.utf8 {
+                        if ctrl && s.len() == 1 {
+                            let ch = s.chars().next().unwrap();
+                            if ch >= 'a' && ch <= 'z' {
+                                Some(vec![ch as u8 - b'a' + 1])
+                            } else if ch == '@' { Some(vec![0]) }
+                            else { Some(s.into_bytes()) }
+                        } else {
+                            Some(s.into_bytes())
+                        }
+                    } else { None }
+                }
+            };
+            if let Some(bytes) = bytes {
+                gpu.write_to_pty(&bytes);
+            }
+        }
+    }
+
+    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
+
+    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, modifiers: Modifiers) {
+        self.modifiers = modifiers;
+    }
+
+    fn update_repeat_info(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: RepeatInfo) {}
 }
 
 impl CompositorHandler for AppState {
@@ -424,8 +443,14 @@ impl WindowHandler for AppState {
 impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
-    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat, _: Capability) {}
+    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat, capability: Capability) {
+        if capability == Capability::Keyboard {
+            self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
+        }
+    }
+    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat, _: Capability) {}
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 impl ProvidesRegistryState for AppState {
@@ -436,6 +461,7 @@ impl ProvidesRegistryState for AppState {
 delegate_compositor!(AppState);
 delegate_output!(AppState);
 delegate_seat!(AppState);
+delegate_keyboard!(AppState);
 delegate_xdg_shell!(AppState);
 delegate_xdg_window!(AppState);
 delegate_registry!(AppState);
