@@ -32,6 +32,19 @@ v3 fixes all of this:
 
 STUDY SOURCES
 
+EWWII (new -- high interest):
+  GPU-accelerated widget system
+  X11 + Wayland compatible
+  Hot reload -- instant widget changes
+  Any scripting language
+  Source: github.com/Ewwii-sh / ewwii-sh.github.io
+  Study:
+    GPU acceleration approach (most relevant to our stack)
+    Hot reload architecture
+    Wayland layer-shell integration
+  Key insight:
+    GPU + hot reload + scriptable = ideal bar development experience
+    Most aligned with faelight-bar v3 goals of any study source
 IRONBAR (highest priority):
   Pure Rust Wayland bar
   Written for wlroots-based compositors (Sway, Hyprland, Niri)
