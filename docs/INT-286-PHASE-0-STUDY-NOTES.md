@@ -243,3 +243,35 @@ REMOVED vs INT-286 original plan:
 
 Phase 1 first commit: get wgpu to render a colored rectangle in a Wayland window.
 That is the spike. Everything else builds on it.
+
+---
+
+## PHASE 2 FINDINGS (2026-05-12)
+
+### Wayland deadlock bug -- FIXED
+
+Symptom: window never appeared in Niri when launched from inside faelight-term.
+Root cause: classic Wayland deadlock
+  - Niri waits for us to commit a buffer before mapping the window
+  - We were waiting for Niri to send an event before calling render()
+  - Neither side moves -- deadlock
+
+Fix: call render() ONCE immediately after initialization, before blocking_dispatch.
+  event_queue.flush() after the initial render to push the commit to Niri.
+
+### Nested Wayland client limitation
+
+faelight-term-v3 cannot be launched from inside faelight-term v2.
+When run inside faelight-term, blocking_dispatch returns immediately instead of blocking.
+Root cause: PTY interaction with the Wayland event loop.
+Workaround: launch from foot or zsh directly.
+This is a non-issue for v3 as a standalone terminal -- it launches from the compositor.
+
+### What "looks horrible" means
+
+The text renders but needs:
+  - Proper font size calibration (cell size matching font metrics)
+  - Correct grid positioning (character cells aligned to pixel grid)
+  - Background color per-cell (not just a solid window background)
+  - Cursor rendering
+These are all Phase 3+ concerns. The pipeline is correct.
