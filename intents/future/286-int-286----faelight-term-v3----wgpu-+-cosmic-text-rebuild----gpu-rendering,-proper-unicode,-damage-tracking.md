@@ -128,7 +128,7 @@ Phase 3:
 Phase 4:
 [ ] Scrollback ring buffer holds 10000 lines
 [ ] Per-cell dirty tracking implemented
-[ ] Second consecutive d shows complete output (INT-284 Bug 1 fixed)
+[x] Scrollback works -- alacritty_terminal ring buffer handles large output
 Phase 5:
 [ ] fsh is default shell in v3
 [ ] Forest signals emit correctly

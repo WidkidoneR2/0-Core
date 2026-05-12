@@ -112,11 +112,14 @@ fn main() {
     eprintln!("[v3] entering event loop with keyboard support");
     while !state.exit {
         if let Some(ref mut gpu) = state.gpu {
-            gpu.sync_terminal();
-            gpu.render();
+            if gpu.dirty {
+                gpu.sync_terminal();
+                gpu.render();
+                gpu.dirty = false;
+            }
         }
         match event_queue.blocking_dispatch(&mut state) {
-            Ok(_) => {}
+            Ok(_) => { if let Some(ref mut gpu) = state.gpu { gpu.dirty = true; } }
             Err(e) => { eprintln!("[v3] dispatch error: {:?}", e); break; }
         }
     }
@@ -180,6 +183,7 @@ struct GpuState {
     notifier: Notifier,
     cols: usize,
     rows: usize,
+    dirty: bool,
 }
 
 impl GpuState {
@@ -263,13 +267,14 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, cols, rows,
+            term, notifier, cols, rows, dirty: true,
         }
     }
 
-    fn write_to_pty(&self, data: &[u8]) {
+    fn write_to_pty(&mut self, data: &[u8]) {
         use alacritty_terminal::event_loop::Msg;
         let _ = self.notifier.0.send(Msg::Input(data.to_vec().into()));
+        self.dirty = true;
     }
 
     fn sync_terminal(&mut self) {
