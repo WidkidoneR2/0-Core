@@ -1519,7 +1519,8 @@ fn repl_main() -> Result<()> {
                 if segment_count > 1 {
                     println!("  {} {} commands", "○".bright_cyan(), segment_count);
                 }
-                for (seg_idx, segment) in segments.iter().enumerate() {
+                'segments: for (seg_idx, segment) in segments.iter().enumerate() {
+                    let mut _children_pre: Vec<std::process::Child> = Vec::new(); // ensures children is fresh each segment iteration
                     if segment_count > 1 {
                         println!(
                             "  {} {}",
@@ -2220,7 +2221,7 @@ fn repl_main() -> Result<()> {
                         if redirect_target == "__redirect_error_no_target__" {
                             eprintln!("fsh: parse error: redirect missing target file");
                             last_exit_code = Some(2);
-                            continue 'repl;
+                            continue 'segments;
                         }
                         // If it's a pure stderr redirect, handle separately
                         let is_stderr_only = redirect_target == "__stderr__";
@@ -2242,7 +2243,7 @@ fn repl_main() -> Result<()> {
                                 .stderr(stderr_stdio)
                                 .envs(std::env::vars())
                                 .status();
-                            continue 'repl;
+                            continue 'segments;
                         }
                         let file = if is_append {
                             std::fs::OpenOptions::new()
@@ -2341,7 +2342,7 @@ fn repl_main() -> Result<()> {
                             }
                             Err(e) => eprintln!("fsh: redirect error: {}", e),
                         }
-                        continue 'repl;
+                        continue 'segments;
                     }
                     let line = line_stripped.as_str();
                     let has_pipe = !in_quotes && line.contains(" | ");
@@ -2503,7 +2504,7 @@ fn repl_main() -> Result<()> {
                                                     for mut child in children {
                                                         let _ = child.wait();
                                                     }
-                                                    continue 'repl;
+                                                    continue 'segments;
                                                 }
                                             } else {
                                                 eprintln!("  pipe stage '{}' failed: not found in PATH or fsh builtins", cmd_name);
@@ -2525,7 +2526,7 @@ fn repl_main() -> Result<()> {
                                 for mut child in children {
                                     let _ = child.wait();
                                 }
-                                continue 'repl;
+                                continue 'segments;
                             }
                         }
                         // Fallback to sh (INT-249)
@@ -2533,7 +2534,7 @@ fn repl_main() -> Result<()> {
                         if let Err(e) = sh_output {
                             eprintln!("fsh: pipe error: {}", e);
                         }
-                        continue 'repl;
+                        continue 'segments;
                     }
                     let base_cmd = if has_pipe {
                         line.split(" | ").next().unwrap_or(line).to_string()
@@ -2615,7 +2616,7 @@ fn repl_main() -> Result<()> {
   {} stream stopped",
                             "○".dimmed()
                         );
-                        continue 'repl;
+                        continue 'segments;
                     }
 
                     // Phase 8 — Job control commands
@@ -2736,7 +2737,7 @@ fn repl_main() -> Result<()> {
                     // This prevents E_EXIT_NONZERO noise when left side of pipe fails
                     if has_pipe2 && pipeline_ops.is_empty() {
                         let _ = crate::db::spawn_sh_with_leak_check(line);
-                        continue 'repl;
+                        continue 'segments;
                     }
                     let _cmd_timer_start = std::time::Instant::now();
                     let cmd_output: Option<String> = match exec::execute_with_context(
