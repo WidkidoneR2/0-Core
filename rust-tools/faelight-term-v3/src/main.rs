@@ -3,7 +3,7 @@
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_output, delegate_registry,
+    delegate_compositor, delegate_keyboard, delegate_output, delegate_pointer, delegate_registry,
     delegate_seat, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
@@ -11,6 +11,7 @@ use smithay_client_toolkit::{
     seat::{
         Capability, SeatHandler, SeatState,
         keyboard::{KeyboardHandler, KeyEvent, Keysym, Modifiers, RepeatInfo},
+        pointer::{PointerHandler, PointerEvent, PointerEventKind, BTN_LEFT},
     },
     shell::{
         WaylandSurface,
@@ -48,6 +49,7 @@ use alacritty_terminal::{
 };
 use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
+use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
 const CELL_W: f32 = 9.5;
 const CELL_H: f32 = 20.0;
@@ -97,6 +99,10 @@ fn main() {
         gpu: None,
         display_ptr,
         modifiers: Modifiers::default(),
+        selection_start: None,
+        selection_end: None,
+        selecting: false,
+        selected_text: String::new(),
     };
 
     event_queue.roundtrip(&mut state).expect("roundtrip");
@@ -149,6 +155,10 @@ struct AppState {
     gpu: Option<GpuState>,
     display_ptr: *mut std::ffi::c_void,
     modifiers: Modifiers,
+    selection_start: Option<(usize, usize)>,
+    selection_end: Option<(usize, usize)>,
+    selecting: bool,
+    selected_text: String,
 }
 
 struct FaelightWindow {
@@ -552,6 +562,88 @@ impl WindowHandler for AppState {
         }
     }
 }
+
+impl PointerHandler for AppState {
+    fn pointer_frame(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wayland_client::protocol::wl_pointer::WlPointer,
+        events: &[PointerEvent]) {
+        for event in events {
+            match event.kind {
+                PointerEventKind::Press { button, .. } if button == BTN_LEFT => {
+                    // Start selection
+                    if let Some(ref gpu) = self.gpu {
+                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let col = col.min(gpu.cols.saturating_sub(1));
+                        let row = row.min(gpu.rows.saturating_sub(1));
+                        self.selection_start = Some((col, row));
+                        self.selection_end = Some((col, row));
+                        self.selecting = true;
+                    }
+                }
+                PointerEventKind::Release { button, .. } if button == BTN_LEFT => {
+                    self.selecting = false;
+                    // Build selected text from terminal grid
+                    if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+                        if let Some(ref gpu) = self.gpu {
+                            let term = gpu.term.lock();
+                            let grid = term.grid();
+                            let mut text = String::new();
+                            let (start_col, start_row) = start;
+                            let (end_col, end_row) = end;
+                            let (r1, c1, r2, c2) = if start_row < end_row || (start_row == end_row && start_col <= end_col) {
+                                (start_row, start_col, end_row, end_col)
+                            } else {
+                                (end_row, end_col, start_row, start_col)
+                            };
+                            for row in r1..=r2 {
+                                let col_start = if row == r1 { c1 } else { 0 };
+                                let col_end = if row == r2 { c2 } else { gpu.cols.saturating_sub(1) };
+                                for col in col_start..=col_end {
+                                    use alacritty_terminal::index::{Column, Line, Point};
+                                    let point = Point::new(Line(row as i32), Column(col));
+                                    let cell = &grid[point];
+                                    let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                                    text.push(ch);
+                                }
+                                if row < r2 { text.push('\n'); }
+                            }
+                            drop(term);
+                            let text = text.trim_end().to_string();
+                            if !text.is_empty() {
+                                self.selected_text = text.clone();
+                                // Copy to clipboard in background thread
+                                std::thread::spawn(move || {
+                                    
+                                    let opts = CopyOptions::new();
+                                    let _ = opts.copy(
+                                        CopySource::Bytes(text.into_bytes().into()),
+                                        CopyMimeType::Text,
+                                    );
+                                });
+                                eprintln!("[v3] copied {} chars to clipboard", self.selected_text.len());
+                            }
+                        }
+                    }
+                }
+                PointerEventKind::Motion { .. } if self.selecting => {
+                    if let Some(ref gpu) = self.gpu {
+                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let col = col.min(gpu.cols.saturating_sub(1));
+                        let row = row.min(gpu.rows.saturating_sub(1));
+                        self.selection_end = Some((col, row));
+                        if let Some(ref mut gpu) = self.gpu {
+                            gpu.dirty = true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
@@ -559,6 +651,9 @@ impl SeatHandler for AppState {
         seat: wl_seat::WlSeat, capability: Capability) {
         if capability == Capability::Keyboard {
             self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
+        }
+        if capability == Capability::Pointer {
+            self.seat_state.get_pointer(qh, &seat).expect("pointer");
         }
     }
     fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>,
@@ -574,6 +669,7 @@ delegate_compositor!(AppState);
 delegate_output!(AppState);
 delegate_seat!(AppState);
 delegate_keyboard!(AppState);
+delegate_pointer!(AppState);
 delegate_xdg_shell!(AppState);
 delegate_xdg_window!(AppState);
 delegate_registry!(AppState);
