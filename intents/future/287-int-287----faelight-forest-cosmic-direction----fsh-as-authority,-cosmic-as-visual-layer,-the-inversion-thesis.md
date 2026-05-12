@@ -1,7 +1,7 @@
 ---
 id: 287
 title: "Faelight Forest COSMIC Direction -- fsh as authority, COSMIC as visual layer"
-status: planned
+status: in-progress
 date: 2026-05-08
 tags: [cosmic, architecture, fsh, shell, direction, vision, rust, wayland, niri]
 ---
@@ -13,14 +13,15 @@ state.db stays as the single source of truth.
 What changes: we study COSMIC deeply, borrow selectively,
 and build toward a world where the shell defines reality
 and the visual layer reflects it.
+
 Most desktops assume GUI is primary, terminal is secondary.
 Faelight Forest inverts this.
 The shell owns state. The visual layer reflects state.
 COSMIC is modern enough to tolerate this inversion.
-This intent documents the direction, the study plan,
-and the selective borrowing strategy.
+
 ---
 THE ARCHITECTURE
+
 fsh + core + Friday
     down (state authority)
 state.db -- single source of truth
@@ -28,143 +29,98 @@ state.db -- single source of truth
 COSMIC visual layer -- workspace, notifications, surfaces
     down (surfaces)
 faelight-bar, dashboards, integrity views, ledger navigation
+
 The shell is not a tool inside the desktop.
 The desktop is a surface for the shell.
+
 ---
-WHY COSMIC SPECIFICALLY
-1. Rust-native compositor (cosmic-comp via smithay)
-   Same foundation as Niri. Protocol knowledge transfers.
-   State ownership patterns directly applicable to faelight-term v3.
-2. libcosmic (iced-based UI toolkit)
-   Rust-native, Wayland-correct, modern async.
-   No GTK/QML baggage.
-   Right tool for: integrity dashboards, policy approval interfaces,
-   forest memory explorers, ledger navigation, authorization dialogs.
-3. cosmic-text already chosen for faelight-term v3
-   The text stack is shared. The ecosystem is already converging.
-4. COSMIC tolerates shell-as-authority
-   Wayland protocols are clean enough.
-   Rust tooling tends toward explicitness.
-   Modern session management is modular.
-   compositor boundaries are clear.
-5. Pop_OS rep is watching
-   The people who built COSMIC are interested in what
-   Faelight Forest does with it. This is an opportunity
-   to demonstrate what shell-first Rust desktop architecture
-   can look like.
+PROGRESS AS OF 2026-05-12
+
+Phase 3 is COMPLETE. cosmic-term source was studied and directly
+informed faelight-term v3. The wgpu + cosmic-text + glyphon stack
+is now proven in production on AMD RX 7700S (RADV NAVI33).
+
+faelight-term v3 IS the COSMIC proof of concept:
+  - wgpu (Vulkan) rendering -- GPU-accelerated
+  - cosmic-text for font shaping -- Unicode correct, emoji correct
+  - glyphon for per-cell spans -- ANSI color pipeline
+  - alacritty_terminal ring buffer -- correct PTY state
+  - Running as daily driver -- Super+Enter opens v3
+
+POP_OS rep has noted the COSMIC integration progress.
+Graydon Hoare has expressed interest in the project.
+The story is being told through working code, not slides.
+
 ---
-WHAT WE BORROW (SELECTIVE)
-FROM cosmic-comp:
-  smithay state ownership patterns
-  workspace management ideas
-  rendering pipeline architecture
-  IPC boundary design
-FROM libcosmic:
-  component patterns for forest-native UIs
-  async state handling
-  iced-based dashboard architecture
+WHAT WE BORROW (SELECTIVE) -- STATUS
+
 FROM cosmic-term:
-  wgpu + cosmic-text integration (directly feeds INT-286)
-  PTY management patterns
-  damage tracking implementation
+  [x] wgpu + cosmic-text integration -- DONE (faelight-term v3)
+  [x] PTY management patterns -- DONE (alacritty_terminal)
+  [x] damage tracking -- DONE (dirty flag + 60fps loop)
+
+FROM cosmic-comp:
+  [ ] smithay state ownership patterns -- study planned
+  [ ] workspace management ideas -- future
+  [ ] IPC boundary design -- INT-294 (zbus event bus)
+
+FROM libcosmic:
+  [ ] component patterns for forest-native UIs -- future
+  [ ] iced-based dashboard architecture -- future
+  [ ] faelight-fm v2 (INT-293) -- libcosmic file manager
+
 FROM COSMIC workspace UX:
-  intentional context grouping ideas
-  task-state visualization concepts
-  operational focus transitions
+  [ ] intentional context grouping -- future
+  [ ] task-state visualization -- future
+
 ---
-WHAT WE DO NOT IMPORT
-Automatic background behavior -- the forest rejects things
-that run without explicit human authorization.
-UI-first assumptions -- COSMIC optimizes for desktop convenience.
-Faelight optimizes for human intentionality.
-Full desktop ownership -- the forest has its own security model,
-its own orchestration, its own trust boundaries.
-These do not change.
----
-STUDY PLAN
-Phase 1 -- cosmic-comp architecture
-  Read: compositor state model
-  Read: workspace management
-  Read: IPC boundaries
-  Goal: understand what patterns apply to faelight-term v3
-Phase 2 -- libcosmic + iced
-  Build: small proof of concept UI using libcosmic
-  Goal: can we build a forest integrity dashboard with this?
-  Gate: one faelight tool rebuilt or prototyped with libcosmic
-Phase 3 -- cosmic-term source
-  Read: wgpu integration
-  Read: cosmic-text usage
-  Read: PTY handling
-  Goal: directly inform faelight-term v3 (INT-286) Phase 1 study
-Phase 4 -- selective integration
-  Identify: which COSMIC patterns improve which forest tools
-  Build: one dashboard or visualization using libcosmic
-  Gate: Pop_OS rep sees a working demo
----
-TOOLS AFFECTED
-faelight-term v3 (INT-286) -- cosmic-term study informs wgpu architecture
-faelight-fm v2 (INT-280) -- ratatui TUI, libcosmic for any graphical layer
-faelight-bar -- may evolve toward libcosmic applet model
-future: integrity dashboard -- libcosmic native
-future: ledger navigator -- libcosmic native
-future: forest memory explorer -- libcosmic native
+ZBUS INTEGRATION
+
+zbus is the Rust-native D-Bus library.
+INT-294 (Forest Event Bus v2) uses zbus for D-Bus IPC.
+zbus already in workspace (faelight-notify uses it).
+The IPC layer between the forest and desktop is being built.
+
 ---
 GATES
-[ ] cosmic-comp architecture studied -- 3 key patterns documented
-[ ] libcosmic proof of concept built -- one small UI renders
-[ ] cosmic-term source read -- wgpu integration understood
-[ ] INT-286 Phase 1 gate completed informed by cosmic-term study
-[ ] One forest tool prototype using libcosmic architecture
-[ ] Pop_OS rep demo -- something working to show
-[ ] Architectural decision recorded: what we borrow, what we reject
+
+Phase 3 -- cosmic-term source study:
+[x] cosmic-term wgpu integration understood
+[x] cosmic-text + glyphon pipeline implemented in faelight-term v3
+[x] PTY handling patterns applied (alacritty_terminal)
+[x] faelight-term v3 deployed and running as daily driver
+
+Phase 1 -- cosmic-comp architecture:
+[ ] compositor state model studied -- 3 key patterns documented
+[ ] workspace management patterns documented
+[ ] IPC boundary design documented
+
+Phase 2 -- libcosmic + iced:
+[ ] small proof of concept UI using libcosmic
+[ ] one faelight tool prototyped with libcosmic (INT-293 faelight-fm)
+
+Phase 4 -- selective integration:
+[ ] faelight-fm v2 using libcosmic (INT-293)
+[ ] faelight-bar v3 using libcosmic (INT-295)
+[ ] Pop_OS rep demo -- working COSMIC-stack forest tools
+
 Final:
-[ ] Faelight Forest direction document updated to reflect COSMIC borrowing
-[ ] The inversion is demonstrated: shell defines state, visual reflects it
+[ ] Forest direction document updated to reflect COSMIC borrowing
+[ ] The inversion demonstrated: shell defines state, visual reflects it
 [ ] The forest shows what shell-first Rust desktop architecture looks like
+
 ---
 CONTEXT
-Post-summer timeline.
-3-4 months of study before major implementation.
-Shell fixes (INT-285) and Friday Architecture (INT-246) come first.
-The foundation must be solid before the visual layer matters.
-Pop_OS rep is watching.
-Graydon expressed interest.
+
+Pre-presentation timeline (summer 2026).
+Phase 3 already complete via faelight-term v3.
+Shell fixes (INT-291) and Friday Architecture (INT-246) continuing.
+The foundation is solid. The visual layer is next.
+Pop_OS rep is watching. Graydon expressed interest.
 The presentation is this summer.
-Build the right thing. Build it correctly.
-The forest does not rush.
+
 "Most desktops ask: what app do you want to open?
 Faelight Forest asks: what do you want to happen?
 COSMIC becomes the surface where the answer appears.
 The shell already knows the answer.
 It always did." 🌲
-
----
-ZBUS INTEGRATION (added 2026-05-09)
-zbus is the Rust-native D-Bus library.
-D-Bus is how Linux desktop services communicate.
-Adding zbus enables:
-  faelight-notify to integrate with desktop notification standards
-  faelight-palette to register as a proper launcher service
-  shelld services to communicate via standard IPC
-  COSMIC app integration when the time comes
-  portal support (file chooser, screen share, etc.)
-Why zbus specifically:
-  Pure Rust -- no C bindings
-  async-first -- tokio compatible
-  Already used by COSMIC components
-  Clean API, well maintained
-Where it fits in the architecture:
-  fsh + core + Friday (state authority)
-      down
-  state.db (single source of truth)
-      down
-  zbus service bus (desktop integration layer)  <- NEW
-      down
-  COSMIC visual layer / faelight tools
-This is the missing IPC layer between the forest and the desktop.
-GATES (zbus):
-[ ] zbus added as dependency to faelight-notify
-[ ] faelight-notify registers on D-Bus correctly
-[ ] One forest tool communicates via zbus successfully
-[ ] Portal integration verified (at least file chooser)
-[ ] shelld concept prototyped with zbus as transport
