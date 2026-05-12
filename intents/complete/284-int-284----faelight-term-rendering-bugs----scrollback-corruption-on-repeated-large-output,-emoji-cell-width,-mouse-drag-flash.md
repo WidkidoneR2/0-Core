@@ -1,7 +1,7 @@
 ---
 id: 284
 title: "faelight-term rendering bugs -- scrollback corruption, emoji width, mouse flash"
-status: planned
+status: complete
 date: 2026-05-08
 tags: [faelight-term, rendering, bugfix, scrollback, emoji, vte]
 ---
