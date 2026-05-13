@@ -1287,8 +1287,21 @@ fn repl_main() -> Result<()> {
         let read_result = {
             let mut buffer = String::new();
             let mut first = true;
+            let mut heredoc_delim: Option<String> = None;
             loop {
-                let p = if first { prompt_str.as_str() } else { "  ... " };
+                let p_owned = if !first {
+                    heredoc_delim.as_ref().map(|delim| format!("  heredoc({})> ", delim))
+                } else {
+                    None
+                };
+                let p = if first {
+                    prompt_str.as_str()
+                } else if let Some(ref s) = p_owned {
+                    // BUG-298-2: show delimiter so user knows what to type
+                    s.as_str()
+                } else {
+                    "  ... "
+                };
                 match rl.readline(p) {
                     Ok(line) => {
                         // INT-250: check Ctrl+R flag set by HSearchHandler
@@ -1316,9 +1329,13 @@ fn repl_main() -> Result<()> {
                             buffer.push('\n');
                         }
                         buffer.push_str(&line);
-                        let (complete, _reason) = is_complete_command(&buffer);
+                        let (complete, reason) = is_complete_command(&buffer);
                         if complete {
                             break Ok(buffer);
+                        }
+                        // BUG-298-2: track heredoc delimiter for prompt
+                        if reason == "unclosed heredoc" && heredoc_delim.is_none() {
+                            heredoc_delim = find_heredoc_delimiter(&buffer);
                         }
                         first = false;
                     }
@@ -2202,6 +2219,19 @@ fn repl_main() -> Result<()> {
                         "for" | "while" | "until" | "if" | "case"
                     );
                     if shell_construct {
+                        let status = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg(line)
+                            .status();
+                        last_exit_code = match status {
+                            Ok(s) => s.code(),
+                            Err(_) => Some(1),
+                        };
+                        continue;
+                    }
+                    // BUG-298-2: heredoc — route << blocks to sh -c before
+                    // alias expansion or any other processing touches the line.
+                    if line.contains("<<") {
                         let status = std::process::Command::new("sh")
                             .arg("-c")
                             .arg(line)
