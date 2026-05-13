@@ -2304,7 +2304,7 @@ fn repl_main() -> Result<()> {
                                 commands::CommandResult::Error(e) => eprintln!("  x {}", e),
                                 _ => {}
                             }
-                            continue 'repl;
+                            continue 'segments; // INT-299: was 'repl -- skipped remaining segments
                         }
                     }
 
