@@ -2520,8 +2520,21 @@ fn repl_main() -> Result<()> {
                                     let mut cur = String::new();
                                     let mut in_q = false;
                                     let mut qc = ' ';
+                                    // INT-299: track backslash escape inside double quotes
+                                    // \" inside "..." must NOT close the quote
+                                    let mut prev_backslash = false;
                                     for ch in part.chars() {
+                                        if prev_backslash && in_q && qc == '"' {
+                                            cur.push(ch);
+                                            prev_backslash = false;
+                                            continue;
+                                        }
+                                        prev_backslash = false;
                                         match ch {
+                                            '\\' if in_q && qc == '"' => {
+                                                prev_backslash = true;
+                                                cur.push(ch);
+                                            }
                                             '"' | '\'' if !in_q => {
                                                 in_q = true;
                                                 qc = ch;
