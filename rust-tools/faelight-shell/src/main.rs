@@ -1022,6 +1022,12 @@ fn strip_comments(input: &str) -> String {
 }
 
 fn main() -> Result<()> {
+    // INT-299: reset SIGPIPE to SIG_DFL — prevents REPL panic on broken pipe
+    // ls ~/path | head -5 would previously panic with 'failed printing to stdout'
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
@@ -2253,10 +2259,14 @@ fn repl_main() -> Result<()> {
 
                     // Expand aliases before pipeline parsing
                     let first_word = line.split_whitespace().next().unwrap_or("").to_lowercase();
-                    // BUG-298-4: if 'cat' is used with a redirect operator, bypass the bat
-                    // alias and let real /usr/bin/cat handle the redirect natively.
-                    let cat_with_redirect = first_word == "cat"
-                        && (line.contains(" > ") || line.contains(" >> "));
+                    // BUG-298-4: bypass bat alias for cat when redirect OR bat-unsupported flags
+                    // Flags bat doesn't support: -A (show-all), -v, -e, -t, -n, -b
+                    let cat_with_redirect = first_word == "cat" && {
+                        let has_redirect = line.contains(" > ") || line.contains(" >> ");
+                        let bat_unsupported = ["-A", "-v", "-e", "-t", "-n", "-b"]
+                            .iter().any(|f| line.split_whitespace().any(|w| w == *f));
+                        has_redirect || bat_unsupported
+                    };
                     let line = if cat_with_redirect {
                         line.to_string()
                     } else if let Some(aliased) = db.get_alias(&first_word) {
