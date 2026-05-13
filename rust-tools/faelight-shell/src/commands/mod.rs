@@ -295,6 +295,27 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
         "fsh" | "faelight-shell" => match args.first().copied() {
+            Some("-c") => {
+                // INT-299: fsh -c "cmd" — delegate to sh, mirrors external behavior
+                let cmd = args.get(1).copied().unwrap_or("");
+                if cmd.is_empty() {
+                    CommandResult::Error("fsh -c: missing command".to_string())
+                } else {
+                    let out = std::process::Command::new("sh")
+                        .arg("-c").arg(cmd)
+                        .output();
+                    match out {
+                        Ok(o) => {
+                            let mut s = String::from_utf8_lossy(&o.stdout).to_string();
+                            if !o.stderr.is_empty() {
+                                s.push_str(&String::from_utf8_lossy(&o.stderr));
+                            }
+                            CommandResult::Output(s.trim_end().to_string())
+                        }
+                        Err(e) => CommandResult::Error(format!("fsh -c: {}", e)),
+                    }
+                }
+            }
             Some("diag") => fsh_diag(db),
             Some("gaps") => fsh_gaps(db),
             _ => fsh_identity_cmd(db),
