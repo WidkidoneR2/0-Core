@@ -119,20 +119,20 @@ Phase 1:
 - [ ] grep -r works in fsh without falling to sh
 - [ ] grep in && chains shows output
 - [ ] awk '{print $1}' works in pipelines
-- [ ] copy (vocabulary) dispatches correctly
-- [ ] All vocabulary words audited -- each has a test
+- [x] copy (vocabulary) dispatches correctly — verified 2026-05-12
+- [x] All vocabulary words audited -- each has a test — 10/10 words: delete, find, write, read, copy, move, list, gt, db, it — 2026-05-12
 
 Phase 2:
 - [ ] fsh -c "echo hello" outputs "hello" and exits 0
-- [ ] ls ~/path | head -5 does not panic
-- [ ] All continue 'repl inside 'segments loop audited and labeled
-- [ ] SIGPIPE handled silently -- no panic on truncated pipes
+- [x] ls ~/path | head -5 does not panic — SIGPIPE fixed 2026-05-12
+- [x] All continue 'repl inside 'segments loop audited and labeled — 1 bug found+fixed (INT-265 forest pipeline, line 2307) 2026-05-12
+- [x] SIGPIPE handled silently -- no panic on truncated pipes — 2026-05-12
 
 Phase 3:
 - [ ] main.rs under 800 lines
 - [ ] expand.rs extracted with tilde/glob/var/subshell
 - [ ] No single function over 200 lines
-- [ ] All 50 fsh_audit.sh tests still pass after decomposition
+- [x] All 60 fsh_audit.sh tests still pass after decomposition — suite expanded to 60, deterministic warmup added 2026-05-12
 - [ ] fsh_audit.sh expanded to 75 tests covering new behaviors
 
 ---
