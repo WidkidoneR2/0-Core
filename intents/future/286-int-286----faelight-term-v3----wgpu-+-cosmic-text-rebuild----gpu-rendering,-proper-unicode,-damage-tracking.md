@@ -208,3 +208,63 @@ That response is silently dropped. Yazi waits 7-8 seconds then times out.
 - Fractional scaling on Niri
 - App spawn hesitation (same root cause as yazi TRT)
 - 1 week daily driver validation
+
+---
+## Improvement Roadmap (added 2026-05-13)
+
+### Phase 7 -- Terminal Protocol Completeness
+OSC 52 clipboard:
+  - Terminal-driven clipboard via escape sequences
+  - Works for any content size, not just visible screen
+  - Replaces current wl-clipboard-rs visible-only limitation
+  - Required for proper copy/paste in tmux, neovim, helix
+
+Kitty keyboard protocol:
+  - Advertise support after DA1/DA2 responses are working
+  - Gives helix/neovim/zellij proper key detection
+  - Enables Shift+Enter, Ctrl+i vs Tab, Ctrl+Shift combos
+  - Without this, editors are missing ~20% of key combinations
+
+OSC 7 -- working directory notification:
+  - Notify Niri of terminal CWD on every prompt
+  - Enables "open terminal here" from file manager
+  - Tab titles reflect actual working directory
+
+OSC 133 -- semantic prompt marks:
+  - Mark prompt start/end/command-start/command-end
+  - Enables scroll-to-previous-command
+  - Select command output as a unit
+  - Foundation for shell integration features
+
+### Phase 8 -- Performance
+Per-cell damage tracking:
+  - Currently: frame-level dirty flag (whole frame redraws)
+  - Target: per-cell dirty bit, only re-upload changed glyphs
+  - Significant GPU bandwidth reduction on busy terminals
+  - Already partially planned in Phase 4 gates
+
+Separate render thread:
+  - Wayland event loop and render loop currently on same thread
+  - Input blocks rendering and vice versa
+  - Separate threads: input never causes render stutter
+  - This fixes app launch hesitation at the architectural level
+
+Font fallback chain:
+  - cosmic-text supports fallback natively, needs configuration
+  - Chain: JetBrains Mono → Nerd Font → Noto Emoji → system fallback
+  - Fixes: Japanese, emoji, box-drawing, all Nerd Font icons
+  - Configure via cosmic-text FontSystem with explicit families
+
+### Phase 9 -- Tabs
+Terminal tabs:
+  - Each tab = independent PTY + terminal grid
+  - Tab bar rendered in wgpu alongside terminal content
+  - Keybinds: Ctrl+T new tab, Ctrl+W close, Ctrl+1-9 switch
+  - Tab titles: from OSC 7 (CWD) or OSC 2 (explicit title set by app)
+  - Friday-aware: active intent shown in tab bar
+  - Forest integration: each tab can have a forest context label
+
+### The Validator
+Run evil-helix in faelight-term.
+If helix works -- kitty protocol, true color, complex rendering all pass.
+If helix works, the terminal is ready.
