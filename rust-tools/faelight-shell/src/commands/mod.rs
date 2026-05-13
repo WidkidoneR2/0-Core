@@ -7265,6 +7265,20 @@ fn where_cmd(db: &ForestDb, _core_root: &str, args: &[&str]) -> CommandResult {
         ));
         found = true;
     }
+    // INT-300: forest vocabulary words -- human-first commands (INT-261)
+    let vocab_words = [
+        "write", "read", "list", "copy", "move", "delete", "find",
+        "db", "gt", "it", "search", "show", "where", "compare",
+        "fsearch", "query",
+    ];
+    if vocab_words.contains(&cmd) {
+        out.push_str(&format!(
+            "  {} vocabulary  forest word (INT-261)
+",
+            "▶".bright_magenta()
+        ));
+        found = true;
+    }
     if !found {
         out.push_str(&format!(
             "  {} not found: {}
