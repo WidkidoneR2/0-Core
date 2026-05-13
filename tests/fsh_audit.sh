@@ -63,6 +63,9 @@ ok_file() {
 }
 
 echo ""
+# Warmup: first fsh invocation has cold-start overhead — prime it
+_run "echo warmup" > /dev/null 2>&1
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  fsh audit v2  —  INT-298"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
