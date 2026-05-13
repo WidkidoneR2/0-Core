@@ -153,6 +153,38 @@ ok "ls -la /tmp"             "ls /tmp"                        "fsh_t"
 ok "echo to stderr"          "echo visible"                   "visible"
 ok "cat system file"         "cat /etc/hostname"              ""
 
+
+# ── Shell Integrity / Stress Tests ────────────────── 10 tests
+echo ""
+echo "[ Shell Integrity ]"
+
+_survives() {
+    local name="$1"
+    local input="$2"
+    # Shell must not panic — exit 0 or 1 both fine, but no signal kill
+    echo "$input" | "$FSH" >/dev/null 2>&1
+    local code=$?
+    if [ $code -lt 128 ]; then
+        printf "  \033[32mPASS\033[0m  %s\n" "$name"
+        PASS=$((PASS + 1))
+    else
+        printf "  \033[31mFAIL\033[0m  %s (killed by signal, exit %d)\n" "$name" "$code"
+        FAIL=$((FAIL + 1))
+        FAIL_NAMES="$FAIL_NAMES $name"
+    fi
+}
+
+_survives "empty input"           ""
+_survives "whitespace only"       "   "
+_survives "unclosed quote"        "echo \"hello"
+_survives "pipe no right side"    "echo hello |"
+_survives "double pipe"           "ls || ||"
+_survives "redirect no target"    "echo hello >"
+_survives "deep parens"           "(((((((((("
+_survives "special chars safe"   "echo test pipe echo"
+_survives "long repeated cmd"    "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+_survives "semicolon stress"     ";;;;"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 TOTAL=$((PASS + FAIL))
