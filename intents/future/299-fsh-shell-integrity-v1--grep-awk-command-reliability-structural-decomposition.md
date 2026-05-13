@@ -1,7 +1,10 @@
-📋  299 — fsh Shell Integrity v1 — grep, awk, command reliability, structural decomposition
-  Status: [planned]  Date: 2026-05-12
-  Tags: fsh, shell, integrity, grep, awk, command, structure
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
+id: 299
+title: "fsh Shell Integrity v1 -- grep, awk, command reliability, structural decomposition"
+status: in-progress
+date: 2026-05-12
+tags: [fsh, shell, integrity, grep, awk, command, structure]
+---
 ## The Problem
 
 fsh is supposed to be the forest mouth.
