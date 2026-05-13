@@ -115,25 +115,25 @@ Target: no single function over 200 lines
 ## SUCCESS CRITERIA (GATES)
 
 Phase 1:
-- [ ] grep pattern file shows output in fsh (matching zsh behavior)
-- [ ] grep -r works in fsh without falling to sh
-- [ ] grep in && chains shows output
-- [ ] awk '{print $1}' works in pipelines
+- [x] grep pattern file shows output in fsh (matching zsh behavior) — verified + test added 2026-05-13
+- [x] grep -r works in fsh without falling to sh — verified + test added 2026-05-13
+- [x] grep in && chains shows output — verified + test added 2026-05-13
+- [x] awk '{print $1}' works in pipelines — verified + test added 2026-05-13
 - [x] copy (vocabulary) dispatches correctly — verified 2026-05-12
 - [x] All vocabulary words audited -- each has a test — 10/10 words: delete, find, write, read, copy, move, list, gt, db, it — 2026-05-12
 
 Phase 2:
-- [ ] fsh -c "echo hello" outputs "hello" and exits 0
+- [x] fsh -c "echo hello" outputs "hello" and exits 0 — implemented in main() + builtin, works inside and outside fsh 2026-05-13
 - [x] ls ~/path | head -5 does not panic — SIGPIPE fixed 2026-05-12
 - [x] All continue 'repl inside 'segments loop audited and labeled — 1 bug found+fixed (INT-265 forest pipeline, line 2307) 2026-05-12
 - [x] SIGPIPE handled silently -- no panic on truncated pipes — 2026-05-12
 
 Phase 3:
 - [ ] main.rs under 800 lines
-- [ ] expand.rs extracted with tilde/glob/var/subshell
+- [x] expand.rs extracted — 13 functions, 641 lines (expand_globs, split_logical, subshells, heredoc, is_complete_command + more) 2026-05-13
 - [ ] No single function over 200 lines
-- [x] All 60 fsh_audit.sh tests still pass after decomposition — suite expanded to 60, deterministic warmup added 2026-05-12
-- [ ] fsh_audit.sh expanded to 75 tests covering new behaviors
+- [x] All 75 fsh_audit.sh tests pass after decomposition — warmup fixed, deterministic 2026-05-13
+- [x] fsh_audit.sh expanded to 75 tests — grep, awk, fsh -c, vocabulary, structural 2026-05-13
 
 ---
 
