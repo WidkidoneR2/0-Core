@@ -181,3 +181,30 @@ STUDY ALSO (added from Pop_OS email):
   cosmic-term source: github.com/pop-os/cosmic-term
   Focus on: pane/workspace semantics, PTY handling, compositor awareness
   This is now Phase 0 alongside Rio study
+
+---
+## Session 2026-05-13 -- What Was Fixed and What Remains
+
+### Fixed
+- TERM=xterm-256color and COLORTERM=truecolor now set in PTY child
+- Source cleanup: faelight-term-v3/ renamed to faelight-term/ (canonical), dead v2 archived
+- Deploy pipeline clarified: build from rust-tools/faelight-term/ directly
+
+### Root Cause of Yazi TRT
+FaelightListener::send_event drops ALL terminal events:
+  fn send_event(&self, _event: TermEvent) {}
+Yazi sends DA1 query (ESC[c), alacritty_terminal generates TermEvent::PtyWrite(response).
+That response is silently dropped. Yazi waits 7-8 seconds then times out.
+
+### Fix Required (Friday)
+1. Give FaelightListener a SyncSender<String> channel
+2. Handle TermEvent::PtyWrite(data) -- forward to PTY
+3. GpuState holds Receiver, drains in render loop (line 504)
+
+### Remaining Open Work
+- PtyWrite forwarding (yazi TRT -- critical)
+- Mouse drag flashing (INT-284 Bug 3)
+- Copy/paste beyond visible screen
+- Fractional scaling on Niri
+- App spawn hesitation (same root cause as yazi TRT)
+- 1 week daily driver validation
