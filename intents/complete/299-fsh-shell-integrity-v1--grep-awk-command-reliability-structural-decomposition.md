@@ -1,7 +1,7 @@
 ---
 id: 299
 title: "fsh Shell Integrity v1 -- grep, awk, command reliability, structural decomposition"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [fsh, shell, integrity, grep, awk, command, structure]
 ---
