@@ -134,21 +134,21 @@ Expand fsh_audit.sh from 50 to 75 tests:
 ## Success Criteria
 
 ### Phase 1 — Vocabulary Audit
-- [ ] All 10 vocabulary words tested — each has at least one passing test
-- [ ] copy works (or is documented as not yet forest-aware)
-- [ ] move works (or is documented as not yet forest-aware)
-- [ ] write produces correct output
-- [ ] read produces correct output
-- [ ] list works as ls wrapper with forest awareness
-- [ ] UNIX fallbacks verified for all 10 words
+- [x] All 10 vocabulary words tested — 75/75 tests pass, each word verified 2026-05-13
+- [x] copy works -- forest-aware, shows confirmation, tested 2026-05-13
+- [x] move works -- forest-aware, shows confirmation, tested 2026-05-13
+- [x] write produces correct output -- 'write text to file' syntax working 2026-05-13
+- [x] read produces correct output -- line-numbered reader with file info 2026-05-13
+- [x] list works as ls wrapper with forest awareness 2026-05-13
+- [x] UNIX fallbacks verified -- rm/mv/cp/grep/ls all still work directly 2026-05-13
 
 ### Phase 2 — Enhanced Builtins
-- [ ] search <pattern> works (unified ripgrep wrapper)
-- [ ] search --rust filters to .rs files
-- [ ] search --intent filters to intents/
-- [ ] awk passthrough verified in pipes
-- [ ] sed passthrough verified in pipes
-- [ ] show <file> works as bat-enhanced reader
+- [x] search <pattern> works -- unified ripgrep wrapper, removed fd alias conflict 2026-05-13
+- [x] search --rust filters to .rs files -- verified 2026-05-13
+- [x] search --intent filters to intents/ -- verified 2026-05-13
+- [x] awk passthrough verified in pipes -- test in suite 2026-05-13
+- [x] sed passthrough verified in pipes -- echo | sed works 2026-05-13
+- [x] show <file> works -- line-numbered bat-enhanced reader 2026-05-13
 
 ### Phase 3 — New Words
 - [ ] search registered in command registry (INT-259)
@@ -157,10 +157,10 @@ Expand fsh_audit.sh from 50 to 75 tests:
 - [ ] All new words appear in cheatsheet TUI (INT-260)
 
 ### Phase 4 — Tests
-- [ ] fsh_audit.sh expanded to 75 tests
-- [ ] All 75 tests pass
-- [ ] Each vocabulary word has at least one test
-- [ ] Each new builtin has at least one test
+- [x] fsh_audit.sh expanded to 75 tests 2026-05-13
+- [x] All 75 tests pass -- deterministic 2026-05-13
+- [x] Each vocabulary word has at least one test 2026-05-13
+- [x] Each new builtin has at least one test -- search, show, where, fsearch 2026-05-13
 
 ### The Standard
 - [ ] One full day using only fsh vocabulary — no muscle-memory UNIX fallback
