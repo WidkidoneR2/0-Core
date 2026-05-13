@@ -5435,6 +5435,42 @@ fn sys_logs(args: &[&str]) -> CommandResult {
 }
 
 fn search(db: &ForestDb, args: &[&str]) -> CommandResult {
+    // INT-300: forest flags -- delegate to file search (fsearch behavior)
+    let forest_flags = ["--rust", "--intent", "--forest", "--py", "--md", "--sh", "--toml", "--scripts"];
+    if let Some(&flag) = args.iter().find(|a| forest_flags.contains(*a)) {
+        let pattern = args.iter().find(|a| !a.starts_with("--")).copied().unwrap_or("");
+        let home = std::env::var("HOME").unwrap_or_default();
+        let root = format!("{}/0-core", home);
+        let (type_flag, search_root): (Option<&str>, String) = match flag {
+            "--rust"    => (Some("rust"),     root.clone()),
+            "--py"      => (Some("py"),       root.clone()),
+            "--md"      => (Some("markdown"), root.clone()),
+            "--sh"      => (Some("sh"),       root.clone()),
+            "--toml"    => (Some("toml"),     root.clone()),
+            "--intent"  => (None, format!("{}/intents", root)),
+            "--scripts" => (None, format!("{}/scripts", root)),
+            _           => (None, root.clone()),
+        };
+        let mut cmd = std::process::Command::new("rg");
+        cmd.arg("--line-number").arg("--color=never");
+        if let Some(t) = type_flag { cmd.arg("--type").arg(t); }
+        cmd.arg(pattern).arg(&search_root);
+        return match cmd.output() {
+            Ok(o) => {
+                let raw = String::from_utf8_lossy(&o.stdout);
+                if raw.is_empty() {
+                    CommandResult::Output(format!("  (no matches for '{}')", pattern))
+                } else {
+                    let out: String = raw.lines().take(50)
+                        .map(|l| format!("{}
+", l.replace(&format!("{}/", root), "")))
+                        .collect();
+                    CommandResult::Output(out.trim_end().to_string())
+                }
+            }
+            Err(_) => CommandResult::Error("search: rg not found".to_string()),
+        };
+    }
     let query = args.join(" ").to_lowercase();
 
     let rows: Vec<(String, i64)> = {

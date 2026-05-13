@@ -3,7 +3,7 @@ id: 300
 date: 2026-05-12
 type: arch
 title: "fsh Language Layer v1 — The Shell Speaks Human First"
-status: planned
+status: in-progress
 tags: [fsh, language, vocabulary, human-readable, grep, awk, builtins, arch]
 version: TBD
 depends_on: [261, 299]
