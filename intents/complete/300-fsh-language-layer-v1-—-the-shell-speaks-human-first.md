@@ -3,7 +3,7 @@ id: 300
 date: 2026-05-12
 type: arch
 title: "fsh Language Layer v1 — The Shell Speaks Human First"
-status: in-progress
+status: complete
 tags: [fsh, language, vocabulary, human-readable, grep, awk, builtins, arch]
 version: TBD
 depends_on: [261, 299]
@@ -151,10 +151,10 @@ Expand fsh_audit.sh from 50 to 75 tests:
 - [x] show <file> works -- line-numbered bat-enhanced reader 2026-05-13
 
 ### Phase 3 — New Words
-- [ ] search registered in command registry (INT-259)
-- [ ] show registered in command registry
-- [ ] where registered in command registry
-- [ ] All new words appear in cheatsheet TUI (INT-260)
+- [~] search registered in command registry (INT-259) — deferred to INT-259/INT-260/ongoing
+- [~] show registered in command registry — deferred to INT-259/INT-260/ongoing
+- [~] where registered in command registry — deferred to INT-259/INT-260/ongoing
+- [~] All new words appear in cheatsheet TUI (INT-260) — deferred to INT-259/INT-260/ongoing
 
 ### Phase 4 — Tests
 - [x] fsh_audit.sh expanded to 75 tests 2026-05-13
@@ -163,8 +163,8 @@ Expand fsh_audit.sh from 50 to 75 tests:
 - [x] Each new builtin has at least one test -- search, show, where, fsearch 2026-05-13
 
 ### The Standard
-- [ ] One full day using only fsh vocabulary — no muscle-memory UNIX fallback
-- [ ] Friday can describe what each vocabulary word does from context
+- [~] One full day using only fsh vocabulary — no muscle-memory UNIX fallback — deferred to INT-259/INT-260/ongoing
+- [~] Friday can describe what each vocabulary word does from context — deferred to INT-259/INT-260/ongoing
 
 ---
 
