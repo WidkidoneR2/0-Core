@@ -119,15 +119,18 @@ BUG 3 from INT-291: Background Wayland processes from inside faelight-term
 
 ## SUCCESS CRITERIA (GATES)
 
-- [ ] ls ~/path works consistently for all paths
-- [ ] cat <<EOF heredoc passes to sh -c correctly
-- [ ] RESULT=$(cmd | pipe) works (pipe-aware subshell expansion)
-- [ ] cat >> file uses real cat, not bat
-- [ ] Shell test suite: 50 passing tests
-- [ ] All continue 'repl inside 'segments loop audited and fixed
-- [ ] grep, ls, find, cat, fsearch enhanced as described
-- [ ] fsh used as daily driver for 1 full week without dropping to zsh
-- [ ] No regressions from INT-291 fixes
+### Completed 2026-05-12
+- [x] ls ~/path works consistently -- FIXED (tilde expansion in pipe + non-pipe paths)
+- [x] cat <<EOF heredoc -- FIXED (informative heredoc(EOF)> prompt, correct collection)
+- [x] cat >> file uses real cat not bat -- FIXED (alias bypass on redirect detection)
+- [x] Shell test suite 50 passing tests -- DONE (tests/fsh_audit.sh 50/50)
+- [x] No regressions from INT-291 -- VERIFIED
+
+### Deferred to INT-299
+- [ ] RESULT=$(cmd | pipe) -- moved to INT-299 (deeper investigation needed)
+- [ ] continue 'repl audit -- moved to INT-299
+- [ ] grep, ls, find, fsearch enhancements -- moved to INT-299
+- [ ] fsh daily driver 1 full week -- ongoing
 
 ## The Standard
 
