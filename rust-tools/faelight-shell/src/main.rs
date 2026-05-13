@@ -413,6 +413,16 @@ fn main() -> Result<()> {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
     // Spawn REPL with 64MB stack — prevents stack overflow in deep command chains
+    // INT-299: -c flag -- fsh -c "cmd" runs non-interactively and exits
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() >= 3 && args[1] == "-c" {
+            let status = std::process::Command::new("sh")
+                .arg("-c").arg(&args[2])
+                .status().unwrap_or_else(|_| std::process::exit(1));
+            std::process::exit(status.code().unwrap_or(1));
+        }
+    }
     let result = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .name("faelight-repl".into())
