@@ -89,44 +89,6 @@ fn expand_braces(s: &str) -> String {
     result
 }
 
-fn expand_subshells(line: &str) -> String {
-    let trigger: &str = &('$'.to_string() + "(");
-    if !line.contains(trigger) {
-        return line.to_string();
-    }
-    let mut result = String::new();
-    let chars: Vec<char> = line.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
-            i += 2;
-            let mut depth = 1usize;
-            let mut inner = String::new();
-            while i < chars.len() && depth > 0 {
-                if chars[i] == '(' {
-                    depth += 1;
-                } else if chars[i] == ')' {
-                    depth -= 1;
-                }
-                if depth > 0 {
-                    inner.push(chars[i]);
-                }
-                i += 1;
-            }
-            let output = std::process::Command::new("sh")
-                .arg("-c")
-                .arg(&inner)
-                .output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .unwrap_or_default();
-            result.push_str(&output);
-        } else {
-            result.push(chars[i]);
-            i += 1;
-        }
-    }
-    result
-}
 
 fn split_semicolons(line: &str) -> Vec<String> {
     // INT-285 BUG 2 FIX: for/while/until loops are atomic -- never split at semicolons
@@ -185,56 +147,6 @@ do")) {
 /// Split a line on && and || operators (respecting quotes)
 /// Returns Vec<(cmd, operator)> where operator is None for last cmd,
 /// Some(true) for && (run next if success), Some(false) for || (run next if fail)
-fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
-    let mut result = vec![];
-    let mut current = String::new();
-    let mut in_quote = false;
-    let mut quote_char = ' ';
-    let chars: Vec<char> = line.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let ch = chars[i];
-        match ch {
-            '"' | '\'' if !in_quote => {
-                in_quote = true;
-                quote_char = ch;
-                current.push(ch);
-            }
-            c if in_quote && c == quote_char => {
-                in_quote = false;
-                current.push(ch);
-            }
-            '&' if !in_quote && i + 1 < chars.len() && chars[i + 1] == '&' => {
-                let seg = current.trim().to_string();
-                if !seg.is_empty() {
-                    result.push((seg, Some(true)));
-                }
-                current.clear();
-                i += 2; // skip &&
-                continue;
-            }
-            '|' if !in_quote && i + 1 < chars.len() && chars[i + 1] == '|' => {
-                let seg = current.trim().to_string();
-                if !seg.is_empty() {
-                    result.push((seg, Some(false)));
-                }
-                current.clear();
-                i += 2; // skip ||
-                continue;
-            }
-            _ => current.push(ch),
-        }
-        i += 1;
-    }
-    let seg = current.trim().to_string();
-    if !seg.is_empty() {
-        result.push((seg, None));
-    }
-    if result.is_empty() {
-        result.push((line.trim().to_string(), None));
-    }
-    result
-}
 
 /// INT-267: Execute commands in parallel, return labeled output
 fn run_parallel(commands: &[String]) -> bool {
@@ -282,28 +194,6 @@ fn run_parallel(commands: &[String]) -> bool {
     all_success
 }
 /// INT-267: Parse parallel { } block -- handles both multiline and single-line
-fn parse_parallel_block(input: &str) -> Option<Vec<String>> {
-    let trimmed = input.trim();
-    if !trimmed.starts_with("parallel") { return None; }
-    let rest = trimmed["parallel".len()..].trim();
-    if !rest.starts_with('{') { return None; }
-    let inner = rest.trim_start_matches('{');
-    let inner = if let Some(pos) = inner.rfind('}') { &inner[..pos] } else { return None; };
-    // Split by newlines first, then by semicolons for single-line usage
-    let cmds: Vec<String> = if inner.contains('\n') {
-        inner.lines()
-            .map(|l| l.trim().to_string())
-            .filter(|l| !l.is_empty())
-            .collect()
-    } else {
-        // Single line: parallel {cmd1; cmd2; cmd3}
-        inner.split(';')
-            .map(|l| l.trim().to_string())
-            .filter(|l| !l.is_empty())
-            .collect()
-    };
-    if cmds.is_empty() { None } else { Some(cmds) }
-}
 
 /// INT-268: Natural language translation for ? prefix
 /// Pattern-based translation without LLM -- forest-specific rules
@@ -383,130 +273,10 @@ fn translate_natural_language(input: &str) -> Option<(String, f64)> {
 
 /// Expand $VAR and ${VAR} references in a line.
 /// Reads from shell_vars first, then std::env.
-fn expand_globs(line: &str) -> String {
-    // Only expand if line contains * or ? outside of quotes
-    if !line.contains('*') && !line.contains('?') {
-        return line.to_string();
-    }
-    // INT-245 #8: track quote state across the whole line so multi-word quoted
-    // strings (e.g. python3 -c "code with * inside") don't get glob-expanded.
-    // We segment the line into runs of (in_quotes, text) and only expand globs
-    // in unquoted runs.
-    let mut segments: Vec<(bool, String)> = vec![];
-    let mut current = String::new();
-    let mut in_double = false;
-    let mut in_single = false;
-    for ch in line.chars() {
-        let was_in_quote = in_double || in_single;
-        match ch {
-            '"' if !in_single => {
-                in_double = !in_double;
-                current.push(ch);
-            }
-            '\'' if !in_double => {
-                in_single = !in_single;
-                current.push(ch);
-            }
-            _ => current.push(ch),
-        }
-        let now_in_quote = in_double || in_single;
-        // Quote state just changed -- flush the prior segment with its prior quote state
-        if now_in_quote != was_in_quote {
-            // The character we just pushed is the boundary marker. The push includes it
-            // in the segment STARTED by this transition (the new state), so we need to
-            // pop it back if it should belong to the prior segment.
-            // Simpler: at a transition, split AT THIS CHAR. The boundary char (quote)
-            // belongs to the segment with quotes around it. Convention: include the opening
-            // quote in the quoted segment, the closing quote in the quoted segment too.
-            //
-            // Since we already pushed the boundary char to `current`, and it should belong
-            // to the new state's segment, we pop it, push current as old-state, then push
-            // the boundary char into a fresh current with new state.
-            let boundary = current.pop();
-            if !current.is_empty() {
-                segments.push((was_in_quote, std::mem::take(&mut current)));
-            }
-            if let Some(c) = boundary {
-                current.push(c);
-            }
-        }
-    }
-    let final_in_quote = in_double || in_single;
-    if !current.is_empty() {
-        segments.push((final_in_quote, current));
-    }
-    let mut out = String::new();
-    for (quoted, segment) in &segments {
-        if *quoted {
-            out.push_str(segment);
-            continue;
-        }
-        // Apply glob expansion only to this unquoted segment.
-        let expanded = expand_globs_in_segment(segment);
-        out.push_str(&expanded);
-    }
-    out
-}
 
 /// INT-245 #8: token-level glob expansion within an unquoted segment.
 /// Extracted from the original expand_globs body; logic unchanged for parts
 /// that lack quotes.
-fn expand_globs_in_segment(line: &str) -> String {
-    if !line.contains('*') && !line.contains('?') {
-        return line.to_string();
-    }
-    // Preserve original whitespace by splitting on whitespace runs but tracking them.
-    // Simpler: split_whitespace + rejoin with a single space. The quote-aware caller
-    // has already preserved leading/trailing spacing in adjacent quoted segments.
-    let mut result_parts: Vec<String> = vec![];
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    for part in parts {
-        if part.contains('*') || part.contains('?') {
-            // Expand tilde
-            let expanded = if part.starts_with("~/") {
-                let home = std::env::var("HOME").unwrap_or_default();
-                part.replacen("~", &home, 1)
-            } else {
-                part.to_string()
-            };
-            // Use glob crate pattern matching via std::fs
-            let pattern_path = std::path::Path::new(&expanded);
-            let parent = {
-                let p = pattern_path.parent().unwrap_or(std::path::Path::new("."));
-                if p.as_os_str().is_empty() {
-                    std::path::Path::new(".")
-                } else {
-                    p
-                }
-            };
-            let file_pattern = pattern_path
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or(part);
-            let mut matches: Vec<String> = vec![];
-            if let Ok(entries) = std::fs::read_dir(parent) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name();
-                    let name_str = name.to_string_lossy();
-                    if glob_match(file_pattern, &name_str) {
-                        let p = entry.path().to_string_lossy().to_string();
-                        let p = p.strip_prefix("./").unwrap_or(&p).to_string();
-                        matches.push(p);
-                    }
-                }
-            }
-            matches.sort();
-            if matches.is_empty() {
-                result_parts.push(part.to_string());
-            } else {
-                result_parts.extend(matches);
-            }
-        } else {
-            result_parts.push(part.to_string());
-        }
-    }
-    result_parts.join(" ")
-}
 
 
 fn expand_vars(
@@ -3316,5 +3086,6 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     );
     println!();
 }
+
 
 
