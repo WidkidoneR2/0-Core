@@ -3030,13 +3030,16 @@ fn repl_main() -> Result<()> {
                             if elapsed_ms > 30_000 {
                                 let secs = elapsed_ms / 1000;
                                 let msg = format!("{} finished in {}s", cmd_key, secs);
-                                std::process::Command::new("faelight-notify")
+                                // INT-299: reap child in thread to prevent zombie process
+                                if let Ok(mut child) = std::process::Command::new("faelight-notify")
                                     .arg("--title")
                                     .arg("Long command finished")
                                     .arg("--body")
                                     .arg(&msg)
                                     .spawn()
-                                    .ok();
+                                {
+                                    std::thread::spawn(move || { let _ = child.wait(); });
+                                }
                             }
                         }
                     }
