@@ -2112,7 +2112,14 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                     ".".to_string()
                 }
             } else {
-                ".".to_string()
+                // INT-300: accept bare path: list ~/path
+                let bare = args.iter()
+                    .find(|a| !["files", "directories", "in"].contains(a));
+                if let Some(p) = bare {
+                    expand_path(p)
+                } else {
+                    ".".to_string()
+                }
             };
             let path = std::path::Path::new(&target);
             if !path.exists() {
@@ -2131,7 +2138,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                 if dirs_only && !is_dir {
                     continue;
                 }
-                if !dirs_only && !args.contains(&"directories") && is_dir {
+                // INT-300: default shows files AND dirs
+                // use 'list files' for files only
+                let files_only = args.contains(&"files");
+                if files_only && is_dir {
                     continue;
                 }
                 let name = item
@@ -2467,6 +2477,25 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         }
                     }
                 }
+            }
+        }
+        "gt" => {
+            // INT-300: gt is the forest vocabulary word for git operations
+            // gt status, gt commit, gt push -- maps directly to git
+            if args.is_empty() {
+                return CommandResult::Error(
+                    "usage: gt <git-command> [args]\n  gt is the forest word for git".to_string()
+                );
+            }
+            let status = std::process::Command::new("git")
+                .args(args)
+                .stdin(std::process::Stdio::inherit())
+                .stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status();
+            match status {
+                Ok(_) => CommandResult::Empty,
+                Err(e) => CommandResult::Error(format!("gt: git not available: {}", e)),
             }
         }
         "find" => {
