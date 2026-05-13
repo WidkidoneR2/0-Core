@@ -2223,7 +2223,13 @@ fn repl_main() -> Result<()> {
 
                     // Expand aliases before pipeline parsing
                     let first_word = line.split_whitespace().next().unwrap_or("").to_lowercase();
-                    let line = if let Some(aliased) = db.get_alias(&first_word) {
+                    // BUG-298-4: if 'cat' is used with a redirect operator, bypass the bat
+                    // alias and let real /usr/bin/cat handle the redirect natively.
+                    let cat_with_redirect = first_word == "cat"
+                        && (line.contains(" > ") || line.contains(" >> "));
+                    let line = if cat_with_redirect {
+                        line.to_string()
+                    } else if let Some(aliased) = db.get_alias(&first_word) {
                         let rest: String = line
                             .split_once(' ')
                             .map(|x| x.1)
@@ -2522,7 +2528,17 @@ fn repl_main() -> Result<()> {
                                     raw_cmd.clone()
                                 };
                                 let cmd_name = expanded_cmd.as_str();
-                                let owned_args: Vec<String> = tokens[1..].to_vec();
+                                // BUG-298-1: expand tilde in pipe-stage arguments
+                                let owned_args: Vec<String> = tokens[1..].iter().map(|s| {
+                                    if s.starts_with("~/") {
+                                        let home = std::env::var("HOME").unwrap_or_default();
+                                        format!("{}{}", home, &s[1..])
+                                    } else if s.as_str() == "~" {
+                                        std::env::var("HOME").unwrap_or_default()
+                                    } else {
+                                        s.clone()
+                                    }
+                                }).collect();
                                 let args: Vec<&str> =
                                     owned_args.iter().map(|s| s.as_str()).collect();
                                 let is_last = idx == pipe_parts.len() - 1;
@@ -2851,6 +2867,15 @@ fn repl_main() -> Result<()> {
                         let _ = crate::db::spawn_sh_with_leak_check(line);
                         continue 'segments;
                     }
+                    // BUG-298-1: expand tilde in base_cmd before dispatch
+                    let base_cmd = {
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        if base_cmd.starts_with("~/") {
+                            format!("{}{}", home, &base_cmd[1..])
+                        } else {
+                            base_cmd.replace(" ~/", &format!(" {}/", home))
+                        }
+                    };
                     let _cmd_timer_start = std::time::Instant::now();
                     let cmd_output: Option<String> = match exec::execute_with_context(
                         &base_cmd,

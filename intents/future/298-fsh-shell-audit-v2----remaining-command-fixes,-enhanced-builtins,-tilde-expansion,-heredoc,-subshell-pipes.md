@@ -1,7 +1,7 @@
 ---
 id: 298
 title: "fsh shell audit v2 -- remaining command fixes, enhanced builtins, tilde expansion, heredoc, subshell pipes"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [fsh, shell, audit, stability, builtins, tilde, heredoc, subshell]
 priority: critical
