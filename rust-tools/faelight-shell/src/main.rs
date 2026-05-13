@@ -33,6 +33,8 @@ mod scripting;
 mod session;
 mod triggers;
 mod value;
+mod expand;
+use expand::*;
 
 use anyhow::Result;
 use chrono::{Datelike, Timelike};
@@ -85,14 +87,6 @@ fn expand_braces(s: &str) -> String {
         i += 1;
     }
     result
-}
-fn normalize_input(s: &str) -> String {
-    s.replace('‘', "'")
-        .replace('’', "'")
-        .replace('“', "\"")
-        .replace('”', "\"")
-        .replace('–', "-")
-        .replace('—', "--")
 }
 
 fn expand_subshells(line: &str) -> String {
@@ -569,35 +563,6 @@ fn expand_globs_in_segment(line: &str) -> String {
     result_parts.join(" ")
 }
 
-fn glob_match(pattern: &str, name: &str) -> bool {
-    // Simple glob: * matches anything, ? matches one char
-    let mut pi = 0;
-    let mut ni = 0;
-    let p: Vec<char> = pattern.chars().collect();
-    let n: Vec<char> = name.chars().collect();
-    let mut star_pi = usize::MAX;
-    let mut star_ni = 0;
-    while ni < n.len() {
-        if pi < p.len() && (p[pi] == '?' || p[pi] == n[ni]) {
-            pi += 1;
-            ni += 1;
-        } else if pi < p.len() && p[pi] == '*' {
-            star_pi = pi;
-            star_ni = ni;
-            pi += 1;
-        } else if star_pi != usize::MAX {
-            pi = star_pi + 1;
-            star_ni += 1;
-            ni = star_ni;
-        } else {
-            return false;
-        }
-    }
-    while pi < p.len() && p[pi] == '*' {
-        pi += 1;
-    }
-    pi == p.len()
-}
 
 fn expand_vars(
     line: &str,
@@ -869,42 +834,6 @@ fn is_complete_command(buf: &str) -> (bool, &'static str) {
 /// don't contribute to keyword counting in is_complete_command. Caller uses this
 /// to avoid sentences like "files for deploy" tripping the for/done balance
 /// check and hanging fsh in continuation mode.
-fn strip_quoted_regions(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut in_s = false;
-    let mut in_d = false;
-    let mut prev = '\0';
-    for ch in s.chars() {
-        if prev == '\\' {
-            if in_s || in_d {
-                out.push(' ');
-            } else {
-                out.push(ch);
-            }
-            prev = ch;
-            continue;
-        }
-        match ch {
-            '\'' if !in_d => {
-                in_s = !in_s;
-                out.push(' ');
-            }
-            '"' if !in_s => {
-                in_d = !in_d;
-                out.push(' ');
-            }
-            _ => {
-                if in_s || in_d {
-                    out.push(' ');
-                } else {
-                    out.push(ch);
-                }
-            }
-        }
-        prev = ch;
-    }
-    out
-}
 
 #[allow(dead_code)]
 fn find_heredoc_delimiter(s: &str) -> Option<String> {
@@ -951,19 +880,6 @@ fn find_heredoc_delimiter(s: &str) -> Option<String> {
 }
 
 #[allow(dead_code)]
-fn count_keyword_starts(s: &str, kw: &str) -> usize {
-    let mut count = 0;
-    for line in s.lines() {
-        let trimmed = line.trim();
-        let words: Vec<&str> = trimmed.split_whitespace().collect();
-        for w in words.iter() {
-            if *w == kw {
-                count += 1;
-            }
-        }
-    }
-    count
-}
 
 fn strip_comments(input: &str) -> String {
     // INT-285 BUG 1 FIX: heredoc-aware comment stripping
@@ -3702,3 +3618,4 @@ fn print_welcome(core_root: &str, db: &crate::db::ForestDb) {
     );
     println!();
 }
+
