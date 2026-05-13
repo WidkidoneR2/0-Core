@@ -2700,6 +2700,27 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
                         filter_file = Some(args[i + 1]);
                         i += 2;
                     }
+                    // INT-300: forest shortcut flags
+                    "--rust" => { filter_type = Some("rs"); i += 1; }
+                    "--py" | "--python" => { filter_type = Some("py"); i += 1; }
+                    "--md" | "--markdown" => { filter_type = Some("md"); i += 1; }
+                    "--toml" => { filter_type = Some("toml"); i += 1; }
+                    "--sh" | "--shell" => { filter_type = Some("sh"); i += 1; }
+                    "--intent" | "--intents" => {
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core/intents", home)));
+                        i += 1;
+                    }
+                    "--forest" | "--all" => {
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core", home)));
+                        i += 1;
+                    }
+                    "--scripts" => {
+                        let home = std::env::var("HOME").unwrap_or_default();
+                        search_root = Some(std::path::PathBuf::from(format!("{}/0-core/scripts", home)));
+                        i += 1;
+                    }
                     arg if !arg.starts_with("--") => {
                         // First check if it's an existing path (search root)
                         let expanded = if arg.starts_with("~/") {
