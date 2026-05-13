@@ -177,6 +177,37 @@ _survives() {
     fi
 }
 
+
+echo ""
+echo "[ grep ]"
+ok "grep pattern match"     "echo -e 'foo\nbar\nbaz' | grep bar"           "bar"
+ok "grep -r in src"         "grep -r 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/ | head -1" "expand_braces"
+ok "grep in && chain"       "echo ok && grep 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/main.rs | head -1" "expand_braces"
+
+echo ""
+echo "[ awk ]"
+ok "awk print field"        "echo 'christian:x:1000' | awk -F: '{print \$1}'"  "christian"
+ok "awk in pipeline"        "echo -e 'a 1\nb 2\nc 3' | awk '{print \$2}' | head -1" "1"
+
+echo ""
+echo "[ fsh -c ]"
+ok "fsh -c echo"            "fsh -c 'echo hello'"                           "hello"
+ok "fsh -c pipeline"        "fsh -c 'echo forest | tr a-z A-Z'"             "FOREST"
+
+echo ""
+echo "[ vocabulary ]"
+ok "where delete vocab"     "where delete"                                  "vocabulary"
+ok "where gt vocab"         "where gt"                                      "vocabulary"
+ok "where list vocab"       "where list"                                    "vocabulary"
+ok "where fsearch vocab"    "where fsearch"                                 "vocabulary"
+ok "gt status runs"         "gt status"                                     ""
+ok "fsearch --rust finds"   "fsearch --rust expand_braces | head -1"        "expand_braces"
+
+echo ""
+echo "[ structural ]"
+ok "fsh -c exit code 0"     "fsh -c 'echo ok' && echo 'code:0'"            "code:0"
+ok "semicolons + pipeline"  "echo a; echo b | tr a-z A-Z"                  "B"
+
 _survives "empty input"           ""
 _survives "whitespace only"       "   "
 _survives "unclosed quote"        "echo \"hello"
