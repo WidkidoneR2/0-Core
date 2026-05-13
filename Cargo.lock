@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "faelight-term-v2"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "bytemuck",
  "calloop 0.14.4",

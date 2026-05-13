@@ -1,22 +1,41 @@
 [package]
-name = "faelight-term-v2"
+name = "faelight-term"
 license = "MIT"
-version = "2.0.0"
+version = "3.0.0"
 edition = "2021"
+description = "faelight-term v3 -- wgpu + cosmic-text + alacritty_terminal -- GPU-native Wayland terminal"
+
 [dependencies]
-smithay-client-toolkit = "0.20"
-wayland-client = "0.31"
-calloop = "0.14"
-calloop-wayland-source = "0.4"
+# GPU renderer
+wgpu = "24"
+
+# Wayland surface management
+smithay-client-toolkit = { version = "0.18", features = ["calloop"] }
+calloop = "0.12"
+calloop-wayland-source = "0.2"
+
+# Wayland -> wgpu bridge
+raw-window-handle = "0.6"
+
+# Terminal model + PTY + VTE parsing
+alacritty_terminal = "0.24"
+
+# Text shaping + Unicode + emoji
 cosmic-text = "0.12"
-nix = { version = "0.29", features = ["term", "process", "fs"] }
-vte = "0.13"
+
+# wgpu text rendering (wraps cosmic-text)
+glyphon = "0.8"
+
+# Async block_on for wgpu init
+futures = { version = "0.3", default-features = false, features = ["executor"] }
+
+# Wayland client (direct access)
+wayland-client = "0.31"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+
+# Clipboard
 wl-clipboard-rs = "0.9"
-rusqlite = { version = "0.31", features = ["bundled"] }
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
-bytemuck = { version = "1.14", features = ["derive"] }
-pollster = "0.3"
-[[bin]]
-name = "faelight-term-v2"
-path = "src/main.rs"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"

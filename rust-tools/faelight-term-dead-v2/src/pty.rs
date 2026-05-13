@@ -32,6 +32,10 @@ impl Pty {
                 dup2(slave_raw, 1).ok();
                 dup2(slave_raw, 2).ok();
                 drop(slave);
+                // INT-286: set terminal environment — TERM=linux causes yazi/tools to fail
+                std::env::set_var("TERM", "xterm-256color");
+                std::env::set_var("COLORTERM", "truecolor");
+                std::env::set_var("TERM_PROGRAM", "faelight-term");
                 let shell_c = CString::new(shell).unwrap();
                 execvp(&shell_c, std::slice::from_ref(&shell_c)).ok();
                 std::process::exit(1);

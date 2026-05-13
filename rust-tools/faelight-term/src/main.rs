@@ -1,1524 +1,781 @@
-#![allow(clippy::needless_range_loop)]
-//! faelight-term v2 -- Phase 0: Foundation
-mod config;
-mod pty;
-mod terminal;
-use cosmic_text::{Attrs, Buffer, Color, FontSystem, Metrics, Shaping, SwashCache};
-use pty::Pty;
+//! faelight-term v3 -- Phase 4: keyboard input + scrollback
+//! Goal: type into fsh, scrollback works, dirty tracking
+
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_keyboard, delegate_output, delegate_pointer, delegate_registry,
     delegate_seat, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
-    reexports::calloop::EventLoop,
-    reexports::calloop_wayland_source::WaylandSource,
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers, RepeatInfo},
-        pointer::{PointerEvent, PointerHandler},
         Capability, SeatHandler, SeatState,
+        keyboard::{KeyboardHandler, KeyEvent, Keysym, Modifiers, RepeatInfo},
+        pointer::{PointerHandler, PointerEvent, PointerEventKind, BTN_LEFT},
     },
     shell::{
+        WaylandSurface,
         xdg::{
             window::{Window, WindowConfigure, WindowDecorations, WindowHandler},
             XdgShell,
         },
-        WaylandSurface,
     },
-    shm::{slot::SlotPool, Shm, ShmHandler},
 };
-use terminal::Terminal;
 use wayland_client::{
+    Connection, Proxy, QueueHandle,
     globals::registry_queue_init,
-    protocol::{wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
-    Connection, QueueHandle,
+    protocol::{wl_keyboard, wl_output, wl_seat, wl_surface},
 };
-const INITIAL_COLS: usize = 220;
-const INITIAL_ROWS: usize = 50;
-const INITIAL_WIDTH: u32 = 1760;
-const INITIAL_HEIGHT: u32 = 900;
-const FONT_SIZE: f32 = 14.0;
-const LINE_HEIGHT: f32 = 20.0;
-fn main() {
-    eprintln!("faelight-term v2 -- starting");
-    if let Err(e) = run() {
-        eprintln!("fatal: {}", e);
-        std::process::exit(1);
-    }
-}
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let conn = Connection::connect_to_env()?;
-    let (globals, event_queue) = registry_queue_init(&conn)?;
-    let qh = event_queue.handle();
-    let compositor = CompositorState::bind(&globals, &qh)?;
-    let xdg_shell = XdgShell::bind(&globals, &qh)?;
-    let seat_state = SeatState::new(&globals, &qh);
-    let output_state = OutputState::new(&globals, &qh);
-    let registry_state = RegistryState::new(&globals);
-    let shm = Shm::bind(&globals, &qh)?;
-    let surface = compositor.create_surface(&qh);
-    let window = xdg_shell.create_window(surface.clone(), WindowDecorations::RequestServer, &qh);
-    window.set_title("faelight-term");
-    window.set_app_id("faelight-term");
-    window.commit();
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let pty = Pty::spawn(&shell, INITIAL_COLS as u16, INITIAL_ROWS as u16)?;
-    // Session memory -- restore last working directory via process env
-    {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let db_path = format!("{}/0-core/runtime/state.db", home);
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            let last_dir: Option<String> = conn
-                .query_row(
-                    "SELECT value FROM session_state WHERE key = 'last_dir'",
-                    [],
-                    |r| r.get(0),
-                )
-                .ok();
-            if let Some(dir) = last_dir {
-                if std::path::Path::new(&dir).exists() {
-                    std::env::set_current_dir(&dir).ok();
-                }
-            }
-        }
-    }
-    let terminal = Terminal::new(INITIAL_COLS, INITIAL_ROWS);
-    let pool = SlotPool::new((INITIAL_WIDTH * INITIAL_HEIGHT * 4) as usize, &shm)?;
-    // cosmic-text setup -- load Nerd Font explicitly
-    let font_system = {
-        // Fast font init -- empty db, load only our 5 specific fonts
-        // Skips full system font scan, cuts startup from ~300ms to ~50ms
-        let mut db = cosmic_text::fontdb::Database::new();
-        db.load_font_file(config::FONT_MONO_REGULAR).ok();
-        db.load_font_file(config::FONT_REGULAR).ok();
-        db.load_font_file(config::FONT_BOLD).ok();
-        db.load_font_file(config::FONT_ITALIC).ok();
-        db.load_font_file(config::FONT_EMOJI).ok();
-        db.load_font_file(config::FONT_SYMBOL).ok();
-        cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_string(), db)
-    };
+use raw_window_handle::{
+    HasDisplayHandle, HasWindowHandle,
+    RawDisplayHandle, RawWindowHandle,
+    WaylandDisplayHandle, WaylandWindowHandle,
+};
+use glyphon::{
+    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics,
+    Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
+    TextRenderer,
+};
+use alacritty_terminal::{
+    Term,
+    event::{Event as TermEvent, EventListener},
+    event_loop::{EventLoop, Notifier},
+    grid::Dimensions,
+    index::{Column, Line, Point},
+    sync::FairMutex,
+    term::{Config as TermConfig, cell::Flags},
+    tty::{self, Options as TtyOptions},
+    vte::ansi::{Color as AnsiColor, NamedColor},
+};
+use std::{ptr::NonNull, sync::Arc, collections::HashMap};
+use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
+use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
-    let swash_cache = SwashCache::new();
-    let mut app = App {
-        compositor,
-        xdg_shell,
-        seat_state,
-        output_state,
+const CELL_W: f32 = 10.5;
+const CELL_H: f32 = 20.0;
+const FONT_SIZE: f32 = 16.0;
+const LINE_HEIGHT: f32 = 20.0;
+const PADDING: f32 = 4.0;
+
+fn main() {
+    env_logger::init();
+
+    let conn = Connection::connect_to_env().expect("wayland connection");
+    let (globals, mut event_queue) = registry_queue_init::<AppState>(&conn).expect("registry");
+    let qh: QueueHandle<AppState> = event_queue.handle();
+
+    let compositor = CompositorState::bind(&globals, &qh).expect("compositor");
+    let xdg_shell = XdgShell::bind(&globals, &qh).expect("xdg_shell");
+    let output_state = OutputState::new(&globals, &qh);
+    let seat_state = SeatState::new(&globals, &qh);
+    let registry_state = RegistryState::new(&globals);
+
+    let surface = compositor.create_surface(&qh);
+    let window = xdg_shell.create_window(
+        surface.clone(),
+        WindowDecorations::RequestServer,
+        &qh,
+    );
+    window.set_title("faelight-term v3");
+    window.set_app_id("faelight-term-v3");
+    window.set_min_size(Some((800, 600)));
+    window.commit();
+
+    let display_ptr = conn.display().id().as_ptr() as *mut _;
+
+    let mut state = AppState {
         registry_state,
-        shm,
+        output_state,
+        seat_state,
+        compositor_state: compositor,
+        xdg_shell,
         window,
         surface,
-        pool,
-        terminal,
-        pty,
-        font_system,
-        swash_cache,
-        width: INITIAL_WIDTH,
-        height: INITIAL_HEIGHT,
-        cell_w: 9u32, // JetBrains Mono 14pt = 9px confirmed
-        cell_h: LINE_HEIGHT as u32,
         configured: false,
-        running: true,
-        keyboard: None,
-        pointer: None,
+        width: 800,
+        height: 600,
+        exit: false,
+        gpu: None,
+        display_ptr,
         modifiers: Modifiers::default(),
-        sel_start: None,
-        sel_end: None,
-        font_size: FONT_SIZE,
-        line_height: LINE_HEIGHT,
-        show_status: false,
-        ctrl_held: false,
-        show_friday: false,
-        scroll_offset: 0,
-        mouse_down: false,
-        mouse_pos: (0.0, 0.0),
-        terminal2: None,
-        pty2: None,
-        active_pane: 0,
-        split_active: false,
+        wl_seat: None,
+        selection_start: None,
+        selection_end: None,
+        selecting: false,
+        selected_text: String::new(),
     };
-    let mut event_loop: EventLoop<App> = EventLoop::try_new()?;
-    WaylandSource::new(conn, event_queue).insert(event_loop.handle())?;
-    while app.running {
-        event_loop.dispatch(Some(std::time::Duration::from_millis(8)), &mut app)?;
-        // Auto-scroll during drag selection
-        if app.mouse_down {
-            let edge = app.cell_h as f64;
-            let bottom_edge = app.height as f64 - edge;
-            let y = app.mouse_pos.1;
-            if y < edge && app.scroll_offset < app.terminal.scrollback.len() {
-                app.scroll_offset += 1;
-                // Absolute coords don't change -- viewport moves, not selection
-                app.render();
-            } else if y > bottom_edge && app.scroll_offset > 0 {
-                app.scroll_offset = app.scroll_offset.saturating_sub(1);
-                // Absolute coords don't change -- viewport moves, not selection
-                app.render();
-            }
-        }
-        let mut _dirty = false;
-        // Read from pty2 if split active
-        if app.split_active {
-            let mut buf2 = [0u8; 4096];
-            if let Some(ref mut pty2) = app.pty2 {
-                match pty2.read(&mut buf2) {
-                    Ok(n) if n > 0 => {
-                        if let Some(ref mut t2) = app.terminal2 {
-                            t2.feed(&buf2[..n]);
-                        }
-                        app.render();
-                    }
-                    _ => {}
-                }
-            }
-        }
-        loop {
-            let mut buf = [0u8; 32768]; // larger buffer for burst output
-            match app.pty.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    let data = &buf[..n];
-                    // Build error highlighting -- inject ANSI around error[E codes
-                    if let Ok(s) = std::str::from_utf8(data) {
-                        // JSON auto pretty-print
-                        let s_trim = s.trim();
-                        let json_handled = if (s_trim.starts_with('{') || s_trim.starts_with('['))
-                            && s_trim.len() > 10
-                            && (s_trim.ends_with('}') || s_trim.ends_with(']'))
-                        {
-                            if let Some(pretty) = pretty_json(s_trim) {
-                                app.terminal.feed(pretty.as_bytes());
-                                _dirty = true;
-                                true
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        };
-                        if !json_handled {
-                            if s.contains("error[E") || s.contains("error: ") {
-                                // Replace error[EXXXX with red highlight
-                                let highlighted = s
-                                    .replace("error[E", "\x1b[1;31merror\x1b[0m[E")
-                                    .replace("error: aborting", "\x1b[1;31merror\x1b[0m: aborting")
-                                    .replace(
-                                        "error: could not",
-                                        "\x1b[1;31merror\x1b[0m: could not",
-                                    );
-                                app.terminal.feed(highlighted.as_bytes());
-                            } else {
-                                app.terminal.feed(data);
-                            }
-                        } // end if !json_handled
-                    } else {
-                        app.terminal.feed(data);
-                    }
-                    // Note: scroll reset removed -- was causing view to jump to top
-                    // DSR response -- write cursor position back to PTY (ESC[row;colR)
-                    if app.terminal.pending_dsr {
-                        app.terminal.pending_dsr = false;
-                        let response = app.terminal.cursor_position_report();
-                        app.pty.write(&response).ok();
-                    }
-                    _dirty = true;
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // Poll PTY for 3ms -- catches burst output where shell writes in chunks
-                    let ready = unsafe {
-                        let mut pfd = nix::libc::pollfd {
-                            fd: app.pty.master,
-                            events: nix::libc::POLLIN,
-                            revents: 0,
-                        };
-                        nix::libc::poll(&mut pfd as *mut _, 1, 3) > 0
-                            && pfd.revents & nix::libc::POLLIN != 0
-                    };
-                    if ready { continue; }
-                    break;
-                }
-                Err(e) => {
-                    eprintln!("PTY error: {}", e);
-                    app.running = false;
-                    break;
-                }
-            }
-        }
-        if _dirty && app.configured {
-            // Always follow output -- reset to current grid view
-            app.scroll_offset = 0;
-            app.render();
+
+    event_queue.roundtrip(&mut state).expect("roundtrip");
+    event_queue.roundtrip(&mut state).expect("roundtrip 2");
+
+    // Grab pointer from all seats after roundtrips
+    let seats: Vec<_> = state.seat_state.seats().collect();
+    for seat in seats {
+        let _ = state.seat_state.get_pointer(&qh, &seat);
+    }
+    event_queue.roundtrip(&mut state).expect("roundtrip 3");
+
+    // Initial render to break Wayland deadlock
+    if state.configured {
+        if let Some(ref mut gpu) = state.gpu {
+            gpu.sync_terminal(state.selection_start, state.selection_end);
+            gpu.render();
         }
     }
-    Ok(())
+    event_queue.flush().expect("flush");
+
+    while !state.exit {
+        // Render if dirty
+        if let Some(ref mut gpu) = state.gpu {
+            if gpu.dirty {
+                gpu.sync_terminal(state.selection_start, state.selection_end);
+                gpu.render();
+                gpu.dirty = false;
+            }
+        }
+        // Read from Wayland socket then dispatch -- required for resize/configure events
+        event_queue.flush().ok();
+        if let Some(guard) = event_queue.prepare_read() {
+            guard.read().ok(); // non-blocking: reads available events from compositor
+        }
+        if let Err(_) = event_queue.dispatch_pending(&mut state) { break; }
+        // Poll at ~60fps so PTY output renders promptly
+        std::thread::sleep(std::time::Duration::from_millis(16));
+        // Mark dirty every frame so PTY output is always rendered
+        if let Some(ref mut gpu) = state.gpu {
+            gpu.dirty = true;
+        }
+    }
 }
-#[allow(dead_code)] // Wayland state fields held for event loop lifetime
-struct App {
-    compositor: CompositorState,
-    xdg_shell: XdgShell,
-    seat_state: SeatState,
-    output_state: OutputState,
+
+#[derive(Clone)]
+struct FaelightListener;
+impl EventListener for FaelightListener {
+    fn send_event(&self, _event: TermEvent) {}
+}
+
+#[allow(dead_code)]
+struct AppState {
     registry_state: RegistryState,
-    shm: Shm,
+    output_state: OutputState,
+    seat_state: SeatState,
+    compositor_state: CompositorState,
+    xdg_shell: XdgShell,
     window: Window,
     surface: wl_surface::WlSurface,
-    pool: SlotPool,
-    terminal: Terminal,
-    pty: Pty,
-    font_system: FontSystem,
-    swash_cache: SwashCache,
+    configured: bool,
     width: u32,
     height: u32,
-    cell_w: u32,
-    cell_h: u32,
-    configured: bool,
-    running: bool,
-    keyboard: Option<wl_keyboard::WlKeyboard>,
-    pointer: Option<wl_pointer::WlPointer>,
+    exit: bool,
+    gpu: Option<GpuState>,
+    display_ptr: *mut std::ffi::c_void,
     modifiers: Modifiers,
-    sel_start: Option<(usize, usize)>,
-    sel_end: Option<(usize, usize)>,
-    font_size: f32,
-    line_height: f32,
-    show_status: bool,
-    ctrl_held: bool,
-    show_friday: bool,
-    scroll_offset: usize,
-    mouse_down: bool,
-    mouse_pos: (f64, f64),
-    // Split panes
-    terminal2: Option<Terminal>,
-    pty2: Option<Pty>,
-    active_pane: usize,
-    split_active: bool,
+    wl_seat: Option<wl_seat::WlSeat>,
+    selection_start: Option<(usize, i32)>,
+    selection_end: Option<(usize, i32)>,
+    selecting: bool,
+    selected_text: String,
 }
 
-fn pretty_json(s: &str) -> Option<String> {
-    let t = s.trim();
-    if !(t.starts_with('{') || t.starts_with('[')) || t.len() < 10 {
-        return None;
+struct FaelightWindow {
+    window_ptr: *mut std::ffi::c_void,
+    display_ptr: *mut std::ffi::c_void,
+}
+unsafe impl Send for FaelightWindow {}
+unsafe impl Sync for FaelightWindow {}
+
+impl HasWindowHandle for FaelightWindow {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        let h = WaylandWindowHandle::new(NonNull::new(self.window_ptr).unwrap());
+        Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(RawWindowHandle::Wayland(h)) })
     }
-    let mut out = String::new();
-    let mut depth: usize = 0;
-    let mut in_str = false;
-    let mut prev = ' ';
-    for ch in t.chars() {
-        if in_str {
-            if ch == '"' && prev != '\\' {
-                in_str = false;
-                out.push_str("\x1b[0m");
-            }
-            out.push(ch);
-        } else {
-            match ch {
-                '{' | '[' => {
-                    depth += 1;
-                    out.push(ch);
-                    out.push_str("\r\n");
-                    out.push_str(&"  ".repeat(depth));
-                }
-                '}' | ']' => {
-                    depth = depth.saturating_sub(1);
-                    out.push_str("\r\n");
-                    out.push_str(&"  ".repeat(depth));
-                    out.push(ch);
-                }
-                ',' => {
-                    out.push(ch);
-                    out.push_str("\r\n");
-                    out.push_str(&"  ".repeat(depth));
-                }
-                ':' => {
-                    out.push_str("\x1b[36m:\x1b[0m ");
-                }
-                '"' => {
-                    in_str = true;
-                    out.push_str("\x1b[32m\"");
-                }
-                ' ' => {}
-                _ => {
-                    out.push(ch);
-                }
-            }
-        }
-        prev = ch;
+}
+impl HasDisplayHandle for FaelightWindow {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+        let h = WaylandDisplayHandle::new(NonNull::new(self.display_ptr).unwrap());
+        Ok(unsafe { raw_window_handle::DisplayHandle::borrow_raw(RawDisplayHandle::Wayland(h)) })
     }
-    out.push_str("\r\n");
-    Some(out)
 }
 
-impl App {
-    fn build_friday_data(&self) -> Vec<(String, String, f64)> {
-        // Returns vec of (domain, fact, confidence)
-        let home = std::env::var("HOME").unwrap_or_default();
-        let db_path = format!("{}/0-core/runtime/state.db", home);
-        let mut entries: Vec<(String, String, f64)> = Vec::new();
-        if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            // Recent knowledge entries excluding abstraction noise
-            let mut stmt = conn.prepare(
-                "SELECT domain, fact, confidence FROM friday_knowledge WHERE domain NOT IN ('abstraction','cross_intent') ORDER BY CASE domain WHEN 'rust' THEN 1 WHEN 'wayland' THEN 2 WHEN 'shell' THEN 3 WHEN 'workflow' THEN 4 WHEN 'philosophy' THEN 5 ELSE 6 END, confidence DESC LIMIT 6"
-            ).unwrap_or_else(|_| conn.prepare("SELECT 1,1,1").unwrap());
-            let rows = stmt.query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, f64>(2)?,
-                ))
-            });
-            if let Ok(rows) = rows {
-                for row in rows.flatten() {
-                    entries.push(row);
+struct GpuState {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    surface: wgpu::Surface<'static>,
+    config: wgpu::SurfaceConfiguration,
+    font_system: FontSystem,
+    swash_cache: SwashCache,
+    text_atlas: TextAtlas,
+    text_renderer: TextRenderer,
+    text_buffer: Buffer,
+    term: Arc<FairMutex<Term<FaelightListener>>>,
+    notifier: Notifier,
+    cols: usize,
+    rows: usize,
+    dirty: bool,
+    cursor_col: usize,
+    cursor_row: usize,
+}
+
+impl GpuState {
+    fn new(window: FaelightWindow, width: u32, height: u32) -> Self {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
+            ..Default::default()
+        });
+        let surface = instance.create_surface(window).expect("surface");
+        let adapter = futures::executor::block_on(
+            instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })
+        ).expect("adapter");
+        let (device, queue) = futures::executor::block_on(
+            adapter.request_device(&wgpu::DeviceDescriptor::default(), None)
+        ).expect("device");
+
+        let caps = surface.get_capabilities(&adapter);
+        let format = caps.formats.iter().find(|f| f.is_srgb()).copied().unwrap_or(caps.formats[0]);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            width,
+            height,
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &config);
+
+        let mut font_system = FontSystem::new();
+        let swash_cache = SwashCache::new();
+        let cache = glyphon::Cache::new(&device);
+        let mut text_atlas = TextAtlas::new(&device, &queue, &cache, format);
+        let text_renderer = TextRenderer::new(
+            &mut text_atlas, &device,
+            wgpu::MultisampleState::default(), None
+        );
+        let mut text_buffer = Buffer::new(&mut font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+        text_buffer.set_size(&mut font_system, Some(width as f32), Some(height as f32));
+        text_buffer.set_text(&mut font_system, "starting...", Attrs::new().family(Family::Monospace), Shaping::Advanced);
+        text_buffer.shape_until_scroll(&mut font_system, false);
+
+        let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
+        let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
+        let cols = cols.max(10);
+        let rows = rows.max(3);
+
+        let term_config = TermConfig::default();
+        let listener = FaelightListener;
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+
+        // INT-286: set terminal environment -- TERM=linux causes yazi/tools to fail
+        let mut term_env = HashMap::new();
+        term_env.insert("TERM".to_string(), "xterm-256color".to_string());
+        term_env.insert("COLORTERM".to_string(), "truecolor".to_string());
+        term_env.insert("TERM_PROGRAM".to_string(), "faelight-term".to_string());
+        let pty_options = TtyOptions {
+            shell: Some(alacritty_terminal::tty::Shell::new(shell, vec![])),
+            working_directory: Some(std::path::PathBuf::from(
+                std::env::var("HOME").unwrap_or_else(|_| "/".to_string())
+            )),
+            env: term_env,
+            hold: false,
+        };
+        let window_size = alacritty_terminal::event::WindowSize {
+            num_cols: cols as u16,
+            num_lines: rows as u16,
+            cell_width: CELL_W as u16,
+            cell_height: CELL_H as u16,
+        };
+
+        let term = Term::new(term_config, &TermDimensions { cols, rows }, listener.clone());
+        let term = Arc::new(FairMutex::new(term));
+        let pty = tty::new(&pty_options, window_size, 0u64).expect("PTY");
+        let event_loop = EventLoop::new(term.clone(), listener, pty, false, false).expect("event loop");
+        let notifier = Notifier(event_loop.channel());
+        let _thread = event_loop.spawn();
+
+        // Set window title to reflect forest context
+
+        Self {
+            device, queue, surface, config,
+            font_system, swash_cache, text_atlas, text_renderer, text_buffer,
+            term, notifier, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
+        }
+    }
+
+    fn write_to_pty(&mut self, data: &[u8]) {
+        use alacritty_terminal::event_loop::Msg;
+        let _ = self.notifier.0.send(Msg::Input(data.to_vec().into()));
+        self.dirty = true;
+    }
+
+    fn resize(&mut self, width: u32, height: u32) {
+        let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
+        let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
+        let cols = cols.max(10);
+        let rows = rows.max(3);
+        if cols == self.cols && rows == self.rows { return; }
+        // Resize wgpu surface
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
+        // Resize glyphon text buffer
+        self.text_buffer.set_size(&mut self.font_system, Some(width as f32), Some(height as f32));
+        // Resize alacritty terminal grid
+        {
+            let mut term = self.term.lock();
+            term.resize(TermDimensions { cols, rows });
+        }
+        // Send SIGWINCH to PTY via notifier
+        {
+            use alacritty_terminal::event_loop::Msg;
+            use alacritty_terminal::event::WindowSize;
+            let window_size = WindowSize {
+                num_cols: cols as u16,
+                num_lines: rows as u16,
+                cell_width: CELL_W as u16,
+                cell_height: CELL_H as u16,
+            };
+            let _ = self.notifier.0.send(Msg::Resize(window_size));
+        }
+        self.cols = cols;
+        self.rows = rows;
+        self.dirty = true;
+    }
+
+
+    /// Map alacritty AnsiColor to glyphon Color
+    fn ansi_to_glyphon(color: AnsiColor, _is_bold: bool) -> glyphon::Color {
+        match color {
+            AnsiColor::Named(NamedColor::Black)         => glyphon::Color::rgb(0x1a, 0x1f, 0x1a),
+            AnsiColor::Named(NamedColor::Red)           => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+            AnsiColor::Named(NamedColor::Green)         => glyphon::Color::rgb(0x5a, 0xb0, 0x6e),
+            AnsiColor::Named(NamedColor::Yellow)        => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+            AnsiColor::Named(NamedColor::Blue)          => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+            AnsiColor::Named(NamedColor::Magenta)       => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+            AnsiColor::Named(NamedColor::Cyan)          => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+            AnsiColor::Named(NamedColor::White)         => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+            AnsiColor::Named(NamedColor::BrightBlack)   => glyphon::Color::rgb(0x5c, 0x63, 0x70),
+            AnsiColor::Named(NamedColor::BrightRed)     => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+            AnsiColor::Named(NamedColor::BrightGreen)   => glyphon::Color::rgb(0x7e, 0xc2, 0x8e),
+            AnsiColor::Named(NamedColor::BrightYellow)  => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+            AnsiColor::Named(NamedColor::BrightBlue)    => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+            AnsiColor::Named(NamedColor::BrightMagenta) => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+            AnsiColor::Named(NamedColor::BrightCyan)    => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+            AnsiColor::Named(NamedColor::BrightWhite)   => glyphon::Color::rgb(0xff, 0xff, 0xff),
+            AnsiColor::Named(NamedColor::Foreground)    => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+            AnsiColor::Named(NamedColor::Background)    => glyphon::Color::rgb(0x11, 0x14, 0x0f),
+            AnsiColor::Indexed(i) => {
+                // 256-color palette -- basic implementation
+                match i {
+                    0  => glyphon::Color::rgb(0x1a, 0x1f, 0x1a),
+                    1  => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+                    2  => glyphon::Color::rgb(0x5a, 0xb0, 0x6e),
+                    3  => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+                    4  => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+                    5  => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+                    6  => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+                    7  => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
+                    8  => glyphon::Color::rgb(0x5c, 0x63, 0x70),
+                    9  => glyphon::Color::rgb(0xe0, 0x6c, 0x75),
+                    10 => glyphon::Color::rgb(0x7e, 0xc2, 0x8e),
+                    11 => glyphon::Color::rgb(0xe5, 0xc0, 0x7b),
+                    12 => glyphon::Color::rgb(0x61, 0xaf, 0xef),
+                    13 => glyphon::Color::rgb(0xc6, 0x78, 0xdd),
+                    14 => glyphon::Color::rgb(0x56, 0xb6, 0xc2),
+                    15 => glyphon::Color::rgb(0xff, 0xff, 0xff),
+                    _ => {
+                        // 6x6x6 color cube (16-231) and grayscale (232-255)
+                        if i >= 232 {
+                            let v = 8 + (i - 232) * 10;
+                            glyphon::Color::rgb(v, v, v)
+                        } else if i >= 16 {
+                            let idx = i - 16;
+                            let b = (idx % 6) * 51;
+                            let g = ((idx / 6) % 6) * 51;
+                            let r = (idx / 36) * 51;
+                            glyphon::Color::rgb(r, g, b)
+                        } else {
+                            glyphon::Color::rgb(0xd7, 0xe0, 0xda)
+                        }
+                    }
                 }
             }
+            AnsiColor::Spec(rgb) => glyphon::Color::rgb(rgb.r, rgb.g, rgb.b),
+            _ => glyphon::Color::rgb(0xd7, 0xe0, 0xda),
         }
-        entries
     }
 
-    fn build_status_text(&self) -> String {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let db_path = format!("{}/0-core/runtime/state.db", home);
-        let lock = if std::path::Path::new("/etc/0-core/.locked").exists() {
-            "LOCKED"
-        } else {
-            "UNLOCKED"
-        };
-        let health_cache = format!("{}/.cache/faelight/last-health", home);
-        let health = std::fs::read_to_string(&health_cache).unwrap_or_else(|_| "100".to_string());
-        let health = health.trim().to_string();
-        let (intent, obs) = if let Ok(conn) = rusqlite::Connection::open(&db_path) {
-            let intent: String = conn
-                .query_row(
-                    "SELECT value FROM forest_state WHERE key = 'active_intent' LIMIT 1",
-                    [],
-                    |r| r.get(0),
-                )
-                .unwrap_or_else(|_| "none".to_string());
-            let facts: i64 = conn
-                .query_row("SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0))
-                .unwrap_or(0);
-            (intent, facts)
-        } else {
-            ("none".to_string(), 0)
-        };
-        let intent_str = if intent == "none" || intent.is_empty() {
-            "No active intent".to_string()
-        } else {
-            format!("INT-{}", intent)
-        };
-        // Format: text|r,g,b sections
-        format!("{}|107,227,163|  Health: {}%|245,193,119|  {}|92,200,255|  Friday: {} observations|180,140,220",
-            lock, health, intent_str, obs)
-    }
-
-    fn word_at(&self, row: usize, col: usize) -> String {
-        if row >= self.terminal.rows || col >= self.terminal.cols {
-            return String::new();
-        }
-        let grid_row = &self.terminal.grid[row];
-        // Expand left
-        let mut start = col;
-        while start > 0 {
-            let ch = grid_row[start - 1].ch;
-            if ch == ' ' || ch == '\0' || ch == '\t' {
-                break;
+    fn sync_terminal(&mut self, sel_start: Option<(usize, i32)>, sel_end: Option<(usize, i32)>) {
+        let term = self.term.lock();
+        let grid = term.grid();
+        // Account for scroll position -- display_offset shifts the visible window
+        let display_offset = grid.display_offset() as i32;
+        // Build spans with per-cell colors
+        let mut spans: Vec<(String, glyphon::Attrs<'static>)> = Vec::new();
+        for line in 0..self.rows {
+            for col in 0..self.cols {
+                // Adjust line by display_offset: positive offset = scrolled up into history
+                let grid_line = line as i32 - display_offset;
+                let point = Point::new(Line(grid_line), Column(col));
+                let cell = &grid[point];
+                let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                let fg = Self::ansi_to_glyphon(cell.fg, cell.flags.contains(Flags::BOLD));
+                let bold = cell.flags.contains(Flags::BOLD);
+                let attrs = Attrs::new()
+                    .family(Family::Monospace)
+                    .color(fg)
+                    .weight(if bold { glyphon::fontdb::Weight::BOLD } else { glyphon::fontdb::Weight::NORMAL });
+                spans.push((ch.to_string(), attrs));
             }
-            start -= 1;
-        }
-        // Expand right
-        let mut end = col;
-        while end < self.terminal.cols {
-            let ch = grid_row[end].ch;
-            if ch == ' ' || ch == '\0' || ch == '\t' {
-                break;
-            }
-            end += 1;
-        }
-        grid_row[start..end].iter().map(|c| c.ch).collect()
-    }
-
-    fn get_selection_text(&self) -> Option<String> {
-        let (sr, sc) = self.sel_start?;
-        let (er, ec) = self.sel_end?;
-        let (r0, c0, r1, c1) = if (sr, sc) <= (er, ec) {
-            (sr, sc, er, ec)
-        } else {
-            (er, ec, sr, sc)
-        };
-        let sb_len = self.terminal.scrollback.len();
-        let mut text = String::new();
-        for abs_row in r0..=r1 {
-            let col_start = if abs_row == r0 { c0 } else { 0 };
-            let col_end = if abs_row == r1 { c1 } else { self.terminal.cols };
-            // abs_row < sb_len = scrollback, >= sb_len = grid
-            let cells: Option<&Vec<crate::terminal::Cell>> = if abs_row < sb_len {
-                self.terminal.scrollback.get(abs_row)
+            // Newline -- add to last span
+            if let Some(last) = spans.last_mut() {
+                last.0.push('\n');
             } else {
-                let grid_row = abs_row - sb_len;
-                if grid_row < self.terminal.rows {
-                    Some(&self.terminal.grid[grid_row])
-                } else {
-                    None
+                spans.push(("\n".to_string(), Attrs::new().family(Family::Monospace)));
+            }
+        }
+                // Capture cursor position before drop
+        self.cursor_col = grid.cursor.point.column.0;
+        // Cursor position adjusted for scroll -- hide cursor when scrolled
+        let cursor_line = grid.cursor.point.line.0 + display_offset;
+        self.cursor_row = if cursor_line >= 0 && cursor_line < self.rows as i32 { cursor_line as usize } else { usize::MAX };
+        drop(term);
+        // Convert spans to glyphon AttrsList format
+        // Mark cursor cell -- bright green highlight
+        let cursor_idx = self.cursor_row * self.cols + self.cursor_col;
+        if cursor_idx < spans.len() {
+            // Replace space with block cursor character
+            let cursor_char = spans[cursor_idx].0.chars().next().unwrap_or(' ');
+            if cursor_char == ' ' || cursor_char == '\0' {
+                spans[cursor_idx].0 = "█".to_string(); // full block
+            }
+            spans[cursor_idx].1 = Attrs::new()
+                .family(Family::Monospace)
+                .color(glyphon::Color::rgb(0x5a, 0xb0, 0x6e));
+        }
+
+        // Highlight selection region
+        if let (Some((sc, sr)), Some((ec, er))) = (sel_start, sel_end) {
+            // sr/er are global i32 line indices; convert to viewport rows for span indexing
+            let (r1, c1, r2, c2) = if sr < er || (sr == er && sc <= ec) {
+                (sr, sc, er, ec)
+            } else {
+                (er, ec, sr, sc)
+            };
+            for row in r1..=r2 {
+                let viewport_row = row + display_offset;
+                if viewport_row < 0 || viewport_row >= self.rows as i32 { continue; }
+                let viewport_row = viewport_row as usize;
+                let col_start = if row == r1 { c1 } else { 0 };
+                let col_end = if row == r2 { c2 } else { self.cols.saturating_sub(1) };
+                for col in col_start..=col_end {
+                    let sel_idx = viewport_row * self.cols + col;
+                    if sel_idx < spans.len() && sel_idx != cursor_idx {
+                        spans[sel_idx].1 = Attrs::new()
+                            .family(Family::Monospace)
+                            .color(glyphon::Color::rgb(0x11, 0x14, 0x0f)) // dark text on highlight
+                            ;
+                        // We can't set background via glyphon spans directly
+                        // Use a bright color to indicate selection
+                        spans[sel_idx].1 = Attrs::new()
+                            .family(Family::Monospace)
+                            .color(glyphon::Color::rgb(0xff, 0xd7, 0x00)); // gold selection
+                    }
+                }
+            }
+        }
+
+        let span_refs: Vec<(&str, glyphon::Attrs)> = spans.iter()
+            .map(|(s, a)| (s.as_str(), *a))
+            .collect();
+        self.text_buffer.set_rich_text(
+            &mut self.font_system,
+            span_refs.into_iter(),
+            Attrs::new().family(Family::Monospace),
+            Shaping::Advanced,
+        );
+        self.text_buffer.shape_until_scroll(&mut self.font_system, false);
+    }
+
+    fn render(&mut self) {
+        let output = match self.surface.get_current_texture() {
+            Ok(t) => t,
+            Err(_) => return,
+        };
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let cache = glyphon::Cache::new(&self.device);
+        let mut viewport = glyphon::Viewport::new(&self.device, &cache);
+        viewport.update(&self.queue, Resolution {
+            width: self.config.width,
+            height: self.config.height,
+        });
+        let _ = self.text_renderer.prepare(
+            &self.device, &self.queue,
+            &mut self.font_system, &mut self.text_atlas, &viewport,
+            [TextArea {
+                buffer: &self.text_buffer,
+                left: PADDING, top: PADDING, scale: 1.0,
+                bounds: TextBounds {
+                    left: 0, top: 0,
+                    right: self.config.width as i32,
+                    bottom: self.config.height as i32,
+                },
+                default_color: GlyphonColor::rgb(0xd7, 0xe0, 0xda),
+                custom_glyphs: &[],
+            }],
+            &mut self.swash_cache,
+        );
+        let mut encoder = self.device.create_command_encoder(
+            &wgpu::CommandEncoderDescriptor { label: Some("frame") }
+        );
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view, resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0039, g: 0.0055, b: 0.0027, a: 1.0 }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            let _ = self.text_renderer.render(&self.text_atlas, &viewport, &mut pass);
+        }
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        self.text_atlas.trim();
+    }
+}
+
+struct TermDimensions { cols: usize, rows: usize }
+impl Dimensions for TermDimensions {
+    fn total_lines(&self) -> usize { self.rows }
+    fn screen_lines(&self) -> usize { self.rows }
+    fn columns(&self) -> usize { self.cols }
+    fn last_column(&self) -> Column { Column(self.cols - 1) }
+}
+
+// Keyboard handling -- wire keypresses to PTY
+impl KeyboardHandler for AppState {
+    fn enter(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32,
+        _: &[u32], _: &[Keysym]) {}
+
+    fn leave(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: &wl_surface::WlSurface, _: u32) {}
+
+    fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+        if let Some(ref mut gpu) = self.gpu {
+            let mods = &self.modifiers;
+            let ctrl = mods.ctrl;
+            let shift = mods.shift;
+            // Ctrl+Shift+V -- paste from Wayland clipboard (threaded to avoid deadlock)
+            if ctrl && shift && (event.keysym == Keysym::v || event.keysym == Keysym::V) {
+                use alacritty_terminal::event_loop::Msg;
+                let notifier = gpu.notifier.0.clone();
+                std::thread::spawn(move || {
+                    use std::io::Read;
+                    match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::TextWithPriority("text/plain;charset=utf-8")) {
+                        Ok((mut reader, _)) => {
+                            let mut text = String::new();
+                            if reader.read_to_string(&mut text).is_ok() && !text.is_empty() {
+                                let _ = notifier.send(Msg::Input(text.into_bytes().into()));
+                            }
+                        }
+                        Err(e) => eprintln!("[v3] paste error: {:?}", e),
+                    }
+                });
+                return;
+            }
+            let ctrl = mods.ctrl;
+
+            // Convert keysym to PTY input bytes
+            let bytes: Option<Vec<u8>> = match event.keysym {
+                Keysym::Return | Keysym::KP_Enter => Some(b"\r".to_vec()),
+                Keysym::BackSpace => Some(b"\x7f".to_vec()),
+                Keysym::Tab => Some(b"\t".to_vec()),
+                Keysym::Escape => Some(b"\x1b".to_vec()),
+                Keysym::Up    => Some(b"\x1b[A".to_vec()),
+                Keysym::Down  => Some(b"\x1b[B".to_vec()),
+                Keysym::Right => Some(b"\x1b[C".to_vec()),
+                Keysym::Left  => Some(b"\x1b[D".to_vec()),
+                Keysym::Home  => Some(b"\x1b[H".to_vec()),
+                Keysym::End   => Some(b"\x1b[F".to_vec()),
+                Keysym::Delete => Some(b"\x1b[3~".to_vec()),
+                _ => {
+                    if let Some(s) = event.utf8 {
+                        if ctrl && s.len() == 1 {
+                            let ch = s.chars().next().unwrap();
+                            if ch >= 'a' && ch <= 'z' {
+                                Some(vec![ch as u8 - b'a' + 1])
+                            } else if ch == '@' { Some(vec![0]) }
+                            else { Some(s.into_bytes()) }
+                        } else {
+                            Some(s.into_bytes())
+                        }
+                    } else { None }
                 }
             };
-            if let Some(cells) = cells {
-                for col in col_start..col_end.min(cells.len()) {
-                    let ch = cells[col].ch;
-                    if ch != '\0' && ch != ' ' || col + 1 < col_end {
-                        text.push(if ch == '\0' { ' ' } else { ch });
-                    }
-                }
-                if abs_row < r1 {
-                    let is_sw = if abs_row < sb_len {
-                        self.terminal.scrollback.is_soft_wrapped(abs_row)
-                    } else {
-                        let grid_row = abs_row - sb_len;
-                        self.terminal.soft_wrapped.get(grid_row).copied().unwrap_or(false)
-                    };
-                    if !is_sw {
-                        text.push('\n');
-                    }
-                }
+            if let Some(bytes) = bytes {
+                gpu.write_to_pty(&bytes);
             }
-        }
-        if text.trim().is_empty() {
-            None
-        } else {
-            Some(text)
         }
     }
-    fn render(&mut self) {
-        let width = self.width;
-        let height = self.height;
-        let stride = width * 4;
-        let status_str_cache = if self.show_status {
-            self.build_status_text()
-        } else {
-            String::new()
-        };
-        let friday_data_cache = if self.show_friday {
-            self.build_friday_data()
-        } else {
-            Vec::new()
-        };
-        if let Ok((buffer, canvas)) = self.pool.create_buffer(
-            width as i32,
-            height as i32,
-            stride as i32,
-            wl_shm::Format::Xrgb8888,
-        ) {
-            // Fill background
-            for pixel in canvas.chunks_exact_mut(4) {
-                pixel[0] = 0x11;
-                pixel[1] = 0x14;
-                pixel[2] = 0x0f;
-                pixel[3] = 0xff;
-            }
-            // Split pane divider
-            if self.split_active {
-                let mid = width / 2;
-                for py in 0..height {
-                    let o = (py * stride + mid * 4) as usize;
-                    if o + 3 < canvas.len() {
-                        canvas[o] = 0x7f;
-                        canvas[o + 1] = 0xc8;
-                        canvas[o + 2] = 0xc8;
-                        canvas[o + 3] = 0xff;
-                    }
-                }
-            }
-            // Draw terminal cells -- per-cell rendering (correct cell alignment)
-            let rows = self.terminal.rows;
-            let cols = self.terminal.cols;
-            let cell_w = self.cell_w;
-            let cell_h = self.cell_h;
-            let sb_len = self.terminal.scrollback.len();
-            let scroll_off = self.scroll_offset.min(sb_len);
-            for row in 0..rows {
-                for col in 0..cols {
-                    let cell = if scroll_off > 0 {
-                        let sb_row = sb_len.saturating_sub(scroll_off) + row;
-                        if sb_row < sb_len {
-                            self.terminal
-                                .scrollback
-                                .get(sb_row)
-                                .and_then(|r| r.get(col).copied())
-                                .unwrap_or_default()
-                        } else {
-                            let grid_row = sb_row - sb_len;
-                            if grid_row < self.terminal.rows {
-                                self.terminal.grid[grid_row][col]
-                            } else {
-                                continue;
-                            }
-                        }
-                    } else {
-                        self.terminal.grid[row][col]
-                    };
-                    let cell_x = (col as u32 * cell_w) as i32;
-                    let cell_y = (row as u32 * cell_h) as i32;
-                    let max_x = if self.split_active {
-                        (width / 2).saturating_sub(2) as i32
-                    } else {
-                        width as i32
-                    };
-                    if cell_x + cell_w as i32 > max_x {
-                        continue;
-                    }
-                    if cell_x + cell_w as i32 > width as i32 {
-                        continue;
-                    }
-                    if cell_y + cell_h as i32 > height as i32 {
-                        continue;
-                    }
-                    // Paint background color for non-default bg cells (including spaces)
-                    let bg_def = crate::terminal::Color::DEFAULT_BG;
-                    if cell.bg.r != bg_def.r || cell.bg.g != bg_def.g || cell.bg.b != bg_def.b {
-                        for py in 0..cell_h as i32 {
-                            for px in 0..cell_w as i32 {
-                                let bx = (cell_x + px) as u32;
-                                let by = (cell_y + py) as u32;
-                                if bx < width && by < height {
-                                    let offset = (by * stride + bx * 4) as usize;
-                                    if offset + 3 < canvas.len() {
-                                        canvas[offset] = cell.bg.b;
-                                        canvas[offset + 1] = cell.bg.g;
-                                        canvas[offset + 2] = cell.bg.r;
-                                        canvas[offset + 3] = 0xff;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Skip glyph rendering for spaces and nulls
-                    if cell.ch == ' ' || cell.ch == '\0' {
-                        continue;
-                    }
-                    let cp = cell.ch as u32;
-                    let is_emoji = cp != 0x276F
-                        && matches!(cp,
-                            0x1F300..=0x1FAFF | 0x1F000..=0x1FFFF |
-                            0x2300..=0x23FF | 0x2700..=0x27BF | 0x2600..=0x26FF
-                        );
-                    let is_symbol = matches!(cp, 0x2000..=0x22FF | 0x2B00..=0x2BFF);
-                    let base_family = if is_emoji {
-                        cosmic_text::Family::Name("Noto Color Emoji")
-                    } else if is_symbol {
-                        cosmic_text::Family::Name("DejaVu Sans")
-                    } else {
-                        cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")
-                    };
-                    let weight = if cell.attrs.bold {
-                        cosmic_text::Weight::BOLD
-                    } else {
-                        cosmic_text::Weight::NORMAL
-                    };
-                    let style = if cell.attrs.italic {
-                        cosmic_text::Style::Italic
-                    } else {
-                        cosmic_text::Style::Normal
-                    };
-                    let mut fr = cell.fg.r;
-                    let mut fg_c = cell.fg.g;
-                    let mut fb = cell.fg.b;
-                    if cell.attrs.dim {
-                        fr = (fr as u32 * 6 / 10) as u8;
-                        fg_c = (fg_c as u32 * 6 / 10) as u8;
-                        fb = (fb as u32 * 6 / 10) as u8;
-                    }
-                    let attrs = Attrs::new().family(base_family).weight(weight).style(style);
-                    let text = cell.ch.to_string();
-                    let mut text_buf =
-                        Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
-                    text_buf.set_size(
-                        &mut self.font_system,
-                        Some(cell_w as f32),
-                        Some(cell_h as f32),
-                    );
-                    text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
-                    text_buf.shape_until_scroll(&mut self.font_system, false);
-                    let base_color = Color::rgb(fr, fg_c, fb);
-                    for run in text_buf.layout_runs() {
-                        for glyph in run.glyphs.iter() {
-                            let phys = glyph.physical((0.0, 0.0), 1.0);
-                            let gx = cell_x + phys.x;
-                            let gy = cell_y + run.line_y as i32 + phys.y;
-                            self.swash_cache.with_pixels(
-                                &mut self.font_system,
-                                phys.cache_key,
-                                base_color,
-                                |px_off, py_off, color| {
-                                    let px = gx + px_off;
-                                    let py = gy + py_off;
-                                    if px < 0 || py < 0 {
-                                        return;
-                                    }
-                                    let px = px as u32;
-                                    let py = py as u32;
-                                    if px >= width || py >= height {
-                                        return;
-                                    }
-                                    let alpha = color.a();
-                                    if alpha == 0 {
-                                        return;
-                                    }
-                                    let offset = (py * stride + px * 4) as usize;
-                                    if offset + 3 >= canvas.len() {
-                                        return;
-                                    }
-                                    if alpha == 255 {
-                                        canvas[offset] = color.b();
-                                        canvas[offset + 1] = color.g();
-                                        canvas[offset + 2] = color.r();
-                                        canvas[offset + 3] = 0xff;
-                                    } else {
-                                        let a = alpha as u32;
-                                        let inv = 255 - a;
-                                        canvas[offset] = ((canvas[offset] as u32 * inv
-                                            + color.b() as u32 * a)
-                                            / 255)
-                                            as u8;
-                                        canvas[offset + 1] = ((canvas[offset + 1] as u32 * inv
-                                            + color.g() as u32 * a)
-                                            / 255)
-                                            as u8;
-                                        canvas[offset + 2] = ((canvas[offset + 2] as u32 * inv
-                                            + color.r() as u32 * a)
-                                            / 255)
-                                            as u8;
-                                        canvas[offset + 3] = 0xff;
-                                    }
-                                },
-                            );
-                        }
-                    }
-                }
-            }
 
-            // Draw pane2 content in right half
-            if self.split_active {
-                let pane2_x = (width / 2 + 2) as i32;
-                let pane2_cols = ((width / 2 - 2) / cell_w) as usize;
-                if let Some(ref t2) = self.terminal2 {
-                    for row in 0..rows.min(t2.rows) {
-                        for col in 0..pane2_cols.min(t2.cols) {
-                            let cell = t2.grid[row][col];
-                            if cell.ch == ' ' || cell.ch == '\0' {
-                                continue;
-                            }
-                            let cell_x = pane2_x + (col as u32 * cell_w) as i32;
-                            let cell_y = (row as u32 * cell_h) as i32;
-                            if cell_x + cell_w as i32 > width as i32 {
-                                continue;
-                            }
-                            let mut text_buf = Buffer::new(
-                                &mut self.font_system,
-                                Metrics::new(self.font_size, self.line_height),
-                            );
-                            text_buf.set_size(
-                                &mut self.font_system,
-                                Some(cell_w as f32),
-                                Some(cell_h as f32),
-                            );
-                            let cp = cell.ch as u32;
-                            let is_emoji = cp != 0x276F
-                                && matches!(cp, 0x1F300..=0x1FAFF | 0x1F000..=0x1FFFF | 0x2300..=0x23FF | 0x2700..=0x27BF | 0x2600..=0x26FF);
-                            let family = if is_emoji {
-                                cosmic_text::Family::Name("Noto Color Emoji")
-                            } else {
-                                cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono")
-                            };
-                            let weight = if cell.attrs.bold {
-                                cosmic_text::Weight::BOLD
-                            } else {
-                                cosmic_text::Weight::NORMAL
-                            };
-                            let attrs = Attrs::new().family(family).weight(weight);
-                            let text = cell.ch.to_string();
-                            text_buf.set_text(&mut self.font_system, &text, attrs, Shaping::Advanced);
-                            text_buf.shape_until_scroll(&mut self.font_system, false);
-                            let base_color = Color::rgb(cell.fg.r, cell.fg.g, cell.fg.b);
-                            for run in text_buf.layout_runs() {
-                                for glyph in run.glyphs.iter() {
-                                    let phys = glyph.physical((0.0, 0.0), 1.0);
-                                    let gx = cell_x + phys.x;
-                                    let gy = cell_y + run.line_y as i32 + phys.y;
-                                    self.swash_cache.with_pixels(
-                                        &mut self.font_system,
-                                        phys.cache_key,
-                                        base_color,
-                                        |px_off, py_off, color| {
-                                            let px = (gx + px_off) as u32;
-                                            let py = (gy + py_off) as u32;
-                                            if px >= width || py >= height {
-                                                return;
-                                            }
-                                            let al = color.a();
-                                            if al == 0 {
-                                                return;
-                                            }
-                                            let offset = (py * stride + px * 4) as usize;
-                                            if offset + 3 >= canvas.len() {
-                                                return;
-                                            }
-                                            canvas[offset] = color.b();
-                                            canvas[offset + 1] = color.g();
-                                            canvas[offset + 2] = color.r();
-                                            canvas[offset + 3] = 0xff;
-                                        },
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    // Pane2 cursor
-                    if self.active_pane == 1 {
-                        let cx = pane2_x + (t2.cursor_x as u32 * cell_w) as i32;
-                        let cy = (t2.cursor_y as u32 * cell_h) as i32;
-                        for dy in 0..cell_h {
-                            for dx in 0..2u32 {
-                                let px = (cx as u32).saturating_add(dx);
-                                let py = cy as u32 + dy;
-                                if px < width && py < height {
-                                    let o = (py * stride + px * 4) as usize;
-                                    if o + 3 < canvas.len() {
-                                        canvas[o] = 0x6b;
-                                        canvas[o + 1] = 0xe3;
-                                        canvas[o + 2] = 0xa3;
-                                        canvas[o + 3] = 0xff;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // Draw selection highlight -- sel coords are absolute (sb index)
-            if let (Some((sr, sc)), Some((er, ec))) = (self.sel_start, self.sel_end) {
-                let (r0, c0, r1, c1) = if (sr, sc) <= (er, ec) {
-                    (sr, sc, er, ec)
-                } else {
-                    (er, ec, sr, sc)
-                };
-                let sb_len = self.terminal.scrollback.len();
-                let scroll_off = self.scroll_offset.min(sb_len);
-                // Visible abs range: [sb_len - scroll_off, sb_len - scroll_off + rows)
-                let vis_start = sb_len.saturating_sub(scroll_off);
-                let vis_end = vis_start + self.terminal.rows;
-                for abs_row in r0..=r1 {
-                    // Only draw if this abs_row is visible
-                    if abs_row < vis_start || abs_row >= vis_end { continue; }
-                    let screen_row = abs_row - vis_start;
-                    let col_start = if abs_row == r0 { c0 } else { 0 };
-                    let col_end = if abs_row == r1 { c1 } else { cols };
-                    let row_cells: Option<&Vec<crate::terminal::Cell>> = if abs_row < sb_len {
-                        self.terminal.scrollback.get(abs_row)
-                    } else {
-                        let grid_row = abs_row - sb_len;
-                        if grid_row < self.terminal.rows { Some(&self.terminal.grid[grid_row]) } else { None }
-                    };
-                    let real_end = row_cells.and_then(|cells| {
-                        (col_start..col_end.min(cells.len()))
-                            .rev()
-                            .find(|&c| cells[c].ch != ' ' && cells[c].ch != '\0')
-                            .map(|c| c + 1)
-                    }).unwrap_or(col_start);
-                    let row = screen_row; // alias for pixel math below
-                    for col in col_start..real_end {
-                        let hx = (col as u32 * cell_w) as usize;
-                        let hy = (row as u32 * cell_h) as usize;
-                        for dy in 0..cell_h as usize {
-                            for dx in 0..cell_w as usize {
-                                let px = hx + dx;
-                                let py = hy + dy;
-                                if px < width as usize && py < height as usize {
-                                    let off = py * stride as usize + px * 4;
-                                    if off + 3 < canvas.len() {
-                                        // Faelight selection: dark teal, 35% opacity blend
-                                        canvas[off] =
-                                            (canvas[off] as u32 * 65 / 100 + 0x1a * 35 / 100) as u8;
-                                        canvas[off + 1] = (canvas[off + 1] as u32 * 65 / 100
-                                            + 0x4a * 35 / 100)
-                                            as u8;
-                                        canvas[off + 2] = (canvas[off + 2] as u32 * 65 / 100
-                                            + 0x4a * 35 / 100)
-                                            as u8;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // Draw cursor
-            let cx = (self.terminal.cursor_x as u32 * cell_w) as usize;
-            let cy = (self.terminal.cursor_y as u32 * cell_h) as usize;
-            for dy in 0..cell_h as usize {
-                for dx in 0..2usize {
-                    let px = cx + dx;
-                    let py = cy + dy;
-                    if px < width as usize && py < height as usize {
-                        let offset = py * stride as usize + px * 4;
-                        if offset + 3 < canvas.len() {
-                            canvas[offset] = 0xa3;
-                            canvas[offset + 1] = 0xe3;
-                            canvas[offset + 2] = 0x6b;
-                            canvas[offset + 3] = 0xff;
-                        }
-                    }
-                }
-            }
-            // Friday panel -- slides in from right, 35% width
-            if self.show_friday {
-                let panel_w = (width * 35 / 100).max(200);
-                let panel_x = width - panel_w;
-                // Panel background -- deep forest dark
-                for py in 0..height {
-                    for px in panel_x..width {
-                        let o = (py * stride + px * 4) as usize;
-                        if o + 3 < canvas.len() {
-                            canvas[o] = 0x08;
-                            canvas[o + 1] = 0x18;
-                            canvas[o + 2] = 0x10;
-                            canvas[o + 3] = 0xff;
-                        }
-                    }
-                }
-                // Panel border -- teal left edge
-                for py in 0..height {
-                    let o = (py * stride + panel_x * 4) as usize;
-                    if o + 3 < canvas.len() {
-                        canvas[o] = 0x7f;
-                        canvas[o + 1] = 0xc8;
-                        canvas[o + 2] = 0xc8;
-                        canvas[o + 3] = 0xff;
-                    }
-                }
-                // Render Friday panel content
-                let mut py_off = self.cell_h as i32 / 2;
-                let px_off = panel_x as i32 + 10;
-                let panel_render_w = panel_w.saturating_sub(20) as f32;
-                // Title
-                // Title: "FRIDAY" in green + " // Knowledge" in cyan on one line
-                let title_str = "FRIDAY  //  Knowledge";
-                let mut tb =
-                    Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
-                tb.set_size(
-                    &mut self.font_system,
-                    Some(panel_render_w),
-                    Some(self.line_height),
-                );
-                let ta = Attrs::new()
-                    .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
-                    .weight(cosmic_text::Weight::BOLD);
-                tb.set_text(&mut self.font_system, title_str, ta, Shaping::Basic);
-                tb.shape_until_scroll(&mut self.font_system, false);
-                let sc = Color::rgb(107, 227, 163);
-                for run in tb.layout_runs() {
-                    for g in run.glyphs.iter() {
-                        let phys = g.physical((0.0, 0.0), 1.0);
-                        let gx = px_off + phys.x;
-                        let gy = py_off + run.line_y as i32 + phys.y;
-                        self.swash_cache.with_pixels(
-                            &mut self.font_system,
-                            phys.cache_key,
-                            sc,
-                            |dx, dy, color| {
-                                let (px2, py2) = ((gx + dx) as u32, (gy + dy) as u32);
-                                if px2 >= width || py2 >= height {
-                                    return;
-                                }
-                                let al = color.a();
-                                if al == 0 {
-                                    return;
-                                }
-                                let poff = (py2 * stride + px2 * 4) as usize;
-                                if poff + 3 >= canvas.len() {
-                                    return;
-                                }
-                                canvas[poff] = color.b();
-                                canvas[poff + 1] = color.g();
-                                canvas[poff + 2] = color.r();
-                                canvas[poff + 3] = 0xff;
-                            },
-                        );
-                    }
-                }
-                py_off += self.cell_h as i32 * 2;
-                // Knowledge entries
-                for (domain, fact, confidence) in &friday_data_cache {
-                    if py_off + self.cell_h as i32 * 2 > height as i32 {
-                        break;
-                    }
-                    // Domain label color
-                    let dom_col = match domain.as_str() {
-                        "rust" => [245, 193, 119],
-                        "patterns" => [107, 227, 163],
-                        "cross_intent" => [92, 200, 255],
-                        "shell" => [180, 140, 220],
-                        "wayland" => [230, 126, 128],
-                        _ => [200, 200, 200],
-                    };
-                    let lines: &[(&str, [u8; 3])] = &[(domain.as_str(), dom_col)];
-                    for (txt, col) in lines {
-                        let mut tb = Buffer::new(
-                            &mut self.font_system,
-                            Metrics::new(self.font_size, self.line_height),
-                        );
-                        tb.set_size(
-                            &mut self.font_system,
-                            Some(panel_render_w),
-                            Some(self.line_height),
-                        );
-                        let ta = Attrs::new()
-                            .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
-                            .weight(cosmic_text::Weight::BOLD);
-                        tb.set_text(&mut self.font_system, txt, ta, Shaping::Basic);
-                        tb.shape_until_scroll(&mut self.font_system, false);
-                        let sc = Color::rgb(col[0], col[1], col[2]);
-                        for run in tb.layout_runs() {
-                            for g in run.glyphs.iter() {
-                                let phys = g.physical((0.0, 0.0), 1.0);
-                                let gx = px_off + phys.x;
-                                let gy = py_off + run.line_y as i32 + phys.y;
-                                self.swash_cache.with_pixels(
-                                    &mut self.font_system,
-                                    phys.cache_key,
-                                    sc,
-                                    |dx, dy, color| {
-                                        let (px2, py2) = ((gx + dx) as u32, (gy + dy) as u32);
-                                        if px2 >= width || py2 >= height {
-                                            return;
-                                        }
-                                        let al = color.a();
-                                        if al == 0 {
-                                            return;
-                                        }
-                                        let poff = (py2 * stride + px2 * 4) as usize;
-                                        if poff + 3 >= canvas.len() {
-                                            return;
-                                        }
-                                        canvas[poff] = color.b();
-                                        canvas[poff + 1] = color.g();
-                                        canvas[poff + 2] = color.r();
-                                        canvas[poff + 3] = 0xff;
-                                    },
-                                );
-                            }
-                        }
-                    }
-                    py_off += self.cell_h as i32;
-                    // Fact text -- truncated to fit panel
-                    let fact_short: String = fact.chars().take(38).collect();
-                    let conf_str = format!("{:.0}%  {}", confidence * 100.0, fact_short);
-                    let mut tb =
-                        Buffer::new(&mut self.font_system, Metrics::new(self.font_size, self.line_height));
-                    tb.set_size(
-                        &mut self.font_system,
-                        Some(panel_render_w),
-                        Some(self.line_height),
-                    );
-                    let ta = Attrs::new()
-                        .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
-                        .weight(cosmic_text::Weight(300));
-                    tb.set_text(&mut self.font_system, &conf_str, ta, Shaping::Basic);
-                    tb.shape_until_scroll(&mut self.font_system, false);
-                    let sc = Color::rgb(0xb0, 0xc8, 0xb8);
-                    for run in tb.layout_runs() {
-                        for g in run.glyphs.iter() {
-                            let phys = g.physical((0.0, 0.0), 1.0);
-                            let gx = px_off + phys.x;
-                            let gy = py_off + run.line_y as i32 + phys.y;
-                            self.swash_cache.with_pixels(
-                                &mut self.font_system,
-                                phys.cache_key,
-                                sc,
-                                |dx, dy, color| {
-                                    let (px2, py2) = ((gx + dx) as u32, (gy + dy) as u32);
-                                    if px2 >= width || py2 >= height {
-                                        return;
-                                    }
-                                    let al = color.a();
-                                    if al == 0 {
-                                        return;
-                                    }
-                                    let poff = (py2 * stride + px2 * 4) as usize;
-                                    if poff + 3 >= canvas.len() {
-                                        return;
-                                    }
-                                    canvas[poff] = color.b();
-                                    canvas[poff + 1] = color.g();
-                                    canvas[poff + 2] = color.r();
-                                    canvas[poff + 3] = 0xff;
-                                },
-                            );
-                        }
-                    }
-                    py_off += self.cell_h as i32 + 8;
-                }
-            }
-            if self.show_status {
-                let strip_h = self.cell_h;
-                let strip_y = height.saturating_sub(strip_h);
-                for dy in 0..strip_h {
-                    for dx in 0..width {
-                        let o = ((strip_y + dy) * stride + dx * 4) as usize;
-                        if o + 3 < canvas.len() {
-                            canvas[o] = 0x0a;
-                            canvas[o + 1] = 0x22;
-                            canvas[o + 2] = 0x18;
-                            canvas[o + 3] = 0xff;
-                        }
-                    }
-                }
-                let status_str = status_str_cache.clone();
-                let parts: Vec<&str> = status_str.split('|').collect();
-                let mut xoff = 12i32;
-                let mut si = 0usize;
-                while si + 1 < parts.len() {
-                    let txt = parts[si];
-                    let cstr = parts[si + 1];
-                    let rgb: Vec<u8> = cstr
-                        .split(',')
-                        .filter_map(|s| s.trim().parse().ok())
-                        .collect();
-                    let sc = if rgb.len() == 3 {
-                        Color::rgb(rgb[0], rgb[1], rgb[2])
-                    } else {
-                        Color::rgb(0xd7, 0xe0, 0xda)
-                    };
-                    let mut sb = Buffer::new(
-                        &mut self.font_system,
-                        Metrics::new(FONT_SIZE, strip_h as f32),
-                    );
-                    sb.set_size(
-                        &mut self.font_system,
-                        Some(width as f32),
-                        Some(strip_h as f32),
-                    );
-                    let sa = Attrs::new()
-                        .family(cosmic_text::Family::Name("JetBrainsMono Nerd Font Mono"))
-                        .weight(cosmic_text::Weight(300));
-                    sb.set_text(&mut self.font_system, txt, sa, Shaping::Basic);
-                    sb.shape_until_scroll(&mut self.font_system, false);
-                    for run in sb.layout_runs() {
-                        for g in run.glyphs.iter() {
-                            let phys = g.physical((0.0, 0.0), 1.0);
-                            let gx = xoff + phys.x;
-                            let gy = strip_y as i32 + run.line_y as i32 + phys.y;
-                            self.swash_cache.with_pixels(
-                                &mut self.font_system,
-                                phys.cache_key,
-                                sc,
-                                |dx, dy, color| {
-                                    let px = gx + dx;
-                                    let py = gy + dy;
-                                    if px < 0 || py < 0 {
-                                        return;
-                                    }
-                                    let (px, py) = (px as u32, py as u32);
-                                    if px >= width || py >= height {
-                                        return;
-                                    }
-                                    let al = color.a();
-                                    if al == 0 {
-                                        return;
-                                    }
-                                    let poff = (py * stride + px * 4) as usize;
-                                    if poff + 3 >= canvas.len() {
-                                        return;
-                                    }
-                                    canvas[poff] = color.b();
-                                    canvas[poff + 1] = color.g();
-                                    canvas[poff + 2] = color.r();
-                                    canvas[poff + 3] = 0xff;
-                                },
-                            );
-                        }
-                    }
-                    xoff += (txt.chars().count() as i32 * self.cell_w as i32) + 20;
-                    si += 2;
-                }
-            }
-            self.surface.attach(Some(buffer.wl_buffer()), 0, 0);
-            self.surface
-                .damage_buffer(0, 0, width as i32, height as i32);
-            self.surface.commit();
-        }
+    fn release_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, _: KeyEvent) {}
+
+    fn update_modifiers(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: u32, modifiers: Modifiers) {
+        self.modifiers = modifiers;
     }
+
+    fn update_repeat_info(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_keyboard::WlKeyboard, _: RepeatInfo) {}
 }
-impl ShmHandler for App {
-    fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm
-    }
-}
-impl CompositorHandler for App {
-    fn scale_factor_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: i32,
-    ) {
-    }
-    fn transform_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: wl_output::Transform,
-    ) {
-    }
+
+impl CompositorHandler for AppState {
+    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: i32) {}
+    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: wl_output::Transform) {}
     fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn surface_enter(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
-    fn surface_leave(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
 }
-impl OutputHandler for App {
-    fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
+impl OutputHandler for AppState {
+    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
 }
-impl WindowHandler for App {
+impl WindowHandler for AppState {
     fn request_close(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &Window) {
-        self.running = false;
+        self.exit = true;
     }
-    fn configure(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &Window,
-        configure: WindowConfigure,
-        _: u32,
-    ) {
-        if let (Some(w), Some(h)) = configure.new_size {
-            self.width = w.get();
-            self.height = h.get();
-            // Resize pool
-            let needed = (self.width * self.height * 4) as usize;
-            if let Err(e) = self.pool.resize(needed) {
-                eprintln!("pool resize error: {}", e);
+    fn configure(&mut self, _: &Connection, _qh: &QueueHandle<Self>,
+        _: &Window, configure: WindowConfigure, _: u32) {
+        let (w, h) = configure.new_size;
+        if let Some(w) = w { self.width = w.get(); }
+        if let Some(h) = h { self.height = h.get(); }
+        if !self.configured {
+            self.configured = true;
+            let window_ptr = self.surface.id().as_ptr() as *mut _;
+            let fw = FaelightWindow { window_ptr, display_ptr: self.display_ptr };
+            self.gpu = Some(GpuState::new(fw, self.width, self.height));
+            // Create pointer now that we have a configured window
+            if let Some(ref seat) = self.wl_seat.clone() {
+                let _ = self.seat_state.get_pointer(_qh, seat);
             }
-            // Recalculate terminal grid dimensions
-            let cell_w = self.cell_w.max(1);
-            let cell_h = self.cell_h.max(1);
-            let new_cols = (self.width / cell_w).max(1) as usize;
-            let new_rows = (self.height / cell_h).max(1) as usize;
-            if new_cols != self.terminal.cols || new_rows != self.terminal.rows {
-                self.terminal.resize(new_cols, new_rows);
-                self.pty.resize(new_cols as u16, new_rows as u16);
-                // Trigger shell to redraw by sending SIGWINCH to PTY process group
-                unsafe {
-                    nix::libc::killpg(nix::libc::tcgetpgrp(self.pty.master), nix::libc::SIGWINCH);
-                }
+        } else {
+            // Subsequent configure = window resize
+            if let Some(ref mut gpu) = self.gpu {
+                gpu.resize(self.width, self.height);
             }
         }
-        self.configured = true;
-        self.render();
     }
 }
-impl SeatHandler for App {
-    fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
-    }
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-    fn new_capability(
-        &mut self,
-        _: &Connection,
-        qh: &QueueHandle<Self>,
-        seat: wl_seat::WlSeat,
-        cap: Capability,
-    ) {
-        if cap == Capability::Keyboard && self.keyboard.is_none() {
-            self.keyboard = Some(self.seat_state.get_keyboard(qh, &seat, None).unwrap());
-        }
-        if cap == Capability::Pointer && self.pointer.is_none() {
-            self.pointer = Some(self.seat_state.get_pointer(qh, &seat).unwrap());
-        }
-    }
-    fn remove_capability(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: wl_seat::WlSeat,
-        _: Capability,
-    ) {
-    }
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-}
-impl KeyboardHandler for App {
-    fn enter(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: &wl_surface::WlSurface,
-        _: u32,
-        _: &[u32],
-        _: &[Keysym],
-    ) {
-    }
-    fn leave(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: &wl_surface::WlSurface,
-        _: u32,
-    ) {
-    }
-    fn press_key(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        event: KeyEvent,
-    ) {
-        let ctrl = self.modifiers.ctrl;
-        let shift = self.modifiers.shift;
-        // Track Ctrl for mouse click detection
-        if event.keysym == Keysym::Control_L || event.keysym == Keysym::Control_R {
-            self.ctrl_held = true;
-        }
 
-        if ctrl && shift && (event.keysym == Keysym::f || event.keysym == Keysym::F) {
-            self.show_friday = !self.show_friday;
-            self.render();
-            return;
-        }
-
-        // Ctrl+Shift+H -- horizontal split (side by side)
-        if ctrl && shift && (event.keysym == Keysym::h || event.keysym == Keysym::H) {
-            if !self.split_active {
-                let cols = (self.terminal.cols / 2).max(40) as u16;
-                let rows = self.terminal.rows as u16;
-                let shell2 = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-                if let Ok(pty2) = Pty::spawn(&shell2, cols, rows) {
-                    self.pty2 = Some(pty2);
-                    self.terminal2 = Some(Terminal::new(cols as usize, rows as usize));
-                    self.split_active = true;
-                    self.active_pane = 0;
-                }
-            } else {
-                // Close split
-                self.split_active = false;
-                self.terminal2 = None;
-                self.pty2 = None;
-                self.active_pane = 0;
-            }
-            self.render();
-            return;
-        }
-
-        // Ctrl+Shift+Left/Right -- switch active pane
-        if ctrl && shift && self.split_active {
-            let raw = event.keysym.raw();
-            if raw == 0xff51 || raw == 0xff53 {
-                // Left=0xff51 Right=0xff53
-                self.active_pane = if self.active_pane == 0 { 1 } else { 0 };
-                self.render();
-                return;
-            }
-        }
-
-        if ctrl && shift && (event.keysym == Keysym::s || event.keysym == Keysym::S) {
-            self.show_status = !self.show_status;
-            self.render();
-            return;
-        }
-        // Ctrl+= zoom in, Ctrl+- zoom out
-        if ctrl && !shift && event.keysym == Keysym::equal {
-            self.font_size = (self.font_size + 1.0).min(32.0);
-            self.line_height = (self.font_size * 1.4).round();
-            self.cell_h = self.line_height as u32;
-            self.render();
-            return;
-        }
-        if ctrl && !shift && event.keysym == Keysym::minus {
-            self.font_size = (self.font_size - 1.0).max(8.0);
-            self.line_height = (self.font_size * 1.4).round();
-            self.cell_h = self.line_height as u32;
-            self.render();
-            return;
-        }
-
-        if ctrl && shift && (event.keysym == Keysym::c || event.keysym == Keysym::C) {
-            if let Some(text) = self.get_selection_text() {
-                let mut child = std::process::Command::new("wl-copy")
-                    .stdin(std::process::Stdio::piped())
-                    .spawn();
-                if let Ok(ref mut child) = child {
-                    if let Some(ref mut stdin) = child.stdin {
-                        use std::io::Write;
-                        stdin.write_all(text.as_bytes()).ok();
-                    }
-                }
-            }
-            return;
-        }
-
-        if ctrl && shift && (event.keysym == Keysym::v || event.keysym == Keysym::V) {
-            if let Ok(output) = std::process::Command::new("wl-paste")
-                .arg("--no-newline")
-                .output()
-            {
-                if !output.stdout.is_empty() {
-                    self.pty.write(&output.stdout).ok();
-                }
-            }
-            return;
-        }
-
-        if let Some(bytes) = keysym_to_bytes(event.keysym, &event.utf8) {
-            if self.split_active && self.active_pane == 1 {
-                if let Some(ref mut pty2) = self.pty2 {
-                    pty2.write(&bytes).ok();
-                }
-            } else {
-                self.pty.write(&bytes).ok();
-            }
-        }
-    }
-    fn release_key(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        _: KeyEvent,
-    ) {
-    }
-    fn update_modifiers(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        modifiers: Modifiers,
-        _: RawModifiers,
-        _: u32,
-    ) {
-        self.modifiers = modifiers;
-    }
-    fn update_repeat_info(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: RepeatInfo,
-    ) {
-    }
-    fn repeat_key(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_keyboard::WlKeyboard,
-        _: u32,
-        _: KeyEvent,
-    ) {
-    }
-}
-impl PointerHandler for App {
-    fn pointer_frame(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_pointer::WlPointer,
-        events: &[PointerEvent],
-    ) {
-        use smithay_client_toolkit::seat::pointer::PointerEventKind;
+impl PointerHandler for AppState {
+    fn pointer_frame(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wayland_client::protocol::wl_pointer::WlPointer,
+        events: &[PointerEvent]) {
         for event in events {
             match event.kind {
-                PointerEventKind::Axis { vertical, .. } => {
-                    let amount = 3usize;
-                    if vertical.absolute < 0.0 || vertical.discrete < 0 {
-                        let max = self.terminal.scrollback.len();
-                        self.scroll_offset = (self.scroll_offset + amount).min(max);
-                    } else if vertical.absolute > 0.0 || vertical.discrete > 0 {
-                        self.scroll_offset = self.scroll_offset.saturating_sub(amount);
+                PointerEventKind::Press { button, .. } if button == BTN_LEFT => {
+                    // Start selection
+                    if let Some(ref gpu) = self.gpu {
+                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let col = col.min(gpu.cols.saturating_sub(1));
+                        let row = row.min(gpu.rows.saturating_sub(1));
+                        let display_offset = gpu.term.lock().grid().display_offset() as i32;
+                        let global_line = row as i32 - display_offset;
+                        self.selection_start = Some((col, global_line));
+                        self.selection_end = Some((col, global_line));
+                        self.selecting = true;
                     }
-                    self.render();
                 }
-                PointerEventKind::Press { button: 0x110, .. } => {
-                    if self.ctrl_held {
-                        let col = (event.position.0 / self.cell_w as f64) as usize;
-                        let row = (event.position.1 / self.cell_h as f64) as usize;
-                        let word = self.word_at(row, col);
-                        if !word.is_empty() {
-                            let is_url =
-                                word.starts_with("http://") || word.starts_with("https://");
-                            let is_path = word.starts_with("/")
-                                || word.starts_with("~/")
-                                || std::path::Path::new(&word).exists();
-                            if is_url {
-                                std::process::Command::new("faelight-browser")
-                                    .arg(&word)
-                                    .spawn()
-                                    .ok();
-                                return;
-                            } else if is_path {
-                                let editor =
-                                    std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-                                std::process::Command::new("foot")
-                                    .arg("--")
-                                    .arg(&editor)
-                                    .arg(&word)
-                                    .spawn()
-                                    .ok();
-                                return;
+                PointerEventKind::Release { button, .. } if button == BTN_LEFT => {
+                    self.selecting = false;
+                    // Build selected text from terminal grid
+                    if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
+                        if let Some(ref gpu) = self.gpu {
+                            let term = gpu.term.lock();
+                            let grid = term.grid();
+                            // Use global line coords -- no display_offset adjustment needed here
+                            let mut text = String::new();
+                            let (start_col, start_line) = start;
+                            let (end_col, end_line) = end;
+                            let (r1, c1, r2, c2) = if start_line < end_line || (start_line == end_line && start_col <= end_col) {
+                                (start_line, start_col, end_line, end_col)
+                            } else {
+                                (end_line, end_col, start_line, start_col)
+                            };
+                            for row in r1..=r2 {
+                                let col_start = if row == r1 { c1 } else { 0 };
+                                let col_end = if row == r2 { c2 } else { gpu.cols.saturating_sub(1) };
+                                for col in col_start..=col_end {
+                                    use alacritty_terminal::index::{Column, Line, Point};
+                                    // row IS the global grid line
+                                    let point = Point::new(Line(row), Column(col));
+                                    let cell = &grid[point];
+                                    let ch = if cell.c == '\0' { ' ' } else { cell.c };
+                                    text.push(ch);
+                                }
+                                if row < r2 { text.push('\n'); }
+                            }
+                            drop(term);
+                            let text = text.trim_end().to_string();
+                            if !text.is_empty() {
+                                self.selected_text = text.clone();
+                                // Copy to clipboard in background thread
+                                std::thread::spawn(move || {
+                                    let mut opts = CopyOptions::new();
+                                    opts.foreground(true); // serve in-thread, no fork -- fixes paste to browser
+                                    let _ = opts.copy(
+                                        CopySource::Bytes(text.into_bytes().into()),
+                                        CopyMimeType::Text,
+                                    );
+                                });
                             }
                         }
                     }
-                    self.mouse_down = true;
-                    self.mouse_pos = event.position;
-                    let col = (event.position.0 / self.cell_w as f64) as usize;
-                    let screen_row = (event.position.1 / self.cell_h as f64) as usize;
-                    let sb_len = self.terminal.scrollback.len();
-                    let abs_row = (sb_len.saturating_sub(self.scroll_offset) + screen_row)
-                        .min(sb_len + self.terminal.rows - 1);
-                    self.sel_start = Some((abs_row, col.min(self.terminal.cols - 1)));
-                    self.sel_end = None;
                 }
-                PointerEventKind::Motion { .. } if self.mouse_down => {
-                    self.mouse_pos = event.position;
-                    let col = (event.position.0 / self.cell_w as f64) as usize;
-                    let screen_row = (event.position.1 / self.cell_h as f64) as usize;
-                    let sb_len = self.terminal.scrollback.len();
-                    let abs_row = (sb_len.saturating_sub(self.scroll_offset) + screen_row)
-                        .min(sb_len + self.terminal.rows - 1);
-                    self.sel_end = Some((abs_row, col.min(self.terminal.cols - 1)));
-                    self.render();
-                }
-                PointerEventKind::Release { button: 0x110, .. } => {
-                    self.mouse_down = false;
-                    // Auto-copy selection to clipboard
-                    if let Some(text) = self.get_selection_text() {
-                        let mut child = std::process::Command::new("wl-copy")
-                            .stdin(std::process::Stdio::piped())
-                            .spawn();
-                        if let Ok(ref mut child) = child {
-                            if let Some(ref mut stdin) = child.stdin {
-                                use std::io::Write;
-                                stdin.write_all(text.as_bytes()).ok();
-                            }
+                PointerEventKind::Motion { .. } if self.selecting => {
+                    if let Some(ref gpu) = self.gpu {
+                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
+                        let col = col.min(gpu.cols.saturating_sub(1));
+                        let row = row.min(gpu.rows.saturating_sub(1));
+                        let display_offset = gpu.term.lock().grid().display_offset() as i32;
+                        let global_line = row as i32 - display_offset;
+                        self.selection_end = Some((col, global_line));
+                        if let Some(ref mut gpu) = self.gpu {
+                            gpu.dirty = true;
                         }
+                    }
+                }
+                PointerEventKind::Axis { horizontal: _, vertical, .. } => {
+                    // Scroll -- scroll the terminal viewport via alacritty_terminal
+                    if let Some(ref mut gpu) = self.gpu {
+                        use alacritty_terminal::grid::Scroll;
+                        let lines = (vertical.absolute.abs() / 3.0).ceil() as usize;
+                        let lines = lines.max(1).min(5);
+                        if vertical.absolute < 0.0 {
+                            // Scroll up -- show history
+                            let mut term = gpu.term.lock();
+                            term.scroll_display(Scroll::Delta(lines as i32));
+                        } else if vertical.absolute > 0.0 {
+                            // Scroll down -- back to bottom
+                            let mut term = gpu.term.lock();
+                            term.scroll_display(Scroll::Delta(-(lines as i32)));
+                        }
+                        gpu.dirty = true;
                     }
                 }
                 _ => {}
@@ -1526,41 +783,38 @@ impl PointerHandler for App {
         }
     }
 }
-impl ProvidesRegistryState for App {
-    fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
+
+impl SeatHandler for AppState {
+    fn seat_state(&mut self) -> &mut SeatState { &mut self.seat_state }
+    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
+        self.wl_seat = Some(seat);
     }
-    registry_handlers![OutputState, SeatState];
-}
-fn keysym_to_bytes(keysym: Keysym, utf8: &Option<String>) -> Option<Vec<u8>> {
-    if let Some(t) = utf8 {
-        if !t.is_empty() {
-            return Some(t.as_bytes().to_vec());
+    fn new_capability(&mut self, _conn: &Connection, qh: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat, capability: Capability) {
+        match capability {
+            Capability::Keyboard => {
+                self.seat_state.get_keyboard(qh, &seat, None).expect("keyboard");
+            }
+            Capability::Pointer => {
+                // handled at startup
+            }
+            _ => {}
         }
     }
-    match keysym {
-        Keysym::Return => Some(b"\r".to_vec()),
-        Keysym::BackSpace => Some(b"\x7f".to_vec()),
-        Keysym::Tab => Some(b"\t".to_vec()),
-        Keysym::Escape => Some(b"\x1b".to_vec()),
-        Keysym::Up => Some(b"\x1b[A".to_vec()),
-        Keysym::Down => Some(b"\x1b[B".to_vec()),
-        Keysym::Right => Some(b"\x1b[C".to_vec()),
-        Keysym::Left => Some(b"\x1b[D".to_vec()),
-        Keysym::Home => Some(b"\x1b[H".to_vec()),
-        Keysym::End => Some(b"\x1b[F".to_vec()),
-        Keysym::Delete => Some(b"\x1b[3~".to_vec()),
-        Keysym::Page_Up => Some(b"\x1b[5~".to_vec()),
-        Keysym::Page_Down => Some(b"\x1b[6~".to_vec()),
-        _ => None,
-    }
+    fn remove_capability(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: wl_seat::WlSeat, _: Capability) {}
+    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
-smithay_client_toolkit::delegate_shm!(App);
-delegate_compositor!(App);
-delegate_output!(App);
-delegate_xdg_shell!(App);
-delegate_xdg_window!(App);
-delegate_seat!(App);
-delegate_keyboard!(App);
-delegate_pointer!(App);
-delegate_registry!(App);
+impl ProvidesRegistryState for AppState {
+    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
+    registry_handlers![OutputState, SeatState];
+}
+
+delegate_compositor!(AppState);
+delegate_output!(AppState);
+delegate_seat!(AppState);
+delegate_keyboard!(AppState);
+delegate_pointer!(AppState);
+delegate_xdg_shell!(AppState);
+delegate_xdg_window!(AppState);
+delegate_registry!(AppState);
