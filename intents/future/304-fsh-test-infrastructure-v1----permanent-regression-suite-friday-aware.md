@@ -1,0 +1,141 @@
+---
+id: 304
+title: "fsh test infrastructure v1 -- permanent regression suite, Friday-aware"
+status: planned
+date: 2026-05-14
+type: arch
+tags: [fsh, testing, regression, friday, deploy, infrastructure]
+depends_on: [299, 300]
+---
+## The Problem
+fsh_audit.sh is a bash script with 75 tests.
+It works but it is not a permanent infrastructure:
+  - Lives outside the Rust ecosystem
+  - Results not stored anywhere
+  - No regression tracking over time
+  - Not wired into deploy pipeline
+  - No performance timing per test
+  - Friday cannot see test history
+  - No coverage reporting
+  - No test categories or modules
+
+A shell that is a daily driver deserves a test suite
+that is as intentional as the shell itself.
+
+---
+## The Vision
+fsh-test: a Rust binary that tests fsh permanently.
+
+Not just "does it pass today" but:
+  - "did it pass yesterday?"
+  - "which commit broke this test?"
+  - "how long does this operation take vs last week?"
+  - "which shell paths have zero test coverage?"
+  - "Friday, what is the test health trend?"
+
+The test suite is a first-class forest citizen.
+It has its own deploy, its own registry entry,
+its own Friday integration.
+
+---
+## Architecture
+
+### Binary: fsh-test
+Location: rust-tools/fsh-test/
+Deployed to: scripts/fsh-test, ~/.cargo/bin/fsh-test
+
+### Test structure
+Each test is a struct implementing a Test trait:
+  name: &str
+  category: Category
+  run() -> TestResult
+
+Categories:
+  Tilde       -- expansion in all contexts
+  Pipes       -- pipe chains, SIGPIPE, truncation
+  Vocabulary  -- all 10+ forest vocabulary words
+  Heredoc     -- heredoc collection and dispatch
+  Parallel    -- parallel{} block execution
+  Signals     -- Ctrl+C, SIGPIPE, SIGTERM handling
+  FdLeaks     -- file descriptor stability
+  Zombies     -- no zombie processes after commands
+  Performance -- execution time tracking
+  Regression  -- specific bugs that were fixed (never regress)
+
+### Results stored in state.db
+Table: fsh_test_results
+  id, test_name, category, passed, duration_ms,
+  commit_hash, timestamp, fsh_version
+
+Friday can query:
+  "which tests have regressed in the last 7 days?"
+  "what is the slowest test category?"
+  "how many tests pass on this commit?"
+
+### Deploy gate
+deploy faelight-shell runs fsh-test first.
+If any Regression category test fails: deploy blocked.
+If >5% of tests fail: deploy blocked with report.
+If performance degrades >20%: warning, not block.
+
+### Coverage reporting
+fsh-test --coverage shows:
+  which vocabulary words have tests
+  which execution paths are tested
+  which error paths are untested
+  coverage % per category
+
+### Friday integration
+After each deploy, Friday records:
+  test pass rate
+  slowest tests
+  any new failures
+Friday can say:
+  "test coverage dropped 3% after your last commit"
+  "the heredoc tests have been failing intermittently"
+
+---
+## Migration from fsh_audit.sh
+Phase 1: port all 75 existing tests to Rust
+Phase 2: add regression tests for every bug fixed in INT-298/299
+Phase 3: add performance tests
+Phase 4: wire into deploy pipeline
+Phase 5: Friday integration
+
+---
+## Gates
+Phase 1:
+- [ ] fsh-test binary builds and deploys
+- [ ] all 75 fsh_audit.sh tests ported to Rust
+- [ ] fsh-test --run shows pass/fail per test
+- [ ] results stored in state.db
+
+Phase 2:
+- [ ] regression category covers all INT-298/299 bug fixes
+- [ ] fsh_audit.sh retired (fsh-test is the source of truth)
+
+Phase 3:
+- [ ] performance tracking per test
+- [ ] baseline established for all categories
+- [ ] Friday can report performance trends
+
+Phase 4:
+- [ ] deploy faelight-shell runs fsh-test automatically
+- [ ] regression failures block deploy
+- [ ] deploy shows test summary
+
+Phase 5:
+- [ ] Friday knows test history
+- [ ] Friday flags test regressions in session brief
+- [ ] coverage reporting implemented
+
+Final:
+- [ ] fsh-test is the permanent regression suite
+- [ ] every shell bug fix adds a regression test
+- [ ] no deploy without passing tests
+
+---
+"A shell that cannot test itself
+cannot know if it is still itself.
+The test suite is not a safety net.
+It is the forest checking its own health." 🌲
