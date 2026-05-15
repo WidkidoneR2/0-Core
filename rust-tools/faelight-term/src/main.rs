@@ -51,7 +51,7 @@ use std::{ptr::NonNull, sync::Arc, collections::HashMap};
 use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
 use wl_clipboard_rs::copy::{MimeType as CopyMimeType, Options as CopyOptions, Source as CopySource};
 
-const CELL_W: f32 = 10.5;
+const CELL_W: f32 = 10.0; // INT-286: stable cell width -- derive from font metrics in future
 const CELL_H: f32 = 20.0;
 const FONT_SIZE: f32 = 16.0;
 const LINE_HEIGHT: f32 = 20.0;
@@ -99,6 +99,7 @@ fn main() {
         display_ptr,
         modifiers: Modifiers::default(),
         wl_seat: None,
+        scroll_accumulator: 0.0,
         selection_start: None,
         selection_end: None,
         selecting: false,
@@ -139,11 +140,14 @@ fn main() {
             guard.read().ok(); // non-blocking: reads available events from compositor
         }
         if let Err(_) = event_queue.dispatch_pending(&mut state) { break; }
-        // Poll at ~60fps so PTY output renders promptly
+        // Poll at ~60fps -- only render when PTY signals new data
         std::thread::sleep(std::time::Duration::from_millis(16));
-        // Mark dirty every frame so PTY output is always rendered
+        // Mark dirty only when PTY has new output (check via listener needs_render)
         if let Some(ref mut gpu) = state.gpu {
-            gpu.dirty = true;
+            if gpu.needs_render.load(std::sync::atomic::Ordering::Relaxed) {
+                gpu.dirty = true;
+                gpu.needs_render.store(false, std::sync::atomic::Ordering::Relaxed);
+            }
         }
     }
 }
@@ -151,14 +155,21 @@ fn main() {
 #[derive(Clone)]
 struct FaelightListener {
     pty_resp_tx: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::SyncSender<String>>>,
+    needs_render: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl EventListener for FaelightListener {
     fn send_event(&self, event: TermEvent) {
         // INT-286: forward PtyWrite back to PTY -- fixes DA1/DA2, yazi TRT, app queries
-        if let TermEvent::PtyWrite(data) = event {
-            if let Ok(tx) = self.pty_resp_tx.lock() {
-                let _ = tx.try_send(data);
+        match event {
+            TermEvent::PtyWrite(data) => {
+                if let Ok(tx) = self.pty_resp_tx.lock() {
+                    let _ = tx.try_send(data);
+                }
             }
+            TermEvent::Wakeup => {
+                self.needs_render.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            _ => {}
         }
     }
 }
@@ -180,6 +191,7 @@ struct AppState {
     display_ptr: *mut std::ffi::c_void,
     modifiers: Modifiers,
     wl_seat: Option<wl_seat::WlSeat>,
+    scroll_accumulator: f64,
     selection_start: Option<(usize, i32)>,
     selection_end: Option<(usize, i32)>,
     selecting: bool,
@@ -219,6 +231,7 @@ struct GpuState {
     term: Arc<FairMutex<Term<FaelightListener>>>,
     notifier: Notifier,
     pty_resp_rx: std::sync::mpsc::Receiver<String>,
+    needs_render: std::sync::Arc<std::sync::atomic::AtomicBool>,
     cols: usize,
     rows: usize,
     dirty: bool,
@@ -279,7 +292,8 @@ impl GpuState {
         let term_config = TermConfig::default();
         let (pty_resp_tx, pty_resp_rx) = std::sync::mpsc::sync_channel::<String>(64);
         let pty_resp_tx = std::sync::Arc::new(std::sync::Mutex::new(pty_resp_tx));
-        let listener = FaelightListener { pty_resp_tx };
+        let needs_render = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let listener = FaelightListener { pty_resp_tx, needs_render: needs_render.clone() };
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
 
         // INT-286: set terminal environment -- TERM=linux causes yazi/tools to fail
@@ -314,7 +328,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, pty_resp_rx, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
+            term, notifier, pty_resp_rx, needs_render, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
         }
     }
 
@@ -704,7 +718,19 @@ impl PointerHandler for AppState {
         for event in events {
             match event.kind {
                 PointerEventKind::Press { button, .. } if button == BTN_LEFT => {
-                    // Start selection
+                    // INT-286: forward click to app if mouse tracking enabled
+                    if let Some(ref mut gpu) = self.gpu {
+                        use alacritty_terminal::term::TermMode;
+                        let mouse_enabled = gpu.term.lock().mode().intersects(
+                            TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
+                        );
+                        if mouse_enabled {
+                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            let seq = format!("\x1b[<0;{};{}M", col, row);
+                            gpu.write_to_pty(seq.as_bytes());
+                        }
+                    }
                     if let Some(ref gpu) = self.gpu {
                         let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
                         let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
@@ -718,6 +744,19 @@ impl PointerHandler for AppState {
                     }
                 }
                 PointerEventKind::Release { button, .. } if button == BTN_LEFT => {
+                    // INT-286: forward release to app if mouse tracking enabled
+                    if let Some(ref mut gpu) = self.gpu {
+                        use alacritty_terminal::term::TermMode;
+                        let mouse_enabled = gpu.term.lock().mode().intersects(
+                            TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
+                        );
+                        if mouse_enabled {
+                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            let seq = format!("\x1b[<0;{};{}m", col, row);
+                            gpu.write_to_pty(seq.as_bytes());
+                        }
+                    }
                     self.selecting = false;
                     // Build selected text from terminal grid
                     if let (Some(start), Some(end)) = (self.selection_start, self.selection_end) {
@@ -778,21 +817,34 @@ impl PointerHandler for AppState {
                     }
                 }
                 PointerEventKind::Axis { horizontal: _, vertical, .. } => {
-                    // Scroll -- scroll the terminal viewport via alacritty_terminal
-                    if let Some(ref mut gpu) = self.gpu {
-                        use alacritty_terminal::grid::Scroll;
-                        let lines = (vertical.absolute.abs() / 3.0).ceil() as usize;
-                        let lines = lines.max(1).min(5);
-                        if vertical.absolute < 0.0 {
-                            // Scroll up -- show history
-                            let mut term = gpu.term.lock();
-                            term.scroll_display(Scroll::Delta(lines as i32));
-                        } else if vertical.absolute > 0.0 {
-                            // Scroll down -- back to bottom
-                            let mut term = gpu.term.lock();
-                            term.scroll_display(Scroll::Delta(-(lines as i32)));
+                    // INT-286: accumulate scroll, fire at threshold to prevent too-fast scroll
+                    self.scroll_accumulator += vertical.absolute;
+                    const SCROLL_THRESHOLD: f64 = 15.0;
+                    while self.scroll_accumulator.abs() >= SCROLL_THRESHOLD {
+                        let direction = if self.scroll_accumulator < 0.0 { -1.0 } else { 1.0 };
+                        self.scroll_accumulator -= SCROLL_THRESHOLD * direction;
+                        if let Some(ref mut gpu) = self.gpu {
+                            use alacritty_terminal::term::TermMode;
+                            use alacritty_terminal::grid::Scroll;
+                            let mouse_enabled = gpu.term.lock().mode().intersects(
+                                TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
+                            );
+                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
+                            if mouse_enabled {
+                                let btn = if direction < 0.0 { 64 } else { 65 };
+                                let seq = format!("\x1b[<{};{};{}M", btn, col, row);
+                                gpu.write_to_pty(seq.as_bytes());
+                            } else {
+                                let mut term = gpu.term.lock();
+                                if direction < 0.0 {
+                                    term.scroll_display(Scroll::Delta(1));
+                                } else {
+                                    term.scroll_display(Scroll::Delta(-1));
+                                }
+                            }
+                            gpu.dirty = true;
                         }
-                        gpu.dirty = true;
                     }
                 }
                 _ => {}
