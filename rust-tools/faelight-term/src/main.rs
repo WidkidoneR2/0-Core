@@ -149,9 +149,18 @@ fn main() {
 }
 
 #[derive(Clone)]
-struct FaelightListener;
+struct FaelightListener {
+    pty_resp_tx: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::SyncSender<String>>>,
+}
 impl EventListener for FaelightListener {
-    fn send_event(&self, _event: TermEvent) {}
+    fn send_event(&self, event: TermEvent) {
+        // INT-286: forward PtyWrite back to PTY -- fixes DA1/DA2, yazi TRT, app queries
+        if let TermEvent::PtyWrite(data) = event {
+            if let Ok(tx) = self.pty_resp_tx.lock() {
+                let _ = tx.try_send(data);
+            }
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -209,6 +218,7 @@ struct GpuState {
     text_buffer: Buffer,
     term: Arc<FairMutex<Term<FaelightListener>>>,
     notifier: Notifier,
+    pty_resp_rx: std::sync::mpsc::Receiver<String>,
     cols: usize,
     rows: usize,
     dirty: bool,
@@ -267,7 +277,9 @@ impl GpuState {
         let rows = rows.max(3);
 
         let term_config = TermConfig::default();
-        let listener = FaelightListener;
+        let (pty_resp_tx, pty_resp_rx) = std::sync::mpsc::sync_channel::<String>(64);
+        let pty_resp_tx = std::sync::Arc::new(std::sync::Mutex::new(pty_resp_tx));
+        let listener = FaelightListener { pty_resp_tx };
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
 
         // INT-286: set terminal environment -- TERM=linux causes yazi/tools to fail
@@ -302,7 +314,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
+            term, notifier, pty_resp_rx, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
         }
     }
 
@@ -502,6 +514,11 @@ impl GpuState {
     }
 
     fn render(&mut self) {
+        // INT-286: drain PTY response buffer (DA1/DA2, kitty queries, etc.)
+        use alacritty_terminal::event_loop::Msg;
+        while let Ok(data) = self.pty_resp_rx.try_recv() {
+            let _ = self.notifier.0.send(Msg::Input(data.into_bytes().into()));
+        }
         let output = match self.surface.get_current_texture() {
             Ok(t) => t,
             Err(_) => return,
