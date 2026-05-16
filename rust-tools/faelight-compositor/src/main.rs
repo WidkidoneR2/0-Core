@@ -15,6 +15,7 @@ mod udev_backend;
 mod winit;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
+use std::time::Duration;
 use state::FaelightCompositor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,7 +57,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     tracing::info!("💡 VT switch: Ctrl+Alt+F1-F7  |  Exit: Ctrl+Alt+Q");
-    event_loop.run(None, &mut state, move |_| {})?;
+    event_loop.run(Some(Duration::from_millis(16)), &mut state, move |_| {
+        // tick at 60fps -- keeps compositor alive for client connections
+    })?;
 
     Ok(())
 }
