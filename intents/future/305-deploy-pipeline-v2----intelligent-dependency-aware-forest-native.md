@@ -108,10 +108,10 @@ Phase 1 -- Cargo tools integration:
 - [x] binary size reported post-build -- baseline recorded
 
 Phase 2 -- Rollback:
-- [ ] deploy rollback <tool> works
-- [ ] deploy rollback <tool> N works (N versions back)
-- [ ] rollback verified with health check
-- [ ] rollback recorded in deploy history
+- [x] deploy rollback <tool> works -- atomic swap, binary verified 2026-05-16
+- [x] deploy rollback <tool> N works -- N versions back supported
+- [x] rollback verified -- binary execution check post-swap
+- [x] rollback recorded in deploy history via core deploy record
 
 Phase 3 -- Smoke tests:
 - [x] fsh-test --category=regression runs after faelight-shell deploy
