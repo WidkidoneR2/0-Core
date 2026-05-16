@@ -1,7 +1,7 @@
 ---
 id: 288
 title: "helix editor evaluation -- daily driver decision"
-status: in-progress
+status: complete
 date: 2026-05-15
 type: evaluation
 tags: [helix, editor, evaluation, daily-driver, faelight-term]
