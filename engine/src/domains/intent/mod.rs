@@ -160,7 +160,7 @@ fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     })
 }
 
-pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool) -> CoreResult<()> {
+pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -182,7 +182,8 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool) -> Co
             if active {
                 return i.status == "in-progress";
             }
-            i.status != "complete" && i.status != "cancelled"
+            if all { return true; }
+            i.status == "planned" || i.status == "in-progress"
         })
         .collect();
 

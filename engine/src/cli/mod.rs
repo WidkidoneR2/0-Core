@@ -188,10 +188,12 @@ pub fn parse() -> Command {
                 planned,
                 active,
                 complete,
+                all,
             } => IntentCommand::List {
                 planned,
                 active,
                 complete,
+                all,
             },
             IntentCommands::Show { id } => IntentCommand::Show { id },
             IntentCommands::Search { term } => IntentCommand::Search { term },

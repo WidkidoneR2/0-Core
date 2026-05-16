@@ -663,6 +663,8 @@ pub enum IntentCommands {
         active: bool,
         #[arg(long)]
         complete: bool,
+        #[arg(long)]
+        all: bool,
     },
     Show {
         id: String,

@@ -311,6 +311,7 @@ pub enum IntentCommand {
         planned: bool,
         active: bool,
         complete: bool,
+        all: bool,
     },
     Show {
         id: String,
