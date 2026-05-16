@@ -183,7 +183,9 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
                 return i.status == "in-progress";
             }
             if all { return true; }
-            i.status == "planned" || i.status == "in-progress"
+            // default: only actionable intents
+            (i.folder == "future" || i.folder == "deferred")
+                && (i.status == "planned" || i.status == "in-progress")
         })
         .collect();
 
