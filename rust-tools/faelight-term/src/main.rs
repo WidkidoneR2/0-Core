@@ -798,6 +798,7 @@ impl PointerHandler for AppState {
                             let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
                             let seq = format!("\x1b[<0;{};{}M", col, row);
                             gpu.write_to_pty(seq.as_bytes());
+                            return; // skip selection when app handles mouse
                         }
                     }
                     if let Some(ref gpu) = self.gpu {
