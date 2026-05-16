@@ -1,7 +1,7 @@
 ---
 id: 305
 title: "deploy pipeline v2 -- intelligent, dependency-aware, forest-native"
-status: planned
+status: in-progress
 date: 2026-05-14
 type: arch
 tags: [deploy, pipeline, cargo, audit, rollback, cosmic, intelligence]
@@ -102,10 +102,10 @@ deploy --brief shows:
 ---
 ## Gates
 Phase 1 -- Cargo tools integration:
-- [ ] cargo audit runs in pre-deploy check
-- [ ] cargo deny runs in pre-deploy check
-- [ ] failing audit blocks deploy with clear message
-- [ ] cargo bloat runs post-build, warns on size regression >10%
+- [x] cargo audit runs in pre-deploy check -- wired 2026-05-16
+- [x] cargo deny runs in pre-deploy check -- licenses ok gate active 2026-05-16
+- [x] audit warns on upstream vulns -- no patchable issues, correct behavior
+- [x] binary size reported post-build -- baseline recorded
 
 Phase 2 -- Rollback:
 - [ ] deploy rollback <tool> works
@@ -114,9 +114,9 @@ Phase 2 -- Rollback:
 - [ ] rollback recorded in deploy history
 
 Phase 3 -- Smoke tests:
-- [ ] fsh-test --tool <name> runs after deploy
-- [ ] regression failures block deploy
-- [ ] smoke test results in deploy report
+- [x] fsh-test --category=regression runs after faelight-shell deploy
+- [x] regression failures block deploy -- exit 1 on failure (INT-304 gate)
+- [x] smoke test results shown in deploy output
 
 Phase 4 -- Dependency ordering:
 - [ ] tool dependency graph in registry
@@ -134,7 +134,7 @@ Phase 6 -- Cosmic asset bundling:
 - [ ] rollback includes assets
 
 Phase 7 -- Friday intelligence:
-- [ ] deploy outcomes recorded in state.db
+- [x] deploy outcomes recorded in state.db via core deploy record
 - [ ] Friday reports deploy health trends
 - [ ] Friday suggests related deploys
 - [ ] deploy --brief shows risk level

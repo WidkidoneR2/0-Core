@@ -2,6 +2,7 @@
 name = "fsh-test"
 version = "1.0.0"
 edition = "2021"
+license = "MIT"
 description = "fsh permanent regression suite -- INT-304"
 
 [dependencies]
