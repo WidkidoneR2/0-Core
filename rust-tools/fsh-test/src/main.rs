@@ -492,6 +492,23 @@ fn main() {
         (passed + failed).to_string().bold()
     );
     store_results(&results);
+    // Phase 3: performance summary
+    if args.contains(&"--perf".to_string()) {
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "  ⏱️  Performance Summary".bold());
+        let mut by_cat: std::collections::HashMap<String, Vec<u64>> = std::collections::HashMap::new();
+        for r in &results {
+            by_cat.entry(r.category.to_string()).or_default().push(r.duration_ms);
+        }
+        let mut cats: Vec<_> = by_cat.iter().collect();
+        cats.sort_by_key(|(k, _)| k.clone());
+        for (cat, times) in &cats {
+            let avg = times.iter().sum::<u64>() / times.len() as u64;
+            let max = times.iter().max().unwrap_or(&0);
+            println!("  [{:>11}] avg: {}ms  max: {}ms  count: {}",
+                cat.dimmed(), avg, max, times.len());
+        }
+    }
     if failed > 0 {
         println!("  {} tests failed", failed.to_string().red().bold());
         std::process::exit(1);
