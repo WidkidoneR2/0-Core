@@ -139,3 +139,4 @@ runtime/state.db-shm
 
 # Versioned binaries from deploy system (e.g. bin/intent@3.0.0-7fea9157)
 bin/*@*
+research/
