@@ -129,9 +129,9 @@ Phase 5 -- Parallel deploy:
 - [x] --parallel flag enables parallel mode — deploy all --parallel
 
 Phase 6 -- Cosmic asset bundling:
-- [ ] assets/ directory detected and bundled
-- [ ] bundle manifest created
-- [ ] rollback includes assets
+- [x] assets/ directory detected and bundled — auto-detected, copied to bin/assets/tool/
+- [x] bundle manifest created — manifest.toml with tool, version written on deploy
+- [x] rollback includes assets — asset dir noted in rollback, manual review flagged
 
 Phase 7 -- Friday intelligence:
 - [x] deploy outcomes recorded in state.db via core deploy record
