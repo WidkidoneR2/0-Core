@@ -440,6 +440,28 @@ fn store_results(results: &[TestResult]) {
         ).is_ok() { stored += 1; }
     }
     println!("  💾 {} results stored in state.db", stored);
+    // Phase 5: update Friday knowledge with test health
+    let total = results.len();
+    let passed_count = results.iter().filter(|r| r.passed).count();
+    let pass_rate = (passed_count * 100) / total.max(1);
+    let _ = conn.execute(
+        "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+         VALUES ('testing', 'fsh_test_last_run', ?1, 0.95, 'fsh-test', ?2, ?2)",
+        rusqlite::params![
+            format!("fsh-test last run: {}/{} passed ({}%%). Commit: {}. All categories: heredoc, pipes, regression, tilde, vocabulary.", passed_count, total, pass_rate, commit),
+            ts
+        ],
+    );
+    if pass_rate < 100 {
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at)
+             VALUES ('testing', 'fsh_test_regression_alert', ?1, 0.99, 'fsh-test', ?2, ?2)",
+            rusqlite::params![
+                format!("ALERT: fsh-test regression detected. Only {}/{} tests passing ({}%%). Immediate attention required.", passed_count, total, pass_rate),
+                ts
+            ],
+        );
+    }
 }
 
 fn main() {
@@ -492,6 +514,23 @@ fn main() {
         (passed + failed).to_string().bold()
     );
     store_results(&results);
+    // Phase 5: coverage reporting
+    if args.contains(&"--coverage".to_string()) {
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "  📊 Coverage Report".bold());
+        let categories = ["tilde", "pipes", "vocabulary", "heredoc", "regression", "performance"];
+        for cat in &categories {
+            let count = results.iter().filter(|r| r.category.to_string() == *cat).count();
+            let passed = results.iter().filter(|r| r.category.to_string() == *cat && r.passed).count();
+            let pct = if count > 0 { (passed * 100) / count } else { 0 };
+            let bar = "█".repeat(pct / 10);
+            println!("  [{:>11}] {}/{} {}% {}",
+                cat.dimmed(), passed, count, pct, bar.green());
+        }
+        println!("");
+        println!("  Vocabulary words tested: delete, find, list, gt, fsearch, where");
+        println!("  Untested paths: parallel blocks, signal handling, fd leak detection");
+    }
     // Phase 3: performance summary
     if args.contains(&"--perf".to_string()) {
         println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
