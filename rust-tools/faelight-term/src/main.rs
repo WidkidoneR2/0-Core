@@ -640,30 +640,62 @@ impl KeyboardHandler for AppState {
             }
             let ctrl = mods.ctrl;
 
-            // Convert keysym to PTY input bytes
+            // INT-286: enhanced key handler — F1-F12, Ctrl/Alt/Shift modifiers
+            let alt  = mods.alt;
             let bytes: Option<Vec<u8>> = match event.keysym {
-                Keysym::Return | Keysym::KP_Enter => Some(b"\r".to_vec()),
+                Keysym::Return | Keysym::KP_Enter => {
+                    if shift { Some(b"\x1b[13;2u".to_vec()) }
+                    else { Some(b"\r".to_vec()) }
+                }
                 Keysym::BackSpace => Some(b"\x7f".to_vec()),
-                Keysym::Tab => Some(b"\t".to_vec()),
+                Keysym::Tab => {
+                    if shift { Some(b"\x1b[Z".to_vec()) }
+                    else { Some(b"\t".to_vec()) }
+                }
                 Keysym::Escape => Some(b"\x1b".to_vec()),
-                Keysym::Up    => Some(b"\x1b[A".to_vec()),
-                Keysym::Down  => Some(b"\x1b[B".to_vec()),
-                Keysym::Right => Some(b"\x1b[C".to_vec()),
-                Keysym::Left  => Some(b"\x1b[D".to_vec()),
-                Keysym::Home  => Some(b"\x1b[H".to_vec()),
-                Keysym::End   => Some(b"\x1b[F".to_vec()),
-                Keysym::Delete => Some(b"\x1b[3~".to_vec()),
+                Keysym::Up    => if ctrl { Some(b"\x1b[1;5A".to_vec()) }
+                                 else if shift { Some(b"\x1b[1;2A".to_vec()) }
+                                 else { Some(b"\x1b[A".to_vec()) },
+                Keysym::Down  => if ctrl { Some(b"\x1b[1;5B".to_vec()) }
+                                 else if shift { Some(b"\x1b[1;2B".to_vec()) }
+                                 else { Some(b"\x1b[B".to_vec()) },
+                Keysym::Right => if ctrl { Some(b"\x1b[1;5C".to_vec()) }
+                                 else if shift { Some(b"\x1b[1;2C".to_vec()) }
+                                 else { Some(b"\x1b[C".to_vec()) },
+                Keysym::Left  => if ctrl { Some(b"\x1b[1;5D".to_vec()) }
+                                 else if shift { Some(b"\x1b[1;2D".to_vec()) }
+                                 else { Some(b"\x1b[D".to_vec()) },
+                Keysym::Home      => Some(b"\x1b[H".to_vec()),
+                Keysym::End       => Some(b"\x1b[F".to_vec()),
+                Keysym::Delete    => Some(b"\x1b[3~".to_vec()),
+                Keysym::Insert    => Some(b"\x1b[2~".to_vec()),
+                Keysym::Page_Up   => Some(b"\x1b[5~".to_vec()),
+                Keysym::Page_Down => Some(b"\x1b[6~".to_vec()),
+                Keysym::F1  => Some(b"\x1bOP".to_vec()),
+                Keysym::F2  => Some(b"\x1bOQ".to_vec()),
+                Keysym::F3  => Some(b"\x1bOR".to_vec()),
+                Keysym::F4  => Some(b"\x1bOS".to_vec()),
+                Keysym::F5  => Some(b"\x1b[15~".to_vec()),
+                Keysym::F6  => Some(b"\x1b[17~".to_vec()),
+                Keysym::F7  => Some(b"\x1b[18~".to_vec()),
+                Keysym::F8  => Some(b"\x1b[19~".to_vec()),
+                Keysym::F9  => Some(b"\x1b[20~".to_vec()),
+                Keysym::F10 => Some(b"\x1b[21~".to_vec()),
+                Keysym::F11 => Some(b"\x1b[23~".to_vec()),
+                Keysym::F12 => Some(b"\x1b[24~".to_vec()),
                 _ => {
                     if let Some(s) = event.utf8 {
                         if ctrl && s.len() == 1 {
                             let ch = s.chars().next().unwrap();
-                            if ch >= 'a' && ch <= 'z' {
-                                Some(vec![ch as u8 - b'a' + 1])
-                            } else if ch == '@' { Some(vec![0]) }
+                            if ch >= 'a' && ch <= 'z' { Some(vec![ch as u8 - b'a' + 1]) }
+                            else if ch >= 'A' && ch <= 'Z' { Some(vec![ch as u8 - b'A' + 1]) }
+                            else if ch == '@' { Some(vec![0]) }
                             else { Some(s.into_bytes()) }
-                        } else {
-                            Some(s.into_bytes())
-                        }
+                        } else if alt && s.len() == 1 {
+                            let mut v = vec![0x1b];
+                            v.extend_from_slice(s.as_bytes());
+                            Some(v)
+                        } else { Some(s.into_bytes()) }
                     } else { None }
                 }
             };
