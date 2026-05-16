@@ -200,7 +200,7 @@ GATES
 [x] Phase 2: directory listing with git status -- modified/untracked indicators
 [x] Phase 3: miller columns navigation -- j/k/h/l/arrows/Enter all working 2026-05-16
 [x] Phase 4: forest integration -- active intent in status bar, Friday knowledge per directory, directory type detection 2026-05-16
-[ ] Phase 5: file operations with safety guard
+[x] Phase 5: file operations -- y yank path, d delete with confirmation dialog, trash-based (recoverable), forest safety guard on 0-core paths 2026-05-16
 [ ] Phase 6: 1 week daily driver, yazi retired
 
 Final:

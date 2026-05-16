@@ -17,6 +17,17 @@ pub enum Message {
     GoUp,
     KeyPressed(Key),
     OpenFile(PathBuf),
+    DeleteSelected,
+    YankPath,
+    ConfirmDelete,
+    CancelDelete,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum DialogState {
+    None,
+    ConfirmDelete(String),
+    Yanked(String),
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +144,8 @@ struct FaelightFm {
     parent_entries: Vec<FileEntry>,
     parent_path: Option<PathBuf>,
     preview: String,
+    dialog: DialogState,
+    status_msg: String,
 }
 
 impl FaelightFm {
@@ -186,7 +199,9 @@ impl Application for FaelightFm {
         let parent_entries = parent_path.as_ref().map(|p| load_dir(p)).unwrap_or_default();
         let preview = load_preview(&entries, Some(0), &path);
         (Self { core, current_path: path, entries, selected: 0,
-                parent_entries, parent_path, preview }, Task::none())
+                parent_entries, parent_path, preview,
+                dialog: DialogState::None,
+                status_msg: String::new() }, Task::none())
     }
 
     fn update(&mut self, msg: Message) -> Task<Message> {
@@ -221,6 +236,8 @@ impl Application for FaelightFm {
                             self.selected = self.entries.len().saturating_sub(1);
                             self.preview = load_preview(&self.entries, Some(self.selected), &self.current_path);
                         }
+                        "d" => { return Task::perform(async { Message::DeleteSelected }, |m| cosmic::Action::App(m)); }
+                        "y" => { return Task::perform(async { Message::YankPath }, |m| cosmic::Action::App(m)); }
                         _ => {}
                     }
                     Key::Named(Named::ArrowDown) => {
@@ -240,6 +257,56 @@ impl Application for FaelightFm {
                 }
             }
             Message::OpenFile(_) => {}
+            Message::YankPath => {
+                if let Some(entry) = self.entries.get(self.selected) {
+                    let path = self.current_path.join(&entry.name);
+                    let path_str = path.to_string_lossy().to_string();
+                    self.dialog = DialogState::Yanked(path_str.clone());
+                    self.status_msg = format!("yanked: {}", path_str);
+                }
+            }
+            Message::DeleteSelected => {
+                if let Some(entry) = self.entries.get(self.selected) {
+                    let path = self.current_path.join(&entry.name);
+                    let is_core = path.to_string_lossy().contains("0-core");
+                    if is_core {
+                        self.dialog = DialogState::ConfirmDelete(
+                            format!("⚠️  FOREST SAFETY: Delete {}? (this is in 0-core)", entry.name)
+                        );
+                    } else {
+                        self.dialog = DialogState::ConfirmDelete(
+                            format!("Delete {}?", entry.name)
+                        );
+                    }
+                }
+            }
+            Message::ConfirmDelete => {
+                if let Some(entry) = self.entries.get(self.selected).cloned() {
+                    let path = self.current_path.join(&entry.name);
+                    // Move to trash instead of hard delete
+                    let trash_dir = PathBuf::from("/home/christian/.local/share/Trash/files");
+                    if let Err(e) = std::fs::create_dir_all(&trash_dir) {
+                        self.status_msg = format!("trash error: {}", e);
+                    } else {
+                        let dest = trash_dir.join(&entry.name);
+                        match std::fs::rename(&path, &dest) {
+                            Ok(_) => {
+                                self.status_msg = format!("🗑️  moved to trash: {}", entry.name);
+                                self.entries = load_dir(&self.current_path);
+                                if self.selected >= self.entries.len() {
+                                    self.selected = self.entries.len().saturating_sub(1);
+                                }
+                            }
+                            Err(e) => self.status_msg = format!("delete error: {}", e),
+                        }
+                    }
+                }
+                self.dialog = DialogState::None;
+            }
+            Message::CancelDelete => {
+                self.dialog = DialogState::None;
+                self.status_msg = "cancelled".to_string();
+            }
         }
         Task::none()
     }
@@ -336,10 +403,45 @@ impl Application for FaelightFm {
         } else {
             format!("▸ {}", &active_intent[..active_intent.len().min(50)])
         };
+        let status_text = if !self.status_msg.is_empty() {
+            format!("  {} ", self.status_msg)
+        } else {
+            format!("  🌲 {}  |  {}  |  j/k l h navigate  y yank  d delete",
+                self.current_path.display(), intent_display)
+        };
         let status = widget::container(
-            widget::text(format!("  🌲 {}  |  {}  |  j/k navigate  l enter  h up",
-                self.current_path.display(), intent_display)).size(11)
+            widget::text(status_text).size(11)
         ).width(Length::Fill).padding(4);
+
+        // Dialog overlay
+        if let DialogState::ConfirmDelete(ref msg) = self.dialog {
+            let dialog = widget::container(
+                widget::column::with_children(vec![
+                    widget::text(msg).size(14).into(),
+                    widget::row::with_children(vec![
+                        widget::button::destructive("Delete")
+                            .on_press(Message::ConfirmDelete).into(),
+                        widget::button::text("Cancel")
+                            .on_press(Message::CancelDelete).into(),
+                    ]).spacing(8).into(),
+                ]).spacing(12).padding(20)
+            )
+            .width(Length::Fixed(500.0));
+
+            return widget::container(
+                widget::column::with_children(vec![
+                    header.into(),
+                    widget::divider::horizontal::default().into(),
+                    columns.into(),
+                    widget::divider::horizontal::default().into(),
+                    status.into(),
+                    dialog.into(),
+                ])
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+        }
 
         widget::container(
             widget::column::with_children(vec![
