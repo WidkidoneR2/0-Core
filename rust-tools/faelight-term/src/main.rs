@@ -232,6 +232,7 @@ struct GpuState {
     notifier: Notifier,
     pty_resp_rx: std::sync::mpsc::Receiver<String>,
     needs_render: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    cell_w: f32,
     cols: usize,
     rows: usize,
     dirty: bool,
@@ -283,8 +284,19 @@ impl GpuState {
         text_buffer.set_size(&mut font_system, Some(width as f32), Some(height as f32));
         text_buffer.set_text(&mut font_system, "starting...", Attrs::new().family(Family::Monospace), Shaping::Advanced);
         text_buffer.shape_until_scroll(&mut font_system, false);
+        // INT-286: measure actual glyph advance width from font metrics
+        let cell_w = {
+            let mut m = Buffer::new(&mut font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+            m.set_size(&mut font_system, None, None);
+            m.set_text(&mut font_system, "M", Attrs::new().family(Family::Monospace), Shaping::Advanced);
+            m.shape_until_scroll(&mut font_system, false);
+            m.layout_runs().next()
+                .and_then(|r| r.glyphs.first())
+                .map(|g| g.w)
+                .unwrap_or(CELL_W)
+        };
 
-        let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
+        let cols = ((width as f32 - PADDING * 2.0) / cell_w) as usize;
         let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
         let cols = cols.max(10);
         let rows = rows.max(3);
@@ -312,7 +324,7 @@ impl GpuState {
         let window_size = alacritty_terminal::event::WindowSize {
             num_cols: cols as u16,
             num_lines: rows as u16,
-            cell_width: CELL_W as u16,
+            cell_width: cell_w as u16,
             cell_height: CELL_H as u16,
         };
 
@@ -328,7 +340,7 @@ impl GpuState {
         Self {
             device, queue, surface, config,
             font_system, swash_cache, text_atlas, text_renderer, text_buffer,
-            term, notifier, pty_resp_rx, needs_render, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
+            term, notifier, pty_resp_rx, needs_render, cell_w, cols, rows, dirty: true, cursor_col: 0, cursor_row: 0,
         }
     }
 
@@ -339,7 +351,7 @@ impl GpuState {
     }
 
     fn resize(&mut self, width: u32, height: u32) {
-        let cols = ((width as f32 - PADDING * 2.0) / CELL_W) as usize;
+        let cols = ((width as f32 - PADDING * 2.0) / self.cell_w) as usize;
         let rows = ((height as f32 - PADDING * 2.0) / CELL_H) as usize;
         let cols = cols.max(10);
         let rows = rows.max(3);
@@ -362,7 +374,7 @@ impl GpuState {
             let window_size = WindowSize {
                 num_cols: cols as u16,
                 num_lines: rows as u16,
-                cell_width: CELL_W as u16,
+                cell_width: self.cell_w as u16,
                 cell_height: CELL_H as u16,
             };
             let _ = self.notifier.0.send(Msg::Resize(window_size));
@@ -725,14 +737,14 @@ impl PointerHandler for AppState {
                             TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
                         );
                         if mouse_enabled {
-                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
                             let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
                             let seq = format!("\x1b[<0;{};{}M", col, row);
                             gpu.write_to_pty(seq.as_bytes());
                         }
                     }
                     if let Some(ref gpu) = self.gpu {
-                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize;
                         let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
@@ -751,7 +763,7 @@ impl PointerHandler for AppState {
                             TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
                         );
                         if mouse_enabled {
-                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
                             let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
                             let seq = format!("\x1b[<0;{};{}m", col, row);
                             gpu.write_to_pty(seq.as_bytes());
@@ -804,7 +816,7 @@ impl PointerHandler for AppState {
                 }
                 PointerEventKind::Motion { .. } if self.selecting => {
                     if let Some(ref gpu) = self.gpu {
-                        let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize;
+                        let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize;
                         let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize;
                         let col = col.min(gpu.cols.saturating_sub(1));
                         let row = row.min(gpu.rows.saturating_sub(1));
@@ -829,7 +841,7 @@ impl PointerHandler for AppState {
                             let mouse_enabled = gpu.term.lock().mode().intersects(
                                 TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_MOTION | TermMode::MOUSE_DRAG
                             );
-                            let col = ((event.position.0 as f32 - PADDING) / CELL_W) as usize + 1;
+                            let col = ((event.position.0 as f32 - PADDING) / gpu.cell_w) as usize + 1;
                             let row = ((event.position.1 as f32 - PADDING) / CELL_H) as usize + 1;
                             if mouse_enabled {
                                 let btn = if direction < 0.0 { 64 } else { 65 };
