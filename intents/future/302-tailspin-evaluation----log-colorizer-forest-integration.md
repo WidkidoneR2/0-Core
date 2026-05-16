@@ -1,7 +1,7 @@
 ---
 id: 302
 title: "tailspin evaluation -- log colorizer forest integration"
-status: planned
+status: complete
 date: 2026-05-14
 type: eval
 tags: [tailspin, logs, colorizer, fsh, vocabulary, tools]

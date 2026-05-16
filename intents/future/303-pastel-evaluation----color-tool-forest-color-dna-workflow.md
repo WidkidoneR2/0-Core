@@ -1,7 +1,7 @@
 ---
 id: 303
 title: "pastel evaluation -- color tool for forest color DNA workflow"
-status: planned
+status: complete
 date: 2026-05-14
 type: eval
 tags: [pastel, color, palette, design, tools, color-dna]
