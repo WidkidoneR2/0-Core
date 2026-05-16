@@ -72,13 +72,47 @@ fn load_dir(path: &PathBuf) -> Vec<FileEntry> {
     entries
 }
 
+fn get_intent_context(path: &PathBuf) -> String {
+    // Check if this directory has associated intents
+    let path_str = path.to_string_lossy();
+    let db = "/home/christian/0-core/runtime/state.db";
+    let output = std::process::Command::new("sqlite3")
+        .args([db,
+            &format!("SELECT COUNT(*) FROM friday_knowledge WHERE fact LIKE '%{}%' LIMIT 1",
+                path.file_name().unwrap_or_default().to_string_lossy())])
+        .output();
+    let friday_hits = output.ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default()
+        .trim()
+        .parse::<i32>()
+        .unwrap_or(0);
+
+    let mut context = String::new();
+    if path_str.contains("intents") {
+        context.push_str("📋 Intent directory\n");
+    }
+    if path_str.contains("rust-tools") {
+        context.push_str("🦀 Rust tool source\n");
+    }
+    if path_str.contains("engine") {
+        context.push_str("⚙️  Core engine\n");
+    }
+    if friday_hits > 0 {
+        context.push_str(&format!("🌲 Friday: {} knowledge entries\n", friday_hits));
+    }
+    context
+}
+
 fn load_preview(entries: &[FileEntry], selected: Option<usize>, path: &PathBuf) -> String {
     if let Some(idx) = selected {
         if let Some(entry) = entries.get(idx) {
             let full = path.join(&entry.name);
             if entry.is_dir {
                 let count = fs::read_dir(&full).map(|d| d.count()).unwrap_or(0);
-                return format!("📁 Directory\n{} items\n\nPath:\n{}", count, full.display());
+                let ctx = get_intent_context(&full);
+                return format!("📁 Directory\n{} items\n\nPath:\n{}\n\n{}",
+                    count, full.display(), ctx);
             } else {
                 if let Ok(content) = fs::read_to_string(&full) {
                     let lines: Vec<&str> = content.lines().take(40).collect();
@@ -288,9 +322,23 @@ impl Application for FaelightFm {
         let selected_name = self.entries.get(self.selected)
             .map(|e| e.name.clone())
             .unwrap_or_default();
+        // Get active intent from state.db
+        let active_intent = std::process::Command::new("sqlite3")
+            .args(["/home/christian/0-core/runtime/state.db",
+                "SELECT title FROM intents WHERE status='in-progress' LIMIT 1"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .unwrap_or_default();
+        let active_intent = active_intent.trim();
+        let intent_display = if active_intent.is_empty() {
+            "No active intent".to_string()
+        } else {
+            format!("▸ {}", &active_intent[..active_intent.len().min(50)])
+        };
         let status = widget::container(
-            widget::text(format!("  🌲 {} / {}  |  INT-287 in progress  |  Health 100%",
-                self.current_path.display(), selected_name)).size(11)
+            widget::text(format!("  🌲 {}  |  {}  |  j/k navigate  l enter  h up",
+                self.current_path.display(), intent_display)).size(11)
         ).width(Length::Fill).padding(4);
 
         widget::container(

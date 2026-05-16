@@ -199,7 +199,7 @@ GATES
 [x] Phase 1: libcosmic window renders on Wayland -- 2026-05-16
 [x] Phase 2: directory listing with git status -- modified/untracked indicators
 [x] Phase 3: miller columns navigation -- j/k/h/l/arrows/Enter all working 2026-05-16
-[ ] Phase 4: forest integration -- intent context, Friday signals
+[x] Phase 4: forest integration -- active intent in status bar, Friday knowledge per directory, directory type detection 2026-05-16
 [ ] Phase 5: file operations with safety guard
 [ ] Phase 6: 1 week daily driver, yazi retired
 
