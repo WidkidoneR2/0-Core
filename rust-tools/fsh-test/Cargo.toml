@@ -1,0 +1,9 @@
+[package]
+name = "fsh-test"
+version = "1.0.0"
+edition = "2021"
+description = "fsh permanent regression suite -- INT-304"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
+colored = "2"
