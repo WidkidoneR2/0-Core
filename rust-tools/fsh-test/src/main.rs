@@ -383,6 +383,36 @@ fn all_tests() -> Vec<TestResult> {
     results
 }
 
+fn store_results(results: &[TestResult]) {
+    let db_path = "/home/christian/0-core/runtime/state.db";
+    let Ok(conn) = rusqlite::Connection::open(db_path) else {
+        eprintln!("  ⚠️  could not open state.db -- results not stored");
+        return;
+    };
+    let commit = std::process::Command::new("git")
+        .args(["-C", "/home/christian/0-core", "rev-parse", "--short", "HEAD"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let fsh_version = std::process::Command::new("/home/christian/0-core/scripts/faelight-shell")
+        .arg("--version")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let mut stored = 0;
+    for r in results {
+        if conn.execute(
+            "INSERT INTO fsh_test_results (test_name, category, passed, duration_ms, commit_hash, timestamp, fsh_version) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            rusqlite::params![r.name, r.category.to_string(), r.passed as i32, r.duration_ms as i64, commit, ts, fsh_version],
+        ).is_ok() { stored += 1; }
+    }
+    println!("  💾 {} results stored in state.db", stored);
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let show_only_failed = args.contains(&"--failed".to_string());
@@ -432,6 +462,7 @@ fn main() {
         passed.to_string().green().bold(),
         (passed + failed).to_string().bold()
     );
+    store_results(&results);
     if failed > 0 {
         println!("  {} tests failed", failed.to_string().red().bold());
         std::process::exit(1);

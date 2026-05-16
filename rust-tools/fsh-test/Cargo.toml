@@ -7,3 +7,4 @@ description = "fsh permanent regression suite -- INT-304"
 [dependencies]
 rusqlite = { version = "0.31", features = ["bundled"] }
 colored = "2"
+chrono = "0.4"
