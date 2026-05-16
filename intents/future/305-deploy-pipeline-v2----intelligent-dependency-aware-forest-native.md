@@ -124,9 +124,9 @@ Phase 4 -- Dependency ordering:
 - [x] deploy --all builds in topological order — topo-order command in registry_tools.py
 
 Phase 5 -- Parallel deploy:
-- [ ] independent tools build in parallel
-- [ ] dependency graph determines safe parallelism
-- [ ] --parallel flag enables parallel mode
+- [x] independent tools build in parallel — background jobs with pid tracking
+- [x] dependency graph determines safe parallelism — topo-order + core deploys sequentially
+- [x] --parallel flag enables parallel mode — deploy all --parallel
 
 Phase 6 -- Cosmic asset bundling:
 - [ ] assets/ directory detected and bundled
