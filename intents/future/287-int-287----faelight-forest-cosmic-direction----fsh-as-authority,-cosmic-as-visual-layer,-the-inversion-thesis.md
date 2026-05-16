@@ -96,8 +96,8 @@ Phase 1 -- cosmic-comp architecture:
 [x] IPC boundary design documented -- zbus + calloop::channel bridge pattern confirmed
 
 Phase 2 -- libcosmic + iced:
-[ ] small proof of concept UI using libcosmic
-[ ] one faelight tool prototyped with libcosmic (INT-293 faelight-fm)
+[x] small proof of concept UI using libcosmic -- faelight-fm-v2 spike window renders on Wayland 2026-05-16
+[~] faelight-fm-v2 spike proven -- full implementation is INT-293
 
 Phase 4 -- selective integration:
 [ ] faelight-fm v2 using libcosmic (INT-293)
