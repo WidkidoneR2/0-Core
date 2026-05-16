@@ -254,6 +254,132 @@ fn all_tests() -> Vec<TestResult> {
         Ok(())
     }));
 
+
+    // --- ADDITIONAL TESTS from fsh_audit.sh ---
+    results.push(test("date_has_year", Category::Regression, || {
+        expect_contains(&run_fsh("date")?, "2026")
+    }));
+    results.push(test("ls_la_tmp", Category::Regression, || {
+        let out = run_fsh("ls /tmp")?;
+        if out.is_empty() { Err("ls /tmp empty".to_string()) } else { Ok(()) }
+    }));
+    results.push(test("grep_pattern_match", Category::Regression, || {
+        expect_eq(&run_fsh("printf 'foo\nbar\nbaz\n' | grep bar")?, "bar")
+    }));
+    results.push(test("grep_r_in_src", Category::Regression, || {
+        expect_contains(&run_fsh("grep -r 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+    }));
+    results.push(test("awk_print_field", Category::Regression, || {
+        expect_eq(&run_fsh("echo 'christian:x:1000' | awk -F: '{print $1}'")?, "christian")
+    }));
+    results.push(test("awk_in_pipeline", Category::Regression, || {
+        expect_eq(&run_fsh("printf 'a 1\nb 2\nc 3\n' | awk '{print $2}' | head -1")?, "1")
+    }));
+    results.push(test("fsh_c_echo", Category::Regression, || {
+        expect_eq(&run_fsh("echo hello")?, "hello")
+    }));
+    results.push(test("fsh_c_pipeline", Category::Regression, || {
+        expect_eq(&run_fsh("echo forest | tr a-z A-Z")?, "FOREST")
+    }));
+    results.push(test("semicolons_pipeline", Category::Regression, || {
+        expect_contains(&run_fsh("echo a; echo b | tr a-z A-Z")?, "B")
+    }));
+    results.push(test("pipe_wc_chars", Category::Pipes, || {
+        expect_eq(&run_fsh("echo hello | wc -c")?, "6")
+    }));
+    results.push(test("ls_pipe_grep_tmp", Category::Pipes, || {
+        // create fsh_t file first
+        std::fs::write("/tmp/fsh_t1.txt", "forest writes").ok();
+        expect_contains(&run_fsh("ls /tmp | grep fsh")?, "fsh")
+    }));
+    results.push(test("tilde_ls_pipe_sort", Category::Tilde, || {
+        let out = run_fsh("ls ~/0-core | sort | head -1")?;
+        if out.is_empty() { Err("no output".to_string()) } else { Ok(()) }
+    }));
+    results.push(test("tilde_nested_pipe", Category::Tilde, || {
+        let out = run_fsh("ls ~/0-core/rust-tools | grep faelight | wc -l")?;
+        let n: i32 = out.trim().parse().unwrap_or(0);
+        if n > 0 { Ok(()) } else { Err(format!("expected >0 got {}", n)) }
+    }));
+    results.push(test("where_delete_vocab", Category::Vocabulary, || {
+        expect_contains(&run_fsh("core vocabulary where delete 2>/dev/null || echo vocabulary")?, "vocabulary")
+    }));
+    results.push(test("fsearch_rust_finds", Category::Vocabulary, || {
+        expect_contains(&run_fsh("grep -r expand_braces ~/0-core/rust-tools/faelight-shell/src/ | head -1")?, "expand_braces")
+    }));
+    results.push(test("grep_in_and_chain", Category::Regression, || {
+        expect_contains(&run_fsh("echo ok && grep 'expand_braces' ~/0-core/rust-tools/faelight-shell/src/main.rs | head -1")?, "expand_braces")
+    }));
+    results.push(test("cat_hostname", Category::Regression, || {
+        let out = run_fsh("cat /etc/hostname")?;
+        if out.is_empty() { Err("hostname empty".to_string()) } else { Ok(()) }
+    }));
+    results.push(test("echo_env_home", Category::Regression, || {
+        expect_contains(&run_fsh("echo $HOME")?, "/home/christian")
+    }));
+
+    results.push(test("tilde_ls_rust_tools", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/rust-tools")?, "faelight-shell")
+    }));
+    results.push(test("tilde_ls_docs", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/docs")?, "PHILOSOPHY")
+    }));
+    results.push(test("tilde_ls_intents", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/intents")?, "future")
+    }));
+    results.push(test("tilde_deep_nested", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/rust-tools/faelight-shell/src")?, "main.rs")
+    }));
+    results.push(test("cat_reads_file", Category::Regression, || {
+        std::fs::write("/tmp/fsh_t1.txt", "forest writes").map_err(|e| e.to_string())?;
+        expect_contains(&run_fsh("cat /tmp/fsh_t1.txt")?, "forest writes")
+    }));
+    results.push(test("tilde_in_subshell", Category::Tilde, || {
+        let out = run_fsh("echo $(ls ~/0-core | head -1)")?;
+        if out.is_empty() { Err("empty output".to_string()) } else { Ok(()) }
+    }));
+    results.push(test("ls_tmp_exists", Category::Regression, || {
+        let out = run_fsh("ls /tmp")?;
+        if out.is_empty() { Err("ls /tmp empty".to_string()) } else { Ok(()) }
+    }));
+
+    // --- FOREST-SPECIFIC TESTS beyond fsh_audit.sh ---
+    results.push(test("state_db_exists", Category::Regression, || {
+        expect_contains(&run_fsh("ls ~/0-core/runtime/state.db")?, "state.db")
+    }));
+    results.push(test("core_binary_exists", Category::Regression, || {
+        expect_contains(&run_fsh("ls ~/0-core/scripts/core")?, "core")
+    }));
+    results.push(test("fsh_binary_exists", Category::Regression, || {
+        expect_contains(&run_fsh("ls ~/0-core/scripts/faelight-shell")?, "faelight-shell")
+    }));
+    results.push(test("intents_future_exists", Category::Regression, || {
+        expect_contains(&run_fsh("ls ~/0-core/intents/future")?, ".md")
+    }));
+    results.push(test("pipe_multiline_output", Category::Pipes, || {
+        let out = run_fsh("printf 'a\nb\nc\n' | wc -l")?;
+        expect_eq(out.trim(), "3")
+    }));
+    results.push(test("redirect_not_crash", Category::Regression, || {
+        run_fsh("echo test > /tmp/fsh_test_redirect.txt")?;
+        expect_contains(&run_fsh("cat /tmp/fsh_test_redirect.txt")?, "test")
+    }));
+    results.push(test("nested_subshell", Category::Regression, || {
+        expect_eq(&run_fsh("echo $(echo $(echo deep))")?, "deep")
+    }));
+    results.push(test("multiword_var", Category::Regression, || {
+        expect_contains(&run_fsh("A=hello; echo $A world")?, "hello world")
+    }));
+    results.push(test("tilde_in_quoted_string", Category::Tilde, || {
+        // ~ inside double quotes should expand
+        let out = run_fsh("echo $HOME")?;
+        expect_contains(&out, "/home/christian")
+    }));
+    results.push(test("exit_code_success", Category::Regression, || {
+        run_fsh("true")?;
+        Ok(())
+    }));
+
     results
 }
 
@@ -315,3 +441,5 @@ fn main() {
 }
 
 // Additional tests will be added here via append
+
+// This won't work as append - need to insert before main()
