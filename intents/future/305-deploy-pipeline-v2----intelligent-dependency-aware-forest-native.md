@@ -140,10 +140,10 @@ Phase 7 -- Friday intelligence:
 - [x] deploy --brief shows risk level — LOW/MEDIUM/HIGH based on 7-day failure history
 
 Final:
-- [ ] deploy pipeline is fully automated and intelligent
-- [ ] no manual steps required for any tool
-- [ ] rollback is always available and tested
-- [ ] Friday understands the deploy history
+- [x] deploy pipeline is fully automated and intelligent — audit, deny, tests, deps, parallel, assets, brief all active
+- [x] no manual steps required — deploy <tool> handles full pipeline automatically
+- [x] rollback always available — deploy rollback <tool> [N] tested 2026-05-16
+- [x] Friday understands deploy history — deploy_patterns + friday_knowledge + deploy brief
 
 ---
 "A deploy that does not know the forest
