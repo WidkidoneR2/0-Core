@@ -1,7 +1,7 @@
 ---
 id: 304
 title: "fsh test infrastructure v1 -- permanent regression suite, Friday-aware"
-status: in-progress
+status: complete
 date: 2026-05-14
 type: arch
 tags: [fsh, testing, regression, friday, deploy, infrastructure]
