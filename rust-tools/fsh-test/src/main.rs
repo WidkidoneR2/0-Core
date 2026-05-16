@@ -142,6 +142,97 @@ fn all_tests() -> Vec<TestResult> {
         expect_eq(&out, "line1\nline2")
     }));
 
+    // --- BASIC ECHO/PWD/SYSTEM ---
+    results.push(test("echo_simple", Category::Regression, || {
+        expect_eq(&run_fsh("echo hello world")?, "hello world")
+    }));
+    results.push(test("echo_number", Category::Regression, || {
+        expect_eq(&run_fsh("echo 42")?, "42")
+    }));
+    results.push(test("echo_quoted", Category::Regression, || {
+        expect_eq(&run_fsh("echo 'forest grows'")?, "forest grows")
+    }));
+    results.push(test("pwd_returns_path", Category::Regression, || {
+        expect_contains(&run_fsh("pwd")?, "/home/christian")
+    }));
+    results.push(test("uname_linux", Category::Regression, || {
+        expect_contains(&run_fsh("uname")?, "Linux")
+    }));
+    results.push(test("whoami", Category::Regression, || {
+        expect_eq(&run_fsh("whoami")?, "christian")
+    }));
+    results.push(test("which_bash", Category::Regression, || {
+        expect_contains(&run_fsh("which bash")?, "bash")
+    }));
+
+    // --- VARIABLES ---
+    results.push(test("assign_and_echo", Category::Regression, || {
+        expect_eq(&run_fsh("X=hello; echo $X")?, "hello")
+    }));
+    results.push(test("assign_with_spaces", Category::Regression, || {
+        expect_eq(&run_fsh("MSG=world; echo $MSG")?, "world")
+    }));
+    results.push(test("home_variable", Category::Regression, || {
+        expect_contains(&run_fsh("echo $HOME")?, "/home/christian")
+    }));
+    results.push(test("assign_number", Category::Regression, || {
+        expect_eq(&run_fsh("N=42; echo $N")?, "42")
+    }));
+    results.push(test("path_not_empty", Category::Regression, || {
+        expect_contains(&run_fsh("echo $PATH")?, "/usr")
+    }));
+
+    // --- SEMICOLON / OPERATORS ---
+    results.push(test("semicolon_two_cmds", Category::Regression, || {
+        expect_contains(&run_fsh("echo first; echo second")?, "second")
+    }));
+    results.push(test("and_operator", Category::Regression, || {
+        expect_contains(&run_fsh("echo a && echo b")?, "b")
+    }));
+    results.push(test("subshell_expansion", Category::Regression, || {
+        expect_eq(&run_fsh("echo $(echo nested)")?, "nested")
+    }));
+
+    // --- TILDE ---
+    results.push(test("tilde_echo_subpath", Category::Tilde, || {
+        expect_contains(&run_fsh("echo ~/0-core")?, "/home/christian/0-core")
+    }));
+    results.push(test("tilde_ls_root", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core")?, "rust-tools")
+    }));
+    results.push(test("tilde_ls_scripts", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/scripts")?, "deploy")
+    }));
+    results.push(test("tilde_ls_runtime", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core/runtime")?, "state.db")
+    }));
+    results.push(test("tilde_cat_cargo", Category::Tilde, || {
+        expect_contains(&run_fsh("cat ~/0-core/rust-tools/faelight-shell/Cargo.toml")?, "faelight-shell")
+    }));
+    results.push(test("tilde_pipe_grep", Category::Tilde, || {
+        expect_contains(&run_fsh("ls ~/0-core | grep engine")?, "engine")
+    }));
+    results.push(test("tilde_cat_pipe_grep", Category::Tilde, || {
+        expect_contains(&run_fsh("cat ~/0-core/rust-tools/faelight-shell/Cargo.toml | grep name")?, "name")
+    }));
+
+    // --- PIPES (additional) ---
+    results.push(test("pipe_wc_words", Category::Pipes, || {
+        expect_eq(&run_fsh("echo hello world | wc -w")?, "2")
+    }));
+    results.push(test("pipe_tr_upper", Category::Pipes, || {
+        expect_eq(&run_fsh("echo hello | tr a-z A-Z")?, "HELLO")
+    }));
+    results.push(test("pipe_grep_match", Category::Pipes, || {
+        expect_eq(&run_fsh("echo forest | grep forest")?, "forest")
+    }));
+    results.push(test("pipe_twice", Category::Pipes, || {
+        expect_eq(&run_fsh("echo hello | tr a-z A-Z | tr A-Z a-z")?, "hello")
+    }));
+    results.push(test("pipe_ls_grep", Category::Pipes, || {
+        expect_contains(&run_fsh("ls ~/0-core | grep rust")?, "rust-tools")
+    }));
+
     // --- REGRESSION ---
     results.push(test("regression_sigpipe_no_crash", Category::Regression, || {
         // Pipe to head should not crash with SIGPIPE
@@ -222,3 +313,5 @@ fn main() {
         println!("  {}", "✅ All tests passed".green().bold());
     }
 }
+
+// Additional tests will be added here via append
