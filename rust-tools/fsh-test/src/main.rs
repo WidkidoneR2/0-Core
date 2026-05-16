@@ -380,6 +380,35 @@ fn all_tests() -> Vec<TestResult> {
         Ok(())
     }));
 
+    // --- PHASE 2: INT-298/299 specific regression tests ---
+    results.push(test("regression_fsh_c_inside_fsh", Category::Regression, || {
+        // INT-299: fsh -c works inside fsh
+        expect_eq(&run_fsh("echo hello")?, "hello")
+    }));
+    results.push(test("regression_sigpipe_head", Category::Regression, || {
+        // INT-299: SIGPIPE does not crash on pipe to head
+        let out = run_fsh("seq 1 100 | head -3")?;
+        expect_eq(&out, "1\n2\n3")
+    }));
+    results.push(test("regression_awk_passthrough", Category::Regression, || {
+        // INT-299: awk passes through correctly
+        expect_eq(&run_fsh("echo 'a b c' | awk '{print $2}'")?, "b")
+    }));
+    results.push(test("regression_grep_passthrough", Category::Regression, || {
+        // INT-299: grep passes through correctly
+        expect_eq(&run_fsh("printf 'foo\nbar\n' | grep foo")?, "foo")
+    }));
+    results.push(test("regression_pipe_quote_aware", Category::Regression, || {
+        // INT-299: pipe detection with quote awareness
+        expect_eq(&run_fsh("echo 'a|b' | cat")?, "a|b")
+    }));
+    results.push(test("regression_heredoc_single_quote", Category::Heredoc, || {
+        // INT-299: heredoc with single-quoted delimiter
+        let out = run_fsh("cat << 'MARKER'\nhello $USER\nMARKER")?;
+        // single-quoted heredoc should NOT expand $USER
+        expect_eq(&out, "hello $USER")
+    }));
+
     results
 }
 
