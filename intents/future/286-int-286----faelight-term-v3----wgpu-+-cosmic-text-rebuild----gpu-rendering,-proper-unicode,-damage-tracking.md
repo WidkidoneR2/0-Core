@@ -132,15 +132,15 @@ Phase 4:
 Phase 5:
 [x] fsh is default shell in v3 -- uses $SHELL env var, fsh spawns correctly
 [x] Forest signals emit correctly -- ANSI color pipeline active, per-cell colors via glyphon spans
-[ ] Friday voice appears in terminal
+[~] Friday voice — deferred to Friday integration phase
 Phase 6:
-[ ] No mouse drag flashing (INT-284 Bug 3 fixed)
-[ ] Fractional scaling correct on Niri
-[ ] 1 week daily driver without foot fallback
+[x] Mouse tracking — click/scroll forwarded, helix mouse disabled 2026-05-15
+[~] Fractional scaling — deferred Phase 8
+[~] Daily driver validation ongoing — helix + yazi working 2026-05-15
 Final:
-[ ] INT-284 all three bugs resolved by architecture not patches
-[ ] faelight-term v3 replaces v2 completely
-[ ] foot is no longer needed
+[~] INT-284 partially resolved — mouse working, drag flash deferred
+[x] v3 canonical — dead v2 archived 2026-05-13
+[~] foot kept as safety net during daily driver validation
 "The terminal is the forest mouth.
 It should speak clearly.
 It should render truthfully.
