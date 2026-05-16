@@ -60,18 +60,18 @@ FROM cosmic-term:
   [x] damage tracking -- DONE (dirty flag + 60fps loop)
 
 FROM cosmic-comp:
-  [ ] smithay state ownership patterns -- study planned
-  [ ] workspace management ideas -- future
-  [ ] IPC boundary design -- INT-294 (zbus event bus)
+  [x] smithay state ownership patterns -- studied 2026-05-16, documented in docs/cosmic-comp-patterns.md
+  [x] workspace management ideas -- TilingLayout + FloatingLayout patterns documented
+  [x] IPC boundary design -- zbus + calloop::channel bridge confirmed, INT-294 ready to build
 
 FROM libcosmic:
-  [ ] component patterns for forest-native UIs -- future
-  [ ] iced-based dashboard architecture -- future
-  [ ] faelight-fm v2 (INT-293) -- libcosmic file manager
+  [x] component patterns -- cosmic::Application trait documented, faelight-fm-v2 spike proves it
+  [x] iced-based dashboard -- cosmic-files app.rs studied, segmented_button tab model documented
+  [~] faelight-fm v2 -- spike proven, full build is INT-293 (next)
 
 FROM COSMIC workspace UX:
-  [ ] intentional context grouping -- future
-  [ ] task-state visualization -- future
+  [x] intentional context grouping -- workspace.rs patterns documented
+  [~] task-state visualization -- ToplevelInfoState pattern documented, implementation is INT-294
 
 ---
 ZBUS INTEGRATION
@@ -105,9 +105,9 @@ Phase 4 -- selective integration:
 [ ] Pop_OS rep demo -- working COSMIC-stack forest tools
 
 Final:
-[ ] Forest direction document updated to reflect COSMIC borrowing
-[ ] The inversion demonstrated: shell defines state, visual reflects it
-[ ] The forest shows what shell-first Rust desktop architecture looks like
+[x] Forest direction document updated -- docs/cosmic-comp-patterns.md + docs/cosmic-files-patterns.md
+[~] Inversion partially demonstrated -- faelight-term v3 proves it, faelight-fm v2 will complete it
+[~] Shell-first architecture proven in term v3, FM v2 and compositor v2 will complete the picture
 
 ---
 CONTEXT
