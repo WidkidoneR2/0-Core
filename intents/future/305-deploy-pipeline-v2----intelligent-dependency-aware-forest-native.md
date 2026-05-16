@@ -1,7 +1,7 @@
 ---
 id: 305
 title: "deploy pipeline v2 -- intelligent, dependency-aware, forest-native"
-status: planned
+status: in-progress
 date: 2026-05-14
 type: arch
 tags: [deploy, pipeline, cargo, audit, rollback, cosmic, intelligence]
