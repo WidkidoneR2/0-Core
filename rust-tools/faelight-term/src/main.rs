@@ -166,6 +166,31 @@ impl EventListener for FaelightListener {
                     let _ = tx.try_send(data);
                 }
             }
+            // INT-286: OSC 52 -- app writes to Wayland clipboard
+            TermEvent::ClipboardStore(_clipboard_type, text) => {
+                let opts = CopyOptions::new();
+                let _ = opts.copy(
+                    CopySource::Bytes(text.into_bytes().into()),
+                    CopyMimeType::Autodetect,
+                );
+            }
+            // INT-286: OSC 52 -- app reads from Wayland clipboard
+            TermEvent::ClipboardLoad(_clipboard_type, callback) => {
+                use std::io::Read;
+                if let Ok((mut reader, _)) = get_contents(
+                    wl_clipboard_rs::paste::ClipboardType::Regular,
+                    Seat::Unspecified,
+                    MimeType::TextWithPriority("text/plain;charset=utf-8"),
+                ) {
+                    let mut text = String::new();
+                    if reader.read_to_string(&mut text).is_ok() {
+                        let response = callback(&text);
+                        if let Ok(tx) = self.pty_resp_tx.lock() {
+                            let _ = tx.try_send(response);
+                        }
+                    }
+                }
+            }
             TermEvent::Wakeup => {
                 self.needs_render.store(true, std::sync::atomic::Ordering::Relaxed);
             }

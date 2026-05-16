@@ -34,7 +34,7 @@ wayland-client = "0.31"
 wayland-backend = { version = "0.3", features = ["client_system"] }
 
 # Clipboard
-wl-clipboard-rs = "0.9"
+wl-clipboard-rs = "0.8"
 
 # Logging
 log = "0.4"
