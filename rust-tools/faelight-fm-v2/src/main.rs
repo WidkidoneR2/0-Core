@@ -320,7 +320,7 @@ impl Application for FaelightFm {
         })
     }
 
-    fn view(&self) -> Element<Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let dir_name = self.current_path.file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or("/".to_string());
@@ -386,7 +386,7 @@ impl Application for FaelightFm {
         ]);
 
         // Status bar
-        let selected_name = self.entries.get(self.selected)
+        let _selected_name = self.entries.get(self.selected)
             .map(|e| e.name.clone())
             .unwrap_or_default();
         // Get active intent from state.db

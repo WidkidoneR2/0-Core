@@ -139,7 +139,7 @@ binds {
     Mod+Alt+Return  { spawn "foot"; }
     Mod+b           { spawn "brave"; }
     Mod+Alt+b       { spawn "/home/christian/0-core/scripts/faelight-browser"; }
-    Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; }
+    Mod+e           { spawn "/home/christian/0-core/scripts/faelight-fm"; } // faelight-fm v2 (libcosmic)
     Mod+n           { spawn "foot" "-e" "nvim"; }
     Mod+Shift+y     { spawn "foot" "-e" "yazi"; }
     Mod+Shift+t     { spawn "foot" "-e" "btop"; }

@@ -201,7 +201,7 @@ GATES
 [x] Phase 3: miller columns navigation -- j/k/h/l/arrows/Enter all working 2026-05-16
 [x] Phase 4: forest integration -- active intent in status bar, Friday knowledge per directory, directory type detection 2026-05-16
 [x] Phase 5: file operations -- y yank path, d delete with confirmation dialog, trash-based (recoverable), forest safety guard on 0-core paths 2026-05-16
-[ ] Phase 6: 1 week daily driver, yazi retired
+[~] Phase 6: deployed to scripts/faelight-fm, Super+E opens it -- 1 week daily use period starts 2026-05-16
 
 Final:
 [ ] faelight-fm v2 is the forest file manager
