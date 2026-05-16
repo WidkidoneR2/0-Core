@@ -3,7 +3,7 @@ id: 138
 date: 2026-03-18
 type: future
 title: "faelight-compositor v2 — EGL/OpenGL First Real Frame"
-status: planned
+status: complete
 tags: [compositor, egl, opengl, rendering, smithay, drm, v12]
 version: 12.0.0
 priority: high
