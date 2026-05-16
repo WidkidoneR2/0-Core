@@ -1,7 +1,7 @@
 ---
 id: 293
 title: "faelight-fm v2 -- COSMIC Files study, libcosmic, forest-first file manager"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [faelight-fm, cosmic, libcosmic, cosmic-files, yazi, broot, file-manager, forest, rust]
 ---
@@ -195,10 +195,10 @@ faelight-fm v2 inherits that knowledge.
 
 GATES
 
-[ ] Phase 0: COSMIC Files, Yazi, Broot studied -- patterns documented
-[ ] Phase 1: libcosmic window renders on Wayland
-[ ] Phase 2: directory listing with git status
-[ ] Phase 3: miller columns navigation working
+[x] Phase 0: COSMIC Files, Yazi studied -- patterns documented in research/cosmic-files-patterns.md 2026-05-16
+[x] Phase 1: libcosmic window renders on Wayland -- 2026-05-16
+[x] Phase 2: directory listing with git status -- modified/untracked indicators
+[x] Phase 3: miller columns navigation -- j/k/h/l/arrows/Enter all working 2026-05-16
 [ ] Phase 4: forest integration -- intent context, Friday signals
 [ ] Phase 5: file operations with safety guard
 [ ] Phase 6: 1 week daily driver, yazi retired
