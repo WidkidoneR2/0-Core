@@ -180,7 +180,7 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool) -> Co
                 return i.status == "planned";
             }
             if active {
-                return i.status == "planned" || i.status == "in-progress";
+                return i.status == "in-progress";
             }
             i.status != "complete" && i.status != "cancelled"
         })
