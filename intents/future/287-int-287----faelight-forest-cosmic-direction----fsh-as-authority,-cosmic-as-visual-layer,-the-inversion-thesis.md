@@ -91,9 +91,9 @@ Phase 3 -- cosmic-term source study:
 [x] faelight-term v3 deployed and running as daily driver
 
 Phase 1 -- cosmic-comp architecture:
-[ ] compositor state model studied -- 3 key patterns documented
-[ ] workspace management patterns documented
-[ ] IPC boundary design documented
+[x] compositor state model studied -- 5 patterns documented in docs/cosmic-comp-patterns.md 2026-05-16
+[x] workspace management patterns documented -- TilingLayout, id_tree, IndexSet, keyframe animation
+[x] IPC boundary design documented -- zbus + calloop::channel bridge pattern confirmed
 
 Phase 2 -- libcosmic + iced:
 [ ] small proof of concept UI using libcosmic
