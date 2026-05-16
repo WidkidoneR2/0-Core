@@ -119,9 +119,9 @@ Phase 3 -- Smoke tests:
 - [x] smoke test results shown in deploy output
 
 Phase 4 -- Dependency ordering:
-- [ ] tool dependency graph in registry
-- [ ] deploy respects build order
-- [ ] deploy --all builds in topological order
+- [x] tool dependency graph in registry — depends_on field in tools.toml 2026-05-16
+- [x] deploy respects build order — deps built before dependent tool
+- [x] deploy --all builds in topological order — topo-order command in registry_tools.py
 
 Phase 5 -- Parallel deploy:
 - [ ] independent tools build in parallel

@@ -66,6 +66,7 @@ expected_usage = "low"
 type = "rust"
 deployable = true
 retired = false
+depends_on = ["faelight-notify"]
 [[tool]]
 name = "faelight-bootstrap"
 version = "2.1.0"
@@ -192,6 +193,7 @@ expected_usage = "high"
 type = "rust"
 deployable = true
 retired = false
+depends_on = ["faelight-git"]
 [[tool]]
 name = "faelight-term"
 version = "3.0.0"
