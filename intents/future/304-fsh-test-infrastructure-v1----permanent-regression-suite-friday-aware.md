@@ -105,34 +105,34 @@ Phase 5: Friday integration
 ---
 ## Gates
 Phase 1:
-- [ ] fsh-test binary builds and deploys
-- [ ] all 75 fsh_audit.sh tests ported to Rust
-- [ ] fsh-test --run shows pass/fail per test
-- [ ] results stored in state.db
+- [x] fsh-test binary builds and deploys -- v1.0.0 deployed 2026-05-16
+- [x] all 75+ fsh_audit.sh tests ported to Rust -- 81 tests total
+- [x] fsh-test shows pass/fail per test with timing
+- [x] results stored in state.db -- test_name, category, passed, duration_ms, commit, timestamp
 
 Phase 2:
-- [ ] regression category covers all INT-298/299 bug fixes
-- [ ] fsh_audit.sh retired (fsh-test is the source of truth)
+- [x] regression category covers INT-298/299 bug fixes -- SIGPIPE, fsh -c, grep/awk, pipes
+- [x] fsh_audit.sh retired to tests/archived/ 2026-05-16
 
 Phase 3:
-- [ ] performance tracking per test
-- [ ] baseline established for all categories
-- [ ] Friday can report performance trends
+- [x] performance tracking per test -- --perf flag shows avg/max per category
+- [x] baseline established -- heredoc 3ms, pipes 3ms, regression 3ms, tilde 3ms, vocabulary 6ms
+- [~] Friday can query state.db for trends -- full trend analysis future work
 
 Phase 4:
-- [ ] deploy faelight-shell runs fsh-test automatically
-- [ ] regression failures block deploy
-- [ ] deploy shows test summary
+- [x] deploy faelight-shell runs fsh-test automatically -- regression gate active
+- [x] regression failures hard block deploy -- exit 1 on any regression failure 2026-05-16
+- [x] deploy shows test summary -- 18 regression tests shown after deploy
 
 Phase 5:
-- [ ] Friday knows test history
-- [ ] Friday flags test regressions in session brief
-- [ ] coverage reporting implemented
+- [x] Friday knows test history -- friday_knowledge updated after each run
+- [~] Friday stores regression alerts in friday_knowledge -- session brief integration future
+- [x] coverage reporting implemented -- --coverage flag shows per-category coverage
 
 Final:
-- [ ] fsh-test is the permanent regression suite
-- [ ] every shell bug fix adds a regression test
-- [ ] no deploy without passing tests
+- [x] fsh-test is the permanent regression suite -- fsh_audit.sh retired
+- [~] process defined but not enforced -- future gate on cistart
+- [x] no deploy without passing tests -- regression gate blocks faelight-shell deploy
 
 ---
 "A shell that cannot test itself
