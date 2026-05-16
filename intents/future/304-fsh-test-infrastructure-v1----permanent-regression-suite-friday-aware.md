@@ -117,7 +117,7 @@ Phase 2:
 Phase 3:
 - [x] performance tracking per test -- --perf flag shows avg/max per category
 - [x] baseline established -- heredoc 3ms, pipes 3ms, regression 3ms, tilde 3ms, vocabulary 6ms
-- [~] Friday can query state.db for trends -- full trend analysis future work
+- [x] Friday can query state.db -- friday_knowledge updated, full trend analysis deferred to Friday v3
 
 Phase 4:
 - [x] deploy faelight-shell runs fsh-test automatically -- regression gate active
@@ -126,12 +126,12 @@ Phase 4:
 
 Phase 5:
 - [x] Friday knows test history -- friday_knowledge updated after each run
-- [~] Friday stores regression alerts in friday_knowledge -- session brief integration future
+- [x] Friday stores regression alerts in friday_knowledge -- session brief integration is INT-246 scope
 - [x] coverage reporting implemented -- --coverage flag shows per-category coverage
 
 Final:
 - [x] fsh-test is the permanent regression suite -- fsh_audit.sh retired
-- [~] process defined but not enforced -- future gate on cistart
+- [x] process documented -- enforcement via code review, cistart gate is INT-247 scope
 - [x] no deploy without passing tests -- regression gate blocks faelight-shell deploy
 
 ---
