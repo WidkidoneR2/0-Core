@@ -135,9 +135,9 @@ Phase 6 -- Cosmic asset bundling:
 
 Phase 7 -- Friday intelligence:
 - [x] deploy outcomes recorded in state.db via core deploy record
-- [ ] Friday reports deploy health trends
-- [ ] Friday suggests related deploys
-- [ ] deploy --brief shows risk level
+- [x] Friday reports deploy health trends — deploy brief shows per-tool success rates
+- [x] Friday suggests related deploys — friday_knowledge updated with deploy health trend
+- [x] deploy --brief shows risk level — LOW/MEDIUM/HIGH based on 7-day failure history
 
 Final:
 - [ ] deploy pipeline is fully automated and intelligent
