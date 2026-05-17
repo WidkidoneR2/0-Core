@@ -368,7 +368,7 @@ GATES
 
 [x] Phase 0: OSC 133 studied -- kitty protocol, Warp block model, shell integration docs reviewed
 [x] Phase 1: every fsh command creates a CommandBlock in state.db -- term_commands table, OSC 133 A/B/C/D all wired 2026-05-17
-[ ] Phase 2: copy works across 1000+ lines of scrollback
+[~] Phase 2: wl-clipboard-rs bumped 0.8→0.9, global coords already implemented, paste-to-browser fix deployed -- needs verification
 [ ] Phase 3: cat main.rs shows Rust syntax highlighting
 [ ] Phase 4: evil-helix runs inside v3 with full key support
 [ ] Phase 5: Friday suggests based on command object patterns
