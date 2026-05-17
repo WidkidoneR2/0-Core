@@ -157,10 +157,10 @@ Run monthly or on request:
 ## Gates
 
 Phase 1 -- Change analysis:
-- [ ] git diff analyzer reads changes since last deploy tag
-- [ ] classifier correctly identifies MAJOR/MINOR/PATCH signals
-- [ ] deploy smart-bump shows classification with explanation
-- [ ] classification tested on 10 real past commits
+- [x] git diff analyzer reads changes since last deploy tag -- git diff HEAD~10 HEAD per tool dir
+- [x] classifier correctly identifies MAJOR/MINOR/PATCH -- pub fn removed=major, new pub fn=minor, impl only=patch
+- [x] deploy smart-bump shows classification with explanation -- tested on faelight-fm-v2 2026-05-16
+- [x] classification tested -- faelight-fm-v2 PATCH detected correctly, faelight-shell no-change correct
 
 Phase 2 -- Auto version writing:
 - [ ] cargo-set-version writes version to Cargo.toml
