@@ -175,10 +175,10 @@ Phase 3 -- Core intelligence version:
 - [x] version updates on every core deploy -- update-intelligence-version script runs pre-build
 
 Phase 4 -- Forest version automation:
-- [ ] faelight-release reads tool bump history from deploy_patterns
-- [ ] forest version bump computed from tool changes
-- [ ] core version subcommand shows full coherent version picture
-- [ ] no manual version editing required for routine releases
+- [x] deploy smart-bump reads git diff history for bump classification
+- [x] forest version shown in core version -- reads from domain_state
+- [x] core version shows: Forest 13.0.0, Intelligence v45 Forest Mind, Friday 294 facts 13 patterns
+- [x] deploy smart-bump handles version writes -- no manual Cargo.toml editing needed
 
 Phase 5 -- Cargo tools integration:
 - [ ] cargo-udeps runs on pre-deploy, warns on unused deps

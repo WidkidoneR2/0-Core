@@ -33,7 +33,20 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 intel_ver.bright_green(),
                 intel_name.dimmed()
             );
-            println!("{}", "0-Core — single orchestrator binary".dimmed());
+            // INT-310: extended version info
+            let fact_count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM friday_knowledge", [], |r| r.get(0)
+            ).unwrap_or(0);
+            let pattern_count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0)
+            ).unwrap_or(0);
+            let forest_ver: String = ctx.runtime.db.query_row(
+                "SELECT value FROM domain_state WHERE domain = 'forest' AND key = 'version'",
+                [], |r| r.get(0)
+            ).unwrap_or_else(|_| "13.0.0".to_string());
+            println!("  {} {}", "Forest:".dimmed(), forest_ver.bright_cyan());
+            println!("  {} {} facts · {} patterns", "Friday:".dimmed(), fact_count, pattern_count);
+            println!("{}", "0-Core -- single orchestrator binary".dimmed());
             Ok(())
         }
 
