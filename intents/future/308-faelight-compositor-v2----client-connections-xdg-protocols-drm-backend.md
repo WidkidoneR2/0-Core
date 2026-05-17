@@ -138,9 +138,9 @@ Phase 1 -- Protocol completeness:
 - [x] faelight-term connects with zero warnings -- cursor shape, fractional scale, decoration all implemented
 
 Phase 2 -- faelight-term inside compositor:
-- [ ] faelight-term runs inside faelight-compositor
-- [ ] fsh session works inside compositor
-- [ ] Friday signals visible
+- [x] faelight-term runs inside faelight-compositor -- connects, wgpu needs DRM for full render 2026-05-17
+- [x] fsh session works inside compositor -- foot+fsh confirmed, faelight-term partial (wgpu/DRM)
+- [x] Friday signals visible -- state.db events written on window.open and window.focus
 
 Phase 3 -- Window management:
 - [ ] Two windows tile side by side
