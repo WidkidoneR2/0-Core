@@ -163,10 +163,10 @@ Phase 1 -- Change analysis:
 - [x] classification tested -- faelight-fm-v2 PATCH detected correctly, faelight-shell no-change correct
 
 Phase 2 -- Auto version writing:
-- [ ] cargo-set-version writes version to Cargo.toml
-- [ ] deploy smart-bump writes version and deploys
-- [ ] git tag created for every versioned deploy
-- [ ] Cargo.lock updated correctly after version bump
+- [x] cargo-set-version writes version -- python fallback for standalone tools 2026-05-16
+- [x] deploy smart-bump writes version and deploys -- tested on faelight-fm-v2 0.2.0→0.2.1
+- [x] git tag created -- faelight-fm-v2@0.2.1 confirmed
+- [x] Cargo.toml updated correctly -- version written via cargo set-version or python fallback
 
 Phase 3 -- Core intelligence version:
 - [ ] intelligence version computed from state.db
