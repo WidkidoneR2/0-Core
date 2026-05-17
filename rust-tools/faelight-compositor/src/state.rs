@@ -25,6 +25,8 @@ use smithay::{
         shm::ShmState,
         socket::ListeningSocketSource,
         xdg_activation::XdgActivationState,
+        cursor_shape::CursorShapeManagerState,
+        fractional_scale::{FractionalScaleManagerState, with_fractional_scale},
     },
 };
 
@@ -47,6 +49,8 @@ pub struct FaelightCompositor {
     pub primary_selection_state: PrimarySelectionState,
     pub xdg_decoration_state: XdgDecorationState,
     pub xdg_activation_state: XdgActivationState,
+    pub cursor_shape_state: CursorShapeManagerState,
+    pub fractional_scale_state: FractionalScaleManagerState,
     pub popups: PopupManager,
     pub seat: Seat<Self>,
 
@@ -75,6 +79,8 @@ impl FaelightCompositor {
         let primary_selection_state = PrimarySelectionState::new::<Self>(&dh);
         let xdg_decoration_state = XdgDecorationState::new::<Self>(&dh);
         let xdg_activation_state = XdgActivationState::new::<Self>(&dh);
+        let cursor_shape_state = CursorShapeManagerState::new::<Self>(&dh);
+        let fractional_scale_state = FractionalScaleManagerState::new::<Self>(&dh);
         let popups = PopupManager::default();
 
         let mut seat_state = SeatState::new();
@@ -106,6 +112,8 @@ impl FaelightCompositor {
             primary_selection_state,
             xdg_decoration_state,
             xdg_activation_state,
+            cursor_shape_state,
+            fractional_scale_state,
             popups,
             seat,
             db,

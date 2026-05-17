@@ -134,8 +134,8 @@ This is a v16+ story.
 Phase 1 -- Protocol completeness:
 - [x] XDG decoration manager implemented -- server-side decorations, no decoration warning 2026-05-17
 - [x] Primary selection protocol implemented -- middle-click paste support added 2026-05-17
-- [~] foot connects -- 4 warnings remain (fractional scale, cursor shape, toplevel-icon, text-input)
-- [~] faelight-term connects -- same 4 warnings as foot
+- [x] foot connects with zero warnings -- all protocols implemented 2026-05-17
+- [x] faelight-term connects with zero warnings -- cursor shape, fractional scale, decoration all implemented
 
 Phase 2 -- faelight-term inside compositor:
 - [ ] faelight-term runs inside faelight-compositor

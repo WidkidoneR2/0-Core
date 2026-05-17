@@ -110,3 +110,25 @@ impl XdgActivationHandler for FaelightCompositor {
 }
 
 delegate_xdg_activation!(FaelightCompositor);
+
+use smithay::{
+    delegate_cursor_shape, delegate_fractional_scale,
+    wayland::{
+        cursor_shape::CursorShapeManagerState,
+        fractional_scale::{FractionalScaleHandler, FractionalScaleManagerState},
+    },
+};
+
+impl FractionalScaleHandler for FaelightCompositor {
+    fn new_fractional_scale(&mut self, _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) {}
+}
+
+delegate_cursor_shape!(FaelightCompositor);
+delegate_fractional_scale!(FaelightCompositor);
+
+use smithay::wayland::tablet_manager::TabletSeatHandler;
+use smithay::backend::input::TabletToolDescriptor;
+use smithay::input::pointer::CursorImageStatus;
+impl TabletSeatHandler for FaelightCompositor {
+    fn tablet_tool_image(&mut self, _tool: &TabletToolDescriptor, _image: CursorImageStatus) {}
+}
