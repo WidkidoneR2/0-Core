@@ -1,3 +1,4 @@
+---
 id: 313
 title: "faelight-term v3 stabilization -- heredoc support, Ctrl+[ fix, nested compositor rendering"
 status: planned
@@ -6,6 +7,7 @@ tags: faelight-term, stabilization, heredoc, kitty, compositor, wgpu, nested
 depends_on: []
 blocks: []
 relates: [296, 308, 286]
+---
 
 ## Why This Intent Exists
 
