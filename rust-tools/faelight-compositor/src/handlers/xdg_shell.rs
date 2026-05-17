@@ -16,7 +16,23 @@ impl XdgShellHandler for FaelightCompositor {
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface);
-        self.space.map_element(window, (0, 0), false);
+        // INT-308 Phase 3: auto-tiling -- place windows side by side
+        let output_size = self.space.output_geometry(
+            self.space.outputs().next().unwrap()
+        ).unwrap_or(smithay::utils::Rectangle::from_loc_and_size((0,0),(1920,1080)));
+        let win_count = self.space.elements().count();
+        let x = if win_count == 0 {
+            0
+        } else {
+            output_size.size.w / 2
+        };
+        // Configure window with half-screen size
+        let half_w = output_size.size.w / 2;
+        let full_h = output_size.size.h;
+        window.toplevel().unwrap().with_pending_state(|state| {
+            state.size = Some(smithay::utils::Size::from((half_w, full_h)));
+        });
+        self.space.map_element(window, (x, 0), false);
         self.health.windows_open = self.space.elements().count();
 
         // Give keyboard focus to the new window automatically
@@ -29,6 +45,12 @@ impl XdgShellHandler for FaelightCompositor {
                 .set_focus(self, Some(wl_surface), serial);
             window.set_activated(true);
             window.toplevel().unwrap().send_pending_configure();
+            // Deactivate other windows (forest: only one active at a time)
+            let active_surf = window.toplevel().and_then(|t| Some(t.wl_surface().clone()));
+            let others: Vec<_> = self.space.elements().filter(|w| {
+                w.toplevel().and_then(|t| Some(t.wl_surface().clone())) != active_surf
+            }).cloned().collect();
+            for w in others { w.set_activated(false); w.toplevel().map(|t| t.send_pending_configure()); }
         }
 
         // Emit window.open into the forest ledger

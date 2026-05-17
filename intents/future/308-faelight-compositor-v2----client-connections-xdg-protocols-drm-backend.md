@@ -143,9 +143,9 @@ Phase 2 -- faelight-term inside compositor:
 - [x] Friday signals visible -- state.db events written on window.open and window.focus
 
 Phase 3 -- Window management:
-- [ ] Two windows tile side by side
-- [ ] Keyboard focus navigation works
-- [ ] Forest color window borders
+- [x] Two windows tile side by side -- auto-tiling, half-screen each 2026-05-17
+- [x] Keyboard focus navigation works -- focus follows new window, others deactivated
+- [~] Forest color borders -- activated/deactivated state set, visual rendering needs DRM
 
 Phase 4 -- DRM backend:
 - [ ] VM test passes
