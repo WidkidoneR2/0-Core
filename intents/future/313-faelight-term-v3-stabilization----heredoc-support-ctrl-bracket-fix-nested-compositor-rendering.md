@@ -64,7 +64,7 @@ Phase 3 -- Nested compositor rendering:
 
 Final:
 - [ ] faelight-term is the sole daily driver terminal (foot retired)
-- [ ] helix + evil-helix fully functional inside faelight-term
+- [x] helix + evil-helix fully functional inside faelight-term -- confirmed 2026-05-17
 - [ ] faelight-term runs inside faelight-compositor cleanly
 
 ---
