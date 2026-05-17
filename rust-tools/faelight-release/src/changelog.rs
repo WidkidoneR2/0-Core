@@ -458,42 +458,8 @@ impl ChangelogData {
             out.push('\n');
         }
 
-        // Internal — full list, grouped by intent where possible
-        if !self.internal.is_empty() {
-            out.push_str(&format!(
-                "### 🔩 Internal ({} commits)\n",
-                self.internal.len()
-            ));
-            // Group by intent prefix
-            let mut intent_groups: std::collections::BTreeMap<String, Vec<String>> =
-                std::collections::BTreeMap::new();
-            let mut ungrouped: Vec<String> = Vec::new();
-            for c in &self.internal {
-                if let Some(int_id) = extract_intent_id(&c.message) {
-                    intent_groups
-                        .entry(int_id.to_string())
-                        .or_default()
-                        .push(c.message.clone());
-                } else {
-                    ungrouped.push(c.message.clone());
-                }
-            }
-            for (intent, messages) in &intent_groups {
-                if messages.len() == 1 {
-                    out.push_str(&format!("- {}\n", clean_commit_message(&messages[0])));
-                } else {
-                    out.push_str(&format!("- **{}** ({} commits)\n", intent, messages.len()));
-                    for msg in messages {
-                        out.push_str(&format!("  - {}\n", msg));
-                    }
-                }
-            }
-            for msg in &ungrouped {
-                out.push_str(&format!("- {}\n", clean_commit_message(msg)));
-            }
-            out.push('\n');
-        }
-
+        // Internal section intentionally excluded from public output
+        // Internal commit history is private -- forest ledger only
         // Stats
         out.push_str(&format!(
             "### 📊 Stats\n- Health: {}%  ·  Commits: {}  ·  Tools: {} deployed  ·  Intents: {} complete\n\n",
