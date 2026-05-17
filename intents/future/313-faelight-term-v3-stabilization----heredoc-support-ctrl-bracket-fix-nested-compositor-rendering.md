@@ -1,7 +1,7 @@
 ---
 id: 313
 title: "faelight-term v3 stabilization -- heredoc support, Ctrl+[ fix, nested compositor rendering"
-status: planned
+status: in-progress
 date: 2026-05-17
 tags: faelight-term, stabilization, heredoc, kitty, compositor, wgpu, nested
 depends_on: []
@@ -54,8 +54,8 @@ Phase 1 -- Ctrl+[ fix:
 - [ ] bracketleft + ctrl modifier correctly detected and handled
 
 Phase 2 -- Heredoc support:
-- [ ] Multi-line input (paste + heredoc) works in faelight-term
-- [ ] fsh heredoc commands work inside faelight-term
+- [x] Multi-line input (paste + heredoc) works in faelight-term -- bracketed paste protocol implemented 2026-05-17
+[x] fsh heredoc commands work inside faelight-term -- python3 << EOF confirmed working
 
 Phase 3 -- Nested compositor rendering:
 - [ ] faelight-term renders correctly inside faelight-compositor

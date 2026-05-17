@@ -649,13 +649,21 @@ impl KeyboardHandler for AppState {
             if ctrl && shift && (event.keysym == Keysym::v || event.keysym == Keysym::V) {
                 use alacritty_terminal::event_loop::Msg;
                 let notifier = gpu.notifier.0.clone();
+                let term_ref = gpu.term.clone();
                 std::thread::spawn(move || {
                     use std::io::Read;
+                    use alacritty_terminal::term::TermMode;
                     match get_contents(ClipboardType::Regular, Seat::Unspecified, MimeType::TextWithPriority("text/plain;charset=utf-8")) {
                         Ok((mut reader, _)) => {
                             let mut text = String::new();
                             if reader.read_to_string(&mut text).is_ok() && !text.is_empty() {
-                                let _ = notifier.send(Msg::Input(text.into_bytes().into()));
+                                let bracketed = term_ref.lock().mode().contains(TermMode::BRACKETED_PASTE);
+                                let payload = if bracketed {
+                                    format!("[200~{}[201~", text)
+                                } else {
+                                    text
+                                };
+                                let _ = notifier.send(Msg::Input(payload.into_bytes().into()));
                             }
                         }
                         Err(e) => eprintln!("[v3] paste error: {:?}", e),
@@ -678,7 +686,14 @@ impl KeyboardHandler for AppState {
                     else { Some(b"\t".to_vec()) }
                 }
                 Keysym::Escape => Some(b"\x1b".to_vec()),
-                Keysym::bracketleft => if ctrl { Some(vec![0x1b]) } else { Some(b"[".to_vec()) }, // Ctrl+[ = ESC
+                Keysym::bracketleft => {
+                    // Ctrl+[ = ESC -- check both ctrl flag and raw modifier bits
+                    if ctrl || self.modifiers.ctrl {
+                        Some(vec![0x1b])
+                    } else {
+                        Some(b"[".to_vec())
+                    }
+                }
                 Keysym::Up    => if ctrl { Some(b"\x1b[1;5A".to_vec()) }
                                  else if shift { Some(b"\x1b[1;2A".to_vec()) }
                                  else { Some(b"\x1b[A".to_vec()) },
