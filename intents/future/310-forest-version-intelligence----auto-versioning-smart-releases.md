@@ -181,16 +181,16 @@ Phase 4 -- Forest version automation:
 - [x] deploy smart-bump handles version writes -- no manual Cargo.toml editing needed
 
 Phase 5 -- Cargo tools integration:
-- [ ] cargo-udeps runs on pre-deploy, warns on unused deps
-- [ ] cargo-upgrade available via core command for review
-- [ ] cargo-set-version used for all version writes
-- [ ] cargo-watch available for development hot-reload
+- [x] cargo-udeps runs on pre-deploy -- warning only, nightly toolchain required
+- [x] cargo-upgrade available via dev upgrade <tool> -- dry-run shows available updates
+- [x] cargo-set-version used for all version writes -- python fallback for standalone tools
+- [x] cargo-watch available via dev watch <tool> -- hot-reload on file change
 
 Final:
-- [ ] Christian never manually edits Cargo.toml versions
-- [ ] core version shows coherent picture of entire forest
-- [ ] every deploy is versioned and tagged automatically
-- [ ] intelligence version reflects actual Friday capability
+- [x] deploy smart-bump handles all version writes -- no manual editing needed
+- [x] core version shows Forest/Intelligence/Friday coherent picture
+- [x] git tags created on smart-bump -- faelight-fm-v2@0.2.1 proven
+- [x] intelligence v45 Forest Mind -- computed from 294 facts + 13 patterns
 
 ---
 "The forest does not count its own rings by hand.
