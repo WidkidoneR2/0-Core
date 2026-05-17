@@ -169,10 +169,10 @@ Phase 2 -- Auto version writing:
 - [x] Cargo.toml updated correctly -- version written via cargo set-version or python fallback
 
 Phase 3 -- Core intelligence version:
-- [ ] intelligence version computed from state.db
-- [ ] milestone names auto-selected from thresholds
-- [ ] core version string shows computed intelligence version
-- [ ] version updates on every core deploy automatically
+- [x] intelligence version computed from state.db -- v45 Forest Mind from 293 facts + 13 patterns
+- [x] milestone names auto-selected -- Awakening/Pattern Recognition/Synthesis Engine/Anticipation/Conversational/Forest Mind
+- [x] core --version shows v45 (Forest Mind) -- auto-updated on every deploy core
+- [x] version updates on every core deploy -- update-intelligence-version script runs pre-build
 
 Phase 4 -- Forest version automation:
 - [ ] faelight-release reads tool bump history from deploy_patterns

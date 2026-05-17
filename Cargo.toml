@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["rust-tools/faelight-fm-v2"]
 resolver = "2"
 members = [
     "rust-tools/fsh-test",
