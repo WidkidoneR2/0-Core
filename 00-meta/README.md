@@ -1,7 +1,7 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 13.0.0
+# 🌲 Faelight Forest 14.0.0
 
-![Version](https://img.shields.io/badge/version-13.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-14.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
 ![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
@@ -11,24 +11,43 @@
 
 ## 🎊 Latest Release
 
-### 13.0.0 - 🌲 Intelligence in the Shell (2026-05-03)
+### 14.0.0 - 🌲 The Forest Owns the Screen (2026-05-17)
 
-- 244 — Core v22 -- Friday: The Useful Partner
-- 245 — faelight-shell v9 -- The Shell That Thinks
-- 255 — Deploy Intelligence -- Smarter, Parallel-Aware, Conflict-Detecting Pipeline
-- 256 — faelight-git Productivity -- Smarter Commits, Friday-Aware, Workflow-Tuned
-- 265 — \"fsh human-readable pipelines -- from filter sort as composable English\
-- 267 — fsh parallel execution -- parallel { } block and ||| operator
-- 268 — fsh natural language -- Friday interrupt levels and ? prefix
-- 269 — fsh session intelligence -- save load replay env snapshots
-- INT-265: human-readable pipelines — from filter sort take skip unique as json all working
-- vocabulary expanded -- rename, make, launch, replace -- forest now speaks 11 human words
-- faelight-updater pacnew handling -- list files, offer pacdiff, log decision to state.db
+- 138 — faelight-compositor v2 — EGL/OpenGL First Real Frame
+- 235 — Friday Daemon v2 -- Anticipation Engine: Always Watching, Always Ready
+- 239 — faelight-bar v2 -- Modernized, Intelligent, Friday-Aware
+- 240 — archaeology-0-core Retirement -- Clean Removal of a Legacy Tool
+- 243 — faelight-lock v2 -- Native Rust Wayland Lock
+- 246 — Friday Architecture v2 -- The Voice That Thinks
+- 247 — Intent Ledger v2 -- The Forest That Knows Itself
+- 270 — faelight-login v2 -- slint native Rust greeter
+- 271 — faelight-diff -- The Forest Sees What Changed
+- 272 — core-protect v2 -- Single Source of Truth
+- 273 — faelight-maintain -- The Forest Stays Current
+- 274 — faelight-pick -- Fuzzy Selection Everywhere
+- 282 — Docs Audit and Refresh -- Philosophy, Aliases, Workflows updated to 13.x reality
+- 283 — faelight-docs generates COMMAND-GUIDE -- auto-generated from core domains, never stale
+- 284 — faelight-term rendering bugs -- scrollback corruption, emoji width, mouse flash
+- 285 — fsh shell friction -- heredoc hash stripping, for loops, knowledge add hang, command chains
+- 286 — faelight-term v3 -- wgpu + cosmic-text rebuild
+- 288 — helix editor evaluation -- daily driver decision
+- 291 — fsh friction for systems work -- semicolon splitting, find paths, background Wayland processes
+- 297 — cargo-deny setup -- dependency audit, license compliance, security advisories
+- 298 — fsh shell audit v2 -- remaining command fixes, enhanced builtins, tilde expansion, heredoc, subshell pipes
+- 299 — fsh Shell Integrity v1 -- grep, awk, command reliability, structural decomposition
+- 300 — fsh Language Layer v1 — The Shell Speaks Human First
+- 302 — tailspin evaluation -- log colorizer forest integration
+- 303 — pastel evaluation -- color tool for forest color DNA workflow
+- 304 — fsh test infrastructure v1 -- permanent regression suite, Friday-aware
+- 305 — deploy pipeline v2 -- intelligent, dependency-aware, forest-native
+- 310 — Forest Version Intelligence -- auto-versioning, smart releases, engine coherence
 
-- Commits: 2456
-- Tools: 50 deployed
-- Health: 100%
-- Intents: 220 complete
+| Stat | Value |
+|------|-------|
+| Commits | 2719 |
+| Tools | 50 deployed |
+| Health | 100% |
+| Intents | 248 complete |
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 

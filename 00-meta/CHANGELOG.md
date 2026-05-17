@@ -1,5 +1,320 @@
 # Changelog
 
+## [14.0.0] — The Forest Owns the Screen (2026-05-17)
+
+### 🎯 Completed Intents
+- faelight-compositor v2 — EGL/OpenGL First Real Frame
+- Friday Daemon v2 — Anticipation Engine: Always Watching, Always Ready
+- faelight-bar v2 — Modernized, Intelligent, Friday-Aware
+- archaeology-0-core Retirement — Clean Removal of a Legacy Tool
+- faelight-lock v2 — Native Rust Wayland Lock
+- Friday Architecture v2 — The Voice That Thinks
+- Intent Ledger v2 — The Forest That Knows Itself
+- faelight-login v2 — slint native Rust greeter
+- faelight-diff — The Forest Sees What Changed
+- core-protect v2 — Single Source of Truth
+- faelight-maintain — The Forest Stays Current
+- faelight-pick — Fuzzy Selection Everywhere
+- Docs Audit and Refresh — Philosophy, Aliases, Workflows updated to 13.x reality
+- faelight-docs generates COMMAND-GUIDE — auto-generated from core domains, never stale
+- faelight-term rendering bugs — scrollback corruption, emoji width, mouse flash
+- fsh shell friction — heredoc hash stripping, for loops, knowledge add hang, command chains
+- faelight-term v3 — wgpu + cosmic-text rebuild
+- helix editor evaluation — daily driver decision
+- fsh friction for systems work — semicolon splitting, find paths, background Wayland processes
+- cargo-deny setup — dependency audit, license compliance, security advisories
+- fsh shell audit v2 — remaining command fixes, enhanced builtins, tilde expansion, heredoc, subshell pipes
+- fsh Shell Integrity v1 — grep, awk, command reliability, structural decomposition
+- fsh Language Layer v1 — The Shell Speaks Human First
+- tailspin evaluation — log colorizer forest integration
+- pastel evaluation — color tool for forest color DNA workflow
+- fsh test infrastructure v1 — permanent regression suite, Friday-aware
+- deploy pipeline v2 — intelligent, dependency-aware, forest-native
+- Forest Version Intelligence — auto-versioning, smart releases, engine coherence
+
+### 🔧 Fixes
+- faelight-release README dynamic section -- no INT numbers, clean titles, table stats
+- README Rust percentage updated to 96.4% from GitHub stats
+- remove launch-bar from Niri autostart -- systemd owns faelight-bar
+
+### 📚 Documentation
+- README v13.0.0 -- clean release section, no INT numbers, Friday is active, correct counts
+
+### 🔩 Internal (252 commits)
+- **235** (4 commits)
+  - INT-235: Friday Daemon v2 -- INT-235 Gate 1: health watchdog wired to notify-send -- Friday speaks when health drops
+  - INT-235: Friday Daemon v2 -- INT-235 Gate 2: contradiction detection loop -- Friday notifies on new contradictions
+  - INT-235: Friday Daemon v2 -- INT-235 Gate 3: friday_daemon_messages table + prompt indicator -- Friday speaks
+  - INT-235: Friday Daemon v2 complete -- always watching, always ready, 🌲 speaks
+- **239** (5 commits)
+  - INT-239: faelight-bar v2 -- INT-239 Gate 1: add get_active_intent() to render/bar.rs
+  - INT-239: faelight-bar v2 -- INT-239 Gate 2: add get_friday_signal() + rusqlite dependency
+  - INT-239: faelight-bar v2 -- INT-239 Gate 3: CenterState machine -- Friday signal + 10s timer
+  - INT-239: faelight-bar v2 -- INT-239 Gate 4: three-zone bar -- lock, intent/Friday center, WiFi+time
+  - INT-239: faelight-bar v6.0.0 -- three-zone bar, Friday-aware center, systemd supervisor
+- **240** (2 commits)
+  - INT-240: archaeology-0-core Retirement -- INT-240: archaeology-0-core retired -- source removed, aliases cleaned, doctor checks removed, docs updated, COMMAND-GUIDE regenerated
+  - INT-240: complete -- archaeology-0-core retired, all 11 gates passed, 100% health confirmed
+- **243** (2 commits)
+  - INT-243: faelight-lock v2 -- INT-243: faelight-lock v2 -- native Rust Wayland lock via ext-session-lock-v1, PAM auth helper, forest rendering
+  - INT-243: faelight-lock v2 complete -- the forest locks itself
+- **246** (139 commits)
+  - INT-246: Friday Architecture v2 -- INT-246 Phase 1: trust decay + confidence tiers + usefulness metrics -- Friday architecture v2 foundation
+  - INT-246: Friday Architecture v2 -- 13.1.0 prep: README cleaned to 95 lines, changelog updated with clean v13.1.0 entry, no INT numbers
+  - INT-246: Friday Architecture v2 -- 13.1.0 prep: README cleaned, title restored, changelog v13.1.0 entry added -- no INT numbers
+  - INT-246: Friday Architecture v2 -- faelight-term: fix resize -- drop from top not bottom, preserve prompt on shrink
+  - INT-246: Friday Architecture v2 -- docs cleanup: archive stale audits, remove core-commands.md duplicate, INT-282/283 created
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 4+5: usefulness score in d output, confidence shown on Friday voice suggestions
+  - INT-246: Friday Architecture v2 -- INT-246: 5 gates marked complete -- trust decay, confidence tiers, usefulness table, tracking, d output
+  - INT-246: Friday Architecture v2 -- INT-282: PHILOSOPHY.md updated to 13.1.0 -- Niri, 23 checks, XII principles, Friday and vocabulary added
+  - INT-246: Friday Architecture v2 -- INT-282: WORKFLOWS.md updated -- 13.1.0, Niri, 23 checks, Intent Workflow section added
+  - INT-246: Friday Architecture v2 -- INT-282: ALIASES.md updated to 13.1.0 -- 368 aliases, new tools and fsh vocabulary documented
+  - INT-246: Friday Architecture v2 -- INT-282: removed 6 stale docs -- TESTING, MANUAL_INSTALLATION, SCRIPTING-STORY, KEYBINDINGS, SHELL-GRAMMAR, THEMING
+  - INT-246: Friday Architecture v2 -- INT-282 Phase 2: POLICIES, RELEASE, AUTOSTART-MAP, FAELIGHT-SHELL updated -- 6 stale docs removed
+  - INT-246: Friday Architecture v2 -- INT-282: ARCHITECTURE.md, THEORY_OF_OPERATION.md updated -- docs reduced from 20+ to 11 active, all current
+  - INT-246: Friday Architecture v2 -- INT-282: all Sway references cleaned from active docs -- forest is fully Niri
+  - INT-246: Friday Architecture v2 -- INT-282: Docs Audit complete -- 11 active docs, all current, no Sway references, forest is fully Niri
+  - INT-246: Friday Architecture v2 -- INT-246: approve/reject proposal commands built, confidence shown on Friday voice, proposal flow verified
+  - INT-246: Friday Architecture v2 -- INT-283: faelight-docs generates COMMAND-GUIDE -- 67 domains, 952 lines, 162ms, never stale again
+  - INT-246: Friday Architecture v2 -- INT-283: complete -- the guide that writes itself
+  - INT-246: Friday Architecture v2 -- faelight-term: PTY burst read fix -- 32KB buffer + poll-after-WouldBlock, full output now renders
+  - INT-246: Friday Architecture v2 -- faelight-term: PTY burst read fix + scroll fixes -- first run of d now works, deeper scrollback bug needs INT-284
+  - INT-246: Friday Architecture v2 -- INT-284: faelight-term rendering bugs documented -- 3 bugs, reproduction cases, fix approaches
+  - INT-246: Friday Architecture v2 -- INT-285: fsh friction documented -- heredoc stripping, for loops, knowledge add hang, command chains
+  - INT-246: Friday Architecture v2 -- INT-285: fsh friction intent registered -- heredoc, for loops, knowledge add, command chains
+  - INT-246: Friday Architecture v2 -- INT-286: faelight-term v3 spec -- wgpu + cosmic-text rebuild, 6 phases, architecture documented
+  - INT-246: Friday Architecture v2 -- INT-287/288: COSMIC direction intent + evil-helix evaluation -- INT-286/280 updated for COSMIC study and ratatui
+  - INT-246: Friday Architecture v2 -- maintenance: lla + cargo-watch + cargo-binstall installed, aliases registered -- llt, cw, cwc added
+  - INT-246: Friday Architecture v2 -- fix: yazi theme.toml -- name -> url in filetype rules, yazi API change
+  - INT-246: Friday Architecture v2 -- INT-289: Scroll-Native Desktop UX intent -- spatial continuity paradigm, 6 phases, shelld concept -- INT-287 updated with zbus
+  - INT-246: Friday Architecture v2 -- INT-280 + INT-286: COSMIC Files and COSMIC Terminal patterns added -- Pop_OS email insights captured
+  - INT-246: Friday Architecture v2 -- INT-285 BUG 1: heredoc hash stripping fixed -- strip_comments is now heredoc-aware, ## and ### preserved
+  - INT-246: Friday Architecture v2 -- INT-285 BUG 2: for loops fixed -- shell constructs bypass fsh expansion, route directly to sh
+  - INT-246: Friday Architecture v2 -- INT-285 BUG 3: core knowledge add fixed -- single argument works, domain and resolution optional with defaults
+  - INT-246: Friday Architecture v2 -- INT-290: F-DWL intent created -- Faelight Wayland Compositor, pure Rust, dwl-inspired, forest-first, scroll-native
+  - INT-246: Friday Architecture v2 -- INT-246: end-to-end proposal flow complete -- propose/approve/reject all working, trust feedback loop closed
+  - INT-246: Friday Architecture v2 -- INT-246: 3 more gates complete -- proposal end-to-end, accuracy_rate in d output, confidence on suggestions
+  - INT-246: Friday Architecture v2 -- INT-246: session deduplication -- Friday suggestions never repeated in same session, HashSet tracks shown messages
+  - INT-246: Friday Architecture v2 -- INT-246: Friday speaks at most once per intent -- context switch gate implemented, last_friday_intent tracks intent changes
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 1: Friday typed structs defined -- FridayInput, FridayOutput, Suggestion, Plan, Warning, ConfidenceTier all formal Rust types
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 1: 2 typed struct gates marked complete
+  - INT-246: Friday Architecture v2 -- INT-246: safety_guard built -- CHALLENGE level blocks dangerous commands, rm -rf caught, tmp paths pass through
+  - INT-246: Friday Architecture v2 -- INT-246: safety guard refined -- first word check, false positives eliminated
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 2: simulation engine built -- deploy core shows 121 deploys, 100% success, 12.7s avg, real historical data
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 2: simulation wired into proposals -- simulation shown before approve/reject decision
+  - INT-246: Friday Architecture v2 -- INT-246: 3 Pillar 2 gates marked -- 22/30 complete
+  - INT-246: Friday Architecture v2 -- INT-246 Pillar 2: simulation accuracy tracking -- friday_simulations table, resolve and stats commands built
+  - INT-246: Friday Architecture v2 -- INT-246: hint deduplication fixed -- you usually run hints shown once per session only
+  - INT-246: Friday Architecture v2 -- INT-246: simulation accuracy gate marked -- 1/1 correct, feedback loop closed
+  - INT-246: Friday Architecture v2 -- INT-246: event bus gates resolved -- forest_events_v2 is the bus, term services deferred to INT-286, assistant system components built
+  - INT-246: Friday Architecture v2 -- INT-246: simulation 4/4 correct -- 3+ consecutive predictions gate complete, 100% accuracy
+  - INT-246: Friday Architecture v2 -- INT-246: 28/30 gates complete -- event bus adoption marked, 2 time-gated gates accumulating naturally
+  - INT-246: Friday Architecture v2 -- INT-286 Phase 1: wgpu spike COMPLETE -- GPU surface renders on Wayland, AMD RX 7700S via Vulkan, Bgra8UnormSrgb, 827x999, forest green #11140f
+  - INT-246: Friday Architecture v2 -- INT-286: Phase 1 gates marked -- wgpu surface and no software pixel buffer both complete
+  - INT-246: Friday Architecture v2 -- INT-286 Phase 2: text rendering COMPLETE -- Hello 🌲 World renders via cosmic-text + glyphon on wgpu, window visible in Niri
+  - INT-246: Friday Architecture v2 -- INT-286: Phase 2 gates marked -- cosmic-text, emoji, box drawing all verified on screen
+  - INT-246: Friday Architecture v2 -- INT-286: Phase 2 architectural findings documented -- Wayland deadlock fix, nested client limitation noted
+  - INT-246: Friday Architecture v2 -- INT-291: fsh friction intent created -- semicolon splitting, find paths, background Wayland processes documented
+  - INT-246: Friday Architecture v2 -- INT-286 Phase 3: PTY COMPLETE -- fsh runs inside faelight-term v3, forest welcome screen visible, alacritty_terminal + wgpu + cosmic-text all connected
+  - INT-246: Friday Architecture v2 -- INT-286: Phase 3 gates marked -- PTY, VTE parser, fsh all verified
+  - INT-246: Friday Architecture v2 -- INT-286 Phase 4: keyboard input COMPLETE -- can type into fsh inside v3, keypresses reach PTY, arrow keys and ctrl sequences work
+  - INT-246: Friday Architecture v2 -- INT-286: dirty flag rendering -- only sync+render when terminal changes, noticeable performance improvement
+  - INT-246: Friday Architecture v2 -- INT-286: 3 more gates marked -- scrollback 10000 lines (default), fsh default shell, per-cell dirty tracking
+  - INT-246: Friday Architecture v2 -- INT-286 Phase 5: ANSI colors COMPLETE -- per-cell color spans via glyphon, full 256-color palette, Faelight color scheme matches foot
+  - INT-246: Friday Architecture v2 -- INT-286: faelight-term v3.0.0 deployed -- replaces v2, Super+Enter opens GPU terminal, ANSI colors, cosmic-text, alacritty_terminal PTY
+  - INT-246: Friday Architecture v2 -- INT-292: transition plan documented -- clipboard, cursor, resize, path resilience all tracked
+  - INT-246: Friday Architecture v2 -- INT-293: faelight-fm v2 direction documented -- COSMIC Files, Yazi, Broot study sources, libcosmic stack, forest-first architecture, 6 phases
+  - INT-246: Friday Architecture v2 -- INT-294 + INT-295: zbus D-Bus event bus and faelight-bar v3 fully documented -- ironbar, eww, i3status-rust, quickshell, cosmic-panel all as study sources
+  - INT-246: Friday Architecture v2 -- INT-294 + INT-295: Ewwii added as GPU-accelerated bar study source -- hot reload, Wayland-native, any scripting language
+  - INT-246: Friday Architecture v2 -- INT-292: clipboard paste COMPLETE -- Ctrl+Shift+V pastes from Wayland clipboard instantly, threaded to avoid event loop deadlock
+  - INT-246: Friday Architecture v2 -- INT-292: v3 progress -- paste works, mouse handler wired, cursor/copy/resize still needed before daily driver
+  - INT-246: Friday Architecture v2 -- INT-292: cursor COMPLETE -- green block cursor visible, tracks position, replaces space with block char at cursor cell
+  - INT-246: Friday Architecture v2 -- INT-292: copy WORKING -- mouse selection copies to clipboard, confirmed 187-2138 chars copied, visual highlight still needed
+  - INT-246: Friday Architecture v2 -- INT-292: selection highlight COMPLETE -- gold highlight on selected text, copy+paste fully working, cursor visible
+  - INT-246: Friday Architecture v2 -- INT-292: major progress -- CELL_W fixed (no more wrapping), scrollback copy fixed for scroll position, 60fps render loop, full health output visible
+  - INT-246: Friday Architecture v2 -- INT-296: semantic terminal intelligence documented -- OSC 133, kitty protocol, tree-sitter, command objects, Friday reasoning, atuin, 6 phases
+  - INT-246: Friday Architecture v2 -- INT-296: semantic terminal intelligence documented -- OSC 133, kitty protocol, tree-sitter, command objects, atuin, 6 phases, full research
+  - INT-246: Friday Architecture v2 -- INT-297: cargo-deny fully configured -- advisories/bans/licenses/sources all ok
+  - INT-246: Friday Architecture v2 -- INT-297 complete: moved to complete/
+  - INT-246: Friday Architecture v2 -- INT-292: fix copy across scroll boundary (global coords) + fix paste to browser (foreground clipboard)
+  - INT-246: Friday Architecture v2 -- INT-292: update intent -- clipboard complete, moved to in-progress, daily driver timer started
+  - INT-246: Friday Architecture v2 -- INT-292: remove debug eprintlns, copy + paste fully working
+  - INT-246: Friday Architecture v2 -- INT-292: add window resize -- SIGWINCH to PTY via Msg::Resize
+  - INT-246: Friday Architecture v2 -- INT-292: Wayland event loop fix attempt -- resize TBD, moving on
+  - INT-246: Friday Architecture v2 -- INT-284 complete: all three rendering bugs fixed by v3 architecture -- alacritty_terminal ring buffer, cosmic-text emoji width, wgpu dirty flag
+  - INT-246: Friday Architecture v2 -- INT-288: updated intent -- pre-presentation timeline, full Rust-native stack story
+  - INT-246: Friday Architecture v2 -- INT-287: update gates -- Phase 3 complete via faelight-term v3, COSMIC proof of concept running
+  - INT-246: Friday Architecture v2 -- INT-291: BUG 2 fixed -- find passthrough to Unix find for path/flag args, forest find preserved for @shortcuts
+  - INT-246: Friday Architecture v2 -- INT-291: BUG 1 fixed -- semicolon chains now continue past redirect segments via labeled segments loop
+  - INT-246: Friday Architecture v2 -- INT-291: fixed cd in && chains (builtin dispatch), if/then/fi atomic split, semicolons+redirects continue correctly
+  - INT-246: Friday Architecture v2 -- INT-291: fixed && || logical chain evaluation -- continue not break, correct prev_op tracking
+  - INT-246: Friday Architecture v2 -- INT-291: shell audit fixes -- x=5 lowercase vars, 1 2 3 4 5 brace expansion, pipe|while construct, if/then/fi atomic, && || chain logic, cd in && chains
+  - INT-246: Friday Architecture v2 -- INT-291 complete: shell audit done, all bugs fixed -- find passthrough, semicolons, cd in &&, if/fi atomic, && || chains, lowercase vars, brace expansion, pipe|while
+  - INT-246: Friday Architecture v2 -- INT-298: created shell audit v2 intent -- tilde expansion, heredoc, subshell pipes, cat redirect, shell test suite
+  - INT-246: Friday Architecture v2 -- INT-298: fix tilde expansion in args (BUG-1/5) and cat+redirect bypass bat alias (BUG-4)
+  - INT-246: Friday Architecture v2 -- INT-298: fix heredoc collection (BUG-2) with informative heredoc prompt
+  - INT-246: Friday Architecture v2 -- INT-298: 50/50 test suite passing — fsh_audit.sh gate met
+  - INT-246: Friday Architecture v2 -- INT-299: fsh shell integrity intent — grep, awk, vocabulary, structural decomposition
+  - INT-246: Friday Architecture v2 -- INT-298: update gates — mark completed items, defer remaining to INT-299
+  - INT-246: Friday Architecture v2 -- INT-298: close intent — moved to complete, 5 bugs fixed, 50/50 tests
+  - INT-246: Friday Architecture v2 -- INT-299: fix YAML frontmatter -- cistart now works
+  - INT-246: Friday Architecture v2 -- INT-299: fix pipe tokenizer — backslash-escaped quotes in double-quoted args (grep pattern\|alt now works)
+  - INT-246: Friday Architecture v2 -- INT-300: fsh Language Layer v1 intent — vocabulary audit, search/show/where, 75 tests
+  - INT-246: Friday Architecture v2 -- INT-299/300: fix list (bare path + dirs by default), add gt as forest git word, fix list path bug
+  - INT-246: Friday Architecture v2 -- INT-299: SIGPIPE fix, cat -A/-n/-v flags bypass bat, pipe panic eliminated
+  - INT-246: Friday Architecture v2 -- INT-299: 60/60 tests — SIGPIPE fixed, cat flags, stress tests, shell survives malformed input
+  - INT-246: Friday Architecture v2 -- INT-300: fsearch --rust --intent --forest --py --md --sh flags, forest-aware search
+  - INT-246: Friday Architecture v2 -- INT-300: where now knows forest vocabulary words — delete, write, gt, fsearch, all resolve correctly
+  - INT-246: Friday Architecture v2 -- INT-299: fix continue 'repl→'segments in INT-265 forest pipeline — semicolon commands after list/find no longer dropped
+  - INT-246: Friday Architecture v2 -- INT-299: fix zombie processes (notify-send reaped via thread), fix continue 'repl→'segments in forest pipeline
+  - INT-246: Friday Architecture v2 -- INT-299: Phase 1 decomposition — expand.rs extracted (normalize_input, glob_match, strip_quoted_regions, count_keyword_starts)
+  - INT-246: Friday Architecture v2 -- INT-299: Phase 2 decomposition — expand.rs now has find_heredoc_delimiter, strip_comments, is_complete_command, detect_redirect (302 lines extracted total)
+  - INT-246: Friday Architecture v2 -- INT-299: fix test suite cold-start fluke — warmup invocation before first test, now deterministically 60/60
+  - INT-246: Friday Architecture v2 -- INT-299: Phase 3 decomposition — expand.rs now has 13 functions (expand_subshells, split_logical, parse_parallel_block, expand_globs, expand_globs_in_segment + Phase 1+2)
+  - INT-246: Friday Architecture v2 -- INT-299: mark 6 gates complete — SIGPIPE, continue label audit, vocabulary audit, test suite (60/60 deterministic), copy dispatch
+  - INT-246: Friday Architecture v2 -- INT-299: fsh -c flag implemented — fsh -c 'echo hello' outputs hello exits 0; fsh symlink created in cargo/bin
+  - INT-246: Friday Architecture v2 -- INT-299: fsh -c works inside fsh — builtin now handles -c flag, delegates to sh
+  - INT-246: Friday Architecture v2 -- INT-299: test suite expanded to 75 — grep, awk, fsh -c, vocabulary, structural tests all passing
+  - INT-246: Friday Architecture v2 -- INT-299: all integrity gates met — grep/awk/fsh-c/vocabulary/tests/expand.rs — 2 structural gates deferred to INT-301 REPL decomposition
+  - INT-246: Friday Architecture v2 -- INT-299: complete — moved to intents/complete
+  - INT-246: Friday Architecture v2 -- INT-300: search flags --rust/--intent/--forest working -- removed fd alias conflict, search now unified forest+history command
+  - INT-246: Friday Architecture v2 -- INT-300: vocabulary gates updated -- all 10 words verified, search/show/sed/awk/copy/move/write/read all working
+  - INT-246: Friday Architecture v2 -- INT-300: complete -- fsh language layer v1, shell speaks human first
+  - INT-246: Friday Architecture v2 -- INT-286: cleanup -- faelight-term-v3 is now the canonical faelight-term source, dead v2 archived
+  - INT-246: Friday Architecture v2 -- INT-286: document yazi TRT root cause and fix plan for Friday
+  - INT-246: Friday Architecture v2 -- INT-286: add improvement roadmap -- OSC 52/7/133, kitty protocol, tabs, damage tracking, render thread
+  - INT-246: Friday Architecture v2 -- INT-301/302/303: faelight-notify v5 layer-shell rebuild, tailspin log colorizer, pastel color DNA tool -- intents created
+  - INT-246: Friday Architecture v2 -- INT-304/305: fsh test infrastructure v1 (permanent regression suite, Friday-aware), deploy pipeline v2 (dependency-aware, rollback, cargo-audit, parallel, Friday intelligence)
+  - INT-246: Friday Architecture v2 -- chore: refresh packages.txt from live system — 634 packages, Sway family confirmed removed
+  - INT-246: Friday Architecture v2 -- INT-286: PtyWrite forwarding implemented -- FaelightListener now forwards DA1/DA2/terminal query responses back to PTY
+  - INT-246: Friday Architecture v2 -- INT-286: PtyWrite forwarding, mouse click/scroll forwarding, scroll accumulator (natural speed), TERM=xterm-256color -- yazi works, terminal functional
+  - INT-246: Friday Architecture v2 -- INT-306: forest resilience -- keyboard-only mode and hardware failure recovery runbooks
+  - INT-246: Friday Architecture v2 -- INT-286: font metrics -- CELL_W now derived from cosmic-text glyph advance width, 85 cols matching foot density, vte pinned to 0.12.1
+  - INT-246: Friday Architecture v2 -- INT-286: enhanced keyboard handler -- F1-F12, Page Up/Down, Insert, Ctrl+arrows, Shift+Tab, Alt+key all implemented
+  - INT-246: Friday Architecture v2 -- INT-286: OSC 52 clipboard -- ClipboardStore/ClipboardLoad implemented, helix Space+y writes to Wayland clipboard, wl-clipboard-rs pinned to 0.8.2
+  - INT-246: Friday Architecture v2 -- INT-286: mouse fix -- helix mouse disabled to prevent gutter breakpoint artifacts, clean editing experience
+  - INT-246: Friday Architecture v2 -- INT-288: helix formal evaluation intent created — proven in faelight-term 2026-05-15
+  - INT-246: Friday Architecture v2 -- INT-307: power-profiles-daemon installed — amd_pstate active, 3 profiles working, Friday integration planned
+  - INT-246: Friday Architecture v2 -- INT-302: tailspin adopted — log colorizer, wiring into journal vocabulary | INT-303: pastel adopted — color DNA workflow tool
+  - INT-246: Friday Architecture v2 -- INT-288: helix config stowed into forest dotfiles -- theme and config tracked
+  - INT-246: Friday Architecture v2 -- integrity: removed duplicate INT-288 evil-helix file, 302/303 moved to complete
+- **247** (5 commits)
+  - INT-247: Intent Ledger v2 -- INT-247 Phase 1+2: blocked, next, brief, graph -- the ledger opens its eyes
+  - INT-247: Intent Ledger v2 -- INT-247 Phase 3: dependency enforcement in cistart -- blocked intents cannot start
+  - INT-247: Intent Ledger v2 -- INT-247 Phase 4: retrospective and unblocked notification on cicomplete
+  - INT-247: Intent Ledger v2 -- INT-247 Phase 5: session brief in digest -- blocked and ready counts on startup
+  - INT-247: Intent Ledger v2 complete -- the forest knows itself
+- **270** (2 commits)
+  - INT-270: faelight-login v2 -- INT-270: faelight-login clarity -- remove health, add 🌲, cleaner status panel
+  - INT-270: faelight-login v2 complete -- 🌲 greets you, clarity over noise
+- **271** (3 commits)
+  - INT-271: faelight-diff -- The Forest Sees What Changed
+  - INT-271: faelight-diff -- INT-271 Phase 1: faelight-diff v1.0.0 -- compare command, two-panel TUI, forest colors, git diff
+  - INT-271: faelight-diff complete -- compare speaks human, forest sees what changed
+- **272** (6 commits)
+  - INT-272: core-protect v2 -- Single Source of Truth
+  - INT-272: add enhanced messaging, grace period warning, core-protect history
+  - INT-272: core-protect v2 -- INT-272 Gate 1: is_core_locked reads sentinel file -- single source of truth
+  - INT-272: core-protect v2 -- INT-272 Gate 2: bar shows LOCKED/OPEN text -- impossible to misread
+  - INT-272: core-protect v2 -- INT-272 Gate 3: OPEN* in red when uncommitted changes -- bar never lies
+  - INT-272: core-protect v2 complete -- LOCKED/OPEN/OPEN* single source of truth
+- **273** (4 commits)
+  - INT-273: faelight-maintain -- The Forest Stays Current
+  - INT-273: add presentation-clean gate -- zero warnings before Graydon
+  - INT-273: faelight-maintain -- INT-273: wl-clipboard-rs bumped 0.8.1 → 0.9.3 -- forest builds clean, zero warnings
+  - INT-273: faelight-maintain complete -- forest builds clean, zero warnings
+- **274** (4 commits)
+  - INT-274: faelight-pick -- Fuzzy Selection Everywhere -- skim replaces fzf
+  - INT-274: faelight-pick -- INT-274 Gate 1: skim installed, fzf removed, wrapper bridges all tools to sk
+  - INT-274: faelight-pick -- INT-274 Gates 2-5: pick intent/history/file -- fuzzy selection in pure Rust, fzf gone
+  - INT-274: faelight-pick complete -- pick intent/history/file, skim replaces fzf, forest navigates in Rust
+- **275** (2 commits)
+  - INT-275: Rio Terminal study intent -- GPU Rust terminal evaluation
+  - INT-275/276: Rio and Wayle evaluated -- moved to decisions with verdicts
+- Wayle study -- Niri compositor modules + GTK4 Relm4 notifications
+- Core v24 -- Friday Thinks Before It Speaks -- attention score + clarification dialogues
+- **278** (2 commits)
+  - INT-278/279/280/281: Friday Chat, Forest Query Language, fm v2, Forest Explorer -- ideas captured
+  - INT-278/279/280/281: intents filled with substance and vision
+- complete -- heredoc stripping, for loops, knowledge add, command chains all fixed
+- **286** (2 commits)
+  - INT-286 Phase 0: study complete -- cosmic-term + Rio studied, alacritty_terminal chosen as foundation, wgpu bridge pattern documented
+  - INT-286: gates updated — OSC 52, font metrics, keyboard, mouse fix complete
+- **287** (59 commits)
+  - INT-287: Faelight Forest COSMIC Direction -- INT-246: Friday Architecture v2 COMPLETE | INT-286: faelight-term v3 COMPLETE -- GPU terminal, helix, OSC 52, font metrics all done
+  - INT-287: Faelight Forest COSMIC Direction -- fix: intent list --active now shows only in-progress intents, not planned
+  - INT-287: Faelight Forest COSMIC Direction -- INT-288: rust-analyzer working in helix -- hover docs confirmed, Space+k shows full type docs, LSP active for workspace crates
+  - INT-287: Faelight Forest COSMIC Direction -- INT-288: helix editor evaluation COMPLETE -- daily driver decision made, rust-analyzer, theme, stow, OSC 52 all working
+  - INT-287: Faelight Forest COSMIC Direction -- INT-287: faelight-compositor accepts client connections -- foot runs inside forest compositor
+  - INT-287: Faelight Forest COSMIC Direction -- INT-138: superseded and closed — EGL/OpenGL/Wayland client rendering all proven in faelight-compositor today 2026-05-16
+  - INT-287: Faelight Forest COSMIC Direction -- core: intent list --all added, default filter WIP -- reverting to safe state before sleep
+  - INT-287: Faelight Forest COSMIC Direction -- INT-308: faelight-compositor v2 intent created -- protocol completeness, faelight-term inside compositor, DRM backend, forest integration
+  - INT-287: Faelight Forest COSMIC Direction -- intent list fixed -- default shows only actionable future/planned intents, intent script now wraps core intent, --all flag added for full view
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: fsh-test v1.0.0 -- Rust test binary, 13 tests, tilde/pipes/vocabulary/heredoc/regression categories, deployed to scripts/
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: fsh-test expanded to 40 tests -- tilde, pipes, vocabulary, heredoc, regression all passing, deployed
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: COMPLETE -- fsh-test v1.0.0, 40 tests, deploy gate, regression suite permanent
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: 75/75 tests passing -- Phase 1 gate met, all fsh_audit.sh tests ported plus forest-specific tests
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: Phase 1 complete -- 75/75 tests, results stored in state.db with commit hash, timestamp, fsh version
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: Phase 2 complete -- 81 tests, INT-298/299 regression coverage, fsh_audit.sh retired
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: Phase 3 complete -- performance tracking per category, --perf flag, baseline: all categories 3-6ms avg
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: Phase 5 complete -- Friday integration, coverage reporting, --coverage and --perf flags, 81/81 tests
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: regression hard block active -- deploy blocked on test failure, 45 regression tests gate faelight-shell
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: all gates met -- closing
+  - INT-287: Faelight Forest COSMIC Direction -- INT-304: COMPLETE -- fsh-test v1.0.0, 81 tests, state.db storage, Friday integration, deploy gate, coverage reporting, all gates met
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 1 complete -- cargo-audit + cargo-deny wired, binary size reporting, fsh-test regression gate all active
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 2 complete -- deploy rollback <tool> [N] works, atomic swap, binary verified, recorded in history
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 4 complete — dependency graph in registry, topo order for deploy --all, dep pre-build wired
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 5 complete — parallel deploy with --parallel flag, 8 max jobs, topo-order preserved
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 6 complete — asset bundling detected, manifest created, rollback aware of assets
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: Phase 7 complete — deploy brief, Friday deploy intelligence, risk levels, health trends
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: all gates met — fully automated intelligent deploy pipeline complete
+  - INT-287: Faelight Forest COSMIC Direction -- INT-305: COMPLETE — intelligent deploy pipeline v2, all 7 phases done, all gates met
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310, INT-311 created — forest version intelligence and cargo tool ecosystem audit
+  - INT-287: Faelight Forest COSMIC Direction -- INT-312 created — intent-commit genealogy, bidirectional linking, research trail, rollback intelligence
+  - INT-287: Faelight Forest COSMIC Direction -- INT-287: Phase 1 complete -- cosmic-comp studied, 5 patterns documented, eww decision made, impacts on 6 intents mapped
+  - INT-287: Faelight Forest COSMIC Direction -- research/ directory created -- persistent R&D space, gitignored, never stowed
+  - INT-287: Faelight Forest COSMIC Direction -- INT-287: Phase 2 complete -- libcosmic spike renders window on Wayland, forest navigator text displayed, foundation proven
+  - INT-287: Faelight Forest COSMIC Direction -- INT-287: Phase 1+2 complete, Phase 4 gates depend on INT-293 -- starting FM now
+  - INT-287: Faelight Forest COSMIC Direction -- INT-293: Phases 0-3 complete -- libcosmic window, directory listing, git status, miller columns, j/k/h/l keyboard navigation all working
+  - INT-287: Faelight Forest COSMIC Direction -- INT-293: Phase 4 complete -- forest integration live, active intent in status bar, Friday context per directory, state.db connected
+  - INT-287: Faelight Forest COSMIC Direction -- INT-293: Phase 5 complete -- file operations working, yank, delete with confirmation dialog, forest safety guard, trash-based delete
+  - INT-287: Faelight Forest COSMIC Direction -- INT-293: Phase 6 started -- faelight-fm v2 deployed, Super+E works, warnings fixed, 1 week daily driver period begins
+  - INT-287: Faelight Forest COSMIC Direction -- INT-287: Phase 4 gate met -- faelight-fm v2 using libcosmic deployed and running
+  - INT-287: Faelight Forest COSMIC Direction -- INT-293: faelight-fm v0.2.0 -- header centered, path right-aligned, active intents in status bar, forest navigator title, production quality
+  - INT-287: Faelight Forest COSMIC Direction -- INT-296, INT-308, INT-310 started -- depends_on cleared for override, all three in-progress
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: Phase 1 complete -- git diff analyzer, MAJOR/MINOR/PATCH classifier, deploy smart-bump working
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: Phase 2 complete — cargo-set-version writes versions, git tags created, faelight-fm-v2@0.2.1 proven
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: intelligence version auto-compute wired, deploy script restored, update-intelligence-version script created
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: Phase 3 complete -- intelligence v45 Forest Mind, auto-computed from state.db, core --version shows it
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: Phase 4 complete -- core version shows full forest picture, Forest/Intelligence/Friday all displayed
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: all gates met -- auto-versioning, intelligence v45 Forest Mind, core version picture, cargo tools integrated
+  - INT-287: Faelight Forest COSMIC Direction -- INT-310: COMPLETE -- forest version intelligence, auto-versioning, intelligence v45 Forest Mind, core version picture
+  - INT-287: Faelight Forest COSMIC Direction -- INT-296: Phase 1 complete -- OSC 133 A/B/C/D wired in fsh, CommandBlocks recording in state.db, 45/45 tests passing
+  - INT-287: Faelight Forest COSMIC Direction -- INT-296: Phase 2 progress -- wl-clipboard-rs 0.9.3, CommandBlocks live, selection uses global coords -- test paste to browser
+  - INT-287: Faelight Forest COSMIC Direction -- INT-296: Phase 2 COMPLETE -- paste to browser works, wl-clipboard-rs 0.9.3 fix confirmed
+  - INT-287: Faelight Forest COSMIC Direction -- INT-296: Phase 4 partial -- Ctrl+[ bracketleft handler added, debug removed, full kitty protocol deferred to v15
+  - INT-287: Faelight Forest COSMIC Direction -- INT-308: Phase 1 progress -- XDG decoration + primary selection added, foot connects, 4 warnings remain (fractional scale, cursor shape, text-input, toplevel-icon)
+  - INT-287: Faelight Forest COSMIC Direction -- INT-308: Phase 1 COMPLETE -- foot connects with zero warnings, all Wayland protocols implemented: decoration, primary selection, cursor shape, fractional scale, XDG activation
+  - INT-287: Faelight Forest COSMIC Direction -- INT-308: Phase 2 complete -- faelight-term+fsh inside compositor, state.db events on window.focus/open, zero protocol warnings
+  - INT-287: Faelight Forest COSMIC Direction -- INT-308: Phase 3 complete -- two windows tile side by side, auto-tiling, keyboard focus, window activated state
+  - INT-287: Faelight Forest COSMIC Direction -- INT-313 created -- faelight-term v3 stabilization: heredoc, Ctrl+bracket, nested compositor rendering
+  - INT-287: Faelight Forest COSMIC Direction -- INT-313: registered in ledger -- faelight-term stabilization formally tracked
+  - INT-287: Faelight Forest COSMIC Direction -- INT-313: Phase 2 complete -- heredoc works in faelight-term, bracketed paste protocol implemented
+- reopened -- gates not fully met, returning to in-progress. INT-305 back to planned
+- **305** (2 commits)
+  - INT-305: cargo-audit wired into deploy pipeline -- 6 upstream vulnerabilities flagged as warnings, deploy continues
+  - INT-305: binary size reporting added to deploy, baseline recorded
+- release: Faelight Forest 13.0.0 — Intelligence in the Shell
+- Faelight Forest 13.0.0 "Intelligence in the Shell" live
+- fsh: replace Jarvis/daily-driver with live Friday stats and Forest version
+- faelight-daemon: replace emoji in notify-send with text -- clean rendering
+- faelight-term: alternate screen, TERM env, DSR, Shaping::Advanced, background colors -- pick/compare/cheat all work
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 2719  ·  Tools: 50 deployed  ·  Intents: 248 complete
+
+---
+
 ## [13.1.0] — The Forest That Knows Itself (2026-05-07)
 
 Friday Architecture v2 foundation is live. The Intent Ledger now has eyes.
