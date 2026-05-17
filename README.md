@@ -161,7 +161,6 @@ Faelight Forest would not exist without the exceptional open source work of:
 - **[Smithay](https://github.com/Smithay/smithay)** -- The Wayland compositor toolkit that powers faelight-compositor v2.
 - **[Niri](https://github.com/YaLTeR/niri)** -- The scrollable-tiling Wayland compositor that is the forest's daily driver.
 - **[Helix](https://github.com/helix-editor/helix)** -- The modal editor at the heart of the forest's editing workflow.
-- **[Graydon Hoare](https://github.com/graydon)** -- Creator of Rust. The forest thinks in Rust because of what he built.
 
 ---
 
