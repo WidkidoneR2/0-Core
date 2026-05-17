@@ -1362,7 +1362,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-fm-v2"
+name = "faelight-fm"
 version = "0.2.1"
 dependencies = [
  "libcosmic",
