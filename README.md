@@ -3,50 +3,28 @@
 
 ![Version](https://img.shields.io/badge/version-14.0.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Rust](https://img.shields.io/badge/rust-96.4%25-orange?style=flat-square)
-![Platform](https://img.shields.io/badge/platform-Arch_Linux_+_Niri-blue?style=flat-square)
-![License](https://img.shields.io/badge/license-Intentional_Stewardship-purple?style=flat-square)
+![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
+![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> **A self-aware personal computing environment built entirely from first principles in Rust.**
-> Every tool written. Every decision documented. Nothing installed blindly.
+> **A self-aware, path-resilient personal computing environment built from first principles.**
 
----
+## 🎊 Latest Release
 
-## 🎊 v14.0.0 -- The Forest Owns the Screen
+### 14.0.0 - 🌲 The Forest Owns the Screen (2026-05-17)
 
-*Released 2026-05-17*
-
-This release brings the forest's own compositor, file manager, and terminal into full production. The forest no longer depends on third-party window management -- it owns the screen from boot to shell.
-
-**What shipped:**
-
-- **faelight-compositor v2** -- A custom Smithay-based Wayland compositor. Auto-tiling, forest color borders, state.db window events. foot and faelight-term connect with zero protocol warnings.
-- **faelight-fm v2** -- A libcosmic file manager. Miller columns, git status per file, Friday context per directory, forest safety guard on deletes.
-- **faelight-term v3** -- GPU terminal rebuilt on wgpu + cosmic-text. Full scrollback, copy/paste, bracketed paste (heredoc works), 60fps rendering, Friday panel.
-- **faelight-shell v2.1.0** -- The forest's own login shell. Natural language vocabulary, parallel execution, session save/load/replay, OSC 133 shell integration.
-- **Friday intelligence v45** -- Forest Mind. 298 facts, 13 patterns, 87% prediction accuracy. Persistent decision memory, confidence-gated voice, system cartographer.
-- **Deploy pipeline v2** -- cargo-audit, cargo-deny, rollback, parallel deploy, Friday deploy intelligence. Every deploy verified.
-- **fsh test infrastructure** -- 81 tests, regression hard block, Friday-aware coverage reporting.
-- **Forest Version Intelligence** -- Auto-versioning from git diff analysis. MAJOR/MINOR/PATCH classification. Intelligence version auto-computed from Friday state.
-
-**Fixes:**
-- Bracketed paste protocol in faelight-term -- heredoc now works
-- Paste to browser fixed -- wl-clipboard-rs 0.9.3
-- Shell pipeline fixes -- semicolons, heredoc, for loops, logical chains
-- Zombie process reaping, SIGPIPE handling, cold-start test fluke eliminated
 
 | Stat | Value |
 |------|-------|
-| Commits | 2721 |
-| Tools | 51 deployed |
+| Commits | 2725 |
+| Tools | 50 deployed |
 | Health | 100% |
-| Intents complete | 248 |
-| Friday facts | 298 |
-| Test coverage | 81 tests |
+| Intents | 248 complete |
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
 ---
+
 <!-- END DYNAMIC SECTION -->
 
 <!-- STATIC SECTION -->

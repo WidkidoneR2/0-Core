@@ -2,7 +2,7 @@ version = "14.0.0"
 date = "2026-05-17"
 theme = "The Forest Owns the Screen"
 health_at_release = 100
-commits_since_last = 256
+commits_since_last = 5
 
 [stats]
 tools_total = 50

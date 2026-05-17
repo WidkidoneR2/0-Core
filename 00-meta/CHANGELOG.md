@@ -2,6 +2,13 @@
 
 ## [14.0.0] — The Forest Owns the Screen (2026-05-17)
 
+### 📊 Stats
+- Health: 100%  ·  Commits: 2725  ·  Tools: 50 deployed  ·  Intents: 248 complete
+
+---
+
+## [14.0.0] — The Forest Owns the Screen (2026-05-17)
+
 ### 🎯 Completed Intents
 - faelight-compositor v2 — EGL/OpenGL First Real Frame
 - Friday Daemon v2 — Anticipation Engine: Always Watching, Always Ready
