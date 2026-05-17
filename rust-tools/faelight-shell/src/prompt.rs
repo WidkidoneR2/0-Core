@@ -7,6 +7,16 @@
 use crate::db::ForestDb;
 use colored::*;
 
+// OSC 133 shell integration sequences (INT-296)
+// These mark semantic boundaries for terminal emulators
+pub const OSC133_PROMPT_START: &str = "]133;A\\"; // prompt start
+pub const OSC133_PROMPT_END: &str   = "]133;B\\"; // command input start
+pub const OSC133_OUTPUT_START: &str = "]133;C\\"; // output start
+pub fn osc133_command_end(exit_code: i32) -> String {
+    format!("]133;D;{}\\", exit_code)
+}
+
+
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
 fn cwd_str(max_len: usize) -> String {

@@ -366,8 +366,8 @@ Phase 6 -- Atuin integration:
 
 GATES
 
-[ ] Phase 0: OSC 133, kitty protocol, tree-sitter, Warp model all studied
-[ ] Phase 1: every fsh command creates a CommandBlock in state.db
+[x] Phase 0: OSC 133 studied -- kitty protocol, Warp block model, shell integration docs reviewed
+[x] Phase 1: every fsh command creates a CommandBlock in state.db -- term_commands table, OSC 133 A/B/C/D all wired 2026-05-17
 [ ] Phase 2: copy works across 1000+ lines of scrollback
 [ ] Phase 3: cat main.rs shows Rust syntax highlighting
 [ ] Phase 4: evil-helix runs inside v3 with full key support

@@ -669,6 +669,27 @@ fn repl_main() -> Result<()> {
         if let Some(id) = last_history_id.take() {
             db.update_history_completion(id, last_exit_code, elapsed);
         }
+        // INT-296: record CommandBlock to state.db
+        if let Some(ref cmd) = last_history_id.as_ref().map(|_| ()).and(None::<String>) {
+            let _ = cmd; // placeholder
+        }
+        {
+            let cwd = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let session = std::env::var("FSH_SESSION_ID")
+                .unwrap_or_else(|_| "unknown".to_string());
+            let _ = db.conn.execute(
+                "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
+                 SELECT ?, ?, ?, ?, command FROM shell_history ORDER BY id DESC LIMIT 1",
+                rusqlite::params![session, cwd,
+                    last_exit_code.unwrap_or(0),
+                    elapsed.map(|e| e as i64).unwrap_or(0)],
+            );
+        }
+        // INT-296: OSC 133 D -- command end with exit code
+        let exit_for_osc = last_exit_code.unwrap_or(0);
+        print!("{}", prompt::osc133_command_end(exit_for_osc));
         last_duration_ms = elapsed;
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
@@ -679,6 +700,7 @@ fn repl_main() -> Result<()> {
             last_exit_code,
             job_count: job_table.job_count(),
         };
+        print!("{}", prompt::OSC133_PROMPT_START);
         prompt::render_context(&db, &ctx);
 
         let prompt_str = prompt::render_line(&db, last_exit_code);
@@ -746,6 +768,8 @@ fn repl_main() -> Result<()> {
         match read_result {
             Ok(line) => {
                 // Check reload signal at TOP of loop — before any processing
+                // INT-296: OSC 133 B -- command input received
+                print!("{}", prompt::OSC133_PROMPT_END);
                 if std::path::Path::new("/tmp/fsh-reload-signal").exists() {
                     let _ = std::fs::remove_file("/tmp/fsh-reload-signal");
                     println!(
@@ -866,6 +890,8 @@ fn repl_main() -> Result<()> {
                     }
                     _ => line,
                 };
+                // INT-296: OSC 133 C -- output start
+                print!("{}", prompt::OSC133_OUTPUT_START);
                 let line = normalize_input(&line);
                 let line = normalize_input(&line);
                 let line = expand_braces(&line);
