@@ -66,3 +66,47 @@ delegate_data_device!(FaelightCompositor);
 
 impl OutputHandler for FaelightCompositor {}
 delegate_output!(FaelightCompositor);
+
+use smithay::{
+    delegate_primary_selection, delegate_xdg_decoration, delegate_xdg_activation,
+    wayland::{
+        selection::primary_selection::{
+            PrimarySelectionHandler, PrimarySelectionState,
+            set_primary_focus,
+        },
+        shell::xdg::decoration::{XdgDecorationHandler, XdgDecorationState},
+        xdg_activation::{XdgActivationHandler, XdgActivationState, XdgActivationToken},
+    },
+    reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
+};
+
+impl PrimarySelectionHandler for FaelightCompositor {
+    fn primary_selection_state(&mut self) -> &mut PrimarySelectionState {
+        &mut self.primary_selection_state
+    }
+}
+
+delegate_primary_selection!(FaelightCompositor);
+
+impl XdgDecorationHandler for FaelightCompositor {
+    fn new_decoration(&mut self, toplevel: smithay::wayland::shell::xdg::ToplevelSurface) {
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(Mode::ServerSide);
+        });
+        toplevel.send_configure();
+    }
+    fn request_mode(&mut self, _toplevel: smithay::wayland::shell::xdg::ToplevelSurface, _mode: Mode) {}
+    fn unset_mode(&mut self, _toplevel: smithay::wayland::shell::xdg::ToplevelSurface) {}
+}
+
+delegate_xdg_decoration!(FaelightCompositor);
+
+impl XdgActivationHandler for FaelightCompositor {
+    fn activation_state(&mut self) -> &mut XdgActivationState {
+        &mut self.xdg_activation_state
+    }
+    fn token_created(&mut self, _token: XdgActivationToken, _data: smithay::wayland::xdg_activation::XdgActivationTokenData) -> bool { true }
+    fn request_activation(&mut self, _token: XdgActivationToken, _data: smithay::wayland::xdg_activation::XdgActivationTokenData, _surface: smithay::reexports::wayland_server::protocol::wl_surface::WlSurface) {}
+}
+
+delegate_xdg_activation!(FaelightCompositor);

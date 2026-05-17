@@ -14,10 +14,17 @@ use smithay::{
     wayland::{
         compositor::{CompositorClientState, CompositorState},
         output::OutputManagerState,
-        selection::data_device::DataDeviceState,
-        shell::xdg::XdgShellState,
+        selection::{
+            data_device::DataDeviceState,
+            primary_selection::PrimarySelectionState,
+        },
+        shell::xdg::{
+            XdgShellState,
+            decoration::XdgDecorationState,
+        },
         shm::ShmState,
         socket::ListeningSocketSource,
+        xdg_activation::XdgActivationState,
     },
 };
 
@@ -37,6 +44,9 @@ pub struct FaelightCompositor {
     pub output_manager_state: OutputManagerState,
     pub seat_state: SeatState<Self>,
     pub data_device_state: DataDeviceState,
+    pub primary_selection_state: PrimarySelectionState,
+    pub xdg_decoration_state: XdgDecorationState,
+    pub xdg_activation_state: XdgActivationState,
     pub popups: PopupManager,
     pub seat: Seat<Self>,
 
@@ -62,6 +72,9 @@ impl FaelightCompositor {
         let shm_state = ShmState::new::<Self>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<Self>(&dh);
         let data_device_state = DataDeviceState::new::<Self>(&dh);
+        let primary_selection_state = PrimarySelectionState::new::<Self>(&dh);
+        let xdg_decoration_state = XdgDecorationState::new::<Self>(&dh);
+        let xdg_activation_state = XdgActivationState::new::<Self>(&dh);
         let popups = PopupManager::default();
 
         let mut seat_state = SeatState::new();
@@ -90,6 +103,9 @@ impl FaelightCompositor {
             output_manager_state,
             seat_state,
             data_device_state,
+            primary_selection_state,
+            xdg_decoration_state,
+            xdg_activation_state,
             popups,
             seat,
             db,
