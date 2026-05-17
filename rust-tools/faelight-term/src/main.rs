@@ -678,6 +678,7 @@ impl KeyboardHandler for AppState {
                     else { Some(b"\t".to_vec()) }
                 }
                 Keysym::Escape => Some(b"\x1b".to_vec()),
+                Keysym::bracketleft => if ctrl { Some(vec![0x1b]) } else { Some(b"[".to_vec()) }, // Ctrl+[ = ESC
                 Keysym::Up    => if ctrl { Some(b"\x1b[1;5A".to_vec()) }
                                  else if shift { Some(b"\x1b[1;2A".to_vec()) }
                                  else { Some(b"\x1b[A".to_vec()) },
@@ -715,6 +716,11 @@ impl KeyboardHandler for AppState {
                             if ch >= 'a' && ch <= 'z' { Some(vec![ch as u8 - b'a' + 1]) }
                             else if ch >= 'A' && ch <= 'Z' { Some(vec![ch as u8 - b'A' + 1]) }
                             else if ch == '@' { Some(vec![0]) }
+                            else if ch == '[' { Some(vec![0x1b]) }  // Ctrl+[ = ESC (kitty compat)
+                            else if ch == '\\' { Some(vec![0x1c]) } // Ctrl+\ = FS
+                            else if ch == ']' { Some(vec![0x1d]) }  // Ctrl+] = GS
+                            else if ch == '^' { Some(vec![0x1e]) }  // Ctrl+^ = RS
+                            else if ch == '_' { Some(vec![0x1f]) }  // Ctrl+_ = US
                             else { Some(s.into_bytes()) }
                         } else if alt && s.len() == 1 {
                             let mut v = vec![0x1b];
