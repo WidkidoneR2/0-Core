@@ -1,7 +1,7 @@
 ---
 id: 310
 title: "Forest Version Intelligence -- auto-versioning, smart releases, engine coherence"
-status: planned
+status: in-progress
 date: 2026-05-16
 type: intelligence
 tags: [versioning, deploy, release, core, engine, intelligence, automation]

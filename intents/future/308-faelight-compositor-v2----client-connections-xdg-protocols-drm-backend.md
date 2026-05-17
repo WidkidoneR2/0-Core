@@ -1,11 +1,11 @@
 ---
 id: 308
 title: "faelight-compositor v2 -- client connections, XDG protocols, DRM backend"
-status: planned
+status: in-progress
 date: 2026-05-16
 type: build
 tags: [compositor, smithay, wayland, drm, xdg, egl, opengl, protocols]
-depends_on: [287]
+depends_on: []
 ---
 ## Where We Are (v0.1.0 -- proven 2026-05-16)
 

@@ -1,11 +1,11 @@
 ---
 id: 296
 title: "faelight-term semantic intelligence -- shell integration, editor-aware protocols, structured command objects, tree-sitter"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [faelight-term, semantic, tree-sitter, shell-integration, editor-aware, command-objects, friday, intelligence, warp, kitty, ghostty]
 priority: high
-depends_on: [292, 261, 286]
+depends_on: []
 ---
 
 The terminal and the editor are converging.
