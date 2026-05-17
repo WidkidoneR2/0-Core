@@ -1019,7 +1019,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "faelight-zone",
  "flate2",
@@ -1331,16 +1331,7 @@ version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
 dependencies = [
- "dirs-sys 0.4.1",
-]
-
-[[package]]
-name = "dirs"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
-dependencies = [
- "dirs-sys 0.5.0",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -1351,20 +1342,8 @@ checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users 0.4.6",
+ "redox_users",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
-dependencies = [
- "libc",
- "option-ext",
- "redox_users 0.5.2",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1631,7 +1610,7 @@ version = "6.0.0"
 dependencies = [
  "anyhow",
  "chrono",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "fontdue",
  "lazy_static",
@@ -1683,7 +1662,7 @@ version = "1.0.0"
 dependencies = [
  "clap",
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "walkdir",
 ]
@@ -1695,7 +1674,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
- "dirs 5.0.1",
+ "dirs",
  "libc",
  "serde",
  "serde_json",
@@ -1796,27 +1775,9 @@ version = "2.0.0"
 dependencies = [
  "chrono",
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "rusqlite",
-]
-
-[[package]]
-name = "faelight-fm"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "crossterm 0.28.1",
- "faelight-core",
- "faelight-zone",
- "ratatui 0.28.1",
- "rusqlite",
- "serde",
- "serde_json",
- "shellexpand",
- "thiserror 1.0.69",
- "tokio",
- "walkdir",
 ]
 
 [[package]]
@@ -1827,7 +1788,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm 0.28.1",
- "dirs 5.0.1",
+ "dirs",
  "ratatui 0.29.0",
  "rusqlite",
  "serde",
@@ -1872,7 +1833,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "regex",
  "serde",
@@ -1885,7 +1846,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",
- "dirs 5.0.1",
+ "dirs",
  "rusqlite",
  "wayland-client",
  "wayland-protocols 0.32.10",
@@ -1957,7 +1918,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "dirs 5.0.1",
+ "dirs",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1968,7 +1929,7 @@ name = "faelight-notify"
 version = "4.0.0"
 dependencies = [
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "fontdue",
  "nix 0.29.0",
@@ -1999,7 +1960,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm 0.28.1",
- "dirs 5.0.1",
+ "dirs",
  "ratatui 0.29.0",
  "rusqlite",
  "serde",
@@ -2014,7 +1975,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm 0.28.1",
- "dirs 5.0.1",
+ "dirs",
  "libc",
  "ratatui 0.29.0",
  "rusqlite",
@@ -2083,25 +2044,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faelight-term-v2"
-version = "3.0.0"
-dependencies = [
- "bytemuck",
- "calloop 0.14.4",
- "calloop-wayland-source 0.4.1",
- "cosmic-text",
- "nix 0.29.0",
- "pollster",
- "rusqlite",
- "serde",
- "smithay-client-toolkit 0.20.0",
- "toml 0.8.23",
- "vte",
- "wayland-client",
- "wl-clipboard-rs",
-]
-
-[[package]]
 name = "faelight-update"
 version = "4.1.0"
 dependencies = [
@@ -2132,7 +2074,7 @@ dependencies = [
  "argon2",
  "chrono",
  "colored",
- "dirs 5.0.1",
+ "dirs",
  "faelight-core",
  "hex",
  "rand 0.8.6",
@@ -2149,7 +2091,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "dirs 5.0.1",
+ "dirs",
  "rusqlite",
  "serde",
  "serde_json",
@@ -4529,12 +4471,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pollster"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
-
-[[package]]
 name = "poly1305"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4985,17 +4921,6 @@ dependencies = [
  "getrandom 0.2.17",
  "libredox",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "redox_users"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
-dependencies = [
- "getrandom 0.2.17",
- "libredox",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -5584,15 +5509,6 @@ name = "shell-words"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
-
-[[package]]
-name = "shellexpand"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
-dependencies = [
- "dirs 6.0.0",
-]
 
 [[package]]
 name = "shlex"
@@ -6682,7 +6598,6 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a0b683b20ef64071ff03745b14391751f6beab06a54347885459b77a3f2caa5"
 dependencies = [
- "arrayvec",
  "bitflags 2.10.0",
  "cursor-icon",
  "log",
