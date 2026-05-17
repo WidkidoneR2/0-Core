@@ -351,8 +351,11 @@ fn draw_health_ui(
             _ => s,
         });
     let border_color = severity_color(worst);
+    let forest_version = std::fs::read_to_string("/etc/faelight/VERSION").unwrap_or_else(|_| "v14.0.0".to_string());
+    let forest_version = forest_version.trim();
     let health_str = format!(
-        "🏥 Faelight Forest 11.9.0 -- {}% -- {}/23",
+        "🏥 Faelight Forest {} -- {}% -- {}/23",
+        forest_version,
         health_pct,
         sections.iter().map(|s| s.checks.len()).sum::<usize>()
     );

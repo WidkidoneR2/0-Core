@@ -8143,7 +8143,7 @@ fn fsh_identity_cmd(db: &ForestDb) -> CommandResult {
         "  {:<16} {}
 ",
         "Forest".dimmed(),
-        "Faelight Forest 13.0.0".bright_green()
+        std::fs::read_to_string("/etc/faelight/VERSION").unwrap_or_else(|_| "v14.0.0".to_string()).trim().trim_start_matches("v").to_string().bright_green()
     ));
     out.push_str(&format!(
         "  {:<16} {}
