@@ -326,12 +326,12 @@ impl Application for FaelightFm {
             .unwrap_or("/".to_string());
 
         let header = widget::row::with_children(vec![
-            widget::button::text("h ↑").on_press(Message::GoUp).into(),
+            widget::button::text("↑").on_press(Message::GoUp).into(),
             space::horizontal().into(),
-            widget::text(format!("🌲 {}", self.current_path.display())).size(13).into(),
+            widget::text("🌲 Faelight Forest Navigator").size(16).into(),
             space::horizontal().into(),
-            widget::text(format!("{} items  j/k navigate  l enter  h up", self.entries.len())).size(11).into(),
-        ]).spacing(8).padding(8);
+            widget::text(format!("{}", self.current_path.display())).size(12).into(),
+        ]).spacing(12).padding(10);
 
         // Parent panel
         let mut parent_col = widget::column::with_capacity(self.parent_entries.len());
@@ -389,19 +389,31 @@ impl Application for FaelightFm {
         let _selected_name = self.entries.get(self.selected)
             .map(|e| e.name.clone())
             .unwrap_or_default();
-        // Get active intent from state.db
-        let active_intent = std::process::Command::new("sqlite3")
-            .args(["/home/christian/0-core/runtime/state.db",
-                "SELECT title FROM intents WHERE status='in-progress' LIMIT 1"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .unwrap_or_default();
-        let active_intent = active_intent.trim();
-        let intent_display = if active_intent.is_empty() {
-            "No active intent".to_string()
-        } else {
-            format!("▸ {}", &active_intent[..active_intent.len().min(50)])
+        // Get active intents from filesystem
+        let intent_display = {
+            let output = std::process::Command::new("grep")
+                .args(["-rl", "status: in-progress",
+                    "/home/christian/0-core/intents/future/"])
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .unwrap_or_default();
+            let count = output.lines().count();
+            if count == 0 {
+                "No active intents".to_string()
+            } else {
+                // Get first intent title
+                let first = output.lines().next().unwrap_or("");
+                let title = std::process::Command::new("grep")
+                    .args(["-m1", "^title:", first])
+                    .output()
+                    .ok()
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .unwrap_or_default();
+                let title = title.trim().trim_start_matches("title:").trim()
+                    .trim_matches('"');
+                format!("▸ {} (+{} more)", &title[..title.len().min(40)], count - 1)
+            }
         };
         let status_text = if !self.status_msg.is_empty() {
             format!("  {} ", self.status_msg)
