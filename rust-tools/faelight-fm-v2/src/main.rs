@@ -47,6 +47,14 @@ enum GitStatus {
 
 fn get_git_status(path: &PathBuf) -> std::collections::HashMap<String, GitStatus> {
     let mut map = std::collections::HashMap::new();
+    // Get git root first
+    let git_root = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(path)
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| std::path::PathBuf::from(s.trim()));
     let output = Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(path)
@@ -55,8 +63,19 @@ fn get_git_status(path: &PathBuf) -> std::collections::HashMap<String, GitStatus
         for line in String::from_utf8_lossy(&out.stdout).lines() {
             if line.len() > 3 {
                 let status = &line[..2];
-                let file = line[3..].to_string();
-                let first = file.split('/').next().unwrap_or(&file).to_string();
+                let file_path = line[3..].to_string();
+                // Make path relative to current directory
+                let rel = if let Some(ref root) = git_root {
+                    let abs = root.join(&file_path);
+                    abs.strip_prefix(path)
+                        .ok()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or(file_path.clone())
+                } else {
+                    file_path.clone()
+                };
+                let first = rel.split('/').next().unwrap_or(&rel).to_string();
+                if first.is_empty() || first.starts_with('.') { continue; }
                 let gs = if status.contains('?') { GitStatus::Untracked } else { GitStatus::Modified };
                 map.entry(first).or_insert(gs);
             }
@@ -122,8 +141,9 @@ fn load_preview(entries: &[FileEntry], selected: Option<usize>, path: &PathBuf) 
             if entry.is_dir {
                 let count = fs::read_dir(&full).map(|d| d.count()).unwrap_or(0);
                 let ctx = get_intent_context(&full);
-                return format!("📁 Directory\n{} items\n\nPath:\n{}\n\n{}",
-                    count, full.display(), ctx);
+                let path_str = full.display().to_string();
+                let short_path = if path_str.len() > 30 { format!("...{}", &path_str[path_str.len()-27..]) } else { path_str };
+                return format!("📁 Directory\n{} items\n\n📍 {}\n\n{}", count, short_path, ctx);
             } else {
                 if let Ok(content) = fs::read_to_string(&full) {
                     let lines: Vec<&str> = content.lines().take(40).collect();
@@ -159,6 +179,11 @@ impl FaelightFm {
                 self.entries = load_dir(&self.current_path);
                 self.selected = 0;
                 self.preview = load_preview(&self.entries, Some(0), &self.current_path);
+            } else {
+                let file_path = self.current_path.join(&entry.name);
+                let _ = std::process::Command::new("foot")
+                    .args(["-e", "helix", &file_path.to_string_lossy().to_string()])
+                    .spawn();
             }
         }
     }
@@ -346,44 +371,57 @@ impl Application for FaelightFm {
             parent_col = parent_col.push(widget::text(label).size(12));
         }
         let parent_panel = widget::container(
-            widget::scrollable(parent_col.spacing(1))
-        ).width(Length::FillPortion(2)).height(Length::Fill).padding(6);
+            cosmic::iced::widget::scrollable(parent_col.spacing(8))
+                .scrollbar_width(4)
+                .scrollbar_padding(0.0)
+                .scroller_width(4)
+                .width(Length::Fill)
+        ).width(Length::FillPortion(4)).height(Length::Fill).padding([6, 0, 6, 8]);
 
         // Current panel
         let mut current_col = widget::column::with_capacity(self.entries.len());
         for (idx, entry) in self.entries.iter().enumerate() {
             let icon = if entry.is_dir { "📁" } else { "📄" };
-            let git = match entry.git_status {
-                GitStatus::Modified  => " ●",
-                GitStatus::Untracked => " ?",
+            let git_badge = match entry.git_status {
+                GitStatus::Modified  => "  ✎ modified",
+                GitStatus::Untracked => "  + new",
                 GitStatus::Clean     => "",
             };
-            let label = format!("{} {}{}", icon, entry.name, git);
-            let btn = if self.selected == idx {
-                widget::button::text(format!("▶ {}", label))
-                    .on_press(Message::SelectEntry(idx))
+            let display_name = if entry.name.len() > 25 {
+                format!("{}...", &entry.name[..22])
             } else {
-                widget::button::text(format!("   {}", label))
-                    .on_press(Message::SelectEntry(idx))
+                entry.name.clone()
             };
+            let prefix = if self.selected == idx { "▶ " } else { "   " };
+            let label = format!("{}{} {}{}", prefix, icon, display_name, git_badge);
+            let btn = widget::button::text(label)
+                .on_press(Message::SelectEntry(idx));
             current_col = current_col.push(btn);
         }
         let current_panel = widget::container(
-            widget::scrollable(current_col.spacing(1))
-        ).width(Length::FillPortion(3)).height(Length::Fill).padding(6);
+            cosmic::iced::widget::scrollable(current_col.spacing(8))
+                .scrollbar_width(4)
+                .scrollbar_padding(0.0)
+                .scroller_width(4)
+                .width(Length::Fill)
+        ).width(Length::FillPortion(5)).height(Length::Fill).padding([6, 0, 6, 8]);
 
         // Preview panel
         let preview_panel = widget::container(
-            widget::scrollable(widget::text(&self.preview).size(12))
-        ).width(Length::FillPortion(3)).height(Length::Fill).padding(8);
+            widget::scrollable(widget::text(&self.preview).size(14).width(Length::Fill))
+                .width(Length::Fill)
+        ).width(Length::FillPortion(5)).height(Length::Fill).padding(8);
 
+        let sep = || widget::container(space::horizontal())
+            .height(Length::Fill)
+            .width(cosmic::iced::Length::Fixed(2.0));
         let columns = widget::row::with_children(vec![
             parent_panel.into(),
-            widget::divider::vertical::default().into(),
+            sep().into(),
             current_panel.into(),
-            widget::divider::vertical::default().into(),
+            sep().into(),
             preview_panel.into(),
-        ]);
+        ]).width(Length::Fill);
 
         // Status bar
         let _selected_name = self.entries.get(self.selected)
@@ -462,7 +500,7 @@ impl Application for FaelightFm {
                 columns.into(),
                 widget::divider::horizontal::default().into(),
                 status.into(),
-            ])
+            ]).width(Length::Fill)
         )
         .width(Length::Fill)
         .height(Length::Fill)

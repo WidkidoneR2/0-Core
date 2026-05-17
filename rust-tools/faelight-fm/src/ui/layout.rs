@@ -15,7 +15,7 @@ pub fn create_layout(area: Rect) -> (Rect, Rect, Rect, Rect, Rect) {
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(20), // Zones
+            Constraint::Percentage(25), // Zones
             Constraint::Min(0),     // File list
         ])
         .split(chunks[2]);
@@ -34,8 +34,8 @@ pub fn create_split_layout(filelist_area: Rect) -> (Rect, Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(45), // File list
-            Constraint::Percentage(55), // Preview pane
+            Constraint::Percentage(60), // File list
+            Constraint::Percentage(40), // Preview pane
         ])
         .split(filelist_area);
 
