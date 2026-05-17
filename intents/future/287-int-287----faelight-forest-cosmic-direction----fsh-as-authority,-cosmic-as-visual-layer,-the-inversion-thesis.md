@@ -100,7 +100,7 @@ Phase 2 -- libcosmic + iced:
 [~] faelight-fm-v2 spike proven -- full implementation is INT-293
 
 Phase 4 -- selective integration:
-[ ] faelight-fm v2 using libcosmic (INT-293)
+[x] faelight-fm v2 using libcosmic -- deployed and running 2026-05-16
 [ ] faelight-bar v3 using libcosmic (INT-295)
 [ ] Pop_OS rep demo -- working COSMIC-stack forest tools
 
