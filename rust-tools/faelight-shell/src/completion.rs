@@ -771,7 +771,7 @@ impl<'a> Validator for ForestHelper<'a> {
         let input = ctx.input();
 
         // Check for heredoc patterns
-        if input.contains("<<") {
+        if input.contains("<<") && !input.contains("<<<") {
             // Look for unquoted heredoc delimiter (risky)
             if let Some(heredoc_start) = input.find("<<") {
                 let after_heredoc = &input[heredoc_start + 2..].trim_start();
