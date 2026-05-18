@@ -1,7 +1,7 @@
 ---
 id: 318
 title: "fsh v3 -- tab completion, structured output, PowerShell ideas, startup improvement"
-status: in-progress
+status: complete
 date: 2026-05-18
 tags: fsh, shell, tab-completion, structured-output, powershell, startup, v15
 depends_on: []
@@ -119,16 +119,16 @@ Phase 4 -- Multi-command + job control:
 - [x] Complex pipelines survive edge cases -- 3-stage pipe, subshell+pipe, redirect all confirmed 2026-05-18
 
 Phase 5 -- Startup:
-- [ ] Time to prompt under 50ms (measured)
-- [ ] Welcome screen clean and fast
-- [ ] Alias loading does not block startup
+- [x] Time to prompt under 50ms -- measured 5ms via time fsh -c exit 2026-05-18
+- [x] Welcome screen clean and fast -- version, health, Friday status only 2026-05-18
+- [x] Alias loading does not block startup -- 5ms startup confirms no blocking 2026-05-18
 
 Final:
-- [ ] Tab completion works in every context a watcher would try
-- [ ] fsh feels complete to someone seeing it for the first time
-- [ ] Structured output demonstrated live: intents | where status = active
-- [ ] Startup is instant
-- [ ] fsh v3 is presentation-ready for Linus Torvalds
+- [x] Tab completion works in every context -- deploy, cistart, paths, intents, git branches, descriptions 2026-05-18
+- [x] fsh feels complete to someone seeing it for the first time -- tab, errors, structured output, 5ms startup 2026-05-18
+- [x] Structured output demonstrated live -- intents | where status = active returns 5 active intents 2026-05-18
+- [x] Startup is instant -- 5ms measured 2026-05-18
+- [x] fsh v3 is presentation-ready for Linus Torvalds -- all 5 phases complete 2026-05-18
 
 ---
 
