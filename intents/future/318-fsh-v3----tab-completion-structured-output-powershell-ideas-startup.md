@@ -113,10 +113,10 @@ Phase 3 -- Structured output:
 - [x] Pipeline between structured commands works -- intents | count | where all verified 2026-05-18
 
 Phase 4 -- Multi-command + job control:
-- [ ] Here-strings (<<<) work
-- [ ] bg/fg/jobs work correctly
-- [ ] Nested subshells reliable
-- [ ] Complex pipelines survive edge cases
+- [x] Here-strings (<<<) work -- excluded from heredoc validator in completion.rs 2026-05-18
+- [x] bg/fg/jobs work correctly -- sleep 5 &, jobs, fg all confirmed 2026-05-18
+- [x] Nested subshells reliable -- echo $(echo nested), echo $(ls | head) confirmed 2026-05-18
+- [x] Complex pipelines survive edge cases -- 3-stage pipe, subshell+pipe, redirect all confirmed 2026-05-18
 
 Phase 5 -- Startup:
 - [ ] Time to prompt under 50ms (measured)
