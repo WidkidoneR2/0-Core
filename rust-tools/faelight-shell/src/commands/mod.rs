@@ -6273,7 +6273,41 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     }
 }
 
+fn cmd_in_path(cmd: &str) -> bool {
+    if cmd.contains('/') { return std::path::Path::new(cmd).exists(); }
+    let path_env = std::env::var("PATH").unwrap_or_default();
+    path_env.split(':').any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
+}
+
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
+    let cmd_name = line.split_whitespace().next().unwrap_or("");
+    if !cmd_name.is_empty() && !cmd_name.contains('/') && !cmd_in_path(cmd_name) {
+        let typed_cmd = cmd_name.to_lowercase();
+        let known: &[&str] = &[
+            "deploy", "cistart", "cicomplete", "intent", "delete", "del",
+            "fsearch", "query", "rspatch", "patch", "edit", "run", "friday",
+            "d", "gc", "gp", "unlock-core", "lock-core", "core", "fg",
+            "faelight-shell", "faelight-term",
+        ];
+        let prefix_len = typed_cmd.len().min(3);
+        let prefix = &typed_cmd[..prefix_len];
+        let suggestion = known.iter()
+            .filter(|&&k| k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str())
+            .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
+            .copied();
+        let alias_suggestion: Option<String> = db.conn.query_row(
+            "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
+            rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
+            |r| r.get(0)
+        ).ok();
+        println!("  {} command not found: {}", "✗".bright_red(), typed_cmd.bright_red());
+        if let Some(s) = suggestion {
+            println!("  {} did you mean: {}", "→".bright_cyan(), s.bright_cyan());
+        } else if let Some(a) = alias_suggestion {
+            println!("  {} did you mean: {}", "→".bright_cyan(), a.bright_cyan());
+        }
+        return CommandResult::Empty;
+    }
     let status = std::process::Command::new("sh")
         .arg("-c")
         .arg(line)
@@ -6327,24 +6361,24 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
                             .copied();
                         let alias_suggestion: Option<String> = db.conn.query_row(
-                            "SELECT name FROM aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
+                            "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
                             rusqlite::params![format!("{}%", prefix), typed_cmd.as_str()],
                             |r| r.get(0)
                         ).ok();
                         if let Some(s) = suggestion {
                             println!(
                                 "  {} command not found: {}",
-                                "x".bright_red(),
+                                "✗".bright_red(),
                                 typed_cmd.bright_red()
                             );
-                            println!("  {} did you mean: {}", "->".bright_cyan(), s.bright_cyan());
+                            println!("  {} did you mean: {}", "→".bright_cyan(), s.bright_cyan());
                         } else if let Some(a) = alias_suggestion {
                             println!(
                                 "  {} command not found: {}",
-                                "x".bright_red(),
+                                "✗".bright_red(),
                                 typed_cmd.bright_red()
                             );
-                            println!("  {} did you mean: {}", "->".bright_cyan(), a.bright_cyan());
+                            println!("  {} did you mean: {}", "→".bright_cyan(), a.bright_cyan());
                         } else {
                             return CommandResult::Error(format!("  exited with code {}", code));
                         }
