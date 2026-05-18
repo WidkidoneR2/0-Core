@@ -108,8 +108,8 @@ Phase 2 -- Error messages:
 
 Phase 3 -- Structured output:
 - [x] intents | where status = active works -- Value::Table pipeline, vocab_builtins routing 2026-05-18
-- [~] deploys | where tool = core -- intents pipeline proven, deploys needs same pattern 2026-05-18
-- [~] friday | where confidence > 0.8 -- architecture proven, friday query needs same wiring 2026-05-18
+- [x] deploys | where tool = core -- deploy_patterns table, Value::Table pipeline 2026-05-18
+- [x] friday | where confidence > 0.8 -- friday_patterns table, pipe guard added, forest_sources 2026-05-18
 - [x] Pipeline between structured commands works -- intents | count | where all verified 2026-05-18
 
 Phase 4 -- Multi-command + job control:
