@@ -101,7 +101,7 @@ Phase 2 -- libcosmic + iced:
 
 Phase 4 -- selective integration:
 [x] faelight-fm v2 using libcosmic -- deployed and running 2026-05-16
-[ ] faelight-bar v3 using libcosmic (INT-295)
+[x] faelight-bar v3 -- cosmic-text + SHM renderer, three-zone color bar, live lock/wifi/battery (INT-295 complete 2026-05-18)
 [ ] Pop_OS rep demo -- working COSMIC-stack forest tools
 
 Final:

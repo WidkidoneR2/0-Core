@@ -1,7 +1,7 @@
 ---
 id: 295
 title: "faelight-bar v3 -- COSMIC panel study, ironbar, eww, i3status-rust, quickshell, libcosmic"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [faelight-bar, bar, cosmic, libcosmic, ironbar, eww, i3status-rust, quickshell, wayland, layer-shell]
 ---
