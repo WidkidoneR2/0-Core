@@ -371,7 +371,7 @@ GATES
 [x] Phase 2: copy works across scrollback, paste to browser fixed -- wl-clipboard-rs 0.9.3, global coords verified 2026-05-17
 [x] Phase 3: cat main.rs shows Rust syntax highlighting -- bat --color=always via fsh alias, ANSI codes render in faelight-term v3 2026-05-17
 [x] Phase 4: evil-helix runs inside v3 with full key support -- helix opens fast, all keybindings confirmed 2026-05-17
-[ ] Phase 5: Friday suggests based on command object patterns
+[x] Phase 5: Friday suggests based on command object patterns -- consecutive failure detection in fsh, notify-send integration, confirmed working 2026-05-18
 [ ] Phase 6: atuin integration complete
 [ ] faelight-term v3 with INT-296 = most intelligent terminal in the forest
 
