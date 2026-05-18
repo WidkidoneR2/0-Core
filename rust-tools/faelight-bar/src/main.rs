@@ -1,5 +1,10 @@
-//! faelight-bar v5.0.0 - Wired to render/bar.rs with widget system
+//! faelight-bar v3.0.0 -- forest status bar
+//! Layer: smithay-client-toolkit (wlr-layer-shell)
+//! Text:  cosmic-text + swash (same library faelight-term uses internally)
+//! Pixel: SHM ARGB8888 -- simple, fast, beautiful
 
+use cosmic_text::{Attrs, Buffer, Color as TColor, Family, FontSystem, Metrics, Shaping, SwashCache};
+use rusqlite::Connection as Db;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_shm,
@@ -8,8 +13,8 @@ use smithay_client_toolkit::{
     registry_handlers,
     shell::{
         wlr_layer::{
-            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
-            LayerSurfaceConfigure,
+            Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler,
+            LayerSurface, LayerSurfaceConfigure,
         },
         WaylandSurface,
     },
@@ -29,20 +34,262 @@ use wayland_protocols::wp::viewporter::client::{
     wp_viewport::WpViewport, wp_viewporter::WpViewporter,
 };
 
-mod logger;
-mod menu;
-mod paths;
-mod render;
-mod widgets;
+// -- Constants ----------------------------------------------------------------
 
-const BAR_HEIGHT: u32 = 32;
-const UPDATE_INTERVAL: Duration = Duration::from_secs(1);
+const BAR_HEIGHT: u32 = 30;
+const FONT_SIZE: f32 = 14.0;
+const LINE_HEIGHT: f32 = 22.0;
+const UPDATE_MS: u64 = 1000;
+const PAD: f32 = 12.0;
 
-#[allow(dead_code)]
-enum CenterState {
-    Intent,
-    FridaySignal(String, Instant),
+// Background: #11140F forest green (ARGB little-endian bytes = B G R A)
+const BG: [u8; 4] = [0x18, 0x24, 0x1B, 0xFF]; // #1B2418 forest green
+
+// Text colors (RGBA for cosmic-text)
+fn dim()   -> TColor { TColor::rgba(0x88, 0x99, 0x88, 0xFF) }
+fn text()  -> TColor { TColor::rgba(0xCC, 0xCC, 0xCC, 0xFF) }
+fn cyan()  -> TColor { TColor::rgba(0x00, 0xBF, 0xFF, 0xFF) }
+fn green() -> TColor { TColor::rgba(0x00, 0xE5, 0x80, 0xFF) }
+fn amber() -> TColor { TColor::rgba(0xF0, 0xA5, 0x00, 0xFF) }
+fn red()   -> TColor { TColor::rgba(0xFF, 0x55, 0x55, 0xFF) }
+
+// -- Forest State -------------------------------------------------------------
+
+#[derive(Default, Clone)]
+struct ForestState {
+    health: u8,
+    core_locked: bool,
+    intent_title: String,
+    friday: Option<(String, f64)>,
+    git_branch: String,
+    git_clean: bool,
+    battery: Option<u8>,
+    charging: bool,
+    wifi_connected: bool,
+    clock: String,
 }
+
+impl ForestState {
+    fn refresh() -> Self {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let health: u8 = std::fs::read_to_string("/etc/faelight/HEALTH")
+            .ok().and_then(|s| s.trim().trim_end_matches('%').parse().ok())
+            .or_else(|| std::fs::read_to_string(
+                format!("{}/.cache/faelight/health-status", home))
+                .ok().and_then(|s| s.trim().parse().ok()))
+            .unwrap_or(100);
+        let core_locked = std::process::Command::new("lsattr")
+            .args(["-d", &format!("{}/0-core/rust-tools", home)])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains("-i-"))
+            .unwrap_or(false);
+        let intent_title = std::fs::read_to_string("/etc/faelight/INTENT")
+            .unwrap_or_default().trim().to_string();
+        let intent_title = if intent_title.len() > 55 {
+            format!("{}...", &intent_title[..52])
+        } else { intent_title };
+        let friday = read_friday(&format!("{}/0-core/runtime/state.db", home));
+        let go = |args: &[&str]| {
+            std::process::Command::new("git").args(args)
+                .current_dir(format!("{}/0-core", home)).output().ok()
+        };
+        let git_clean = go(&["status","--porcelain"])
+            .map(|o| o.stdout.is_empty()).unwrap_or(true);
+        let git_branch = go(&["branch","--show-current"])
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|| "main".into());
+        let bat = "/sys/class/power_supply/BAT1";
+        let battery: Option<u8> = std::fs::read_to_string(format!("{}/capacity", bat))
+            .ok().and_then(|s| s.trim().parse().ok());
+        let charging = std::fs::read_to_string(format!("{}/status", bat))
+            .map(|s| s.trim() == "Charging").unwrap_or(false);
+        let wifi_connected = std::fs::read_dir("/sys/class/net").ok()
+            .and_then(|entries| entries.flatten()
+                .filter(|e| e.file_name().to_string_lossy().starts_with("wl"))
+                .find_map(|e| {
+                    let name = e.file_name();
+                    std::fs::read_to_string(
+                        format!("/sys/class/net/{}/operstate", name.to_string_lossy()))
+                        .ok().map(|s| s.trim() == "up")
+                }))
+            .unwrap_or(false);
+        let clock = chrono::Local::now().format("%a %d  %H:%M").to_string();
+        ForestState { health, core_locked, intent_title, friday,
+            git_branch, git_clean, battery, charging, wifi_connected, clock }
+    }
+}
+
+fn read_friday(db: &str) -> Option<(String, f64)> {
+    let conn = Db::open(db).ok()?;
+    let cutoff = chrono::Utc::now().timestamp() - 300;
+    conn.query_row(
+        "SELECT action, confidence FROM friday_patterns
+         WHERE confidence >= 0.75 AND last_seen > ?1
+         ORDER BY confidence DESC LIMIT 1",
+        rusqlite::params![cutoff],
+        |r| Ok((r.get::<_,String>(0)?, r.get::<_,f64>(1)?)),
+    ).ok()
+}
+
+// -- Pixel rendering ----------------------------------------------------------
+
+/// Blend a cosmic-text pixel into the ARGB8888 SHM canvas.
+/// Wayland ARGB8888 in little-endian memory: [B, G, R, A]
+#[inline]
+fn blend(canvas: &mut [u8], px: i32, py: i32, w: u32, h: u32, color: TColor) {
+    let a = color.a() as u32;
+    if a == 0 { return; }
+    let cw = unsafe { CANVAS_W };
+    let ch = unsafe { CANVAS_H };
+    for dy in 0..h as i32 {
+        for dx in 0..w as i32 {
+            let x = px + dx;
+            let y = py + dy;
+            if x < 0 || y < 0 || x >= cw || y >= ch { continue; }
+            let i = (y as usize * cw as usize + x as usize) * 4;
+            if i + 3 >= canvas.len() { continue; }
+            if a == 255 {
+                canvas[i]   = color.b();
+                canvas[i+1] = color.g();
+                canvas[i+2] = color.r();
+                canvas[i+3] = 255;
+            } else {
+                let inv = 255 - a;
+                canvas[i]   = ((canvas[i]   as u32 * inv + color.b() as u32 * a) / 255) as u8;
+                canvas[i+1] = ((canvas[i+1] as u32 * inv + color.g() as u32 * a) / 255) as u8;
+                canvas[i+2] = ((canvas[i+2] as u32 * inv + color.r() as u32 * a) / 255) as u8;
+                canvas[i+3] = 255;
+            }
+        }
+    }
+}
+
+// Thread-local canvas dimensions for blend() helper
+static mut CANVAS_W: i32 = 1920;
+static mut CANVAS_H: i32 = 28;
+
+/// Draw text into SHM canvas at (x_off, y_off) with given color.
+fn draw_text(
+    canvas: &mut [u8],
+    font_system: &mut FontSystem,
+    swash: &mut SwashCache,
+    text: &str,
+    x_off: i32,
+    y_off: i32,
+    max_w: f32,
+    color: TColor,
+) {
+    let mut buf = Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+    buf.set_size(font_system, Some(max_w), Some(LINE_HEIGHT + 4.0));
+    buf.set_text(font_system, text,
+        Attrs::new().family(Family::Monospace), Shaping::Basic);
+    buf.shape_until_scroll(font_system, false);
+    buf.draw(font_system, swash, color, |x, y, w, h, c| {
+        blend(canvas, x_off + x, y_off + y, w, h, c);
+    });
+}
+
+/// Measure rendered text width.
+fn measure_text(font_system: &mut FontSystem, text: &str, max_w: f32) -> f32 {
+    let mut buf = Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+    buf.set_size(font_system, Some(max_w), Some(LINE_HEIGHT + 4.0));
+    buf.set_text(font_system, text, Attrs::new().family(Family::Monospace), Shaping::Basic);
+    buf.shape_until_scroll(font_system, false);
+    buf.layout_runs().map(|r| r.line_w).fold(0.0f32, f32::max)
+}
+
+/// Main draw: fill background + render three zones.
+fn draw_frame(
+    canvas: &mut [u8],
+    phys_w: u32,
+    phys_h: u32,
+    font_system: &mut FontSystem,
+    swash: &mut SwashCache,
+    forest: &ForestState,
+) {
+    // Set canvas dimensions for blend helper
+    unsafe { CANVAS_W = phys_w as i32; CANVAS_H = phys_h as i32; }
+
+    // Fill background
+    for pixel in canvas.chunks_exact_mut(4) {
+        pixel.copy_from_slice(&BG);
+    }
+
+    let third  = phys_w as f32 / 3.0;
+    let y_text = ((phys_h as f32 - LINE_HEIGHT) / 2.0) as i32;
+
+    // -- LEFT: lock(color) · health(color) · git(white) --------------------
+    let lock_str = if forest.core_locked { "[L] " } else { "[U] " };
+    let lock_color = if forest.core_locked { green() } else { red() };
+    let lock_w = measure_text(font_system, lock_str, 60.0);
+    draw_text(canvas, font_system, swash, lock_str, PAD as i32, y_text, 60.0, lock_color);
+    let h_str = format!("H:{}%  ", forest.health);
+    let h_color = if forest.health >= 90 { green() }
+        else if forest.health >= 70 { amber() } else { red() };
+    let h_w = measure_text(font_system, &h_str, 80.0);
+    draw_text(canvas, font_system, swash, &h_str,
+        (PAD + lock_w) as i32, y_text, 80.0, h_color);
+    let git_sym = if forest.git_clean { "" } else { "*" };
+    let git_str = format!("{}{}", forest.git_branch, git_sym);
+    draw_text(canvas, font_system, swash, &git_str,
+        (PAD + lock_w + h_w) as i32, y_text,
+        third - lock_w - h_w - PAD, text());
+
+    // -- CENTER: friday or intent --------------------------------------------
+    let (center, center_color) = if let Some((ref msg, conf)) = forest.friday {
+        (format!("🌲 {}  · {:.0}%", msg, conf * 100.0), cyan())
+    } else if !forest.intent_title.is_empty() {
+        (forest.intent_title.clone(), text())
+    } else {
+        ("Faelight Forest 14.0.0".to_string(), dim())
+    };
+    // Measure center text width then offset to visually center it
+    {
+        let mut cb = cosmic_text::Buffer::new(font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+        cb.set_size(font_system, Some(third), Some(LINE_HEIGHT + 4.0));
+        cb.set_text(font_system, &center,
+            Attrs::new().family(Family::Monospace), Shaping::Basic);
+        cb.shape_until_scroll(font_system, false);
+        let text_w = cb.layout_runs().map(|r| r.line_w).fold(0.0f32, f32::max);
+        let x_center = (third + (third - text_w) / 2.0).max(third) as i32;
+        cb.draw(font_system, swash, center_color, |x, y, w, h, c| {
+            blend(canvas, x_center + x, y_text + y, w, h, c);
+        });
+    }
+
+    // -- RIGHT: draw inward from right edge: clock | battery | wifi ---------
+    {
+        let mut rx = phys_w as f32 - PAD;
+        // Clock -- amber
+        let clock_w = measure_text(font_system, &forest.clock, third);
+        rx -= clock_w;
+        draw_text(canvas, font_system, swash, &forest.clock,
+            rx as i32, y_text, third, amber());
+        rx -= 14.0;
+        // Battery -- green>=95 cyan>=50 amber>=20 red<20
+        if let Some(pct) = forest.battery {
+            let bat_color = if pct >= 95 { green() } else if pct >= 50 { cyan() }
+                else if pct >= 20 { amber() } else { red() };
+            let ch = if forest.charging { "+" } else { "" };
+            let bat_str = format!("{}%{}", pct, ch);
+            let bat_w = measure_text(font_system, &bat_str, third);
+            rx -= bat_w;
+            draw_text(canvas, font_system, swash, &bat_str,
+                rx as i32, y_text, third, bat_color);
+            rx -= 14.0;
+        }
+        // WiFi -- green=up red=down
+        let wifi_str = if forest.wifi_connected { "WiFi" } else { "NoWi" };
+        let wifi_color = if forest.wifi_connected { green() } else { red() };
+        let wifi_w = measure_text(font_system, wifi_str, 60.0);
+        rx -= wifi_w;
+        draw_text(canvas, font_system, swash, wifi_str,
+            rx as i32, y_text, 60.0, wifi_color);
+    }
+}
+
+// -- App Struct ---------------------------------------------------------------
+
 struct FaelightBar {
     registry_state: RegistryState,
     output_state: OutputState,
@@ -50,102 +297,53 @@ struct FaelightBar {
     layer: LayerSurface,
     pool: SlotPool,
     width: u32,
-    first_configure: bool,
-    last_update: Instant,
-    scale_120: u32, // fractional scale × 120 (e.g. 180 = 1.5x)
+    scale_120: u32,
     viewport: Option<WpViewport>,
-    center_state: CenterState,
-    last_signal_check: Instant,
+    configured: bool,
+    font_system: FontSystem,
+    swash: SwashCache,
+    forest: ForestState,
+    last_update: Instant,
 }
 
 impl FaelightBar {
     fn draw(&mut self) {
-        let width = self.width;
-        // Fractional scaling: render at physical pixels, viewport to logical
+        if !self.configured { return; }
         let scale = self.scale_120 as f64 / 120.0;
-        let phys_w = ((width as f64 * scale).ceil() as u32).max(1);
+        let phys_w = ((self.width as f64 * scale).ceil() as u32).max(1);
         let phys_h = ((BAR_HEIGHT as f64 * scale).ceil() as u32).max(1);
         let stride = (phys_w * 4) as i32;
-
         let (buffer, canvas) = match self.pool.create_buffer(
-            phys_w as i32,
-            phys_h as i32,
-            stride,
-            wl_shm::Format::Argb8888,
-        ) {
+            phys_w as i32, phys_h as i32, stride, wl_shm::Format::Argb8888) {
             Ok(b) => b,
-            Err(e) => {
-                eprintln!("❌ Buffer exhausted: {}", e);
-                return;
-            }
+            Err(e) => { eprintln!("bar: buffer error: {e}"); return; }
         };
-
-        // Fill background
-        let bg = render::colors::BG.to_le_bytes();
-        for pixel in canvas.chunks_exact_mut(4) {
-            pixel.copy_from_slice(&bg);
-        }
-
-        // Compute center text from CenterState
-        let center_text = match &self.center_state {
-            CenterState::Intent => {
-                match render::bar::get_active_intent() {
-                    Some((id, title)) => format!("INT-{} · {}", id, title),
-                    None => {
-                        let home = std::env::var("HOME").unwrap_or_default();
-                        let hp = std::path::PathBuf::from(&home).join(".cache/faelight/health-status");
-                        let health = std::fs::read_to_string(&hp)
-                            .ok()
-                            .and_then(|s| s.trim().parse::<u8>().ok())
-                            .unwrap_or(0);
-                        if health > 0 {
-                            format!("Forest 13.0.0  ·  {}%", health)
-                        } else {
-                            "Faelight Forest 13.0.0".to_string()
-                        }
-                    }
-                }
-            }
-            CenterState::FridaySignal(signal, _) => format!("Friday: {}", signal),
-        };
-        // Delegate all drawing to render/bar.rs
-        render::bar::render(canvas, phys_w, phys_h, self.scale_120 as f32 / 120.0, &center_text);
-
-        self.layer
-            .wl_surface()
-            .attach(Some(buffer.wl_buffer()), 0, 0);
-        self.layer
-            .wl_surface()
-            .damage_buffer(0, 0, phys_w as i32, phys_h as i32);
-        // Set viewport destination to logical size — compositor handles the scale
+        draw_frame(canvas, phys_w, phys_h,
+            &mut self.font_system, &mut self.swash, &self.forest);
+        self.layer.wl_surface().attach(Some(buffer.wl_buffer()), 0, 0);
+        self.layer.wl_surface().damage_buffer(0, 0, phys_w as i32, phys_h as i32);
         if let Some(ref vp) = self.viewport {
-            vp.set_destination(width as i32, BAR_HEIGHT as i32);
+            vp.set_destination(self.width as i32, BAR_HEIGHT as i32);
         }
         self.layer.wl_surface().commit();
     }
 }
 
 impl LayerShellHandler for FaelightBar {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
+    fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {
         std::process::exit(0);
     }
-
-    fn configure(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _layer: &LayerSurface,
-        configure: LayerSurfaceConfigure,
-        _serial: u32,
-    ) {
-        eprintln!("⚙️  Configure: {:?}", configure.new_size);
-        let (width, _height) = configure.new_size;
-        if width > 0 {
-            self.width = width;
-        }
-        self.first_configure = true;
+    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+        let (w, _) = configure.new_size;
+        if w > 0 { self.width = w; }
+        self.configured = true;
         self.draw();
     }
+}
+
+impl ShmHandler for FaelightBar {
+    fn shm_state(&mut self) -> &mut Shm { &mut self.shm }
 }
 
 delegate_compositor!(FaelightBar);
@@ -154,214 +352,102 @@ delegate_shm!(FaelightBar);
 delegate_layer!(FaelightBar);
 delegate_registry!(FaelightBar);
 
+impl CompositorHandler for FaelightBar {
+    fn scale_factor_changed(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface, _: i32) {}
+    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface, _: u32) {}
+    fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface, _: wl_output::Transform) {}
+    fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+    fn surface_leave(&mut self, _: &Connection, _: &QueueHandle<Self>,
+        _: &wl_surface::WlSurface, _: &wl_output::WlOutput) {}
+}
 impl OutputHandler for FaelightBar {
-    fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
+    fn output_state(&mut self) -> &mut OutputState { &mut self.output_state }
     fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
 }
-
-impl ShmHandler for FaelightBar {
-    fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm
-    }
-}
-
-impl CompositorHandler for FaelightBar {
-    fn scale_factor_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: i32,
-    ) {
-    }
-    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &wl_surface::WlSurface, _: u32) {}
-    fn transform_changed(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: wl_output::Transform,
-    ) {
-    }
-    fn surface_enter(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
-    fn surface_leave(
-        &mut self,
-        _: &Connection,
-        _: &QueueHandle<Self>,
-        _: &wl_surface::WlSurface,
-        _: &wl_output::WlOutput,
-    ) {
-    }
-}
-
 impl ProvidesRegistryState for FaelightBar {
-    fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
-    }
+    fn registry(&mut self) -> &mut RegistryState { &mut self.registry_state }
     registry_handlers![OutputState];
 }
-
 impl Dispatch<WpFractionalScaleManagerV1, ()> for FaelightBar {
-    fn event(
-        _: &mut Self,
-        _: &WpFractionalScaleManagerV1,
-        _: wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-    }
+    fn event(_: &mut Self, _: &WpFractionalScaleManagerV1,
+        _: wayland_protocols::wp::fractional_scale::v1::client
+            ::wp_fractional_scale_manager_v1::Event,
+        _: &(), _: &Connection, _: &QueueHandle<Self>) {}
 }
-
 impl Dispatch<WpFractionalScaleV1, ()> for FaelightBar {
-    fn event(
-        state: &mut Self,
-        _: &WpFractionalScaleV1,
-        event: wp_fractional_scale_v1::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
+    fn event(state: &mut Self, _: &WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
             if scale != state.scale_120 {
                 state.scale_120 = scale;
-                eprintln!(
-                    "🔭 Fractional scale: {}/120 = {:.3}x",
-                    scale,
-                    scale as f64 / 120.0
-                );
+                eprintln!("🌲 bar: scale {}/120 = {:.3}x", scale, scale as f64 / 120.0);
             }
         }
     }
 }
-
 impl Dispatch<WpViewporter, ()> for FaelightBar {
-    fn event(
-        _: &mut Self,
-        _: &WpViewporter,
+    fn event(_: &mut Self, _: &WpViewporter,
         _: wayland_protocols::wp::viewporter::client::wp_viewporter::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-    }
+        _: &(), _: &Connection, _: &QueueHandle<Self>) {}
 }
-
 impl Dispatch<WpViewport, ()> for FaelightBar {
-    fn event(
-        _: &mut Self,
-        _: &WpViewport,
+    fn event(_: &mut Self, _: &WpViewport,
         _: wayland_protocols::wp::viewporter::client::wp_viewport::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-    }
+        _: &(), _: &Connection, _: &QueueHandle<Self>) {}
 }
 
-fn main() {
-    eprintln!("🌲 faelight-bar v5.0.0 starting...");
+// -- main ---------------------------------------------------------------------
 
-    let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
-    let (globals, mut event_queue) = registry_queue_init(&conn).expect("Failed to init registry");
-    let qh = event_queue.handle();
-
-    let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
-    let layer_shell = LayerShell::bind(&globals, &qh).expect("Layer shell not available");
-    let shm = Shm::bind(&globals, &qh).expect("wl_shm not available");
-
-    // Bind fractional scale and viewport protocols
-    let frac_manager = globals
-        .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
-        .ok();
+fn main() -> anyhow::Result<()> {
+    eprintln!("🌲 faelight-bar v3.0.0 -- cosmic-text renderer starting...");
+    let conn = Connection::connect_to_env()?;
+    let (globals, mut eq) = registry_queue_init(&conn)?;
+    let qh = eq.handle();
+    let compositor = CompositorState::bind(&globals, &qh)?;
+    let layer_shell = LayerShell::bind(&globals, &qh)?;
+    let shm = Shm::bind(&globals, &qh)?;
+    let frac_mgr = globals.bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ()).ok();
     let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
-
     let surface = compositor.create_surface(&qh);
-
-    // Set up fractional scale for this surface
-    let frac_scale = frac_manager
-        .as_ref()
-        .map(|m| m.get_fractional_scale(&surface, &qh, ()));
-    let viewport = viewporter
-        .as_ref()
-        .map(|vp| vp.get_viewport(&surface, &qh, ()));
-
-    let layer =
-        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("faelight-bar"), None);
-
+    let _frac = frac_mgr.as_ref().map(|m| m.get_fractional_scale(&surface, &qh, ()));
+    let viewport = viewporter.as_ref().map(|vp| vp.get_viewport(&surface, &qh, ()));
+    let layer = layer_shell.create_layer_surface(
+        &qh, surface, Layer::Top, Some("faelight-bar"), None);
     layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
     layer.set_size(0, BAR_HEIGHT);
     layer.set_exclusive_zone(BAR_HEIGHT as i32);
     layer.set_keyboard_interactivity(KeyboardInteractivity::None);
     layer.commit();
-
-    let pool = SlotPool::new(3840 * (BAR_HEIGHT as usize * 2) * 4 * 4, &shm)
-        .expect("Failed to create pool");
-
+    let pool = SlotPool::new(3840 * BAR_HEIGHT as usize * 4 * 4, &shm)?;
+    let font_system = FontSystem::new();
+    let swash = SwashCache::new();
     let mut app = FaelightBar {
         registry_state: RegistryState::new(&globals),
         output_state: OutputState::new(&globals, &qh),
-        shm,
-        layer,
-        scale_120: 120,
-        viewport,
-        pool,
-        width: 1920,
-        first_configure: false,
+        shm, layer, pool, width: 1920, scale_120: 120,
+        viewport, configured: false,
+        font_system, swash,
+        forest: ForestState::refresh(),
         last_update: Instant::now(),
-        center_state: CenterState::Intent,
-        last_signal_check: Instant::now(),
     };
-
-    let _frac_scale = frac_scale; // keep alive
-                                  // Block until we get the initial configure from the compositor
-    event_queue
-        .roundtrip(&mut app)
-        .expect("Initial roundtrip failed");
-    eprintln!("✅ Initial configure received, bar visible");
-
+    eq.roundtrip(&mut app)?;
+    app.draw();
+    eprintln!("✅ faelight-bar v3 live -- three zones");
     loop {
-        // Flush outgoing requests
-        event_queue.flush().expect("Flush failed");
-
-        // Read and dispatch incoming events (buffer releases, configure, etc.)
-        let _ = event_queue.dispatch_pending(&mut app);
-
-        // Redraw on interval
-        if app.first_configure && app.last_update.elapsed() >= UPDATE_INTERVAL {
+        eq.flush()?;
+        let _ = eq.dispatch_pending(&mut app);
+        if app.last_update.elapsed() >= Duration::from_millis(UPDATE_MS) {
             app.last_update = Instant::now();
+            app.forest = ForestState::refresh();
             app.draw();
-            // Extra dispatch after draw to process buffer release immediately
-            event_queue.flush().ok();
-            let _ = event_queue.dispatch_pending(&mut app);
-        }
-
-        // Check Friday signal every 5s
-        if app.first_configure && app.last_signal_check.elapsed() >= Duration::from_secs(5) {
-            app.last_signal_check = Instant::now();
-            if let Some(signal) = render::bar::get_friday_signal() {
-                app.center_state = CenterState::FridaySignal(signal, Instant::now());
-            }
-        }
-        // Return to intent after 10s
-        let should_reset = if let CenterState::FridaySignal(_, ref since) = app.center_state {
-            since.elapsed() >= Duration::from_secs(10)
-        } else {
-            false
-        };
-        if should_reset {
-            app.center_state = CenterState::Intent;
+            eq.flush().ok();
+            let _ = eq.dispatch_pending(&mut app);
         }
         std::thread::sleep(Duration::from_millis(100));
     }

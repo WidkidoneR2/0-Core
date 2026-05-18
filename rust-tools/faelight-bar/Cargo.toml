@@ -1,7 +1,7 @@
 [package]
 name = "faelight-bar"
 license = "MIT"
-version = "6.0.0"
+version = "3.0.0"
 edition = "2021"
 
 [[bin]]
@@ -9,18 +9,19 @@ name = "faelight-bar"
 path = "src/main.rs"
 
 [dependencies]
+# Wayland layer shell
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
-anyhow = "1.0"
-thiserror = "1.0"
-chrono = "0.4"
-dirs = "5.0"
-
-faelight-core = { path = "../faelight-core" }
 wayland-protocols = { workspace = true }
 
+# Beautiful font rendering -- same library faelight-term uses internally
+cosmic-text = "0.12"
+
+# Forest
+faelight-core = { path = "../faelight-core" }
 rusqlite = { version = "0.31", features = ["bundled"] }
 
-# Font rendering
-fontdue = "0.9"
-lazy_static = "1.4"
+# Utilities
+anyhow = "1.0"
+chrono = "0.4"
+dirs = "5.0"

@@ -1,7 +1,7 @@
 ---
 id: 294
 title: "Forest Event Bus v2 -- zbus D-Bus integration, system-level forest signals"
-status: planned
+status: in-progress
 date: 2026-05-12
 tags: [event-bus, zbus, dbus, signals, friday, bar, forest, ipc]
 ---
