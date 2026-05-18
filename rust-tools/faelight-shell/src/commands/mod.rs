@@ -267,6 +267,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "health" => health(db),
         "events" => events(db, args),
         "decisions" => decisions(db),
+        "deploys" | "deployments" => deploys(db),
+        "friday-patterns" => friday_patterns(db),
+        "friday" if line.trim() == "friday" => friday_patterns(db),
         "intents" => intents(core_root),
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
@@ -7782,6 +7785,68 @@ fn decisions(db: &ForestDb) -> CommandResult {
             .to_string(),
     );
     CommandResult::Output(out)
+}
+
+fn deploys(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT tool, version, outcome, duration_ms, timestamp FROM deploy_patterns ORDER BY timestamp DESC LIMIT 200"
+    ) {
+        let _ = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0).unwrap_or_default(),
+                row.get::<_, String>(1).unwrap_or_default(),
+                row.get::<_, String>(2).unwrap_or_default(),
+                row.get::<_, i64>(3).unwrap_or(0),
+                row.get::<_, i64>(4).unwrap_or(0),
+            ))
+        }).map(|iter| {
+            for item in iter.flatten() {
+                let (tool, version, outcome, duration_ms, timestamp) = item;
+                let mut row = HashMap::new();
+                row.insert("tool".to_string(), crate::value::Value::Text(tool));
+                row.insert("version".to_string(), crate::value::Value::Text(version));
+                row.insert("outcome".to_string(), crate::value::Value::Text(outcome));
+                row.insert("duration_ms".to_string(), crate::value::Value::Int(duration_ms));
+                row.insert("timestamp".to_string(), crate::value::Value::Int(timestamp));
+                rows.push(row);
+            }
+        });
+    }
+    CommandResult::Value(crate::value::Value::Table(rows))
+}
+
+fn friday_patterns(db: &ForestDb) -> CommandResult {
+    use std::collections::HashMap;
+    let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
+    if let Ok(mut stmt) = db.conn.prepare(
+        "SELECT trigger, action, outcome, confidence, frequency, source FROM friday_patterns ORDER BY confidence DESC"
+    ) {
+        let _ = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0).unwrap_or_default(),
+                row.get::<_, String>(1).unwrap_or_default(),
+                row.get::<_, String>(2).unwrap_or_default(),
+                row.get::<_, f64>(3).unwrap_or(0.0),
+                row.get::<_, i64>(4).unwrap_or(0),
+                row.get::<_, String>(5).unwrap_or_default(),
+            ))
+        }).map(|iter| {
+            for item in iter.flatten() {
+                let (trigger, action, outcome, confidence, frequency, source) = item;
+                let mut row = HashMap::new();
+                row.insert("trigger".to_string(), crate::value::Value::Text(trigger));
+                row.insert("action".to_string(), crate::value::Value::Text(action));
+                row.insert("outcome".to_string(), crate::value::Value::Text(outcome));
+                row.insert("confidence".to_string(), crate::value::Value::Text(format!("{:.2}", confidence)));
+                row.insert("frequency".to_string(), crate::value::Value::Int(frequency));
+                row.insert("source".to_string(), crate::value::Value::Text(source));
+                rows.push(row);
+            }
+        });
+    }
+    CommandResult::Value(crate::value::Value::Table(rows))
 }
 
 fn intents(core_root: &str) -> CommandResult {

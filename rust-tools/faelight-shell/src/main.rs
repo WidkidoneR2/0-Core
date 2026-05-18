@@ -1301,6 +1301,7 @@ fn repl_main() -> Result<()> {
                     // INT-220 -- friday <question>: ask Friday about the forest
                     if line.starts_with("friday")
                         && (line == "friday" || line.starts_with("friday "))
+                        && !line.contains(" | ")
                     {
                         let question = if line == "friday" {
                             "what should I work on next?".to_string()
@@ -1703,7 +1704,7 @@ fn repl_main() -> Result<()> {
                     // INT-265: Forest pipeline detection
                     {
                         let first = line.split_whitespace().next().unwrap_or("");
-                        let forest_sources = ["from", "list", "find", "db"];
+                        let forest_sources = ["from", "list", "find", "db", "intents", "deploys", "friday"];
                         let has_pipe = line.contains(" | ");
                         if forest_sources.contains(&first) && has_pipe {
                             let parts: Vec<&str> = line.splitn(2, " | ").collect();
@@ -2028,7 +2029,7 @@ fn repl_main() -> Result<()> {
                                 // Vocabulary words always route to fsh builtin first (INT-266).
                                 let vocab_builtins = [
                                     "write", "read", "list", "copy", "move", "delete", "find",
-                                    "db", "gt", "it", "intents",
+                                    "db", "gt", "it", "intents", "deploys", "friday",
                                 ];
                                 if vocab_builtins.contains(&cmd_name) && idx == 0 {
                                     let cmd_str = raw_cmd.trim().to_string();
