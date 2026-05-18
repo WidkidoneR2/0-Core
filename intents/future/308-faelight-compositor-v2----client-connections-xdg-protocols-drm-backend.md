@@ -154,7 +154,7 @@ Phase 4 -- DRM backend:
 - [ ] faelight-term on DRM
 
 Phase 5 -- Forest integration:
-- [ ] Active intent in compositor chrome
+- [~] Active intent in compositor chrome -- title set via /etc/faelight/INTENT, visible on DRM backend 2026-05-18
 - [ ] faelight-bar inside compositor
 - [ ] faelight-notify inside compositor
 
