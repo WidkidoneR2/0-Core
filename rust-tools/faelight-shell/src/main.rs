@@ -681,7 +681,7 @@ fn repl_main() -> Result<()> {
                 .unwrap_or_else(|_| "unknown".to_string());
             let _ = db.conn.execute(
                 "INSERT INTO term_commands (session_id, working_dir, exit_code, duration_ms, command) \
-                 SELECT ?, ?, ?, ?, command FROM shell_history ORDER BY id DESC LIMIT 1",
+                 SELECT ?, ?, ?, ?, command FROM shell_history WHERE command NOT LIKE 'TIMING:%' ORDER BY id DESC LIMIT 1",
                 rusqlite::params![session, cwd,
                     last_exit_code.unwrap_or(0),
                     elapsed.map(|e| e as i64).unwrap_or(0)],
