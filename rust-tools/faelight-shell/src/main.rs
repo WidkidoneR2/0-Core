@@ -2522,6 +2522,40 @@ fn repl_main() -> Result<()> {
                             }
                         }
                     }
+                    // INT-296 Phase 5: Friday consecutive failure detection
+                    {
+                        let fail_cmd = base_cmd
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or(&base_cmd)
+                            .to_string();
+                        let consecutive: i64 = db.conn.query_row(
+                            "SELECT COUNT(*) FROM (
+                                SELECT exit_code FROM term_commands
+                                WHERE command LIKE ?1
+                                ORDER BY id DESC LIMIT 3
+                            ) AS recent WHERE exit_code != 0",
+                            rusqlite::params![format!("{}%", fail_cmd)],
+                            |r| r.get(0),
+                        ).unwrap_or(0);
+                        if consecutive >= 3 {
+                            let fail_key = format!("fail3_{}", fail_cmd);
+                            if !shown_friday_suggestions.contains(&fail_key) {
+                                shown_friday_suggestions.insert(fail_key);
+                                println!(
+                                    "  🌲 Friday: {} failed {} times in a row -- check the command",
+                                    fail_cmd, consecutive
+                                );
+                                let notify_body = format!(
+                                    "{} failed {} times in a row -- Friday suggests checking the command",
+                                    fail_cmd, consecutive
+                                );
+                                let _ = std::process::Command::new("notify-send")
+                                    .args(["🌲 Friday", &notify_body])
+                                    .spawn();
+                            }
+                        }
+                    }
                     // Store last output for `last` command (INT-194)
                     if let Some(ref out) = cmd_output {
                         if !out.is_empty() {
