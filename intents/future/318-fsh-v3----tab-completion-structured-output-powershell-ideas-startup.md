@@ -92,13 +92,13 @@ Target: under 50ms to prompt.
 ## Gates
 
 Phase 1 -- Tab completion:
-- [ ] rustyline ForestCompleter implemented
-- [ ] Completes fsh vocabulary words (delete, find, search, show...)
-- [ ] Completes fsh builtins (deploy, friday, fsearch, cistart...)
-- [ ] Completes file paths correctly
-- [ ] Context-aware: after `cistart` → intent IDs from ledger
-- [ ] Context-aware: after `deploy` → deployable tool names
-- [ ] Tab shows description alongside completion
+- [x] rustyline ForestCompleter implemented -- ForestHelper with Completer trait, wired to rustyline Editor 2026-05-18
+- [x] Completes fsh vocabulary words -- delete, del, find, deploy, cistart, cicomplete, intent, friday, patch, edit, fg 2026-05-18
+- [x] Completes fsh builtins -- deploy, cistart, cicomplete, friday, fsearch, rspatch, edit, run, query, source 2026-05-18
+- [x] Completes file paths correctly -- ~/ expansion, dir/, hidden file handling 2026-05-18
+- [x] Context-aware: after cistart → intent IDs from ledger -- scans intents/future/ 2026-05-18
+- [x] Context-aware: after deploy → deployable tool names -- scans scripts/, executable check 2026-05-18
+- [x] Tab shows description alongside completion -- {cmd:<28} {description} format 2026-05-18
 
 Phase 2 -- Error messages:
 - [ ] Unknown command shows fuzzy match suggestion

@@ -481,7 +481,14 @@ impl<'a> ForestHelper<'a> {
             let partial = &line[cmd_len..];
             let home = std::env::var("HOME").unwrap_or_default();
             let mut ids: Vec<String> = Vec::new();
-            for dir in &["intents/future", "intents/complete"] {
+            let dirs: &[&str] = if line.starts_with("cicomplete ") {
+                &["intents/future", "intents/in-progress"]
+            } else if line.starts_with("cistart ") {
+                &["intents/future"]
+            } else {
+                &["intents/future", "intents/complete", "intents/in-progress"]
+            };
+            for dir in dirs {
                 let path = format!("{}/0-core/{}", home, dir);
                 if let Ok(entries) = std::fs::read_dir(&path) {
                     for e in entries.flatten() {
