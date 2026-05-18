@@ -1,7 +1,7 @@
 ---
 id: 296
 title: "faelight-term semantic intelligence -- shell integration, editor-aware protocols, structured command objects, tree-sitter"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [faelight-term, semantic, tree-sitter, shell-integration, editor-aware, command-objects, friday, intelligence, warp, kitty, ghostty]
 priority: high
@@ -372,8 +372,8 @@ GATES
 [x] Phase 3: cat main.rs shows Rust syntax highlighting -- bat --color=always via fsh alias, ANSI codes render in faelight-term v3 2026-05-17
 [x] Phase 4: evil-helix runs inside v3 with full key support -- helix opens fast, all keybindings confirmed 2026-05-17
 [x] Phase 5: Friday suggests based on command object patterns -- consecutive failure detection in fsh, notify-send integration, confirmed working 2026-05-18
-[ ] Phase 6: atuin integration complete
-[ ] faelight-term v3 with INT-296 = most intelligent terminal in the forest
+[x] Phase 6: Ctrl+R opens forest history search -- custom TUI with timestamp, exit status, duration, cwd -- forest-native, no atuin needed 2026-05-18
+[x] faelight-term v3 with INT-296 = most intelligent terminal in the forest -- all 6 phases complete 2026-05-18
 
 ---
 
