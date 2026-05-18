@@ -19,7 +19,7 @@ impl XdgShellHandler for FaelightCompositor {
         // INT-308 Phase 3: auto-tiling -- place windows side by side
         let output_size = self.space.output_geometry(
             self.space.outputs().next().unwrap()
-        ).unwrap_or(smithay::utils::Rectangle::from_loc_and_size((0,0),(1920,1080)));
+        ).unwrap_or(smithay::utils::Rectangle::from_size((1920i32, 1080i32).into()));
         let win_count = self.space.elements().count();
         let x = if win_count == 0 {
             0

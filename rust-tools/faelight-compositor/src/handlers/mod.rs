@@ -72,9 +72,8 @@ use smithay::{
     wayland::{
         selection::primary_selection::{
             PrimarySelectionHandler, PrimarySelectionState,
-            set_primary_focus,
         },
-        shell::xdg::decoration::{XdgDecorationHandler, XdgDecorationState},
+        shell::xdg::decoration::XdgDecorationHandler,
         xdg_activation::{XdgActivationHandler, XdgActivationState, XdgActivationToken},
     },
     reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
@@ -114,8 +113,7 @@ delegate_xdg_activation!(FaelightCompositor);
 use smithay::{
     delegate_cursor_shape, delegate_fractional_scale,
     wayland::{
-        cursor_shape::CursorShapeManagerState,
-        fractional_scale::{FractionalScaleHandler, FractionalScaleManagerState},
+        fractional_scale::FractionalScaleHandler,
     },
 };
 

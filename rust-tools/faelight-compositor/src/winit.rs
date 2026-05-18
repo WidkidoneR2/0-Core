@@ -73,6 +73,9 @@ pub fn init_winit(
                     let _ = event;
                 }
                 WinitEvent::Redraw => {
+                    // Update title with active intent
+                    let intent = FaelightCompositor::active_intent();
+                    backend.window().set_title(&format!("🌲 faelight-compositor | {}", intent));
                     let size = backend.window_size();
                     let damage = Rectangle::from_size(size);
 

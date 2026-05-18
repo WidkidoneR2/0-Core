@@ -26,7 +26,7 @@ use smithay::{
         socket::ListeningSocketSource,
         xdg_activation::XdgActivationState,
         cursor_shape::CursorShapeManagerState,
-        fractional_scale::{FractionalScaleManagerState, with_fractional_scale},
+        fractional_scale::FractionalScaleManagerState,
     },
 };
 
@@ -47,9 +47,12 @@ pub struct FaelightCompositor {
     pub seat_state: SeatState<Self>,
     pub data_device_state: DataDeviceState,
     pub primary_selection_state: PrimarySelectionState,
+    #[allow(dead_code)]
     pub xdg_decoration_state: XdgDecorationState,
     pub xdg_activation_state: XdgActivationState,
+    #[allow(dead_code)]
     pub cursor_shape_state: CursorShapeManagerState,
+    #[allow(dead_code)]
     pub fractional_scale_state: FractionalScaleManagerState,
     pub popups: PopupManager,
     pub seat: Seat<Self>,
@@ -167,6 +170,13 @@ impl FaelightCompositor {
         } else {
             tracing::warn!(action, "state.db not available — event dropped");
         }
+    }
+
+    /// Read active intent from /etc/faelight/INTENT (written by faelight-export)
+    pub fn active_intent() -> String {
+        std::fs::read_to_string("/etc/faelight/INTENT")
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|_| "forest".to_string())
     }
 
     fn init_wayland_listener(display: Display<Self>, event_loop: &mut EventLoop<Self>) -> OsString {
