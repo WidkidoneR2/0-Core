@@ -107,10 +107,10 @@ Phase 2 -- Error messages:
 - [x] Error format is consistent and forest-colored -- ✗ red, → cyan, consistent across all error paths 2026-05-18
 
 Phase 3 -- Structured output:
-- [ ] `intents | where status = active` works
-- [ ] `deploys | where tool = core` works
-- [ ] `friday | where confidence > 0.8` works
-- [ ] Pipeline between structured commands works
+- [x] intents | where status = active works -- Value::Table pipeline, vocab_builtins routing 2026-05-18
+- [~] deploys | where tool = core -- intents pipeline proven, deploys needs same pattern 2026-05-18
+- [~] friday | where confidence > 0.8 -- architecture proven, friday query needs same wiring 2026-05-18
+- [x] Pipeline between structured commands works -- intents | count | where all verified 2026-05-18
 
 Phase 4 -- Multi-command + job control:
 - [ ] Here-strings (<<<) work
