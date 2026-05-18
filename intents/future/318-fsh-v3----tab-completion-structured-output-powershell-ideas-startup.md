@@ -101,10 +101,10 @@ Phase 1 -- Tab completion:
 - [x] Tab shows description alongside completion -- {cmd:<28} {description} format 2026-05-18
 
 Phase 2 -- Error messages:
-- [ ] Unknown command shows fuzzy match suggestion
-- [ ] Failed command shows exit code + context hint
-- [ ] Permission denied shows helpful message
-- [ ] Error format is consistent and forest-colored
+- [x] Unknown command shows fuzzy match suggestion -- pre-check before sh, ✗ + → forest symbols 2026-05-18
+- [x] Failed command shows exit code + context hint -- exited with code N, no raw sh errors 2026-05-18
+- [~] Permission denied shows helpful message -- handled by sh stderr passthrough, forest error format 2026-05-18
+- [x] Error format is consistent and forest-colored -- ✗ red, → cyan, consistent across all error paths 2026-05-18
 
 Phase 3 -- Structured output:
 - [ ] `intents | where status = active` works
