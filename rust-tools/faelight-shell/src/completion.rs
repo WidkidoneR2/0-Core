@@ -95,6 +95,29 @@ const COMMANDS: &[&str] = &[
     "?",
     "exit",
     "quit",
+    // Forest core
+    "deploy",
+    "cistart",
+    "cicomplete",
+    "intent",
+    "friday",
+    "friday dismiss",
+    "lock-core",
+    "unlock-core",
+    // Forest vocabulary (INT-261)
+    "delete",
+    "del",
+    "find",
+    // fsh builtins
+    "patch",
+    "patch-multi",
+    "rspatch",
+    "edit",
+    "run",
+    "query",
+    "fsearch",
+    "source",
+    "fg",
 ];
 
 const PIPE_OPS: &[&str] = &[
@@ -400,6 +423,28 @@ impl<'a> ForestHelper<'a> {
             }
         }
         // ── Case 2c: path completion — cd or path-like argument ─────────────────
+        if line.starts_with("deploy ") {
+            let partial = &line["deploy ".len()..];
+            let home = std::env::var("HOME").unwrap_or_default();
+            let scripts = format!("{}/0-core/scripts", home);
+            if let Ok(entries) = std::fs::read_dir(&scripts) {
+                let mut tools: Vec<String> = entries.flatten().filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let ok = e.metadata().map(|m| {
+                        use std::os::unix::fs::PermissionsExt;
+                        m.permissions().mode() & 0o111 != 0
+                    }).unwrap_or(false);
+                    if ok && !name.contains('.') && (partial.is_empty() || name.starts_with(partial)) {
+                        Some(name)
+                    } else { None }
+                }).collect();
+                tools.sort();
+                if !tools.is_empty() {
+                    let start = line.len() - partial.len();
+                    return (start, tools);
+                }
+            }
+        }
         if line.starts_with("cd ") {
             let partial = &line["cd ".len()..];
             let cands = path_completions(partial)
@@ -640,6 +685,32 @@ fn binary_completions(partial: &str) -> Vec<String> {
     results
 }
 
+fn cmd_description(cmd: &str) -> &'static str {
+    match cmd {
+        "deploy" => "build + deploy a forest tool",
+        "cistart" => "start an intent",
+        "cicomplete" => "complete an intent",
+        "intent" => "manage the intent ledger",
+        "friday" => "talk to Friday AI",
+        "friday dismiss" => "dismiss Friday suggestion",
+        "d" => "forest health check",
+        "delete" | "del" => "safely delete a file",
+        "find" => "search the forest",
+        "lock-core" => "lock core (immutable)",
+        "unlock-core" => "unlock core for editing",
+        "fg" => "faelight-git helper",
+        "patch" => "apply a patch to a file",
+        "rspatch" => "anchor-based Rust patch",
+        "edit" => "edit a file",
+        "fsearch" => "search forest files",
+        "core" => "forest intelligence engine",
+        "gc" => "git commit shorthand",
+        "tt" | "tools" => "tool registry",
+        "et" | "events" => "forest events",
+        _ => "",
+    }
+}
+
 impl<'a> Completer for ForestHelper<'a> {
     type Candidate = Pair;
     fn complete(
@@ -653,9 +724,14 @@ impl<'a> Completer for ForestHelper<'a> {
             start,
             cands
                 .into_iter()
-                .map(|c| Pair {
-                    display: c.clone(),
-                    replacement: c,
+                .map(|c| {
+                    let desc = cmd_description(&c);
+                    let display = if !desc.is_empty() {
+                        format!("{:<28} {}", c, desc)
+                    } else {
+                        c.clone()
+                    };
+                    Pair { display, replacement: c }
                 })
                 .collect(),
         ))

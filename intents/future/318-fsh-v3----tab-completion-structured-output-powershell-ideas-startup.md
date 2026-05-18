@@ -1,7 +1,7 @@
 ---
 id: 318
 title: "fsh v3 -- tab completion, structured output, PowerShell ideas, startup improvement"
-status: planned
+status: in-progress
 date: 2026-05-18
 tags: fsh, shell, tab-completion, structured-output, powershell, startup, v15
 depends_on: []
