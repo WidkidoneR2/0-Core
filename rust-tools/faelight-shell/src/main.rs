@@ -2028,7 +2028,7 @@ fn repl_main() -> Result<()> {
                                 // Vocabulary words always route to fsh builtin first (INT-266).
                                 let vocab_builtins = [
                                     "write", "read", "list", "copy", "move", "delete", "find",
-                                    "db", "gt", "it",
+                                    "db", "gt", "it", "intents",
                                 ];
                                 if vocab_builtins.contains(&cmd_name) && idx == 0 {
                                     let cmd_str = raw_cmd.trim().to_string();
@@ -2038,11 +2038,16 @@ fn repl_main() -> Result<()> {
                                         commands::CommandResult::Output(out) => println!("{}", out),
                                         commands::CommandResult::Error(e) => eprintln!("  ✗ {}", e),
                                         commands::CommandResult::Value(v) => {
-                                            println!("{}", v.render())
+                                            if !pipeline_ops.is_empty() && !has_external_op {
+                                                let result = crate::value::apply_pipeline(v, &pipeline_ops);
+                                                println!("{}", result.render());
+                                            } else {
+                                                println!("{}", v.render());
+                                            }
                                         }
                                         _ => {}
                                     }
-                                    continue;
+                                    continue 'segments;
                                 }
                                 // Try spawning as external process. If that fails (cmd not in PATH),
                                 // try as fsh builtin via commands::execute. Never run both.

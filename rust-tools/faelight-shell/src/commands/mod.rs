@@ -7785,48 +7785,36 @@ fn decisions(db: &ForestDb) -> CommandResult {
 }
 
 fn intents(core_root: &str) -> CommandResult {
+    use std::collections::HashMap;
     let future_dir = std::path::PathBuf::from(core_root).join("intents/future");
-    let mut out = String::new();
-    out.push_str(&format!(
-        "\n{}\n",
-        "  ╭─ 🎯 Active Intents ────────────────────────────────".bright_cyan()
-    ));
-
+    let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&future_dir) {
-        let mut found = false;
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.ends_with(".md") {
-                let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                let title = content
-                    .lines()
+            if !name.ends_with(".md") { continue; }
+            let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            let id = name.split('-').next().unwrap_or("0").to_string();
+            let title = file_content.lines()
+                .find(|l| l.trim_start().starts_with("# "))
+                .map(|l| l.trim_start_matches('#').trim().to_string())
+                .or_else(|| file_content.lines()
                     .find(|l| l.starts_with("title:"))
-                    .map(|l| {
-                        l.trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| name.clone());
-                let id = name.split('-').next().unwrap_or("?");
-                out.push_str(&format!(
-                    "  │  {}  {}\n",
-                    format!("INT-{}", id).bright_yellow(),
-                    title.dimmed()
-                ));
-                found = true;
-            }
-        }
-        if !found {
-            out.push_str("  │  No active intents\n");
+                    .map(|l| l.trim_start_matches("title:").trim().trim_matches('"').to_string()))
+                .unwrap_or_else(|| name.replace(".md", ""));
+            let status = file_content.lines()
+                .find(|l| l.starts_with("status:"))
+                .map(|l| l.trim_start_matches("status:").trim())
+                .map(|s| if s == "in-progress" { "active" } else { s })
+                .unwrap_or("planned");
+            let mut row = HashMap::new();
+            row.insert("id".to_string(), crate::value::Value::Int(id.parse().unwrap_or(0)));
+            row.insert("title".to_string(), crate::value::Value::Text(title));
+            row.insert("status".to_string(), crate::value::Value::Text(status.to_string()));
+            rows.push(row);
         }
     }
-    out.push_str(
-        &"  ╰────────────────────────────────────────────────────"
-            .dimmed()
-            .to_string(),
-    );
-    CommandResult::Output(out)
+    rows.sort_by_key(|r| if let Some(crate::value::Value::Int(i)) = r.get("id") { *i } else { 0 });
+    CommandResult::Value(crate::value::Value::Table(rows))
 }
 
 #[allow(dead_code)]
