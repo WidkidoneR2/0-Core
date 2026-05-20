@@ -181,7 +181,7 @@ GATES
 [x] org.faelight.Forest D-Bus service running -- faelight-daemon spawns forest bus 2026-05-20
 [x] Health and Intent properties exposed -- HealthPercent=95 ActiveIntent verified via busctl 2026-05-20
 [x] faelight-bar subscribes to HealthChanged signal -- verified 95->100 in daemon logs 2026-05-20
-[ ] Friday suggestions appear in bar via D-Bus
+[x] Friday suggestions appear in bar via D-Bus -- FridaySuggested signal verified 2026-05-20
 [ ] Deploy completions update bar in real time
 [ ] System power events (suspend/wake) reach forest
 [ ] Full signal coverage: health, intent, friday, deploy, git
