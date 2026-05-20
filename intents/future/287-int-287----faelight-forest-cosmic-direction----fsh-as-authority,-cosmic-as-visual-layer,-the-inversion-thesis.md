@@ -97,7 +97,7 @@ Phase 1 -- cosmic-comp architecture:
 
 Phase 2 -- libcosmic + iced:
 [x] small proof of concept UI using libcosmic -- faelight-fm-v2 spike window renders on Wayland 2026-05-16
-[~] faelight-fm-v2 spike proven -- full implementation is INT-293
+[x] faelight-fm-v2 spike proven -- INT-293 Phases 0-5 complete 2026-05-16
 
 Phase 4 -- selective integration:
 [x] faelight-fm v2 using libcosmic -- deployed and running 2026-05-16
@@ -106,8 +106,8 @@ Phase 4 -- selective integration:
 
 Final:
 [x] Forest direction document updated -- docs/cosmic-comp-patterns.md + docs/cosmic-files-patterns.md
-[~] Inversion partially demonstrated -- faelight-term v3 proves it, faelight-fm v2 will complete it
-[~] Shell-first architecture proven in term v3, FM v2 and compositor v2 will complete the picture
+[~] Inversion demonstrated in term v3 + fm v2 + bar v3 -- compositor v2 (INT-308) will complete it
+[~] Shell-first proven: term v3 + fm v2 + bar v3 live -- compositor v2 is the final piece
 
 ---
 CONTEXT

@@ -207,7 +207,7 @@ Final:
 [ ] faelight-fm v2 is the forest file manager
 [ ] Forest-aware: git, intents, Friday, state.db
 [ ] Same stack as faelight-term v3 (wgpu, cosmic-text, libcosmic)
-[ ] Spatial anchor in the scroll-native desktop (INT-289)
+[~] Spatial anchor in scroll-native desktop -- deferred to INT-289 + INT-323 (compositor connection)
 [ ] Yazi becomes optional, not required
 
 ---

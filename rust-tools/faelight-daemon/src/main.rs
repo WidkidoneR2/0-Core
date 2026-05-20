@@ -2,6 +2,7 @@
 //! 🌲 LEGENDARY EDITION
 
 mod daemon;
+mod dbus;
 mod protocol;
 
 use clap::Parser;

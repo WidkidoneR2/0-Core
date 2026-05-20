@@ -177,9 +177,9 @@ INT-295 (faelight-bar v3) -- bar v3 built with libcosmic
 
 GATES
 
-[ ] zbus studied -- interface and proxy macros understood
-[ ] org.faelight.Forest D-Bus service running
-[ ] Health and Intent properties exposed
+[x] zbus studied -- zbus 4 tokio, #[interface] macro, properties + signals 2026-05-20
+[x] org.faelight.Forest D-Bus service running -- faelight-daemon spawns forest bus 2026-05-20
+[x] Health and Intent properties exposed -- HealthPercent=95 ActiveIntent verified via busctl 2026-05-20
 [ ] faelight-bar subscribes to HealthChanged signal
 [ ] Friday suggestions appear in bar via D-Bus
 [ ] Deploy completions update bar in real time

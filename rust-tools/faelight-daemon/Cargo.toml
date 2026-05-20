@@ -19,6 +19,9 @@ serde_json = "1"
 # SQLite for event polling
 rusqlite = { version = "0.31", features = ["bundled"] }
 
+# D-Bus IPC -- Forest Event Bus v2 (INT-294)
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+
 # CLI
 clap = { version = "4", features = ["derive"] }
 
