@@ -1,7 +1,7 @@
 ---
 id: 293
 title: "faelight-fm v2 -- COSMIC Files study, libcosmic, forest-first file manager"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [faelight-fm, cosmic, libcosmic, cosmic-files, yazi, broot, file-manager, forest, rust]
 ---
