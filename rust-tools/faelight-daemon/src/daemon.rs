@@ -825,6 +825,10 @@ async fn friday_record_event(
         }
         msg
     };
+    // Emit D-Bus signal -- INT-294 Phase 2
+    if let Some(ref msg) = speak_msg {
+        crate::dbus::emit_friday_signal(msg.clone(), 0.75);
+    }
     // Log to friday.log for diagnostics
     if let Some(ref msg) = speak_msg {
         let home = std::env::var("HOME").unwrap_or_default();

@@ -79,6 +79,33 @@ impl ForestIntentIface {
     ) -> zbus::Result<()>;
 }
 
+// ── Friday interface -- org.faelight.Forest.Friday ───────────────────────────
+
+pub struct ForestFridayIface;
+
+#[interface(name = "org.faelight.Forest.Friday")]
+impl ForestFridayIface {
+    /// Emitted when Friday has a suggestion ready
+    #[zbus(signal)]
+    async fn friday_suggested(
+        ctx: &SignalContext<'_>,
+        message: String,
+        confidence: f64,
+    ) -> zbus::Result<()>;
+}
+
+// ── Friday signal channel -- callable from anywhere in the daemon ─────────────
+
+static FRIDAY_TX: std::sync::OnceLock<tokio::sync::mpsc::UnboundedSender<(String, f64)>> = std::sync::OnceLock::new();
+
+/// Called from friday_record_event when a suggestion fires.
+/// Non-blocking: just queues the signal for the D-Bus loop.
+pub fn emit_friday_signal(message: String, confidence: f64) {
+    if let Some(tx) = FRIDAY_TX.get() {
+        let _ = tx.send((message, confidence));
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn read_health() -> u32 {
@@ -134,6 +161,7 @@ pub async fn run_forest_bus() {
         .and_then(|b| b.name("org.faelight.Forest"))
         .and_then(|b| b.serve_at("/org/faelight/Forest/Health", health_iface))
         .and_then(|b| b.serve_at("/org/faelight/Forest/Intent", intent_iface))
+        .and_then(|b| b.serve_at("/org/faelight/Forest/Friday", ForestFridayIface))
     {
         Ok(b) => match b.build().await {
             Ok(c) => c,
@@ -152,9 +180,25 @@ pub async fn run_forest_bus() {
 
     let mut last_health = read_health();
     let mut last_intent = read_intent();
+    let (friday_tx, mut friday_rx) = tokio::sync::mpsc::unbounded_channel::<(String, f64)>();
+    let _ = FRIDAY_TX.set(friday_tx);
 
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        tokio::select! {
+        _ = tokio::time::sleep(tokio::time::Duration::from_secs(5)) => {}
+        Some((msg, conf)) = friday_rx.recv() => {
+            eprintln!("🌲 forest-bus: friday signal -- {} ({:.0}%)", msg, conf * 100.0);
+            if let Ok(iface_ref) = conn
+                .object_server()
+                .interface::<_, ForestFridayIface>("/org/faelight/Forest/Friday")
+                .await
+            {
+                let ctx = iface_ref.signal_context();
+                let _ = ForestFridayIface::friday_suggested(ctx, msg, conf).await;
+            }
+            continue;
+        }
+        }
 
         // ── Health check ──────────────────────────────────────────────────────
         let h = read_health();
