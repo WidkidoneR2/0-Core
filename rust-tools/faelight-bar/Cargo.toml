@@ -17,6 +17,11 @@ wayland-protocols = { workspace = true }
 # Beautiful font rendering -- same library faelight-term uses internally
 cosmic-text = "0.12"
 
+# D-Bus subscription -- INT-294 Phase 2
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+futures-util = "0.3"
+
 # Forest
 faelight-core = { path = "../faelight-core" }
 rusqlite = { version = "0.31", features = ["bundled"] }

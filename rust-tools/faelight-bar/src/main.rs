@@ -3,6 +3,7 @@
 //! Text:  cosmic-text + swash (same library faelight-term uses internally)
 //! Pixel: SHM ARGB8888 -- simple, fast, beautiful
 
+use futures_util::StreamExt as _;
 use cosmic_text::{Attrs, Buffer, Color as TColor, Family, FontSystem, Metrics, Shaping, SwashCache};
 use rusqlite::Connection as Db;
 use smithay_client_toolkit::{
@@ -288,6 +289,87 @@ fn draw_frame(
     }
 }
 
+// -- D-Bus signals -----------------------------------------------------------
+
+#[derive(Debug)]
+enum ForestSignal {
+    HealthChanged(u8),
+    IntentChanged(String),
+}
+
+fn spawn_dbus_thread(tx: std::sync::mpsc::Sender<ForestSignal>) {
+    // Thread 1 -- Health signals
+    let tx1 = tx.clone();
+    std::thread::spawn(move || {
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all().build() {
+            Ok(r) => r,
+            Err(e) => { eprintln!("bar dbus rt: {e}"); return; }
+        };
+        rt.block_on(async move {
+        let conn = match zbus::Connection::session().await {
+            Ok(c) => c,
+            Err(e) => { eprintln!("bar dbus: {e}"); return; }
+        };
+        let proxy = match zbus::Proxy::new(
+            &conn, "org.faelight.Forest",
+            "/org/faelight/Forest/Health",
+            "org.faelight.Forest.Health",
+        ).await {
+            Ok(p) => p,
+            Err(e) => { eprintln!("bar dbus health proxy: {e}"); return; }
+        };
+        // Initial value
+        if let Ok(h) = proxy.get_property::<u32>("HealthPercent").await {
+            let _ = tx1.send(ForestSignal::HealthChanged(h as u8));
+        }
+        // Signal subscription
+        if let Ok(mut sigs) = proxy.receive_signal("HealthChanged").await {
+            while let Some(sig) = sigs.next().await {
+                if let Ok((_, new)) = sig.body().deserialize::<(u32, u32)>() {
+                    let _ = tx1.send(ForestSignal::HealthChanged(new as u8));
+                }
+            }
+        }
+        });
+    });
+
+    // Thread 2 -- Intent signals
+    std::thread::spawn(move || {
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all().build() {
+            Ok(r) => r,
+            Err(e) => { eprintln!("bar dbus rt2: {e}"); return; }
+        };
+        rt.block_on(async move {
+        let conn = match zbus::Connection::session().await {
+            Ok(c) => c,
+            Err(e) => { eprintln!("bar dbus: {e}"); return; }
+        };
+        let proxy = match zbus::Proxy::new(
+            &conn, "org.faelight.Forest",
+            "/org/faelight/Forest/Intent",
+            "org.faelight.Forest.Intent",
+        ).await {
+            Ok(p) => p,
+            Err(e) => { eprintln!("bar dbus intent proxy: {e}"); return; }
+        };
+        // Initial value
+        if let Ok(i) = proxy.get_property::<String>("ActiveIntent").await {
+            let _ = tx.send(ForestSignal::IntentChanged(i));
+        }
+        // Signal subscription
+        if let Ok(mut sigs) = proxy.receive_signal("IntentChanged").await {
+            while let Some(sig) = sigs.next().await {
+                if let Ok((_, new)) = sig.body().deserialize::<(String, String)>() {
+                    let _ = tx.send(ForestSignal::IntentChanged(new));
+                }
+            }
+        }
+        });
+    });
+}
+
 // -- App Struct ---------------------------------------------------------------
 
 struct FaelightBar {
@@ -304,6 +386,7 @@ struct FaelightBar {
     swash: SwashCache,
     forest: ForestState,
     last_update: Instant,
+    signal_rx: std::sync::mpsc::Receiver<ForestSignal>,
 }
 
 impl FaelightBar {
@@ -427,6 +510,8 @@ fn main() -> anyhow::Result<()> {
     let pool = SlotPool::new(3840 * BAR_HEIGHT as usize * 4 * 4, &shm)?;
     let font_system = FontSystem::new();
     let swash = SwashCache::new();
+    let (sig_tx, sig_rx) = std::sync::mpsc::channel::<ForestSignal>();
+    spawn_dbus_thread(sig_tx);
     let mut app = FaelightBar {
         registry_state: RegistryState::new(&globals),
         output_state: OutputState::new(&globals, &qh),
@@ -435,6 +520,7 @@ fn main() -> anyhow::Result<()> {
         font_system, swash,
         forest: ForestState::refresh(),
         last_update: Instant::now(),
+        signal_rx: sig_rx,
     };
     eq.roundtrip(&mut app)?;
     app.draw();
@@ -442,6 +528,21 @@ fn main() -> anyhow::Result<()> {
     loop {
         eq.flush()?;
         let _ = eq.dispatch_pending(&mut app);
+        // D-Bus signals -- instant update on health/intent change
+        while let Ok(signal) = app.signal_rx.try_recv() {
+            match signal {
+                ForestSignal::HealthChanged(h) => {
+                    app.forest.health = h;
+                    app.draw();
+                }
+                ForestSignal::IntentChanged(title) => {
+                    app.forest.intent_title = if title.len() > 55 {
+                        format!("{}...", &title[..52])
+                    } else { title };
+                    app.draw();
+                }
+            }
+        }
         if app.last_update.elapsed() >= Duration::from_millis(UPDATE_MS) {
             app.last_update = Instant::now();
             app.forest = ForestState::refresh();
