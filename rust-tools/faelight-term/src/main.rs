@@ -641,6 +641,16 @@ impl KeyboardHandler for AppState {
 
     fn press_key(&mut self, _: &Connection, _: &QueueHandle<Self>,
         _: &wl_keyboard::WlKeyboard, _: u32, event: KeyEvent) {
+        // DEBUG INT-313: log key events -- remove after Ctrl+[ fixed
+        {
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .append(true).create(true)
+                .open("/tmp/faelight-term-keys.log") {
+                let _ = writeln!(f, "keysym={:?} ctrl={} shift={} utf8={:?}",
+                    event.keysym, self.modifiers.ctrl, self.modifiers.shift, event.utf8);
+            }
+        }
         if let Some(ref mut gpu) = self.gpu {
             let mods = &self.modifiers;
             let ctrl = mods.ctrl;

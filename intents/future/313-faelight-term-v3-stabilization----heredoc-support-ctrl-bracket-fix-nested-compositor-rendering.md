@@ -50,8 +50,8 @@ This intent formally tracks and closes them -- no workarounds, real fixes.
 ## Gates
 
 Phase 1 -- Ctrl+[ fix:
-- [ ] Ctrl+[ confirmed sending ESC to PTY (test in helix insert mode)
-- [ ] bracketleft + ctrl modifier correctly detected and handled
+- [x] Ctrl+[ confirmed sending ESC to PTY -- helix exits insert mode correctly 2026-05-20
+- [x] bracketleft + ctrl modifier correctly detected -- keysym=XK_bracketleft ctrl=true utf8=ESC confirmed via debug log 2026-05-20
 
 Phase 2 -- Heredoc support:
 - [x] Multi-line input (paste + heredoc) works in faelight-term -- bracketed paste protocol implemented 2026-05-17
