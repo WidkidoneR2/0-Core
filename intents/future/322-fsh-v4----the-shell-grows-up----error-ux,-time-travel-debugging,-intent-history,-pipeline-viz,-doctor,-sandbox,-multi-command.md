@@ -1,8 +1,10 @@
-INT-322 -- fsh v4 -- The Shell Grows Up
-status: future
+---
+id: 322
+title: "fsh v4 -- The Shell Grows Up"
+status: planned
 date: 2026-05-20
-tags: fsh, shell, error-ux, time-travel, history, pipeline, doctor, sandbox, multi-command, friday
-
+tags: [fsh, shell, error-ux, time-travel, history, pipeline, doctor, sandbox, multi-command, friday]
+---
 ---
 THE PREMISE
 

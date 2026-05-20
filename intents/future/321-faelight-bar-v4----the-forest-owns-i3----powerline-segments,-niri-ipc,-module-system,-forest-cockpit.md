@@ -1,8 +1,10 @@
-INT-321 -- faelight-bar v4 -- The Forest Owns i3
-status: future
+---
+id: 321
+title: "faelight-bar v4 -- The Forest Owns i3"
+status: planned
 date: 2026-05-18
-tags: bar, i3, waybar, yambar, powerline, segments, niri-ipc, workspaces, modules, renderer
-
+tags: [bar, i3, waybar, yambar, powerline, segments, niri-ipc, workspaces, modules, renderer]
+---
 ---
 THE PREMISE
 

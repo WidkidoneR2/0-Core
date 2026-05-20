@@ -1,10 +1,10 @@
 ---
-id: 321
-date: 2026-05-20
-type: arch
-title: \"faelight-compositor v3 -- Full Session Authority -- login integration, exit menu, session lifecycle ownership\"
+id: 323
+title: "faelight-compositor v3 -- Full Session Authority"
 status: planned
-tags: [architecture, rust, design]
+date: 2026-05-20
+tags: [compositor, niri, session, login, menu, lifecycle, wayland, ipc, authority]
+---
 version: TBD
 ---
 

@@ -1,8 +1,10 @@
-INT-324 -- faelight-term v4 -- Font and Text Identity
-status: future
+---
+id: 324
+title: "faelight-term v4 -- Font and Text Identity"
+status: planned
 date: 2026-05-20
-tags: terminal, font, typography, rendering, hinting, subpixel, foot, cosmic-text, glyphon, wgpu
-
+tags: [terminal, font, typography, rendering, hinting, subpixel, foot, cosmic-text, glyphon, wgpu]
+---
 ---
 THE PREMISE
 

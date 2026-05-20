@@ -1,8 +1,10 @@
-INT-325 -- faelight-boot -- The Forest from Darkness
-status: future
+---
+id: 325
+title: "faelight-boot -- The Forest from Darkness"
+status: planned
 date: 2026-05-20
-tags: boot, initramfs, splash, plymouth, dracut, mkinitcpio, QEMU, vm, kernel, framebuffer
-
+tags: [boot, initramfs, splash, plymouth, dracut, mkinitcpio, QEMU, vm, kernel, framebuffer]
+---
 ---
 THE PREMISE
 
