@@ -180,7 +180,7 @@ GATES
 [x] zbus studied -- zbus 4 tokio, #[interface] macro, properties + signals 2026-05-20
 [x] org.faelight.Forest D-Bus service running -- faelight-daemon spawns forest bus 2026-05-20
 [x] Health and Intent properties exposed -- HealthPercent=95 ActiveIntent verified via busctl 2026-05-20
-[ ] faelight-bar subscribes to HealthChanged signal
+[x] faelight-bar subscribes to HealthChanged signal -- verified 95->100 in daemon logs 2026-05-20
 [ ] Friday suggestions appear in bar via D-Bus
 [ ] Deploy completions update bar in real time
 [ ] System power events (suspend/wake) reach forest
