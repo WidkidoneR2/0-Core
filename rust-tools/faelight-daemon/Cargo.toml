@@ -11,6 +11,7 @@ faelight-core = { path = "../faelight-core" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

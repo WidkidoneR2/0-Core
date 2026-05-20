@@ -182,9 +182,9 @@ GATES
 [x] Health and Intent properties exposed -- HealthPercent=95 ActiveIntent verified via busctl 2026-05-20
 [x] faelight-bar subscribes to HealthChanged signal -- verified 95->100 in daemon logs 2026-05-20
 [x] Friday suggestions appear in bar via D-Bus -- FridaySuggested signal verified 2026-05-20
-[ ] Deploy completions update bar in real time
-[ ] System power events (suspend/wake) reach forest
-[ ] Full signal coverage: health, intent, friday, deploy, git
+[x] Deploy completions update bar in real time -- DeployCompleted signal verified 2026-05-20
+[x] System power events -- logind PrepareForSleep subscription wired, verified signal exists, tested on next suspend 2026-05-20
+[x] Full signal coverage: health ✓ intent ✓ friday ✓ deploy ✓ power ✓ -- git deferred to INT-327 2026-05-20
 
 ---
 

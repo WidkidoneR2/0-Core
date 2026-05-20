@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use rusqlite;
+use futures_util::StreamExt as _;
 use tokio::sync::Mutex;
 use zbus::{connection, interface, SignalContext};
 
@@ -244,6 +245,51 @@ pub async fn run_forest_bus() {
     let _ = FRIDAY_TX.set(friday_tx);
     let (deploy_tx, mut deploy_rx) = tokio::sync::mpsc::unbounded_channel::<DeploySignal>();
     let _ = DEPLOY_TX.set(deploy_tx);
+
+    // ── logind power event subscription ───────────────────────────────────────
+    // Spawn logind watcher as separate task
+    let home_logind = std::env::var("HOME").unwrap_or_default();
+    tokio::spawn(async move {
+        let Ok(sys_conn) = zbus::Connection::system().await else { return; };
+        let Ok(proxy) = zbus::Proxy::new(
+            &sys_conn,
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+        ).await else { return; };
+        let Ok(mut sigs) = proxy.receive_signal("PrepareForSleep").await else { return; };
+        while let Some(sig) = sigs.next().await {
+            let body: Result<bool, _> = sig.body().deserialize();
+                if let Ok(sleeping) = body {
+                if sleeping {
+                    eprintln!("🌲 forest-bus: system suspending");
+                    // Write suspend event to state.db
+                    let db = format!("{}/0-core/runtime/state.db", home_logind);
+                    if let Ok(c) = rusqlite::Connection::open(&db) {
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64).unwrap_or(0);
+                        let _ = c.execute(
+                            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('system','suspend','logind',?1)",
+                            rusqlite::params![now],
+                        );
+                    }
+                } else {
+                    eprintln!("🌲 forest-bus: system waking");
+                    let db = format!("{}/0-core/runtime/state.db", home_logind);
+                    if let Ok(c) = rusqlite::Connection::open(&db) {
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64).unwrap_or(0);
+                        let _ = c.execute(
+                            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('system','wake','logind',?1)",
+                        rusqlite::params![now],
+                        );
+                    }
+                }
+            }
+        }
+    });
 
     loop {
         tokio::select! {
