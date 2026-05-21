@@ -414,7 +414,28 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
                 .unwrap_or_default()
         )
     } else {
-        "Forest is coherent. No cross-layer conflicts detected. All engines aligned.".to_string()
+        {
+            // Generate real brief from recent activity
+            let deploy_count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                rusqlite::params![now - 86400],
+                |r| r.get(0),
+            ).unwrap_or(0);
+            let commit_count: i64 = ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
+                rusqlite::params![now - 86400],
+                |r| r.get(0),
+            ).unwrap_or(0);
+            let active_intent: String = ctx.runtime.db.query_row(
+                "SELECT value FROM domain_state WHERE key='active_intent' LIMIT 1",
+                [],
+                |r| r.get(0),
+            ).unwrap_or_else(|_| "none".to_string());
+            format!(
+                "Healthy. {} deploy(s), {} commit(s) today. Active: {}. No conflicts detected.",
+                deploy_count, commit_count, active_intent
+            )
+        }
     };
     // Store brief in synthesis
     let _ = ctx.runtime.db.execute(
