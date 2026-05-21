@@ -827,12 +827,21 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
         ));
     }
     if let Some((trigger, action, conf)) = top_pattern {
-        suggestions.push(format!(
-            "Pattern detected ({:.0}% confidence): when {} \u{2192} {}",
-            conf * 100.0,
-            trigger,
-            action
-        ));
+        // Skip if pattern is about deploying and we just deployed recently
+        let recently_deployed: i64 = db.query_row(
+            "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+            rusqlite::params![now_ts() - 300],
+            |r| r.get(0),
+        ).unwrap_or(0);
+        let skip = action.contains("deploy") && recently_deployed > 0;
+        if !skip && conf >= 0.85 {
+            suggestions.push(format!(
+                "Pattern detected ({:.0}% confidence): when {} \u{2192} {}",
+                conf * 100.0,
+                trigger,
+                action
+            ));
+        }
     }
     let session_cmds: i64 = db
         .query_row(
