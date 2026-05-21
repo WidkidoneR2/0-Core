@@ -32,6 +32,7 @@ use smithay::{
 
 pub struct FaelightCompositor {
     pub session: Option<smithay::backend::session::libseat::LibSeatSession>,
+    pub drm_device: Option<smithay::backend::drm::DrmDevice>,
     pub start_time: std::time::Instant,
     pub socket_name: OsString,
     pub display_handle: DisplayHandle,
@@ -122,6 +123,7 @@ impl FaelightCompositor {
             db,
             health: CompositorHealth::default(),
             session: None,
+            drm_device: None,
         }
     }
 

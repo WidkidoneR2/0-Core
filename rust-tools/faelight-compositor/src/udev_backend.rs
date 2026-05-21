@@ -237,6 +237,9 @@ pub fn init_drm(
                                         _ => {}
                                     }
                                 }
+                                if state.drm_device.is_none() {
+                                    state.drm_device = Some(drm);
+                                }
                             }
                             Err(e) => tracing::error!(?e, "Failed to create GBM device"),
                         }
@@ -381,15 +384,7 @@ fn attempt_first_render(
     tracing::info!("🌲 set_crtc SUCCESS — forest green painted on real hardware!");
 
     // Hold for 3 seconds so we can see it
-    std::thread::sleep(std::time::Duration::from_secs(3));
 
-    // Switch back to Niri before cleanup
-    tracing::info!("Switching back to VT7");
-    let _ = std::process::Command::new("chvt").arg("1").status();
-    std::thread::sleep(std::time::Duration::from_millis(500));
-    // Cleanup
-    let _ = drm.destroy_framebuffer(fb);
-    let _ = drm.destroy_dumb_buffer(dumb);
 
     Ok(())
 }

@@ -52,7 +52,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = FaelightCompositor::new(&mut event_loop, display);
 
     if use_drm {
-        udev_backend::init_drm(&mut event_loop, &mut state)?;
+        if let Err(e) = udev_backend::init_drm(&mut event_loop, &mut state) {
+            tracing::error!(?e, "init_drm failed -- continuing to event loop anyway");
+        }
     } else {
         winit::init_winit(&mut event_loop, &mut state)?;
     }
