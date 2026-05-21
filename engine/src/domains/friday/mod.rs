@@ -561,10 +561,33 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         .into_iter()
         .take(5)
         .collect();
+    // Check recent events for context-aware answers
+    let recent_events: Vec<(String, String)> = db.prepare(
+        "SELECT domain||'.'||action, payload FROM events WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT 20"
+    ).ok().and_then(|mut s| {
+        s.query_map(rusqlite::params![now_ts() - 86400], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1).unwrap_or_default()))
+        }).ok().map(|rows| {
+            rows.filter_map(|r| r.ok())
+            .filter(|(k, v)| {
+                let combined = format!("{} {}", k, v).to_lowercase();
+                q_lower.split_whitespace().any(|w| combined.contains(w))
+            })
+            .take(3).collect()
+        })
+    }).unwrap_or_default();
     println!();
     println!("  {} Friday -- Active Intelligence", "🌲".normal());
     println!("  {}", "─".repeat(50).dimmed());
     println!();
+    if !recent_events.is_empty() {
+        println!("  From recent activity:");
+        for (kind, payload) in &recent_events {
+            let short = payload.chars().take(80).collect::<String>();
+            println!("  {} [{}] {}", "→".bright_cyan(), kind.bright_green(), short.bright_white());
+        }
+        println!();
+    }
     if relevant.is_empty() {
         let is_temporal = q_lower.contains("today")
             || q_lower.contains("recent")

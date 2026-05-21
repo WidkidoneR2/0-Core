@@ -170,12 +170,24 @@ pub fn detect_patterns(ctx: &AppContext) -> CoreResult<Vec<String>> {
             active_intents
         );
         patterns_found.push(desc.clone());
-        let _ = db.execute(
-            "INSERT OR IGNORE INTO friday_contradictions
-             (engine_a, signal_a, engine_b, signal_b, description, severity, detected_at)
-             VALUES ('alignment', 'focus>speed', 'intent', ?1, ?2, 'medium', ?3)",
-            params![format!("{} active intents", active_intents), desc, now],
-        );
+        let existing: i64 = db.query_row(
+            "SELECT COUNT(*) FROM friday_contradictions WHERE engine_a='alignment' AND engine_b='intent' AND resolved=0",
+            [],
+            |r| r.get(0),
+        ).unwrap_or(0);
+        if existing == 0 {
+            let _ = db.execute(
+                "INSERT INTO friday_contradictions
+                 (engine_a, signal_a, engine_b, signal_b, description, severity, detected_at)
+                 VALUES ('alignment', 'focus>speed', 'intent', ?1, ?2, 'medium', ?3)",
+                params![format!("{} active intents", active_intents), desc, now],
+            );
+        } else {
+            let _ = db.execute(
+                "UPDATE friday_contradictions SET signal_b=?1, description=?2, detected_at=?3 WHERE engine_a='alignment' AND engine_b='intent' AND resolved=0",
+                params![format!("{} active intents", active_intents), desc, now],
+            );
+        }
     } else {
         // Auto-resolve stale intent contradictions when count is back to normal
         let _ = db.execute(
