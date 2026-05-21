@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "core")]
-#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v47 (Forest Mind)"))]
+#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v50 (Forest Mind)"))]
 #[command(about = "0-Core \u{2014} single orchestrator binary")]
 pub struct Cli {
     #[command(subcommand)]

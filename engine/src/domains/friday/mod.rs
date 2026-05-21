@@ -604,7 +604,6 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
                 "  I do not have enough knowledge about \"{}\" yet.",
                 question.bright_white()
             );
-            println!("  I am still in Phase 0 -- watching and learning.");
             println!("  Ask me again as sessions accumulate.");
         } else {
             println!("  From recent observations:");
@@ -848,16 +847,6 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
             session_cmds
         ));
     }
-    let obs_count: i64 = db
-        .query_row("SELECT COUNT(*) FROM friday_observations", [], |r| r.get(0))
-        .unwrap_or(0);
-    let pattern_count: i64 = db
-        .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
-        .unwrap_or(0);
-    suggestions.push(format!(
-        "Friday has {} observations and {} patterns. I am still learning.",
-        obs_count, pattern_count
-    ));
     for (i, s) in suggestions.iter().enumerate() {
         let icon = if i == 0 {
             "●".bright_cyan()
@@ -866,11 +855,6 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
         };
         println!("  {} {}", icon, s.bright_white());
     }
-    println!();
-    println!(
-        "  {} Phase 0 \u{2014} I observe more than I speak. Ask me again as I learn more.",
-        "💡".normal().dimmed()
-    );
     println!();
     Ok(())
 }
