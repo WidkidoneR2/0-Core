@@ -145,10 +145,10 @@ Phase 2 -- faelight-term inside compositor:
 Phase 3 -- Window management:
 - [x] Two windows tile side by side -- auto-tiling, half-screen each 2026-05-17
 - [x] Keyboard focus navigation works -- focus follows new window, others deactivated
-- [~] Forest color borders -- activated/deactivated state set, visual rendering needs DRM
+- [x] Forest color borders -- visual rendering confirmed working on DRM backend 2026-05-21
 
 Phase 4 -- DRM backend:
-- [ ] VM test passes
+- [x] VM test passes -- GBM created, forest green rendered on virtio-gpu in QEMU 2026-05-21
 - [ ] DRM backend on TTY2 stable
 - [ ] 165Hz confirmed
 - [ ] faelight-term on DRM
