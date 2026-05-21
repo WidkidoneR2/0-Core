@@ -50,7 +50,7 @@ pub fn probe_drm() {
                 match std::fs::OpenOptions::new().read(true).write(true).open(&path) {
                     Ok(f) => {
                         use std::os::unix::io::IntoRawFd;
-                        use std::os::unix::io::FromRawFd;
+                        
                         println!("⚠️  Opened directly (root mode)");
                         let raw = f.into_raw_fd();
                         unsafe { <smithay::reexports::rustix::fd::OwnedFd as std::os::fd::FromRawFd>::from_raw_fd(raw) }

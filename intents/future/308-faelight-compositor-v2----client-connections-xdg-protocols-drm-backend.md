@@ -149,7 +149,7 @@ Phase 3 -- Window management:
 
 Phase 4 -- DRM backend:
 - [x] VM test passes -- GBM created, forest green rendered on virtio-gpu in QEMU 2026-05-21
-- [ ] DRM backend on TTY2 stable
+- [x] DRM backend on TTY2 stable -- forest green on AMD 780M 2560x1600 confirmed 2026-05-21
 - [ ] 165Hz confirmed
 - [ ] faelight-term on DRM
 
