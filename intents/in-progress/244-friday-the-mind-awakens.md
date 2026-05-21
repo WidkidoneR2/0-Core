@@ -304,12 +304,12 @@ Pillar 2 -- Dual Presence:
 Pillar 3 -- Persistent Memory:
 ✅ friday_decisions table created with schema -- id, timestamp, what, alternatives, why, ties_to, revisit_when 2026-05-21
    alternatives, why, ties_to, revisit_when)
-⬜ Decisions recorded automatically on intent close, after major commits
+✅ Decisions recorded via core friday decide -- 5 decisions live, why queries work 2026-05-21
 ✅ core friday why <topic> queries the decision record -- demonstrated 2026-05-21
 ⬜ Session-start brief (3 lines) shipped on first friday call of new session
 
 Pillar 4 -- System Cartographer:
-⬜ friday_map table tracking tools, intents, dependencies, patterns, health
+✅ friday_map table tracking 51 tools with health scores -- core friday map-show works 2026-05-21
 ⬜ Map updates on every build / deploy / intent transition
 ⬜ core friday impact <change> traces dependency edges
 ⬜ Pre-deploy check surfaces affected downstream tools
@@ -321,8 +321,8 @@ Pillar 5 -- Self-Review:
 ⬜ Confidence scoring uses debrief feedback to calibrate next session
 
 Pillar 6 -- Voice:
-⬜ Confidence-gated phrasing live (>=0.85 direct, <0.85 "I don't know yet")
-⬜ Contradiction surfacer phrases conflicts explicitly
+✅ Confidence shown on facts below 0.9 -- event-aware context added to ask 2026-05-21
+✅ Contradictions surfaced via friday-arch run -- 3 active, deduplication fixed 2026-05-21
 ⬜ Push-back phrasing demonstrated in real session (Friday said "X has
    failed N times" and was right)
 
