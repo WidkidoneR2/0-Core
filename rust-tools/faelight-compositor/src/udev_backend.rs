@@ -18,6 +18,64 @@ use smithay::{
 use crate::FaelightCompositor;
 use smithay_drm_extras::drm_scanner::{DrmScanEvent, DrmScanner, SimpleCrtcMapper};
 
+
+// ── Probe mode -- enumerate DRM/GBM without taking over display ──────────────
+
+pub fn probe_drm() {
+    use smithay::reexports::rustix::fs::OFlags;
+    println!("🌲 DRM probe starting...");
+    
+    // Find DRM devices
+    for entry in std::fs::read_dir("/dev/dri").unwrap_or_else(|_| {
+        println!("❌ /dev/dri not found");
+        std::fs::read_dir("/dev").unwrap()
+    }) {
+        let Ok(entry) = entry else { continue };
+        let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !name.starts_with("card") { continue; }
+        
+        println!("📍 Found DRM device: {}", path.display());
+        
+        let open_flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOCTTY | OFlags::NONBLOCK;
+        let fd = match smithay::backend::session::libseat::LibSeatSession::new() {
+            Ok((mut session, _)) => {
+                match session.open(&path, open_flags) {
+                    Ok(fd) => fd,
+                    Err(e) => { println!("❌ Cannot open via libseat: {e}"); continue; }
+                }
+            }
+            Err(_) => {
+                // Try direct open (may work as root)
+                match std::fs::OpenOptions::new().read(true).write(true).open(&path) {
+                    Ok(f) => {
+                        use std::os::unix::io::IntoRawFd;
+                        use std::os::unix::io::FromRawFd;
+                        println!("⚠️  Opened directly (root mode)");
+                        let raw = f.into_raw_fd();
+                        unsafe { <smithay::reexports::rustix::fd::OwnedFd as std::os::fd::FromRawFd>::from_raw_fd(raw) }
+                    }
+                    Err(e) => { println!("❌ Cannot open directly: {e}"); continue; }
+                }
+            }
+        };
+        
+        let drm_fd = smithay::backend::drm::DrmDeviceFd::new(fd.into());
+        match smithay::backend::drm::DrmDevice::new(drm_fd, true) {
+            Ok((drm, _)) => {
+                println!("✅ DRM device opened");
+                // Try GBM
+                match smithay::backend::allocator::gbm::GbmDevice::new(drm.device_fd().clone()) {
+                    Ok(_gbm) => println!("✅ GBM device created -- rendering possible!"),
+                    Err(e) => println!("❌ GBM failed: {e}"),
+                }
+            }
+            Err(e) => println!("❌ DRM device failed: {e}"),
+        }
+    }
+    println!("🌲 DRM probe complete");
+}
+
 pub fn init_drm(
     event_loop: &mut EventLoop<FaelightCompositor>,
     state: &mut FaelightCompositor,

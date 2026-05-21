@@ -32,6 +32,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let use_drm = args.contains(&"--drm".to_string());
     let _use_winit = args.contains(&"--winit".to_string()) || !use_drm;
 
+    let use_probe = args.contains(&"--probe".to_string());
+    if use_probe {
+        tracing::info!("faelight-compositor: DRM probe mode");
+        crate::udev_backend::probe_drm();
+        return Ok(());
+    }
+
+
     if use_drm {
         tracing::info!("faelight-compositor starting — DRM/udev backend (real hardware)");
     } else {
