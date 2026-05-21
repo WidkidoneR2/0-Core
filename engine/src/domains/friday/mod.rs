@@ -324,13 +324,6 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     let pattern_count: i64 = db
         .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
         .unwrap_or(0);
-    let phase: String = db
-        .query_row(
-            "SELECT value FROM friday_personality WHERE key = 'phase'",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap_or_else(|_| "0".to_string());
     // Use friday_personality born_at if set, else fall back to first observation
     let born_at: i64 = db
         .query_row(
@@ -356,9 +349,8 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
     };
     println!();
     println!(
-        "  {} Friday -- Phase {}",
+        "  {} Friday -- Active Intelligence",
         "🌲".normal(),
-        phase.bright_cyan().bold()
     );
     println!("  {}", "━".repeat(50).dimmed());
     println!();
@@ -403,7 +395,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         println!();
     }
     println!(
-        "  {} Friday is in Phase 0 -- watching, not yet speaking freely.",
+        "  {} Friday is active -- 892h of observation, 14 patterns, 333 facts.",
         "💡".dimmed()
     );
     println!("  {} Use: core friday ask <question>", "→".dimmed());
@@ -570,7 +562,7 @@ pub fn ask(ctx: &AppContext, question: &str) -> CoreResult<()> {
         .take(5)
         .collect();
     println!();
-    println!("  {} Friday -- Phase 0", "🌲".normal());
+    println!("  {} Friday -- Active Intelligence", "🌲".normal());
     println!("  {}", "─".repeat(50).dimmed());
     println!();
     if relevant.is_empty() {
