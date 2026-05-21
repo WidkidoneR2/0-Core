@@ -1,7 +1,7 @@
 ---
 id: 251
 title: "Core v23 -- Friday Becomes Central"
-status: planned
+status: in-progress
 date: 2026-04-24
 last_revised: 2026-04-28
 type: arch
