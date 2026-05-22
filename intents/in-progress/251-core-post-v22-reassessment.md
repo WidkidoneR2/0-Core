@@ -261,7 +261,7 @@ post-presentation work that makes the prototype actually scale.
 HARD DEPENDENCIES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⬜ Core v22 (INT-244) shipped -- foundation
+✅ Core v22 (INT-244) shipped -- all 4 pillars demonstrated 2026-05-21
 ⬜ Event bus design ratified (Pillar 1 schema decided)
 ⬜ Reasoning engine rule format ratified (Pillar 2)
 ⬜ Tool absorption candidate list confirmed (Pillar 3)
@@ -271,7 +271,7 @@ GATES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Pillar 1 -- Unified Event Bus:
-⬜ events table created with schema
+✅ events table exists -- 21 domains already emitting, 6 indices, schema live 2026-05-21
 ⬜ friday::events::emit API live in faelight-core
 ⬜ at least 5 tools migrated to emit via the bus
 ⬜ Friday consumes events as canonical source for predictions

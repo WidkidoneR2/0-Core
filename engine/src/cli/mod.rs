@@ -85,6 +85,7 @@ pub fn parse() -> Command {
             FridayCommands::Decisions => FridayCommand::Decisions,
             FridayCommands::MapShow => FridayCommand::MapShow,
             FridayCommands::MapUpdate => FridayCommand::MapUpdate,
+            FridayCommands::EventBus => FridayCommand::EventBus,
             FridayCommands::MapImpact { change } => FridayCommand::MapImpact(change),
             FridayCommands::SelfReview => FridayCommand::SelfReview,
             FridayCommands::Docs => FridayCommand::Docs,

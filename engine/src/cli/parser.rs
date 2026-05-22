@@ -515,6 +515,8 @@ pub enum FridayCommands {
     /// INT-244 v22 -- update the system map from current state
     MapUpdate,
     #[command(name = "map-impact", about = "INT-244 v22 -- trace impact of a change across the system map")]
+    #[command(name = "event-bus", about = "INT-251 v23 -- show recent event bus activity")]
+    EventBus,
     MapImpact {
         #[arg(help = "Tool or component to analyze")]
         change: String,
