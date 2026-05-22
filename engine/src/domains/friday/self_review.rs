@@ -16,6 +16,16 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ).unwrap_or((0, 0));
     let accuracy = if total > 0 { (correct as f64 / total as f64) * 100.0 } else { 0.0 };
     println!("  🎯 Predictions: {}/{} correct ({:.0}%)", correct, total, accuracy);
+    // Calibrate confidence threshold based on accuracy
+    let threshold = if accuracy >= 85.0 { 0.80 } else if accuracy >= 75.0 { 0.85 } else { 0.90 };
+    let _ = db.execute(
+        "INSERT OR REPLACE INTO friday_personality (key, value) VALUES ('confidence_threshold', ?1)",
+        rusqlite::params![threshold.to_string()],
+    );
+    let calibration_msg = if accuracy >= 85.0 { "well-calibrated -- speaking at 80% threshold" }
+        else if accuracy >= 75.0 { "adequate -- speaking at 85% threshold" }
+        else { "needs improvement -- speaking at 90% threshold" };
+    println!("  📊 Calibration: {} ({:.0}%)", calibration_msg, accuracy);
     // Decisions recorded
     let decision_count: i64 = db.query_row(
         "SELECT COUNT(*) FROM friday_decisions", [],
