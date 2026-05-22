@@ -83,6 +83,7 @@ pub enum FridayCommand {
     Decisions,
     MapShow,
     MapUpdate,
+    MapImpact(String),
     SelfReview,
     // Pillar 1 -- Doc Steward
     Docs,

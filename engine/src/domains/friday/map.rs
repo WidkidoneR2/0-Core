@@ -63,3 +63,64 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
     }
     Ok(())
 }
+
+pub fn impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
+    use colored::*;
+    let db = &ctx.runtime.db;
+    let change_lower = change.to_lowercase();
+
+    // Find the entity being changed
+    let matches: Vec<(String, String, String)> = db.prepare(
+        "SELECT entity_type, entity_name, depends_on FROM friday_map WHERE entity_name LIKE ?1"
+    ).ok().and_then(|mut s| {
+        s.query_map(rusqlite::params![format!("%{}%", change_lower)], |r| {
+            Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
+        }).ok().map(|rows| rows.filter_map(|r| r.ok()).collect())
+    }).unwrap_or_default();
+
+    // Find what depends ON this entity
+    let all_tools: Vec<(String, String)> = db.prepare(
+        "SELECT entity_name, depends_on FROM friday_map WHERE depends_on != '[]'"
+    ).ok().and_then(|mut s| {
+        s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?)))
+            .ok().map(|rows| rows.filter_map(|r| r.ok()).collect())
+    }).unwrap_or_default();
+
+    println!();
+    println!("  {} Impact: {}", "🗺".normal(), change.bright_white());
+    println!("  {}", "─".repeat(50).dimmed());
+    println!();
+
+    if matches.is_empty() {
+        println!("  {} Not found in system map.", "·".dimmed());
+        println!("  → Run: core friday map-update to refresh");
+        println!();
+        return Ok(());
+    }
+
+    for (etype, name, _deps) in &matches {
+        println!("  {} {} [{}]", "▸".bright_cyan(), name.bright_white(), etype.dimmed());
+    }
+    println!();
+
+    // Find downstream dependents
+    let mut dependents: Vec<String> = Vec::new();
+    for (tool_name, deps_json) in &all_tools {
+        if let Ok(deps) = serde_json::from_str::<Vec<String>>(deps_json) {
+            if deps.iter().any(|d| d.to_lowercase().contains(&change_lower)) {
+                dependents.push(tool_name.clone());
+            }
+        }
+    }
+
+    if dependents.is_empty() {
+        println!("  {} No downstream dependents found.", "·".dimmed());
+    } else {
+        println!("  {} Downstream impact ({} tool(s)):", "⚠".bright_yellow(), dependents.len());
+        for dep in &dependents {
+            println!("    {} {} -- redeploy after changing {}", "→".bright_red(), dep.bright_white(), change.dimmed());
+        }
+    }
+    println!();
+    Ok(())
+}
