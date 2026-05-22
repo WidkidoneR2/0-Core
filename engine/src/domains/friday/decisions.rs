@@ -18,6 +18,12 @@ pub fn decide(ctx: &AppContext, what: &str, why: &str, ties_to: &str) -> CoreRes
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![now_ts(), what, why, ties_to, session_id],
     )?;
+    // INT-251 v23: emit to unified event bus
+    let _ = super::events::emit(
+        ctx, "decisions", "decision_recorded",
+        &format!(r#"{{"what":"{}","ties_to":"{}"}}"#, what, ties_to),
+        "core", None,
+    );
     println!("  {} Decision recorded", "✅".green());
     println!("  {} What:    {}", "→".dimmed(), what.bright_white());
     println!("  {} Why:     {}", "→".dimmed(), why.cyan());

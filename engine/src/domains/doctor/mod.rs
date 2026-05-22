@@ -224,10 +224,15 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
     let payload = r#"{"actor":"core","result":"ok","detail":{"command":"doctor.rebuild"}}"#;
-    ctx.runtime.db.execute(
-        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('doctor', 'rebuild', ?1, ?2)",
-        rusqlite::params![payload, ts],
-    ).ok();
+    // INT-251 v23: use canonical event bus
+    let _ = crate::domains::friday::events::emit(
+        ctx,
+        "doctor",
+        "health_check",
+        payload,
+        "core",
+        None,
+    );
     crate::runtime::write_event_log("doctor", "rebuild", payload, ts);
 
     Ok(())

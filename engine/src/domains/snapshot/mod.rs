@@ -509,9 +509,9 @@ fn emit_event(ctx: &AppContext, action: &str) {
         r#"{{"actor":"core","result":"ok","detail":{{"command":"snapshot.{}"}}}}"#,
         action
     );
-    ctx.runtime.db.execute(
-        "INSERT INTO events (domain, action, payload, timestamp) VALUES ('snapshot', ?1, ?2, ?3)",
-        rusqlite::params![action, payload, ts],
-    ).ok();
+    // INT-251 v23: use canonical event bus
+    let _ = crate::domains::friday::events::emit(
+        ctx, "snapshot", action, &payload, "core", None,
+    );
     crate::runtime::write_event_log("snapshot", action, &payload, ts);
 }

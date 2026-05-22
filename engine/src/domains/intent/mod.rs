@@ -655,6 +655,12 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // Auto-checkpoint before transition
     println!("  {} Auto-checkpointing before transition...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-start", id))?;
+    // INT-251 v23: emit to unified event bus
+    let _ = crate::domains::friday::events::emit(
+        ctx, "intent", "intent_started",
+        &format!(r#"{{\"id\":\"{}\"}}"#, id),
+        "core", None,
+    );
 
     // Update frontmatter status in file
     let base = PathBuf::from(&ctx.core_root).join("intents");
@@ -741,6 +747,12 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // Auto-checkpoint before completion
     println!("  {} Auto-checkpointing before completion...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
+    // INT-251 v23: emit to unified event bus
+    let _ = crate::domains::friday::events::emit(
+        ctx, "intent", "intent_completed",
+        &format!(r#"{{\"id\":\"{}\"}}"#, id),
+        "core", None,
+    );
 
     // Find and move the file to complete/
     let base = PathBuf::from(&ctx.core_root).join("intents");
