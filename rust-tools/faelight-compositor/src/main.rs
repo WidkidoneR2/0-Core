@@ -13,6 +13,7 @@ mod input;
 mod state;
 mod udev_backend;
 mod winit;
+mod drm_renderer;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 use std::time::Duration;
@@ -67,8 +68,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     tracing::info!("💡 VT switch: Ctrl+Alt+F1-F7  |  Exit: Ctrl+Alt+Q");
-    event_loop.run(Some(Duration::from_millis(16)), &mut state, move |_| {
-        // tick at 60fps -- keeps compositor alive for client connections
+    event_loop.run(Some(Duration::from_millis(16)), &mut state, move |state| {
+        // tick at 60fps -- render frame if GBM pipeline is ready
+        if let Some(mut pipeline) = state.gbm_pipeline.take() {
+            crate::drm_renderer::add_output_to_space(&pipeline, state);
+            crate::drm_renderer::render_frame(&mut pipeline, state);
+            state.gbm_pipeline = Some(pipeline);
+        }
     })?;
 
     Ok(())

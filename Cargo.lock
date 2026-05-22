@@ -1701,6 +1701,7 @@ dependencies = [
  "smithay-drm-extras",
  "tracing",
  "tracing-subscriber",
+ "wayland-protocols 0.32.10",
 ]
 
 [[package]]

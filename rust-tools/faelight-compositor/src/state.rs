@@ -33,6 +33,7 @@ use smithay::{
 pub struct FaelightCompositor {
     pub session: Option<smithay::backend::session::libseat::LibSeatSession>,
     pub drm_device: Option<smithay::backend::drm::DrmDevice>,
+    pub gbm_pipeline: Option<crate::drm_renderer::GbmRenderPipeline>,
     pub start_time: std::time::Instant,
     pub socket_name: OsString,
     pub display_handle: DisplayHandle,
@@ -124,6 +125,7 @@ impl FaelightCompositor {
             health: CompositorHealth::default(),
             session: None,
             drm_device: None,
+            gbm_pipeline: None,
         }
     }
 
@@ -202,6 +204,7 @@ impl FaelightCompositor {
                 |_, display, state| {
                     unsafe {
                         display.get_mut().dispatch_clients(state).unwrap();
+                        let _ = display.get_mut().flush_clients();
                     }
                     Ok(PostAction::Continue)
                 },

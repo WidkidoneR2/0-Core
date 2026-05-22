@@ -17,9 +17,9 @@ impl XdgShellHandler for FaelightCompositor {
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface);
         // INT-308 Phase 3: auto-tiling -- place windows side by side
-        let output_size = self.space.output_geometry(
-            self.space.outputs().next().unwrap()
-        ).unwrap_or(smithay::utils::Rectangle::from_size((1920i32, 1080i32).into()));
+        let output_size = self.space.outputs().next()
+            .and_then(|o| self.space.output_geometry(o))
+            .unwrap_or(smithay::utils::Rectangle::from_size((2560i32, 1600i32).into()));
         let win_count = self.space.elements().count();
         let x = if win_count == 0 {
             0

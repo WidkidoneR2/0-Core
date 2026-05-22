@@ -4,7 +4,7 @@
 use smithay::{
     backend::{
         allocator::gbm::GbmDevice,
-        drm::{DrmDevice, DrmDeviceFd},
+        drm::{DrmDevice, DrmDeviceFd, DrmEvent},
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
         udev::{UdevBackend, UdevEvent},
@@ -134,14 +134,33 @@ pub fn init_drm(
             continue;
         }
         tracing::info!(path = ?path, "Processing DRM card device");
+        // Only process the display card (card2 = AMD 780M iGPU with eDP)
+        // card1 = RX 7700S dGPU, no display output in this configuration
+        let card_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if card_name == "card1" {
+            tracing::info!("Skipping card1 (RX 7700S dGPU — no display connectors)");
+            continue;
+        }
         tracing::info!(path = ?path, "Existing DRM device found — opening");
         let open_flags = OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOCTTY | OFlags::NONBLOCK;
         match session.open(&path, open_flags) {
             Ok(fd) => {
                 tracing::info!("DRM device fd opened successfully");
                 let drm_fd = DrmDeviceFd::new(fd.into());
+                let drm_fd_clone = drm_fd.clone();
                 match DrmDevice::new(drm_fd, true) {
-                    Ok((drm, _drm_notifier)) => {
+                    Ok((mut drm, drm_notifier)) => {
+                        // Wire VBlank events into calloop — required for DrmCompositor::frame_submitted
+                        let _ = event_loop.handle().insert_source(drm_notifier, move |event, _metadata, state| {
+                            match event {
+                                DrmEvent::VBlank(_crtc) => {
+                                    if let Some(pipeline) = state.gbm_pipeline.as_mut() {
+                                        let _ = pipeline.compositor.frame_submitted();
+                                    }
+                                }
+                                DrmEvent::Error(e) => tracing::error!("DRM error: {:?}", e),
+                            }
+                        });
                         let resources = drm.resource_handles().ok();
                         let connector_count = resources
                             .as_ref()
@@ -165,6 +184,16 @@ pub fn init_drm(
                         match GbmDevice::new(drm.device_fd().clone()) {
                             Ok(_gbm) => {
                                 tracing::info!("✅ GBM device created successfully");
+                                // Initialize full GBM+EGL render pipeline
+                                if state.gbm_pipeline.is_none() {
+                                    match crate::drm_renderer::init_gbm_pipeline(&mut drm, drm_fd_clone.clone()) {
+                                        Ok(pipeline) => {
+                                            tracing::info!("🌲 GBM render pipeline initialized -- GPU compositing ready");
+                                            state.gbm_pipeline = Some(pipeline);
+                                        }
+                                        Err(e) => tracing::warn!("GBM pipeline init failed: {e} -- falling back to dumb buffer"),
+                                    }
+                                }
 
                                 // Use DrmScanner to find connector/CRTC pairs
                                 let mut scanner: DrmScanner<SimpleCrtcMapper> = DrmScanner::new();
@@ -184,54 +213,6 @@ pub fn init_drm(
                                                 refresh = mode.as_ref().map(|m| m.vrefresh()).unwrap_or(0),
                                                 "🎨 Session 4 — connector+CRTC pair found, ready for first render"
                                             );
-                                            let w = mode
-                                                .as_ref()
-                                                .map(|m| m.size().0 as u32)
-                                                .unwrap_or(0);
-                                            let h = mode
-                                                .as_ref()
-                                                .map(|m| m.size().1 as u32)
-                                                .unwrap_or(0);
-
-                                            // ── Session 5: First Render ──────────────
-                                            // Paint forest green #11140f using dumb buffer
-                                            match attempt_first_render(
-                                                &drm,
-                                                crtc,
-                                                &connector,
-                                                mode.as_ref(),
-                                                w,
-                                                h,
-                                            ) {
-                                                Ok(()) => {
-                                                    tracing::info!("🌲 FIRST RENDER COMPLETE — forest green on real hardware!");
-                                                    let payload = format!(
-                                                        r#"{{"event":"first.render","connector":"{}","mode":"{}x{}@{}","color":"11140f"}}"#,
-                                                        connector.interface().as_str(),
-                                                        w,
-                                                        h,
-                                                        mode.as_ref()
-                                                            .map(|m| m.vrefresh())
-                                                            .unwrap_or(0),
-                                                    );
-                                                    state.emit("compositor.drm", payload);
-                                                }
-                                                Err(e) => {
-                                                    tracing::error!(?e, "First render failed");
-                                                    let payload = format!(
-                                                        r#"{{"event":"render.ready","connector":"{}","mode":"{}x{}@{}"}}"#,
-                                                        connector.interface().as_str(),
-                                                        w,
-                                                        h,
-                                                        mode.as_ref()
-                                                            .map(|m| m.vrefresh())
-                                                            .unwrap_or(0),
-                                                    );
-                                                    state.emit("compositor.drm", payload);
-                                                }
-                                            }
-                                        }
-                                        DrmScanEvent::Connected { crtc: None, .. } => {
                                             tracing::warn!("Connector found but no CRTC available");
                                         }
                                         _ => {}
@@ -330,61 +311,3 @@ pub fn init_drm(
     Ok(())
 }
 
-// ── Session 5: First Render ───────────────────────────────────────────────────
-
-fn attempt_first_render(
-    drm: &DrmDevice,
-    crtc: smithay::reexports::drm::control::crtc::Handle,
-    connector: &smithay::reexports::drm::control::connector::Info,
-    mode: Option<&smithay::reexports::drm::control::Mode>,
-    w: u32,
-    h: u32,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use smithay::reexports::drm::control::Device as DrmControlDevice;
-
-    let mode = mode.ok_or("No mode available")?;
-
-    // Acquire DRM master
-    // Note: master lock acquired via session — skip manual acquire
-
-    // Create dumb buffer
-    let mut dumb = drm
-        .create_dumb_buffer((w, h), drm_fourcc::DrmFourcc::Xrgb8888, 32)
-        .map_err(|e| format!("create_dumb_buffer failed: {}", e))?;
-
-    tracing::info!(width = w, height = h, "Dumb buffer created");
-
-    // Map and fill with forest green #11140f
-    {
-        let mut map = drm
-            .map_dumb_buffer(&mut dumb)
-            .map_err(|e| format!("map_dumb_buffer failed: {}", e))?;
-        let data = map.as_mut();
-        // #11140f = R:0x11 G:0x14 B:0x0f in XRGB8888 = 0x0011140f
-        let pixel: u32 = 0x0011_140f;
-        let pixel_bytes = pixel.to_le_bytes();
-        for chunk in data.chunks_exact_mut(4) {
-            chunk.copy_from_slice(&pixel_bytes);
-        }
-        tracing::info!("Buffer filled with forest green #11140f");
-    }
-
-    // Add framebuffer
-    let fb = drm
-        .add_framebuffer(&dumb, 24, 32)
-        .map_err(|e| format!("add_framebuffer failed: {}", e))?;
-
-    tracing::info!("Framebuffer created");
-
-    // Set CRTC — paint the screen
-    let conn_handle = connector.handle();
-    drm.set_crtc(crtc, Some(fb), (0, 0), &[conn_handle], Some(*mode))
-        .map_err(|e| format!("set_crtc failed: {}", e))?;
-
-    tracing::info!("🌲 set_crtc SUCCESS — forest green painted on real hardware!");
-
-    // Hold for 3 seconds so we can see it
-
-
-    Ok(())
-}
