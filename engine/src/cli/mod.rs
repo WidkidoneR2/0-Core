@@ -719,6 +719,7 @@ pub fn parse() -> Command {
             BootstrapCommands::Verify => BootstrapCommand::Verify,
             BootstrapCommands::Diff => BootstrapCommand::Diff,
         }),
+        Commands::Status => Command::Status,
         Commands::Anomaly { command } => Command::Anomaly(match command {
             AnomalyCommands::Scan => AnomalyCommand::Scan,
             AnomalyCommands::History => AnomalyCommand::History,

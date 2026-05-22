@@ -17,6 +17,7 @@ use colored::*;
 
 pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
     match cmd {
+        Command::Status => crate::domains::status::run(ctx),
         Command::Version => {
             let intel_ver: String = ctx.runtime.db.query_row(
                 "SELECT value FROM domain_state WHERE domain = 'core' AND key = 'intelligence_version'",

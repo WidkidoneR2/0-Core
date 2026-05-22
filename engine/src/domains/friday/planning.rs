@@ -990,7 +990,7 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
 // exchange_kind='plan' row.
 /// Find intent IDs with status: in-progress in intents/future/*.md
 /// Returns vector of "INT-XXX" style identifiers.
-fn active_intents() -> Vec<String> {
+pub fn active_intents() -> Vec<String> {
     let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
         .join("0-core/intents/future");
     let mut ids = Vec::new();

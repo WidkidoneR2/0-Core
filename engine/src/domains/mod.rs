@@ -1,3 +1,4 @@
+pub mod status;
 pub mod alignment;
 pub mod anomaly;
 pub mod audit;

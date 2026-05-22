@@ -95,6 +95,7 @@ pub enum FridayCommand {
 }
 
 pub enum Command {
+    Status,
     Anomaly(AnomalyCommand),
     Bootstrap(BootstrapCommand),
     Snapshot {

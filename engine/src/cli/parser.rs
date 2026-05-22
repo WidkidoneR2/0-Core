@@ -11,6 +11,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// INT-251 v23 Pillar 5 -- The One-Mind Answer
+    #[command(name = "status", about = "Forest state in one coherent narrative")]
+    Status,
     /// Deploy intelligence -- check, record, log
     Deploy {
         #[command(subcommand)]
