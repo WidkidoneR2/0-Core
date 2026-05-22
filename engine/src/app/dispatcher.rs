@@ -671,6 +671,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             FridayCommand::MapShow => crate::domains::friday::map::show(ctx),
             FridayCommand::MapUpdate => crate::domains::friday::map::update(ctx),
             FridayCommand::EventBus => crate::domains::friday::events::show_recent(ctx, 50),
+            FridayCommand::ReasonEngine => crate::domains::friday::reasoning::show(ctx),
             FridayCommand::MapImpact(change) => crate::domains::friday::map::impact(ctx, &change),
             FridayCommand::SelfReview => crate::domains::friday::self_review::run(ctx),
             FridayCommand::Docs => crate::domains::friday::doc_steward::show_proposals(ctx),

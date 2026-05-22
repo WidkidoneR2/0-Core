@@ -85,6 +85,7 @@ pub enum FridayCommand {
     MapUpdate,
     MapImpact(String),
     EventBus,
+    ReasonEngine,
     SelfReview,
     // Pillar 1 -- Doc Steward
     Docs,
