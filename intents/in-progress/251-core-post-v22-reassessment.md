@@ -264,7 +264,7 @@ HARD DEPENDENCIES
 ✅ Core v22 (INT-244) shipped -- all 4 pillars demonstrated 2026-05-21
 ✅ Event bus schema ratified -- source_tool + correlation_id added, 21 domains live 2026-05-22
 ✅ Reasoning engine rule format ratified -- Rule struct, 5 starter rules, 4 observation kinds 2026-05-22
-✅ Tool absorption candidates confirmed -- workspace-view, entropy-check, bin-doctor, faelight-digest, faelight-gen documented in intent 2026-05-22
+⬜ Tool absorption candidate list confirmed (Pillar 3)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GATES
@@ -273,8 +273,8 @@ GATES
 Pillar 1 -- Unified Event Bus:
 ✅ events table exists -- 21 domains already emitting, 6 indices, schema live 2026-05-21
 ✅ friday::events::emit API live -- emit, emit_simple, recent, by_kind all implemented 2026-05-22
-✅ 21 domains already emitting to event bus -- compositor, shell, git, doctor, deploy, decisions all live 2026-05-22
-✅ Friday reads events as canonical source -- core status, core friday review, core friday ask all use event stream 2026-05-22
+⬜ at least 5 tools migrated to emit via the bus
+⬜ Friday consumes events as canonical source for predictions
 ⬜ Old signal/log mechanisms retired in migrated tools
 
 Pillar 2 -- Reasoning Engine:
