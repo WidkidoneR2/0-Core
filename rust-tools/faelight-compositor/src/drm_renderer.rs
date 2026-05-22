@@ -196,3 +196,31 @@ pub fn render_frame(pipeline: &mut GbmRenderPipeline, state: &mut FaelightCompos
         Err(e) => tracing::error!("render_frame failed: {e}"),
     }
 }
+
+pub fn init_dmabuf(pipeline: &mut GbmRenderPipeline, state: &mut FaelightCompositor) {
+    use smithay::wayland::dmabuf::{DmabufFeedbackBuilder, DmabufState};
+
+    if state.dmabuf_state.is_some() {
+        return; // already initialized
+    }
+
+    let dmabuf_formats = pipeline.renderer.egl_context().dmabuf_render_formats().clone();
+    let node = smithay::backend::drm::DrmNode::from_file(
+        pipeline.compositor.surface().device_fd()
+    ).ok();
+
+    if let Some(node) = node {
+        if let Ok(feedback) = DmabufFeedbackBuilder::new(node.dev_id(), dmabuf_formats).build() {
+            let mut dmabuf_state = DmabufState::new();
+            let global = dmabuf_state.create_global_with_default_feedback::<FaelightCompositor>(
+                &state.display_handle,
+                &feedback,
+            );
+            state.dmabuf_state = Some(dmabuf_state);
+            state.dmabuf_global = Some(global);
+            tracing::info!("zwp_linux_dmabuf_v1 advertised -- wgpu clients can import GPU buffers");
+        }
+    } else {
+        tracing::warn!("Could not get DRM node for dmabuf feedback");
+    }
+}

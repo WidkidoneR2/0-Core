@@ -59,6 +59,9 @@ pub struct FaelightCompositor {
     pub popups: PopupManager,
     pub seat: Seat<Self>,
 
+    // dmabuf support for wgpu clients
+    pub dmabuf_state: Option<smithay::wayland::dmabuf::DmabufState>,
+    pub dmabuf_global: Option<smithay::wayland::dmabuf::DmabufGlobal>,
     // Forest integration
     pub db: Option<Connection>,   // → state.db
     pub health: CompositorHealth, // → doctor
@@ -123,6 +126,8 @@ impl FaelightCompositor {
             seat,
             db,
             health: CompositorHealth::default(),
+            dmabuf_state: None,
+            dmabuf_global: None,
             session: None,
             drm_device: None,
             gbm_pipeline: None,
@@ -224,3 +229,13 @@ impl ClientData for ClientState {
     fn initialized(&self, _client_id: ClientId) {}
     fn disconnected(&self, _client_id: ClientId, _reason: DisconnectReason) {}
 }
+
+impl smithay::wayland::dmabuf::DmabufHandler for FaelightCompositor {
+    fn dmabuf_state(&mut self) -> &mut smithay::wayland::dmabuf::DmabufState {
+        self.dmabuf_state.as_mut().unwrap()
+    }
+    fn dmabuf_imported(&mut self, _global: &smithay::wayland::dmabuf::DmabufGlobal, _dmabuf: smithay::backend::allocator::dmabuf::Dmabuf, notifier: smithay::wayland::dmabuf::ImportNotifier) {
+        let _ = notifier.successful::<FaelightCompositor>();
+    }
+}
+smithay::delegate_dmabuf!(FaelightCompositor);

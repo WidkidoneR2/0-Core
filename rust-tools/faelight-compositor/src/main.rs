@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // tick at 60fps -- render frame if GBM pipeline is ready
         if let Some(mut pipeline) = state.gbm_pipeline.take() {
             crate::drm_renderer::add_output_to_space(&pipeline, state);
+            crate::drm_renderer::init_dmabuf(&mut pipeline, state);
             crate::drm_renderer::render_frame(&mut pipeline, state);
             state.gbm_pipeline = Some(pipeline);
         }
