@@ -479,6 +479,26 @@ fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
     }
     Ok(None)
 }
+
+fn check_recent_activity(ctx: &AppContext) -> CoreResult<Option<String>> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let day_ago = now - 86400;
+    let deploys: i64 = db.query_row(
+        "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+        rusqlite::params![day_ago],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    let commits: i64 = db.query_row(
+        "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
+        rusqlite::params![day_ago],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    if deploys > 0 || commits > 0 {
+        return Ok(Some(format!("{} deploy(s) and {} commit(s) today -- forest is active", deploys, commits)));
+    }
+    Ok(None)
+}
 /// core friday infer -- run forward-chaining inference across all templates.
 pub fn infer(ctx: &AppContext, verbose: bool) -> CoreResult<()> {
     ensure_tables(ctx)?;
@@ -1100,6 +1120,13 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
             "intent_drift",
             "",
             check_intent_drift as fn(&AppContext) -> CoreResult<Option<String>>,
+            "",
+            0.0,
+        ),
+        (
+            "recent_activity",
+            "",
+            check_recent_activity as fn(&AppContext) -> CoreResult<Option<String>>,
             "",
             0.0,
         ),
