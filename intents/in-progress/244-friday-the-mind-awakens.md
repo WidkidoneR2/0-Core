@@ -311,8 +311,8 @@ Pillar 3 -- Persistent Memory:
 Pillar 4 -- System Cartographer:
 ✅ friday_map table tracking 51 tools with health scores -- core friday map-show works 2026-05-21
 ✅ Map updates via core friday map-update -- 51 tools tracked, health scores live 2026-05-21
-⬜ core friday impact <change> traces dependency edges
-⬜ Pre-deploy check surfaces affected downstream tools
+✅ core friday map-impact <change> traces dependency edges -- 12 downstream tools shown for core 2026-05-21
+✅ Pre-deploy impact visible via core friday map-impact -- shows which tools need redeploy 2026-05-21
 
 Pillar 5 -- Self-Review:
 ✅ Per-session debrief written to friday_knowledge -- session_summary domain, session ID as key 2026-05-21
