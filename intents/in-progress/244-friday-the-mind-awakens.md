@@ -281,7 +281,7 @@ HARD DEPENDENCIES
 ✅ Core v21 -- Friday Planning Layer (INT-234) complete (2026-04-28)
 ✅ friday_session_context table from v21 (live)
 ✅ Confidence scoring infrastructure from v19 (live)
-⬜ faelight-term v2 dedicated pane (INT-232 ships before Pillar 2)
+⏸ faelight-term v2 dedicated pane -- deferred, blocked by INT-232
 ✅ friday_decisions table created -- 4 decisions recorded, core friday why works 2026-05-21
 ✅ friday_map table created -- 51 tools mapped, core friday map-show works 2026-05-21
 
@@ -296,10 +296,10 @@ Pillar 1 -- Documentation Steward:
 ✅ Demonstrated: commit triggered 3 real doc proposals -- approved proposal 3 for CHANGELOG 2026-05-21
 
 Pillar 2 -- Dual Presence:
-⬜ Inline speech respects v20 interrupt levels
-⬜ faelight-term Ctrl+Shift+F pane shows live session arc
-⬜ Pane shows open Friday observations with status (open/resolved)
-⬜ Both channels share friday_session_context state
+⏸ Inline speech respects v20 interrupt levels -- deferred, blocked by INT-232
+⏸ faelight-term Ctrl+Shift+F pane -- deferred, blocked by INT-313
+⏸ Pane shows open Friday observations -- deferred, blocked by INT-313
+⏸ Both channels share friday_session_context -- deferred, blocked by INT-313
 
 Pillar 3 -- Persistent Memory:
 ✅ friday_decisions table created with schema -- id, timestamp, what, alternatives, why, ties_to, revisit_when 2026-05-21

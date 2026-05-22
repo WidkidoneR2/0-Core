@@ -480,6 +480,31 @@ fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
     Ok(None)
 }
 
+
+fn check_pushback(ctx: &AppContext) -> CoreResult<Option<String>> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    // Push back if working without an active intent for more than 30 minutes
+    let has_cistart: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE command LIKE 'cistart%' AND timestamp > ?1",
+        rusqlite::params![now - 1800],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    let recent_cmds: i64 = db.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE timestamp > ?1",
+        rusqlite::params![now - 1800],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    if recent_cmds > 20 && has_cistart == 0 {
+        return Ok(Some("Working without cistart -- intent context is missing. Which intent are you working on? Run cistart <id>.".to_string()));
+    }
+    // Push back if 4+ intents in progress
+    let intents = active_intents();
+    if intents.len() >= 4 {
+        return Ok(Some(format!("{} intents in progress simultaneously -- forest values focus. Consider closing one before opening another.", intents.len())));
+    }
+    Ok(None)
+}
 fn check_recent_activity(ctx: &AppContext) -> CoreResult<Option<String>> {
     let db = &ctx.runtime.db;
     let now = now_ts();
@@ -1127,6 +1152,13 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
             "recent_activity",
             "",
             check_recent_activity as fn(&AppContext) -> CoreResult<Option<String>>,
+            "",
+            0.0,
+        ),
+        (
+            "pushback",
+            "",
+            check_pushback as fn(&AppContext) -> CoreResult<Option<String>>,
             "",
             0.0,
         ),
