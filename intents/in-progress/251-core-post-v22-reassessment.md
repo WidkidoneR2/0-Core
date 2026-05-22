@@ -263,7 +263,7 @@ HARD DEPENDENCIES
 
 ✅ Core v22 (INT-244) shipped -- all 4 pillars demonstrated 2026-05-21
 ✅ Event bus schema ratified -- source_tool + correlation_id added, 21 domains live 2026-05-22
-⬜ Reasoning engine rule format ratified (Pillar 2)
+✅ Reasoning engine rule format ratified -- Rule struct, 5 starter rules, 4 observation kinds 2026-05-22
 ⬜ Tool absorption candidate list confirmed (Pillar 3)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -278,10 +278,10 @@ Pillar 1 -- Unified Event Bus:
 ⬜ Old signal/log mechanisms retired in migrated tools
 
 Pillar 2 -- Reasoning Engine:
-⬜ Rule format defined and documented
-⬜ Starter rule set shipped (10+ rules from existing knowledge)
-⬜ Engine produces system-wide observations from event stream
-⬜ Anomaly detection live (unknown event sequences flagged)
+✅ Rule format defined -- Rule struct with name/description/check fn, ObservationKind enum 2026-05-22
+✅ Starter rule set shipped -- 5 rules: deploy_without_commit, high_deploy_frequency, compositor_active, no_intent_activity, shell_health_signal 2026-05-22
+✅ Engine produces system-wide observations -- core friday reason-engine demonstrated live 2026-05-22
+✅ Anomaly detection live -- deploy without commit, session without cistart flagged 2026-05-22
 ⬜ Causal chain reasoning demonstrated on a real failure case
 
 Pillar 3 -- Tool Absorption:
