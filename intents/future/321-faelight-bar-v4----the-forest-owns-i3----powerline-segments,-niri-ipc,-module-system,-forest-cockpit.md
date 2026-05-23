@@ -326,3 +326,45 @@ Faelight Forest shows what a bar should know.
 We take the aesthetic.
 We add the intelligence.
 The cockpit is ours." 🌲
+
+---
+
+## The Visual Vision -- Forest Candy + i3 Precision
+
+This is not a theme. This is an identity.
+
+### Forest Candy
+- Soft glows on active window borders -- forest green (#11140f base) with warm amber
+  accents on focus. Not harsh. Not flat. Depth.
+- Status elements have subtle layering -- the bar feels like it exists in space,
+  not painted on the screen.
+- Inactive borders fade to dark moss. Active borders breathe with a soft glow.
+- The palette: forest dark (#11140f), forest green (#1a2f1a), amber focus (#c8a96e),
+  ice blue accent (#00bfff), warm white text (#d7e0da).
+
+### i3 Precision
+- Every action has a keybind. Mouse is optional, never required.
+- Workspaces are intentional contexts, not window dumps.
+- Layout is deterministic -- you always know where a window will appear.
+- Super is the forest key. Every Super+* binding is documented in the cheatsheet.
+
+### One Visual Language
+- faelight-bar, faelight-term, faelight-compositor borders, faelight-notify --
+  all share the same palette, the same font weight, the same corner radius (0 -- sharp).
+- No element feels like it came from a different system.
+- If you screenshot any part of the forest, you know it's the forest.
+- The terminal background is the same dark as the compositor background.
+  The bar is a continuation of the screen, not a separate widget.
+
+### The Thesis
+Most tiling WMs are cold. Precise but cold.
+Most DEs are warm. Soft but imprecise.
+The forest is both.
+Precision with warmth. Keyboard with depth. Green with amber.
+It looks like it was built by one person who thought carefully about every pixel.
+Because it was.
+
+"The forest does not decorate. It grows.
+Every visual element has a reason.
+The glow on the active border is not decoration --
+it is the forest telling you where you are." 🌲
