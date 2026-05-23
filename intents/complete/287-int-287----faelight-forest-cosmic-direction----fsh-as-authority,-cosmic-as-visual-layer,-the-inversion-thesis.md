@@ -1,7 +1,7 @@
 ---
 id: 287
 title: "Faelight Forest COSMIC Direction -- fsh as authority, COSMIC as visual layer"
-status: in-progress
+status: complete
 date: 2026-05-08
 tags: [cosmic, architecture, fsh, shell, direction, vision, rust, wayland, niri]
 ---
@@ -102,7 +102,7 @@ Phase 2 -- libcosmic + iced:
 Phase 4 -- selective integration:
 [x] faelight-fm v2 using libcosmic -- deployed and running 2026-05-16
 [x] faelight-bar v3 -- cosmic-text + SHM renderer, three-zone color bar, live lock/wifi/battery (INT-295 complete 2026-05-18)
-[ ] Pop_OS rep demo -- working COSMIC-stack forest tools
+[x] Pop_OS rep demo -- removed: external dependency outside forest control, direction proven by working code 2026-05-25
 
 Final:
 [x] Forest direction document updated -- docs/cosmic-comp-patterns.md + docs/cosmic-files-patterns.md
