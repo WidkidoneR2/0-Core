@@ -1,7 +1,7 @@
 ---
 id: 339
 title: "Jarvis Purge -- remove all jarvis references, tables, and checks from the forest"
-status: in-progress
+status: complete
 date: 2026-05-25
 tags: [jarvis, purge, cleanup, friday, technical-debt, integrity, ghost-removal]
 ---
