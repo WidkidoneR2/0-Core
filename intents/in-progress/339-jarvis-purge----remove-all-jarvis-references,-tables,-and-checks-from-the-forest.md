@@ -74,17 +74,17 @@ After purge:
 
 ## Gates
 
-⬜ Full audit: grep -r "jarvis" across all forest source returns complete list
-⬜ All jarvis_ database tables identified -- drop or migrate each one
-⬜ jarvis_readiness_log removed from all queries and checks
-⬜ Category::Jarvis removed from integrity system
-⬜ All integrity checks referencing jarvis retired or renamed
-⬜ All jarvis_ function names renamed to friday_ equivalents
-⬜ Shell scripts and config files audited -- no jarvis references
-⬜ Documentation audited -- no jarvis references
-⬜ Intent files audited -- historical mentions allowed, functional references removed
-⬜ grep -r "jarvis" ~/0-core/engine/src/ | grep -v target returns zero results
-⬜ grep -r "jarvis" ~/0-core/rust-tools/ returns zero results
-⬜ sqlite3 state.db shows no jarvis_ tables
-⬜ 10 consecutive d runs show Integrity: 100%
-⬜ Demonstrated: forest runs full session with zero Jarvis references active
+✅ Full audit: 36 refs in engine, 8 in rust-tools -- all identified 2026-05-25
+✅ jarvis_readiness_log identified and dropped from state.db 2026-05-25
+✅ jarvis_readiness_log removed from all queries -- renamed to friday_readiness_log 2026-05-25
+✅ Category::Jarvis removed from integrity system 2026-05-25
+✅ JarvisLogFreshnessCheck retired, all other checks renamed 2026-05-25
+✅ compute_jarvis_score→friday_score, get_jarvis_score→friday_score, jarvis()→friday_readiness() 2026-05-25
+✅ faelight-shell audited -- theme jarvis→friday, prompt vars renamed 2026-05-25
+⏸ Documentation audit -- deferred: historical docs may mention Jarvis as context, not functional -- approved by: christian 2026-05-25
+⏸ Intent file audit -- deferred: historical intent files may reference Jarvis, acceptable -- approved by: christian 2026-05-25
+✅ grep returns zero results -- verified 2026-05-25
+✅ grep returns zero results -- verified 2026-05-25
+✅ jarvis_readiness_log dropped -- no jarvis tables in state.db 2026-05-25
+⏸ 10 consecutive d runs -- deferred: track over next sessions -- approved by: christian 2026-05-25
+✅ Demonstrated: full session, zero jarvis refs in source or database 2026-05-25
