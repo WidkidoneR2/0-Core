@@ -1,7 +1,7 @@
 ---
 id: 333
 title: "faelight-git v5 -- intelligence, integrity, drift prevention"
-status: in-progress
+status: complete
 date: 2026-05-25
 tags: [git, faelight-git, intelligence, integrity, drift, doctor, friday]
 ---
