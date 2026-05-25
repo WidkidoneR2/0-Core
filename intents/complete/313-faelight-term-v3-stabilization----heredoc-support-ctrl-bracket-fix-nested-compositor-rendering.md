@@ -1,7 +1,7 @@
 ---
 id: 313
 title: "faelight-term v3 stabilization -- heredoc support, Ctrl+[ fix, nested compositor rendering"
-status: in-progress
+status: complete
 date: 2026-05-17
 tags: faelight-term, stabilization, heredoc, kitty, compositor, wgpu, nested
 depends_on: []
@@ -58,14 +58,14 @@ Phase 2 -- Heredoc support:
 [x] fsh heredoc commands work inside faelight-term -- python3 << EOF confirmed working
 
 Phase 3 -- Nested compositor rendering:
-- [ ] faelight-term renders correctly inside faelight-compositor
-- [ ] No ERROR_SURFACE_LOST_KHR when nested
-- [ ] Option: detect nested and use EGL/softbuffer fallback
+- ⏸ faelight-term renders correctly inside compositor -- deferred to INT-324 faelight-term v4 on NixOS -- approved by: christian 2026-05-25
+- ⏸ No ERROR_SURFACE_LOST_KHR -- deferred to INT-324 v4 rebuild -- approved by: christian 2026-05-25
+- ⏸ EGL/softbuffer fallback -- deferred to INT-324 v4 rebuild -- approved by: christian 2026-05-25
 
 Final:
-- [ ] faelight-term is the sole daily driver terminal (foot retired)
+- ⏸ sole daily driver -- deferred to NixOS/INT-324, foot stays until v4 -- approved by: christian 2026-05-25
 - [x] helix + evil-helix fully functional inside faelight-term -- confirmed 2026-05-17
-- [ ] faelight-term runs inside faelight-compositor cleanly
+- ⏸ runs inside compositor cleanly -- deferred to INT-324 v4 + INT-308 Phase 5 -- approved by: christian 2026-05-25
 
 ---
 

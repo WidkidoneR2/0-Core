@@ -1,7 +1,7 @@
 ---
 id: 292
 title: "faelight-term v3 replaces v2 -- clean transition, clipboard, cursor, resize, path resilience"
-status: in-progress
+status: complete
 date: 2026-05-12
 tags: [faelight-term, v3, transition, clipboard, cursor, resize, doctor, path-resilience]
 ---
@@ -28,11 +28,11 @@ COMPLETED
 
 ---
 REMAINING
-[ ] Window resize -- recalculate cols/rows, send SIGWINCH to PTY
-[ ] Path resilience -- faelight-term v3 binary tracked in doctor/checks.rs
-[ ] 1 week daily driver without foot fallback (timer starts 2026-05-12)
-[ ] v2 source retired from rust-tools
-[ ] foot removed as backup terminal
+⏸ Window resize -- deferred to INT-324 faelight-term v4 -- approved by: christian 2026-05-25
+⏸ Path resilience -- deferred to INT-324 faelight-term v4 -- approved by: christian 2026-05-25
+⏸ 1 week daily driver -- deferred: term v4 will be the daily driver on NixOS -- approved by: christian 2026-05-25
+⏸ v2 source retired -- deferred to INT-324 faelight-term v4 cleanup -- approved by: christian 2026-05-25
+⏸ foot removed -- deferred: foot stays until term v4 is daily driver on NixOS -- approved by: christian 2026-05-25
 
 ---
 GATES
@@ -40,11 +40,11 @@ GATES
 [x] Cursor visible at correct position
 [x] Mouse selection highlights text
 [x] Copy to browser works
-[ ] Window resize recalculates grid and sends SIGWINCH
-[ ] d shows 100% health with faelight-term v3 path resilience
-[ ] 1 week daily driver without foot fallback
-[ ] v2 source retired from rust-tools
-[ ] foot is no longer the backup terminal
+⏸ Window resize -- deferred to INT-324 -- approved by: christian 2026-05-25
+⏸ path resilience doctor check -- deferred to INT-324 -- approved by: christian 2026-05-25
+⏸ 1 week daily driver -- deferred to NixOS/INT-324 -- approved by: christian 2026-05-25
+⏸ v2 retired -- deferred to INT-324 -- approved by: christian 2026-05-25
+⏸ foot retirement -- deferred to NixOS/INT-324 -- approved by: christian 2026-05-25
 
 ---
 KEY CONSTANTS
