@@ -8,6 +8,7 @@ use smithay::{
         calloop::{generic::Generic, EventLoop, Interest, LoopSignal, Mode, PostAction},
         wayland_server::{
             backend::{ClientData, ClientId, DisconnectReason},
+            protocol::wl_output::WlOutput,
             Display, DisplayHandle,
         },
     },
@@ -27,6 +28,7 @@ use smithay::{
         xdg_activation::XdgActivationState,
         cursor_shape::CursorShapeManagerState,
         fractional_scale::FractionalScaleManagerState,
+        shell::wlr_layer::{WlrLayerShellHandler, WlrLayerShellState, LayerSurface, Layer},
     },
 };
 
@@ -59,6 +61,8 @@ pub struct FaelightCompositor {
     pub popups: PopupManager,
     pub seat: Seat<Self>,
 
+    // layer shell for faelight-bar and faelight-notify
+    pub layer_shell_state: WlrLayerShellState,
     // dmabuf support for wgpu clients
     pub dmabuf_state: Option<smithay::wayland::dmabuf::DmabufState>,
     pub dmabuf_global: Option<smithay::wayland::dmabuf::DmabufGlobal>,
@@ -102,6 +106,7 @@ impl FaelightCompositor {
 
         // Open state.db for event emission
         let db = Self::open_db();
+        let layer_shell_state = WlrLayerShellState::new::<FaelightCompositor>(&dh);
 
         tracing::info!("FaelightCompositor initialized");
 
@@ -126,6 +131,7 @@ impl FaelightCompositor {
             seat,
             db,
             health: CompositorHealth::default(),
+            layer_shell_state,
             dmabuf_state: None,
             dmabuf_global: None,
             session: None,
@@ -239,3 +245,20 @@ impl smithay::wayland::dmabuf::DmabufHandler for FaelightCompositor {
     }
 }
 smithay::delegate_dmabuf!(FaelightCompositor);
+
+impl WlrLayerShellHandler for FaelightCompositor {
+    fn shell_state(&mut self) -> &mut WlrLayerShellState {
+        &mut self.layer_shell_state
+    }
+    fn new_layer_surface(
+        &mut self,
+        surface: LayerSurface,
+        _output: Option<WlOutput>,
+        _layer: Layer,
+        namespace: String,
+    ) {
+        tracing::info!("Layer surface created: {}", namespace);
+        let _ = surface;
+    }
+}
+smithay::delegate_layer_shell!(FaelightCompositor);
