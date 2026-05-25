@@ -193,27 +193,30 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
     println!("{}", "📋 Intent Ledger".bold());
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
-    let mut by_folder: HashMap<String, Vec<&Intent>> = HashMap::new();
-    for i in &filtered {
-        by_folder.entry(i.folder.clone()).or_default().push(i);
-    }
+    // INT-332: ACTIVE first, then PLANNED -- no mixing by folder
+    let mut active_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "in-progress").copied().collect();
+    let mut planned_items: Vec<&Intent> = filtered.iter().filter(|i| i.status != "in-progress" && i.status != "complete").copied().collect();
+    let complete_items: Vec<&Intent> = filtered.iter().filter(|i| i.status == "complete").copied().collect();
+    active_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
+    planned_items.sort_by_key(|i| i.id.parse::<i32>().unwrap_or(0));
 
-    let folder_order = [
-        "future",
-        "decisions",
-        "experiments",
-        "incidents",
-        "philosophy",
-        "deferred",
-        "cancelled",
-        "complete",
-    ];
-    for folder in &folder_order {
-        let Some(items) = by_folder.get(*folder) else {
-            continue;
-        };
-        println!("{}:", folder.bright_white().bold());
-        for i in items {
+    if !active_items.is_empty() {
+        println!("{}:", "ACTIVE (in-progress)".bright_green().bold());
+        for i in &active_items {
+            let id_display = format!("{:>3}", i.id).bright_cyan();
+            println!("  {}  {} {}", id_display, i.status_colored(), i.title);
+        }
+    }
+    if !planned_items.is_empty() {
+        println!("{}:", "PLANNED (next up)".bright_yellow().bold());
+        for i in &planned_items {
+            let id_display = format!("{:>3}", i.id).bright_cyan();
+            println!("  {}  {} {}", id_display, i.status_colored(), i.title);
+        }
+    }
+    if !complete_items.is_empty() && all {
+        println!("{}:", "COMPLETE".dimmed().bold());
+        for i in &complete_items {
             let id_display = format!("{:>3}", i.id).bright_cyan();
             println!("  {}  {} {}", id_display, i.status_colored(), i.title);
         }
