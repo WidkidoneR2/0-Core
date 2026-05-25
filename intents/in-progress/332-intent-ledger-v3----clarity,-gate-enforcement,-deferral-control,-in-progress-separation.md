@@ -66,10 +66,10 @@ The doctor check for integrity must detect:
 ✅ cicomplete hard-blocked when open gates exist -- demonstrated live 2026-05-25
 ✅ cicomplete shows all blocking gates with deferral instructions 2026-05-25
 ✅ Deferral format enforced -- validated in cicomplete, rejects bad format, accepts correct 2026-05-25
-⬜ Doctor check: detects intent/directory mismatch (in-progress file in future/)
-⬜ Doctor check: detects ✅ gates without date stamps
+✅ Doctor check: detects in-progress intents in future/ -- INT-308 and INT-313 caught and fixed 2026-05-25
+⏸ Doctor check: detects ✅ gates without date stamps -- deferred: requires parsing all gate files, high effort for low signal -- approved by: christian 2026-05-25
 ⏸ Friday checks open gates on every cicomplete attempt -- deferred: requires Friday integration work in INT-251 -- approved by: christian 2026-05-25
 ✅ Intent list no longer mixes in-progress with planned 2026-05-25
 ✅ Demonstrated: cicomplete on INT-332 blocked with 11 open gates listed 2026-05-25
 ✅ Demonstrated: Friday gate deferred with approval signature -- accepted by cicomplete 2026-05-25
-⬜ Demonstrated: integrity check catches directory mismatch
+✅ Demonstrated: integrity check caught INT-308 and INT-313 in wrong directory, fix applied 2026-05-25

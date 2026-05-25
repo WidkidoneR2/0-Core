@@ -714,6 +714,25 @@ pub mod checks {
                                     3,
                                 ));
                             }
+                            // INT-332: detect in-progress intent in future/ directory
+                            if *dir_type == "future" && has_inprog {
+                                let fname = path
+                                    .file_name()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                                    .to_string();
+                                let dest = ctx.core_root.join("intents/in-progress").join(&fname);
+                                issues.push(IntegrityIssue::propose(
+                                    Category::Intent,
+                                    "intent_status_directory",
+                                    &format!("{} has status: in-progress but lives in future/ -- move to in-progress/", fname),
+                                    FixAction::MoveFile {
+                                        from: path.clone(),
+                                        to: dest,
+                                    },
+                                    4,
+                                ));
+                            }
                             if *dir_type == "complete"
                                 && (has_planned || has_deferred || has_inprog)
                             {
