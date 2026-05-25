@@ -1,7 +1,7 @@
 ---
 id: 332
 title: "Intent Ledger v3 -- clarity, gate enforcement, deferral control, in-progress separation"
-status: in-progress
+status: complete
 date: 2026-05-25
 tags: [intent, ledger, clarity, gates, enforcement, deferral, ux]
 ---
