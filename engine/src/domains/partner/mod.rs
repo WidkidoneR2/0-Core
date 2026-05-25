@@ -4,18 +4,18 @@ use crate::errors::CoreResult;
 use colored::*;
 // Jarvis gate for v14 partnership
 const V14_JARVIS_GATE: i32 = 98;
-fn get_jarvis_score(ctx: &AppContext) -> i32 {
+fn get_friday_score(ctx: &AppContext) -> i32 {
     ctx.runtime
         .db
         .query_row(
-            "SELECT score FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 1",
+            "SELECT score FROM friday_readiness_log ORDER BY recorded_at DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
         .unwrap_or(0)
 }
 fn gate_check(ctx: &AppContext) -> Option<String> {
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
     if score < V14_JARVIS_GATE {
         Some(format!(
             "  {} v14 Partnership requires Jarvis {}/100 — current: {}/100\n  {} Build continues. Activation gates at {}.\n",
@@ -95,7 +95,7 @@ fn ensure_tables(ctx: &AppContext) {
 }
 fn status(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx);
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
     let gate_pct = (score as f64 / V14_JARVIS_GATE as f64 * 100.0) as i32;
     println!();
     println!("  {} Core v14 Partnership", "🤝".normal());
@@ -455,7 +455,7 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
     ensure_tables(ctx);
     print_gate_warning(ctx);
 
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
     let events: i64 = ctx
         .runtime
         .db
@@ -497,7 +497,7 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
         "Before retiring: verify 0 usage in reality-check, confirm no dependencies, create checkpoint first.".to_string()
     } else if q.contains("deploy") || q.contains("release") {
         "Before deploying: run d to verify health >= 95%, ensure no uncommitted changes, check forecast trend.".to_string()
-    } else if q.contains("jarvis") || q.contains("score") || q.contains("v14") {
+    } else if q.contains("friday-readiness") || q.contains("score") || q.contains("v14") {
         format!(
             "Current Jarvis score: {}/100. v14 gate: {}/100. Gap: {} points.",
             score,
@@ -675,7 +675,7 @@ fn growth(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  {:<28} {}/100",
         "Jarvis Score:".dimmed(),
-        get_jarvis_score(ctx).to_string().bright_green()
+        get_friday_score(ctx).to_string().bright_green()
     );
     println!();
     Ok(())
@@ -726,7 +726,7 @@ fn roadmap(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx);
     print_gate_warning(ctx);
 
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
 
     println!();
     println!("  {} Co-Authored Roadmap", "🤝".normal());

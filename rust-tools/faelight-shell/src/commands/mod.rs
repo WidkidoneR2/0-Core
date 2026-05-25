@@ -6239,7 +6239,7 @@ fn z_jump(args: &[&str]) -> CommandResult {
 }
 
 fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
-    let themes = ["forest", "minimal", "jarvis", "classic"];
+    let themes = ["forest", "minimal", "friday", "classic"];
     match args.first().copied() {
         None => {
             let current = db.get_theme();
@@ -6270,7 +6270,7 @@ fn theme_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
             ))
         }
         Some(name) => CommandResult::Error(format!(
-            "  theme: unknown theme '{}'\n  available: forest, minimal, jarvis, classic",
+            "  theme: unknown theme '{}'\n  available: forest, minimal, friday, classic",
             name
         )),
     }
@@ -6881,7 +6881,7 @@ fn observe_phase(db: &ForestDb) -> CommandResult {
         (
             "Monitoring Phase",
             "Focus: verifying system health",
-            "Expect: d, core integrity run, core strategy jarvis",
+            "Expect: d, core integrity run, core strategy friday-readiness",
         )
     } else {
         (

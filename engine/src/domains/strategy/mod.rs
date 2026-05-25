@@ -28,7 +28,7 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
             snapshot     TEXT    NOT NULL,
             created_at   INTEGER NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS jarvis_readiness_log (
+        CREATE TABLE IF NOT EXISTS friday_readiness_log (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             score        INTEGER NOT NULL,
             factors      TEXT    NOT NULL,
@@ -485,7 +485,7 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
 
     // Save snapshot
     let snapshot = format!(
-        "complete={} planned={} commits={} jarvis=65",
+        "complete={} planned={} commits={} friday=65",
         complete_count,
         planned.len(),
         commits
@@ -1391,7 +1391,7 @@ pub fn merge(ctx: &AppContext, goal1: &str, goal2: &str) -> CoreResult<()> {
 
 // ── Phase 4: Jarvis Readiness Tracking ───────────────────────────────────────
 
-fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
+fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let mut factors: Vec<(String, i32, String)> = Vec::new(); // (name, score, note)
     let mut total = 0i32;
 
@@ -1449,7 +1449,7 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     let (v12_score, v12_note) = if completed_ids.contains("151") {
         (
             10,
-            "Complete — horizon/sequence/coherence/jarvis/trust (INT-151)".to_string(),
+            "Complete — horizon/sequence/coherence/friday/trust (INT-151)".to_string(),
         )
     } else {
         (
@@ -1738,17 +1738,17 @@ fn compute_jarvis_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
         .collect::<Vec<_>>()
         .join("|");
     let _ = ctx.runtime.db.execute(
-        "INSERT INTO jarvis_readiness_log (score, factors, recorded_at) VALUES (?1, ?2, ?3)",
+        "INSERT INTO friday_readiness_log (score, factors, recorded_at) VALUES (?1, ?2, ?3)",
         rusqlite::params![total, factors_json, now_ts()],
     );
 
     (total, factors)
 }
 
-/// core strategy jarvis — how close is the forest to Jarvis-level capability?
-pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
+/// core strategy friday — how close is the forest to Friday-level capability?
+pub fn friday_readiness(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    let (score, factors) = compute_jarvis_score(ctx);
+    let (score, factors) = compute_friday_score(ctx);
 
     println!();
     println!(
@@ -1879,7 +1879,7 @@ pub fn jarvis(ctx: &AppContext) -> CoreResult<()> {
 /// core strategy trust — what evidence would justify more autonomy?
 pub fn trust(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    let (score, _) = compute_jarvis_score(ctx);
+    let (score, _) = compute_friday_score(ctx);
 
     println!();
     println!("  {}", "🌲 Strategy — Trust".bright_green().bold());
@@ -1964,7 +1964,7 @@ pub fn trust(ctx: &AppContext) -> CoreResult<()> {
 /// core strategy gap — what capabilities are missing for full Jarvis?
 pub fn gap(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
-    let (score, _) = compute_jarvis_score(ctx);
+    let (score, _) = compute_friday_score(ctx);
 
     println!();
     println!("  {}", "🌲 Strategy — Gap Analysis".bright_green().bold());
@@ -2111,7 +2111,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     let mut scores: Vec<(i32, i64)> = Vec::new();
     {
         let mut stmt = ctx.runtime.db.prepare(
-            "SELECT score, recorded_at FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 5",
+            "SELECT score, recorded_at FROM friday_readiness_log ORDER BY recorded_at DESC LIMIT 5",
         )?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
@@ -2139,7 +2139,7 @@ pub fn history(ctx: &AppContext) -> CoreResult<()> {
     );
     if scores.is_empty() {
         println!(
-            "    {} No score history yet — run: core strategy jarvis",
+            "    {} No score history yet — run: core strategy friday",
             "·".dimmed()
         );
     } else {
@@ -2312,7 +2312,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
         let mut stmt = ctx
             .runtime
             .db
-            .prepare("SELECT score FROM jarvis_readiness_log ORDER BY recorded_at ASC")?;
+            .prepare("SELECT score FROM friday_readiness_log ORDER BY recorded_at ASC")?;
         stmt.query_map([], |r| r.get::<_, i32>(0))
             .unwrap()
             .filter_map(|r| r.ok())
@@ -2326,7 +2326,7 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     );
     if scores.len() < 2 {
         println!(
-            "    {} Not enough data yet — run core strategy jarvis over time",
+            "    {} Not enough data yet — run core strategy friday over time",
             "·".dimmed()
         );
     } else {
@@ -2514,7 +2514,7 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
         };
 
         // Factor 4: Presentation proximity (0.15) — summer 2026 presentation
-        let presentation_keywords = ["voice", "jarvis", "shell", "demo", "partner", "autonomy"];
+        let presentation_keywords = ["voice", "friday-readiness", "shell", "demo", "partner", "autonomy"];
         let pres_score = if presentation_keywords
             .iter()
             .any(|k| content.to_lowercase().contains(k))

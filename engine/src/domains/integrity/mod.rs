@@ -239,8 +239,8 @@ fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
             .map(|o| o.status.success())
             .unwrap_or(false),
         FixAction::RebuildJarvisScore => {
-            // Trigger jarvis recomputation by running it
-            true // score rebuilds on next jarvis call
+            // Trigger friday readiness recomputation by running it
+            true // score rebuilds on next friday-readiness call
         }
         _ => false, // MoveFile, VacuumDb, config rewrites = not safe
     }
@@ -984,7 +984,7 @@ pub mod checks {
     }
 
     // ── Jarvis Checks -- RETIRED: Jarvis replaced by Friday entirely
-    // jarvis_readiness_log table no longer exists -- was causing 67% integrity drift
+    // friday_readiness_log table no longer exists -- was causing 67% integrity drift
     // ── Autostart Checks ──────────────────────────────────────────────────────
 
     pub struct AutostartRetiredToolCheck;

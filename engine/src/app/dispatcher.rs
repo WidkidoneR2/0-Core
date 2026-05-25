@@ -873,7 +873,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             StrategyCommand::Merge { goal1, goal2 } => {
                 crate::domains::strategy::merge(ctx, &goal1, &goal2)
             }
-            StrategyCommand::Jarvis => crate::domains::strategy::jarvis(ctx),
+            StrategyCommand::FridayReadiness => crate::domains::strategy::friday_readiness(ctx),
             StrategyCommand::Trust => crate::domains::strategy::trust(ctx),
             StrategyCommand::Gap => crate::domains::strategy::gap(ctx),
             StrategyCommand::History => crate::domains::strategy::history(ctx),

@@ -309,7 +309,7 @@ impl<'a> ForestHelper<'a> {
                 "core integrity",
                 // ── core strategy ─────────────────────────────────────────
                 "core strategy now",
-                "core strategy jarvis",
+                "core strategy friday-readiness",
                 "core strategy horizon",
                 "core strategy coherence",
                 "core strategy",

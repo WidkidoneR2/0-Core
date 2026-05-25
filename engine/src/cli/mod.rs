@@ -621,7 +621,7 @@ pub fn parse() -> Command {
             StrategyCommands::Conflicts => StrategyCommand::Conflicts,
             StrategyCommands::Coherence => StrategyCommand::Coherence,
             StrategyCommands::Merge { goal1, goal2 } => StrategyCommand::Merge { goal1, goal2 },
-            StrategyCommands::Jarvis => StrategyCommand::Jarvis,
+            StrategyCommands::FridayReadiness => StrategyCommand::FridayReadiness,
             StrategyCommands::Trust => StrategyCommand::Trust,
             StrategyCommands::Gap => StrategyCommand::Gap,
             StrategyCommands::History => StrategyCommand::History,

@@ -789,7 +789,7 @@ pub enum StrategyCommand {
         goal1: String,
         goal2: String,
     },
-    Jarvis,
+    FridayReadiness,
     Trust,
     Gap,
     History,

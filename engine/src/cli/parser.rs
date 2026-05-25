@@ -1554,7 +1554,7 @@ pub enum StrategyCommands {
     Now,
     /// What should the next 7 days focus on?
     Week,
-    /// The 90-day arc toward Jarvis
+    /// The 90-day arc toward Friday
     Quarter,
     /// Optimal path to achieve a goal
     Sequence {
@@ -1579,11 +1579,11 @@ pub enum StrategyCommands {
         /// Second goal ID
         goal2: String,
     },
-    /// How close is the forest to Jarvis-level capability?
-    Jarvis,
+    /// How close is the forest to Friday-level capability?
+    FridayReadiness,
     /// What evidence would justify more autonomy?
     Trust,
-    /// What capabilities are missing for full Jarvis?
+    /// What capabilities are missing for full Friday?
     Gap,
     /// Past strategies and did they help?
     History,

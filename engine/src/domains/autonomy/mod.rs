@@ -46,11 +46,11 @@ fn now_ts() -> i64 {
         .unwrap_or(0)
 }
 
-fn get_jarvis_score(ctx: &AppContext) -> i64 {
+fn get_friday_score(ctx: &AppContext) -> i64 {
     ctx.runtime
         .db
         .query_row(
-            "SELECT score FROM jarvis_readiness_log ORDER BY recorded_at DESC LIMIT 1",
+            "SELECT score FROM friday_readiness_log ORDER BY recorded_at DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
@@ -58,7 +58,7 @@ fn get_jarvis_score(ctx: &AppContext) -> i64 {
 }
 
 fn check_gate(ctx: &AppContext) -> bool {
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
     if score < JARVIS_GATE {
         println!();
         println!("  {} v13 Autonomy is DORMANT", "🔒".normal());
@@ -73,7 +73,7 @@ fn check_gate(ctx: &AppContext) -> bool {
             "→".dimmed()
         );
         println!(
-            "  {} Run: core strategy jarvis — to see current score",
+            "  {} Run: core strategy friday — to see current score",
             "→".dimmed()
         );
         println!();
@@ -121,7 +121,7 @@ pub fn mandate_list(ctx: &AppContext) -> CoreResult<()> {
         }
     }
 
-    let score = get_jarvis_score(ctx);
+    let score = get_friday_score(ctx);
     println!();
     if score < JARVIS_GATE {
         println!(
@@ -282,20 +282,20 @@ pub fn trust_score(ctx: &AppContext) -> CoreResult<()> {
         "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
     );
 
-    let jarvis = get_jarvis_score(ctx);
+    let friday = get_friday_score(ctx);
     println!(
         "  {} Jarvis score:    {}/100",
         "→".bright_cyan(),
-        jarvis.to_string().bright_white()
+        friday.to_string().bright_white()
     );
     println!("  {} Gate required:   {}/100", "→".dimmed(), JARVIS_GATE);
     println!(
         "  {} Status:          {}",
         "→".dimmed(),
-        if jarvis >= JARVIS_GATE {
+        if friday >= JARVIS_GATE {
             "ACTIVE".bright_green().to_string()
         } else {
-            format!("DORMANT ({} points to gate)", JARVIS_GATE - jarvis)
+            format!("DORMANT ({} points to gate)", JARVIS_GATE - friday)
                 .yellow()
                 .to_string()
         }

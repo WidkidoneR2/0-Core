@@ -122,7 +122,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
     }
     // All other themes use full context below
     let _ = ctx; // suppress unused warning for now
-    let is_jarvis = theme == "jarvis";
+    let is_friday = theme == "friday";
     let cwd = cwd_str(35);
     let health = db.health_score().unwrap_or(95);
     let git = git_info();
@@ -191,7 +191,7 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
         );
     }
     // Jarvis theme — add prediction insight inline
-    if is_jarvis {
+    if is_friday {
         // Read next predicted intent
         let home = std::env::var("HOME").unwrap_or_default();
         let next_intent = std::fs::read_dir(format!("{}/0-core/intents/future", home))
@@ -233,11 +233,11 @@ pub fn render_context(db: &ForestDb, ctx: &PromptContext) {
             }
         };
 
-        let jarvis_hint = match next_intent {
+        let friday_hint = match next_intent {
             Some(id) => format!("▸ {} · {}", id.bright_cyan(), trend_hint),
             None => format!("▸ {}", trend_hint),
         };
-        parts.push(jarvis_hint);
+        parts.push(friday_hint);
         // INT-235 Gate 3: Friday message indicator
         let db_path = format!("{}/0-core/runtime/state.db", home);
         let has_friday_msg = rusqlite::Connection::open_with_flags(
