@@ -44,6 +44,7 @@ fn load_all(ctx: &AppContext) -> Vec<Intent> {
     let folders = [
         "complete",
         "future",
+        "in-progress",
         "cancelled",
         "deferred",
         "decisions",
@@ -770,6 +771,28 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         found
     } {
         let file_content = std::fs::read_to_string(path).unwrap_or_default();
+        // Check for malformed deferrals (⏸ without approval signature)
+        let bad_deferrals: Vec<&str> = file_content.lines()
+            .filter(|l| {
+                let trimmed = l.trim();
+                trimmed.starts_with('⏸') &&
+                !l.contains("[date]") &&   // skip example lines
+                !l.contains("[reason]") && // skip example lines
+                (!l.contains("approved by: christian") || !l.contains("20"))
+            })
+            .collect();
+        if !bad_deferrals.is_empty() {
+            println!();
+            println!("  {} Deferral format error -- missing approval signature:", "🚫".normal());
+            for d in &bad_deferrals {
+                println!("  {} {}", "⏸".normal(), d.trim());
+            }
+            println!();
+            println!("  {} Required format:", "💡".normal());
+            println!("    ⏸ gate -- deferred: [reason] -- approved by: christian 2026-05-25");
+            println!();
+            return Ok(());
+        }
         let open_gates: Vec<&str> = file_content.lines()
             .filter(|l| {
                 let trimmed = l.trim();
