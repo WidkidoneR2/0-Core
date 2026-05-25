@@ -69,9 +69,25 @@ fn emit_git_event(action: &str, detail: &str) {
             r#"{{"actor":"faelight-git","result":"ok","detail":{{{}}}}}"#,
             detail
         );
+        // INT-333 v5: use v23 schema with source_tool
         let _ = conn.execute(
-            "INSERT INTO events (domain, action, payload, timestamp) VALUES ('git', ?, ?, ?)",
+            "INSERT INTO events (domain, action, payload, timestamp, source_tool, correlation_id) VALUES ('git', ?, ?, ?, 'faelight-git', '')",
             rusqlite::params![action, payload, ts],
+        );
+        // INT-333 v5: also write to git_operations table
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS git_operations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                operation TEXT NOT NULL,
+                detail TEXT,
+                source_tool TEXT DEFAULT 'faelight-git'
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "INSERT INTO git_operations (timestamp, operation, detail, source_tool) VALUES (?, ?, ?, 'faelight-git')",
+            rusqlite::params![ts, action, detail],
         );
     }
 }
@@ -97,29 +113,27 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     // INT-207 L1 — Show active intents context
     {
         let home = std::env::var("HOME").unwrap_or_default();
-        let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
-        let active: Vec<String> = std::fs::read_dir(&intents_dir)
-            .map(|d| {
-                d.filter_map(|e| e.ok())
-                    .filter(|e| {
-                        if let Ok(c) = std::fs::read_to_string(e.path()) {
-                            c.contains("status: in-progress") || c.contains("type: in-progress")
-                        } else {
-                            false
+        // INT-333 v5: scan both future/ and in-progress/ for active intents
+        let base = std::path::PathBuf::from(&home).join("0-core/intents");
+        let mut active: Vec<String> = Vec::new();
+        for dir_name in &["future", "in-progress"] {
+            let dir = base.join(dir_name);
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
+                        if c.contains("status: in-progress") {
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            let num = name.split('-').next().unwrap_or("").to_string();
+                            if !num.is_empty() && num.parse::<u32>().is_ok() {
+                                active.push(format!("INT-{}", num));
+                            }
                         }
-                    })
-                    .filter_map(|e| {
-                        let name = e.file_name().to_string_lossy().to_string();
-                        let num = name.split('-').next().unwrap_or("").to_string();
-                        if !num.is_empty() && num.parse::<u32>().is_ok() {
-                            Some(format!("INT-{}", num))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+                    }
+                }
+            }
+        }
+        active.sort();
+        active.dedup();
         if !active.is_empty() {
             println!(
                 "  {} {}",
@@ -269,29 +283,27 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         Some(i.clone())
     } else {
         let home = std::env::var("HOME").unwrap_or_default();
-        let intents_dir = std::path::PathBuf::from(&home).join("0-core/intents/future");
-        let active: Vec<(String, String)> = std::fs::read_dir(&intents_dir)
-            .map(|d| {
-                d.filter_map(|e| e.ok())
-                    .filter(|e| {
-                        if let Ok(c) = std::fs::read_to_string(e.path()) {
-                            c.contains("status: in-progress") || c.contains("type: in-progress")
-                        } else {
-                            false
+        // INT-333 v5: scan both future/ and in-progress/ directories
+        let base = std::path::PathBuf::from(&home).join("0-core/intents");
+        let mut active: Vec<(String, String)> = Vec::new();
+        for dir_name in &["future", "in-progress"] {
+            let dir = base.join(dir_name);
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
+                        if c.contains("status: in-progress") {
+                            let fname = entry.file_name().to_string_lossy().to_string();
+                            let num = fname.split('-').next().unwrap_or("").to_string();
+                            if !num.is_empty() && num.parse::<u32>().is_ok() {
+                                active.push((format!("INT-{}", num), String::new()));
+                            }
                         }
-                    })
-                    .filter_map(|e| {
-                        let fname = e.file_name().to_string_lossy().to_string();
-                        let num = fname.split('-').next().unwrap_or("").to_string();
-                        if !num.is_empty() && num.parse::<u32>().is_ok() {
-                            Some((format!("INT-{}", num), String::new()))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+                    }
+                }
+            }
+        }
+        active.sort();
+        active.dedup();
         if active.len() == 1 {
             // Single active intent -- auto-attach
             let (id, title) = &active[0];
