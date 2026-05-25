@@ -747,6 +747,51 @@ pub fn complete_intent(ctx: &AppContext, id: &str) -> CoreResult<()> {
         return Ok(());
     }
 
+    // INT-332: block cicomplete if open gates exist without formal deferral
+    if let Some(ref path) = {
+        let base = std::path::PathBuf::from(&ctx.core_root).join("intents");
+        let folders = ["future", "planned", "deferred", "in-progress"];
+        let mut found: Option<std::path::PathBuf> = None;
+        for folder in &folders {
+            let dir = base.join(folder);
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.file_name().and_then(|n| n.to_str())
+                        .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+                        .unwrap_or(false) {
+                        found = Some(p);
+                        break;
+                    }
+                }
+            }
+            if found.is_some() { break; }
+        }
+        found
+    } {
+        let file_content = std::fs::read_to_string(path).unwrap_or_default();
+        let open_gates: Vec<&str> = file_content.lines()
+            .filter(|l| {
+                let trimmed = l.trim();
+                trimmed.starts_with('⬜') && !l.contains('⏸')
+            })
+            .collect();
+        if !open_gates.is_empty() {
+            println!();
+            println!("  {} cicomplete BLOCKED -- {} open gate(s) require demonstration or formal deferral:", "🚫".normal(), open_gates.len());
+            println!();
+            for gate in &open_gates {
+                println!("  {} {}", "⬜".normal(), gate.trim());
+            }
+            println!();
+            println!("  {} To defer a gate, edit the intent file and use:", "💡".normal());
+            println!("    ⏸ gate description -- deferred: [reason] -- approved by: christian {}", chrono::Utc::now().format("%Y-%m-%d"));
+            println!();
+            println!("  {} cicomplete blocked. Demonstrate gates or formally defer them.", "→".bright_red());
+            return Ok(());
+        }
+    }
+
     // Auto-checkpoint before completion
     println!("  {} Auto-checkpointing before completion...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
