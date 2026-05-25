@@ -26,7 +26,6 @@ pub enum Severity {
 pub enum Category {
     Intent,
     Registry,
-    Jarvis,
     Autostart,
     Database,
     Documentation,
@@ -39,7 +38,6 @@ impl Category {
         match self {
             Category::Intent => "intent",
             Category::Registry => "registry",
-            Category::Jarvis => "jarvis",
             Category::Autostart => "autostart",
             Category::Database => "database",
             Category::Documentation => "documentation",
@@ -632,7 +630,6 @@ pub fn build_check_suite() -> Vec<Box<dyn IntegrityCheck>> {
         Box::new(checks::RegistryVersionDriftCheck),
         Box::new(checks::RegistryDeployableExistsCheck),
         // Phase 3: Jarvis
-        Box::new(checks::JarvisLogFreshnessCheck),
         // Phase 4: Autostart
         Box::new(checks::AutostartRetiredToolCheck),
         // Phase 5: Database
@@ -986,52 +983,8 @@ pub mod checks {
         }
     }
 
-    // ── Jarvis Checks ─────────────────────────────────────────────────────────
-
-    pub struct JarvisLogFreshnessCheck;
-    impl IntegrityCheck for JarvisLogFreshnessCheck {
-        fn name(&self) -> &'static str {
-            "jarvis_log_freshness"
-        }
-        fn category(&self) -> Category {
-            Category::Jarvis
-        }
-        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
-            let mut issues = vec![];
-            let last_log: Option<i64> = ctx
-                .ctx
-                .runtime
-                .db
-                .query_row(
-                    "SELECT MAX(recorded_at) FROM jarvis_readiness_log",
-                    [],
-                    |r| r.get(0),
-                )
-                .ok()
-                .flatten();
-
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
-
-            // Only flag if no entry in last 30 days
-            if last_log.map(|t| now - t > 2592000).unwrap_or(true) {
-                issues.push(IntegrityIssue::auto_fix(
-                    Category::Jarvis,
-                    "jarvis_log_freshness",
-                    "Jarvis readiness log has no entry in last 30 days",
-                    FixAction::InsertDbRow {
-                        table: "jarvis_readiness_log".to_string(),
-                        sql: format!("INSERT OR IGNORE INTO jarvis_readiness_log (score, recorded_at) VALUES (100, {})", now),
-                    },
-                    2,
-                ));
-            }
-            issues
-        }
-    }
-
+    // ── Jarvis Checks -- RETIRED: Jarvis replaced by Friday entirely
+    // jarvis_readiness_log table no longer exists -- was causing 67% integrity drift
     // ── Autostart Checks ──────────────────────────────────────────────────────
 
     pub struct AutostartRetiredToolCheck;
