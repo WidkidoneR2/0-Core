@@ -146,6 +146,32 @@ pub fn starter_rules() -> Vec<Rule> {
                 } else { None }
             },
         },
+        Rule {
+            name: "commits_without_deploy",
+            description: "Commits in last 2h with no deploy -- changes may be uncommitted to runtime",
+            check: |ctx| {
+                let db = &ctx.runtime.db;
+                let now = now_ts();
+                let two_hours_ago = now - 7200;
+                let commits: i64 = db.query_row(
+                    "SELECT COUNT(*) FROM git_operations WHERE operation='commit' AND timestamp > ?1",
+                    rusqlite::params![two_hours_ago],
+                    |r| r.get(0),
+                ).unwrap_or(0);
+                let deploys: i64 = db.query_row(
+                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+                    rusqlite::params![two_hours_ago],
+                    |r| r.get(0),
+                ).unwrap_or(0);
+                if commits >= 3 && deploys == 0 {
+                    Some(Observation {
+                        conclusion: format!("{} commit(s) in last 2h with no deploy -- consider deploying to validate changes", commits),
+                        confidence: 0.8,
+                        kind: ObservationKind::Causal,
+                    })
+                } else { None }
+            },
+        },
     ]
 }
 

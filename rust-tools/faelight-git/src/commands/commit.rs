@@ -359,6 +359,16 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         bail!("Commit cancelled — empty message");
     }
 
+    // INT-333 v5: commit message pattern check
+    if let Some(ref intent_id) = intent_ref {
+        let prefix = format!("INT-{}", intent_id.trim_start_matches("INT-"));
+        if !message.starts_with(&prefix) && !message.starts_with("INT-") {
+            println!(
+                "  {} message does not reference intent {} -- suggested: {}: {}",
+                "\u{1F4A1}", intent_id, prefix, message
+            );
+        }
+    }
     // Build full message with intent footer if provided
     let full_message = match intent_ref {
         Some(ref i) => format!("{}\n\nIntent: {}", message, i),
