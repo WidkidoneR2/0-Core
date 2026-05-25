@@ -185,7 +185,8 @@ pub fn list(ctx: &AppContext, planned: bool, active: bool, complete: bool, all: 
             }
             if all { return true; }
             // default: only actionable intents
-            (i.folder == "future" || i.folder == "deferred")
+            // INT-332: in-progress/ folder must always show
+            (i.folder == "future" || i.folder == "deferred" || i.folder == "in-progress")
                 && (i.status == "planned" || i.status == "in-progress")
         })
         .collect();
