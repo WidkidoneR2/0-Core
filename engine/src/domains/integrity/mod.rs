@@ -770,8 +770,8 @@ pub mod checks {
             let mut seen: std::collections::HashMap<String, Vec<String>> =
                 std::collections::HashMap::new();
             let intent_root = ctx.core_root.join("intents");
-            // Only check main intent spaces — decisions/incidents/philosophy have own numbering
-            let subdirs = ["complete", "future", "active"];
+            // Only check main intent spaces -- decisions/incidents/philosophy/experiments have own numbering
+            let subdirs = ["complete", "future", "in-progress"];
             for sub in &subdirs {
                 let dir = intent_root.join(sub);
                 if let Ok(entries) = std::fs::read_dir(&dir) {
