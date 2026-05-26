@@ -1076,12 +1076,13 @@ fn repl_main() -> Result<()> {
                                 }
                                 continue;
                             }
-                            let status = std::process::Command::new("sh")
-                                .arg("-c")
-                                .arg(lcmd)
-                                .envs(std::env::vars())
-                                .status();
-                            last_success = status.map(|s| s.success()).unwrap_or(false);
+                            // INT-322 Phase 1: route through fsh builtin dispatcher
+                            // Fixes fg, deploy, cistart, cicomplete, gc, gp in && chains
+                            let chain_result = commands::execute(lcmd_trim, &db, &core_root);
+                            last_success = !matches!(chain_result, commands::CommandResult::Error(_));
+                            if matches!(chain_result, commands::CommandResult::Exit) {
+                                break;
+                            }
                             prev_op = *op; // track for next iteration
                         }
                         continue;

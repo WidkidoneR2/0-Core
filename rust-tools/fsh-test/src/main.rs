@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 enum Category {
     Tilde,
     Pipes,
@@ -188,6 +189,9 @@ fn all_tests() -> Vec<TestResult> {
     }));
     results.push(test("and_operator", Category::Regression, || {
         expect_contains(&run_fsh("echo a && echo b")?, "b")
+    }));
+    results.push(test("and_chain_fsh_builtin", Category::Regression, || {
+        expect_contains(&run_fsh("echo ok && core version")?, "3.0.0")
     }));
     results.push(test("subshell_expansion", Category::Regression, || {
         expect_eq(&run_fsh("echo $(echo nested)")?, "nested")
@@ -540,7 +544,7 @@ fn main() {
             by_cat.entry(r.category.to_string()).or_default().push(r.duration_ms);
         }
         let mut cats: Vec<_> = by_cat.iter().collect();
-        cats.sort_by_key(|(k, _)| k.clone());
+        cats.sort_by(|(a, _), (b, _)| a.cmp(b));
         for (cat, times) in &cats {
             let avg = times.iter().sum::<u64>() / times.len() as u64;
             let max = times.iter().max().unwrap_or(&0);
