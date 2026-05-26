@@ -84,7 +84,7 @@ pub enum FridayCommand {
     MapShow,
     MapUpdate,
     MapImpact(String),
-    EventBus,
+    EventBus { domain: Option<String>, limit: usize, json: bool },
     ReasonEngine,
     SelfReview,
     // Pillar 1 -- Doc Steward

@@ -83,54 +83,28 @@ pub fn by_kind(ctx: &AppContext, kind: &str, since_ts: i64) -> Vec<(String, Stri
 }
 
 /// Show recent events -- core friday events command
-pub fn show_recent(ctx: &AppContext, limit: usize, domain: Option<&str>, json: bool) -> CoreResult<()> {
+pub fn show_recent(ctx: &AppContext, limit: usize) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let day_ago = now - 86400;
 
-    let rows: Vec<(String, String, String, String, i64)> = if let Some(d) = domain {
-        let mut s = db.prepare(
-            "SELECT domain, action, source_tool, payload, timestamp FROM events
-             WHERE timestamp > ?1 AND domain = ?2 ORDER BY timestamp DESC LIMIT ?3"
-        )?;
-        let x = s.query_map(rusqlite::params![day_ago, d, limit as i64], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2).unwrap_or_default(),
-                r.get::<_, String>(3).unwrap_or_default(),
-                r.get::<_, i64>(4)?,
-            ))
-        })?.filter_map(|r| r.ok()).collect(); x
-    } else {
-        let mut s = db.prepare(
-            "SELECT domain, action, source_tool, payload, timestamp FROM events
-             WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT ?2"
-        )?;
-        let x = s.query_map(rusqlite::params![day_ago, limit as i64], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2).unwrap_or_default(),
-                r.get::<_, String>(3).unwrap_or_default(),
-                r.get::<_, i64>(4)?,
-            ))
-        })?.filter_map(|r| r.ok()).collect(); x
-    };
+    let mut s = db.prepare(
+        "SELECT domain, action, source_tool, payload, timestamp FROM events
+         WHERE timestamp > ?1 ORDER BY timestamp DESC LIMIT ?2"
+    )?;
 
-    if json {
-        println!("[");
-        let len = rows.len();
-        for (i, (dom, kind, source, payload, ts)) in rows.iter().enumerate() {
-            let comma = if i + 1 < len { "," } else { "" };
-            println!(
-                "  {{\"domain\":\"{}\",\"kind\":\"{}\",\"source\":\"{}\",\"payload\":{},\"ts\":{}}}{}",
-                dom, kind, source, payload, ts, comma
-            );
-        }
-        println!("]");
-        return Ok(());
-    }
+    let rows: Vec<(String, String, String, String, i64)> = s
+        .query_map(rusqlite::params![day_ago, limit as i64], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2).unwrap_or_default(),
+                r.get::<_, String>(3).unwrap_or_default(),
+                r.get::<_, i64>(4)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
     println!();
     println!("  {} Event Bus -- Last 24h", "🌲".normal());

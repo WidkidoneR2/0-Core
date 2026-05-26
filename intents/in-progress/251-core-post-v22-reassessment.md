@@ -285,7 +285,7 @@ Pillar 2 -- Reasoning Engine:
 ⬜ Causal chain reasoning demonstrated on a real failure case
 
 Pillar 3 -- Tool Absorption:
-⬜ Audit-stale tools reviewed individually for absorb vs retain
+✅ Audit-stale tools reviewed individually for absorb vs retain -- 8 absorb, 1 retire, 7 retain. Documented 2026-05-25
 ⬜ At least 5 tools absorbed (functionality moves into core friday)
 ⬜ Tool count reduced from 50 to <40
 ⬜ No regression in absorbed tools' user-visible function
