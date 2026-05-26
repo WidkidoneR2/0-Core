@@ -445,7 +445,7 @@ pub fn check_faelight_config(home: &str) -> CheckResult {
     }
 }
 
-pub fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
+pub fn check_keybinds(_core_root: &str, home: &str) -> CheckResult {
     // Niri is primary compositor — check Niri config first, fall back to Sway
     let niri_config = PathBuf::from(home).join(".config/niri/config.kdl");
     // INT-180: sway removed -- Niri only
@@ -462,46 +462,49 @@ pub fn check_keybinds(core_root: &str, home: &str) -> CheckResult {
         };
     };
 
-    let keyscan = PathBuf::from(core_root).join("scripts/keyscan");
-    let output = Command::new(&keyscan)
-        .arg(wm_config.to_string_lossy().to_string())
-        .output();
-    match output {
-        Ok(result) if result.status.success() => {
-            let stdout = String::from_utf8_lossy(&result.stdout);
-            if stdout.contains("No conflicts detected") {
-                let count = stdout
-                    .lines()
-                    .find(|l| l.contains("unique keybindings"))
-                    .and_then(|l| l.split_whitespace().next())
-                    .unwrap_or("0");
-                CheckResult {
-                    id: "keybinds".into(),
-                    name: format!("{} Keybinds", wm_name),
-                    status: Status::Pass,
-                    message: format!("{} unique keybindings, no conflicts", count),
-                    fix: None,
-                }
-            } else {
-                CheckResult {
-                    id: "keybinds".into(),
-                    name: format!("{} Keybinds", wm_name),
-                    status: Status::Fail,
-                    message: "Keybind conflicts detected".into(),
-                    fix: Some(format!(
-                        "Run: keyscan ~/.config/{}/config",
-                        wm_name.to_lowercase()
-                    )),
-                }
-            }
-        }
-        _ => CheckResult {
+    let config_content = match std::fs::read_to_string(&wm_config) {
+        Ok(c) => c,
+        Err(_) => return CheckResult {
             id: "keybinds".into(),
             name: format!("{} Keybinds", wm_name),
             status: Status::Warn,
-            message: "keyscan not available".into(),
-            fix: Some("Ensure keyscan is in ~/0-core/scripts/".into()),
+            message: "Could not read keybind config".into(),
+            fix: None,
         },
+    };
+    let keybinds: Vec<String> = config_content
+        .lines()
+        .filter(|l| {
+            let t = l.trim();
+            t.starts_with("Mod+") || t.starts_with("Ctrl+") || t.starts_with("Shift+")
+                || t.starts_with("Alt+") || t.starts_with("Super+")
+        })
+        .map(|l| l.trim().split('{').next().unwrap_or("").trim().to_string())
+        .collect();
+    let count = keybinds.len();
+    let mut seen = std::collections::HashSet::new();
+    let mut conflicts = 0;
+    for bind in &keybinds {
+        if !seen.insert(bind.as_str()) {
+            conflicts += 1;
+        }
+    }
+    if conflicts == 0 {
+        CheckResult {
+            id: "keybinds".into(),
+            name: format!("{} Keybinds", wm_name),
+            status: Status::Pass,
+            message: format!("{} unique keybindings, no conflicts", count),
+            fix: None,
+        }
+    } else {
+        CheckResult {
+            id: "keybinds".into(),
+            name: format!("{} Keybinds", wm_name),
+            status: Status::Warn,
+            message: format!("{} keybind conflicts detected -- review Niri config", conflicts),
+            fix: None,
+        }
     }
 }
 

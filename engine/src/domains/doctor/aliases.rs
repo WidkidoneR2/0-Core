@@ -30,7 +30,6 @@ pub const EXPECTED_TOOLS: &[&str] = &[
     "profile",
     "teach",
     "faelight",
-    "keyscan",
     "faelight-zone",
     "faelight-fm",
     "faelight-link",

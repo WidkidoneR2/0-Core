@@ -247,7 +247,7 @@ description = "SSH key scanner and audit"
 expected_usage = "rare"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "latest-update"
 version = "4.0.0"
@@ -301,7 +301,7 @@ description = "Niri IPC → event ledger bridge — compositor events as forest 
 expected_usage = "medium"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 [[tool]]
 name = "faelight-release"
 version = "2.0.0"
@@ -400,7 +400,7 @@ description = "Bootstrap verification — validates 0-Core installation complete
 expected_usage = "low"
 type = "rust"
 deployable = true
-retired = false
+retired = true
 
 [[tool]]
 name = "faelight-context"
