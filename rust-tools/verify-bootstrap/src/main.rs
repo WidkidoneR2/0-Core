@@ -124,7 +124,7 @@ fn check_scripts() -> bool {
         return false;
     }
 
-    let required = vec!["dotctl", "profile", "bump-system-version"];
+    let required = vec!["dotctl", "profile"]; // bump-system-version removed -- use faelight-release (INT-311)
 
     for script in required {
         if !scripts_dir.join(script).exists() {

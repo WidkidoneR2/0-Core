@@ -4,14 +4,6 @@
 
 # ═══════════════════════════════════════════════════════════
 # 🦀 RUST TOOLS (40 tools, primary aliases)
-# ═══════════════════════════════════════════════════════════
-
-
-[[alias]]
-[[alias]]
-command = "bump-system-version"
-aliases = ["bsv", "bump"]
-category = "versioning"
 
 [[alias]]
 command = "core-diff"

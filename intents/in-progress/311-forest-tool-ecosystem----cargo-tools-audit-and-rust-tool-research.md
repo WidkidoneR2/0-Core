@@ -1,7 +1,7 @@
 ---
 id: 311
 title: "Forest Tool Ecosystem -- cargo tools audit, unused removal, new Rust tools research"
-status: planned
+status: in-progress
 date: 2026-05-16
 type: maintenance
 tags: [cargo, tools, audit, ecosystem, rust, research, cleanup]

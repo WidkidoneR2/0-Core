@@ -56,13 +56,8 @@ pub fn bump_tool(_ctx: &AppContext, args: &[String]) -> CoreResult<()> {
 }
 
 pub fn bump_system(_ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
-    let mut cmd = Command::new("bump-system-version");
-    if dry_run {
-        cmd.arg("--dry-run");
-    }
-    let status = cmd.status()?;
-    if !status.success() {
-        println!("  {} bump-system-version failed", "✗".bright_red());
-    }
+    // bump-system-version replaced by faelight-release (INT-311)
+    let sub = if dry_run { "plan" } else { "publish" };
+    println!("  {} use: faelight-release {}", "→".bright_cyan(), sub);
     Ok(())
 }
