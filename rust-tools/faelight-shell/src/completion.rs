@@ -776,12 +776,22 @@ impl<'a> Hinter for ForestHelper<'a> {
         if line.is_empty() || pos < line.len() {
             return None; // only hint when cursor is at end of line
         }
-        // Query most recent history entry matching as prefix
-        self.db.conn.query_row(
+        // 1. History-based hint (primary)
+        let history_hint = self.db.conn.query_row(
             "SELECT command FROM shell_history              WHERE command LIKE ?1 AND command != ?2 AND length(command) > ?3              ORDER BY timestamp DESC LIMIT 1",
             rusqlite::params![format!("{}%", line), line, line.len() as i64],
             |r| r.get::<_, String>(0),
-        ).ok().map(|cmd| cmd[line.len()..].to_string())
+        ).ok().map(|cmd| cmd[line.len()..].to_string());
+        if history_hint.is_some() {
+            return history_hint;
+        }
+        // 2. Friday-informed fallback (INT-334 Gate 2/11)
+        // Find high-confidence Friday actions that start with the current input
+        self.db.conn.query_row(
+            "SELECT action FROM friday_patterns              WHERE action LIKE ?1 AND action != ?2 AND length(action) > ?3              AND confidence >= 0.7              ORDER BY confidence DESC, frequency DESC LIMIT 1",
+            rusqlite::params![format!("{}%", line), line, line.len() as i64],
+            |r| r.get::<_, String>(0),
+        ).ok().map(|action| action[line.len()..].to_string())
     }
 }
 

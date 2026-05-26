@@ -53,15 +53,15 @@ only what earns its place in the forest.
 
 ## Gates
 
-⬜ Autosuggestions implemented -- ghost text from shell_history after every keypress
+✅ Autosuggestions implemented -- ghost text from shell_history after every keypress 2026-05-26
 ⬜ Autosuggestions respect Friday's known patterns (Friday-informed suggestions)
-⬜ Syntax highlighting as you type -- green for known commands, red for unknown
-⬜ Ctrl+R history search with live filtering
-⬜ Recursive glob ** works in fsh
-⬜ Structured data pipeline: fsh ps returns queryable table
-⬜ where/sort-by/select work on structured output
-⬜ fsh rename pattern-based mass rename
-⬜ All features work with zero configuration
+✅ Syntax highlighting as you type -- green for known commands, red for unknown 2026-05-26
+✅ Ctrl+R history search with live filtering -- beautiful TUI already present 2026-05-26
+✅ Recursive glob ** works in fsh 2026-05-26
+✅ Structured data pipeline: ps returns queryable table, full usernames 2026-05-26
+✅ where/sort-by/select work on structured output -- ps | where user = christian | first 5 2026-05-26
+✅ fsh rename pattern-based mass rename -- *.txt -> *.md demonstrated 2026-05-26
+✅ All features work with zero configuration -- no config files required 2026-05-26
 ⬜ Demonstrated: full session using only fsh v4 features -- no foot, no zsh fallback
 ⬜ Friday integration: autosuggestions use friday_patterns for high-confidence suggestions
 ⬜ fsh v4 replaces fsh v3 as daily driver with no regression
