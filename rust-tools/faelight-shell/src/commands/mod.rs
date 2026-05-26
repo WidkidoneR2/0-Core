@@ -290,6 +290,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
             Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
             Some("scope") => fsh_scope_status(db),
+            Some("rename") => fsh_rename_cmd(args.get(1).copied().unwrap_or(""), args.get(2).copied().unwrap_or("")),
             _ => run_external(line, db),
         },
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
@@ -5027,38 +5028,25 @@ fn sys_processes() -> CommandResult {
     use std::collections::HashMap;
 
     let output = std::process::Command::new("ps")
-        .args(["aux", "--no-headers"])
+        .args(["-eo", "user:32,pid,pcpu,pmem,stat,comm", "--no-headers"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
+    // Format: user:32 pid pcpu pmem stat comm
     let rows: Vec<HashMap<String, Value>> = output
         .lines()
         .filter_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 11 {
-                return None;
-            }
+            if parts.len() < 6 { return None; }
             let mut row = HashMap::new();
+            row.insert("user".to_string(), Value::Text(parts[0].to_string()));
             row.insert("pid".to_string(), Value::Text(parts[1].to_string()));
-            row.insert(
-                "name".to_string(),
-                Value::Text(
-                    parts[10..]
-                        .join(" ")
-                        .split('/')
-                        .next_back()
-                        .unwrap_or(parts[10])
-                        .chars()
-                        .take(30)
-                        .collect(),
-                ),
-            );
             row.insert("cpu".to_string(), Value::Text(parts[2].to_string()));
             row.insert("memory".to_string(), Value::Text(parts[3].to_string()));
-            row.insert("user".to_string(), Value::Text(parts[0].to_string()));
-            row.insert("status".to_string(), Value::Text(parts[7].to_string()));
+            row.insert("status".to_string(), Value::Text(parts[4].to_string()));
+            row.insert("name".to_string(), Value::Text(parts[5].to_string()));
             Some(row)
         })
         .collect();
@@ -9390,6 +9378,95 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             CommandResult::Output(out)
         }
     }
+}
+
+/// INT-334 Gate 8: fsh rename -- zmv-style mass rename by pattern
+fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
+    use colored::Colorize;
+    if from_pat.is_empty() || to_pat.is_empty() {
+        let mut out = String::new();
+        out.push_str("  Usage: fsh rename <from-pattern> <to-pattern>\n");
+        out.push_str("  Example: fsh rename '*.txt' '*.md'\n");
+        out.push_str("  Example: fsh rename 'test_*' 'spec_*'\n");
+        out.push_str("  Add --dry-run to preview without renaming\n");
+        return CommandResult::Output(out);
+    }
+    let dry_run = from_pat == "--dry-run" || to_pat == "--dry-run";
+    let (pat, to) = if dry_run {
+        ("", "")
+    } else {
+        (from_pat, to_pat)
+    };
+    if dry_run {
+        return CommandResult::Output("  Usage: fsh rename <from> <to> --dry-run".to_string());
+    }
+    // Convert glob pattern to regex-like matching
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let entries: Vec<_> = match std::fs::read_dir(&cwd) {
+        Ok(e) => e.filter_map(|e| e.ok()).collect(),
+        Err(err) => return CommandResult::Error(format!("  fsh rename: {}", err)),
+    };
+    // Simple glob matching: * matches anything
+    let matches_pattern = |name: &str, pattern: &str| -> bool {
+        if !pattern.contains('*') {
+            return name == pattern;
+        }
+        let parts: Vec<&str> = pattern.split('*').collect();
+        if parts.len() == 2 {
+            name.starts_with(parts[0]) && name.ends_with(parts[1])
+                && name.len() >= parts[0].len() + parts[1].len()
+        } else {
+            false
+        }
+    };
+    let apply_pattern = |name: &str, from: &str, to: &str| -> Option<String> {
+        if !from.contains('*') {
+            return if name == from { Some(to.to_string()) } else { None };
+        }
+        let parts_from: Vec<&str> = from.split('*').collect();
+        let parts_to: Vec<&str> = to.split('*').collect();
+        if parts_from.len() == 2 && parts_to.len() == 2 {
+            let prefix = parts_from[0];
+            let suffix = parts_from[1];
+            if name.starts_with(prefix) && name.ends_with(suffix) {
+                let middle = &name[prefix.len()..name.len() - suffix.len()];
+                Some(format!("{}{}{}", parts_to[0], middle, parts_to[1]))
+            } else { None }
+        } else { None }
+    };
+    let mut renamed = 0;
+    let mut skipped = 0;
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} fsh rename {} → {}\n", "→".bright_cyan(), pat.bright_white(), to.bright_white()));
+    out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
+    for entry in &entries {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if matches_pattern(&name, pat) {
+            if let Some(new_name) = apply_pattern(&name, pat, to) {
+                let old_path = entry.path();
+                let new_path = cwd.join(&new_name);
+                out.push_str(&format!("  {} {} → {}\n",
+                    "✓".bright_green(), name.dimmed(), new_name.bright_white()));
+                if !dry_run {
+                    if let Err(e) = std::fs::rename(&old_path, &new_path) {
+                        out.push_str(&format!("  {} failed: {}\n", "✗".bright_red(), e));
+                    } else {
+                        renamed += 1;
+                    }
+                } else {
+                    renamed += 1;
+                }
+            } else {
+                skipped += 1;
+            }
+        }
+    }
+    if renamed == 0 && skipped == 0 {
+        out.push_str(&format!("  No files matched pattern '{}'\n", pat));
+    } else {
+        out.push_str(&format!("\n  {} renamed, {} skipped\n", renamed, skipped));
+    }
+    CommandResult::Output(out)
 }
 
 /// INT-322 Phase 7: fsh enter -- create project-scoped shell environment

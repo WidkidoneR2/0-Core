@@ -1729,7 +1729,7 @@ fn repl_main() -> Result<()> {
                     // INT-265: Forest pipeline detection
                     {
                         let first = line.split_whitespace().next().unwrap_or("");
-                        let forest_sources = ["from", "list", "find", "db", "intents", "deploys", "friday"];
+                        let forest_sources = ["from", "list", "find", "db", "intents", "deploys", "friday", "ps", "processes", "files", "tools", "events", "deploys"];
                         let has_pipe = line.contains(" | ");
                         if forest_sources.contains(&first) && has_pipe {
                             let explain = line.contains("--explain");
