@@ -703,6 +703,13 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
             .replace("status: future", "status: in-progress")
             .replace("status: deferred", "status: in-progress");
         fs::write(&path, updated).map_err(crate::errors::CoreError::Io)?;
+        // cistart fix: move file from future/ to in-progress/ if needed
+        if path.to_string_lossy().contains("/intents/future/") {
+            if let (Some(filename), Some(parent)) = (path.file_name(), path.parent().and_then(|p| p.parent())) {
+                let new_path = parent.join("in-progress").join(filename);
+                let _ = fs::rename(&path, &new_path);
+            }
+        }
     }
 
     // Set as focused intent
