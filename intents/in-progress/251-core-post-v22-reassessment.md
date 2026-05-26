@@ -282,7 +282,7 @@ Pillar 2 -- Reasoning Engine:
 ✅ Starter rule set shipped -- 5 rules: deploy_without_commit, high_deploy_frequency, compositor_active, no_intent_activity, shell_health_signal 2026-05-22
 ✅ Engine produces system-wide observations -- core friday reason-engine demonstrated live 2026-05-22
 ✅ Anomaly detection live -- deploy without commit, session without cistart flagged 2026-05-22
-⬜ Causal chain reasoning demonstrated on a real failure case
+✅ Causal chain reasoning demonstrated on a real failure case -- rapid_fix_cycle rule fired on alias-audit retirement session 2026-05-25
 
 Pillar 3 -- Tool Absorption:
 ✅ Audit-stale tools reviewed individually for absorb vs retain -- 8 absorb, 1 retire, 7 retain. Documented 2026-05-25

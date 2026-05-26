@@ -286,6 +286,20 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     let passed = scored.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = scored.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = scored.iter().filter(|r| r.status == Status::Fail).count() as u32;
+    // INT-342: emit health_check_failed events for each failing check
+    for check in scored.iter().filter(|r| r.status == Status::Fail) {
+        let _ = crate::domains::friday::events::emit(
+            ctx,
+            "doctor",
+            "health_check_failed",
+            &format!(
+                r#"{{"check_id":"{}","check_name":"{}","message":"{}"}}"#,
+                check.id, check.name, check.message
+            ),
+            "core",
+            None,
+        );
+    }
     let health = if total > 0 { (passed * 100) / total } else { 0 };
 
     // Run integrity quick scan (safe auto-fixes only)

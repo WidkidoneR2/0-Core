@@ -99,11 +99,11 @@ Once the rule fires on today's events, mark:
 
 ## Gate Check
 
-⬜ health_check_failed event type emitted from doctor domain on check failure
-⬜ rapid_fix_cycle rule implemented -- triggers on 3+ same-tool deploys within 10min
-⬜ tool_retirement_regression rule implemented -- triggers on health fail after deploy
-⬜ core friday reason-engine demonstrates causal chain on today's alias-audit failure record
-⬜ INT-251 Pillar 2 gate marked: Causal chain reasoning demonstrated on real failure case
+✅ health_check_failed event type emitted from doctor domain on check failure -- code deployed, fires on Status::Fail 2026-05-25
+✅ rapid_fix_cycle rule implemented -- triggers on 3+ same-tool deploys within 10min
+✅ tool_retirement_regression rule implemented -- triggers on health fail after deploy
+✅ core friday reason-engine demonstrates causal chain on today's alias-audit failure record
+✅ INT-251 Pillar 2 gate marked: Causal chain reasoning demonstrated on real failure case -- 2026-05-25
 
 ---
 
