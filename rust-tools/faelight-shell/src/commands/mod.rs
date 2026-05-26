@@ -293,6 +293,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             _ => run_external(line, db),
         },
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
+        "dev" => dev_cmd(db, core_root, args),
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
         | "capabilities" | "intent" | "genealogy" | "autonomy" => {
             let sub = args.join(" ");
@@ -9286,6 +9287,72 @@ fn ensure_snapshots_schema(db: &ForestDb) {
 }
 
 /// INT-322 Phase 4: rewind -- show snapshot timeline for time-travel debugging
+/// INT-311 Phase 2: dev -- wired cargo dev tools
+fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    let sub = args.first().copied().unwrap_or("");
+    let tool = args.get(1).copied().unwrap_or("");
+    match sub {
+        "test" => {
+            // cargo nextest run for a specific tool or all
+            let manifest = if tool.is_empty() {
+                format!("{}/rust-tools/faelight-shell/Cargo.toml", core_root)
+            } else {
+                format!("{}/rust-tools/{}/Cargo.toml", core_root, tool)
+            };
+            if !std::path::Path::new(&manifest).exists() {
+                return CommandResult::Error(format!("  dev test: no Cargo.toml found for '{}'", tool));
+            }
+            println!("  {} running: cargo nextest run --manifest-path {}", "🧪".normal(), manifest.dimmed());
+            let status = std::process::Command::new("cargo")
+                .args(["nextest", "run", "--manifest-path", &manifest])
+                .status();
+            match status {
+                Ok(s) if s.success() => CommandResult::Output(format!("  {} all tests passed", "✅".normal())),
+                Ok(_) => CommandResult::Error("  dev test: tests failed".to_string()),
+                Err(e) => CommandResult::Error(format!("  dev test: {}", e)),
+            }
+        }
+        "watch" => {
+            // cargo watch for a specific tool
+            let manifest = if tool.is_empty() {
+                format!("{}/rust-tools/faelight-shell/Cargo.toml", core_root)
+            } else {
+                format!("{}/rust-tools/{}/Cargo.toml", core_root, tool)
+            };
+            println!("  {} starting: cargo watch --manifest-path {}", "👁".normal(), manifest.dimmed());
+            println!("  {} Ctrl+C to stop", "→".dimmed());
+            let _ = std::process::Command::new("cargo")
+                .args(["watch", "--manifest-path", &manifest, "-x", "build"])
+                .status();
+            CommandResult::Empty
+        }
+        "audit-deps" => {
+            // cargo udeps -- find unused dependencies
+            println!("  {} running: cargo +nightly udeps (this may take a moment)", "🔍".normal());
+            let status = std::process::Command::new("cargo")
+                .args(["+nightly", "udeps", "--all-targets"])
+                .current_dir(core_root)
+                .status();
+            match status {
+                Ok(s) if s.success() => CommandResult::Output("  ✅ no unused dependencies found".to_string()),
+                Ok(_) => CommandResult::Output("  ⚠ unused dependencies found -- review above".to_string()),
+                Err(e) => CommandResult::Error(format!("  dev audit-deps: {} -- is cargo-udeps installed?", e)),
+            }
+        }
+        _ => {
+            let mut out = String::new();
+            out.push_str(&format!("\n  {} dev commands\n", "🛠".normal()));
+            out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev test <tool>", "run cargo nextest for a tool"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev watch <tool>", "hot reload with cargo watch"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev audit-deps", "find unused dependencies"));
+            out.push_str(&format!("\n  tools with tests: faelight-shell, faelight-core, faelight-update, core-diff\n"));
+            CommandResult::Output(out)
+        }
+    }
+}
+
 /// INT-322 Phase 7: fsh enter -- create project-scoped shell environment
 fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
     use colored::Colorize;
