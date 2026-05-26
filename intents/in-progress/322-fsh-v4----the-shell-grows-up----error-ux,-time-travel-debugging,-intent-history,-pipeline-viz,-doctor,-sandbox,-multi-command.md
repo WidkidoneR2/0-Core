@@ -444,7 +444,7 @@ GATES
 [x] Phase 2: Damerau-Levenshtein did-you-mean, exit code explanations, command_failures table 2026-05-26
 [x] Phase 3: history intent INT-N and history stats INT-N working, intent_id tagged on every command 2026-05-26
 [x] Phase 4: rewind shows snapshot timeline with command, health, git hash, intent tag -- auto-capture on destructive commands 2026-05-26
-[ ] Phase 5: pipeline viz -- --explain shows per-stage row counts and timing
+[x] Phase 5: pipeline --explain with per-stage row counts, timing, zero-row warnings 2026-05-26 and timing
 [ ] Phase 6: fsh doctor -- all checks pass, --fix resolves common issues
 [ ] Phase 7: sandbox -- fsh enter creates isolated scope
 [ ] Phase 8: daily driver -- 1 week clean, no regressions, Friday learning from all features
