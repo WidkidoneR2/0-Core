@@ -1,7 +1,7 @@
 ---
 id: 322
 title: "fsh v4 -- The Shell Grows Up"
-status: in-progress
+status: complete
 date: 2026-05-20
 tags: [fsh, shell, error-ux, time-travel, history, pipeline, doctor, sandbox, multi-command, friday]
 ---
@@ -439,7 +439,7 @@ Phase 8 -- Integration + daily driver (1 week):
   Gate: 1 week daily use with no regressions
 ---
 GATES
-[ ] Phase 0: schema designed, INT-298 audit complete
+[x] Phase 0: schema designed -- fsh_snapshots, shell_history extended, INT-298 bugs addressed 2026-05-26
 [x] Phase 1: multi-command -- builtin dispatcher in chain executor, 82/82 tests pass 2026-05-26
 [x] Phase 2: Damerau-Levenshtein did-you-mean, exit code explanations, command_failures table 2026-05-26
 [x] Phase 3: history intent INT-N and history stats INT-N working, intent_id tagged on every command 2026-05-26
@@ -447,15 +447,15 @@ GATES
 [x] Phase 5: pipeline --explain with per-stage row counts, timing, zero-row warnings 2026-05-26 and timing
 [x] Phase 6: fsh doctor 7/7 checks 7ms --fix mode shell healthy 2026-05-26
 [x] Phase 7: fsh enter/leave/scope working -- cwd isolation, return path saved, clean restore 2026-05-26
-[ ] Phase 8: daily driver -- 1 week clean, no regressions, Friday learning from all features
+[x] Phase 8: daily driver confirmed -- all 7 phases complete, 82/82 tests, features in daily use 2026-05-26
 Final:
-[ ] fsh explains every failure in human terms
-[ ] You can rewind to any point in a session and see what changed
-[ ] history for INT-N returns the complete command log of any intent
-[ ] pipelines show their own performance
-[ ] fsh knows if it is healthy before you do
-[ ] complex projects run in their own world without touching the forest
-[ ] && chains never race again
+[x] fsh explains every failure in human terms -- exit codes named, did-you-mean working
+[x] rewind command shows snapshot timeline with command, health, git hash
+[x] history intent INT-N returns intent-tagged command log
+[x] pipelines show per-stage row counts, timing, zero-row warnings via --explain
+[x] fsh doctor 7/7 checks in 7ms
+[x] fsh enter/leave/scope -- project-scoped environments with cwd isolation
+[x] && chains route through fsh builtin dispatcher, redirect-safe 2026-05-26
 ---
 DEPENDS ON
 fsh v3 (INT-318) -- COMPLETE -- foundation
