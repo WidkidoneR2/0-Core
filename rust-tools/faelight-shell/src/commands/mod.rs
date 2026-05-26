@@ -293,10 +293,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             Some("rename") => fsh_rename_cmd(args.get(1).copied().unwrap_or(""), args.get(2).copied().unwrap_or("")),
             _ => run_external(line, db),
         },
-        "explain" => semantic_explain_cmd(if args.is_empty() { line } else { &line[8..].trim() }),
         "plan" => semantic_plan_cmd(if args.is_empty() { "" } else { &line[5..].trim() }),
         "why" => semantic_why_cmd(if args.is_empty() { "" } else { &line[4..].trim() }),
         "dry-run" => semantic_dryrun_cmd(if args.is_empty() { "" } else { &line[8..].trim() }),
+        "clean" | "fix" => semantic_ambiguous_cmd(db, line),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "dev" => dev_cmd(db, core_root, args),
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
@@ -9390,8 +9390,91 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
     }
 }
 
+/// INT-326 Phase 3: ambiguity resolution -- present choices, learn preference
+fn semantic_ambiguous_cmd(db: &ForestDb, input: &str) -> CommandResult {
+    use colored::Colorize;
+    use std::io::{self, BufRead, Write};
+    // Check for learned preference in state.db
+    let pref_key = format!("semantic_pref_{}", input.split_whitespace().next().unwrap_or(input));
+    if let Ok(preferred) = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key = ?1",
+        rusqlite::params![pref_key],
+        |r| r.get::<_, String>(0),
+    ) {
+        // Preference learned -- execute directly
+        let si = crate::semantic::interpret(&preferred);
+        let mut out = String::new();
+        out.push_str(&format!("  {} using learned preference: {}\n",
+            "🌲".normal(), preferred.bright_green()));
+        for cmd in &si.layer3_commands {
+            out.push_str(&format!("  {} {}\n", "→".bright_cyan(), cmd.dimmed()));
+        }
+        return CommandResult::Output(out);
+    }
+    // Show ambiguity choices
+    match crate::semantic::interpret_ambiguous(input) {
+        None => {
+            // Not ambiguous -- direct execute
+            let si = crate::semantic::interpret(input);
+            CommandResult::Output(format!("  Executing: {}\n", si.layer2_description))
+        }
+        Some(amb) => {
+            // Display choices
+            print!("{}", crate::semantic::format_ambiguous(&amb));
+            let _ = io::stdout().flush();
+            // Read choice
+            let stdin = io::stdin();
+            let mut choice = String::new();
+            let _ = stdin.lock().read_line(&mut choice);
+            let choice = choice.trim();
+            match choice {
+                "n" | "N" => CommandResult::Output("  Cancelled.".to_string()),
+                c => {
+                    let idx: Option<usize> = c.parse::<usize>().ok().map(|n| n.saturating_sub(1));
+                    if let Some(i) = idx {
+                        if let Some((si, _)) = amb.options.get(i) {
+                            // Record choice count for preference learning
+                            let count_key = format!("semantic_choice_count_{}_{}",
+                                input.split_whitespace().next().unwrap_or(""), i);
+                            let count: i64 = db.conn.query_row(
+                                "SELECT CAST(value AS INTEGER) FROM shell_state WHERE key = ?1",
+                                rusqlite::params![count_key],
+                                |r| r.get(0),
+                            ).unwrap_or(0);
+                            let new_count = count + 1;
+                            let _ = db.conn.execute(
+                                "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+                                rusqlite::params![count_key, new_count.to_string()],
+                            );
+                            // After 3 consistent choices -- learn preference
+                            if new_count >= 3 {
+                                let _ = db.conn.execute(
+                                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES (?1, ?2)",
+                                    rusqlite::params![pref_key, &si.raw_input],
+                                );
+                                println!("  {} preference learned for '{}'",
+                                    "🌲 Friday:".bright_green(), input.split_whitespace().next().unwrap_or(""));
+                            }
+                            let mut out = String::new();
+                            for cmd in &si.layer3_commands {
+                                out.push_str(&format!("  {} {}\n", "→".bright_cyan(), cmd));
+                            }
+                            CommandResult::Output(out)
+                        } else {
+                            CommandResult::Output("  Invalid choice.".to_string())
+                        }
+                    } else {
+                        CommandResult::Output("  Invalid choice.".to_string())
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// INT-334 Gate 8: fsh rename -- zmv-style mass rename by pattern
 /// INT-326 Phase 2: explain -- show all three semantic layers for a command
+#[allow(dead_code)]
 fn semantic_explain_cmd(input: &str) -> CommandResult {
     use colored::Colorize;
     if input.is_empty() {

@@ -1,6 +1,7 @@
 //! INT-326: fsh Semantic Architecture
 //! Three-layer execution model: Human Intent → Semantic Plan → Concrete Execution
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     Delete, Find, Show, Deploy, Repair, Archive, Move, Rename,
@@ -10,6 +11,7 @@ pub enum Action {
     Execute, Unknown(String),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Target {
     File(String),
@@ -36,6 +38,7 @@ impl VerbCategory {
     pub fn requires_confirm(&self) -> bool {
         matches!(self, VerbCategory::Destructive)
     }
+    #[allow(dead_code)]
     pub fn is_safe(&self) -> bool {
         matches!(self, VerbCategory::Observation | VerbCategory::Session)
     }
@@ -203,5 +206,99 @@ pub fn format_three_layers(si: &SemanticIntent) -> String {
         let _ = writeln!(out, "  │  $ {}", cmd);
     }
     let _ = writeln!(out, "  └────────────────────────────────────────────────────");
+    out
+}
+
+/// Multiple interpretations for ambiguous commands
+pub struct AmbiguousCommand {
+    pub raw_input: String,
+    pub options: Vec<(SemanticIntent, f64)>,  // (intent, confidence)
+}
+
+/// Commands known to be ambiguous -- require disambiguation
+pub fn interpret_ambiguous(input: &str) -> Option<AmbiguousCommand> {
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    let verb = parts.first().copied().unwrap_or("");
+    let rest = parts.get(1..).map(|p| p.join(" ")).unwrap_or_default();
+
+    match verb {
+        "clean" => Some(AmbiguousCommand {
+            raw_input: input.to_string(),
+            options: vec![
+                (SemanticIntent {
+                    raw_input: input.to_string(),
+                    action: Action::Delete,
+                    target: Target::File(format!("{} (temp files older than 7 days)", rest)),
+                    category: VerbCategory::Destructive,
+                    confidence: 0.71,
+                    reversible: false,
+                    layer2_description: format!("Delete(TempFiles(\"{}\", older_than=7d))", rest),
+                    layer3_commands: vec![format!("find {} -name \'*.tmp\' -mtime +7 -delete", if rest.is_empty() { "." } else { &rest })],
+                }, 0.71),
+                (SemanticIntent {
+                    raw_input: input.to_string(),
+                    action: Action::Archive,
+                    target: Target::File(format!("{} (files older than 30 days)", rest)),
+                    category: VerbCategory::RecoverableAction,
+                    confidence: 0.58,
+                    reversible: true,
+                    layer2_description: format!("Archive(Files(\"{}\", older_than=30d))", rest),
+                    layer3_commands: vec![format!("find {} -mtime +30 | tar czf archive.tar.gz -T -", if rest.is_empty() { "." } else { &rest })],
+                }, 0.58),
+                (SemanticIntent {
+                    raw_input: input.to_string(),
+                    action: Action::Delete,
+                    target: Target::File(format!("{} (duplicates)", rest)),
+                    category: VerbCategory::Destructive,
+                    confidence: 0.43,
+                    reversible: false,
+                    layer2_description: format!("Delete(Duplicates(\"{}\"))", rest),
+                    layer3_commands: vec!["fdupes -r -d .".to_string()],
+                }, 0.43),
+            ],
+        }),
+        "fix" => Some(AmbiguousCommand {
+            raw_input: input.to_string(),
+            options: vec![
+                (SemanticIntent {
+                    raw_input: input.to_string(),
+                    action: Action::Repair,
+                    target: Target::System(rest.clone()),
+                    category: VerbCategory::RecoverableAction,
+                    confidence: 0.75,
+                    reversible: true,
+                    layer2_description: format!("Repair(System(\"{}\"))", if rest.is_empty() { "auto-detect" } else { &rest }),
+                    layer3_commands: vec![format!("core doctor --fix {}", rest)],
+                }, 0.75),
+                (SemanticIntent {
+                    raw_input: input.to_string(),
+                    action: Action::Repair,
+                    target: Target::File(rest.clone()),
+                    category: VerbCategory::RecoverableAction,
+                    confidence: 0.52,
+                    reversible: true,
+                    layer2_description: format!("Repair(File(\"{}\"))", rest),
+                    layer3_commands: vec![format!("cargo fix --manifest-path {}/Cargo.toml", rest)],
+                }, 0.52),
+            ],
+        }),
+        _ => None,
+    }
+}
+
+/// Format ambiguous command choices for display
+pub fn format_ambiguous(amb: &AmbiguousCommand) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let _ = writeln!(out, "\n  fsh detected ambiguity for: '{}'", amb.raw_input);
+    let _ = writeln!(out, "  Multiple interpretations possible:\n");
+    for (i, (si, conf)) in amb.options.iter().enumerate() {
+        let _ = writeln!(out, "  {}. {} (confidence: {:.0}%)",
+            i + 1, si.layer2_description, conf * 100.0);
+        if !si.layer3_commands.is_empty() {
+            let _ = writeln!(out, "     → {}", si.layer3_commands[0]);
+        }
+    }
+    let _ = writeln!(out, "\n  Which? (1/{}/n or explain N):", amb.options.len());
     out
 }
