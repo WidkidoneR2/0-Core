@@ -446,7 +446,7 @@ GATES
 [x] Phase 4: rewind shows snapshot timeline with command, health, git hash, intent tag -- auto-capture on destructive commands 2026-05-26
 [x] Phase 5: pipeline --explain with per-stage row counts, timing, zero-row warnings 2026-05-26 and timing
 [x] Phase 6: fsh doctor 7/7 checks 7ms --fix mode shell healthy 2026-05-26
-[ ] Phase 7: sandbox -- fsh enter creates isolated scope
+[x] Phase 7: fsh enter/leave/scope working -- cwd isolation, return path saved, clean restore 2026-05-26
 [ ] Phase 8: daily driver -- 1 week clean, no regressions, Friday learning from all features
 Final:
 [ ] fsh explains every failure in human terms
