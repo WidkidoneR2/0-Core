@@ -441,10 +441,10 @@ INT-251 (Core v23 -- Friday Becomes Central):
   Friday can suggest: "You always Archive after Deploy -- do it now?"
 ---
 GATES
-[ ] Phase 0: SemanticIntent struct defined, action/target/constraint types finalized
-[ ] Phase 1: existing vocabulary wrapped -- explain shows three layers for all vocab commands
-[ ] Phase 2: inspectability commands -- explain, plan, dry-run, why all working
-[ ] Phase 3: ambiguity resolution -- confidence scoring, choice presentation, preference learning
+[x] Phase 0: SemanticIntent struct defined, Action/Target/VerbCategory types in semantic.rs 2026-05-26
+[x] Phase 1: explain shows three layers for delete/find/show/deploy/friday/history/rewind 2026-05-26
+[x] Phase 2: explain/plan/dry-run/why all working -- explain delete ~/tmp demonstrates three layers 2026-05-26
+[x] Phase 3: ambiguity resolution -- clean/fix present scored choices, preference learned after 3 consistent choices 2026-05-26
 [ ] Phase 4: verb taxonomy enforced -- observation verbs provably safe
 [ ] Phase 5: semantic pipelines -- typed stages, --explain, UNIX fallback preserved
 [ ] Phase 6: shell memory -- semantic history queryable in plain language
