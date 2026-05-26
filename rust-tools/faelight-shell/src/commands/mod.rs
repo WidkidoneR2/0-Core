@@ -287,6 +287,9 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "audit" => audit(db, core_root),
         "fsh" => match args.first().copied() {
             Some("doctor") => fsh_doctor_cmd(db, args.get(1..).unwrap_or(&[])),
+            Some("enter") => fsh_enter_cmd(db, args.get(1).copied().unwrap_or("")),
+            Some("leave") | Some("exit-scope") => fsh_leave_cmd(db),
+            Some("scope") => fsh_scope_status(db),
             _ => run_external(line, db),
         },
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
@@ -9283,6 +9286,105 @@ fn ensure_snapshots_schema(db: &ForestDb) {
 }
 
 /// INT-322 Phase 4: rewind -- show snapshot timeline for time-travel debugging
+/// INT-322 Phase 7: fsh enter -- create project-scoped shell environment
+fn fsh_enter_cmd(db: &ForestDb, project: &str) -> CommandResult {
+    use colored::Colorize;
+    if project.is_empty() {
+        return CommandResult::Output("  Usage: fsh enter <project-name-or-path>".to_string());
+    }
+    // Save current state
+    let current_cwd = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let current_intent = db.get_focus_intent().unwrap_or_default();
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('scope_return_path', ?1)",
+        rusqlite::params![current_cwd],
+    );
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('scope_return_intent', ?1)",
+        rusqlite::params![current_intent],
+    );
+    let _ = db.conn.execute(
+        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('scope_name', ?1)",
+        rusqlite::params![project],
+    );
+    // Try to resolve project path
+    let home = std::env::var("HOME").unwrap_or_default();
+    let candidates = [
+        std::path::PathBuf::from(project),
+        std::path::PathBuf::from(&home).join(project),
+        std::path::PathBuf::from(&home).join("0-core").join(project),
+        std::path::PathBuf::from(&home).join("projects").join(project),
+    ];
+    let target = candidates.iter().find(|p| p.is_dir());
+    if let Some(path) = target {
+        let _ = std::env::set_current_dir(path);
+        let resolved = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+        let mut out = String::new();
+        out.push_str(&format!("\n  {} Entering scope: {}\n", "🌿".normal(), project.bright_green()));
+        out.push_str(&format!("  {} cwd  → {}\n", "→".bright_cyan(), resolved));
+        out.push_str(&format!("  {} return path saved\n", "→".bright_cyan()));
+        out.push_str(&format!("  {} run {} to restore\n", "→".dimmed(), "fsh leave".bright_cyan()));
+        CommandResult::Output(out)
+    } else {
+        let _ = db.conn.execute(
+            "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('scope_name', ?1)",
+            rusqlite::params![project],
+        );
+        let mut out = String::new();
+        out.push_str(&format!("  {} Scope set: {} (path not found -- staying in current dir)\n", "⚠".yellow(), project));
+        out.push_str(&format!("  {} run {} to restore\n", "→".dimmed(), "fsh leave".bright_cyan()));
+        CommandResult::Output(out)
+    }
+}
+
+/// INT-322 Phase 7: fsh leave -- restore pre-scope state
+fn fsh_leave_cmd(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let return_path: Option<String> = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='scope_return_path'",
+        [], |r| r.get(0),
+    ).ok();
+    let scope_name: Option<String> = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='scope_name'",
+        [], |r| r.get(0),
+    ).ok();
+    if return_path.is_none() && scope_name.is_none() {
+        return CommandResult::Output("  No active scope to leave.".to_string());
+    }
+    let name = scope_name.as_deref().unwrap_or("unknown");
+    if let Some(path) = &return_path {
+        let _ = std::env::set_current_dir(path);
+    }
+    let _ = db.conn.execute("DELETE FROM shell_state WHERE key IN ('scope_name', 'scope_return_path', 'scope_return_intent')", []);
+    let restored = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Left scope: {}\n", "🌿".normal(), name.bright_green()));
+    out.push_str(&format!("  {} cwd restored → {}\n", "→".bright_cyan(), restored));
+    CommandResult::Output(out)
+}
+
+/// INT-322 Phase 7: fsh scope -- show active scope status
+fn fsh_scope_status(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let scope: Option<String> = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='scope_name'", [], |r| r.get(0),
+    ).ok();
+    let return_path: Option<String> = db.conn.query_row(
+        "SELECT value FROM shell_state WHERE key='scope_return_path'", [], |r| r.get(0),
+    ).ok();
+    match scope {
+        Some(name) => {
+            let cwd = std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+            CommandResult::Output(format!("  {} Active scope: {}  cwd: {}  return: {}",
+                "🌿".normal(), name.bright_green(), cwd,
+                return_path.as_deref().unwrap_or("?").dimmed()))
+        }
+        None => CommandResult::Output("  No active scope.".to_string()),
+    }
+}
+
 /// INT-322 Phase 6: fsh doctor -- shell-specific health checks
 fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
     use colored::Colorize;
