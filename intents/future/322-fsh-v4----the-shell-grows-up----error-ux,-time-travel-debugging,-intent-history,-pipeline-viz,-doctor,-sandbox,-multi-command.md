@@ -441,7 +441,7 @@ Phase 8 -- Integration + daily driver (1 week):
 GATES
 [ ] Phase 0: schema designed, INT-298 audit complete
 [x] Phase 1: multi-command -- builtin dispatcher in chain executor, 82/82 tests pass 2026-05-26
-[ ] Phase 2: error UX -- did-you-mean works, exit codes explained, failures recorded
+[x] Phase 2: Damerau-Levenshtein did-you-mean, exit code explanations, command_failures table 2026-05-26
 [ ] Phase 3: history -- intent-tagged, history for INT-N works
 [ ] Phase 4: time-travel -- rewind TUI shows snapshots, Friday reads causality
 [ ] Phase 5: pipeline viz -- --explain shows per-stage row counts and timing
