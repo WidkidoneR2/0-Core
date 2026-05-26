@@ -1,7 +1,7 @@
 ---
 id: 308
 title: "faelight-compositor v2 -- client connections, XDG protocols, DRM backend"
-status: in-progress
+status: complete
 date: 2026-05-16
 type: build
 tags: [compositor, smithay, wayland, drm, xdg, egl, opengl, protocols]
@@ -155,12 +155,12 @@ Phase 4 -- DRM backend:
 
 Phase 5 -- Forest integration:
 - [~] Active intent in compositor chrome -- title set via /etc/faelight/INTENT, visible on DRM backend 2026-05-18
-- [ ] faelight-bar inside compositor
-- [ ] faelight-notify inside compositor
+- ⏸ faelight-bar inside compositor -- deferred: layer shell render pipeline needs Pinnacle study (INT-337) first -- approved by: christian 2026-05-25
+- ⏸ faelight-notify inside compositor -- deferred: depends on layer shell render fix -- approved by: christian 2026-05-25
 
 Final:
-- [ ] faelight-compositor replaces Niri as daily compositor
-- [ ] Full forest stack: boot → login → compositor → shell → terminal
+- ⏸ replaces Niri -- deferred to NixOS with Pinnacle-informed v3 (INT-323, INT-340) -- approved by: christian 2026-05-25
+- ⏸ Full forest stack -- deferred to NixOS migration (INT-340) -- approved by: christian 2026-05-25
 
 ---
 "Niri was the forest learning to walk.

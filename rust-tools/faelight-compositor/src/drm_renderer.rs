@@ -161,7 +161,8 @@ pub fn add_output_to_space(pipeline: &GbmRenderPipeline, state: &mut FaelightCom
 }
 
 pub fn render_frame(pipeline: &mut GbmRenderPipeline, state: &mut FaelightCompositor) {
-    let elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = state
+    // Render XDG windows
+    let mut elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = state
         .space
         .elements()
         .flat_map(|window| {
@@ -179,6 +180,22 @@ pub fn render_frame(pipeline: &mut GbmRenderPipeline, state: &mut FaelightCompos
             )
         })
         .collect();
+
+    // Render layer shell surfaces (faelight-bar, faelight-notify)
+    for layer_surface in &state.layer_surfaces {
+        if layer_surface.alive() {
+            let wl_surface = layer_surface.wl_surface();
+            let mut layer_elements = render_elements_from_surface_tree(
+                &mut pipeline.renderer,
+                wl_surface,
+                Point::from((0, 0)),
+                Scale::from(1.0),
+                1.0,
+                Kind::Unspecified,
+            );
+            elements.append(&mut layer_elements);
+        }
+    }
 
     match pipeline.compositor.render_frame::<GlesRenderer, WaylandSurfaceRenderElement<GlesRenderer>>(
         &mut pipeline.renderer,

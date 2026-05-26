@@ -86,3 +86,15 @@ Reason: requires Friday integration work in INT-251 itself
 ⬜ Flags deferrals older than 30 days without resolution
 ⬜ Pre-NixOS audit: all deferrals reviewed and confirmed or resolved
 ⬜ Demonstrated: core deferral list shows all current deferrals accurately
+
+### INT-308 → INT-337 + INT-323 (NixOS)
+- faelight-bar inside compositor -- layer shell render pipeline broken, bar crashes with Broken pipe
+- faelight-notify inside compositor -- depends on layer shell render fix
+- faelight-compositor replaces Niri -- deferred to NixOS with Pinnacle-informed v3
+- Full forest stack -- deferred to NixOS migration
+Approved by: christian 2026-05-25
+Reason: Layer shell rendering requires studying Pinnacle (INT-337) properly.
+The compositor connects and accepts bar connections but cannot render layer
+surfaces correctly. NixOS rebuild with Pinnacle patterns is the right path,
+not patching the current implementation. INT-323 (compositor v3) will do
+this correctly.

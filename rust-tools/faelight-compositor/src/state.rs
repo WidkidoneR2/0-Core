@@ -2,7 +2,7 @@ use std::{ffi::OsString, sync::Arc};
 
 use rusqlite::Connection;
 use smithay::{
-    desktop::{PopupManager, Space, Window},
+    desktop::{PopupManager, Space, Window, layer_map_for_output},
     input::{Seat, SeatState},
     reexports::{
         calloop::{generic::Generic, EventLoop, Interest, LoopSignal, Mode, PostAction},
@@ -63,6 +63,7 @@ pub struct FaelightCompositor {
 
     // layer shell for faelight-bar and faelight-notify
     pub layer_shell_state: WlrLayerShellState,
+    pub layer_surfaces: Vec<smithay::wayland::shell::wlr_layer::LayerSurface>,
     // dmabuf support for wgpu clients
     pub dmabuf_state: Option<smithay::wayland::dmabuf::DmabufState>,
     pub dmabuf_global: Option<smithay::wayland::dmabuf::DmabufGlobal>,
@@ -132,6 +133,7 @@ impl FaelightCompositor {
             db,
             health: CompositorHealth::default(),
             layer_shell_state,
+            layer_surfaces: Vec::new(),
             dmabuf_state: None,
             dmabuf_global: None,
             session: None,
@@ -258,7 +260,19 @@ impl WlrLayerShellHandler for FaelightCompositor {
         namespace: String,
     ) {
         tracing::info!("Layer surface created: {}", namespace);
-        let _ = surface;
+        // Map the layer surface to the first output
+        let output = self.space.outputs().next().cloned();
+        if let Some(output) = output {
+            let desktop_surface = smithay::desktop::LayerSurface::new(surface.clone(), namespace.clone());
+            let mut map = layer_map_for_output(&output);
+            let _ = map.map_layer(&desktop_surface);
+            map.arrange();
+            // Send initial configure so bar knows its size
+            drop(map);
+        }
+        // Send configure to the layer surface
+        surface.send_configure();
+        self.layer_surfaces.push(surface);
     }
 }
 smithay::delegate_layer_shell!(FaelightCompositor);
