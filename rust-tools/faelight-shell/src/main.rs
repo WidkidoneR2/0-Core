@@ -1077,11 +1077,25 @@ fn repl_main() -> Result<()> {
                                 continue;
                             }
                             // INT-322 Phase 1: route through fsh builtin dispatcher
-                            // Fixes fg, deploy, cistart, cicomplete, gc, gp in && chains
-                            let chain_result = commands::execute(lcmd_trim, &db, &core_root);
-                            last_success = !matches!(chain_result, commands::CommandResult::Error(_));
-                            if matches!(chain_result, commands::CommandResult::Exit) {
-                                break;
+                            // Commands with redirects use sh -c (proper redirect + real system cmds)
+                            // Pure commands use fsh dispatcher (enables fg, deploy, cistart in chains)
+                            let has_redirect = lcmd_trim.contains(" > ") || lcmd_trim.contains(" >> ")
+                                || lcmd_trim.contains(">>") || lcmd_trim.contains("2>");
+                            if has_redirect {
+                                let status = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(lcmd_trim)
+                                    .stdin(std::process::Stdio::inherit())
+                                    .stdout(std::process::Stdio::inherit())
+                                    .stderr(std::process::Stdio::inherit())
+                                    .status();
+                                last_success = status.map(|s| s.success()).unwrap_or(false);
+                            } else {
+                                let chain_result = commands::execute(lcmd_trim, &db, &core_root);
+                                last_success = !matches!(chain_result, commands::CommandResult::Error(_));
+                                if matches!(chain_result, commands::CommandResult::Exit) {
+                                    break;
+                                }
                             }
                             prev_op = *op; // track for next iteration
                         }

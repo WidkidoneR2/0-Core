@@ -60,6 +60,13 @@ fn levenshtein(a: &str, b: &str) -> usize {
             dp[i][j] = (dp[i - 1][j] + 1)
                 .min(dp[i][j - 1] + 1)
                 .min(dp[i - 1][j - 1] + cost);
+            // Transposition (Damerau-Levenshtein: gti->git = 1, not 2)
+            if i > 1 && j > 1
+                && a.as_bytes()[i - 1] == b.as_bytes()[j - 2]
+                && a.as_bytes()[i - 2] == b.as_bytes()[j - 1]
+            {
+                dp[i][j] = dp[i][j].min(dp[i - 2][j - 2] + 1);
+            }
         }
     }
     dp[la][lb]
@@ -6280,6 +6287,44 @@ fn cmd_in_path(cmd: &str) -> bool {
     if cmd.contains('/') { return std::path::Path::new(cmd).exists(); }
     let path_env = std::env::var("PATH").unwrap_or_default();
     path_env.split(':').any(|dir| std::path::Path::new(&format!("{}/{}", dir, cmd)).exists())
+
+}
+
+fn explain_exit_code(code: i32) -> &'static str {
+    match code {
+        1   => "general error",
+        2   => "misuse of shell builtin",
+        126 => "permission denied -- command exists but not executable. Try: chmod +x <file>",
+        127 => "command not found",
+        128 => "invalid exit argument",
+        130 => "interrupted by Ctrl+C",
+        137 => "killed (OOM or SIGKILL)",
+        139 => "segmentation fault",
+        _   => "non-zero exit",
+    }
+}
+
+fn record_failure(db: &ForestDb, cmd: &str, exit_code: i32) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cwd = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let first = cmd.split_whitespace().next().unwrap_or(cmd);
+    let _ = db.conn.execute(
+        "INSERT INTO command_failures (command, exit_code, cwd, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![first, exit_code, cwd, ts],
+    );
+    let count: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM command_failures WHERE command = ?1 AND timestamp > ?2",
+        rusqlite::params![first, ts - 86400],
+        |r| r.get(0),
+    ).unwrap_or(0);
+    if count == 3 {
+        println!("  🌳 Friday: {} failed 3 times today -- consider adding an alias or checking the command", first);
+    }
 }
 
 fn run_external(line: &str, db: &ForestDb) -> CommandResult {
@@ -6291,12 +6336,14 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
             "fsearch", "query", "rspatch", "patch", "edit", "run", "friday",
             "d", "gc", "gp", "unlock-core", "lock-core", "core", "fg",
             "faelight-shell", "faelight-term",
+            "git", "cargo", "python3", "python", "node", "npm", "sudo",
+            "systemctl", "pacman", "ssh", "curl", "wget", "make", "vim", "nvim",
         ];
         let prefix_len = typed_cmd.len().min(3);
         let prefix = &typed_cmd[..prefix_len];
         let suggestion = known.iter()
-            .filter(|&&k| k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str())
-            .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
+            .filter(|&&k| levenshtein(k, &typed_cmd) <= 2 && k != typed_cmd.as_str())
+            .min_by_key(|&&k| levenshtein(k, &typed_cmd))
             .copied();
         let alias_suggestion: Option<String> = db.conn.query_row(
             "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
@@ -6353,6 +6400,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             "faelight-daemon",
                             "faelight-shell",
                             "faelight-term",
+                            "git", "cargo", "python3", "python", "node", "npm",
+                            "sudo", "systemctl", "pacman", "ssh", "curl", "wget",
                         ];
                         let prefix_len = typed_cmd.len().min(3);
                         let prefix = &typed_cmd[..prefix_len];
@@ -6361,7 +6410,7 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                             .filter(|&&k| {
                                 k.to_lowercase().starts_with(prefix) && k != typed_cmd.as_str()
                             })
-                            .min_by_key(|&&k| k.len().abs_diff(typed_cmd.len()))
+                            .min_by_key(|&&k| levenshtein(k, &typed_cmd))
                             .copied();
                         let alias_suggestion: Option<String> = db.conn.query_row(
                             "SELECT name FROM shell_aliases WHERE name LIKE ?1 AND name != ?2 LIMIT 1",
@@ -6388,7 +6437,8 @@ fn run_external(line: &str, db: &ForestDb) -> CommandResult {
                         return CommandResult::Empty;
                     }
                 }
-                CommandResult::Error(format!("  exited with code {}", code))
+                record_failure(db, line, code);
+                CommandResult::Error(format!("  exited {} -- {}", code, explain_exit_code(code)))
             }
         }
         Err(e) => CommandResult::Error(format!("  failed to execute: {}", e)),

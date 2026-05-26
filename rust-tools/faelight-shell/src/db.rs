@@ -47,6 +47,16 @@ impl ForestDb {
                 value TEXT NOT NULL
             );",
         )?;
+        // INT-322 Phase 2: command failures table for Friday learning
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS command_failures (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                command   TEXT NOT NULL,
+                exit_code INTEGER NOT NULL,
+                cwd       TEXT,
+                timestamp INTEGER NOT NULL
+            );"
+        );
 
         Ok(Self { conn, core_root })
     }
