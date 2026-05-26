@@ -172,6 +172,93 @@ pub fn starter_rules() -> Vec<Rule> {
                 } else { None }
             },
         },
+    Rule {
+        name: "rapid_fix_cycle",
+        description: "Detect rapid deploy cycles suggesting a tool change caused a regression",
+        check: |ctx: &AppContext| {
+            use std::collections::HashMap;
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let db = &ctx.runtime.db;
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+            let one_hour_ago = now - 3600;
+            let mut s = match db.prepare(
+                "SELECT source_tool, timestamp FROM events WHERE action = 'deploy_completed' AND timestamp > ?1 ORDER BY source_tool, timestamp"
+            ) {
+                Ok(s) => s,
+                Err(_) => return None,
+            };
+            let mapped = match s.query_map(rusqlite::params![one_hour_ago], |r: &rusqlite::Row<'_>| {
+                Ok((r.get::<_, String>(0).unwrap_or_default(), r.get::<_, i64>(1).unwrap_or(0)))
+            }) {
+                Ok(m) => m,
+                Err(_) => return None,
+            };
+            let rows: Vec<(String, i64)> = mapped.filter_map(|r| r.ok()).collect();
+            let mut by_tool: HashMap<String, Vec<i64>> = HashMap::new();
+            for (tool, ts) in rows {
+                by_tool.entry(tool).or_default().push(ts);
+            }
+            for (tool, timestamps) in &by_tool {
+                if timestamps.len() >= 3 {
+                    let mut ts_sorted = timestamps.clone();
+                    ts_sorted.sort();
+                    for window in ts_sorted.windows(3) {
+                        let span = window[2] - window[0];
+                        if span <= 600 {
+                            let minutes = (span / 60) + 1;
+                            return Some(Observation {
+                                conclusion: format!(
+                                    "Rapid deploy cycle for {}: 3+ deploys in {}min -- tool change likely triggered a regression. Review last major change before the cycle.",
+                                    tool, minutes
+                                ),
+                                confidence: 0.80,
+                                kind: ObservationKind::Causal,
+                            });
+                        }
+                    }
+                }
+            }
+            None
+        },
+    },
+    Rule {
+        name: "tool_retirement_regression",
+        description: "Detect when a health check failed shortly after a deploy -- stale binary reference",
+        check: |ctx: &AppContext| {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let db = &ctx.runtime.db;
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+            let day_ago = now - 86400;
+            let failed_count: i64 = db.query_row(
+                "SELECT COUNT(*) FROM events WHERE action = 'health_check_failed' AND timestamp > ?1",
+                rusqlite::params![day_ago],
+                |r: &rusqlite::Row<'_>| r.get(0),
+            ).unwrap_or(0);
+            if failed_count == 0 {
+                return None;
+            }
+            let result: rusqlite::Result<(String, String)> = db.query_row(
+                "SELECT e1.payload, e2.source_tool FROM events e1
+                 JOIN events e2 ON e2.action = 'deploy_completed'
+                 AND e2.timestamp < e1.timestamp AND e2.timestamp > e1.timestamp - 120
+                 WHERE e1.action = 'health_check_failed'
+                 ORDER BY e1.timestamp DESC LIMIT 1",
+                [],
+                |r: &rusqlite::Row<'_>| Ok((r.get::<_, String>(0).unwrap_or_default(), r.get::<_, String>(1).unwrap_or_default())),
+            );
+            match result {
+                Ok((check_msg, tool)) => Some(Observation {
+                    conclusion: format!(
+                        "Health check failed within 2min of {} deploy -- stale binary reference or missing tool dependency. Check: {}",
+                        tool, check_msg
+                    ),
+                    confidence: 0.85,
+                    kind: ObservationKind::Causal,
+                }),
+                Err(_) => None,
+            }
+        },
+    },
     ]
 }
 
