@@ -66,7 +66,6 @@ layout {
 // ─── Autostart ────────────────────────────────────────────
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-wallpaper"
 // faelight-clipboard watch disabled: Wayland zwlr panic on startup (2026-03-31)
-spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-niri-bridge"
 spawn-at-startup "sh" "-c" "/home/christian/0-core/scripts/faelight-idle"
 
 // ── Forest Animations ────────────────────────────────────
@@ -162,7 +161,6 @@ binds {
     Mod+Alt+u       { spawn "foot" "-e" "/home/christian/0-core/scripts/safe-update"; }
     Mod+Alt+p       { spawn "foot" "-e" "/home/christian/0-core/scripts/core-protect"; }
     Mod+Alt+f       { spawn "foot" "-e" "/home/christian/0-core/scripts/profile"; }
-    Mod+Alt+a       { spawn "foot" "-e" "/home/christian/0-core/scripts/keyscan"; }
     Mod+Alt+v       { spawn "sh" "-c" "notify-send '🌲 Faelight Forest' '10.3.0'"; }
     Mod+Alt+l       { spawn "foot" "-e" "/home/christian/0-core/scripts/latest-update"; }
     Mod+Alt+w       { spawn "foot" "-e" "/home/christian/0-core/scripts/dotctl"; }
