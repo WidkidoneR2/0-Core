@@ -3,7 +3,7 @@ id: 342
 date: 2026-05-25
 type: fix
 title: "Friday Reasoning Engine -- Causal Chain Rule for Tool Retirement Regression Detection"
-status: in-progress
+status: complete
 tags: [fix, reasoning-engine, causal-chain, friday, int-251]
 version: TBD
 parent: INT-251
