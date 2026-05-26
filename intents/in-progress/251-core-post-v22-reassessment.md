@@ -288,7 +288,7 @@ Pillar 3 -- Tool Absorption:
 ✅ Audit-stale tools reviewed individually for absorb vs retain -- 8 absorb, 1 retire, 7 retain. Documented 2026-05-25
 ✅ At least 5 tools absorbed -- pulse, forecast, digest, memory, alias-audit absorbed; niri-bridge retired. 2026-05-25
 ✅ Tool count reduced from 50 to <40 -- 39/39 deployed. 2026-05-25
-⬜ No regression in absorbed tools' user-visible function
+✅ No regression -- event-bus, health-forecast, core status, friday status all verified 2026-05-26
 
 Pillar 4 -- Coordination:
 ✅ Tools declare dependencies in registry metadata -- faelight-bar, faelight-shell declared in tools.toml 2026-05-26
