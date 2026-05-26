@@ -445,7 +445,7 @@ GATES
 [x] Phase 3: history intent INT-N and history stats INT-N working, intent_id tagged on every command 2026-05-26
 [x] Phase 4: rewind shows snapshot timeline with command, health, git hash, intent tag -- auto-capture on destructive commands 2026-05-26
 [x] Phase 5: pipeline --explain with per-stage row counts, timing, zero-row warnings 2026-05-26 and timing
-[ ] Phase 6: fsh doctor -- all checks pass, --fix resolves common issues
+[x] Phase 6: fsh doctor 7/7 checks 7ms --fix mode shell healthy 2026-05-26
 [ ] Phase 7: sandbox -- fsh enter creates isolated scope
 [ ] Phase 8: daily driver -- 1 week clean, no regressions, Friday learning from all features
 Final:
