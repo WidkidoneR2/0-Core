@@ -312,15 +312,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-forecast"
-version = "1.0.0"
-category = "intelligence"
-description = "Predictive health intelligence — the forest sees what is coming"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "faelight-release"
 version = "2.0.0"
 category = "release"
