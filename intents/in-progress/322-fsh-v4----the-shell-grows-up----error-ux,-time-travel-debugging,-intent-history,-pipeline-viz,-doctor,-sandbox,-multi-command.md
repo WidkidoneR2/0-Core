@@ -443,7 +443,7 @@ GATES
 [x] Phase 1: multi-command -- builtin dispatcher in chain executor, 82/82 tests pass 2026-05-26
 [x] Phase 2: Damerau-Levenshtein did-you-mean, exit code explanations, command_failures table 2026-05-26
 [x] Phase 3: history intent INT-N and history stats INT-N working, intent_id tagged on every command 2026-05-26
-[ ] Phase 4: time-travel -- rewind TUI shows snapshots, Friday reads causality
+[x] Phase 4: rewind shows snapshot timeline with command, health, git hash, intent tag -- auto-capture on destructive commands 2026-05-26
 [ ] Phase 5: pipeline viz -- --explain shows per-stage row counts and timing
 [ ] Phase 6: fsh doctor -- all checks pass, --fix resolves common issues
 [ ] Phase 7: sandbox -- fsh enter creates isolated scope
