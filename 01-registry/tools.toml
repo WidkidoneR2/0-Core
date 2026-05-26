@@ -303,15 +303,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-pulse"
-version = "1.0.0"
-category = "monitoring"
-description = "Live event stream TUI — the forest watching itself breathe"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "faelight-niri-bridge"
 version = "0.1.0"
 category = "compositor"
