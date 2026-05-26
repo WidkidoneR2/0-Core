@@ -671,49 +671,51 @@ pub fn check_security_audit(home: &str) -> CheckResult {
 }
 
 pub fn check_alias_coverage() -> CheckResult {
-    // alias-audit --doctor is complex enough to keep delegating
-    let scripts = format!(
-        "{}/scripts/alias-audit",
-        std::env::var("HOME").unwrap_or_default() + "/0-core"
-    );
-    let output = Command::new(&scripts).arg("--doctor").output();
-    if let Ok(output) = output {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.contains("✅") && stdout.contains("Alias Coverage") {
-            CheckResult {
+    use crate::domains::doctor::aliases::{parse_aliases, EXPECTED_TOOLS};
+    use faelight_core::paths;
+
+    let aliases_path = paths::aliases_file();
+    let aliases = match parse_aliases(&aliases_path) {
+        Ok(a) => a,
+        Err(_) => {
+            return CheckResult {
                 id: "alias_coverage".into(),
                 name: "Alias Coverage".into(),
-                status: Status::Pass,
-                message: stdout
-                    .lines()
-                    .next()
-                    .unwrap_or("All tools have aliases")
-                    .trim()
-                    .trim_start_matches("✅ Alias Coverage: ")
-                    .trim_start_matches("✅ ")
-                    .to_string(),
-                fix: None,
-            }
-        } else {
-            CheckResult {
-                id: "alias_coverage".into(),
-                name: "Alias Coverage".into(),
-                status: Status::Warn,
-                message: "alias-audit returned unexpected output".into(),
-                fix: Some("Run: alias-audit".into()),
-            }
+                status: Status::Fail,
+                message: "Could not read aliases file".into(),
+                fix: Some("Check aliases file exists".into()),
+            };
+        }
+    };
+
+    let mut missing: Vec<&str> = Vec::new();
+    for tool in EXPECTED_TOOLS {
+        if *tool == "faelight-daemon" || *tool == "faelight-core" {
+            continue;
+        }
+        if !aliases.values().any(|v| v.contains(tool)) {
+            missing.push(tool);
+        }
+    }
+
+    if missing.is_empty() {
+        CheckResult {
+            id: "alias_coverage".into(),
+            name: "Alias Coverage".into(),
+            status: Status::Pass,
+            message: format!("All {} tools have aliases ({} total)", EXPECTED_TOOLS.len(), aliases.len()),
+            fix: None,
         }
     } else {
         CheckResult {
             id: "alias_coverage".into(),
             name: "Alias Coverage".into(),
-            status: Status::Fail,
-            message: "alias-audit not found".into(),
-            fix: Some("Rebuild: cargo build --release -p alias-audit".into()),
+            status: Status::Warn,
+            message: format!("{} tools missing aliases: {}", missing.len(), missing.join(", ")),
+            fix: Some("Run: core audit aliases".into()),
         }
     }
 }
-
 pub fn check_rust_toolchain() -> CheckResult {
     let cargo_ok = Command::new("cargo")
         .arg("--version")

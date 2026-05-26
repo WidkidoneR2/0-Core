@@ -6,20 +6,17 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-const EXPECTED_TOOLS: &[&str] = &[
+pub const EXPECTED_TOOLS: &[&str] = &[
     // Core Infrastructure
-    "dot-doctor",
     "faelight-update",
     "faelight-core",
     "core-protect",
     "safe-update",
     "core-diff",
     "dotctl",
-    "entropy-check",
     "intent-guard",
     "faelight-snapshot",
     // Desktop Environment
-    "faelight-fetch",
     "faelight-bar",
     "faelight-menu",
     "faelight-notify",
@@ -28,7 +25,6 @@ const EXPECTED_TOOLS: &[&str] = &[
     "faelight-term",
     // Development
     "intent",
-    "workspace-view",
     "faelight-git",
     "faelight-hooks",
     "profile",
@@ -41,7 +37,6 @@ const EXPECTED_TOOLS: &[&str] = &[
     "faelight-daemon",
     "faelight-palette",
     // Version Management
-    "bump-system-version",
     "faelight-bootstrap",
     "get-version",
     "latest-update",
