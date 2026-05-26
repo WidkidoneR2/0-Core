@@ -420,3 +420,94 @@ category = "intelligence"
 description = "Context daemon -- watches state.db, processes signals, surfaces insights"
 expected_usage = "background"
 deployed = true
+
+# ── Cargo Dev Tools (INT-311) ──────────────────────────────────────────────────
+[[tool]]
+name = "cargo-nextest"
+version = "0.9.133"
+category = "development"
+description = "Faster test runner -- wired via dev test <tool>"
+expected_usage = "medium"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-watch"
+version = "8.x"
+category = "development"
+description = "Hot reload during development -- wired via dev watch <tool>"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-udeps"
+version = "latest"
+category = "development"
+description = "Unused dependency detection -- wired via dev audit-deps"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-flamegraph"
+version = "latest"
+category = "development"
+description = "Performance profiling -- manual use only, profiling sprints"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-cache"
+version = "latest"
+category = "development"
+description = "Cargo cache management -- manual use only"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-install-update"
+version = "latest"
+category = "development"
+description = "Update installed cargo tools -- manual use only"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-set-version"
+version = "latest"
+category = "development"
+description = "Version management -- planned for INT-310 release pipeline"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-upgrade"
+version = "latest"
+category = "development"
+description = "Dependency version upgrades -- planned for INT-310"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false
+
+[[tool]]
+name = "cargo-miri"
+version = "rustup"
+category = "development"
+description = "Unsafe code checker -- manual use, safety audits only"
+expected_usage = "low"
+type = "cargo"
+deployable = false
+retired = false

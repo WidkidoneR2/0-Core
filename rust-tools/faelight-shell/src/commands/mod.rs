@@ -9340,13 +9340,52 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
                 Err(e) => CommandResult::Error(format!("  dev audit-deps: {} -- is cargo-udeps installed?", e)),
             }
         }
+        "bench" => {
+            // hyperfine benchmarking
+            let cmd = args.get(1..).map(|a| a.join(" ")).unwrap_or_default();
+            if cmd.is_empty() {
+                return CommandResult::Output("  Usage: dev bench <command>  (e.g. dev bench fsh-test)".to_string());
+            }
+            let _ = std::process::Command::new("hyperfine")
+                .arg(&cmd)
+                .status();
+            CommandResult::Empty
+        }
+        "geiger" => {
+            // cargo geiger -- count unsafe code
+            let tool = args.get(1).copied().unwrap_or("faelight-shell");
+            let manifest = format!("{}/rust-tools/{}/Cargo.toml", core_root, tool);
+            println!("  {} scanning unsafe code in {}", "☢".normal(), tool);
+            let _ = std::process::Command::new("cargo")
+                .args(["geiger", "--manifest-path", &manifest])
+                .status();
+            CommandResult::Empty
+        }
+        "check" => {
+            // bacon -- background checker
+            let tool = args.get(1).copied().unwrap_or("");
+            if tool.is_empty() {
+                println!("  {} starting bacon in current directory", "🥓".normal());
+                let _ = std::process::Command::new("bacon").status();
+            } else {
+                let manifest = format!("{}/rust-tools/{}/Cargo.toml", core_root, tool);
+                println!("  {} starting bacon for {}", "🥓".normal(), tool);
+                let _ = std::process::Command::new("bacon")
+                    .args(["--manifest-path", &manifest])
+                    .status();
+            }
+            CommandResult::Empty
+        }
         _ => {
             let mut out = String::new();
             out.push_str(&format!("\n  {} dev commands\n", "🛠".normal()));
             out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev test <tool>", "run cargo nextest for a tool"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev watch <tool>", "hot reload with cargo watch"));
-            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev audit-deps", "find unused dependencies"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev test <tool>", "cargo nextest -- run unit tests"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev watch <tool>", "cargo watch -- hot reload builds"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev check [tool]", "bacon -- background error checker"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev bench <cmd>", "hyperfine -- benchmark a command"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev geiger <tool>", "cargo-geiger -- count unsafe code"));
+            out.push_str(&format!("  {} {:<22} {}\n", "→".bright_cyan(), "dev audit-deps", "cargo-udeps -- find unused deps"));
             out.push_str(&format!("\n  tools with tests: faelight-shell, faelight-core, faelight-update, core-diff\n"));
             CommandResult::Output(out)
         }
