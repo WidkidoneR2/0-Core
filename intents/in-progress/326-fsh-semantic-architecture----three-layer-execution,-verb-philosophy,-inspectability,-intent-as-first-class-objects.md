@@ -1,7 +1,7 @@
 ---
 id: 326
 title: "fsh Semantic Architecture -- three-layer execution, verb philosophy, inspectability, intent as first-class objects"
-status: planned
+status: in-progress
 date: 2026-05-20
 tags: [fsh, shell, semantic, architecture, intent, vocabulary, philosophy, inspectability, layers]
 ---

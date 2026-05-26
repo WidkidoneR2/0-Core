@@ -293,6 +293,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             Some("rename") => fsh_rename_cmd(args.get(1).copied().unwrap_or(""), args.get(2).copied().unwrap_or("")),
             _ => run_external(line, db),
         },
+        "explain" => semantic_explain_cmd(if args.is_empty() { line } else { &line[8..].trim() }),
+        "plan" => semantic_plan_cmd(if args.is_empty() { "" } else { &line[5..].trim() }),
+        "why" => semantic_why_cmd(if args.is_empty() { "" } else { &line[4..].trim() }),
+        "dry-run" => semantic_dryrun_cmd(if args.is_empty() { "" } else { &line[8..].trim() }),
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "dev" => dev_cmd(db, core_root, args),
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
@@ -7421,6 +7425,12 @@ fn explain_cmd(db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
             color
         ));
     }
+    // INT-326: append three-layer semantic analysis
+    let full_cmd = format!("{} {}", cmd, args.get(1..).map(|a| a.join(" ")).unwrap_or_default()).trim().to_string();
+    let si = crate::semantic::interpret(&full_cmd);
+    if si.confidence > 0.0 {
+        out.push_str(&crate::semantic::format_three_layers(&si));
+    }
     out.push_str(&format!(
         "  {}
 ",
@@ -9381,6 +9391,101 @@ fn dev_cmd(_db: &ForestDb, core_root: &str, args: &[&str]) -> CommandResult {
 }
 
 /// INT-334 Gate 8: fsh rename -- zmv-style mass rename by pattern
+/// INT-326 Phase 2: explain -- show all three semantic layers for a command
+fn semantic_explain_cmd(input: &str) -> CommandResult {
+    use colored::Colorize;
+    if input.is_empty() {
+        return CommandResult::Output("  Usage: explain <command>\n  Example: explain delete ~/tmp".to_string());
+    }
+    let si = crate::semantic::interpret(input);
+    let layers = crate::semantic::format_three_layers(&si);
+    let mut out = String::new();
+    out.push_str(&format!("  {} INT-326 Semantic Explanation\n", "🔍".normal()));
+    out.push_str(&layers);
+    CommandResult::Output(out)
+}
+
+/// INT-326 Phase 2: plan -- show Layer 2 semantic plan only
+fn semantic_plan_cmd(input: &str) -> CommandResult {
+    use colored::Colorize;
+    if input.is_empty() {
+        return CommandResult::Output("  Usage: plan <command>\n  Example: plan deploy faelight-shell".to_string());
+    }
+    let si = crate::semantic::interpret(input);
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Semantic Plan for: {}\n", "📋".normal(), input.bright_white()));
+    out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
+    out.push_str(&format!("  action:     {:?}\n", si.action));
+    out.push_str(&format!("  target:     {:?}\n", si.target));
+    out.push_str(&format!("  category:   {}\n", si.category.label()));
+    out.push_str(&format!("  confidence: {:.0}%\n", si.confidence * 100.0));
+    out.push_str(&format!("  reversible: {}\n", if si.reversible { "yes" } else { "⚠ NO -- confirm required" }));
+    out.push_str(&format!("  plan:       {}\n", si.layer2_description));
+    CommandResult::Output(out)
+}
+
+/// INT-326 Phase 2: dry-run -- show Layer 3 execution without running
+fn semantic_dryrun_cmd(input: &str) -> CommandResult {
+    use colored::Colorize;
+    if input.is_empty() {
+        return CommandResult::Output("  Usage: dry-run <command>\n  Example: dry-run deploy faelight-shell".to_string());
+    }
+    let si = crate::semantic::interpret(input);
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Dry run: {} {}\n",
+        "🔬".normal(), input.bright_white(), "(not executed)".dimmed()));
+    out.push_str(&format!("  {}\n\n", "─".repeat(50).dimmed()));
+    for (i, cmd) in si.layer3_commands.iter().enumerate() {
+        out.push_str(&format!("  step {}: {}\n", i + 1, cmd.bright_cyan()));
+    }
+    if si.category.requires_confirm() {
+        out.push_str(&format!("\n  {} This command requires confirmation before execution\n", "⚠".yellow()));
+    }
+    CommandResult::Output(out)
+}
+
+/// INT-326 Phase 2: why -- explain interpretation reasoning
+fn semantic_why_cmd(input: &str) -> CommandResult {
+    use colored::Colorize;
+    if input.is_empty() {
+        return CommandResult::Output("  Usage: why <command>\n  Example: why delete".to_string());
+    }
+    let si = crate::semantic::interpret(input);
+    let first_word = input.split_whitespace().next().unwrap_or(input);
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Why fsh interprets: {}\n", "💭".normal(), input.bright_white()));
+    out.push_str(&format!("  {}\n\n", "─".repeat(50).dimmed()));
+    if si.confidence > 0.0 {
+        out.push_str(&format!("  {} is a {} verb\n", first_word.bright_cyan(), si.category.label()));
+        out.push_str(&format!("  confidence: {:.0}%\n", si.confidence * 100.0));
+        out.push_str(&format!("  reversible: {}\n", if si.reversible { "yes" } else { "no" }));
+        out.push_str(&format!("\n  Forest vocabulary rule:\n"));
+        match si.category {
+            crate::semantic::VerbCategory::Observation => {
+                out.push_str("  Observation verbs never mutate state.\n");
+                out.push_str("  Safe to run without confirmation.\n");
+            }
+            crate::semantic::VerbCategory::Destructive => {
+                out.push_str("  Destructive verbs always show what will be destroyed.\n");
+                out.push_str("  Always require explicit confirmation.\n");
+                out.push_str("  Always logged to forest audit trail.\n");
+            }
+            crate::semantic::VerbCategory::Deployment => {
+                out.push_str("  Deployment verbs write to deploy_patterns.\n");
+                out.push_str("  All are rollback-capable via the deploy system.\n");
+            }
+            _ => {
+                out.push_str(&format!("  Category: {}\n", si.category.label()));
+            }
+        }
+    } else {
+        out.push_str(&format!("  {} is not in the forest vocabulary\n", first_word.bright_red()));
+        out.push_str("  Treated as raw UNIX command (Layer 3 direct)\n");
+        out.push_str("  UNIX compatibility always preserved\n");
+    }
+    CommandResult::Output(out)
+}
+
 fn fsh_rename_cmd(from_pat: &str, to_pat: &str) -> CommandResult {
     use colored::Colorize;
     if from_pat.is_empty() || to_pat.is_empty() {

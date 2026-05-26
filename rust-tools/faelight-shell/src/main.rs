@@ -33,6 +33,7 @@ mod scripting;
 mod session;
 mod triggers;
 mod value;
+mod semantic;
 mod expand;
 use expand::*;
 
