@@ -354,6 +354,8 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "decisions-table" | "dt" => decisions_table(db),
         "count" => CommandResult::Output("  use with pipe: tt | count".to_string()),
         "history-table" | "ht" | "history" => match args.first().copied() {
+            Some("intent") if args.get(1).is_some() => history_for_intent(db, args.get(1).copied().unwrap_or("")),
+            Some("stats") => history_stats_for_intent(db, args.get(1).copied().unwrap_or("")),
             Some("intent") => ht_intent(db),
             Some("today") => ht_today(db),
             Some("session") => ht_session(db),
@@ -4058,6 +4060,83 @@ fn history_table(db: &ForestDb) -> CommandResult {
         .collect();
 
     CommandResult::Value(Value::Table(rows))
+}
+
+/// INT-322 Phase 3: history for INT-NNN -- all commands run during a specific intent
+fn history_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
+    use colored::Colorize;
+    let id = intent_arg.trim_start_matches("INT-");
+    if id.is_empty() {
+        return CommandResult::Output("  Usage: history for INT-NNN".to_string());
+    }
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, timestamp, exit_code FROM shell_history WHERE intent_id = ?1 ORDER BY timestamp ASC"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Error("history for: database error".to_string()),
+    };
+    let rows: Vec<(String, i64, Option<i32>)> = stmt
+        .query_map(rusqlite::params![id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return CommandResult::Output(format!("  No history found for INT-{} (commands run before this session won't have intent tags)", id));
+    }
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} History for INT-{} ({} commands)\n", "▸".bright_cyan(), id, rows.len()));
+    out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
+    for (cmd, ts, exit_code) in &rows {
+        let dt = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|d: chrono::DateTime<chrono::Utc>| d.format("%H:%M:%S").to_string())
+            .unwrap_or_else(|| ts.to_string());
+        let status = match exit_code {
+            Some(0) | None => "✅",
+            Some(_) => "✗ ",
+        };
+        out.push_str(&format!("  {} {} {}\n", status, dt.dimmed(), cmd));
+    }
+    CommandResult::Output(out)
+}
+
+/// INT-322 Phase 3: history stats INT-NNN -- success rates, most common commands
+fn history_stats_for_intent(db: &ForestDb, intent_arg: &str) -> CommandResult {
+    use colored::Colorize;
+    let id = intent_arg.trim_start_matches("INT-");
+    if id.is_empty() {
+        return CommandResult::Output("  Usage: history stats INT-NNN".to_string());
+    }
+    let total: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE intent_id = ?1",
+        rusqlite::params![id], |r| r.get(0),
+    ).unwrap_or(0);
+    if total == 0 {
+        return CommandResult::Output(format!("  No history found for INT-{}", id));
+    }
+    let passed: i64 = db.conn.query_row(
+        "SELECT COUNT(*) FROM shell_history WHERE intent_id = ?1 AND (exit_code = 0 OR exit_code IS NULL)",
+        rusqlite::params![id], |r| r.get(0),
+    ).unwrap_or(0);
+    let success_rate = if total > 0 { (passed * 100) / total } else { 0 };
+    let mut stmt = match db.conn.prepare(
+        "SELECT command, COUNT(*) as cnt FROM shell_history WHERE intent_id = ?1 GROUP BY command ORDER BY cnt DESC LIMIT 5"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Error("history stats: database error".to_string()),
+    };
+    let top: Vec<(String, i64)> = stmt
+        .query_map(rusqlite::params![id], |r| Ok((r.get(0)?, r.get(1)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Stats for INT-{}\n", "▸".bright_cyan(), id));
+    out.push_str(&format!("  {}\n", "─".repeat(50).dimmed()));
+    out.push_str(&format!("  Total commands:  {}\n", total.to_string().bright_white()));
+    out.push_str(&format!("  Success rate:    {}%\n", success_rate.to_string().bright_white()));
+    out.push_str("\n  Top commands:\n");
+    for (cmd, cnt) in &top {
+        out.push_str(&format!("    {} × {}\n", cnt.to_string().bright_cyan(), cmd));
+    }
+    CommandResult::Output(out)
 }
 
 fn ht_intent(db: &ForestDb) -> CommandResult {

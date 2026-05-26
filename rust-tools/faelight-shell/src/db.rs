@@ -28,6 +28,7 @@ impl ForestDb {
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN cwd TEXT");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
+        let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
 
         // Ensure shell tables exist
         conn.execute_batch(
@@ -188,8 +189,8 @@ impl ForestDb {
         let mut last_err: Option<rusqlite::Error> = None;
         for attempt in 0..max_attempts {
             match self.conn.execute(
-                "INSERT INTO shell_history (command, timestamp, cwd) VALUES (?1, ?2, ?3)",
-                rusqlite::params![command, ts, cwd],
+                "INSERT INTO shell_history (command, timestamp, cwd, intent_id) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![command, ts, cwd, self.get_focus_intent()],
             ) {
                 Ok(_) => return Ok(self.conn.last_insert_rowid()),
                 Err(e) => {
@@ -310,6 +311,18 @@ impl ForestDb {
     }
 
     pub fn get_focus_intent(&self) -> Option<String> {
+        // Read from focus.toml (written by cistart via core engine)
+        let home = std::env::var("HOME").unwrap_or_default();
+        let focus_file = std::path::PathBuf::from(&home)
+            .join(".local/state/0-core/intent/focus.toml");
+        if let Ok(content) = std::fs::read_to_string(&focus_file) {
+            for line in content.lines() {
+                if let Some(rest) = line.strip_prefix("id = ") {
+                    return Some(rest.trim().trim_matches('"').to_string());
+                }
+            }
+        }
+        // Fallback: shell_state table
         self.conn
             .query_row(
                 "SELECT value FROM shell_state WHERE key='focus_intent'",
