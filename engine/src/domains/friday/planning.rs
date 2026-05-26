@@ -907,6 +907,33 @@ fn match_frequency_followup(ctx: &AppContext, last_cmd: &str) -> Option<(String,
 /// Strong match: explicit trigger pattern with confidence >= 0.85.
 /// Weak match: frequency-based follow-up with >= 10 occurrences.
 /// Silent: neither signal strong enough.
+/// Read recent events from the v23 unified event bus and produce a prediction.
+/// INT-251 v23 Pillar 1 -- canonical source for Friday predictions.
+fn predict_from_event_bus(ctx: &AppContext) -> Option<(String, f64)> {
+    let db = &ctx.runtime.db;
+    let now = now_ts();
+    let ten_min_ago = now - 600;
+    // Recent successful deploy -- suggest health verification
+    let recent_deploy: Option<String> = db.query_row(
+        "SELECT source_tool FROM events WHERE action = 'deploy_completed' AND timestamp > ?1 ORDER BY timestamp DESC LIMIT 1",
+        rusqlite::params![ten_min_ago],
+        |r: &rusqlite::Row<'_>| r.get(0),
+    ).ok();
+    if let Some(tool) = recent_deploy {
+        return Some((format!("d -- verify {} deploy health", tool), 0.75));
+    }
+    // Recent health check failure -- suggest investigation
+    let fail_count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM events WHERE action = 'health_check_failed' AND timestamp > ?1",
+        rusqlite::params![ten_min_ago],
+        |r: &rusqlite::Row<'_>| r.get(0),
+    ).unwrap_or(0);
+    if fail_count > 0 {
+        return Some(("d -- health check failure detected in event bus".to_string(), 0.80));
+    }
+    None
+}
+
 pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     use colored::*;
@@ -952,6 +979,19 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
         return Ok(());
     }
     // Fallback: frequency-based
+    // v23 event bus -- canonical prediction source (INT-251 Pillar 1)
+    if let Some((action, conf)) = predict_from_event_bus(ctx) {
+        let content = format!(
+            "Event bus signal: {} ({:.0}% confidence, v23 canonical source)",
+            action, conf * 100.0
+        );
+        write_anticipation(ctx, &content, None, conf)?;
+        println!("  {} {} -- EVENT BUS", "→".bright_blue(), action.bright_cyan());
+        println!("    {} {}", "·".dimmed(), content.dimmed());
+        println!("    {} source: events table (v23 canonical)", "·".dimmed());
+        println!();
+        return Ok(());
+    }
     if let Some((action, freq)) = match_frequency_followup(ctx, &last_cmd) {
         let content = format!(
             "You usually run {} after {} (frequency: {}x, not a causal pattern)",

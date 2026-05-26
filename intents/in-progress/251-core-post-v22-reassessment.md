@@ -274,7 +274,7 @@ Pillar 1 -- Unified Event Bus:
 ✅ events table exists -- 21 domains already emitting, 6 indices, schema live 2026-05-21
 ✅ friday::events::emit API live -- emit, emit_simple, recent, by_kind all implemented 2026-05-22
 ✅ 5 tools migrated to friday::events::emit -- deploy, doctor, intent, decisions, snapshot 2026-05-22
-⬜ Friday consumes events as canonical source for predictions
+✅ Friday consumes events as canonical source for predictions -- predict_from_event_bus() demonstrated live 2026-05-26
 ⬜ Old signal/log mechanisms retired in migrated tools
 
 Pillar 2 -- Reasoning Engine:
