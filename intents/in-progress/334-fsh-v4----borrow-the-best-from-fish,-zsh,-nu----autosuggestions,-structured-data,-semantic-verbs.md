@@ -1,7 +1,7 @@
 ---
 id: 334
 title: "fsh v4 -- borrow the best from Fish, Zsh, Nu -- autosuggestions, structured data, semantic verbs"
-status: planned
+status: in-progress
 date: 2026-05-25
 tags: [fsh, shell, fish, zsh, nu, autosuggestions, structured-data, semantic]
 ---

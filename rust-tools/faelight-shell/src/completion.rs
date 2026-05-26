@@ -745,21 +745,71 @@ impl<'a> Completer for ForestHelper<'a> {
     }
 }
 
+// INT-334: is_known_command -- fast check for syntax highlighting
+fn is_known_command(cmd: &str) -> bool {
+    const BUILTINS: &[&str] = &[
+        "cd", "ls", "ll", "la", "deploy", "cistart", "cicomplete", "dc", "ds",
+        "fg", "gc", "gp", "core", "intent", "friday", "history", "rewind",
+        "fsh", "dev", "git", "cargo", "python3", "python", "echo", "cat",
+        "grep", "sed", "awk", "find", "rm", "mv", "cp", "mkdir", "touch",
+        "chmod", "chown", "sudo", "systemctl", "pacman", "which", "env",
+        "export", "source", "exit", "clear", "c", "d", "snapshot", "health",
+        "intents", "deploys", "from", "list", "query", "fsearch", "patch",
+        "edit", "run", "delete", "del", "diff", "date", "pwd", "uname",
+        "ps", "kill", "top", "htop", "man", "less", "more", "head", "tail",
+        "sort", "uniq", "wc", "tr", "cut", "xargs", "tee", "pipe", "ssh",
+        "curl", "wget", "tar", "zip", "unzip", "make", "nvim", "vim",
+        "unlock-core", "lock-core", "fsh-test", "rewind", "dev", "where",
+    ];
+    if BUILTINS.contains(&cmd) { return true; }
+    // PATH check
+    let path_env = std::env::var("PATH").unwrap_or_default();
+    path_env.split(':').any(|dir| {
+        std::path::Path::new(&format!("{}/{}", dir, cmd)).exists()
+    })
+}
+
 impl<'a> Hinter for ForestHelper<'a> {
     type Hint = String;
+
+    fn hint(&self, line: &str, pos: usize, _ctx: &rustyline::Context<'_>) -> Option<String> {
+        if line.is_empty() || pos < line.len() {
+            return None; // only hint when cursor is at end of line
+        }
+        // Query most recent history entry matching as prefix
+        self.db.conn.query_row(
+            "SELECT command FROM shell_history              WHERE command LIKE ?1 AND command != ?2 AND length(command) > ?3              ORDER BY timestamp DESC LIMIT 1",
+            rusqlite::params![format!("{}%", line), line, line.len() as i64],
+            |r| r.get::<_, String>(0),
+        ).ok().map(|cmd| cmd[line.len()..].to_string())
+    }
 }
 
 impl<'a> Highlighter for ForestHelper<'a> {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
-        Cow::Borrowed(line)
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() { return Cow::Borrowed(line); }
+        let first_word = trimmed.split_whitespace().next().unwrap_or("");
+        if first_word.is_empty() { return Cow::Borrowed(line); }
+        let leading = line.len() - trimmed.len();
+        let colored = if is_known_command(first_word) {
+            format!("\x1b[32m{}\x1b[0m", first_word) // green
+        } else {
+            format!("\x1b[31m{}\x1b[0m", first_word) // red
+        };
+        let rest = &line[leading + first_word.len()..];
+        Cow::Owned(format!("{}{}{}", &line[..leading], colored, rest))
+    }
+    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        Cow::Owned(format!("\x1b[2m{}\x1b[0m", hint)) // dim gray ghost text
     }
     fn highlight_char(
         &self,
-        _line: &str,
+        line: &str,
         _pos: usize,
         _forced: rustyline::highlight::CmdKind,
     ) -> bool {
-        false
+        !line.is_empty() // trigger re-highlight on every keypress
     }
 }
 
