@@ -711,6 +711,8 @@ pub fn parse() -> Command {
             DepsCommands::Graph => DepsCommand::Graph,
             DepsCommands::Risk => DepsCommand::Risk,
             DepsCommands::Audit => DepsCommand::Audit,
+            DepsCommands::Plan { tool } => DepsCommand::Plan { tool },
+            DepsCommands::Blocked => DepsCommand::Blocked,
         }),
         Commands::Narrative { since, intent } => Command::Narrative { since, intent },
         Commands::Snapshot { json, save } => Command::Snapshot { json, save },

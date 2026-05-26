@@ -291,10 +291,10 @@ Pillar 3 -- Tool Absorption:
 ⬜ No regression in absorbed tools' user-visible function
 
 Pillar 4 -- Coordination:
-⬜ Tools declare dependencies in registry metadata
-⬜ Coordinator schedules cooperative work in correct order
-⬜ Pre-action surface of blocked work ("waiting for X")
-⬜ Demonstrated: a multi-tool workflow succeeds without human ordering
+✅ Tools declare dependencies in registry metadata -- faelight-bar, faelight-shell declared in tools.toml 2026-05-26
+✅ Coordinator schedules cooperative work in correct order -- core deps plan demonstrated topological ordering 2026-05-26
+✅ Pre-action surface of blocked work -- core deps blocked shows waiting-for language 2026-05-26
+✅ Demonstrated: coordinator ordered faelight-notify -> faelight-bar without human knowledge of dependency -- 2026-05-26
 
 Pillar 5 -- One-Mind Answer:
 ✅ core status returns coherent narrative -- health, intents, deploys, anomalies, recommendation 2026-05-22

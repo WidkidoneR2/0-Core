@@ -1318,6 +1318,10 @@ pub enum DepsCommands {
     Risk,
     /// Cross-reference deps with decision history
     Audit,
+    /// Show ordered deployment plan for a tool and its dependencies
+    Plan { tool: String },
+    /// Show tools blocked by unresolved depends_on declarations
+    Blocked,
 }
 
 #[derive(Debug, clap::Subcommand)]

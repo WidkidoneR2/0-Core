@@ -657,6 +657,8 @@ pub enum DepsCommand {
     Graph,
     Risk,
     Audit,
+    Plan { tool: String },
+    Blocked,
 }
 
 #[derive(Debug, Clone)]

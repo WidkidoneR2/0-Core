@@ -355,3 +355,139 @@ fn emit_event(ctx: &AppContext, action: &str) {
         .ok();
     crate::runtime::write_event_log("deps", action, &payload, ts);
 }
+
+// ─── Coordinator -- Registry-based Tool Dependency Planning (INT-251 Pillar 4) ──
+
+/// Parse 01-registry/tools.toml and return a map of tool -> depends_on list.
+fn read_tool_registry(core_root: &str) -> HashMap<String, Vec<String>> {
+    let path = PathBuf::from(core_root).join("01-registry/tools.toml");
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return HashMap::new(),
+    };
+    let mut result = HashMap::new();
+    let mut current_name: Option<String> = None;
+    let mut current_deps: Vec<String> = Vec::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line == "[[tool]]" {
+            if let Some(name) = current_name.take() {
+                result.insert(name, current_deps.clone());
+                current_deps.clear();
+            }
+        } else if let Some(rest) = line.strip_prefix("name = ") {
+            current_name = Some(rest.trim().trim_matches('"').to_string());
+        } else if let Some(rest) = line.strip_prefix("depends_on = ") {
+            current_deps = rest.trim()
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .split(',')
+                .map(|s| s.trim().trim_matches('"').to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+    }
+    if let Some(name) = current_name {
+        result.insert(name, current_deps);
+    }
+    result
+}
+
+/// Iterative post-order DFS: produces topological deployment order for a tool.
+fn collect_ordered_deps(tool: &str, registry: &HashMap<String, Vec<String>>) -> Vec<String> {
+    let mut order: Vec<String> = Vec::new();
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut stack: Vec<(String, bool)> = vec![(tool.to_string(), false)];
+    while let Some((t, processed)) = stack.pop() {
+        if processed {
+            if !order.contains(&t) {
+                order.push(t);
+            }
+            continue;
+        }
+        if visited.contains(&t) {
+            continue;
+        }
+        visited.insert(t.clone());
+        stack.push((t.clone(), true));
+        if let Some(deps) = registry.get(&t) {
+            for dep in deps.iter().rev() {
+                if !visited.contains(dep) {
+                    stack.push((dep.clone(), false));
+                }
+            }
+        }
+    }
+    order
+}
+
+/// core deps plan <tool> -- show ordered deployment plan respecting depends_on.
+/// INT-251 v23 Pillar 4: coordinator schedules cooperative work in correct order.
+pub fn plan(ctx: &AppContext, tool: &str) -> CoreResult<()> {
+    use colored::*;
+    let registry = read_tool_registry(&ctx.core_root);
+    let order = collect_ordered_deps(tool, &registry);
+    println!();
+    println!("  {} Coordinator -- Deployment Plan", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    if order.len() == 1 {
+        println!("  {} {} has no declared dependencies -- deploy directly.", "✅".normal(), tool.bright_white());
+    } else {
+        println!("  {} Target: {}", "→".dimmed(), tool.bright_white());
+        println!();
+        for (i, step) in order.iter().enumerate() {
+            let step_num = i + 1;
+            if step == tool {
+                println!("  {} Step {}: {} {}", "→".bright_green(), step_num, step.bright_white(), "(target)".dimmed());
+            } else {
+                println!("  {} Step {}: {} {}", "·".bright_cyan(), step_num, step.bright_cyan(), "(dependency)".dimmed());
+            }
+        }
+    }
+    println!();
+    Ok(())
+}
+
+/// core deps blocked -- show tools with unresolved depends_on (not deployed).
+/// INT-251 v23 Pillar 4: pre-action surface of blocked work.
+pub fn blocked(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    let registry = read_tool_registry(&ctx.core_root);
+    let scripts = PathBuf::from(&ctx.core_root).join("scripts");
+    let home = std::env::var("HOME").unwrap_or_default();
+    let cargo_bin = PathBuf::from(&home).join(".cargo/bin");
+    println!();
+    println!("  {} Coordinator -- Blocked Tools", "🌲".normal());
+    println!("  {}", "━".repeat(50).dimmed());
+    println!();
+    let mut any_blocked = false;
+    let mut tools_with_deps: Vec<(&String, &Vec<String>)> = registry.iter()
+        .filter(|(_, deps)| !deps.is_empty())
+        .collect();
+    tools_with_deps.sort_by_key(|(name, _)| name.as_str());
+    for (tool, deps) in &tools_with_deps {
+        let unresolved: Vec<&String> = deps.iter()
+            .filter(|dep| {
+                !scripts.join(dep.as_str()).exists() && !cargo_bin.join(dep.as_str()).exists()
+            })
+            .collect();
+        if !unresolved.is_empty() {
+            any_blocked = true;
+            println!("  {} {} is waiting for prerequisites:", "⚠️ ".normal(), tool.bright_white());
+            for dep in &unresolved {
+                println!("    {} deploy {} is waiting for {} to deploy first", "→".bright_yellow(), tool.bright_yellow(), dep.bright_yellow());
+            }
+        } else {
+            println!("  {} {} -- all {} dep(s) resolved", "✅".normal(), tool.bright_white(), deps.len());
+        }
+    }
+    if !any_blocked {
+        println!("  {} No blocked tools -- all declared dependencies are resolved.", "✅".normal());
+    }
+    if tools_with_deps.is_empty() {
+        println!("  {} No tools declare dependencies in the registry.", "💡".dimmed());
+    }
+    println!();
+    Ok(())
+}

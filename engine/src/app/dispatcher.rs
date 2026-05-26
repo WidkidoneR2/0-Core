@@ -728,6 +728,8 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             DepsCommand::Graph => crate::domains::deps::graph(ctx),
             DepsCommand::Risk => crate::domains::deps::risk(ctx),
             DepsCommand::Audit => crate::domains::deps::audit(ctx),
+            DepsCommand::Plan { tool } => crate::domains::deps::plan(ctx, &tool),
+            DepsCommand::Blocked => crate::domains::deps::blocked(ctx),
         },
         Command::Snapshot { json, save } => crate::domains::snapshot::narrative(ctx, json, save),
         Command::Narrative { since, intent } => {
