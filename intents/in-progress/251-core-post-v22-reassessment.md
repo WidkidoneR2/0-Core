@@ -264,7 +264,7 @@ HARD DEPENDENCIES
 ✅ Core v22 (INT-244) shipped -- all 4 pillars demonstrated 2026-05-21
 ✅ Event bus schema ratified -- source_tool + correlation_id added, 21 domains live 2026-05-22
 ✅ Reasoning engine rule format ratified -- Rule struct, 5 starter rules, 4 observation kinds 2026-05-22
-⬜ Tool absorption candidate list confirmed (Pillar 3)
+✅ Tool absorption candidate list confirmed (Pillar 3) -- audit complete, 8 absorb 1 retire 7 retain. 2026-05-25
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GATES
@@ -286,8 +286,8 @@ Pillar 2 -- Reasoning Engine:
 
 Pillar 3 -- Tool Absorption:
 ✅ Audit-stale tools reviewed individually for absorb vs retain -- 8 absorb, 1 retire, 7 retain. Documented 2026-05-25
-⬜ At least 5 tools absorbed (functionality moves into core friday)
-⬜ Tool count reduced from 50 to <40
+✅ At least 5 tools absorbed -- pulse, forecast, digest, memory, alias-audit absorbed; niri-bridge retired. 2026-05-25
+✅ Tool count reduced from 50 to <40 -- 39/39 deployed. 2026-05-25
 ⬜ No regression in absorbed tools' user-visible function
 
 Pillar 4 -- Coordination:
