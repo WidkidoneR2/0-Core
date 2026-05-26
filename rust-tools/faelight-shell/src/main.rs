@@ -1102,6 +1102,16 @@ fn repl_main() -> Result<()> {
                         continue;
                     }
                     let line = segment.as_str();
+                    // INT-322 Phase 4: auto-snapshot before destructive commands
+                    {
+                        let _snap_tok = line.split_whitespace().next().unwrap_or("");
+                        let _is_destructive = ["rm", "rmdir", "mv", "deploy", "cicomplete", "dc", "sudo", "dd"].contains(&_snap_tok)
+                            || (_snap_tok == "git" && (line.contains(" push") || line.contains(" reset")));
+                        if _is_destructive {
+                            let _iid = db.get_focus_intent();
+                            db.capture_snapshot(line, _iid.as_deref());
+                        }
+                    }
                     // Phase 18b — Flow mode: earliest intercept
                     {
                         let ftok = line.split_whitespace().next().unwrap_or("");

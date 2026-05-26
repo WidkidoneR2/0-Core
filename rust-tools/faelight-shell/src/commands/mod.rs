@@ -331,6 +331,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
             _ => fsh_identity_cmd(db),
         },
         "snapshot" => snapshot_cmd(db, args),
+        "rewind" | "time-travel" => rewind_cmd(db),
         "debug" => debug_cmd(db, args),
         "usage" | "usage-report" => usage_report(db),
         "theme" => theme_cmd(db, args),
@@ -9275,6 +9276,45 @@ fn ensure_snapshots_schema(db: &ForestDb) {
         );",
         )
         .ok();
+}
+
+/// INT-322 Phase 4: rewind -- show snapshot timeline for time-travel debugging
+fn rewind_cmd(db: &ForestDb) -> CommandResult {
+    use colored::Colorize;
+    let mut stmt = match db.conn.prepare(
+        "SELECT id, name, timestamp, health, command, git_hash, cwd, intent_id
+         FROM shell_snapshots ORDER BY timestamp DESC LIMIT 20"
+    ) {
+        Ok(s) => s,
+        Err(_) => return CommandResult::Output("  No snapshots yet.".to_string()),
+    };
+    let rows: Vec<(i64, String, i64, Option<i64>, Option<String>, Option<String>, Option<String>, Option<String>)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?)))
+        .map(|r| r.filter_map(|x| x.ok()).collect())
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return CommandResult::Output(
+            "  No snapshots yet -- run destructive commands (rm, deploy, git push) to auto-capture.".to_string()
+        );
+    }
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} Time-Travel Snapshot Timeline ({} snapshots)\n", "🌲".normal(), rows.len()));
+    out.push_str(&format!("  {}\n\n", "━".repeat(60).dimmed()));
+    for (id, name, ts, health, command, git_hash, _cwd, intent_id) in &rows {
+        let dt = chrono::DateTime::from_timestamp(*ts, 0)
+            .map(|d: chrono::DateTime<chrono::Utc>| d.format("%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| ts.to_string());
+        let health_str = health.map(|h| format!("{}%", h)).unwrap_or_else(|| "?".to_string());
+        let git_str = git_hash.as_deref().unwrap_or("?");
+        let intent_str = intent_id.as_deref().map(|i| format!(" [INT-{}]", i)).unwrap_or_default();
+        let cmd_str = command.as_deref().unwrap_or(&name);
+        let cmd_short: String = cmd_str.chars().take(45).collect();
+        out.push_str(&format!("  {} #{} {}{}\n", "→".bright_cyan(), id.to_string().dimmed(), dt.bright_white(), intent_str.dimmed()));
+        out.push_str(&format!("    {} {}\n", "cmd:".dimmed(), cmd_short.bright_white()));
+        out.push_str(&format!("    {} {}  {} {}\n\n", "health:".dimmed(), health_str, "git:".dimmed(), git_str.yellow()));
+    }
+    out.push_str(&format!("  {} snapshot <name> to capture now\n", "💡".dimmed()));
+    CommandResult::Output(out)
 }
 
 fn snapshot_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {

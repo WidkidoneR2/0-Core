@@ -29,6 +29,10 @@ impl ForestDb {
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN exit_code INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN duration_ms INTEGER");
         let _ = conn.execute_batch("ALTER TABLE shell_history ADD COLUMN intent_id TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN command TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN git_hash TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN cwd TEXT");
+        let _ = conn.execute_batch("ALTER TABLE shell_snapshots ADD COLUMN intent_id TEXT");
 
         // Ensure shell tables exist
         conn.execute_batch(
@@ -367,6 +371,31 @@ impl ForestDb {
             .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
             .and_then(|v| v["detail"]["health"].as_i64())
     }
+
+    /// INT-322 Phase 4: capture a lightweight snapshot before destructive commands
+    pub fn capture_snapshot(&self, command: &str, intent_id: Option<&str>) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let health = self.health_score().unwrap_or(0);
+        let cwd = std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let git_hash = std::process::Command::new("git")
+            .args(["-C", &self.core_root, "rev-parse", "--short", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let name = format!("auto-{}", command.split_whitespace().next().unwrap_or("cmd"));
+        let _ = self.conn.execute(
+            "INSERT INTO shell_snapshots (name, timestamp, health, command, git_hash, cwd, intent_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![name, ts, health as i64, command, git_hash, cwd, intent_id],
+        );
+    }
 }
 
 // INT-249: shared spawn + heredoc-leak detection for sh -c invocations
@@ -399,4 +428,7 @@ pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::Exit
         }
     }
     child.wait()
+
+
+
 }
