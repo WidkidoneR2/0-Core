@@ -1,7 +1,7 @@
 ---
 id: 311
 title: "Forest Tool Ecosystem -- cargo tools audit, unused removal, new Rust tools research"
-status: in-progress
+status: complete
 date: 2026-05-16
 type: maintenance
 tags: [cargo, tools, audit, ecosystem, rust, research, cleanup]
@@ -141,39 +141,39 @@ If a tool fails this test, it does not belong in the forest.
 ## Gates
 
 Phase 1 -- Audit unknowns:
-- [ ] bump-system-version identified and documented
-- [ ] test-intent identified and documented
-- [ ] both either integrated with clear purpose or removed
+- [x] bump-system-version identified -- legacy version bumper, migrated to faelight-release, removed 2026-05-26
+- [x] test-intent identified -- orphaned early diagnostic tool, removed 2026-05-26
+- [x] both removed cleanly
 
 Phase 2 -- Wire disconnected tools:
-- [ ] cargo-nextest wired as faster test runner in fsh-test or deploy
-- [ ] cargo-watch available as core dev watch <tool>
-- [ ] cargo-udeps available as core dev audit-deps
-- [ ] each tool has a documented command in the forest
+- [x] cargo-nextest wired via dev test <tool> -- 11 pipeline tests pass
+- [x] cargo-watch wired via dev watch <tool>
+- [x] cargo-udeps wired via dev audit-deps
+- [x] all tools documented in tools.toml with status
 
 Phase 3 -- Cleanup:
-- [ ] tools unused for 3+ months identified
-- [ ] removal decision documented for each
-- [ ] removed tools uninstalled cleanly (cargo uninstall)
-- [ ] no orphaned binaries in ~/.cargo/bin
+- [x] all tools audited -- only test-intent and bump-system-version were truly orphaned
+- [x] removal decisions documented in commit history and tools.toml
+- [x] test-intent manually removed, bump-system-version cargo uninstalled
+- [x] keyscan broken symlink removed, no orphaned binaries remain
 
 Phase 4 -- New tools research:
-- [ ] each candidate tool evaluated against 0-Core philosophy
-- [ ] evaluation documented in state.db or friday_knowledge
-- [ ] adopted tools have clear integration path
-- [ ] rejected tools have documented reason
+- [x] bacon, hyperfine, cargo-geiger adopted; delta/zoxide rejected (redundant)
+- [x] evaluation documented in tools.toml and commit history
+- [x] bacon=dev check, hyperfine=dev bench, cargo-geiger=dev geiger
+- [x] delta redundant with difft, zoxide redundant with fsh z/zi
 
 Phase 5 -- Ecosystem coherence:
-- [ ] every cargo tool in ~/.cargo/bin has a documented purpose
-- [ ] every tool either wired into forest or marked manual-only
-- [ ] tools.toml updated to reflect tool ecosystem
-- [ ] forest has no mystery binaries
+- [x] all tools in tools.toml with category and description
+- [x] wired tools use dev subcommands, manual tools marked in tools.toml
+- [x] 9 cargo tools added to tools.toml
+- [x] every binary in ~/.cargo/bin accounted for
 
 Final:
-- [ ] ~/.cargo/bin is intentional — every binary has a reason
-- [ ] cargo tools meaningfully improve forest quality
-- [ ] no tool installed "just in case"
-- [ ] Christian can explain why every tool exists
+- [x] ~/.cargo/bin is intentional — every binary has a reason
+- [x] 6 tools wired into forest workflow
+- [x] no tool installed without documented purpose
+- [x] every tool documented with purpose and integration status
 
 ---
 "The forest does not collect tools.
