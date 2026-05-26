@@ -1732,8 +1732,12 @@ fn repl_main() -> Result<()> {
                         let forest_sources = ["from", "list", "find", "db", "intents", "deploys", "friday"];
                         let has_pipe = line.contains(" | ");
                         if forest_sources.contains(&first) && has_pipe {
-                            let parts: Vec<&str> = line.splitn(2, " | ").collect();
+                            let explain = line.contains("--explain");
+                            let clean_line = line.replace(" --explain", "").replace("--explain", "");
+                            let clean_line = clean_line.as_str();
+                            let parts: Vec<&str> = clean_line.splitn(2, " | ").collect();
                             let source_cmd = parts[0].trim();
+                            let stage_text = parts.get(1).copied().unwrap_or("").to_string();
                             let pipe_rest = if parts.len() > 1 {
                                 format!("_source | {}", parts[1])
                             } else {
@@ -1742,15 +1746,37 @@ fn repl_main() -> Result<()> {
                             let source_result = commands::execute(source_cmd, &db, &core_root);
                             match source_result {
                                 commands::CommandResult::Value(v) => {
+                                    let source_count = match &v {
+                                        value::Value::Table(rows) => rows.len(),
+                                        _ => 1,
+                                    };
                                     let ops = value::parse_pipeline(&pipe_rest);
-                                    let result = value::apply_pipeline(v, &ops);
-                                    println!("{}", result.render());
+                                    if explain {
+                                        use colored::Colorize;
+                                        let stage_labels: Vec<String> = stage_text
+                                            .split(" | ")
+                                            .map(|s| s.trim().to_string())
+                                            .collect();
+                                        let (result, stats) = value::apply_pipeline_with_stats(v, &ops, &stage_labels);
+                                        println!("{}", result.render());
+                                        println!();
+                                        println!("  {} pipeline explain", "─".repeat(10).dimmed());
+                                        println!("  {:<28} {} rows", "source".bright_cyan(), source_count);
+                                        for stat in &stats {
+                                            let slow = if stat.duration_ms > 100 { "  ⚠ slow" } else { "" };
+                                            let zero = if stat.row_count == 0 { " ← zero rows!" } else { "" };
+                                            println!("  {:<28} {} rows  {}ms{}{}", stat.label.bright_cyan(), stat.row_count, stat.duration_ms, slow, zero);
+                                        }
+                                    } else {
+                                        let result = value::apply_pipeline(v, &ops);
+                                        println!("{}", result.render());
+                                    }
                                 }
                                 commands::CommandResult::Output(out) => println!("{}", out),
                                 commands::CommandResult::Error(e) => eprintln!("  x {}", e),
                                 _ => {}
                             }
-                            continue 'segments; // INT-299: was 'repl -- skipped remaining segments
+                            continue 'segments;
                         }
                     }
 

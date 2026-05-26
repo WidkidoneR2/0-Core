@@ -172,6 +172,35 @@ pub fn apply_pipeline(value: Value, ops: &[PipeOp]) -> Value {
     }
     current
 }
+/// INT-322 Phase 5: per-stage stats for --explain flag
+pub struct PipelineStageStats {
+    pub label: String,
+    pub row_count: usize,
+    pub duration_ms: u128,
+}
+
+pub fn apply_pipeline_with_stats(
+    value: Value,
+    ops: &[PipeOp],
+    stage_labels: &[String],
+) -> (Value, Vec<PipelineStageStats>) {
+    let mut current = value;
+    let mut stats: Vec<PipelineStageStats> = Vec::new();
+    for (i, op) in ops.iter().enumerate() {
+        let start = std::time::Instant::now();
+        current = apply_op(current, op);
+        let duration_ms = start.elapsed().as_millis();
+        let row_count = match &current {
+            Value::Table(rows) => rows.len(),
+            _ => 1,
+        };
+        let label = stage_labels.get(i).cloned().unwrap_or_else(|| format!("stage {}", i + 1));
+        stats.push(PipelineStageStats { label, row_count, duration_ms });
+    }
+    (current, stats)
+}
+
+
 
 // ── Phase 2: Schema System — INT-162 ─────────────────────────────────────────
 // Typed schemas guarantee consistent column names across pipeline operators.
