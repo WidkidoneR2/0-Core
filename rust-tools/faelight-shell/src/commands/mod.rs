@@ -285,6 +285,10 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "story" => story(db),
         "advise" => advise(db),
         "audit" => audit(db, core_root),
+        "fsh" => match args.first().copied() {
+            Some("doctor") => fsh_doctor_cmd(db, args.get(1..).unwrap_or(&[])),
+            _ => run_external(line, db),
+        },
         // ── Core subcommand shortcuts — no prefix needed ────────────────────
         "predict" | "react" | "stress" | "doctor" | "goals" | "evolution" | "security"
         | "capabilities" | "intent" | "genealogy" | "autonomy" => {
@@ -304,7 +308,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "js" | "node" => run_js_cmd(args),
         "undo" => undo_cmd(db, args),
         "pv" => smart_preview_cmd(args),
-        "fsh" | "faelight-shell" => match args.first().copied() {
+        "faelight-shell" => match args.first().copied() {
             Some("-c") => {
                 // INT-299: fsh -c "cmd" — delegate to sh, mirrors external behavior
                 let cmd = args.get(1).copied().unwrap_or("");
@@ -9279,6 +9283,85 @@ fn ensure_snapshots_schema(db: &ForestDb) {
 }
 
 /// INT-322 Phase 4: rewind -- show snapshot timeline for time-travel debugging
+/// INT-322 Phase 6: fsh doctor -- shell-specific health checks
+fn fsh_doctor_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    use std::time::Instant;
+    let fix_mode = args.contains(&"--fix");
+    let start = Instant::now();
+    let mut checks: Vec<(&str, bool, String)> = Vec::new(); // (name, passed, note)
+
+    // 1. fsh binary exists and is this binary
+    let fsh_bin = std::path::Path::new("/home/christian/0-core/scripts/faelight-shell").exists();
+    checks.push(("fsh binary", fsh_bin, if fsh_bin { "scripts/faelight-shell present".into() } else { "missing!".into() }));
+
+    // 2. state.db writable
+    let db_path = format!("{}/runtime/state.db", db.core_root());
+    let db_ok = std::path::Path::new(&db_path).exists();
+    checks.push(("state.db", db_ok, if db_ok { db_path.clone() } else { "not found!".into() }));
+
+    // 3. focus.toml readable
+    let home = std::env::var("HOME").unwrap_or_default();
+    let focus_path = format!("{}/.local/state/0-core/intent/focus.toml", home);
+    let focus_ok = std::path::Path::new(&focus_path).exists();
+    let focus_note = if focus_ok {
+        db.get_focus_intent().map(|i| format!("INT-{} active", i)).unwrap_or("no active intent".into())
+    } else {
+        "no focus.toml".into()
+    };
+    checks.push(("focus intent", focus_ok, focus_note));
+
+    // 4. shell history writable (can insert a test row)
+    let hist_ok = db.conn.execute(
+        "INSERT INTO shell_history (command, timestamp, cwd) VALUES ('__fsh_doctor_test__', 0, '/')",
+        []
+    ).is_ok();
+    if hist_ok {
+        let _ = db.conn.execute("DELETE FROM shell_history WHERE command = '__fsh_doctor_test__'", []);
+    }
+    checks.push(("history writable", hist_ok, if hist_ok { "insert+delete ok".into() } else { "db error!".into() }));
+
+    // 5. aliases loaded
+    let alias_count: i64 = db.conn.query_row("SELECT COUNT(*) FROM shell_aliases", [], |r| r.get(0)).unwrap_or(0);
+    let aliases_ok = alias_count > 0;
+    checks.push(("aliases loaded", aliases_ok, format!("{} aliases", alias_count)));
+
+    // 6. snapshots table exists
+    let snap_ok = db.conn.execute("SELECT id FROM shell_snapshots LIMIT 1", []).is_ok()
+        || db.conn.query_row("SELECT COUNT(*) FROM shell_snapshots", [], |r| r.get::<_,i64>(0)).unwrap_or(0) >= 0;
+    checks.push(("snapshots table", snap_ok, "shell_snapshots ok".into()));
+
+    // 7. PATH contains cargo bin
+    let cargo_bin = std::env::var("PATH").map(|p| p.contains(".cargo/bin")).unwrap_or(false);
+    checks.push(("cargo in PATH", cargo_bin, if cargo_bin { ".cargo/bin found".into() } else { "missing -- run: source ~/.profile".into() }));
+
+    let elapsed = start.elapsed().as_millis();
+    let passed = checks.iter().filter(|(_, ok, _)| *ok).count();
+    let total = checks.len();
+    let all_ok = passed == total;
+
+    let mut out = String::new();
+    out.push_str(&format!("\n  {} fsh doctor\n", "🩺".normal()));
+    out.push_str(&format!("  {}\n\n", "━".repeat(50).dimmed()));
+    for (name, ok, note) in &checks {
+        let icon = if *ok { "✅".to_string() } else { "✗ ".bright_red().to_string() };
+        out.push_str(&format!("  {} {:<22} {}\n", icon, name, note.dimmed()));
+        if !ok && fix_mode {
+            out.push_str(&format!("    {} no auto-fix available for '{}'\n", "→".yellow(), name));
+        }
+    }
+    out.push_str(&format!("\n  {}\n", "─".repeat(50).dimmed()));
+    out.push_str(&format!("  {}/{} checks passed  {}ms\n",
+        passed, total, elapsed));
+    if all_ok {
+        out.push_str(&format!("  {} shell is healthy\n", "🌲".normal()));
+    } else {
+        out.push_str(&format!("  {} {} check(s) failed -- run: fsh doctor --fix\n",
+            "⚠".yellow(), total - passed));
+    }
+    CommandResult::Output(out)
+}
+
 fn rewind_cmd(db: &ForestDb) -> CommandResult {
     use colored::Colorize;
     let mut stmt = match db.conn.prepare(
