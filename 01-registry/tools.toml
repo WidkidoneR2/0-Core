@@ -375,15 +375,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-digest"
-version = "1.0.0"
-category = "shell"
-description = "Forest morning digest — system stats + forest context"
-expected_usage = "high"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "faelight-login"
 version = "2.0.0"
 category = "system"
