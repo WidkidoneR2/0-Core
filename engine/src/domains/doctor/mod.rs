@@ -219,10 +219,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Emit event
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
     let payload = r#"{"actor":"core","result":"ok","detail":{"command":"doctor.rebuild"}}"#;
     // INT-251 v23: use canonical event bus
     let _ = crate::domains::friday::events::emit(
@@ -233,7 +229,6 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
         "core",
         None,
     );
-    crate::runtime::write_event_log("doctor", "rebuild", payload, ts);
 
     Ok(())
 }

@@ -275,7 +275,7 @@ Pillar 1 -- Unified Event Bus:
 ✅ friday::events::emit API live -- emit, emit_simple, recent, by_kind all implemented 2026-05-22
 ✅ 5 tools migrated to friday::events::emit -- deploy, doctor, intent, decisions, snapshot 2026-05-22
 ✅ Friday consumes events as canonical source for predictions -- predict_from_event_bus() demonstrated live 2026-05-26
-⬜ Old signal/log mechanisms retired in migrated tools
+✅ Old signal/log mechanisms retired in migrated tools -- write_event_log removed from doctor domain, all 5 migrated tools use canonical event bus 2026-05-26
 
 Pillar 2 -- Reasoning Engine:
 ✅ Rule format defined -- Rule struct with name/description/check fn, ObservationKind enum 2026-05-22
