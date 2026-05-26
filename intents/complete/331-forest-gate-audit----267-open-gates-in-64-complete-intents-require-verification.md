@@ -1,7 +1,7 @@
 ---
 id: 331
 title: "Forest Gate Audit -- 267 open gates in 64 complete intents require verification"
-status: planned
+status: cancelled
 date: 2026-05-21
 tags: [audit, integrity, gates, debt, accountability]
 ---
@@ -90,3 +90,7 @@ Phase 4: Either demonstrate each open gate or formally defer with reasoning
 No more marking gates complete without demonstration.
 No more shortcuts.
 The forest remembers -- and so does this intent.
+
+
+## Cancellation
+CANCELLED 2026-05-26: NixOS migration represents clean break. Arch-era gate debt stays in Arch chapter. NixOS ledger starts at 001 with proper demonstration from day one. No retroactive audit needed.

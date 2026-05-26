@@ -130,3 +130,7 @@ Because mastery is not a destination.
 It is a daily choice.
 The forest wants to teach you
 everything it already knows." 🌲
+
+
+## NixOS Deferral
+DEFERRED TO NIXOS 2026-05-26: faelight-teach belongs in the NixOS era when the forest is stable and the vocabulary is mature. Will be INT-00X in NixOS ledger.

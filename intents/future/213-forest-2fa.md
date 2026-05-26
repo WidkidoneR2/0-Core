@@ -63,3 +63,7 @@ Now the forest knows your face.
 Or at least your phone.
 Security is not paranoia.
 It is respect for what you have built." 🌲
+
+
+## NixOS Deferral
+DEFERRED TO NIXOS 2026-05-26: Forest 2FA (TOTP) is platform-agnostic and valuable. Will be INT-00X in NixOS ledger. Security hardening is more important on FaelightOS than on Arch dev system.

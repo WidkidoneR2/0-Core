@@ -1,7 +1,7 @@
 ---
 id: 290
 title: "F-DWL -- Faelight Wayland Compositor -- pure Rust, forest-first, scroll-native"
-status: planned
+status: cancelled
 date: 2026-05-11
 tags: [compositor, wayland, rust, smithay, f-dwl, dwl, dwm, suckless, niri, spatial, forest]
 ---
@@ -212,3 +212,7 @@ Pure Rust.
 Forest-first.
 Scroll-native.
 The compositor the forest deserves." 🌲
+
+
+## Cancellation
+CANCELLED 2026-05-26: Replaced by INT-323 (faelight-compositor v3) + INT-343 (Pinnacle-informed architecture). Going Pinnacle on NixOS makes this redundant. The Pinnacle path is the right direction.
