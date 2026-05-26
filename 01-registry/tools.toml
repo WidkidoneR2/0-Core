@@ -4,15 +4,6 @@
 # This registry defines the complete tool ecosystem
 
 [[tool]]
-name = "alias-audit"
-version = "9.1.0"
-category = "development"
-description = "Audits shell aliases for coverage and conflicts"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = false
-[[tool]]
 name = "core"
 version = "3.0.0"
 category = "core"

@@ -6,10 +6,6 @@
 # 🦀 RUST TOOLS (40 tools, primary aliases)
 # ═══════════════════════════════════════════════════════════
 
-[[alias]]
-command = "alias-audit"
-aliases = ["aa"]
-category = "development"
 
 [[alias]]
 [[alias]]
@@ -225,7 +221,7 @@ category = "desktop"
 
 # Total: 50+ primary aliases documented
 # Full 301 aliases are active in shell but documented incrementally
-# Run 'alias-audit' to see complete list
+# Run 'd' or 'core audit stale' to audit tools and aliases
 
 [[alias]]
 command = "faelight-clipboard"
