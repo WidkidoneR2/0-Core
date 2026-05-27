@@ -1,7 +1,7 @@
 ---
 id: 279
 title: "Forest Query Language -- The Forest Answers Questions"
-status: planned
+status: in-progress
 date: 2026-05-07
 tags: [fql, query, language, friday, intelligence, state.db, forest]
 depends_on: [278, 246]

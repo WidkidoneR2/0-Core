@@ -160,6 +160,18 @@ fn friday_respond(db: &Connection, input: &str) -> String {
         return friday_trace(db, &term);
     }
 
+    if lower.starts_with("/where") || lower.starts_with("where ") {
+        let condition = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        return friday_where(db, &condition);
+    }
+    if lower.starts_with("/show") || lower.starts_with("show ") {
+        let subject = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        return friday_show(db, &subject);
+    }
+    if lower.starts_with("/explain") || lower.starts_with("explain ") {
+        let subject = input.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+        return friday_explain(db, &subject);
+    }
     // Natural language -- search knowledge base
     friday_natural(db, &lower)
 }
@@ -344,6 +356,118 @@ fn friday_natural(db: &Connection, input: &str) -> String {
         format!("Friday has no knowledge about '{}'. Try /recall {} or /why {}", term, term, term)
     } else {
         format!("From friday_knowledge about '{}':\n{}", term, facts.join("\n"))
+    }
+}
+
+
+/// FQL: friday where [field] [op] [value]
+fn friday_where(db: &Connection, condition: &str) -> String {
+    if condition.is_empty() {
+        return "Usage: where [field] [op] [value]\nFields: risk, domain, confidence, health, source\nOps: > < = !=\nExample: where confidence > 0.8".to_string();
+    }
+    let parts: Vec<&str> = condition.splitn(3, ' ').collect();
+    if parts.len() < 3 {
+        return format!("FQL parse error: expected 'field op value', got: {}", condition);
+    }
+    let field = parts[0].to_lowercase();
+    let op = parts[1];
+    let value = parts[2];
+
+    match field.as_str() {
+        "confidence" => {
+            let threshold: f64 = value.parse().unwrap_or(0.7);
+            let (q, comp) = match op {
+                ">" => ("SELECT trigger, action, confidence FROM friday_patterns WHERE confidence > ?1 ORDER BY confidence DESC LIMIT 10", ">"),
+                "<" => ("SELECT trigger, action, confidence FROM friday_patterns WHERE confidence < ?1 ORDER BY confidence DESC LIMIT 10", "<"),
+                "=" | "==" => ("SELECT trigger, action, confidence FROM friday_patterns WHERE ABS(confidence - ?1) < 0.05 ORDER BY confidence DESC LIMIT 10", "="),
+                _ => return format!("Unknown operator: {}", op),
+            };
+            let mut stmt = db.prepare(q).unwrap();
+            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
+                Ok(format!("  {:.0}% {} → {}", r.get::<_,f64>(2)?*100.0, r.get::<_,String>(0)?, r.get::<_,String>(1)?))
+            }).unwrap().flatten().collect();
+            if rows.is_empty() { format!("No patterns where confidence {} {}", comp, threshold) }
+            else { format!("Patterns where confidence {} {}:\n{}", comp, threshold, rows.join("\n")) }
+        }
+        "domain" => {
+            let mut stmt = db.prepare(
+                "SELECT kind, detail FROM events WHERE domain = ?1 ORDER BY timestamp DESC LIMIT 10"
+            ).unwrap();
+            let rows: Vec<String> = stmt.query_map(rusqlite::params![value], |r| {
+                Ok(format!("  [{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?))
+            }).unwrap().flatten().collect();
+            if rows.is_empty() { format!("No events in domain: {}", value) }
+            else { format!("Events in domain '{}':\n{}", value, rows.join("\n")) }
+        }
+        "health" => {
+            let threshold: i64 = value.parse().unwrap_or(95);
+            let mut stmt = db.prepare(
+                "SELECT timestamp, detail FROM events WHERE domain = 'health' AND CAST(detail AS INTEGER) < ?1 ORDER BY timestamp DESC LIMIT 5"
+            ).unwrap();
+            let rows: Vec<String> = stmt.query_map(rusqlite::params![threshold], |r| {
+                let ts: i64 = r.get(0)?;
+                let dt = chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|d| d.format("%m-%d %H:%M").to_string()).unwrap_or_default();
+                Ok(format!("  [{}] {}", dt, r.get::<_,String>(1)?))
+            }).unwrap().flatten().collect();
+            if rows.is_empty() { format!("No health events matching where health {} {}", op, threshold) }
+            else { format!("Health events where health {} {}:\n{}", op, threshold, rows.join("\n")) }
+        }
+        _ => format!("Unknown field: {}\nSupported: confidence, domain, health, source", field)
+    }
+}
+
+/// FQL: friday show [data]
+fn friday_show(db: &Connection, subject: &str) -> String {
+    let lower = subject.to_lowercase();
+    if lower.contains("pattern") || lower.contains("patterns") {
+        return friday_patterns(db);
+    }
+    if lower.contains("decision") || lower.contains("decisions") {
+        let mut stmt = db.prepare(
+            "SELECT what, why, ties_to FROM friday_decisions ORDER BY id DESC LIMIT 5"
+        ).unwrap();
+        let rows: Vec<String> = stmt.query_map([], |r| {
+            Ok(format!("  · {} (why: {}) ties_to: {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?))
+        }).unwrap().flatten().collect();
+        if rows.is_empty() { return "No decisions recorded yet.".to_string(); }
+        return format!("Recent decisions:\n{}", rows.join("\n"));
+    }
+    if lower.contains("intent") || lower.contains("intents") {
+        return friday_intent(db);
+    }
+    if lower.contains("attention") {
+        let mut stmt = db.prepare(
+            "SELECT event_type, attention_score, spoke, event_detail FROM friday_attention ORDER BY timestamp DESC LIMIT 8"
+        ).unwrap();
+        let rows: Vec<String> = stmt.query_map([], |r| {
+            Ok(format!("  {:.3} {} [{}] {}", r.get::<_,f64>(1)?,
+                if r.get::<_,i64>(2)? == 1 { "spoke " } else { "silent" },
+                r.get::<_,String>(0)?, r.get::<_,String>(3)?))
+        }).unwrap().flatten().collect();
+        return format!("Attention log:\n{}", rows.join("\n"));
+    }
+    format!("friday show: unknown subject '{}'\nTry: patterns, decisions, intents, attention", subject)
+}
+
+/// FQL: friday explain [subject]
+fn friday_explain(db: &Connection, subject: &str) -> String {
+    if subject.is_empty() {
+        return "Usage: explain [subject]\nExample: explain drift, explain health, explain patterns".to_string();
+    }
+    let pattern = format!("%{}%", subject);
+    // Search knowledge base
+    let mut stmt = db.prepare(
+        "SELECT domain, key, fact FROM friday_knowledge WHERE fact LIKE ?1 OR key LIKE ?1 ORDER BY id DESC LIMIT 4"
+    ).unwrap();
+    let rows: Vec<String> = stmt.query_map(rusqlite::params![pattern], |r| {
+        Ok(format!("  [{}:{}] {}", r.get::<_,String>(0)?, r.get::<_,String>(1)?,
+            r.get::<_,String>(2)?))
+    }).unwrap().flatten().collect();
+    if rows.is_empty() {
+        format!("Friday has no knowledge about '{}'. Try /recall {} or /where domain = {}", subject, subject, subject)
+    } else {
+        format!("Friday explains '{}':\n{}", subject, rows.join("\n"))
     }
 }
 
