@@ -1,5 +1,42 @@
 # Changelog
 
+## [14.1.0] — Research and Resilience (2026-05-26)
+
+### 🎯 Completed Intents
+- Core v23 — Friday Becomes Central
+- Faelight Forest COSMIC Direction — fsh as authority, COSMIC as visual layer
+- F-DWL — Faelight Wayland Compositor — pure Rust, forest-first, scroll-native
+- faelight-term v3 replaces v2 — clean transition, clipboard, cursor, resize, path resilience
+- faelight-fm v2 — COSMIC Files study, libcosmic, forest-first file manager
+- Forest Event Bus v2 — zbus D-Bus integration, system-level forest signals
+- faelight-bar v3 — COSMIC panel study, ironbar, eww, i3status-rust, quickshell, libcosmic
+- faelight-term semantic intelligence — shell integration, editor-aware protocols, structured command objects, tree-sitter
+- forest resilience — keyboard-only mode and hardware failure recovery
+- power-profiles-daemon + Friday integration — intelligent power management
+- faelight-compositor v2 — client connections, XDG protocols, DRM backend
+- Forest Tool Ecosystem — cargo tools audit, unused removal, new Rust tools research
+- faelight-term v3 stabilization — heredoc support, Ctrl+[ fix, nested compositor rendering
+- fsh v3 — tab completion, structured output, PowerShell ideas, startup improvement
+- fsh v4 — The Shell Grows Up
+- Forest Gate Audit — 267 open gates in 64 complete intents require verification
+- Intent Ledger v3 — clarity, gate enforcement, deferral control, in-progress separation
+- faelight-git v5 — intelligence, integrity, drift prevention
+- fsh v4 — borrow the best from Fish, Zsh, Nu — autosuggestions, structured data, semantic verbs
+- Study — JDbrowser TUI SQLite patterns for core db browse
+- Study — Oatmeal LLM TUI patterns for Friday Chat INT-278
+- Study — Pinnacle compositor Smithay patterns for faelight-compositor v3
+- Study — Terax ADE patterns for faelight-term v4 and Friday Chat convergence
+- Jarvis Purge — remove all jarvis references, tables, and checks from the forest
+- Friday Reasoning Engine — Causal Chain Rule for Tool Retirement Regression Detection
+
+### ✨ Features
+- Release v14.0.0 - 🌲 The Forest Owns the Screen
+
+### 📊 Stats
+- Health: 100%  ·  Commits: 2894  ·  Tools: 51 deployed  ·  Intents: 271 complete
+
+---
+
 ## [14.0.0] -- The Forest Owns the Screen (2026-05-17)
 
 This release brings the forest's own compositor, file manager, and terminal into full production. The forest no longer depends on third-party window management -- it owns the screen from boot to shell.

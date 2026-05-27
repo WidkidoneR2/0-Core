@@ -260,7 +260,13 @@ pub fn get_last_tag(core_root: &PathBuf) -> String {
         .unwrap_or_default();
     // Return the most recent vX.Y.Z tag
     out.lines()
-        .find(|t| t.starts_with('v') && t.chars().nth(1).map(|c| c.is_ascii_digit()).unwrap_or(false))
+        .find(|t| {
+            t.starts_with('v')
+                && t.chars()
+                    .nth(1)
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+        })
         .unwrap_or("HEAD~50")
         .to_string()
 }
@@ -285,7 +291,6 @@ pub struct ChangelogData {
     pub last_tag: String,
 }
 
-
 // INT-264: Strip internal references from public-facing commit messages
 fn clean_commit_message(msg: &str) -> String {
     // Remove trailing malformed "... && gp &&..." artifacts
@@ -300,9 +305,15 @@ fn clean_commit_message(msg: &str) -> String {
         let upper = result.to_uppercase();
         if upper.starts_with("INT-") {
             let rest = &result[4..];
-            let digit_end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
-            let after = result[4 + digit_end..].trim_start_matches([':', ' ', '-']).trim();
-            if after.is_empty() { break; }
+            let digit_end = rest
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(rest.len());
+            let after = result[4 + digit_end..]
+                .trim_start_matches([':', ' ', '-'])
+                .trim();
+            if after.is_empty() {
+                break;
+            }
             result = after.to_string();
         } else {
             break;
@@ -373,7 +384,9 @@ impl ChangelogData {
             out.push_str("### 🎯 Completed Intents\n");
             for intent in &self.intents {
                 // INT-264: human title only, no INT-NNN in public output
-                let clean_title = intent.title.trim_matches(|c| c == '"' || c == '\\')
+                let clean_title = intent
+                    .title
+                    .trim_matches(|c| c == '"' || c == '\\')
                     .trim_matches(|c| c == '"' || c == ' ')
                     .replace(" -- ", " — ");
                 let clean_title = clean_title.as_str();

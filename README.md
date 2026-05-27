@@ -1,52 +1,60 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 14.0.0
+# 🌲 Faelight Forest 14.1.0
 
-![Version](https://img.shields.io/badge/version-14.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-14.1.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Rust](https://img.shields.io/badge/rust-96.4%25-orange?style=flat-square)
-![Platform](https://img.shields.io/badge/platform-Arch_Linux_+_Niri-blue?style=flat-square)
-![License](https://img.shields.io/badge/license-Intentional_Stewardship-purple?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
+![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> **A self-aware personal computing environment built entirely from first principles in Rust.**
-> Every tool written. Every decision documented. Nothing installed blindly.
+> **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**
 
----
+## 🎊 14.1.0 -- Research and Resilience (2026-05-26)
 
-## 🎊 v14.0.0 -- The Forest Owns the Screen
+### ✅ What Shipped
 
-*Released 2026-05-17*
+- Core v23 -- Friday Becomes Central
+- Faelight Forest COSMIC Direction -- fsh as authority, COSMIC as visual layer
+- Faelight-term v3 replaces v2 -- clean transition, clipboard, cursor, resize, path resilience
+- Faelight-fm v2 -- COSMIC Files study, libcosmic, forest-first file manager
+- Forest Event Bus v2 -- zbus D-Bus integration, system-level forest signals
+- Faelight-bar v3 -- COSMIC panel study, ironbar, eww, i3status-rust, quickshell, libcosmic
+- Faelight-term semantic intelligence -- shell integration, editor-aware protocols, structured command objects, tree-sitter
+- Forest resilience -- keyboard-only mode and hardware failure recovery
+- Power-profiles-daemon + Friday integration -- intelligent power management
+- Faelight-compositor v2 -- client connections, XDG protocols, DRM backend
+- Forest Tool Ecosystem -- cargo tools audit, unused removal, new Rust tools research
+- Faelight-term v3 stabilization -- heredoc support, Ctrl+[ fix, nested compositor rendering
+- Fsh v3 -- tab completion, structured output, PowerShell ideas, startup improvement
+- Fsh v4 -- The Shell Grows Up
+- Intent Ledger v3 -- clarity, gate enforcement, deferral control, in-progress separation
+- Faelight-git v5 -- intelligence, integrity, drift prevention
+- Fsh v4 -- borrow the best from Fish, Zsh, Nu -- autosuggestions, structured data, semantic verbs
+- JDbrowser TUI SQLite patterns for core db browse
+- Pinnacle compositor Smithay patterns for faelight-compositor v3
+- Terax ADE patterns for faelight-term v4 and Friday Chat convergence
+- Jarvis Purge -- remove all jarvis references, tables, and checks from the forest
+- Friday Reasoning Engine -- Causal Chain Rule for Tool Retirement Regression Detection
 
-This release brings the forest's own compositor, file manager, and terminal into full production. The forest no longer depends on third-party window management -- it owns the screen from boot to shell.
+### 🔧 Notable Changes
 
-**What shipped:**
+- Release v14.0.0 - 🌲 The Forest Owns the Screen
 
-- **faelight-compositor v2** -- A custom Smithay-based Wayland compositor. Auto-tiling, forest color borders, state.db window events. foot and faelight-term connect with zero protocol warnings.
-- **faelight-fm v2** -- A libcosmic file manager. Miller columns, git status per file, Friday context per directory, forest safety guard on deletes.
-- **faelight-term v3** -- GPU terminal rebuilt on wgpu + cosmic-text. Full scrollback, copy/paste, bracketed paste (heredoc works), 60fps rendering, Friday panel.
-- **faelight-shell v2.1.0** -- The forest's own login shell. Natural language vocabulary, parallel execution, session save/load/replay, OSC 133 shell integration.
-- **Friday intelligence v45** -- Forest Mind. 298 facts, 13 patterns, 87% prediction accuracy. Persistent decision memory, confidence-gated voice, system cartographer.
-- **Deploy pipeline v2** -- cargo-audit, cargo-deny, rollback, parallel deploy, Friday deploy intelligence. Every deploy verified.
-- **fsh test infrastructure** -- 81 tests, regression hard block, Friday-aware coverage reporting.
-- **Forest Version Intelligence** -- Auto-versioning from git diff analysis. MAJOR/MINOR/PATCH classification. Intelligence version auto-computed from Friday state.
+## 🌲 Forest DNA
 
-**Fixes:**
-- Bracketed paste protocol in faelight-term -- heredoc now works
-- Paste to browser fixed -- wl-clipboard-rs 0.9.3
-- Shell pipeline fixes -- semicolons, heredoc, for loops, logical chains
-- Zombie process reaping, SIGPIPE handling, cold-start test fluke eliminated
+| | |
+|---|---|
+| 🛠 **Tools** | 51 custom Rust tools |
+| 📋 **Shipped** | 271 features complete |
+| 🏥 **Health** | 100% |
+| ⚡ **Stack** | Rust · Wayland · Smithay · ratatui · wgpu |
+| 🌍 **Philosophy** | Understanding over convenience · No mystery packages |
 
-| Stat | Value |
-|------|-------|
-| Commits | 2726 |
-| Tools | 51 deployed |
-| Health | 100% |
-| Intents complete | 248 |
-| Friday facts | 298 |
-| Test coverage | 81 tests |
+> Built by one developer. Every tool written or fully understood.
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 
 ---
+
 <!-- END DYNAMIC SECTION -->
 
 <!-- STATIC SECTION -->
@@ -146,7 +154,7 @@ Nothing runs without explicit human authorization.
 
 ## The Decision Record
 
-248 complete intents. Every one documented -- not just what was built, but why, when, what the health score was, what risk was accepted, and what happened next. The forest does not forget.
+271 complete intents. Every one documented -- not just what was built, but why, when, what the health score was, what risk was accepted, and what happened next. The forest does not forget.
 
 ---
 
@@ -186,4 +194,4 @@ core doctor run
 > *A partner with principles is trustworthy."*
 
 *Auto-generated sections maintained by faelight-docs v2.0.0*
-*Auto-generated by faelight-docs v2.0.0 — last sync: 2026-05-17 02:00*
+*Auto-generated by faelight-docs v2.0.0 — last sync: 2026-05-26 20:34*

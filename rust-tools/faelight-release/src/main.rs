@@ -198,7 +198,14 @@ fn main() -> Result<()> {
                 .output()
                 .map(|o| o.status.success())
                 .unwrap_or(false);
-            println!("{}", if audit_ok { "✅ clean" } else { "⚠️  vulnerabilities found" });
+            println!(
+                "{}",
+                if audit_ok {
+                    "✅ clean"
+                } else {
+                    "⚠️  vulnerabilities found"
+                }
+            );
             // git status
             let dirty = std::process::Command::new("git")
                 .args(["status", "--porcelain"])
@@ -206,7 +213,14 @@ fn main() -> Result<()> {
                 .output()
                 .map(|o| !o.stdout.is_empty())
                 .unwrap_or(false);
-            println!("  🌿 working tree... {}", if dirty { "⚠️  uncommitted changes" } else { "✅ clean" });
+            println!(
+                "  🌿 working tree... {}",
+                if dirty {
+                    "⚠️  uncommitted changes"
+                } else {
+                    "✅ clean"
+                }
+            );
             // changelog summary
             println!();
             let theme = String::new();
@@ -217,22 +231,37 @@ fn main() -> Result<()> {
             println!("  🏥 Health:                     {}%", stats.health);
             println!();
             for intent in data.intents.iter().take(5) {
-                let clean = intent.title.trim_matches('"').split(" -- ").next().unwrap_or(&intent.title).trim();
+                let clean = intent
+                    .title
+                    .trim_matches('"')
+                    .split(" -- ")
+                    .next()
+                    .unwrap_or(&intent.title)
+                    .trim();
                 println!("  ✓ {}", clean);
             }
             if data.intents.len() > 5 {
                 println!("  → ... and {} more", data.intents.len() - 5);
             }
             println!();
-            let has_major = data.intents.iter().any(|i|
-                i.title.to_lowercase().contains("parallel") ||
-                i.title.to_lowercase().contains("architecture") ||
-                i.title.to_lowercase().contains("innovation")
-            );
-            let bump = if has_major { "MAJOR" } else if !data.features.is_empty() { "MINOR" } else { "PATCH" };
+            let has_major = data.intents.iter().any(|i| {
+                i.title.to_lowercase().contains("parallel")
+                    || i.title.to_lowercase().contains("architecture")
+                    || i.title.to_lowercase().contains("innovation")
+            });
+            let bump = if has_major {
+                "MAJOR"
+            } else if !data.features.is_empty() {
+                "MINOR"
+            } else {
+                "PATCH"
+            };
             println!("  💡 Suggested version bump: {}", bump);
             println!();
-            println!("  -> To publish: faelight-release publish {} --theme \"<theme>\"", version);
+            println!(
+                "  -> To publish: faelight-release publish {} --theme \"<theme>\"",
+                version
+            );
         }
         Command::Preview { version, theme } => {
             let theme = if theme.is_empty() {

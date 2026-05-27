@@ -1,25 +1,55 @@
 <!-- DYNAMIC SECTION - Updated by bump-system-version -->
-# 🌲 Faelight Forest 14.0.0
+# 🌲 Faelight Forest 14.1.0
 
-![Version](https://img.shields.io/badge/version-14.0.0-green?style=flat-square)
+![Version](https://img.shields.io/badge/version-14.1.0-green?style=flat-square)
 ![Health](https://img.shields.io/badge/health-100%25-brightgreen?style=flat-square)
-![Path Resilience](https://img.shields.io/badge/path_resilience-100%25-brightgreen?style=flat-square)
 ![Rust](https://img.shields.io/badge/rust-stable-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-Intentional_Stewardship-blue?style=flat-square)
 
-> **A self-aware, path-resilient personal computing environment built from first principles.**
+> **A self-aware personal computing environment built from first principles. Pure Rust. No Electron. No telemetry.**
 
-## 🎊 Latest Release
+## 🎊 14.1.0 -- Research and Resilience (2026-05-26)
 
-### 14.0.0 - 🌲 The Forest Owns the Screen (2026-05-17)
+### ✅ What Shipped
 
+- Core v23 -- Friday Becomes Central
+- Faelight Forest COSMIC Direction -- fsh as authority, COSMIC as visual layer
+- Faelight-term v3 replaces v2 -- clean transition, clipboard, cursor, resize, path resilience
+- Faelight-fm v2 -- COSMIC Files study, libcosmic, forest-first file manager
+- Forest Event Bus v2 -- zbus D-Bus integration, system-level forest signals
+- Faelight-bar v3 -- COSMIC panel study, ironbar, eww, i3status-rust, quickshell, libcosmic
+- Faelight-term semantic intelligence -- shell integration, editor-aware protocols, structured command objects, tree-sitter
+- Forest resilience -- keyboard-only mode and hardware failure recovery
+- Power-profiles-daemon + Friday integration -- intelligent power management
+- Faelight-compositor v2 -- client connections, XDG protocols, DRM backend
+- Forest Tool Ecosystem -- cargo tools audit, unused removal, new Rust tools research
+- Faelight-term v3 stabilization -- heredoc support, Ctrl+[ fix, nested compositor rendering
+- Fsh v3 -- tab completion, structured output, PowerShell ideas, startup improvement
+- Fsh v4 -- The Shell Grows Up
+- Intent Ledger v3 -- clarity, gate enforcement, deferral control, in-progress separation
+- Faelight-git v5 -- intelligence, integrity, drift prevention
+- Fsh v4 -- borrow the best from Fish, Zsh, Nu -- autosuggestions, structured data, semantic verbs
+- JDbrowser TUI SQLite patterns for core db browse
+- Pinnacle compositor Smithay patterns for faelight-compositor v3
+- Terax ADE patterns for faelight-term v4 and Friday Chat convergence
+- Jarvis Purge -- remove all jarvis references, tables, and checks from the forest
+- Friday Reasoning Engine -- Causal Chain Rule for Tool Retirement Regression Detection
 
-| Stat | Value |
-|------|-------|
-| Commits | 2725 |
-| Tools | 50 deployed |
-| Health | 100% |
-| Intents | 248 complete |
+### 🔧 Notable Changes
+
+- Release v14.0.0 - 🌲 The Forest Owns the Screen
+
+## 🌲 Forest DNA
+
+| | |
+|---|---|
+| 🛠 **Tools** | 51 custom Rust tools |
+| 📋 **Shipped** | 271 features complete |
+| 🏥 **Health** | 100% |
+| ⚡ **Stack** | Rust · Wayland · Smithay · ratatui · wgpu |
+| 🌍 **Philosophy** | Understanding over convenience · No mystery packages |
+
+> Built by one developer. Every tool written or fully understood.
 
 [Full Changelog →](00-meta/CHANGELOG.md)
 

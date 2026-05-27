@@ -120,25 +120,56 @@ pub fn synthesize_narrative(
 ) -> String {
     // INT-264: Semantic synthesis -- describe what changed, not what was counted.
     let mut sentences: Vec<String> = Vec::new();
-    let terminal_work = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("term") ||
-        i.title.to_lowercase().contains("terminal")).count();
-    let shell_work = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("fsh") ||
-        i.title.to_lowercase().contains("shell") ||
-        i.title.to_lowercase().contains("vocabulary") ||
-        i.title.to_lowercase().contains("shell") || i.title.to_lowercase().contains("fsh")).count();
-    let friday_work = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("friday") ||
-        i.title.to_lowercase().contains("friday")).count();
-    let tui_work = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")).count();
-    let infra_work = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("filter-repo") || i.title.to_lowercase().contains("binaries") || i.title.to_lowercase().contains("cleanup")).count();
-    let vocab_count = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("vocabulary") ||
-        i.title.to_lowercase().contains("copy") ||
-        i.title.to_lowercase().contains("delete")).count();
+    let terminal_work = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("term") || i.title.to_lowercase().contains("terminal")
+        })
+        .count();
+    let shell_work = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("fsh")
+                || i.title.to_lowercase().contains("shell")
+                || i.title.to_lowercase().contains("vocabulary")
+                || i.title.to_lowercase().contains("shell")
+                || i.title.to_lowercase().contains("fsh")
+        })
+        .count();
+    let friday_work = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("friday") || i.title.to_lowercase().contains("friday")
+        })
+        .count();
+    let tui_work = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")
+        })
+        .count();
+    let infra_work = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("filter-repo")
+                || i.title.to_lowercase().contains("binaries")
+                || i.title.to_lowercase().contains("cleanup")
+        })
+        .count();
+    let vocab_count = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("vocabulary")
+                || i.title.to_lowercase().contains("copy")
+                || i.title.to_lowercase().contains("delete")
+        })
+        .count();
     if terminal_work > 0 {
         sentences.push("The terminal was rebuilt from scratch -- GPU-ready architecture, full scrollback, Friday panel, split panes.".to_string());
     }
@@ -153,10 +184,16 @@ pub fn synthesize_narrative(
     if tui_work >= 2 {
         sentences.push(format!("{} TUIs shipped: health at a keypress, git workflow simplified, intent ledger always visible.", tui_work));
     } else if tui_work == 1 {
-        sentences.push("A new TUI shipped, bringing the forest's intelligence into an interactive interface.".to_string());
+        sentences.push(
+            "A new TUI shipped, bringing the forest's intelligence into an interactive interface."
+                .to_string(),
+        );
     }
     if infra_work > 0 {
-        sentences.push("The repository shed 320MB of binary history, running lean for the first time.".to_string());
+        sentences.push(
+            "The repository shed 320MB of binary history, running lean for the first time."
+                .to_string(),
+        );
     }
     let health_note = if stats.avg_health >= 99.0 {
         "Health held at 100% throughout."
@@ -167,8 +204,11 @@ pub fn synthesize_narrative(
     };
     sentences.push(health_note.to_string());
     if sentences.is_empty() {
-        format!("The forest grows. {} commits. {} intents. Another chapter.",
-            base_stats.total_commits, data.intents.len())
+        format!(
+            "The forest grows. {} commits. {} intents. Another chapter.",
+            base_stats.total_commits,
+            data.intents.len()
+        )
     } else {
         sentences.join("\n")
     }
@@ -176,22 +216,37 @@ pub fn synthesize_narrative(
 pub fn suggest_themes_v2(data: &ChangelogData, history: &[String]) -> [String; 3] {
     // INT-264: Theme emerges from highest-impact signals, not a template pool.
     // Read what actually shipped and derive a theme from the dominant story.
-    let has_vocab = data.intents.iter().any(|i|
-        i.title.to_lowercase().contains("vocabulary") ||
-        i.title.to_lowercase().contains("human") ||
-        i.title.to_lowercase().contains("vocabulary"));
-    let has_terminal = data.intents.iter().any(|i|
-        i.title.to_lowercase().contains("term") ||
-        i.title.to_lowercase().contains("terminal"));
-    let has_tui = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")).count() >= 2;
-    let has_friday = data.intents.iter().any(|i|
-        i.title.to_lowercase().contains("friday") ||
-        i.title.to_lowercase().contains("friday"));
-    let has_cleanup = data.intents.iter().any(|i|
-        i.title.to_lowercase().contains("filter-repo") || i.title.to_lowercase().contains("binaries"));
-    let has_shell = data.intents.iter().filter(|i|
-        i.title.to_lowercase().contains("shell") || i.title.to_lowercase().contains("fsh")).count() >= 2;
+    let has_vocab = data.intents.iter().any(|i| {
+        i.title.to_lowercase().contains("vocabulary")
+            || i.title.to_lowercase().contains("human")
+            || i.title.to_lowercase().contains("vocabulary")
+    });
+    let has_terminal = data.intents.iter().any(|i| {
+        i.title.to_lowercase().contains("term") || i.title.to_lowercase().contains("terminal")
+    });
+    let has_tui = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("tui") || i.title.to_lowercase().contains("ratatui")
+        })
+        .count()
+        >= 2;
+    let has_friday = data.intents.iter().any(|i| {
+        i.title.to_lowercase().contains("friday") || i.title.to_lowercase().contains("friday")
+    });
+    let has_cleanup = data.intents.iter().any(|i| {
+        i.title.to_lowercase().contains("filter-repo")
+            || i.title.to_lowercase().contains("binaries")
+    });
+    let has_shell = data
+        .intents
+        .iter()
+        .filter(|i| {
+            i.title.to_lowercase().contains("shell") || i.title.to_lowercase().contains("fsh")
+        })
+        .count()
+        >= 2;
     let intent_count = data.intents.len();
     // Derive the primary theme from the dominant signal
     let primary = if has_vocab && has_terminal {

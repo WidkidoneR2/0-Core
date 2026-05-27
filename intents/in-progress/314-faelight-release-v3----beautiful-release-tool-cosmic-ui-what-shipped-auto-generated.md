@@ -1,7 +1,7 @@
 ---
 id: 314
 title: "faelight-release v3 -- beautiful release tool, libcosmic UI, What Shipped auto-generated"
-status: planned
+status: in-progress
 date: 2026-05-17
 tags: faelight-release, libcosmic, release, changelog, public, presentation
 depends_on: []
