@@ -1,7 +1,7 @@
 ---
 id: 307
 title: "power-profiles-daemon + Friday integration -- intelligent power management"
-status: planned
+status: in-progress
 date: 2026-05-15
 type: feature
 tags: [power, friday, amd, framework, daemon, intelligence]

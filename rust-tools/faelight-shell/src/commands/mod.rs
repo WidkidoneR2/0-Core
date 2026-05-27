@@ -404,6 +404,7 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         }
         "source" => source_cmd(args),
         "net" | "network" => sys_network(),
+        "power" | "pwr" => power_cmd(db, args),
         "pkgs" | "packages" => sys_packages(),
         "pkg" => pkg_cmd(args),
         "git-commits" | "gc" | "git.commits" => git_commits(core_root, args),
@@ -5191,6 +5192,119 @@ fn sys_files(_core_root: &str, args: &[&str]) -> CommandResult {
         .unwrap_or_default();
 
     CommandResult::Value(Value::Table(rows))
+}
+
+/// INT-307: power -- power profile management with Friday awareness
+fn power_cmd(db: &ForestDb, args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    let sub = args.first().copied().unwrap_or("status");
+    match sub {
+        "status" | "s" => {
+            let profile = std::process::Command::new("powerprofilesctl")
+                .arg("get")
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            let battery = read_battery_status();
+            let icon = match profile.as_str() {
+                "performance" => "⚡",
+                "balanced"    => "⚖",
+                "power-saver" => "🍃",
+                _             => "?",
+            };
+            let profile_colored = match profile.as_str() {
+                "performance" => profile.bright_yellow().to_string(),
+                "power-saver" => profile.bright_green().to_string(),
+                _             => profile.bright_white().to_string(),
+            };
+            let mut out = String::new();
+            out.push_str(&format!("\n  {} Power Profile\n", "⚡".normal()));
+            out.push_str(&format!("  {}\n\n", "─".repeat(40).dimmed()));
+            out.push_str(&format!("  {} profile:  {} {}\n", "→".bright_cyan(), icon, profile_colored));
+            out.push_str(&format!("  {} battery:  {}\n", "→".bright_cyan(), battery));
+            out.push_str(&format!("\n  Commands: power set performance|balanced|power-saver\n"));
+            // Record in state.db for Friday
+            let _ = db.conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile', ?1)",
+                rusqlite::params![profile],
+            );
+            CommandResult::Output(out)
+        }
+        "set" => {
+            let profile = args.get(1).copied().unwrap_or("balanced");
+            let valid = ["performance", "balanced", "power-saver"];
+            if !valid.contains(&profile) {
+                return CommandResult::Error(format!(
+                    "  power set: invalid profile '{}' -- use: performance, balanced, power-saver", profile
+                ));
+            }
+            let status = std::process::Command::new("powerprofilesctl")
+                .args(["set", profile])
+                .status();
+            match status {
+                Ok(s) if s.success() => {
+                    let _ = db.conn.execute(
+                        "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile', ?1)",
+                        rusqlite::params![profile],
+                    );
+                    let icon = match profile {
+                        "performance" => "⚡",
+                        "power-saver" => "🍃",
+                        _             => "⚖",
+                    };
+                    CommandResult::Output(format!("  {} {} -- profile set to {}", "✅".normal(), icon, profile))
+                }
+                _ => CommandResult::Error(format!("  power set: failed -- is power-profiles-daemon running?")),
+            }
+        }
+        "auto" => {
+            let _ = db.conn.execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_auto', 'true')",
+                [],
+            );
+            CommandResult::Output("  ✅ Friday power auto-switching enabled".to_string())
+        }
+        _ => {
+            CommandResult::Output(format!(
+                "  Usage: power status | power set <profile> | power auto\n  Profiles: performance ⚡  balanced ⚖  power-saver 🍃"
+            ))
+        }
+    }
+}
+
+fn read_battery_status() -> String {
+    use colored::Colorize;
+    // Read from /sys/class/power_supply/
+    let base = std::path::Path::new("/sys/class/power_supply");
+    if let Ok(entries) = std::fs::read_dir(base) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("BAT") {
+                let capacity = std::fs::read_to_string(entry.path().join("capacity"))
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default();
+                let status = std::fs::read_to_string(entry.path().join("status"))
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default();
+                let pct: i32 = capacity.parse().unwrap_or(0);
+                let icon = if status == "Charging" { "🔌" }
+                    else if pct > 80 { "🔋" }
+                    else if pct > 20 { "🪫" }
+                    else { "⚠" };
+                let pct_colored = if pct > 50 {
+                    format!("{}%", pct).bright_green().to_string()
+                } else if pct > 20 {
+                    format!("{}%", pct).yellow().to_string()
+                } else {
+                    format!("{}%", pct).bright_red().to_string()
+                };
+                return format!("{} {} ({})", icon, pct_colored, status.to_lowercase());
+            }
+        }
+    }
+    "no battery detected".to_string()
 }
 
 fn sys_network() -> CommandResult {

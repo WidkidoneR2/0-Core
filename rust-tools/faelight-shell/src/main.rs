@@ -1020,6 +1020,27 @@ fn repl_main() -> Result<()> {
                     println!("  {} {} commands", "○".bright_cyan(), segment_count);
                 }
                 'segments: for (seg_idx, segment) in segments.iter().enumerate() {
+                    // INT-307: restore power profile after compilation
+                    if seg_idx == 0 {
+                        if let Ok(prev) = db.conn.query_row(
+                            "SELECT value FROM shell_state WHERE key = 'power_profile_prev'",
+                            [], |r| r.get::<_, String>(0),
+                        ) {
+                            if !prev.is_empty() {
+                                let _ = std::process::Command::new("powerprofilesctl")
+                                    .args(["set", &prev]).status();
+                                let _ = db.conn.execute(
+                                    "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile', ?1)",
+                                    rusqlite::params![prev],
+                                );
+                                let _ = db.conn.execute(
+                                    "DELETE FROM shell_state WHERE key = 'power_profile_prev'",
+                                    [],
+                                );
+                                eprintln!("  ð² Friday: â restored {} profile", prev);
+                            }
+                        }
+                    }
                     let mut _children_pre: Vec<std::process::Child> = Vec::new(); // ensures children is fresh each segment iteration
                     if segment_count > 1 {
                         println!(
@@ -1112,7 +1133,27 @@ fn repl_main() -> Result<()> {
                             let _iid = db.get_focus_intent();
                             db.capture_snapshot(line, _iid.as_deref());
                         }
+                                   // INT-307 Phase 2: Friday power switching on compilation
+                    {
+                        let _compile_tok = line.split_whitespace().next().unwrap_or("");
+                        let _is_compile = _compile_tok == "cargo"
+                            && (line.contains(" build") || line.contains(" check")
+                                || line.contains(" test") || line.contains(" nextest"));
+                        if _is_compile {
+                            let _prev = db.conn.query_row(
+                                "SELECT value FROM shell_state WHERE key = 'power_profile'",
+                                [], |r| r.get::<_, String>(0),
+                            ).unwrap_or_else(|_| "balanced".to_string());
+                            let _ = db.conn.execute(
+                                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('power_profile_prev', ?1)",
+                                rusqlite::params![_prev],
+                            );
+                            let _ = std::process::Command::new("powerprofilesctl")
+                                .args(["set", "performance"]).status();
+                            eprintln!("  ð² Friday: switching to performance for compilation");
+                        }
                     }
+     }
                     // Phase 18b — Flow mode: earliest intercept
                     {
                         let ftok = line.split_whitespace().next().unwrap_or("");
