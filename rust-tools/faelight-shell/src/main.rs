@@ -1366,6 +1366,19 @@ fn repl_main() -> Result<()> {
                         }
                     }
                     // INT-220 -- friday <question>: ask Friday about the forest
+                    // INT-278 -- friday chat: launch Friday Chat TUI (intercept first)
+                    if line.starts_with("friday chat") {
+                        let rest = line[11..].trim().to_string();
+                        if rest.is_empty() {
+                            let _ = std::process::Command::new("friday-chat").status();
+                        } else {
+                            if let Ok(out) = std::process::Command::new("friday-chat")
+                                .args(["chat", &rest]).output() {
+                                print!("{}", String::from_utf8_lossy(&out.stdout));
+                            }
+                        }
+                        continue 'segments;
+                    }
                     if line.starts_with("friday")
                         && (line == "friday" || line.starts_with("friday "))
                         && !line.contains(" | ")

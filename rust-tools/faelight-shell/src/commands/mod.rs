@@ -221,6 +221,20 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         }
     }
 
+    // INT-278: friday chat -- before alias resolution
+    if cmd == "friday" && args.first().copied() == Some("chat") {
+        let rest = args.get(1..).unwrap_or(&[]).join(" ");
+        if rest.is_empty() {
+            let _ = std::process::Command::new("friday-chat").status();
+            return CommandResult::Output(String::new());
+        } else {
+            let out = std::process::Command::new("friday-chat")
+                .args(["chat", &rest]).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+            return CommandResult::Output(out);
+        }
+    }
     // Alias resolution — check before dispatch
     if let Some(aliased) = db.get_alias(&cmd) {
         let expanded = if args.is_empty() {
@@ -248,6 +262,20 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         }
     }
 
+    // INT-278: friday chat -- intercept before alias expansion
+    if cmd == "friday" && args.first().copied() == Some("chat") {
+        let rest = args.get(1..).unwrap_or(&[]).join(" ");
+        if rest.is_empty() {
+            let _ = std::process::Command::new("friday-chat").status();
+            return CommandResult::Output(String::new());
+        } else {
+            let out = std::process::Command::new("friday-chat")
+                .args(["chat", &rest]).output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+            return CommandResult::Output(out);
+        }
+    }
     let result = match cmd.as_str() {
         "on" => on_cmd(db, args),
         "help" | "h" => help(),
@@ -277,6 +305,21 @@ pub fn execute(line: &str, db: &ForestDb, core_root: &str) -> CommandResult {
         "deploys" | "deployments" => deploys(db),
         "friday-patterns" => friday_patterns(db),
         "friday" if line.trim() == "friday" => friday_patterns(db),
+        "friday" if args.first().copied() == Some("chat") => {
+            let rest = args.get(1..).unwrap_or(&[]).join(" ");
+            if rest.is_empty() {
+                // Launch TUI
+                let _ = std::process::Command::new("friday-chat").status();
+                CommandResult::Output(String::new())
+            } else {
+                // Direct query mode
+                let out = std::process::Command::new("friday-chat")
+                    .args(["chat", &rest]).output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                    .unwrap_or_default();
+                CommandResult::Output(out)
+            }
+        }
         "intents" => intents(core_root),
         "tools" => tools_table(db, core_root),
         "version" => version(core_root),
