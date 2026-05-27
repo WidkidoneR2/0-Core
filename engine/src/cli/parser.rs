@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "core")]
-#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v52 (Forest Mind)"))]
+#[command(version = env!("CARGO_PKG_VERSION"), long_version = concat!(env!("CARGO_PKG_VERSION"), "  ·  intelligence v53 (Forest Mind)"))]
 #[command(about = "0-Core \u{2014} single orchestrator binary")]
 pub struct Cli {
     #[command(subcommand)]
@@ -1633,6 +1633,21 @@ pub enum GenealogyCommands {
     Tree,
     /// Show founding intents with no ancestors
     Roots,
+    /// Show full context for a commit hash (INT-312)
+    Commit {
+        /// Commit hash (first 7+ chars)
+        hash: String,
+    },
+    /// Show all commits made while an intent was active (INT-312)
+    Commits {
+        /// Intent ID (e.g. 312)
+        id: String,
+    },
+    /// Search commit genealogy by term (INT-312)
+    Search {
+        /// Search term
+        term: String,
+    },
 }
 
 #[derive(Debug, clap::Subcommand)]

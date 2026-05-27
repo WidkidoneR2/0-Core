@@ -824,6 +824,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             GenealogyCommand::Show { id } => crate::domains::genealogy::show(ctx, &id),
             GenealogyCommand::Tree => crate::domains::genealogy::tree(ctx),
             GenealogyCommand::Roots => crate::domains::genealogy::roots(ctx),
+            GenealogyCommand::Commit { hash } => crate::domains::genealogy::commit_show(ctx, &hash),
+            GenealogyCommand::Commits { id } => crate::domains::genealogy::commits_for_intent(ctx, &id),
+            GenealogyCommand::Search { term } => crate::domains::genealogy::commit_search(ctx, &term),
         },
         Command::Integrity(cmd) => match cmd {
             IntegrityCommand::Run => crate::domains::integrity::cmd_run(ctx),

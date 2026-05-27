@@ -813,6 +813,9 @@ pub enum GenealogyCommand {
     Show { id: String },
     Tree,
     Roots,
+    Commit { hash: String },
+    Commits { id: String },
+    Search { term: String },
 }
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

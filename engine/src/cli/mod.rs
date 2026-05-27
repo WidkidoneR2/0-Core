@@ -567,6 +567,9 @@ pub fn parse() -> Command {
             GenealogyCommands::Show { id } => GenealogyCommand::Show { id },
             GenealogyCommands::Tree => GenealogyCommand::Tree,
             GenealogyCommands::Roots => GenealogyCommand::Roots,
+            GenealogyCommands::Commit { hash } => GenealogyCommand::Commit { hash },
+            GenealogyCommands::Commits { id } => GenealogyCommand::Commits { id },
+            GenealogyCommands::Search { term } => GenealogyCommand::Search { term },
         }),
         Commands::Integrity { command } => Command::Integrity(match command {
             IntegrityCommands::Run => IntegrityCommand::Run,
